@@ -58,16 +58,17 @@ function handleLanguageUpdated(data) {
     webUIi18n.t('ui.messages.languageChanged') : 'Language changed to';
   setAlert(`<i class='fa-solid fa-globe'></i> ${languageChangedText} ${languageName}`, "success");
 
-  if (data.language && $("#conversation-language").val() !== data.language) {
-    $("#conversation-language").val(data.language);
+  var langSelect = document.getElementById('conversation-language');
+  if (data.language && langSelect && langSelect.value !== data.language) {
+    langSelect.value = data.language;
   }
 
   if (data.text_direction) {
     if (data.text_direction === "rtl") {
-      $("body").addClass("rtl-messages");
+      document.body.classList.add("rtl-messages");
       if (window.debugWebSocket) console.log("RTL messages enabled for:", data.language);
     } else {
-      $("body").removeClass("rtl-messages");
+      document.body.classList.remove("rtl-messages");
       if (window.debugWebSocket) console.log("LTR messages enabled for:", data.language);
     }
   }
@@ -81,25 +82,32 @@ function handleLanguageUpdated(data) {
 function handleProcessingStatus(data) {
   setAlert(`<i class='fas fa-hourglass-half'></i> ${data.content}`, "info");
 
-  if (!$("#monadic-spinner").is(":visible")) {
-    $("#monadic-spinner").show();
+  var spinner = document.getElementById('monadic-spinner');
+  if (spinner && spinner.style.display === 'none') {
+    spinner.style.display = '';
   }
 
-  const $systemDiv = $('<div class="system-info-message"><i class="fas fa-hourglass-half"></i> </div>');
-  const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
-  $systemDiv.append($('<span>').text(contentText));
+  var systemDiv = document.createElement('div');
+  systemDiv.className = 'system-info-message';
+  systemDiv.innerHTML = '<i class="fas fa-hourglass-half"></i> ';
+  var contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
+  var span = document.createElement('span');
+  span.textContent = contentText;
+  systemDiv.appendChild(span);
 
-  const systemElement = createCard("system",
+  var systemElement = createCard("system",
     "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-    $systemDiv[0].outerHTML,
+    systemDiv.outerHTML,
     "en",
     null,
     true,
     []
   );
-  $("#discourse").append(systemElement);
+  var discourse = document.getElementById('discourse');
+  var sysEl = systemElement[0] || systemElement;
+  if (discourse && sysEl) discourse.appendChild(sysEl);
   if (window.MarkdownRenderer) {
-    window.MarkdownRenderer.applyRenderers(systemElement[0]);
+    window.MarkdownRenderer.applyRenderers(sysEl);
   }
 
   if (window.autoScroll) {
@@ -116,21 +124,27 @@ function handleProcessingStatus(data) {
  * @param {Object} data - Message data with content string or object
  */
 function handleSystemInfo(data) {
-  const $systemDiv = $('<div class="system-info-message"><i class="fas fa-info-circle"></i> </div>');
-  const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
-  $systemDiv.append($('<span>').text(contentText));
+  var systemDiv = document.createElement('div');
+  systemDiv.className = 'system-info-message';
+  systemDiv.innerHTML = '<i class="fas fa-info-circle"></i> ';
+  var contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
+  var span = document.createElement('span');
+  span.textContent = contentText;
+  systemDiv.appendChild(span);
 
-  const systemElement = createCard("system",
+  var systemElement = createCard("system",
     "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-    $systemDiv[0].outerHTML,
+    systemDiv.outerHTML,
     "en",
     null,
     true,
     []
   );
-  $("#discourse").append(systemElement);
+  var discourse = document.getElementById('discourse');
+  var sysEl = systemElement[0] || systemElement;
+  if (discourse && sysEl) discourse.appendChild(sysEl);
   if (window.MarkdownRenderer) {
-    window.MarkdownRenderer.applyRenderers(systemElement[0]);
+    window.MarkdownRenderer.applyRenderers(sysEl);
   }
 
   if (window.autoScroll) {
@@ -154,24 +168,36 @@ function handleSTT(data) {
   }
 
   if (!handled) {
-    $("#message").val($("#message").val() + " " + data["content"]);
+    var messageEl = document.getElementById('message');
+    if (messageEl) messageEl.value = messageEl.value + " " + data["content"];
+
+    var asrEl = document.getElementById('asr-p-value');
     if (data["logprob"] != null) {
-      $("#asr-p-value").text("Last Speech-to-Text p-value: " + data["logprob"]).show();
+      if (asrEl) { asrEl.textContent = "Last Speech-to-Text p-value: " + data["logprob"]; asrEl.style.display = ''; }
     } else {
-      $("#asr-p-value").text("").hide();
+      if (asrEl) { asrEl.textContent = ""; asrEl.style.display = 'none'; }
     }
-    $("#send, #clear, #voice").prop("disabled", false);
 
-    const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-    $("#message").attr("placeholder", origPlaceholder);
+    ['send', 'clear', 'voice'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.disabled = false;
+    });
 
-    $("#amplitude").hide();
+    if (messageEl) {
+      var origPlaceholder = messageEl.dataset.originalPlaceholder || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
+      messageEl.setAttribute("placeholder", origPlaceholder);
+    }
 
-    if ($("#check-easy-submit").is(":checked")) {
+    var amplitudeEl = document.getElementById('amplitude');
+    if (amplitudeEl) amplitudeEl.style.display = 'none';
+
+    var easySubmit = document.getElementById('check-easy-submit');
+    if (easySubmit && easySubmit.checked) {
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
         if (window.debugWebSocket) console.log('[Send] Ignoring auto-submit: tab is not foreground');
       } else {
-        $("#send").click();
+        var sendBtn = document.getElementById('send');
+        if (sendBtn) sendBtn.click();
       }
     }
     const voiceFinishedText = getTranslation('ui.messages.voiceRecognitionFinished', 'Voice recognition finished');
@@ -196,28 +222,38 @@ function handlePDFTitles(data) {
          + `</div>`;
   }).join("");
   const noPdfsText = (typeof getTranslation === 'function') ? getTranslation('ui.noPdfsLocal', 'No PDFs imported') : 'No PDFs imported';
-  $("#pdf-titles").html(rows || `<span class='text-secondary'>${noPdfsText}</span>`);
-  data["content"].forEach((title, index) => {
-    $(`#pdf-del-${index}`).off('click').on('click', function () {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var pdfTitlesEl = document.getElementById('pdf-titles');
+  if (pdfTitlesEl) pdfTitlesEl.innerHTML = rows || `<span class='text-secondary'>${noPdfsText}</span>`;
 
-      if (isIOS) {
-        const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
-        if (confirm(`${base} ${title}?`)) {
-          window.ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
+  data["content"].forEach((title, index) => {
+    var delBtn = document.getElementById('pdf-del-' + index);
+    if (delBtn) {
+      delBtn.onclick = function() {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        if (isIOS) {
+          const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
+          if (confirm(`${base} ${title}?`)) {
+            window.ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
+          }
+        } else {
+          var modalEl = document.getElementById('pdfDeleteConfirmation');
+          if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+          var pdfToDeleteEl = document.getElementById('pdfToDelete');
+          if (pdfToDeleteEl) pdfToDeleteEl.textContent = title;
+          var confirmBtn = document.getElementById('pdfDeleteConfirmed');
+          if (confirmBtn) {
+            confirmBtn.onclick = function(event) {
+              event.preventDefault();
+              window.ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
+              if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+              if (pdfToDeleteEl) pdfToDeleteEl.textContent = "";
+            };
+          }
         }
-      } else {
-        $("#pdfDeleteConfirmation").modal("show");
-        $("#pdfToDelete").text(title);
-        $("#pdfDeleteConfirmed").off("click").on("click", function (event) {
-          event.preventDefault();
-          window.ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
-          $("#pdfDeleteConfirmation").modal("hide");
-          $("#pdfToDelete").text("");
-        });
-      }
-    });
+      };
+    }
   });
 }
 
@@ -242,12 +278,15 @@ function handlePDFDeleted(data) {
  */
 function handleChangeStatus(data) {
   data["content"].forEach((msg) => {
-    const card = $(`#${msg["mid"]}`);
-    if (card.length) {
-      if (msg["active"]) {
-        card.find(".status").addClass("active");
-      } else {
-        card.find(".status").removeClass("active");
+    const card = document.getElementById(msg["mid"]);
+    if (card) {
+      var statusEl = card.querySelector(".status");
+      if (statusEl) {
+        if (msg["active"]) {
+          statusEl.classList.add("active");
+        } else {
+          statusEl.classList.remove("active");
+        }
       }
     }
   });
@@ -280,7 +319,8 @@ function handleSampleSuccess(data) {
       window.currentSampleTimeout = null;
     }
 
-    $("#monadic-spinner").hide();
+    var spinner = document.getElementById('monadic-spinner');
+    if (spinner) spinner.style.display = 'none';
     document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
 
     const sampleAddedText = getTranslation('ui.messages.sampleMessageAdded', 'Sample message added');

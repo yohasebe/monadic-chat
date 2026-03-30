@@ -1,9 +1,9 @@
 /**
  * Monadic Chat Module Shims
- * 
+ *
  * This file provides fallback implementations for module functions that might be missing
  * in order to make the application more resilient to loading errors.
- * 
+ *
  * Rather than duplicating fallback implementations throughout the codebase, this
  * centralized approach ensures consistent behavior while minimizing code duplication.
  */
@@ -11,10 +11,10 @@
 // Clipboard operation shims to ensure copying works in DevTools
 document.addEventListener('keydown', function(e) {
   // Check if we're in a devtools context by looking for devtools-specific elements
-  const inDevTools = document.querySelector('.inspector-view-tabbed-pane') || 
-                    document.querySelector('.console-view') || 
+  const inDevTools = document.querySelector('.inspector-view-tabbed-pane') ||
+                    document.querySelector('.console-view') ||
                     document.querySelector('.elements-panel');
-  
+
   if (inDevTools) {
     // Handle Cmd+C (macOS) or Ctrl+C (Windows/Linux)
     if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
@@ -58,104 +58,111 @@ window.shims.uiUtils = {
   // Sets up a textarea with automatic resizing based on content
   setupTextarea: function(textarea, initialHeight) {
     let isIMEActive = false;
-    
+
     textarea.style.height = initialHeight + 'px';
-    
+
     textarea.addEventListener('compositionstart', function() {
       isIMEActive = true;
     });
-    
+
     textarea.addEventListener('compositionend', function() {
       isIMEActive = false;
       window.shims.uiUtils.autoResize(textarea, initialHeight);
     });
-    
+
     textarea.addEventListener('input', function() {
       if (!isIMEActive) {
         window.shims.uiUtils.autoResize(textarea, initialHeight);
       }
     });
-    
+
     textarea.addEventListener('focus', function() {
       window.shims.uiUtils.autoResize(textarea, initialHeight);
     });
-    
+
     window.shims.uiUtils.autoResize(textarea, initialHeight);
   },
 
   // Adjusts scroll buttons visibility based on scroll position
   adjustScrollButtons: function() {
-    const mainPanel = $("#main");
-    const windowWidth = $(window).width();
-    const isMobile = windowWidth < 600;
-    const isMedium = windowWidth < 768; // Bootstrap md breakpoint
-    
+    var mainPanel = document.getElementById('main');
+    if (!mainPanel) return;
+
+    var windowWidth = window.innerWidth;
+    var isMobile = windowWidth < 600;
+    var isMedium = windowWidth < 768; // Bootstrap md breakpoint
+
     // On mobile and medium screens where menu/content are exclusive, check toggle state
     if (isMobile || isMedium) {
-      // Check if toggle button has menu-hidden class
-      // When menu-hidden class is present, menu is hidden and main is showing
-      // When menu-hidden class is absent, menu is showing and main is hidden
-      const toggleBtn = $("#toggle-menu");
-      const isMenuHidden = toggleBtn.hasClass("menu-hidden");
-      
+      var toggleBtn = document.getElementById('toggle-menu');
+      var isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
+
       if (!isMenuHidden) {
-        // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons
-        $("#back_to_top").hide();
-        $("#back_to_bottom").hide();
+        var topBtn = document.getElementById('back_to_top');
+        var bottomBtn = document.getElementById('back_to_bottom');
+        if (topBtn) topBtn.style.display = 'none';
+        if (bottomBtn) bottomBtn.style.display = 'none';
         return;
       }
     }
-    
+
     // Also check for menu-visible class (mobile menu state)
-    if ($("body").hasClass("menu-visible")) {
-      $("#back_to_top").hide();
-      $("#back_to_bottom").hide();
+    if (document.body.classList.contains('menu-visible')) {
+      var topBtn2 = document.getElementById('back_to_top');
+      var bottomBtn2 = document.getElementById('back_to_bottom');
+      if (topBtn2) topBtn2.style.display = 'none';
+      if (bottomBtn2) bottomBtn2.style.display = 'none';
       return;
     }
-    
-    const mainHeight = mainPanel.height();
-    const mainScrollHeight = mainPanel.prop("scrollHeight");
-    const mainScrollTop = mainPanel.scrollTop();
-    
+
+    var mainHeight = mainPanel.clientHeight;
+    var mainScrollHeight = mainPanel.scrollHeight;
+    var mainScrollTop = mainPanel.scrollTop;
+
     // Position buttons relative to main panel
-    const mainOffset = mainPanel.offset();
-    const mainWidth = mainPanel.width();
-    if (mainOffset) {
-      const buttonRight = $(window).width() - (mainOffset.left + mainWidth) + 30;
-      $("#back_to_top").css("right", buttonRight + "px");
-      $("#back_to_bottom").css("right", buttonRight + "px");
+    var mainRect = mainPanel.getBoundingClientRect();
+    var mainWidth = mainPanel.clientWidth;
+    if (mainRect) {
+      var buttonRight = window.innerWidth - (mainRect.left + mainWidth) + 30;
+      var backToTop = document.getElementById('back_to_top');
+      var backToBottom = document.getElementById('back_to_bottom');
+      if (backToTop) backToTop.style.right = buttonRight + "px";
+      if (backToBottom) backToBottom.style.right = buttonRight + "px";
     }
-    
+
     // Calculate thresholds (100px minimum scroll to show buttons)
-    const scrollThreshold = 100;
-    
+    var scrollThreshold = 100;
+
+    var backToTopBtn = document.getElementById('back_to_top');
+    var backToBottomBtn = document.getElementById('back_to_bottom');
+
     // Show top button when scrolled down enough from the top
-    // This should work even when at the bottom
     if (mainScrollTop > scrollThreshold) {
-      $("#back_to_top").fadeIn(200);
+      if (backToTopBtn) backToTopBtn.style.display = '';
     } else {
-      $("#back_to_top").fadeOut(200);
+      if (backToTopBtn) backToTopBtn.style.display = 'none';
     }
-    
+
     // Show bottom button when not near the bottom
-    const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
+    var distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
     if (distanceFromBottom > scrollThreshold) {
-      $("#back_to_bottom").fadeIn(200);
+      if (backToBottomBtn) backToBottomBtn.style.display = '';
     } else {
-      $("#back_to_bottom").fadeOut(200);
+      if (backToBottomBtn) backToBottomBtn.style.display = 'none';
     }
   },
 
   // Sets up tooltips for card header elements
   setupTooltips: function(container) {
     try {
-      if (container && container.tooltip) {
-        container.tooltip({
-          selector: '.card-header [title]',
-          trigger: 'hover',
-          delay: { show: 0, hide: 0 },
-          show: 100,
-          container: 'body'
+      if (container && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        var titleEls = container.querySelectorAll('.card-header [title]');
+        titleEls.forEach(function(el) {
+          new bootstrap.Tooltip(el, {
+            trigger: 'hover',
+            delay: { show: 0, hide: 0 },
+            container: 'body'
+          });
         });
       }
     } catch (e) {
@@ -166,17 +173,17 @@ window.shims.uiUtils = {
   // Removes all tooltip elements to prevent memory leaks
   cleanupAllTooltips: function() {
     try {
-      $('.tooltip').remove();
-      
-      // Safely dispose tooltips if the method is available
-      const bsElements = $('[data-bs-original-title]');
-      if (bsElements.length && bsElements.tooltip) {
-        bsElements.tooltip('dispose');
-      }
-      
-      const originalElements = $('[data-original-title]');
-      if (originalElements.length && originalElements.tooltip) {
-        originalElements.tooltip('dispose');
+      document.querySelectorAll('.tooltip').forEach(function(el) { el.remove(); });
+
+      if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        document.querySelectorAll('[data-bs-original-title]').forEach(function(el) {
+          var tip = bootstrap.Tooltip.getInstance(el);
+          if (tip) tip.dispose();
+        });
+        document.querySelectorAll('[data-original-title]').forEach(function(el) {
+          var tip = bootstrap.Tooltip.getInstance(el);
+          if (tip) tip.dispose();
+        });
       }
     } catch (e) {
       console.warn('Tooltip cleanup error:', e);
@@ -186,71 +193,72 @@ window.shims.uiUtils = {
   // Adjusts image upload button based on selected model and app settings
   adjustImageUploadButton: function(selectedModel) {
     if (!modelSpec || !selectedModel) return;
-    
-    const modelData = modelSpec[selectedModel];
-    const imageFileElement = $("#image-file");
-    const currentApp = $("#apps").val();
-    
+
+    var modelData = modelSpec[selectedModel];
+    var imageFileElement = document.getElementById('image-file');
+    var appsElement = document.getElementById('apps');
+    var currentApp = appsElement ? appsElement.value : null;
+
     // Check if current app has image capability enabled
-    const toBool = window.toBool || ((value) => {
+    var toBool = window.toBool || (function(value) {
       if (typeof value === 'boolean') return value;
       if (typeof value === 'string') return value === 'true';
       return !!value;
     });
 
     // Check if current app is an image generation app
-    const isImageGenerationApp = apps[currentApp] && toBool(apps[currentApp].image_generation);
-    const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
+    var isImageGenerationApp = apps[currentApp] && toBool(apps[currentApp].image_generation);
+    var allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
     // Show button if model has vision capability OR if it's an image generation app
     if ((modelData && modelData.vision_capability) || isImageGenerationApp) {
       // Enable the button
-      imageFileElement.prop("disabled", false);
-      
+      if (imageFileElement) imageFileElement.disabled = false;
+
       // Update button text based on PDF/File Inputs support and image generation capability (SSOT-aware)
-      const isPdfEnabled = (typeof window !== 'undefined' && window.isPdfSupportedForModel)
+      var isPdfEnabled = (typeof window !== 'undefined' && window.isPdfSupportedForModel)
         ? window.isPdfSupportedForModel(selectedModel)
         : /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
-      const isFileInputsEnabled = (typeof window !== 'undefined' && window.isFileInputsSupportedForModel)
+      var isFileInputsEnabled = (typeof window !== 'undefined' && window.isFileInputsSupportedForModel)
         ? window.isFileInputsSupportedForModel(selectedModel)
         : false;
 
       // Button text labels
-      const imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
-      const imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
-      const fileText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.file') : 'File';
+      var imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
+      var imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
+      var fileText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.file') : 'File';
 
-      if (isImageGenerationApp && !allowPdfInImageApp) {
-        imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
-      } else if (isImageGenerationApp && allowPdfInImageApp) {
-        imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
-      } else if (isFileInputsEnabled) {
-        imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.file">' + fileText + '</span>');
-      } else if (isPdfEnabled) {
-        imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
-      } else {
-        imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
+      if (imageFileElement) {
+        if (isImageGenerationApp && !allowPdfInImageApp) {
+          imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
+        } else if (isImageGenerationApp && allowPdfInImageApp) {
+          imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
+        } else if (isFileInputsEnabled) {
+          imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.file">' + fileText + '</span>';
+        } else if (isPdfEnabled) {
+          imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
+        } else {
+          imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
+        }
       }
 
       // Update accept attribute if present
-      const imageFileInput = $('#imageFile');
-      if (imageFileInput.length) {
+      var imageFileInput = document.getElementById('imageFile');
+      if (imageFileInput) {
         if (isFileInputsEnabled && !isImageGenerationApp) {
-          imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
+          imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
         } else if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
-          imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
+          imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp');
         } else {
-          imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
+          imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
         }
       }
-      
-      if (imageFileElement.show) {
-        imageFileElement.show();
-      }
+
+      if (imageFileElement) imageFileElement.style.display = '';
     } else {
-      imageFileElement.prop("disabled", true);
-      if (imageFileElement.hide) {
-        imageFileElement.hide();
+      if (imageFileElement) {
+        imageFileElement.disabled = true;
+        imageFileElement.style.display = 'none';
       }
     }
   }
@@ -265,16 +273,16 @@ window.shims.formHandlers = {
         reject(new Error("Please select a PDF file to upload"));
         return;
       }
-      
+
       if (file.type !== "application/pdf") {
         reject(new Error("Please select a PDF file"));
         return;
       }
-      
+
       const formData = new FormData();
       formData.append("pdfFile", file);
       formData.append("pdfTitle", fileTitle);
-  
+
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 120000);
       fetch("/pdf", { method: "POST", body: formData, signal: controller.signal })
@@ -291,16 +299,16 @@ window.shims.formHandlers = {
         reject(new Error("Please select a document file to convert"));
         return;
       }
-      
+
       if (doc.type === "application/octet-stream") {
         reject(new Error("Unsupported file type"));
         return;
       }
-      
+
       const formData = new FormData();
       formData.append("docFile", doc);
       formData.append("docLabel", docLabel || "");
-  
+
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 60000);
       fetch("/document", { method: "POST", body: formData, signal: controller.signal })
@@ -317,16 +325,16 @@ window.shims.formHandlers = {
         reject(new Error("Please specify the URL of the page to fetch"));
         return;
       }
-      
+
       if (!url.match(/^(http|https):\/\/[^ "]+$/)) {
         reject(new Error("Please enter a valid URL"));
         return;
       }
-      
+
       const formData = new FormData();
       formData.append("pageURL", url);
       formData.append("urlLabel", urlLabel || "");
-  
+
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30000);
       fetch("/fetch_webpage", { method: "POST", body: formData, signal: controller.signal })
@@ -343,10 +351,10 @@ window.shims.formHandlers = {
         reject(new Error("Please select a file to import"));
         return;
       }
-      
+
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30000);
       fetch("/load", { method: "POST", body: formData, signal: controller.signal })
@@ -363,7 +371,7 @@ window.shims.formHandlers = {
       const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
       submitButton.disabled = !validUrl;
     };
-    
+
     urlInput.addEventListener("change", validateUrl);
     urlInput.addEventListener("keyup", validateUrl);
     urlInput.addEventListener("input", validateUrl);
@@ -378,35 +386,36 @@ window.shims.formHandlers = {
 
   // Shows a modal with proper focus management
   showModalWithFocus: function(modalId, focusElementId, cleanupFn) {
-    const modal = document.getElementById(modalId);
-    const focusElement = document.getElementById(focusElementId);
-    
+    var modal = document.getElementById(modalId);
+    var focusElement = document.getElementById(focusElementId);
+
     if (!modal || !focusElement) return;
-    
-    $(modal).modal("show");
-    
-    const timerKey = 'focusTimer';
-    const existingTimer = $(modal).data(timerKey);
-    
+
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+
+    var timerKey = '_focusTimer';
+    var existingTimer = modal[timerKey];
+
     if (existingTimer) {
       clearTimeout(existingTimer);
-      $(modal).removeData(timerKey);
+      delete modal[timerKey];
     }
-    
-    $(modal).data(timerKey, setTimeout(function() {
+
+    modal[timerKey] = setTimeout(function() {
       focusElement.focus();
-      $(modal).removeData(timerKey);
-    }, 500));
-    
+      delete modal[timerKey];
+    }, 500);
+
     if (typeof cleanupFn === 'function') {
-      $(modal).one('hidden.bs.modal', function() {
+      modal.addEventListener('hidden.bs.modal', function onHidden() {
         cleanupFn();
-        
-        const remainingTimer = $(modal).data(timerKey);
+
+        var remainingTimer = modal[timerKey];
         if (remainingTimer) {
           clearTimeout(remainingTimer);
-          $(modal).removeData(timerKey);
+          delete modal[timerKey];
         }
+        modal.removeEventListener('hidden.bs.modal', onHidden);
       });
     }
   },
@@ -436,13 +445,13 @@ window.shims.formHandlers = {
 window.loadModuleWithShim = function(moduleName) {
   // Check if the module is already available
   if (window[moduleName]) return window[moduleName];
-  
+
   // Check if we have a shim for this module
   if (window.shims && window.shims[moduleName]) {
     console.warn(`Using shim for ${moduleName} module`);
     return window.shims[moduleName];
   }
-  
+
   // If no shim available, return an empty object
   console.error(`No module or shim available for ${moduleName}`);
   return {};
@@ -455,7 +464,7 @@ window.installShims = function() {
     console.warn('Installing UI utilities shim');
     window.uiUtils = window.shims.uiUtils;
   }
-  
+
   // Install form handlers shim if needed
   if (!window.formHandlers) {
     console.warn('Installing form handlers shim');

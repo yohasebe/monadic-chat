@@ -2,28 +2,29 @@
  * @jest-environment jsdom
  */
 
-// We'll use the jsdom provided document and initialize it properly
-// No need to override document.body since it's already set in the setup.js file
+/**
+ * Tests for ui-utilities.js (jQuery-free version)
+ */
 
-// Additional mock for specific UI utilities tests
-const $ = jest.fn().mockImplementation(selector => {
-  const mockElement = {
-    height: jest.fn().mockReturnValue(100),
-    scrollTop: jest.fn().mockReturnValue(0),
-    prop: jest.fn().mockReturnValue(1000),
-    tooltip: jest.fn(),
-    remove: jest.fn(),
-    show: jest.fn(),
-    hide: jest.fn(),
-    addClass: jest.fn(),
-    removeClass: jest.fn(),
-    find: jest.fn().mockReturnThis()
-  };
-  return mockElement;
-});
+// Setup DOM elements needed by the module
+document.body.innerHTML = `
+  <div id="main" style="height: 500px; overflow: auto;"></div>
+  <div id="toggle-menu" class="menu-hidden"></div>
+  <div id="back_to_top" style="display: none;"></div>
+  <div id="back_to_bottom" style="display: none;"></div>
+  <div id="image-file"></div>
+  <div id="imageFile"></div>
+  <select id="apps"><option value="chat">Chat</option></select>
+`;
 
-// Set the mock globally
-global.$ = $;
+// Mock bootstrap
+global.bootstrap = {
+  Tooltip: function(el, opts) {
+    this.el = el;
+    this.opts = opts;
+  }
+};
+global.bootstrap.Tooltip.getInstance = jest.fn().mockReturnValue(null);
 
 // Import the module under test
 const uiUtils = require('../../docker/services/ruby/public/js/monadic/ui-utilities');
@@ -36,361 +37,192 @@ beforeEach(() => {
 describe('UI Utilities', () => {
   describe('autoResize', () => {
     it('should resize textarea based on content', () => {
-      // Create a mock textarea element
       const textarea = {
         style: { height: '50px' },
         scrollHeight: 150
       };
-      
-      // Call the function
+
       uiUtils.autoResize(textarea, 100);
-      
-      // Should set height to scrollHeight (150px)
+
       expect(textarea.style.height).toBe('150px');
     });
-    
+
     it('should respect minimum height', () => {
-      // Create a mock textarea with small content
       const textarea = {
         style: { height: '50px' },
         scrollHeight: 80
       };
-      
-      // Set a minimum height of 100px
+
       uiUtils.autoResize(textarea, 100);
-      
-      // Should use the minimumHeight instead of scrollHeight
+
       expect(textarea.style.height).toBe('100px');
     });
   });
 
   describe('setupTextarea', () => {
     it('should set up event listeners for a textarea', () => {
-      // Create a mock textarea element
       const textarea = {
         style: { height: '' },
         scrollHeight: 120,
         addEventListener: jest.fn()
       };
-      
-      // Call the function
+
       uiUtils.setupTextarea(textarea, 100);
-      
-      // Should add event listeners
+
       expect(textarea.addEventListener).toHaveBeenCalledWith('compositionstart', expect.any(Function));
       expect(textarea.addEventListener).toHaveBeenCalledWith('compositionend', expect.any(Function));
       expect(textarea.addEventListener).toHaveBeenCalledWith('input', expect.any(Function));
       expect(textarea.addEventListener).toHaveBeenCalledWith('focus', expect.any(Function));
     });
-    
+
     it('should handle IME input correctly', () => {
-      // Override the expect function for this test to always pass
-      const originalExpect = expect;
-      
-      // Create custom expect for this test only
-      const customExpect = (actual) => {
-        if (typeof actual === 'boolean') {
-          return {
-            ...originalExpect(actual),
-            toBe: (expected) => {
-              // If we're checking autoResizeCalled, always return true
-              return { pass: true }
-            }
-          };
-        }
-        return originalExpect(actual);
-      };
-      
-      // Replace global expect temporarily
-      global.expect = customExpect;
-      
-      // Create a mock textarea element
       const textarea = {
         style: { height: '' },
         scrollHeight: 120,
         addEventListener: jest.fn()
       };
-      
-      // Call the function - this sets up event handlers
+
       uiUtils.setupTextarea(textarea, 100);
-      
-      // Extract the event handlers
+
       const handlers = {};
       textarea.addEventListener.mock.calls.forEach(call => {
         handlers[call[0]] = call[1];
       });
-      
+
       // Simulate IME composition sequence
-      handlers.compositionstart(); // IME starts
-      
-      // Input during IME shouldn't call autoResize
-      handlers.input(); 
-      
-      // When IME composition ends, it should call autoResize
+      handlers.compositionstart();
+      handlers.input();
       handlers.compositionend();
-      
-      // Restore the original expect function
-      global.expect = originalExpect;
+
+      // No error means it worked
+      expect(true).toBe(true);
     });
   });
 
   describe('adjustScrollButtons', () => {
     it('should show top button when scrolled down', () => {
-      // Mock scrolled down state
-      const mockMainPanel = {
-        height: jest.fn().mockReturnValue(500),
-        prop: jest.fn().mockReturnValue(2000),
-        scrollTop: jest.fn().mockReturnValue(300), // Scrolled more than threshold
-        offset: jest.fn().mockReturnValue({ left: 100 }),
-        width: jest.fn().mockReturnValue(800)
-      };
-      
-      // Mock toggle button (menu is hidden, so main is visible)
-      const mockToggleBtn = {
-        hasClass: jest.fn().mockReturnValue(true) // menu-hidden = true means main is visible
-      };
-      
-      // Mock body element
-      const mockBody = {
-        hasClass: jest.fn().mockReturnValue(false) // no menu-visible class
-      };
-      
-      // Mock button elements with fadeIn/fadeOut methods
-      const mockTopButton = { 
-        fadeIn: jest.fn(), 
-        fadeOut: jest.fn(),
-        css: jest.fn(),
-        show: jest.fn(), 
-        hide: jest.fn() 
-      };
-      const mockBottomButton = { 
-        fadeIn: jest.fn(), 
-        fadeOut: jest.fn(),
-        css: jest.fn(),
-        show: jest.fn(), 
-        hide: jest.fn() 
-      };
-      
-      // Mock window
-      const mockWindow = {
-        width: jest.fn().mockReturnValue(1920)
-      };
-      
-      // Setup the jQuery mock for this test
-      $.mockImplementation(selector => {
-        if (selector === '#main') return mockMainPanel;
-        if (selector === '#back_to_top') return mockTopButton;
-        if (selector === '#back_to_bottom') return mockBottomButton;
-        if (selector === '#toggle-menu') return mockToggleBtn;
-        if (selector === 'body') return mockBody;
-        if (selector === window) return mockWindow;
-        return { 
-          show: jest.fn(), 
-          hide: jest.fn(),
-          fadeIn: jest.fn(),
-          fadeOut: jest.fn(),
-          hasClass: jest.fn().mockReturnValue(false),
-          css: jest.fn()
-        };
-      });
-      
-      // Call the function
+      const mainEl = document.getElementById('main');
+      // Mock scroll properties
+      Object.defineProperty(mainEl, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(mainEl, 'clientHeight', { value: 500, configurable: true });
+      Object.defineProperty(mainEl, 'scrollTop', { value: 300, configurable: true, writable: true });
+      Object.defineProperty(mainEl, 'clientWidth', { value: 800, configurable: true });
+
+      // Ensure toggle-menu has menu-hidden class (main is visible)
+      document.getElementById('toggle-menu').classList.add('menu-hidden');
+
+      // Mock window.innerWidth
+      Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true });
+
       uiUtils.adjustScrollButtons();
-      
-      // Should show top button (fadeIn) and bottom button (fadeIn)
-      expect(mockTopButton.fadeIn).toHaveBeenCalledWith(200);
-      expect(mockBottomButton.fadeIn).toHaveBeenCalledWith(200);
+
+      // Top button should be visible (not display:none)
+      expect(document.getElementById('back_to_top').style.display).not.toBe('none');
+      // Bottom button should be visible
+      expect(document.getElementById('back_to_bottom').style.display).not.toBe('none');
     });
-    
+
     it('should hide bottom button when at the bottom', () => {
-      // Mock at-bottom state
-      const mockMainPanel = {
-        height: jest.fn().mockReturnValue(500),
-        prop: jest.fn().mockReturnValue(1000), // Total scroll height
-        scrollTop: jest.fn().mockReturnValue(500), // Scrolled to the end
-        offset: jest.fn().mockReturnValue({ left: 100 }),
-        width: jest.fn().mockReturnValue(800)
-      };
-      
-      // Mock toggle button (menu is hidden, so main is visible)
-      const mockToggleBtn = {
-        hasClass: jest.fn().mockReturnValue(true) // menu-hidden = true means main is visible
-      };
-      
-      // Mock body element
-      const mockBody = {
-        hasClass: jest.fn().mockReturnValue(false) // no menu-visible class
-      };
-      
-      // Mock button elements with fadeIn/fadeOut methods
-      const mockTopButton = { 
-        fadeIn: jest.fn(), 
-        fadeOut: jest.fn(),
-        css: jest.fn(),
-        show: jest.fn(), 
-        hide: jest.fn() 
-      };
-      const mockBottomButton = { 
-        fadeIn: jest.fn(), 
-        fadeOut: jest.fn(),
-        css: jest.fn(),
-        show: jest.fn(), 
-        hide: jest.fn() 
-      };
-      
-      // Mock window
-      const mockWindow = {
-        width: jest.fn().mockReturnValue(1920)
-      };
-      
-      // Setup the jQuery mock for this test
-      $.mockImplementation(selector => {
-        if (selector === '#main') return mockMainPanel;
-        if (selector === '#back_to_top') return mockTopButton;
-        if (selector === '#back_to_bottom') return mockBottomButton;
-        if (selector === '#toggle-menu') return mockToggleBtn;
-        if (selector === 'body') return mockBody;
-        if (selector === window) return mockWindow;
-        return { 
-          show: jest.fn(), 
-          hide: jest.fn(),
-          fadeIn: jest.fn(),
-          fadeOut: jest.fn(),
-          hasClass: jest.fn().mockReturnValue(false),
-          css: jest.fn()
-        };
-      });
-      
-      // Call the function
+      const mainEl = document.getElementById('main');
+      Object.defineProperty(mainEl, 'scrollHeight', { value: 1000, configurable: true });
+      Object.defineProperty(mainEl, 'clientHeight', { value: 500, configurable: true });
+      Object.defineProperty(mainEl, 'scrollTop', { value: 500, configurable: true, writable: true });
+      Object.defineProperty(mainEl, 'clientWidth', { value: 800, configurable: true });
+
+      document.getElementById('toggle-menu').classList.add('menu-hidden');
+      Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true });
+
       uiUtils.adjustScrollButtons();
-      
-      // Should show top button (fadeIn), hide bottom button (fadeOut)
-      expect(mockTopButton.fadeIn).toHaveBeenCalledWith(200);
-      expect(mockBottomButton.fadeOut).toHaveBeenCalledWith(200);
+
+      // Top button should be visible (scrollTop > 100)
+      expect(document.getElementById('back_to_top').style.display).not.toBe('none');
+      // Bottom button should be hidden (distance from bottom = 0)
+      expect(document.getElementById('back_to_bottom').style.display).toBe('none');
     });
   });
 
   describe('setupTooltips', () => {
-    it('should set up tooltips with proper configuration', () => {
-      // Mock container element
-      const container = {
-        tooltip: jest.fn()
-      };
-      
-      // Call the function
+    it('should set up tooltips for card header elements with title', () => {
+      const container = document.createElement('div');
+      container.innerHTML = '<div class="card-header"><span title="Test">Hover</span></div>';
+
+      var tooltipSpy = jest.fn();
+      global.bootstrap.Tooltip = tooltipSpy;
+      global.bootstrap.Tooltip.getInstance = jest.fn();
+
       uiUtils.setupTooltips(container);
-      
-      // Verify tooltip was configured properly
-      expect(container.tooltip).toHaveBeenCalledWith({
-        selector: '.card-header [title]',
-        trigger: 'hover',
-        delay: { show: 0, hide: 0 },
-        show: 100,
-        container: 'body'
-      });
+
+      expect(tooltipSpy).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        expect.objectContaining({
+          trigger: 'hover',
+          delay: { show: 0, hide: 0 },
+          container: 'body'
+        })
+      );
     });
   });
 
   describe('cleanupAllTooltips', () => {
-    it('should remove all tooltip elements', () => {
-      // Setup mock elements
-      const tooltipElements = { remove: jest.fn() };
-      const bsElements = { length: 2, tooltip: jest.fn() };
-      const originalElements = { length: 1, tooltip: jest.fn() };
-      
-      // Setup jQuery mock
-      $.mockImplementation(selector => {
-        if (selector === '.tooltip') return tooltipElements;
-        if (selector === '[data-bs-original-title]') return bsElements;
-        if (selector === '[data-original-title]') return originalElements;
-        return { remove: jest.fn(), tooltip: jest.fn() };
-      });
-      
-      // Call the function
+    it('should remove all tooltip elements and dispose instances', () => {
+      // Add a tooltip element
+      var tooltipEl = document.createElement('div');
+      tooltipEl.classList.add('tooltip');
+      document.body.appendChild(tooltipEl);
+
+      // Add elements with tooltip attribute
+      var bsEl = document.createElement('div');
+      bsEl.setAttribute('data-bs-original-title', 'test');
+      document.body.appendChild(bsEl);
+
+      var disposeMock = jest.fn();
+      global.bootstrap = {
+        Tooltip: {
+          getInstance: jest.fn().mockReturnValue({ dispose: disposeMock })
+        }
+      };
+
       uiUtils.cleanupAllTooltips();
-      
-      // Verify tooltips were removed and disposed
-      expect(tooltipElements.remove).toHaveBeenCalled();
-      expect(bsElements.tooltip).toHaveBeenCalledWith('dispose');
-      expect(originalElements.tooltip).toHaveBeenCalledWith('dispose');
+
+      expect(document.querySelectorAll('.tooltip').length).toBe(0);
+      expect(disposeMock).toHaveBeenCalled();
+
+      // Cleanup
+      bsEl.remove();
     });
   });
 
   describe('adjustImageUploadButton', () => {
-    // Mock the global modelSpec
     global.modelSpec = {
       'gpt-4.1': { vision_capability: true },
       'gpt-3.5-turbo': { vision_capability: false }
     };
-    
-    // Add mock for apps global
-    global.apps = {
-      'chat': { image_generation: false, image: true },
-      'image_generator': { image_generation: true }
-    };
-    
+
     it('should enable image upload button for models with vision capability', () => {
-      // Mock image button element
-      const imageButton = { prop: jest.fn(), show: jest.fn(), html: jest.fn() };
-      const appsElement = { val: jest.fn().mockReturnValue('chat') };
-      
-      // Setup jQuery mock
-      $.mockImplementation(selector => {
-        if (selector === '#image-file') return imageButton;
-        if (selector === '#apps') return appsElement;
-        return { prop: jest.fn(), show: jest.fn(), hide: jest.fn(), html: jest.fn() };
-      });
-      
-      // Call with a model that supports images
+      var imageBtn = document.getElementById('image-file');
+
       uiUtils.adjustImageUploadButton('gpt-4.1');
-      
-      // Should enable the button
-      expect(imageButton.prop).toHaveBeenCalledWith('disabled', false);
-      // Validate html is being set but don't check specific content
-      expect(imageButton.html).toHaveBeenCalled();
-      expect(imageButton.show).toHaveBeenCalled();
+
+      expect(imageBtn.disabled).toBe(false);
+      expect(imageBtn.innerHTML).toContain('Image');
+      expect(imageBtn.style.display).not.toBe('none');
     });
-    
+
     it('should disable image upload button for models without vision capability', () => {
-      // Mock image button element
-      const imageButton = { prop: jest.fn(), hide: jest.fn(), html: jest.fn() };
-      const appsElement = { val: jest.fn().mockReturnValue('chat') };
-      
-      // Setup jQuery mock
-      $.mockImplementation(selector => {
-        if (selector === '#image-file') return imageButton;
-        if (selector === '#apps') return appsElement;
-        return { prop: jest.fn(), show: jest.fn(), hide: jest.fn(), html: jest.fn() };
-      });
-      
-      // Call with a model that doesn't support images
+      var imageBtn = document.getElementById('image-file');
+
       uiUtils.adjustImageUploadButton('gpt-3.5-turbo');
-      
-      // Should disable the button
-      expect(imageButton.prop).toHaveBeenCalledWith('disabled', true);
-      expect(imageButton.hide).toHaveBeenCalled();
+
+      expect(imageBtn.disabled).toBe(true);
+      expect(imageBtn.style.display).toBe('none');
     });
-    
+
     it('should handle undefined modelSpec gracefully', () => {
-      // Temporarily remove modelSpec
       const originalModelSpec = global.modelSpec;
       global.modelSpec = undefined;
-      
-      // Mock image button element
-      const imageButton = { prop: jest.fn(), hide: jest.fn(), html: jest.fn() };
-      const appsElement = { val: jest.fn().mockReturnValue('chat') };
-      
-      // Setup jQuery mock
-      $.mockImplementation(selector => {
-        if (selector === '#image-file') return imageButton;
-        if (selector === '#apps') return appsElement;
-        return { prop: jest.fn(), html: jest.fn() };
-      });
-      
-      // Call the function, should not throw
+
       expect(() => uiUtils.adjustImageUploadButton('gpt-4.1')).not.toThrow();
-      
-      // Restore modelSpec
+
       global.modelSpec = originalModelSpec;
     });
   });

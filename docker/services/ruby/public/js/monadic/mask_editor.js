@@ -6,7 +6,7 @@
 // Open mask editor for the selected image
 function openMaskEditor(imageData) {
   // Create modal dialog
-  const modal = $(`
+  var modalHTML = `
     <div class="modal fade" id="maskEditorModal" tabindex="-1" role="dialog" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -60,10 +60,11 @@ function openMaskEditor(imageData) {
         </div>
       </div>
     </div>
-  `);
+  `;
 
-  $("body").append(modal);
-  $("#maskEditorModal").modal("show");
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  var maskModalEl = document.getElementById('maskEditorModal');
+  bootstrap.Modal.getOrCreateInstance(maskModalEl).show();
 
   // Initialize canvas
   const canvas = document.getElementById("maskCanvas");
@@ -77,15 +78,20 @@ function openMaskEditor(imageData) {
   let currentBrushSize = 0;
 
   // Update brush size display
-  $("#brushSize").on("input", function() {
-    $("#brushSizeValue").text(`${$(this).val()}px`);
-  });
+  var brushSizeInput = document.getElementById('brushSize');
+  if (brushSizeInput) {
+    brushSizeInput.addEventListener('input', function() {
+      var sizeLabel = document.getElementById('brushSizeValue');
+      if (sizeLabel) sizeLabel.textContent = this.value + 'px';
+    });
+  }
 
   // Load image and set canvas size
   const img = new Image();
   img.onload = function() {
     // Calculate display size (maintain aspect ratio and fit in modal)
-    const maxWidth = $(".modal-body .col-md-8").width() - 20;
+    var colEl = document.querySelector(".modal-body .col-md-8");
+    const maxWidth = (colEl ? colEl.clientWidth : 600) - 20;
     const maxHeight = window.innerHeight * 0.6;
 
     let width = img.width;
@@ -135,7 +141,8 @@ function openMaskEditor(imageData) {
 
   function scaledBrushSize() {
     const rect = canvas.getBoundingClientRect();
-    return parseInt($("#brushSize").val()) * (canvas.width / rect.width);
+    var sizeInput = document.getElementById('brushSize');
+    return parseInt(sizeInput ? sizeInput.value : '20') * (canvas.width / rect.width);
   }
 
   function drawDot(x, y, brushSize, useTool) {
@@ -194,31 +201,44 @@ function openMaskEditor(imageData) {
   }
 
   // Drawing tool event handlers
-  $("#brushTool").on("click", function() {
-    tool = "brush";
-    $(this).addClass("active");
-    $("#eraserTool").removeClass("active");
-  });
+  var brushToolBtn = document.getElementById('brushTool');
+  var eraserToolBtn = document.getElementById('eraserTool');
 
-  $("#eraserTool").on("click", function() {
-    tool = "eraser";
-    $(this).addClass("active");
-    $("#brushTool").removeClass("active");
-  });
+  if (brushToolBtn) {
+    brushToolBtn.addEventListener('click', function() {
+      tool = "brush";
+      this.classList.add("active");
+      if (eraserToolBtn) eraserToolBtn.classList.remove("active");
+    });
+  }
+
+  if (eraserToolBtn) {
+    eraserToolBtn.addEventListener('click', function() {
+      tool = "eraser";
+      this.classList.add("active");
+      if (brushToolBtn) brushToolBtn.classList.remove("active");
+    });
+  }
 
   // Undo last stroke
-  $("#undoMask").on("click", function() {
-    if (strokes.length > 0) {
-      strokes.pop();
-      redrawAll();
-    }
-  });
+  var undoBtn = document.getElementById('undoMask');
+  if (undoBtn) {
+    undoBtn.addEventListener('click', function() {
+      if (strokes.length > 0) {
+        strokes.pop();
+        redrawAll();
+      }
+    });
+  }
 
   // Clear all strokes
-  $("#clearMask").on("click", function() {
-    strokes = [];
-    drawBase();
-  });
+  var clearBtn = document.getElementById('clearMask');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      strokes = [];
+      drawBase();
+    });
+  }
 
   // --- Mouse event handlers ---
   canvas.addEventListener("mousedown", function(e) {
@@ -262,7 +282,9 @@ function openMaskEditor(imageData) {
   canvas.addEventListener("touchend", endStroke);
 
   // Save mask
-  $("#saveMask").on("click", function() {
+  var saveBtn = document.getElementById('saveMask');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
     try {
       // Create a clean copy of the mask (without the semi-transparent image)
       const tempCanvas = document.createElement("canvas");
@@ -274,190 +296,189 @@ function openMaskEditor(imageData) {
       tempCtx.drawImage(canvas, 0, 0);
 
       // Create mask data with a clearer naming convention that identifies it as a mask
-      // Use a prefix that clearly identifies this as a mask image
-      // Using plain "mask__" prefix to ensure the name is clearly identifiable as a mask
       const maskFilename = `mask__${imageData.title}`;
 
       // Create mask with proper alpha channel as required by OpenAI
-      // The transparent areas will be edited, filled areas preserved
       const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
       const data = imgData.data;
 
       // Convert black pixels to white with full opacity, white pixels to transparent
-      // This follows OpenAI's requirement: transparent areas = edited, filled areas = preserved
       for (let i = 0; i < data.length; i += 4) {
-        // If pixel is white or light (drawn area to be edited)
         if (data[i] > 200 && data[i+1] > 200 && data[i+2] > 200) {
-          // Make it transparent (area to be edited)
-          data[i+3] = 0; // Set alpha to 0 (fully transparent)
+          data[i+3] = 0;
         } else {
-          // Make non-white pixels white with full opacity (area to be preserved)
-          data[i] = 255;   // R
-          data[i+1] = 255; // G
-          data[i+2] = 255; // B
-          data[i+3] = 255; // A (fully opaque)
+          data[i] = 255;
+          data[i+1] = 255;
+          data[i+2] = 255;
+          data[i+3] = 255;
         }
       }
 
       // Create a separate visible mask image for the UI display
-      // This makes the mask clearly visible with the drawn areas in black
       const visibleMaskCanvas = document.createElement("canvas");
       visibleMaskCanvas.width = canvas.width;
       visibleMaskCanvas.height = canvas.height;
       const visibleMaskCtx = visibleMaskCanvas.getContext("2d");
 
-      // Set background to white
       visibleMaskCtx.fillStyle = "white";
       visibleMaskCtx.fillRect(0, 0, visibleMaskCanvas.width, visibleMaskCanvas.height);
 
-      // Draw the original mask (before transparency conversion) in black
       const originalImgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
       const originalData = originalImgData.data;
       const visibleMaskImgData = visibleMaskCtx.getImageData(0, 0, visibleMaskCanvas.width, visibleMaskCanvas.height);
       const visibleMaskData = visibleMaskImgData.data;
 
-      // Convert white pixels to black for visibility
       for (let i = 0; i < originalData.length; i += 4) {
-        // If pixel was white in original (drawn areas)
         if (originalData[i] > 200 && originalData[i+1] > 200 && originalData[i+2] > 200) {
-          // Make it black in the visible mask
-          visibleMaskData[i] = 0;     // R
-          visibleMaskData[i+1] = 0;   // G
-          visibleMaskData[i+2] = 0;   // B
-          visibleMaskData[i+3] = 255; // A (fully opaque)
+          visibleMaskData[i] = 0;
+          visibleMaskData[i+1] = 0;
+          visibleMaskData[i+2] = 0;
+          visibleMaskData[i+3] = 255;
         }
       }
 
-      // Put the visible mask data back on the canvas
       visibleMaskCtx.putImageData(visibleMaskImgData, 0, 0);
-
-      // Put the modified image data back on the canvas
       tempCtx.putImageData(imgData, 0, 0);
 
-      // Use the global currentMaskData from select_image.js
       window.currentMaskData = {
         title: maskFilename,
-        data: tempCanvas.toDataURL("image/png"), // The OpenAI-compatible mask with transparency
-        display_data: visibleMaskCanvas.toDataURL("image/png"), // The visible black mask for UI display
+        data: tempCanvas.toDataURL("image/png"),
+        display_data: visibleMaskCanvas.toDataURL("image/png"),
         type: "image/png",
         for_image: imageData.title,
-        is_mask: true, // Add a flag to identify this as a mask
-        mask_for: imageData.title // Reference to the original image
+        is_mask: true,
+        mask_for: imageData.title
       };
 
-      // Add mask to images array so it gets sent with the message
-      // This ensures it's saved to the shared folder like other images
       images.push(window.currentMaskData);
 
-      // Show success alert
       const maskCreatedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskCreated') : 'Mask created for';
       setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskCreatedMsg} ${imageData.title}`, "success");
 
-      // Find if the image is already in the display
       const existingImageIndex = images.findIndex(img =>
         img.title === imageData.title && img !== window.currentMaskData
       );
 
-      // If the original image exists separately from the mask, use that
+      var imageUsedEl = document.getElementById('image-used');
+
       if (existingImageIndex !== -1) {
-        // Create mask overlay container on top of the existing image
-        $("#image-used").append(`
-          <div class="mask-overlay-container" data-original-image="${imageData.title}">
-            <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
-            <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
-            <div class="mask-overlay-label">MASK</div>
-            <div class="mask-controls">
-              <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
-                <i class="fas fa-times"></i> Remove Mask
-              </button>
-              <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
-                <i class="fas fa-eye-slash"></i> Toggle Mask
-              </button>
+        if (imageUsedEl) {
+          imageUsedEl.insertAdjacentHTML('beforeend', `
+            <div class="mask-overlay-container" data-original-image="${imageData.title}">
+              <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
+              <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
+              <div class="mask-overlay-label">MASK</div>
+              <div class="mask-controls">
+                <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
+                  <i class="fas fa-times"></i> Remove Mask
+                </button>
+                <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
+                  <i class="fas fa-eye-slash"></i> Toggle Mask
+                </button>
+              </div>
             </div>
-          </div>
-        `);
-
-        // Remove original image from display (it's now part of the overlay)
-        $(`.image-container:has(img[alt="${imageData.title}"])`).hide();
-      } else {
-        // Create mask overlay container with the base image
-        $("#image-used").append(`
-          <div class="mask-overlay-container" data-original-image="${imageData.title}">
-            <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
-            <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
-            <div class="mask-overlay-label">MASK</div>
-            <div class="mask-controls">
-              <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
-                <i class="fas fa-times"></i> Remove Mask
-              </button>
-              <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
-                <i class="fas fa-eye-slash"></i> Toggle Mask
-              </button>
-            </div>
-          </div>
-        `);
-      }
-
-      // Handle mask removal
-      $(".remove-mask").on("click", function() {
-        // Get the mask filename from the data attribute
-        const maskFilename = $(this).data("mask-filename");
-        const originalImageTitle = $(this).closest(".mask-overlay-container").data("original-image");
-
-        // Remove mask from images array
-        const indexToRemove = images.findIndex(img => img.title === maskFilename);
-        if (indexToRemove !== -1) {
-          images.splice(indexToRemove, 1);
+          `);
         }
 
-        // Clear global mask data
-        window.currentMaskData = null;
+        // Hide original image container
+        var origImg = document.querySelector(`.image-container img[alt="${imageData.title}"]`);
+        if (origImg) {
+          var container = origImg.closest('.image-container');
+          if (container) container.style.display = 'none';
+        }
+      } else {
+        if (imageUsedEl) {
+          imageUsedEl.insertAdjacentHTML('beforeend', `
+            <div class="mask-overlay-container" data-original-image="${imageData.title}">
+              <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
+              <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
+              <div class="mask-overlay-label">MASK</div>
+              <div class="mask-controls">
+                <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
+                  <i class="fas fa-times"></i> Remove Mask
+                </button>
+                <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
+                  <i class="fas fa-eye-slash"></i> Toggle Mask
+                </button>
+              </div>
+            </div>
+          `);
+        }
+      }
 
-        // Remove the mask overlay container
-        $(this).closest(".mask-overlay-container").remove();
+      // Handle mask removal (use event delegation)
+      document.querySelectorAll('.remove-mask').forEach(function(btn) {
+        btn.onclick = function() {
+          var mfn = this.dataset.maskFilename;
+          var overlayContainer = this.closest('.mask-overlay-container');
+          var originalImageTitle = overlayContainer ? overlayContainer.dataset.originalImage : null;
 
-        // Show the original image if it exists
-        $(`.image-container:has(img[alt="${originalImageTitle}"]):hidden`).fadeIn();
+          var indexToRemove = images.findIndex(function(img) { return img.title === mfn; });
+          if (indexToRemove !== -1) {
+            images.splice(indexToRemove, 1);
+          }
 
-        // Update the display to ensure everything is shown correctly
-        updateFileDisplay(images);
+          window.currentMaskData = null;
 
-        // Show success alert
-        const maskRemovedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskRemoved') : 'Mask removed';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskRemovedMsg}`, "success");
+          if (overlayContainer) overlayContainer.remove();
+
+          // Show the original image if it exists
+          if (originalImageTitle) {
+            var hiddenImg = document.querySelector(`.image-container img[alt="${originalImageTitle}"]`);
+            if (hiddenImg) {
+              var hiddenContainer = hiddenImg.closest('.image-container');
+              if (hiddenContainer && hiddenContainer.style.display === 'none') {
+                hiddenContainer.style.display = '';
+              }
+            }
+          }
+
+          updateFileDisplay(images);
+
+          var maskRemovedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskRemoved') : 'Mask removed';
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskRemovedMsg}`, "success");
+        };
       });
 
       // Handle mask toggle
-      $(".toggle-mask").on("click", function() {
-        const $maskOverlay = $(this).closest(".mask-overlay-container").find(".mask-overlay");
-        const $icon = $(this).find("i");
+      document.querySelectorAll('.toggle-mask').forEach(function(btn) {
+        btn.onclick = function() {
+          var overlayContainer = this.closest('.mask-overlay-container');
+          var maskOverlay = overlayContainer ? overlayContainer.querySelector('.mask-overlay') : null;
+          var icon = this.querySelector('i');
 
-        if ($maskOverlay.css("opacity") === "0") {
-          // Show mask
-          $maskOverlay.css("opacity", "0.6");
-          $icon.removeClass("fa-eye").addClass("fa-eye-slash");
-        } else {
-          // Hide mask
-          $maskOverlay.css("opacity", "0");
-          $icon.removeClass("fa-eye-slash").addClass("fa-eye");
-        }
+          if (maskOverlay) {
+            var currentOpacity = window.getComputedStyle(maskOverlay).opacity;
+            if (currentOpacity === "0") {
+              maskOverlay.style.opacity = "0.6";
+              if (icon) { icon.classList.remove("fa-eye"); icon.classList.add("fa-eye-slash"); }
+            } else {
+              maskOverlay.style.opacity = "0";
+              if (icon) { icon.classList.remove("fa-eye-slash"); icon.classList.add("fa-eye"); }
+            }
+          }
+        };
       });
 
       // Close modal
-      $("#maskEditorModal").modal("hide");
-      setTimeout(() => {
-        $("#maskEditorModal").remove();
+      bootstrap.Modal.getOrCreateInstance(maskModalEl).hide();
+      setTimeout(function() {
+        var modalToRemove = document.getElementById('maskEditorModal');
+        if (modalToRemove) modalToRemove.remove();
       }, 500);
     } catch (error) {
       console.error("Error saving mask:", error);
       setAlert("Error creating mask: " + error.message, "error");
     }
-  });
+    });
+  }
 
   // Cleanup when modal is closed
-  $("#maskEditorModal").on("hidden.bs.modal", function() {
-    $(this).remove();
-  });
+  if (maskModalEl) {
+    maskModalEl.addEventListener('hidden.bs.modal', function() {
+      this.remove();
+    });
+  }
 }
 
 // Export functions to window for browser environment

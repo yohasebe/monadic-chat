@@ -3,7 +3,7 @@
  */
 
 /**
- * Tests for ws-session-handler.js
+ * Tests for ws-session-handler.js (jQuery-free version)
  *
  * Tests session-level WebSocket handlers:
  * - Context panel updates
@@ -15,80 +15,43 @@
  * - Success/sample notifications
  */
 
-function createMockElement(id) {
-  return {
-    prop: jest.fn().mockReturnThis(),
-    val: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    html: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    text: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    attr: jest.fn().mockReturnThis(),
-    css: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnValue(false),
-    append: jest.fn().mockReturnThis(),
-    empty: jest.fn().mockReturnThis(),
-    on: jest.fn().mockReturnThis(),
-    off: jest.fn().mockReturnThis(),
-    click: jest.fn().mockReturnThis(),
-    data: jest.fn().mockReturnValue(null),
-    find: jest.fn().mockReturnValue({
-      length: 1,
-      addClass: jest.fn().mockReturnThis(),
-      removeClass: jest.fn().mockReturnThis()
-    }),
-    addClass: jest.fn().mockReturnThis(),
-    removeClass: jest.fn().mockReturnThis(),
-    modal: jest.fn().mockReturnThis(),
-    length: 1,
-    0: document.createElement('div'),
-    get: jest.fn().mockReturnValue(document.createElement('div'))
-  };
-}
-
-let mockElements;
-
-function setupMockElements() {
-  mockElements = {
-    '#discourse': createMockElement('discourse'),
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#conversation-language': createMockElement('conversation-language'),
-    '#message': createMockElement('message'),
-    '#asr-p-value': createMockElement('asr-p-value'),
-    '#send, #clear, #voice': createMockElement('send-clear-voice'),
-    '#amplitude': createMockElement('amplitude'),
-    '#check-easy-submit': createMockElement('check-easy-submit'),
-    '#send': createMockElement('send'),
-    '#pdf-titles': createMockElement('pdf-titles')
-  };
-}
-
 beforeEach(() => {
-  setupMockElements();
+  // Setup DOM
+  document.body.innerHTML = `
+    <div id="discourse"></div>
+    <div id="monadic-spinner" style="display: none;"></div>
+    <select id="conversation-language"><option value="en">English</option><option value="ja">Japanese</option><option value="ar">Arabic</option></select>
+    <textarea id="message" placeholder="Type..."></textarea>
+    <div id="asr-p-value" style="display: none;"></div>
+    <button id="send"></button>
+    <button id="clear"></button>
+    <button id="voice"></button>
+    <div id="amplitude" style="display: none;"></div>
+    <input type="checkbox" id="check-easy-submit" />
+    <div id="pdf-titles"></div>
+    <div id="cancel_query"></div>
+    <div id="pdfDeleteConfirmation"></div>
+    <div id="pdfToDelete"></div>
+    <button id="pdfDeleteConfirmed"></button>
+  `;
 
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    // For dynamically created elements
-    if (typeof selector === 'string' && selector.startsWith('<')) {
-      const el = createMockElement('dynamic');
-      el[0] = document.createElement('div');
-      el[0].outerHTML = selector;
-      return el;
-    }
-    return createMockElement('default');
-  });
-
-  // Mock DOM for cancel button
-  const cancelButton = document.createElement('div');
-  cancelButton.id = 'cancel_query';
-  document.body.appendChild(cancelButton);
+  // Mock bootstrap
+  global.bootstrap = {
+    Modal: {
+      getOrCreateInstance: jest.fn().mockReturnValue({ show: jest.fn(), hide: jest.fn() })
+    },
+    Tooltip: jest.fn()
+  };
 
   // Mock global functions
   global.setAlert = jest.fn();
   global.getTranslation = jest.fn((key, fallback) => fallback);
-  global.createCard = jest.fn().mockReturnValue($('<div></div>'));
+  global.createCard = jest.fn().mockImplementation(function() {
+    var el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = '<div class="card-body"></div>';
+    return { 0: el, length: 1 };
+  });
   global.isElementInViewport = jest.fn().mockReturnValue(true);
   global.setInputFocus = jest.fn();
 
@@ -104,7 +67,6 @@ beforeEach(() => {
 
   // Window globals
   window.autoScroll = true;
-  window.chatBottom = { scrollIntoView: jest.fn() };
   window.debugWebSocket = false;
   window.ws = { send: jest.fn() };
   window.MarkdownRenderer = {
@@ -159,27 +121,16 @@ describe('ws-session-handler', () => {
     });
 
     it('adds rtl-messages class for RTL languages', () => {
-      const bodyMock = createMockElement('body');
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === 'body') return bodyMock;
-        return mockElements[selector] || createMockElement('default');
-      });
-
       handlers.handleLanguageUpdated({ language: 'ar', text_direction: 'rtl' });
 
-      expect(bodyMock.addClass).toHaveBeenCalledWith('rtl-messages');
+      expect(document.body.classList.contains('rtl-messages')).toBe(true);
     });
 
     it('removes rtl-messages class for LTR languages', () => {
-      const bodyMock = createMockElement('body');
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === 'body') return bodyMock;
-        return mockElements[selector] || createMockElement('default');
-      });
-
+      document.body.classList.add('rtl-messages');
       handlers.handleLanguageUpdated({ language: 'en', text_direction: 'ltr' });
 
-      expect(bodyMock.removeClass).toHaveBeenCalledWith('rtl-messages');
+      expect(document.body.classList.contains('rtl-messages')).toBe(false);
     });
   });
 
@@ -213,7 +164,9 @@ describe('ws-session-handler', () => {
       handlers.handleSystemInfo({ content: 'System update' });
 
       expect(global.createCard).toHaveBeenCalled();
-      expect(mockElements['#discourse'].append).toHaveBeenCalled();
+      // Card should be appended to discourse
+      var discourse = document.getElementById('discourse');
+      expect(discourse.children.length).toBeGreaterThan(0);
     });
 
     it('handles object content by stringifying', () => {
@@ -225,14 +178,12 @@ describe('ws-session-handler', () => {
 
   describe('handleSTT', () => {
     it('appends transcribed text to message field', () => {
-      mockElements['#message'].val = jest.fn(function(v) {
-        if (v === undefined) return 'existing';
-        return this;
-      });
+      var messageEl = document.getElementById('message');
+      messageEl.value = 'existing';
 
       handlers.handleSTT({ content: 'hello', logprob: 0.95 });
 
-      expect(mockElements['#message'].val).toHaveBeenCalledWith('existing hello');
+      expect(messageEl.value).toBe('existing hello');
     });
 
     it('shows voice recognition finished alert', () => {
@@ -255,25 +206,23 @@ describe('ws-session-handler', () => {
     it('renders PDF titles as rows', () => {
       handlers.handlePDFTitles({ content: ['doc1.pdf', 'doc2.pdf'] });
 
-      expect(mockElements['#pdf-titles'].html).toHaveBeenCalledWith(
-        expect.stringContaining('doc1.pdf')
-      );
+      var pdfTitles = document.getElementById('pdf-titles');
+      expect(pdfTitles.innerHTML).toContain('doc1.pdf');
     });
 
     it('renders empty state when no PDFs', () => {
       handlers.handlePDFTitles({ content: [] });
 
-      expect(mockElements['#pdf-titles'].html).toHaveBeenCalledWith(
-        expect.stringContaining('No PDFs imported')
-      );
+      var pdfTitles = document.getElementById('pdf-titles');
+      expect(pdfTitles.innerHTML).toContain('No PDFs imported');
     });
 
     it('escapes HTML in titles', () => {
       handlers.handlePDFTitles({ content: ['<script>xss</script>'] });
 
-      const htmlArg = mockElements['#pdf-titles'].html.mock.calls[0][0];
-      expect(htmlArg).toContain('&lt;script');
-      expect(htmlArg).not.toContain('<script>xss');
+      var pdfTitles = document.getElementById('pdf-titles');
+      expect(pdfTitles.innerHTML).toContain('&lt;script');
+      expect(pdfTitles.innerHTML).not.toContain('<script>xss');
     });
   });
 
@@ -299,33 +248,25 @@ describe('ws-session-handler', () => {
 
   describe('handleChangeStatus', () => {
     it('adds active class for active messages', () => {
-      const statusMock = { addClass: jest.fn().mockReturnThis(), removeClass: jest.fn().mockReturnThis() };
-      const cardMock = createMockElement('card');
-      cardMock.find = jest.fn().mockReturnValue(statusMock);
-
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#msg-1') return cardMock;
-        return createMockElement('default');
-      });
+      var card = document.createElement('div');
+      card.id = 'msg-1';
+      card.innerHTML = '<div class="status"></div>';
+      document.getElementById('discourse').appendChild(card);
 
       handlers.handleChangeStatus({ content: [{ mid: 'msg-1', active: true }] });
 
-      expect(statusMock.addClass).toHaveBeenCalledWith('active');
+      expect(card.querySelector('.status').classList.contains('active')).toBe(true);
     });
 
     it('removes active class for inactive messages', () => {
-      const statusMock = { addClass: jest.fn().mockReturnThis(), removeClass: jest.fn().mockReturnThis() };
-      const cardMock = createMockElement('card');
-      cardMock.find = jest.fn().mockReturnValue(statusMock);
-
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#msg-2') return cardMock;
-        return createMockElement('default');
-      });
+      var card = document.createElement('div');
+      card.id = 'msg-2';
+      card.innerHTML = '<div class="status active"></div>';
+      document.getElementById('discourse').appendChild(card);
 
       handlers.handleChangeStatus({ content: [{ mid: 'msg-2', active: false }] });
 
-      expect(statusMock.removeClass).toHaveBeenCalledWith('active');
+      expect(card.querySelector('.status').classList.contains('active')).toBe(false);
     });
   });
 
@@ -343,7 +284,6 @@ describe('ws-session-handler', () => {
   describe('handleSampleSuccess', () => {
     it('clears sample timeout', () => {
       window.currentSampleTimeout = setTimeout(() => {}, 10000);
-      const timeoutId = window.currentSampleTimeout;
 
       handlers.handleSampleSuccess({ role: 'assistant' });
 
@@ -351,10 +291,13 @@ describe('ws-session-handler', () => {
     });
 
     it('hides spinner and cancel button', () => {
+      var spinner = document.getElementById('monadic-spinner');
+      spinner.style.display = '';
+
       handlers.handleSampleSuccess({ role: 'user' });
 
-      expect(mockElements['#monadic-spinner'].hide).toHaveBeenCalled();
-      const cancelButton = document.getElementById('cancel_query');
+      expect(spinner.style.display).toBe('none');
+      var cancelButton = document.getElementById('cancel_query');
       expect(cancelButton.style.display).toBe('none');
     });
 

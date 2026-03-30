@@ -44,10 +44,14 @@ var STATUS_COLORS_DARK = {
 function setAlertClass(alertType) {
   if (alertType === undefined) alertType = "error";
 
+  var el = document.getElementById('status-message');
+  if (!el) return;
+
   // Remove all existing text-* classes
-  $("#status-message").removeClass(function(_index, className) {
-    return (className.match(/\btext-\S+/g) || []).join(' ');
-  });
+  var classes = el.className.match(/\btext-\S+/g);
+  if (classes) {
+    classes.forEach(function(cls) { el.classList.remove(cls); });
+  }
 
   // Map error to danger for consistency with Bootstrap
   if (alertType === "error") {
@@ -60,14 +64,13 @@ function setAlertClass(alertType) {
     alertType = 'secondary';
   }
 
-  $("#status-message").addClass("text-" + alertType);
+  el.classList.add("text-" + alertType);
 
   // Apply color via inline style with !important to override Bootstrap @layer
   var isDark = document.documentElement.classList.contains('dark-theme');
   var palette = isDark ? STATUS_COLORS_DARK : STATUS_COLORS;
   var color = palette[alertType] || palette.secondary;
-  var el = document.getElementById('status-message');
-  if (el) el.style.setProperty('color', color, 'important');
+  el.style.setProperty('color', color, 'important');
 }
 
 /**
@@ -82,7 +85,9 @@ function setAlert(text, alertType) {
   if (alertType === undefined) alertType = "success";
 
   if (alertType === "error") {
-    $("#monadic-spinner").hide();
+    var spinner = document.getElementById('monadic-spinner');
+    if (spinner) spinner.style.display = 'none';
+
     var msg = text;
     if (text["content"]) {
       msg = text["content"];
@@ -95,34 +100,48 @@ function setAlert(text, alertType) {
       "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>",
       msg);
 
-    errorCard.addClass("error-message-card");
+    var errorCardEl = errorCard[0] || errorCard;
+    if (errorCardEl && errorCardEl.classList) {
+      errorCardEl.classList.add("error-message-card");
+    }
 
     // Add delete button handler
-    errorCard.find(".func-delete").off("click").on("click", function(e) {
-      e.stopPropagation();
-      $(this).tooltip('hide');
-      $('.tooltip').remove();
+    var deleteBtn = errorCardEl ? errorCardEl.querySelector(".func-delete") : null;
+    if (deleteBtn) {
+      deleteBtn.onclick = function(e) {
+        e.stopPropagation();
+        var tip = bootstrap.Tooltip.getInstance(this);
+        if (tip) tip.hide();
+        document.querySelectorAll('.tooltip').forEach(function(t) { t.remove(); });
 
-      var $card = $(this).closest(".card");
-      var mid = $card.attr("id");
+        var card = this.closest(".card");
+        var mid = card ? card.getAttribute("id") : null;
 
-      if (typeof detachEventListeners === 'function') {
-        detachEventListeners($card);
-      }
-      $card.remove();
+        if (card && typeof detachEventListeners === 'function') {
+          detachEventListeners(card);
+        }
+        if (card) card.remove();
 
-      if (mid) {
-        ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
-        mids.delete(mid);
-      }
+        if (mid) {
+          ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+          mids.delete(mid);
+        }
 
-      $("#status-message").html("<i class='fas fa-circle-check'></i> Error message removed");
-      setAlertClass("success");
-      return false;
-    });
+        var statusMsg = document.getElementById('status-message');
+        if (statusMsg) statusMsg.innerHTML = "<i class='fas fa-circle-check'></i> Error message removed";
+        setAlertClass("success");
+        return false;
+      };
+    }
 
-    errorCard.find(".func-edit").prop("disabled", true).css("opacity", "0.5");
-    $("#discourse").append(errorCard);
+    var editBtn = errorCardEl ? errorCardEl.querySelector(".func-edit") : null;
+    if (editBtn) {
+      editBtn.disabled = true;
+      editBtn.style.opacity = "0.5";
+    }
+
+    var discourse = document.getElementById('discourse');
+    if (discourse && errorCardEl) discourse.appendChild(errorCardEl);
   } else {
     // Translate known status messages
     var displayText = text;
@@ -149,33 +168,33 @@ function setAlert(text, alertType) {
       }
     }
 
-    $("#status-message").html(displayText);
+    var statusEl = document.getElementById('status-message');
+    if (statusEl) statusEl.innerHTML = displayText;
     setAlertClass(alertType);
 
     // Bootstrap tooltip with full text
     var plainText = displayText.replace(/<[^>]*>/g, '');
-    if (typeof $.fn.tooltip === 'function') {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
       try {
-        var $statusMsg = $("#status-message");
-        if ($statusMsg.data('bs.tooltip')) {
-          $statusMsg.tooltip('dispose');
-        }
-        $statusMsg.removeAttr('title');
-        $statusMsg.tooltip({
+        var existingTip = bootstrap.Tooltip.getInstance(statusEl);
+        if (existingTip) existingTip.dispose();
+        if (statusEl) statusEl.removeAttribute('title');
+        new bootstrap.Tooltip(statusEl, {
           placement: 'bottom',
           trigger: 'hover',
           delay: { show: 500, hide: 100 },
           title: plainText
         });
       } catch (e) {
-        var $statusMsg2 = $("#status-message");
-        $statusMsg2.removeAttr('title');
-        $statusMsg2.tooltip({
-          placement: 'bottom',
-          trigger: 'hover',
-          delay: { show: 500, hide: 100 },
-          title: plainText
-        });
+        if (statusEl) statusEl.removeAttribute('title');
+        try {
+          new bootstrap.Tooltip(statusEl, {
+            placement: 'bottom',
+            trigger: 'hover',
+            delay: { show: 500, hide: 100 },
+            title: plainText
+          });
+        } catch (e2) { /* ignore */ }
       }
     }
   }
@@ -187,17 +206,21 @@ function setAlert(text, alertType) {
  */
 function setStats(text) {
   if (text === undefined) text = "";
-  $("#stats-message").html(text);
+  var el = document.getElementById('stats-message');
+  if (el) el.innerHTML = text;
 }
 
 /**
  * Clear status message text and remove all status type classes.
  */
 function clearStatusMessage() {
-  $("#status-message").html("");
-  $("#status-message").removeClass(function(_index, className) {
-    return (className.match(/\btext-\S+/g) || []).join(' ');
-  });
+  var el = document.getElementById('status-message');
+  if (!el) return;
+  el.innerHTML = "";
+  var classes = el.className.match(/\btext-\S+/g);
+  if (classes) {
+    classes.forEach(function(cls) { el.classList.remove(cls); });
+  }
 }
 
 /**
@@ -205,17 +228,16 @@ function clearStatusMessage() {
  * Cleans up event listeners and notifies server.
  */
 function clearErrorCards() {
-  $(".error-message-card").each(function() {
-    var $card = $(this);
-    var mid = $card.attr("id");
+  document.querySelectorAll(".error-message-card").forEach(function(card) {
+    var mid = card.getAttribute("id");
     if (typeof detachEventListeners === 'function') {
-      detachEventListeners($card);
+      detachEventListeners(card);
     }
     if (mid) {
       ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
       mids.delete(mid);
     }
-    $card.remove();
+    card.remove();
   });
 }
 
@@ -224,11 +246,11 @@ function clearErrorCards() {
  * @param {string} mid - Message ID
  */
 function deleteMessage(mid) {
-  var $card = $("#" + mid);
-  if ($card.length && typeof detachEventListeners === 'function') {
-    detachEventListeners($card);
+  var card = document.getElementById(mid);
+  if (card && typeof detachEventListeners === 'function') {
+    detachEventListeners(card);
   }
-  $card.remove();
+  if (card) card.remove();
   var index = messages.findIndex(function(m) { return m.mid === mid; });
 
   if (index !== -1) {

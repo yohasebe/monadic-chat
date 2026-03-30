@@ -38,30 +38,30 @@ function sanitizeParamsForSync(source) {
   });
   // Ensure app_name is set so other tabs know which app to load
   if (!clone.app_name) {
-    const appsEl = document.getElementById("apps");
+    const appsEl = $id("apps");
     if (appsEl && appsEl.value) clone.app_name = appsEl.value;
   }
   // Sync checkbox states to ensure params reflect current UI state
   // This prevents stale values from being broadcast
   // Boolean checkboxes
-  const websearchEl = document.getElementById("websearch");
+  const websearchEl = $id("websearch");
   clone.websearch = (websearchEl && websearchEl.checked) || false;
-  const easySubmitEl = document.getElementById("check-easy-submit");
+  const easySubmitEl = $id("check-easy-submit");
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
-  const autoSpeechEl = document.getElementById("check-auto-speech");
+  const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
-  const mathjaxEl = document.getElementById("mathjax");
+  const mathjaxEl = $id("mathjax");
   clone.mathjax = (mathjaxEl && mathjaxEl.checked) || false;
-  const initiateEl = document.getElementById("initiate-from-assistant");
+  const initiateEl = $id("initiate-from-assistant");
   clone.initiate_from_assistant = (initiateEl && initiateEl.checked) || false;
 
   // Handle toggle-controlled values
   // If max-tokens-toggle is OFF, don't include max_tokens (use model default)
-  const maxTokensToggleEl = document.getElementById("max-tokens-toggle");
+  const maxTokensToggleEl = $id("max-tokens-toggle");
   if (!maxTokensToggleEl || !maxTokensToggleEl.checked) {
     delete clone.max_tokens;
   } else {
-    const maxTokensEl = document.getElementById("max-tokens");
+    const maxTokensEl = $id("max-tokens");
     const maxTokensVal = maxTokensEl ? maxTokensEl.value : null;
     if (maxTokensVal) {
       clone.max_tokens = parseInt(maxTokensVal) || maxTokensVal;
@@ -69,11 +69,11 @@ function sanitizeParamsForSync(source) {
   }
 
   // If context-size-toggle is OFF, don't include context_size (use default)
-  const contextSizeToggleEl = document.getElementById("context-size-toggle");
+  const contextSizeToggleEl = $id("context-size-toggle");
   if (!contextSizeToggleEl || !contextSizeToggleEl.checked) {
     delete clone.context_size;
   } else {
-    const contextSizeEl = document.getElementById("context-size");
+    const contextSizeEl = $id("context-size");
     const contextSizeVal = contextSizeEl ? contextSizeEl.value : null;
     if (contextSizeVal) {
       clone.context_size = parseInt(contextSizeVal) || contextSizeVal;
@@ -81,14 +81,14 @@ function sanitizeParamsForSync(source) {
   }
 
   // Sync current model selection
-  const modelEl = document.getElementById("model");
+  const modelEl = $id("model");
   const currentModel = modelEl ? modelEl.value : null;
   if (currentModel) {
     clone.model = currentModel;
   }
 
   // Sync reasoning effort if enabled
-  const reasoningEffortEl = document.getElementById("reasoning-effort");
+  const reasoningEffortEl = $id("reasoning-effort");
   if (reasoningEffortEl && !reasoningEffortEl.disabled) {
     const reasoningVal = reasoningEffortEl.value;
     if (reasoningVal) {
@@ -158,7 +158,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // New tabs have empty sessionStorage, so should NEVER show processing spinner on load
   try {
     // Hide spinner immediately
-    const spinnerEl = document.getElementById("monadic-spinner");
+    const spinnerEl = $id("monadic-spinner");
     if (spinnerEl) {
       spinnerEl.style.display = 'none';
     }
@@ -182,9 +182,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (savedMenuHidden !== null) {
       // Use setTimeout to ensure DOM elements are ready
       setTimeout(() => {
-        const toggleBtn = document.getElementById("toggle-menu");
-        const menuPanel = document.getElementById("menu");
-        const mainPanel = document.getElementById("main");
+        const toggleBtn = $id("toggle-menu");
+        const menuPanel = $id("menu");
+        const mainPanel = $id("main");
 
         if (toggleBtn && menuPanel && mainPanel) {
           const windowWidth = window.innerWidth;
@@ -260,7 +260,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (restoredApp) {
         window.lastApp = restoredApp;
         // Also set the app selection if apps dropdown exists
-        const appsDropdown = document.getElementById("apps");
+        const appsDropdown = $id("apps");
         if (appsDropdown && appsDropdown.querySelector(`option[value="${restoredApp}"]`)) {
           appsDropdown.value = restoredApp;
         }
@@ -304,7 +304,7 @@ document.addEventListener("DOMContentLoaded", async function () {
               msg.active !== false,  // Default to true if not specified
               msg.images || []
             );
-            const discourseEl = document.getElementById("discourse");
+            const discourseEl = $id("discourse");
             if (discourseEl) discourseEl.appendChild(cardElement);
           } else {
             console.warn('[Session] createCard function not available yet, message will not be rendered');
@@ -315,11 +315,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (window.i18nReady) {
           window.i18nReady.then(() => {
             const continueText = webUIi18n.t('ui.session.continueSession') || 'Continue Session';
-            const startLabelEl = document.getElementById("start-label");
+            const startLabelEl = $id("start-label");
             if (startLabelEl) startLabelEl.textContent = continueText;
           });
         } else {
-          const startLabelEl = document.getElementById("start-label");
+          const startLabelEl = $id("start-label");
           if (startLabelEl) startLabelEl.textContent = 'Continue Session';
         }
       }
@@ -348,11 +348,11 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (window.i18nReady) {
     window.i18nReady.then(() => {
       const aiUserTitle = webUIi18n.t('ui.generateAIUserResponse') || "Generate AI user response based on conversation";
-      const aiUserBtn = document.getElementById("ai_user");
+      const aiUserBtn = $id("ai_user");
       if (aiUserBtn) aiUserBtn.setAttribute("title", aiUserTitle);
 
       // Update role selector options with translations
-      const roleSelect = document.getElementById("select-role");
+      const roleSelect = $id("select-role");
       const roleOptions = roleSelect ? roleSelect.querySelectorAll("option") : [];
       if (roleOptions.length > 0) {
         roleOptions[0].textContent = webUIi18n.t('ui.roleOptions.user') || 'User';
@@ -362,12 +362,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
   } else {
-    const aiUserBtn = document.getElementById("ai_user");
+    const aiUserBtn = $id("ai_user");
     if (aiUserBtn) aiUserBtn.setAttribute("title", "Generate AI user response based on conversation");
   }
   // Ensure cancel button is hidden on page load using setTimeout for more reliability
   setTimeout(function() {
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+    $id('cancel_query').style.setProperty('display', 'none', 'important');
   }, 100);
   
   // Get modules from window if available or install shims
@@ -439,12 +439,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       .then(function (cap) {
         if (!cap || cap.success === false) return;
         // Always show #url and #doc buttons - backend handles Selenium/Tavily routing
-        const urlBtn = document.getElementById('url');
-        if (urlBtn) urlBtn.style.display = '';
-        const docBtn = document.getElementById('doc');
-        if (docBtn) docBtn.style.display = '';
-
-        // Mistral/Cohere TTS/STT are enabled via /api/ai_user_defaults (more reliable)
+        const urlBtn = $id('url');
+        $show(urlBtn); const docBtn = $id('doc');
+        $show(docBtn); // Mistral/Cohere TTS/STT are enabled via /api/ai_user_defaults (more reliable)
       })
       .catch(function () { /* ignore */ });
   } catch (e) { /* ignore */ }
@@ -453,17 +450,17 @@ document.addEventListener("DOMContentLoaded", async function () {
   const initialHeight = 100;
   
   // Process each textarea individually to avoid keeping references
-  const messageTextarea = document.getElementById('message');
+  const messageTextarea = $id('message');
   if (messageTextarea) {
     uiUtils.setupTextarea(messageTextarea, initialHeight);
   }
   
-  const initialPromptTextarea = document.getElementById('initial-prompt');
+  const initialPromptTextarea = $id('initial-prompt');
   if (initialPromptTextarea) {
     uiUtils.setupTextarea(initialPromptTextarea, initialHeight);
   }
   
-  const aiUserInitialPromptTextarea = document.getElementById('ai-user-initial-prompt');
+  const aiUserInitialPromptTextarea = $id('ai-user-initial-prompt');
   if (aiUserInitialPromptTextarea) {
     uiUtils.setupTextarea(aiUserInitialPromptTextarea, initialHeight);
   }
@@ -476,9 +473,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // if on Firefox, disable the #voice-panel
   if (runningOnFirefox) {
-    const voicePanel = document.getElementById("voice-panel");
-    if (voicePanel) voicePanel.style.display = 'none';
-  }
+    const voicePanel = $id("voice-panel");
+    $hide(voicePanel); }
 });
 
 // Fallback implementations are now in shims.js
@@ -492,11 +488,11 @@ var lightboxIndex = 0;
 
 function updateLightbox() {
   if (lightboxImages.length === 0) return;
-  const lightboxImage = document.getElementById("lightboxImage");
+  const lightboxImage = $id("lightboxImage");
   if (lightboxImage) lightboxImage.setAttribute("src", lightboxImages[lightboxIndex]);
-  const lightboxCounter = document.getElementById("lightboxCounter");
-  const lightboxPrev = document.getElementById("lightboxPrev");
-  const lightboxNext = document.getElementById("lightboxNext");
+  const lightboxCounter = $id("lightboxCounter");
+  const lightboxPrev = $id("lightboxPrev");
+  const lightboxNext = $id("lightboxNext");
   if (lightboxImages.length > 1) {
     if (lightboxCounter) {
       lightboxCounter.textContent = (lightboxIndex + 1) + " / " + lightboxImages.length;
@@ -505,10 +501,7 @@ function updateLightbox() {
     if (lightboxPrev) lightboxPrev.style.display = lightboxIndex > 0 ? '' : 'none';
     if (lightboxNext) lightboxNext.style.display = lightboxIndex < lightboxImages.length - 1 ? '' : 'none';
   } else {
-    if (lightboxCounter) lightboxCounter.style.display = 'none';
-    if (lightboxPrev) lightboxPrev.style.display = 'none';
-    if (lightboxNext) lightboxNext.style.display = 'none';
-  }
+    $hide(lightboxCounter); $hide(lightboxPrev); $hide(lightboxNext); }
 }
 
 // --- Perceptual hash helpers for visual image dedup ---
@@ -547,68 +540,66 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Update the summary bar content with current settings
   function updateConfigSummary() {
-    var appsSelect = document.getElementById("apps");
+    var appsSelect = $id("apps");
     var appText = (appsSelect && appsSelect.options[appsSelect.selectedIndex]) ? appsSelect.options[appsSelect.selectedIndex].text : "Chat";
     var appIcon = "";
     var iconEl = document.querySelector("#app-select-icon");
     if (iconEl) appIcon = iconEl.innerHTML;
-    var modelSelect = document.getElementById("model");
+    var modelSelect = $id("model");
     var modelName = modelSelect ? modelSelect.value : "";
 
-    var summaryAppIcon = document.getElementById("summary-app-icon");
+    var summaryAppIcon = $id("summary-app-icon");
     if (summaryAppIcon) summaryAppIcon.innerHTML = appIcon;
-    var summaryAppName = document.getElementById("summary-app-name");
+    var summaryAppName = $id("summary-app-name");
     if (summaryAppName) summaryAppName.textContent = appText;
-    var summaryModelName = document.getElementById("summary-model-name");
+    var summaryModelName = $id("summary-model-name");
     if (summaryModelName) summaryModelName.textContent = modelName;
 
     var indicators = "";
-    var websearchCb = document.getElementById("websearch");
+    var websearchCb = $id("websearch");
     if (websearchCb && websearchCb.checked) indicators += '<span class="badge bg-info me-1">Web</span>';
-    var mathjaxCb = document.getElementById("mathjax");
+    var mathjaxCb = $id("mathjax");
     if (mathjaxCb && mathjaxCb.checked) indicators += '<span class="badge bg-secondary me-1">Math</span>';
-    var reasoningEffortSel = document.getElementById("reasoning-effort");
+    var reasoningEffortSel = $id("reasoning-effort");
     var re = reasoningEffortSel ? reasoningEffortSel.value : "";
     if (reasoningEffortSel && !reasoningEffortSel.disabled && re && re !== "none" && re !== "disabled") {
       indicators += '<span class="badge bg-warning text-dark me-1">' + re + '</span>';
     }
-    var summaryIndicators = document.getElementById("summary-indicators");
+    var summaryIndicators = $id("summary-indicators");
     if (summaryIndicators) summaryIndicators.innerHTML = indicators;
   }
 
   // Lock settings that should not change during an active session
   function lockSessionSettings() {
-    var appsEl = document.getElementById("apps");
+    var appsEl = $id("apps");
     if (appsEl) appsEl.disabled = true;
-    var initialPromptEl = document.getElementById("initial-prompt");
+    var initialPromptEl = $id("initial-prompt");
     if (initialPromptEl) initialPromptEl.disabled = true;
-    var aiUserPromptEl = document.getElementById("ai-user-initial-prompt");
+    var aiUserPromptEl = $id("ai-user-initial-prompt");
     if (aiUserPromptEl) aiUserPromptEl.disabled = true;
-    var initiateEl = document.getElementById("initiate-from-assistant");
+    var initiateEl = $id("initiate-from-assistant");
     if (initiateEl) initiateEl.disabled = true;
   }
 
   // Unlock settings when session is reset
   function unlockSessionSettings() {
-    var appsEl = document.getElementById("apps");
+    var appsEl = $id("apps");
     if (appsEl) appsEl.disabled = false;
-    var initialPromptEl = document.getElementById("initial-prompt");
+    var initialPromptEl = $id("initial-prompt");
     if (initialPromptEl) initialPromptEl.disabled = false;
-    var aiUserPromptEl = document.getElementById("ai-user-initial-prompt");
+    var aiUserPromptEl = $id("ai-user-initial-prompt");
     if (aiUserPromptEl) aiUserPromptEl.disabled = false;
-    var initiateEl = document.getElementById("initiate-from-assistant");
+    var initiateEl = $id("initiate-from-assistant");
     if (initiateEl) initiateEl.disabled = false;
   }
 
   // Collapse settings and show conversation (used when starting/continuing session)
   function enterConversationMode() {
-    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(document.getElementById("config-body"), { toggle: false });
+    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.hide();
-    var configSummary = document.getElementById("config-summary");
-    if (configSummary) configSummary.style.display = '';
-    var configActions = document.getElementById("config-actions");
-    if (configActions) configActions.style.display = 'none';
-    var mainPanelEl = document.getElementById("main-panel");
+    var configSummary = $id("config-summary");
+    $show(configSummary); var configActions = $id("config-actions");
+    $hide(configActions); var mainPanelEl = $id("main-panel");
     if (mainPanelEl) mainPanelEl.classList.remove("d-none");
     lockSessionSettings();
     updateConfigSummary();
@@ -616,13 +607,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Expand settings and hide conversation (used when resetting)
   function enterSettingsMode() {
-    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(document.getElementById("config-body"), { toggle: false });
+    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.show();
-    var configSummary = document.getElementById("config-summary");
-    if (configSummary) configSummary.style.display = 'none';
-    var configActions = document.getElementById("config-actions");
-    if (configActions) configActions.style.display = '';
-    var mainPanelEl = document.getElementById("main-panel");
+    var configSummary = $id("config-summary");
+    $hide(configSummary); var configActions = $id("config-actions");
+    $show(configActions); var mainPanelEl = $id("main-panel");
     if (mainPanelEl) mainPanelEl.classList.add("d-none");
     unlockSessionSettings();
   }
@@ -636,15 +625,15 @@ document.addEventListener("DOMContentLoaded", function () {
   // Access them only when needed
 
   // button#browser is disabled when the system has started
-  var browserBtn = document.getElementById("browser");
+  var browserBtn = $id("browser");
   if (browserBtn) browserBtn.disabled = true;
 
   ["send", "clear", "voice", "tts-voice", "ui-language", "prompt-toggle-assistant", "prompt-toggle-aiuser", "check-auto-speech", "check-easy-submit"].forEach(function(id) {
-    var el = document.getElementById(id);
+    var el = $id(id);
     if (el) el.disabled = true;
   });
   // Keep TTS speed control always enabled as it's used by multiple TTS providers
-  var ttsSpeedEl = document.getElementById("tts-speed");
+  var ttsSpeedEl = $id("tts-speed");
   if (ttsSpeedEl) ttsSpeedEl.disabled = false;
 
   //////////////////////////////
@@ -657,31 +646,27 @@ document.addEventListener("DOMContentLoaded", function () {
   // Common UI operations - centralized for consistency
   const UIOperations = {
     showMain: function() {
-      var el = document.getElementById("main");
-      if (el) el.style.display = '';
-      return this;
+      var el = $id("main");
+      $show(el); return this;
     },
     hideMain: function() {
-      var el = document.getElementById("main");
-      if (el) el.style.display = 'none';
-      return this;
+      var el = $id("main");
+      $hide(el); return this;
     },
     showMenu: function() {
-      var el = document.getElementById("menu");
-      if (el) el.style.display = '';
-      return this;
+      var el = $id("menu");
+      $show(el); return this;
     },
     hideMenu: function() {
-      var el = document.getElementById("menu");
-      if (el) el.style.display = 'none';
-      return this;
+      var el = $id("menu");
+      $hide(el); return this;
     },
     showBoth: function() {
       this.showMain().showMenu();
       return this;
     },
     setMainColumns: function(removeClass, addClass) {
-      var el = document.getElementById("main");
+      var el = $id("main");
       if (el) {
         el.classList.remove(removeClass);
         el.classList.add(addClass);
@@ -695,25 +680,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Consolidate event handlers for toggles
   function setupToggleHandlers() {
-    var autoScrollToggle = document.getElementById("auto-scroll-toggle");
+    var autoScrollToggle = $id("auto-scroll-toggle");
     if (autoScrollToggle) {
       autoScrollToggle.addEventListener("change", function () {
         autoScroll = this.checked;
       });
     }
 
-    var maxTokensToggle = document.getElementById("max-tokens-toggle");
+    var maxTokensToggle = $id("max-tokens-toggle");
     if (maxTokensToggle) {
       maxTokensToggle.addEventListener("change", function () {
-        var maxTokensInput = document.getElementById("max-tokens");
+        var maxTokensInput = $id("max-tokens");
         if (maxTokensInput) maxTokensInput.disabled = !this.checked;
       });
     }
 
-    var contextSizeToggle = document.getElementById("context-size-toggle");
+    var contextSizeToggle = $id("context-size-toggle");
     if (contextSizeToggle) {
       contextSizeToggle.addEventListener("change", function () {
-        var contextSizeInput = document.getElementById("context-size");
+        var contextSizeInput = $id("context-size");
         if (contextSizeInput) contextSizeInput.disabled = !this.checked;
       });
     }
@@ -723,9 +708,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function setupEventListeners() {
     // Make AI User button always visible
     setTimeout(function() {
-      var aiUserEl = document.getElementById("ai_user");
-      if (aiUserEl) aiUserEl.style.display = '';
-    }, 1000);
+      var aiUserEl = $id("ai_user");
+      $show(aiUserEl); }, 1000);
     
     // --- AI User defaults (SSOT) ---
     let aiUserDefaults = null;
@@ -746,7 +730,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Setup AI User provider selector - updated to filter by available API keys
-    var aiUserProviderEl = document.getElementById("ai_user_provider");
+    var aiUserProviderEl = $id("ai_user_provider");
     if (aiUserProviderEl) {
       aiUserProviderEl.addEventListener("change", function() {
         const provider = this.value;
@@ -755,9 +739,9 @@ document.addEventListener("DOMContentLoaded", function () {
         // Update badge with model and reasoning effort when available
         if (!setAiUserBadge()) {
           const providerName = this.options[this.selectedIndex].text;
-          const modelEl = document.getElementById("model");
+          const modelEl = $id("model");
           const fallbackModel = getDefaultModelFromSSOT(provider) || (modelEl ? modelEl.value : '') || getTranslation('ui.notConfigured','Not configured');
-          const aiUserModelEl = document.getElementById("ai-user-model");
+          const aiUserModelEl = $id("ai-user-model");
           if (aiUserModelEl) aiUserModelEl.textContent = `${providerName} (${fallbackModel})`;
         }
       });
@@ -775,7 +759,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Export to window scope for access from websocket.js
     window.updateAvailableProviders = function() {
       // Hide all options first
-      var providerSelect = document.getElementById("ai_user_provider");
+      var providerSelect = $id("ai_user_provider");
       if (!providerSelect) return;
       var allOptions = providerSelect.querySelectorAll("option");
       allOptions.forEach(function(opt) { opt.style.display = 'none'; });
@@ -808,8 +792,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (optVal) {
           var opt = providerSelect.querySelector("option[value='" + optVal + "']");
-          if (opt) opt.style.display = '';
-        }
+          $show(opt); }
       }
 
       // Additionally filter by SSOT has_key if available
@@ -845,13 +828,13 @@ document.addEventListener("DOMContentLoaded", function () {
       // Enable Mistral TTS / Cohere STT based on API key availability
       if (aiUserDefaults) {
         if (aiUserDefaults.mistral && aiUserDefaults.mistral.has_key) {
-          var mistralTtsOpt = document.getElementById("mistral-tts-provider-option");
+          var mistralTtsOpt = $id("mistral-tts-provider-option");
           if (mistralTtsOpt) mistralTtsOpt.disabled = false;
-          var mistralSttOpt = document.getElementById("mistral-stt-voxtral");
+          var mistralSttOpt = $id("mistral-stt-voxtral");
           if (mistralSttOpt) mistralSttOpt.disabled = false;
         }
         if (aiUserDefaults.cohere && aiUserDefaults.cohere.has_key) {
-          var cohereSttOpt = document.getElementById("cohere-stt-transcribe");
+          var cohereSttOpt = $id("cohere-stt-transcribe");
           if (cohereSttOpt) cohereSttOpt.disabled = false;
         }
       }
@@ -859,19 +842,19 @@ document.addEventListener("DOMContentLoaded", function () {
     
     // Helper to compute and set the AI User badge text robustly
     function setAiUserBadge() {
-      var providerSel = document.getElementById("ai_user_provider");
+      var providerSel = $id("ai_user_provider");
       if (!providerSel) return false;
       const provider = providerSel.value;
       if (!provider) return false;
       const providerName = providerSel.options[providerSel.selectedIndex].text;
       const ssotModel = getDefaultModelFromSSOT(provider);
-      var modelSel = document.getElementById("model");
+      var modelSel = $id("model");
       const currentModel = modelSel ? modelSel.value : '';
       const model = ssotModel || currentModel;
       if (model && providerName) {
         // NOTE: Reasoning effort is intentionally NOT displayed for AI User
         // AI User has thinking/reasoning disabled for faster, simpler responses
-        var aiUserModelEl = document.getElementById("ai-user-model");
+        var aiUserModelEl = $id("ai-user-model");
         if (aiUserModelEl) aiUserModelEl.textContent = providerName + ' (' + model + ')';
         return true;
       }
@@ -882,7 +865,7 @@ document.addEventListener("DOMContentLoaded", function () {
     fetchAiUserDefaults().then(function(defs){
       aiUserDefaults = defs || null;
       window.updateAvailableProviders();
-      var providerSel = document.getElementById("ai_user_provider");
+      var providerSel = $id("ai_user_provider");
       const savedProvider = getCookie('ai_user_provider');
       var chosen = savedProvider;
       if (providerSel) {
@@ -898,7 +881,7 @@ document.addEventListener("DOMContentLoaded", function () {
           providerSel.value = chosen;
         }
       }
-      var aiUserModelEl = document.getElementById("ai-user-model");
+      var aiUserModelEl = $id("ai-user-model");
       if (chosen) {
         if (!setAiUserBadge()) {
           if (aiUserModelEl) aiUserModelEl.textContent = getTranslation('ui.notConfigured','Not configured');
@@ -910,13 +893,13 @@ document.addEventListener("DOMContentLoaded", function () {
       // fallback: just update available providers based on apps
       window.updateAvailableProviders();
       // Best-effort label update using current app model
-      var providerSel = document.getElementById("ai_user_provider");
+      var providerSel = $id("ai_user_provider");
       if (providerSel) {
         var firstVisible = Array.from(providerSel.querySelectorAll("option")).find(function(o) { return o.style.display !== 'none'; });
         if (firstVisible) {
           providerSel.value = firstVisible.value;
           if (!setAiUserBadge()) {
-            var aiUserModelEl = document.getElementById("ai-user-model");
+            var aiUserModelEl = $id("ai-user-model");
             if (aiUserModelEl) aiUserModelEl.textContent = getTranslation('ui.notConfigured','Not configured');
           }
         }
@@ -926,7 +909,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Robust initialization: observe #model for population and update badge when ready
     (function ensureBadgeOnModelReady(){
       try {
-        const modelSel = document.getElementById('model');
+        const modelSel = $id('model');
         if (!modelSel || typeof MutationObserver === 'undefined') return; // Defensive
         const observer = new MutationObserver(() => {
           // Attempt to set badge whenever options or value change
@@ -951,13 +934,13 @@ document.addEventListener("DOMContentLoaded", function () {
     })();
     
     // Set up model change handler to update the AI Assistant info badge
-    var modelChangeEl = document.getElementById("model");
+    var modelChangeEl = $id("model");
     if (modelChangeEl) {
       modelChangeEl.addEventListener("change", function() {
         const selectedModel = this.value;
         // Extract provider from params.group first (synced in proceedWithAppChange), fallback to current app group
         let provider = "OpenAI";
-        var appsEl = document.getElementById("apps");
+        var appsEl = $id("apps");
         const currentApp = appsEl ? appsEl.value : '';
         const grp = (typeof params !== 'undefined' && params && params["group"]) ? params["group"] : (apps[currentApp] && apps[currentApp].group ? apps[currentApp].group : null);
         if (grp) {
@@ -980,17 +963,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         // Update the badge in the AI User section with provider name and model
         const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
-        var aiAssistantInfo = document.getElementById("ai-assistant-info");
+        var aiAssistantInfo = $id("ai-assistant-info");
         if (aiAssistantInfo) {
           aiAssistantInfo.innerHTML = '<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>';
           aiAssistantInfo.setAttribute("data-model", selectedModel);
         }
 
         // Update model-selected text to follow the new multiline format
-        var modelSelectedEl = document.getElementById("model-selected");
+        var modelSelectedEl = $id("model-selected");
         if (modelSelectedEl) {
           if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-            var reasoningEffortEl = document.getElementById("reasoning-effort");
+            var reasoningEffortEl = $id("reasoning-effort");
             const reasoningEffort = reasoningEffortEl ? reasoningEffortEl.value : '';
             modelSelectedEl.textContent = `${provider} (${selectedModel} - ${reasoningEffort})`;
           } else {
@@ -1003,14 +986,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initial availability update will be done when models are loaded
     
     // Setup AI User button
-    var aiUserButton = document.getElementById("ai_user");
+    var aiUserButton = $id("ai_user");
     if (aiUserButton) {
       aiUserButton.onclick = function () {
         // Force enable AI User
         params["ai_user"] = "true";
 
         // Get the provider from the selector
-        var providerSel = document.getElementById("ai_user_provider");
+        var providerSel = $id("ai_user_provider");
         const provider = providerSel ? providerSel.value : '';
         params["ai_user_provider"] = provider;
 
@@ -1042,13 +1025,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Disable UI elements manually here to ensure they're disabled even if websocket events fail
         ["message", "send", "clear", "image-file", "voice", "doc", "url", "audio-upload", "select-role"].forEach(function(id) {
-          var el = document.getElementById(id);
+          var el = $id(id);
           if (el) el.disabled = true;
         });
-        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+        $id('cancel_query').style.setProperty('display', 'flex', 'important');
 
         // Show the spinner with robot icon animation
-        var spinnerEl = document.getElementById("monadic-spinner");
+        var spinnerEl = $id("monadic-spinner");
         if (spinnerEl) spinnerEl.style.display = "block";
         const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
           webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
@@ -1057,7 +1040,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Enable button after a delay to prevent rapid clicking
         setTimeout(() => {
-          var btn = document.getElementById("ai_user");
+          var btn = $id("ai_user");
           if (btn) btn.disabled = false;
         }, 3000);
       };
@@ -1067,9 +1050,9 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("click", function (e) {
       var t = e.target.closest(".contBtn");
       if (t) {
-        var msgEl = document.getElementById("message");
+        var msgEl = $id("message");
         if (msgEl) msgEl.value = "Continue";
-        var sendBtn = document.getElementById("send");
+        var sendBtn = $id("send");
         if (sendBtn) sendBtn.click();
       }
     });
@@ -1133,7 +1116,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 // Handle already-cached images (browser may not fire load)
                 if (imgEl.complete && imgEl.naturalWidth > 0) {
-                  imgEl.dispatchEvent(new Event("load", {bubbles: true}));
+                  $dispatch(imgEl, "load");
                 }
 
                 // Screenshot lightbox: add click handler directly to each image
@@ -1152,7 +1135,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     lightboxIndex = lightboxImages.indexOf(this.getAttribute("src"));
                     if (lightboxIndex < 0) lightboxIndex = 0;
                     updateLightbox();
-                    var lightboxEl = document.getElementById("screenshotLightbox");
+                    var lightboxEl = $id("screenshotLightbox");
                     if (lightboxEl) bootstrap.Modal.getOrCreateInstance(lightboxEl).show();
                   });
                 }
@@ -1164,7 +1147,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Start observing the discourse element
-    const discourseElement = document.getElementById('discourse');
+    const discourseElement = $id('discourse');
     if (discourseElement) {
       window.imageErrorObserver.observe(discourseElement, {
         childList: true,
@@ -1191,17 +1174,17 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("click", function (e) {
       var yesTarget = e.target.closest(".yesBtn");
       if (yesTarget) {
-        var msgEl = document.getElementById("message");
+        var msgEl = $id("message");
         if (msgEl) msgEl.value = "Yes";
-        var sendBtn = document.getElementById("send");
+        var sendBtn = $id("send");
         if (sendBtn) sendBtn.click();
         return;
       }
       var noTarget = e.target.closest(".noBtn");
       if (noTarget) {
-        var msgEl = document.getElementById("message");
+        var msgEl = $id("message");
         if (msgEl) msgEl.value = "No";
-        var sendBtn = document.getElementById("send");
+        var sendBtn = $id("send");
         if (sendBtn) sendBtn.click();
         return;
       }
@@ -1213,7 +1196,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     // Improved scroll event - store timer in dataset to prevent leaks
     var _mainScrollTimer = null;
-    var mainPanelScroll = document.getElementById("main");
+    var mainPanelScroll = $id("main");
     if (mainPanelScroll) {
       mainPanelScroll.addEventListener("scroll", function () {
         // Clear any existing timer
@@ -1261,7 +1244,7 @@ document.addEventListener("DOMContentLoaded", function () {
         fixLayoutAfterResize();
 
         // Force nav reflow to apply correct styles
-        var navEl = document.getElementById('main-nav');
+        var navEl = $id('main-nav');
         if (navEl) {
           navEl.style.display = 'none';
           navEl.offsetHeight; // force reflow
@@ -1293,9 +1276,9 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       const windowWidth = window.innerWidth;
       const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : windowWidth < 600;
-      const toggleBtn = document.getElementById("toggle-menu");
-      const mainPanel = document.getElementById("main");
-      const menuPanel = document.getElementById("menu");
+      const toggleBtn = $id("toggle-menu");
+      const mainPanel = $id("main");
+      const menuPanel = $id("menu");
 
       // Check if essential elements exist
       if (!toggleBtn || !mainPanel || !menuPanel) {
@@ -1382,41 +1365,35 @@ document.addEventListener("DOMContentLoaded", function () {
         console.error("Error in fixLayoutAfterResize:", error);
       }
       // Attempt basic recovery
-      var mainEl = document.getElementById("main");
-      if (mainEl) mainEl.style.display = '';
-      var toggleEl = document.getElementById("toggle-menu");
-      if (toggleEl) toggleEl.style.display = '';
-    }
+      var mainEl = $id("main");
+      $show(mainEl); var toggleEl = $id("toggle-menu");
+      $show(toggleEl); }
   }
 
   // Fallback function for scroll buttons when uiUtils is not available
   function adjustScrollButtonsFallback() {
-    const mainPanel = document.getElementById("main");
+    const mainPanel = $id("main");
     const windowWidth = window.innerWidth;
     const isMobile = windowWidth < 600;
     const isMedium = windowWidth < 768; // Bootstrap md breakpoint
-    var backToTop = document.getElementById("back_to_top");
-    var backToBottom = document.getElementById("back_to_bottom");
+    var backToTop = $id("back_to_top");
+    var backToBottom = $id("back_to_bottom");
 
     // On mobile and medium screens where menu/content are exclusive, check toggle state
     if (isMobile || isMedium) {
       // Check if toggle button has menu-hidden class
-      const toggleBtn = document.getElementById("toggle-menu");
+      const toggleBtn = $id("toggle-menu");
       const isMenuHidden = toggleBtn && toggleBtn.classList.contains("menu-hidden");
 
       if (!isMenuHidden) {
         // Menu is showing, hide scroll buttons
-        if (backToTop) backToTop.style.display = 'none';
-        if (backToBottom) backToBottom.style.display = 'none';
-        return;
+        $hide(backToTop); $hide(backToBottom); return;
       }
     }
 
     // Also check for menu-visible class (mobile menu state)
     if (document.body.classList.contains("menu-visible")) {
-      if (backToTop) backToTop.style.display = 'none';
-      if (backToBottom) backToBottom.style.display = 'none';
-      return;
+      $hide(backToTop); $hide(backToBottom); return;
     }
 
     if (!mainPanel) return;
@@ -1436,18 +1413,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Show top button when scrolled down enough from the top
     if (mainScrollTop > scrollThreshold) {
-      if (backToTop) backToTop.style.display = '';
-    } else {
-      if (backToTop) backToTop.style.display = 'none';
-    }
+      $show(backToTop); } else {
+      $hide(backToTop); }
 
     // Show bottom button when not near the bottom
     const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
     if (distanceFromBottom > scrollThreshold) {
-      if (backToBottom) backToBottom.style.display = '';
-    } else {
-      if (backToBottom) backToBottom.style.display = 'none';
-    }
+      $show(backToBottom); } else {
+      $hide(backToBottom); }
   }
 
   // Store ResizeObserver instance for cleanup
@@ -1473,8 +1446,8 @@ document.addEventListener("DOMContentLoaded", function () {
         resizeObserverTimeout = null;
       }
       
-      const mainPanel = document.getElementById('main');
-      const menuPanel = document.getElementById('menu');
+      const mainPanel = $id('main');
+      const menuPanel = $id('menu');
       
       if (!mainPanel || !menuPanel) {
         console.warn('Required panels not found for ResizeObserver');
@@ -1671,7 +1644,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let previousModelValue = null;
 
   // Capture previous value on focus
-  const modelEl = document.getElementById("model");
+  const modelEl = $id("model");
   if (modelEl) {
     modelEl.addEventListener("focus", function() {
       previousModelValue = this.value;
@@ -1706,14 +1679,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update previous value after confirmation
     previousModelValue = selectedModel;
 
-    const appsEl = document.getElementById("apps");
+    const appsEl = $id("apps");
     const defaultModel = apps[appsEl ? appsEl.value : ""]["model"];
-    const modelNonDefault = document.getElementById("model-non-default");
+    const modelNonDefault = $id("model-non-default");
     if (selectedModel !== defaultModel) {
-      if (modelNonDefault) modelNonDefault.style.display = '';
-    } else {
-      if (modelNonDefault) modelNonDefault.style.display = 'none';
-    }
+      $show(modelNonDefault); } else {
+      $hide(modelNonDefault); }
 
     // Handle reasoning effort dropdown with ReasoningMapper
     const currentApp = appsEl ? appsEl.value : "";
@@ -1729,20 +1700,20 @@ document.addEventListener("DOMContentLoaded", function () {
       const defaultValue = ReasoningMapper.getDefaultValue(provider, selectedModel);
       
       if (availableOptions && availableOptions.length > 0) {
-        { const _el = document.getElementById("reasoning-effort"); if (_el) _el.disabled = false; };
+        { const el = $id("reasoning-effort"); if (el) el.disabled = false; }
         
         // Store current value before clearing options
-        const previousValue = (document.getElementById("reasoning-effort") || {}).value;
+        const previousValue = ($id("reasoning-effort") || {}).value;
         
         // Clear current options
-        { const _el = document.getElementById("reasoning-effort"); if (_el) _el.innerHTML = ""; };
+        { const el = $id("reasoning-effort"); if (el) el.innerHTML = ""; }
         
         // Add options from ReasoningMapper with provider-specific labels
         availableOptions.forEach(option => {
           const label = window.ReasoningLabels ? 
             window.ReasoningLabels.getOptionLabel(provider, option) : 
             option;
-          { const _el = document.getElementById("reasoning-effort"); if (_el) { const _opt = document.createElement("option"); _opt.value = option; _opt.textContent = label; _el.appendChild(_opt); } }
+          { const el = $id("reasoning-effort"); if (el) { const _opt = document.createElement("option"); _opt.value = option; _opt.textContent = label; el.appendChild(_opt); } }
         });
         
         // Don't override reasoning_effort if we're loading from params
@@ -1750,30 +1721,30 @@ document.addEventListener("DOMContentLoaded", function () {
           // Set the value - preserve existing value if present, otherwise use default
           if (previousValue && availableOptions.includes(previousValue)) {
             // Keep the previous value if it's valid for this model
-            { const _el = document.getElementById("reasoning-effort"); if (_el) _el.value = previousValue; };
+            { const el = $id("reasoning-effort"); if (el) el.value = previousValue; }
           } else {
             // Use the default value from ReasoningMapper
-            { const _el = document.getElementById("reasoning-effort"); if (_el) _el.value = defaultValue || availableOptions[0]; };
+            { const el = $id("reasoning-effort"); if (el) el.value = defaultValue || availableOptions[0]; }
           }
         }
       } else {
-        { const _el = document.getElementById("reasoning-effort"); if (_el) _el.disabled = true; };
+        { const el = $id("reasoning-effort"); if (el) el.disabled = true; }
       }
     } else {
-      { const _el = document.getElementById("reasoning-effort"); if (_el) _el.disabled = true; };
+      { const el = $id("reasoning-effort"); if (el) el.disabled = true; }
     }
     
     // Always restore default options when disabled (for consistency)
-    if ((document.getElementById("reasoning-effort") || {}).disabled) {
-      { const _el = document.getElementById("reasoning-effort"); if (_el) _el.innerHTML = ""; };
+    if (($id("reasoning-effort") || {}).disabled) {
+      { const el = $id("reasoning-effort"); if (el) el.innerHTML = ""; }
       const defaultOptions = ['minimal', 'low', 'medium', 'high'];
       defaultOptions.forEach(option => {
         const label = window.ReasoningLabels ? 
           window.ReasoningLabels.getOptionLabel('default', option) : 
           option;
-        { const _el = document.getElementById("reasoning-effort"); if (_el) { const _opt = document.createElement("option"); _opt.value = option; _opt.textContent = label; _el.appendChild(_opt); } }
+        { const el = $id("reasoning-effort"); if (el) { const _opt = document.createElement("option"); _opt.value = option; _opt.textContent = label; el.appendChild(_opt); } }
       });
-      { const _el = document.getElementById("reasoning-effort"); if (_el) _el.value = 'medium'; };
+      { const el = $id("reasoning-effort"); if (el) el.value = 'medium'; }
     }
 
     // Update labels after options are generated
@@ -1785,82 +1756,82 @@ document.addEventListener("DOMContentLoaded", function () {
       const supportsWeb = (modelSpec[selectedModel]["supports_web_search"] === true) ||
                           (modelSpec[selectedModel]["tool_capability"] === true); // fallback for tool-based providers
       if (supportsWeb) {
-        { const _el = document.getElementById("websearch"); if (_el) { _el.disabled = false; _el.removeAttribute("title"); } };
+        { const el = $id("websearch"); if (el) { el.disabled = false; el.removeAttribute("title"); } }
       } else {
-        { const _el = document.getElementById("websearch-badge"); if (_el) _el.style.display = "none"; };
+        $hide($id("websearch-badge"));
         const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
-        { const _el = document.getElementById("websearch"); if (_el) { _el.disabled = true; _el.setAttribute("title", tt); } };
+        { const el = $id("websearch"); if (el) { el.disabled = true; el.setAttribute("title", tt); } }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
-        { const _el = document.getElementById("temperature"); if (_el) _el.disabled = false; };
+        { const el = $id("temperature"); if (el) el.disabled = false; }
         // temperature is kept unchanged even if the model is changed
         ;
         // const temperature = modelSpec[selectedModel]["temperature"][1];
         // $("#temperature").val(temperature);
         // $("#temperature-value").text(parseFloat(temperature).toFixed(1));
       } else {
-        { const _el = document.getElementById("temperature"); if (_el) _el.disabled = true; };
+        { const el = $id("temperature"); if (el) el.disabled = true; }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("presence_penalty")) {
-        { const _el = document.getElementById("presence-penalty"); if (_el) _el.disabled = false; };
+        { const el = $id("presence-penalty"); if (el) el.disabled = false; }
         // presence penalty is kept unchanged even if the model is changed
         ;
         // const presencePenalty = modelSpec[selectedModel]["presence_penalty"][1];
         // $("#presence-penalty").val(presencePenalty);
         // $("#presence-penalty-value").text(parseFloat(presencePenalty).toFixed(1));
       } else {
-        { const _el = document.getElementById("presence-penalty"); if (_el) _el.disabled = true; };
+        { const el = $id("presence-penalty"); if (el) el.disabled = true; }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("frequency_penalty")) {
-        { const _el = document.getElementById("frequency-penalty"); if (_el) _el.disabled = false; };
+        { const el = $id("frequency-penalty"); if (el) el.disabled = false; }
         // frequency penalty is kept unchanged even if the model is changed
         ;
         // const frequencyPenalty = modelSpec[selectedModel]["frequency_penalty"][1];
         // $("#frequency-penalty").val(frequencyPenalty);
         // $("#frequency-penalty-value").text(parseFloat(frequencyPenalty).toFixed(1));
       } else {
-        { const _el = document.getElementById("frequency-penalty"); if (_el) _el.disabled = true; };
+        { const el = $id("frequency-penalty"); if (el) el.disabled = true; }
       }
 
       const isReasoningModel = modelSpec[selectedModel]["reasoning_effort"] || modelSpec[selectedModel]["supports_thinking"];
       if (modelSpec[selectedModel].hasOwnProperty("max_output_tokens")) {
         const maxOutputTokens = modelSpec[selectedModel]["max_output_tokens"][1];
-        { const _el = document.getElementById("max-tokens"); if (_el) _el.value = maxOutputTokens; };
+        { const el = $id("max-tokens"); if (el) el.value = maxOutputTokens; }
         if (isReasoningModel) {
           // Reasoning models: lock max_tokens to maximum
-          { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = true; _el.disabled = true; } };
-          { const _el = document.getElementById("max-tokens"); if (_el) _el.disabled = true; };
+          { const el = $id("max-tokens-toggle"); if (el) { el.checked = true; el.disabled = true; } }
+          { const el = $id("max-tokens"); if (el) el.disabled = true; }
         } else {
-          { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = true; _el.disabled = false; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
+          { const el = $id("max-tokens-toggle"); if (el) { el.checked = true; el.disabled = false; $dispatch(el, "change"); } }
         }
       } else {
-        { const _el = document.getElementById("max-tokens"); if (_el) _el.value = DEFAULT_MAX_OUTPUT_TOKENS; }
-        { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = false; _el.disabled = false; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
+        { const el = $id("max-tokens"); if (el) el.value = DEFAULT_MAX_OUTPUT_TOKENS; }
+        { const el = $id("max-tokens-toggle"); if (el) { el.checked = false; el.disabled = false; $dispatch(el, "change"); } }
       }
       // Show Thinking toggle: only for models with supports_thinking
       if (modelSpec[selectedModel]["supports_thinking"]) {
-        { const _el = document.getElementById("thinking-display-container"); if (_el) _el.style.display = ""; };
+        $show($id("thinking-display-container"));
       } else {
-        { const _el = document.getElementById("thinking-display-container"); if (_el) _el.style.display = "none"; };
+        $hide($id("thinking-display-container"));
       }
     } else {
-      { const _el = document.getElementById("reasoning-effort"); if (_el) _el.disabled = true; };
-      { const _el = document.getElementById("temperature"); if (_el) _el.disabled = true; };
-      { const _el = document.getElementById("presence-penalty"); if (_el) _el.disabled = true; };
-      { const _el = document.getElementById("frequency-penalty"); if (_el) _el.disabled = true; };
-      { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = false; _el.disabled = false; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
-      { const _el = document.getElementById("max-tokens"); if (_el) _el.value = DEFAULT_MAX_OUTPUT_TOKENS; };
-      { const _el = document.getElementById("thinking-display-container"); if (_el) _el.style.display = "none"; };
+      { const el = $id("reasoning-effort"); if (el) el.disabled = true; }
+      { const el = $id("temperature"); if (el) el.disabled = true; }
+      { const el = $id("presence-penalty"); if (el) el.disabled = true; }
+      { const el = $id("frequency-penalty"); if (el) el.disabled = true; }
+      { const el = $id("max-tokens-toggle"); if (el) { el.checked = false; el.disabled = false; $dispatch(el, "change"); } }
+      { const el = $id("max-tokens"); if (el) el.value = DEFAULT_MAX_OUTPUT_TOKENS; }
+      $hide($id("thinking-display-container"));
     }
 
     // Update model-selected display text
     if (modelSpec[selectedModel] && (modelSpec[selectedModel].hasOwnProperty("reasoning_effort") || modelSpec[selectedModel]["supports_thinking"])) {
-      { const _el = document.getElementById("model-selected"); const _reEl = document.getElementById("reasoning-effort"); if (_el) _el.textContent = `${provider} (${selectedModel} - ${_reEl ? _reEl.value : ''})`; }
+      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel} - ${_reEl ? _reEl.value : ''})`; }
     } else {
-      { const _el = document.getElementById("model-selected"); if (_el) _el.textContent = `${provider} (${selectedModel})`; }
+      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel})`; }
     }
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
@@ -1876,24 +1847,24 @@ document.addEventListener("DOMContentLoaded", function () {
       broadcastParamsUpdate('model_change');
     }
     // Update collapsed summary bar if visible
-    if (typeof updateConfigSummary === 'function' && (document.getElementById("config-summary") && document.getElementById("config-summary").offsetParent !== null)) {
+    if (typeof updateConfigSummary === 'function' && ($id("config-summary") && $id("config-summary").offsetParent !== null)) {
       updateConfigSummary();
     }
   });
 
-  document.getElementById("reasoning-effort")?.addEventListener("change", function() {
-    const selectedModel = (document.getElementById("model") || {}).value;
+  $on($id("reasoning-effort"), "change", function() {
+    const selectedModel = ($id("model") || {}).value;
     // Get current app's provider
-    const currentApp = (document.getElementById("apps") || {}).value;
+    const currentApp = ($id("apps") || {}).value;
     const provider = getProviderFromGroup(apps[currentApp]["group"]);
     
     if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-      const reasoningEffort = (document.getElementById("reasoning-effort") || {}).value;
-      { const _el = document.getElementById("model-selected"); if (_el) _el.textContent = `${provider} (${selectedModel} - ${reasoningEffort})`; }
+      const reasoningEffort = ($id("reasoning-effort") || {}).value;
+      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel} - ${reasoningEffort})`; }
     }
 
     if (typeof params === 'object') {
-      params["reasoning_effort"] = (document.getElementById("reasoning-effort") || {}).value;
+      params["reasoning_effort"] = ($id("reasoning-effort") || {}).value;
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('reasoning_effort_change');
@@ -1901,7 +1872,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
 
-  document.getElementById("apps")?.addEventListener("change", function(event) {
+  $on($id("apps"), "change", function(event) {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
       return;
@@ -1935,7 +1906,7 @@ document.addEventListener("DOMContentLoaded", function () {
       updateAppSelectIcon(previousAppValue);
 
       // Show confirmation dialog
-      { const _el = document.getElementById("appChangeConfirmation"); if (_el) { _el.dataset.newApp = selectedAppValue; bootstrap.Modal.getOrCreateInstance(_el).show(); } }
+      { const el = $id("appChangeConfirmation"); if (el) { el.dataset.newApp = selectedAppValue; bootstrap.Modal.getOrCreateInstance(el).show(); } }
       return;
     }
 
@@ -1956,7 +1927,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // Clear the discourse area
-      { const _el = document.getElementById("discourse"); if (_el) _el.innerHTML = ""; };
+      { const el = $id("discourse"); if (el) el.innerHTML = ""; }
 
       // Clear error cards
       if (typeof clearErrorCards === 'function') {
@@ -1964,8 +1935,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // Clear temp cards
-      { const _el = document.getElementById("temp-card"); if (_el) _el.remove(); };
-      { const _el = document.getElementById("temp-reasoning-card"); if (_el) _el.remove(); };
+      { const el = $id("temp-card"); if (el) el.remove(); }
+      { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
       // Send server-side RESET to clear session
       ws.send(JSON.stringify({ "message": "RESET" }));
@@ -1975,26 +1946,26 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   
   // Handle cancellation of app change
-  document.getElementById("appChangeConfirmation")?.addEventListener("hidden.bs.modal", function() {
+  $on($id("appChangeConfirmation"), "hidden.bs.modal", function() {
     // If user cancelled (not confirmed), restore the original app selection
     const newAppValue = this.dataset.newApp;
-    const currentAppValue = (document.getElementById("apps") || {}).value;
+    const currentAppValue = ($id("apps") || {}).value;
 
     // If modal closed but app wasn't changed (user cancelled), ensure selection is correct
     if (currentAppValue !== newAppValue && currentAppValue !== lastApp) {
       // Restore to lastApp
-      { const _el = document.getElementById("apps"); if (_el) _el.value = lastApp; };
+      { const el = $id("apps"); if (el) el.value = lastApp; }
       updateAppSelectIcon(lastApp);
     }
   });
 
   // Handle confirmation of app change
-  document.getElementById("appChangeConfirmed")?.addEventListener("click", function() {
-    const newAppValue = (document.getElementById("appChangeConfirmation") || {}).dataset.newApp;
+  $on($id("appChangeConfirmed"), "click", function() {
+    const newAppValue = ($id("appChangeConfirmation") || {}).dataset.newApp;
     // Close the modal
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("appChangeConfirmation")).hide();
+    bootstrap.Modal.getOrCreateInstance($id("appChangeConfirmation")).hide();
     // Apply the app change
-    { const _el = document.getElementById("apps"); if (_el) _el.value = newAppValue; };
+    { const el = $id("apps"); if (el) el.value = newAppValue; }
 
     // COMPREHENSIVE STATE CLEARING
     // Reset messages via SessionState API (no direct assignment)
@@ -2013,7 +1984,7 @@ document.addEventListener("DOMContentLoaded", function () {
     window.userHasInteractedInTab = false;
 
     // Clear the discourse area
-    { const _el = document.getElementById("discourse"); if (_el) _el.innerHTML = ""; };
+    { const el = $id("discourse"); if (el) el.innerHTML = ""; }
 
     // Clear error cards specifically
     if (typeof clearErrorCards === 'function') {
@@ -2026,8 +1997,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Clear temp cards
-    { const _el = document.getElementById("temp-card"); if (_el) _el.remove(); };
-    { const _el = document.getElementById("temp-reasoning-card"); if (_el) _el.remove(); };
+    { const el = $id("temp-card"); if (el) el.remove(); }
+    { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
     // Send server-side RESET to clear session
     ws.send(JSON.stringify({ "message": "RESET" }));
@@ -2038,13 +2009,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const startText = webUIi18n.t('ui.session.startSession');
-        { const _el = document.getElementById("start-label"); if (_el) _el.textContent = startText; };
+        { const el = $id("start-label"); if (el) el.textContent = startText; }
       });
     } else {
       // Fallback if i18nReady is not available
       const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
         webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const _el = document.getElementById("start-label"); if (_el) _el.textContent = startText; };
+      { const el = $id("start-label"); if (el) el.textContent = startText; }
     }
     proceedWithAppChange(newAppValue);
   });
@@ -2079,21 +2050,21 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Always enable AI User button (error message will be shown if conversation not started)
-    { const _el = document.getElementById("ai_user"); if (_el) _el.disabled = false; };
+    { const el = $id("ai_user"); if (el) el.disabled = false; }
     // Set title with translation when available
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const aiUserTitle = webUIi18n.t('ui.generateAIUserResponse') || "Generate AI user response based on conversation";
-        { const _el = document.getElementById("ai_user"); if (_el) _el.setAttribute("title", aiUserTitle); };
+        { const el = $id("ai_user"); if (el) el.setAttribute("title", aiUserTitle); }
       });
     } else {
-      { const _el = document.getElementById("ai_user"); if (_el) _el.setAttribute("title", "Generate AI user response based on conversation"); };
+      { const el = $id("ai_user"); if (el) el.setAttribute("title", "Generate AI user response based on conversation"); }
     }
 
     // Update the UI dropdown to match the appValue parameter
     // This ensures all subsequent code that reads $("#apps").val() gets the correct value
-    if ((document.getElementById("apps") || {}).value !== appValue) {
-      { const _el = document.getElementById("apps"); if (_el) _el.value = appValue; };
+    if (($id("apps") || {}).value !== appValue) {
+      { const el = $id("apps"); if (el) el.value = appValue; }
     }
 
     // Skip early return during initial load or session restoration
@@ -2112,7 +2083,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     // Preserve important values before Object.assign overwrites them
-    const currentMathjax = (document.getElementById("mathjax") || {}).checked;
+    const currentMathjax = ($id("mathjax") || {}).checked;
     // Preserve previous values only during import flows
     const importingFlow = (typeof window !== 'undefined') && (window.isImporting || window.isProcessingImport);
 
@@ -2141,7 +2112,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // This ensures switching apps always resets to the correct model
       if (apps[appValue]["model"]) {
         params["model"] = apps[appValue]["model"];
-        { const _el = document.getElementById("model"); if (_el) _el.value = apps[appValue]["model"]; };
+        { const el = $id("model"); if (el) el.value = apps[appValue]["model"]; }
       }
     }
     if (preservedAppName && importingFlow) {
@@ -2207,16 +2178,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     if (toBool(apps[appValue]["pdf_vector_storage"])) {
-      { const _el = document.getElementById("pdf-panel"); if (_el) _el.style.display = ""; };
+      $show($id("pdf-panel"));
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
     } else {
-      { const _el = document.getElementById("pdf-panel"); if (_el) _el.style.display = "none"; };
+      $hide($id("pdf-panel"));
     }
 
     if (toBool(apps[appValue]["audio_upload"])) {
-      { const _el = document.getElementById("audio-upload"); if (_el) _el.style.display = ""; };
+      $show($id("audio-upload"));
     } else {
-      { const _el = document.getElementById("audio-upload"); if (_el) _el.style.display = "none"; };
+      $hide($id("audio-upload"));
     }
 
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
@@ -2225,13 +2196,13 @@ document.addEventListener("DOMContentLoaded", function () {
     // Never mutate apps[appValue].group here; app definitions are authoritative.
 
     // Use shared utility function to get models for the app
-    const showAll = (document.getElementById("show-all-models") || {}).checked;
+    const showAll = ($id("show-all-models") || {}).checked;
     let models = getModelsForApp(apps[appValue], showAll);
 
     if (models.length > 0) {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
       let modelList = listModels(models, openai);
-      { const _el = document.getElementById("model"); if (_el) _el.innerHTML = modelList; };
+      { const el = $id("model"); if (el) el.innerHTML = modelList; }
 
       // Use shared utility function to get default model
       model = getDefaultModelForApp(apps[appValue], models);
@@ -2252,37 +2223,37 @@ document.addEventListener("DOMContentLoaded", function () {
       const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        { const _el = document.getElementById("model-selected"); const _reEl = document.getElementById("reasoning-effort"); if (_el) _el.textContent = `${provider} (${model} - ${_reEl ? _reEl.value : ''})` };
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${_reEl ? _reEl.value : ''})` };
       } else {
-        { const _el = document.getElementById("model-selected"); if (_el) _el.textContent = `${provider} (${model})`; }
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model})`; }
       }
 
       if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
-        { const _el = document.getElementById("websearch"); if (_el) { _el.disabled = false; _el.removeAttribute("title"); } };
+        { const el = $id("websearch"); if (el) { el.disabled = false; el.removeAttribute("title"); } }
       } else {
-        { const _el = document.getElementById("websearch-badge"); if (_el) _el.style.display = "none"; };
+        $hide($id("websearch-badge"));
         const tt2 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
-        { const _el = document.getElementById("websearch"); if (_el) { _el.disabled = true; _el.setAttribute("title", tt2); } };
+        { const el = $id("websearch"); if (el) { el.disabled = true; el.setAttribute("title", tt2); } }
       }
 
-      { const _el = document.getElementById("model"); if (_el) _el.value = model; };
+      { const el = $id("model"); if (el) el.value = model; }
 
-      if ((document.getElementById("model") || {}).value !== model) {
+      if (($id("model") || {}).value !== model) {
         // Try again after a delay
         setTimeout(() => {
-          { const _el = document.getElementById("model"); if (_el) _el.value = model; };
-          if ((document.getElementById("model") || {}).value === model) {
-            { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change", {bubbles: true})); };
+          { const el = $id("model"); if (el) el.value = model; }
+          if (($id("model") || {}).value === model) {
+            $dispatch($id("model"), "change");
           } else {
             // Defensive fallback: select first available (non-disabled) option
             const firstOption = (document.querySelector("#model option:not(:disabled)") || {}).value;
             if (firstOption) {
-              { const _el = document.getElementById("model"); if (_el) { _el.value = firstOption; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
+              { const el = $id("model"); if (el) { el.value = firstOption; $dispatch(el, "change"); } }
             }
           }
         }, 100);
       } else {
-        { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change", {bubbles: true})); };
+        $dispatch($id("model"), "change");
       }
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
@@ -2293,8 +2264,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     } else if (!apps[appValue]["model"] || apps[appValue]["model"].length === 0) {
       // Models not available - show placeholder instead of hiding the row
-      { const _el = document.getElementById("model"); if (_el) _el.innerHTML = '<option disabled selected>Models not available</option>'; };
-      { const _el = document.getElementById("model_parameters"); if (_el) _el.style.display = "none"; };
+      { const el = $id("model"); if (el) el.innerHTML = '<option disabled selected>Models not available</option>'; }
+      $hide($id("model_parameters"));
     } else {
       // The following code is for backward compatibility
 
@@ -2303,24 +2274,24 @@ document.addEventListener("DOMContentLoaded", function () {
       model = params["model"];
 
       if (params["model"] && models && models.includes(params["model"])) {
-        { const _el = document.getElementById("model"); if (_el) _el.innerHTML = model_options; };
-        { const _el = document.getElementById("model"); if (_el) { _el.value = params["model"]; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
+        { const el = $id("model"); if (el) el.innerHTML = model_options; }
+        { const el = $id("model"); if (el) { el.value = params["model"]; $dispatch(el, "change"); } }
       } else {
         let model_options = `<option disabled="disabled" selected="selected">Models not available</option>`;
-        { const _el = document.getElementById("model"); if (_el) _el.innerHTML = model_options; };
+        { const el = $id("model"); if (el) el.innerHTML = model_options; }
       }
 
       // Get provider from app group
       const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        { const _el = document.getElementById("model-selected"); const _reEl = document.getElementById("reasoning-effort"); if (_el) _el.textContent = `${provider} (${model} - ${_reEl ? _reEl.value : ''})` };
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${_reEl ? _reEl.value : ''})` };
       } else {
-        { const _el = document.getElementById("model-selected"); if (_el) _el.textContent = `${provider} (${params["model"]})`; }
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${params["model"]})`; }
       }
 
-      { const _el = document.getElementById("model_and_file"); if (_el) _el.style.display = ""; };
-      { const _el = document.getElementById("model_parameters"); if (_el) _el.style.display = ""; };
+      $show($id("model_and_file"));
+      $show($id("model_parameters"));
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
         uiUtils.adjustImageUploadButton(model);
@@ -2330,59 +2301,59 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (apps[appValue]["context_size"]) {
-      { const _el = document.getElementById("context-size-toggle"); if (_el) _el.checked = true; };
-      { const _el = document.getElementById("context-size"); if (_el) _el.disabled = false; };
+      { const el = $id("context-size-toggle"); if (el) el.checked = true; }
+      { const el = $id("context-size"); if (el) el.disabled = false; }
     } else {
-      { const _el = document.getElementById("context-size-toggle"); if (_el) _el.checked = false; };
-      { const _el = document.getElementById("context-size"); if (_el) _el.disabled = true; };
+      { const el = $id("context-size-toggle"); if (el) el.checked = false; }
+      { const el = $id("context-size"); if (el) el.disabled = true; }
     }
 
     // Use display_name if available, otherwise fall back to app_name
     const displayText = apps[appValue]["display_name"] || apps[appValue]["app_name"];
-    { const _el = document.getElementById("base-app-title"); if (_el) _el.textContent = displayText; };
-    { const _el = document.getElementById("base-app-icon"); if (_el) _el.innerHTML = apps[appValue]["icon"]; };
+    { const el = $id("base-app-title"); if (el) el.textContent = displayText; }
+    { const el = $id("base-app-icon"); if (el) el.innerHTML = apps[appValue]["icon"]; }
 
     if (toBool(apps[appValue]["monadic"])) {
-      { const _el = document.getElementById("monadic-badge"); if (_el) _el.style.display = ""; };
+      $show($id("monadic-badge"));
     } else {
-      { const _el = document.getElementById("monadic-badge"); if (_el) _el.style.display = "none"; };
+      $hide($id("monadic-badge"));
     }
 
     if (apps[appValue]["tools"]) {
-      { const _el = document.getElementById("tools-badge"); if (_el) _el.style.display = ""; };
+      $show($id("tools-badge"));
     } else {
-      { const _el = document.getElementById("tools-badge"); if (_el) _el.style.display = "none"; };
+      $hide($id("tools-badge"));
     }
 
     if (toBool(apps[appValue]["websearch"])) {
-      { const _el = document.getElementById("websearch"); if (_el) _el.checked = true; };
-      { const _el = document.getElementById("websearch-badge"); if (_el) _el.style.display = ""; };
+      { const el = $id("websearch"); if (el) el.checked = true; }
+      $show($id("websearch-badge"));
     } else {
-      { const _el = document.getElementById("websearch"); if (_el) _el.checked = false; };
-      { const _el = document.getElementById("websearch-badge"); if (_el) _el.style.display = "none"; };
+      { const el = $id("websearch"); if (el) el.checked = false; }
+      $hide($id("websearch-badge"));
     }
 
     if (toBool(apps[appValue]["mathjax"])) {
-      { const _el = document.getElementById("mathjax"); if (_el) _el.checked = true; };
-      { const _el = document.getElementById("math-badge"); if (_el) _el.style.display = ""; };
+      { const el = $id("mathjax"); if (el) el.checked = true; }
+      $show($id("math-badge"));
     } else {
-      { const _el = document.getElementById("mathjax"); if (_el) _el.checked = false; };
-      { const _el = document.getElementById("math-badge"); if (_el) _el.style.display = "none"; };
+      { const el = $id("mathjax"); if (el) el.checked = false; }
+      $hide($id("math-badge"));
     }
 
     if (typeof window.setBaseAppDescription === 'function') {
       window.setBaseAppDescription(apps[appValue]["description"] || "");
     } else {
-      { const _el = document.getElementById("base-app-desc"); if (_el) _el.innerHTML = apps[appValue]["description"]; };
+      { const el = $id("base-app-desc"); if (el) el.innerHTML = apps[appValue]["description"]; }
     }
 
     if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
 
     // Ensure reasoning-effort dropdown is updated after app change
     setTimeout(function() {
-      const currentModel = (document.getElementById("model") || {}).value;
+      const currentModel = ($id("model") || {}).value;
       if (currentModel) {
-        { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change", {bubbles: true})); };
+        $dispatch($id("model"), "change");
       }
     }, 100);
 
@@ -2392,21 +2363,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Final enforcement: keep checkboxes OFF during import to prevent auto-behaviors
     if (importingFlow) {
-      { const _el = document.getElementById("check-auto-speech"); if (_el) _el.checked = false; }
-      { const _el = document.getElementById("initiate-from-assistant"); if (_el) _el.checked = false; }
+      { const el = $id("check-auto-speech"); if (el) el.checked = false; }
+      { const el = $id("initiate-from-assistant"); if (el) el.checked = false; }
     }
 
-    { const _el = document.getElementById("apps"); if (_el) _el.focus(); };
+    { const el = $id("apps"); if (el) el.focus(); }
   }
 
-  document.getElementById("websearch")?.addEventListener("change", function() {
+  $on($id("websearch"), "change", function() {
     if (this.checked) {
       params["websearch"] = true;
     } else {
       params["websearch"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = (document.getElementById("apps") || {}).value;
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
@@ -2415,14 +2386,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  document.getElementById("check-auto-speech")?.addEventListener("change", function() {
+  $on($id("check-auto-speech"), "change", function() {
     if (this.checked) {
       params["auto_speech"] = true;
     } else {
       params["auto_speech"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = (document.getElementById("apps") || {}).value;
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
@@ -2435,14 +2406,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  document.getElementById("check-easy-submit")?.addEventListener("change", function() {
+  $on($id("check-easy-submit"), "change", function() {
     if (this.checked) {
       params["easy_submit"] = true;
     } else {
       params["easy_submit"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = (document.getElementById("apps") || {}).value;
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
@@ -2455,14 +2426,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  document.getElementById("mathjax")?.addEventListener("change", function() {
+  $on($id("mathjax"), "change", function() {
     if (this.checked) {
       params["mathjax"] = true;
     } else {
       params["mathjax"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = (document.getElementById("apps") || {}).value;
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
@@ -2493,15 +2464,15 @@ document.addEventListener("DOMContentLoaded", function () {
     // On mobile, initialize with menu hidden on first load
     if (window.innerWidth < 600) {
       // Set proper classes and hide menu on mobile
-      { const _el = document.getElementById("toggle-menu"); if (_el) _el.classList.add("menu-hidden"); };
-      { const _el = document.getElementById("menu"); if (_el) _el.style.display = "none"; };
-      { const _el = document.getElementById("main"); if (_el) _el.style.display = ""; };
+      { const el = $id("toggle-menu"); if (el) el.classList.add("menu-hidden"); }
+      $hide($id("menu"));
+      $show($id("main"));
       document.body.classList.remove("menu-visible");
-      { const _el = document.getElementById("main"); if (_el) { _el.classList.remove("col-md-8"); _el.classList.add("col-md-12"); } }
+      { const el = $id("main"); if (el) { el.classList.remove("col-md-8"); el.classList.add("col-md-12"); } }
       // Note: Removed inline CSS injection for toggle-menu in document.ready
     } else {
       // On desktop, menu is visible by default, so set the appropriate icon and style
-      { const _el = document.getElementById("toggle-menu"); if (_el) _el.classList.remove("menu-hidden"); };
+      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
     }
     
     // Initialize scroll buttons state
@@ -2534,7 +2505,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.innerWidth >= 600) return;
     
     // Ensure the main content area takes maximum available space
-    { const _el = document.getElementById("main"); if (_el) { _el.style.paddingBottom = "0"; _el.style.marginBottom = "0"; } }
+    { const el = $id("main"); if (el) { el.style.paddingBottom = "0"; el.style.marginBottom = "0"; } }
 
     // Optimize scrollable container to use full height
     document.querySelectorAll(".scrollable").forEach(function(_el) {
@@ -2545,17 +2516,17 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Ensure content container has correct height
-    { const _el = document.getElementById("contents"); if (_el) {
-      _el.style.height = "calc(100vh - 80px)";
-      _el.style.minHeight = "calc(100vh - 80px)";
-      _el.style.paddingBottom = "12px";
-      _el.style.paddingTop = "0";
-      _el.style.marginBottom = "0";
-      _el.style.boxSizing = "border-box";
+    { const el = $id("contents"); if (el) {
+      el.style.height = "calc(100vh - 80px)";
+      el.style.minHeight = "calc(100vh - 80px)";
+      el.style.paddingBottom = "12px";
+      el.style.paddingTop = "0";
+      el.style.marginBottom = "0";
+      el.style.boxSizing = "border-box";
     } }
 
     // Make user panel more space-efficient
-    { const _el = document.getElementById("user-panel"); if (_el) { _el.style.marginBottom = "0"; _el.style.paddingBottom = "0"; } }
+    { const el = $id("user-panel"); if (el) { el.style.marginBottom = "0"; el.style.paddingBottom = "0"; } }
 
     // Fix iOS-specific scroll issues
     if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
@@ -2569,7 +2540,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Listen for window resize events
   window.addEventListener("resize", function() {
-    const wasMenuVisible = (document.getElementById("menu") && document.getElementById("menu").offsetParent !== null);
+    const wasMenuVisible = ($id("menu") && $id("menu").offsetParent !== null);
     const windowWidth = window.innerWidth;
     // Check if user explicitly hid the menu (respect user preference)
     const userHidMenu = StorageHelper.safeGetItem('monadic-menu-hidden') === 'true';
@@ -2580,14 +2551,14 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (windowWidth >= 600 && !wasMenuVisible && !userHidMenu) {
       // We've changed from mobile to desktop view with hidden menu
       // Restore proper column layout and show menu ONLY if user didn't explicitly hide it
-      { const _el = document.getElementById("main"); if (_el) { _el.classList.remove("col-md-12"); _el.classList.add("col-md-8"); } }
-      { const _el = document.getElementById("menu"); if (_el) _el.style.display = ""; };
-      { const _el = document.getElementById("toggle-menu"); if (_el) _el.classList.remove("menu-hidden"); };
+      { const el = $id("main"); if (el) { el.classList.remove("col-md-12"); el.classList.add("col-md-8"); } }
+      $show($id("menu"));
+      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
     }
   });
 
   // Handle toggle-menu button click with comprehensive error handling
-  document.getElementById("toggle-menu")?.addEventListener("click", function(e) {
+  $on($id("toggle-menu"), "click", function(e) {
     try {
       // Prevent any default behavior
       e.preventDefault();
@@ -2595,9 +2566,9 @@ document.addEventListener("DOMContentLoaded", function () {
       
       // Get required elements with safety checks
       const $toggleBtn = this;
-      const $menu = document.getElementById("menu");
-      const $main = document.getElementById("main");
-      const $spinner = document.getElementById("monadic-spinner");
+      const $menu = $id("menu");
+      const $main = $id("main");
+      const $spinner = $id("monadic-spinner");
 
       if (!$toggleBtn || !$menu || !$main) {
         console.error('Required elements missing for menu toggle');
@@ -2686,7 +2657,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // On mobile, force elements to maintain their positions
       if (isMobile) {
         // Fix toggle button position with exact coordinates
-        var _tmEl = document.getElementById("toggle-menu");
+        var _tmEl = $id("toggle-menu");
         if (_tmEl) {
           _tmEl.style.position = "fixed";
           _tmEl.style.top = "12px";
@@ -2719,8 +2690,8 @@ document.addEventListener("DOMContentLoaded", function () {
       console.error('Error in menu toggle:', error);
       // Attempt recovery
       try {
-        { const _el = document.getElementById("main"); if (_el) _el.style.display = ""; };
-        { const _el = document.getElementById("toggle-menu"); if (_el) _el.style.display = ""; };
+        $show($id("main"));
+        $show($id("toggle-menu"));
         document.body.classList.remove("menu-visible");
       } catch (recoveryError) {
         console.error('Recovery failed:', recoveryError);
@@ -2731,9 +2702,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Function to update toggle button text based on checkbox states
   window.updateToggleButtonText = function() {
-    const autoSpeechChecked = (document.getElementById("check-auto-speech") || {}).checked;
-    const easySubmitChecked = (document.getElementById("check-easy-submit") || {}).checked;
-    const $toggleButton = document.getElementById("interaction-toggle-all");
+    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
+    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
+    const $toggleButton = $id("interaction-toggle-all");
 
     if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
       // Show appropriate text based on current state
@@ -2749,8 +2720,8 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // Toggle all interaction checkboxes - use event delegation for reliability
   document.addEventListener("click", function(e) { const _delegateTarget = e.target.closest("#interaction-toggle-all"); if (!_delegateTarget) return;
-    const autoSpeechChecked = (document.getElementById("check-auto-speech") || {}).checked;
-    const easySubmitChecked = (document.getElementById("check-easy-submit") || {}).checked;
+    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
+    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
 
     // If any checkbox is unchecked, check all. Otherwise, uncheck all.
     const shouldCheck = !autoSpeechChecked || !easySubmitChecked;
@@ -2759,8 +2730,8 @@ document.addEventListener("DOMContentLoaded", function () {
     window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
     try {
       // Set checkbox values and trigger change events to update params
-      { const _el = document.getElementById("check-auto-speech"); if (_el) { _el.checked = shouldCheck; _el.dispatchEvent(new Event("change", {bubbles: true})); } }
-      { const _el = document.getElementById("check-easy-submit"); if (_el) { _el.checked = shouldCheck; _el.dispatchEvent(new Event("change", {bubbles: true})); } }
+      { const el = $id("check-auto-speech"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
+      { const el = $id("check-easy-submit"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
     } finally {
       window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 0) - 1);
     }
@@ -2774,9 +2745,9 @@ document.addEventListener("DOMContentLoaded", function () {
     window.updateToggleButtonText();
   })();
 
-  document.getElementById("start")?.addEventListener("click", function() {
+  $on($id("start"), "click", function() {
     audioInit();
-    { const _el = document.getElementById("asr-p-value"); if (_el) { _el.textContent = ""; _el.style.display = "none"; } }
+    { const el = $id("asr-p-value"); if (el) { el.textContent = ""; el.style.display = "none"; } }
 
     // Mark that user has interacted with this tab (for app change confirmation)
     window.userHasInteractedInTab = true;
@@ -2800,16 +2771,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
       document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #audio-upload").forEach(function(_el) { _el.disabled = false; });
-      { const _el = document.getElementById("message"); if (_el) _el.disabled = false; };
-      { const _el = document.getElementById("select-role"); if (_el) _el.disabled = false; };
-      { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = "none"; };
-      { const _el = document.getElementById("cancel_query"); if (_el) _el.style.display = "none"; };
+      { const el = $id("message"); if (el) el.disabled = false; }
+      { const el = $id("select-role"); if (el) el.disabled = false; }
+      $hide($id("monadic-spinner"));
+      $hide($id("cancel_query"));
     }
 
     // Set a safety timeout to re-enable controls if they remain disabled
     const safetyTimeout = setTimeout(function() {
       // Only run if user panel is visible but controls are disabled
-      if ((document.getElementById("user-panel") && document.getElementById("user-panel").offsetParent !== null) && (document.getElementById("send") || {}).disabled) {
+      if (($id("user-panel") && $id("user-panel").offsetParent !== null) && ($id("send") || {}).disabled) {
         ensureControlsEnabled();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input'}`, "success");
       }
@@ -2823,18 +2794,18 @@ document.addEventListener("DOMContentLoaded", function () {
     
     if (messages.length > 0) {
       enterConversationMode();
-      { const _el = document.getElementById("discourse"); if (_el) _el.style.display = ""; };
-      { const _el = document.getElementById("chat"); if (_el) _el.innerHTML = ""; }
-      { const _el = document.getElementById("temp-card"); if (_el) _el.style.display = "none"; };
-      { const _el = document.getElementById("user-panel"); if (_el) _el.style.display = ""; };
+      $show($id("discourse"));
+      { const el = $id("chat"); if (el) el.innerHTML = ""; }
+      $hide($id("temp-card"));
+      $show($id("user-panel"));
       setInputFocus();
       ensureControlsEnabled();
     } else {
       // create secure random 4-digit number
       ws.send(JSON.stringify({
         message: "SYSTEM_PROMPT",
-        content: (document.getElementById("initial-prompt") || {}).value,
-        mathjax: (document.getElementById("mathjax") || {}).checked,
+        content: ($id("initial-prompt") || {}).value,
+        mathjax: ($id("mathjax") || {}).checked,
         monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],
@@ -2845,24 +2816,24 @@ document.addEventListener("DOMContentLoaded", function () {
       audioInit();
       
       enterConversationMode();
-      { const _el = document.getElementById("discourse"); if (_el) _el.style.display = ""; };
+      $show($id("discourse"));
 
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
       // This prevents auto-generation when importing conversations
-      if ((document.getElementById("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
-        { const _el = document.getElementById("temp-card"); if (_el) _el.style.display = ""; };
-        { const _el = document.getElementById("user-panel"); if (_el) _el.style.display = "none"; };
-        { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = ""; }; // Show spinner for initial assistant message
+      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
+        $show($id("temp-card"));
+        $hide($id("user-panel"));
+        $show($id("monadic-spinner")); // Show spinner for initial assistant message
         setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.generatingResponse') : 'Generating response from assistant...'}`, "info");
-        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+        $id('cancel_query').style.setProperty('display', 'flex', 'important');
         reconnect_websocket(ws, function (ws) {
           // Ensure critical parameters are correctly set based on checkboxes
-          params["auto_speech"] = (document.getElementById("check-auto-speech") || {}).checked;
+          params["auto_speech"] = ($id("check-auto-speech") || {}).checked;
           params["initiate_from_assistant"] = true;
               ws.send(JSON.stringify(params));
         });
       } else {
-        { const _el = document.getElementById("user-panel"); if (_el) _el.style.display = ""; };
+        $show($id("user-panel"));
         ensureControlsEnabled();
         setInputFocus();
       }
@@ -2876,7 +2847,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
 
-  document.getElementById("cancel_query")?.addEventListener("click", function() {
+  $on($id("cancel_query"), "click", function() {
     setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.operationCanceled') : 'Operation canceled'}`, "warning");
     ttsStop();
 
@@ -2893,29 +2864,29 @@ document.addEventListener("DOMContentLoaded", function () {
     // Reset AI user state if active
     const placeholderText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
       webUIi18n.t('ui.messagePlaceholder') : "Type your message . . .";
-    { const _el = document.getElementById("message"); if (_el) _el.setAttribute("placeholder", placeholderText); };
-    { const _el = document.getElementById("message"); if (_el) _el.disabled = false; };
+    { const el = $id("message"); if (el) el.setAttribute("placeholder", placeholderText); }
+    { const el = $id("message"); if (el) el.disabled = false; }
     document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").forEach(function(_el) { _el.disabled = false; });
-    { const _el = document.getElementById("ai_user_provider"); if (_el) _el.disabled = false; };
-    { const _el = document.getElementById("ai_user"); if (_el) _el.disabled = false; };
-    { const _el = document.getElementById("select-role"); if (_el) _el.disabled = false; };
+    { const el = $id("ai_user_provider"); if (el) el.disabled = false; }
+    { const el = $id("ai_user"); if (el) el.disabled = false; }
+    { const el = $id("select-role"); if (el) el.disabled = false; }
 
     // Send cancel message to server
     ws.send(JSON.stringify({ message: "CANCEL" }));
     
     // Reset UI completely
-    { const _el = document.getElementById("chat"); if (_el) _el.innerHTML = ""; };
-    { const _el = document.getElementById("temp-card"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("user-panel"); if (_el) _el.style.display = ""; };
-    { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = "none"; };  // Hide spinner
-    { const _el = document.getElementById("indicator"); if (_el) _el.style.display = "none"; };  // Hide indicator
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');  // Force hide cancel button
+    { const el = $id("chat"); if (el) el.innerHTML = ""; }
+    $hide($id("temp-card"));
+    $show($id("user-panel"));
+    $hide($id("monadic-spinner"));  // Hide spinner
+    $hide($id("indicator"));  // Hide indicator
+    $id('cancel_query').style.setProperty('display', 'none', 'important');  // Force hide cancel button
     
     // Set focus back to input
     setInputFocus();
   });
 
-  document.getElementById("send")?.addEventListener("click", function(event) {
+  $on($id("send"), "click", function(event) {
     event.preventDefault();
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
@@ -2924,7 +2895,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     // Auto-collapse settings when sending a message
-    var configBody = document.getElementById("config-body");
+    var configBody = $id("config-body");
     if (configBody && configBody.classList.contains("show")) {
       bootstrap.Collapse.getOrCreateInstance(configBody, { toggle: false }).hide();
     }
@@ -2937,7 +2908,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
-    const userMessageText = (document.getElementById("message") || {}).value;
+    const userMessageText = ($id("message") || {}).value;
     params["message"] = userMessageText;
 
     // Mark that user has interacted with this tab (for app change confirmation)
@@ -2945,9 +2916,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // This is handled already in setParams(), no need to override here
 
-    document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+    $id('cancel_query').style.setProperty('display', 'flex', 'important');
 
-    { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = ""; };
+    $show($id("monadic-spinner"));
 
     // Temporarily push a placeholder message to prevent double display
     // This will be replaced by the actual message from the server
@@ -2959,19 +2930,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Show loading indicators but don't create a card yet
       // The actual card will be created when server responds
-      { const _el = document.getElementById("temp-card"); if (_el) _el.style.display = ""; };
-      { const _el = document.querySelector("#temp-card .status"); if (_el) _el.style.display = "none"; }
-      { const _el = document.getElementById("indicator"); if (_el) _el.style.display = ""; };
+      $show($id("temp-card"));
+      { const el = document.querySelector("#temp-card .status"); if (el) el.style.display = "none"; }
+      $show($id("indicator"));
     }
 
-    if ((document.getElementById("select-role") || {}).value !== "user") {
+    if (($id("select-role") || {}).value !== "user") {
       // Show spinner to indicate processing
       setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.processingMessage') : 'Processing sample message'}`, "warning");
       
       // Set a reasonable timeout to avoid UI getting stuck
       let sampleTimeoutId = setTimeout(function() {
-        { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = "none"; };
-        { const _el = document.getElementById("cancel_query"); if (_el) _el.style.display = "none"; };
+        $hide($id("monadic-spinner"));
+        $hide($id("cancel_query"));
         setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sampleTimeout') : 'Sample message timed out. Please try again.', "error");
       }, 5000);
       
@@ -2979,13 +2950,13 @@ document.addEventListener("DOMContentLoaded", function () {
       window.currentSampleTimeout = sampleTimeoutId;
       
       reconnect_websocket(ws, function (ws) {
-        const role = (document.getElementById("select-role") || {}).value.split("-")[1];
+        const role = ($id("select-role") || {}).value.split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
         ws.send(JSON.stringify(msg_object));
         
         // Clear input field and reset role selector immediately
-        { const _el = document.getElementById("message"); if (_el) { _el.style.height = "96px"; _el.value = ""; } }
-        { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
+        { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
+        { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
       });
     } else {
       reconnect_websocket(ws, function (ws) {
@@ -3003,20 +2974,20 @@ document.addEventListener("DOMContentLoaded", function () {
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
         }
-        { const _el = document.getElementById("message"); if (_el) { _el.style.height = "96px"; _el.value = ""; } }
+        { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
 
         // Clear all images including PDFs after sending
         images = [];
         updateFileDisplay(images);
       });
     }
-    { const _el = document.getElementById("select-role"); if (_el) _el.value = "user"; };
-    { const _el = document.querySelector("#role-icon i"); if (_el) { _el.classList.remove("fa-robot", "fa-bars"); _el.classList.add("fa-face-smile"); } }
+    { const el = $id("select-role"); if (el) el.value = "user"; }
+    { const el = document.querySelector("#role-icon i"); if (el) { el.classList.remove("fa-robot", "fa-bars"); el.classList.add("fa-face-smile"); } }
   });
 
-  document.getElementById("clear")?.addEventListener("click", function(event) {
+  $on($id("clear"), "click", function(event) {
     event.preventDefault();
-    { const _el = document.getElementById("message"); if (_el) { _el.style.height = "100px"; _el.value = ""; } }
+    { const el = $id("message"); if (el) { el.style.height = "100px"; el.value = ""; } }
     setInputFocus()
   });
 
@@ -3024,24 +2995,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
   // Regular reset button - keeps current app
-  document.getElementById("reset")?.addEventListener("click", function(event) {
+  $on($id("reset"), "click", function(event) {
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app
-    { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
+    { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const startText = webUIi18n.t('ui.session.startSession');
-        { const _el = document.getElementById("start-label"); if (_el) _el.textContent = startText; };
+        { const el = $id("start-label"); if (el) el.textContent = startText; }
       });
     } else {
       // Fallback if i18nReady is not available
       const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
         webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const _el = document.getElementById("start-label"); if (_el) _el.textContent = startText; };
+      { const el = $id("start-label"); if (el) el.textContent = startText; }
     }
-    { const _el = document.getElementById("model"); if (_el) _el.disabled = false; };
+    { const el = $id("model"); if (el) el.disabled = false; }
   });
   
   // Logo click - resets conversation but keeps current app
@@ -3049,25 +3020,25 @@ document.addEventListener("DOMContentLoaded", function () {
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app
-    { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
+    { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const startText = webUIi18n.t('ui.session.startSession');
-        { const _el = document.getElementById("start-label"); if (_el) _el.textContent = startText; };
+        { const el = $id("start-label"); if (el) el.textContent = startText; }
       });
     } else {
       // Fallback if i18nReady is not available
       const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
         webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const _el = document.getElementById("start-label"); if (_el) _el.textContent = startText; };
+      { const el = $id("start-label"); if (el) el.textContent = startText; }
     }
-    { const _el = document.getElementById("model"); if (_el) _el.disabled = false; }
+    { const el = $id("model"); if (el) el.disabled = false; }
   }); });
 
-  document.getElementById("save")?.addEventListener("click", async function () {
+  $on($id("save"), "click", async function () {
     const allMessages = [];
-    const initial_prompt = (document.getElementById("initial-prompt") || {}).value;
+    const initial_prompt = ($id("initial-prompt") || {}).value;
     const sysid = Math.floor(1000 + Math.random() * 9000);
 
     allMessages.push({"role": "system", "text": initial_prompt, "mid": sysid});
@@ -3154,7 +3125,7 @@ document.addEventListener("DOMContentLoaded", function () {
     saveObjToJson(obj, "monadic.json");
   });
 
-  document.getElementById("export-pdf")?.addEventListener("click", function() {
+  $on($id("export-pdf"), "click", function() {
     if (typeof window.exportConversationToPDF === 'function') {
       window.exportConversationToPDF();
     } else {
@@ -3164,25 +3135,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("load")?.addEventListener("click", function(event) {
+  $on($id("load"), "click", function(event) {
     event.preventDefault();
     // Reset the file input and disable the import button
-    { const _el = document.getElementById("file-load"); if (_el) _el.value = ''; };
-    { const _el = document.getElementById("import-button"); if (_el) _el.disabled = true; }
+    { const el = $id("file-load"); if (el) el.value = ''; }
+    { const el = $id("import-button"); if (el) el.disabled = true; }
     
     // Use the form handlers module if available, otherwise fallback
     if (formHandlers && formHandlers.showModalWithFocus) {
       const cleanupFn = function() {
-        { const _el = document.getElementById('file-load'); if (_el) _el.value = ''; };
-        { const _el = document.getElementById('import-button'); if (_el) _el.disabled = true; };
+        { const el = $id('file-load'); if (el) el.value = ''; }
+        { const el = $id('import-button'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('loadModal', 'file-load', cleanupFn);
     } else {
       // Show the modal using the fallback
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("loadModal")).show();
+      bootstrap.Modal.getOrCreateInstance($id("loadModal")).show();
       
       // Store focus timer in modal's data to ensure cleanup
-      const $modal = document.getElementById("loadModal");
+      const $modal = $id("loadModal");
       const existingTimer = $modal.dataset.focusTimer;
 
       // Clear any existing timer
@@ -3192,36 +3163,36 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Set new timer and store reference
       $modal.dataset.focusTimer = setTimeout(function () {
-        { const _el = document.getElementById("file-load"); if (_el) _el.focus(); }
+        { const el = $id("file-load"); if (el) el.focus(); }
         // Clear reference after use
         delete $modal.dataset.focusTimer;
       }, 500);
     }
   });
 
-  document.getElementById("loadModal")?.addEventListener("shown.bs.modal", function () {
-    { const _el = document.getElementById("file-title"); if (_el) _el.focus(); };
+  $on($id("loadModal"), "shown.bs.modal", function () {
+    { const el = $id("file-title"); if (el) el.focus(); }
   });
   
-  document.getElementById("loadModal")?.addEventListener("hidden.bs.modal", function () {
+  $on($id("loadModal"), "hidden.bs.modal", function () {
     // Reset form state when modal is closed
-    { const _el = document.getElementById('file-load'); if (_el) _el.value = ''; };
-    { const _el = document.getElementById('import-button'); if (_el) _el.disabled = true; };
-    { const _el = document.getElementById("load-spinner"); if (_el) _el.style.display = "none"; };
+    { const el = $id('file-load'); if (el) el.value = ''; }
+    { const el = $id('import-button'); if (el) el.disabled = true; }
+    $hide($id("load-spinner"));
   });
 
-  document.getElementById("pdf-import")?.addEventListener("click", function(event) {
+  $on($id("pdf-import"), "click", function(event) {
     event.preventDefault();
-    { const _el = document.getElementById("file-title"); if (_el) _el.value = ""; };
-    { const _el = document.getElementById("fileFile"); if (_el) _el.value = ""; };
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("fileModal")).show();
+    { const el = $id("file-title"); if (el) el.value = ""; }
+    { const el = $id("fileFile"); if (el) el.value = ""; }
+    bootstrap.Modal.getOrCreateInstance($id("fileModal")).show();
 
     // Initialize storage mode radios based on current provider/model
     try {
-      const appName = (document.getElementById("apps") || {}).value;
+      const appName = ($id("apps") || {}).value;
       const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : '';
       const isOpenAI = group.toLowerCase() === 'openai';
-      const model = (document.getElementById("model") || {}).value;
+      const model = ($id("model") || {}).value;
       const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
 
       // Fetch server defaults and availability
@@ -3232,33 +3203,33 @@ document.addEventListener("DOMContentLoaded", function () {
           const defaultStorage = (info.default_storage || 'local').toLowerCase();
 
           // Enable/disable by availability
-          { const _el = document.getElementById("storage-local"); if (_el) _el.disabled = !pgAvailable; }
+          { const el = $id("storage-local"); if (el) el.disabled = !pgAvailable; }
           // Always allow selecting Cloud to experiment; routing will still guard by provider
-          { const _el = document.getElementById("storage-cloud"); if (_el) _el.disabled = false; }
+          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
 
           // Decide selection
           let select = 'local';
           if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
-          if (select === 'cloud' && (document.getElementById("storage-cloud") || {}).disabled) select = 'local';
-          if (select === 'local' && (document.getElementById("storage-local") || {}).disabled) select = 'cloud';
+          if (select === 'cloud' && ($id("storage-cloud") || {}).disabled) select = 'local';
+          if (select === 'local' && ($id("storage-local") || {}).disabled) select = 'cloud';
 
           if (select === 'cloud') {
-            { const _el = document.getElementById("storage-cloud"); if (_el) _el.checked = true; }
+            { const el = $id("storage-cloud"); if (el) el.checked = true; }
           } else {
-            { const _el = document.getElementById("storage-local"); if (_el) _el.checked = true; }
+            { const el = $id("storage-local"); if (el) el.checked = true; }
           }
         }).catch(function() {
           // Fallback: prefer local if enabled, else cloud
-          { const _el = document.getElementById("storage-local"); if (_el) _el.disabled = false; }
-          { const _el = document.getElementById("storage-cloud"); if (_el) _el.disabled = false; }
-          { const _el = document.getElementById("storage-local"); if (_el) _el.checked = true; }
+          { const el = $id("storage-local"); if (el) el.disabled = false; }
+          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
+          { const el = $id("storage-local"); if (el) el.checked = true; }
         });
     } catch (_) { console.warn("[PDF Modal] Storage option init failed:", _); }
 
     // Set a friendly placeholder for file title
     try {
       const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
-      { const _el = document.getElementById("file-title"); if (_el) _el.setAttribute('placeholder', ph); }
+      { const el = $id("file-title"); if (el) el.setAttribute('placeholder', ph); }
     } catch (_) { console.warn("[PDF Modal] Placeholder setup failed:", _); }
   });
 
@@ -3268,7 +3239,7 @@ document.addEventListener("DOMContentLoaded", function () {
   document.addEventListener("click", async function (e) { const _delegateTarget = e.target.closest("#uploadFile"); if (!_delegateTarget) return;
     e.preventDefault();
     
-    const fileInput = document.getElementById("fileFile");
+    const fileInput = $id("fileFile");
     const file = fileInput.files[0];
     
     // Check if formHandlers is available
@@ -3280,9 +3251,9 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       // Disable UI elements during upload
       document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = true; });
-      { const _el = document.getElementById("file-spinner"); if (_el) _el.style.display = ""; };
+      $show($id("file-spinner"));
       
-      fileTitle = (document.getElementById("file-title") || {}).value;
+      fileTitle = ($id("file-title") || {}).value;
       
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.uploadPdf(file, fileTitle);
@@ -3290,9 +3261,9 @@ document.addEventListener("DOMContentLoaded", function () {
       // Process the response
       if (response && response.success) {
         // Clean up UI
-        { const _el = document.getElementById("file-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("file-spinner"));
         document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("fileModal")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
         // Decide if this was uploaded to OpenAI or local DB
         const isOpenAIUpload = !!(response.vector_store_id);
         // Refresh local PDF DB titles only for local ingestion
@@ -3312,9 +3283,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";
         
         // Clean up UI
-        { const _el = document.getElementById("file-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("file-spinner"));
         document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("fileModal")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3323,9 +3294,9 @@ document.addEventListener("DOMContentLoaded", function () {
       console.error("Error uploading PDF:", error);
       
       // Clean up UI on error
-      { const _el = document.getElementById("file-spinner"); if (_el) _el.style.display = "none"; };
+      $hide($id("file-spinner"));
       document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("fileModal")).hide();
+      bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3334,24 +3305,24 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("doc")?.addEventListener("click", function(event) {
+  $on($id("doc"), "click", function(event) {
     event.preventDefault();
-    { const _el = document.getElementById("docLabel"); if (_el) _el.value = ""; };
-    { const _el = document.getElementById("docFile"); if (_el) _el.value = ""; };
+    { const el = $id("docLabel"); if (el) el.value = ""; }
+    { const el = $id("docFile"); if (el) el.value = ""; }
     
     // Use the form handlers module if available, otherwise fallback
     if (formHandlers && formHandlers.showModalWithFocus) {
       const cleanupFn = function() {
-        { const _el = document.getElementById('docFile'); if (_el) _el.value = ''; };
-        { const _el = document.getElementById('convertDoc'); if (_el) _el.disabled = true; };
+        { const el = $id('docFile'); if (el) el.value = ''; }
+        { const el = $id('convertDoc'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('docModal', 'docFile', cleanupFn);
     } else {
       // Show the modal using fallback
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("docModal")).show();
+      bootstrap.Modal.getOrCreateInstance($id("docModal")).show();
       
       // Store focus timer in modal's data to ensure cleanup
-      const $modal = document.getElementById("docModal");
+      const $modal = $id("docModal");
       const existingTimer = $modal.dataset.focusTimer;
 
       // Clear any existing timer
@@ -3361,16 +3332,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Set new timer and store reference
       $modal.dataset.focusTimer = setTimeout(function () {
-        { const _el = document.getElementById("docFile"); if (_el) _el.focus(); }
+        { const el = $id("docFile"); if (el) el.focus(); }
         // Clear reference after use
         delete $modal.dataset.focusTimer;
       }, 500);
     }
   });
 
-  document.getElementById("docModal")?.addEventListener("hidden.bs.modal", function () {
-    { const _el = document.getElementById('docFile'); if (_el) _el.value = ''; }
-    { const _el = document.getElementById('convertDoc'); if (_el) _el.disabled = true; }
+  $on($id("docModal"), "hidden.bs.modal", function () {
+    { const el = $id('docFile'); if (el) el.value = ''; }
+    { const el = $id('convertDoc'); if (el) el.disabled = true; }
 
     // Ensure any remaining timers are cleared
     const modalEl = this;
@@ -3384,27 +3355,27 @@ document.addEventListener("DOMContentLoaded", function () {
   // Use the form handlers module for file input validation
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('docFile'), 
-      document.getElementById('convertDoc')
+      $id('docFile'), 
+      $id('convertDoc')
     );
   } else {
     // Fallback to direct event handler
-    document.getElementById("docFile")?.addEventListener("change", function() {
+    $on($id("docFile"), "change", function() {
       const file = this.files[0];
-      { const _el = document.getElementById('convertDoc'); if (_el) _el.disabled = !file; };
+      { const el = $id('convertDoc'); if (el) el.disabled = !file; }
     });
   }
 
-  document.getElementById("convertDoc")?.addEventListener("click", async function () {
-    const docInput = document.getElementById("docFile");
+  $on($id("convertDoc"), "click", async function () {
+    const docInput = $id("docFile");
     const doc = docInput.files[0];
     
     try {
-      const docLabel = (document.getElementById("doc-label") || {}).value || "";
+      const docLabel = ($id("doc-label") || {}).value || "";
       
       // Disable UI elements during processing
       document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = true; });
-      { const _el = document.getElementById("doc-spinner"); if (_el) _el.style.display = ""; };
+      $show($id("doc-spinner"));
       
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.convertDocument(doc, docLabel);
@@ -3413,30 +3384,30 @@ document.addEventListener("DOMContentLoaded", function () {
       if (response && response.success) {
         // Extract content and append it to the message
         const content = response.content;
-        const message = (document.getElementById("message") || {}).value.replace(/\n+$/, "");
-        { const _el = document.getElementById("message"); if (_el) _el.value = `${message}\n\n${content}`; };
+        const message = ($id("message") || {}).value.replace(/\n+$/, "");
+        { const el = $id("message"); if (el) el.value = `${message}\n\n${content}`; }
         
         // Use the UI utilities module for resizing
         if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize(document.getElementById('message'), 100);
+          uiUtils.autoResize($id('message'), 100);
         } else {
-          autoResizeFallback(document.getElementById('message'), 100);
+          autoResizeFallback($id('message'), 100);
         }
         
         // Clean up UI
-        { const _el = document.getElementById("doc-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("doc-spinner"));
         document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("docModal")).hide();
-        { const _el = document.getElementById("back_to_bottom"); if (_el) _el.dispatchEvent(new Event("click", {bubbles: true})); };
-        { const _el = document.getElementById("message"); if (_el) _el.focus(); };
+        bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
+        $dispatch($id("back_to_bottom"), "click");
+        { const el = $id("message"); if (el) el.focus(); }
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to convert document";
         
         // Clean up UI
-        { const _el = document.getElementById("doc-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("doc-spinner"));
         document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("docModal")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3445,9 +3416,9 @@ document.addEventListener("DOMContentLoaded", function () {
       console.error("Error converting document:", error);
       
       // Clean up UI on error
-      { const _el = document.getElementById("doc-spinner"); if (_el) _el.style.display = "none"; };
+      $hide($id("doc-spinner"));
       document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("docModal")).hide();
+      bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3457,62 +3428,62 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Audio/MIDI upload button
-  document.getElementById("audio-upload")?.addEventListener("click", function(event) {
+  $on($id("audio-upload"), "click", function(event) {
     event.preventDefault();
-    { const _el = document.getElementById("audioFile"); if (_el) _el.value = ""; };
+    { const el = $id("audioFile"); if (el) el.value = ""; }
     if (formHandlers && formHandlers.showModalWithFocus) {
       formHandlers.showModalWithFocus('audioUploadModal', 'audioFile', function() {
-        { const _el = document.getElementById('audioFile'); if (_el) _el.value = ''; };
-        { const _el = document.getElementById('uploadAudioBtn'); if (_el) _el.disabled = true; };
+        { const el = $id('audioFile'); if (el) el.value = ''; }
+        { const el = $id('uploadAudioBtn'); if (el) el.disabled = true; }
       });
     } else {
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("audioUploadModal")).show();
+      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).show();
     }
   });
 
   // Audio file input validation
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('audioFile'),
-      document.getElementById('uploadAudioBtn')
+      $id('audioFile'),
+      $id('uploadAudioBtn')
     );
   } else {
-    document.getElementById("audioFile")?.addEventListener("change", function() {
-      { const _el = document.getElementById('uploadAudioBtn'); if (_el) _el.disabled = !this.files || this.files.length === 0; };
+    $on($id("audioFile"), "change", function() {
+      { const el = $id('uploadAudioBtn'); if (el) el.disabled = !this.files || this.files.length === 0; }
     });
   }
 
   // Audio/MIDI upload submit
-  document.getElementById("uploadAudioBtn")?.addEventListener("click", async function () {
-    const file = document.getElementById("audioFile").files[0];
+  $on($id("uploadAudioBtn"), "click", async function () {
+    const file = $id("audioFile").files[0];
     if (!file) return;
     try {
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = true; });
-      { const _el = document.getElementById("audio-upload-spinner"); if (_el) _el.style.display = ""; };
+      $show($id("audio-upload-spinner"));
       const response = await formHandlers.uploadAudioFile(file);
       if (response && response.success) {
         const filename = response.filename;
-        const message = (document.getElementById("message") || {}).value.replace(/\n+$/, "");
+        const message = ($id("message") || {}).value.replace(/\n+$/, "");
         const instruction = `Please analyze the file: ${filename}`;
-        { const _el = document.getElementById("message"); if (_el) _el.value = message ? `${message}\n\n${instruction}` : instruction; };
+        { const el = $id("message"); if (el) el.value = message ? `${message}\n\n${instruction}` : instruction; }
         if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize(document.getElementById('message'), 100);
+          uiUtils.autoResize($id('message'), 100);
         }
-        { const _el = document.getElementById("audio-upload-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("audio-upload-spinner"));
         document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("audioUploadModal")).hide();
-        { const _el = document.getElementById("message"); if (_el) _el.focus(); };
+        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
+        { const el = $id("message"); if (el) el.focus(); }
       } else {
         const errorMsg = response && response.error ? response.error : "Upload failed";
-        { const _el = document.getElementById("audio-upload-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("audio-upload-spinner"));
         document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("audioUploadModal")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
         setAlert(errorMsg, "error");
       }
     } catch (error) {
-      { const _el = document.getElementById("audio-upload-spinner"); if (_el) _el.style.display = "none"; };
+      $hide($id("audio-upload-spinner"));
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("audioUploadModal")).hide();
+      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
       setAlert("Upload error: " + (error.statusText || error.message || "Unknown error"), "error");
     }
   });
@@ -3520,7 +3491,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Cloud PDF list handlers
   async function refreshCloudPdfList() {
     try {
-      const $list = document.getElementById("cloud-pdf-list");
+      const $list = $id("cloud-pdf-list");
       if (!$list) return;
       if ($list) $list.innerHTML = ('<span class="text-secondary">Loading...</span>');
       const listResp = await fetch('/openai/pdf?action=list');
@@ -3532,7 +3503,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Update Cloud meta (move Vector Store ID to footer; keep header clean)
       try {
         const vs = res.vector_store_id || '';
-        { const _el = document.getElementById("cloud-pdf-meta"); if (_el) _el.textContent = vs ? `Vector Store ID: ${vs}` : ''; };
+        { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
         // Do not show VS in header to avoid confusion
         // Leave #cloud-pdf-info handling to status refresher
       } catch (_) { console.warn("[PDF Listing] Metadata update failed:", _); }
@@ -3552,7 +3523,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       if ($list) $list.innerHTML = (rows.join(''));
     } catch (e) {
-      { const _el = document.getElementById("cloud-pdf-list"); if (_el) _el.innerHTML = '<span class="text-danger">Failed to load</span>'; };
+      { const el = $id("cloud-pdf-list"); if (el) el.innerHTML = '<span class="text-danger">Failed to load</span>'; }
     }
   }
 
@@ -3596,20 +3567,20 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } else {
       // Reuse the same Bootstrap modal as local delete
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("pdfDeleteConfirmation")).show();
-      { const _el = document.getElementById("pdfToDelete"); if (_el) _el.textContent = fname; };
-      { const _el2 = document.getElementById("pdfDeleteConfirmed"); if (_el2) _el2.onclick = async function (event) {
+      bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).show();
+      { const el = $id("pdfToDelete"); if (el) el.textContent = fname; }
+      { const el2 = $id("pdfDeleteConfirmed"); if (el2) el2.onclick = async function (event) {
         event.preventDefault();
         try {
           const delRes2 = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
           if (!delRes2.ok) throw new Error(`Delete failed: ${delRes2.status}`);
-          bootstrap.Modal.getOrCreateInstance(document.getElementById("pdfDeleteConfirmation")).hide();
-          { const _el3 = document.getElementById("pdfToDelete"); if (_el3) _el3.textContent = ""; }
+          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
+          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
           refreshCloudPdfList();
           setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
         } catch (err) {
-          bootstrap.Modal.getOrCreateInstance(document.getElementById("pdfDeleteConfirmation")).hide();
-          { const _el3 = document.getElementById("pdfToDelete"); if (_el3) _el3.textContent = ""; }
+          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
+          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
           setAlert('Failed to delete Cloud PDF', 'error');
         }
       }; }
@@ -3628,14 +3599,14 @@ document.addEventListener("DOMContentLoaded", function () {
       const mode = res.mode || 'local';
       const vs = res.vector_store_id || '';
       // Footer: full Vector Store ID when available
-      { const _el = document.getElementById("cloud-pdf-meta"); if (_el) _el.textContent = vs ? `Vector Store ID: ${vs}` : ''; };
+      { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
       // Local header: show ready only; remove redundant (empty)
-      { const _el = document.getElementById("local-pdf-info"); if (_el) _el.textContent = res.local_present ? '(ready)' : ''; }
+      { const el = $id("local-pdf-info"); if (el) el.textContent = res.local_present ? '(ready)' : ''; }
 
       // Toggle sections based on current mode
       const showCloud = (mode === 'cloud');
-      { const _el = document.getElementById("cloud-pdf-section"); if (_el) _el.style.display = (showCloud) ? "" : "none"; };
-      { const _el = document.getElementById("local-pdf-section"); if (_el) _el.style.display = (!showCloud) ? "" : "none"; };
+      $toggle($id("cloud-pdf-section"), showCloud);
+      $toggle($id("local-pdf-section"), !showCloud);
       // Auto-refresh the visible list to keep UI fresh
       if (showCloud) {
         refreshCloudPdfList();
@@ -3658,24 +3629,24 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.ws) ws.send(JSON.stringify({ message: "DELETE_ALL_PDFS" }));
   });
 
-  document.getElementById("url")?.addEventListener("click", function(event) {
+  $on($id("url"), "click", function(event) {
     event.preventDefault();
-    { const _el = document.getElementById("urlLabel"); if (_el) _el.value = ""; };
-    { const _el = document.getElementById("pageURL"); if (_el) _el.value = ""; };
+    { const el = $id("urlLabel"); if (el) el.value = ""; }
+    { const el = $id("pageURL"); if (el) el.value = ""; }
     
     // Use the form handlers module if available, otherwise fallback
     if (formHandlers && formHandlers.showModalWithFocus) {
       const cleanupFn = function() {
-        { const _el = document.getElementById('pageURL'); if (_el) _el.value = ''; };
-        { const _el = document.getElementById('fetchPage'); if (_el) _el.disabled = true; };
+        { const el = $id('pageURL'); if (el) el.value = ''; }
+        { const el = $id('fetchPage'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('urlModal', 'pageURL', cleanupFn);
     } else {
       // Show the modal using fallback
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("urlModal")).show();
+      bootstrap.Modal.getOrCreateInstance($id("urlModal")).show();
       
       // Store focus timer in modal's data to ensure cleanup
-      const $modal = document.getElementById("urlModal");
+      const $modal = $id("urlModal");
       const existingTimer = $modal.dataset.focusTimer;
 
       // Clear any existing timer
@@ -3685,16 +3656,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Set new timer and store reference
       $modal.dataset.focusTimer = setTimeout(function () {
-        { const _el = document.getElementById("pageURL"); if (_el) _el.focus(); }
+        { const el = $id("pageURL"); if (el) el.focus(); }
         // Clear reference after use
         delete $modal.dataset.focusTimer;
       }, 500);
     }
   });
 
-  document.getElementById("urlModal")?.addEventListener("hidden.bs.modal", function () {
-    { const _el = document.getElementById('pageURL'); if (_el) _el.value = ''; }
-    { const _el = document.getElementById('fetchPage'); if (_el) _el.disabled = true; }
+  $on($id("urlModal"), "hidden.bs.modal", function () {
+    { const el = $id('pageURL'); if (el) el.value = ''; }
+    { const el = $id('fetchPage'); if (el) el.disabled = true; }
 
     // Ensure any remaining timers are cleared
     const modalEl = this;
@@ -3708,34 +3679,34 @@ document.addEventListener("DOMContentLoaded", function () {
   // Use the form handlers module for URL input validation
   if (formHandlers && formHandlers.setupUrlValidation) {
     formHandlers.setupUrlValidation(
-      document.getElementById('pageURL'), 
-      document.getElementById('fetchPage')
+      $id('pageURL'), 
+      $id('fetchPage')
     );
   } else {
     // Fallback to direct event handler
-    var _urlEl = document.getElementById("pageURL");
+    var _urlEl = $id("pageURL");
     if (_urlEl) {
       ["change", "keyup", "input"].forEach(function(_evt) {
         _urlEl.addEventListener(_evt, function() {
           var url = this.value;
           // check if url is a valid url starting with http or https
           var validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
-          var _fetchEl = document.getElementById('fetchPage');
+          var _fetchEl = $id('fetchPage');
           if (_fetchEl) _fetchEl.disabled = !validUrl;
         });
       });
     }
   }
 
-  document.getElementById("fetchPage")?.addEventListener("click", async function () {
-    const url = (document.getElementById("pageURL") || {}).value;
+  $on($id("fetchPage"), "click", async function () {
+    const url = ($id("pageURL") || {}).value;
     
     try {
-      const urlLabel = (document.getElementById("urlLabel") || {}).value || "";
+      const urlLabel = ($id("urlLabel") || {}).value || "";
       
       // Disable UI elements during processing
       document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = true; });
-      { const _el = document.getElementById("url-spinner"); if (_el) _el.style.display = ""; };
+      $show($id("url-spinner"));
       
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.fetchWebpage(url, urlLabel);
@@ -3744,30 +3715,30 @@ document.addEventListener("DOMContentLoaded", function () {
       if (response && response.success) {
         // Extract content and append it to the message
         const content = response.content;
-        const message = (document.getElementById("message") || {}).value.replace(/\n+$/, "");
-        { const _el = document.getElementById("message"); if (_el) _el.value = `${message}\n\n${content}`; };
+        const message = ($id("message") || {}).value.replace(/\n+$/, "");
+        { const el = $id("message"); if (el) el.value = `${message}\n\n${content}`; }
         
         // Use the UI utilities module for resizing
         if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize(document.getElementById('message'), 100);
+          uiUtils.autoResize($id('message'), 100);
         } else {
-          autoResizeFallback(document.getElementById('message'), 100);
+          autoResizeFallback($id('message'), 100);
         }
         
         // Clean up UI
-        { const _el = document.getElementById("url-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("url-spinner"));
         document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("urlModal")).hide();
-        { const _el = document.getElementById("back_to_bottom"); if (_el) _el.dispatchEvent(new Event("click", {bubbles: true})); };
-        { const _el = document.getElementById("message"); if (_el) _el.focus(); };
+        bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+        $dispatch($id("back_to_bottom"), "click");
+        { const el = $id("message"); if (el) el.focus(); }
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to fetch webpage";
         
         // Clean up UI
-        { const _el = document.getElementById("url-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("url-spinner"));
         document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("urlModal")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3776,9 +3747,9 @@ document.addEventListener("DOMContentLoaded", function () {
       console.error("Error fetching webpage:", error);
       
       // Clean up UI on error
-      { const _el = document.getElementById("url-spinner"); if (_el) _el.style.display = "none"; };
+      $hide($id("url-spinner"));
       document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("urlModal")).hide();
+      bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3787,16 +3758,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("temperature")?.addEventListener("input", function() {
-    { const _el = document.getElementById("temperature-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(1); }
+  $on($id("temperature"), "input", function() {
+    { const el = $id("temperature-value"); if (el) el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
-  document.getElementById("presence-penalty")?.addEventListener("input", function() {
-    { const _el = document.getElementById("presence-penalty-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(1); }
+  $on($id("presence-penalty"), "input", function() {
+    { const el = $id("presence-penalty-value"); if (el) el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
-  document.getElementById("frequency-penalty")?.addEventListener("input", function() {
-    { const _el = document.getElementById("frequency-penalty-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(1); }
+  $on($id("frequency-penalty"), "input", function() {
+    { const el = $id("frequency-penalty-value"); if (el) el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
   //////////////////////////////
@@ -3809,29 +3780,29 @@ document.addEventListener("DOMContentLoaded", function () {
     if (e) e.preventDefault();
     const scrollTime = window.UIConfig ? 
       window.UIConfig.TIMING.SCROLL_ANIMATION : 500;
-    { const _el = document.getElementById("main"); if (_el) _el.scrollTo({ top: 0, behavior: "smooth" }); };
+    { const el = $id("main"); if (el) el.scrollTo({ top: 0, behavior: "smooth" }); }
   }
   
   function scrollToBottom(e) {
     if (e) e.preventDefault();
     const scrollTime = window.UIConfig ? 
       window.UIConfig.TIMING.SCROLL_ANIMATION : 500;
-    { const _el = document.getElementById("main"); if (_el) _el.scrollTo({ top: _el.scrollHeight, behavior: "smooth" }); }
+    { const el = $id("main"); if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }); }
   }
 
   // Click handlers
-  document.getElementById("back_to_top")?.addEventListener("click", scrollToTop);
-  document.getElementById("back_to_bottom")?.addEventListener("click", scrollToBottom);
+  $on($id("back_to_top"), "click", scrollToTop);
+  $on($id("back_to_bottom"), "click", scrollToBottom);
   
   // Keyboard handlers (Enter and Space)
-  document.getElementById("back_to_top")?.addEventListener("keydown", function(e) {
+  $on($id("back_to_top"), "keydown", function(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       scrollToTop();
     }
   });
   
-  document.getElementById("back_to_bottom")?.addEventListener("keydown", function(e) {
+  $on($id("back_to_bottom"), "keydown", function(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       scrollToBottom();
@@ -3845,13 +3816,13 @@ document.addEventListener("DOMContentLoaded", function () {
   // Restore STT model from cookie
   const savedSTTModel = getCookie("stt-model");
   if (savedSTTModel) {
-    { const _el = document.getElementById("stt-model"); if (_el) _el.value = savedSTTModel; };
+    { const el = $id("stt-model"); if (el) el.value = savedSTTModel; }
     params["stt_model"] = savedSTTModel;
   }
 
-  document.getElementById("tts-provider")?.addEventListener("change", function() {
+  $on($id("tts-provider"), "change", function() {
     const oldProvider = params["tts_provider"];
-    params["tts_provider"] = (document.getElementById("tts-provider") || {}).value;
+    params["tts_provider"] = ($id("tts-provider") || {}).value;
     
     // Reset audio elements when switching TTS providers
     if (oldProvider !== params["tts_provider"] && typeof window.resetAudioElements === 'function') {
@@ -3859,30 +3830,30 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     
     // Hide all voice selection elements first
-    { const _el = document.getElementById("elevenlabs-voices"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("openai-voices"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("gemini-voices"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("mistral-voices"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("webspeech-voices"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("tts-speed-container"); if (_el) _el.style.display = ""; }; // Show speed slider by default (hidden for providers that don't support it)
+    $hide($id("elevenlabs-voices"));
+    $hide($id("openai-voices"));
+    $hide($id("gemini-voices"));
+    $hide($id("mistral-voices"));
+    $hide($id("webspeech-voices"));
+    $show($id("tts-speed-container")); // Show speed slider by default (hidden for providers that don't support it)
 
     // Show the appropriate voice selection based on provider
     if (params["tts_provider"] === "elevenlabs" || params["tts_provider"] === "elevenlabs-flash" || params["tts_provider"] === "elevenlabs-multilingual" || params["tts_provider"] === "elevenlabs-v3") {
-      { const _el = document.getElementById("elevenlabs-voices"); if (_el) _el.style.display = ""; };
+      $show($id("elevenlabs-voices"));
     } else if (params["tts_provider"] === "gemini-flash" || params["tts_provider"] === "gemini-pro") {
-      { const _el = document.getElementById("gemini-voices"); if (_el) _el.style.display = ""; };
+      $show($id("gemini-voices"));
     } else if (params["tts_provider"] === "mistral") {
-      { const _el = document.getElementById("mistral-voices"); if (_el) _el.style.display = ""; };
-      { const _el = document.getElementById("tts-speed-container"); if (_el) _el.style.display = "none"; };
+      $show($id("mistral-voices"));
+      $hide($id("tts-speed-container"));
     } else if (params["tts_provider"] === "webspeech") {
-      { const _el = document.getElementById("webspeech-voices"); if (_el) _el.style.display = ""; };
+      $show($id("webspeech-voices"));
       // Initialize Web Speech API voices if they haven't been loaded
       if (typeof initWebSpeech === 'function') {
         initWebSpeech();
       }
     } else {
       // Default for OpenAI providers
-      { const _el = document.getElementById("openai-voices"); if (_el) _el.style.display = ""; };
+      $show($id("openai-voices"));
     }
 
     setCookie("tts-provider", params["tts_provider"], 30);
@@ -3891,40 +3862,40 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("tts-voice")?.addEventListener("change", function() {
-    params["tts_voice"] = (document.getElementById("tts-voice") || {}).value;
+  $on($id("tts-voice"), "change", function() {
+    params["tts_voice"] = ($id("tts-voice") || {}).value;
     setCookie("tts-voice", params["tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_voice_change');
     }
   });
 
-  document.getElementById("elevenlabs-tts-voice")?.addEventListener("change", function() {
-    params["elevenlabs_tts_voice"] = (document.getElementById("elevenlabs-tts-voice") || {}).value;
+  $on($id("elevenlabs-tts-voice"), "change", function() {
+    params["elevenlabs_tts_voice"] = ($id("elevenlabs-tts-voice") || {}).value;
     setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('elevenlabs_voice_change');
     }
   });
 
-  document.getElementById("gemini-tts-voice")?.addEventListener("change", function() {
-    params["gemini_tts_voice"] = (document.getElementById("gemini-tts-voice") || {}).value;
+  $on($id("gemini-tts-voice"), "change", function() {
+    params["gemini_tts_voice"] = ($id("gemini-tts-voice") || {}).value;
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('gemini_voice_change');
     }
   });
 
-  document.getElementById("stt-model")?.addEventListener("change", function() {
-    params["stt_model"] = (document.getElementById("stt-model") || {}).value;
+  $on($id("stt-model"), "change", function() {
+    params["stt_model"] = ($id("stt-model") || {}).value;
     setCookie("stt-model", params["stt_model"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('stt_model_change');
     }
   });
 
-  document.getElementById("conversation-language")?.addEventListener("change", function() {
-    params["conversation_language"] = (document.getElementById("conversation-language") || {}).value;
+  $on($id("conversation-language"), "change", function() {
+    params["conversation_language"] = ($id("conversation-language") || {}).value;
     setCookie("conversation-language", params["conversation_language"], 30);
     // Also update asr_lang for STT/TTS
     params["asr_lang"] = params["conversation_language"];
@@ -3953,8 +3924,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("tts-speed")?.addEventListener("input", function() {
-    { const _el = document.getElementById("tts-speed-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(2); }
+  $on($id("tts-speed"), "input", function() {
+    { const el = $id("tts-speed-value"); if (el) el.textContent = parseFloat(this.value).toFixed(2); }
     params["tts_speed"] = parseFloat(this.value);
     setCookie("tts-speed", params["tts_speed"], 30);
     if (!isParamBroadcastSuppressed()) {
@@ -3962,13 +3933,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("error-close")?.addEventListener("click", function(event) {
+  $on($id("error-close"), "click", function(event) {
     event.preventDefault();
   })
 
-  document.getElementById("alert-close")?.addEventListener("click", function(event) {
+  $on($id("alert-close"), "click", function(event) {
     event.preventDefault();
-    { const _el = document.getElementById("alert-box"); if (_el) _el.style.display = "none"; };
+    $hide($id("alert-box"));
   })
 
   // Prompt toggle buttons (mutually exclusive, both can be off)
@@ -3976,28 +3947,28 @@ document.addEventListener("DOMContentLoaded", function () {
     const speed = animate ? 100 : 0;
 
     // Update button active state and chevron icons
-    { const _el = document.getElementById("prompt-toggle-assistant"); if (_el) _el.classList.toggle("active", view === 'assistant'); };
-    { const _el = document.getElementById("prompt-icon-assistant"); if (_el) { _el.classList.toggle("fa-chevron-down", view === 'assistant'); _el.classList.toggle("fa-chevron-right", view !== 'assistant'); } }
-    { const _el = document.getElementById("prompt-toggle-aiuser"); if (_el) _el.classList.toggle("active", view === 'aiuser'); }
-    { const _el = document.getElementById("prompt-icon-aiuser"); if (_el) { _el.classList.toggle("fa-chevron-down", view === 'aiuser'); _el.classList.toggle("fa-chevron-right", view !== 'aiuser'); } }
+    { const el = $id("prompt-toggle-assistant"); if (el) el.classList.toggle("active", view === 'assistant'); }
+    { const el = $id("prompt-icon-assistant"); if (el) { el.classList.toggle("fa-chevron-down", view === 'assistant'); el.classList.toggle("fa-chevron-right", view !== 'assistant'); } }
+    { const el = $id("prompt-toggle-aiuser"); if (el) el.classList.toggle("active", view === 'aiuser'); }
+    { const el = $id("prompt-icon-aiuser"); if (el) { el.classList.toggle("fa-chevron-down", view === 'aiuser'); el.classList.toggle("fa-chevron-right", view !== 'aiuser'); } }
 
     // Show/hide textareas
     if (view === 'assistant') {
-      { const _el = document.getElementById("ai-user-initial-prompt"); if (_el) _el.style.display = "none"; }
-      { const _el = document.getElementById("initial-prompt"); if (_el) { _el.style.display = ""; autoResize(_el, 0); } }
+      $hide($id("ai-user-initial-prompt"));
+      { const el = $id("initial-prompt"); if (el) { el.style.display = ""; autoResize(el, 0); } }
     } else if (view === 'aiuser') {
-      { const _el = document.getElementById("initial-prompt"); if (_el) _el.style.display = "none"; }
-      { const _el = document.getElementById("ai-user-initial-prompt"); if (_el) { _el.style.display = ""; autoResize(_el, 0); } }
+      $hide($id("initial-prompt"));
+      { const el = $id("ai-user-initial-prompt"); if (el) { el.style.display = ""; autoResize(el, 0); } }
     } else {
-      { const _el = document.getElementById("initial-prompt"); if (_el) _el.style.display = "none"; }
-      { const _el = document.getElementById("ai-user-initial-prompt"); if (_el) _el.style.display = "none"; }
+      $hide($id("initial-prompt"));
+      $hide($id("ai-user-initial-prompt"));
     }
   };
 
-  document.getElementById("prompt-toggle-assistant")?.addEventListener("click", function() {
+  $on($id("prompt-toggle-assistant"), "click", function() {
     window.setPromptView(this.classList.contains("active") ? 'hidden' : 'assistant', true);
   });
-  document.getElementById("prompt-toggle-aiuser")?.addEventListener("click", function() {
+  $on($id("prompt-toggle-aiuser"), "click", function() {
     window.setPromptView(this.classList.contains("active") ? 'hidden' : 'aiuser', true);
   });
 
@@ -4005,18 +3976,18 @@ document.addEventListener("DOMContentLoaded", function () {
   if (!runningOnChrome && !runningOnEdge && !runningOnSafari || 
      /iPad|iPhone|iPod/.test(navigator.userAgent)) {
     // Hide the entire voice input row instead of just the button
-    { const _el = document.getElementById("voice-input-row"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("auto-speech"); if (_el) _el.style.display = "none"; };
-    { const _el = document.getElementById("auto-speech-form"); if (_el) _el.style.display = "none"; };
+    $hide($id("voice-input-row"));
+    $hide($id("auto-speech"));
+    $hide($id("auto-speech-form"));
     // Set message placeholder to standard text - simplified without voice
     // Will be properly translated when i18n initializes
   } else {
     // Show voice input row
-    { const _el = document.getElementById("voice-input-row"); if (_el) _el.style.display = ""; };
+    $show($id("voice-input-row"));
     // Set message placeholder will be handled by i18n initialization
   }
 
-  document.getElementById("select-role")?.addEventListener("change", function() {
+  $on($id("select-role"), "change", function() {
     const role = this.value;
     const _icon = document.querySelector("#role-icon i");
     if (!_icon) return;
@@ -4029,13 +4000,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  const selectedApp = document.getElementById('apps');
+  const selectedApp = $id('apps');
   if (selectedApp && selectedApp.selectedIndex === -1) {
     selectedApp.selectedIndex = 0;
   }
 
-  const fileInput = document.getElementById('file-load');
-  const loadButton = document.getElementById('import-button');
+  const fileInput = $id('file-load');
+  const loadButton = $id('import-button');
   const loadForm = document.querySelector('#loadModal form');
 
   // Handle form submission with async/await pattern
@@ -4053,9 +4024,9 @@ document.addEventListener("DOMContentLoaded", function () {
       window.isProcessingImport = true;
       window.skipAssistantInitiation = true;
 
-      { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = ""; };
+      $show($id("monadic-spinner"));
       document.querySelectorAll("#loadModal button").forEach(function(_el) { _el.disabled = true; });
-      { const _el = document.getElementById("load-spinner"); if (_el) _el.style.display = ""; };
+      $show($id("load-spinner"));
 
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.importSession(file);
@@ -4063,7 +4034,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Process the response
       if (response && response.success) {
         // Clean up UI after successful import
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("loadModal")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
 
         // Don't clear messages here - let WebSocket 'past_messages' handler do it
@@ -4082,7 +4053,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Keep modal open to allow another attempt
         document.querySelectorAll("#loadModal button").forEach(function(_el) { _el.disabled = false; });
-        { const _el = document.getElementById("load-spinner"); if (_el) _el.style.display = "none"; };
+        $hide($id("load-spinner"));
       }
       
     } catch (error) {
@@ -4098,13 +4069,13 @@ document.addEventListener("DOMContentLoaded", function () {
       setAlert(`${importErrorMsg}: ${errorMessage}`, "error");
 
       // Hide modal since there was an AJAX error
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("loadModal")).hide();
+      bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
 
     } finally {
       // Always clean up UI elements
-      { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = "none"; };
+      $hide($id("monadic-spinner"));
       document.querySelectorAll("#loadModal button").forEach(function(_el) { _el.disabled = false; });
-      { const _el = document.getElementById("load-spinner"); if (_el) _el.style.display = "none"; }
+      $hide($id("load-spinner"));
       if (fileInput) fileInput.value = '';
     }
   });
@@ -4112,8 +4083,8 @@ document.addEventListener("DOMContentLoaded", function () {
   // Enable/disable load button based on file selection
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('file-load'),
-      document.getElementById('import-button')
+      $id('file-load'),
+      $id('import-button')
     );
   } else {
     // Fallback to direct event handler
@@ -4126,14 +4097,14 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const fileFile = document.getElementById('fileFile');
-  const fileButton = document.getElementById('uploadFile');
+  const fileFile = $id('fileFile');
+  const fileButton = $id('uploadFile');
 
   // Use the form handlers module for file upload validation
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('fileFile'),
-      document.getElementById('uploadFile')
+      $id('fileFile'),
+      $id('uploadFile')
     );
   } else {
     // Fallback to direct event handler
@@ -4148,7 +4119,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Initialize tooltips with delegated observation for dynamically added elements
   {
-    const discourseEl = document.getElementById("discourse");
+    const discourseEl = $id("discourse");
     if (discourseEl) {
       // Initialize tooltips on existing elements
       discourseEl.querySelectorAll('.card-header [title]').forEach(function(el) {
@@ -4180,17 +4151,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("message")?.addEventListener("keydown", function(event) {
+  $on($id("message"), "keydown", function(event) {
     if (event.key === "Tab") {
       event.preventDefault();
-      { const _el = document.getElementById("send"); if (_el) _el.focus(); };
+      { const el = $id("send"); if (el) el.focus(); }
     }
   });
 
-  document.getElementById("select-role")?.addEventListener("keydown", function(event) {
+  $on($id("select-role"), "keydown", function(event) {
     if (event.key === "Tab") {
       event.preventDefault();
-      { const _el = document.getElementById("send"); if (_el) _el.focus(); };
+      { const el = $id("send"); if (el) el.focus(); }
     }
   });
 
@@ -4216,7 +4187,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Load saved conversation language
     const savedConversationLanguage = getCookie("conversation-language");
     if (savedConversationLanguage) {
-      { const _el = document.getElementById("conversation-language"); if (_el) _el.value = savedConversationLanguage; };
+      { const el = $id("conversation-language"); if (el) el.value = savedConversationLanguage; }
       params["conversation_language"] = savedConversationLanguage;
       params["asr_lang"] = savedConversationLanguage;
       // Set RTL/LTR on page load
@@ -4234,7 +4205,7 @@ document.addEventListener("DOMContentLoaded", function () {
       
       // Also register special handler for message text input
       // This ensures search is closed when focusing the input field
-      document.getElementById("message")?.addEventListener("focus", function() {
+      $on($id("message"), "focus", function() {
         if (uiUtils.simulateEscapeKey) {
           uiUtils.simulateEscapeKey();
         }
@@ -4242,7 +4213,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     
     // Set focus to the apps dropdown instead of start button
-    { const _el = document.getElementById("apps"); if (_el) _el.focus(); };
+    { const el = $id("apps"); if (el) el.focus(); }
     
     // Common viewport setup for all devices
     const viewportMeta = document.querySelector('meta[name="viewport"]');
@@ -4281,7 +4252,7 @@ document.addEventListener("DOMContentLoaded", function () {
     
     // Ensure consistent height between the apps select and the custom dropdown group headers
     setTimeout(function() {
-      const appsHeight = (document.getElementById("apps") || {}).offsetHeight;
+      const appsHeight = ($id("apps") || {}).offsetHeight;
       document.querySelectorAll(".custom-dropdown-group").forEach(function(_el) { _el.style.height = appsHeight + "px"; });
     }, 100);
     
@@ -4289,8 +4260,8 @@ document.addEventListener("DOMContentLoaded", function () {
     updateAppSelectIcon();
     
     function setupCustomDropdown() {
-      const $select = document.getElementById("apps");
-      const $customDropdown = document.getElementById("custom-apps-dropdown");
+      const $select = $id("apps");
+      const $customDropdown = $id("custom-apps-dropdown");
       let isDropdownOpen = false;
       
       // Function to close the dropdown
@@ -4344,7 +4315,7 @@ document.addEventListener("DOMContentLoaded", function () {
           positionDropdown();
           
           // Update the height of group headers to match the apps select
-          const appsHeight = (document.getElementById("apps") || {}).offsetHeight;
+          const appsHeight = ($id("apps") || {}).offsetHeight;
           document.querySelectorAll(".custom-dropdown-group").forEach(function(_el) { _el.style.height = appsHeight + "px"; });
           
           // Set up click outside handler with a small delay to avoid immediate closing
@@ -4361,7 +4332,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       
       // Show custom dropdown when clicking on the overlay div
-      document.getElementById("app-select-overlay")?.addEventListener("click", function(e) {
+      $on($id("app-select-overlay"), "click", function(e) {
         e.preventDefault();
         e.stopPropagation();
         
@@ -4508,7 +4479,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Update the real select value
         $select.value = value;
-        $select.dispatchEvent(new Event("change", {bubbles: true}));
+        $$dispatch(select, "change");
 
         // Close dropdown using the proper method
         closeDropdown();
@@ -4531,7 +4502,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         
         // Ensure group headers maintain the same height as the apps select
-        const appsHeight = (document.getElementById("apps") || {}).offsetHeight;
+        const appsHeight = ($id("apps") || {}).offsetHeight;
         document.querySelectorAll(".custom-dropdown-group").forEach(function(_el) { _el.style.height = appsHeight + "px"; });
       });
       
@@ -4584,7 +4555,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Load AI User provider from cookie
     const savedProvider = getCookie("ai_user_provider");
     if (savedProvider) {
-      { const _el = document.getElementById("ai_user_provider"); if (_el) _el.value = savedProvider; };
+      { const el = $id("ai_user_provider"); if (el) el.value = savedProvider; }
       
       // Apply provider styling if updateProviderStyle is available
       if (typeof updateProviderStyle === 'function') {
@@ -4602,15 +4573,15 @@ document.addEventListener("DOMContentLoaded", function () {
     setCookieValues();
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
-      uiUtils.adjustImageUploadButton((document.getElementById("model") || {}).value);
+      uiUtils.adjustImageUploadButton(($id("model") || {}).value);
     } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-      window.shims.uiUtils.adjustImageUploadButton((document.getElementById("model") || {}).value);
+      window.shims.uiUtils.adjustImageUploadButton(($id("model") || {}).value);
     }
-    { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = ""; };
+    $show($id("monadic-spinner"));
     
     // Event handlers for the message deletion confirmation dialog
-    document.getElementById("deleteMessageOnly")?.addEventListener("click", function() {
-      const data = (document.getElementById("deleteConfirmation") || {}).dataset;
+    $on($id("deleteMessageOnly"), "click", function() {
+      const data = ($id("deleteConfirmation") || {}).dataset;
       if (data && data.mid) {
         // Check if it's a system message that needs special handling
         if (data.isSystemMessage) {
@@ -4618,13 +4589,13 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
           deleteMessageOnly(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
         }
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("deleteConfirmation")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
       }
     });
     
     // Handle deletion of the current message and all subsequent messages
-    document.getElementById("deleteMessageAndSubsequent")?.addEventListener("click", function() {
-      const data = (document.getElementById("deleteConfirmation") || {}).dataset;
+    $on($id("deleteMessageAndSubsequent"), "click", function() {
+      const data = ($id("deleteConfirmation") || {}).dataset;
       if (data && data.mid) {
         // Check if it's a system message that needs special handling
         if (data.isSystemMessage) {
@@ -4632,28 +4603,28 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
           deleteMessageAndSubsequent(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
         }
-        bootstrap.Modal.getOrCreateInstance(document.getElementById("deleteConfirmation")).hide();
+        bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
       }
     });
 
     // Lightbox modal controls (state variables are in the outer scope near MutationObserver)
-    document.getElementById("lightboxImage")?.addEventListener("click", function() {
-      bootstrap.Modal.getOrCreateInstance(document.getElementById("screenshotLightbox")).hide();
+    $on($id("lightboxImage"), "click", function() {
+      bootstrap.Modal.getOrCreateInstance($id("screenshotLightbox")).hide();
     });
 
-    document.getElementById("lightboxPrev")?.addEventListener("click", function(e) {
+    $on($id("lightboxPrev"), "click", function(e) {
       e.stopPropagation();
       if (lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
     });
 
-    document.getElementById("lightboxNext")?.addEventListener("click", function(e) {
+    $on($id("lightboxNext"), "click", function(e) {
       e.stopPropagation();
       if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
     });
 
     // Arrow key navigation for lightbox (Escape is handled by Bootstrap's keyboard: true default)
     document.addEventListener("keydown", function(e) {
-      if (!(document.getElementById("screenshotLightbox") && document.getElementById("screenshotLightbox").classList.contains("show"))) return;
+      if (!($id("screenshotLightbox") && $id("screenshotLightbox").classList.contains("show"))) return;
       if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
       if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
     });

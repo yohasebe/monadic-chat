@@ -61,8 +61,8 @@ rake download_vendor_assets
 ## 現在のアセット
 
 システムには以下が含まれています：
-- **CSSフレームワーク**: Bootstrap、jQuery UI
-- **JavaScriptライブラリ**: jQuery、MathJax、Mermaid、ABC.js
+- **CSSフレームワーク**: Bootstrap 5
+- **JavaScriptライブラリ**: KaTeX、Mermaid、ABC.js
 - **アイコンフォント**: Font Awesome
 - **Webフォント**: Montserratファミリー
 - **メディアライブラリ**: 音声録音用のOpus Media Recorder

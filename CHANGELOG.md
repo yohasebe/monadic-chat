@@ -16,7 +16,11 @@
     - Port 5070 removed, Flask server deleted
   - **providerDefaults SSOT**: Centralized model defaults in model_spec.js (8 categories: chat, code, vision, audio, image, video, tts, embedding)
     - Removed all hardcoded model name fallbacks from agents and scripts
-  - **jQuery → Fetch API**: Replaced all jQuery AJAX calls with native fetch API
+  - **jQuery Complete Removal**: Eliminated jQuery 3.7.0 dependency entirely (45 files, ~4,600 call sites converted to vanilla JS)
+    - Bootstrap 5 modal/tooltip migrated to native JavaScript API
+    - 87KB library removed from page load
+  - **jQuery UI Removal**: Removed jQuery UI dependency (248KB), replaced draggable with PointerEvents
+  - **MathJax → KaTeX**: Migrated math rendering from MathJax to KaTeX (75% JS size reduction: 1.1MB → 272KB)
   - **Mistral Voxtral TTS**: Text-to-speech via Mistral API with 30 preset voices (9 languages: EN/FR/ES/DE/IT/PT/NL/HI/AR)
   - **Mistral Voxtral STT**: Speech-to-text via Mistral API (13 languages including Japanese, Chinese, Korean)
   - **Cohere Transcribe STT**: Speech-to-text via Cohere API (14 languages including Japanese) with automatic WebM-to-MP3 conversion

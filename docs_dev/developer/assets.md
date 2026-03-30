@@ -61,8 +61,8 @@ Assets are downloaded during Docker build:
 ## Current Assets
 
 The system includes:
-- **CSS frameworks**: Bootstrap, jQuery UI
-- **JavaScript libraries**: jQuery, MathJax, Mermaid, ABC.js
+- **CSS frameworks**: Bootstrap 5
+- **JavaScript libraries**: KaTeX, Mermaid, ABC.js
 - **Icon fonts**: Font Awesome
 - **Web fonts**: Montserrat family
 - **Media libraries**: Opus Media Recorder for audio recording

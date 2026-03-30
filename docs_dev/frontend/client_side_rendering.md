@@ -6,7 +6,7 @@ Last updated: 2025-11-08
 
 All HTML generation for chat cards now happens in the browser. The Ruby server sends raw
 `msg.text` (Markdown or Monadic JSON) together with metadata (`app_name`, `monadic`,
-flags for MathJax/ABC/Mermaid, etc.). The front-end converts that payload into styled HTML
+flags for KaTeX/ABC/Mermaid, etc.). The front-end converts that payload into styled HTML
 using `MarkdownRenderer`.
 
 ```
@@ -21,7 +21,7 @@ Browser
   │
   └─ MarkdownRenderer.applyRenderers(cardElement)
       ├─ highlight.js
-      ├─ MathJax.typesetPromise()
+      ├─ KaTeX (inline via renderMarkdown placeholders)
       ├─ applyAbc() / ABCJS fallback
       └─ applyMermaid() / mermaid.run() fallback
 ```
@@ -36,7 +36,7 @@ MarkdownRenderer.render(text, { appName, isMonadic })
 
 - Detects Monadic JSON vs normal Markdown
 - Parses Monadic payloads (AutoForge, Chat Plus, etc.) via `jsonToHtml`
-- Normal Markdown paths keep MathJax/ABC/Mermaid blocks as placeholders until after rendering
+- Normal Markdown paths keep KaTeX/ABC/Mermaid blocks as placeholders until after rendering
 
 ### 2. Monadic JSON support
 
@@ -46,8 +46,8 @@ MarkdownRenderer.render(text, { appName, isMonadic })
 ### 3. Markdown rendering
 
 - markdown-it renders text → HTML
-- MathJax, ABC, Mermaid blocks are temporarily replaced with placeholders (`MATH_BLOCK_PLACEHOLDER_x`, `ABC_BLOCK_PLACEHOLDER_x`, `MERMAID_BLOCK_PLACEHOLDER_x`)
-- After HTML is produced, placeholders are replaced with `<div class="abc-code"><pre>…</pre></div>` or `<div class="mermaid-code"><pre>…</pre></div>`
+- KaTeX, ABC, Mermaid blocks are temporarily replaced with placeholders (`MATH_BLOCK_PLACEHOLDER_x`, `ABC_BLOCK_PLACEHOLDER_x`, `MERMAID_BLOCK_PLACEHOLDER_x`)
+- After HTML is produced, KaTeX placeholders are replaced with rendered math HTML, ABC/Mermaid placeholders with `<div class="abc-code"><pre>…</pre></div>` or `<div class="mermaid-code"><pre>…</pre></div>`
 
 ### 4. Unified post-processing
 
@@ -56,9 +56,9 @@ MarkdownRenderer.render(text, { appName, isMonadic })
 | Feature   | Implementation                                                                 | Notes                                     |
 |-----------|---------------------------------------------------------------------------------|-------------------------------------------|
 | Code      | `window.SyntaxHighlight.apply()` (highlight.js)                                 | executed via `requestIdleCallback`        |
-| MathJax   | `MathJax.typesetPromise([container])`                                           | idle/raf fallback                         |
-| ABC       | prefers existing `applyAbc(jQueryElement)`; falls back to `ABCJS.renderAbc()`  | works with `.abc-code` or `.abc-notation` |
-| Mermaid   | prefers `applyMermaid(jQueryElement)`; falls back to `mermaid.run()`           | handles `.mermaid` & `.mermaid-code`      |
+| KaTeX     | Rendered inline during `renderMarkdown()` via placeholders                      | `katex.renderToString()` at build time    |
+| ABC       | `applyAbc(element)` or `ABCJS.renderAbc()` fallback                            | works with `.abc-code` or `.abc-notation` |
+| Mermaid   | `applyMermaid(element)` or `mermaid.run()` fallback                             | handles `.mermaid` & `.mermaid-code`      |
 
 Processing is scheduled via `requestIdleCallback` (with raf/setTimeout fallback) to avoid UI stalls when many cards are appended simultaneously.
 
@@ -69,7 +69,7 @@ To keep client rendering deterministic, the server must send:
 - `text`: Markdown or Monadic JSON (raw string, no HTML)
 - `app_name`: canonical snake_case name (e.g., `chat_plus_openai`)
 - `monadic`: boolean flag when the app uses Monadic JSON responses
-- Feature flags (MathJax, Mermaid, ABC) in `params`
+- Feature flags (KaTeX, Mermaid, ABC) in `params`
 
 `renderMessage()` on the client fills gaps by looking at SessionState/params, but the goal is to always send accurate metadata from Ruby so the browser does not need to guess.
 
@@ -99,4 +99,4 @@ See `docs_dev/frontend/tab_isolation.md` for complete architecture details.
 3. Extend `applyRenderers()` (or reuse `applyXxx()` helpers) to transform placeholders into final DOM nodes.
 4. Keep heavy work inside `requestIdleCallback` to avoid blocking animation frames.
 
-By following this pattern, new content types behave like MathJax/ABC/Mermaid/Monadic without reintroducing server-side HTML generation.
+By following this pattern, new content types behave like KaTeX/ABC/Mermaid/Monadic without reintroducing server-side HTML generation.

@@ -24,8 +24,6 @@
           (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
 
         // Always reset TTS flags and hide stale spinners on visibility change
-        // Note: We intentionally do NOT restore spinner here to prevent stale "Processing audio" after sleep/wake
-        // If actual processing is happening, the processing code will show/update the spinner appropriately
         if (window.debugWebSocket) console.log('[handleVisibilityChange] Tab visible, resetting TTS state (stillProcessing=' + stillProcessing + ')');
 
         // Reset TTS flags to "completed" state to prevent stale audio processing
@@ -59,42 +57,48 @@
         }
 
         // Handle spinner visibility based on actual processing state
-        if ($("#monadic-spinner").is(":visible")) {
-          // Spinner is visible - check if we should hide stale "Processing audio" spinners
-          const spinnerText = $("#monadic-spinner").find("span").text();
-          const isProcessingAudio = spinnerText.toLowerCase().includes('processing') &&
-                                     spinnerText.toLowerCase().includes('audio');
+        var spinner = document.getElementById("monadic-spinner");
+        if (spinner) {
+          var isSpinnerVisible = spinner.style.display !== 'none' && spinner.offsetParent !== null;
+          if (isSpinnerVisible) {
+            // Spinner is visible - check if we should hide stale "Processing audio" spinners
+            var spinnerSpan = spinner.querySelector("span");
+            var spinnerText = spinnerSpan ? spinnerSpan.textContent : '';
+            var isProcessingAudio = spinnerText.toLowerCase().includes('processing') &&
+                                       spinnerText.toLowerCase().includes('audio');
 
-          if (isProcessingAudio && !stillProcessing) {
-            if (window.debugWebSocket) console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
-            $("#monadic-spinner").hide();
-            $("#monadic-spinner")
-              .find("span i")
-              .removeClass("fa-headphones fa-brain fa-circle-nodes")
-              .addClass("fa-comment");
-            $("#monadic-spinner")
-              .find("span")
-              .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-          }
-        } else if (stillProcessing) {
-          // Spinner was hidden (likely due to tab switch) but we're still processing
-          // Restore the spinner to indicate ongoing processing
-          if (window.debugWebSocket) console.log('[handleVisibilityChange] Restoring spinner - still processing');
-          $("#monadic-spinner").show();
+            if (isProcessingAudio && !stillProcessing) {
+              if (window.debugWebSocket) console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
+              spinner.style.display = 'none';
+              var spinnerIcon = spinner.querySelector("span i");
+              if (spinnerIcon) {
+                spinnerIcon.classList.remove("fa-headphones", "fa-brain", "fa-circle-nodes");
+                spinnerIcon.classList.add("fa-comment");
+              }
+              if (spinnerSpan) {
+                spinnerSpan.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+              }
+            }
+          } else if (stillProcessing) {
+            // Spinner was hidden (likely due to tab switch) but we're still processing
+            if (window.debugWebSocket) console.log('[handleVisibilityChange] Restoring spinner - still processing');
+            spinner.style.display = '';
 
-          // Determine appropriate spinner state based on processing type
-          if (window.callingFunction) {
-            const processingToolsText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-              webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
-            $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-          } else if (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive()) {
-            const thinkingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-              webUIi18n.t('ui.messages.spinnerThinking') : 'Thinking...';
-            $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${thinkingText}`);
-          } else {
-            const processingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-              webUIi18n.t('ui.messages.spinnerProcessing') : 'Processing';
-            $("#monadic-spinner span").html(`<i class="fas fa-spinner fa-pulse"></i> ${processingText}`);
+            var spinnerSpanRestore = spinner.querySelector("span");
+            // Determine appropriate spinner state based on processing type
+            if (window.callingFunction) {
+              var processingToolsText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+                webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
+              if (spinnerSpanRestore) spinnerSpanRestore.innerHTML = '<i class="fas fa-cogs fa-pulse"></i> ' + processingToolsText;
+            } else if (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive()) {
+              var thinkingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+                webUIi18n.t('ui.messages.spinnerThinking') : 'Thinking...';
+              if (spinnerSpanRestore) spinnerSpanRestore.innerHTML = '<i class="fas fa-brain fa-pulse"></i> ' + thinkingText;
+            } else {
+              var processingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+                webUIi18n.t('ui.messages.spinnerProcessing') : 'Processing';
+              if (spinnerSpanRestore) spinnerSpanRestore.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> ' + processingText;
+            }
           }
         }
 
@@ -139,7 +143,6 @@
             }
 
             // Clear audio state before reconnection to prevent stale sequences
-            // This ensures new TTS sessions start fresh without waiting for old sequence numbers
             try {
               if (typeof window.clearAudioQueue === 'function') {
                 window.clearAudioQueue();

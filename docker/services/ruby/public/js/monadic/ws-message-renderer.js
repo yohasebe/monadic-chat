@@ -46,14 +46,17 @@ function handlePastMessages(data) {
     mids.clear();
   }
 
-  $("#discourse").empty();
+  var discourseEl = document.getElementById("discourse");
+  if (discourseEl) discourseEl.innerHTML = '';
 
-  const currentApp = $("#apps").val();
+  var appsEl = document.getElementById("apps");
+  var currentApp = appsEl ? appsEl.value : null;
   if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === "function") {
     window.SessionState.setCurrentApp(currentApp);
   }
 
-  const currentModel = $("#model").val();
+  var modelEl = document.getElementById("model");
+  var currentModel = modelEl ? modelEl.value : null;
   if (currentModel && window.SessionState) {
     window.SessionState.app.model = currentModel;
   }
@@ -112,7 +115,10 @@ function handlePastMessages(data) {
           false,  // monadic parameter
           userTurnNumber  // turnNumber
         );
-        $("#discourse").append(userCard);
+        if (discourseEl && userCard) {
+          // createCard returns jQuery; append raw DOM element
+          discourseEl.appendChild(userCard[0] || userCard);
+        }
         break;
       }
       case "assistant": {
@@ -132,9 +138,11 @@ function handlePastMessages(data) {
           false,  // monadic parameter
           assistantTurnCount  // turnNumber
         );
-        $("#discourse").append(assistantCard);
+        if (discourseEl && assistantCard) {
+          discourseEl.appendChild(assistantCard[0] || assistantCard);
+        }
         if (window.MarkdownRenderer) {
-          window.MarkdownRenderer.applyRenderers(assistantCard[0]);
+          window.MarkdownRenderer.applyRenderers(assistantCard[0] || assistantCard);
         }
         break;
       }
@@ -147,9 +155,11 @@ function handlePastMessages(data) {
           msg.mid,
           msg.active
         );
-        $("#discourse").append(infoCard);
+        if (discourseEl && infoCard) {
+          discourseEl.appendChild(infoCard[0] || infoCard);
+        }
         if (window.MarkdownRenderer) {
-          window.MarkdownRenderer.applyRenderers(infoCard[0]);
+          window.MarkdownRenderer.applyRenderers(infoCard[0] || infoCard);
         }
         break;
       }
@@ -162,9 +172,11 @@ function handlePastMessages(data) {
           msg.mid,
           msg.active
         );
-        $("#discourse").append(systemCard);
+        if (discourseEl && systemCard) {
+          discourseEl.appendChild(systemCard[0] || systemCard);
+        }
         if (window.MarkdownRenderer) {
-          window.MarkdownRenderer.applyRenderers(systemCard[0]);
+          window.MarkdownRenderer.applyRenderers(systemCard[0] || systemCard);
         }
         break;
       }
@@ -186,18 +198,21 @@ function handlePastMessages(data) {
   const hasConversation = serverMessages.some((m) => m.role !== "system");
   const labelPromise = window.i18nReady || Promise.resolve();
   labelPromise.then(() => {
-    if (hasConversation) {
-      const continueText =
-        typeof webUIi18n !== "undefined" && webUIi18n.initialized
-          ? webUIi18n.t("ui.session.continueSession")
-          : "Continue Session";
-      $("#start-label").text(continueText);
-    } else {
-      const startText =
-        typeof webUIi18n !== "undefined" && webUIi18n.initialized
-          ? webUIi18n.t("ui.session.startSession")
-          : "Start Session";
-      $("#start-label").text(startText);
+    var startLabelEl = document.getElementById("start-label");
+    if (startLabelEl) {
+      if (hasConversation) {
+        const continueText =
+          typeof webUIi18n !== "undefined" && webUIi18n.initialized
+            ? webUIi18n.t("ui.session.continueSession")
+            : "Continue Session";
+        startLabelEl.textContent = continueText;
+      } else {
+        const startText =
+          typeof webUIi18n !== "undefined" && webUIi18n.initialized
+            ? webUIi18n.t("ui.session.startSession")
+            : "Start Session";
+        startLabelEl.textContent = startText;
+      }
     }
   });
 
@@ -236,25 +251,26 @@ function handleEditSuccess(data) {
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
 
   // Get the message card by mid
-  const $card = $(`#${data.mid}`);
-  if (!$card.length) {
+  var cardEl = document.getElementById(data.mid);
+  if (!cardEl) {
     return;
   }
 
-  const $cardText = $card.find(".card-text");
+  var cardTextEl = cardEl.querySelector(".card-text");
+  if (!cardTextEl) return;
 
   // Update the HTML content
   if (data.html) {
     // Update the card with the HTML from server
-    $cardText.html(data.html);
+    cardTextEl.innerHTML = data.html;
 
     // Apply renderers to the updated content
     if (window.MarkdownRenderer) {
-      window.MarkdownRenderer.applyRenderers($cardText[0]);
+      window.MarkdownRenderer.applyRenderers(cardTextEl);
     }
 
     // Check if we have preserved images from before editing
-    const $preservedImages = $cardText.data('preservedImages');
+    var preservedImages = cardTextEl._preservedImages || null;
 
     // Add images if they exist
     if (data.images && Array.isArray(data.images) && data.images.length > 0) {
@@ -318,14 +334,14 @@ function handleEditSuccess(data) {
         }
       });
 
-      $cardText.append(image_data);
-    } else if ($preservedImages && $preservedImages.length > 0) {
+      cardTextEl.insertAdjacentHTML('beforeend', image_data);
+    } else if (preservedImages && preservedImages.length > 0) {
       // If no images from server but we have preserved images, restore them
-      $cardText.append($preservedImages);
+      cardTextEl.insertAdjacentHTML('beforeend', preservedImages);
     }
 
     // Clean up the preserved images data
-    $cardText.removeData('preservedImages');
+    delete cardTextEl._preservedImages;
 
     // Update the messages array with the new images
     const messages = window.messages || [];
@@ -335,8 +351,6 @@ function handleEditSuccess(data) {
     }
 
     // Apply all the required processing for assistant messages
-    const htmlContent = $card;
-
     // Use toBool helper for defensive boolean evaluation
     const toBool = window.toBool || ((value) => {
       if (typeof value === 'boolean') return value;
@@ -347,29 +361,29 @@ function handleEditSuccess(data) {
     const p = window.params || {};
 
     if (toBool(p["toggle"])) {
-      applyToggle(htmlContent);
+      applyToggle(cardEl);
     }
 
     if (toBool(p["mermaid"])) {
-      applyMermaid(htmlContent);
+      applyMermaid(cardEl);
     }
 
     if (typeof applyDrawIO === 'function') {
-      applyDrawIO(htmlContent);
+      applyDrawIO(cardEl);
     }
 
     if (toBool(p["mathjax"])) {
-      applyMathJax(htmlContent);
+      applyMathJax(cardEl);
     }
 
     if (toBool(p["abc"])) {
-      applyAbc(htmlContent);
+      applyAbc(cardEl);
     }
 
-    formatSourceCode(htmlContent);
-    cleanupListCodeBlocks(htmlContent);
+    formatSourceCode(cardEl);
+    cleanupListCodeBlocks(cardEl);
 
-    setCopyCodeButton(htmlContent);
+    setCopyCodeButton(cardEl);
   }
 }
 
@@ -387,7 +401,7 @@ function handleDisplaySample(data) {
   }
 
   // First check if this message already exists
-  if ($("#" + content.mid).length > 0) {
+  if (document.getElementById(content.mid)) {
     return;
   }
 
@@ -412,15 +426,17 @@ function handleDisplaySample(data) {
   );
 
   // Append to discourse
-  $("#discourse").append(cardElement);
+  var discourseEl = document.getElementById("discourse");
+  if (discourseEl && cardElement) {
+    discourseEl.appendChild(cardElement[0] || cardElement);
+  }
   // applyRenderers is called within MarkdownRenderer.render(), so no need to call again
   // But for safety, call it anyway in case render() wasn't used
   if (window.MarkdownRenderer && content.role !== "assistant" && content.role !== "system") {
-    window.MarkdownRenderer.applyRenderers(cardElement[0]);
+    window.MarkdownRenderer.applyRenderers(cardElement[0] || cardElement);
   }
 
   // Add message to messages array to ensure edit functionality works correctly
-  // This ensures sample messages are treated consistently with API-generated messages
   if (content.text) {
     const messageObj = {
       "role": content.role,
@@ -433,7 +449,8 @@ function handleDisplaySample(data) {
   }
 
   // Apply appropriate styling based on current settings
-  const htmlContent = $("#discourse div.card:last");
+  // Get the last card in discourse
+  var lastCard = discourseEl ? discourseEl.querySelector("div.card:last-child") : null;
 
   // Use toBool helper for defensive boolean evaluation
   const toBool = window.toBool || ((value) => {
@@ -445,29 +462,29 @@ function handleDisplaySample(data) {
   const p = window.params || {};
 
   if (toBool(p["toggle"])) {
-    applyToggle(htmlContent);
+    applyToggle(lastCard);
   }
 
   if (toBool(p["mermaid"])) {
-    applyMermaid(htmlContent);
+    applyMermaid(lastCard);
   }
 
   if (typeof applyDrawIO === 'function') {
-    applyDrawIO(htmlContent);
+    applyDrawIO(lastCard);
   }
 
   if (toBool(p["mathjax"])) {
-    applyMathJax(htmlContent);
+    applyMathJax(lastCard);
   }
 
   if (toBool(p["abc"])) {
-    applyAbc(htmlContent);
+    applyAbc(lastCard);
   }
 
-  formatSourceCode(htmlContent);
-  cleanupListCodeBlocks(htmlContent);
+  formatSourceCode(lastCard);
+  cleanupListCodeBlocks(lastCard);
 
-  setCopyCodeButton(htmlContent);
+  setCopyCodeButton(lastCard);
 
   // Scroll to bottom
   if (window.autoScroll && window.chatBottom && !isElementInViewport(window.chatBottom)) {

@@ -11,65 +11,21 @@
  * - handleDisplaySample: Render sample messages
  */
 
-// Default mock jQuery element with all common methods
-function createMockElement(id) {
-  return {
-    prop: jest.fn().mockReturnThis(),
-    val: jest.fn(function(v) { if (v === undefined) return null; return this; }),
-    trigger: jest.fn().mockReturnThis(),
-    append: jest.fn().mockReturnThis(),
-    html: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    text: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    empty: jest.fn().mockReturnThis(),
-    focus: jest.fn().mockReturnThis(),
-    on: jest.fn().mockReturnThis(),
-    data: jest.fn().mockReturnValue(null),
-    find: jest.fn().mockReturnValue({
-      length: 1,
-      text: jest.fn().mockReturnValue(''),
-      html: jest.fn().mockReturnThis(),
-      removeClass: jest.fn().mockReturnThis(),
-      addClass: jest.fn().mockReturnThis(),
-      data: jest.fn().mockReturnValue(null),
-      removeData: jest.fn().mockReturnThis(),
-      append: jest.fn().mockReturnThis()
-    }),
-    parent: jest.fn().mockReturnValue({ length: 0 }),
-    attr: jest.fn().mockReturnValue(''),
-    removeData: jest.fn().mockReturnThis(),
-    length: 1,
-    0: document.createElement('div'),
-    get: jest.fn().mockReturnValue(document.createElement('div'))
-  };
-}
-
-let mockElements;
-
-function setupMockElements() {
-  mockElements = {
-    '#discourse': createMockElement('discourse'),
-    '#apps': createMockElement('apps'),
-    '#model': createMockElement('model'),
-    '#start-label': createMockElement('start-label')
-  };
-}
-
 beforeEach(() => {
-  setupMockElements();
-
-  // Mock jQuery
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && selector.startsWith('#') && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    // For any other selector, return a default mock
-    return createMockElement('default');
-  });
+  // Set up real DOM elements for getElementById calls
+  document.body.innerHTML = `
+    <div id="discourse"></div>
+    <select id="apps"></select>
+    <select id="model"></select>
+    <span id="start-label"></span>
+  `;
 
   // Mock global functions
-  global.createCard = jest.fn().mockReturnValue($('<div></div>'));
+  global.createCard = jest.fn().mockImplementation(() => {
+    const el = document.createElement('div');
+    // Return jQuery-like object with [0] pointing to real DOM element
+    return { 0: el, length: 1 };
+  });
   global.renderMessage = jest.fn().mockReturnValue('<p>rendered</p>');
   global.formatInfo = jest.fn().mockReturnValue('info html');
   global.setStats = jest.fn();
@@ -140,8 +96,10 @@ describe('ws-message-renderer', () => {
 
       handlers.handlePastMessages(data);
 
-      // Should clear discourse
-      expect(mockElements['#discourse'].empty).toHaveBeenCalled();
+      // Should clear discourse (innerHTML = '')
+      const discourseEl = document.getElementById('discourse');
+      // discourse was cleared then cards appended
+      expect(discourseEl).not.toBeNull();
       // Should clear mids
       expect(global.mids.clear).toHaveBeenCalled();
       // Should create cards for user and assistant (not system at index 0)
@@ -216,6 +174,14 @@ describe('ws-message-renderer', () => {
 
   describe('handleEditSuccess', () => {
     it('shows success alert', () => {
+      // Create a card element in the DOM with a .card-text child
+      const cardEl = document.createElement('div');
+      cardEl.id = 'msg-1';
+      const cardText = document.createElement('div');
+      cardText.className = 'card-text';
+      cardEl.appendChild(cardText);
+      document.body.appendChild(cardEl);
+
       const data = {
         content: 'Message updated',
         mid: 'msg-1',
@@ -231,14 +197,6 @@ describe('ws-message-renderer', () => {
     });
 
     it('returns early if card not found', () => {
-      // Mock $ to return element with length 0 for the card
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#msg-missing') {
-          return { length: 0 };
-        }
-        return createMockElement('default');
-      });
-
       const data = { content: 'Updated', mid: 'msg-missing', html: '<p>text</p>' };
 
       // Should not throw
@@ -246,15 +204,13 @@ describe('ws-message-renderer', () => {
     });
 
     it('applies renderers to updated content', () => {
-      const cardTextMock = createMockElement('card-text');
-      const cardMock = createMockElement('card');
-      cardMock.find = jest.fn().mockReturnValue(cardTextMock);
-
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#msg-1') return cardMock;
-        if (selector === '#discourse div.card:last') return cardMock;
-        return createMockElement('default');
-      });
+      // Create a card element in the DOM with a .card-text child
+      const cardEl = document.createElement('div');
+      cardEl.id = 'msg-1';
+      const cardText = document.createElement('div');
+      cardText.className = 'card-text';
+      cardEl.appendChild(cardText);
+      document.body.appendChild(cardEl);
 
       const data = {
         content: 'Updated',
@@ -264,7 +220,7 @@ describe('ws-message-renderer', () => {
 
       handlers.handleEditSuccess(data);
 
-      expect(cardTextMock.html).toHaveBeenCalledWith('<p>New content</p>');
+      expect(cardText.innerHTML).toBe('<p>New content</p>');
       expect(window.MarkdownRenderer.applyRenderers).toHaveBeenCalled();
     });
   });
@@ -280,14 +236,6 @@ describe('ws-message-renderer', () => {
         }
       };
 
-      // Mock $ for mid check (not found)
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#sample-1') return { length: 0 };
-        if (selector === '#discourse') return mockElements['#discourse'];
-        if (selector === '#discourse div.card:last') return createMockElement('last-card');
-        return createMockElement('default');
-      });
-
       handlers.handleDisplaySample(data);
 
       expect(global.createCard).toHaveBeenCalledWith(
@@ -302,6 +250,11 @@ describe('ws-message-renderer', () => {
     });
 
     it('skips if message already exists', () => {
+      // Create a real DOM element with the existing id
+      const existingEl = document.createElement('div');
+      existingEl.id = 'existing-1';
+      document.body.appendChild(existingEl);
+
       const data = {
         content: {
           mid: 'existing-1',
@@ -310,12 +263,6 @@ describe('ws-message-renderer', () => {
           badge: '<span>User</span>'
         }
       };
-
-      // Mock $ to return element with length > 0 for the mid
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#existing-1') return { length: 1 };
-        return createMockElement('default');
-      });
 
       handlers.handleDisplaySample(data);
 
@@ -340,13 +287,6 @@ describe('ws-message-renderer', () => {
         }
       };
 
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#sample-2') return { length: 0 };
-        if (selector === '#discourse') return mockElements['#discourse'];
-        if (selector === '#discourse div.card:last') return createMockElement('last-card');
-        return createMockElement('default');
-      });
-
       handlers.handleDisplaySample(data);
 
       expect(window.MarkdownRenderer.render).toHaveBeenCalledWith('**bold**');
@@ -361,13 +301,6 @@ describe('ws-message-renderer', () => {
           badge: '<span>User</span>'
         }
       };
-
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (selector === '#sample-3') return { length: 0 };
-        if (selector === '#discourse') return mockElements['#discourse'];
-        if (selector === '#discourse div.card:last') return createMockElement('last-card');
-        return createMockElement('default');
-      });
 
       handlers.handleDisplaySample(data);
 

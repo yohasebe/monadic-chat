@@ -21,7 +21,8 @@
       return;
     }
     if (fragment && fragment.type === 'fragment') {
-      console.log('[handleFragmentMessage] Processing fragment, temp-card exists:', $('#temp-card').length, 'visible:', $('#temp-card').is(':visible'), 'display:', $('#temp-card').css('display'));
+      var tempCardEl = document.getElementById('temp-card');
+      console.log('[handleFragmentMessage] Processing fragment, temp-card exists:', !!tempCardEl, 'visible:', tempCardEl ? tempCardEl.style.display !== 'none' : false, 'display:', tempCardEl ? tempCardEl.style.display : 'N/A');
       const text = fragment.content || '';
 
       // Debug logging for streaming fragment ordering
@@ -45,42 +46,47 @@
       if (!text) return;
 
       // Create or get temporary card
-      let tempCard = $("#temp-card");
-      if (!tempCard.length) {
+      if (!tempCardEl) {
         // Initialize tracking
         window._lastProcessedSequence = -1;
         window._lastProcessedIndex = -1;
 
         // Only clear #chat if it exists and has content from old streaming approach
-        if ($("#chat").length && $("#chat").html().trim() !== "") {
-          $("#chat").empty();
+        var chatEl = document.getElementById("chat");
+        if (chatEl && chatEl.innerHTML.trim() !== "") {
+          chatEl.innerHTML = '';
         }
 
         // Create a new temporary card for streaming text
-        tempCard = $(`
-          <div id="temp-card" class="card mt-3 streaming-card">
-            <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-              <div class="fs-5 card-title mb-0">
-                <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-              </div>
-            </div>
-            <div class="card-body role-assistant">
-              <div class="card-text"></div>
-            </div>
-          </div>
-        `);
-        $("#discourse").append(tempCard);
-        tempCard.show(); // Ensure temp-card is visible after creation
+        tempCardEl = document.createElement('div');
+        tempCardEl.id = 'temp-card';
+        tempCardEl.className = 'card mt-3 streaming-card';
+        tempCardEl.innerHTML =
+          '<div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">' +
+            '<div class="fs-5 card-title mb-0">' +
+              '<span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-body role-assistant">' +
+            '<div class="card-text"></div>' +
+          '</div>';
+
+        var discourseEl = document.getElementById("discourse");
+        if (discourseEl) discourseEl.appendChild(tempCardEl);
+        tempCardEl.style.display = ''; // Ensure temp-card is visible after creation
       } else if (fragment.start === true || fragment.is_first === true) {
         // If this is marked as the first fragment of a streaming response, clear the existing content
-        $("#temp-card .card-text").empty();
+        var cardTextClear = tempCardEl.querySelector('.card-text');
+        if (cardTextClear) cardTextClear.innerHTML = '';
         window._lastProcessedSequence = -1;
         window._lastProcessedIndex = -1;
 
         // Move the temp card to the end of #discourse to ensure correct position
-        // This handles cases where the card was left in an old position from previous streaming
-        tempCard.detach();
-        $("#discourse").append(tempCard);
+        var discourseReappend = document.getElementById("discourse");
+        if (discourseReappend && tempCardEl.parentNode) {
+          tempCardEl.parentNode.removeChild(tempCardEl);
+          discourseReappend.appendChild(tempCardEl);
+        }
       }
 
       // Prefer sequence number over index for duplicate detection
@@ -145,14 +151,14 @@
       }
 
       // Add to streaming text display
-      const tempText = $("#temp-card .card-text");
-      console.log('[handleFragmentMessage] .card-text exists:', tempText.length, 'adding text length:', text.length);
-      if (tempText.length) {
+      var tempText = tempCardEl.querySelector('.card-text');
+      console.log('[handleFragmentMessage] .card-text exists:', !!tempText, 'adding text length:', text.length);
+      if (tempText) {
         // Ensure temp-card is visible when adding content
-        $("#temp-card").show();
+        tempCardEl.style.display = '';
         // Debug: Log current text content before adding
         if (window.debugFragments) {
-          console.log('[Fragment Debug] Before append - DOM text length:', tempText[0].textContent.length);
+          console.log('[Fragment Debug] Before append - DOM text length:', tempText.textContent.length);
           console.log('[Fragment Debug] Adding fragment:', text);
         }
 
@@ -172,12 +178,12 @@
         });
 
         // Append all at once for better performance
-        tempText[0].appendChild(docFrag);
-        console.log('[handleFragmentMessage] Appended to .card-text, new length:', tempText[0].textContent.length);
+        tempText.appendChild(docFrag);
+        console.log('[handleFragmentMessage] Appended to .card-text, new length:', tempText.textContent.length);
 
         // Debug: Log after append
         if (window.debugFragments) {
-          console.log('[Fragment Debug] After append - DOM text length:', tempText[0].textContent.length);
+          console.log('[Fragment Debug] After append - DOM text length:', tempText.textContent.length);
         }
       } else {
         console.warn('[handleFragmentMessage] WARNING: .card-text not found, cannot append fragment');

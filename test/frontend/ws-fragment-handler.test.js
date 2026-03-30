@@ -8,126 +8,14 @@
  * Handles streaming fragment messages: duplicate detection (sequence, index,
  * timestamp), temp-card creation, DOM text appending, and debug utilities.
  *
- * Uses a hybrid jQuery mock that returns real DOM elements at [0]
- * because handleFragmentMessage calls tempText[0].appendChild().
+ * Uses real DOM elements since the source code uses vanilla JS (getElementById,
+ * querySelector, appendChild, etc.).
  */
-
-// Real DOM container for #discourse and #temp-card
-let discourseEl;
-let tempCardEl;
-let cardTextEl;
-
-function createRealTempCard() {
-  tempCardEl = document.createElement('div');
-  tempCardEl.id = 'temp-card';
-  tempCardEl.className = 'card mt-3 streaming-card';
-  tempCardEl.innerHTML = `
-    <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-      <div class="fs-5 card-title mb-0">
-        <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span>
-        <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-      </div>
-    </div>
-    <div class="card-body role-assistant">
-      <div class="card-text"></div>
-    </div>
-  `;
-  discourseEl.appendChild(tempCardEl);
-  cardTextEl = tempCardEl.querySelector('.card-text');
-  return tempCardEl;
-}
-
-// jQuery-like wrapper for real DOM elements
-function jqWrap(el) {
-  if (!el) {
-    return {
-      length: 0, 0: undefined,
-      hide: jest.fn().mockReturnThis(),
-      show: jest.fn().mockReturnThis(),
-      is: jest.fn().mockReturnValue(false),
-      css: jest.fn().mockReturnValue(''),
-      html: jest.fn().mockReturnValue(''),
-      text: jest.fn().mockReturnValue(''),
-      empty: jest.fn().mockReturnThis(),
-      append: jest.fn().mockReturnThis(),
-      detach: jest.fn().mockReturnThis(),
-      find: jest.fn().mockImplementation(() => jqWrap(null))
-    };
-  }
-  const obj = {
-    length: 1,
-    0: el,
-    hide: jest.fn().mockImplementation(() => { el.style.display = 'none'; return obj; }),
-    show: jest.fn().mockImplementation(() => { el.style.display = ''; return obj; }),
-    is: jest.fn().mockImplementation((sel) => {
-      if (sel === ':visible') return el.style.display !== 'none';
-      return false;
-    }),
-    css: jest.fn().mockImplementation((prop) => {
-      if (prop === 'display') return el.style.display || '';
-      return '';
-    }),
-    html: jest.fn().mockImplementation((val) => {
-      if (val === undefined) return el.innerHTML;
-      el.innerHTML = val;
-      return obj;
-    }),
-    text: jest.fn().mockImplementation((val) => {
-      if (val === undefined) return el.textContent;
-      el.textContent = val;
-      return obj;
-    }),
-    empty: jest.fn().mockImplementation(() => { el.innerHTML = ''; return obj; }),
-    append: jest.fn().mockImplementation((child) => {
-      if (child && child[0]) el.appendChild(child[0]);
-      else if (child instanceof HTMLElement) el.appendChild(child);
-      else if (typeof child === 'string') el.insertAdjacentHTML('beforeend', child);
-      return obj;
-    }),
-    detach: jest.fn().mockImplementation(() => {
-      if (el.parentNode) el.parentNode.removeChild(el);
-      return obj;
-    }),
-    find: jest.fn().mockImplementation((sel) => {
-      const found = el.querySelector(sel);
-      return jqWrap(found);
-    })
-  };
-  return obj;
-}
 
 describe('WsFragmentHandler', () => {
   beforeEach(() => {
     // Real DOM setup
     document.body.innerHTML = '<div id="discourse"></div><div id="chat"></div>';
-    discourseEl = document.getElementById('discourse');
-    tempCardEl = null;
-    cardTextEl = null;
-
-    // jQuery mock that routes selectors to real DOM
-    global.$ = jest.fn().mockImplementation((selector) => {
-      if (typeof selector === 'string') {
-        if (selector === '#temp-card') {
-          const el = document.getElementById('temp-card');
-          return jqWrap(el);
-        }
-        if (selector === '#temp-card .card-text') {
-          const tc = document.getElementById('temp-card');
-          const ct = tc ? tc.querySelector('.card-text') : null;
-          return jqWrap(ct);
-        }
-        if (selector === '#discourse') return jqWrap(discourseEl);
-        if (selector === '#chat') return jqWrap(document.getElementById('chat'));
-        // Template string from createTempCard — parse and create element
-        if (selector.includes('id="temp-card"')) {
-          const wrapper = document.createElement('div');
-          wrapper.innerHTML = selector.trim();
-          const newCard = wrapper.firstElementChild;
-          return jqWrap(newCard);
-        }
-      }
-      return jqWrap(null);
-    });
 
     // Reset global state
     window._lastProcessedSequence = -1;
@@ -158,7 +46,6 @@ describe('WsFragmentHandler', () => {
     delete window.handleFragmentMessage;
     delete window.debugFragmentSummary;
     delete window.resetFragmentDebug;
-    delete global.$;
   });
 
   function loadHandler() {
@@ -259,6 +146,7 @@ describe('WsFragmentHandler', () => {
     it('should append temp-card inside #discourse', () => {
       const handler = loadHandler();
       handler.handleFragmentMessage({ type: 'fragment', content: 'Hello', sequence: 1 });
+      const discourseEl = document.getElementById('discourse');
       expect(discourseEl.querySelector('#temp-card')).not.toBeNull();
     });
   });

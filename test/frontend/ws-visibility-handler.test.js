@@ -9,40 +9,12 @@
  * TTS state reset, and WebSocket state recovery.
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    hide: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnValue(false),
-    css: jest.fn().mockReturnValue(''),
-    find: jest.fn().mockReturnThis(),
-    text: jest.fn().mockReturnValue(''),
-    html: jest.fn().mockReturnThis(),
-    val: jest.fn().mockReturnValue(''),
-    prop: jest.fn().mockReturnThis(),
-    removeClass: jest.fn().mockReturnThis(),
-    addClass: jest.fn().mockReturnThis()
-  };
-}
-
-let mockElements;
-
 describe('WsVisibilityHandler', () => {
   beforeEach(() => {
     jest.resetModules();
 
-    mockElements = {
-      '#monadic-spinner': createMockElement('monadic-spinner')
-    };
-
-    global.$ = jest.fn().mockImplementation(selector => {
-      if (typeof selector === 'string' && mockElements[selector]) {
-        return mockElements[selector];
-      }
-      return createMockElement('default');
-    });
+    // Set up real DOM for getElementById calls
+    document.body.innerHTML = '<div id="monadic-spinner" style="display: none;"><span><i class="fas fa-comment fa-pulse"></i> Starting</span></div>';
 
     global.setAlert = jest.fn();
     global.getTranslation = jest.fn().mockImplementation((key, fallback) => fallback);
@@ -121,7 +93,6 @@ describe('WsVisibilityHandler', () => {
     delete window.setTextResponseCompleted;
     delete window.WsVisibilityHandler;
     delete window.handleVisibilityChange;
-    delete global.$;
     delete global.WebSocket;
   });
 

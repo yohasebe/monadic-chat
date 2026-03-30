@@ -11,7 +11,7 @@ if (typeof window.originalDoResetActions === 'undefined' && typeof doResetAction
 if (typeof getProviderFromGroupLocal === 'undefined') {
   window.getProviderFromGroupLocal = function(group) {
     if (!group) return "OpenAI";
-    
+
     const groupLower = group.toLowerCase();
     if (groupLower.includes("anthropic") || groupLower.includes("claude")) {
       return "Anthropic";
@@ -42,11 +42,13 @@ window.doResetActions = function() {
   if (window.originalDoResetActions) {
     window.originalDoResetActions.call(this);
   }
-  
+
   // Additional functionality: Check Tavily API availability
-  const currentApp = $("#apps").val();
-  const model = $("#model").val();
-  
+  const appsEl = document.getElementById("apps");
+  const modelEl = document.getElementById("model");
+  const currentApp = appsEl ? appsEl.value : null;
+  const model = modelEl ? modelEl.value : null;
+
   // Extract provider from app_name parameter
   let provider = "OpenAI";
   if (apps[currentApp] && apps[currentApp].group) {
@@ -74,16 +76,23 @@ window.doResetActions = function() {
       updateWebSearchBasic(model);
     }
   }
-  
+
   // Update model display with reasoning effort if applicable
-  if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-    $("#model-selected").text(provider + " (" + model + " - " + $("#reasoning-effort").val() + ")");
-  } else {
-    $("#model-selected").text(provider + " (" + model + ")");
+  const modelSelectedEl = document.getElementById("model-selected");
+  const reasoningEffortEl = document.getElementById("reasoning-effort");
+  if (modelSelectedEl) {
+    if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+      modelSelectedEl.textContent = provider + " (" + model + " - " + (reasoningEffortEl ? reasoningEffortEl.value : "") + ")";
+    } else {
+      modelSelectedEl.textContent = provider + " (" + model + ")";
+    }
   }
-  
+
   // Update base app title
-  $("#base-app-title").text(apps[currentApp]["display_name"] || apps[currentApp]["app_name"]);
+  const baseAppTitleEl = document.getElementById("base-app-title");
+  if (baseAppTitleEl) {
+    baseAppTitleEl.textContent = apps[currentApp]["display_name"] || apps[currentApp]["app_name"];
+  }
 
   // Show/hide monadic badge
   const toBool = window.toBool || ((value) => {
@@ -91,9 +100,12 @@ window.doResetActions = function() {
     if (typeof value === 'string') return value === 'true';
     return !!value;
   });
-  if (toBool(apps[currentApp]["monadic"])) {
-    $("#monadic-badge").show();
-  } else {
-    $("#monadic-badge").hide();
+  const monadicBadgeEl = document.getElementById("monadic-badge");
+  if (monadicBadgeEl) {
+    if (toBool(apps[currentApp]["monadic"])) {
+      monadicBadgeEl.style.display = '';
+    } else {
+      monadicBadgeEl.style.display = 'none';
+    }
   }
 };

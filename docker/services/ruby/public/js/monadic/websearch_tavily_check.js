@@ -31,41 +31,39 @@ function requiresTavilyAPI(provider) {
 
 // Update websearch UI state based on provider and Tavily API availability
 function updateWebSearchState(provider, hasTavilyKey) {
-  const websearchElement = $("#websearch");
-  const websearchBadge = $("#websearch-badge");
-  const model = $("#model").val();
-  
+  const websearchEl = document.getElementById("websearch");
+  const websearchBadge = document.getElementById("websearch-badge");
+  const modelEl = document.getElementById("model");
+  const model = modelEl ? modelEl.value : '';
+
+  if (!websearchEl || !websearchBadge) return;
+
   // First check if model has tool capability
   const supportsWeb = modelSpec[model] && (modelSpec[model]["supports_web_search"] === true || modelSpec[model]["tool_capability"] === true);
   if (!supportsWeb) {
     // Model doesn't support tools at all
-    websearchElement.prop("disabled", true);
-    websearchBadge.hide();
+    websearchEl.disabled = true;
+    websearchBadge.style.display = "none";
     const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
-    websearchElement.attr("title", tt);
+    websearchEl.title = tt;
     return;
   }
-  
+
   // Model supports tools, now check Tavily requirement
   if (requiresTavilyAPI(provider) && !hasTavilyKey) {
     // Provider needs Tavily but key is missing
-    websearchElement.prop("checked", false);  // Turn off
-    websearchElement.prop("disabled", true);   // Disable
-    websearchBadge.hide();
-    // Add tooltip to explain why it's disabled
+    websearchEl.checked = false;
+    websearchEl.disabled = true;
+    websearchBadge.style.display = "none";
     const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchNeedsTavily') : 'Web Search requires a Tavily API key';
-    websearchElement.attr("title", tt);
+    websearchEl.title = tt;
   } else {
     // Either doesn't need Tavily or has the key
-    websearchElement.prop("disabled", false);
-    websearchElement.removeAttr("title");
-    
+    websearchEl.disabled = false;
+    websearchEl.removeAttribute("title");
+
     // Update badge visibility based on checked state
-    if (websearchElement.is(":checked")) {
-      websearchBadge.show();
-    } else {
-      websearchBadge.hide();
-    }
+    websearchBadge.style.display = websearchEl.checked ? "" : "none";
   }
 }
 

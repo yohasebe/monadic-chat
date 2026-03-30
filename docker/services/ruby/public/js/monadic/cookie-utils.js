@@ -71,17 +71,20 @@ function setCookieValues() {
   var properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "mistral-tts-voice", "webspeech-voice", "tts-speed", "asr-lang"];
   properties.forEach(function(property) {
     var value = getCookie(property);
+    var el = document.getElementById(property);
     if (value) {
-      if (typeof $ !== 'undefined' && $("#" + property + " option[value=\"" + value + "\"]").length > 0) {
-        $("#" + property).val(value).trigger("change");
+      if (el && el.querySelector('option[value="' + value + '"]')) {
+        el.value = value;
+        el.dispatchEvent(new Event("change"));
       } else if (property === "elevenlabs-tts-voice") {
         // Handle when voices load later
       } else if (property === "webspeech-voice") {
         window.savedWebspeechVoice = value;
       }
     } else if (property === "tts-provider") {
-      if (typeof $ !== 'undefined') {
-        $("#" + property).val("openai-tts-4o").trigger("change");
+      if (el) {
+        el.value = "openai-tts-4o";
+        el.dispatchEvent(new Event("change"));
       }
     }
   });

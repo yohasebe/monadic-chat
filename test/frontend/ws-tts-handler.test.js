@@ -12,41 +12,24 @@
  * - handleTTSNotice: Partial output warnings
  */
 
-function createMockElement(id) {
-  const innerSpan = {
-    html: jest.fn().mockReturnThis(),
-    removeClass: jest.fn().mockReturnThis(),
-    addClass: jest.fn().mockReturnThis()
-  };
-  return {
-    hide: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    find: jest.fn().mockReturnValue(innerSpan),
-    css: jest.fn().mockReturnThis(),
-    length: 1,
-    0: document.createElement('div')
-  };
-}
-
-let mockElements;
-
 beforeEach(() => {
-  mockElements = {
-    '#monadic-spinner': createMockElement('monadic-spinner')
-  };
+  document.body.innerHTML = '';
 
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    return createMockElement('default');
-  });
+  // Create the monadic-spinner element used by the source code
+  const spinner = document.createElement('div');
+  spinner.id = 'monadic-spinner';
+  spinner.style.display = 'block';
+  spinner.innerHTML = '<span><i class="fas fa-comment fa-pulse"></i> Starting</span>';
+  document.body.appendChild(spinner);
 
   // Mock global functions
   global.setAlert = jest.fn();
   global.removeStopButtonHighlight = jest.fn();
   global.showTtsNotice = jest.fn();
   global.isSystemBusy = jest.fn().mockReturnValue(false);
+
+  // Keep a minimal $ mock for any residual jQuery usage in other modules
+  global.$ = jest.fn().mockReturnValue({ length: 0 });
 
   // Window globals
   window.lastTTSMode = null;
@@ -84,7 +67,8 @@ describe('ws-tts-handler', () => {
 
     it('hides the spinner', () => {
       handlers.handleWebSpeech({ content: 'Hello' });
-      expect(mockElements['#monadic-spinner'].hide).toHaveBeenCalled();
+      const spinner = document.getElementById('monadic-spinner');
+      expect(spinner.style.display).toBe('none');
     });
 
     it('speaks text using SpeechSynthesis', () => {
@@ -155,15 +139,12 @@ describe('ws-tts-handler', () => {
 
   describe('handleTTSProgress', () => {
     it('updates spinner with processing audio message', () => {
-      const innerSpan = { html: jest.fn().mockReturnThis() };
-      mockElements['#monadic-spinner'].find = jest.fn().mockReturnValue(innerSpan);
-
       handlers.handleTTSProgress({});
 
-      expect(mockElements['#monadic-spinner'].find).toHaveBeenCalledWith('span');
-      expect(innerSpan.html).toHaveBeenCalledWith(
-        expect.stringContaining('Processing audio')
-      );
+      const spinner = document.getElementById('monadic-spinner');
+      const span = spinner.querySelector('span');
+      expect(span.innerHTML).toContain('Processing audio');
+      expect(span.innerHTML).toContain('fa-headphones');
     });
   });
 
@@ -174,42 +155,44 @@ describe('ws-tts-handler', () => {
 
       handlers.handleTTSComplete({});
 
-      expect(mockElements['#monadic-spinner'].hide).toHaveBeenCalled();
+      const spinner = document.getElementById('monadic-spinner');
+      expect(spinner.style.display).toBe('none');
     });
 
     it('does not hide spinner for auto speech', () => {
       window.autoSpeechActive = true;
+      const spinner = document.getElementById('monadic-spinner');
+      spinner.style.display = 'block';
 
       handlers.handleTTSComplete({});
 
-      expect(mockElements['#monadic-spinner'].hide).not.toHaveBeenCalled();
+      expect(spinner.style.display).toBe('block');
     });
 
     it('does not hide spinner for auto play audio', () => {
       window.autoPlayAudio = true;
+      const spinner = document.getElementById('monadic-spinner');
+      spinner.style.display = 'block';
 
       handlers.handleTTSComplete({});
 
-      expect(mockElements['#monadic-spinner'].hide).not.toHaveBeenCalled();
+      expect(spinner.style.display).toBe('block');
     });
 
     it('resets spinner icon for manual TTS', () => {
       window.autoSpeechActive = false;
       window.autoPlayAudio = false;
 
-      const innerSpan = {
-        html: jest.fn().mockReturnThis(),
-        removeClass: jest.fn().mockReturnThis(),
-        addClass: jest.fn().mockReturnThis()
-      };
-      // find('span i') returns chainable mock, find('span') returns html-settable mock
-      mockElements['#monadic-spinner'].find = jest.fn().mockImplementation(sel => {
-        return innerSpan;
-      });
+      // Set up spinner with headphones icon (as if tts_progress was called)
+      const spinner = document.getElementById('monadic-spinner');
+      spinner.innerHTML = '<span><i class="fas fa-headphones fa-pulse"></i> Processing audio</span>';
 
       handlers.handleTTSComplete({});
 
-      expect(mockElements['#monadic-spinner'].find).toHaveBeenCalled();
+      // Source resets span innerHTML to default Starting state
+      const span = spinner.querySelector('span');
+      expect(span.innerHTML).toContain('fa-comment');
+      expect(span.innerHTML).toContain('Starting');
     });
   });
 
@@ -230,7 +213,8 @@ describe('ws-tts-handler', () => {
   describe('handleTTSStopped', () => {
     it('hides spinner', () => {
       handlers.handleTTSStopped({});
-      expect(mockElements['#monadic-spinner'].hide).toHaveBeenCalled();
+      const spinner = document.getElementById('monadic-spinner');
+      expect(spinner.style.display).toBe('none');
     });
 
     it('resets responseStarted', () => {

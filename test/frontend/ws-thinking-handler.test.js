@@ -10,44 +10,14 @@
  * - handleClearFragments: Reset fragment buffer between tool calls
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    append: jest.fn().mockReturnThis(),
-    empty: jest.fn().mockReturnThis(),
-    find: jest.fn().mockReturnValue({
-      length: 1,
-      0: document.createElement('div'),
-      empty: jest.fn().mockReturnThis(),
-      appendChild: jest.fn()
-    })
-  };
-}
-
-let mockElements;
-
 beforeEach(() => {
-  // Create a real DOM element for temp-reasoning-card .card-text
+  // Set up a clean DOM
   document.body.innerHTML = '';
 
-  mockElements = {
-    '#temp-reasoning-card': { length: 0 },
-    '#temp-reasoning-card .card-text': { length: 0 },
-    '#discourse': createMockElement('discourse'),
-    '#temp-card': createMockElement('temp-card')
-  };
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    // For HTML strings (card creation), return a mock with append
-    if (typeof selector === 'string' && selector.includes('<')) {
-      return { length: 1, 0: document.createElement('div') };
-    }
-    return createMockElement('default');
-  });
+  // Create #discourse element (the container the source appends cards to)
+  const discourse = document.createElement('div');
+  discourse.id = 'discourse';
+  document.body.appendChild(discourse);
 
   // Mock global functions
   global.WorkflowViewer = { setStage: jest.fn(), setActiveTool: jest.fn() };
@@ -56,6 +26,9 @@ beforeEach(() => {
   window._lastProcessedSequence = 0;
   window._lastProcessedIndex = 0;
   window.webUIi18n = undefined;
+
+  // Keep a minimal $ mock for any residual jQuery usage in other modules
+  global.$ = jest.fn().mockReturnValue({ length: 0 });
 });
 
 afterEach(() => {
@@ -89,66 +62,68 @@ describe('ws-thinking-handler', () => {
 
     it('creates reasoning card when none exists', () => {
       handlers.handleThinking({ type: 'thinking', content: 'test' });
-      expect(mockElements['#discourse'].append).toHaveBeenCalled();
+      const card = document.getElementById('temp-reasoning-card');
+      expect(card).not.toBeNull();
+      // Card should be appended to #discourse
+      expect(document.getElementById('discourse').contains(card)).toBe(true);
     });
 
     it('uses reasoning title for reasoning type', () => {
-      // Track the HTML passed to $()
-      const htmlArgs = [];
-      global.$ = jest.fn().mockImplementation(selector => {
-        if (typeof selector === 'string' && selector.includes('<')) {
-          htmlArgs.push(selector);
-          return { length: 1, 0: document.createElement('div') };
-        }
-        if (typeof selector === 'string' && mockElements[selector]) {
-          return mockElements[selector];
-        }
-        return createMockElement('default');
-      });
-
       handlers.handleThinking({ type: 'reasoning', content: 'test' });
-      expect(htmlArgs.some(h => h.includes('Reasoning Process'))).toBe(true);
+      const card = document.getElementById('temp-reasoning-card');
+      expect(card).not.toBeNull();
+      expect(card.innerHTML).toContain('Reasoning Process');
+    });
+
+    it('uses thinking title for thinking type', () => {
+      handlers.handleThinking({ type: 'thinking', content: 'test' });
+      const card = document.getElementById('temp-reasoning-card');
+      expect(card).not.toBeNull();
+      expect(card.innerHTML).toContain('Thinking Process');
     });
 
     it('appends content to existing reasoning card', () => {
-      const cardText = document.createElement('div');
-      mockElements['#temp-reasoning-card'] = { length: 1 };
-      mockElements['#temp-reasoning-card .card-text'] = {
-        length: 1,
-        0: cardText
-      };
-
+      // First call creates the card
       handlers.handleThinking({ type: 'thinking', content: 'Hello\nWorld' });
 
-      // DocumentFragment was appended to cardText
+      const cardText = document.querySelector('#temp-reasoning-card .card-text');
+      expect(cardText).not.toBeNull();
       expect(cardText.textContent).toBe('HelloWorld');
       expect(cardText.querySelectorAll('br').length).toBe(1);
+    });
+
+    it('appends to existing card on subsequent calls', () => {
+      handlers.handleThinking({ type: 'thinking', content: 'First' });
+      handlers.handleThinking({ type: 'thinking', content: 'Second' });
+
+      const cardText = document.querySelector('#temp-reasoning-card .card-text');
+      expect(cardText.textContent).toBe('FirstSecond');
     });
   });
 
   describe('handleClearFragments', () => {
     it('empties temp-card card-text', () => {
-      const cardTextMock = { empty: jest.fn().mockReturnThis() };
-      mockElements['#temp-card'] = {
-        length: 1,
-        find: jest.fn().mockReturnValue(cardTextMock)
-      };
+      // Create temp-card with content
+      const tempCard = document.createElement('div');
+      tempCard.id = 'temp-card';
+      tempCard.innerHTML = '<div class="card-text">Some content</div>';
+      document.body.appendChild(tempCard);
 
       handlers.handleClearFragments({});
 
-      expect(mockElements['#temp-card'].find).toHaveBeenCalledWith('.card-text');
-      expect(cardTextMock.empty).toHaveBeenCalled();
+      const cardText = tempCard.querySelector('.card-text');
+      expect(cardText.innerHTML).toBe('');
     });
 
     it('resets sequence tracking', () => {
+      // Create temp-card so the handler proceeds
+      const tempCard = document.createElement('div');
+      tempCard.id = 'temp-card';
+      tempCard.innerHTML = '<div class="card-text"></div>';
+      document.body.appendChild(tempCard);
+
       window._lastProcessedSequence = 5;
       window._lastProcessedIndex = 3;
-
-      const cardTextMock = { empty: jest.fn().mockReturnThis() };
-      mockElements['#temp-card'] = {
-        length: 1,
-        find: jest.fn().mockReturnValue(cardTextMock)
-      };
 
       handlers.handleClearFragments({});
 
@@ -157,9 +132,9 @@ describe('ws-thinking-handler', () => {
     });
 
     it('does nothing when temp-card does not exist', () => {
-      mockElements['#temp-card'] = { length: 0 };
-      // Should not throw
+      // No temp-card in DOM - should not throw
       handlers.handleClearFragments({});
+      // If we get here without error, the test passes
     });
   });
 

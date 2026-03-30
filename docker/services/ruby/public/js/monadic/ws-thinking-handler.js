@@ -31,14 +31,16 @@ function handleThinking(data) {
   }
 
   // Create or get temporary reasoning card
-  let tempReasoningCard = $("#temp-reasoning-card");
-  if (!tempReasoningCard.length) {
+  let tempReasoningCard = document.getElementById("temp-reasoning-card");
+  if (!tempReasoningCard) {
     const titleText = data.type === 'thinking' ?
       (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinkingProcess') : 'Thinking Process') :
       (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.reasoningProcess') : 'Reasoning Process');
 
-    tempReasoningCard = $(`
-      <div id="temp-reasoning-card" class="card mt-3 streaming-card">
+    tempReasoningCard = document.createElement('div');
+    tempReasoningCard.id = 'temp-reasoning-card';
+    tempReasoningCard.className = 'card mt-3 streaming-card';
+    tempReasoningCard.innerHTML = `
         <div class="card-header p-2 ps-3">
           <div class="fs-6 card-title mb-0 text-muted d-flex align-items-center">
             <i class="fas fa-brain me-2"></i>
@@ -47,15 +49,14 @@ function handleThinking(data) {
         </div>
         <div class="card-body">
           <div class="card-text"></div>
-        </div>
-      </div>
-    `);
-    $("#discourse").append(tempReasoningCard);
+        </div>`;
+    const discourse = document.getElementById("discourse");
+    if (discourse) discourse.appendChild(tempReasoningCard);
   }
 
   // Append thinking/reasoning content
-  const tempText = $("#temp-reasoning-card .card-text");
-  if (tempText.length) {
+  const tempText = tempReasoningCard.querySelector(".card-text");
+  if (tempText) {
     // Use DocumentFragment for efficient DOM manipulation while preserving newlines
     const docFrag = document.createDocumentFragment();
     const lines = content.split('\n');
@@ -69,7 +70,7 @@ function handleThinking(data) {
       }
     });
 
-    tempText[0].appendChild(docFrag);
+    tempText.appendChild(docFrag);
   }
 }
 
@@ -80,9 +81,10 @@ function handleThinking(data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleClearFragments(_data) {
-  const tempCard = $("#temp-card");
-  if (tempCard.length) {
-    tempCard.find(".card-text").empty();
+  const tempCard = document.getElementById("temp-card");
+  if (tempCard) {
+    const cardText = tempCard.querySelector(".card-text");
+    if (cardText) cardText.innerHTML = '';
     // Reset sequence tracking
     window._lastProcessedSequence = -1;
     window._lastProcessedIndex = -1;

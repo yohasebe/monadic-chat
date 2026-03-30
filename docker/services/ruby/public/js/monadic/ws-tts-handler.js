@@ -22,7 +22,8 @@
  */
 function handleWebSpeech(data) {
   window.lastTTSMode = 'web_speech';
-  $("#monadic-spinner").hide();
+  var spinnerEl = document.getElementById("monadic-spinner");
+  if (spinnerEl) spinnerEl.style.display = "none";
 
   if (window.speechSynthesis && typeof window.ttsSpeak === 'function') {
     try {
@@ -84,9 +85,11 @@ function handleWebSpeech(data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleTTSProgress(_data) {
-  $("#monadic-spinner")
-    .find("span")
-    .html('<i class="fas fa-headphones fa-pulse"></i> Processing audio');
+  var spinnerEl = document.getElementById("monadic-spinner");
+  if (spinnerEl) {
+    var span = spinnerEl.querySelector("span");
+    if (span) span.innerHTML = '<i class="fas fa-headphones fa-pulse"></i> Processing audio';
+  }
 }
 
 /**
@@ -95,18 +98,20 @@ function handleTTSProgress(_data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleTTSComplete(_data) {
+  var spinnerEl = document.getElementById("monadic-spinner");
   if (!window.autoSpeechActive && !window.autoPlayAudio) {
     // Manual TTS: hide spinner immediately
-    $("#monadic-spinner").hide();
-
-    // Reset spinner to default state for other operations
-    $("#monadic-spinner")
-      .find("span i")
-      .removeClass("fa-headphones")
-      .addClass("fa-comment");
-    $("#monadic-spinner")
-      .find("span")
-      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+    if (spinnerEl) {
+      spinnerEl.style.display = "none";
+      // Reset spinner to default state for other operations
+      var spanIcon = spinnerEl.querySelector("span i");
+      if (spanIcon) {
+        spanIcon.classList.remove("fa-headphones");
+        spanIcon.classList.add("fa-comment");
+      }
+      var span = spinnerEl.querySelector("span");
+      if (span) span.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+    }
   }
   // For Auto TTS: spinner will be hidden when audio playback actually starts
 }
@@ -129,7 +134,8 @@ function handleTTSNotice(data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleTTSStopped(_data) {
-  $("#monadic-spinner").hide();
+  var spinnerEl = document.getElementById("monadic-spinner");
+  if (spinnerEl) spinnerEl.style.display = "none";
 
   // Reset response state
   window.responseStarted = false;

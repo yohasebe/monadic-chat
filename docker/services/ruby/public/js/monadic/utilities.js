@@ -47,18 +47,21 @@ function getTranslation(key, fallback) {
 // Function to update app icon in select dropdown
 function updateAppSelectIcon(appValue) {
   // If no appValue is provided, use current selected app
-  if (!appValue && $("#apps").val()) {
-    appValue = $("#apps").val();
+  if (!appValue) {
+    const appsEl = document.getElementById("apps");
+    if (appsEl && appsEl.value) {
+      appValue = appsEl.value;
+    }
   }
-  
+
   // Try to obtain icon HTML from apps definition first
   let iconHtml = (appValue && apps && apps[appValue]) ? apps[appValue]["icon"] : null;
 
   // Fallback: derive icon from custom dropdown option if available
   if (!iconHtml) {
-    const $opt = $(`.custom-dropdown-option[data-value="${appValue}"] span:first-child`).first();
-    if ($opt && $opt.length) {
-      iconHtml = $opt.html();
+    const optEl = document.querySelector(`.custom-dropdown-option[data-value="${appValue}"] span:first-child`);
+    if (optEl) {
+      iconHtml = optEl.innerHTML;
     }
   }
 
@@ -66,31 +69,38 @@ function updateAppSelectIcon(appValue) {
   if (!iconHtml) {
     iconHtml = '<i class="fas fa-comment"></i>';
   }
-  
+
   // Update the icon in the static icon span
-  $("#app-select-icon").html(iconHtml);
+  const appSelectIcon = document.getElementById("app-select-icon");
+  if (appSelectIcon) appSelectIcon.innerHTML = iconHtml;
 
   // Icon color is now controlled by CSS rule: #app-select-icon i { color: #777; }
-  
+
   // Also update the active class in the custom dropdown if it exists
-  if ($("#custom-apps-dropdown").length > 0) {
-    $(".custom-dropdown-option").removeClass("active");
-    const selectedOption = $(`.custom-dropdown-option[data-value="${appValue}"]`);
-    selectedOption.addClass("active");
-    
-    // Make sure the group containing the selected app is expanded
-    if (selectedOption.length > 0) {
-      const parentGroup = selectedOption.parent(".group-container");
-      if (parentGroup.length > 0) {
+  const customDropdown = document.getElementById("custom-apps-dropdown");
+  if (customDropdown) {
+    document.querySelectorAll(".custom-dropdown-option").forEach(el => el.classList.remove("active"));
+    const selectedOption = document.querySelector(`.custom-dropdown-option[data-value="${appValue}"]`);
+    if (selectedOption) {
+      selectedOption.classList.add("active");
+
+      // Make sure the group containing the selected app is expanded
+      const parentGroup = selectedOption.closest(".group-container");
+      if (parentGroup) {
         // Remove collapsed class from the group
-        parentGroup.removeClass("collapsed");
+        parentGroup.classList.remove("collapsed");
         // Update the icon
-        const groupId = parentGroup.attr("id");
+        const groupId = parentGroup.getAttribute("id");
         const groupName = groupId.replace("group-", "");
         // Need to handle potential dashes in the group name for xAI Grok
-        let groupSelector = groupName;
-        const groupHeader = $(`.custom-dropdown-group[data-group="${groupSelector}"]`);
-        groupHeader.find(".group-toggle-icon i").removeClass("fa-chevron-right").addClass("fa-chevron-down");
+        const groupHeader = document.querySelector(`.custom-dropdown-group[data-group="${groupName}"]`);
+        if (groupHeader) {
+          const toggleIcon = groupHeader.querySelector(".group-toggle-icon i");
+          if (toggleIcon) {
+            toggleIcon.classList.remove("fa-chevron-right");
+            toggleIcon.classList.add("fa-chevron-down");
+          }
+        }
       }
     }
   }
@@ -282,11 +292,11 @@ function listModels(models, openai = false) {
     delete objToSave["parameters"]["elevenlabs_tts_voice"];
     delete objToSave["parameters"]["tts_speed"];
     const data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(objToSave));
-    const downloadLink = $('<a></a>')
-      .attr('href', 'data:' + data)
-      .attr('download', fileName)
-      .appendTo('body');
-    downloadLink[0].click();
+    const downloadLink = document.createElement('a');
+    downloadLink.setAttribute('href', 'data:' + data);
+    downloadLink.setAttribute('download', fileName);
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
     downloadLink.remove();
   }
 
@@ -298,17 +308,28 @@ function listModels(models, openai = false) {
 //////////////////////////////
 
   function setInputFocus() {
-    if ($("#start").is(":visible")) {
-      $("#start").focus();
-    } else if ($("#check-easy-submit").is(":checked") && $("#check-auto-speech").is(":checked")) {
-      $("#voice").focus();
+    const startEl = document.getElementById("start");
+    const easySubmitEl = document.getElementById("check-easy-submit");
+    const autoSpeechEl = document.getElementById("check-auto-speech");
+    if (startEl && startEl.style.display !== 'none') {
+      startEl.focus();
+    } else if (easySubmitEl && easySubmitEl.checked && autoSpeechEl && autoSpeechEl.checked) {
+      const voiceEl = document.getElementById("voice");
+      const voiceNoteEl = document.getElementById("voice-note");
+      if (voiceEl) voiceEl.focus();
       // show #voice-note but set it to hide when the voice button is unfocused
-      $("#voice-note").show();
-      $("#voice").on("blur focusout", function () {
-        $("#voice-note").hide();
-      });
+      if (voiceNoteEl) voiceNoteEl.style.display = '';
+      if (voiceEl) {
+        voiceEl.addEventListener("blur", function () {
+          if (voiceNoteEl) voiceNoteEl.style.display = 'none';
+        });
+        voiceEl.addEventListener("focusout", function () {
+          if (voiceNoteEl) voiceNoteEl.style.display = 'none';
+        });
+      }
     } else {
-      $("#message").focus();
+      const messageEl = document.getElementById("message");
+      if (messageEl) messageEl.focus();
     }
   }
 
@@ -336,21 +357,22 @@ function listModels(models, openai = false) {
   let stop_apps_trigger = false;
 
 function setBaseAppDescription(html) {
-  const $desc = $("#base-app-desc");
-  if (!$desc.length) return;
+  const descEl = document.getElementById("base-app-desc");
+  if (!descEl) return;
   const normalized = (html == null ? '' : String(html));
-  const previous = $desc.data('renderedHtml');
+  const previous = descEl.dataset.renderedHtml;
   if (previous === normalized) {
     return;
   }
-  $desc.data('renderedHtml', normalized);
-  $desc.html(normalized);
+  descEl.dataset.renderedHtml = normalized;
+  descEl.innerHTML = normalized;
 }
 
 window.setBaseAppDescription = setBaseAppDescription;
 
 window.loadParams = function(params, calledFor = "loadParams") {
-  $("#model-non-default").hide();
+  const modelNonDefault = document.getElementById("model-non-default");
+  if (modelNonDefault) modelNonDefault.style.display = 'none';
   // check if params is not empty
   if (Object.keys(params).length === 0) {
     return;
@@ -389,14 +411,20 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
     // Update the badge in the AI User section
     const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
-    $("#ai-assistant-info").html('<span data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider">' + provider + '</span>').attr("data-model", selectedModel);
+    const aiAssistantInfo = document.getElementById("ai-assistant-info");
+    if (aiAssistantInfo) {
+      aiAssistantInfo.innerHTML = '<span data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider">' + provider + '</span>';
+      aiAssistantInfo.setAttribute("data-model", selectedModel);
+    }
   }
   
   stop_apps_trigger = false;
   if (calledFor === "reset") {
-    $("#file-div").hide();
-    // $("#apps").val(defaultApp);
-    $(`#apps option[value="${defaultApp}"]`).attr('selected', 'selected');
+    const fileDiv = document.getElementById("file-div");
+    if (fileDiv) fileDiv.style.display = 'none';
+    // Select the default app option
+    const defaultOption = document.querySelector(`#apps option[value="${defaultApp}"]`);
+    if (defaultOption) defaultOption.setAttribute('selected', 'selected');
   } else if (calledFor === "loadParams") {
     let app_name = params["app_name"];
     let modelToSet = params["model"];
@@ -477,26 +505,30 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
     
     // Set the app selector WITHOUT triggering change event yet
-    const previousAppSelection = $("#apps").val();
+    const appsSelect = document.getElementById("apps");
+    const previousAppSelection = appsSelect ? appsSelect.value : null;
     const needsAppChange = previousAppSelection !== targetApp;
-    $("#apps").val(targetApp);
-    $(`#apps option[value="${targetApp}"]`).attr('selected', 'selected');
+    if (appsSelect) appsSelect.value = targetApp;
+    const targetOption = document.querySelector(`#apps option[value="${targetApp}"]`);
+    if (targetOption) targetOption.setAttribute('selected', 'selected');
 
     // Helper to ensure a model option exists when we skip app change triggers
     const ensureModelOptionVisible = (modelValue) => {
       if (!modelValue || !apps || !apps[targetApp]) return;
-      const $modelSelect = $("#model");
-      if ($modelSelect.find(`option[value="${modelValue}"]`).length > 0) {
+      const modelSelect = document.getElementById("model");
+      if (!modelSelect) return;
+      if (modelSelect.querySelector(`option[value="${modelValue}"]`)) {
         return;
       }
       try {
-        const showAllModels = $("#show-all-models").prop("checked");
+        const showAllModelsEl = document.getElementById("show-all-models");
+        const showAllModels = showAllModelsEl ? showAllModelsEl.checked : false;
         const modelsForApp = typeof getModelsForApp === 'function' ? getModelsForApp(apps[targetApp], showAllModels) : [];
         if (modelsForApp.length === 0) return;
         const isOpenAIGroup = (apps[targetApp]["group"] || "").toLowerCase() === "openai";
         const markup = typeof listModels === 'function' ? listModels(modelsForApp, isOpenAIGroup) : "";
         if (markup) {
-          $modelSelect.html(markup);
+          modelSelect.innerHTML = markup;
         }
       } catch (error) {
         console.error('Failed to rebuild model list while loading params:', error);
@@ -533,53 +565,60 @@ window.loadParams = function(params, calledFor = "loadParams") {
       if (needsAppChange) {
         // Set a flag to indicate we're in the middle of loading params
         window.isLoadingParams = true;
-        
+
         // Now trigger the change event after value is set
-        $("#apps").trigger('change');
-        
+        if (appsSelect) appsSelect.dispatchEvent(new Event('change'));
+
         // Clear the flag after a longer delay to ensure model setting completes
         setTimeout(() => {
           window.isLoadingParams = false;
         }, 500);
-        
+
         // Wait a moment for app change to complete, then set model
         setTimeout(() => {
           if (modelToSet) {
-            
+            const modelSelect = document.getElementById("model");
+            if (!modelSelect) return;
+
             // Force set the model value even if the dropdown was rebuilt
-            $("#model").val(modelToSet);
-            
-            if ($("#model").val() !== modelToSet) {
+            modelSelect.value = modelToSet;
+
+            if (modelSelect.value !== modelToSet) {
               // Try once more with a longer delay
               setTimeout(() => {
-                $("#model").val(modelToSet);
-                if ($("#model").val() === modelToSet) {
-                  $("#model").trigger('change');
+                modelSelect.value = modelToSet;
+                if (modelSelect.value === modelToSet) {
+                  modelSelect.dispatchEvent(new Event('change'));
                 }
               }, 300);
             } else {
-              $("#model").trigger('change');
+              modelSelect.dispatchEvent(new Event('change'));
             }
           }
         }, 300); // Increased timeout
       } else if (modelToSet) {
         // Same app: ensure the requested model is present without retriggering app change
         ensureModelOptionVisible(modelToSet);
-        if ($("#model").val() !== modelToSet) {
-          $("#model").val(modelToSet);
-        }
-        if ($("#model").val() === modelToSet) {
-          $("#model").trigger('change');
-        } else {
-          console.warn(`Model ${modelToSet} could not be selected for app ${targetApp}`);
-          // Fallback to first available model to avoid stale/invalid state
-          const fallbackModel = $("#model option:first").val();
-          if (fallbackModel) {
-            $("#model").val(fallbackModel).trigger('change');
-            params["model"] = fallbackModel;
-            // Clear stale reasoning_effort when model fallback happens
-            if (params["reasoning_effort"]) {
-              delete params["reasoning_effort"];
+        const modelSelect = document.getElementById("model");
+        if (modelSelect) {
+          if (modelSelect.value !== modelToSet) {
+            modelSelect.value = modelToSet;
+          }
+          if (modelSelect.value === modelToSet) {
+            modelSelect.dispatchEvent(new Event('change'));
+          } else {
+            console.warn(`Model ${modelToSet} could not be selected for app ${targetApp}`);
+            // Fallback to first available model to avoid stale/invalid state
+            const firstOption = modelSelect.querySelector("option");
+            const fallbackModel = firstOption ? firstOption.value : null;
+            if (fallbackModel) {
+              modelSelect.value = fallbackModel;
+              modelSelect.dispatchEvent(new Event('change'));
+              params["model"] = fallbackModel;
+              // Clear stale reasoning_effort when model fallback happens
+              if (params["reasoning_effort"]) {
+                delete params["reasoning_effort"];
+              }
             }
           }
         }
@@ -592,14 +631,14 @@ window.loadParams = function(params, calledFor = "loadParams") {
       }
 
       // Verify that the select element actually shows the correct app
-      // Sometimes browser rendering doesn't update immediately after val() is set
-      const currentAppVal = $("#apps").val();
+      // Sometimes browser rendering doesn't update immediately after value is set
+      const currentAppVal = appsSelect ? appsSelect.value : null;
       if (currentAppVal !== targetApp) {
         console.warn(`[loadParams] #apps value mismatch: expected ${targetApp}, got ${currentAppVal}. Re-setting...`);
         // Re-set the value to force browser to update display
-        $("#apps").val(targetApp);
+        if (appsSelect) appsSelect.value = targetApp;
         // Verify again
-        if ($("#apps").val() !== targetApp) {
+        if (appsSelect && appsSelect.value !== targetApp) {
           console.error(`[loadParams] Failed to set #apps to ${targetApp}. Option may not exist.`);
         }
       }
@@ -609,21 +648,28 @@ window.loadParams = function(params, calledFor = "loadParams") {
         const provider = (typeof getProviderFromGroup === 'function' && apps[targetApp]["group"])
           ? getProviderFromGroup(apps[targetApp]["group"])
           : "OpenAI";
-        const selectedModel = $("#model").val();
-        const reasoning_effort = params["reasoning_effort"] || $("#reasoning-effort").val();
+        const modelEl = document.getElementById("model");
+        const reasoningEffortEl = document.getElementById("reasoning-effort");
+        const selectedModel = modelEl ? modelEl.value : null;
+        const reasoning_effort = params["reasoning_effort"] || (reasoningEffortEl ? reasoningEffortEl.value : null);
 
         // Update model display badge
-        if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort") && reasoning_effort) {
-          $("#model-selected").text(`${provider} (${selectedModel} - ${reasoning_effort})`);
-        } else {
-          $("#model-selected").text(`${provider} (${selectedModel})`);
+        const modelSelectedEl = document.getElementById("model-selected");
+        if (modelSelectedEl) {
+          if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort") && reasoning_effort) {
+            modelSelectedEl.textContent = `${provider} (${selectedModel} - ${reasoning_effort})`;
+          } else {
+            modelSelectedEl.textContent = `${provider} (${selectedModel})`;
+          }
         }
       }
     }
   } else if (calledFor === "changeApp") {
     let app_name = params["app_name"];
-    $("#apps").val(app_name);
-    $(`#apps option[value="${params['app_name']}"]`).attr('selected', 'selected');
+    const appsEl = document.getElementById("apps");
+    if (appsEl) appsEl.value = app_name;
+    const appOption = document.querySelector(`#apps option[value="${params['app_name']}"]`);
+    if (appOption) appOption.setAttribute('selected', 'selected');
     // Model selection is handled by proceedWithAppChange after model list rebuild.
     // Setting it here is either redundant (sync) or harmful (deferred by ensureLoadParams).
   }
@@ -639,45 +685,49 @@ window.loadParams = function(params, calledFor = "loadParams") {
   }
   const toBool = window.toBool;
 
-  if (toBool(params["easy_submit"])) {
-    $("#check-easy-submit").prop('checked', true);
-  } else {
-    $("#check-easy-submit").prop('checked', false);;
-  }
+  const easySubmitCb = document.getElementById("check-easy-submit");
+  if (easySubmitCb) easySubmitCb.checked = toBool(params["easy_submit"]);
 
   // Force Auto TTS OFF during import (regardless of app settings)
-  if (window.isProcessingImport) {
-    $("#check-auto-speech").prop('checked', false);
-  } else if (toBool(params["auto_speech"])) {
-    $("#check-auto-speech").prop('checked', true);
-  } else {
-    $("#check-auto-speech").prop('checked', false);
+  const autoSpeechCb = document.getElementById("check-auto-speech");
+  if (autoSpeechCb) {
+    if (window.isProcessingImport) {
+      autoSpeechCb.checked = false;
+    } else {
+      autoSpeechCb.checked = toBool(params["auto_speech"]);
+    }
   }
 
   // Force initiate_from_assistant OFF during import (regardless of app settings)
-  if (window.isProcessingImport) {
-    $("#initiate-from-assistant").prop('checked', false);
-  } else if (toBool(params["initiate_from_assistant"])) {
-    $("#initiate-from-assistant").prop('checked', true);
-  } else {
-    $("#initiate-from-assistant").prop('checked', false);
+  const initiateFromAssistantCb = document.getElementById("initiate-from-assistant");
+  if (initiateFromAssistantCb) {
+    if (window.isProcessingImport) {
+      initiateFromAssistantCb.checked = false;
+    } else {
+      initiateFromAssistantCb.checked = toBool(params["initiate_from_assistant"]);
+    }
   }
-  if (toBool(params["mathjax"])) {
-    $("#mathjax").prop('checked', true);
-    $("#math-badge").show();
-  } else {
-    $("#mathjax").prop('checked', false);
-    $("#math-badge").hide();
-  }
+  const mathjaxCb = document.getElementById("mathjax");
+  const mathBadge = document.getElementById("math-badge");
+  if (mathjaxCb) mathjaxCb.checked = toBool(params["mathjax"]);
+  if (mathBadge) mathBadge.style.display = toBool(params["mathjax"]) ? '' : 'none';
 
-  $("#initial-prompt").val(params["initial_prompt"]).trigger("input");
+  const initialPromptEl = document.getElementById("initial-prompt");
+  if (initialPromptEl) {
+    initialPromptEl.value = params["initial_prompt"] || '';
+    initialPromptEl.dispatchEvent(new Event("input"));
+  }
   if (window.logTL) window.logTL('initial_prompt_set', {
     calledFor,
     length: (params["initial_prompt"] || '').length
   });
 
   if (params["ai_user_initial_prompt"]) {
-    $("#ai-user-initial-prompt").val(params["ai_user_initial_prompt"]).trigger("input");
+    const aiUserPromptEl = document.getElementById("ai-user-initial-prompt");
+    if (aiUserPromptEl) {
+      aiUserPromptEl.value = params["ai_user_initial_prompt"];
+      aiUserPromptEl.dispatchEvent(new Event("input"));
+    }
     if (typeof window.setPromptView === 'function') window.setPromptView('aiuser', false);
   } else {
     if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
@@ -690,69 +740,74 @@ window.loadParams = function(params, calledFor = "loadParams") {
     const reasoning_effort = params["reasoning_effort"];
     
     // Get provider from current app
-    const currentApp = $("#apps").val();
-    const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp]) 
+    const currentAppEl = document.getElementById("apps");
+    const currentApp = currentAppEl ? currentAppEl.value : null;
+    const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp])
       ? window.getProviderFromGroup(window.apps[currentApp]["group"])
       : "OpenAI";
-    
+
     // Update UI with provider-specific components and labels
     if (window.reasoningUIManager) {
       window.reasoningUIManager.updateUI(provider, model);
     }
-    
+
+    const reasoningDropdown = document.getElementById("reasoning-effort");
+    const maxTokensEl = document.getElementById("max-tokens");
+    const maxTokensToggle = document.getElementById("max-tokens-toggle");
+
     // Use ReasoningMapper to check if provider/model supports reasoning
     if (window.ReasoningMapper && ReasoningMapper.isSupported(provider, model)) {
       // Get current UI settings for feature constraint checking
+      const websearchCb = document.getElementById("websearch");
       const currentSettings = {
-        web_search: $('#websearch').prop('checked') || false
+        web_search: (websearchCb && websearchCb.checked) || false
       };
 
       // Get available options for this provider/model
       const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
-      
+
       // Update dropdown options
       if (availableOptions) {
-        const $dropdown = $("#reasoning-effort");
-        $dropdown.empty(); // Clear existing options
-        
-        availableOptions.forEach(option => {
-          const label = window.ReasoningLabels ? 
-            window.ReasoningLabels.getOptionLabel(provider, option) : 
-            option;
-          $dropdown.append(`<option value="${option}">${label}</option>`);
-        });
-        
-        // Set value with safety: coerce to first available if default not supported
-        let effortValue;
-        if (reasoning_effort && availableOptions.includes(reasoning_effort)) {
-          effortValue = reasoning_effort;
-        } else {
-          let suggested = ReasoningMapper.getDefaultValue(provider, model);
-          effortValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];
+        if (reasoningDropdown) {
+          reasoningDropdown.innerHTML = ''; // Clear existing options
+
+          availableOptions.forEach(option => {
+            const label = window.ReasoningLabels ?
+              window.ReasoningLabels.getOptionLabel(provider, option) :
+              option;
+            reasoningDropdown.insertAdjacentHTML('beforeend', `<option value="${option}">${label}</option>`);
+          });
+
+          // Set value with safety: coerce to first available if default not supported
+          let effortValue;
+          if (reasoning_effort && availableOptions.includes(reasoning_effort)) {
+            effortValue = reasoning_effort;
+          } else {
+            let suggested = ReasoningMapper.getDefaultValue(provider, model);
+            effortValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];
+          }
+          reasoningDropdown.value = effortValue;
+          reasoningDropdown.disabled = false;
         }
-        $dropdown.val(effortValue);
-        $dropdown.prop('disabled', false);
         // For reasoning models, use model's max output tokens and lock the field
-        if (spec["max_output_tokens"]) {
-          $("#max-tokens").val(spec["max_output_tokens"][1]);
+        if (spec["max_output_tokens"] && maxTokensEl) {
+          maxTokensEl.value = spec["max_output_tokens"][1];
         }
-        $("#max-tokens-toggle").prop("checked", true).prop("disabled", true);
-        $("#max-tokens").prop("disabled", true);
+        if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.disabled = true; }
+        if (maxTokensEl) maxTokensEl.disabled = true;
       } else {
         // Fallback if options couldn't be determined
-        $("#reasoning-effort").prop('disabled', true);
-        $("#reasoning-effort").val('');
-        $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
-        $("#max-tokens").prop("disabled", false);
+        if (reasoningDropdown) { reasoningDropdown.disabled = true; reasoningDropdown.value = ''; }
+        if (maxTokensToggle) { maxTokensToggle.disabled = false; maxTokensToggle.checked = true; }
+        if (maxTokensEl) maxTokensEl.disabled = false;
       }
     } else {
       // Model/provider doesn't support reasoning/thinking
-      $("#reasoning-effort").prop('disabled', true);
-      $("#reasoning-effort").val('');  // Clear the value
-      $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
-      $("#max-tokens").prop("disabled", false);
+      if (reasoningDropdown) { reasoningDropdown.disabled = true; reasoningDropdown.value = ''; }
+      if (maxTokensToggle) { maxTokensToggle.disabled = false; maxTokensToggle.checked = true; }
+      if (maxTokensEl) maxTokensEl.disabled = false;
     }
-    
+
     // Update labels after options are set
     if (window.ReasoningLabels) {
       window.ReasoningLabels.updateUILabels(provider, model);
@@ -761,107 +816,123 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // Show/hide thinking display toggle based on model support
     // Only show for models with supports_thinking (Claude, Gemini, DeepSeek)
     // NOT for OpenAI reasoning_effort models (no display control API)
+    const thinkingContainer = document.getElementById("thinking-display-container");
+    const showThinkingCb = document.getElementById("show-thinking");
     if (spec["supports_thinking"]) {
-      $("#thinking-display-container").show();
+      if (thinkingContainer) thinkingContainer.style.display = '';
       // Restore from params if available, default to checked (show thinking)
-      if (params["show_thinking"] !== undefined) {
-        $("#show-thinking").prop("checked", params["show_thinking"] !== false && params["show_thinking"] !== "false");
-      } else {
-        $("#show-thinking").prop("checked", true);
+      if (showThinkingCb) {
+        if (params["show_thinking"] !== undefined) {
+          showThinkingCb.checked = params["show_thinking"] !== false && params["show_thinking"] !== "false";
+        } else {
+          showThinkingCb.checked = true;
+        }
       }
     } else {
-      $("#thinking-display-container").hide();
+      if (thinkingContainer) thinkingContainer.style.display = 'none';
     }
 
     // Hide model_parameters row (temperature, penalties) — these legacy controls
     // are not useful for modern models and are hidden from the default UI.
-    $("#model_parameters").hide();
+    const modelParamsEl = document.getElementById("model_parameters");
+    if (modelParamsEl) modelParamsEl.style.display = 'none';
 
+    const temperatureEl = document.getElementById("temperature");
+    const temperatureValueEl = document.getElementById("temperature-value");
     let temperature = params["temperature"];
     if (temperature) {
       if (!isNaN(temperature)) {
         temperature = parseFloat(temperature).toFixed(1);
       }
-      $("#temperature").val(temperature);
-      $("#temperature-value").text(temperature);
+      if (temperatureEl) temperatureEl.value = temperature;
+      if (temperatureValueEl) temperatureValueEl.textContent = temperature;
     } else {
       if (spec["temperature"]) {
-        $("#temperature").val(spec["temperature"][1]);
-        $("#temperature-value").text(parseFloat(spec["temperature"][1]).toFixed(1));
+        if (temperatureEl) temperatureEl.value = spec["temperature"][1];
+        if (temperatureValueEl) temperatureValueEl.textContent = parseFloat(spec["temperature"][1]).toFixed(1);
       } else {
-        $("#temperature").prop('disabled', true);
+        if (temperatureEl) temperatureEl.disabled = true;
       }
     }
 
+    const presencePenaltyEl = document.getElementById("presence-penalty");
+    const presencePenaltyValueEl = document.getElementById("presence-penalty-value");
     let presence_penalty = params["presence_penalty"];
     if (presence_penalty) {
       if (!isNaN(presence_penalty)) {
         presence_penalty = parseFloat(presence_penalty).toFixed(1);
       }
-      $("#presence-penalty").val(presence_penalty);
-      $("#presence-penalty-value").text(presence_penalty);
+      if (presencePenaltyEl) presencePenaltyEl.value = presence_penalty;
+      if (presencePenaltyValueEl) presencePenaltyValueEl.textContent = presence_penalty;
     } else {
       if (spec["presence_penalty"]) {
-        $("#presence-penalty").val(spec["presence_penalty"][1]);
-        $("#presence-penalty-value").text(parseFloat(spec["presence_penalty"][1]).toFixed(1));
+        if (presencePenaltyEl) presencePenaltyEl.value = spec["presence_penalty"][1];
+        if (presencePenaltyValueEl) presencePenaltyValueEl.textContent = parseFloat(spec["presence_penalty"][1]).toFixed(1);
       } else {
-        $("#presence-penalty").prop('disabled', true);
+        if (presencePenaltyEl) presencePenaltyEl.disabled = true;
       }
     }
 
+    const frequencyPenaltyEl = document.getElementById("frequency-penalty");
+    const frequencyPenaltyValueEl = document.getElementById("frequency-penalty-value");
     let frequency_penalty = params["frequency_penalty"];
     if (frequency_penalty) {
       if (!isNaN(frequency_penalty)) {
         frequency_penalty = parseFloat(frequency_penalty).toFixed(1);
       }
-      $("#frequency-penalty").val(frequency_penalty);
-      $("#frequency-penalty-value").text(frequency_penalty);
+      if (frequencyPenaltyEl) frequencyPenaltyEl.value = frequency_penalty;
+      if (frequencyPenaltyValueEl) frequencyPenaltyValueEl.textContent = frequency_penalty;
     } else {
       if (spec["frequency_penalty"]) {
-        $("#frequency-penalty").val(spec["frequency_penalty"][1]);
-        $("#frequency-penalty-value").text(parseFloat(spec["frequency_penalty"][1]).toFixed(1));
+        if (frequencyPenaltyEl) frequencyPenaltyEl.value = spec["frequency_penalty"][1];
+        if (frequencyPenaltyValueEl) frequencyPenaltyValueEl.textContent = parseFloat(spec["frequency_penalty"][1]).toFixed(1);
       } else {
-        $("#frequency-penalty").prop('disabled', true);
+        if (frequencyPenaltyEl) frequencyPenaltyEl.disabled = true;
       }
     }
 
     // Skip max_tokens UI setup if already locked by reasoning model logic above
-    if (!$("#max-tokens-toggle").prop("disabled")) {
+    if (maxTokensToggle && !maxTokensToggle.disabled) {
       let max_tokens = params["max_tokens"];
       if (max_tokens) {
-        $("#max-tokens-toggle").prop("checked", true).trigger("change");
-        if (!isNaN(max_tokens)) {
-          $("#max-tokens").val(parseInt(max_tokens));
-        } else {
-          $("#max-tokens").val(max_tokens);
-        }
+        if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change")); }
+        if (maxTokensEl) maxTokensEl.value = !isNaN(max_tokens) ? parseInt(max_tokens) : max_tokens;
       } else {
         if (spec["max_output_tokens"]) {
-          $("#max-tokens").val(spec["max_output_tokens"][1]);
-          $("#max-tokens-toggle").prop("checked", true).trigger("change");
+          if (maxTokensEl) maxTokensEl.value = spec["max_output_tokens"][1];
+          if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change")); }
         } else {
-          $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
-          $("#max-tokens-toggle").prop("checked", false).trigger("change");
+          if (maxTokensEl) maxTokensEl.value = DEFAULT_MAX_OUTPUT_TOKENS;
+          if (maxTokensToggle) { maxTokensToggle.checked = false; maxTokensToggle.dispatchEvent(new Event("change")); }
         }
       }
     }
   } else {
-    $("#reasoning-effort").prop('disabled', true);
-    $("#temperature").prop('disabled', true);
-    $("#presence-penalty").prop('disabled', true);
-    $("#frequency-penalty").prop('disabled', true);
-    $("#model_parameters").hide();
-    $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
-    $("#max-tokens-toggle").prop("checked", false).trigger("change");
+    const reasoningDropdownFb = document.getElementById("reasoning-effort");
+    const temperatureElFb = document.getElementById("temperature");
+    const presencePenaltyElFb = document.getElementById("presence-penalty");
+    const frequencyPenaltyElFb = document.getElementById("frequency-penalty");
+    const modelParamsElFb = document.getElementById("model_parameters");
+    const maxTokensElFb = document.getElementById("max-tokens");
+    const maxTokensToggleFb = document.getElementById("max-tokens-toggle");
+    if (reasoningDropdownFb) reasoningDropdownFb.disabled = true;
+    if (temperatureElFb) temperatureElFb.disabled = true;
+    if (presencePenaltyElFb) presencePenaltyElFb.disabled = true;
+    if (frequencyPenaltyElFb) frequencyPenaltyElFb.disabled = true;
+    if (modelParamsElFb) modelParamsElFb.style.display = 'none';
+    if (maxTokensElFb) maxTokensElFb.value = DEFAULT_MAX_OUTPUT_TOKENS;
+    if (maxTokensToggleFb) { maxTokensToggleFb.checked = false; maxTokensToggleFb.dispatchEvent(new Event("change")); }
   }
 
   // (reverted) removed OpenAI PDF manager refresh hook after model updates
 
   // Set context size from configuration or use default
-  $("#context-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
+  const contextSizeEl = document.getElementById("context-size");
+  if (contextSizeEl) contextSizeEl.value = params["context_size"] || DEFAULT_CONTEXT_SIZE;
 
   // Ensure model row is always visible (guard against external hide calls)
-  $("#model_and_file").show().removeClass("hidden");
+  const modelAndFile = document.getElementById("model_and_file");
+  if (modelAndFile) { modelAndFile.style.display = ''; modelAndFile.classList.remove("hidden"); }
 
   // Deferred guard: rebuild reasoning dropdown if empty after model change handler
   // Max_tokens lock and Show Thinking toggle are handled in monadic.js model change handler
@@ -869,24 +940,25 @@ window.loadParams = function(params, calledFor = "loadParams") {
     const guardSpec = spec;
     const guardModel = model;
     const hasReasoning = !!(guardSpec["reasoning_effort"] || guardSpec["supports_thinking"]);
-    if (hasReasoning && $("#reasoning-effort option").length === 0) {
-      const currentApp = $("#apps").val();
-      const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp])
-        ? window.getProviderFromGroup(window.apps[currentApp]["group"])
+    const guardDropdown = document.getElementById("reasoning-effort");
+    if (hasReasoning && guardDropdown && guardDropdown.querySelectorAll("option").length === 0) {
+      const guardAppsEl = document.getElementById("apps");
+      const guardCurrentApp = guardAppsEl ? guardAppsEl.value : null;
+      const guardProvider = (window.getProviderFromGroup && window.apps && window.apps[guardCurrentApp])
+        ? window.getProviderFromGroup(window.apps[guardCurrentApp]["group"])
         : "OpenAI";
       if (window.ReasoningMapper) {
-        const opts = ReasoningMapper.getAvailableOptions(provider, guardModel, {});
+        const opts = ReasoningMapper.getAvailableOptions(guardProvider, guardModel, {});
         if (opts && opts.length > 0) {
-          const $dropdown = $("#reasoning-effort");
-          $dropdown.empty();
+          guardDropdown.innerHTML = '';
           opts.forEach(opt => {
             const label = window.ReasoningLabels ?
-              window.ReasoningLabels.getOptionLabel(provider, opt) : opt;
-            $dropdown.append(`<option value="${opt}">${label}</option>`);
+              window.ReasoningLabels.getOptionLabel(guardProvider, opt) : opt;
+            guardDropdown.insertAdjacentHTML('beforeend', `<option value="${opt}">${label}</option>`);
           });
-          const defaultVal = ReasoningMapper.getDefaultValue(provider, guardModel);
-          $dropdown.val(defaultVal && opts.includes(defaultVal) ? defaultVal : opts[0]);
-          $dropdown.prop('disabled', false);
+          const defaultVal = ReasoningMapper.getDefaultValue(guardProvider, guardModel);
+          guardDropdown.value = (defaultVal && opts.includes(defaultVal)) ? defaultVal : opts[0];
+          guardDropdown.disabled = false;
         }
       }
     }
@@ -903,83 +975,78 @@ window.loadParams = function(params, calledFor = "loadParams") {
 
   // Final enforcement of import-mode checkbox states
   if (window.isProcessingImport) {
-    $("#check-auto-speech").prop('checked', false);
-    $("#initiate-from-assistant").prop('checked', false);
+    const autoSpeechFinal = document.getElementById("check-auto-speech");
+    const initiateFinal = document.getElementById("initiate-from-assistant");
+    if (autoSpeechFinal) autoSpeechFinal.checked = false;
+    if (initiateFinal) initiateFinal.checked = false;
   }
 
   // (reverted) no deferred update here; proceedWithAppChange triggers model change as needed
 }
 
 function resetParams() {
-  $("#pdf-titles").empty();
+  const pdfTitles = document.getElementById("pdf-titles");
+  if (pdfTitles) pdfTitles.innerHTML = '';
   // Use a local copy of originalParams to avoid reference issues
   const originalParamsCopy = originalParams ? JSON.parse(JSON.stringify(originalParams)) : {};
   params = Object.assign({}, originalParamsCopy);
   // Keep the app_name from being reset in loadParams
-  const currentApp = $("#apps").val();
+  const currentAppEl = document.getElementById("apps");
+  const currentApp = currentAppEl ? currentAppEl.value : null;
   loadParams(params, "reset");
   // wait for loadParams to finish
   setTimeout(function () {
-    // Don't change app selection to default - it will be preserved from the current app
-    // $("#apps select").val(params["app_name"]);
-
     const toBool = window.toBool || ((value) => {
       if (typeof value === 'boolean') return value;
       if (typeof value === 'string') return value === 'true';
       return !!value;
     });
 
-    if (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"])) {
-      $("#pdf-panel").show();
-    } else {
-      $("#pdf-panel").hide();
-    }
-    if (toBool(params["audio_upload"])) {
-      $("#audio-upload").show();
-    } else {
-      $("#audio-upload").hide();
-    }
+    const pdfPanel = document.getElementById("pdf-panel");
+    if (pdfPanel) pdfPanel.style.display = (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"])) ? '' : 'none';
+    const audioUpload = document.getElementById("audio-upload");
+    if (audioUpload) audioUpload.style.display = toBool(params["audio_upload"]) ? '' : 'none';
     // Reset the flag after loading is complete
     window.isLoadingParams = false;
   }, 500);
 }
 
 function setParams() {
-  const app_name = $("#apps").val();
+  const appsEl = document.getElementById("apps");
+  const app_name = appsEl ? appsEl.value : null;
   params = Object.assign({}, apps[app_name]);
   params["app_name"] = app_name;
 
   // Always use checkbox value if it exists (user can change it)
-  if ($("#initiate-from-assistant").length > 0) {
-    params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked') ? true : false;
+  const initiateFromAssistantEl = document.getElementById("initiate-from-assistant");
+  if (initiateFromAssistantEl) {
+    params["initiate_from_assistant"] = initiateFromAssistantEl.checked ? true : false;
   }
   // If checkbox doesn't exist, keep the value from apps[app_name]
   if (typeof window !== 'undefined' && window.skipAssistantInitiation) {
     params["initiate_from_assistant"] = false;
   }
 
-  if ($("#mathjax").is(":checked")) {
-    params["mathjax"] = true;
-  } else {
-    params["mathjax"] = false;
-  }
+  const mathjaxEl = document.getElementById("mathjax");
+  params["mathjax"] = mathjaxEl ? mathjaxEl.checked : false;
 
-  if ($("#websearch").is(":checked") && modelSpec[params["model"]]?.["tool_capability"]) {
+  const websearchEl = document.getElementById("websearch");
+  const modelEl = document.getElementById("model");
+  params["model"] = modelEl ? modelEl.value : null;
+  if (websearchEl && websearchEl.checked && modelSpec[params["model"]]?.["tool_capability"]) {
     params["websearch"] = true;
   } else {
     params["websearch"] = false;
   }
 
-  // params["initial_prompt"] = $("#initial-prompt").val();
-  params["model"] = $("#model").val();
-
   // Handle reasoning/thinking parameters with provider-specific mapping
-  if (!$("#reasoning-effort").prop('disabled')) {
-    const uiValue = $("#reasoning-effort").val();
-    
+  const reasoningEffortEl = document.getElementById("reasoning-effort");
+  if (reasoningEffortEl && !reasoningEffortEl.disabled) {
+    const uiValue = reasoningEffortEl.value;
+
     // Get provider from current app
-    const currentApp = $("#apps").val();
-    let provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp]) 
+    const currentApp = appsEl ? appsEl.value : null;
+    let provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp])
       ? window.getProviderFromGroup(window.apps[currentApp]["group"]) : "OpenAI";
     const model = params["model"];
     // If model family suggests a different provider, prefer model-based inference
@@ -1017,54 +1084,65 @@ function setParams() {
     }
   }
 
-  if (!$("#temperature").prop('disabled')) {
-    params["temperature"] = $("#temperature").val();
+  const spTemperature = document.getElementById("temperature");
+  if (spTemperature && !spTemperature.disabled) {
+    params["temperature"] = spTemperature.value;
   }
 
-  if (!$("#presence-penalty").prop('disabled')) {
-    params["presence_penalty"] = $("#presence-penalty").val();
+  const spPresencePenalty = document.getElementById("presence-penalty");
+  if (spPresencePenalty && !spPresencePenalty.disabled) {
+    params["presence_penalty"] = spPresencePenalty.value;
   }
 
-  if (!$("#frequency-penalty").prop('disabled')) {
-    params["frequency_penalty"] = $("#frequency-penalty").val();
+  const spFrequencyPenalty = document.getElementById("frequency-penalty");
+  if (spFrequencyPenalty && !spFrequencyPenalty.disabled) {
+    params["frequency_penalty"] = spFrequencyPenalty.value;
   }
 
   // For reasoning/thinking models, always use the model's max output tokens
   const currentModelSpec = window.modelSpec ? window.modelSpec[params["model"]] : null;
   const isReasoningModel = currentModelSpec && (currentModelSpec["reasoning_effort"] || currentModelSpec["supports_thinking"]);
+  const spMaxTokensToggle = document.getElementById("max-tokens-toggle");
+  const spMaxTokens = document.getElementById("max-tokens");
   if (isReasoningModel && currentModelSpec["max_output_tokens"]) {
     params["max_tokens"] = Array.isArray(currentModelSpec["max_output_tokens"][0])
       ? currentModelSpec["max_output_tokens"][1]  // format: [[min, max], default]
       : currentModelSpec["max_output_tokens"][1]; // format: [min, max]
-  } else if ($("#max-tokens-toggle").is(":checked")) {
-    params["max_tokens"] = $("#max-tokens").val();
+  } else if (spMaxTokensToggle && spMaxTokensToggle.checked) {
+    params["max_tokens"] = spMaxTokens ? spMaxTokens.value : DEFAULT_MAX_OUTPUT_TOKENS;
   } else {
     params["max_tokens"] = DEFAULT_MAX_OUTPUT_TOKENS;
   }
 
-  if ($("#context-size").prop('disabled')) {
+  const spContextSize = document.getElementById("context-size");
+  if (spContextSize && spContextSize.disabled) {
     // virtually unlimited context size
     params["context_size"] = DEFAULT_CONTEXT_SIZE;
   } else {
-    params["context_size"] = $("#context-size").val();
+    params["context_size"] = spContextSize ? spContextSize.value : DEFAULT_CONTEXT_SIZE;
   }
 
   // Save thinking display preference
-  if ($("#thinking-display-container").is(":visible")) {
-    params["show_thinking"] = $("#show-thinking").is(":checked");
+  const spThinkingContainer = document.getElementById("thinking-display-container");
+  if (spThinkingContainer && spThinkingContainer.style.display !== 'none') {
+    const spShowThinking = document.getElementById("show-thinking");
+    params["show_thinking"] = spShowThinking ? spShowThinking.checked : false;
   }
 
-  params["tts_provider"] = $("#tts-provider").val();
-  params["tts_voice"] = $("#tts-voice").val();
-  params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice").val();
-  params["gemini_tts_voice"] = $("#gemini-tts-voice").val();
-  params["mistral_tts_voice"] = $("#mistral-tts-voice").val();
-  params["tts_speed"] = $("#tts-speed").val();
-  params["conversation_language"] = $("#conversation-language").val();
+  const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
+  params["tts_provider"] = getVal("tts-provider");
+  params["tts_voice"] = getVal("tts-voice");
+  params["elevenlabs_tts_voice"] = getVal("elevenlabs-tts-voice");
+  params["gemini_tts_voice"] = getVal("gemini-tts-voice");
+  params["mistral_tts_voice"] = getVal("mistral-tts-voice");
+  params["tts_speed"] = getVal("tts-speed");
+  params["conversation_language"] = getVal("conversation-language");
   // Update asr_lang for STT/TTS
   params["asr_lang"] = params["conversation_language"];
-  params["easy_submit"] = $("#check-easy-submit").prop('checked');
-  params["auto_speech"] = $("#check-auto-speech").prop('checked');
+  const spEasySubmit = document.getElementById("check-easy-submit");
+  const spAutoSpeech = document.getElementById("check-auto-speech");
+  params["easy_submit"] = spEasySubmit ? spEasySubmit.checked : false;
+  params["auto_speech"] = spAutoSpeech ? spAutoSpeech.checked : false;
 
   // Auto TTS mode: realtime (true) or post-completion (false, default)
   // This will be set from Electron settings
@@ -1098,30 +1176,36 @@ function setParams() {
 }
 
 function checkParams() {
+  const cpInitialPrompt = document.getElementById("initial-prompt");
+  const cpMaxTokens = document.getElementById("max-tokens");
+  const cpContextSize = document.getElementById("context-size");
+  const cpModel = document.getElementById("model");
+  const cpReasoningEffort = document.getElementById("reasoning-effort");
+  const cpTemperature = document.getElementById("temperature");
   // Only check initial-prompt if it's visible (not all apps require it)
-  if ($("#initial-prompt").is(":visible") && !$("#initial-prompt").val()) {
+  if (cpInitialPrompt && cpInitialPrompt.style.display !== 'none' && !cpInitialPrompt.value) {
     alert("Please enter an initial prompt.");
-    $("#initial-prompt").focus();
+    cpInitialPrompt.focus();
     return false;
-  } else if (!$("#max-tokens").val()) {
+  } else if (cpMaxTokens && !cpMaxTokens.value) {
     alert("Please enter a max output tokens value.");
-    $("#max-tokens").focus();
+    cpMaxTokens.focus();
     return false;
-  } else if (!$("#context-size").val()) {
+  } else if (cpContextSize && !cpContextSize.value) {
     alert("Please enter a context size.");
-    $("#context-size").focus();
+    cpContextSize.focus();
     return false;
-  } else if (!$("#model").val()) {
+  } else if (cpModel && !cpModel.value) {
     alert("Please select a model.");
-    $("#model").focus();
+    cpModel.focus();
     return false;
-  } else if (!$("#reasoning-effort").prop('disabled') && !$("#reasoning-effort").val()) {
+  } else if (cpReasoningEffort && !cpReasoningEffort.disabled && !cpReasoningEffort.value) {
     alert("Please select a reasoning effort.");
-    $("#reasoning-effort").focus();
+    cpReasoningEffort.focus();
     return false
-  } else if (!$("#temperature").val()) {
+  } else if (cpTemperature && !cpTemperature.value) {
     alert("Please enter a temperature.");
-    $("#temperature").focus();
+    cpTemperature.focus();
     return false;
   }
   return true;
@@ -1132,13 +1216,14 @@ function checkParams() {
 function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
 
-  $("#image-used").children().remove();
+  const imageUsed = document.getElementById("image-used");
+  if (imageUsed) imageUsed.innerHTML = '';
   images = [];
 
   // Detect iOS/iPadOS
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  
+
   // For iOS devices, bypass the modal and use standard confirm dialog
   if (isIOS) {
     if (confirm("Are you sure you want to reset the chat?")) {
@@ -1146,23 +1231,32 @@ function resetEvent(_event, resetToDefaultApp = false) {
     }
   } else {
     // For other platforms, use the Bootstrap modal
-    $("#resetConfirmation").modal("show");
-    $("#resetConfirmation").on("shown.bs.modal", function () {
-      $("#resetConfirmed").focus();
-    });
-    $("#resetConfirmed").off("click").on("click", function (event) {
-      event.preventDefault();
-      doResetActions(resetToDefaultApp);
-    });
+    const resetModal = document.getElementById("resetConfirmation");
+    if (resetModal) {
+      bootstrap.Modal.getOrCreateInstance(resetModal).show();
+      resetModal.addEventListener("shown.bs.modal", function () {
+        const resetConfirmed = document.getElementById("resetConfirmed");
+        if (resetConfirmed) resetConfirmed.focus();
+      }, { once: true });
+    }
+    const resetConfirmedBtn = document.getElementById("resetConfirmed");
+    if (resetConfirmedBtn) {
+      resetConfirmedBtn.onclick = function (event) {
+        event.preventDefault();
+        doResetActions(resetToDefaultApp);
+      };
+    }
   }
 }
 
 // Function to handle the actual reset logic
 function doResetActions(resetToDefaultApp = false) {
   // Store the current app selection before reset
-  const currentApp = resetToDefaultApp ? null : $("#apps").val();
+  const drApps = document.getElementById("apps");
+  const currentApp = resetToDefaultApp ? null : (drApps ? drApps.value : null);
 
-  $("#message").css("height", "96px").val("");
+  const drMessage = document.getElementById("message");
+  if (drMessage) { drMessage.style.height = "96px"; drMessage.value = ""; }
 
   ws.send(JSON.stringify({ "message": "RESET" }));
   // Get UI language from cookie or default to 'en'
@@ -1183,17 +1277,23 @@ function doResetActions(resetToDefaultApp = false) {
     // If resetting to default app, find and select the first available app
     if (resetToDefaultApp) {
       // Find the first non-disabled option that is not a separator
-      const firstApp = $("#apps option").filter(function() {
-        return !$(this).prop('disabled') && !$(this).text().startsWith('──');
-      }).first().val();
-      
-      if (firstApp) {
-        $("#apps").val(firstApp).trigger('change');
+      const allOptions = drApps ? drApps.querySelectorAll("option") : [];
+      let firstApp = null;
+      for (const opt of allOptions) {
+        if (!opt.disabled && !opt.textContent.startsWith('──')) {
+          firstApp = opt.value;
+          break;
+        }
+      }
+
+      if (firstApp && drApps) {
+        drApps.value = firstApp;
+        drApps.dispatchEvent(new Event('change'));
       }
     }
     
     // After resetParams, trigger app change to reload models and initial prompt
-    const currentAppVal = $("#apps").val();
+    const currentAppVal = drApps ? drApps.value : null;
     if (currentAppVal && typeof window.proceedWithAppChange === 'function') {
       // Call proceedWithAppChange to properly initialize the app
       window.proceedWithAppChange(currentAppVal);
@@ -1206,33 +1306,34 @@ function doResetActions(resetToDefaultApp = false) {
       setTimeout(function() {
         var appData = window.apps[currentAppVal];
         if (appData && appData["initiate_from_assistant"]) {
-          $("#initiate-from-assistant").prop('checked', true);
+          const iaCb = document.getElementById("initiate-from-assistant");
+          if (iaCb) iaCb.checked = true;
         }
         if (appData && appData["auto_speech"]) {
-          $("#check-auto-speech").prop('checked', true);
+          const asCb = document.getElementById("check-auto-speech");
+          if (asCb) asCb.checked = true;
         }
       }, 800);
     }
   }, 300);
 
-  const model = $("#model").val();
+  const drModelEl = document.getElementById("model");
+  const model = drModelEl ? drModelEl.value : null;
 
+  const drWebsearch = document.getElementById("websearch");
+  const drWebsearchBadge = document.getElementById("websearch-badge");
   if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
-    $("#websearch").prop("disabled", false).removeAttr('title')
-    if ($("#websearch").is(":checked")) {
-      $("#websearch-badge").show();
-    } else {
-      $("#websearch-badge").hide();
-    }
+    if (drWebsearch) { drWebsearch.disabled = false; drWebsearch.removeAttribute('title'); }
+    if (drWebsearchBadge) drWebsearchBadge.style.display = (drWebsearch && drWebsearch.checked) ? '' : 'none';
   } else {
     const tt3 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search'
-    $("#websearch").prop("disabled", true).attr('title', tt3)
-    $("#websearch-badge").hide();
+    if (drWebsearch) { drWebsearch.disabled = true; drWebsearch.setAttribute('title', tt3); }
+    if (drWebsearchBadge) drWebsearchBadge.style.display = 'none';
   }
 
   // Extract provider from app_name parameter
   // Use the final app value after potential reset
-  const finalApp = resetToDefaultApp ? $("#apps").val() : currentApp;
+  const finalApp = resetToDefaultApp ? (drApps ? drApps.value : null) : currentApp;
   let provider = "OpenAI";
   if (apps[finalApp] && apps[finalApp].group) {
     const group = apps[finalApp].group.toLowerCase();
@@ -1253,18 +1354,28 @@ function doResetActions(resetToDefaultApp = false) {
     }
   }
 
-  if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-    $("#model-selected").text(provider + " (" + model + " - " + $("#reasoning-effort").val() + ")");
-  } else {
-    $("#model-selected").text(provider + " (" + model + ")");
+  const drModelSelected = document.getElementById("model-selected");
+  const drReasoningEffort = document.getElementById("reasoning-effort");
+  if (drModelSelected) {
+    if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+      drModelSelected.textContent = provider + " (" + model + " - " + (drReasoningEffort ? drReasoningEffort.value : '') + ")";
+    } else {
+      drModelSelected.textContent = provider + " (" + model + ")";
+    }
   }
 
-  $("#resetConfirmation").modal("hide");
-  $("#main-panel").hide();
-  $("#discourse").html("").hide();
-  $("#chat").html("")
-  $("#temp-card").hide();
-  $("#temp-reasoning-card").remove();
+  const resetModalEl = document.getElementById("resetConfirmation");
+  if (resetModalEl) bootstrap.Modal.getOrCreateInstance(resetModalEl).hide();
+  const drMainPanel = document.getElementById("main-panel");
+  if (drMainPanel) drMainPanel.style.display = 'none';
+  const drDiscourse = document.getElementById("discourse");
+  if (drDiscourse) { drDiscourse.innerHTML = ''; drDiscourse.style.display = 'none'; }
+  const drChat = document.getElementById("chat");
+  if (drChat) drChat.innerHTML = '';
+  const drTempCard = document.getElementById("temp-card");
+  if (drTempCard) drTempCard.style.display = 'none';
+  const drTempReasoningCard = document.getElementById("temp-reasoning-card");
+  if (drTempReasoningCard) drTempReasoningCard.remove();
 
   // Clear error cards and status message explicitly
   clearErrorCards();
@@ -1273,11 +1384,12 @@ function doResetActions(resetToDefaultApp = false) {
   if (typeof window.enterSettingsMode === 'function') {
     window.enterSettingsMode();
   } else {
-    $("#config").show();
+    const drConfig = document.getElementById("config");
+    if (drConfig) drConfig.style.display = '';
   }
   const resetSuccessText = getTranslation('ui.messages.resetSuccessful', 'Reset successful');
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${resetSuccessText}.`, "success");
-  
+
   // Clear session state (messages + flags) to avoid stale history
   if (window.SessionState) {
     if (typeof window.SessionState.clearMessages === 'function') {
@@ -1291,15 +1403,16 @@ function doResetActions(resetToDefaultApp = false) {
   }
 
   // Set app selection back to current app instead of default
-  $("#apps").val(currentApp);
-  
+  if (drApps) drApps.value = currentApp;
+
   // Update lastApp to match the current app to prevent app change dialog from appearing
   lastApp = currentApp;
-  
+
   // Trigger app change to reset all settings to defaults
-  $("#apps").trigger("change");
-  
-  $("#base-app-title").text(apps[currentApp]["display_name"] || apps[currentApp]["app_name"]);
+  if (drApps) drApps.dispatchEvent(new Event("change"));
+
+  const drBaseAppTitle = document.getElementById("base-app-title");
+  if (drBaseAppTitle) drBaseAppTitle.textContent = apps[currentApp]["display_name"] || apps[currentApp]["app_name"];
 
   const toBool = window.toBool || ((value) => {
     if (typeof value === 'boolean') return value;
@@ -1307,25 +1420,17 @@ function doResetActions(resetToDefaultApp = false) {
     return !!value;
   });
 
-  if (toBool(apps[currentApp]["monadic"])) {
-    $("#monadic-badge").show();
-  } else {
-    $("#monadic-badge").hide();
-  }
+  const drMonadicBadge = document.getElementById("monadic-badge");
+  if (drMonadicBadge) drMonadicBadge.style.display = toBool(apps[currentApp]["monadic"]) ? '' : 'none';
 
-  if (apps[currentApp]["tools"]) {
-    $("#tools-badge").show();
-  } else {
-    $("#tools-badge").hide();
-  }
+  const drToolsBadge = document.getElementById("tools-badge");
+  if (drToolsBadge) drToolsBadge.style.display = apps[currentApp]["tools"] ? '' : 'none';
 
-  if (toBool(apps[currentApp]["mathjax"])) {
-    $("#math-badge").show();
-  } else {
-    $("#math-badge").hide();
-  }
+  const drMathBadge = document.getElementById("math-badge");
+  if (drMathBadge) drMathBadge.style.display = toBool(apps[currentApp]["mathjax"]) ? '' : 'none';
 
-  $("#base-app-icon").html(apps[currentApp]["icon"]);
+  const drBaseAppIcon = document.getElementById("base-app-icon");
+  if (drBaseAppIcon) drBaseAppIcon.innerHTML = apps[currentApp]["icon"];
 
   // Helper function to get icon for tool group
   function getToolGroupIcon(groupName) {
@@ -1347,10 +1452,13 @@ function doResetActions(resetToDefaultApp = false) {
     window.updateAppBadges(currentApp);
   }
 
-  $("#model_and_file").show();
-  $("#model_parameters").show();
+  const drModelAndFile = document.getElementById("model_and_file");
+  if (drModelAndFile) drModelAndFile.style.display = '';
+  const drModelParameters = document.getElementById("model_parameters");
+  if (drModelParameters) drModelParameters.style.display = '';
 
-  $("#image-file").show();
+  const drImageFile = document.getElementById("image-file");
+  if (drImageFile) drImageFile.style.display = '';
 
   if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
 
@@ -1360,13 +1468,14 @@ function doResetActions(resetToDefaultApp = false) {
   // Instead of selecting the first available app, maintain the current selection
   // Use stop_apps_trigger flag to prevent app change dialog
   stop_apps_trigger = true;
-  $("#apps").trigger("change");
+  if (drApps) drApps.dispatchEvent(new Event("change"));
 
   // Use UI utilities module if available, otherwise fallback
+  const drModelVal = drModelEl ? drModelEl.value : null;
   if (window.uiUtils && window.uiUtils.adjustImageUploadButton) {
-    window.uiUtils.adjustImageUploadButton($("#model").val());
+    window.uiUtils.adjustImageUploadButton(drModelVal);
   } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-    window.shims.uiUtils.adjustImageUploadButton($("#model").val());
+    window.shims.uiUtils.adjustImageUploadButton(drModelVal);
   }
   adjustScrollButtons();
 
@@ -1387,115 +1496,137 @@ function doResetActions(resetToDefaultApp = false) {
   // getBadgeColorClass, getUserControlCheckbox, isToolGroupAvailable → extracted to badge-renderer.js
 
 // Add event handler for app selection to update all badges
-$(document).ready(function() {
+document.addEventListener("DOMContentLoaded", function() {
   // Handle app change events
-  $("#apps").on("change", function() {
-    const selectedApp = $(this).val();
+  const rdApps = document.getElementById("apps");
+  if (rdApps) {
+    rdApps.addEventListener("change", function() {
+      const selectedApp = this.value;
 
-    // Save selected app to SessionState for restoration on reload
-    if (selectedApp && window.SessionState) {
-      window.SessionState.app.current = selectedApp;
-      window.lastApp = selectedApp;
-      window.SessionState.save();
-    }
-
-    setTimeout(function() {
-      updateAppBadges(selectedApp);
-    }, 100); // Small delay to ensure DOM is ready
-
-    // Reload Workflow Viewer if open
-    if (typeof WorkflowViewer !== "undefined" && WorkflowViewer.isOpen()) {
-      WorkflowViewer.loadApp(selectedApp);
-    }
-
-    // Show/hide Context Panel based on monadic setting
-    if (typeof ContextPanel !== "undefined" && apps && apps[selectedApp]) {
-      const isMonadic = apps[selectedApp]["monadic"] === true ||
-                        apps[selectedApp]["monadic"] === "true";
-      if (isMonadic) {
-        // Get context_schema from app settings if defined
-        const contextSchema = apps[selectedApp]["context_schema"] || null;
-        ContextPanel.show(selectedApp, contextSchema);
-      } else {
-        ContextPanel.hide();
+      // Save selected app to SessionState for restoration on reload
+      if (selectedApp && window.SessionState) {
+        window.SessionState.app.current = selectedApp;
+        window.lastApp = selectedApp;
+        window.SessionState.save();
       }
-    }
-  });
+
+      setTimeout(function() {
+        updateAppBadges(selectedApp);
+      }, 100); // Small delay to ensure DOM is ready
+
+      // Reload Workflow Viewer if open
+      if (typeof WorkflowViewer !== "undefined" && WorkflowViewer.isOpen()) {
+        WorkflowViewer.loadApp(selectedApp);
+      }
+
+      // Show/hide Context Panel based on monadic setting
+      if (typeof ContextPanel !== "undefined" && apps && apps[selectedApp]) {
+        const isMonadic = apps[selectedApp]["monadic"] === true ||
+                          apps[selectedApp]["monadic"] === "true";
+        if (isMonadic) {
+          // Get context_schema from app settings if defined
+          const contextSchema = apps[selectedApp]["context_schema"] || null;
+          ContextPanel.show(selectedApp, contextSchema);
+        } else {
+          ContextPanel.hide();
+        }
+      }
+    });
+  }
 
   // Restore "All Models" toggle state from cookie BEFORE registering handlers
   // to ensure initial app load respects the saved preference
   const savedShowAll = getCookie("show-all-models");
-  if (savedShowAll === "true") {
-    $("#show-all-models").prop("checked", true);
+  const showAllModelsEl = document.getElementById("show-all-models");
+  if (savedShowAll === "true" && showAllModelsEl) {
+    showAllModelsEl.checked = true;
   }
 
   // Handle "All Models" toggle — rebuild model dropdown on change
-  $("#show-all-models").on("change", function() {
-    const showAll = $(this).prop("checked");
-    setCookie("show-all-models", showAll ? "true" : "false", 365);
+  if (showAllModelsEl) {
+    showAllModelsEl.addEventListener("change", function() {
+      const showAll = this.checked;
+      setCookie("show-all-models", showAll ? "true" : "false", 365);
 
-    const selectedApp = $("#apps").val();
-    const currentApp = apps[selectedApp];
-    if (!currentApp) return;
+      const rdAppsEl = document.getElementById("apps");
+      const selectedApp = rdAppsEl ? rdAppsEl.value : null;
+      const currentApp = apps[selectedApp];
+      if (!currentApp) return;
 
-    const currentModel = $("#model").val();
-    const models = getModelsForApp(currentApp, showAll);
-    const openai = (currentApp["group"] || "").toLowerCase() === "openai";
-    $("#model").html(listModels(models, openai));
+      const rdModelEl = document.getElementById("model");
+      const currentModel = rdModelEl ? rdModelEl.value : null;
+      const models = getModelsForApp(currentApp, showAll);
+      const openai = (currentApp["group"] || "").toLowerCase() === "openai";
+      if (rdModelEl) rdModelEl.innerHTML = listModels(models, openai);
 
-    // Restore previous model selection if available in new list
-    if (currentModel && models.includes(currentModel)) {
-      $("#model").val(currentModel);
-    } else {
-      const defaultModel = getDefaultModelForApp(currentApp, models);
-      if (defaultModel) $("#model").val(defaultModel);
-    }
-    $("#model").trigger("change");
-  });
+      // Restore previous model selection if available in new list
+      if (rdModelEl) {
+        if (currentModel && models.includes(currentModel)) {
+          rdModelEl.value = currentModel;
+        } else {
+          const defaultModel = getDefaultModelForApp(currentApp, models);
+          if (defaultModel) rdModelEl.value = defaultModel;
+        }
+        rdModelEl.dispatchEvent(new Event("change"));
+      }
+    });
+  }
 
   // Handle checkbox changes for user-controlled capabilities
-  $("#mathjax, #mermaid, #websearch").on("change", function() {
-    const selectedApp = $("#apps").val();
-    if (selectedApp) {
-      updateAppBadges(selectedApp);
-    }
+  ["mathjax", "mermaid", "websearch"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("change", function() {
+        const rdAppsEl = document.getElementById("apps");
+        const selectedApp = rdAppsEl ? rdAppsEl.value : null;
+        if (selectedApp) {
+          updateAppBadges(selectedApp);
+        }
 
-    // Update reasoning_effort options when websearch changes
-    if ($(this).attr('id') === 'websearch' && window.ReasoningMapper) {
-      const model = $("#models").val();
-      const group = $("#models").find(":selected").parent().attr("label");
-      const provider = getProviderFromGroup(group);
+        // Update reasoning_effort options when websearch changes
+        if (this.id === 'websearch' && window.ReasoningMapper) {
+          const modelsEl = document.getElementById("models");
+          const model = modelsEl ? modelsEl.value : null;
+          const selectedOpt = modelsEl ? modelsEl.querySelector(":checked") : null;
+          const parentOptgroup = selectedOpt ? selectedOpt.closest("optgroup") : null;
+          const group = parentOptgroup ? parentOptgroup.getAttribute("label") : null;
+          const provider = getProviderFromGroup(group);
 
-      if (model && provider && ReasoningMapper.isSupported(provider, model)) {
-        const currentSettings = {
-          web_search: $('#websearch').prop('checked') || false
-        };
+          if (model && provider && ReasoningMapper.isSupported(provider, model)) {
+            const wsEl = document.getElementById("websearch");
+            const currentSettings = {
+              web_search: (wsEl && wsEl.checked) || false
+            };
 
-        const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
+            const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
 
-        if (availableOptions) {
-          const $dropdown = $("#reasoning-effort");
-          const currentValue = $dropdown.val();
+            if (availableOptions) {
+              const dropdown = document.getElementById("reasoning-effort");
+              if (dropdown) {
+                const currentValue = dropdown.value;
 
-          // Rebuild options
-          $dropdown.empty();
-          availableOptions.forEach(option => {
-            const label = window.ReasoningLabels ?
-              window.ReasoningLabels.getOptionLabel(provider, option) :
-              option;
-            $dropdown.append(`<option value="${option}">${label}</option>`);
-          });
+                // Rebuild options
+                dropdown.innerHTML = '';
+                availableOptions.forEach(option => {
+                  const label = window.ReasoningLabels ?
+                    window.ReasoningLabels.getOptionLabel(provider, option) :
+                    option;
+                  dropdown.insertAdjacentHTML('beforeend', `<option value="${option}">${label}</option>`);
+                });
 
-          // Restore value if still valid, otherwise use first available
-          if (availableOptions.includes(currentValue)) {
-            $dropdown.val(currentValue);
-          } else {
-            const suggested = ReasoningMapper.getDefaultValue(provider, model);
-            const newValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];
-            $dropdown.val(newValue);
+                // Restore value if still valid, otherwise use first available
+                if (availableOptions.includes(currentValue)) {
+                  dropdown.value = currentValue;
+                } else {
+                  const suggested = ReasoningMapper.getDefaultValue(provider, model);
+                  const newValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];
+                  dropdown.value = newValue;
+                }
+              }
+            }
           }
         }
-      }
+      });
     }
   });
 });

@@ -17,28 +17,27 @@
   };
   
   /**
-   * Get cached jQuery element or query and cache it
-   * @param {string} selector - jQuery selector
+   * Get cached DOM element or query and cache it
+   * @param {string} selector - CSS selector
    * @param {boolean} forceRefresh - Force refresh the cache
-   * @returns {jQuery} Cached jQuery element
+   * @returns {Element|null} Cached DOM element
    */
   function get(selector, forceRefresh = false) {
     performanceStats.queries++;
-    
+
     if (!forceRefresh && elementCache.has(selector)) {
       performanceStats.hits++;
       return elementCache.get(selector);
     }
-    
+
     performanceStats.misses++;
-    // Use jQuery $ directly - no conflict as we renamed the alias
-    const element = $(selector);
-    
+    const element = document.querySelector(selector);
+
     // Only cache if element exists
-    if (element.length > 0) {
+    if (element) {
       elementCache.set(selector, element);
     }
-    
+
     return element;
   }
   
@@ -127,10 +126,10 @@
    */
   function setupAutoRefresh() {
     // Clear cache when significant DOM changes occur
-    $(document).on('DOMContentLoaded', clearAll);
-    
+    document.addEventListener('DOMContentLoaded', clearAll);
+
     // Clear cache before page unload
-    $(window).on('beforeunload', clearAll);
+    window.addEventListener('beforeunload', clearAll);
   }
   
   // Convenience method for getting single element

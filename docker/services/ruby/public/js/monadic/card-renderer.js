@@ -195,7 +195,8 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
       '</div>';
   }
 
-  var card = $(
+  var wrapper = document.createElement('div');
+  wrapper.innerHTML =
     '<div class="card mt-3" id="' + mid + '"' + (turnNumber ? ' data-turn="' + turnNumber + '"' : '') + '>' +
     '<div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">' +
     '<div class="fs-5 card-title mb-0">' + enhancedBadge2 + '</div>' +
@@ -204,14 +205,16 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
     '<div class="card-body ' + className + '">' +
     '<div class="card-text">' + replaced_html + image_data + '</div>' +
     '</div>' +
-    '</div>'
-  );
+    '</div>';
+  var card = wrapper.firstChild;
 
   // Remove existing duplicate card
-  if (mid !== "" && $("#" + mid).length > 0) {
-    var $existingCard = $("#" + mid);
-    detachEventListeners($existingCard);
-    $existingCard.remove();
+  if (mid !== "") {
+    var existingCard = document.getElementById(mid);
+    if (existingCard) {
+      detachEventListeners(existingCard);
+      existingCard.remove();
+    }
   }
 
   // Attach event listeners
@@ -219,13 +222,14 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
 
   // Initialize Bootstrap tooltips
   try {
-    if (card && card.tooltip) {
-      card.tooltip({
-        selector: '[title]',
-        trigger: 'hover',
-        delay: { show: 500, hide: 0 },
-        container: 'body',
-        html: false
+    if (card) {
+      card.querySelectorAll('[title]').forEach(function(el) {
+        new bootstrap.Tooltip(el, {
+          trigger: 'hover',
+          delay: { show: 500, hide: 0 },
+          container: 'body',
+          html: false
+        });
       });
     }
   } catch (e) {

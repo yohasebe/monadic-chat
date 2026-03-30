@@ -26,15 +26,7 @@ describe('DOMCache Module', () => {
       <div class="navbar-brand"></div>
     `;
 
-    // Mock jQuery $ to return objects with length property
-    global.$ = jest.fn(selector => {
-      if (typeof selector === 'string') {
-        const el = document.querySelector(selector);
-        return { length: el ? 1 : 0, selector, _el: el };
-      }
-      return { length: 0, on: jest.fn() };
-    });
-    global.$.fn = {};
+    // No jQuery mock needed - dom-cache.js now uses native DOM APIs
 
     require('../../docker/services/ruby/public/js/monadic/dom-cache.js');
     DOMCache = window.DOMCache;
@@ -46,10 +38,10 @@ describe('DOMCache Module', () => {
   });
 
   describe('get', () => {
-    it('returns jQuery element for valid selector', () => {
+    it('returns DOM element for valid selector', () => {
       const result = DOMCache.get('#main');
       expect(result).toBeDefined();
-      expect(result.length).toBe(1);
+      expect(result).toBeInstanceOf(HTMLElement);
     });
 
     it('caches element on first query', () => {
@@ -109,7 +101,7 @@ describe('DOMCache Module', () => {
       DOMCache.get('#main');
       const result = DOMCache.refresh('#main');
       expect(result).toBeDefined();
-      expect(result.length).toBe(1);
+      expect(result).toBeInstanceOf(HTMLElement);
     });
   });
 

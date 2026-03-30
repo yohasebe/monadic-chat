@@ -105,7 +105,7 @@ const RESPONSE_TIMEOUT_SLOW_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOU
 const { highlightStopButton, removeStopButtonHighlight, checkAndHideSpinner } = window.WsAutoSpeech || {};
 
 // message is submitted upon pressing enter
-const message = $("#message")[0];
+const message = document.getElementById("message");
 
 message.addEventListener("compositionstart", function () {
   message.dataset.ime = "true";
@@ -117,23 +117,31 @@ message.addEventListener("compositionend", function () {
 
 document.addEventListener("keydown", function (event) {
   // Right Arrow key - activate voice input when Easy Submit is enabled
-  if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
+  const easySubmitEl = document.getElementById("check-easy-submit");
+  const messageEl = document.getElementById("message");
+  const easySubmitChecked = easySubmitEl && easySubmitEl.checked;
+  const messageHasFocus = document.activeElement === messageEl;
+
+  if (easySubmitChecked && !messageHasFocus && event.key === "ArrowRight") {
     event.preventDefault();
     // Only activate voice button if session has begun (main panel is visible)
-    if ($("#voice").prop("disabled") === false && $("#main-panel").is(":visible")) {
-      $("#voice").click();
+    const voiceEl = document.getElementById("voice");
+    const mainPanelEl = document.getElementById("main-panel");
+    if (voiceEl && !voiceEl.disabled && mainPanelEl && mainPanelEl.style.display !== "none") {
+      voiceEl.click();
     }
   }
 
   // Enter key - submit message when focus is not in textarea
-  if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "Enter" && message.dataset.ime !== "true") {
+  if (easySubmitChecked && !messageHasFocus && event.key === "Enter" && message.dataset.ime !== "true") {
     // Only submit if message is not empty
     if (message.value.trim() !== "") {
       event.preventDefault();
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
         // Ignore auto-submit when tab is not in foreground
       } else {
-        $("#send").click();
+        const sendEl = document.getElementById("send");
+        if (sendEl) sendEl.click();
       }
     }
   }
@@ -174,10 +182,10 @@ function stopPing() {
   }
 }
 
-window.chatBottom = $("#chat-bottom").get(0);
+window.chatBottom = document.getElementById("chat-bottom");
 window.autoScroll = true;
 
-const mainPanel = $("#main-panel").get(0);
+const mainPanel = document.getElementById("main-panel");
 window.mainPanel = mainPanel;
 
 function ensureMonadicTabId() {
@@ -297,39 +305,48 @@ function formatToolName(name) {
 }
 
 function updateToolStatus(toolName, count) {
-  const tempCard = $("#temp-card");
-  if (!tempCard.length) return;
+  const tempCard = document.getElementById("temp-card");
+  if (!tempCard) return;
 
-  let toolStatus = tempCard.find("#tool-status");
-  if (!toolStatus.length) {
+  let toolStatus = document.getElementById("tool-status");
+  if (!toolStatus) {
     // Dynamically inject into the card header's right-side area
-    let rightArea = tempCard.find(".card-header .d-flex.align-items-center").last();
-    if (!rightArea.length || rightArea.hasClass("card-title")) {
-      rightArea = $('<div class="me-1 text-secondary d-flex align-items-center"></div>');
-      tempCard.find(".card-header").append(rightArea);
+    const headerEl = tempCard.querySelector(".card-header");
+    const flexAreas = headerEl ? headerEl.querySelectorAll(".d-flex.align-items-center") : [];
+    let rightArea = flexAreas.length > 0 ? flexAreas[flexAreas.length - 1] : null;
+    if (!rightArea || rightArea.classList.contains("card-title")) {
+      rightArea = document.createElement("div");
+      rightArea.className = "me-1 text-secondary d-flex align-items-center";
+      if (headerEl) headerEl.appendChild(rightArea);
     }
-    toolStatus = $('<span id="tool-status" class="tool-status-label me-2"></span>');
-    const indicator = rightArea.find("#indicator");
-    if (indicator.length) {
-      toolStatus.insertBefore(indicator);
+    toolStatus = document.createElement("span");
+    toolStatus.id = "tool-status";
+    toolStatus.className = "tool-status-label me-2";
+    const indicator = rightArea.querySelector("#indicator");
+    if (indicator) {
+      rightArea.insertBefore(toolStatus, indicator);
     } else {
-      rightArea.prepend(toolStatus);
+      rightArea.insertBefore(toolStatus, rightArea.firstChild);
     }
   }
 
   if (toolName && count > 0) {
-    toolStatus.html(
-      '<i class="fas fa-cog fa-spin me-1"></i>' + formatToolName(toolName) + ' <span class="tool-call-count">(' + count + ')</span>'
-    ).show();
+    toolStatus.innerHTML =
+      '<i class="fas fa-cog fa-spin me-1"></i>' + formatToolName(toolName) + ' <span class="tool-call-count">(' + count + ')</span>';
+    toolStatus.style.display = '';
   } else {
-    toolStatus.hide();
+    toolStatus.style.display = 'none';
   }
 }
 
 function clearToolStatus() {
   window.toolCallCount = 0;
   window.currentToolName = '';
-  $("#tool-status").hide().empty();
+  const toolStatusEl = document.getElementById("tool-status");
+  if (toolStatusEl) {
+    toolStatusEl.style.display = 'none';
+    toolStatusEl.innerHTML = '';
+  }
 }
 window.clearToolStatus = clearToolStatus;
 
@@ -380,14 +397,15 @@ window.loadedApp = "Chat";
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
     if (!isForegroundTab()) {
-      $('#monadic-spinner').hide();
+      const spinnerEl = document.getElementById('monadic-spinner');
+      if (spinnerEl) spinnerEl.style.display = 'none';
     }
     // Get UI language from cookie or default to 'en'
     const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
     ws.send(JSON.stringify({
       message: "CHECK_TOKEN",
       initial: true,
-      contents: $("#token").val(),
+      contents: (document.getElementById("token") || {}).value || '',
       ui_language: uiLanguage
     }));
 
@@ -531,11 +549,11 @@ window.loadedApp = "Chat";
 
       // Add a CSS class to body for iOS-specific styling if needed
       if (isIOS) {
-        $("body").addClass("ios-device");
+        document.body.classList.add("ios-device");
         if (isMobileIOS) {
-          $("body").addClass("mobile-ios-device");
+          document.body.classList.add("mobile-ios-device");
         } else if (isIPad) {
-          $("body").addClass("ipad-device");
+          document.body.classList.add("ipad-device");
         }
       }
     }
@@ -582,17 +600,16 @@ window.loadedApp = "Chat";
   // Helper function to append a card to the discourse
   function appendCard(role, badge, html, lang, mid, status, images, turnNumber = null) {
     const htmlElement = createCard(role, badge, html, lang, mid, status, images, false, turnNumber);
-    $("#discourse").append(htmlElement);
+    const discourseEl = document.getElementById("discourse");
+    if (discourseEl) discourseEl.appendChild(htmlElement);
 
     // Defer applyRenderers to ensure DOM is fully ready
     if (window.MarkdownRenderer) {
       setTimeout(() => {
-        window.MarkdownRenderer.applyRenderers(htmlElement[0]);
+        window.MarkdownRenderer.applyRenderers(htmlElement);
       }, 0);
     }
     updateItemStates();
-
-    const htmlContent = $("#discourse div.card:last");
 
     // Use toBool helper for defensive boolean evaluation
     const toBool = window.toBool || ((value) => {
@@ -602,37 +619,45 @@ window.loadedApp = "Chat";
     });
 
     if (toBool(params["toggle"])) {
-      applyToggle(htmlContent);
+      applyToggle(htmlElement);
     }
 
     // Phase 2: Disabled old applyMermaid/MathJax/ABC - now handled by MarkdownRenderer.applyRenderers()
     // if (toBool(params["mermaid"])) {
-    //   applyMermaid(htmlContent);
+    //   applyMermaid(htmlElement);
     // }
 
     // if (toBool(params["mathjax"])) {
-    //   applyMathJax(htmlContent);
+    //   applyMathJax(htmlElement);
     // }
 
     // if (toBool(params["abc"])) {
-    //   applyAbc(htmlContent);
+    //   applyAbc(htmlElement);
     // }
 
-    formatSourceCode(htmlContent);
-    cleanupListCodeBlocks(htmlContent);
+    formatSourceCode(htmlElement);
+    cleanupListCodeBlocks(htmlElement);
 
-    setCopyCodeButton(htmlContent);
+    setCopyCodeButton(htmlElement);
 
     // Compact PDF metadata block: group elements after the first <hr> into a .pdf-meta wrapper
     try {
-      const $ct = htmlContent.find('.card-text');
-      const $hr = $ct.find('hr').first();
-      if ($hr.length) {
-        const $metaElems = $hr.nextAll().not('.pdf-meta');
-        if ($metaElems.length) {
-          const $wrap = $('<div class="pdf-meta"></div>');
-          $metaElems.detach().appendTo($wrap);
-          $hr.after($wrap);
+      const cardText = htmlElement.querySelector('.card-text');
+      const hr = cardText ? cardText.querySelector('hr') : null;
+      if (hr) {
+        const metaElems = [];
+        let sibling = hr.nextElementSibling;
+        while (sibling) {
+          if (!sibling.classList.contains('pdf-meta')) {
+            metaElems.push(sibling);
+          }
+          sibling = sibling.nextElementSibling;
+        }
+        if (metaElems.length) {
+          const wrap = document.createElement('div');
+          wrap.className = 'pdf-meta';
+          metaElems.forEach(el => wrap.appendChild(el));
+          hr.insertAdjacentElement('afterend', wrap);
         }
       }
     } catch (_) { console.warn("[WebSocket] Reasoning block rendering failed:", _); }
@@ -658,13 +683,22 @@ window.loadedApp = "Chat";
     const timeoutDuration = isSlowProvider ? RESPONSE_TIMEOUT_SLOW_MS : RESPONSE_TIMEOUT_MS;
 
     const messageTimeout = setTimeout(function() {
-      if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
+      const userPanelEl = document.getElementById("user-panel");
+      const sendBtnEl = document.getElementById("send");
+      if (userPanelEl && userPanelEl.style.display !== "none" && sendBtnEl && sendBtnEl.disabled) {
 
-        $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
-        $("#message").prop("disabled", false);
-        $("#select-role").prop("disabled", false);
-        $("#monadic-spinner").hide();
-        $("#cancel_query").hide();
+        ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user"].forEach(function(id) {
+          const el = document.getElementById(id);
+          if (el) el.disabled = false;
+        });
+        const msgEl = document.getElementById("message");
+        if (msgEl) msgEl.disabled = false;
+        const roleEl = document.getElementById("select-role");
+        if (roleEl) roleEl.disabled = false;
+        const spinnerEl = document.getElementById("monadic-spinner");
+        if (spinnerEl) spinnerEl.style.display = 'none';
+        const cancelEl = document.getElementById("cancel_query");
+        if (cancelEl) cancelEl.style.display = 'none';
 
         // Reset state flags
         if (window.responseStarted !== undefined) window.responseStarted = false;

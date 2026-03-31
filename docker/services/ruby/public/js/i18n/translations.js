@@ -2711,12 +2711,12 @@ class WebUIi18n {
   
   // Helper method to update session button
   updateSessionButton() {
+    const label = $id("start-label");
+    if (!label) return;
     if (typeof messages !== 'undefined' && messages && messages.length > 0) {
-      const continueText = this.t('ui.session.continueSession');
-      $("#start-label").text(continueText);
+      label.textContent = this.t('ui.session.continueSession');
     } else {
-      const startText = this.t('ui.session.startSession');
-      $("#start-label").text(startText);
+      label.textContent = this.t('ui.session.startSession');
     }
   }
   

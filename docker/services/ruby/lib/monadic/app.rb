@@ -248,7 +248,7 @@ class MonadicApp
   end
 
 
-  def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
+  def json2html(hash, iteration: 0, exclude_empty: true, math: false)
     return hash.to_s unless hash.is_a?(Hash)
 
     iteration += 1
@@ -256,7 +256,7 @@ class MonadicApp
 
     if hash.key?("message")
       message = hash["message"]
-      output += StringUtils.markdown_to_html(message, mathjax: mathjax)
+      output += StringUtils.markdown_to_html(message, math: math)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end
@@ -284,7 +284,7 @@ class MonadicApp
         output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
         output += "</div>"
         output += "<div class='json-content'>"
-        output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
+        output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, math: math)
         output += "</div></div>"
       else
         case value
@@ -295,7 +295,7 @@ class MonadicApp
           output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
           output += "</div>"
           output += "<div class='json-content'>"
-          output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
+          output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, math: math)
           output += "</div></div>"
         when Array
           if value.all? { |v| v.is_a?(String) }
@@ -312,10 +312,10 @@ class MonadicApp
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)
-                          v = StringUtils.markdown_to_html(v, mathjax: mathjax)
+                          v = StringUtils.markdown_to_html(v, math: math)
                           "<li>#{v}</li>"
                         else
-                          "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)}</li>"
+                          "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty, math: math)}</li>"
                         end
             end
             output += "</ul>"
@@ -332,7 +332,7 @@ class MonadicApp
           else
             output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
             output += "<span>#{key}: </span>"
-            value = StringUtils.markdown_to_html(value, mathjax: mathjax)
+            value = StringUtils.markdown_to_html(value, math: math)
             output += "<span>#{value}</span>"
             output += "</div>"
           end

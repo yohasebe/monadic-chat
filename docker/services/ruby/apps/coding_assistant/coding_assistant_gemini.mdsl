@@ -65,7 +65,7 @@ app "CodingAssistantGemini" do
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false
     auto_speech false
-    mathjax false
+    math false
     initiate_from_assistant false
     group "Google"
   end

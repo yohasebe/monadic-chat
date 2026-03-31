@@ -44,7 +44,7 @@ module MonadicDSL
   # - auto_speech: Enables automatic text-to-speech for assistant messages
   # - initiate_from_assistant: Allows assistant to proactively send follow-up messages
   # - mermaid: Enables Mermaid diagram rendering and interaction for flowcharts and diagrams
-  # - mathjax: Enables mathematical notation rendering using MathJax library
+  # - math: Enables mathematical notation rendering using MathJax library
   # - abc: Enables ABC music notation rendering and playback for music composition
   # - tools: Defines function-calling capabilities available to the model
   # - image_generation: Enables AI image generation within the conversation

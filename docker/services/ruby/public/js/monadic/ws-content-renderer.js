@@ -2,7 +2,7 @@
  * ws-content-renderer.js
  *
  * Content rendering utilities extracted from websocket.js:
- * MathJax, Mermaid, ABC notation, copy-code buttons, message rendering,
+ * KaTeX math, Mermaid, ABC notation, copy-code buttons, message rendering,
  * toggle/source-code helpers.
  */
 (function() {
@@ -158,7 +158,7 @@
     });
   }
 
-  // ── KaTeX (replaces MathJax) ────────────────────────────────────────
+  // ── KaTeX ──────────────────────────────────────────────────────────
 
   var katexMacros = {
     "\\R": "\\mathbb{R}",

@@ -113,7 +113,7 @@ app "ResearchAssistantGemini" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     monadic true  # Uses Session State mechanism for research progress tracking
   end
 

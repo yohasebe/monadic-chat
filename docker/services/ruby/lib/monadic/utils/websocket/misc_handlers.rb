@@ -166,7 +166,7 @@ module WebSocketHelper
 
     # Don't add language to the stored system prompt
     # It will be injected dynamically during API calls
-    # Note: MathJax prompts are now handled by SystemPromptInjector
+    # Note: Math rendering prompts are now handled by SystemPromptInjector
 
     params = get_session_params
     new_data = { "mid" => SecureRandom.hex(4),

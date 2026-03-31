@@ -578,7 +578,7 @@ module StringUtils
     nil
   end
 
-  def markdown_to_html(text, mathjax: false)
+  def markdown_to_html(text, math: false)
     # if text is not a String, return a string representation of it
     return text.to_s unless text.is_a?(String)
 
@@ -629,17 +629,17 @@ module StringUtils
       }
     }
 
-    if mathjax
-      # === Improved MathJax Processing Algorithm ===
-      # 1. Protect code blocks first (as they might contain MathJax-like syntax)
+    if math
+      # === Math Expression Processing Algorithm ===
+      # 1. Protect code blocks first (as they might contain math-like syntax)
       # 2. Convert \[...\] and \(...\) to $$...$$ and $...$ outside code blocks
       # 3. Detect and protect math expressions
       # 4. Render markdown
       # 5. Restore protected math expressions and code blocks into HTML
 
-      # Arrays to store MathJax expressions
-      block_mathjax = []
-      inline_mathjax = []
+      # Arrays to store math expressions
+      block_math = []
+      inline_math = []
 
       # First protect code blocks (to prevent MathJax being processed within code)
       # Use non-greedy matching with careful pattern to match fenced code blocks
@@ -720,30 +720,30 @@ module StringUtils
       # Protect block math expressions - $$...$$
       t5 = t4_6.gsub(/\$\$([\s\S]*?)\$\$/m) do |match|
         content = Regexp.last_match(1)
-        block_mathjax << content
-        "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
+        block_math << content
+        "BLOCK_MATHJAX_PLACEHOLDER_#{block_math.size - 1}"
       end
 
       # Protect block math expressions - \[...\] (any remaining after conversion)
       t6 = t5.gsub(/\\\[([\s\S]*?)\\\]/m) do |match|
         content = Regexp.last_match(1)
-        block_mathjax << content
-        "BLOCK_MATHJAX_PLACEHOLDER_#{block_mathjax.size - 1}"
+        block_math << content
+        "BLOCK_MATHJAX_PLACEHOLDER_#{block_math.size - 1}"
       end
 
       # Protect inline math expressions (multiple patterns)
       # $...$ pattern - avoid $ that appears in the middle of words
       t7 = t6.gsub(/(?<!\w)\$((?!\s)[\s\S]*?(?<!\s))\$(?!\w)/m) do |match|
         content = Regexp.last_match(1)
-        inline_mathjax << content
-        "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
+        inline_math << content
+        "INLINE_MATHJAX_PLACEHOLDER_#{inline_math.size - 1}"
       end
 
       # \(...\) pattern (any remaining after conversion)
       t8 = t7.gsub(/\\\(([\s\S]*?)\\\)/m) do |match|
         content = Regexp.last_match(1)
-        inline_mathjax << content
-        "INLINE_MATHJAX_PLACEHOLDER_#{inline_mathjax.size - 1}"
+        inline_math << content
+        "INLINE_MATHJAX_PLACEHOLDER_#{inline_math.size - 1}"
       end
 
       # Convert Markdown to HTML
@@ -774,7 +774,7 @@ module StringUtils
       html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
 
       # Restore block math expressions
-      block_mathjax.each_with_index do |code, index|
+      block_math.each_with_index do |code, index|
         # Extract math expressions from within <p> tags if present
         html.gsub!(%r{<p>BLOCK_MATHJAX_PLACEHOLDER_#{index}</p>}, "$$#{code}$$")
         # Handle other cases with normal replacement
@@ -782,7 +782,7 @@ module StringUtils
       end
 
       # Restore inline math expressions
-      inline_mathjax.each_with_index do |code, index|
+      inline_math.each_with_index do |code, index|
         placeholder = "INLINE_MATHJAX_PLACEHOLDER_#{index}"
         # Use \(...\) format for expressions with \text{} or other complex commands
         if code.include?('\\text') || code.include?('\\math') || code.count('\\') > 2

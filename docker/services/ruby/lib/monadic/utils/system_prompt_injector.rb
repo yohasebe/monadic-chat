@@ -155,10 +155,10 @@ module Monadic
           }
         },
         {
-          name: :mathjax,
+          name: :math,
           priority: 50,
           condition: ->(session, _options) {
-            session[:parameters]&.[]("mathjax") == true
+            session[:parameters]&.[]("math") == true
           },
           generator: ->(session, _options) {
             parts = [MATHJAX_BASE_PROMPT]

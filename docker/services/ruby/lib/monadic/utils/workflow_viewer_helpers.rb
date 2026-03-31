@@ -57,7 +57,7 @@ module Monadic
       end
 
       def wv_extract_features(s)
-        flags = %w[websearch monadic image pdf jupyter mermaid mathjax abc
+        flags = %w[websearch monadic image pdf jupyter mermaid math abc
                    image_generation easy_submit auto_speech initiate_from_assistant]
         result = flags.each_with_object({}) do |f, h|
           val = s[f.to_sym]

@@ -402,7 +402,7 @@ app "JupyterNotebookOpenAI" do
     auto_speech false
     monadic true  # Uses Session State for notebook context tracking
     jupyter true
-    mathjax true
+    math true
     initiate_from_assistant true
   end
 

@@ -707,10 +707,10 @@ window.loadParams = function(params, calledFor = "loadParams") {
       initiateFromAssistantCb.checked = toBool(params["initiate_from_assistant"]);
     }
   }
-  const mathjaxCb = $id("mathjax");
+  const mathCb = $id("math");
   const mathBadge = $id("math-badge");
-  if (mathjaxCb) mathjaxCb.checked = toBool(params["mathjax"]);
-  $toggle(mathBadge, toBool(params["mathjax"]));
+  if (mathCb) mathCb.checked = toBool(params["math"]);
+  $toggle(mathBadge, toBool(params["math"]));
 
   const initialPromptEl = $id("initial-prompt");
   if (initialPromptEl) {
@@ -1027,8 +1027,8 @@ function setParams() {
     params["initiate_from_assistant"] = false;
   }
 
-  const mathjaxEl = $id("mathjax");
-  params["mathjax"] = mathjaxEl ? mathjaxEl.checked : false;
+  const mathEl = $id("math");
+  params["math"] = mathEl ? mathEl.checked : false;
 
   const websearchEl = $id("websearch");
   const modelEl = $id("model");
@@ -1427,7 +1427,7 @@ function doResetActions(resetToDefaultApp = false) {
   $toggle(drToolsBadge, apps[currentApp]["tools"]);
 
   const drMathBadge = $id("math-badge");
-  $toggle(drMathBadge, toBool(apps[currentApp]["mathjax"]));
+  $toggle(drMathBadge, toBool(apps[currentApp]["math"]));
 
   const drBaseAppIcon = $id("base-app-icon");
   if (drBaseAppIcon) drBaseAppIcon.innerHTML = apps[currentApp]["icon"];
@@ -1573,7 +1573,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   // Handle checkbox changes for user-controlled capabilities
-  ["mathjax", "mermaid", "websearch"].forEach(id => {
+  ["math", "mermaid", "websearch"].forEach(id => {
     const el = $id(id);
     if (el) {
       el.addEventListener("change", function() {

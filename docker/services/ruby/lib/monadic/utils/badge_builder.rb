@@ -304,9 +304,9 @@ module Monadic
           label: "monadic",
           description: "Structured context management"
         },
-        mathjax: {
+        math: {
           icon: "fa-square-root-alt",
-          label: "mathjax",
+          label: "math",
           description: "Mathematical notation rendering",
           user_controlled: true
         },

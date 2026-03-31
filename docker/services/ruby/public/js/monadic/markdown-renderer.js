@@ -649,7 +649,7 @@
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(\\*)(?!\\*)', 'g'), '$1\u200B$2');
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(_)(?!_)', 'g'), '$1\u200B$2');
 
-      // 1. MathJax block expressions をプレースホルダーに
+      // 1. Math block expressions (KaTeX) をプレースホルダーに
       const mathBlocks = [];
       text = text.replace(/\$\$([\s\S]+?)\$\$/g, (match, content) => {
         const index = mathBlocks.length;
@@ -657,7 +657,7 @@
         return `MATH_BLOCK_PLACEHOLDER_${index}`;
       });
 
-      // 2. MathJax inline expressions をプレースホルダーに
+      // 2. Math inline expressions (KaTeX) をプレースホルダーに
       const mathInline = [];
       text = text.replace(/\$(.+?)\$/g, (match, content) => {
         const index = mathInline.length;

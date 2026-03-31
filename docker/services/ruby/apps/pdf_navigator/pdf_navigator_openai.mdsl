@@ -100,7 +100,7 @@ app "PDFNavigatorOpenAI" do
     auto_speech false
     initiate_from_assistant false
     pdf_vector_storage true
-    mathjax true
+    math true
   end
   
   tools do

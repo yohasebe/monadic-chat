@@ -77,7 +77,7 @@ app "ContentReaderOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     websearch true
   end
   

@@ -82,7 +82,7 @@ app "CodingAssistantCohere" do
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false
-    mathjax false
+    math false
     initiate_from_assistant false
     group "Cohere"
   end

@@ -123,7 +123,7 @@ app "ResearchAssistantOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     pdf_vector_storage true
     monadic true  # Uses Session State mechanism for research progress tracking
   end

@@ -16,7 +16,7 @@ app "MathTutorMistral" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     group "Mistral"
     monadic true  # Uses Session State mechanism for learning progress tracking
   end

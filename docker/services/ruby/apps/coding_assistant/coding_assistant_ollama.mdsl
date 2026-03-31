@@ -71,7 +71,7 @@ app "CodingAssistantOllama" do
   features do
     easy_submit false
     auto_speech false
-    mathjax false
+    math false
     initiate_from_assistant false
     group "Ollama"
   end

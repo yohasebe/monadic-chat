@@ -101,7 +101,7 @@ global.apps = {
     'monadic': true,
     'websearch': false,
     'tools': true,
-    'mathjax': true
+    'math': true
   }
 };
 global.modelSpec = {

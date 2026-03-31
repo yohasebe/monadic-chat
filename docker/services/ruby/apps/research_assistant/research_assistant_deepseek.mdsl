@@ -81,7 +81,7 @@ app "ResearchAssistantDeepSeek" do
     temperature 0.0
     easy_submit false
     auto_speech false
-    mathjax true
+    math true
     initiate_from_assistant true
     # Note: monadic mode disabled for DeepSeek due to tool loop issues
   end

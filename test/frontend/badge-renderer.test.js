@@ -14,7 +14,7 @@ global.apps = {
         { id: 'code', label: 'Code Runner', description: '2 tools', icon: 'fa-code', visibility: 'conditional', type: 'tools' }
       ],
       capabilities: [
-        { id: 'mathjax', label: 'MathJax', description: 'Math rendering', icon: 'fa-calculator', type: 'capabilities' }
+        { id: 'math', label: 'MathJax', description: 'Math rendering', icon: 'fa-calculator', type: 'capabilities' }
       ]
     }
   },

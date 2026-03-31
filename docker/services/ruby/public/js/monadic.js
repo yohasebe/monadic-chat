@@ -50,8 +50,8 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
-  const mathjaxEl = $id("mathjax");
-  clone.mathjax = (mathjaxEl && mathjaxEl.checked) || false;
+  const mathEl = $id("math");
+  clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
   clone.initiate_from_assistant = (initiateEl && initiateEl.checked) || false;
 
@@ -555,8 +555,8 @@ document.addEventListener("DOMContentLoaded", function () {
     var indicators = "";
     var websearchCb = $id("websearch");
     if (websearchCb && websearchCb.checked) indicators += '<span class="badge bg-info me-1">Web</span>';
-    var mathjaxCb = $id("mathjax");
-    if (mathjaxCb && mathjaxCb.checked) indicators += '<span class="badge bg-secondary me-1">Math</span>';
+    var mathCb = $id("math");
+    if (mathCb && mathCb.checked) indicators += '<span class="badge bg-secondary me-1">Math</span>';
     var reasoningEffortSel = $id("reasoning-effort");
     var re = reasoningEffortSel ? reasoningEffortSel.value : "";
     if (reasoningEffortSel && !reasoningEffortSel.disabled && re && re !== "none" && re !== "disabled") {
@@ -2080,7 +2080,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     // Preserve important values before Object.assign overwrites them
-    const currentMathjax = ($id("mathjax") || {}).checked;
+    const currentMathjax = ($id("math") || {}).checked;
     // Preserve previous values only during import flows
     const importingFlow = (typeof window !== 'undefined') && (window.isImporting || window.isProcessingImport);
 
@@ -2137,9 +2137,9 @@ document.addEventListener("DOMContentLoaded", function () {
         params['initiate_from_assistant'] = false;
       }
     }
-    // Restore mathjax state if not explicitly set in app parameters
-    if (apps[appValue] && !apps[appValue].hasOwnProperty('mathjax')) {
-      params['mathjax'] = currentMathjax;
+    // Restore math state if not explicitly set in app parameters
+    if (apps[appValue] && !apps[appValue].hasOwnProperty('math')) {
+      params['math'] = currentMathjax;
     }
     
     // Ensure loadParams runs even if another async selection is in progress
@@ -2330,11 +2330,11 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("websearch-badge"));
     }
 
-    if (toBool(apps[appValue]["mathjax"])) {
-      { const el = $id("mathjax"); if (el) el.checked = true; }
+    if (toBool(apps[appValue]["math"])) {
+      { const el = $id("math"); if (el) el.checked = true; }
       $show($id("math-badge"));
     } else {
-      { const el = $id("mathjax"); if (el) el.checked = false; }
+      { const el = $id("math"); if (el) el.checked = false; }
       $hide($id("math-badge"));
     }
 
@@ -2423,11 +2423,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  $on($id("mathjax"), "change", function() {
+  $on($id("math"), "change", function() {
     if (this.checked) {
-      params["mathjax"] = true;
+      params["math"] = true;
     } else {
-      params["mathjax"] = false;
+      params["math"] = false;
     }
     // Update badges to reflect toggle state
     const selectedApp = ($id("apps") || {}).value;
@@ -2435,7 +2435,7 @@ document.addEventListener("DOMContentLoaded", function () {
       window.updateAppBadges(selectedApp);
     }
     if (!isParamBroadcastSuppressed()) {
-      broadcastParamsUpdate('mathjax_toggle');
+      broadcastParamsUpdate('math_toggle');
     }
   });
 
@@ -2802,7 +2802,7 @@ document.addEventListener("DOMContentLoaded", function () {
       ws.send(JSON.stringify({
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
-        mathjax: ($id("mathjax") || {}).checked,
+        math: ($id("math") || {}).checked,
         monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],

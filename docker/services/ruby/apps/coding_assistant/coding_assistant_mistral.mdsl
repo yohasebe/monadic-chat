@@ -63,7 +63,7 @@ app "CodingAssistantMistral" do
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false
-    mathjax false
+    math false
     initiate_from_assistant false
     group "Mistral"
   end

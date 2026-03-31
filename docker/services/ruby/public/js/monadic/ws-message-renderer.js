@@ -371,7 +371,7 @@ function handleEditSuccess(data) {
       applyDrawIO(cardEl);
     }
 
-    if (toBool(p["mathjax"])) {
+    if (toBool(p["math"])) {
       applyMath(cardEl);
     }
 
@@ -472,7 +472,7 @@ function handleDisplaySample(data) {
     applyDrawIO(lastCard);
   }
 
-  if (toBool(p["mathjax"])) {
+  if (toBool(p["math"])) {
     applyMath(lastCard);
   }
 

@@ -641,7 +641,7 @@ module StringUtils
       block_math = []
       inline_math = []
 
-      # First protect code blocks (to prevent MathJax being processed within code)
+      # First protect code blocks (to prevent math expressions being processed within code)
       # Use non-greedy matching with careful pattern to match fenced code blocks
       code_blocks = []
       t4 = t3.gsub(/```(?:[a-zA-Z0-9+\-]*)\n[\s\S]*?\n```|`[^`]*`/m) do |match|

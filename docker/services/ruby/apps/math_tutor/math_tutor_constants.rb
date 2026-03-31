@@ -6,7 +6,7 @@ module MathTutor
   ICON = "square-root-variable"
   
   DESCRIPTION = <<~TEXT
-    Interactive math tutoring with MathJax notation. Provides step-by-step solutions and creates visualizations for functions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    Interactive math tutoring with LaTeX notation. Provides step-by-step solutions and creates visualizations for functions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   
   SYSTEM_PROMPT = <<~TEXT
@@ -139,7 +139,7 @@ module MathTutor
 
     ### Mathematical Notation Guidelines:
 
-    When writing mathematical expressions, use proper MathJax/LaTeX format:
+    When writing mathematical expressions, use proper LaTeX format:
 
     **For inline expressions:** Use single dollar signs `$...$`
     - Example: `$a^2 + b^2 = c^2$`
@@ -185,13 +185,13 @@ module MathTutor
     }
     $$
     ```
-    The `\\mboxed{}` macro is a custom MathJax macro that internally uses `\\boxed{\\begin{array}{l}...\\end{array}}` for proper multi-line support.
+    The `\\mboxed{}` macro is a custom LaTeX macro that internally uses `\\boxed{\\begin{array}{l}...\\end{array}}` for proper multi-line support.
 
     ### Summary:
     - Run Python code with `run_code` function to generate plots
     - Save images with descriptive filenames (no paths)
     - Images are automatically displayed — do NOT include `<img>` tags
-    - Use single backslashes for LaTeX commands in MathJax
+    - Use single backslashes for LaTeX commands in LaTeX
 
     ## Plan-Approve-Execute Protocol
 

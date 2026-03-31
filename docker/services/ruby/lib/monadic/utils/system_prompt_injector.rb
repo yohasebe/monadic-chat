@@ -60,43 +60,43 @@ module Monadic
         ✅ CORRECT: "That sounds like an exciting plan! Studying abroad can be both thrilling and challenging. How can I help you prepare?"
       PROMPT
 
-      # MathJax formatting prompt (base)
-      MATHJAX_BASE_PROMPT = <<~PROMPT.strip
-        You use the MathJax notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose MathJax/LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of MathJax expression should be presntend without surrounding backticks.
+      # Math formatting prompt (base)
+      MATH_BASE_PROMPT = <<~PROMPT.strip
+        You use the LaTeX notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of LaTeX expression should be presntend without surrounding backticks.
       PROMPT
 
-      # MathJax formatting prompt for monadic/jupyter mode (requires extra escaping)
-      MATHJAX_MONADIC_PROMPT = <<~'PROMPT'.strip
-        Make sure to escape properly in the MathJax expressions.
+      # Math formatting prompt for monadic/jupyter mode (requires extra escaping)
+      MATH_MONADIC_PROMPT = <<~'PROMPT'.strip
+        Make sure to escape properly in the LaTeX expressions.
 
-          Good examples of inline MathJax expressions:
+          Good examples of inline LaTeX expressions:
           - `$1 + 2 + 3 + … + k + (k + 1) = \\frac{k(k + 1)}{2} + (k + 1)$`
           - `$\\textbf{a} + \\textbf{b} = (a_1 + b_1, a_2 + b_2)$`
           - `$\\begin{align} 1 + 2 + … + k + (k+1) &= \\frac{k(k+1)}{2} + (k+1)\\end{align}$`
           - `$\\sin(\\theta) = \\frac{\\text{opposite}}{\\text{hypotenuse}}$`
 
-        Good examples of block MathJax expressions:
+        Good examples of block LaTeX expressions:
           - `$$1 + 2 + 3 + … + k + (k + 1) = \\frac{k(k + 1)}{2} + (k + 1)$$`
           - `$$\\textbf{a} + \\textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
           - `$$\\begin{align} 1 + 2 + … + k + (k+1) &= \\frac{k(k+1)}{2} + (k+1)\\end{align}$$`
           - `$$\\sin(\\theta) = \\frac{\\text{opposite}}{\\text{hypotenuse}}$$`
       PROMPT
 
-      # MathJax formatting prompt for regular mode (standard escaping)
-      MATHJAX_REGULAR_PROMPT = <<~'PROMPT'.strip
-        Good examples of inline MathJax expressions:
+      # Math formatting prompt for regular mode (standard escaping)
+      MATH_REGULAR_PROMPT = <<~'PROMPT'.strip
+        Good examples of inline LaTeX expressions:
           - `$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$`
           - `$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$`
           - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
           - `$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$`
 
-        Good examples of block MathJax expressions:
+        Good examples of block LaTeX expressions:
           - `$$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$$`
           - `$$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
           - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
           - `$$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$$`
 
-        Remember that the following are not available in MathJax:
+        Remember that the following are not available in LaTeX:
           - `\begin{itemize}` and `\end{itemize}`
       PROMPT
 
@@ -161,16 +161,16 @@ module Monadic
             session[:parameters]&.[]("math") == true
           },
           generator: ->(session, _options) {
-            parts = [MATHJAX_BASE_PROMPT]
+            parts = [MATH_BASE_PROMPT]
 
             # Add mode-specific escaping instructions
             monadic_mode = session[:parameters]&.[]("monadic") == true
             jupyter_mode = session[:parameters]&.[]("jupyter") == true
 
             if monadic_mode || jupyter_mode
-              parts << MATHJAX_MONADIC_PROMPT
+              parts << MATH_MONADIC_PROMPT
             else
-              parts << MATHJAX_REGULAR_PROMPT
+              parts << MATH_REGULAR_PROMPT
             end
 
             parts.join("\n\n")

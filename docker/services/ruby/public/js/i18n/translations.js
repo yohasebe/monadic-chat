@@ -2513,15 +2513,15 @@ class WebUIi18n {
 
       // Update reasoning labels if available
       if (window.ReasoningLabels) {
-        const selectedModel = document.getElementById('model')?.value;
-        const currentApp = document.getElementById('apps')?.value;
+        const selectedModel = $id('model')?.value;
+        const currentApp = $id('apps')?.value;
         if (selectedModel && currentApp) {
           const provider = window.getProviderFromGroup ? window.getProviderFromGroup(window.apps[currentApp].group) : null;
           if (provider) {
             window.ReasoningLabels.updateUILabels(provider, selectedModel);
 
             // Update option labels
-            const select = document.getElementById('reasoning-effort');
+            const select = $id('reasoning-effort');
             if (select && !select.disabled) {
               const currentValue = select.value;
               select.querySelectorAll('option').forEach(option => {
@@ -2758,7 +2758,7 @@ document.addEventListener('DOMContentLoaded', () => {
   webUIi18n.init();
 
   // Conversation language selector only changes conversation language, NOT UI
-  const conversationLanguageSelector = document.getElementById('conversation-language');
+  const conversationLanguageSelector = $id('conversation-language');
   if (conversationLanguageSelector) {
     // Set initial value from cookie if exists
     const savedConversationLanguage = getCookie('conversation-language');
@@ -2816,7 +2816,7 @@ if (window.electronAPI && typeof window.electronAPI.onUILanguageChanged === 'fun
       }
 
       // Sync conversation language with UI language
-      const conversationLanguageSelector = document.getElementById('conversation-language');
+      const conversationLanguageSelector = $id('conversation-language');
       if (conversationLanguageSelector) {
         // Reset the user-changed flag since UI language is being changed
         try {

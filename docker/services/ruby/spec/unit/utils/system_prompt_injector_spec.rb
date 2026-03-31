@@ -144,14 +144,14 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
     context 'with MathJax enabled' do
       it 'includes MathJax prompt with regular escaping for standard mode' do
         session = {
-          parameters: { "mathjax" => true }
+          parameters: { "math" => true }
         }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:mathjax)
+        expect(result[0][:name]).to eq(:math)
         expect(result[0][:content]).to include('MathJax notation')
         expect(result[0][:content]).to include('\\frac{k(k + 1)}{2}')  # Single backslash (literal)
         expect(result[0][:content]).not_to include('\\\\frac')  # Not double-escaped
@@ -160,14 +160,14 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
       it 'includes MathJax prompt with extra escaping for monadic mode' do
         session = {
-          parameters: { "mathjax" => true, "monadic" => true }
+          parameters: { "math" => true, "monadic" => true }
         }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:mathjax)
+        expect(result[0][:name]).to eq(:math)
         expect(result[0][:content]).to include('MathJax notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
@@ -176,22 +176,22 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
       it 'includes MathJax prompt with extra escaping for jupyter mode' do
         session = {
-          parameters: { "mathjax" => true, "jupyter" => true }
+          parameters: { "math" => true, "jupyter" => true }
         }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:mathjax)
+        expect(result[0][:name]).to eq(:math)
         expect(result[0][:content]).to include('MathJax notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
       end
 
-      it 'excludes MathJax prompt when mathjax is false' do
+      it 'excludes MathJax prompt when math is false' do
         session = {
-          parameters: { "mathjax" => false }
+          parameters: { "math" => false }
         }
         options = {}
 
@@ -300,7 +300,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
           runtime_settings: { language: 'en' },
           parameters: {
             "stt_model" => "gpt-4o-transcribe-diarize",
-            "mathjax" => true
+            "math" => true
           }
         }
         options = {
@@ -313,11 +313,11 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(5)
-        # Check priority order: language(100) > websearch(80) > diarization(60) > mathjax(50) > suffix(40)
+        # Check priority order: language(100) > websearch(80) > diarization(60) > math(50) > suffix(40)
         expect(result[0][:name]).to eq(:language_preference)
         expect(result[1][:name]).to eq(:websearch)
         expect(result[2][:name]).to eq(:stt_diarization_warning)
-        expect(result[3][:name]).to eq(:mathjax)
+        expect(result[3][:name]).to eq(:math)
         expect(result[4][:name]).to eq(:system_prompt_suffix)
       end
 

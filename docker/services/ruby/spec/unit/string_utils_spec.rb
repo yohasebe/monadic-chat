@@ -377,38 +377,38 @@ RSpec.describe StringUtils do
     context "with MathJax enabled" do
       it "preserves inline MathJax expressions with $...$ format" do
         text = "Equation: $E = mc^2$"
-        result = StringUtils.markdown_to_html(text, mathjax: true)
+        result = StringUtils.markdown_to_html(text, math: true)
         expect(result).to include("$E = mc^2$")
       end
       
       it "preserves block MathJax expressions with $$...$$ format" do
         text = "Equation:\n$$E = mc^2$$"
-        result = StringUtils.markdown_to_html(text, mathjax: true)
+        result = StringUtils.markdown_to_html(text, math: true)
         expect(result).to include("$$E = mc^2$$")
       end
       
       it "converts inline MathJax expressions from \\(...\\) format to $...$ format" do
         text = "Equation: \\(E = mc^2\\)"
-        result = StringUtils.markdown_to_html(text, mathjax: true)
+        result = StringUtils.markdown_to_html(text, math: true)
         expect(result).to include("$E = mc^2$")
       end
       
       it "converts block MathJax expressions from \\[...\\] format to $$...$$ format" do
         text = "Equation:\n\\[E = mc^2\\]"
-        result = StringUtils.markdown_to_html(text, mathjax: true)
+        result = StringUtils.markdown_to_html(text, math: true)
         expect(result).to include("$$E = mc^2$$")
       end
       
       it "preserves LaTeX escape sequences in MathJax content" do
         text = "Equation with escape: $E = mc^2 \\text{ energy}$"
-        result = StringUtils.markdown_to_html(text, mathjax: true)
+        result = StringUtils.markdown_to_html(text, math: true)
         # Our new implementation uses \(...\) format for complex LaTeX commands
         expect(result).to include("\\(E = mc^2 \\text{ energy}\\)")
       end
       
       it "preserves MathJax code in code blocks" do
         text = "```python\nx = 1 + 2 # Compute $E = mc^2$ result\n```"
-        result = StringUtils.markdown_to_html(text, mathjax: true)
+        result = StringUtils.markdown_to_html(text, math: true)
         # Phase 3: Client-side rendering - syntax highlighting added by client
         expect(result).to include("<code class=\"language-python\">")
         expect(result).to include("x = 1 + 2")
@@ -417,7 +417,7 @@ RSpec.describe StringUtils do
 
       it "does not convert MathJax notation inside code blocks" do
         text = "```python\nExample: \\[E = mc^2\\] or \\(a + b = c\\)\n```"
-        result = StringUtils.markdown_to_html(text, mathjax: true)
+        result = StringUtils.markdown_to_html(text, math: true)
         # Phase 3: Client-side rendering - syntax highlighting added by client
         expect(result).to include("<code class=\"language-python\">")
         expect(result).to include("Example")

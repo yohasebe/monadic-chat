@@ -168,7 +168,7 @@ module E2EHelper
       system_prompt_msg = {
         "message" => "SYSTEM_PROMPT",
         "content" => initial_prompt,
-        "mathjax" => false,
+        "math" => false,
         "monadic" => false
       }
       ws_connection[:client].send(JSON.generate(system_prompt_msg))

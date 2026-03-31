@@ -95,7 +95,7 @@ RSpec.describe "API Routes helpers" do
           pdf: false,
           jupyter: true,
           mermaid: false,
-          mathjax: true,
+          math: true,
           abc: false,
           image_generation: true,
           easy_submit: false,

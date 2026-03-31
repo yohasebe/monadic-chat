@@ -15,7 +15,7 @@ RSpec.describe MDSLSchema do
     
     it 'correctly categorizes boolean properties' do
       boolean_props = %i[disabled monadic easy_submit auto_speech 
-                         initiate_from_assistant image pdf jupyter mathjax 
+                         initiate_from_assistant image pdf jupyter math 
                          websearch stream vision reasoning ai_user]
       
       boolean_props.each do |prop|

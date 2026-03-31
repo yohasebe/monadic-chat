@@ -36,7 +36,7 @@ RSpec.describe "Native Web Search Integration", :integration do
           end
 
           # Add missing helper methods
-          def markdown_to_html(text, mathjax: false)
+          def markdown_to_html(text, math: false)
             text # Simple passthrough for testing
           end
 
@@ -109,7 +109,7 @@ RSpec.describe "Native Web Search Integration", :integration do
           end
 
           # Add missing helper methods
-          def markdown_to_html(text, mathjax: false)
+          def markdown_to_html(text, math: false)
             text # Simple passthrough for testing
           end
 
@@ -180,7 +180,7 @@ RSpec.describe "Native Web Search Integration", :integration do
         end
         
         # Add missing helper methods
-        def markdown_to_html(text, mathjax: false)
+        def markdown_to_html(text, math: false)
           text # Simple passthrough for testing
         end
         
@@ -302,7 +302,7 @@ RSpec.describe "Native Web Search Integration", :integration do
           end
 
           # Add missing helper methods
-          def markdown_to_html(text, mathjax: false)
+          def markdown_to_html(text, math: false)
             text # Simple passthrough for testing
           end
 
@@ -377,7 +377,7 @@ RSpec.describe "Native Web Search Integration", :integration do
           end
 
           # Add missing helper methods
-          def markdown_to_html(text, mathjax: false)
+          def markdown_to_html(text, math: false)
             text # Simple passthrough for testing
           end
 
@@ -487,7 +487,7 @@ RSpec.describe "Native Web Search Integration", :integration do
         end
         
         # Add missing helper methods
-        def markdown_to_html(text, mathjax: false)
+        def markdown_to_html(text, math: false)
           text # Simple passthrough for testing
         end
         

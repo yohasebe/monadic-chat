@@ -28,7 +28,7 @@ RSpec.describe "xAI Responses API Web Search", :integration do
             "Grok"
           end
 
-          def markdown_to_html(text, mathjax: false)
+          def markdown_to_html(text, math: false)
             text
           end
 
@@ -94,7 +94,7 @@ RSpec.describe "xAI Responses API Web Search", :integration do
             "Grok"
           end
 
-          def markdown_to_html(text, mathjax: false)
+          def markdown_to_html(text, math: false)
             text
           end
 
@@ -159,7 +159,7 @@ RSpec.describe "xAI Responses API Web Search", :integration do
             "Grok"
           end
 
-          def markdown_to_html(text, mathjax: false)
+          def markdown_to_html(text, math: false)
             text
           end
 

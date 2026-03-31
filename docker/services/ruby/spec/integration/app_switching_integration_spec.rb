@@ -47,7 +47,7 @@ RSpec.describe 'App Switching Integration', type: :integration do
         # Test each boolean feature flag across all apps
         boolean_flags = %w[
           auto_speech easy_submit initiate_from_assistant
-          mathjax mermaid abc monadic
+          math mermaid abc monadic
           pdf_vector_storage websearch
           jupyter video
         ]
@@ -206,7 +206,7 @@ RSpec.describe 'App Switching Integration', type: :integration do
       # Pure boolean flags
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
-        mathjax mermaid abc monadic
+        math mermaid abc monadic
         pdf_vector_storage websearch
         jupyter video
       ]
@@ -238,7 +238,7 @@ RSpec.describe 'App Switching Integration', type: :integration do
       # Pure boolean flags (image_generation excluded - can be "upload_only", "disabled")
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
-        mathjax mermaid abc monadic
+        math mermaid abc monadic
         pdf_vector_storage websearch
         jupyter video
       ]

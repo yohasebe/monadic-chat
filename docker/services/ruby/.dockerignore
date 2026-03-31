@@ -9,7 +9,7 @@ test_tts_input_*
 # Development/build config not needed in image
 compose.yml
 Gemfile.lock
-mathjax-config.js
+math-config.js
 docs/
 
 # Temporary and generated files

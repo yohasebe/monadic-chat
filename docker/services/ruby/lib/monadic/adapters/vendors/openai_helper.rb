@@ -1613,7 +1613,7 @@ module OpenAIHelper
       # Apply monadic transformation if needed (for display purposes only)
       # The actual API transformation happens later when building messages
 
-      html = markdown_to_html(message, mathjax: obj["mathjax"])
+      html = markdown_to_html(message, math: obj["math"])
 
       if message != "" && role == "user"
 

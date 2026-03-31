@@ -1054,7 +1054,7 @@ module GrokHelper
         session.delete(:model_switch_notified)
       end
 
-      html = markdown_to_html(obj["message"], mathjax: obj["mathjax"])
+      html = markdown_to_html(obj["message"], math: obj["math"])
 
       if message != "" && role == "user"
 

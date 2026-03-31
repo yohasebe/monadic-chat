@@ -392,7 +392,7 @@ module PerplexityHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      html = markdown_to_html(obj["message"], mathjax: obj["mathjax"])
+      html = markdown_to_html(obj["message"], math: obj["math"])
 
       if message != "" && role == "user"
 

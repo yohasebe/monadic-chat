@@ -20,7 +20,7 @@ class SimpleMonadicTest
   
   def initialize
     @context = { "test" => true, "count" => 0 }
-    @settings = { "mathjax" => false }
+    @settings = { "math" => false }
   end
   
   def settings

@@ -945,7 +945,7 @@ module DeepSeekHelper
       assistant_message = {
         "role" => "assistant",
         "text" => clean_content,
-        "html" => markdown_to_html(clean_content, mathjax: true),
+        "html" => markdown_to_html(clean_content, math: true),
         "lang" => detect_language(clean_content),
         "mid" => request_id,
         "active" => true,
@@ -1018,7 +1018,7 @@ module DeepSeekHelper
           assistant_message = {
             "role" => "assistant",
             "text" => content_before_tools.to_s,
-            "html" => markdown_to_html(content_before_tools.to_s, mathjax: true),
+            "html" => markdown_to_html(content_before_tools.to_s, math: true),
             "lang" => detect_language(content_before_tools.to_s),
             "mid" => request_id,
             "active" => true,

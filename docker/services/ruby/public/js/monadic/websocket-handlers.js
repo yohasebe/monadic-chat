@@ -385,7 +385,7 @@ function handleErrorMessage(data) {
       []
     );
     const discourseEl = $id("discourse");
-    if (discourseEl) discourseEl.insertAdjacentHTML('beforeend', errorElement);
+    if (discourseEl && errorElement) discourseEl.appendChild(errorElement);
     
     // Don't call setAlert here as we've already created the error card
     // This prevents duplicate error messages

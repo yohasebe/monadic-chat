@@ -24,7 +24,10 @@ global.URL = {
   revokeObjectURL: jest.fn()
 };
 global.createCard = jest.fn().mockImplementation((role, header, content, lang, mid, isAssistant, images) => {
-  return '<div class="card">Test Card</div>';
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = 'Test Card';
+  return card;
 });
 global.autoScrollToBottom = jest.fn();
 global.setTimeout = jest.fn().mockImplementation((cb) => {
@@ -85,7 +88,7 @@ beforeEach(() => {
   // Ensure global functions are defined
   if (!global.setAlert) global.setAlert = jest.fn();
   if (!global.setInputFocus) global.setInputFocus = jest.fn();
-  if (!global.createCard) global.createCard = jest.fn().mockReturnValue('<div class="card">Mock Card</div>');
+  if (!global.createCard) global.createCard = jest.fn().mockImplementation(() => { const c = document.createElement('div'); c.className = 'card'; c.innerHTML = 'Mock Card'; return c; });
 });
 
 describe('WebSocket Handlers', () => {

@@ -116,8 +116,7 @@ function handlePastMessages(data) {
           userTurnNumber  // turnNumber
         );
         if (discourseEl && userCard) {
-          // createCard returns jQuery; append raw DOM element
-          discourseEl.appendChild(userCard[0] || userCard);
+          discourseEl.appendChild(userCard);
         }
         break;
       }

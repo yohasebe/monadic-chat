@@ -4,7 +4,7 @@ import globals from "globals";
  * ESLint Flat Config for Monadic Chat
  *
  * Target: Browser-side vanilla JavaScript (no ES modules, no bundler)
- * Pattern: IIFE modules with window.* exports, jQuery, global functions
+ * Pattern: IIFE modules with window.* exports, DOM helpers ($id etc.), global functions
  *
  * Strategy: Start with bug-detection rules only.
  * Style/formatting rules are intentionally omitted to avoid noise.

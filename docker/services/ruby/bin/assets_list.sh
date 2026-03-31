@@ -11,7 +11,6 @@
 ASSETS=(
   # CSS libraries
   "css,https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css,bootstrap.min.css"
-  "css,https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.1/themes/base/jquery-ui.min.css,jquery-ui.min.css"
   "css,https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css,all.min.css"
   "css,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/abcjs-audio.min.css,abcjs-audio.min.css"
   "css,https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github.min.css,github.min.css"
@@ -21,13 +20,10 @@ ASSETS=(
   
   # JS libraries
   "js,https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js,bootstrap.bundle.min.js"
-  "js,https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js,jquery.min.js"
-  "js,https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.1/jquery-ui.min.js,jquery-ui.min.js"
   "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js,OpusMediaRecorder.umd.js"
   "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js,encoderWorker.umd.js"
   "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/OggOpusEncoder.wasm,OggOpusEncoder.wasm"
   "js,https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/WebMOpusEncoder.wasm,WebMOpusEncoder.wasm"
-  "js,https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js,tex-mml-chtml.min.js"
   "js,https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js,mermaid.min.js"
   "js,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js,abcjs-basic-min.min.js"
   "js,https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js,markdown-it.min.js"
@@ -51,19 +47,7 @@ ASSETS=(
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq5Z9WXZ0pg.woff2,Montserrat-MediumItalic.woff2"
   "font,https://fonts.gstatic.com/s/montserrat/v25/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq3p6WXZ0pg.woff2,Montserrat-SemiBoldItalic.woff2"
   
-  # MathJax Fonts (for offline math rendering)
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Zero.woff,MathJax_Zero.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Regular.woff,MathJax_Main-Regular.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Bold.woff,MathJax_Main-Bold.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Main-Italic.woff,MathJax_Main-Italic.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Math-Italic.woff,MathJax_Math-Italic.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Math-BoldItalic.woff,MathJax_Math-BoldItalic.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size1-Regular.woff,MathJax_Size1-Regular.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size2-Regular.woff,MathJax_Size2-Regular.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size3-Regular.woff,MathJax_Size3-Regular.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Size4-Regular.woff,MathJax_Size4-Regular.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_AMS-Regular.woff,MathJax_AMS-Regular.woff"
-  "mathfont,https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2/MathJax_Calligraphic-Regular.woff,MathJax_Calligraphic-Regular.woff"
+  # KaTeX fonts are bundled with katex.min.css and served from vendor/css/fonts/
 )
 
 # Montserrat CSS template with all font faces

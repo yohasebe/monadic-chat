@@ -148,7 +148,7 @@
     initialize,
     setupAutoRefresh,
     getCached,  // Explicit method name
-    $c: getCached  // Short alias that doesn't conflict with jQuery's $
+    $c: getCached  // Short alias
   };
   
   // Export to window

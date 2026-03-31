@@ -737,7 +737,7 @@ class MonadicApp
     # Default model from SystemDefaults (env var > providerDefaults > hardcoded fallback)
     model = SystemDefaults.get_default_model(provider.downcase)
     sys_prompt = <<~PROMPT
-    Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
+    Convert a text document to markdown format. The text is extracted using the browser's textContent property. Thus it does not retain the original formatting and structure of the webpage. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
       PROMPT
     parameters = {
       "model" => model,

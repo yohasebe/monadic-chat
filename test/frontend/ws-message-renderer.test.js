@@ -22,9 +22,7 @@ beforeEach(() => {
 
   // Mock global functions
   global.createCard = jest.fn().mockImplementation(() => {
-    const el = document.createElement('div');
-    // Return jQuery-like object with [0] pointing to real DOM element
-    return { 0: el, length: 1 };
+    return document.createElement('div');
   });
   global.renderMessage = jest.fn().mockReturnValue('<p>rendered</p>');
   global.formatInfo = jest.fn().mockReturnValue('info html');

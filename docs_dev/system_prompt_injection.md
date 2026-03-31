@@ -37,7 +37,7 @@ The `SystemPromptInjector` module provides:
 | 100 | `language_preference` | User sets language (not "auto") | Enforce response language |
 | 80 | `websearch` | Websearch enabled + non-reasoning model | Add web search instructions |
 | 60 | `stt_diarization_warning` | STT model contains "diarize" | Warn about speaker label interpretation |
-| 50 | `mathjax` | MathJax enabled | Add LaTeX/MathJax formatting instructions |
+| 50 | `math` | math enabled | Add LaTeX formatting instructions |
 | 40 | `system_prompt_suffix` | Suffix provided in options | Append custom system prompt suffix |
 
 ### User Context Rules (Priority Order)
@@ -252,7 +252,7 @@ augmented = SystemPromptInjector.augment(
 
 ### String Escaping in Constants
 
-**Important**: When defining prompt constants that contain backslashes (e.g., LaTeX/MathJax), use single-quoted heredocs:
+**Important**: When defining prompt constants that contain backslashes (e.g., LaTeX), use single-quoted heredocs:
 
 ```ruby
 # WRONG - Backslashes will be interpreted
@@ -274,7 +274,7 @@ PROMPT
 
 Prior to 2025-01, prompt injection logic was scattered across:
 - 9 vendor helper files (`*_helper.rb`): ~200 lines of duplicated code
-- `websocket.rb`: Additional injections for MathJax (~45 lines)
+- `websocket.rb`: Additional injections for KaTeX (~45 lines)
 
 Problems:
 - New features required changes to 9 separate files
@@ -324,20 +324,20 @@ augmented_text = Monadic::Utils::SystemPromptInjector.augment_user_message(
 
 ## Special Cases
 
-### MathJax Injection
+### Math Injection
 
-MathJax requires different escaping for different modes:
+Math rendering requires different escaping for different modes:
 - **Regular mode**: Single backslash (`\frac`)
 - **Monadic/Jupyter mode**: Double backslash (`\\frac`) for JSON serialization
 
-The MathJax rule handles this automatically:
+The math rule handles this automatically:
 
 ```ruby
 {
-  name: :mathjax,
+  name: :math,
   priority: 50,
   condition: ->(session, _options) {
-    session[:parameters]&.[]("mathjax") == true
+    session[:parameters]&.[]("math") == true
   },
   generator: ->(session, _options) {
     parts = [MATHJAX_BASE_PROMPT]
@@ -398,7 +398,7 @@ bundle exec rspec spec/unit/utils/system_prompt_injector_spec.rb
 bundle exec rspec spec/unit/utils/system_prompt_injector_spec.rb -fd
 
 # Run specific context
-bundle exec rspec spec/unit/utils/system_prompt_injector_spec.rb -e "with MathJax enabled"
+bundle exec rspec spec/unit/utils/system_prompt_injector_spec.rb -e "with math enabled"
 ```
 
 ## Best Practices

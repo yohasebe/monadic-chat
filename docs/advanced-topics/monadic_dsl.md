@@ -177,7 +177,7 @@ PROMPT
 features do
   auto_speech false       # Enable automatic text-to-speech for assistant messages
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
-  mathjax true            # Enable mathematical notation rendering using MathJax
+  math true            # Enable mathematical notation rendering using KaTeX
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Enable Mermaid diagram rendering for flowcharts and diagrams
   websearch true          # Enable web search capability (alias: web_search)
@@ -329,7 +329,7 @@ app "MathTutorOpenAI" do  # Class name must match: AppName + Provider
   end
 
   features do
-    mathjax true        # Enable math notation rendering
+    math true        # Enable math notation rendering
   end
   
   tools do

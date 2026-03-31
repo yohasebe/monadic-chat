@@ -181,7 +181,7 @@ end
 1. **UIバッジ表示**：フロントエンドがmonadicアプリ用のビジュアルインジケーターを表示
 2. **Markdownレンダリング**：monadic/非monadicレスポンスで異なるレンダリングロジックを適用
 3. **Claude Thinkingモード**：`monadic true` + structured outputsの場合、thinkingを無効化
-4. **MathJaxエスケープ**：monadicモードでは異なるLaTeXエスケープルールを適用
+4. **数式エスケープ**：monadicモードでは異なるLaTeXエスケープルールを適用
 5. **TTS処理**：post-completion TTSの動作がこのフラグに基づいて異なる
 
 ### Session Stateアプリ作成チェックリスト

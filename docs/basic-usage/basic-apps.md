@@ -118,7 +118,7 @@ Ask questions about recent events or topics outside the AI's knowledge cutoff. T
 
 ![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
-Explore math-related questions and answers. The app uses [MathJax](https://www.mathjax.org/) to render beautiful mathematical notation in its responses.
+Explore math-related questions and answers. The app uses [KaTeX](https://katex.org/) to render beautiful mathematical notation in its responses.
 
 !> **Caution:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
 

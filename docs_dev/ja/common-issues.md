@@ -99,7 +99,7 @@ text_for_markdown = text.gsub(/<div class="abc-code">.*?<\/div>/m) do |match|
 end
 
 # 2. サニタイズされたテキストでMarkdownを処理
-html = markdown_to_html(text_for_markdown, mathjax: mathjax_enabled)
+html = markdown_to_html(text_for_markdown, math: math_enabled)
 
 # 3. Markdown処理の後に特殊ブロックを復元
 abc_blocks.each_with_index do |block, index|

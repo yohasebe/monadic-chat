@@ -50,7 +50,7 @@ The no-mock approach provides significant advantages:
 ### Core Principles
 
 - **Use Real DOM**: jsdom provides actual DOM functionality
-- **Load Real Libraries**: Actual jQuery, MathJax, mermaid
+- **Load Real Libraries**: Actual KaTeX, mermaid
 - **Test User Workflows**: Focus on integration over isolated functions
 - **Verify Actual State**: Check actual DOM state, not mock calls
 - **Real Event Handling**: Use real DOM events and propagation

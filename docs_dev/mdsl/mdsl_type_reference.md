@@ -15,7 +15,7 @@ All boolean feature flags MUST use actual boolean values (`true`/`false`), not s
 | `auto_speech` | Boolean | `false` | Enables automatic text-to-speech for assistant messages |
 | `easy_submit` | Boolean | `false` | Enables submitting messages on Enter key |
 | `initiate_from_assistant` | Boolean | `false` | Allows assistant to send first message |
-| `mathjax` | Boolean | `false` | Enables mathematical notation rendering |
+| `math` | Boolean | `false` | Enables mathematical notation rendering |
 | `mermaid` | Boolean | `false` | Enables Mermaid diagram rendering |
 | `abc` | Boolean | `false` | Enables ABC music notation rendering |
 | `monadic` | Boolean | `false` | Enables monadic mode with JSON context |

@@ -15,7 +15,7 @@
 | `auto_speech` | Boolean | `false` | アシスタントメッセージの自動テキスト読み上げを有効化 |
 | `easy_submit` | Boolean | `false` | Enterキーでのメッセージ送信を有効化 |
 | `initiate_from_assistant` | Boolean | `false` | アシスタントが最初のメッセージを送信することを許可 |
-| `mathjax` | Boolean | `false` | 数式表記レンダリングを有効化 |
+| `math` | Boolean | `false` | 数式表記レンダリングを有効化 |
 | `mermaid` | Boolean | `false` | Mermaid図レンダリングを有効化 |
 | `abc` | Boolean | `false` | ABC音楽表記レンダリングを有効化 |
 | `sourcecode` | Boolean | `false` | 拡張ソースコードハイライトを有効化 |

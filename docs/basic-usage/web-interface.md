@@ -71,7 +71,7 @@ Display or edit the system prompt for the AI User feature.
 Enable prompt caching to reduce API costs and improve response time.
 
 **Math Rendering**<br />
-Render mathematical expressions using MathJax.
+Render mathematical expressions using KaTeX.
 
 **AI User Provider**<br />
 Select a provider for the AI User feature, which automatically generates follow-up messages as if written by a human user.

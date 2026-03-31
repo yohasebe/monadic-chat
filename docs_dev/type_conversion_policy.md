@@ -24,7 +24,7 @@ JavaScript (Frontend)
 
 **Affected Parameters**:
 - UI Controls: `auto_speech`, `easy_submit`, `initiate_from_assistant`
-- Rendering: `mathjax, mermaid, abc, monadic`
+- Rendering: `math, mermaid, abc, monadic`
 - Capabilities: `pdf_vector_storage`, `websearch`
 - Advanced: `jupyter`, `image_generation`, `video`
 
@@ -32,7 +32,7 @@ JavaScript (Frontend)
 ```ruby
 # In prepare_apps_data method
 elsif ["auto_speech", "easy_submit", "initiate_from_assistant",
-       "mathjax, mermaid, abc, monadic",
+       "math, mermaid, abc, monadic",
        "pdf_vector_storage", "websearch",
        "jupyter", "image_generation", "video"].include?(p.to_s)
   # Preserve boolean values for feature flags
@@ -228,14 +228,14 @@ if (toBool(params["auto_speech"])) {
 
 ```javascript
 // WRONG
-params["mathjax"] = "true";
+params["math"] = "true";
 ```
 
 ### ✅ DO: Use actual boolean values
 
 ```javascript
 // CORRECT
-params["mathjax"] = true;
+params["math"] = true;
 ```
 
 ### ❌ DON'T: Add new boolean parameters without updating type list

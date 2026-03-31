@@ -24,7 +24,7 @@ JavaScript (Frontend)
 
 **影響を受けるパラメータ**：
 - UI制御：`auto_speech`、`easy_submit`、`initiate_from_assistant`
-- レンダリング：`mathjax, mermaid, abc, monadic`
+- レンダリング：`math, mermaid, abc, monadic`
 - 機能：`pdf_vector_storage`、`websearch`
 - 高度：`jupyter`、`image_generation`、`video`
 
@@ -32,7 +32,7 @@ JavaScript (Frontend)
 ```ruby
 # prepare_apps_dataメソッド内
 elsif ["auto_speech", "easy_submit", "initiate_from_assistant",
-       "mathjax, mermaid, abc, monadic",
+       "math, mermaid, abc, monadic",
        "pdf_vector_storage", "websearch",
        "jupyter", "image_generation", "video"].include?(p.to_s)
   # 機能フラグのブール値を保持
@@ -228,14 +228,14 @@ if (toBool(params["auto_speech"])) {
 
 ```javascript
 // 間違い
-params["mathjax"] = "true";
+params["math"] = "true";
 ```
 
 ### ✅ すること：実際のブール値を使用
 
 ```javascript
 // 正しい
-params["mathjax"] = true;
+params["math"] = true;
 ```
 
 ### ❌ しないこと：型リストを更新せずに新しいブール値パラメータを追加

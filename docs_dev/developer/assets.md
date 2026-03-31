@@ -38,7 +38,7 @@ Assets are organized by type:
 - **JS**: Stored in `vendor/js/`
 - **Fonts**: Stored in `vendor/fonts/` (for regular fonts like Montserrat)
 - **Webfonts**: Stored in `vendor/webfonts/` (for icon fonts like Font Awesome)
-- **Math fonts**: Stored in `vendor/js/output/chtml/fonts/woff-v2/` (for MathJax)
+- **Math fonts**: Stored in `vendor/js/output/chtml/fonts/woff-v2/` (for KaTeX)
 
 ## Usage
 

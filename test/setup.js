@@ -5,10 +5,8 @@
  * - Mock global objects (console, document, window)
  * - Mock browser APIs (fetch, WebSocket)
  * - Mock DOM elements
- * - Setup for jQuery and other libraries
+ * - Setup for visualization libraries (mermaid, ABCJS, etc.)
  */
-
-const { createJQueryMock } = require('./helpers');
 
 // Mock global variables and functions needed for tests
 
@@ -101,14 +99,8 @@ const createElementWithId = (type, id) => {
   ['input', 'check-easy-submit']
 ].forEach(([type, id]) => createElementWithId(type, id));
 
-// Setup jQuery using helpers
-global.$ = createJQueryMock();
-global.jQuery = global.$;
-
 // Setup common JavaScript visualization libraries
-global.MathJax = {
-  typesetPromise: jest.fn().mockResolvedValue(true)
-};
+// (jQuery and MathJax have been removed from the project)
 
 global.mermaid = {
   initialize: jest.fn(),

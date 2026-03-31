@@ -52,7 +52,6 @@ export default [
         mermaid: "readonly",
         ABCJS: "readonly",
         GraphViewer: "readonly",
-        MathJax: "readonly",
         katex: "readonly",
         OpusMediaRecorder: "readonly",
         bootstrap: "readonly",

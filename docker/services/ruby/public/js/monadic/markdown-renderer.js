@@ -2,7 +2,7 @@
  * Unified Markdown renderer with support for:
  * - Monadic JSON structure (AutoForge, ConceptVisualizer, etc.)
  * - Code highlighting (highlight.js)
- * - MathJax expressions
+ * - KaTeX math expressions
  * - ABC notation
  * - Mermaid diagrams
  */
@@ -787,18 +787,8 @@
         });
       }
 
-      // 2. MathJax
-      if (window.MathJax?.typesetPromise) {
-        scheduleTask(() => {
-          try {
-            window.MathJax.typesetPromise([container]).catch(err => {
-              console.error('MathJax rendering failed:', err);
-            });
-          } catch (err) {
-            console.error('Failed to initialize MathJax:', err);
-          }
-        });
-      }
+      // 2. KaTeX — rendered inline during renderMarkdown() via placeholders
+      // (No post-processing needed; KaTeX HTML is already in the rendered output)
 
       // 3. ABCJS / applyAbc (lazy-loaded, ~472 KB deferred)
       if (typeof window.applyAbc === 'function') {

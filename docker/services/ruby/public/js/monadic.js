@@ -1826,7 +1826,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Update model-selected display text
     if (modelSpec[selectedModel] && (modelSpec[selectedModel].hasOwnProperty("reasoning_effort") || modelSpec[selectedModel]["supports_thinking"])) {
-      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel} - ${_reEl ? _reEl.value : ''})`; }
+      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel} - ${$id("reasoning-effort") ? $id("reasoning-effort").value : ''})`; }
     } else {
       { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel})`; }
     }
@@ -2220,7 +2220,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${_reEl ? _reEl.value : ''})` };
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${$id("reasoning-effort") ? $id("reasoning-effort").value : ''})` };
       } else {
         { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model})`; }
       }
@@ -2282,7 +2282,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${_reEl ? _reEl.value : ''})` };
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${$id("reasoning-effort") ? $id("reasoning-effort").value : ''})` };
       } else {
         { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${params["model"]})`; }
       }
@@ -4476,7 +4476,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Update the real select value
         $select.value = value;
-        $$dispatch(select, "change");
+        $dispatch($select, "change");
 
         // Close dropdown using the proper method
         closeDropdown();

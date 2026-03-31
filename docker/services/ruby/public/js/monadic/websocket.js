@@ -222,8 +222,8 @@ window.defaultApp = DEFAULT_APP;
 // isElementInViewport now in ws-content-renderer.js
 const isElementInViewport = window.isElementInViewport;
 
-// applyMathJax (now KaTeX-based), mermaid_config, sanitizeMermaidSource, applyMermaid now in ws-content-renderer.js
-const applyMathJax = window.applyMathJax;
+// applyMath (KaTeX-based), mermaid_config, sanitizeMermaidSource, applyMermaid now in ws-content-renderer.js
+const applyMath = window.applyMath;
 const applyMermaid = window.applyMermaid;
 const applyDrawIO = window.applyDrawIO;
 
@@ -627,9 +627,6 @@ window.loadedApp = "Chat";
     //   applyMermaid(htmlElement);
     // }
 
-    // if (toBool(params["mathjax"])) {
-    //   applyMathJax(htmlElement);
-    // }
 
     // if (toBool(params["abc"])) {
     //   applyAbc(htmlElement);

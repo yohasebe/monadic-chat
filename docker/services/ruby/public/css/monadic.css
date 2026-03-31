@@ -3941,23 +3941,6 @@ img.base64-image,
   background-color: #f7fafc;
 }
 
-/* MathJax font styling */
-.MathJax {
-  font-family: "Computer Modern", "Latin Modern", "Latin Modern Math", "STIX Two Math", "STIX", "TeX", serif !important;
-}
-
-.mjx-math {
-  font-size: 100% !important;
-}
-
-.mjx-char {
-  letter-spacing: 0.02em;
-}
-
-mjx-container[display="false"] {
-  vertical-align: middle !important;
-}
-
 /* Parallel dispatch task spinner */
 @keyframes parallel-spin {
   0% { transform: rotate(0deg); }

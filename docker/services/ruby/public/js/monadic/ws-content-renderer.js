@@ -202,7 +202,7 @@
     return html;
   }
 
-  function applyMathJax(element) {
+  function applyMath(element) {
     var domElement = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
     if (!domElement) return;
     if (domElement.classList.contains("diagram")) {
@@ -803,7 +803,7 @@
     getMessageMonadicFlag: getMessageMonadicFlag,
     renderMessage: renderMessage,
     setCopyCodeButton: setCopyCodeButton,
-    applyMathJax: applyMathJax,
+    applyMath: applyMath,
     mermaid_config: mermaid_config,
     sanitizeMermaidSource: sanitizeMermaidSource,
     applyMermaid: applyMermaid,
@@ -821,7 +821,7 @@
   window.WsContentRenderer = ns;
 
   // Backward-compat individual exports
-  window.applyMathJax = applyMathJax;
+  window.applyMath = applyMath;
   window.applyMermaid = applyMermaid;
   window.applyDrawIO = applyDrawIO;
   window.applyAbc = applyAbc;

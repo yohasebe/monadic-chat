@@ -372,7 +372,7 @@ function handleEditSuccess(data) {
     }
 
     if (toBool(p["mathjax"])) {
-      applyMathJax(cardEl);
+      applyMath(cardEl);
     }
 
     if (toBool(p["abc"])) {
@@ -473,7 +473,7 @@ function handleDisplaySample(data) {
   }
 
   if (toBool(p["mathjax"])) {
-    applyMathJax(lastCard);
+    applyMath(lastCard);
   }
 
   if (toBool(p["abc"])) {

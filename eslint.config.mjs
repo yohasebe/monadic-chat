@@ -139,7 +139,7 @@ export default [
         renderMessage: "readonly",
 
         // ── Content renderers (ws-content-renderer.js) ──
-        applyMathJax: "readonly",
+        applyMath: "readonly",
         applyMermaid: "readonly",
         applyDrawIO: "readonly",
         applyAbc: "readonly",

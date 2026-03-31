@@ -141,8 +141,8 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
 
-    context 'with MathJax enabled' do
-      it 'includes MathJax prompt with regular escaping for standard mode' do
+    context 'with math enabled' do
+      it 'includes math prompt with regular escaping for standard mode' do
         session = {
           parameters: { "math" => true }
         }
@@ -152,13 +152,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         expect(result.length).to eq(1)
         expect(result[0][:name]).to eq(:math)
-        expect(result[0][:content]).to include('MathJax notation')
+        expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\frac{k(k + 1)}{2}')  # Single backslash (literal)
         expect(result[0][:content]).not_to include('\\\\frac')  # Not double-escaped
         expect(result[0][:content]).to include('\\begin{itemize}')  # Includes limitations
       end
 
-      it 'includes MathJax prompt with extra escaping for monadic mode' do
+      it 'includes math prompt with extra escaping for monadic mode' do
         session = {
           parameters: { "math" => true, "monadic" => true }
         }
@@ -168,13 +168,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         expect(result.length).to eq(1)
         expect(result[0][:name]).to eq(:math)
-        expect(result[0][:content]).to include('MathJax notation')
+        expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
         expect(result[0][:content]).not_to include('\\begin{itemize}')  # No limitations section
       end
 
-      it 'includes MathJax prompt with extra escaping for jupyter mode' do
+      it 'includes math prompt with extra escaping for jupyter mode' do
         session = {
           parameters: { "math" => true, "jupyter" => true }
         }
@@ -184,12 +184,12 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         expect(result.length).to eq(1)
         expect(result[0][:name]).to eq(:math)
-        expect(result[0][:content]).to include('MathJax notation')
+        expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
       end
 
-      it 'excludes MathJax prompt when math is false' do
+      it 'excludes math prompt when math is false' do
         session = {
           parameters: { "math" => false }
         }

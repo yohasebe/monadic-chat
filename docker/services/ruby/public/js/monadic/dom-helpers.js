@@ -56,4 +56,4 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { $id, $show, $hide, $toggle, $on, $dispatch };
   }
-})(typeof window !== 'undefined' ? window : global);
+})(typeof window !== 'undefined' ? window : globalThis);

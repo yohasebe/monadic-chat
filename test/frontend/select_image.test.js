@@ -448,7 +448,7 @@ describe('Select Image Module', () => {
   // These tests might require more complex setup and are omitted for brevity
 
   describe('File Inputs API helpers', () => {
-    // These functions are defined directly (not requiring the module with jQuery dependencies)
+    // These functions are defined directly (not requiring the module)
     // Mirror the pure functions from select_image.js for unit testing
 
     function getDocumentIcon(mimeType) {

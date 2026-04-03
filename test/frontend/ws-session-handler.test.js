@@ -3,7 +3,7 @@
  */
 
 /**
- * Tests for ws-session-handler.js (jQuery-free version)
+ * Tests for ws-session-handler.js (vanilla JS version)
  *
  * Tests session-level WebSocket handlers:
  * - Context panel updates

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-// Mock DOM APIs - Note: jQuery is mocked in setup.js
+// Mock DOM APIs
 // Create a proper FormData mock with better tracking
 const mockAppend = jest.fn();
 const mockFormDataInstance = { append: mockAppend };

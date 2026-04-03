@@ -38,14 +38,14 @@
 
 ### What Works Well
 1. **Real DOM Testing**: Using jsdom with actual DOM APIs provides realistic test environment
-2. **Real jQuery**: Loading actual jQuery library eliminates mock maintenance
+2. **Vanilla JS: No jQuery dependency eliminates mock maintenance
 3. **Event Handling**: Real DOM events propagate naturally
 4. **Async Operations**: `waitFor` utilities handle timing issues gracefully
 
 ### Challenges Resolved
 1. **TextEncoder/TextDecoder**: Added polyfills for Node.js compatibility
 2. **DataTransfer API**: Created custom polyfill for clipboard operations
-3. **jQuery Path**: Located correct vendor path for jQuery
+3. **DOM Helpers: Using $id, $show, $hide etc.
 4. **Fixture Loading**: Simplified to avoid ESM module issues
 5. **ClipboardEvent**: Used Event with custom clipboardData property
 

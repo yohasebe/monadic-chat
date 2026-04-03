@@ -266,22 +266,6 @@ async function loadScript(scriptPath) {
 }
 
 /**
- * Wait for jQuery to be ready
- */
-async function waitForJQuery() {
-  await waitFor(() => window.$ && window.$.fn, 5000, 'jQuery not loaded');
-  
-  // Wait for document ready
-  return new Promise((resolve) => {
-    if (window.$.isReady) {
-      resolve();
-    } else {
-      window.$(resolve);
-    }
-  });
-}
-
-/**
  * Simulate file selection in an input
  * @param {string} selector - File input selector
  * @param {Object} fileData - File properties
@@ -357,7 +341,6 @@ module.exports = {
   createTestWSServer,
   loadFixture,
   loadScript,
-  waitForJQuery,
   selectFile,
   getElementText,
   isVisible

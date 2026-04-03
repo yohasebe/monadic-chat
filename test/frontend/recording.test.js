@@ -41,7 +41,7 @@ describe('Recording Module', () => {
       messages: []
     });
     
-    // Override any jQuery mocks with more specific implementations
+    // Override with specific test implementations
     $("#voice").toggleClass = jest.fn().mockReturnThis();
     $("#voice").html = jest.fn().mockReturnThis();
     $("#voice").prop = jest.fn().mockReturnThis();

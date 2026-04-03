@@ -125,7 +125,7 @@ describe('WebSocket Module', () => {
         preventDefault: jest.fn()
       };
       
-      // Mock jQuery behavior for this test
+      // Mock DOM behavior for this test
       $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
       $("#message").is = jest.fn().mockReturnValue(false); // Not focused
       $("#voice").prop('disabled', false);
@@ -154,7 +154,7 @@ describe('WebSocket Module', () => {
         preventDefault: jest.fn()
       };
       
-      // Mock jQuery behavior for this test
+      // Mock DOM behavior for this test
       $("#check-easy-submit").is = jest.fn().mockReturnValue(false); // Not checked
       $("#voice").click = jest.fn();
       
@@ -178,7 +178,7 @@ describe('WebSocket Module', () => {
         preventDefault: jest.fn()
       };
       
-      // Mock jQuery behavior for this test
+      // Mock DOM behavior for this test
       $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
       $("#message").is = jest.fn().mockReturnValue(true); // Focused
       $("#voice").click = jest.fn();
@@ -203,7 +203,7 @@ describe('WebSocket Module', () => {
         preventDefault: jest.fn()
       };
       
-      // Mock jQuery behavior for this test
+      // Mock DOM behavior for this test
       $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
       $("#message").is = jest.fn().mockReturnValue(false); // Not focused
       $("#voice").prop = jest.fn().mockReturnValue(true); // Disabled
@@ -229,7 +229,7 @@ describe('WebSocket Module', () => {
         preventDefault: jest.fn()
       };
       
-      // Mock jQuery behavior for this test
+      // Mock DOM behavior for this test
       $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
       $("#message").is = jest.fn().mockReturnValue(false); // Not focused
       $("#voice").prop = jest.fn().mockReturnValue(false); // Not disabled
@@ -256,7 +256,7 @@ describe('WebSocket Module', () => {
         preventDefault: jest.fn()
       };
       
-      // Mock jQuery behavior for this test
+      // Mock DOM behavior for this test
       $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
       $("#message").is = jest.fn().mockReturnValue(false); // Not focused
       $("#voice").prop = jest.fn().mockReturnValue(false); // Not disabled
@@ -284,7 +284,7 @@ describe('WebSocket Module', () => {
         preventDefault: jest.fn()
       };
       
-      // Mock jQuery behavior for this test
+      // Mock DOM behavior for this test
       $("#check-easy-submit").is = jest.fn().mockReturnValue(true); // Checked
       $("#send").click = jest.fn();
       
@@ -308,7 +308,7 @@ describe('WebSocket Module', () => {
       const mockAppendResult = testEnv.createJQueryObject('.copy-code-button');
       const mockIcon = testEnv.createJQueryObject('i');
       
-      // Mock the jQuery functionality needed
+      // Mock DOM functionality needed
       const appendSpy = jest.fn().mockReturnValue(mockAppendResult);
       const findSpy = jest.fn().mockReturnValue({
         removeClass: jest.fn().mockReturnThis(),

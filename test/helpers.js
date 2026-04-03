@@ -127,7 +127,7 @@ function createJQueryObject(selector) {
       return mock;
     }),
     
-    // Common jQuery methods
+    // Common DOM-like methods
     remove: jest.fn().mockReturnThis(),
     empty: jest.fn().mockReturnThis(),
     append: jest.fn().mockReturnThis(),
@@ -167,9 +167,9 @@ function createJQueryObject(selector) {
 }
 
 /**
- * Creates a standardized jQuery mock function
+ * Creates a legacy DOM mock function (retained for test compatibility)
  * 
- * @returns {Function} - A mock jQuery function
+ * @returns {Function} - A mock DOM function
  */
 function createJQueryMock() {
   const jQueryMock = jest.fn().mockImplementation(selector => {
@@ -180,7 +180,7 @@ function createJQueryMock() {
     return createJQueryObject(selector);
   });
   
-  // Add static jQuery methods
+  // Add static mock methods
   jQueryMock.ajax = jest.fn().mockImplementation(options => {
     setTimeout(() => {
       if (options && options.success) {

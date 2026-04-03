@@ -222,8 +222,6 @@ window.defaultApp = DEFAULT_APP;
 // isElementInViewport now in ws-content-renderer.js
 const isElementInViewport = window.isElementInViewport;
 
-// applyMath (KaTeX-based), mermaid_config, sanitizeMermaidSource, applyMermaid now in ws-content-renderer.js
-const applyMath = window.applyMath;
 const applyMermaid = window.applyMermaid;
 const applyDrawIO = window.applyDrawIO;
 

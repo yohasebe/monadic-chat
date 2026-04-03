@@ -28,7 +28,7 @@ beforeEach(() => {
   global.showTtsNotice = jest.fn();
   global.isSystemBusy = jest.fn().mockReturnValue(false);
 
-  // Keep a minimal $ mock for any residual jQuery usage in other modules
+  // Keep a minimal $ mock for any legacy test patterns in other modules
   global.$ = jest.fn().mockReturnValue({ length: 0 });
 
   // Window globals

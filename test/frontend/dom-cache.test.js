@@ -26,7 +26,7 @@ describe('DOMCache Module', () => {
       <div class="navbar-brand"></div>
     `;
 
-    // No jQuery mock needed - dom-cache.js now uses native DOM APIs
+    // dom-cache.js uses native DOM APIs
 
     require('../../docker/services/ruby/public/js/monadic/dom-cache.js');
     DOMCache = window.DOMCache;

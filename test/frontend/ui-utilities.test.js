@@ -3,7 +3,7 @@
  */
 
 /**
- * Tests for ui-utilities.js (jQuery-free version)
+ * Tests for ui-utilities.js (vanilla JS version)
  */
 
 // Setup DOM elements needed by the module

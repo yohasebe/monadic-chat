@@ -23,14 +23,14 @@ Traditional mock-based frontend testing has several issues:
    - False confidence: tests pass but real browser fails
 
 2. **Brittleness**: Tests break when implementation details change
-   - Tightly coupled to jQuery method calls
+   - Tightly coupled to DOM manipulation patterns
    - Requires maintaining complex mock systems
    - Refactoring becomes difficult
 
 3. **Maintenance Burden**: Complex mock infrastructure
    - Global mock objects in `test/setup.js`
    - Event handler tracking in global variables
-   - Mock chaining for jQuery-style APIs
+   - Mock chaining for DOM APIs
 
 4. **Limited Coverage**: Mocks can't catch integration issues
    - Real DOM interactions
@@ -86,7 +86,7 @@ test('send button triggers message submission', async () => {
   document.body.innerHTML = await loadFixture('chat-interface.html');
 
   // Load real JavaScript libraries
-  await loadScript('/js/jquery.min.js');
+  await loadScript('/js/monadic/dom-helpers.js');
   await loadScript('/js/monadic/websocket.js');
 
   // Set up test WebSocket server

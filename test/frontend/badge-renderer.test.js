@@ -14,7 +14,7 @@ global.apps = {
         { id: 'code', label: 'Code Runner', description: '2 tools', icon: 'fa-code', visibility: 'conditional', type: 'tools' }
       ],
       capabilities: [
-        { id: 'math', label: 'MathJax', description: 'Math rendering', icon: 'fa-calculator', type: 'capabilities' }
+        { id: 'math', label: 'Math', description: 'Math rendering', icon: 'fa-calculator', type: 'capabilities' }
       ]
     }
   },
@@ -59,7 +59,7 @@ describe('badge-renderer', () => {
       updateAppBadges('TestApp');
       expect(lastDescription).toContain('Web Search');
       expect(lastDescription).toContain('Code Runner');
-      expect(lastDescription).toContain('MathJax');
+      expect(lastDescription).toContain('Math');
       expect(lastDescription).toContain('tool-groups-display');
     });
 

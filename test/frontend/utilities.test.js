@@ -465,7 +465,7 @@ describe('Utilities Module', () => {
 
   describe('File Inputs API capability functions', () => {
     // Pure function implementations mirrored from utilities.js for unit testing
-    // (avoids jQuery dependency when requiring the module)
+    // (avoids external dependencies when requiring the module)
     function isFileInputsSupportedForModel(selectedModel) {
       if (!selectedModel || typeof modelSpec === 'undefined') return false;
       const data = modelSpec[selectedModel];

@@ -55,7 +55,7 @@ describe('cookie-utils', () => {
       expect(typeof setCookieValues).toBe('function');
     });
 
-    it('does not throw when jQuery is unavailable', () => {
+    it('does not throw when DOM helpers are used', () => {
       // $ may be undefined in test env
       expect(() => setCookieValues()).not.toThrow();
     });

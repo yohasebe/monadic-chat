@@ -9,7 +9,7 @@ describe('UI Configuration', () => {
   let moduleWindow;
 
   beforeEach(() => {
-    // Load the module - source uses window.innerWidth (not jQuery)
+    // Load the module - source uses window.innerWidth
     moduleWindow = loadModule('docker/services/ruby/public/js/monadic/ui-config.js', {
       innerWidth: 1024
     });

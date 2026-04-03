@@ -21,7 +21,7 @@ Traditional mock-based testing often leads to:
 
 The no-mock approach focuses on:
 - Using real DOM provided by jsdom
-- Loading actual libraries (jQuery, etc.)
+- Loading actual libraries (KaTeX, Mermaid, etc.)
 - Testing user workflows, not implementation details
 - Verifying actual DOM state changes
 - Real event handling and propagation

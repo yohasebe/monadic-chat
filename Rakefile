@@ -2771,6 +2771,15 @@ namespace :test do
     # Set TEST_OUTPUT_DIR so RSpec SummaryFormatter uses this directory
     ENV['TEST_OUTPUT_DIR'] = output_dir
 
+    # Pre-check: Docker daemon must be running for Ruby tests
+    docker_check = system("docker info > /dev/null 2>&1")
+    unless docker_check
+      puts "\n❌ Docker daemon is not running!"
+      puts "   Please start Docker Desktop before running tests."
+      puts "   (JavaScript and Python tests do not require Docker)\n\n"
+      exit 1
+    end
+
     # Determine what tests to run based on api_level
     run_media = (api_level == 'full')
     run_websearch = (api_level == 'full')

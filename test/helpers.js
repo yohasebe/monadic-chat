@@ -2,7 +2,6 @@
  * Common Test Utilities for Monadic Chat
  *
  * This file provides shared utilities for Jest tests including:
- * - jQuery mocking utilities
  * - Test environment setup and teardown
  * - Common mock factories
  */
@@ -12,10 +11,11 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Creates a standardized mock for any jQuery selector.
- * 
- * @param {string} selector - The jQuery selector string
- * @returns {Object} - A mock jQuery object with common methods
+ * Creates a standardized mock for DOM element simulation in tests.
+ * (Legacy: originally for jQuery mocking, retained for test compatibility)
+ *
+ * @param {string} selector - The selector string
+ * @returns {Object} - A mock object with common DOM-like methods
  */
 function createJQueryObject(selector) {
   const state = {
@@ -371,10 +371,12 @@ function setupTestEnvironment(options = {}) {
     info: jest.fn(),
   };
   
-  // Setup jQuery
-  global.$ = createJQueryMock();
-  global.jQuery = global.$;
-  
+  // Minimal $ stub for tests that still reference jQuery-style selectors
+  // (legacy test patterns; source code no longer uses jQuery)
+  if (!global.$) {
+    global.$ = function(selector) { return createJQueryObject(selector); };
+  }
+
   // Setup WebSocket
   global.ws = createWebSocketMock();
   
@@ -524,7 +526,6 @@ function getDefaultModel(provider, category = 'chat') {
 // Expose utilities for tests
 module.exports = {
   createJQueryObject,
-  createJQueryMock,
   createWebSocketMock,
   createWindowMock,
   setupTestEnvironment,

@@ -622,16 +622,6 @@ window.loadedApp = "Chat";
       applyToggle(htmlElement);
     }
 
-    // Phase 2: Disabled old applyMermaid/Math/ABC - now handled by MarkdownRenderer.applyRenderers()
-    // if (toBool(params["mermaid"])) {
-    //   applyMermaid(htmlElement);
-    // }
-
-
-    // if (toBool(params["abc"])) {
-    //   applyAbc(htmlElement);
-    // }
-
     formatSourceCode(htmlElement);
     cleanupListCodeBlocks(htmlElement);
 

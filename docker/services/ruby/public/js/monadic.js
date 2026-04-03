@@ -1762,33 +1762,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
         { const el = $id("temperature"); if (el) el.disabled = false; }
-        // temperature is kept unchanged even if the model is changed
-        ;
-        // const temperature = modelSpec[selectedModel]["temperature"][1];
-        // $("#temperature").val(temperature);
-        // $("#temperature-value").text(parseFloat(temperature).toFixed(1));
       } else {
         { const el = $id("temperature"); if (el) el.disabled = true; }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("presence_penalty")) {
         { const el = $id("presence-penalty"); if (el) el.disabled = false; }
-        // presence penalty is kept unchanged even if the model is changed
-        ;
-        // const presencePenalty = modelSpec[selectedModel]["presence_penalty"][1];
-        // $("#presence-penalty").val(presencePenalty);
-        // $("#presence-penalty-value").text(parseFloat(presencePenalty).toFixed(1));
       } else {
         { const el = $id("presence-penalty"); if (el) el.disabled = true; }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("frequency_penalty")) {
         { const el = $id("frequency-penalty"); if (el) el.disabled = false; }
-        // frequency penalty is kept unchanged even if the model is changed
-        ;
-        // const frequencyPenalty = modelSpec[selectedModel]["frequency_penalty"][1];
-        // $("#frequency-penalty").val(frequencyPenalty);
-        // $("#frequency-penalty-value").text(parseFloat(frequencyPenalty).toFixed(1));
       } else {
         { const el = $id("frequency-penalty"); if (el) el.disabled = true; }
       }
@@ -2059,7 +2044,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Update the UI dropdown to match the appValue parameter
-    // This ensures all subsequent code that reads $("#apps").val() gets the correct value
     if (($id("apps") || {}).value !== appValue) {
       { const el = $id("apps"); if (el) el.value = appValue; }
     }
@@ -2440,7 +2424,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Initialize page state based on screen width when document is ready
-  (function() { // was $(document).ready
+  (function() {
     // Initialize UIState if available
     if (window.UIState && window.UIState.initialize) {
       try {

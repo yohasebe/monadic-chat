@@ -681,7 +681,7 @@ const modelSpec = {
     "beta_flags": []
   },
   "claude-sonnet-4-5-20250929": {
-    "context_window" : [1, 1000000],
+    "context_window" : [1, 200000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,

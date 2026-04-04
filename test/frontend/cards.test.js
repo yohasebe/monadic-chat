@@ -11,7 +11,7 @@
  */
 
 // Import test utilities
-const { setupTestEnvironment, mockFactories } = require('../helpers');
+const { setupTestEnvironment } = require('../helpers');
 
 describe('Cards Module', () => {
   // Test environment object for cleanup

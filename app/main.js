@@ -655,6 +655,7 @@ class DockerManager {
           updateApplicationMenu();
           
           // Simple command execution that handles SERVER STARTED messages
+          let serverStartedReceived = false;
           return new Promise((resolve, reject) => {
             // Load environment variables from config file for Electron build
             const envPath = getEnvPath();
@@ -762,6 +763,7 @@ class DockerManager {
               
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
+                serverStartedReceived = true;
                 fetchWithRetry('http://localhost:4567')
                   .then((success) => {
                     if (success) {
@@ -874,8 +876,8 @@ class DockerManager {
                 updateTrayImage(statusAfterCommand);
                 updateStatusIndicator(statusAfterCommand);
                 updateContextMenu(false);
-              } else if (command === 'build' && code !== 0) {
-                // Build failed — set to Stopped since SERVER STARTED won't come
+              } else if (command === 'build' && (code !== 0 || !serverStartedReceived)) {
+                // Build failed or containers didn't start — set to Stopped
                 currentStatus = 'Stopped';
                 updateTrayImage('Stopped');
                 updateStatusIndicator('Stopped');

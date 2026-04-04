@@ -1366,6 +1366,8 @@ function doResetActions(resetToDefaultApp = false) {
 
   const resetModalEl = $id("resetConfirmation");
   if (resetModalEl) bootstrap.Modal.getOrCreateInstance(resetModalEl).hide();
+  // Hide main-panel immediately to prevent visual flicker while clearing its children below.
+  // enterSettingsMode() will also set this (and $hide inline) as the authoritative final state.
   const drMainPanel = $id("main-panel");
   if (drMainPanel) drMainPanel.classList.add("d-none");
   const drDiscourse = $id("discourse");

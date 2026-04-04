@@ -37,6 +37,10 @@ DOCKER_CHECK_INTERVAL=1
 # REPORTING=--verbose
 REPORTING=
 
+# All Docker Compose profiles used by profiled services (see profiles: keys in compose.yml files).
+# Used for full build/stop operations that must include every service regardless of on-demand startup.
+ALL_PROFILES="--profile python --profile selenium"
+
 # Define the path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=$(eval echo ~${SUDO_USER})
@@ -970,7 +974,7 @@ build_docker_compose() {
   # Execute docker compose build and redirect output to log file with or without cache
   # Include all profiles so profiled services (python, selenium) are also built
   local build_start_epoch=$(date +%s)
-  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
   local build_status=${PIPESTATUS[0]}
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))
@@ -1477,7 +1481,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose (includes all profiled services)
 down_docker_compose() {
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium -p \"monadic-chat\" down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
 }
 
 # Define a function to stop Docker Compose (includes all profiled services)
@@ -1485,7 +1489,7 @@ stop_docker_compose() {
   # Use docker compose with project name to properly stop all containers
   # Add --timeout 5 to speed up shutdown (default is 10 seconds)
   # Docker compose v2 stops containers in parallel by default
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium -p \"monadic-chat\" stop --timeout 5"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" stop --timeout 5"
 }
 
 # Function to stop a container
@@ -1506,20 +1510,20 @@ export_database() {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop all Docker Compose services (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down --remove-orphans"
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "${ROOT_DIR}" && git pull origin main
 
   # Build all Docker Compose services (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium build --no-cache"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build --no-cache"
 }
 
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
   # Stop all Docker Compose services with project name (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium -p \"monadic-chat\" down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
 
   local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
@@ -1743,7 +1747,7 @@ build)
   set_docker_compose
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium down"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down"
 
   # Run build_docker_compose and check if it succeeded
   if build_docker_compose "no-cache"; then
@@ -1751,7 +1755,7 @@ build)
     date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
 
     # Start all containers (including profiled services) after full build
-    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} --profile python --profile selenium -p \"monadic-chat\" up -d"; then
+    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"; then
       # Wait a moment for containers to start
       sleep 3
 

@@ -597,7 +597,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var configSummary = $id("config-summary");
     $show(configSummary); var configActions = $id("config-actions");
     $hide(configActions); var mainPanelEl = $id("main-panel");
-    if (mainPanelEl) mainPanelEl.classList.remove("d-none");
+    if (mainPanelEl) { mainPanelEl.classList.remove("d-none"); $show(mainPanelEl); }
     lockSessionSettings();
     updateConfigSummary();
   }
@@ -609,7 +609,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var configSummary = $id("config-summary");
     $hide(configSummary); var configActions = $id("config-actions");
     $show(configActions); var mainPanelEl = $id("main-panel");
-    if (mainPanelEl) mainPanelEl.classList.add("d-none");
+    if (mainPanelEl) { mainPanelEl.classList.add("d-none"); $hide(mainPanelEl); }
     unlockSessionSettings();
   }
 

@@ -1367,7 +1367,7 @@ function doResetActions(resetToDefaultApp = false) {
   const resetModalEl = $id("resetConfirmation");
   if (resetModalEl) bootstrap.Modal.getOrCreateInstance(resetModalEl).hide();
   const drMainPanel = $id("main-panel");
-  $hide(drMainPanel);
+  if (drMainPanel) drMainPanel.classList.add("d-none");
   const drDiscourse = $id("discourse");
   if (drDiscourse) { drDiscourse.innerHTML = ''; $hide(drDiscourse); }
   const drChat = $id("chat");

@@ -867,15 +867,21 @@ class DockerManager {
               if (code !== 0) {
                 dialog.showErrorBox('Error', `Docker command exited with code ${code}.`);
               }
-              
-              // Don't update status here for 'start' command - wait for SERVER STARTED
-              if (command !== 'start') {
+
+              // Don't update status here for 'start'/'build' commands - wait for SERVER STARTED
+              if (command !== 'start' && command !== 'build') {
                 currentStatus = statusAfterCommand;
                 updateTrayImage(statusAfterCommand);
                 updateStatusIndicator(statusAfterCommand);
                 updateContextMenu(false);
+              } else if (command === 'build' && code !== 0) {
+                // Build failed — set to Stopped since SERVER STARTED won't come
+                currentStatus = 'Stopped';
+                updateTrayImage('Stopped');
+                updateStatusIndicator('Stopped');
+                updateContextMenu(false);
               }
-              
+
               resolve();
             });
           });

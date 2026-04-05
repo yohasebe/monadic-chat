@@ -29,9 +29,33 @@
     }
   }
 
+  // Fetch Ollama-specific model capabilities (vision/tools/thinking) from
+  // /api/ollama/models. Unlike cloud providers, Ollama models are installed
+  // locally by the user and vary per machine, so their capabilities must be
+  // queried dynamically from Ollama's /api/show endpoint at runtime.
+  // Returns an empty object if Ollama is unreachable — the UI still works,
+  // it just won't show vision upload for Ollama models we can't inspect.
+  async function loadOllamaCapabilities() {
+    try {
+      const response = await fetch('/api/ollama/models');
+      if (!response.ok) return {};
+      const data = await response.json();
+      return data.models || {};
+    } catch (error) {
+      console.warn('[Model Loader] Could not fetch Ollama capabilities:', error.message);
+      return {};
+    }
+  }
+
   // Initialize model specifications
   async function initializeModels() {
     const models = await loadModelSpec();
+
+    // Merge dynamic Ollama capabilities on top of static modelSpec entries.
+    // Dynamic entries override static ones (e.g. the hardcoded qwen3-vl
+    // fallback), ensuring the UI reflects the user's actual installed models.
+    const ollamaModels = await loadOllamaCapabilities();
+    Object.assign(models, ollamaModels);
 
     // Replace global modelSpec with loaded specifications
     window.modelSpec = models;

@@ -25,9 +25,11 @@ module OllamaHelper
 
   @cached_endpoint = nil
   @cache_checked_at = nil
+  @capabilities_cache = {}
 
   ENDPOINT_PROBE_TIMEOUT = 2  # seconds — keep short to avoid blocking startup
   CACHE_TTL = 30              # seconds — revalidate cached endpoint periodically
+  CAPABILITIES_CACHE_TTL = 300 # seconds — per-model capability metadata cache
 
   def self.find_endpoint
     # Return cached endpoint if still fresh
@@ -73,6 +75,61 @@ module OllamaHelper
   def self.reset_endpoint_cache
     @cached_endpoint = nil
     @cache_checked_at = nil
+  end
+
+  def self.reset_capabilities_cache
+    @capabilities_cache = {}
+  end
+
+  # Fetch capability metadata for a specific Ollama model via /api/show.
+  # Returns a hash { capabilities: [...], context_length: N } on success, or
+  # nil if Ollama is unreachable or the model is unknown. Results are cached
+  # per-model for CAPABILITIES_CACHE_TTL seconds so that subsequent calls
+  # (e.g. checking `supports_thinking?` on every request) don't re-hit the API.
+  def self.fetch_model_capabilities(model)
+    return nil unless model.is_a?(String) && !model.empty?
+
+    @capabilities_cache ||= {}
+    cached = @capabilities_cache[model]
+    if cached && (Time.now - cached[:fetched_at]) < CAPABILITIES_CACHE_TTL
+      return cached
+    end
+
+    endpoint = find_endpoint
+    return nil unless endpoint
+
+    begin
+      res = HTTP.timeout(connect: ENDPOINT_PROBE_TIMEOUT, read: ENDPOINT_PROBE_TIMEOUT)
+                 .post("#{endpoint}/show", json: { "model" => model })
+      return nil unless res.status.success?
+
+      data = JSON.parse(res.body)
+      capabilities = data["capabilities"].is_a?(Array) ? data["capabilities"] : []
+
+      # context_length is nested under model_info with arch-specific prefix
+      # (e.g. "qwen3vl.context_length", "llama.context_length"). We scan for
+      # any key ending in ".context_length" to remain architecture-agnostic.
+      context_length = nil
+      if data["model_info"].is_a?(Hash)
+        data["model_info"].each do |key, val|
+          if key.to_s.end_with?(".context_length") && val.is_a?(Integer)
+            context_length = val
+            break
+          end
+        end
+      end
+
+      entry = {
+        capabilities: capabilities,
+        context_length: context_length,
+        fetched_at: Time.now
+      }
+      @capabilities_cache[model] = entry
+      entry
+    rescue HTTP::Error, HTTP::TimeoutError, JSON::ParserError, Errno::ECONNREFUSED, SocketError => e
+      Monadic::Utils::ExtraLogger.log { "[Ollama] fetch_model_capabilities(#{model}) failed: #{e.message}" }
+      nil
+    end
   end
 
   MAX_RETRIES.times do
@@ -131,6 +188,42 @@ module OllamaHelper
     end
   end
   module_function :list_models
+
+  # Returns model metadata hash keyed by model name, shaped to match
+  # frontend modelSpec entries. Each entry includes context_window,
+  # tool/vision/thinking capability flags sourced from Ollama's /api/show.
+  # If capability fetch fails for a model, a name-based heuristic fallback
+  # is used so the model remains usable (with conservative flags).
+  def list_models_with_capabilities
+    names = list_models
+    result = {}
+    names.each do |name|
+      caps = OllamaHelper.fetch_model_capabilities(name)
+      if caps
+        ctx = caps[:context_length] || 8192
+        result[name] = {
+          "context_window" => [1, ctx],
+          "max_output_tokens" => [1, [ctx / 4, 32768].min],
+          "tool_capability" => caps[:capabilities].include?("tools"),
+          "vision_capability" => caps[:capabilities].include?("vision"),
+          "supports_thinking" => caps[:capabilities].include?("thinking")
+        }
+      else
+        # Fallback: conservative name-based heuristic when /api/show is unavailable.
+        # Reading comprehension errors on name are preferable to hiding the model.
+        lc = name.downcase
+        result[name] = {
+          "context_window" => [1, 8192],
+          "max_output_tokens" => [1, 4096],
+          "tool_capability" => true,
+          "vision_capability" => lc.include?("-vl") || lc.include?(":vl") || lc.include?("vision") || lc.include?("llava"),
+          "supports_thinking" => lc.include?("thinking") || lc.include?("-r1") || lc.include?("deepseek-r1")
+        }
+      end
+    end
+    result
+  end
+  module_function :list_models_with_capabilities
 
   # No streaming plain text completion/chat call
   def send_query(options, model: nil)
@@ -625,12 +718,15 @@ module OllamaHelper
   private
 
   # Detect whether an Ollama model supports the `think:true` parameter.
-  # Ollama 0.9+ models expose this capability via their manifest; we use
-  # a name-based heuristic here to avoid the extra /api/show round-trip
-  # on every request. Known thinking-capable families include Qwen3 with
-  # -thinking suffix, DeepSeek-R1, and future reasoning-focused builds.
+  # Primary source: Ollama's /api/show endpoint returns a `capabilities`
+  # array per model (e.g. ["completion","vision","tools","thinking"]).
+  # Fallback: if the API call fails, fall back to a name-based heuristic
+  # so thinking-named models still work when Ollama is temporarily flaky.
   def supports_thinking?(model_name)
     return false unless model_name.is_a?(String)
+    caps = OllamaHelper.fetch_model_capabilities(model_name)
+    return caps[:capabilities].include?("thinking") if caps
+    # Fallback: name heuristic
     name = model_name.downcase
     name.include?("thinking") || name.include?("-r1") || name.include?("deepseek-r1")
   end

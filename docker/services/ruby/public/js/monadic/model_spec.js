@@ -1168,6 +1168,14 @@ const modelSpec = {
     "embedding_dimensions": 3072,
     "tool_capability": false,
     "vision_capability": false
+  },
+  // Ollama models (local inference)
+  "qwen3-vl:8b-thinking": {
+    "context_window": [1, 262144],
+    "max_output_tokens": [1, 32768],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true
   }
 }
 

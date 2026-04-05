@@ -206,32 +206,124 @@ RSpec.describe OllamaHelper do
   end
 
   describe '#supports_thinking?' do
-    it 'detects Qwen3 thinking variants by name suffix' do
-      expect(helper.send(:supports_thinking?, "qwen3-vl:8b-thinking")).to be true
-      expect(helper.send(:supports_thinking?, "qwen3-vl:4b-thinking")).to be true
-      expect(helper.send(:supports_thinking?, "qwen3:32b-thinking")).to be true
+    context 'when API capabilities are available' do
+      it 'returns true when capabilities include "thinking"' do
+        allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+          .and_return({ capabilities: ["completion", "thinking"], context_length: 8192, fetched_at: Time.now })
+        expect(helper.send(:supports_thinking?, "any-model")).to be true
+      end
+
+      it 'returns false when capabilities exclude "thinking"' do
+        allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+          .and_return({ capabilities: ["completion", "tools"], context_length: 8192, fetched_at: Time.now })
+        expect(helper.send(:supports_thinking?, "any-model")).to be false
+      end
     end
 
-    it 'detects DeepSeek-R1 family' do
-      expect(helper.send(:supports_thinking?, "deepseek-r1:7b")).to be true
-      expect(helper.send(:supports_thinking?, "deepseek-r1:latest")).to be true
-    end
+    context 'when API is unreachable (fallback to name heuristic)' do
+      before do
+        allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+      end
 
-    it 'is case-insensitive' do
-      expect(helper.send(:supports_thinking?, "QWEN3-VL:8B-THINKING")).to be true
-      expect(helper.send(:supports_thinking?, "DeepSeek-R1")).to be true
-    end
+      it 'detects Qwen3 thinking variants by name suffix' do
+        expect(helper.send(:supports_thinking?, "qwen3-vl:8b-thinking")).to be true
+        expect(helper.send(:supports_thinking?, "qwen3:32b-thinking")).to be true
+      end
 
-    it 'returns false for non-thinking models' do
-      expect(helper.send(:supports_thinking?, "qwen3:4b")).to be false
-      expect(helper.send(:supports_thinking?, "llama3.2:3b")).to be false
-      expect(helper.send(:supports_thinking?, "mistral:7b")).to be false
+      it 'detects DeepSeek-R1 family' do
+        expect(helper.send(:supports_thinking?, "deepseek-r1:7b")).to be true
+        expect(helper.send(:supports_thinking?, "deepseek-r1:latest")).to be true
+      end
+
+      it 'is case-insensitive' do
+        expect(helper.send(:supports_thinking?, "QWEN3-VL:8B-THINKING")).to be true
+        expect(helper.send(:supports_thinking?, "DeepSeek-R1")).to be true
+      end
+
+      it 'returns false for non-thinking-named models' do
+        expect(helper.send(:supports_thinking?, "llama3.2:3b")).to be false
+        expect(helper.send(:supports_thinking?, "mistral:7b")).to be false
+      end
     end
 
     it 'returns false for nil or non-string input' do
       expect(helper.send(:supports_thinking?, nil)).to be false
       expect(helper.send(:supports_thinking?, 42)).to be false
       expect(helper.send(:supports_thinking?, [])).to be false
+    end
+  end
+
+  describe '.fetch_model_capabilities' do
+    before { OllamaHelper.reset_capabilities_cache }
+
+    it 'returns nil for invalid input' do
+      expect(OllamaHelper.fetch_model_capabilities(nil)).to be_nil
+      expect(OllamaHelper.fetch_model_capabilities("")).to be_nil
+      expect(OllamaHelper.fetch_model_capabilities(42)).to be_nil
+    end
+
+    it 'returns nil when endpoint is unreachable' do
+      allow(OllamaHelper).to receive(:find_endpoint).and_return(nil)
+      expect(OllamaHelper.fetch_model_capabilities("some-model")).to be_nil
+    end
+
+    it 'caches successful lookups within TTL' do
+      # Pre-populate cache to verify the short-circuit path
+      OllamaHelper.instance_variable_get(:@capabilities_cache)["cached-model"] = {
+        capabilities: ["completion", "tools"],
+        context_length: 4096,
+        fetched_at: Time.now
+      }
+      # Should not call find_endpoint if cache is fresh
+      expect(OllamaHelper).not_to receive(:find_endpoint)
+      result = OllamaHelper.fetch_model_capabilities("cached-model")
+      expect(result[:capabilities]).to eq(["completion", "tools"])
+    end
+
+    it 'expires cache entries past TTL' do
+      # Insert a stale entry
+      OllamaHelper.instance_variable_get(:@capabilities_cache)["stale-model"] = {
+        capabilities: ["completion"],
+        context_length: 4096,
+        fetched_at: Time.now - (OllamaHelper::CAPABILITIES_CACHE_TTL + 10)
+      }
+      allow(OllamaHelper).to receive(:find_endpoint).and_return(nil)
+      # Stale cache → should re-fetch → find_endpoint returns nil → overall nil
+      expect(OllamaHelper.fetch_model_capabilities("stale-model")).to be_nil
+    end
+  end
+
+  describe '.list_models_with_capabilities' do
+    before { OllamaHelper.reset_capabilities_cache }
+
+    it 'returns a hash shaped like modelSpec entries' do
+      allow(OllamaHelper).to receive(:list_models).and_return(["test-model"])
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).with("test-model")
+        .and_return({ capabilities: ["completion", "vision", "tools", "thinking"], context_length: 131072, fetched_at: Time.now })
+
+      result = OllamaHelper.list_models_with_capabilities
+      expect(result["test-model"]).to include(
+        "context_window" => [1, 131072],
+        "tool_capability" => true,
+        "vision_capability" => true,
+        "supports_thinking" => true
+      )
+    end
+
+    it 'uses name-based fallback when capability fetch fails' do
+      allow(OllamaHelper).to receive(:list_models).and_return(["qwen3-vl:8b-thinking", "llama3.2:3b"])
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+
+      result = OllamaHelper.list_models_with_capabilities
+      expect(result["qwen3-vl:8b-thinking"]["vision_capability"]).to be true
+      expect(result["qwen3-vl:8b-thinking"]["supports_thinking"]).to be true
+      expect(result["llama3.2:3b"]["vision_capability"]).to be false
+      expect(result["llama3.2:3b"]["supports_thinking"]).to be false
+    end
+
+    it 'returns empty hash when no models are installed' do
+      allow(OllamaHelper).to receive(:list_models).and_return([])
+      expect(OllamaHelper.list_models_with_capabilities).to eq({})
     end
   end
 

@@ -106,6 +106,28 @@ get "/api/models" do
   end
 end
 
+# API endpoint for Ollama-specific dynamic model capabilities.
+# Returns a modelSpec-shaped hash of locally-installed Ollama models,
+# populated from Ollama's /api/show capability data. The frontend merges
+# this into window.modelSpec at load time. Falls back to an empty hash
+# when Ollama is unreachable, so the UI degrades gracefully.
+get "/api/ollama/models" do
+  content_type :json
+
+  begin
+    unless defined?(OllamaHelper) && OllamaHelper.find_endpoint
+      return JSON.generate({ models: {} })
+    end
+    models = OllamaHelper.list_models_with_capabilities
+    JSON.generate({ models: models })
+  rescue => e
+    STDERR.puts "[Ollama Models Error] #{e.message}"
+    Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
+    status 500
+    JSON.generate({ error: "Failed to fetch Ollama model capabilities", models: {} })
+  end
+end
+
 # Accept requests from the client to provide language codes and country names
 get "/lctags" do
   languages = I18nData.languages

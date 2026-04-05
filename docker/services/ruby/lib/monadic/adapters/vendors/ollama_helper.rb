@@ -283,6 +283,13 @@ module OllamaHelper
       }
     }
 
+    # Enable thinking for models that support it (detected via model name)
+    # Ollama 0.9+ exposes the reasoning process through a separate `thinking`
+    # field when `think: true` is set. This is cleaner than <think> tag parsing.
+    if supports_thinking?(obj["model"])
+      body["think"] = true
+    end
+
     # Add tool definitions if available and within call depth limit
     tools_config = obj["tools"]
     if tools_config && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
@@ -423,6 +430,7 @@ module OllamaHelper
 
     buffer = String.new
     texts = []
+    thinking_texts = []
     accumulated_tool_calls = []
     finish_reason = nil
     fragment_sequence = 0
@@ -440,21 +448,33 @@ module OllamaHelper
             accumulated_tool_calls << tc
           end
           Monadic::Utils::ExtraLogger.log { "Tool calls detected: #{accumulated_tool_calls.length}" }
-        elsif json.dig("message", "content")
-          fragment = json.dig("message", "content").to_s
+        end
+
+        # Thinking fragment (Ollama 0.9+ separate `thinking` field when think:true)
+        # A single chunk may carry either `content` or `thinking` (or neither),
+        # so we check and dispatch each independently.
+        thinking_fragment = json.dig("message", "thinking").to_s
+        if !thinking_fragment.empty?
+          res = { "type" => "thinking", "content" => thinking_fragment }
+          block&.call res
+          thinking_texts << thinking_fragment
+        end
+
+        content_fragment = json.dig("message", "content").to_s
+        if !content_fragment.empty?
           res = {
             "type" => "fragment",
-            "content" => fragment,
+            "content" => content_fragment,
             "sequence" => fragment_sequence,
             "timestamp" => Time.now.to_f,
             "is_first" => fragment_sequence == 0
           }
 
-          Monadic::Utils::ExtraLogger.log { "Fragment: sequence=#{fragment_sequence}, length=#{fragment.length}, content=#{fragment.inspect}" }
+          Monadic::Utils::ExtraLogger.log { "Fragment: sequence=#{fragment_sequence}, length=#{content_fragment.length}, content=#{content_fragment.inspect}" }
 
           fragment_sequence += 1
           block&.call res
-          texts << fragment
+          texts << content_fragment
         end
       rescue JSON::ParserError
         # Incomplete JSON, continue buffering
@@ -501,15 +521,16 @@ module OllamaHelper
     end
 
     result = texts.join("")
+    thinking_result = thinking_texts.join("")
 
     if result && !result.empty?
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
+      message = { "content" => result }
+      message["reasoning_content"] = thinking_result unless thinking_result.empty?
       result = {
         "choices" => [{
-          "message" => {
-            "content" => result
-          },
+          "message" => message,
           "finish_reason" => finish_reason
         }]
       }
@@ -602,6 +623,17 @@ module OllamaHelper
   end
 
   private
+
+  # Detect whether an Ollama model supports the `think:true` parameter.
+  # Ollama 0.9+ models expose this capability via their manifest; we use
+  # a name-based heuristic here to avoid the extra /api/show round-trip
+  # on every request. Known thinking-capable families include Qwen3 with
+  # -thinking suffix, DeepSeek-R1, and future reasoning-focused builds.
+  def supports_thinking?(model_name)
+    return false unless model_name.is_a?(String)
+    name = model_name.downcase
+    name.include?("thinking") || name.include?("-r1") || name.include?("deepseek-r1")
+  end
 
   def format_tools_for_ollama(tools_config)
     # Ollama uses OpenAI-compatible tool format

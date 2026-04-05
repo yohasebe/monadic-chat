@@ -205,6 +205,36 @@ RSpec.describe OllamaHelper do
     end
   end
 
+  describe '#supports_thinking?' do
+    it 'detects Qwen3 thinking variants by name suffix' do
+      expect(helper.send(:supports_thinking?, "qwen3-vl:8b-thinking")).to be true
+      expect(helper.send(:supports_thinking?, "qwen3-vl:4b-thinking")).to be true
+      expect(helper.send(:supports_thinking?, "qwen3:32b-thinking")).to be true
+    end
+
+    it 'detects DeepSeek-R1 family' do
+      expect(helper.send(:supports_thinking?, "deepseek-r1:7b")).to be true
+      expect(helper.send(:supports_thinking?, "deepseek-r1:latest")).to be true
+    end
+
+    it 'is case-insensitive' do
+      expect(helper.send(:supports_thinking?, "QWEN3-VL:8B-THINKING")).to be true
+      expect(helper.send(:supports_thinking?, "DeepSeek-R1")).to be true
+    end
+
+    it 'returns false for non-thinking models' do
+      expect(helper.send(:supports_thinking?, "qwen3:4b")).to be false
+      expect(helper.send(:supports_thinking?, "llama3.2:3b")).to be false
+      expect(helper.send(:supports_thinking?, "mistral:7b")).to be false
+    end
+
+    it 'returns false for nil or non-string input' do
+      expect(helper.send(:supports_thinking?, nil)).to be false
+      expect(helper.send(:supports_thinking?, 42)).to be false
+      expect(helper.send(:supports_thinking?, [])).to be false
+    end
+  end
+
   describe 'Ollama streaming response format' do
     it 'parses content fragments from Ollama JSON chunks' do
       chunks = [
@@ -224,6 +254,41 @@ RSpec.describe OllamaHelper do
 
       expect(texts.join).to eq("Hello world!")
       expect(finish_reason).to eq("stop")
+    end
+
+    it 'parses thinking fragments from Ollama 0.9+ streaming chunks' do
+      # Ollama 0.9+ returns thinking content in a separate `thinking` field
+      # when `think: true` is set in the request body.
+      chunks = [
+        { "message" => { "content" => "", "thinking" => "Let" }, "done" => false },
+        { "message" => { "content" => "", "thinking" => " me" }, "done" => false },
+        { "message" => { "content" => "", "thinking" => " think..." }, "done" => false },
+        { "message" => { "content" => "Answer", "thinking" => "" }, "done" => true }
+      ]
+
+      thinking_texts = []
+      content_texts = []
+
+      chunks.each do |json|
+        thinking_fragment = json.dig("message", "thinking").to_s
+        thinking_texts << thinking_fragment unless thinking_fragment.empty?
+        content_fragment = json.dig("message", "content").to_s
+        content_texts << content_fragment unless content_fragment.empty?
+      end
+
+      expect(thinking_texts.join).to eq("Let me think...")
+      expect(content_texts.join).to eq("Answer")
+    end
+
+    it 'handles chunks where content and thinking coexist' do
+      # Defensive: a single chunk could technically carry both fields.
+      chunk = { "message" => { "content" => "Hi", "thinking" => "greeting" }, "done" => false }
+
+      thinking_fragment = chunk.dig("message", "thinking").to_s
+      content_fragment = chunk.dig("message", "content").to_s
+
+      expect(thinking_fragment).to eq("greeting")
+      expect(content_fragment).to eq("Hi")
     end
 
     it 'detects tool calls in done chunk' do

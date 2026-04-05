@@ -114,7 +114,16 @@ module WebSocketHelper
                     "monadic" => params["monadic"],
                     "active" => true } # detect_language is called only once here
 
-        if thinking && !thinking.to_s.strip.empty?
+        # Respect the user's "Show Thinking" toggle: when disabled, skip
+        # attaching thinking to the final assistant card so the collapsed
+        # "Thinking Process" panel doesn't render. Some providers (e.g. most
+        # Ollama thinking models) generate reasoning regardless of API flags,
+        # so filtering here guarantees the UI preference is honored for all
+        # providers in one place.
+        show_thinking_param = params["show_thinking"]
+        show_thinking_enabled = show_thinking_param.nil? ||
+                                 ![false, "false"].include?(show_thinking_param)
+        if thinking && !thinking.to_s.strip.empty? && show_thinking_enabled
           new_data["thinking"] = thinking
           if CONFIG["EXTRA_LOGGING"]
             DebugHelper.debug("WebSocket: Attaching thinking block (length=#{thinking.to_s.length})", category: :ui, level: :info)

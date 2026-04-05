@@ -376,10 +376,13 @@ module OllamaHelper
       }
     }
 
-    # Enable thinking for models that support it (detected via model name)
-    # Ollama 0.9+ exposes the reasoning process through a separate `thinking`
-    # field when `think: true` is set. This is cleaner than <think> tag parsing.
-    if supports_thinking?(obj["model"])
+    # Enable thinking for models that support it. Respect the user's
+    # "Show Thinking" toggle: when disabled, skip `think: true` so Ollama
+    # answers directly without reasoning tokens (faster, no visible trace).
+    # Qwen3/DeepSeek-R1 are hybrid models that handle both modes gracefully.
+    show_thinking = obj["show_thinking"]
+    thinking_requested = show_thinking.nil? || ![false, "false"].include?(show_thinking)
+    if thinking_requested && supports_thinking?(obj["model"])
       body["think"] = true
     end
 
@@ -531,6 +534,13 @@ module OllamaHelper
 
     obj = session[:parameters]
 
+    # Show Thinking toggle: default to true when unset, disable only on an
+    # explicit false/"false". Some thinking models ignore the `think:false`
+    # request parameter so we filter at emit time regardless.
+    show_thinking_param = obj["show_thinking"]
+    show_thinking_enabled = show_thinking_param.nil? ||
+                             ![false, "false"].include?(show_thinking_param)
+
     buffer = String.new
     texts = []
     thinking_texts = []
@@ -556,10 +566,20 @@ module OllamaHelper
         # Thinking fragment (Ollama 0.9+ separate `thinking` field when think:true)
         # A single chunk may carry either `content` or `thinking` (or neither),
         # so we check and dispatch each independently.
+        #
+        # Respect the user's "Show Thinking" toggle: skip emitting thinking
+        # fragments to the frontend when disabled. Some Ollama models
+        # (e.g. qwen3-vl:*-thinking) emit reasoning regardless of the `think`
+        # API parameter, so backend-side filtering is the reliable place to
+        # honor the user's UI preference. The fragments are still accumulated
+        # internally so `reasoning_content` remains available.
         thinking_fragment = json.dig("message", "thinking").to_s
         if !thinking_fragment.empty?
-          res = { "type" => "thinking", "content" => thinking_fragment }
-          block&.call res
+          emit_thinking = show_thinking_enabled
+          if emit_thinking
+            res = { "type" => "thinking", "content" => thinking_fragment }
+            block&.call res
+          end
           thinking_texts << thinking_fragment
         end
 

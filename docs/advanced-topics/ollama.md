@@ -14,13 +14,19 @@ Download and install Ollama for your operating system:
 
 ### 2. Pull a Model
 
-After installation, pull at least one model:
+After installation, pull at least one model. A lightweight text-only starter:
 
 ```bash
 ollama pull qwen3:4b
 ```
 
-You can browse available models at [Ollama Library](https://ollama.com/library).
+For a model that supports vision, tool calling, and thinking in one package:
+
+```bash
+ollama pull qwen3-vl:8b-thinking
+```
+
+You can browse available models at [Ollama Library](https://ollama.com/library). See the [Model Capabilities](#model-capabilities) section below for details on how Monadic Chat adapts to each model's features.
 
 ### 3. Start Ollama
 
@@ -56,6 +62,27 @@ ollama rm <model-name>
 
 Models you install will be automatically available for selection in the Ollama apps. Reload the web interface if a newly added model does not appear immediately.
 
+## Model Capabilities
+
+Monadic Chat detects each Ollama model's features at runtime by querying Ollama's `/api/show` endpoint. The UI adapts automatically: the image upload button appears only for vision-capable models, the thinking panel shows only for models that expose reasoning, and tool-using apps only send tool definitions to models that support function calling.
+
+The following capabilities are detected:
+
+| Capability | Description | Example Models |
+|------------|-------------|----------------|
+| **vision** | Image input support (multimodal) | `qwen3-vl:*`, `llava`, `llama3.2-vision` |
+| **tools** | Function calling for tool-enabled apps (Chat Plus, Coding Assistant) | `qwen3-vl:*`, `qwen3:*`, `llama3.1`, `mistral` |
+| **thinking** | Streaming reasoning output via Ollama's `think` parameter | `qwen3-vl:*-thinking`, `qwen3:*-thinking`, `deepseek-r1:*` |
+| **structured output** | JSON schema-constrained generation (supported by all models) | all |
+
+You can inspect any model's capabilities directly with:
+
+```bash
+ollama show <model-name>
+```
+
+If Ollama is temporarily unavailable when Monadic Chat starts, the system falls back to a name-based heuristic (e.g. models with `-thinking` in the name are treated as thinking-capable).
+
 ## Available Apps
 
 The following apps are available in the Ollama group:
@@ -68,7 +95,7 @@ The following apps are available in the Ollama group:
 | **Language Practice** | Language conversation practice with grammar corrections. |
 | **Second Opinion** | Compares responses from multiple Ollama models for the same prompt. |
 
-Chat Plus and Coding Assistant use tool calling for file operations and other features. Tool calling requires an Ollama model that supports function calling.
+Chat Plus and Coding Assistant use tool calling for file operations and other features. These apps require a model with the `tools` capability (see [Model Capabilities](#model-capabilities)). Chat additionally supports image input when a vision-capable model is selected.
 
 ## Technical Details
 

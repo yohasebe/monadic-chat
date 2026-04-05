@@ -38,6 +38,12 @@ which services each app needs based on MDSL settings (tool groups, jupyter flag,
 
 Manual startup: `monadic.sh ensure-service python|selenium`
 
+**Exception — Full lifecycle operations include all profiles**: `build` (Build All), `update`,
+`down_docker_compose`, `stop_docker_compose`, and `remove_containers` must operate on every
+service regardless of on-demand startup. These commands use `${ALL_PROFILES}` (defined once at
+the top of `monadic.sh`) which expands to `--profile python --profile selenium`, ensuring
+profiled services are built, stopped, or removed together with the default services.
+
 ### Restart Policies
 
 | Container | Policy | Rationale |

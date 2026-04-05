@@ -35,13 +35,15 @@
   - **AutoForge**: Fixed infinite loop when debug_application called without project name (auto-resolves to most recent project)
   - **UI Improvements**: Tooltip hover-out behavior, status message visibility, scrollIntoView null crash fixes
   - **Recording**: AudioContext.resume() async handling, native MediaRecorder preference over polyfill
-  - **Test Suite**: ~4,500 tests (Ruby 2,554 unit + 565 integration + 30 system, Frontend 1,200)
+  - **Test Suite**: ~4,500 tests (Ruby 2,554 unit + 565 integration + 30 system, Frontend 1,203)
   - **Session Stability**:
     - Output truncation (50KB limit) for send_command/send_code to prevent LLM context bloat
     - Automatic stripping of base64 image data from inactive session messages to prevent unbounded session growth
     - Orchestration history expanded from 1 to 3 rounds for iterative Image/Video editing workflows
   - **Docker Optimization**: pgvector restart policy changed to default (no), enabling Docker Resource Saver
   - **Selenium Health Check**: Mermaid/DrawIO Grapher now verifies Selenium container health before session reuse
+  - **Build All Fix**: Includes all Compose profiles (python/selenium) in build/up/down/stop operations; emits SERVER STARTED signal so Electron transitions to Ready state after full build
+  - **UI Visibility Fix**: Reset → Start Session no longer leaves message area hidden (main-panel now synchronizes both d-none class and inline display style symmetrically)
 
 - [March, 2026] 1.0.0-beta.8
   - Version updated from 1.0.0-beta.7

@@ -229,6 +229,48 @@ RSpec.describe OllamaHelper do
     end
   end
 
+  describe '#translate_response_format_for_ollama' do
+    it 'maps json_object type to "json" string' do
+      result = helper.send(:translate_response_format_for_ollama, { "type" => "json_object" })
+      expect(result).to eq("json")
+    end
+
+    it 'extracts nested schema from json_schema type' do
+      rf = {
+        "type" => "json_schema",
+        "json_schema" => {
+          "schema" => {
+            "type" => "object",
+            "properties" => { "name" => { "type" => "string" } }
+          }
+        }
+      }
+      result = helper.send(:translate_response_format_for_ollama, rf)
+      expect(result).to eq({ "type" => "object", "properties" => { "name" => { "type" => "string" } } })
+    end
+
+    it 'parses JSON string response_format' do
+      json_rf = '{"type":"json_object"}'
+      expect(helper.send(:translate_response_format_for_ollama, json_rf)).to eq("json")
+    end
+
+    it 'accepts symbol keys' do
+      result = helper.send(:translate_response_format_for_ollama, { type: "json_object" })
+      expect(result).to eq("json")
+    end
+
+    it 'returns nil for malformed input' do
+      expect(helper.send(:translate_response_format_for_ollama, nil)).to be_nil
+      expect(helper.send(:translate_response_format_for_ollama, "not valid json")).to be_nil
+      expect(helper.send(:translate_response_format_for_ollama, 42)).to be_nil
+    end
+
+    it 'returns nil when json_schema is missing the schema key' do
+      rf = { "type" => "json_schema", "json_schema" => {} }
+      expect(helper.send(:translate_response_format_for_ollama, rf)).to be_nil
+    end
+  end
+
   describe '#supports_thinking?' do
     context 'when API capabilities are available' do
       it 'returns true when capabilities include "thinking"' do

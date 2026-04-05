@@ -390,6 +390,16 @@ module OllamaHelper
       body["tools"] = formatted_tools unless formatted_tools.empty?
     end
 
+    # Structured Output: map Monadic Chat's OpenAI-compatible `response_format`
+    # to Ollama's `format` parameter (Ollama 0.5+ supports constrained decoding).
+    #   { "type": "json_object" } → "json"
+    #   { "type": "json_schema", "json_schema": { "schema": {...} } } → <schema>
+    response_format = obj["response_format"]
+    if response_format
+      ollama_format = translate_response_format_for_ollama(response_format)
+      body["format"] = ollama_format if ollama_format
+    end
+
     messages_containing_img = false
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
@@ -729,6 +739,29 @@ module OllamaHelper
     # Fallback: name heuristic
     name = model_name.downcase
     name.include?("thinking") || name.include?("-r1") || name.include?("deepseek-r1")
+  end
+
+  # Translate Monadic Chat's OpenAI-style response_format into Ollama's
+  # `format` parameter. Returns nil for unrecognized shapes so the caller
+  # can skip setting `format` entirely rather than sending garbage.
+  def translate_response_format_for_ollama(rf)
+    rf = JSON.parse(rf) if rf.is_a?(String)
+    return nil unless rf.is_a?(Hash)
+
+    case rf["type"] || rf[:type]
+    when "json_object"
+      "json"
+    when "json_schema"
+      # OpenAI nests the schema under json_schema.schema
+      schema = rf.dig("json_schema", "schema") || rf.dig(:json_schema, :schema)
+      schema.is_a?(Hash) ? schema : nil
+    else
+      # Allow callers to pass a raw JSON Schema directly
+      rf.is_a?(Hash) && (rf["type"] || rf[:type]) ? rf : nil
+    end
+  rescue JSON::ParserError => e
+    Monadic::Utils::ExtraLogger.log { "[Ollama] translate_response_format_for_ollama: JSON parse failed: #{e.message}" }
+    nil
   end
 
   def format_tools_for_ollama(tools_config)

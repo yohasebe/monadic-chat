@@ -1170,6 +1170,11 @@ const modelSpec = {
     "vision_capability": false
   },
   // Ollama models (local inference)
+  // NOTE: Ollama model capabilities are normally fetched dynamically via
+  // /api/ollama/models (see model_loader.js). This static entry exists only
+  // as a safety net — it ensures the recommended model's image upload and
+  // thinking panel still work if Ollama was unreachable at page load.
+  // Dynamic entries override this when Ollama is available.
   "qwen3-vl:8b-thinking": {
     "context_window": [1, 262144],
     "max_output_tokens": [1, 32768],

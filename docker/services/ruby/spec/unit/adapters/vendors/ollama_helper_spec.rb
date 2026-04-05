@@ -199,8 +199,32 @@ RSpec.describe OllamaHelper do
       expect(result[1]["function"]["name"]).to eq("claude_tool")
     end
 
-    it 'returns empty array for non-array non-hash input' do
-      expect(helper.send(:format_tools_for_ollama, "string")).to eq([])
+    it 'parses JSON string tools (as sent by the WebSocket layer)' do
+      # app_data.rb serializes the tools array to JSON before sending over
+      # WebSocket, so the backend receives tools_config as a String here.
+      json_tools = [
+        {
+          "type" => "function",
+          "function" => {
+            "name" => "list_files",
+            "description" => "List files",
+            "parameters" => { "type" => "object", "properties" => {} }
+          }
+        }
+      ].to_json
+
+      result = helper.send(:format_tools_for_ollama, json_tools)
+      expect(result.size).to eq(1)
+      expect(result[0]["function"]["name"]).to eq("list_files")
+    end
+
+    it 'returns empty array for empty or malformed JSON string' do
+      expect(helper.send(:format_tools_for_ollama, "")).to eq([])
+      expect(helper.send(:format_tools_for_ollama, "   ")).to eq([])
+      expect(helper.send(:format_tools_for_ollama, "{not valid json")).to eq([])
+    end
+
+    it 'returns empty array for numeric input' do
       expect(helper.send(:format_tools_for_ollama, 42)).to eq([])
     end
   end

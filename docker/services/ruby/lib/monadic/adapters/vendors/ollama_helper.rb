@@ -735,6 +735,19 @@ module OllamaHelper
     # Ollama uses OpenAI-compatible tool format
     return [] unless tools_config
 
+    # Tools arrive from app_data.rb as a JSON string (see app_data.rb:78-82
+    # which calls `.to_json` on the Array/Hash before sending via WebSocket).
+    # Parse here so the case statement below can handle it as structured data.
+    if tools_config.is_a?(String)
+      return [] if tools_config.strip.empty?
+      begin
+        tools_config = JSON.parse(tools_config)
+      rescue JSON::ParserError => e
+        Monadic::Utils::ExtraLogger.log { "[Ollama] format_tools_for_ollama: JSON parse failed: #{e.message}" }
+        return []
+      end
+    end
+
     tools = case tools_config
             when Array
               tools_config

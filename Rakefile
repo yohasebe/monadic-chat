@@ -111,6 +111,27 @@ namespace :server do
   task :debug do
     puts "Starting Monadic development server (Docker-managed via CLI)..."
 
+    # Auto-rebuild the JS bundle if any frontend source is newer than the
+    # bundled output. This prevents the common "I edited a JS file but my
+    # changes don't show up" trap during development.
+    bundle_path = File.expand_path("docker/services/ruby/public/js/monadic.bundle.min.js")
+    if File.exist?(bundle_path)
+      bundle_mtime = File.mtime(bundle_path)
+      source_globs = [
+        "docker/services/ruby/public/js/monadic/**/*.js",
+        "docker/services/ruby/public/js/i18n/translations.js",
+        "docker/services/ruby/public/js/debug-config.js"
+      ]
+      stale = source_globs.any? do |glob|
+        Dir[File.expand_path(glob)].any? { |f| File.mtime(f) > bundle_mtime }
+      end
+      if stale
+        puts "\n📦 JS sources changed since last bundle build — rebuilding..."
+        sh "npm run build:js"
+        puts
+      end
+    end
+
     # Force EXTRA_LOGGING to true in debug mode
     ENV['EXTRA_LOGGING'] = 'true'
     puts "Extra logging: enabled (forced in debug mode)"

@@ -179,9 +179,3 @@ class ChatPlusCohere < MonadicApp
 end
 
 # Note: Ollama tool support varies by model.
-# Some models (e.g., llama3) support tools, others don't.
-# The MDSL defines tools but they may not be invoked depending on the model.
-class ChatPlusOllama < MonadicApp
-  include OllamaHelper if defined?(OllamaHelper)
-  include ChatPlusTools
-end

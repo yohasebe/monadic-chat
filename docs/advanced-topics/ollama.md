@@ -90,12 +90,12 @@ The following apps are available in the Ollama group:
 | App | Description |
 |-----|-------------|
 | **Chat** | General conversational AI assistant. Supports text and images. |
-| **Chat Plus** | Conversational AI with context tracking. Tracks topics, people, and notes in a sidebar panel. Also supports file operations in the shared folder. |
 | **Coding Assistant** | Programming help with code suggestions and explanations. Supports file operations in the shared folder. |
 | **Language Practice** | Language conversation practice with grammar corrections. |
-| **Second Opinion** | Compares responses from multiple Ollama models for the same prompt. |
+| **Mail Composer** | Email drafting assistance with tone customization. Supports file operations in the shared folder. |
+| **Voice Chat** | Conversational AI with voice input and output support. |
 
-Chat Plus and Coding Assistant use tool calling for file operations and other features. These apps require a model with the `tools` capability (see [Model Capabilities](#model-capabilities)). Chat additionally supports image input when a vision-capable model is selected.
+Coding Assistant and Mail Composer use tool calling for file operations. These apps require a model with the `tools` capability (see [Model Capabilities](#model-capabilities)). Chat additionally supports image input when a vision-capable model is selected.
 
 ## Technical Details
 

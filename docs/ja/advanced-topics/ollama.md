@@ -90,12 +90,12 @@ Ollamaグループでは以下のアプリが利用できます：
 | アプリ | 説明 |
 |--------|------|
 | **Chat** | 汎用会話AIアシスタント。テキストと画像をサポート。 |
-| **Chat Plus** | コンテキスト追跡機能付き会話AI。トピック、人物、メモをサイドバーパネルで管理。共有フォルダへのファイル操作もサポート。 |
 | **Coding Assistant** | コードの提案と説明によるプログラミング支援。共有フォルダへのファイル操作もサポート。 |
 | **Language Practice** | 文法訂正付き言語会話練習。 |
-| **Second Opinion** | 同じプロンプトに対して複数のOllamaモデルのレスポンスを比較。 |
+| **Mail Composer** | トーン調整可能なメール作成支援。共有フォルダへのファイル操作もサポート。 |
+| **Voice Chat** | 音声入出力対応の会話AI。 |
 
-Chat Plus と Coding Assistant はファイル操作などの機能にツール呼び出しを使用します。これらのアプリには `tools` capability を持つモデルが必要です（[モデルの機能（Capabilities）](#モデルの機能capabilities)を参照）。Chat は vision 対応モデルを選択した場合、追加で画像入力にも対応します。
+Coding Assistant と Mail Composer はファイル操作にツール呼び出しを使用します。これらのアプリには `tools` capability を持つモデルが必要です（[モデルの機能（Capabilities）](#モデルの機能capabilities)を参照）。Chat は vision 対応モデルを選択した場合、追加で画像入力にも対応します。
 
 ## 技術詳細
 

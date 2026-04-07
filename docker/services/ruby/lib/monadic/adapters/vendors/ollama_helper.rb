@@ -26,10 +26,13 @@ module OllamaHelper
   @cached_endpoint = nil
   @cache_checked_at = nil
   @capabilities_cache = {}
+  @models_fetched_at = nil
 
   ENDPOINT_PROBE_TIMEOUT = 2  # seconds — keep short to avoid blocking startup
   CACHE_TTL = 30              # seconds — revalidate cached endpoint periodically
   CAPABILITIES_CACHE_TTL = 300 # seconds — per-model capability metadata cache
+  MODELS_CACHE_TTL = 30       # seconds — Ollama model list cache; short TTL so
+                              # newly pulled/removed models appear promptly
 
   def self.find_endpoint
     # Return cached endpoint if still fresh
@@ -149,14 +152,19 @@ module OllamaHelper
   module_function :vendor_name
 
   def list_models
-    # Use global $MODELS cache like other providers
-    return $MODELS[:ollama] if $MODELS[:ollama]
+    # Return cached list if still fresh. Unlike cloud providers where the
+    # model list rarely changes, Ollama users frequently `ollama pull/rm`
+    # models, so we expire the cache after MODELS_CACHE_TTL seconds.
+    if $MODELS[:ollama] && @models_fetched_at &&
+       (Time.now - @models_fetched_at) < MODELS_CACHE_TTL
+      return $MODELS[:ollama]
+    end
 
     ollama_endpoint = OllamaHelper.find_endpoint
 
-    # If no endpoint found, return empty array
+    # If no endpoint found, return cached (possibly stale) or empty
     unless ollama_endpoint
-      return []
+      return $MODELS[:ollama] || []
     end
 
     headers = {
@@ -175,16 +183,16 @@ module OllamaHelper
         models = model_data["models"].map do |model|
           model["name"]
         end
-        # Cache and return models if found
-        $MODELS[:ollama] = models unless models.empty?
-        models.empty? ? [] : models
+        unless models.empty?
+          $MODELS[:ollama] = models
+          @models_fetched_at = Time.now
+        end
+        models.empty? ? ($MODELS[:ollama] || []) : models
       else
-        # Return empty array on API error
-        []
+        $MODELS[:ollama] || []
       end
     rescue HTTP::Error, HTTP::TimeoutError
-      # Return empty array on connection error
-      []
+      $MODELS[:ollama] || []
     end
   end
   module_function :list_models

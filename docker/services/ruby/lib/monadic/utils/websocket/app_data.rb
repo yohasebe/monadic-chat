@@ -74,8 +74,19 @@ module WebSocketHelper
             # Single string description (backward compatibility)
             apps[k][p] = m ? m.to_s : ""
           end
-        # Special case for models array to ensure it's properly sent as JSON
+        # Special case for models array to ensure it's properly sent as JSON.
+        # For Ollama apps, always refresh the model list from the live Ollama
+        # service so that newly pulled/removed models appear without a server
+        # restart. Other providers have stable model lists from their APIs.
         elsif p == "models" && m.is_a?(Array)
+          if v.settings["provider"]&.downcase == "ollama" && defined?(OllamaHelper)
+            fresh = OllamaHelper.list_models
+            unless fresh.empty?
+              v.settings["models"] = fresh
+              apps[k][p] = fresh.to_json
+              next
+            end
+          end
           apps[k][p] = m.to_json
         elsif p == "tools" && (m.is_a?(Array) || m.is_a?(Hash))
           # Tools need to be sent as proper JSON too

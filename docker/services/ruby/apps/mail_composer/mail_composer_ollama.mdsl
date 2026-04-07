@@ -1,0 +1,64 @@
+app "MailComposerOllama" do
+  description do
+    en <<~TEXT
+    Email drafting assistance with tone customization using local Ollama models. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    ローカルOllamaモデルを使用したトーン調整可能なメール作成支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    使用本地Ollama模型的可调整语气的电子邮件起草协助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    로컬 Ollama 모델을 사용한 톤 맞춤 이메일 작성 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    Asistencia para redactar correos con modelos locales de Ollama. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    Aide à la rédaction d'emails avec modèles Ollama locaux. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    E-Mail-Entwurfshilfe mit lokalen Ollama-Modellen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "at"
+
+  system_prompt <<~TEXT
+    You are a helpful assistant going to help the user draft an email. First, ask the user about the
+    style or kind of email they want to write (e.g., formal, informal, business, personal, etc.).
+    Then, request for a draft or an outline of the message they want to create. Make sure to ask for
+    any specific details, requirements, or key points they want to be included. Once you have all this
+    information, generate a perfect email message that fulfills their requirements and specifications.
+
+    When suggesting text in English, basically use ASCII characters to represent punctuation marks.
+    For example, use "..." instead of "…", "--" instead of "—", and so on. The same goes for
+    quotation marks, apostrophes, and other symbols.
+  TEXT
+
+  include_modules "OllamaHelper"
+
+  display_name "Mail Composer"
+
+  llm do
+    provider "ollama"
+    temperature 0.3
+  end
+
+  features do
+    initiate_from_assistant true
+    easy_submit false
+    auto_speech false
+  end
+
+  tools do
+    import_shared_tools :file_operations, visibility: "always"
+  end
+end

@@ -194,11 +194,14 @@ module MistralHelper
       "safe_prompt" => false
     }
     
-    # For reasoning models, use reasoning_effort instead of temperature
-    if is_reasoning_model && options["reasoning_effort"]
-      body["reasoning_effort"] = options["reasoning_effort"]
+    # For reasoning models, use reasoning_effort instead of temperature.
+    # Filter out "none" — Mistral only supports low/medium/high.
+    # When "none", skip reasoning_effort and use temperature instead.
+    mistral_effort = options["reasoning_effort"]
+    if is_reasoning_model && mistral_effort && mistral_effort != "none"
+      body["reasoning_effort"] = mistral_effort
     else
-      # For non-reasoning models, use temperature
+      # For non-reasoning models or when reasoning disabled, use temperature
       body["temperature"] = options["temperature"] || 0.7
     end
 
@@ -436,11 +439,13 @@ module MistralHelper
       "messages" => []
     }
     
-    # For reasoning models, use reasoning_effort instead of temperature
-    if is_reasoning_model && obj["reasoning_effort"]
-      body["reasoning_effort"] = obj["reasoning_effort"]
+    # For reasoning models, use reasoning_effort instead of temperature.
+    # Filter out "none" — Mistral only supports low/medium/high.
+    mistral_effort = obj["reasoning_effort"]
+    if is_reasoning_model && mistral_effort && mistral_effort != "none"
+      body["reasoning_effort"] = mistral_effort
       # Log if extra logging is enabled
-      DebugHelper.debug("Mistral: Using reasoning_effort '#{obj["reasoning_effort"]}' for model #{obj["model"]}", category: :api, level: :info)
+      DebugHelper.debug("Mistral: Using reasoning_effort '#{mistral_effort}' for model #{obj["model"]}", category: :api, level: :info)
     else
       # For non-reasoning models, use temperature
       body["temperature"] = temperature || 0.7

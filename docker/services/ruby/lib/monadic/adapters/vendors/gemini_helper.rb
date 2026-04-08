@@ -564,14 +564,19 @@ module GeminiHelper
     thinking_level = nil
     
     # New Gemini 3 thinking level parameter
-    if thinking_level_config
-      thinking_level = options["reasoning_effort"] || options["thinking_level"] || thinking_level_config[:default]
+    # Filter out "none" — Gemini doesn't support it; valid values are minimal/low/medium/high.
+    # When "none", skip thinking configuration entirely (model runs without thinking).
+    gemini_reasoning = options["reasoning_effort"]
+    gemini_reasoning = nil if gemini_reasoning == "none"
+
+    if thinking_level_config && gemini_reasoning != nil
+      thinking_level = gemini_reasoning || options["thinking_level"] || thinking_level_config[:default]
       is_thinking_model = true
       Monadic::Utils::ExtraLogger.log { "GeminiHelper: Detected thinking-level model #{model} with thinking_level=#{thinking_level}" }
     end
     
     # Thinking budget via reasoning_effort (for models with thinking_budget support)
-    if !is_thinking_model && (options["reasoning_effort"] || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i)
+    if !is_thinking_model && (gemini_reasoning || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i)
       is_thinking_model = true
       Monadic::Utils::ExtraLogger.log {
         msg = "GeminiHelper: Detected thinking model #{model} with reasoning_effort: #{options["reasoning_effort"]}"

@@ -22,6 +22,7 @@ require_relative '../../lib/monadic/utils/system_defaults'
 
 RSpec.describe 'ContextExtractorAgent API Integration', :api, :integration do
   include ContextExtractorAgent
+  include IntegrationRetryHelper
 
   # Provider configuration with expected default models
   PROVIDER_CONFIG = {
@@ -85,112 +86,119 @@ RSpec.describe 'ContextExtractorAgent API Integration', :api, :integration do
           require_run_api!
           skip("Provider #{provider} not in PROVIDERS list") unless providers_from_env.include?(provider)
           skip("API key not available for #{provider}") unless api_key_available?(provider)
+          sleep 1 # Brief delay between API calls to avoid rate limiting
         end
 
         it "extracts context from simple English conversation" do
-          test_data = TEST_CONVERSATIONS[:simple]
-          session = { messages: [], runtime_settings: { language: 'en' } }
+          with_api_retry do
+            test_data = TEST_CONVERSATIONS[:simple]
+            session = { messages: [], runtime_settings: { language: 'en' } }
 
-          result = extract_context(
-            session,
-            test_data[:user_message],
-            test_data[:assistant_response],
-            provider
-          )
+            result = extract_context(
+              session,
+              test_data[:user_message],
+              test_data[:assistant_response],
+              provider
+            )
 
-          # Basic validation - should return a hash with expected fields
-          expect(result).to be_a(Hash), "Expected Hash result from #{provider}, got #{result.class}"
+            # Basic validation - should return a hash with expected fields
+            expect(result).to be_a(Hash), "Expected Hash result from #{provider}, got #{result.class}"
 
-          # Check that expected field keys exist (support both string and symbol keys)
-          has_topics = result.key?('topics') || result.key?(:topics)
-          has_people = result.key?('people') || result.key?(:people)
-          has_notes = result.key?('notes') || result.key?(:notes)
+            # Check that expected field keys exist (support both string and symbol keys)
+            has_topics = result.key?('topics') || result.key?(:topics)
+            has_people = result.key?('people') || result.key?(:people)
+            has_notes = result.key?('notes') || result.key?(:notes)
 
-          expect(has_topics).to be(true),
-            "#{provider} result should have topics field: #{result.inspect}"
-          expect(has_people).to be(true),
-            "#{provider} result should have people field: #{result.inspect}"
-          expect(has_notes).to be(true),
-            "#{provider} result should have notes field: #{result.inspect}"
+            expect(has_topics).to be(true),
+              "#{provider} result should have topics field: #{result.inspect}"
+            expect(has_people).to be(true),
+              "#{provider} result should have people field: #{result.inspect}"
+            expect(has_notes).to be(true),
+              "#{provider} result should have notes field: #{result.inspect}"
 
-          # Log results for debugging
-          if ENV['DEBUG']
-            puts "\n  [#{provider}] Context extraction result:"
-            puts "    topics: #{result['topics'] || result[:topics]}"
-            puts "    people: #{result['people'] || result[:people]}"
-            puts "    notes: #{result['notes'] || result[:notes]}"
+            # Log results for debugging
+            if ENV['DEBUG']
+              puts "\n  [#{provider}] Context extraction result:"
+              puts "    topics: #{result['topics'] || result[:topics]}"
+              puts "    people: #{result['people'] || result[:people]}"
+              puts "    notes: #{result['notes'] || result[:notes]}"
+            end
+
+            # Verify at least one field has content (extraction worked)
+            topics = result['topics'] || result[:topics] || []
+            people = result['people'] || result[:people] || []
+            notes = result['notes'] || result[:notes] || []
+
+            has_content = topics.any? || people.any? || notes.any?
+            expect(has_content).to be(true),
+              "#{provider} should extract at least some context from the conversation"
           end
-
-          # Verify at least one field has content (extraction worked)
-          topics = result['topics'] || result[:topics] || []
-          people = result['people'] || result[:people] || []
-          notes = result['notes'] || result[:notes] || []
-
-          has_content = topics.any? || people.any? || notes.any?
-          expect(has_content).to be(true),
-            "#{provider} should extract at least some context from the conversation"
         end
 
         it "extracts context from business conversation" do
-          test_data = TEST_CONVERSATIONS[:business]
-          session = { messages: [], runtime_settings: { language: 'en' } }
+          with_api_retry do
+            test_data = TEST_CONVERSATIONS[:business]
+            session = { messages: [], runtime_settings: { language: 'en' } }
 
-          result = extract_context(
-            session,
-            test_data[:user_message],
-            test_data[:assistant_response],
-            provider
-          )
+            result = extract_context(
+              session,
+              test_data[:user_message],
+              test_data[:assistant_response],
+              provider
+            )
 
-          expect(result).to be_a(Hash), "Expected Hash result from #{provider} for business context"
+            expect(result).to be_a(Hash), "Expected Hash result from #{provider} for business context"
 
-          # Check structure
-          has_topics = result.key?('topics') || result.key?(:topics)
-          has_people = result.key?('people') || result.key?(:people)
-          expect(has_topics).to be(true), "#{provider} business result should have topics field"
-          expect(has_people).to be(true), "#{provider} business result should have people field"
+            # Check structure
+            has_topics = result.key?('topics') || result.key?(:topics)
+            has_people = result.key?('people') || result.key?(:people)
+            expect(has_topics).to be(true), "#{provider} business result should have topics field"
+            expect(has_people).to be(true), "#{provider} business result should have people field"
 
-          if ENV['DEBUG']
-            puts "\n  [#{provider}] Business context extraction:"
-            puts "    topics: #{result['topics'] || result[:topics]}"
-            puts "    people: #{result['people'] || result[:people]}"
+            if ENV['DEBUG']
+              puts "\n  [#{provider}] Business context extraction:"
+              puts "    topics: #{result['topics'] || result[:topics]}"
+              puts "    people: #{result['people'] || result[:people]}"
+            end
           end
         end
 
         it "handles custom context schema" do
-          custom_schema = {
-            fields: [
-              { name: 'keywords', icon: 'fa-key', label: 'Keywords', description: 'Important keywords from the conversation' },
-              { name: 'actions', icon: 'fa-tasks', label: 'Actions', description: 'Action items or tasks mentioned' }
-            ]
-          }
+          with_api_retry do
+            custom_schema = {
+              fields: [
+                { name: 'keywords', icon: 'fa-key', label: 'Keywords', description: 'Important keywords from the conversation' },
+                { name: 'actions', icon: 'fa-tasks', label: 'Actions', description: 'Action items or tasks mentioned' }
+              ]
+            }
 
-          session = { messages: [], runtime_settings: { language: 'en' } }
-          user_msg = "Please schedule a meeting with the design team next Tuesday to discuss the new logo."
-          assistant_msg = "I'll help you schedule that meeting. The design team meeting for the logo discussion is noted for next Tuesday."
+            session = { messages: [], runtime_settings: { language: 'en' } }
+            user_msg = "Please schedule a meeting with the design team next Tuesday to discuss the new logo."
+            assistant_msg = "I'll help you schedule that meeting. The design team meeting for the logo discussion is noted for next Tuesday."
 
-          result = extract_context(
-            session,
-            user_msg,
-            assistant_msg,
-            provider,
-            custom_schema
-          )
+            result = extract_context(
+              session,
+              user_msg,
+              assistant_msg,
+              provider,
+              custom_schema
+            )
 
-          expect(result).to be_a(Hash), "Expected Hash result from #{provider} with custom schema"
+            expect(result).to be_a(Hash), "Expected Hash result from #{provider} with custom schema"
 
-          # Should have custom schema fields
-          has_keywords = result.key?('keywords') || result.key?(:keywords)
-          has_actions = result.key?('actions') || result.key?(:actions)
-          expect(has_keywords).to be(true),
-            "#{provider} should extract keywords with custom schema: #{result.inspect}"
-          expect(has_actions).to be(true),
-            "#{provider} should extract actions with custom schema: #{result.inspect}"
+            # Should have custom schema fields
+            has_keywords = result.key?('keywords') || result.key?(:keywords)
+            has_actions = result.key?('actions') || result.key?(:actions)
+            expect(has_keywords).to be(true),
+              "#{provider} should extract keywords with custom schema: #{result.inspect}"
+            expect(has_actions).to be(true),
+              "#{provider} should extract actions with custom schema: #{result.inspect}"
 
-          if ENV['DEBUG']
-            puts "\n  [#{provider}] Custom schema result:"
-            puts "    keywords: #{result['keywords'] || result[:keywords]}"
-            puts "    actions: #{result['actions'] || result[:actions]}"
+            if ENV['DEBUG']
+              puts "\n  [#{provider}] Custom schema result:"
+              puts "    keywords: #{result['keywords'] || result[:keywords]}"
+              puts "    actions: #{result['actions'] || result[:actions]}"
+            end
           end
         end
       end
@@ -210,34 +218,37 @@ RSpec.describe 'ContextExtractorAgent API Integration', :api, :integration do
           require_run_api!
           skip("Provider #{provider} not in PROVIDERS list") unless providers_from_env.include?(provider)
           skip("API key not available for #{provider}") unless api_key_available?(provider)
+          sleep 1
         end
 
         it "successfully extracts context using provider's default model" do
-          test_data = TEST_CONVERSATIONS[:simple]
-          session = { messages: [], runtime_settings: { language: 'en' } }
+          with_api_retry do
+            test_data = TEST_CONVERSATIONS[:simple]
+            session = { messages: [], runtime_settings: { language: 'en' } }
 
-          # Get the default model for this provider
-          model = SystemDefaults.get_default_model(provider)
-          puts "\n  [#{provider}] Using default model: #{model}" if ENV['DEBUG']
+            # Get the default model for this provider
+            model = SystemDefaults.get_default_model(provider)
+            puts "\n  [#{provider}] Using default model: #{model}" if ENV['DEBUG']
 
-          result = extract_context(
-            session,
-            test_data[:user_message],
-            test_data[:assistant_response],
-            provider
-          )
+            result = extract_context(
+              session,
+              test_data[:user_message],
+              test_data[:assistant_response],
+              provider
+            )
 
-          # Should successfully parse response from reasoning model
-          expect(result).to be_a(Hash),
-            "#{provider} should return valid context even with reasoning model"
+            # Should successfully parse response from reasoning model
+            expect(result).to be_a(Hash),
+              "#{provider} should return valid context even with reasoning model"
 
-          # Verify structure
-          topics = result['topics'] || result[:topics] || []
-          expect(topics).to be_an(Array),
-            "#{provider} topics should be an Array, got #{topics.class}"
+            # Verify structure
+            topics = result['topics'] || result[:topics] || []
+            expect(topics).to be_an(Array),
+              "#{provider} topics should be an Array, got #{topics.class}"
 
-          if ENV['DEBUG']
-            puts "  Result: #{result.inspect}"
+            if ENV['DEBUG']
+              puts "  Result: #{result.inspect}"
+            end
           end
         end
       end

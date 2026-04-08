@@ -17,6 +17,10 @@ require_relative '../../support/response_evaluator'
 
 RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
   include ProviderMatrixHelper
+  include IntegrationRetryHelper
+
+  # Brief delay between API calls to avoid rate limiting
+  before(:each) { sleep 1 }
 
   # Provider configuration
   PROVIDER_CONFIG = {

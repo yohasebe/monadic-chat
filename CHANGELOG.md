@@ -1,3 +1,18 @@
+- [April, 2026] 1.0.0-beta.9
+  - **Ollama Integration Overhaul**: Dynamic model capability detection via `/api/show`, thinking/vision/tool calling/structured output support
+    - New apps: Voice Chat, Mail Composer for Ollama
+    - New endpoint: `/api/ollama/models` for dynamic model capability metadata
+    - Dynamic model list refresh (no server restart needed after `ollama pull`)
+  - **Bug Fix**: Ollama tool calling was completely non-functional (JSON string parsing missing in `format_tools_for_ollama`)
+  - **Bug Fix**: "Show Thinking" toggle ignored by 7 of 9 providers — fixed in shared `html_handler.rb`
+  - **Bug Fix**: Jupyter Notebook tool call loop — made `run_jupyter` idempotent, fixed ambiguous "already exists" responses
+  - **Improvement**: Disabled thinking/reasoning in code execution apps (Jupyter, Code Interpreter) to prevent excessive tool calls
+  - **Improvement**: Tool call cycle detection in ErrorPatternDetector (alternating pattern A→B→A→B detection across all providers)
+  - **Improvement**: Clarified UI button labels ("Text from file" / "Text from URL" / "Attach file") in 7 languages
+  - **Improvement**: Auto-rebuild JS bundle in `rake server:debug` when sources change
+  - **Improvement**: Translation duplicate key linter (`npm run test:translations-duplicates`)
+  - **Improvement**: API test retry with exponential backoff to prevent rate limiting failures
+  - **Cleanup**: Disabled OpenAI Video Generator (Sora API shutdown), removed 28 duplicate translation keys
 - [March, 2026] 1.0.0-beta.9
   - Version updated from 1.0.0-beta.8
   - **Major Backend Refactoring**: Eliminated all monolithic files (2,000+ lines)

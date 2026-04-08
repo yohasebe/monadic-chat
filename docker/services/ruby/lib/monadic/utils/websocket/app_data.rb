@@ -52,6 +52,13 @@ module WebSocketHelper
     apps = {}
     largest_app_sizes = {}
 
+    # Pre-fetch Ollama models once (not per-app) to avoid redundant API calls
+    ollama_models = if defined?(OllamaHelper) && OllamaHelper.find_endpoint
+                      OllamaHelper.list_models
+                    else
+                      nil
+                    end
+
     APPS.each do |k, v|
       apps[k] = {}
       v.settings.each do |p, m|
@@ -79,13 +86,10 @@ module WebSocketHelper
         # service so that newly pulled/removed models appear without a server
         # restart. Other providers have stable model lists from their APIs.
         elsif p == "models" && m.is_a?(Array)
-          if v.settings["provider"]&.downcase == "ollama" && defined?(OllamaHelper)
-            fresh = OllamaHelper.list_models
-            unless fresh.empty?
-              v.settings["models"] = fresh
-              apps[k][p] = fresh.to_json
-              next
-            end
+          if v.settings["provider"]&.downcase == "ollama" && ollama_models && !ollama_models.empty?
+            v.settings["models"] = ollama_models
+            apps[k][p] = ollama_models.to_json
+            next
           end
           apps[k][p] = m.to_json
         elsif p == "tools" && (m.is_a?(Array) || m.is_a?(Hash))

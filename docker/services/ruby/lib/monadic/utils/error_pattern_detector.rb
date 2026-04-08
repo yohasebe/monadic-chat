@@ -208,9 +208,12 @@ module ErrorPatternDetector
     seq = session[:tool_call_sequence]
     return nil unless seq && seq.length >= 4
 
-    # Check cycle lengths 1, 2, 3 (covers most real-world loops)
+    # Check cycle lengths 1, 2, 3 (covers most real-world loops).
+    # Single-tool repetition (cycle_len=1) requires more repetitions to
+    # avoid false positives on legitimate batched calls (e.g. add_cells ×3).
     [1, 2, 3].each do |cycle_len|
-      needed = cycle_len * 3  # require 3 full repetitions to confirm
+      min_reps = cycle_len == 1 ? 5 : 3
+      needed = cycle_len * min_reps
       next if seq.length < needed
 
       recent = seq.last(needed)

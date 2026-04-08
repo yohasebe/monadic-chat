@@ -59,14 +59,34 @@ module FunctionCallErrorHandler
     false # Continue processing
   end
   
-  # Check if we should stop due to repeated errors
-  def should_stop_for_errors?(session)
-    session[:parameters] && session[:parameters]["stop_retrying"]
+  # Record a tool call (regardless of success/failure) for cycle detection
+  def record_tool_call(session, function_name)
+    ErrorPatternDetector.record_tool_call(session, function_name)
   end
-  
+
+  # Check if we should stop due to repeated errors OR tool call cycles
+  def should_stop_for_errors?(session)
+    return true if session[:parameters] && session[:parameters]["stop_retrying"]
+
+    if ErrorPatternDetector.tool_call_cycle_detected?(session)
+      session[:parameters] ||= {}
+      session[:parameters]["stop_retrying"] = true
+      return true
+    end
+
+    false
+  end
+
+  # Get stop message (error suggestion or cycle warning)
+  def stop_message_for_session(session)
+    ErrorPatternDetector.tool_cycle_message(session) ||
+      ErrorPatternDetector.get_error_suggestion(session)
+  end
+
   # Reset error tracking for a new conversation
   def reset_error_tracking(session)
     session[:error_patterns] = nil
+    ErrorPatternDetector.reset_tool_tracking(session)
     session[:parameters]["stop_retrying"] = false if session[:parameters]
   end
 end

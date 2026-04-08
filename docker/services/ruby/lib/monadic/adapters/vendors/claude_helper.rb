@@ -1645,6 +1645,7 @@ module ClaudeHelper
 
     tools.each do |tool_call|
       tool_name = tool_call["name"]
+      record_tool_call(session, tool_name)
       block&.call({ "type" => "tool_executing", "content" => tool_name })
 
       # Skip server_tool_use (executed by Anthropic, not by us)

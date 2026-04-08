@@ -2097,6 +2097,7 @@ module OpenAIHelper
 
     function_call = tool_call["function"]
     function_name = function_call["name"]
+      record_tool_call(session, function_name)
     block&.call({ "type" => "tool_executing", "content" => function_name })
 
     argument_hash = parse_function_call_arguments(function_call["arguments"], function_name: function_name)

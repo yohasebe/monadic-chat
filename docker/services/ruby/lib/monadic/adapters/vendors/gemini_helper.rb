@@ -2940,6 +2940,7 @@ module GeminiHelper
     # Process each tool call
     tool_calls.each do |tool_call|
       function_name = tool_call["name"]
+      record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
       begin

@@ -1691,6 +1691,7 @@ module CohereHelper
       function_name = tool_call.dig("function", "name")
       next if function_name.nil?
 
+      record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
       tool_entry, error_stop, images = invoke_cohere_tool_function(app, session, tool_call, function_name, &block)

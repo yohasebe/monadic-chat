@@ -1210,7 +1210,6 @@ const providerDefaults = {
     "vision": ["gpt-4.1-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
     "image": ["gpt-image-1.5", "chatgpt-image-latest"],
-    "video": ["sora-2", "sora-2-pro"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"],
     "embedding": ["text-embedding-3-large"]
   },

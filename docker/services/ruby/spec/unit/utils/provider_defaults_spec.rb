@@ -128,8 +128,8 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
       expect(described_class.default_image_model("openai")).to eq("gpt-image-1.5")
     end
 
-    it '.default_video_model returns the video default' do
-      expect(described_class.default_video_model("openai")).to eq("sora-2")
+    it '.default_video_model returns nil when OpenAI video category removed (Sora API shutdown)' do
+      expect(described_class.default_video_model("openai")).to be_nil
     end
 
     it '.default_tts_model returns the tts default' do

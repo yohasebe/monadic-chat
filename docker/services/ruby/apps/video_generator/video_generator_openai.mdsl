@@ -127,7 +127,7 @@ app "VideoGeneratorOpenAI" do
   TEXT
 
   features do
-    disabled !CONFIG["OPENAI_API_KEY"]
+    disabled true  # Sora /v1/videos API shut down; disable until OpenAI offers a replacement
     easy_submit false
     auto_speech false
     initiate_from_assistant true

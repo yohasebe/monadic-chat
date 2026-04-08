@@ -399,6 +399,12 @@ app "JupyterNotebookOpenAI" do
     WHEN TO USE: Notebook creation with code execution, data analysis pipelines, multi-cell operations.
     WHEN TO SKIP: Simple explanations, direct answers, single markdown cells.
     Maximum 3 verification attempts per task.
+
+    ## FINAL RESPONSE CHECKLIST (apply to EVERY response after tool calls)
+    Before submitting your response, verify:
+    ✅ Notebook link is included as clickable HTML: <a href='URL' target='_blank'>filename.ipynb</a>
+    ✅ You did NOT call the same tool twice in a row
+    ✅ Response summarizes what was done (cells added, errors fixed, etc.)
   TEXT
 
   features do

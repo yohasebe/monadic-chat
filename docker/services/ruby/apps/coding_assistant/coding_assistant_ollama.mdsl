@@ -64,6 +64,7 @@ app "CodingAssistantOllama" do
 
   llm do
     provider "ollama"
+    reasoning_effort "low"
   end
 
   display_name "Coding Assistant"

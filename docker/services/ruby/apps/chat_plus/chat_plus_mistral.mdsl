@@ -66,6 +66,7 @@ app "ChatPlusMistral" do
 
   llm do
     provider "mistral"
+    reasoning_effort "low"
     context_size 20
   end
 

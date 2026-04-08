@@ -43,6 +43,7 @@ app "ChatDeepSeek" do
 
   llm do
     provider "deepseek"
+    reasoning_effort "low"
   end
 
   display_name "Chat"

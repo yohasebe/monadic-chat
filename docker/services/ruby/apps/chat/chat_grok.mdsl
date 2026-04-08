@@ -41,6 +41,7 @@ app "ChatGrok" do
   
   llm do
     provider "xai"
+    reasoning_effort "low"
   end
   
   display_name "Chat"

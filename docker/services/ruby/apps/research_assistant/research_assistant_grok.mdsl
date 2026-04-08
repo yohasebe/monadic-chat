@@ -118,6 +118,7 @@ app "ResearchAssistantGrok" do
     disabled !CONFIG["XAI_API_KEY"]
     websearch true
     temperature 0.0
+    reasoning_effort "low"
     easy_submit false
     auto_speech false
     initiate_from_assistant true

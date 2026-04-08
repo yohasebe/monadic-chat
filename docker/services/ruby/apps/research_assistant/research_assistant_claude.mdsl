@@ -101,6 +101,7 @@ app "ResearchAssistantClaude" do
   llm do
     provider "anthropic"
     temperature 0.0
+    reasoning_effort "low"
     context_size 30
   end
 

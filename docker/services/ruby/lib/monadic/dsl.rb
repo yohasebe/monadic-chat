@@ -437,10 +437,12 @@ module MonadicDSL
       class_def << "        @settings[:max_tokens] = #{state.settings[:max_tokens].inspect}\n"
     end
     
-    # Add reasoning_effort if specified
-    if state.settings[:reasoning_effort]
-      class_def << "        @settings[:reasoning_effort] = #{state.settings[:reasoning_effort].inspect}\n"
-    end
+    # Default reasoning_effort to "none" (thinking disabled) unless the app
+    # explicitly opts in. This prevents unexpected thinking token generation
+    # and tool call loops. Apps that benefit from reasoning should declare
+    # reasoning_effort "low"/"medium"/"high" in their MDSL llm block.
+    effort = state.settings[:reasoning_effort] || "none"
+    class_def << "        @settings[:reasoning_effort] = #{effort.inspect}\n"
     
     
     # Add tools if specified

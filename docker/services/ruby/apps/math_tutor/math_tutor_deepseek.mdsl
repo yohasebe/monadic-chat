@@ -8,6 +8,7 @@ app "MathTutorDeepSeek" do
   llm do
     provider "deepseek"
     temperature 0.0
+    reasoning_effort "low"
     context_size 25
   end
 

@@ -9,6 +9,7 @@ app "MathTutorGrok" do
   llm do
     provider "xai"
     temperature 0.0
+    reasoning_effort "low"
     max_tokens 4096
     tool_choice "auto"  # Enable tool usage
     context_size 25

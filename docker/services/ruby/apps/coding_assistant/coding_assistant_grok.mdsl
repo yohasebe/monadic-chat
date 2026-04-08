@@ -54,6 +54,7 @@ app "CodingAssistantGrok" do
   
   llm do
     provider "xai"
+    reasoning_effort "low"
     temperature 0.0
 
     agents do

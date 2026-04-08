@@ -15,6 +15,7 @@ app "AutoForgeClaude" do
 
   llm do
     provider "anthropic"
+    reasoning_effort "low"
     model "claude-opus-4-6"
   end
 

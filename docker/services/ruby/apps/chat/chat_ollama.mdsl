@@ -47,6 +47,7 @@ app "ChatOllama" do
   
   llm do
     provider "ollama"
+    reasoning_effort "low"
     # Model will use default from OllamaHelper::DEFAULT_MODEL or environment variable
   end
   

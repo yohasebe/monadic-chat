@@ -38,6 +38,7 @@ app "SecondOpinionDeepSeek" do
   
   llm do
     provider "deepseek"
+    reasoning_effort "low"
     temperature 0.0
   end
 

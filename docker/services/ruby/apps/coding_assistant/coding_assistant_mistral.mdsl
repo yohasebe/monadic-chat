@@ -54,6 +54,7 @@ app "CodingAssistantMistral" do
   
   llm do
     provider "mistral"
+    reasoning_effort "low"
     temperature 0.0
   end
   

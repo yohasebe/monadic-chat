@@ -123,6 +123,7 @@ app "NovelWriterMistral" do
   llm do
     provider "mistral"
     temperature 0.8
+    reasoning_effort "low"
     context_size 40
   end
 

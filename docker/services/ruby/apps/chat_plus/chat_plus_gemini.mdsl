@@ -66,6 +66,7 @@ app "ChatPlusGemini" do
 
   llm do
     provider "gemini"
+    reasoning_effort "low"
     context_size 20
   end
 

@@ -79,6 +79,7 @@ app "ResearchAssistantDeepSeek" do
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.0
+    reasoning_effort "low"
     easy_submit false
     auto_speech false
     math true

@@ -38,6 +38,7 @@ app "SecondOpinionGrok" do
   
   llm do
     provider "xai"
+    reasoning_effort "low"
     temperature 0.0
   end
 

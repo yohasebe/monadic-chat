@@ -210,6 +210,11 @@ app "JupyterNotebookOpenAI" do
     7. Maximum 2 retry attempts per error to prevent infinite loops
     8. If still failing after 2 attempts, report the issue to the user with error details
 
+    TOOL LOOP PREVENTION:
+    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
+    - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
+    - If you find yourself about to call the same tool you just called, STOP and return a response instead
+
     IMPORTANT: You no longer need to manually call get_jupyter_cells_with_results after add_jupyter_cells.
     The tool does this automatically and includes error information in the response.
 

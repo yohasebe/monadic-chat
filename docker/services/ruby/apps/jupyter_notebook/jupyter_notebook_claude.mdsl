@@ -320,13 +320,17 @@ app "JupyterNotebookClaude" do
        - If more tools need to be called (e.g., create notebook after starting Jupyter), call them
        - Only after ALL necessary tools are executed, return your final response
     3. NEVER return a response immediately after calling a single tool if more tools are needed
-    
+    4. NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent and does not need to be called again
+    5. NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
+    6. If you find yourself about to call the same tool you just called, STOP and return a response instead
+
     MULTI-STEP TOOL EXECUTION EXAMPLE:
     - User asks to create a notebook
     - You call `run_jupyter` with command "run"
-    - You receive result: "JupyterLab is running"
+    - You receive result: "JupyterLab is running" with access URL
     - You MUST then call `create_jupyter_notebook` with a filename
-    - You receive result: "Notebook created"
+    - You receive result: "Notebook created" OR "Notebook already exists"
+    - In BOTH cases, proceed to add cells — do NOT restart Jupyter or recreate the notebook
     - NOW you return the final response with all information
     
     Always provide clear and helpful responses about the current Jupyter state.

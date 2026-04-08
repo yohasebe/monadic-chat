@@ -135,6 +135,11 @@ app "JupyterNotebookGrok" do
     IMPORTANT: No need to manually call get_jupyter_cells_with_results after add_jupyter_cells.
     Maximum 2 retry attempts for error fixes to prevent infinite loops.
 
+    TOOL LOOP PREVENTION:
+    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
+    - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
+    - If you find yourself about to call the same tool you just called, STOP and return a response instead
+
     ## Session Management
     
     - The tools will return the actual notebook filename with timestamp (e.g., notebook_20250828_143025.ipynb)

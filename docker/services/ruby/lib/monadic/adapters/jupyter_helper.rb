@@ -613,20 +613,26 @@ module MonadicHelper
   end
 
   def run_jupyter(command: "")
-    command = case command
-              when "start", "run"
-                "run_jupyter.sh run"
-              when "stop"
-                "run_jupyter.sh stop"
-              else
-                return "Error: Invalid command."
-              end
-    
+    action = case command
+             when "start", "run" then "run"
+             when "stop" then "stop"
+             else
+               return "Error: Invalid command."
+             end
+
     jupyter_url = get_jupyter_base_url
-    
-    send_command(command: command,
-                 container: "python",
-                 success: "Success: Access JupyterLab at #{jupyter_url}/lab")
+    shell_cmd = "run_jupyter.sh #{action}"
+
+    output = send_command(command: shell_cmd, container: "python")
+
+    # Always append the access URL for "run" so the model knows where
+    # JupyterLab is — send_command's `success` parameter is only used
+    # when stdout is empty, but run_jupyter.sh always produces output.
+    if action == "run" && !output.include?("Error")
+      "#{output}\nSuccess: Access JupyterLab at #{jupyter_url}/lab"
+    else
+      output
+    end
   end
   
   private

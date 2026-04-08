@@ -36,6 +36,7 @@ app "CodeInterpreterGrok" do
   llm do
     provider "xai"
     temperature 0.0
+    reasoning_effort "none"
     tool_choice "auto"  # Default to auto, will be overridden when needed
     max_tokens 4096  # Ensure enough tokens for tool responses
 

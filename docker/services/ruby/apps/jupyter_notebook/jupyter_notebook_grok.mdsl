@@ -35,6 +35,7 @@ app "JupyterNotebookGrok" do
   llm do
     provider "xai"
     temperature 0.0
+    reasoning_effort "none"
     max_tokens 4096
     tool_choice "auto"  # Let Grok decide when to use tools
     parallel_function_calling true  # Explicitly enable parallel function calling (default)

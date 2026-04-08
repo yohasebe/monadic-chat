@@ -36,6 +36,7 @@ app "CodeInterpreterClaude" do
   llm do
     provider "anthropic"
     temperature 0.0
+    reasoning_effort "none"
   end
 
   system_prompt <<~TEXT

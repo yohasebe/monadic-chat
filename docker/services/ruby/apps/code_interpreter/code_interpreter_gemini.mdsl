@@ -37,6 +37,7 @@ app "CodeInterpreterGemini" do
     provider "gemini"
     model ["gemini-3.1-pro-preview", "gemini-3-flash-preview"]
     temperature 0.0
+    reasoning_effort "none"
     max_tokens 8192  # Ensure sufficient tokens for complete responses
   end
 

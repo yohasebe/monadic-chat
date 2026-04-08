@@ -36,6 +36,7 @@ app "CodeInterpreterDeepSeek" do
   llm do
     provider "deepseek"
     temperature 0.0
+    reasoning_effort "none"
   end
 
   system_prompt <<~TEXT

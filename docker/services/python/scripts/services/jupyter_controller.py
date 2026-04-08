@@ -214,7 +214,9 @@ def main():
                 notebook_path = get_notebook_path(notebook_filename)
             
             if notebook_exists(notebook_path):
-                print(f"File {notebook_path} already exists.")
+                # Return same success format so the model treats existing
+                # notebooks identically to newly created ones (no retry loop).
+                print(f"Notebook created: {notebook_filename}")
             else:
                 create_notebook(notebook_path)
                 # Just return the notebook filename, Ruby side will construct the full URL

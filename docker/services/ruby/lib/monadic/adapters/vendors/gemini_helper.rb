@@ -1483,6 +1483,8 @@ module GeminiHelper
     thinking_level_config = Monadic::Utils::ModelSpec.get_thinking_level_options(model_name)
     thinking_level = nil
     reasoning_effort = obj["reasoning_effort"]
+    # Filter "none" — Gemini has no "none" level; treat as "disable thinking"
+    reasoning_effort = nil if reasoning_effort == "none"
     if thinking_level_config
       thinking_level = reasoning_effort || obj["thinking_level"] || thinking_level_config[:default]
       reasoning_effort = nil  # Avoid mixing thinking_budget and thinking_level

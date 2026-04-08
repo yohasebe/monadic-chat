@@ -55,7 +55,7 @@ describe('providerDefaults', () => {
       expect(openai.vision).toBeDefined();
       expect(openai.audio_transcription).toBeDefined();
       expect(openai.image).toBeDefined();
-      expect(openai.video).toBeDefined();
+      // openai.video removed (Sora API shutdown)
       expect(openai.tts).toBeDefined();
       expect(openai.embedding).toBeDefined();
     });
@@ -107,8 +107,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.openai.image[0]).toBe('gpt-image-1.5');
     });
 
-    it('openai video default is sora-2', () => {
-      expect(providerDefaults.openai.video[0]).toBe('sora-2');
+    it('openai video category removed (Sora API shutdown)', () => {
+      expect(providerDefaults.openai.video).toBeUndefined();
     });
 
     it('openai tts default is gpt-4o-mini-tts-2025-12-15', () => {

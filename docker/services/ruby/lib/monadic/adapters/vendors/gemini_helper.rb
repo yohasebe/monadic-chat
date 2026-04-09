@@ -2444,12 +2444,16 @@ module GeminiHelper
 
       if is_jupyter_app
         tool_results = session[:parameters]["tool_results"] || []
+        # Only treat as successful if cells were actually added/executed.
+        # "Notebook created successfully" alone does NOT mean cells were added —
+        # generating a fake "Cells added" message for that case was causing
+        # empty notebooks to appear successful.
         has_successful_jupyter_result = tool_results.any? do |r|
           content = r.dig("functionResponse", "response", "content")
           content.is_a?(String) && (
-            content.include?("executed successfully") ||
-            content.include?("Notebook") && content.include?("created successfully") ||
-            content.include?("cells have been added") || content.include?("Cells added to notebook")
+            content.include?("cells have been added") ||
+            content.include?("Cells added to notebook") ||
+            content.include?("cells executed successfully")
           )
         end
 
@@ -2708,9 +2712,9 @@ module GeminiHelper
       has_successful_jupyter_result = tool_results.any? do |r|
         content = r.dig("functionResponse", "response", "content")
         content.is_a?(String) && !content.include?("ERRORS DETECTED") && (
-          content.include?("executed successfully") ||
-          content.include?("Notebook") && content.include?("created successfully") ||
-          content.include?("cells have been added") || content.include?("Cells added to notebook")
+          content.include?("cells have been added") ||
+          content.include?("Cells added to notebook") ||
+          content.include?("cells executed successfully")
         )
       end
 

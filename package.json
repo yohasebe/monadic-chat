@@ -22,6 +22,7 @@
     "lint:docs-links": "ruby scripts/lint/check_docs_links.rb",
     "test:docs-parity": "ruby scripts/lint/check_docs_parity.rb",
     "test:translations-duplicates": "ruby scripts/lint/check_duplicate_translation_keys.rb",
+    "lint:app-docs-sync": "ruby scripts/lint/check_app_docs_sync.rb",
     "build:maxgraph": "esbuild node_modules/@maxgraph/core/lib/esm/index.js --bundle --format=iife --global-name=maxgraph --outfile=docker/services/ruby/public/vendor/js/maxgraph.bundle.js --minify",
     "build:js": "node scripts/build_js_bundle.mjs",
     "build:js:verify": "node scripts/build_js_bundle.mjs --verify",

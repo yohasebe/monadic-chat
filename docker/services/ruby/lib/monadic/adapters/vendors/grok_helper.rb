@@ -1016,7 +1016,11 @@ module GrokHelper
         has_uploaded_images ||= session[:messages].any? { |m| m["role"] == "user" && m["images"] && m["images"].any? }
       end
 
-      if session && session[:grok_last_image] && !has_uploaded_images
+      # Only auto-attach for editing context, not for fresh conversations.
+      # After reset, session[:messages] is empty — skip auto-attach to avoid
+      # showing old images in new generation requests.
+      has_conversation_history = session && session[:messages].is_a?(Array) && session[:messages].length > 1
+      if session && session[:grok_last_image] && !has_uploaded_images && has_conversation_history
         filename = session[:grok_last_image].to_s
         path = File.join(shared_folder, filename)
 

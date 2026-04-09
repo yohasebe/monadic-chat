@@ -1003,51 +1003,10 @@ module GrokHelper
       return [error_res]
     end
 
-    # ---- Auto-attach last generated Grok image when user didn't upload a new one ----
-    begin
-      shared_folder = Monadic::Utils::Environment.shared_volume
-      has_uploaded_images = false
-
-      # 1) Current request payload
-      has_uploaded_images ||= obj["images"].is_a?(Array) && !obj["images"].empty?
-
-      # 2) Session messages (user uploads in previous turns)
-      if session && session[:messages].is_a?(Array)
-        has_uploaded_images ||= session[:messages].any? { |m| m["role"] == "user" && m["images"] && m["images"].any? }
-      end
-
-      # Only auto-attach for editing context, not for fresh conversations.
-      # After reset, session[:messages] is empty — skip auto-attach to avoid
-      # showing old images in new generation requests.
-      has_conversation_history = session && session[:messages].is_a?(Array) && session[:messages].length > 1
-      if session && session[:grok_last_image] && !has_uploaded_images && has_conversation_history
-        filename = session[:grok_last_image].to_s
-        path = File.join(shared_folder, filename)
-
-        if File.exist?(path)
-          # Encode as base64 data URL for the xAI API (which requires base64 or URL, not file paths)
-          mime = case File.extname(filename).downcase
-                 when ".png" then "image/png"
-                 when ".jpg", ".jpeg" then "image/jpeg"
-                 when ".gif" then "image/gif"
-                 when ".webp" then "image/webp"
-                 else "image/png"
-                 end
-          base64_data = Base64.strict_encode64(File.binread(path))
-          data_url = "data:#{mime};base64,#{base64_data}"
-
-          obj["images"] ||= []
-          obj["images"] = [obj["images"]] unless obj["images"].is_a?(Array)
-          obj["images"] << { "data" => data_url, "title" => filename }
-
-          Monadic::Utils::ExtraLogger.log { "Grok: Auto-attached last generated image #{filename} (base64)" }
-        else
-          session[:grok_last_image] = nil
-        end
-      end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "Grok: Auto-attach failed: #{e.class}: #{e.message}" }
-    end
+    # NOTE: Auto-attach of last generated image was removed because it caused
+    # stale images to appear after session reset. Image editing now relies on
+    # the model explicitly calling monadic_load_state to retrieve the filename,
+    # which is already described in the system prompt.
 
     # Skip message processing for tool role (but still process context)
     if role != "tool"

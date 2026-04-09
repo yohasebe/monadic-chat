@@ -73,7 +73,6 @@ You can also use the `From URL` feature to extract content from any website usin
 
 Availability for this app follows the provider table at the top of this page.
 
-![Chat workflow](../assets/images/workflows/workflow-chat.svg ':size=500')
 
 ### Chat Plus
 
@@ -86,7 +85,6 @@ Engage in a "monadic" chat that reveals the AI's thought process. As the AI resp
 - **People**: A list of people mentioned in the conversation.
 - **Notes**: Key points to remember during the conversation.
 
-![Chat Plus workflow](../assets/images/workflows/workflow-chat-plus.svg ':size=500')
 
 ### Voice Chat :id=voice-chat
 
@@ -104,7 +102,6 @@ The voice input feature displays a visual waveform while you speak. After stoppi
 
 <!-- SCREENSHOT: Voice input after stopping, showing transcribed text with p-value confidence score -->
 
-![Voice Chat workflow](../assets/images/workflows/workflow-voice-chat.svg ':size=500')
 
 ### Wikipedia
 
@@ -112,7 +109,6 @@ The voice input feature displays a visual waveform while you speak. After stoppi
 
 Ask questions about recent events or topics outside the AI's knowledge cutoff. This app functions like the standard Chat but automatically searches Wikipedia for answers when needed. If your query is in a language other than English, the app searches the English Wikipedia and translates the results back to your language.
 
-![Wikipedia workflow](../assets/images/workflows/workflow-wikipedia.svg ':size=500')
 
 ### Math Tutor
 
@@ -122,7 +118,6 @@ Explore math-related questions and answers. The app uses [KaTeX](https://katex.o
 
 !> **Caution:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
 
-![Math Tutor workflow](../assets/images/workflows/workflow-math-tutor.svg ':size=500')
 
 ### Second Opinion
 
@@ -132,7 +127,6 @@ Get a second opinion on any answer to ensure accuracy and gain diverse perspecti
 
 Second Opinion is available wherever the provider table lists support.
 
-![Second Opinion workflow](../assets/images/workflows/workflow-second-opinion.svg ':size=500')
 
 ### Research Assistant
 
@@ -149,7 +143,6 @@ Research Assistant availability matches the provider table above. Web search cap
 
 For more details, see the Chat app description above or [Reading Text from URLs](./message-input.md#reading-text-from-urls).
 
-![Research Assistant workflow](../assets/images/workflows/workflow-research-assistant.svg ':size=500')
 
 ## Language Related :id=language-related
 
@@ -162,7 +155,6 @@ Practice a new language in a conversation that starts with the assistant speakin
 
 Language Practice supports the providers indicated in the availability table. For speech synthesis settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
-![Language Practice workflow](../assets/images/workflows/workflow-language-practice.svg ':size=500')
 
 ### Language Practice Plus
 
@@ -170,7 +162,6 @@ Language Practice supports the providers indicated in the availability table. Fo
 
 Take your language learning a step further. This app functions like the standard Language Practice app, but adds linguistic advice (as text) to each of the assistant's responses, helping you improve your skills as you converse.
 
-![Language Practice Plus workflow](../assets/images/workflows/workflow-language-practice-plus.svg ':size=500')
 
 ### Translate
 
@@ -180,7 +171,6 @@ Translate text into another language. The assistant will first ask for the targe
 
 Translate is available for the providers marked in the availability table. Specific language coverage depends on each provider's multilingual support.
 
-![Translate workflow](../assets/images/workflows/workflow-translate.svg ':size=500')
 
 ### Voice Interpreter
 
@@ -190,7 +180,6 @@ Translate your voice input into another language and hear the translation spoken
 
 Voice Interpreter follows the provider availability shown in the table above. For speech synthesis settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
-![Voice Interpreter workflow](../assets/images/workflows/workflow-voice-interpreter.svg ':size=500')
 
 ## Content Generation :id=content-generation
 
@@ -200,7 +189,6 @@ Voice Interpreter follows the provider availability shown in the table above. Fo
 
 Co-write a novel with the assistant. The story unfolds based on your prompts, maintaining consistency and flow. The AI will first ask for the story's setting, characters, and genre. You can then provide prompts to guide the AI as it continues the story.
 
-![Novel Writer workflow](../assets/images/workflows/workflow-novel-writer.svg ':size=500')
 
 ### Image Generator
 
@@ -255,7 +243,6 @@ With supported models, the image editing feature allows you to:
 
   - Compression level
 
-![Image Generator workflow](../assets/images/workflows/workflow-image-generator.svg ':size=500')
 
 ### Image Editing
 
@@ -301,7 +288,6 @@ Some providers offer both fast and high-quality models. If you prefer higher qua
 
 Video Generator is available with the providers indicated in the availability table.
 
-![Video Generator workflow](../assets/images/workflows/workflow-video-generator.svg ':size=500')
 
 ### Mail Composer
 
@@ -312,7 +298,6 @@ Draft emails in collaboration with the assistant. The AI will draft emails based
 
 Mail Composer supports each provider shown in the availability table.
 
-![Mail Composer workflow](../assets/images/workflows/workflow-mail-composer.svg ':size=500')
 
 ### Mermaid Grapher
 
@@ -336,7 +321,6 @@ Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply 
 
 Mermaid Grapher supports each provider shown in the availability table.
 
-![Mermaid Grapher workflow](../assets/images/workflows/workflow-mermaid-grapher.svg ':size=500')
 
 ### DrawIO Grapher
 
@@ -359,7 +343,6 @@ Create Draw.io diagrams by describing your requirements. The agent generates Dra
 
 DrawIO Grapher is available for the providers marked in the availability table. File generation fidelity depends on each provider's tooling support.
 
-![DrawIO Grapher workflow](../assets/images/workflows/workflow-drawio-grapher.svg ':size=500')
 
 ### Syntax Tree
 
@@ -376,7 +359,6 @@ The generated syntax trees are displayed as SVG images with transparent backgrou
 
 Syntax Tree availability matches the provider table.
 
-![Syntax Tree workflow](../assets/images/workflows/workflow-syntax-tree.svg ':size=500')
 
 ### Concept Visualizer :id=concept-visualizer
 
@@ -395,7 +377,6 @@ The generated diagrams are saved to your shared folder and can be modified in an
 
 Concept Visualizer supports the providers listed in the availability table.
 
-![Concept Visualizer workflow](../assets/images/workflows/workflow-concept-visualizer.svg ':size=500')
 
 ### Speech Draft Helper
 
@@ -403,7 +384,6 @@ Concept Visualizer supports the providers listed in the availability table.
 
 Draft speeches with the help of an AI assistant. You can ask the assistant to write a speech on a specific topic, or provide an existing draft (as plain text, a Word document, or a PDF) for it to improve. The final speech can be exported as an audio file in a format supported by your text-to-speech provider (e.g., MP3 or WAV).
 
-![Speech Draft Helper workflow](../assets/images/workflows/workflow-speech-draft-helper.svg ':size=500')
 
 ## Content Analysis :id=content-analysis
 
@@ -436,7 +416,6 @@ For live browser viewing, you can ask the AI to use non-headless mode. This enab
 
 Web Insight is available with the providers marked in the availability table.
 
-![Web Insight workflow](../assets/images/workflows/workflow-web-insight.svg ':size=500')
 
 ### Video Describer
 
@@ -446,7 +425,6 @@ Get a detailed description of any video's content. The app analyzes a video by e
 
 To use this app, place a video file in the `Shared Folder`, provide its name, and specify the frames per second (fps) for the analysis.
 
-![Video Describer workflow](../assets/images/workflows/workflow-video-describer.svg ':size=500')
 
 ### PDF Navigator
 
@@ -486,7 +464,6 @@ The PDF Database panel (visible when using PDF Navigator app) shows all uploaded
 
 <!-- SCREENSHOT: PDF database panel listing uploaded PDFs with display names and delete icons -->
 
-![PDF Navigator workflow](../assets/images/workflows/workflow-pdf-navigator.svg ':size=500')
 
 ### Content Reader
 
@@ -507,7 +484,6 @@ Supported file formats:
 
 The app can also recognize and describe image files (PNG, JPEG, etc.). Image recognition uses the vision capability of the currently selected model (automatically falls back to a vision-capable model if needed). Additionally, audio files (MP3, etc.) can be transcribed to text. Speech recognition uses the STT model selected in the Speech Settings Panel of the Web UI.
 
-![Content Reader workflow](../assets/images/workflows/workflow-content-reader.svg ':size=500')
 
 ## Code Generation :id=code-generation
 
@@ -523,7 +499,6 @@ When the code generates plot images, the AI can visually verify the rendered out
 
 Code Interpreter availability matches the provider table. Provider tool-calling specifications may vary, which can affect behavior.
 
-![Code Interpreter workflow](../assets/images/workflows/workflow-code-interpreter.svg ':size=500')
 
 ### Coding Assistant
 
@@ -541,7 +516,6 @@ Work with an AI assistant that functions as a professional software engineer. It
 
 Coding Assistant supports the providers indicated in the availability table.
 
-![Coding Assistant workflow](../assets/images/workflows/workflow-coding-assistant.svg ':size=500')
 
 ### Jupyter Notebook :id=jupyter-notebook
 
@@ -556,7 +530,6 @@ Let the AI create Jupyter Notebooks, add cells, and execute code based on your r
 
 Jupyter Notebook is available for the providers shown in the availability table.
 
-![Jupyter Notebook workflow](../assets/images/workflows/workflow-jupyter-notebook.svg ':size=500')
 
 ### Monadic Chat Help
 
@@ -566,7 +539,6 @@ Get help with Monadic Chat from this AI-powered assistant. It provides contextua
 
 The help system uses a pre-built knowledge base created from the English documentation. When you ask a question, it searches this knowledge base to provide an accurate, relevant answer. For more details on the architecture, see the [Help System](../advanced-topics/help-system.md) documentation.
 
-![Monadic Chat Help workflow](../assets/images/workflows/workflow-monadic-chat-help.svg ':size=500')
 
 ## Specialized Apps :id=specialized-apps
 
@@ -586,7 +558,6 @@ For detailed documentation, see [Auto Forge](../apps/auto_forge.md).
 
 Auto Forge is available for the providers shown in the availability table.
 
-![Auto Forge workflow](../assets/images/workflows/workflow-autoforge.svg ':size=500')
 
 ### Music Lab :id=music-lab
 
@@ -621,5 +592,4 @@ Generate Office documents using AI, including Excel spreadsheets, PowerPoint pre
 
 Document Generator is currently available for Claude.
 
-![Document Generator workflow](../assets/images/workflows/workflow-document-generator.svg ':size=500')
 

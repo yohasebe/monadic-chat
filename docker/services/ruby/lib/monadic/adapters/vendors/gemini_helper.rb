@@ -1056,6 +1056,8 @@ module GeminiHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:tool_call_sequence] = []
+      session[:gemini_jupyter_retried] = nil  # Allow retry on each new user turn
       session[:parallel_dispatch_called] = nil
       session[:images_injected_this_turn] = Set.new
       # Clear tool_results from previous turn to prevent stale data affecting termination logic

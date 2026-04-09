@@ -1502,6 +1502,7 @@ module OpenAIHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:tool_call_sequence] = []
       session[:parallel_dispatch_called] = nil
       session[:images_injected_this_turn] = Set.new
 

@@ -301,6 +301,7 @@ module OllamaHelper
     # Initialize call_depth_per_turn on user turns
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:tool_call_sequence] = []
     end
 
     session[:messages].delete_if do |msg|

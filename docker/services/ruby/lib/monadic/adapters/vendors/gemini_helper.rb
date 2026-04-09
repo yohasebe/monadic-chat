@@ -1297,8 +1297,10 @@ module GeminiHelper
           ["execute_and_fix_jupyter_cells", "run_code"].include?(name)
         }
         
-        # Count only action tool calls (not info gathering)
-        action_tool_count = action_tool_names.length
+        # Count only UNIQUE action tool calls (not info gathering).
+        # Gemini may call the same tool multiple times in parallel (e.g. run_jupyter ×3),
+        # which should not count as separate actions toward the limit.
+        action_tool_count = action_tool_names.uniq.length
 
         # Determine whether to allow more tool calls based on operation flow
         should_stop = false

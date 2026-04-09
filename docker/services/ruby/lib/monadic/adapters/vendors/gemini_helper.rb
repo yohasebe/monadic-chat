@@ -2271,15 +2271,23 @@ module GeminiHelper
     result = []
 
     # Generate fallback response when no text was received (but no tool calls either)
-    if texts.empty? && !tool_calls.any?
+    # Treat texts containing only empty/whitespace strings as empty
+    effective_texts_empty = texts.empty? || texts.join("").strip.empty?
+    if effective_texts_empty && !tool_calls.any?
       # Gemini sometimes returns empty after tool results without continuing.
       # For Jupyter apps where notebook was created but cells not yet added,
       # signal that a retry with a nudge message is needed.
       app_name = session[:parameters]["app_name"].to_s
       tool_results = session[:parameters]["tool_results"] || []
       tool_result_names = tool_results.map { |r| r.dig("functionResponse", "name") }.compact
-      notebook_created = tool_result_names.include?("create_jupyter_notebook")
-      cells_added = tool_result_names.any? { |n| ["add_jupyter_cells", "create_and_populate_jupyter_notebook"].include?(n) }
+      # Also check content for notebook creation if name field is missing
+      tool_result_contents = tool_results.map { |r| r.dig("functionResponse", "response", "content").to_s }
+      notebook_created = tool_result_names.include?("create_jupyter_notebook") ||
+                          tool_result_contents.any? { |c| c.include?("created successfully") }
+      cells_added = tool_result_names.any? { |n| ["add_jupyter_cells", "create_and_populate_jupyter_notebook"].include?(n) } ||
+                     tool_result_contents.any? { |c| c.include?("cells have been added") || c.include?("Cells added") }
+
+      Monadic::Utils::ExtraLogger.log { "[Gemini Jupyter Retry Check] app=#{app_name}, names=#{tool_result_names.inspect}, notebook_created=#{notebook_created}, cells_added=#{cells_added}, retried=#{session[:gemini_jupyter_retried]}" }
 
       if app_name.include?("Jupyter") && notebook_created && !cells_added && !session[:gemini_jupyter_retried]
         session[:gemini_jupyter_retried] = true

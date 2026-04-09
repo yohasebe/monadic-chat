@@ -820,12 +820,14 @@ window.loadParams = function(params, calledFor = "loadParams") {
     const showThinkingCb = $id("show-thinking");
     if (spec["supports_thinking"]) {
       $show(thinkingContainer);
-      // Restore from params if available, default to checked (show thinking)
+      // Restore from params if available, default to unchecked (thinking off).
+      // Users can opt in via the toggle; default off avoids slow responses
+      // from models with expensive thinking (e.g. Ollama qwen3-vl:8b-thinking).
       if (showThinkingCb) {
         if (params["show_thinking"] !== undefined) {
           showThinkingCb.checked = params["show_thinking"] !== false && params["show_thinking"] !== "false";
         } else {
-          showThinkingCb.checked = true;
+          showThinkingCb.checked = false;
         }
       }
     } else {

@@ -126,17 +126,17 @@
   --inline-code-bg: rgba(0, 0, 0, 0.05);
 
   /* Badge Colors */
-  --badge-tools-bg: #ffebee;
-  --badge-tools-border: #ffcdd2;
-  --badge-tools-color: #c62828;
-  --badge-capabilities-bg: #e8f4f8;
-  --badge-capabilities-border: #b3e5fc;
-  --badge-capabilities-color: #01579b;
+  --badge-tools-bg: #f5f0f0;
+  --badge-tools-border: #e0d8d8;
+  --badge-tools-color: #7a5a5a;
+  --badge-capabilities-bg: #f0f3f5;
+  --badge-capabilities-border: #d8e0e5;
+  --badge-capabilities-color: #5a6a7a;
   --badge-category-label: #666;
 
   /* Tool Group Badge */
-  --tool-group-badge-bg: #e3f2fd;
-  --tool-group-badge-color: #1565c0;
+  --tool-group-badge-bg: #f0f3f5;
+  --tool-group-badge-color: #5a6a7a;
 
   /* Alert Message Colors */
   --alert-info-bg: #e3f2fd;
@@ -247,17 +247,17 @@
   --inline-code-bg: rgba(255, 255, 255, 0.1);
 
   /* Badge Colors */
-  --badge-tools-bg: #4a2020;
-  --badge-tools-border: #6a3030;
-  --badge-tools-color: #f47983;
-  --badge-capabilities-bg: #1a3040;
-  --badge-capabilities-border: #2a4a5a;
-  --badge-capabilities-color: #8fb3e8;
+  --badge-tools-bg: #3a2e2e;
+  --badge-tools-border: #4a3e3e;
+  --badge-tools-color: #c8b0b0;
+  --badge-capabilities-bg: #2e3338;
+  --badge-capabilities-border: #3e4348;
+  --badge-capabilities-color: #b0b8c0;
   --badge-category-label: #b0b0b0;
 
   /* Tool Group Badge */
-  --tool-group-badge-bg: #1a3050;
-  --tool-group-badge-color: #8fb3e8;
+  --tool-group-badge-bg: #2e3338;
+  --tool-group-badge-color: #b0b8c0;
 
   /* Alert Message Colors */
   --alert-info-bg: #1a3050;
@@ -896,7 +896,7 @@ img.base64-image {
   max-width: 400px;
   max-height: 200px;
   margin: 1.5rem 0 20px 0;
-  cursor: pointer;
+  cursor: default;
 }
 
 .reset-area,
@@ -2722,13 +2722,7 @@ h1 {
   max-width: 100%;
   height: auto;
   display: inline-block;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-
-.generated_image img:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  transform: scale(1.01);
+  cursor: default;
 }
 
 /* Screenshot Lightbox */

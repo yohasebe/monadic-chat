@@ -1295,8 +1295,22 @@ module ClaudeHelper
 
     # Process tool calls if any exist
     if tool_calls.any? && session[:call_depth_per_turn] <= MAX_FUNC_CALLS
+      # Preserve pre-tool text so it can be prepended to the final response.
+      # Without this, streamed text from Round 1 (e.g. mathematical explanation)
+      # is lost when Round 2 (post-tool) replaces the temp-card content.
+      pre_tool_text = text_result
+
       result = assemble_claude_tool_context(app, session, tool_calls, text_result, thinking_result,
                                              thinking_signature, redacted_thinking_result, &block)
+      if result && !result.empty? && pre_tool_text && !pre_tool_text.strip.empty?
+        # Prepend Round 1 text to the final result content
+        if result.is_a?(Array) && result.first.is_a?(Hash)
+          msg = result.first.dig("choices", 0, "message") || result.first["message"]
+          if msg && msg["content"]
+            msg["content"] = pre_tool_text + "\n\n" + msg["content"]
+          end
+        end
+      end
       return result unless result.nil? || result.empty?
     end
 

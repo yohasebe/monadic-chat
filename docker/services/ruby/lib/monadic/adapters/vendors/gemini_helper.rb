@@ -2019,7 +2019,11 @@ module GeminiHelper
         "role" => "user",
         "parts" => [{ "text" => "The notebook has been created. Now add the requested code cells using add_jupyter_cells and execute them." }]
       }
-      retry_res = execute_gemini_api_call(body: body, headers: headers, call_depth: call_depth)
+      retry_res = execute_gemini_api_call(
+        headers: headers, body: body, obj: obj, api_key: api_key,
+        is_thinking_model: is_thinking_model, has_pdf_part: has_pdf_part,
+        app: app, session: session, call_depth: call_depth, &block
+      )
       if retry_res&.status&.success?
         return process_json_data(app: app, session: session, query: body,
                                  res: retry_res.body, call_depth: call_depth, &block)

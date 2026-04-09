@@ -107,8 +107,12 @@ app "JupyterNotebookGemini" do
 
     CORRECT approach (ALWAYS DO):
     - User: "Create a data analysis notebook"
-    - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
+    - You: [Actually execute] run_jupyter → create_and_populate_jupyter_notebook(filename:, cells:)
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
+
+    IMPORTANT: When creating a new notebook WITH code, ALWAYS use `create_and_populate_jupyter_notebook`
+    instead of separate `create_jupyter_notebook` + `add_jupyter_cells` calls. This combined tool
+    creates the notebook and adds cells in a single operation, which is more reliable and efficient.
 
     ## Response Format (CRITICAL)
 
@@ -239,6 +243,13 @@ app "JupyterNotebookGemini" do
 
     # Import verification tools for Self-Verification protocol
     import_shared_tools :verification, visibility: "always"
+
+    # Combined notebook creation + cell population (preferred for Gemini)
+    define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook and add code/markdown cells in a single operation. ALWAYS use this instead of separate create + add calls." do
+      parameter :filename, "string", "Name for the notebook (timestamp will be appended automatically)", required: true
+      parameter :cells, "array", "Array of cell objects, each with 'cell_type' ('code' or 'markdown') and 'source' (string or array of strings)", required: true
+      parameter :run, "boolean", "Whether to execute the cells after adding (default: true)", required: false
+    end
 
     # Monadic state management tool (read-only - saving is automatic)
     define_tool "monadic_load_state", "Load notebook context from session state. Use this ONLY when you need to reference previous notebook state (e.g., to get the current notebook filename or check if Jupyter is running). Do NOT call this on every turn." do

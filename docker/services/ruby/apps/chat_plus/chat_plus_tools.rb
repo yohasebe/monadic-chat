@@ -177,9 +177,3 @@ class ChatPlusCohere < MonadicApp
   include CohereHelper if defined?(CohereHelper)
   include ChatPlusTools
 end
-
-# Note: Ollama tool support varies by model.
-class ChatPlusOllama < MonadicApp
-  include OllamaHelper if defined?(OllamaHelper)
-  include ChatPlusTools
-end

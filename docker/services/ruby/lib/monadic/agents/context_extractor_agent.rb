@@ -572,7 +572,7 @@ module ContextExtractorAgent
       models = OllamaHelper.list_models
       models&.first || OllamaHelper::DEFAULT_MODEL
     else
-      OllamaHelper::DEFAULT_MODEL rescue "qwen3:4b"
+      OllamaHelper::DEFAULT_MODEL rescue "gemma4:e4b"
     end
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Error getting Ollama models: #{e.message}" }

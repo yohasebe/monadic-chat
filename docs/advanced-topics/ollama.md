@@ -17,7 +17,7 @@ Download and install Ollama for your operating system:
 After installation, pull at least one model. A lightweight text-only starter:
 
 ```bash
-ollama pull qwen3:4b
+ollama pull gemma4:e4b
 ```
 
 For a model that supports vision, tool calling, and thinking in one package:

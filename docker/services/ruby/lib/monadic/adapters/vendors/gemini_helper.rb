@@ -2005,11 +2005,28 @@ module GeminiHelper
       return [res]
     end
 
-    process_json_data(app: app,
-                      session: session,
-                      query: body,
-                      res: res.body,
-                      call_depth: call_depth, &block)
+    result = process_json_data(app: app,
+                               session: session,
+                               query: body,
+                               res: res.body,
+                               call_depth: call_depth, &block)
+
+    # Gemini Jupyter retry: when notebook was created but model returned empty
+    # without adding cells, nudge it to continue by injecting a user message.
+    if result.is_a?(Array) && result.first.is_a?(Hash) && result.first["gemini_jupyter_retry"]
+      Monadic::Utils::ExtraLogger.log { "[Gemini Jupyter Retry] Nudging model to add cells" }
+      body["contents"] << {
+        "role" => "user",
+        "parts" => [{ "text" => "The notebook has been created. Now add the requested code cells using add_jupyter_cells and execute them." }]
+      }
+      retry_res = execute_gemini_api_call(body: body, headers: headers, call_depth: call_depth)
+      if retry_res&.status&.success?
+        return process_json_data(app: app, session: session, query: body,
+                                 res: retry_res.body, call_depth: call_depth, &block)
+      end
+    end
+
+    result
   end
 
   # Format and return error responses for API call failures
@@ -2255,6 +2272,21 @@ module GeminiHelper
 
     # Generate fallback response when no text was received (but no tool calls either)
     if texts.empty? && !tool_calls.any?
+      # Gemini sometimes returns empty after tool results without continuing.
+      # For Jupyter apps where notebook was created but cells not yet added,
+      # signal that a retry with a nudge message is needed.
+      app_name = session[:parameters]["app_name"].to_s
+      tool_results = session[:parameters]["tool_results"] || []
+      tool_result_names = tool_results.map { |r| r.dig("functionResponse", "name") }.compact
+      notebook_created = tool_result_names.include?("create_jupyter_notebook")
+      cells_added = tool_result_names.any? { |n| ["add_jupyter_cells", "create_and_populate_jupyter_notebook"].include?(n) }
+
+      if app_name.include?("Jupyter") && notebook_created && !cells_added && !session[:gemini_jupyter_retried]
+        session[:gemini_jupyter_retried] = true
+        Monadic::Utils::ExtraLogger.log { "[Gemini Jupyter Retry] Empty response after notebook creation — requesting retry via api_request" }
+        return [{ "gemini_jupyter_retry" => true }]
+      end
+
       fallback = generate_gemini_fallback_response(session: session, &block)
       result = fallback[:result]
       finish_reason = fallback[:finish_reason] if fallback[:finish_reason]

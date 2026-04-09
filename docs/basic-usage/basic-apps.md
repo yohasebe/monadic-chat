@@ -14,22 +14,22 @@ The table below shows which apps are available for which AI model providers.
 | App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
 |-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
+| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Wikipedia | ✅ | | | | | | | | |
 | Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Language Practice Plus | ✅ | ✅ | | | | | | | |
 | Translate | ✅ | | ✅ | | | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | | |
 | Novel Writer | ✅ | | | | | | ✅ | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
-| Video Generator | ✅ | | | | ✅ | ✅ | | | |
-| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Video Generator | | | | | ✅ | ✅ | | | |
+| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mermaid Grapher | ✅ | ✅ | | | ✅ | ✅ | | | |
-| DrawIO Grapher | ✅ | ✅ | | | | | | | |
+| DrawIO Grapher | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Syntax Tree | ✅ | ✅ | | | | | | | |
 | Concept Visualizer | ✅ | ✅ | | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | | |
@@ -38,10 +38,10 @@ The table below shows which apps are available for which AI model providers.
 | PDF Navigator | ✅ | | | | | | | | |
 | Content Reader | ✅ | | | | | | | | |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | | |
-| Music Lab | ✅ | ✅ | ✅ | | ✅ | | | | |
+| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Document Generator | | ✅ | | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 

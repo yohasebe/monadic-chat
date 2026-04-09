@@ -12,6 +12,18 @@
   - **Improvement**: Auto-rebuild JS bundle in `rake server:debug` when sources change
   - **Improvement**: Translation duplicate key linter (`npm run test:translations-duplicates`)
   - **Improvement**: API test retry with exponential backoff to prevent rate limiting failures
+  - **Bug Fix**: Gemini Jupyter empty response after notebook creation — added nudge retry mechanism
+  - **Bug Fix**: Gemini Jupyter false success message when only notebook created (no cells added)
+  - **Bug Fix**: Gemini Jupyter premature tool removal due to duplicate tool call counting
+  - **Bug Fix**: Claude text lost after tool calls — pre-tool text now preserved in final response
+  - **Bug Fix**: Grok Image Generator showed stale images after session reset — removed auto-attach
+  - **Bug Fix**: ContextExtractor Ollama endpoint hardcoded to `host.docker.internal` — now uses dynamic endpoint
+  - **Bug Fix**: `modelSpec` const reference not updated by dynamic Ollama merge — fixed with `Object.assign` into existing object
+  - **Improvement**: Default Show Thinking toggle to OFF for all providers
+  - **Improvement**: Default `reasoning_effort` to `"none"` in DSL; apps opt in with `"low"` or higher
+  - **Improvement**: Cache-Control no-cache headers in dev mode to prevent stale JS bundle
+  - **Improvement**: Translate app prompts improved with follow-up language handling
+  - **Improvement**: Softer sidebar badge colors, fixed image hover cursor
   - **Cleanup**: Disabled OpenAI Video Generator (Sora API shutdown), removed 28 duplicate translation keys
 - [March, 2026] 1.0.0-beta.9
   - Version updated from 1.0.0-beta.8

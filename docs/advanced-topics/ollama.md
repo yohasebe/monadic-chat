@@ -83,6 +83,8 @@ ollama show <model-name>
 
 If Ollama is temporarily unavailable when Monadic Chat starts, the system falls back to a name-based heuristic (e.g. models with `-thinking` in the name are treated as thinking-capable).
 
+> **Note on `-thinking` model variants**: Models with `-thinking` in the name (e.g. `qwen3-vl:8b-thinking`) always generate reasoning tokens internally, even when the Show Thinking toggle is off. This results in slower responses that cannot be avoided. For faster responses, use non-thinking variants such as `gemma4:e4b`, which can fully disable thinking when the toggle is off.
+
 ## Available Apps
 
 The following apps are available in the Ollama group:

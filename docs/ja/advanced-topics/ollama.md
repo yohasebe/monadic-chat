@@ -83,6 +83,8 @@ ollama show <model-name>
 
 Monadic Chat 起動時に Ollama が一時的に到達不能であった場合は、モデル名ベースのヒューリスティック（例: 名前に `-thinking` を含むモデルは thinking 対応とみなす）にフォールバックします。
 
+> **`-thinking` モデルバリアントに関する注意**: 名前に `-thinking` を含むモデル（例: `qwen3-vl:8b-thinking`）は、Show Thinking トグルをオフにしても内部で常に推論トークンを生成します。そのため応答が遅くなることは避けられません。高速な応答が必要な場合は、`gemma4:e4b` のような非 thinking バリアントを使用してください。これらのモデルはトグルオフ時に thinking を完全に無効化できます。
+
 ## 利用可能なアプリ
 
 Ollamaグループでは以下のアプリが利用できます：

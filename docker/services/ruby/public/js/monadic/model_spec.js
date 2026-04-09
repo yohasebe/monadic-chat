@@ -1250,7 +1250,7 @@ const providerDefaults = {
     "chat": ["deepseek-chat", "deepseek-reasoner"]
   },
   "ollama": {
-    "chat": ["qwen3-vl:8b-thinking"]
+    "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]
   },
   "elevenlabs": {
     "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"],

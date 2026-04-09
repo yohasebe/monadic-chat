@@ -28,7 +28,7 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     'anthropic' => { suffix: 'Claude', file_suffix: 'claude', timeout: 90 },
     'gemini' => { suffix: 'Gemini', file_suffix: 'gemini', timeout: 60 },
     'xai' => { suffix: 'Grok', file_suffix: 'grok', timeout: 60 },
-    'mistral' => { suffix: 'Mistral', file_suffix: 'mistral', timeout: 60 },
+    'mistral' => { suffix: 'Mistral', file_suffix: 'mistral', timeout: 90 },
     'cohere' => { suffix: 'Cohere', file_suffix: 'cohere', timeout: 60 },
     'deepseek' => { suffix: 'DeepSeek', file_suffix: 'deepseek', timeout: 60 },
     'perplexity' => { suffix: 'Perplexity', file_suffix: 'perplexity', timeout: 60 },

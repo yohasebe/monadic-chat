@@ -51,14 +51,12 @@
   async function initializeModels() {
     const models = await loadModelSpec();
 
-    // Merge dynamic Ollama capabilities on top of static modelSpec entries.
-    // Dynamic entries override static ones (e.g. the hardcoded qwen3-vl
-    // fallback), ensuring the UI reflects the user's actual installed models.
+    // Merge API models + dynamic Ollama capabilities INTO the existing
+    // window.modelSpec object (which is the same reference as the `const modelSpec`
+    // in model_spec.js). Replacing with `window.modelSpec = newObj` would break
+    // code that captured the original object reference via the const binding.
     const ollamaModels = await loadOllamaCapabilities();
-    Object.assign(models, ollamaModels);
-
-    // Replace global modelSpec with loaded specifications
-    window.modelSpec = models;
+    Object.assign(window.modelSpec, models, ollamaModels);
     window.modelsLoaded = true;
 
     // Dispatch event to notify that models are loaded

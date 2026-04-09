@@ -1396,15 +1396,36 @@ const WorkflowViewer = (function () {
       var view = graph.getView();
       var savedScale = view.scale, savedTx = view.translate.x, savedTy = view.translate.y;
       view.scaleAndTranslate(1, 0, 0);
-      var bounds = graph.getGraphBounds();
       view.scaleAndTranslate(savedScale, savedTx, savedTy);
-      if (!bounds || bounds.width === 0) return null;
-
-      var pad = opts.padding || 30;
-      var vbX = bounds.x - pad, vbY = bounds.y - pad;
-      var vbW = bounds.width + pad * 2, vbH = bounds.height + pad * 2;
 
       var clone = svgRoot.cloneNode(true);
+
+      // Compute actual content bounds from SVG shape elements.
+      // graph.getGraphBounds() can return incorrect values when the graph
+      // layout uses offsets that don't match SVG coordinates, so we prefer
+      // scanning the real elements. Falls back to getGraphBounds() when
+      // no shape elements are found (e.g. in test environments).
+      var pad = opts.padding || 30;
+      var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      clone.querySelectorAll('rect, circle, ellipse').forEach(function(el) {
+        var x = parseFloat(el.getAttribute('x') || el.getAttribute('cx') || 0);
+        var y = parseFloat(el.getAttribute('y') || el.getAttribute('cy') || 0);
+        var w = parseFloat(el.getAttribute('width') || el.getAttribute('r') || 0);
+        var h = parseFloat(el.getAttribute('height') || el.getAttribute('r') || 0);
+        if (!isNaN(x) && !isNaN(w)) { minX = Math.min(minX, x); maxX = Math.max(maxX, x + w); }
+        if (!isNaN(y) && !isNaN(h)) { minY = Math.min(minY, y); maxY = Math.max(maxY, y + h); }
+      });
+      var vbX, vbY, vbW, vbH;
+      if (minX !== Infinity) {
+        vbX = minX - pad; vbY = minY - pad;
+        vbW = (maxX - minX) + pad * 2; vbH = (maxY - minY) + pad * 2;
+      } else {
+        // Fallback to graph.getGraphBounds() (test environments, simple graphs)
+        var bounds = graph.getGraphBounds();
+        if (!bounds || bounds.width === 0) return null;
+        vbX = bounds.x - pad; vbY = bounds.y - pad;
+        vbW = bounds.width + pad * 2; vbH = bounds.height + pad * 2;
+      }
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       clone.setAttribute('xmlns:xhtml', 'http://www.w3.org/1999/xhtml');
       clone.setAttribute('viewBox', [vbX, vbY, vbW, vbH].join(' '));

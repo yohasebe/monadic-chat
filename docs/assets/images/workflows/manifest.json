@@ -3,7 +3,6 @@
   "AutoForge": "workflow-autoforge.svg",
   "Chat": "workflow-chat.svg",
   "Chat Plus": "workflow-chat-plus.svg",
-  "Chord Accompanist": "workflow-chord-accompanist.svg",
   "Code Interpreter": "workflow-code-interpreter.svg",
   "Coding Assistant": "workflow-coding-assistant.svg",
   "Concept Visualizer": "workflow-concept-visualizer.svg",
@@ -18,6 +17,7 @@
   "Math Tutor": "workflow-math-tutor.svg",
   "Mermaid Grapher": "workflow-mermaid-grapher.svg",
   "Monadic Chat Help": "workflow-monadic-chat-help.svg",
+  "Music Lab": "workflow-music-lab.svg",
   "Novel Writer": "workflow-novel-writer.svg",
   "PDF Navigator": "workflow-pdf-navigator.svg",
   "Research Assistant": "workflow-research-assistant.svg",
@@ -27,8 +27,8 @@
   "Translate": "workflow-translate.svg",
   "Video Describer": "workflow-video-describer.svg",
   "Video Generator": "workflow-video-generator.svg",
-  "Web Insight": "workflow-web-insight.svg",
   "Voice Chat": "workflow-voice-chat.svg",
   "Voice Interpreter": "workflow-voice-interpreter.svg",
+  "Web Insight": "workflow-web-insight.svg",
   "Wikipedia": "workflow-wikipedia.svg"
 }

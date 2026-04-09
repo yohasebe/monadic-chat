@@ -65,9 +65,8 @@ app "CodingAssistantDeepSeek" do
   llm do
     provider "deepseek"
     reasoning_effort "low"
-    # Reasoner is default for better tool calling reliability
-    # Chat is faster but may have DSML formatting issues with file operations
-    model ["deepseek-reasoner", "deepseek-chat"]
+    # Chat is default for faster responses; reasoner available for complex tasks
+    model ["deepseek-chat", "deepseek-reasoner"]
   end
   
   display_name "Coding Assistant"

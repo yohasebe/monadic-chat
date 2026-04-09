@@ -480,6 +480,7 @@ module ContextExtractorAgent
         { "role" => "user", "content" => "Extract context and return JSON only." }
       ],
       "stream" => false,
+      "think" => false,  # Disable thinking for fast context extraction
       "options" => {
         "temperature" => 0.3
       }

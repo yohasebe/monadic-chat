@@ -24,14 +24,14 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
 
   # Provider configuration
   PROVIDER_CONFIG = {
-    'openai' => { suffix: 'OpenAI', file_suffix: 'openai', timeout: 60 },
+    'openai' => { suffix: 'OpenAI', file_suffix: 'openai', timeout: 90 },
     'anthropic' => { suffix: 'Claude', file_suffix: 'claude', timeout: 90 },
-    'gemini' => { suffix: 'Gemini', file_suffix: 'gemini', timeout: 60 },
-    'xai' => { suffix: 'Grok', file_suffix: 'grok', timeout: 60 },
+    'gemini' => { suffix: 'Gemini', file_suffix: 'gemini', timeout: 90 },
+    'xai' => { suffix: 'Grok', file_suffix: 'grok', timeout: 90 },
     'mistral' => { suffix: 'Mistral', file_suffix: 'mistral', timeout: 90 },
-    'cohere' => { suffix: 'Cohere', file_suffix: 'cohere', timeout: 60 },
-    'deepseek' => { suffix: 'DeepSeek', file_suffix: 'deepseek', timeout: 60 },
-    'perplexity' => { suffix: 'Perplexity', file_suffix: 'perplexity', timeout: 60 },
+    'cohere' => { suffix: 'Cohere', file_suffix: 'cohere', timeout: 90 },
+    'deepseek' => { suffix: 'DeepSeek', file_suffix: 'deepseek', timeout: 90 },
+    'perplexity' => { suffix: 'Perplexity', file_suffix: 'perplexity', timeout: 90 },
     'ollama' => { suffix: 'Ollama', file_suffix: 'ollama', timeout: 120 }
   }.freeze
 

@@ -37,7 +37,7 @@ app "JupyterNotebookGemini" do
     provider "gemini"
     model ["gemini-3.1-pro-preview", "gemini-3-flash-preview"]
     temperature 0.0
-    reasoning_effort "none"
+    reasoning_effort "low"
     max_tokens 8192
     context_size 20
   end

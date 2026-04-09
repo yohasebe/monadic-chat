@@ -36,7 +36,7 @@ app "CodeInterpreterMistral" do
   llm do
     provider "mistral"
     temperature 0.0
-    reasoning_effort "none"
+    reasoning_effort "low"
   end
 
   system_prompt <<~TEXT

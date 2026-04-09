@@ -384,16 +384,13 @@ module OllamaHelper
       }
     }
 
-    # Enable thinking for models that support it. Controlled by two factors:
-    # 1. reasoning_effort: "none" disables thinking entirely (matches other providers)
-    # 2. show_thinking toggle: user can disable per-request via UI
-    # Both must allow thinking for `think: true` to be sent.
-    reasoning_effort = obj["reasoning_effort"]
-    reasoning_disabled = reasoning_effort == "none"
+    # Enable thinking for models that support it. For Ollama, the Show Thinking
+    # toggle is the sole control (Ollama has no reasoning_effort API parameter —
+    # only binary think on/off). The toggle defaults to ON in the UI; users who
+    # don't want thinking can switch it OFF for faster responses.
     show_thinking = obj["show_thinking"]
     show_thinking_off = [false, "false"].include?(show_thinking)
-    thinking_requested = !reasoning_disabled && !show_thinking_off
-    if thinking_requested && supports_thinking?(obj["model"])
+    if !show_thinking_off && supports_thinking?(obj["model"])
       body["think"] = true
     end
 

@@ -101,7 +101,7 @@ module ContextExtractorAgent
     "mistral" => "https://api.mistral.ai/v1/chat/completions",
     "cohere" => "https://api.cohere.ai/v2/chat",
     "deepseek" => "https://api.deepseek.com/v1/chat/completions",
-    "ollama" => "http://host.docker.internal:11434/api/chat"
+    "ollama" => nil  # Resolved dynamically via OllamaHelper.find_endpoint
   }.freeze
 
   # Detect the dominant language of the conversation text
@@ -468,7 +468,10 @@ module ContextExtractorAgent
 
   # Call Ollama API (local, no API key required)
   def call_ollama_api(model, system_message)
-    uri = URI.parse(API_ENDPOINTS["ollama"])
+    # Resolve endpoint dynamically (localhost in dev, host.docker.internal in container)
+    ollama_endpoint = defined?(OllamaHelper) ? OllamaHelper.find_endpoint : nil
+    return nil unless ollama_endpoint
+    uri = URI.parse("#{ollama_endpoint}/chat")
 
     request_body = {
       "model" => model,

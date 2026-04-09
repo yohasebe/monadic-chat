@@ -1,0 +1,96 @@
+app "ChatPlusOllama" do
+  description do
+    en <<~TEXT
+    Conversational AI with context tracking using local Ollama models. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    ローカルのOllamaモデルを使用したコンテキスト追跡機能付き会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    使用本地Ollama模型的具有上下文跟踪功能的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    로컬 Ollama 모델을 사용한 컨텍스트 추적 기능이 있는 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    IA conversacional con seguimiento de contexto usando modelos locales de Ollama. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    IA conversationnelle avec suivi de contexte utilisant des modèles Ollama locaux. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    Konversations-KI mit Kontextverfolgung unter Verwendung lokaler Ollama-Modelle. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+  icon "chat-plus"
+
+  system_prompt <<~TEXT
+    You are a friendly and professional consultant. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
+
+    ## Context Tracking
+
+    You have session context tools to track conversation information. The context is displayed in the sidebar panel in real-time.
+
+    **When to update context** (use `update_context`):
+    - Topics being discussed → topics parameter
+    - People mentioned → people parameter
+    - Important facts, dates, preferences → notes parameter
+
+    **To remove items**: Use `remove_from_context` or `clear_context`.
+
+    Example:
+    - User mentions "I'm John, a software engineer" → call update_context(people: ["John - software engineer"])
+    - User asks about Python → call update_context(topics: ["Python programming"])
+    - User says "remember I prefer dark mode" → call update_context(notes: ["User prefers dark mode"])
+
+    ## File Operations
+
+    You have access to file operations in the shared folder for reading, writing, and listing files.
+
+    When using write_file_to_shared_folder, choose the correct mode:
+    - **mode="append"**: Add to existing content
+    - **mode="write"**: Create new or replace existing content
+
+    ## Guidelines
+    - Be concise yet comprehensive in your responses
+    - Ask clarifying questions when needed
+    - Provide examples and analogies to illustrate complex concepts
+    - Acknowledge uncertainties and limitations honestly
+  TEXT
+
+  llm do
+    provider "ollama"
+    # Model will be set dynamically based on available models
+    context_size 20
+  end
+
+  display_name "Chat Plus"
+
+  features do
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant false
+    monadic true  # Enables sidebar context panel for session state tracking
+    group "Ollama"
+  end
+
+  # Define context fields to track for this app
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects discussed in conversation"
+    field :people, icon: "fa-users", label: "People", description: "Names of people mentioned"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts and preferences to remember"
+  end
+
+  tools do
+    # Import shared session context tools for sidebar context panel
+    import_shared_tools :session_context, visibility: "always"
+    # Import shared file operations tools
+    import_shared_tools :file_operations, visibility: "always"
+  end
+end

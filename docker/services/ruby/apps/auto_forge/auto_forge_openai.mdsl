@@ -11,7 +11,7 @@ app "AutoForgeOpenAI" do
 
   icon "hammer"
 
-  display_name "AutoForge"
+  display_name "Auto Forge"
 
   initiate_from_assistant true
 

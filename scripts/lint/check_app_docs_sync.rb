@@ -71,14 +71,27 @@ def scan_mdsl_files
     result[display_name] << provider_display
   end
 
-  # Special: Wikipedia (app.mdsl, no provider suffix)
-  wiki_path = APPS_DIR.join("wikipedia", "wikipedia.mdsl")
-  if wiki_path.exist?
-    content = File.read(wiki_path)
-    unless content.include?("disabled true")
-      result["Wikipedia"] ||= Set.new
-      result["Wikipedia"] << "OpenAI"
+  # Special cases: apps with non-standard suffixes (e.g. _app, no provider suffix)
+  # These map to OpenAI or their own category
+  special_apps = {
+    "wikipedia" => "wikipedia.mdsl",
+    "video_describer" => "video_describer_app.mdsl"
+  }
+  special_apps.each do |dirname, filename|
+    path = APPS_DIR.join(dirname, filename)
+    next unless path.exist?
+    content = File.read(path)
+    next if content.include?("disabled true")
+    display_name = nil
+    content.each_line do |line|
+      if line =~ /display_name\s+"([^"]+)"/
+        display_name = $1
+        break
+      end
     end
+    display_name ||= dirname.split("_").map(&:capitalize).join(" ")
+    result[display_name] ||= Set.new
+    result[display_name] << "OpenAI"
   end
 
   result
@@ -96,7 +109,9 @@ def parse_docs_table(path)
   return result unless header_idx
 
   header = lines[header_idx]
-  columns = header.split("|").map(&:strip).reject(&:empty?)
+  # Split by | but KEEP empty cells (don't reject empties)
+  # Leading/trailing empty strings from split are removed by [1..-2]
+  columns = header.split("|").map(&:strip)[1..-2]
   # columns[0] = "App", columns[1..] = provider names
 
   # Skip separator line
@@ -104,8 +119,8 @@ def parse_docs_table(path)
 
   lines[data_start..].each do |line|
     break unless line.strip.start_with?("|")
-    cells = line.split("|").map(&:strip).reject(&:empty?)
-    next if cells.empty?
+    cells = line.split("|").map(&:strip)[1..-2]
+    next if cells.nil? || cells.empty?
 
     app_name = cells[0]
     cells[1..].each_with_index do |cell, idx|

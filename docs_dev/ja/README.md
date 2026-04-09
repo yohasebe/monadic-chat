@@ -46,7 +46,7 @@
 コンポーネント固有のドキュメント：
 - **[フロントエンド](frontend/)** - JavaScriptモジュールとUIコンポーネント
 - **[バックエンド](ruby_service/)** - Rubyサービス実装
-- **[Pythonサービス](python_service/)** - Python Flaskサービス
+- **[Pythonサービス](python_service/)** - Pythonサービス（JupyterLab & ツール）
 - **[MDSL](mdsl/)** - Monadic DSLドキュメント
 
 ## ドキュメントガイドライン

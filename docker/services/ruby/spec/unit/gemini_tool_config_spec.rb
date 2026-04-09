@@ -42,7 +42,7 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
     it "includes AUTO mode constant in GeminiHelper for tool-capable models" do
       # Verify that AUTO mode is the expected behavior for tool configuration
       # The actual toolConfig is set in the request body building logic
-      session = build_session("gemini-2.5-flash", tools: [{ "function_declarations" => [{ "name" => "run_code" }] }])
+      session = build_session("gemini-3-flash-preview", tools: [{ "function_declarations" => [{ "name" => "run_code" }] }])
 
       # Verify tools are present in session
       expect(session[:parameters]["tools"]).not_to be_nil
@@ -51,7 +51,7 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
     end
 
     it "handles models without explicit tools" do
-      session = build_session("gemini-2.5-flash", tools: nil)
+      session = build_session("gemini-3-flash-preview", tools: nil)
 
       # Verify no tools in session
       expect(session[:parameters]["tools"]).to be_nil
@@ -60,7 +60,7 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
 
   describe "thinking/reasoning configuration" do
     it "accepts reasoning_effort parameter for thinking-capable models" do
-      session = build_session("gemini-2.5-flash", reasoning_effort: "high")
+      session = build_session("gemini-3-flash-preview", reasoning_effort: "high")
 
       # Verify reasoning_effort is set in parameters
       expect(session[:parameters]["reasoning_effort"]).to eq("high")
@@ -71,7 +71,7 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
       valid_efforts = ["minimal", "low", "medium", "high"]
 
       valid_efforts.each do |effort|
-        session = build_session("gemini-2.5-flash", reasoning_effort: effort)
+        session = build_session("gemini-3-flash-preview", reasoning_effort: effort)
         expect(session[:parameters]["reasoning_effort"]).to eq(effort)
       end
     end
@@ -79,7 +79,7 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
 
   describe "google_search tool handling" do
     it "handles google_search tool configuration" do
-      session = build_session("gemini-2.5-flash", tools: [{ "google_search" => {} }])
+      session = build_session("gemini-3-flash-preview", tools: [{ "google_search" => {} }])
 
       # Verify google_search tool is present
       expect(session[:parameters]["tools"]).not_to be_nil
@@ -89,7 +89,7 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
     # Note: Gemini 3 doesn't support mixing google_search grounding with function_declarations
     # The gemini_web_search internal agent pattern is used instead
     it "handles google_search grounding tool alone" do
-      session = build_session("gemini-2.5-flash", tools: [{ "google_search" => {} }])
+      session = build_session("gemini-3-flash-preview", tools: [{ "google_search" => {} }])
 
       tools = session[:parameters]["tools"]
       expect(tools.length).to eq(1)
@@ -144,14 +144,14 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
   end
 
   describe "model-specific behavior" do
-    it "supports gemini-2.5-flash model" do
-      session = build_session("gemini-2.5-flash")
-      expect(session[:parameters]["model"]).to eq("gemini-2.5-flash")
+    it "supports gemini-3-flash-preview model" do
+      session = build_session("gemini-3-flash-preview")
+      expect(session[:parameters]["model"]).to eq("gemini-3-flash-preview")
     end
 
-    it "supports gemini-3-pro-preview model" do
-      session = build_session("gemini-3-pro-preview")
-      expect(session[:parameters]["model"]).to eq("gemini-3-pro-preview")
+    it "supports gemini-3.1-pro-preview model" do
+      session = build_session("gemini-3.1-pro-preview")
+      expect(session[:parameters]["model"]).to eq("gemini-3.1-pro-preview")
     end
   end
 end

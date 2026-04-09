@@ -43,7 +43,6 @@ app "VoiceChatDeepSeek" do
   
   llm do
     provider "deepseek"
-    model "deepseek-chat"
   end
   
   display_name "Voice Chat"

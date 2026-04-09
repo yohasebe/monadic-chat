@@ -189,8 +189,59 @@ module ErrorPatternDetector
     end
   end
   
+  # ─── Tool Call Cycle Detection ───
+  # Tracks the sequence of tool calls (regardless of success/failure) and
+  # detects cyclic patterns that indicate the model is looping. This catches
+  # cases where each individual call succeeds but the model keeps calling
+  # the same tools in a loop (e.g., run_jupyter → create_notebook → run_jupyter).
+
+  def self.record_tool_call(session, function_name)
+    session[:tool_call_sequence] ||= []
+    session[:tool_call_sequence] << function_name
+    # Keep only the most recent calls to limit memory
+    session[:tool_call_sequence].shift if session[:tool_call_sequence].length > 20
+  end
+
+  # Detect cyclic tool call patterns in the recent sequence.
+  # Returns the detected cycle (Array) or nil.
+  def self.detect_tool_call_cycle(session)
+    seq = session[:tool_call_sequence]
+    return nil unless seq && seq.length >= 4
+
+    # Check cycle lengths 1, 2, 3 (covers most real-world loops).
+    # Single-tool repetition (cycle_len=1) requires more repetitions to
+    # avoid false positives on legitimate batched calls (e.g. add_cells ×3).
+    [1, 2, 3].each do |cycle_len|
+      min_reps = cycle_len == 1 ? 5 : 3
+      needed = cycle_len * min_reps
+      next if seq.length < needed
+
+      recent = seq.last(needed)
+      cycle = recent.first(cycle_len)
+      is_cycle = recent.each_slice(cycle_len).all? { |slice| slice == cycle }
+      return cycle if is_cycle
+    end
+
+    nil
+  end
+
+  def self.tool_call_cycle_detected?(session)
+    !detect_tool_call_cycle(session).nil?
+  end
+
+  def self.reset_tool_tracking(session)
+    session[:tool_call_sequence] = []
+  end
+
+  def self.tool_cycle_message(session)
+    cycle = detect_tool_call_cycle(session)
+    return nil unless cycle
+    tools = cycle.join(" → ")
+    "Repeated tool call cycle detected (#{tools}). Stopping to prevent an infinite loop. Please describe what you need and I will try a different approach."
+  end
+
   private
-  
+
   def self.similar_to_recent?(session, error_message)
     return false if session[:error_patterns][:history].empty?
     

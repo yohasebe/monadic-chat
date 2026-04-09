@@ -23,6 +23,55 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
 
+# Load ModelSpec for SSOT model resolution (optional — falls back to hardcoded defaults)
+begin
+  require 'monadic/utils/model_spec'
+rescue LoadError
+  # ModelSpec not available in this environment
+end
+
+# Resolve TTS provider label to actual model name via providerDefaults SSOT.
+# OpenAI TTS list: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
+# Gemini TTS list: [0]=flash, [1]=pro
+# ElevenLabs TTS list: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
+def resolve_tts_model(provider_label)
+  if provider_label.start_with?("gemini")
+    tts_models = if defined?(Monadic::Utils::ModelSpec)
+                   Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
+                 end
+    case provider_label
+    when "gemini-pro"
+      tts_models&.[](1)
+    else
+      tts_models&.[](0)
+    end
+  elsif provider_label.start_with?("elevenlabs")
+    tts_models = if defined?(Monadic::Utils::ModelSpec)
+                   Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")
+                 end
+    case provider_label
+    when "elevenlabs-v3"
+      tts_models&.[](0)
+    when "elevenlabs-multilingual"
+      tts_models&.[](1)
+    else
+      tts_models&.[](2)
+    end
+  else
+    tts_models = if defined?(Monadic::Utils::ModelSpec)
+                   Monadic::Utils::ModelSpec.get_provider_models("openai", "tts")
+                 end
+    case provider_label
+    when "openai-tts-hd"
+      tts_models&.[](1)
+    when "openai-tts"
+      tts_models&.[](2)
+    else
+      tts_models&.[](0)
+    end
+  end
+end
+
 # Helper to configure SSL for Net::HTTP
 def configure_net_http_ssl(http)
   return unless http.use_ssl?
@@ -195,16 +244,7 @@ def tts_api_request(text,
       return { type: "error", content: "ERROR: ELEVENLABS_API_KEY is not set." }
     end
     
-    model = case provider
-            when "elevenlabs-v3"
-              "eleven_v3"
-            when "elevenlabs-multilingual"
-              "eleven_multilingual_v2"
-            when "elevenlabs-flash", "elevenlabs"
-              "eleven_flash_v2_5"
-            else
-              "eleven_flash_v2_5"
-            end
+    model = resolve_tts_model(provider)
     
     headers = {
       "Content-Type" => "application/json",
@@ -311,15 +351,8 @@ def tts_api_request(text,
       }
     }
 
-    # Use the appropriate Gemini model with TTS capability
-    model_name = case provider
-                 when "gemini-pro"
-                   "gemini-2.5-pro-preview-tts"
-                 when "gemini-flash", "gemini"
-                   "gemini-2.5-flash-preview-tts"
-                 else
-                   "gemini-2.5-flash-preview-tts"
-                 end
+    # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
+    model_name = resolve_tts_model(provider)
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
   else # openai
     # Try config file first (primary source of truth)
@@ -346,7 +379,7 @@ def tts_api_request(text,
       Authorization: "Bearer #{api_key}"
     }
 
-    model = "gpt-4o-mini-tts-2025-12-15"
+    model = resolve_tts_model("openai-tts-4o")
 
     body = {
       input: text,
@@ -574,11 +607,6 @@ begin
     f.write(audio_content)
   end
 
-  # Save a copy in the current directory (skip for Gemini to avoid issues)
-  if provider != "gemini" && provider != "gemini-flash" && provider != "gemini-pro"
-    File.write(outfile, response)
-  end
-  
   # Display appropriate message based on file format
   if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && file_extension != "mp3"
     puts "Text-to-speech audio saved to #{filename} (#{file_extension.upcase} format)"

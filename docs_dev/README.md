@@ -47,7 +47,7 @@ In-depth documentation of specific features:
 Component-specific documentation:
 - **[Frontend](frontend/)** - JavaScript modules and UI components
 - **[Backend](ruby_service/)** - Ruby service implementation
-- **[Python Service](python_service/)** - Python Flask service
+- **[Python Service](python_service/)** - Python service (JupyterLab & tools)
 - **[MDSL](mdsl/)** - Monadic DSL documentation
 
 ## Documentation Guidelines

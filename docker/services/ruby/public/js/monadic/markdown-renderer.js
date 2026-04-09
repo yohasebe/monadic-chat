@@ -2,7 +2,7 @@
  * Unified Markdown renderer with support for:
  * - Monadic JSON structure (AutoForge, ConceptVisualizer, etc.)
  * - Code highlighting (highlight.js)
- * - MathJax expressions
+ * - KaTeX math expressions
  * - ABC notation
  * - Mermaid diagrams
  */
@@ -58,6 +58,29 @@
           return `<pre><code${langClass}>${escaped}</code></pre>`;
         }
       });
+
+      // Override link renderer to always open in new tab
+      const defaultLinkOpen = md.renderer.rules.link_open ||
+        function(tokens, idx, options, _env, self) {
+          return self.renderToken(tokens, idx, options);
+        };
+
+      md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        const targetIdx = token.attrIndex('target');
+        if (targetIdx < 0) {
+          token.attrPush(['target', '_blank']);
+        } else {
+          token.attrs[targetIdx][1] = '_blank';
+        }
+        const relIdx = token.attrIndex('rel');
+        if (relIdx < 0) {
+          token.attrPush(['rel', 'noopener noreferrer']);
+        } else {
+          token.attrs[relIdx][1] = 'noopener noreferrer';
+        }
+        return defaultLinkOpen(tokens, idx, options, env, self);
+      };
     },
 
     /**
@@ -65,20 +88,24 @@
      * @private
      */
     _initMermaid: function() {
-      if (mermaidInitialized || typeof window.mermaid === 'undefined') {
-        return;
+      if (mermaidInitialized) {
+        return Promise.resolve();
       }
 
-      try {
-        window.mermaid.initialize({
-          startOnLoad: false,  // We manually control rendering
-          securityLevel: 'strict',
-          theme: 'default'
-        });
-        mermaidInitialized = true;
-      } catch (err) {
-        console.error('Failed to initialize Mermaid:', err);
-      }
+      // Lazy-load Mermaid on first use (~2.5 MB deferred from initial load)
+      return (window.LazyLoader ? window.LazyLoader.mermaid() : Promise.resolve()).then(function () {
+        if (mermaidInitialized || typeof window.mermaid === 'undefined') return;
+        try {
+          window.mermaid.initialize({
+            startOnLoad: false,  // We manually control rendering
+            securityLevel: 'strict',
+            theme: 'default'
+          });
+          mermaidInitialized = true;
+        } catch (err) {
+          console.error('Failed to initialize Mermaid:', err);
+        }
+      });
     },
 
     // ===== Main Entry Point =====
@@ -622,7 +649,7 @@
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(\\*)(?!\\*)', 'g'), '$1\u200B$2');
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(_)(?!_)', 'g'), '$1\u200B$2');
 
-      // 1. MathJax block expressions をプレースホルダーに
+      // 1. Math block expressions (KaTeX) をプレースホルダーに
       const mathBlocks = [];
       text = text.replace(/\$\$([\s\S]+?)\$\$/g, (match, content) => {
         const index = mathBlocks.length;
@@ -630,7 +657,7 @@
         return `MATH_BLOCK_PLACEHOLDER_${index}`;
       });
 
-      // 2. MathJax inline expressions をプレースホルダーに
+      // 2. Math inline expressions (KaTeX) をプレースホルダーに
       const mathInline = [];
       text = text.replace(/\$(.+?)\$/g, (match, content) => {
         const index = mathInline.length;
@@ -654,21 +681,54 @@
         return `MERMAID_BLOCK_PLACEHOLDER_${index}`;
       });
 
+      // 5. DrawIO diagrams をプレースホルダーに
+      const drawioBlocks = [];
+      // 5a. Fenced code blocks: ```drawio ... ``` (case-insensitive, flexible whitespace)
+      text = text.replace(/```[Dd]raw[Ii][Oo]\s*\n([\s\S]+?)```/g, (match, content) => {
+        const index = drawioBlocks.length;
+        drawioBlocks.push(content);
+        return `DRAWIO_BLOCK_PLACEHOLDER_${index}`;
+      });
+      // 5b. Raw DrawIO XML without code fences (auto-detect <mxfile>...</mxfile>)
+      // Requires <diagram inside to prevent false positives from prose mentions of <mxfile>
+      text = text.replace(/(<\?xml[^>]*\?>\s*\n)?<mxfile\b[\s\S]*?<diagram\b[\s\S]*?<\/mxfile>/g, (match) => {
+        const index = drawioBlocks.length;
+        drawioBlocks.push(match);
+        return `DRAWIO_BLOCK_PLACEHOLDER_${index}`;
+      });
+
       // 5. markdown-it で Markdown → HTML 変換
       let html = md.render(text);
 
-      // 6-9. プレースホルダーを復元
+      // 6-9. プレースホルダーを復元（KaTeX でレンダリング済み HTML に直接置換）
+      var katexMacros = { "\\R": "\\mathbb{R}", "\\N": "\\mathbb{N}", "\\Z": "\\mathbb{Z}", "\\Q": "\\mathbb{Q}", "\\C": "\\mathbb{C}" };
       mathBlocks.forEach((content, index) => {
+        var rendered;
+        if (typeof katex !== 'undefined') {
+          try {
+            rendered = katex.renderToString(content.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
+          } catch (e) { rendered = `$$${content}$$`; }
+        } else {
+          rendered = `$$${content}$$`;
+        }
         html = html.replace(
           new RegExp(`MATH_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          `$$${content}$$`
+          rendered
         );
       });
 
       mathInline.forEach((content, index) => {
+        var rendered;
+        if (typeof katex !== 'undefined') {
+          try {
+            rendered = katex.renderToString(content.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
+          } catch (e) { rendered = `$${content}$`; }
+        } else {
+          rendered = `$${content}$`;
+        }
         html = html.replace(
           new RegExp(`MATH_INLINE_PLACEHOLDER_${index}`, 'g'),
-          `$${content}$`
+          rendered
         );
       });
 
@@ -688,6 +748,14 @@
         );
       });
 
+      drawioBlocks.forEach((content, index) => {
+        const escaped = escapeHtml(content);
+        html = html.replace(
+          new RegExp(`DRAWIO_BLOCK_PLACEHOLDER_${index}`, 'g'),
+          `<div class="drawio-code"><pre>${escaped}</pre></div>`
+        );
+      });
+
       return html;
     },
 
@@ -704,8 +772,9 @@
         return;
       }
 
-      // Initialize Mermaid once
-      this._initMermaid();
+      // Initialize Mermaid lazily (loaded on first use, ~2.5 MB deferred)
+      var self = this;
+      self._initMermaid();
 
       // 1. highlight.js
       if (window.SyntaxHighlight) {
@@ -718,71 +787,81 @@
         });
       }
 
-      // 2. MathJax
-      if (window.MathJax?.typesetPromise) {
-        scheduleTask(() => {
-          try {
-            window.MathJax.typesetPromise([container]).catch(err => {
-              console.error('MathJax rendering failed:', err);
-            });
-          } catch (err) {
-            console.error('Failed to initialize MathJax:', err);
-          }
-        });
-      }
+      // 2. KaTeX — rendered inline during renderMarkdown() via placeholders
+      // (No post-processing needed; KaTeX HTML is already in the rendered output)
 
-      // 3. ABCJS / applyAbc
-      if (typeof window.applyAbc === 'function' && window.jQuery) {
+      // 3. ABCJS / applyAbc (lazy-loaded, ~472 KB deferred)
+      if (typeof window.applyAbc === 'function') {
         scheduleTask(() => {
           try {
-            window.applyAbc(window.jQuery(container));
+            window.applyAbc(container);
           } catch (err) {
             console.error('applyAbc failed:', err);
           }
         });
-      } else if (window.ABCJS) {
-        scheduleTask(() => {
-          try {
-            const abcElements = container.querySelectorAll('.abc-notation, .abc-code');
-            abcElements.forEach(el => {
-              let abc = '';
-              if (el.dataset.abc) {
-                abc = decodeURIComponent(el.dataset.abc);
-              } else {
-                const pre = el.querySelector('pre');
-                abc = pre ? pre.textContent : el.textContent;
+      } else {
+        // Check if there are ABC elements before loading the library
+        const abcElements = container.querySelectorAll('.abc-notation, .abc-code');
+        if (abcElements.length > 0) {
+          scheduleTask(() => {
+            (window.LazyLoader ? window.LazyLoader.abcjs() : Promise.resolve()).then(() => {
+              if (!window.ABCJS) return;
+              try {
+                abcElements.forEach(el => {
+                  let abc = '';
+                  if (el.dataset.abc) {
+                    abc = decodeURIComponent(el.dataset.abc);
+                  } else {
+                    const pre = el.querySelector('pre');
+                    abc = pre ? pre.textContent : el.textContent;
+                  }
+                  if (abc) {
+                    window.ABCJS.renderAbc(el, abc);
+                  }
+                });
+              } catch (err) {
+                console.error('ABC notation rendering failed:', err);
               }
-              if (abc) {
-                window.ABCJS.renderAbc(el, abc);
-              }
-            });
-          } catch (err) {
-            console.error('ABC notation rendering failed:', err);
-          }
-        });
+            }).catch(err => console.error('Failed to load ABCjs:', err));
+          });
+        }
       }
 
-      // 4. Mermaid / applyMermaid
-      if (typeof window.applyMermaid === 'function' && window.jQuery) {
+      // 4. Mermaid / applyMermaid (lazy-loaded, ~2.5 MB deferred)
+      if (typeof window.applyMermaid === 'function') {
         scheduleTask(() => {
           try {
-            window.applyMermaid(window.jQuery(container));
+            window.applyMermaid(container);
           } catch (err) {
             console.error('applyMermaid failed:', err);
           }
         });
-      } else if (window.mermaid) {
+      } else {
+        const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed]), .mermaid-code:not([data-processed])');
+        if (mermaidElements.length > 0) {
+          scheduleTask(() => {
+            self._initMermaid().then(() => {
+              if (!window.mermaid) return;
+              try {
+                mermaidElements.forEach(el => el.setAttribute('data-processed', 'true'));
+                window.mermaid.run({ nodes: Array.from(mermaidElements) }).catch(err => {
+                  console.error('[MarkdownRenderer] Mermaid run() failed:', err);
+                });
+              } catch (err) {
+                console.error('Mermaid rendering failed:', err);
+              }
+            }).catch(err => console.error('Failed to load Mermaid:', err));
+          });
+        }
+      }
+
+      // 5. DrawIO / applyDrawIO
+      if (typeof window.applyDrawIO === 'function') {
         scheduleTask(() => {
           try {
-            const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed]), .mermaid-code:not([data-processed])');
-            if (mermaidElements.length > 0) {
-              mermaidElements.forEach(el => el.setAttribute('data-processed', 'true'));
-              window.mermaid.run({ nodes: Array.from(mermaidElements) }).catch(err => {
-                console.error('[MarkdownRenderer] Mermaid run() failed:', err);
-              });
-            }
+            window.applyDrawIO(container);
           } catch (err) {
-            console.error('Mermaid rendering failed:', err);
+            console.error('applyDrawIO failed:', err);
           }
         });
       }

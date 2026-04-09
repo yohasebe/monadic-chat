@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, powerMonitor } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor } = require('electron');
 const { autoUpdater } = require('electron-updater');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
 let extendedContextMenu = null;
@@ -82,6 +82,8 @@ let menuBarModeActive = false;
 
 // Internal browser window reference and opener
 let webviewWindow = null;
+// noVNC viewer window reference
+let novncWindow = null;
 // State for in-page search to filter invisible matches
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
@@ -206,6 +208,14 @@ function openWebViewWindow(url, forceReload = false) {
   webviewWindow.webContents.session.clearCache();
 
   webviewWindow.loadURL(url);
+
+  // Prevent blank windows from opening (e.g., image clicks in lightbox)
+  webviewWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https:') || url.startsWith('http:')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
 
   // Open DevTools only if debugging
   if (process.env.DEBUG_CSS) {
@@ -427,7 +437,6 @@ class DockerManager {
     
     // Docker containers use fixed ports
     this.rubyPort = '4567';     // Ruby Sinatra web server
-    this.pythonPort = '5070';   // Python Flask API server
     this.jupyterPort = '8889';  // JupyterLab server (disabled in server mode)
     
     // Configuration will be loaded from .env file
@@ -486,7 +495,6 @@ class DockerManager {
       
       // Using fixed default ports as Docker containers have hardcoded port bindings
       this.rubyPort = '4567';
-      this.pythonPort = '5070';
       this.jupyterPort = '8889';
     }
     return this.serverMode;
@@ -647,6 +655,7 @@ class DockerManager {
           updateApplicationMenu();
           
           // Simple command execution that handles SERVER STARTED messages
+          let serverStartedReceived = false;
           return new Promise((resolve, reject) => {
             // Load environment variables from config file for Electron build
             const envPath = getEnvPath();
@@ -689,13 +698,23 @@ class DockerManager {
               } else if (output.includes('Build of Monadic Chat has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildMonadicFinished');
               } else if (output.includes('Container failed to build')) {
+                // Preserve any HTML file list (e.g. <ul><li>docker_build.log</li>...) from original output
+                const failUlMatch = output.match(/<ul>[\s\S]*?<\/ul>/);
                 translatedOutput = formatMessage('error', 'messages.containerFailedBuild');
+                if (failUlMatch) {
+                  translatedOutput = translatedOutput.replace('</p>', `</p>${failUlMatch[0]}`);
+                }
               } else if (output.includes('No user containers to build')) {
                 translatedOutput = formatMessage('info', 'messages.noUserContainers');
               } else if (output.includes('Build logs are available')) {
                 translatedOutput = formatMessage('info', 'messages.buildLogsAvailable');
               } else if (output.includes('Please check the following log files')) {
+                // Preserve any HTML file list from original output
+                const checkUlMatch = output.match(/<ul>[\s\S]*?<\/ul>/);
                 translatedOutput = formatMessage('warning', 'messages.checkLogFiles');
+                if (checkUlMatch) {
+                  translatedOutput = translatedOutput.replace('</p>', `</p>${checkUlMatch[0]}`);
+                }
               } else if (output.includes('All containers are available')) {
                 translatedOutput = `[HTML]: <p>${i18n.t('messages.allContainersAvailable')}</p>`;
               } else if (output.includes('Running Containers')) {
@@ -744,6 +763,7 @@ class DockerManager {
               
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
+                serverStartedReceived = true;
                 fetchWithRetry('http://localhost:4567')
                   .then((success) => {
                     if (success) {
@@ -849,15 +869,21 @@ class DockerManager {
               if (code !== 0) {
                 dialog.showErrorBox('Error', `Docker command exited with code ${code}.`);
               }
-              
-              // Don't update status here for 'start' command - wait for SERVER STARTED
-              if (command !== 'start') {
+
+              // Don't update status here for 'start'/'build' commands - wait for SERVER STARTED
+              if (command !== 'start' && command !== 'build') {
                 currentStatus = statusAfterCommand;
                 updateTrayImage(statusAfterCommand);
                 updateStatusIndicator(statusAfterCommand);
                 updateContextMenu(false);
+              } else if (command === 'build' && (code !== 0 || !serverStartedReceived)) {
+                // Build failed or containers didn't start — set to Stopped
+                currentStatus = 'Stopped';
+                updateTrayImage('Stopped');
+                updateStatusIndicator('Stopped');
+                updateContextMenu(false);
               }
-              
+
               resolve();
             });
           });
@@ -1135,6 +1161,10 @@ function cleanupAndQuit() {
     if (settingsWindow) {
       settingsWindow.removeAllListeners('close');
       settingsWindow.close();
+    }
+
+    if (novncWindow && !novncWindow.isDestroyed()) {
+      novncWindow.close();
     }
 
     // Ensure we bypass any confirmation dialogs
@@ -1487,7 +1517,13 @@ function initializeApp() {
     // Set up Docker status polling
     setInterval(updateDockerStatus, 5000);
 
-    tray = new Tray(path.join(iconDir, 'Stopped.png'));
+    if (process.platform === 'darwin') {
+      const stoppedImg = nativeImage.createFromPath(path.join(iconDir, 'StoppedTemplate.png'));
+      stoppedImg.setTemplateImage(true);
+      tray = new Tray(stoppedImg);
+    } else {
+      tray = new Tray(path.join(iconDir, 'Stopped.png'));
+    }
     tray.setToolTip('Monadic Chat');
     tray.setContextMenu(contextMenu);
 
@@ -1929,18 +1965,21 @@ function updateStatus() {
 // Update the tray image based on the current status
 function updateTrayImage(status) {
   if (tray) {
-    // Map status to appropriate icon filenames
     let iconFile = status;
-    
-    // Special handling for Ready status to use Running icon
     if (status === 'Ready') {
       iconFile = 'Running';
     }
-    
-    
-    // Try to use the mapped icon file, fallback to Building.png if there's an error
     try {
-      tray.setImage(path.join(iconDir, `${iconFile}.png`));
+      if (process.platform === 'darwin') {
+        let image = nativeImage.createFromPath(path.join(iconDir, `${iconFile}Template.png`));
+        if (image.isEmpty()) {
+          image = nativeImage.createFromPath(path.join(iconDir, 'BuildingTemplate.png'));
+        }
+        image.setTemplateImage(true);
+        tray.setImage(image);
+      } else {
+        tray.setImage(path.join(iconDir, `${iconFile}.png`));
+      }
     } catch (error) {
       console.error(`Error loading tray icon for status ${status}:`, error);
       tray.setImage(path.join(iconDir, 'Building.png'));
@@ -2001,6 +2040,13 @@ function updateContextMenu(disableControls = false) {
         label: i18n.t('menu.openBrowser'),
         click: () => {
           shell.openExternal('http://localhost:4567');
+        },
+        enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
+      },
+      {
+        label: i18n.t('menu.openNoVNC'),
+        click: () => {
+          openNoVNCWindow();
         },
         enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
       },
@@ -2142,7 +2188,7 @@ function updateApplicationMenu() {
         {
           label: i18n.t('menu.installOptions') || 'Install Options',
           click: () => {
-            openInstallOptionsWindow();
+            openSettingsWindow('install-options');
           }
         },
         { type: 'separator' },
@@ -2303,6 +2349,13 @@ function updateApplicationMenu() {
           label: i18n.t('menu.openBrowser'),
           click: () => {
             shell.openExternal('http://localhost:4567');
+          },
+          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
+        },
+        {
+          label: i18n.t('menu.openNoVNC'),
+          click: () => {
+            openNoVNCWindow();
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
@@ -2509,133 +2562,7 @@ function updateStatusIndicator(status) {
 // IPC handler for programmatic chat capture (no Selenium)
 // (removed) capture-chat-screenshot IPC handler
 
-// ---------------- Install Options Window ----------------
-let installOptionsWindow = null;
-let pendingCloseTimers = { settings: null, installOptions: null };
-function openInstallOptionsWindow() {
-  if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-    installOptionsWindow.focus();
-    return;
-  }
-  installOptionsWindow = new BrowserWindow({
-    devTools: !app.isPackaged, // Only enable DevTools in development
-    width: 600,
-    minWidth: 600,
-    height: 400,
-    minHeight: 400,
-    resizable: true,
-    title: 'Install Options',
-    parent: mainWindow,
-    modal: true,
-    show: false,
-    frame: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-  installOptionsWindow.loadFile(path.join(__dirname, 'installOptions.html'));
-  installOptionsWindow.once('ready-to-show', () => installOptionsWindow.show());
-  // Trigger translation refresh after load
-  installOptionsWindow.webContents.once('did-finish-load', () => {
-    installOptionsWindow.webContents.executeJavaScript(`
-      if (typeof installOptionsReloadTranslations === 'function') {
-        installOptionsReloadTranslations();
-      }
-    `);
-  });
-  installOptionsWindow.on('closed', () => { installOptionsWindow = null; });
-  // Route close attempts to renderer for unsaved-change prompt
-  installOptionsWindow.on('close', (event) => {
-    if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-      event.preventDefault();
-      installOptionsWindow.webContents.send('attempt-close-install-options');
-      // Fallback: force close if renderer does not respond within 3s
-      if (pendingCloseTimers.installOptions) clearTimeout(pendingCloseTimers.installOptions);
-      pendingCloseTimers.installOptions = setTimeout(() => {
-        try {
-          if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-            console.warn('[Main] Forcing close of Install Options (renderer unresponsive)');
-            installOptionsWindow.destroy();
-          }
-        } catch (_) { console.warn("[Main] Install options cleanup failed:", _); }
-      }, 3000);
-    }
-  });
-}
-
-// IPC handlers for Install Options
-ipcMain.handle('get-install-options', async () => {
-  const envPath = getEnvPath();
-  const cfg = envPath ? readEnvFile(envPath) : {};
-  // Normalize booleans (strings to true/false)
-  const toBool = (v) => {
-    if (typeof v === 'boolean') return v;
-    if (!v) return false;
-    const s = String(v).toLowerCase();
-    return ['1','true','yes','on'].includes(s);
-  };
-  return {
-    INSTALL_LATEX: toBool(cfg.INSTALL_LATEX),
-    PYOPT_NLTK: toBool(cfg.PYOPT_NLTK),
-    PYOPT_SPACY: toBool(cfg.PYOPT_SPACY),
-    PYOPT_SCIKIT: toBool(cfg.PYOPT_SCIKIT),
-    PYOPT_GENSIM: toBool(cfg.PYOPT_GENSIM),
-    PYOPT_LIBROSA: toBool(cfg.PYOPT_LIBROSA),
-    PYOPT_MEDIAPIPE: toBool(cfg.PYOPT_MEDIAPIPE),
-    PYOPT_TRANSFORMERS: toBool(cfg.PYOPT_TRANSFORMERS),
-    IMGOPT_IMAGEMAGICK: toBool(cfg.IMGOPT_IMAGEMAGICK)
-  };
-});
-
-ipcMain.handle('get-install-options-translations', async () => {
-    try {
-      const panel = (i18n.getSection('menu') || {}).installOptionsPanel || {};
-      const dialogs = i18n.getSection('dialogs') || {};
-      return {
-        panel,
-        dialogs,
-        language: i18n.getLanguage()
-      };
-    } catch (err) {
-      console.error('Failed to build install options translations:', err);
-      return { panel: {}, dialogs: {}, language: i18n.getLanguage() };
-    }
-  });
-
-let installOptionsSaving = false;
-ipcMain.handle('save-install-options', async (_e, options) => {
-  if (installOptionsSaving) {
-    return { success: true, skipped: true };
-  }
-  installOptionsSaving = true;
-  const envPath = getEnvPath();
-  if (!envPath) throw new Error('Config path not found');
-  const cfg = readEnvFile(envPath) || {};
-  const setBool = (k, v) => { cfg[k] = v ? 'true' : 'false'; };
-  setBool('INSTALL_LATEX', !!options.INSTALL_LATEX);
-  setBool('PYOPT_NLTK', !!options.PYOPT_NLTK);
-  setBool('PYOPT_SPACY', !!options.PYOPT_SPACY);
-  setBool('PYOPT_SCIKIT', !!options.PYOPT_SCIKIT);
-  setBool('PYOPT_GENSIM', !!options.PYOPT_GENSIM);
-  setBool('PYOPT_LIBROSA', !!options.PYOPT_LIBROSA);
-  setBool('PYOPT_MEDIAPIPE', !!options.PYOPT_MEDIAPIPE);
-  setBool('PYOPT_TRANSFORMERS', !!options.PYOPT_TRANSFORMERS);
-  setBool('IMGOPT_IMAGEMAGICK', !!options.IMGOPT_IMAGEMAGICK);
-  try {
-    writeEnvFile(envPath, cfg);
-  } catch (err) {
-    console.error('Failed to save install options:', err);
-    dialog.showErrorBox(i18n.t('dialogs.error'), `Failed to save options: ${err.message}`);
-    installOptionsSaving = false;
-    throw new Error(`Failed to save: ${err.message}`);
-  }
-
-  // No rebuild prompt here. Rebuild must be initiated explicitly by the user
-  installOptionsSaving = false;
-  return { success: true };
-});
+let pendingCloseTimers = { settings: null };
 
 // ---------------- Translations loader for renderer ----------------
 ipcMain.handle('get-translations', async (_e, lang) => {
@@ -2964,7 +2891,75 @@ function openBrowser(url, outside = false, forceOpen = false) {
   }, interval);
 }
 
-function openSettingsWindow() {
+function openNoVNCWindow() {
+  if (novncWindow && !novncWindow.isDestroyed()) {
+    novncWindow.focus();
+    return;
+  }
+
+  novncWindow = new BrowserWindow({
+    width: 1300,
+    height: 900,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'noVNC - Browser View',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      devTools: !app.isPackaged
+    }
+  });
+
+  const novncBaseUrl = 'http://localhost:7900';
+  const novncUrl = `${novncBaseUrl}/?autoconnect=1&resize=scale`;
+  novncWindow.loadURL(novncUrl);
+
+  // Hide the noVNC control bar once the page loads
+  novncWindow.webContents.on('did-finish-load', () => {
+    novncWindow.webContents.insertCSS(`
+      #noVNC_control_bar_anchor {
+        display: none !important;
+      }
+    `).catch(() => {});
+  });
+
+  // Block navigation away from noVNC (e.g., clicking external links in the noVNC UI)
+  novncWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(novncBaseUrl)) {
+      event.preventDefault();
+      shell.openExternal(url).catch(err => console.error('Failed to open external link from noVNC:', err));
+    }
+  });
+
+  // Handle load failure (e.g., Selenium container not running)
+  novncWindow.webContents.on('did-fail-load', (_event, _errorCode, errorDescription) => {
+    console.warn(`[noVNC] Failed to load: ${errorDescription}`);
+    novncWindow.loadURL(`data:text/html,${encodeURIComponent(`
+      <!DOCTYPE html>
+      <html><head><meta charset="utf-8"><style>
+        body { font-family: -apple-system, system-ui, sans-serif; display: flex;
+               align-items: center; justify-content: center; height: 100vh; margin: 0;
+               background: #f5f5f5; color: #333; }
+        .msg { text-align: center; }
+        h2 { margin-bottom: 8px; }
+        button { margin-top: 16px; padding: 8px 20px; font-size: 14px; cursor: pointer;
+                 border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+        button:hover { background: #e8e8e8; }
+      </style></head>
+      <body><div class="msg">
+        <h2>noVNC is not available</h2>
+        <p>The Selenium container may not be running yet.</p>
+        <button onclick="location.href='${novncUrl}'">Retry</button>
+      </div></body></html>
+    `)}`);
+  });
+
+  novncWindow.on('closed', () => {
+    novncWindow = null;
+  });
+}
+
+function openSettingsWindow(category = null) {
   if (!settingsWindow) {
     const mainBounds = mainWindow.getBounds();
     settingsWindow = new BrowserWindow({
@@ -3003,6 +2998,12 @@ function openSettingsWindow() {
           }
         `);
       }
+      // Navigate to a specific category tab if requested
+      if (category) {
+        settingsWindow.webContents.executeJavaScript(
+          `document.querySelector('[data-category="${category}"]')?.click();`
+        );
+      }
     });
     // Context menu with standard edit actions for mouse operations
     extendedContextMenu({
@@ -3033,6 +3034,12 @@ function openSettingsWindow() {
   } else {
     // Re-open: page already loaded, send fresh settings from disk
     sendSettingsToRenderer(settingsWindow.webContents);
+    // Navigate to a specific category tab if requested
+    if (category) {
+      settingsWindow.webContents.executeJavaScript(
+        `document.querySelector('[data-category="${category}"]')?.click();`
+      );
+    }
   }
   settingsWindow.show();
 }
@@ -3219,15 +3226,14 @@ function checkAndUpdateEnvFile() {
         envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';
     }
 
-    // Load default models from system_defaults.json if not already specified
-    const systemDefaultsPath = app.isPackaged
-  ? path.join(process.resourcesPath, 'app', 'docker', 'services', 'ruby', 'config', 'system_defaults.json')
-  : path.join(__dirname, '..', 'docker', 'services', 'ruby', 'config', 'system_defaults.json');
+    // Load default models from model_spec.js providerDefaults (SSOT)
+    const modelSpecPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'app', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js')
+        : path.join(__dirname, '..', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js');
     try {
-        const systemDefaults = JSON.parse(fs.readFileSync(systemDefaultsPath, 'utf8'));
-        const providerDefaults = systemDefaults.provider_defaults || {};
-        
-        // Map of environment variable names to provider keys in system_defaults.json
+        const modelSpec = require(modelSpecPath);
+        const defaults = modelSpec.providerDefaults || {};
+
         const providerMap = {
             'OPENAI_DEFAULT_MODEL': 'openai',
             'ANTHROPIC_DEFAULT_MODEL': 'anthropic',
@@ -3238,18 +3244,14 @@ function checkAndUpdateEnvFile() {
             'PERPLEXITY_DEFAULT_MODEL': 'perplexity',
             'DEEPSEEK_DEFAULT_MODEL': 'deepseek'
         };
-        
-        // Set defaults from system_defaults.json if not already specified in env
+
         for (const [envVar, providerKey] of Object.entries(providerMap)) {
-            if (!envConfig[envVar] && providerDefaults[providerKey]) {
-                envConfig[envVar] = providerDefaults[providerKey].model;
+            if (!envConfig[envVar] && defaults[providerKey]?.chat?.[0]) {
+                envConfig[envVar] = defaults[providerKey].chat[0];
             }
         }
     } catch (error) {
-        console.error('Warning: Could not load system_defaults.json:', error.message);
-        // Fallback to minimal defaults if file is missing or invalid
-        if (!envConfig.OPENAI_DEFAULT_MODEL) envConfig.OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
-        if (!envConfig.ANTHROPIC_DEFAULT_MODEL) envConfig.ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+        console.error('Warning: Could not load providerDefaults from model_spec.js:', error.message);
     }
 
     // Do not override TTS_DICT_PATH if it already exists
@@ -3270,7 +3272,6 @@ function checkAndUpdateEnvFile() {
     // Port settings are no longer user-configurable
     // Docker containers use hardcoded ports
     envConfig.RUBY_PORT = '4567';
-    envConfig.PYTHON_PORT = '5070';
     envConfig.JUPYTER_PORT = '8889';
 
     // Check for the presence of any API key
@@ -3394,7 +3395,7 @@ function saveSettings(data) {
             }
             
             // Port settings have been removed since they don't affect Docker containers
-            // Default values will be used (4567, 5070, 8889)
+            // Default values will be used (4567, 8889)
         }
         
         // Normalize install option booleans to string 'true'/'false'
@@ -3451,9 +3452,6 @@ ipcMain.on('change-ui-language', (_event, language) => {
   // Also notify the internal browser if it exists
   if (internalBrowser && !internalBrowser.isDestroyed()) {
     internalBrowser.webContents.send('ui-language-changed', { language });
-  }
-  if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-    installOptionsWindow.webContents.send('ui-language-changed', { language });
   }
 });
 
@@ -3731,10 +3729,6 @@ ipcMain.on('confirm-close-settings', () => {
   if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.hide();
 });
 
-ipcMain.on('confirm-close-install-options', () => {
-  if (pendingCloseTimers.installOptions) clearTimeout(pendingCloseTimers.installOptions);
-  if (installOptionsWindow) installOptionsWindow.destroy();
-});
 
 // Handle restart request from renderer process - removed automatic restart functionality
 // as it could interrupt active server instances
@@ -3901,6 +3895,10 @@ ipcMain.on('focus-main-window', () => {
 // Open external URLs in the default browser when requested by the renderer
 ipcMain.on('open-external', (_event, url) => {
   shell.openExternal(url).catch(err => console.error('Failed to open external link:', err));
+});
+// Open noVNC viewer window when requested by the webview (e.g., on start_browser tool execution)
+ipcMain.on('open-novnc', () => {
+  openNoVNCWindow();
 });
 
 // ============================================

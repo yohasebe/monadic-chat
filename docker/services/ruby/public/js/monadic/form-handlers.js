@@ -9,7 +9,7 @@
  * @param {string} fileTitle - Title for the PDF
  * @returns {Promise} - Promise resolving to the upload response
  */
-function uploadPdf(file, fileTitle) {
+async function uploadPdf(file, fileTitle) {
   if (!file) {
     throw new Error("Please select a PDF file to upload");
   }
@@ -25,40 +25,30 @@ function uploadPdf(file, fileTitle) {
   formData.append("pdfTitle", fileTitle);
 
   // Resolve endpoint from server default (Settings).
-  // In unit-test environments, $.getJSON may be undefined; default to local.
-  return new Promise((resolve, reject) => {
-    const postTo = (endpoint) => $.ajax({
-      url: endpoint,
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      dataType: "json",
-      timeout: 120000,
-      success: resolve,
-      error: reject
-    });
-
+  const postTo = async (endpoint) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
     try {
-      if (typeof $ !== 'undefined' && typeof $.getJSON === 'function') {
-        $.getJSON('/api/pdf_storage_defaults')
-          .done(function(info) {
-            const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
-            const endpoint = (mode === 'cloud') ? "/openai/pdf?action=upload" : "/pdf";
-            postTo(endpoint);
-          })
-          .fail(function() {
-            postTo('/pdf');
-          });
-      } else {
-        // No $.getJSON available (e.g., tests) → default to local
-        postTo('/pdf');
-      }
-    } catch (_) {
-      // Safety net: default to local
-      postTo('/pdf');
+      const res = await fetch(endpoint, { method: "POST", body: formData, signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      clearTimeout(timer);
+      throw e;
     }
-  });
+  };
+
+  try {
+    const res = await fetch('/api/pdf_storage_defaults');
+    const info = res.ok ? await res.json() : {};
+    const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
+    const endpoint = (mode === 'cloud') ? "/openai/pdf?action=upload" : "/pdf";
+    return await postTo(endpoint);
+  } catch (_) {
+    // Fallback to local storage
+    return await postTo('/pdf');
+  }
 }
 
 /**
@@ -67,7 +57,7 @@ function uploadPdf(file, fileTitle) {
  * @param {string} docLabel - Optional label for the document
  * @returns {Promise} - Promise resolving to the conversion response
  */
-function convertDocument(doc, docLabel) {
+async function convertDocument(doc, docLabel) {
   if (!doc) {
     throw new Error("Please select a document file to convert");
   }
@@ -82,19 +72,17 @@ function convertDocument(doc, docLabel) {
   formData.append("docFile", doc);
   formData.append("docLabel", docLabel || "");
 
-  // Use Promise for better async handling
-  return new Promise((resolve, reject) => {
-    $.ajax({
-      url: "/document",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      timeout: 60000, // 60 second timeout
-      success: resolve,
-      error: reject
-    });
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
+  try {
+    const res = await fetch("/document", { method: "POST", body: formData, signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Document conversion failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 /**
@@ -103,7 +91,7 @@ function convertDocument(doc, docLabel) {
  * @param {string} urlLabel - Optional label for the URL
  * @returns {Promise} - Promise resolving to the fetch response
  */
-function fetchWebpage(url, urlLabel) {
+async function fetchWebpage(url, urlLabel) {
   if (!url) {
     throw new Error("Please specify the URL of the page to fetch");
   }
@@ -118,19 +106,17 @@ function fetchWebpage(url, urlLabel) {
   formData.append("pageURL", url);
   formData.append("urlLabel", urlLabel || "");
 
-  // Use Promise for better async handling
-  return new Promise((resolve, reject) => {
-    $.ajax({
-      url: "/fetch_webpage",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      timeout: 30000, // 30 second timeout
-      success: resolve,
-      error: reject
-    });
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch("/fetch_webpage", { method: "POST", body: formData, signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Webpage fetch failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 /**
@@ -138,7 +124,7 @@ function fetchWebpage(url, urlLabel) {
  * @param {File} file - The JSON file to import
  * @returns {Promise} - Promise resolving to the import response
  */
-function importSession(file) {
+async function importSession(file) {
   if (!file) {
     throw new Error("Please select a file to import");
   }
@@ -152,19 +138,17 @@ function importSession(file) {
     formData.append('tab_id', window.tabId);
   }
 
-  // Use Promise for better async handling
-  return new Promise((resolve, reject) => {
-    $.ajax({
-      url: "/load",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      timeout: 30000, // 30 second timeout
-      success: resolve,
-      error: reject
-    });
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch("/load", { method: "POST", body: formData, signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Import failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 /**
@@ -204,41 +188,43 @@ function setupFileValidation(fileInput, submitButton) {
  * @param {Function} cleanupFn - Optional cleanup function when modal is hidden
  */
 function showModalWithFocus(modalId, focusElementId, cleanupFn) {
-  const modal = document.getElementById(modalId);
-  const focusElement = document.getElementById(focusElementId);
+  const modal = $id(modalId);
+  const focusElement = $id(focusElementId);
   
   if (!modal || !focusElement) return;
   
-  // Show the modal using jQuery
-  $(modal).modal("show");
-  
+  // Show the modal using Bootstrap API
+  const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+  bsModal.show();
+
   // Use a clean approach to focus management
   const timerKey = 'focusTimer';
-  
+
   // Clear any existing timer
-  const existingTimer = $(modal).data(timerKey);
+  const existingTimer = modal.dataset[timerKey];
   if (existingTimer) {
-    clearTimeout(existingTimer);
-    $(modal).removeData(timerKey);
+    clearTimeout(Number(existingTimer));
+    delete modal.dataset[timerKey];
   }
-  
+
   // Set new timer and store reference
-  $(modal).data(timerKey, setTimeout(function() {
+  modal.dataset[timerKey] = setTimeout(function() {
     focusElement.focus();
-    $(modal).removeData(timerKey);
-  }, 500));
-  
+    delete modal.dataset[timerKey];
+  }, 500);
+
   // Set up cleanup for when modal is hidden
   if (typeof cleanupFn === 'function') {
-    // Use jQuery one() to ensure this only happens once
-    $(modal).one('hidden.bs.modal', function() {
+    // Use once option to ensure this only happens once
+    modal.addEventListener('hidden.bs.modal', function onHidden() {
+      modal.removeEventListener('hidden.bs.modal', onHidden);
       cleanupFn();
-      
+
       // Also clean up any timers
-      const remainingTimer = $(modal).data(timerKey);
+      const remainingTimer = modal.dataset[timerKey];
       if (remainingTimer) {
-        clearTimeout(remainingTimer);
-        $(modal).removeData(timerKey);
+        clearTimeout(Number(remainingTimer));
+        delete modal.dataset[timerKey];
       }
     });
   }
@@ -249,25 +235,23 @@ function showModalWithFocus(modalId, focusElementId, cleanupFn) {
  * @param {File} file - The audio/MIDI file to upload
  * @returns {Promise} - Promise resolving to the upload response
  */
-function uploadAudioFile(file) {
+async function uploadAudioFile(file) {
   if (!file) {
     throw new Error("Please select an audio or MIDI file");
   }
   const formData = new FormData();
   formData.append("audioFile", file);
-  return new Promise((resolve, reject) => {
-    $.ajax({
-      url: "/upload_audio",
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      dataType: "json",
-      timeout: 60000,
-      success: resolve,
-      error: reject
-    });
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
+  try {
+    const res = await fetch("/upload_audio", { method: "POST", body: formData, signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Audio upload failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
+  }
 }
 
 // Export functions to window for browser environment

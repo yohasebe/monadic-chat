@@ -34,8 +34,10 @@ module Monadic
     #   )
     #
     class ResponseEvaluator
-      # Default model for evaluation (cost-effective but capable)
-      DEFAULT_MODEL = 'gpt-4o-mini'
+      # Default model for evaluation via providerDefaults SSOT
+      DEFAULT_MODEL = if defined?(Monadic::Utils::ModelSpec)
+                        Monadic::Utils::ModelSpec.default_chat_model("openai")
+                      end
 
       # Evaluation result structure
       EvaluationResult = Struct.new(:match, :confidence, :reasoning, :raw_response, keyword_init: true) do
@@ -213,13 +215,15 @@ module Monadic
           request['Content-Type'] = 'application/json'
           request['Authorization'] = "Bearer #{api_key}"
 
+          # Use max_completion_tokens for newer models (gpt-5+), max_tokens for legacy
+          token_param = model.to_s.match?(/\Agpt-[5-9]|o[1-9]/) ? :max_completion_tokens : :max_tokens
           request.body = {
             model: model,
             messages: [
               { role: 'user', content: prompt }
             ],
             temperature: 0.0,
-            max_tokens: 500
+            token_param => 500
           }.to_json
 
           http = Net::HTTP.new(uri.host, uri.port)

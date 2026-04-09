@@ -53,8 +53,8 @@ module Monadic
         end
 
         def default_for(provider_key)
-          if defined?(Monadic::Utils::SystemDefaults)
-            Monadic::Utils::SystemDefaults.get_default_model(provider_key)
+          if defined?(::SystemDefaults)
+            ::SystemDefaults.get_default_model(provider_key)
           end
         rescue StandardError => e
           log(provider_key, e)

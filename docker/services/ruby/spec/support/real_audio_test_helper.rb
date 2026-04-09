@@ -55,16 +55,22 @@ module RealAudioTestHelper
     
     result = `#{command}`
     
-    # TTS tool outputs audio file with same base name but different extension
-    # Look for any audio file with the timestamp
+    # TTS tool outputs audio file to ~/monadic/data/ (not TEST_TMP_DIR)
+    # with same base name as input text file but .mp3 extension
+    data_dir = File.join(Dir.home, "monadic", "data")
     audio_patterns = ["test_text_#{timestamp}.mp3", "test_text_#{timestamp}.wav", "#{timestamp}.mp3"]
     host_path = nil
 
-    audio_patterns.each do |pattern|
-      potential_path = File.join(TEST_TMP_DIR, pattern)
-      if File.exist?(potential_path)
-        host_path = potential_path
-        break
+    # Search in both the TTS output directory and TEST_TMP_DIR
+    [data_dir, TEST_TMP_DIR].each do |dir|
+      break if host_path
+
+      audio_patterns.each do |pattern|
+        potential_path = File.join(dir, pattern)
+        if File.exist?(potential_path)
+          host_path = potential_path
+          break
+        end
       end
     end
     

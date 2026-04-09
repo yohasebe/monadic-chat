@@ -3,234 +3,155 @@
 require 'spec_helper'
 require 'tempfile'
 require 'fileutils'
-# require 'mini_magick' # Not available in test environment
 require_relative '../../../lib/monadic/adapters/file_analysis_helper'
 
 RSpec.describe MonadicHelper do
   # Test class that includes the module
   class TestFileAnalysisHelper
     include MonadicHelper
-    
+
     attr_accessor :settings
-    
+
     def initialize
       @settings = { "model" => "gpt-4.1" }
+      @image_agent_calls = []
+      @audio_agent_calls = []
     end
-    
-    # Mock check_vision_capability method
-    def check_vision_capability(model)
-      # Simulate vision capability check
-      model&.include?("gpt-4") ? model : nil
+
+    # Mock image_analysis_agent method
+    def image_analysis_agent(message:, image_path:)
+      @image_agent_calls << { message: message, image_path: image_path }
+      "Image analysis result: #{message}"
     end
-    
-    # Mock send_command method to capture commands
-    def send_command(command:, container:)
-      @last_command = command
-      @last_container = container
-      
-      # Return simulated response based on command
-      if command.include?("image_query.rb")
-        "The image contains text saying 'Hello World' on a white background."
-      elsif command.include?("stt_query.rb")
-        '{"text": "This is a test audio transcription."}'
-      else
-        "Command executed: #{command}"
-      end
+
+    # Mock audio_transcription_agent method
+    def audio_transcription_agent(audio_path:, model: nil, response_format: "text", lang_code: nil)
+      @audio_agent_calls << { audio_path: audio_path, model: model, response_format: response_format }
+      "Transcription result for: #{audio_path}"
     end
-    
-    def last_command
-      @last_command
+
+    def image_agent_calls
+      @image_agent_calls
     end
-    
-    def last_container
-      @last_container
+
+    def audio_agent_calls
+      @audio_agent_calls
     end
   end
-  
+
   let(:helper) { TestFileAnalysisHelper.new }
-  
+
   describe '#analyze_image' do
-    let(:test_image_path) { "/tmp/test_image.png" }
-    
-    before do
-      # Create a simple test image using MiniMagick
-      create_test_image(test_image_path)
-    end
-    
-    after do
-      File.delete(test_image_path) if File.exist?(test_image_path)
-    end
-    
-    it 'analyzes an image with default model' do
+    it 'delegates to image_analysis_agent' do
       result = helper.analyze_image(
         message: "What is in this image?",
-        image_path: test_image_path
+        image_path: "/tmp/test_image.png"
       )
-      
-      expect(helper.last_command).to include('image_query.rb')
-      expect(helper.last_command).to include('What is in this image?')
-      expect(helper.last_command).to include(test_image_path)
-      expect(helper.last_command).to include('gpt-4.1')
-      expect(helper.last_container).to eq('ruby')
-      expect(result).to include('Hello World')
+
+      expect(helper.image_agent_calls.size).to eq(1)
+      call = helper.image_agent_calls.last
+      expect(call[:message]).to eq("What is in this image?")
+      expect(call[:image_path]).to eq("/tmp/test_image.png")
+      expect(result).to include("Image analysis result")
     end
-    
-    it 'analyzes an image with custom model from settings' do
-      helper.settings["model"] = "gpt-4o"
-      
-      result = helper.analyze_image(
-        message: "Describe this image",
-        image_path: test_image_path,
-        model: "gpt-4o"  # This parameter is actually ignored in the implementation
-      )
-      
-      expect(helper.last_command).to include('gpt-4o')
-      expect(result).to include('Hello World')
-    end
-    
+
     it 'escapes double quotes in message' do
-      message_with_quotes = 'What is the "main" content?'
-      
       helper.analyze_image(
-        message: message_with_quotes,
-        image_path: test_image_path
-      )
-      
-      expect(helper.last_command).to include('What is the \\"main\\" content?')
-    end
-    
-    it 'uses check_vision_capability to validate model' do
-      # Mock check_vision_capability
-      def helper.check_vision_capability(model)
-        # Simulate that gpt-3.5 doesn't have vision capability
-        model.include?("gpt-4") || model.include?("gpt-5") ? model : nil
-      end
-
-      helper.settings["model"] = "gpt-3.5-turbo"
-
-      helper.analyze_image(
-        message: "Test",
-        image_path: test_image_path
+        message: 'What is the "main" content?',
+        image_path: "/tmp/test_image.png"
       )
 
-      # Should fall back to gpt-5
-      expect(helper.last_command).to include('gpt-5')
+      call = helper.image_agent_calls.last
+      expect(call[:message]).to include('\\"main\\"')
     end
-    
+
     it 'handles empty message' do
       result = helper.analyze_image(
         message: "",
-        image_path: test_image_path
+        image_path: "/tmp/test_image.png"
       )
-      
-      expect(helper.last_command).to include('image_query.rb ""')
+
       expect(result).to be_a(String)
+      call = helper.image_agent_calls.last
+      expect(call[:message]).to eq("")
     end
-    
-    it 'handles special characters in image path' do
+
+    it 'passes image_path through to agent' do
       special_path = "/tmp/test image (1).png"
-      create_test_image(special_path)
-      
-      begin
-        helper.analyze_image(
-          message: "Test",
-          image_path: special_path
-        )
-        
-        expect(helper.last_command).to include(special_path)
-      ensure
-        File.delete(special_path) if File.exist?(special_path)
-      end
+
+      helper.analyze_image(
+        message: "Test",
+        image_path: special_path
+      )
+
+      call = helper.image_agent_calls.last
+      expect(call[:image_path]).to eq(special_path)
+    end
+
+    it 'ignores model parameter (provider-auto-selected)' do
+      helper.analyze_image(
+        message: "Test",
+        image_path: "/tmp/test.png",
+        model: "gpt-5"
+      )
+
+      expect(helper.image_agent_calls.size).to eq(1)
     end
   end
-  
-  describe '#analyze_audio' do
-    it 'analyzes audio with default model' do
-      audio_path = "/tmp/test_audio.mp3"
 
+  describe '#analyze_audio' do
+    it 'delegates to audio_transcription_agent' do
       result = helper.analyze_audio(
-        audio: audio_path,
+        audio: "/tmp/test_audio.mp3",
         model: "gpt-4o-transcribe"
       )
 
-      expect(helper.last_command).to include('stt_query.rb')
-      expect(helper.last_command).to include(audio_path)
-      expect(helper.last_command).to include('gpt-4o-transcribe')
-      expect(helper.last_command).to include('"." "json" ""')  # output dir, format, lang
-      expect(helper.last_container).to eq('ruby')
-      expect(result).to include('test audio transcription')
+      expect(helper.audio_agent_calls.size).to eq(1)
+      call = helper.audio_agent_calls.last
+      expect(call[:audio_path]).to eq("/tmp/test_audio.mp3")
+      expect(call[:model]).to eq("gpt-4o-transcribe")
+      expect(result).to include("Transcription result")
     end
 
     it 'uses STT model from settings when available' do
-      audio_path = "/tmp/test_audio.mp3"
       helper.settings["stt_model"] = "gpt-4o-transcribe-diarize"
 
-      result = helper.analyze_audio(
-        audio: audio_path
-      )
+      helper.analyze_audio(audio: "/tmp/test_audio.mp3")
 
-      expect(helper.last_command).to include('stt_query.rb')
-      expect(helper.last_command).to include('gpt-4o-transcribe-diarize')
-      expect(result).to include('test audio transcription')
+      call = helper.audio_agent_calls.last
+      expect(call[:model]).to eq("gpt-4o-transcribe-diarize")
     end
 
-    it 'falls back to default when STT model not in settings' do
-      audio_path = "/tmp/test_audio.mp3"
-      # Ensure stt_model is not in settings
+    it 'falls back to nil when STT model not in settings (SSOT resolves downstream)' do
       helper.settings.delete("stt_model")
 
-      result = helper.analyze_audio(
-        audio: audio_path
-      )
+      helper.analyze_audio(audio: "/tmp/test_audio.mp3")
 
-      expect(helper.last_command).to include('stt_query.rb')
-      expect(helper.last_command).to include('gpt-4o-mini-transcribe')
-      expect(result).to include('test audio transcription')
+      call = helper.audio_agent_calls.last
+      expect(call[:model]).to be_nil
     end
 
     it 'handles different audio formats' do
       formats = %w[mp3 wav m4a webm ogg]
 
       formats.each do |format|
-        audio_path = "/tmp/test_audio.#{format}"
+        helper.analyze_audio(audio: "/tmp/test_audio.#{format}")
+      end
 
-        helper.analyze_audio(audio: audio_path)
-
-        expect(helper.last_command).to include(audio_path)
+      expect(helper.audio_agent_calls.size).to eq(formats.size)
+      helper.audio_agent_calls.each_with_index do |call, i|
+        expect(call[:audio_path]).to include(formats[i])
       end
     end
 
-    it 'uses whisper model' do
-      result = helper.analyze_audio(
+    it 'passes model parameter through to agent' do
+      helper.analyze_audio(
         audio: "/tmp/test.mp3",
         model: "whisper-1"
       )
 
-      expect(helper.last_command).to include('whisper-1')
-      expect(result).to be_a(String)
+      call = helper.audio_agent_calls.last
+      expect(call[:model]).to eq("whisper-1")
     end
-  end
-  
-  private
-  
-  def create_test_image(path)
-    # Ensure directory exists
-    FileUtils.mkdir_p(File.dirname(path))
-    
-    # Create a simple dummy PNG file for testing
-    # This is a minimal valid PNG file (1x1 white pixel)
-    png_data = [
-      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,  # PNG signature
-      0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,  # IHDR chunk
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-      0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,  # IDAT chunk
-      0x54, 0x08, 0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0x3F,
-      0x00, 0x05, 0xFE, 0x02, 0xFE, 0xDC, 0xCC, 0x59,
-      0xE7, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,  # IEND chunk
-      0x44, 0xAE, 0x42, 0x60, 0x82
-    ].pack('C*')
-    
-    File.binwrite(path, png_data)
   end
 end

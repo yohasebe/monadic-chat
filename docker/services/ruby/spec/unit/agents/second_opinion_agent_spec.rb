@@ -45,12 +45,12 @@ RSpec.describe SecondOpinionAgent do
     context "model defaults" do
       it "uses correct default models for each provider" do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-6")
-        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.2")
+        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.4")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3-flash-preview")
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4-1-fast-non-reasoning")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
-        expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-reasoning-08-2025")
-        expect(agent.send(:determine_provider_and_model, "perplexity", nil)[1]).to eq("sonar-reasoning-pro")
+        expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-03-2025")
+        expect(agent.send(:determine_provider_and_model, "perplexity", nil)[1]).to eq("sonar")
         expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-chat")
       end
     end
@@ -63,7 +63,7 @@ RSpec.describe SecondOpinionAgent do
       
       it "handles empty model strings by using defaults" do
         expect(agent.send(:determine_provider_and_model, "claude", "")[1]).to eq("claude-sonnet-4-6")
-        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-5.2")
+        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-5.4")
       end
     end
     
@@ -87,9 +87,9 @@ RSpec.describe SecondOpinionAgent do
         expect(SecondOpinionGemini.is_reasoning_model?("gemini-2.5-thinking-exp")).to be true
       end
       
-      it "identifies Gemini 2.5 models as reasoning-based" do
-        expect(SecondOpinionGemini.is_reasoning_model?("gemini-2.5-flash")).to be true
-        expect(SecondOpinionGemini.is_reasoning_model?("gemini-2.5-pro")).to be true
+      it "identifies Gemini 3.x models as reasoning-based" do
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-3.1-pro-preview")).to be true
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-3.1-flash-lite-preview")).to be true
       end
       
       it "does not identify older models as reasoning-based" do
@@ -177,12 +177,12 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is the capital of France?",
           agent_response: "The capital of France is Paris",
           provider: "claude",
-          model: "claude-3-haiku-20240307"
+          model: "claude-haiku-4-5-20251001"
         )
-        
+
         expect(result[:comments]).to be_a(String)
         expect(result[:comments].strip).not_to be_empty
-        expect(result[:model]).to include("claude-3-haiku")
+        expect(result[:model]).to include("claude-haiku")
       end
     
       it "gets a second opinion from Gemini" do
@@ -194,12 +194,12 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is 5 x 5?",
           agent_response: "5 x 5 equals 25",
           provider: "gemini",
-          model: "gemini-2.5-flash"
+          model: "gemini-3-flash-preview"
         )
         
         expect(result[:comments]).to be_a(String)
         expect(result[:comments].strip).not_to be_empty
-        expect(result[:model]).to include("gemini-2.5-flash")
+        expect(result[:model]).to include("gemini-3-flash-preview")
       end
       
       it "handles provider name variations" do
@@ -208,9 +208,9 @@ RSpec.describe SecondOpinionAgent do
           user_query: "Simple math",
           agent_response: "1 + 1 = 2",
           provider: "anthropic",  # Should normalize to claude
-          model: "claude-3-haiku-20240307"
+          model: "claude-haiku-4-5-20251001"
         )
-        
+
         expect(result[:model]).to include("claude")
         expect(result[:comments]).not_to be_empty
         

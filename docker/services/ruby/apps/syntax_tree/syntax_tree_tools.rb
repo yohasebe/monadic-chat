@@ -8,7 +8,7 @@ module SyntaxTreeTools
   include LatexHelper
 
   def render_syntax_tree(bracket_notation:, language:)
-    return "Error: bracket notation is required." if bracket_notation.to_s.empty?
+    return "❌ Bracket notation is required." if bracket_notation.to_s.empty?
 
     # Debug: Log the input bracket notation to check for stray quotes
     if CONFIG["EXTRA_LOGGING"]
@@ -146,7 +146,7 @@ module SyntaxTreeTools
     # Check if the result contains error messages
     # run_result should be a string, but handle other types gracefully
     if run_result.is_a?(String) && (run_result.include?("Error:") || run_result.include?("timed out"))
-      return "Error generating syntax tree: #{run_result}"
+      return "❌ Error generating syntax tree: #{run_result}"
     end
     
     # Check if SVG file was created
@@ -156,7 +156,7 @@ module SyntaxTreeTools
     
     svg_exists = File.exist?(container_path) || File.exist?(local_path)
     unless svg_exists
-      return "Error: Syntax tree SVG was not generated. Please check the bracket notation format."
+      return "❌ Syntax tree SVG was not generated. Please check the bracket notation format."
     end
     
     "#{base_filename}.svg"
@@ -256,8 +256,8 @@ module SyntaxTreeTools
       if parts.length == 1
         # Single label node (like [V'] or [S])
         label = parts[0]
-        if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
-          latex_label = label.gsub(/['''''']/, "'")
+        if label.match?(/[\u2018\u2019\u2032\uFF07]/)
+          latex_label = label.gsub(/[\u2018\u2019\u2032\uFF07]/, "'")
           "[.#{latex_label} ]"
         else
           "[.#{label} ]"
@@ -266,8 +266,8 @@ module SyntaxTreeTools
         # Node with terminal (like [NP John's])
         label = parts[0]
         terminal = parts[1]
-        if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
-          latex_label = label.gsub(/['''''']/, "'")
+        if label.match?(/[\u2018\u2019\u2032\uFF07]/)
+          latex_label = label.gsub(/[\u2018\u2019\u2032\uFF07]/, "'")
           "[.#{latex_label} #{terminal} ]"
         else
           "[.#{label} #{terminal} ]"
@@ -278,8 +278,8 @@ module SyntaxTreeTools
     # Then handle remaining parent nodes with nested structures
     result = result.gsub(/\[([^\s\[\]]+)(?=\s*\[)/) do |match|
       label = $1
-      if label.include?("'") || label.include?("'") || label.include?("'") || label.include?("'")
-        latex_label = label.gsub(/['''''']/, "'")
+      if label.match?(/[\u2018\u2019\u2032\uFF07]/)
+        latex_label = label.gsub(/[\u2018\u2019\u2032\uFF07]/, "'")
         "[.#{latex_label}"
       else
         "[.#{label}"

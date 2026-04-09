@@ -63,8 +63,8 @@ Gemfile.lock
 /.ruby-lsp/
 .rvmrc
 
-.rubocop.yml
-.rubycop_todo.yml
+# .rubocop_todo.yml is auto-generated and should not be committed in most cases
+# .rubocop.yml is committed as the shared linting config
 .rspec_status
 
 .solargraph.yml
@@ -85,6 +85,12 @@ test_tts_input_*
 
 # Vendor assets (downloaded during build)
 /docker/services/ruby/public/vendor/
+
+# JS bundle (built with npm run build:js)
+/docker/services/ruby/public/js/monadic.bundle.min.js
+
+# Temporary session files for screenshot automation
+/docker/services/ruby/public/sessions/
 
 # Ignore internal development documentation
 CLAUDE.md

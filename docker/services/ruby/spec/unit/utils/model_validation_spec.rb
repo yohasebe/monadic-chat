@@ -8,7 +8,7 @@ RSpec.describe 'Model Validation' do
       # Valid models
       expect(Monadic::Utils::ModelSpec.model_exists?('gpt-5')).to be true
       expect(Monadic::Utils::ModelSpec.model_exists?('claude-sonnet-4-6')).to be true
-      expect(Monadic::Utils::ModelSpec.model_exists?('gemini-2.5-flash')).to be true
+      expect(Monadic::Utils::ModelSpec.model_exists?('gemini-3-flash-preview')).to be true
     end
 
     it 'resolves dated versions to base models' do
@@ -32,7 +32,7 @@ RSpec.describe 'Model Validation' do
       # Note: For models that exist with dates, use actual model names from model_spec.js
       valid_dated_models = {
         'gpt-5-2025-01-15' => 'gpt-5',  # Date suffix, resolves to base
-        'gemini-2.5-flash-2025-02-01' => 'gemini-2.5-flash',  # Date suffix, resolves to base
+        'gemini-3-flash-preview-2025-02-01' => 'gemini-3-flash-preview',  # Date suffix, resolves to base
         'claude-sonnet-4-6' => 'claude-sonnet-4-6'  # Exact match in spec
       }
 

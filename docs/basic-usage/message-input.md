@@ -32,6 +32,17 @@ Some providers (OpenAI, Anthropic Claude, Google Gemini) support PDF uploads. Cl
 
 Once uploaded, the PDF is sent with each message until you click the delete `×` button. Enable `Prompt Caching` in System Settings to reduce API costs when repeatedly referencing the same PDF.
 
+## Uploading Extended Document Formats :id=uploading-extended-documents
+
+Some OpenAI models support an extended set of document formats through the File Inputs API. When using a supported model, the button label changes to `File` and accepts the following formats in addition to images and PDFs:
+
+- Spreadsheets: `.xlsx`, `.csv`
+- Documents: `.docx`, `.pptx`, `.txt`, `.md`
+- Data/Markup: `.json`, `.html`, `.xml`
+
+Files are automatically cached per session, so the same document is uploaded to OpenAI only once even if it is referenced across multiple turns.
+
+For models using the Responses API, you can also enter a file URL directly in the modal dialog instead of uploading a local file.
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 

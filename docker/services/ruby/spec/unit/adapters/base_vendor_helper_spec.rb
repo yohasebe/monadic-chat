@@ -149,6 +149,84 @@ RSpec.describe BaseVendorHelper do
     end
   end
 
+  describe '#strip_inactive_image_data' do
+    subject(:helper) do
+      Class.new do
+        include BaseVendorHelper
+      end.new
+    end
+
+    it 'strips base64 data from inactive messages with images array' do
+      session = {
+        messages: [
+          { "role" => "user", "active" => false, "images" => [
+            { "title" => "cat.png", "data" => "data:image/png;base64,iVBOR..." }
+          ] },
+          { "role" => "user", "active" => true, "images" => [
+            { "title" => "dog.png", "data" => "data:image/png;base64,ABCDE..." }
+          ] }
+        ]
+      }
+
+      helper.strip_inactive_image_data(session)
+
+      # Inactive message stripped
+      expect(session[:messages][0]["images"][0]["data"]).to eq("[stripped]")
+      expect(session[:messages][0]["images"][0]["title"]).to eq("cat.png")
+      # Active message untouched
+      expect(session[:messages][1]["images"][0]["data"]).to start_with("data:")
+    end
+
+    it 'strips base64 data from inactive messages with OpenAI multimodal content' do
+      session = {
+        messages: [
+          { "role" => "user", "active" => false, "content" => [
+            { "type" => "text", "text" => "Describe this" },
+            { "type" => "image_url", "image_url" => { "url" => "data:image/png;base64,iVBOR..." } }
+          ] }
+        ]
+      }
+
+      helper.strip_inactive_image_data(session)
+
+      expect(session[:messages][0]["content"][0]["text"]).to eq("Describe this")
+      expect(session[:messages][0]["content"][1]["image_url"]["url"]).to eq("[stripped]")
+    end
+
+    it 'preserves non-data URLs (e.g., https)' do
+      session = {
+        messages: [
+          { "role" => "user", "active" => false, "content" => [
+            { "type" => "image_url", "image_url" => { "url" => "https://example.com/img.png" } }
+          ] }
+        ]
+      }
+
+      helper.strip_inactive_image_data(session)
+
+      expect(session[:messages][0]["content"][0]["image_url"]["url"]).to eq("https://example.com/img.png")
+    end
+
+    it 'handles nil messages gracefully' do
+      expect { helper.strip_inactive_image_data({}) }.not_to raise_error
+      expect { helper.strip_inactive_image_data({ messages: nil }) }.not_to raise_error
+      expect { helper.strip_inactive_image_data({ messages: [nil] }) }.not_to raise_error
+    end
+
+    it 'is idempotent' do
+      session = {
+        messages: [
+          { "role" => "user", "active" => false, "images" => [
+            { "title" => "img.png", "data" => "[stripped]" }
+          ] }
+        ]
+      }
+
+      helper.strip_inactive_image_data(session)
+      expect(session[:messages][0]["images"][0]["data"]).to eq("[stripped]")
+    end
+  end
+
   describe '.define_models_cache' do
     let(:vendor_module) do
       Module.new do

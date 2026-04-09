@@ -183,9 +183,9 @@
     height: auto !important;
   }
 
-  /* MathJax equations */
-  .MathJax,
-  mjx-container {
+  /* KaTeX math equations */
+  .katex-display,
+  .katex {
     page-break-inside: avoid;
     break-inside: avoid;
     overflow-x: auto;

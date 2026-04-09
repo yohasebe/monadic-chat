@@ -7,62 +7,9 @@ module Monadic
         def load_spec
           return @spec if @spec
           begin
-            # First, load the default model_spec.js
-            spec_path = File.join(
-              File.dirname(__FILE__), 
-              "..", "..", "..", 
-              "public", "js", "monadic", "model_spec.js"
-            )
-            
-            base_spec = if File.exist?(spec_path)
-              # Read the JavaScript file
-              js_content = File.read(spec_path)
-              
-              # Find the modelSpec object using brace matching
-              if js_content =~ /const\s+modelSpec\s*=\s*\{/
-                start_pos = js_content.index(/const\s+modelSpec\s*=\s*\{/)
-                start_pos = js_content.index("{", start_pos)
-                
-                # Find matching closing brace
-                brace_count = 0
-                end_pos = nil
-                
-                js_content[start_pos..-1].each_char.with_index do |char, i|
-                  if char == '{'
-                    brace_count += 1
-                  elsif char == '}'
-                    brace_count -= 1
-                    if brace_count == 0
-                      end_pos = start_pos + i
-                      break
-                    end
-                  end
-                end
-                
-                if end_pos
-                  json_string = js_content[start_pos..end_pos]
-                  
-                  # Clean up JavaScript syntax to make it valid JSON
-                  # Remove single-line comments
-                  json_string = json_string.gsub(%r{//.*$}, "")
-                  # Remove multi-line comments
-                  json_string = json_string.gsub(%r{/\*.*?\*/}m, "")
-                  
-                  # Handle trailing commas
-                  json_string = json_string.gsub(/,(\s*[}\]])/, '\1')
-                  
-                  # Parse the JSON
-                  JSON.parse(json_string)
-                else
-                  {}
-                end
-              else
-                {}
-              end
-            else
-              {}
-            end
-            
+            js_content = read_model_spec_js
+            base_spec = js_content ? extract_js_object(js_content, "modelSpec") : {}
+
             # Then, apply overrides from models.json if it exists
             override_path = File.expand_path("~/monadic/config/models.json")
             merged_spec = if File.exist?(override_path)
@@ -363,13 +310,149 @@ module Monadic
         def is_reasoning_model?(model_name)
           get_model_property(model_name, "is_reasoning_model") == true
         end
-        
+
+        def supports_file_inputs?(model_name)
+          !!get_model_property(model_name, "supports_file_inputs")
+        end
+
+        def deprecated?(model_name)
+          get_model_property(model_name, "deprecated") == true
+        end
+
+        def ui_hidden?(model_name)
+          get_model_property(model_name, "ui_hidden") == true
+        end
+
+        # --- Provider Defaults accessors ---
+
+        # Load and cache the providerDefaults object from model_spec.js
+        def load_provider_defaults
+          return @provider_defaults if @provider_defaults
+
+          js_content = read_model_spec_js
+          @provider_defaults = js_content ? extract_js_object(js_content, "providerDefaults") : {}
+        rescue => e
+          puts "Warning: Failed to load providerDefaults: #{e.message}"
+          @provider_defaults = {}
+        end
+
+        # Get the default model (first in list) for a provider and category
+        def get_provider_default(provider, category = "chat")
+          models = get_provider_models(provider, category)
+          models&.first
+        end
+
+        # Get the full model list for a provider and category
+        def get_provider_models(provider, category = "chat")
+          defaults = load_provider_defaults
+          key = normalize_provider_key(provider)
+          provider_entry = defaults[key]
+          return nil unless provider_entry
+
+          provider_entry[category.to_s]
+        end
+
+        # Convenience accessors
+        def default_chat_model(provider)
+          get_provider_default(provider, "chat")
+        end
+
+        def default_code_model(provider)
+          get_provider_default(provider, "code")
+        end
+
+        def default_vision_model(provider)
+          get_provider_default(provider, "vision")
+        end
+
+        def default_audio_model(provider)
+          get_provider_default(provider, "audio_transcription")
+        end
+
+        def default_image_model(provider)
+          get_provider_default(provider, "image")
+        end
+
+        def default_video_model(provider)
+          get_provider_default(provider, "video")
+        end
+
+        def default_tts_model(provider)
+          get_provider_default(provider, "tts")
+        end
+
+        def default_embedding_model(provider)
+          get_provider_default(provider, "embedding")
+        end
+
         def reload!
           @spec = nil
+          @provider_defaults = nil
+          remove_instance_variable(:@js_content) if defined?(@js_content)
           load_spec
         end
 
         private
+
+        # Read and cache the model_spec.js file content (shared between load_spec and load_provider_defaults)
+        def read_model_spec_js
+          return @js_content if defined?(@js_content)
+
+          spec_path = File.join(
+            File.dirname(__FILE__),
+            "..", "..", "..",
+            "public", "js", "monadic", "model_spec.js"
+          )
+          @js_content = File.exist?(spec_path) ? File.read(spec_path) : nil
+        end
+
+        # Extract a JavaScript object assigned to `const <var_name> = { ... }` using brace matching.
+        # Returns a Ruby Hash, or {} if not found.
+        def extract_js_object(js_content, var_name)
+          pattern = /const\s+#{Regexp.escape(var_name)}\s*=\s*\{/
+          return {} unless js_content =~ pattern
+
+          start_pos = js_content.index(pattern)
+          start_pos = js_content.index("{", start_pos)
+
+          brace_count = 0
+          end_pos = nil
+
+          js_content[start_pos..-1].each_char.with_index do |char, i|
+            if char == '{'
+              brace_count += 1
+            elsif char == '}'
+              brace_count -= 1
+              if brace_count == 0
+                end_pos = start_pos + i
+                break
+              end
+            end
+          end
+
+          return {} unless end_pos
+
+          json_string = js_content[start_pos..end_pos]
+          # Clean up JavaScript syntax to make it valid JSON
+          json_string = json_string.gsub(%r{//.*$}, "")
+          json_string = json_string.gsub(%r{/\*.*?\*/}m, "")
+          json_string = json_string.gsub(/,(\s*[}\]])/, '\1')
+
+          JSON.parse(json_string)
+        rescue JSON::ParserError
+          {}
+        end
+
+        # Normalize provider key aliases to canonical keys used in providerDefaults
+        def normalize_provider_key(provider)
+          key = provider.to_s.strip.downcase
+          case key
+          when "google"    then "gemini"
+          when "claude"    then "anthropic"
+          when "grok"      then "xai"
+          else key
+          end
+        end
 
         # Normalize alias properties into canonical names without removing the originals.
         # This helps keep a single vocabulary across providers while staying backward compatible.

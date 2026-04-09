@@ -37,15 +37,15 @@ RSpec.describe SyntaxTreeOpenAI do
           bracket_notation: '',
           language: 'english'
         )
-        expect(result).to eq("Error: bracket notation is required.")
+        expect(result).to eq("❌ Bracket notation is required.")
       end
-      
+
       it 'returns error message when bracket_notation is nil' do
         result = app.render_syntax_tree(
           bracket_notation: nil,
           language: 'english'
         )
-        expect(result).to eq("Error: bracket notation is required.")
+        expect(result).to eq("❌ Bracket notation is required.")
       end
     end
   end
@@ -137,9 +137,9 @@ RSpec.describe SyntaxTreeClaude do
         bracket_notation: '',
         language: 'english'
       )
-      expect(result).to eq("Error: bracket notation is required.")
+      expect(result).to eq("❌ Bracket notation is required.")
     end
-    
+
     it 'uses the same implementation as SyntaxTreeOpenAI' do
       # Both classes should return the same error for invalid input
       openai_app = SyntaxTreeOpenAI.new
@@ -156,7 +156,7 @@ RSpec.describe SyntaxTreeClaude do
       )
       
       expect(claude_result).to eq(openai_result)
-      expect(claude_result).to eq("Error: bracket notation is required.")
+      expect(claude_result).to eq("❌ Bracket notation is required.")
     end
   end
 end

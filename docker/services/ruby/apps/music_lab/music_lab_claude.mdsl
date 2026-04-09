@@ -159,7 +159,6 @@ app "MusicLabClaude" do
 
   llm do
     provider "anthropic"
-    model ["claude-sonnet-4-6"]
     reasoning_effort "none"
     temperature 0.5
     context_size 20

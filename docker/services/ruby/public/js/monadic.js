@@ -38,57 +38,61 @@ function sanitizeParamsForSync(source) {
   });
   // Ensure app_name is set so other tabs know which app to load
   if (!clone.app_name) {
-    const currentApp = $("#apps").val();
-    if (currentApp) clone.app_name = currentApp;
+    const appsEl = $id("apps");
+    if (appsEl && appsEl.value) clone.app_name = appsEl.value;
   }
   // Sync checkbox states to ensure params reflect current UI state
   // This prevents stale values from being broadcast
-  if (typeof $ !== 'undefined') {
-    // Boolean checkboxes
-    clone.websearch = $("#websearch").prop("checked") || false;
-    clone.easy_submit = $("#check-easy-submit").prop("checked") || false;
-    clone.auto_speech = $("#check-auto-speech").prop("checked") || false;
-    clone.mathjax = $("#mathjax").prop("checked") || false;
-    clone.initiate_from_assistant = $("#initiate-from-assistant").prop("checked") || false;
+  // Boolean checkboxes
+  const websearchEl = $id("websearch");
+  clone.websearch = (websearchEl && websearchEl.checked) || false;
+  const easySubmitEl = $id("check-easy-submit");
+  clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
+  const autoSpeechEl = $id("check-auto-speech");
+  clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
+  const mathEl = $id("math");
+  clone.math = (mathEl && mathEl.checked) || false;
+  const initiateEl = $id("initiate-from-assistant");
+  clone.initiate_from_assistant = (initiateEl && initiateEl.checked) || false;
 
-    // Only sync prompt_caching if the checkbox is enabled (not all models support it)
-    if (!$("#prompt-caching").prop("disabled")) {
-      clone.prompt_caching = $("#prompt-caching").prop("checked") || false;
+  // Handle toggle-controlled values
+  // If max-tokens-toggle is OFF, don't include max_tokens (use model default)
+  const maxTokensToggleEl = $id("max-tokens-toggle");
+  if (!maxTokensToggleEl || !maxTokensToggleEl.checked) {
+    delete clone.max_tokens;
+  } else {
+    const maxTokensEl = $id("max-tokens");
+    const maxTokensVal = maxTokensEl ? maxTokensEl.value : null;
+    if (maxTokensVal) {
+      clone.max_tokens = parseInt(maxTokensVal) || maxTokensVal;
     }
+  }
 
-    // Handle toggle-controlled values
-    // If max-tokens-toggle is OFF, don't include max_tokens (use model default)
-    if (!$("#max-tokens-toggle").prop("checked")) {
-      delete clone.max_tokens;
-    } else {
-      const maxTokensVal = $("#max-tokens").val();
-      if (maxTokensVal) {
-        clone.max_tokens = parseInt(maxTokensVal) || maxTokensVal;
-      }
+  // If context-size-toggle is OFF, don't include context_size (use default)
+  const contextSizeToggleEl = $id("context-size-toggle");
+  if (!contextSizeToggleEl || !contextSizeToggleEl.checked) {
+    delete clone.context_size;
+  } else {
+    const contextSizeEl = $id("context-size");
+    const contextSizeVal = contextSizeEl ? contextSizeEl.value : null;
+    if (contextSizeVal) {
+      clone.context_size = parseInt(contextSizeVal) || contextSizeVal;
     }
+  }
 
-    // If context-size-toggle is OFF, don't include context_size (use default)
-    if (!$("#context-size-toggle").prop("checked")) {
-      delete clone.context_size;
-    } else {
-      const contextSizeVal = $("#context-size").val();
-      if (contextSizeVal) {
-        clone.context_size = parseInt(contextSizeVal) || contextSizeVal;
-      }
-    }
+  // Sync current model selection
+  const modelEl = $id("model");
+  const currentModel = modelEl ? modelEl.value : null;
+  if (currentModel) {
+    clone.model = currentModel;
+  }
 
-    // Sync current model selection
-    const currentModel = $("#model").val();
-    if (currentModel) {
-      clone.model = currentModel;
-    }
-
-    // Sync reasoning effort if enabled
-    if (!$("#reasoning-effort").prop("disabled")) {
-      const reasoningVal = $("#reasoning-effort").val();
-      if (reasoningVal) {
-        clone.reasoning_effort = reasoningVal;
-      }
+  // Sync reasoning effort if enabled
+  const reasoningEffortEl = $id("reasoning-effort");
+  if (reasoningEffortEl && !reasoningEffortEl.disabled) {
+    const reasoningVal = reasoningEffortEl.value;
+    if (reasoningVal) {
+      clone.reasoning_effort = reasoningVal;
     }
   }
   return clone;
@@ -154,9 +158,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // New tabs have empty sessionStorage, so should NEVER show processing spinner on load
   try {
     // Hide spinner immediately
-    if (typeof $ !== 'undefined' && $("#monadic-spinner").length) {
-      $("#monadic-spinner").hide();
-    }
+    $hide($id("monadic-spinner"));
 
     // Reset Auto Speech completion flags to prevent sticky spinner
     if (typeof window.setTextResponseCompleted === 'function') {
@@ -177,41 +179,43 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (savedMenuHidden !== null) {
       // Use setTimeout to ensure DOM elements are ready
       setTimeout(() => {
-        const toggleBtn = $("#toggle-menu");
-        const menuPanel = $("#menu");
-        const mainPanel = $("#main");
+        const toggleBtn = $id("toggle-menu");
+        const menuPanel = $id("menu");
+        const mainPanel = $id("main");
 
-        if (toggleBtn.length && menuPanel.length && mainPanel.length) {
-          const windowWidth = $(window).width();
+        if (toggleBtn && menuPanel && mainPanel) {
+          const windowWidth = window.innerWidth;
           const isMobile = windowWidth < 600;
 
           if (savedMenuHidden === 'true') {
             // Restore hidden state
-            toggleBtn.addClass("menu-hidden")
-                    .attr("aria-expanded", "false")
-                    .html('<i class="fas fa-bars"></i>');
+            toggleBtn.classList.add("menu-hidden");
+            toggleBtn.setAttribute("aria-expanded", "false");
+            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
 
             if (isMobile) {
-              menuPanel.hide();
-              mainPanel.show();
-              $("body").removeClass("menu-visible");
+              $hide(menuPanel);
+              $show(mainPanel);
+              document.body.classList.remove("menu-visible");
             } else {
-              mainPanel.removeClass("col-md-8").addClass("col-md-12");
-              menuPanel.hide();
+              mainPanel.classList.remove("col-md-8");
+              mainPanel.classList.add("col-md-12");
+              $hide(menuPanel);
             }
           } else {
             // Restore visible state
-            toggleBtn.removeClass("menu-hidden")
-                    .attr("aria-expanded", "true")
-                    .html('<i class="fas fa-bars"></i>');
+            toggleBtn.classList.remove("menu-hidden");
+            toggleBtn.setAttribute("aria-expanded", "true");
+            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
 
             if (isMobile) {
-              menuPanel.show();
-              mainPanel.hide();
-              $("body").addClass("menu-visible");
+              $show(menuPanel);
+              $hide(mainPanel);
+              document.body.classList.add("menu-visible");
             } else {
-              mainPanel.removeClass("col-md-12").addClass("col-md-8");
-              menuPanel.show();
+              mainPanel.classList.remove("col-md-12");
+              mainPanel.classList.add("col-md-8");
+              $show(menuPanel);
             }
           }
         }
@@ -253,8 +257,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (restoredApp) {
         window.lastApp = restoredApp;
         // Also set the app selection if apps dropdown exists
-        if ($("#apps").length && $("#apps").find(`option[value="${restoredApp}"]`).length) {
-          $("#apps").val(restoredApp);
+        const appsDropdown = $id("apps");
+        if (appsDropdown && appsDropdown.querySelector(`option[value="${restoredApp}"]`)) {
+          appsDropdown.value = restoredApp;
         }
       }
 
@@ -296,7 +301,8 @@ document.addEventListener("DOMContentLoaded", async function () {
               msg.active !== false,  // Default to true if not specified
               msg.images || []
             );
-            $("#discourse").append(cardElement);
+            const discourseEl = $id("discourse");
+            if (discourseEl) discourseEl.appendChild(cardElement);
           } else {
             console.warn('[Session] createCard function not available yet, message will not be rendered');
           }
@@ -306,10 +312,12 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (window.i18nReady) {
           window.i18nReady.then(() => {
             const continueText = webUIi18n.t('ui.session.continueSession') || 'Continue Session';
-            $("#start-label").text(continueText);
+            const startLabelEl = $id("start-label");
+            if (startLabelEl) startLabelEl.textContent = continueText;
           });
         } else {
-          $("#start-label").text('Continue Session');
+          const startLabelEl = $id("start-label");
+          if (startLabelEl) startLabelEl.textContent = 'Continue Session';
         }
       }
 
@@ -337,23 +345,26 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (window.i18nReady) {
     window.i18nReady.then(() => {
       const aiUserTitle = webUIi18n.t('ui.generateAIUserResponse') || "Generate AI user response based on conversation";
-      $("#ai_user").attr("title", aiUserTitle);
-      
+      const aiUserBtn = $id("ai_user");
+      if (aiUserBtn) aiUserBtn.setAttribute("title", aiUserTitle);
+
       // Update role selector options with translations
-      const roleOptions = $("#select-role option");
+      const roleSelect = $id("select-role");
+      const roleOptions = roleSelect ? roleSelect.querySelectorAll("option") : [];
       if (roleOptions.length > 0) {
-        $(roleOptions[0]).text(webUIi18n.t('ui.roleOptions.user') || 'User');
-        $(roleOptions[1]).text(webUIi18n.t('ui.roleOptions.sampleUser') || 'User (to add to past messages)');
-        $(roleOptions[2]).text(webUIi18n.t('ui.roleOptions.sampleAssistant') || 'Assistant (to add to past messages)');
-        $(roleOptions[3]).text(webUIi18n.t('ui.roleOptions.sampleSystem') || 'System (to provide additional direction)');
+        roleOptions[0].textContent = webUIi18n.t('ui.roleOptions.user') || 'User';
+        roleOptions[1].textContent = webUIi18n.t('ui.roleOptions.sampleUser') || 'User (to add to past messages)';
+        roleOptions[2].textContent = webUIi18n.t('ui.roleOptions.sampleAssistant') || 'Assistant (to add to past messages)';
+        roleOptions[3].textContent = webUIi18n.t('ui.roleOptions.sampleSystem') || 'System (to provide additional direction)';
       }
     });
   } else {
-    $("#ai_user").attr("title", "Generate AI user response based on conversation");
+    const aiUserBtn = $id("ai_user");
+    if (aiUserBtn) aiUserBtn.setAttribute("title", "Generate AI user response based on conversation");
   }
   // Ensure cancel button is hidden on page load using setTimeout for more reliability
   setTimeout(function() {
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+    $id('cancel_query').style.setProperty('display', 'none', 'important');
   }, 100);
   
   // Get modules from window if available or install shims
@@ -420,30 +431,33 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Apply visibility for URL/Doc buttons based on backend capabilities
   try {
-    $.getJSON('/api/capabilities')
-      .done(function (cap) {
+    fetch('/api/capabilities')
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (cap) {
         if (!cap || cap.success === false) return;
         // Always show #url and #doc buttons - backend handles Selenium/Tavily routing
-        $('#url').show();
-        $('#doc').show();
-      });
+        const urlBtn = $id('url');
+        $show(urlBtn); const docBtn = $id('doc');
+        $show(docBtn); // Mistral/Cohere TTS/STT are enabled via /api/ai_user_defaults (more reliable)
+      })
+      .catch(function () { /* ignore */ });
   } catch (e) { /* ignore */ }
   
   // Directly get textareas and set them up - avoid storing array reference
   const initialHeight = 100;
   
   // Process each textarea individually to avoid keeping references
-  const messageTextarea = document.getElementById('message');
+  const messageTextarea = $id('message');
   if (messageTextarea) {
     uiUtils.setupTextarea(messageTextarea, initialHeight);
   }
   
-  const initialPromptTextarea = document.getElementById('initial-prompt');
+  const initialPromptTextarea = $id('initial-prompt');
   if (initialPromptTextarea) {
     uiUtils.setupTextarea(initialPromptTextarea, initialHeight);
   }
   
-  const aiUserInitialPromptTextarea = document.getElementById('ai-user-initial-prompt');
+  const aiUserInitialPromptTextarea = $id('ai-user-initial-prompt');
   if (aiUserInitialPromptTextarea) {
     uiUtils.setupTextarea(aiUserInitialPromptTextarea, initialHeight);
   }
@@ -456,26 +470,168 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // if on Firefox, disable the #voice-panel
   if (runningOnFirefox) {
-    $("#voice-panel").hide();
-  }
+    const voicePanel = $id("voice-panel");
+    $hide(voicePanel); }
 });
 
 // Fallback implementations are now in shims.js
 
-$(function () {
-  
-  // Make alert draggable immediately when needed instead of storing reference
-  $("#alert").draggable({ cursor: "move" });
+// ============================================================================
+// Screenshot Lightbox state
+// (file-level scope to ensure accessibility from all event handlers)
+// ============================================================================
+var lightboxImages = [];
+var lightboxIndex = 0;
+
+function updateLightbox() {
+  if (lightboxImages.length === 0) return;
+  const lightboxImage = $id("lightboxImage");
+  if (lightboxImage) lightboxImage.setAttribute("src", lightboxImages[lightboxIndex]);
+  const lightboxCounter = $id("lightboxCounter");
+  const lightboxPrev = $id("lightboxPrev");
+  const lightboxNext = $id("lightboxNext");
+  if (lightboxImages.length > 1) {
+    if (lightboxCounter) {
+      lightboxCounter.textContent = (lightboxIndex + 1) + " / " + lightboxImages.length;
+      $show(lightboxCounter);
+    }
+    $toggle(lightboxPrev, lightboxIndex > 0);
+    $toggle(lightboxNext, lightboxIndex < lightboxImages.length - 1);
+  } else {
+    $hide(lightboxCounter); $hide(lightboxPrev); $hide(lightboxNext); }
+}
+
+// --- Perceptual hash helpers for visual image dedup ---
+function imagePerceptualHash(imgEl, size) {
+  size = size || 16;
+  try {
+    var c = document.createElement("canvas");
+    c.width = size;
+    c.height = size;
+    var ctx = c.getContext("2d");
+    ctx.drawImage(imgEl, 0, 0, size, size);
+    var data = ctx.getImageData(0, 0, size, size).data;
+    var grays = [];
+    for (var i = 0; i < data.length; i += 4) {
+      grays.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    }
+    var avg = grays.reduce(function(a, b) { return a + b; }, 0) / grays.length;
+    return grays.map(function(g) { return g > avg ? "1" : "0"; }).join("");
+  } catch (e) {
+    return null;
+  }
+}
+
+function hashSimilarity(h1, h2) {
+  if (!h1 || !h2 || h1.length !== h2.length) return 0;
+  var match = 0;
+  for (var i = 0; i < h1.length; i++) {
+    if (h1[i] === h2[i]) match++;
+  }
+  return match / h1.length;
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+
+  // ── Collapsible Settings Header helpers ─────────────────
+
+  // Update the summary bar content with current settings
+  function updateConfigSummary() {
+    var appsSelect = $id("apps");
+    var appText = (appsSelect && appsSelect.options[appsSelect.selectedIndex]) ? appsSelect.options[appsSelect.selectedIndex].text : "Chat";
+    var appIcon = "";
+    var iconEl = document.querySelector("#app-select-icon");
+    if (iconEl) appIcon = iconEl.innerHTML;
+    var modelSelect = $id("model");
+    var modelName = modelSelect ? modelSelect.value : "";
+
+    var summaryAppIcon = $id("summary-app-icon");
+    if (summaryAppIcon) summaryAppIcon.innerHTML = appIcon;
+    var summaryAppName = $id("summary-app-name");
+    if (summaryAppName) summaryAppName.textContent = appText;
+    var summaryModelName = $id("summary-model-name");
+    if (summaryModelName) summaryModelName.textContent = modelName;
+
+    var indicators = "";
+    var websearchCb = $id("websearch");
+    if (websearchCb && websearchCb.checked) indicators += '<span class="badge bg-info me-1">Web</span>';
+    var mathCb = $id("math");
+    if (mathCb && mathCb.checked) indicators += '<span class="badge bg-secondary me-1">Math</span>';
+    var reasoningEffortSel = $id("reasoning-effort");
+    var re = reasoningEffortSel ? reasoningEffortSel.value : "";
+    if (reasoningEffortSel && !reasoningEffortSel.disabled && re && re !== "none" && re !== "disabled") {
+      indicators += '<span class="badge bg-warning text-dark me-1">' + re + '</span>';
+    }
+    var summaryIndicators = $id("summary-indicators");
+    if (summaryIndicators) summaryIndicators.innerHTML = indicators;
+  }
+
+  // Lock settings that should not change during an active session
+  function lockSessionSettings() {
+    var appsEl = $id("apps");
+    if (appsEl) appsEl.disabled = true;
+    var initialPromptEl = $id("initial-prompt");
+    if (initialPromptEl) initialPromptEl.disabled = true;
+    var aiUserPromptEl = $id("ai-user-initial-prompt");
+    if (aiUserPromptEl) aiUserPromptEl.disabled = true;
+    var initiateEl = $id("initiate-from-assistant");
+    if (initiateEl) initiateEl.disabled = true;
+  }
+
+  // Unlock settings when session is reset
+  function unlockSessionSettings() {
+    var appsEl = $id("apps");
+    if (appsEl) appsEl.disabled = false;
+    var initialPromptEl = $id("initial-prompt");
+    if (initialPromptEl) initialPromptEl.disabled = false;
+    var aiUserPromptEl = $id("ai-user-initial-prompt");
+    if (aiUserPromptEl) aiUserPromptEl.disabled = false;
+    var initiateEl = $id("initiate-from-assistant");
+    if (initiateEl) initiateEl.disabled = false;
+  }
+
+  // Collapse settings and show conversation (used when starting/continuing session)
+  function enterConversationMode() {
+    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
+    bsCollapse.hide();
+    var configSummary = $id("config-summary");
+    $show(configSummary); var configActions = $id("config-actions");
+    $hide(configActions); var mainPanelEl = $id("main-panel");
+    if (mainPanelEl) { mainPanelEl.classList.remove("d-none"); $show(mainPanelEl); }
+    lockSessionSettings();
+    updateConfigSummary();
+  }
+
+  // Expand settings and hide conversation (used when resetting)
+  function enterSettingsMode() {
+    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
+    bsCollapse.show();
+    var configSummary = $id("config-summary");
+    $hide(configSummary); var configActions = $id("config-actions");
+    $show(configActions); var mainPanelEl = $id("main-panel");
+    if (mainPanelEl) { mainPanelEl.classList.add("d-none"); $hide(mainPanelEl); }
+    unlockSessionSettings();
+  }
+
+  // Expose for use in other modules
+  window.updateConfigSummary = updateConfigSummary;
+  window.enterConversationMode = enterConversationMode;
+  window.enterSettingsMode = enterSettingsMode;
 
   // Don't store persistent references to DOM elements
   // Access them only when needed
 
   // button#browser is disabled when the system has started
-  $("#browser").prop("disabled", true);
+  var browserBtn = $id("browser");
+  if (browserBtn) browserBtn.disabled = true;
 
-  $("#send, #clear, #voice, #tts-voice, #ui-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
+  ["send", "clear", "voice", "tts-voice", "ui-language", "prompt-toggle-assistant", "prompt-toggle-aiuser", "check-auto-speech", "check-easy-submit"].forEach(function(id) {
+    var el = $id(id);
+    if (el) el.disabled = true;
+  });
   // Keep TTS speed control always enabled as it's used by multiple TTS providers
-  $("#tts-speed").prop("disabled", false);
+  var ttsSpeedEl = $id("tts-speed");
+  if (ttsSpeedEl) ttsSpeedEl.disabled = false;
 
   //////////////////////////////
   // UI event handlers
@@ -487,27 +643,31 @@ $(function () {
   // Common UI operations - centralized for consistency
   const UIOperations = {
     showMain: function() {
-      $("#main").show();
-      return this;
+      var el = $id("main");
+      $show(el); return this;
     },
     hideMain: function() {
-      $("#main").hide();
-      return this;
+      var el = $id("main");
+      $hide(el); return this;
     },
     showMenu: function() {
-      $("#menu").show();
-      return this;
+      var el = $id("menu");
+      $show(el); return this;
     },
     hideMenu: function() {
-      $("#menu").hide();
-      return this;
+      var el = $id("menu");
+      $hide(el); return this;
     },
     showBoth: function() {
       this.showMain().showMenu();
       return this;
     },
     setMainColumns: function(removeClass, addClass) {
-      $("#main").removeClass(removeClass).addClass(addClass);
+      var el = $id("main");
+      if (el) {
+        el.classList.remove(removeClass);
+        el.classList.add(addClass);
+      }
       return this;
     }
   };
@@ -517,31 +677,36 @@ $(function () {
 
   // Consolidate event handlers for toggles
   function setupToggleHandlers() {
-    $("#auto-scroll-toggle").on("change", function () {
-      autoScroll = $(this).is(":checked");
-    });
+    var autoScrollToggle = $id("auto-scroll-toggle");
+    if (autoScrollToggle) {
+      autoScrollToggle.addEventListener("change", function () {
+        autoScroll = this.checked;
+      });
+    }
 
-    $("#max-tokens-toggle").on("change", function () {
-      $("#max-tokens").prop("disabled", !$(this).is(":checked"));
-    });
+    var maxTokensToggle = $id("max-tokens-toggle");
+    if (maxTokensToggle) {
+      maxTokensToggle.addEventListener("change", function () {
+        var maxTokensInput = $id("max-tokens");
+        if (maxTokensInput) maxTokensInput.disabled = !this.checked;
+      });
+    }
 
-    $("#context-size-toggle").on("change", function () {
-      $("#context-size").prop("disabled", !$(this).is(":checked"));
-    });
-    
-    // Add handler for AI User toggle to ensure the value gets set in params
-    $("#ai-user-toggle").on("change", function () {
-      // Update the params directly when the checkbox changes
-      params["ai_user"] = $(this).is(":checked") ? "true" : "false";
-    });
+    var contextSizeToggle = $id("context-size-toggle");
+    if (contextSizeToggle) {
+      contextSizeToggle.addEventListener("change", function () {
+        var contextSizeInput = $id("context-size");
+        if (contextSizeInput) contextSizeInput.disabled = !this.checked;
+      });
+    }
   }
 
   // Setup optimized event listeners
   function setupEventListeners() {
     // Make AI User button always visible
     setTimeout(function() {
-      $("#ai_user").show();
-    }, 1000);
+      var aiUserEl = $id("ai_user");
+      $show(aiUserEl); }, 1000);
     
     // --- AI User defaults (SSOT) ---
     let aiUserDefaults = null;
@@ -562,17 +727,22 @@ $(function () {
     }
 
     // Setup AI User provider selector - updated to filter by available API keys
-    $("#ai_user_provider").on("change", function() {
-      const provider = $(this).val();
-      setCookie("ai_user_provider", provider, 30);
-      updateProviderStyle(provider);
-      // Update badge with model and reasoning effort when available
-      if (!setAiUserBadge()) {
-        const providerName = $("#ai_user_provider option:selected").text();
-        const fallbackModel = getDefaultModelFromSSOT(provider) || $("#model").val() || getTranslation('ui.notConfigured','Not configured');
-        $("#ai-user-model").text(`${providerName} (${fallbackModel})`);
-      }
-    });
+    var aiUserProviderEl = $id("ai_user_provider");
+    if (aiUserProviderEl) {
+      aiUserProviderEl.addEventListener("change", function() {
+        const provider = this.value;
+        setCookie("ai_user_provider", provider, 30);
+        updateProviderStyle(provider);
+        // Update badge with model and reasoning effort when available
+        if (!setAiUserBadge()) {
+          const providerName = this.options[this.selectedIndex].text;
+          const modelEl = $id("model");
+          const fallbackModel = getDefaultModelFromSSOT(provider) || (modelEl ? modelEl.value : '') || getTranslation('ui.notConfigured','Not configured');
+          const aiUserModelEl = $id("ai-user-model");
+          if (aiUserModelEl) aiUserModelEl.textContent = `${providerName} (${fallbackModel})`;
+        }
+      });
+    }
     
     // Function that does nothing now - we're keeping the default btn-warning style
     function updateProviderStyle(provider) {
@@ -586,34 +756,40 @@ $(function () {
     // Export to window scope for access from websocket.js
     window.updateAvailableProviders = function() {
       // Hide all options first
-      $("#ai_user_provider option").hide();
-      
+      var providerSelect = $id("ai_user_provider");
+      if (!providerSelect) return;
+      var allOptions = providerSelect.querySelectorAll("option");
+      allOptions.forEach(function(opt) { $hide(opt); });
+
       // Loop through providers to check which ones have API keys available
       // Show by apps groups first (backward compatibility)
-      
+
       // Check for other providers' API keys
       for (const [key, app] of Object.entries(apps)) {
         if (!app.group) continue;
-        
+
         const group = app.group.toLowerCase();
-        
+
         // Match provider dropdown options to available app groups
+        var optVal = null;
         if (group.includes("anthropic")) {
-          $("#ai_user_provider option[value='anthropic']").show();
+          optVal = 'anthropic';
         } else if (group.includes("gemini") || group.includes("google")) {
-          $("#ai_user_provider option[value='gemini']").show();
+          optVal = 'gemini';
         } else if (group.includes("cohere")) {
-          $("#ai_user_provider option[value='cohere']").show();
+          optVal = 'cohere';
         } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-          // Mistral now supports AI User
-          $("#ai_user_provider option[value='mistral']").show();
+          optVal = 'mistral';
         } else if (group.includes("deepseek")) {
-          $("#ai_user_provider option[value='deepseek']").show();
+          optVal = 'deepseek';
         } else if (group.includes("grok") || group.includes("xai")) {
-          $("#ai_user_provider option[value='grok']").show();
+          optVal = 'grok';
         } else if (group.includes("perplexity")) {
-          $("#ai_user_provider option[value='perplexity']").show();
+          optVal = 'perplexity';
         }
+        if (optVal) {
+          var opt = providerSelect.querySelector("option[value='" + optVal + "']");
+          $show(opt); }
       }
 
       // Additionally filter by SSOT has_key if available
@@ -623,38 +799,60 @@ $(function () {
         };
         Object.keys(map).forEach(val => {
           const ent = aiUserDefaults[val];
-          if (ent && ent.has_key) {
-            $("#ai_user_provider option[value='"+val+"']").show();
-          } else {
-            $("#ai_user_provider option[value='"+val+"']").hide();
+          var opt = providerSelect.querySelector("option[value='" + val + "']");
+          if (opt) {
+            $toggle(opt, ent && ent.has_key);
           }
         });
       }
-      
+
       // If the currently selected provider is not available, select first available
-      const currentProvider = $("#ai_user_provider").val();
-      if ($("#ai_user_provider option[value='" + currentProvider + "']:visible").length === 0) {
+      const currentProvider = providerSelect.value;
+      var currentOpt = providerSelect.querySelector("option[value='" + currentProvider + "']");
+      if (!currentOpt || currentOpt.style.display === 'none') {
         // Select first visible option
-        const firstVisible = $("#ai_user_provider option:visible").first().val();
+        var firstVisible = providerSelect.querySelector("option:not([style*='display: none'])");
+        if (!firstVisible) {
+          // Fallback: find option without inline display style
+          firstVisible = Array.from(providerSelect.querySelectorAll("option")).find(function(o) { return o.style.display !== 'none'; });
+        }
         if (firstVisible) {
-          $("#ai_user_provider").val(firstVisible);
-          setCookie("ai_user_provider", firstVisible, 30);
+          providerSelect.value = firstVisible.value;
+          setCookie("ai_user_provider", firstVisible.value, 30);
+        }
+      }
+
+      // Enable Mistral TTS / Cohere STT based on API key availability
+      if (aiUserDefaults) {
+        if (aiUserDefaults.mistral && aiUserDefaults.mistral.has_key) {
+          var mistralTtsOpt = $id("mistral-tts-provider-option");
+          if (mistralTtsOpt) mistralTtsOpt.disabled = false;
+          var mistralSttOpt = $id("mistral-stt-voxtral");
+          if (mistralSttOpt) mistralSttOpt.disabled = false;
+        }
+        if (aiUserDefaults.cohere && aiUserDefaults.cohere.has_key) {
+          var cohereSttOpt = $id("cohere-stt-transcribe");
+          if (cohereSttOpt) cohereSttOpt.disabled = false;
         }
       }
     }
     
     // Helper to compute and set the AI User badge text robustly
     function setAiUserBadge() {
-      const provider = $("#ai_user_provider").val();
+      var providerSel = $id("ai_user_provider");
+      if (!providerSel) return false;
+      const provider = providerSel.value;
       if (!provider) return false;
-      const providerName = $("#ai_user_provider option:selected").text();
+      const providerName = providerSel.options[providerSel.selectedIndex].text;
       const ssotModel = getDefaultModelFromSSOT(provider);
-      const currentModel = $("#model").val();
+      var modelSel = $id("model");
+      const currentModel = modelSel ? modelSel.value : '';
       const model = ssotModel || currentModel;
       if (model && providerName) {
         // NOTE: Reasoning effort is intentionally NOT displayed for AI User
         // AI User has thinking/reasoning disabled for faster, simpler responses
-        $("#ai-user-model").text(providerName + ' (' + model + ')');
+        var aiUserModelEl = $id("ai-user-model");
+        if (aiUserModelEl) aiUserModelEl.textContent = providerName + ' (' + model + ')';
         return true;
       }
       return false;
@@ -664,34 +862,43 @@ $(function () {
     fetchAiUserDefaults().then(function(defs){
       aiUserDefaults = defs || null;
       window.updateAvailableProviders();
+      var providerSel = $id("ai_user_provider");
       const savedProvider = getCookie('ai_user_provider');
       var chosen = savedProvider;
-      if (!chosen || $("#ai_user_provider option[value='"+chosen+"']:visible").length === 0) {
-        var firstVisible = $("#ai_user_provider option:visible").first().val();
-        if (firstVisible) {
-          chosen = firstVisible;
-          $("#ai_user_provider").val(firstVisible);
-          setCookie('ai_user_provider', firstVisible, 30);
+      if (providerSel) {
+        var chosenOpt = chosen ? providerSel.querySelector("option[value='"+chosen+"']") : null;
+        if (!chosen || !chosenOpt || chosenOpt.style.display === 'none') {
+          var firstVisible = Array.from(providerSel.querySelectorAll("option")).find(function(o) { return o.style.display !== 'none'; });
+          if (firstVisible) {
+            chosen = firstVisible.value;
+            providerSel.value = firstVisible.value;
+            setCookie('ai_user_provider', firstVisible.value, 30);
+          }
+        } else {
+          providerSel.value = chosen;
         }
-      } else {
-        $("#ai_user_provider").val(chosen);
       }
+      var aiUserModelEl = $id("ai-user-model");
       if (chosen) {
         if (!setAiUserBadge()) {
-          $("#ai-user-model").text(getTranslation('ui.notConfigured','Not configured'));
+          if (aiUserModelEl) aiUserModelEl.textContent = getTranslation('ui.notConfigured','Not configured');
         }
       } else {
-        $("#ai-user-model").text(getTranslation('ui.notConfigured','Not configured'));
+        if (aiUserModelEl) aiUserModelEl.textContent = getTranslation('ui.notConfigured','Not configured');
       }
     }).catch(function(){
       // fallback: just update available providers based on apps
       window.updateAvailableProviders();
       // Best-effort label update using current app model
-      var chosen = $("#ai_user_provider option:visible").first().val();
-      if (chosen) {
-        $("#ai_user_provider").val(chosen);
-        if (!setAiUserBadge()) {
-          $("#ai-user-model").text(getTranslation('ui.notConfigured','Not configured'));
+      var providerSel = $id("ai_user_provider");
+      if (providerSel) {
+        var firstVisible = Array.from(providerSel.querySelectorAll("option")).find(function(o) { return o.style.display !== 'none'; });
+        if (firstVisible) {
+          providerSel.value = firstVisible.value;
+          if (!setAiUserBadge()) {
+            var aiUserModelEl = $id("ai-user-model");
+            if (aiUserModelEl) aiUserModelEl.textContent = getTranslation('ui.notConfigured','Not configured');
+          }
         }
       }
     });
@@ -699,7 +906,7 @@ $(function () {
     // Robust initialization: observe #model for population and update badge when ready
     (function ensureBadgeOnModelReady(){
       try {
-        const modelSel = document.getElementById('model');
+        const modelSel = $id('model');
         if (!modelSel || typeof MutationObserver === 'undefined') return; // Defensive
         const observer = new MutationObserver(() => {
           // Attempt to set badge whenever options or value change
@@ -724,133 +931,211 @@ $(function () {
     })();
     
     // Set up model change handler to update the AI Assistant info badge
-    $("#model").on("change", function() {
-      const selectedModel = $(this).val();
-      // Extract provider from params.group first (synced in proceedWithAppChange), fallback to current app group
-      let provider = "OpenAI";
-      const currentApp = $("#apps").val();
-      const grp = (typeof params !== 'undefined' && params && params["group"]) ? params["group"] : (apps[currentApp] && apps[currentApp].group ? apps[currentApp].group : null);
-      if (grp) {
-        const group = grp.toLowerCase();
-        if (group.includes("anthropic") || group.includes("claude")) {
-          provider = "Anthropic";
-        } else if (group.includes("gemini") || group.includes("google")) {
-          provider = "Google";
-        } else if (group.includes("cohere")) {
-          provider = "Cohere";
-        } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-          provider = "Mistral";
-        } else if (group.includes("perplexity")) {
-          provider = "Perplexity";
-        } else if (group.includes("deepseek")) {
-          provider = "DeepSeek";
-        } else if (group.includes("grok") || group.includes("xai")) {
-          provider = "xAI";
+    var modelChangeEl = $id("model");
+    if (modelChangeEl) {
+      modelChangeEl.addEventListener("change", function() {
+        const selectedModel = this.value;
+        // Extract provider from params.group first (synced in proceedWithAppChange), fallback to current app group
+        let provider = "OpenAI";
+        var appsEl = $id("apps");
+        const currentApp = appsEl ? appsEl.value : '';
+        const grp = (typeof params !== 'undefined' && params && params["group"]) ? params["group"] : (apps[currentApp] && apps[currentApp].group ? apps[currentApp].group : null);
+        if (grp) {
+          const group = grp.toLowerCase();
+          if (group.includes("anthropic") || group.includes("claude")) {
+            provider = "Anthropic";
+          } else if (group.includes("gemini") || group.includes("google")) {
+            provider = "Google";
+          } else if (group.includes("cohere")) {
+            provider = "Cohere";
+          } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
+            provider = "Mistral";
+          } else if (group.includes("perplexity")) {
+            provider = "Perplexity";
+          } else if (group.includes("deepseek")) {
+            provider = "DeepSeek";
+          } else if (group.includes("grok") || group.includes("xai")) {
+            provider = "xAI";
+          }
         }
-      }
-      // Update the badge in the AI User section with provider name and model
-      const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
-      $("#ai-assistant-info").html('<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>').attr("data-model", selectedModel);
+        // Update the badge in the AI User section with provider name and model
+        const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
+        var aiAssistantInfo = $id("ai-assistant-info");
+        if (aiAssistantInfo) {
+          aiAssistantInfo.innerHTML = '<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>';
+          aiAssistantInfo.setAttribute("data-model", selectedModel);
+        }
 
-      // Update model-selected text to follow the new multiline format
-      if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-        const reasoningEffort = $("#reasoning-effort").val();
-        $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
-      } else {
-        $("#model-selected").text(`${provider} (${selectedModel})`);
-      }
-    });
+        // Update model-selected text to follow the new multiline format
+        var modelSelectedEl = $id("model-selected");
+        if (modelSelectedEl) {
+          if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
+            var reasoningEffortEl = $id("reasoning-effort");
+            const reasoningEffort = reasoningEffortEl ? reasoningEffortEl.value : '';
+            modelSelectedEl.textContent = `${provider} (${selectedModel} - ${reasoningEffort})`;
+          } else {
+            modelSelectedEl.textContent = `${provider} (${selectedModel})`;
+          }
+        }
+      });
+    }
     
     // Initial availability update will be done when models are loaded
     
     // Setup AI User button
-    $("#ai_user").off("click").on("click", function () {
-      // Force enable AI User
-      params["ai_user"] = "true";
-      
-      // Get the provider from the selector
-      const provider = $("#ai_user_provider").val();
-      params["ai_user_provider"] = provider;
-      
-      // Create an AI User query
-      let ai_user_query = {
-        message: "AI_USER_QUERY",
-        contents: {
-          params: params,
-          messages: messages.map(msg => {
-            return { "role": msg["role"], "text": msg["text"] }
-          })
-        }
+    var aiUserButton = $id("ai_user");
+    if (aiUserButton) {
+      aiUserButton.onclick = function () {
+        // Force enable AI User
+        params["ai_user"] = "true";
+
+        // Get the provider from the selector
+        var providerSel = $id("ai_user_provider");
+        const provider = providerSel ? providerSel.value : '';
+        params["ai_user_provider"] = provider;
+
+        // Create an AI User query
+        let ai_user_query = {
+          message: "AI_USER_QUERY",
+          contents: {
+            params: params,
+            messages: messages.map(msg => {
+              return { "role": msg["role"], "text": msg["text"] }
+            })
+          }
+        };
+
+        // Send the request via WebSocket
+        ws.send(JSON.stringify(ai_user_query));
+
+        // Ensure the button stays visible
+        $show(this);
+
+        // Disable the button temporarily to prevent double-clicking
+        this.disabled = true;
+
+        // Provide better user feedback
+        const providerName = providerSel ? providerSel.options[providerSel.selectedIndex].text : '';
+        const analyzingText = getTranslation('ui.messages.analyzingConversation', 'Analyzing conversation');
+        const alertMessage = `<i class='fas fa-spinner fa-spin'></i> ${analyzingText}`;
+        setAlert(alertMessage, "warning");
+
+        // Disable UI elements manually here to ensure they're disabled even if websocket events fail
+        ["message", "send", "clear", "image-file", "voice", "doc", "url", "audio-upload", "select-role"].forEach(function(id) {
+          var el = $id(id);
+          if (el) el.disabled = true;
+        });
+        $id('cancel_query').style.setProperty('display', 'flex', 'important');
+
+        // Show the spinner with robot icon animation
+        var spinnerEl = $id("monadic-spinner");
+        if (spinnerEl) spinnerEl.style.display = "block";
+        const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+          webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
+        var spinnerSpan = spinnerEl ? spinnerEl.querySelector("span") : null;
+        if (spinnerSpan) spinnerSpan.innerHTML = `<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`;
+
+        // Enable button after a delay to prevent rapid clicking
+        setTimeout(() => {
+          var btn = $id("ai_user");
+          if (btn) btn.disabled = false;
+        }, 3000);
       };
-      
-      // Send the request via WebSocket
-      ws.send(JSON.stringify(ai_user_query));
-      
-      // Ensure the button stays visible
-      $(this).show();
-      
-      // Disable the button temporarily to prevent double-clicking
-      $(this).prop("disabled", true);
-      
-      // Provide better user feedback
-      const providerName = $("#ai_user_provider option:selected").text();
-      const analyzingText = getTranslation('ui.messages.analyzingConversation', 'Analyzing conversation');
-      const alertMessage = `<i class='fas fa-spinner fa-spin'></i> ${analyzingText}`;
-      setAlert(alertMessage, "warning");
-      
-      // Disable UI elements manually here to ensure they're disabled even if websocket events fail
-      $("#message").prop("disabled", true);
-      $("#send").prop("disabled", true);
-      $("#clear").prop("disabled", true);
-      $("#image-file").prop("disabled", true);
-      $("#voice").prop("disabled", true);
-      $("#doc").prop("disabled", true);
-      $("#url").prop("disabled", true);
-      $("#audio-upload").prop("disabled", true);
-      $("#select-role").prop("disabled", true);
-      document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-      
-      // Show the spinner with robot icon animation
-      $("#monadic-spinner").css("display", "block");
-      const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-        webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
-      $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
-      
-      // Enable button after a delay to prevent rapid clicking
-      setTimeout(() => {
-        $("#ai_user").prop("disabled", false);
-      }, 3000);
-    });
+    }
   
-    const $document = $(document);
-    const $main = $("#main");
-
     // Event delegation for dynamically added elements
-    $document.on("click", ".contBtn", function () {
-      $("#message").val("Continue");
-      $("#send").trigger("click");
+    document.addEventListener("click", function (e) {
+      var t = e.target.closest(".contBtn");
+      if (t) {
+        var msgEl = $id("message");
+        if (msgEl) msgEl.value = "Continue";
+        var sendBtn = $id("send");
+        if (sendBtn) sendBtn.click();
+      }
     });
 
-    // Add MutationObserver for handling image errors
+    // Add MutationObserver for handling image errors, dedup, and screenshot lightbox
     // Store the observer in the window object to ensure it can be accessed globally for cleanup
     window.imageErrorObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.addedNodes.length) {
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === 1 && node.classList.contains('card')) {
-              $(node).find(".generated_image img").each(function() {
-                const $img = $(this);
+              // Phase 1: Deduplicate images with the same src (URL) within this card
+              const seenSrcs = new Set();
+              node.querySelectorAll(".generated_image img").forEach(function(imgNode) {
+                const src = imgNode.getAttribute("src");
+                if (src && seenSrcs.has(src)) {
+                  var parentGenImg = imgNode.closest(".generated_image");
+                  if (parentGenImg) parentGenImg.remove();
+                  return; // continue to next
+                }
+                if (src) seenSrcs.add(src);
+              });
 
-                // Use one-time event handler to avoid memory leak from multiple handlers
-                $img.one("error", function() {
-                  const $errorMessage = $("<div>", {
-                    class: "image-error-message",
-                    text: "NO IMAGE GENERATED"
-                  }).css({
-                    'color': '#dc3545',
+              // Phase 2: Set up load handlers for visual dedup, DPR sizing, errors, click
+              const cardHashes = [];
+              node.querySelectorAll(".generated_image img").forEach(function(imgEl) {
+
+                // Error handler (one-time)
+                imgEl.addEventListener("error", function onError() {
+                  var errorDiv = document.createElement("div");
+                  errorDiv.className = "image-error-message";
+                  errorDiv.textContent = "NO IMAGE GENERATED";
+                  errorDiv.style.color = '#dc3545';
+                  imgEl.replaceWith(errorDiv);
+                  imgEl.removeEventListener("error", onError);
+                }, { once: true });
+
+                // On load: visual dedup + DPR-aware sizing (one-time)
+                imgEl.addEventListener("load", function onLoad() {
+                  // Visual similarity dedup using perceptual hash
+                  var hash = imagePerceptualHash(imgEl);
+                  if (hash) {
+                    for (var i = 0; i < cardHashes.length; i++) {
+                      if (hashSimilarity(hash, cardHashes[i]) >= 0.90) {
+                        // Near-duplicate — remove this image
+                        var parentGenImg = imgEl.closest(".generated_image");
+                        if (parentGenImg) parentGenImg.remove();
+                        return;
+                      }
+                    }
+                    cardHashes.push(hash);
+                  }
+
+                  // DPR-aware display width for screenshot images
+                  var dpr = parseInt(imgEl.dataset.screenshotDpr) || 0;
+                  if (dpr > 1 && imgEl.naturalWidth > 0) {
+                    imgEl.style.width = (imgEl.naturalWidth / dpr) + "px";
+                  }
+                  imgEl.removeEventListener("load", onLoad);
+                }, { once: true });
+
+                // Handle already-cached images (browser may not fire load)
+                if (imgEl.complete && imgEl.naturalWidth > 0) {
+                  $dispatch(imgEl, "load");
+                }
+
+                // Screenshot lightbox: add click handler directly to each image
+                // Skip images marked by image_generation apps (data-action="open")
+                if (!imgEl.getAttribute("data-action")) {
+                  imgEl.addEventListener("click", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var cardEl = this.closest(".card");
+                    lightboxImages = [];
+                    if (cardEl) {
+                      cardEl.querySelectorAll(".generated_image img:not([data-action])").forEach(function(img) {
+                        lightboxImages.push(img.getAttribute("src"));
+                      });
+                    }
+                    lightboxIndex = lightboxImages.indexOf(this.getAttribute("src"));
+                    if (lightboxIndex < 0) lightboxIndex = 0;
+                    updateLightbox();
+                    var lightboxEl = $id("screenshotLightbox");
+                    if (lightboxEl) bootstrap.Modal.getOrCreateInstance(lightboxEl).show();
                   });
-                  $img.replaceWith($errorMessage);
-                });
+                }
               });
             }
           });
@@ -859,7 +1144,7 @@ $(function () {
     });
 
     // Start observing the discourse element
-    const discourseElement = document.getElementById('discourse');
+    const discourseElement = $id('discourse');
     if (discourseElement) {
       window.imageErrorObserver.observe(discourseElement, {
         childList: true,
@@ -868,7 +1153,7 @@ $(function () {
     }
     
     // Clean up the observer when the page is unloaded
-    $(window).on("beforeunload", function() {
+    window.addEventListener("beforeunload", function() {
       if (window.imageErrorObserver) {
         window.imageErrorObserver.disconnect();
       }
@@ -883,94 +1168,102 @@ $(function () {
       }
     });
 
-    $document.on("click", ".yesBtn", function () {
-      $("#message").val("Yes");
-      $("#send").trigger("click");
-    });
-
-    $document.on("click", ".noBtn", function () {
-      $("#message").val("No");
-      $("#send").trigger("click");
-    });
-
-    $document.on("click", ".card-text img", function () {
-      window.open().document.write(this.outerHTML);
-    });
-    // Improved scroll event - store timer in data attribute to prevent leaks
-    $main.on("scroll", function () {
-      const $this = $(this);
-      // Clear any existing timer stored in the element's data
-      const existingTimer = $this.data('scrollTimer');
-      if (existingTimer) {
-        clearTimeout(existingTimer);
+    document.addEventListener("click", function (e) {
+      var yesTarget = e.target.closest(".yesBtn");
+      if (yesTarget) {
+        var msgEl = $id("message");
+        if (msgEl) msgEl.value = "Yes";
+        var sendBtn = $id("send");
+        if (sendBtn) sendBtn.click();
+        return;
       }
-      // Store new timer reference in the element's data
-      $this.data('scrollTimer', setTimeout(function() {
-        // Use the UI utilities module if available, otherwise fall back
-        if (uiUtils && uiUtils.adjustScrollButtons) {
-          uiUtils.adjustScrollButtons();
-        } else {
-          adjustScrollButtonsFallback();
-        }
-      }, 100));
+      var noTarget = e.target.closest(".noBtn");
+      if (noTarget) {
+        var msgEl = $id("message");
+        if (msgEl) msgEl.value = "No";
+        var sendBtn = $id("send");
+        if (sendBtn) sendBtn.click();
+        return;
+      }
+      var imgTarget = e.target.closest(".card-text img");
+      if (imgTarget) {
+        window.open().document.write(imgTarget.outerHTML);
+        return;
+      }
     });
+    // Improved scroll event - store timer in dataset to prevent leaks
+    var _mainScrollTimer = null;
+    var mainPanelScroll = $id("main");
+    if (mainPanelScroll) {
+      mainPanelScroll.addEventListener("scroll", function () {
+        // Clear any existing timer
+        if (_mainScrollTimer) {
+          clearTimeout(_mainScrollTimer);
+        }
+        // Store new timer reference
+        _mainScrollTimer = setTimeout(function() {
+          // Use the UI utilities module if available, otherwise fall back
+          if (uiUtils && uiUtils.adjustScrollButtons) {
+            uiUtils.adjustScrollButtons();
+          } else {
+            adjustScrollButtonsFallback();
+          }
+        }, 100);
+      });
+    }
 
     // Track previous window width to detect significant changes
-    let previousWidth = $(window).width();
+    let previousWidth = window.innerWidth;
     
     // Improved resize event with immediate and delayed response
-    $(window).on("resize", function () {
-      const $window = $(window);
-      const currentWidth = $window.width();
-      const existingTimer = $window.data('resizeTimer');
-      
+    var _windowResizeTimer = null;
+    window.addEventListener("resize", function () {
+      const currentWidth = window.innerWidth;
+
       // Check if we crossed the mobile/desktop boundary (600px)
       const wasMobile = previousWidth < 600;
       const isMobile = currentWidth < 600;
       const crossedBoundary = wasMobile !== isMobile;
-      
+
       // Immediate fix if we crossed the mobile/desktop boundary
       if (crossedBoundary) {
         fixLayoutAfterResize();
       }
-      
+
       // Clear existing timer
-      if (existingTimer) {
-        clearTimeout(existingTimer);
+      if (_windowResizeTimer) {
+        clearTimeout(_windowResizeTimer);
       }
-      
+
       // Set new timer for final adjustments
-      $window.data('resizeTimer', setTimeout(function() {
+      _windowResizeTimer = setTimeout(function() {
         // Final layout fix
         fixLayoutAfterResize();
-        
+
         // Force nav reflow to apply correct styles
-        const $nav = $('#main-nav');
-        $nav.hide();
-        $nav[0].offsetHeight; // force reflow
-        $nav.show();
-        
+        var navEl = $id('main-nav');
+        if (navEl) {
+          $hide(navEl);
+          navEl.offsetHeight; // force reflow
+          $show(navEl);
+        }
+
         // Update previous width
         previousWidth = currentWidth;
-      }, 250));
+      }, 250);
     });
-    
+
     // Clean up timers when window is unloaded
-    $(window).on("beforeunload", function() {
+    window.addEventListener("beforeunload", function() {
       // Clean up any stored timers
-      const $main = $("#main");
-      const $window = $(window);
-      
-      const mainScrollTimer = $main.data('scrollTimer');
-      if (mainScrollTimer) {
-        clearTimeout(mainScrollTimer);
-        $main.removeData('scrollTimer');
+      if (_mainScrollTimer) {
+        clearTimeout(_mainScrollTimer);
+        _mainScrollTimer = null;
       }
-      
-      const windowResizeTimer = $window.data('resizeTimer');
-      if (windowResizeTimer) {
-        clearTimeout(windowResizeTimer);
-        $window.removeData('resizeTimer');
+
+      if (_windowResizeTimer) {
+        clearTimeout(_windowResizeTimer);
+        _windowResizeTimer = null;
       }
     });
   }
@@ -978,14 +1271,14 @@ $(function () {
   // Function to fix layout after window resize
   function fixLayoutAfterResize() {
     try {
-      const windowWidth = $(window).width();
+      const windowWidth = window.innerWidth;
       const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : windowWidth < 600;
-      const toggleBtn = $("#toggle-menu");
-      const mainPanel = $("#main");
-      const menuPanel = $("#menu");
+      const toggleBtn = $id("toggle-menu");
+      const mainPanel = $id("main");
+      const menuPanel = $id("menu");
 
       // Check if essential elements exist
-      if (!toggleBtn.length || !mainPanel.length || !menuPanel.length) {
+      if (!toggleBtn || !mainPanel || !menuPanel) {
         console.warn("fixLayoutAfterResize: Required elements not found");
         return;
       }
@@ -995,9 +1288,9 @@ $(function () {
       try {
         const savedMenuHidden = localStorage.getItem('monadic-menu-hidden');
         if (savedMenuHidden === 'true') {
-          toggleBtn.addClass("menu-hidden");
+          toggleBtn.classList.add("menu-hidden");
         } else if (savedMenuHidden === 'false') {
-          toggleBtn.removeClass("menu-hidden");
+          toggleBtn.classList.remove("menu-hidden");
         }
         // If null (not set), keep current class state
       } catch (e) {
@@ -1006,48 +1299,52 @@ $(function () {
 
     if (isMobile) {
       // Mobile layout
-      const isMenuHidden = toggleBtn.hasClass("menu-hidden");
-      
+      const isMenuHidden = toggleBtn.classList.contains("menu-hidden");
+
       if (isMenuHidden) {
         // Menu should be hidden, main should be visible
-        menuPanel.hide();
-        mainPanel.show().removeClass("col-md-8").addClass("col-md-12");
-        $("body").removeClass("menu-visible");
+        $hide(menuPanel);
+        $show(mainPanel);
+        mainPanel.classList.remove("col-md-8");
+        mainPanel.classList.add("col-md-12");
+        document.body.classList.remove("menu-visible");
         // icon stays the same; active style controlled by menu-hidden class
       } else {
         // Menu should be visible, main should be hidden
-        menuPanel.show();
-        mainPanel.hide();
-        $("body").addClass("menu-visible");
+        $show(menuPanel);
+        $hide(mainPanel);
+        document.body.classList.add("menu-visible");
       }
-      
+
       // Reset any inline styles that might have been applied
-      toggleBtn.css({
-        "position": "",
-        "top": "",
-        "right": "",
-        "display": ""
-      });
+      toggleBtn.style.position = "";
+      toggleBtn.style.top = "";
+      toggleBtn.style.right = "";
+      $show(toggleBtn);
     } else {
       // Desktop layout
-      $("body").removeClass("menu-visible");
-      
-      if (menuPanel.is(":visible")) {
+      document.body.classList.remove("menu-visible");
+
+      if (menuPanel.style.display !== 'none') {
         // Both panels visible
-        mainPanel.removeClass("col-md-12").addClass("col-md-8").show();
-        menuPanel.show();
-        toggleBtn.removeClass("menu-hidden");
+        mainPanel.classList.remove("col-md-12");
+        mainPanel.classList.add("col-md-8");
+        $show(mainPanel);
+        $show(menuPanel);
+        toggleBtn.classList.remove("menu-hidden");
       } else {
         // Only main panel visible
-        mainPanel.removeClass("col-md-8").addClass("col-md-12").show();
-        menuPanel.hide();
-        toggleBtn.addClass("menu-hidden");
+        mainPanel.classList.remove("col-md-8");
+        mainPanel.classList.add("col-md-12");
+        $show(mainPanel);
+        $hide(menuPanel);
+        toggleBtn.classList.add("menu-hidden");
       }
     }
-    
+
     // Force reflow to ensure proper rendering
     document.body.offsetHeight;
-    
+
       // Update scroll buttons position
       if (uiUtils && uiUtils.adjustScrollButtons) {
         uiUtils.adjustScrollButtons();
@@ -1065,71 +1362,62 @@ $(function () {
         console.error("Error in fixLayoutAfterResize:", error);
       }
       // Attempt basic recovery
-      $("#main").show();
-      $("#toggle-menu").show();
-    }
+      var mainEl = $id("main");
+      $show(mainEl); var toggleEl = $id("toggle-menu");
+      $show(toggleEl); }
   }
 
   // Fallback function for scroll buttons when uiUtils is not available
   function adjustScrollButtonsFallback() {
-    const mainPanel = $("#main");
-    const windowWidth = $(window).width();
+    const mainPanel = $id("main");
+    const windowWidth = window.innerWidth;
     const isMobile = windowWidth < 600;
     const isMedium = windowWidth < 768; // Bootstrap md breakpoint
-    
+    var backToTop = $id("back_to_top");
+    var backToBottom = $id("back_to_bottom");
+
     // On mobile and medium screens where menu/content are exclusive, check toggle state
     if (isMobile || isMedium) {
       // Check if toggle button has menu-hidden class
-      // When menu-hidden class is present, menu is hidden and main is showing
-      // When menu-hidden class is absent, menu is showing and main is hidden
-      const toggleBtn = $("#toggle-menu");
-      const isMenuHidden = toggleBtn.hasClass("menu-hidden");
-      
+      const toggleBtn = $id("toggle-menu");
+      const isMenuHidden = toggleBtn && toggleBtn.classList.contains("menu-hidden");
+
       if (!isMenuHidden) {
-        // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons
-        $("#back_to_top").hide();
-        $("#back_to_bottom").hide();
-        return;
+        // Menu is showing, hide scroll buttons
+        $hide(backToTop); $hide(backToBottom); return;
       }
     }
-    
+
     // Also check for menu-visible class (mobile menu state)
-    if ($("body").hasClass("menu-visible")) {
-      $("#back_to_top").hide();
-      $("#back_to_bottom").hide();
-      return;
+    if (document.body.classList.contains("menu-visible")) {
+      $hide(backToTop); $hide(backToBottom); return;
     }
-    
-    const mainHeight = mainPanel.height() || 0;
-    const mainScrollHeight = mainPanel.prop("scrollHeight") || 0;
-    const mainScrollTop = mainPanel.scrollTop() || 0;
-    
+
+    if (!mainPanel) return;
+    const mainHeight = mainPanel.clientHeight || 0;
+    const mainScrollHeight = mainPanel.scrollHeight || 0;
+    const mainScrollTop = mainPanel.scrollTop || 0;
+
     // Position buttons relative to main panel
-    const mainOffset = mainPanel.offset();
-    const mainWidth = mainPanel.width();
-    if (mainOffset) {
-      const buttonRight = $(window).width() - (mainOffset.left + mainWidth) + 30;
-      $("#back_to_top").css("right", buttonRight + "px");
-      $("#back_to_bottom").css("right", buttonRight + "px");
-    }
-    
+    const mainRect = mainPanel.getBoundingClientRect();
+    const mainWidth = mainRect.width;
+    const buttonRight = window.innerWidth - (mainRect.left + mainWidth) + 30;
+    if (backToTop) backToTop.style.right = buttonRight + "px";
+    if (backToBottom) backToBottom.style.right = buttonRight + "px";
+
     // Calculate thresholds (100px minimum scroll to show buttons)
     const scrollThreshold = 100;
-    
+
     // Show top button when scrolled down enough from the top
     if (mainScrollTop > scrollThreshold) {
-      $("#back_to_top").fadeIn(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
-    } else {
-      $("#back_to_top").fadeOut(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
-    }
-    
+      $show(backToTop); } else {
+      $hide(backToTop); }
+
     // Show bottom button when not near the bottom
     const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
     if (distanceFromBottom > scrollThreshold) {
-      $("#back_to_bottom").fadeIn(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
-    } else {
-      $("#back_to_bottom").fadeOut(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
-    }
+      $show(backToBottom); } else {
+      $hide(backToBottom); }
   }
 
   // Store ResizeObserver instance for cleanup
@@ -1155,8 +1443,8 @@ $(function () {
         resizeObserverTimeout = null;
       }
       
-      const mainPanel = document.getElementById('main');
-      const menuPanel = document.getElementById('menu');
+      const mainPanel = $id('main');
+      const menuPanel = $id('menu');
       
       if (!mainPanel || !menuPanel) {
         console.warn('Required panels not found for ResizeObserver');
@@ -1231,7 +1519,7 @@ $(function () {
       layoutResizeObserver.observe(menuPanel, observerOptions);
       
       // Clean up on page unload
-      $(window).off("beforeunload.resizeObserver").on("beforeunload.resizeObserver", function() {
+      window.addEventListener("beforeunload", function() {
         if (layoutResizeObserver) {
           layoutResizeObserver.disconnect();
           layoutResizeObserver = null;
@@ -1288,10 +1576,8 @@ $(function () {
         layoutResizeObserver = null;
       }
       
-      // Remove window event listeners
-      $(window).off('.resizeHandler');
-      $(window).off('.resizeObserver');
-      $(window).off('.scrollHandler');
+      // Note: Named event listeners removed via vanilla JS are handled by
+      // the individual beforeunload handlers above
       
       // Clean up tooltips
       if (window.uiUtils && window.uiUtils.cleanupAllTooltips) {
@@ -1318,7 +1604,7 @@ $(function () {
   }
   
   // Setup cleanup on page unload
-  $(window).on('beforeunload', cleanupEventHandlers);
+  window.addEventListener('beforeunload', cleanupEventHandlers);
   
   // Also handle visibility changes to prevent issues when tab is hidden
   document.addEventListener('visibilitychange', function() {
@@ -1345,7 +1631,7 @@ $(function () {
   });
   
   // Call these functions on document ready
-  $(function () {
+  document.addEventListener("DOMContentLoaded", function () {
     setupToggleHandlers();
     setupEventListeners();
     setupResizeObserver();
@@ -1355,12 +1641,15 @@ $(function () {
   let previousModelValue = null;
 
   // Capture previous value on focus
-  $("#model").on("focus", function() {
-    previousModelValue = $(this).val();
-  });
+  const modelEl = $id("model");
+  if (modelEl) {
+    modelEl.addEventListener("focus", function() {
+      previousModelValue = this.value;
+    });
+  }
 
-  $("#model").on("change", function() {
-    const selectedModel = $("#model").val();
+  if (modelEl) modelEl.addEventListener("change", function() {
+    const selectedModel = modelEl.value;
 
     // Check if the selected model requires confirmation (expensive models)
     if (typeof window.modelRequiresConfirmation === 'function' &&
@@ -1378,7 +1667,7 @@ $(function () {
       if (!confirm(`${confirmTitle}\n\n${confirmMessage}`)) {
         // User cancelled - revert to previous model
         if (previousModelValue) {
-          $(this).val(previousModelValue);
+          this.value = previousModelValue;
           return; // Exit without processing the change
         }
       }
@@ -1387,15 +1676,15 @@ $(function () {
     // Update previous value after confirmation
     previousModelValue = selectedModel;
 
-    const defaultModel = apps[$("#apps").val()]["model"];
+    const appsEl = $id("apps");
+    const defaultModel = apps[appsEl ? appsEl.value : ""]["model"];
+    const modelNonDefault = $id("model-non-default");
     if (selectedModel !== defaultModel) {
-      $("#model-non-default").show();
-    } else {
-      $("#model-non-default").hide();
-    }
+      $show(modelNonDefault); } else {
+      $hide(modelNonDefault); }
 
     // Handle reasoning effort dropdown with ReasoningMapper
-    const currentApp = $("#apps").val();
+    const currentApp = appsEl ? appsEl.value : "";
     const provider = getProviderFromGroup(apps[currentApp]["group"]);
     
     // Update UI with provider-specific components and labels
@@ -1408,23 +1697,20 @@ $(function () {
       const defaultValue = ReasoningMapper.getDefaultValue(provider, selectedModel);
       
       if (availableOptions && availableOptions.length > 0) {
-        $("#reasoning-effort").prop("disabled", false);
+        { const el = $id("reasoning-effort"); if (el) el.disabled = false; }
         
         // Store current value before clearing options
-        const previousValue = $("#reasoning-effort").val();
+        const previousValue = ($id("reasoning-effort") || {}).value;
         
         // Clear current options
-        $("#reasoning-effort").empty();
+        { const el = $id("reasoning-effort"); if (el) el.innerHTML = ""; }
         
         // Add options from ReasoningMapper with provider-specific labels
         availableOptions.forEach(option => {
           const label = window.ReasoningLabels ? 
             window.ReasoningLabels.getOptionLabel(provider, option) : 
             option;
-          $("#reasoning-effort").append($('<option>', {
-            value: option,
-            text: label
-          }));
+          { const el = $id("reasoning-effort"); if (el) { const _opt = document.createElement("option"); _opt.value = option; _opt.textContent = label; el.appendChild(_opt); } }
         });
         
         // Don't override reasoning_effort if we're loading from params
@@ -1432,33 +1718,30 @@ $(function () {
           // Set the value - preserve existing value if present, otherwise use default
           if (previousValue && availableOptions.includes(previousValue)) {
             // Keep the previous value if it's valid for this model
-            $("#reasoning-effort").val(previousValue);
+            { const el = $id("reasoning-effort"); if (el) el.value = previousValue; }
           } else {
             // Use the default value from ReasoningMapper
-            $("#reasoning-effort").val(defaultValue || availableOptions[0]);
+            { const el = $id("reasoning-effort"); if (el) el.value = defaultValue || availableOptions[0]; }
           }
         }
       } else {
-        $("#reasoning-effort").prop("disabled", true);
+        { const el = $id("reasoning-effort"); if (el) el.disabled = true; }
       }
     } else {
-      $("#reasoning-effort").prop("disabled", true);
+      { const el = $id("reasoning-effort"); if (el) el.disabled = true; }
     }
     
     // Always restore default options when disabled (for consistency)
-    if ($("#reasoning-effort").prop("disabled")) {
-      $("#reasoning-effort").empty();
+    if (($id("reasoning-effort") || {}).disabled) {
+      { const el = $id("reasoning-effort"); if (el) el.innerHTML = ""; }
       const defaultOptions = ['minimal', 'low', 'medium', 'high'];
       defaultOptions.forEach(option => {
         const label = window.ReasoningLabels ? 
           window.ReasoningLabels.getOptionLabel('default', option) : 
           option;
-        $("#reasoning-effort").append($('<option>', { 
-          value: option, 
-          text: label 
-        }));
+        { const el = $id("reasoning-effort"); if (el) { const _opt = document.createElement("option"); _opt.value = option; _opt.textContent = label; el.appendChild(_opt); } }
       });
-      $("#reasoning-effort").val('medium');
+      { const el = $id("reasoning-effort"); if (el) el.value = 'medium'; }
     }
 
     // Update labels after options are generated
@@ -1470,75 +1753,67 @@ $(function () {
       const supportsWeb = (modelSpec[selectedModel]["supports_web_search"] === true) ||
                           (modelSpec[selectedModel]["tool_capability"] === true); // fallback for tool-based providers
       if (supportsWeb) {
-        $("#websearch").prop("disabled", false).removeAttr('title');
+        { const el = $id("websearch"); if (el) { el.disabled = false; el.removeAttribute("title"); } }
       } else {
-        $("#websearch-badge").hide();
+        $hide($id("websearch-badge"));
         const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
-        $("#websearch").prop("disabled", true).attr('title', tt);
+        { const el = $id("websearch"); if (el) { el.disabled = true; el.setAttribute("title", tt); } }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
-        $("#temperature").prop("disabled", false);
-        // temperature is kept unchanged even if the model is changed
-        ;
-        // const temperature = modelSpec[selectedModel]["temperature"][1];
-        // $("#temperature").val(temperature);
-        // $("#temperature-value").text(parseFloat(temperature).toFixed(1));
+        { const el = $id("temperature"); if (el) el.disabled = false; }
       } else {
-        $("#temperature").prop("disabled", true);
+        { const el = $id("temperature"); if (el) el.disabled = true; }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("presence_penalty")) {
-        $("#presence-penalty").prop("disabled", false);
-        // presence penalty is kept unchanged even if the model is changed
-        ;
-        // const presencePenalty = modelSpec[selectedModel]["presence_penalty"][1];
-        // $("#presence-penalty").val(presencePenalty);
-        // $("#presence-penalty-value").text(parseFloat(presencePenalty).toFixed(1));
+        { const el = $id("presence-penalty"); if (el) el.disabled = false; }
       } else {
-        $("#presence-penalty").prop("disabled", true);
+        { const el = $id("presence-penalty"); if (el) el.disabled = true; }
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("frequency_penalty")) {
-        $("#frequency-penalty").prop("disabled", false);
-        // frequency penalty is kept unchanged even if the model is changed
-        ;
-        // const frequencyPenalty = modelSpec[selectedModel]["frequency_penalty"][1];
-        // $("#frequency-penalty").val(frequencyPenalty);
-        // $("#frequency-penalty-value").text(parseFloat(frequencyPenalty).toFixed(1));
+        { const el = $id("frequency-penalty"); if (el) el.disabled = false; }
       } else {
-        $("#frequency-penalty").prop("disabled", true);
+        { const el = $id("frequency-penalty"); if (el) el.disabled = true; }
       }
 
+      const isReasoningModel = modelSpec[selectedModel]["reasoning_effort"] || modelSpec[selectedModel]["supports_thinking"];
       if (modelSpec[selectedModel].hasOwnProperty("max_output_tokens")) {
-        $("#max-tokens-toggle").prop("checked", true).trigger("change");
         const maxOutputTokens = modelSpec[selectedModel]["max_output_tokens"][1];
-        $("#max-tokens").val(maxOutputTokens);
+        { const el = $id("max-tokens"); if (el) el.value = maxOutputTokens; }
+        if (isReasoningModel) {
+          // Reasoning models: lock max_tokens to maximum
+          { const el = $id("max-tokens-toggle"); if (el) { el.checked = true; el.disabled = true; } }
+          { const el = $id("max-tokens"); if (el) el.disabled = true; }
+        } else {
+          { const el = $id("max-tokens-toggle"); if (el) { el.checked = true; el.disabled = false; $dispatch(el, "change"); } }
+        }
       } else {
-        $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS)
-        $("#max-tokens-toggle").prop("checked", false).trigger("change");
+        { const el = $id("max-tokens"); if (el) el.value = DEFAULT_MAX_OUTPUT_TOKENS; }
+        { const el = $id("max-tokens-toggle"); if (el) { el.checked = false; el.disabled = false; $dispatch(el, "change"); } }
+      }
+      // Show Thinking toggle: only for models with supports_thinking
+      if (modelSpec[selectedModel]["supports_thinking"]) {
+        $show($id("thinking-display-container"));
+      } else {
+        $hide($id("thinking-display-container"));
       }
     } else {
-      $("#reasoning-effort").prop("disabled", true);
-      $("#temperature").prop("disabled", true);
-      $("#presence-penalty").prop("disabled", true);
-      $("#frequency-penalty").prop("disabled", true);
-      $("#max-tokens-toggle").prop("checked", false).trigger("change");
-      $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS)
+      { const el = $id("reasoning-effort"); if (el) el.disabled = true; }
+      { const el = $id("temperature"); if (el) el.disabled = true; }
+      { const el = $id("presence-penalty"); if (el) el.disabled = true; }
+      { const el = $id("frequency-penalty"); if (el) el.disabled = true; }
+      { const el = $id("max-tokens-toggle"); if (el) { el.checked = false; el.disabled = false; $dispatch(el, "change"); } }
+      { const el = $id("max-tokens"); if (el) el.value = DEFAULT_MAX_OUTPUT_TOKENS; }
+      $hide($id("thinking-display-container"));
     }
 
-    // check if selected mode has data-model-type attribute and its value is "reasoning"
-    // Use existing currentApp and provider variables from above
-    
-    if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-      const reasoningEffort = $("#reasoning-effort").val();
-      $("#max-tokens").prop("disabled", true);
-      $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
-      $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
+    // Update model-selected display text
+    if (modelSpec[selectedModel] && (modelSpec[selectedModel].hasOwnProperty("reasoning_effort") || modelSpec[selectedModel]["supports_thinking"])) {
+      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel} - ${$id("reasoning-effort") ? $id("reasoning-effort").value : ''})`; }
     } else {
-      $("#max-tokens").prop("disabled", false)
-      $("#max-tokens-toggle").prop("disabled", false).prop("checked", true)
-      $("#model-selected").text(`${provider} (${selectedModel})`);
+      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel})`; }
     }
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
@@ -1553,21 +1828,25 @@ $(function () {
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('model_change');
     }
+    // Update collapsed summary bar if visible
+    if (typeof updateConfigSummary === 'function' && ($id("config-summary") && $id("config-summary").offsetParent !== null)) {
+      updateConfigSummary();
+    }
   });
 
-  $("#reasoning-effort").on("change", function () {
-    const selectedModel = $("#model").val();
+  $on($id("reasoning-effort"), "change", function() {
+    const selectedModel = ($id("model") || {}).value;
     // Get current app's provider
-    const currentApp = $("#apps").val();
+    const currentApp = ($id("apps") || {}).value;
     const provider = getProviderFromGroup(apps[currentApp]["group"]);
     
     if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-      const reasoningEffort = $("#reasoning-effort").val();
-      $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
+      const reasoningEffort = ($id("reasoning-effort") || {}).value;
+      { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel} - ${reasoningEffort})`; }
     }
 
     if (typeof params === 'object') {
-      params["reasoning_effort"] = $("#reasoning-effort").val();
+      params["reasoning_effort"] = ($id("reasoning-effort") || {}).value;
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('reasoning_effort_change');
@@ -1575,7 +1854,7 @@ $(function () {
   });
 
 
-  $("#apps").on("change", function (event) {
+  $on($id("apps"), "change", function(event) {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
       return;
@@ -1583,13 +1862,13 @@ $(function () {
 
     // Skip confirmation during session restoration
     if (window.isRestoringSession) {
-      const selectedAppValue = $(this).val();
+      const selectedAppValue = this.value;
       proceedWithAppChange(selectedAppValue);
       return;
     }
 
     // Store selected app
-    const selectedAppValue = $(this).val();
+    const selectedAppValue = this.value;
     const previousAppValue = lastApp;
 
     // Update app icon immediately on selection change
@@ -1604,12 +1883,12 @@ $(function () {
       // Prevent the dropdown from changing yet
       event.preventDefault();
       // Set dropdown back to previous value temporarily
-      $(this).val(previousAppValue);
+      this.value = previousAppValue;
       // Restore previous icon
       updateAppSelectIcon(previousAppValue);
 
       // Show confirmation dialog
-      $("#appChangeConfirmation").data("newApp", selectedAppValue).modal("show");
+      { const el = $id("appChangeConfirmation"); if (el) { el.dataset.newApp = selectedAppValue; bootstrap.Modal.getOrCreateInstance(el).show(); } }
       return;
     }
 
@@ -1630,7 +1909,7 @@ $(function () {
       }
 
       // Clear the discourse area
-      $("#discourse").html("");
+      { const el = $id("discourse"); if (el) el.innerHTML = ""; }
 
       // Clear error cards
       if (typeof clearErrorCards === 'function') {
@@ -1638,8 +1917,8 @@ $(function () {
       }
 
       // Clear temp cards
-      $("#temp-card").remove();
-      $("#temp-reasoning-card").remove();
+      { const el = $id("temp-card"); if (el) el.remove(); }
+      { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
       // Send server-side RESET to clear session
       ws.send(JSON.stringify({ "message": "RESET" }));
@@ -1649,26 +1928,26 @@ $(function () {
   });
   
   // Handle cancellation of app change
-  $("#appChangeConfirmation").on("hidden.bs.modal", function() {
+  $on($id("appChangeConfirmation"), "hidden.bs.modal", function() {
     // If user cancelled (not confirmed), restore the original app selection
-    const newAppValue = $(this).data("newApp");
-    const currentAppValue = $("#apps").val();
+    const newAppValue = this.dataset.newApp;
+    const currentAppValue = ($id("apps") || {}).value;
 
     // If modal closed but app wasn't changed (user cancelled), ensure selection is correct
     if (currentAppValue !== newAppValue && currentAppValue !== lastApp) {
       // Restore to lastApp
-      $("#apps").val(lastApp);
+      { const el = $id("apps"); if (el) el.value = lastApp; }
       updateAppSelectIcon(lastApp);
     }
   });
 
   // Handle confirmation of app change
-  $("#appChangeConfirmed").on("click", function() {
-    const newAppValue = $("#appChangeConfirmation").data("newApp");
+  $on($id("appChangeConfirmed"), "click", function() {
+    const newAppValue = ($id("appChangeConfirmation") || {}).dataset.newApp;
     // Close the modal
-    $("#appChangeConfirmation").modal("hide");
+    bootstrap.Modal.getOrCreateInstance($id("appChangeConfirmation")).hide();
     // Apply the app change
-    $("#apps").val(newAppValue);
+    { const el = $id("apps"); if (el) el.value = newAppValue; }
 
     // COMPREHENSIVE STATE CLEARING
     // Reset messages via SessionState API (no direct assignment)
@@ -1687,7 +1966,7 @@ $(function () {
     window.userHasInteractedInTab = false;
 
     // Clear the discourse area
-    $("#discourse").html("");
+    { const el = $id("discourse"); if (el) el.innerHTML = ""; }
 
     // Clear error cards specifically
     if (typeof clearErrorCards === 'function') {
@@ -1700,28 +1979,25 @@ $(function () {
     }
 
     // Clear temp cards
-    $("#temp-card").remove();
-    $("#temp-reasoning-card").remove();
+    { const el = $id("temp-card"); if (el) el.remove(); }
+    { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
     // Send server-side RESET to clear session
     ws.send(JSON.stringify({ "message": "RESET" }));
 
-    // Reset to settings panel instead of continuing session
-    $("#config").show();
-    $("#back-to-settings").hide();
-    $("#main-panel").hide();
-    $("#parameter-panel").hide();
+    // Reset to settings panel
+    enterSettingsMode();
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const startText = webUIi18n.t('ui.session.startSession');
-        $("#start-label").text(startText);
+        { const el = $id("start-label"); if (el) el.textContent = startText; }
       });
     } else {
       // Fallback if i18nReady is not available
       const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
         webUIi18n.t('ui.session.startSession') : 'Start Session';
-      $("#start-label").text(startText);
+      { const el = $id("start-label"); if (el) el.textContent = startText; }
     }
     proceedWithAppChange(newAppValue);
   });
@@ -1729,6 +2005,12 @@ $(function () {
   // Function to handle the actual app change
   // Make it globally accessible for initialization from websocket.js
   window.proceedWithAppChange = function proceedWithAppChange(appValue) {
+    // Guard: skip if appValue is null/undefined or app not found in apps object
+    if (!appValue || !apps || !apps[appValue]) {
+      console.warn(`[AppChange] App '${appValue}' not found in apps object, skipping`);
+      return;
+    }
+
     try {
       if (window.logTL) {
         const hasApp = !!(apps && apps[appValue]);
@@ -1749,25 +2031,21 @@ $(function () {
       window.currentLLMProvider = getProviderFromGroup(selectedApp.group).toLowerCase();
     }
 
-    // Always enable AI User toggle for all providers
-    $("#ai-user-toggle").prop("disabled", false);
-
     // Always enable AI User button (error message will be shown if conversation not started)
-    $("#ai_user").prop("disabled", false);
+    { const el = $id("ai_user"); if (el) el.disabled = false; }
     // Set title with translation when available
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const aiUserTitle = webUIi18n.t('ui.generateAIUserResponse') || "Generate AI user response based on conversation";
-        $("#ai_user").attr("title", aiUserTitle);
+        { const el = $id("ai_user"); if (el) el.setAttribute("title", aiUserTitle); }
       });
     } else {
-      $("#ai_user").attr("title", "Generate AI user response based on conversation");
+      { const el = $id("ai_user"); if (el) el.setAttribute("title", "Generate AI user response based on conversation"); }
     }
 
     // Update the UI dropdown to match the appValue parameter
-    // This ensures all subsequent code that reads $("#apps").val() gets the correct value
-    if ($("#apps").val() !== appValue) {
-      $("#apps").val(appValue);
+    if (($id("apps") || {}).value !== appValue) {
+      { const el = $id("apps"); if (el) el.value = appValue; }
     }
 
     // Skip early return during initial load or session restoration
@@ -1786,7 +2064,7 @@ $(function () {
       return;
     }
     // Preserve important values before Object.assign overwrites them
-    const currentMathjax = $("#mathjax").prop('checked');
+    const currentMathjax = ($id("math") || {}).checked;
     // Preserve previous values only during import flows
     const importingFlow = (typeof window !== 'undefined') && (window.isImporting || window.isProcessingImport);
 
@@ -1815,7 +2093,7 @@ $(function () {
       // This ensures switching apps always resets to the correct model
       if (apps[appValue]["model"]) {
         params["model"] = apps[appValue]["model"];
-        $("#model").val(apps[appValue]["model"]);
+        { const el = $id("model"); if (el) el.value = apps[appValue]["model"]; }
       }
     }
     if (preservedAppName && importingFlow) {
@@ -1843,9 +2121,9 @@ $(function () {
         params['initiate_from_assistant'] = false;
       }
     }
-    // Restore mathjax state if not explicitly set in app parameters
-    if (apps[appValue] && !apps[appValue].hasOwnProperty('mathjax')) {
-      params['mathjax'] = currentMathjax;
+    // Restore math state if not explicitly set in app parameters
+    if (apps[appValue] && !apps[appValue].hasOwnProperty('math')) {
+      params['math'] = currentMathjax;
     }
     
     // Ensure loadParams runs even if another async selection is in progress
@@ -1881,16 +2159,16 @@ $(function () {
     });
 
     if (toBool(apps[appValue]["pdf_vector_storage"])) {
-      $("#pdf-panel").show();
+      $show($id("pdf-panel"));
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
     } else {
-      $("#pdf-panel").hide();
+      $hide($id("pdf-panel"));
     }
 
     if (toBool(apps[appValue]["audio_upload"])) {
-      $("#audio-upload").show();
+      $show($id("audio-upload"));
     } else {
-      $("#audio-upload").hide();
+      $hide($id("audio-upload"));
     }
 
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
@@ -1899,12 +2177,13 @@ $(function () {
     // Never mutate apps[appValue].group here; app definitions are authoritative.
 
     // Use shared utility function to get models for the app
-    let models = getModelsForApp(apps[appValue]);
+    const showAll = ($id("show-all-models") || {}).checked;
+    let models = getModelsForApp(apps[appValue], showAll);
 
     if (models.length > 0) {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
       let modelList = listModels(models, openai);
-      $("#model").html(modelList);
+      { const el = $id("model"); if (el) el.innerHTML = modelList; }
 
       // Use shared utility function to get default model
       model = getDefaultModelForApp(apps[appValue], models);
@@ -1925,33 +2204,37 @@ $(function () {
       const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        $("#model-selected").text(`${provider} (${model} - ${$("#reasoning-effort").val()})`);
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${$id("reasoning-effort") ? $id("reasoning-effort").value : ''})` };
       } else {
-        $("#model-selected").text(`${provider} (${model})`);
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model})`; }
       }
 
       if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
-        $("#websearch").prop("disabled", false).removeAttr('title');
+        { const el = $id("websearch"); if (el) { el.disabled = false; el.removeAttribute("title"); } }
       } else {
-        $("#websearch-badge").hide();
+        $hide($id("websearch-badge"));
         const tt2 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
-        $("#websearch").prop("disabled", true).attr('title', tt2);
+        { const el = $id("websearch"); if (el) { el.disabled = true; el.setAttribute("title", tt2); } }
       }
 
-      $("#model").val(model);
+      { const el = $id("model"); if (el) el.value = model; }
 
-      if ($("#model").val() !== model) {
+      if (($id("model") || {}).value !== model) {
         // Try again after a delay
         setTimeout(() => {
-          $("#model").val(model);
-          if ($("#model").val() === model) {
-            $("#model").trigger("change");
+          { const el = $id("model"); if (el) el.value = model; }
+          if (($id("model") || {}).value === model) {
+            $dispatch($id("model"), "change");
           } else {
-            console.warn('[Model Debug] Retry failed, model still not set correctly');
+            // Defensive fallback: select first available (non-disabled) option
+            const firstOption = (document.querySelector("#model option:not(:disabled)") || {}).value;
+            if (firstOption) {
+              { const el = $id("model"); if (el) { el.value = firstOption; $dispatch(el, "change"); } }
+            }
           }
         }, 100);
       } else {
-        $("#model").trigger("change");
+        $dispatch($id("model"), "change");
       }
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
@@ -1961,8 +2244,9 @@ $(function () {
       }
 
     } else if (!apps[appValue]["model"] || apps[appValue]["model"].length === 0) {
-      $("#model_and_file").hide();
-      $("#model_parameters").hide();
+      // Models not available - show placeholder instead of hiding the row
+      { const el = $id("model"); if (el) el.innerHTML = '<option disabled selected>Models not available</option>'; }
+      $hide($id("model_parameters"));
     } else {
       // The following code is for backward compatibility
 
@@ -1971,24 +2255,24 @@ $(function () {
       model = params["model"];
 
       if (params["model"] && models && models.includes(params["model"])) {
-        $("#model").html(model_options);
-        $("#model").val(params["model"]).trigger("change");
+        { const el = $id("model"); if (el) el.innerHTML = model_options; }
+        { const el = $id("model"); if (el) { el.value = params["model"]; $dispatch(el, "change"); } }
       } else {
         let model_options = `<option disabled="disabled" selected="selected">Models not available</option>`;
-        $("#model").html(model_options);
+        { const el = $id("model"); if (el) el.innerHTML = model_options; }
       }
 
       // Get provider from app group
       const provider = getProviderFromGroup(apps[appValue]["group"]);
       
       if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-        $("#model-selected").text(`${provider} (${model} - ${$("#reasoning-effort").val()})`);
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${$id("reasoning-effort") ? $id("reasoning-effort").value : ''})` };
       } else {
-        $("#model-selected").text(`${provider} (${params["model"]})`);
+        { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${params["model"]})`; }
       }
 
-      $("#model_and_file").show();
-      $("#model_parameters").show();
+      $show($id("model_and_file"));
+      $show($id("model_parameters"));
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
         uiUtils.adjustImageUploadButton(model);
@@ -1998,60 +2282,59 @@ $(function () {
     }
 
     if (apps[appValue]["context_size"]) {
-      $("#context-size-toggle").prop("checked", true);
-      $("#context-size").prop("disabled", false);
+      { const el = $id("context-size-toggle"); if (el) el.checked = true; }
+      { const el = $id("context-size"); if (el) el.disabled = false; }
     } else {
-      $("#context-size-toggle").prop("checked", false);
-      $("#context-size").prop("disabled", true);
+      { const el = $id("context-size-toggle"); if (el) el.checked = false; }
+      { const el = $id("context-size"); if (el) el.disabled = true; }
     }
 
     // Use display_name if available, otherwise fall back to app_name
     const displayText = apps[appValue]["display_name"] || apps[appValue]["app_name"];
-    $("#base-app-title").text(displayText);
-    $("#base-app-icon").html(apps[appValue]["icon"]);
+    { const el = $id("base-app-title"); if (el) el.textContent = displayText; }
+    { const el = $id("base-app-icon"); if (el) el.innerHTML = apps[appValue]["icon"]; }
 
     if (toBool(apps[appValue]["monadic"])) {
-      $("#monadic-badge").show();
+      $show($id("monadic-badge"));
     } else {
-      $("#monadic-badge").hide();
+      $hide($id("monadic-badge"));
     }
 
     if (apps[appValue]["tools"]) {
-      $("#tools-badge").show();
+      $show($id("tools-badge"));
     } else {
-      $("#tools-badge").hide();
+      $hide($id("tools-badge"));
     }
 
     if (toBool(apps[appValue]["websearch"])) {
-      $("#websearch").prop("checked", true);
-      $("#websearch-badge").show();
+      { const el = $id("websearch"); if (el) el.checked = true; }
+      $show($id("websearch-badge"));
     } else {
-      $("#websearch").prop("checked", false);
-      $("#websearch-badge").hide();
+      { const el = $id("websearch"); if (el) el.checked = false; }
+      $hide($id("websearch-badge"));
     }
 
-    if (toBool(apps[appValue]["mathjax"])) {
-      $("#mathjax").prop("checked", true);
-      $("#math-badge").show();
+    if (toBool(apps[appValue]["math"])) {
+      { const el = $id("math"); if (el) el.checked = true; }
+      $show($id("math-badge"));
     } else {
-      $("#mathjax").prop("checked", false);
-      $("#math-badge").hide();
+      { const el = $id("math"); if (el) el.checked = false; }
+      $hide($id("math-badge"));
     }
 
     if (typeof window.setBaseAppDescription === 'function') {
       window.setBaseAppDescription(apps[appValue]["description"] || "");
     } else {
-      $("#base-app-desc").html(apps[appValue]["description"]);
+      { const el = $id("base-app-desc"); if (el) el.innerHTML = apps[appValue]["description"]; }
     }
 
-    $("#initial-prompt-toggle").prop("checked", false).trigger("change");
-    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+    if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
 
     // Ensure reasoning-effort dropdown is updated after app change
     setTimeout(function() {
-      const currentModel = $("#model").val();
+      const currentModel = ($id("model") || {}).value;
       if (currentModel) {
-        $("#model").trigger("change");
+        $dispatch($id("model"), "change");
       }
     }, 100);
 
@@ -2061,21 +2344,21 @@ $(function () {
 
     // Final enforcement: keep checkboxes OFF during import to prevent auto-behaviors
     if (importingFlow) {
-      $("#check-auto-speech").prop('checked', false);
-      $("#initiate-from-assistant").prop('checked', false);
+      { const el = $id("check-auto-speech"); if (el) el.checked = false; }
+      { const el = $id("initiate-from-assistant"); if (el) el.checked = false; }
     }
 
-    $("#apps").focus();
+    { const el = $id("apps"); if (el) el.focus(); }
   }
 
-  $("#websearch").on("change", function () {
-    if ($(this).is(":checked")) {
+  $on($id("websearch"), "change", function() {
+    if (this.checked) {
       params["websearch"] = true;
     } else {
       params["websearch"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = $("#apps").val();
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
@@ -2084,14 +2367,14 @@ $(function () {
     }
   })
 
-  $("#check-auto-speech").on("change", function () {
-    if ($(this).is(":checked")) {
+  $on($id("check-auto-speech"), "change", function() {
+    if (this.checked) {
       params["auto_speech"] = true;
     } else {
       params["auto_speech"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = $("#apps").val();
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
@@ -2104,14 +2387,14 @@ $(function () {
     }
   })
 
-  $("#check-easy-submit").on("change", function () {
-    if ($(this).is(":checked")) {
+  $on($id("check-easy-submit"), "change", function() {
+    if (this.checked) {
       params["easy_submit"] = true;
     } else {
       params["easy_submit"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = $("#apps").val();
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
@@ -2124,24 +2407,24 @@ $(function () {
     }
   })
 
-  $("#mathjax").on("change", function () {
-    if ($(this).is(":checked")) {
-      params["mathjax"] = true;
+  $on($id("math"), "change", function() {
+    if (this.checked) {
+      params["math"] = true;
     } else {
-      params["mathjax"] = false;
+      params["math"] = false;
     }
     // Update badges to reflect toggle state
-    const selectedApp = $("#apps").val();
+    const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
     if (!isParamBroadcastSuppressed()) {
-      broadcastParamsUpdate('mathjax_toggle');
+      broadcastParamsUpdate('math_toggle');
     }
   });
 
   // Initialize page state based on screen width when document is ready
-  $(document).ready(function() {
+  (function() {
     // Initialize UIState if available
     if (window.UIState && window.UIState.initialize) {
       try {
@@ -2160,17 +2443,17 @@ $(function () {
     }
     
     // On mobile, initialize with menu hidden on first load
-    if ($(window).width() < 600) {
+    if (window.innerWidth < 600) {
       // Set proper classes and hide menu on mobile
-      $("#toggle-menu").addClass("menu-hidden");
-      $("#menu").hide();
-      $("#main").show();
-      $("body").removeClass("menu-visible");
-      $("#main").removeClass("col-md-8").addClass("col-md-12");
+      { const el = $id("toggle-menu"); if (el) el.classList.add("menu-hidden"); }
+      $hide($id("menu"));
+      $show($id("main"));
+      document.body.classList.remove("menu-visible");
+      { const el = $id("main"); if (el) { el.classList.remove("col-md-8"); el.classList.add("col-md-12"); } }
       // Note: Removed inline CSS injection for toggle-menu in document.ready
     } else {
       // On desktop, menu is visible by default, so set the appropriate icon and style
-      $("#toggle-menu").removeClass("menu-hidden");
+      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
     }
     
     // Initialize scroll buttons state
@@ -2181,10 +2464,10 @@ $(function () {
         adjustScrollButtonsFallback();
       }
     }, 100);
-  });
-  
+  })();
+
   // Also ensure positions are set on load event
-  $(window).on("load", function() {
+  window.addEventListener("load", function() {
     // Fix layout on load to ensure proper state
     setTimeout(function() {
       fixLayoutAfterResize();
@@ -2193,59 +2476,53 @@ $(function () {
   
   // Function to ensure navbar elements are perfectly centered
   function centerNavbarElements() {
-    if ($(window).width() >= 600) return;
+    if (window.innerWidth >= 600) return;
     optimizeMobileScrolling();
   }
   
   // Function to optimize scrollable areas on mobile devices
   function optimizeMobileScrolling() {
     // Only run on mobile
-    if ($(window).width() >= 600) return;
+    if (window.innerWidth >= 600) return;
     
     // Ensure the main content area takes maximum available space
-    $("#main").css({
-      "padding-bottom": "0",
-      "margin-bottom": "0"
-    });
-    
+    { const el = $id("main"); if (el) { el.style.paddingBottom = "0"; el.style.marginBottom = "0"; } }
+
     // Optimize scrollable container to use full height
-    $(".scrollable").css({
-      "height": "calc(100vh - 80px)", // Match the CSS height calculation
-      "padding-bottom": "0", // No bottom padding needed
-      "margin-bottom": "0 !important",
-      "overflow-y": "auto"
+    document.querySelectorAll(".scrollable").forEach(function(_el) {
+      _el.style.height = "calc(100vh - 80px)";
+      _el.style.paddingBottom = "0";
+      _el.style.marginBottom = "0";
+      _el.style.overflowY = "auto";
     });
-    
+
     // Ensure content container has correct height
-    $("#contents").css({
-      "height": "calc(100vh - 80px)", // Match the scrollable height
-      "min-height": "calc(100vh - 80px)", // Ensure at least this height
-      "padding-bottom": "12px", // Consistent padding all around
-      "padding-top": "0", // Keep top padding removed for mobile
-      "margin-bottom": "0", // No additional margin needed
-      "box-sizing": "border-box"
-    });
-    
+    { const el = $id("contents"); if (el) {
+      el.style.height = "calc(100vh - 80px)";
+      el.style.minHeight = "calc(100vh - 80px)";
+      el.style.paddingBottom = "12px";
+      el.style.paddingTop = "0";
+      el.style.marginBottom = "0";
+      el.style.boxSizing = "border-box";
+    } }
+
     // Make user panel more space-efficient
-    $("#user-panel").css({
-      "margin-bottom": "0",
-      "padding-bottom": "0"
-    });
-    
+    { const el = $id("user-panel"); if (el) { el.style.marginBottom = "0"; el.style.paddingBottom = "0"; } }
+
     // Fix iOS-specific scroll issues
     if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-      $(".scrollable").css({
-        "-webkit-overflow-scrolling": "touch",
-        "transform": "translateZ(0)",
-        "-webkit-transform": "translateZ(0)"
+      document.querySelectorAll(".scrollable").forEach(function(_el) {
+        _el.style.webkitOverflowScrolling = "touch";
+        _el.style.transform = "translateZ(0)";
+        _el.style.webkitTransform = "translateZ(0)";
       });
     }
   }
 
   // Listen for window resize events
-  $(window).on("resize", function() {
-    const wasMenuVisible = $("#menu").is(":visible");
-    const windowWidth = $(window).width();
+  window.addEventListener("resize", function() {
+    const wasMenuVisible = ($id("menu") && $id("menu").offsetParent !== null);
+    const windowWidth = window.innerWidth;
     // Check if user explicitly hid the menu (respect user preference)
     const userHidMenu = StorageHelper.safeGetItem('monadic-menu-hidden') === 'true';
 
@@ -2255,42 +2532,42 @@ $(function () {
     } else if (windowWidth >= 600 && !wasMenuVisible && !userHidMenu) {
       // We've changed from mobile to desktop view with hidden menu
       // Restore proper column layout and show menu ONLY if user didn't explicitly hide it
-      $("#main").removeClass("col-md-12").addClass("col-md-8");
-      $("#menu").show();
-      $("#toggle-menu").removeClass("menu-hidden");
+      { const el = $id("main"); if (el) { el.classList.remove("col-md-12"); el.classList.add("col-md-8"); } }
+      $show($id("menu"));
+      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
     }
   });
 
   // Handle toggle-menu button click with comprehensive error handling
-  $("#toggle-menu").on("click", function (e) {
+  $on($id("toggle-menu"), "click", function(e) {
     try {
       // Prevent any default behavior
       e.preventDefault();
       e.stopPropagation();
       
       // Get required elements with safety checks
-      const $toggleBtn = $(this);
-      const $menu = $("#menu");
-      const $main = $("#main");
-      const $spinner = $("#monadic-spinner");
-      
-      if (!$toggleBtn.length || !$menu.length || !$main.length) {
+      const $toggleBtn = this;
+      const $menu = $id("menu");
+      const $main = $id("main");
+      const $spinner = $id("monadic-spinner");
+
+      if (!$toggleBtn || !$menu || !$main) {
         console.error('Required elements missing for menu toggle');
         return false;
       }
 
       // Check if we're on mobile with fallback
-      const isMobile = window.UIConfig ? 
-        window.UIConfig.isMobileView() : 
-        $(window).width() < 600;
-      
+      const isMobile = window.UIConfig ?
+        window.UIConfig.isMobileView() :
+        window.innerWidth < 600;
+
       // Toggle menu visibility and change icon to indicate state
-      const menuVisible = $menu.is(":visible");
-      
+      const menuVisible = ($menu.offsetParent !== null);
+
       if (menuVisible) {
         // Menu is visible, will be hidden
-        $toggleBtn.addClass("menu-hidden")
-                  .attr("aria-expanded", "false");
+        $toggleBtn.classList.add("menu-hidden");
+        $toggleBtn.setAttribute("aria-expanded", "false");
 
         // Save menu state to localStorage to persist across zoom operations
         if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'true')) {
@@ -2299,18 +2576,18 @@ $(function () {
 
         if (isMobile) {
           // On mobile: hide menu and show main
-          $menu.hide();
-          $main.show();
-          $("body").removeClass("menu-visible");
+          $hide($menu);
+          $show($main);
+          document.body.classList.remove("menu-visible");
         } else {
           // On desktop: normal column behavior
-          $main.removeClass("col-md-8").addClass("col-md-12");
-          $menu.hide();
+          $main.classList.remove("col-md-8"); $main.classList.add("col-md-12");
+          $hide($menu);
         }
       } else {
         // Menu is hidden, will be shown
-        $toggleBtn.removeClass("menu-hidden")
-                  .attr("aria-expanded", "true");
+        $toggleBtn.classList.remove("menu-hidden");
+        $toggleBtn.setAttribute("aria-expanded", "true");
 
         // Save menu state to localStorage to persist across zoom operations
         if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'false')) {
@@ -2319,13 +2596,13 @@ $(function () {
 
       if (isMobile) {
         // On mobile: show menu and hide main completely
-        $menu.show();
-        $main.hide();
-        $("body").addClass("menu-visible");
+        $show($menu);
+        $hide($main);
+        document.body.classList.add("menu-visible");
         } else {
           // On desktop: normal column behavior
-          $main.removeClass("col-md-12").addClass("col-md-8");
-          $menu.show();
+          $main.classList.remove("col-md-12"); $main.classList.add("col-md-8");
+          $show($menu);
         }
       }
       
@@ -2335,7 +2612,7 @@ $(function () {
       }
       
       // Reset scroll position
-      $("body, html").animate({ scrollTop: 0 }, 0);
+      window.scrollTo({ top: 0 });
       
       // Update scroll buttons visibility after menu toggle (with slight delay for DOM update)
       const updateDelay = window.UIConfig ? 
@@ -2356,31 +2633,32 @@ $(function () {
       // Basic scroll position maintenance - use a very small timeout
       setTimeout(function() {
         // Reset scroll positions
-      $("#main, #menu").scrollTop(0);
-      
+      document.querySelectorAll("#main, #menu").forEach(function(_el) { _el.scrollTop = 0; });
+
       // On mobile, force elements to maintain their positions
       if (isMobile) {
         // Fix toggle button position with exact coordinates
-        $("#toggle-menu").css({
-          "position": "fixed",
-          "top": "12px", // Match the value used elsewhere
-          "right": "10px",
-          "height": "30px", // Match the size used elsewhere
-          "width": "30px", // Match the size used elsewhere
-          "padding": "6px", // Match the padding used elsewhere
-          "transform": "none"
-        });
+        var _tmEl = $id("toggle-menu");
+        if (_tmEl) {
+          _tmEl.style.position = "fixed";
+          _tmEl.style.top = "12px";
+          _tmEl.style.right = "10px";
+          _tmEl.style.height = "30px";
+          _tmEl.style.width = "30px";
+          _tmEl.style.padding = "6px";
+          _tmEl.style.transform = "none";
+        }
       }
-      
+
       // Run scrollable area optimization for all mobile devices
-      if ($(window).width() < 768) {
+      if (window.innerWidth < 768) {
         optimizeMobileScrolling();
       }
-      
+
       // iOS Safari specific fix to ensure proper layout after toggle
       if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
         // Force a repaint
-        $("#main, #menu").css("transform", "translateZ(0)");
+        document.querySelectorAll("#main, #menu").forEach(function(_el) { _el.style.transform = "translateZ(0)"; });
         
         // Run optimization again after a short delay for iOS
         setTimeout(optimizeMobileScrolling, window.UIConfig ? window.UIConfig.TIMING.LAYOUT_FIX_DELAY : 100);
@@ -2393,9 +2671,9 @@ $(function () {
       console.error('Error in menu toggle:', error);
       // Attempt recovery
       try {
-        $("#main").show();
-        $("#toggle-menu").show();
-        $("body").removeClass("menu-visible");
+        $show($id("main"));
+        $show($id("toggle-menu"));
+        document.body.classList.remove("menu-visible");
       } catch (recoveryError) {
         console.error('Recovery failed:', recoveryError);
       }
@@ -2405,26 +2683,26 @@ $(function () {
 
   // Function to update toggle button text based on checkbox states
   window.updateToggleButtonText = function() {
-    const autoSpeechChecked = $("#check-auto-speech").prop("checked");
-    const easySubmitChecked = $("#check-easy-submit").prop("checked");
-    const $toggleButton = $("#interaction-toggle-all");
+    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
+    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
+    const $toggleButton = $id("interaction-toggle-all");
 
     if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
       // Show appropriate text based on current state
       if (autoSpeechChecked && easySubmitChecked) {
-        $toggleButton.text(webUIi18n.t('ui.uncheckAll'));
+        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.uncheckAll'));
       } else if (!autoSpeechChecked && !easySubmitChecked) {
-        $toggleButton.text(webUIi18n.t('ui.checkAll'));
+        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.checkAll'));
       } else {
-        $toggleButton.text(webUIi18n.t('ui.toggleAll'));
+        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.toggleAll'));
       }
     }
   };
   
   // Toggle all interaction checkboxes - use event delegation for reliability
-  $(document).on("click", "#interaction-toggle-all", function () {
-    const autoSpeechChecked = $("#check-auto-speech").prop("checked");
-    const easySubmitChecked = $("#check-easy-submit").prop("checked");
+  document.addEventListener("click", function(e) { const _delegateTarget = e.target.closest("#interaction-toggle-all"); if (!_delegateTarget) return;
+    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
+    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
 
     // If any checkbox is unchecked, check all. Otherwise, uncheck all.
     const shouldCheck = !autoSpeechChecked || !easySubmitChecked;
@@ -2433,8 +2711,8 @@ $(function () {
     window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
     try {
       // Set checkbox values and trigger change events to update params
-      $("#check-auto-speech").prop("checked", shouldCheck).trigger("change");
-      $("#check-easy-submit").prop("checked", shouldCheck).trigger("change");
+      { const el = $id("check-auto-speech"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
+      { const el = $id("check-easy-submit"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
     } finally {
       window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 0) - 1);
     }
@@ -2444,13 +2722,13 @@ $(function () {
   });
 
   // Initialize toggle button text on page load
-  $(document).ready(function() {
+  (function() {
     window.updateToggleButtonText();
-  });
+  })();
 
-  $("#start").on("click", function () {
+  $on($id("start"), "click", function() {
     audioInit();
-    $("#asr-p-value").text("").hide();
+    { const el = $id("asr-p-value"); if (el) { el.textContent = ""; $hide(el); } }
 
     // Mark that user has interacted with this tab (for app change confirmation)
     window.userHasInteractedInTab = true;
@@ -2473,17 +2751,17 @@ $(function () {
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #audio-upload").prop("disabled", false);
-      $("#message").prop("disabled", false);
-      $("#select-role").prop("disabled", false);
-      $("#monadic-spinner").hide();
-      $("#cancel_query").hide();
+      document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #audio-upload").forEach(function(_el) { _el.disabled = false; });
+      { const el = $id("message"); if (el) el.disabled = false; }
+      { const el = $id("select-role"); if (el) el.disabled = false; }
+      $hide($id("monadic-spinner"));
+      $hide($id("cancel_query"));
     }
 
     // Set a safety timeout to re-enable controls if they remain disabled
     const safetyTimeout = setTimeout(function() {
       // Only run if user panel is visible but controls are disabled
-      if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
+      if (($id("user-panel") && $id("user-panel").offsetParent !== null) && ($id("send") || {}).disabled) {
         ensureControlsEnabled();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input'}`, "success");
       }
@@ -2496,22 +2774,19 @@ $(function () {
     }
     
     if (messages.length > 0) {
-      $("#config").hide();
-      $("#back-to-settings").show();
-      $("#main-panel").show();
-      $("#discourse").show();
-      $("#chat").html("")
-      $("#temp-card").hide();
-      $("#parameter-panel").show();
-      $("#user-panel").show();
+      enterConversationMode();
+      $show($id("discourse"));
+      { const el = $id("chat"); if (el) el.innerHTML = ""; }
+      $hide($id("temp-card"));
+      $show($id("user-panel"));
       setInputFocus();
       ensureControlsEnabled();
     } else {
       // create secure random 4-digit number
       ws.send(JSON.stringify({
         message: "SYSTEM_PROMPT",
-        content: $("#initial-prompt").val(),
-        mathjax: $("#mathjax").is(":checked"),
+        content: ($id("initial-prompt") || {}).value,
+        math: ($id("math") || {}).checked,
         monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],
@@ -2521,28 +2796,25 @@ $(function () {
       // Initialize audio before showing the UI
       audioInit();
       
-      $("#config").hide();
-      $("#back-to-settings").show();
-      $("#parameter-panel").show();
-      $("#main-panel").show();
-      $("#discourse").show();
+      enterConversationMode();
+      $show($id("discourse"));
 
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
       // This prevents auto-generation when importing conversations
-      if ($("#initiate-from-assistant").is(":checked") && messages.length === 0 && !shouldSkipAssistant) {
-        $("#temp-card").show();
-        $("#user-panel").hide();
-        $("#monadic-spinner").show(); // Show spinner for initial assistant message
+      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
+        $show($id("temp-card"));
+        $hide($id("user-panel"));
+        $show($id("monadic-spinner")); // Show spinner for initial assistant message
         setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.generatingResponse') : 'Generating response from assistant...'}`, "info");
-        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+        $id('cancel_query').style.setProperty('display', 'flex', 'important');
         reconnect_websocket(ws, function (ws) {
           // Ensure critical parameters are correctly set based on checkboxes
-          params["auto_speech"] = $("#check-auto-speech").is(":checked");
+          params["auto_speech"] = ($id("check-auto-speech") || {}).checked;
           params["initiate_from_assistant"] = true;
               ws.send(JSON.stringify(params));
         });
       } else {
-        $("#user-panel").show();
+        $show($id("user-panel"));
         ensureControlsEnabled();
         setInputFocus();
       }
@@ -2555,21 +2827,8 @@ $(function () {
     }
   });
 
-  // if $ai-user-toggle is enabled, $ai-user-initial-prompt will be automatically disabled
-  $("#ai-user-toggle").on("change", function () {
-    if ($(this).is(":checked")) {
-      $("#initiate-from-assistant").prop("checked", false).trigger("change");
-    }
-  });
 
-  // if $ai-user-initial-prompt is enabled, $ai-user-toggle will be automatically disabled
-  $("#initiate-from-assistant").on("change", function () {
-    if ($(this).is(":checked")) {
-      $("#ai-user-toggle").prop("checked", false);
-    }
-  });
-
-  $("#cancel_query").on("click", function () {
+  $on($id("cancel_query"), "click", function() {
     setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.operationCanceled') : 'Operation canceled'}`, "warning");
     ttsStop();
 
@@ -2586,35 +2845,40 @@ $(function () {
     // Reset AI user state if active
     const placeholderText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
       webUIi18n.t('ui.messagePlaceholder') : "Type your message . . .";
-    $("#message").attr("placeholder", placeholderText);
-    $("#message").prop("disabled", false);
-    $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-    $("#ai_user_provider").prop("disabled", false);
-    $("#ai_user").prop("disabled", false);
-    $("#select-role").prop("disabled", false);
+    { const el = $id("message"); if (el) el.setAttribute("placeholder", placeholderText); }
+    { const el = $id("message"); if (el) el.disabled = false; }
+    document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").forEach(function(_el) { _el.disabled = false; });
+    { const el = $id("ai_user_provider"); if (el) el.disabled = false; }
+    { const el = $id("ai_user"); if (el) el.disabled = false; }
+    { const el = $id("select-role"); if (el) el.disabled = false; }
 
     // Send cancel message to server
     ws.send(JSON.stringify({ message: "CANCEL" }));
     
     // Reset UI completely
-    $("#chat").html("");
-    $("#temp-card").hide();
-    $("#user-panel").show();
-    $("#monadic-spinner").hide();  // Hide spinner
-    $("#indicator").hide();  // Hide indicator
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');  // Force hide cancel button
+    { const el = $id("chat"); if (el) el.innerHTML = ""; }
+    $hide($id("temp-card"));
+    $show($id("user-panel"));
+    $hide($id("monadic-spinner"));  // Hide spinner
+    $hide($id("indicator"));  // Hide indicator
+    $id('cancel_query').style.setProperty('display', 'none', 'important');  // Force hide cancel button
     
     // Set focus back to input
     setInputFocus();
   });
 
-  $("#send").on("click", function (event) {
+  $on($id("send"), "click", function(event) {
     event.preventDefault();
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
     }
     if (message.value === "") {
       return;
+    }
+    // Auto-collapse settings when sending a message
+    var configBody = $id("config-body");
+    if (configBody && configBody.classList.contains("show")) {
+      bootstrap.Collapse.getOrCreateInstance(configBody, { toggle: false }).hide();
     }
     audioInit();
 
@@ -2625,7 +2889,7 @@ $(function () {
 
     setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
-    const userMessageText = $("#message").val();
+    const userMessageText = ($id("message") || {}).value;
     params["message"] = userMessageText;
 
     // Mark that user has interacted with this tab (for app change confirmation)
@@ -2633,9 +2897,9 @@ $(function () {
 
     // This is handled already in setParams(), no need to override here
 
-    document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+    $id('cancel_query').style.setProperty('display', 'flex', 'important');
 
-    $("#monadic-spinner").show();
+    $show($id("monadic-spinner"));
 
     // Temporarily push a placeholder message to prevent double display
     // This will be replaced by the actual message from the server
@@ -2647,19 +2911,19 @@ $(function () {
 
       // Show loading indicators but don't create a card yet
       // The actual card will be created when server responds
-      $("#temp-card").show();
-      $("#temp-card .status").hide();
-      $("#indicator").show();
+      $show($id("temp-card"));
+      { const el = document.querySelector("#temp-card .status"); $hide(el); }
+      $show($id("indicator"));
     }
 
-    if ($("#select-role").val() !== "user") {
+    if (($id("select-role") || {}).value !== "user") {
       // Show spinner to indicate processing
       setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.processingMessage') : 'Processing sample message'}`, "warning");
       
       // Set a reasonable timeout to avoid UI getting stuck
       let sampleTimeoutId = setTimeout(function() {
-        $("#monadic-spinner").hide();
-        $("#cancel_query").hide();
+        $hide($id("monadic-spinner"));
+        $hide($id("cancel_query"));
         setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sampleTimeout') : 'Sample message timed out. Please try again.', "error");
       }, 5000);
       
@@ -2667,13 +2931,13 @@ $(function () {
       window.currentSampleTimeout = sampleTimeoutId;
       
       reconnect_websocket(ws, function (ws) {
-        const role = $("#select-role").val().split("-")[1];
+        const role = ($id("select-role") || {}).value.split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
         ws.send(JSON.stringify(msg_object));
         
         // Clear input field and reset role selector immediately
-        $("#message").css("height", "96px").val("");
-        $("#select-role").val("user").trigger("change");
+        { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
+        { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
       });
     } else {
       reconnect_websocket(ws, function (ws) {
@@ -2691,103 +2955,71 @@ $(function () {
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
         }
-        $("#message").css("height", "96px").val("");
+        { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
 
         // Clear all images including PDFs after sending
         images = [];
         updateFileDisplay(images);
       });
     }
-    $("#select-role").val("user");
-    $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
+    { const el = $id("select-role"); if (el) el.value = "user"; }
+    { const el = document.querySelector("#role-icon i"); if (el) { el.classList.remove("fa-robot", "fa-bars"); el.classList.add("fa-face-smile"); } }
   });
 
-  $("#clear").on("click", function (event) {
+  $on($id("clear"), "click", function(event) {
     event.preventDefault();
-    $("#message").css("height", "100px").val("");
+    { const el = $id("message"); if (el) { el.style.height = "100px"; el.value = ""; } }
     setInputFocus()
   });
 
-  $("#settings").on("click", function () {
-    ttsStop();
-    audioInit();
-    $("#config").show();
-    $("#back-to-settings").hide();
-    $("#main-panel").hide();
-    $("#parameter-panel").hide();
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        if (messages.length > 0) {
-          const continueText = webUIi18n.t('ui.session.continueSession');
-          $("#start-label").text(continueText);
-        } else {
-          const startText = webUIi18n.t('ui.session.startSession');
-          $("#start-label").text(startText);
-        }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      if (messages.length > 0) {
-        const continueText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-          webUIi18n.t('ui.session.continueSession') : 'Continue Session';
-        $("#start-label").text(continueText);
-      } else {
-        const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      $("#start-label").text(startText);
-      }
-    }
-    adjustScrollButtons();
-    setInputFocus()
-  });
+  // #settings button removed — settings are now collapsible via #config-summary
 
 
   // Regular reset button - keeps current app
-  $("#reset").on("click", function (event) {
+  $on($id("reset"), "click", function(event) {
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app
-    $("#select-role").val("user").trigger("change");
+    { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const startText = webUIi18n.t('ui.session.startSession');
-        $("#start-label").text(startText);
+        { const el = $id("start-label"); if (el) el.textContent = startText; }
       });
     } else {
       // Fallback if i18nReady is not available
       const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
         webUIi18n.t('ui.session.startSession') : 'Start Session';
-      $("#start-label").text(startText);
+      { const el = $id("start-label"); if (el) el.textContent = startText; }
     }
-    $("#model").prop("disabled", false);
+    { const el = $id("model"); if (el) el.disabled = false; }
   });
   
   // Logo click - resets conversation but keeps current app
-  $(".reset-area").on("click", function (event) {
+  document.querySelectorAll(".reset-area").forEach(function(_el) { _el.addEventListener("click", function(event) {
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app
-    $("#select-role").val("user").trigger("change");
+    { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
         const startText = webUIi18n.t('ui.session.startSession');
-        $("#start-label").text(startText);
+        { const el = $id("start-label"); if (el) el.textContent = startText; }
       });
     } else {
       // Fallback if i18nReady is not available
       const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
         webUIi18n.t('ui.session.startSession') : 'Start Session';
-      $("#start-label").text(startText);
+      { const el = $id("start-label"); if (el) el.textContent = startText; }
     }
-    $("#model").prop("disabled", false);
-  });
+    { const el = $id("model"); if (el) el.disabled = false; }
+  }); });
 
-  $("#save").on("click", async function () {
+  $on($id("save"), "click", async function () {
     const allMessages = [];
-    const initial_prompt = $("#initial-prompt").val();
+    const initial_prompt = ($id("initial-prompt") || {}).value;
     const sysid = Math.floor(1000 + Math.random() * 9000);
 
     allMessages.push({"role": "system", "text": initial_prompt, "mid": sysid});
@@ -2830,6 +3062,7 @@ $(function () {
     let serverContextSchema = null;
     try {
       const response = await fetch('/monadic_state');
+      if (!response.ok) throw new Error(`/monadic_state failed: ${response.status}`);
       const data = await response.json();
       if (data.success) {
         if (data.monadic_state) {
@@ -2873,7 +3106,7 @@ $(function () {
     saveObjToJson(obj, "monadic.json");
   });
 
-  $("#export-pdf").on("click", function () {
+  $on($id("export-pdf"), "click", function() {
     if (typeof window.exportConversationToPDF === 'function') {
       window.exportConversationToPDF();
     } else {
@@ -2883,110 +3116,111 @@ $(function () {
     }
   });
 
-  $("#load").on("click", function (event) {
+  $on($id("load"), "click", function(event) {
     event.preventDefault();
     // Reset the file input and disable the import button
-    $("#file-load").val('');
-    $("#import-button").prop('disabled', true);
+    { const el = $id("file-load"); if (el) el.value = ''; }
+    { const el = $id("import-button"); if (el) el.disabled = true; }
     
     // Use the form handlers module if available, otherwise fallback
     if (formHandlers && formHandlers.showModalWithFocus) {
       const cleanupFn = function() {
-        $('#file-load').val('');
-        $('#import-button').prop('disabled', true);
+        { const el = $id('file-load'); if (el) el.value = ''; }
+        { const el = $id('import-button'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('loadModal', 'file-load', cleanupFn);
     } else {
       // Show the modal using the fallback
-      $("#loadModal").modal("show");
+      bootstrap.Modal.getOrCreateInstance($id("loadModal")).show();
       
       // Store focus timer in modal's data to ensure cleanup
-      const $modal = $("#loadModal");
-      const existingTimer = $modal.data('focusTimer');
-      
+      const $modal = $id("loadModal");
+      const existingTimer = $modal.dataset.focusTimer;
+
       // Clear any existing timer
       if (existingTimer) {
-        clearTimeout(existingTimer);
+        clearTimeout(parseInt(existingTimer));
       }
-      
+
       // Set new timer and store reference
-      $modal.data('focusTimer', setTimeout(function () {
-        $("#file-load").focus();
+      $modal.dataset.focusTimer = setTimeout(function () {
+        { const el = $id("file-load"); if (el) el.focus(); }
         // Clear reference after use
-        $modal.removeData('focusTimer');
-      }, 500));
+        delete $modal.dataset.focusTimer;
+      }, 500);
     }
   });
 
-  $("#loadModal").on("shown.bs.modal", function () {
-    $("#file-title").focus();
+  $on($id("loadModal"), "shown.bs.modal", function () {
+    { const el = $id("file-title"); if (el) el.focus(); }
   });
   
-  $("#loadModal").on("hidden.bs.modal", function () {
+  $on($id("loadModal"), "hidden.bs.modal", function () {
     // Reset form state when modal is closed
-    $('#file-load').val('');
-    $('#import-button').prop('disabled', true);
-    $("#load-spinner").hide();
+    { const el = $id('file-load'); if (el) el.value = ''; }
+    { const el = $id('import-button'); if (el) el.disabled = true; }
+    $hide($id("load-spinner"));
   });
 
-  $("#pdf-import").on("click", function (event) {
+  $on($id("pdf-import"), "click", function(event) {
     event.preventDefault();
-    $("#file-title").val("");
-    $("#fileFile").val("");
-    $("#fileModal").modal("show");
+    { const el = $id("file-title"); if (el) el.value = ""; }
+    { const el = $id("fileFile"); if (el) el.value = ""; }
+    bootstrap.Modal.getOrCreateInstance($id("fileModal")).show();
 
     // Initialize storage mode radios based on current provider/model
     try {
-      const appName = $("#apps").val();
+      const appName = ($id("apps") || {}).value;
       const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : '';
       const isOpenAI = group.toLowerCase() === 'openai';
-      const model = $("#model").val();
+      const model = ($id("model") || {}).value;
       const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
 
       // Fetch server defaults and availability
-      $.getJSON('/api/pdf_storage_defaults').done(function(info) {
-        const pgAvailable = !!info.pgvector_available;
-        const defaultStorage = (info.default_storage || 'local').toLowerCase();
+      fetch('/api/pdf_storage_defaults')
+        .then(function(res) { return res.ok ? res.json() : Promise.reject(res); })
+        .then(function(info) {
+          const pgAvailable = !!info.pgvector_available;
+          const defaultStorage = (info.default_storage || 'local').toLowerCase();
 
-        // Enable/disable by availability
-        $("#storage-local").prop('disabled', !pgAvailable);
-        // Always allow selecting Cloud to experiment; routing will still guard by provider
-        $("#storage-cloud").prop('disabled', false);
+          // Enable/disable by availability
+          { const el = $id("storage-local"); if (el) el.disabled = !pgAvailable; }
+          // Always allow selecting Cloud to experiment; routing will still guard by provider
+          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
 
-        // Decide selection
-        let select = 'local';
-        if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
-        if (select === 'cloud' && $("#storage-cloud").prop('disabled')) select = 'local';
-        if (select === 'local' && $("#storage-local").prop('disabled')) select = 'cloud';
+          // Decide selection
+          let select = 'local';
+          if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
+          if (select === 'cloud' && ($id("storage-cloud") || {}).disabled) select = 'local';
+          if (select === 'local' && ($id("storage-local") || {}).disabled) select = 'cloud';
 
-        if (select === 'cloud') {
-          $("#storage-cloud").prop('checked', true);
-        } else {
-          $("#storage-local").prop('checked', true);
-        }
-      }).fail(function() {
-        // Fallback: prefer local if enabled, else cloud
-        const pgAvailable = true;
-        $("#storage-local").prop('disabled', false);
-        $("#storage-cloud").prop('disabled', false);
-        $("#storage-local").prop('checked', true);
-      });
+          if (select === 'cloud') {
+            { const el = $id("storage-cloud"); if (el) el.checked = true; }
+          } else {
+            { const el = $id("storage-local"); if (el) el.checked = true; }
+          }
+        }).catch(function() {
+          // Fallback: prefer local if enabled, else cloud
+          { const el = $id("storage-local"); if (el) el.disabled = false; }
+          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
+          { const el = $id("storage-local"); if (el) el.checked = true; }
+        });
     } catch (_) { console.warn("[PDF Modal] Storage option init failed:", _); }
 
     // Set a friendly placeholder for file title
     try {
       const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
-      $("#file-title").attr('placeholder', ph);
+      { const el = $id("file-title"); if (el) el.setAttribute('placeholder', ph); }
     } catch (_) { console.warn("[PDF Modal] Placeholder setup failed:", _); }
   });
 
   let fileTitle = "";
 
   // Ensure event handler is properly attached when document is ready
-  $(document).on("click", "#uploadFile", async function (e) {
+  document.addEventListener("click", async function (e) { const _delegateTarget = e.target.closest("#uploadFile"); if (!_delegateTarget) return;
     e.preventDefault();
     
-    const fileInput = $("#fileFile")[0];
+    const fileInput = $id("fileFile");
     const file = fileInput.files[0];
     
     // Check if formHandlers is available
@@ -2997,10 +3231,10 @@ $(function () {
     
     try {
       // Disable UI elements during upload
-      $("#fileModal button").prop("disabled", true);
-      $("#file-spinner").show();
+      document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = true; });
+      $show($id("file-spinner"));
       
-      fileTitle = $("#file-title").val();
+      fileTitle = ($id("file-title") || {}).value;
       
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.uploadPdf(file, fileTitle);
@@ -3008,9 +3242,9 @@ $(function () {
       // Process the response
       if (response && response.success) {
         // Clean up UI
-        $("#file-spinner").hide();
-        $("#fileModal button").prop('disabled', false);
-        $("#fileModal").modal("hide");
+        $hide($id("file-spinner"));
+        document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
         // Decide if this was uploaded to OpenAI or local DB
         const isOpenAIUpload = !!(response.vector_store_id);
         // Refresh local PDF DB titles only for local ingestion
@@ -3030,9 +3264,9 @@ $(function () {
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";
         
         // Clean up UI
-        $("#file-spinner").hide();
-        $("#fileModal button").prop('disabled', false);
-        $("#fileModal").modal("hide");
+        $hide($id("file-spinner"));
+        document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3041,9 +3275,9 @@ $(function () {
       console.error("Error uploading PDF:", error);
       
       // Clean up UI on error
-      $("#file-spinner").hide();
-      $("#fileModal button").prop("disabled", false);
-      $("#fileModal").modal("hide");
+      $hide($id("file-spinner"));
+      document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
+      bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3052,77 +3286,77 @@ $(function () {
     }
   });
 
-  $("#doc").on("click", function (event) {
+  $on($id("doc"), "click", function(event) {
     event.preventDefault();
-    $("#docLabel").val("");
-    $("#docFile").val("");
+    { const el = $id("docLabel"); if (el) el.value = ""; }
+    { const el = $id("docFile"); if (el) el.value = ""; }
     
     // Use the form handlers module if available, otherwise fallback
     if (formHandlers && formHandlers.showModalWithFocus) {
       const cleanupFn = function() {
-        $('#docFile').val('');
-        $('#convertDoc').prop('disabled', true);
+        { const el = $id('docFile'); if (el) el.value = ''; }
+        { const el = $id('convertDoc'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('docModal', 'docFile', cleanupFn);
     } else {
       // Show the modal using fallback
-      $("#docModal").modal("show");
+      bootstrap.Modal.getOrCreateInstance($id("docModal")).show();
       
       // Store focus timer in modal's data to ensure cleanup
-      const $modal = $("#docModal");
-      const existingTimer = $modal.data('focusTimer');
-      
+      const $modal = $id("docModal");
+      const existingTimer = $modal.dataset.focusTimer;
+
       // Clear any existing timer
       if (existingTimer) {
-        clearTimeout(existingTimer);
+        clearTimeout(parseInt(existingTimer));
       }
-      
+
       // Set new timer and store reference
-      $modal.data('focusTimer', setTimeout(function () {
-        $("#docFile").focus();
+      $modal.dataset.focusTimer = setTimeout(function () {
+        { const el = $id("docFile"); if (el) el.focus(); }
         // Clear reference after use
-        $modal.removeData('focusTimer');
-      }, 500));
+        delete $modal.dataset.focusTimer;
+      }, 500);
     }
   });
 
-  $("#docModal").on("hidden.bs.modal", function () {
-    $('#docFile').val('');
-    $('#convertDoc').prop('disabled', true);
-    
+  $on($id("docModal"), "hidden.bs.modal", function () {
+    { const el = $id('docFile'); if (el) el.value = ''; }
+    { const el = $id('convertDoc'); if (el) el.disabled = true; }
+
     // Ensure any remaining timers are cleared
-    const $modal = $(this);
-    const existingTimer = $modal.data('focusTimer');
+    const modalEl = this;
+    const existingTimer = modalEl.dataset.focusTimer;
     if (existingTimer) {
-      clearTimeout(existingTimer);
-      $modal.removeData('focusTimer');
+      clearTimeout(parseInt(existingTimer));
+      delete modalEl.dataset.focusTimer;
     }
   });
 
   // Use the form handlers module for file input validation
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('docFile'), 
-      document.getElementById('convertDoc')
+      $id('docFile'), 
+      $id('convertDoc')
     );
   } else {
     // Fallback to direct event handler
-    $("#docFile").on("change", function() {
+    $on($id("docFile"), "change", function() {
       const file = this.files[0];
-      $('#convertDoc').prop('disabled', !file);
+      { const el = $id('convertDoc'); if (el) el.disabled = !file; }
     });
   }
 
-  $("#convertDoc").on("click", async function () {
-    const docInput = $("#docFile")[0];
+  $on($id("convertDoc"), "click", async function () {
+    const docInput = $id("docFile");
     const doc = docInput.files[0];
     
     try {
-      const docLabel = $("#doc-label").val() || "";
+      const docLabel = ($id("doc-label") || {}).value || "";
       
       // Disable UI elements during processing
-      $("#docModal button").prop("disabled", true);
-      $("#doc-spinner").show();
+      document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = true; });
+      $show($id("doc-spinner"));
       
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.convertDocument(doc, docLabel);
@@ -3131,30 +3365,30 @@ $(function () {
       if (response && response.success) {
         // Extract content and append it to the message
         const content = response.content;
-        const message = $("#message").val().replace(/\n+$/, "");
-        $("#message").val(`${message}\n\n${content}`);
+        const message = ($id("message") || {}).value.replace(/\n+$/, "");
+        { const el = $id("message"); if (el) el.value = `${message}\n\n${content}`; }
         
         // Use the UI utilities module for resizing
         if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize(document.getElementById('message'), 100);
+          uiUtils.autoResize($id('message'), 100);
         } else {
-          autoResizeFallback(document.getElementById('message'), 100);
+          autoResizeFallback($id('message'), 100);
         }
         
         // Clean up UI
-        $("#doc-spinner").hide();
-        $("#docModal button").prop('disabled', false);
-        $("#docModal").modal("hide");
-        $("#back_to_bottom").trigger("click");
-        $("#message").focus();
+        $hide($id("doc-spinner"));
+        document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
+        $dispatch($id("back_to_bottom"), "click");
+        { const el = $id("message"); if (el) el.focus(); }
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to convert document";
         
         // Clean up UI
-        $("#doc-spinner").hide();
-        $("#docModal button").prop('disabled', false);
-        $("#docModal").modal("hide");
+        $hide($id("doc-spinner"));
+        document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3163,9 +3397,9 @@ $(function () {
       console.error("Error converting document:", error);
       
       // Clean up UI on error
-      $("#doc-spinner").hide();
-      $("#docModal button").prop("disabled", false);
-      $("#docModal").modal("hide");
+      $hide($id("doc-spinner"));
+      document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
+      bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3175,62 +3409,62 @@ $(function () {
   });
 
   // Audio/MIDI upload button
-  $("#audio-upload").on("click", function (event) {
+  $on($id("audio-upload"), "click", function(event) {
     event.preventDefault();
-    $("#audioFile").val("");
+    { const el = $id("audioFile"); if (el) el.value = ""; }
     if (formHandlers && formHandlers.showModalWithFocus) {
       formHandlers.showModalWithFocus('audioUploadModal', 'audioFile', function() {
-        $('#audioFile').val('');
-        $('#uploadAudioBtn').prop('disabled', true);
+        { const el = $id('audioFile'); if (el) el.value = ''; }
+        { const el = $id('uploadAudioBtn'); if (el) el.disabled = true; }
       });
     } else {
-      $("#audioUploadModal").modal("show");
+      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).show();
     }
   });
 
   // Audio file input validation
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('audioFile'),
-      document.getElementById('uploadAudioBtn')
+      $id('audioFile'),
+      $id('uploadAudioBtn')
     );
   } else {
-    $("#audioFile").on("change", function() {
-      $('#uploadAudioBtn').prop('disabled', !this.files || this.files.length === 0);
+    $on($id("audioFile"), "change", function() {
+      { const el = $id('uploadAudioBtn'); if (el) el.disabled = !this.files || this.files.length === 0; }
     });
   }
 
   // Audio/MIDI upload submit
-  $("#uploadAudioBtn").on("click", async function () {
-    const file = $("#audioFile")[0].files[0];
+  $on($id("uploadAudioBtn"), "click", async function () {
+    const file = $id("audioFile").files[0];
     if (!file) return;
     try {
-      $("#audioUploadModal button").prop("disabled", true);
-      $("#audio-upload-spinner").show();
+      document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = true; });
+      $show($id("audio-upload-spinner"));
       const response = await formHandlers.uploadAudioFile(file);
       if (response && response.success) {
         const filename = response.filename;
-        const message = $("#message").val().replace(/\n+$/, "");
+        const message = ($id("message") || {}).value.replace(/\n+$/, "");
         const instruction = `Please analyze the file: ${filename}`;
-        $("#message").val(message ? `${message}\n\n${instruction}` : instruction);
+        { const el = $id("message"); if (el) el.value = message ? `${message}\n\n${instruction}` : instruction; }
         if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize(document.getElementById('message'), 100);
+          uiUtils.autoResize($id('message'), 100);
         }
-        $("#audio-upload-spinner").hide();
-        $("#audioUploadModal button").prop('disabled', false);
-        $("#audioUploadModal").modal("hide");
-        $("#message").focus();
+        $hide($id("audio-upload-spinner"));
+        document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
+        { const el = $id("message"); if (el) el.focus(); }
       } else {
         const errorMsg = response && response.error ? response.error : "Upload failed";
-        $("#audio-upload-spinner").hide();
-        $("#audioUploadModal button").prop('disabled', false);
-        $("#audioUploadModal").modal("hide");
+        $hide($id("audio-upload-spinner"));
+        document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
         setAlert(errorMsg, "error");
       }
     } catch (error) {
-      $("#audio-upload-spinner").hide();
-      $("#audioUploadModal button").prop("disabled", false);
-      $("#audioUploadModal").modal("hide");
+      $hide($id("audio-upload-spinner"));
+      document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
+      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
       setAlert("Upload error: " + (error.statusText || error.message || "Unknown error"), "error");
     }
   });
@@ -3238,24 +3472,25 @@ $(function () {
   // Cloud PDF list handlers
   async function refreshCloudPdfList() {
     try {
-      const $list = $("#cloud-pdf-list");
-      if (!$list.length) return;
-      $list.html('<span class="text-secondary">Loading...</span>');
-      const res = await $.getJSON('/openai/pdf?action=list');
+      const $list = $id("cloud-pdf-list");
+      if (!$list) return;
+      if ($list) $list.innerHTML = ('<span class="text-secondary">Loading...</span>');
+      const listResp = await fetch('/openai/pdf?action=list');
+      const res = listResp.ok ? await listResp.json() : null;
       if (!res || !res.success) {
-        $list.html('<span class="text-danger">Failed to load</span>');
+        if ($list) $list.innerHTML = ('<span class="text-danger">Failed to load</span>');
         return;
       }
       // Update Cloud meta (move Vector Store ID to footer; keep header clean)
       try {
         const vs = res.vector_store_id || '';
-        $("#cloud-pdf-meta").text(vs ? `Vector Store ID: ${vs}` : '');
+        { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
         // Do not show VS in header to avoid confusion
         // Leave #cloud-pdf-info handling to status refresher
       } catch (_) { console.warn("[PDF Listing] Metadata update failed:", _); }
       const files = res.files || [];
       if (files.length === 0) {
-        $list.html('<span class="text-secondary">(none)</span>');
+        if ($list) $list.innerHTML = (`<span class="text-secondary">${getTranslation('ui.noPdfsCloud', 'No cloud PDFs')}</span>`);
         return;
       }
       const rows = files.map(f => {
@@ -3267,23 +3502,24 @@ $(function () {
           <button class="btn btn-sm btn-outline-secondary" data-action="cloud-delete-file" data-file-id="${f.id}" data-file-name="${attrName}"><i class="fa-regular fa-trash-can text-secondary"></i></button>
         </div>`;
       });
-      $list.html(rows.join(''));
+      if ($list) $list.innerHTML = (rows.join(''));
     } catch (e) {
-      $("#cloud-pdf-list").html('<span class="text-danger">Failed to load</span>');
+      { const el = $id("cloud-pdf-list"); if (el) el.innerHTML = '<span class="text-danger">Failed to load</span>'; }
     }
   }
 
-  $(document).on('click', '#cloud-pdf-refresh', function(e) {
+  document.addEventListener('click', function(e) { if (!e.target.closest('#cloud-pdf-refresh')) return;
     e.preventDefault();
     refreshCloudPdfList();
   });
 
-  $(document).on('click', '#cloud-pdf-clear', async function(e) {
+  document.addEventListener('click', async function(e) { if (!e.target.closest('#cloud-pdf-clear')) return;
     e.preventDefault();
     try {
       const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllCloudPdfs') : 'Clear all Cloud PDFs?';
       if (!confirm(msg)) return;
-      await $.ajax({ url: '/openai/pdf?action=clear', type: 'DELETE' });
+      const clearRes = await fetch('/openai/pdf?action=clear', { method: 'DELETE' });
+      if (!clearRes.ok) throw new Error(`Clear failed: ${clearRes.status}`);
       refreshCloudPdfList();
       setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDFs cleared', 'success');
     } catch (err) {
@@ -3291,10 +3527,10 @@ $(function () {
     }
   });
 
-  $(document).on('click', 'button[data-action="cloud-delete-file"]', async function(e) {
+  document.addEventListener('click', async function(e) { const _delegateTarget = e.target.closest('button[data-action="cloud-delete-file"]'); if (!_delegateTarget) return;
     e.preventDefault();
-    const fid = $(this).data('file-id');
-    const fname = $(this).data('file-name') || $(this).closest('.cloud-pdf-row').find('.cloud-pdf-name').text().trim();
+    const fid = _delegateTarget.dataset.fileId;
+    const fname = _delegateTarget.dataset.fileName || _delegateTarget.closest('.cloud-pdf-row').querySelector('.cloud-pdf-name').textContent.trim();
     if (!fid) return;
     // Detect iOS/iPadOS
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -3303,7 +3539,8 @@ $(function () {
       const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
       if (!confirm(`${base} ${fname}?`)) return;
       try {
-        await $.ajax({ url: `/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, type: 'DELETE' });
+        const delRes = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
+        if (!delRes.ok) throw new Error(`Delete failed: ${delRes.status}`);
         refreshCloudPdfList();
         setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
       } catch (err) {
@@ -3311,22 +3548,23 @@ $(function () {
       }
     } else {
       // Reuse the same Bootstrap modal as local delete
-      $("#pdfDeleteConfirmation").modal("show");
-      $("#pdfToDelete").text(fname);
-      $("#pdfDeleteConfirmed").off("click").on("click", async function (event) {
+      bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).show();
+      { const el = $id("pdfToDelete"); if (el) el.textContent = fname; }
+      { const el2 = $id("pdfDeleteConfirmed"); if (el2) el2.onclick = async function (event) {
         event.preventDefault();
         try {
-          await $.ajax({ url: `/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, type: 'DELETE' });
-          $("#pdfDeleteConfirmation").modal("hide");
-          $("#pdfToDelete").text("");
+          const delRes2 = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
+          if (!delRes2.ok) throw new Error(`Delete failed: ${delRes2.status}`);
+          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
+          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
           refreshCloudPdfList();
           setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
         } catch (err) {
-          $("#pdfDeleteConfirmation").modal("hide");
-          $("#pdfToDelete").text("");
+          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
+          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
           setAlert('Failed to delete Cloud PDF', 'error');
         }
-      });
+      }; }
     }
   });
 
@@ -3336,19 +3574,20 @@ $(function () {
   // Fetch and display overall PDF storage status (mode/local/cloud presence)
   async function refreshPdfStorageStatus() {
     try {
-      const res = await $.getJSON('/api/pdf_storage_status');
+      const statusResp = await fetch('/api/pdf_storage_status');
+      const res = statusResp.ok ? await statusResp.json() : null;
       if (!res || !res.success) return;
       const mode = res.mode || 'local';
       const vs = res.vector_store_id || '';
       // Footer: full Vector Store ID when available
-      $("#cloud-pdf-meta").text(vs ? `Vector Store ID: ${vs}` : '');
+      { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
       // Local header: show ready only; remove redundant (empty)
-      $("#local-pdf-info").text(res.local_present ? '(ready)' : '');
+      { const el = $id("local-pdf-info"); if (el) el.textContent = res.local_present ? '(ready)' : ''; }
 
       // Toggle sections based on current mode
       const showCloud = (mode === 'cloud');
-      $('#cloud-pdf-section').toggle(showCloud);
-      $('#local-pdf-section').toggle(!showCloud);
+      $toggle($id("cloud-pdf-section"), showCloud);
+      $toggle($id("local-pdf-section"), !showCloud);
       // Auto-refresh the visible list to keep UI fresh
       if (showCloud) {
         refreshCloudPdfList();
@@ -3360,89 +3599,95 @@ $(function () {
   setTimeout(refreshPdfStorageStatus, 700);
 
   // Local PDF controls
-  $(document).on('click', '#local-pdf-refresh', function(e) {
+  document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-refresh')) return;
     e.preventDefault();
     if (window.ws) ws.send(JSON.stringify({ message: "PDF_TITLES" }));
   });
-  $(document).on('click', '#local-pdf-clear', function(e) {
+  document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-clear')) return;
     e.preventDefault();
     const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllLocalPdfs') : 'Clear all Local PDFs?';
     if (!confirm(msg)) return;
     if (window.ws) ws.send(JSON.stringify({ message: "DELETE_ALL_PDFS" }));
   });
 
-  $("#url").on("click", function (event) {
+  $on($id("url"), "click", function(event) {
     event.preventDefault();
-    $("#urlLabel").val("");
-    $("#pageURL").val("");
+    { const el = $id("urlLabel"); if (el) el.value = ""; }
+    { const el = $id("pageURL"); if (el) el.value = ""; }
     
     // Use the form handlers module if available, otherwise fallback
     if (formHandlers && formHandlers.showModalWithFocus) {
       const cleanupFn = function() {
-        $('#pageURL').val('');
-        $('#fetchPage').prop('disabled', true);
+        { const el = $id('pageURL'); if (el) el.value = ''; }
+        { const el = $id('fetchPage'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('urlModal', 'pageURL', cleanupFn);
     } else {
       // Show the modal using fallback
-      $("#urlModal").modal("show");
+      bootstrap.Modal.getOrCreateInstance($id("urlModal")).show();
       
       // Store focus timer in modal's data to ensure cleanup
-      const $modal = $("#urlModal");
-      const existingTimer = $modal.data('focusTimer');
-      
+      const $modal = $id("urlModal");
+      const existingTimer = $modal.dataset.focusTimer;
+
       // Clear any existing timer
       if (existingTimer) {
-        clearTimeout(existingTimer);
+        clearTimeout(parseInt(existingTimer));
       }
-      
+
       // Set new timer and store reference
-      $modal.data('focusTimer', setTimeout(function () {
-        $("#pageURL").focus();
+      $modal.dataset.focusTimer = setTimeout(function () {
+        { const el = $id("pageURL"); if (el) el.focus(); }
         // Clear reference after use
-        $modal.removeData('focusTimer');
-      }, 500));
+        delete $modal.dataset.focusTimer;
+      }, 500);
     }
   });
 
-  $("#urlModal").on("hidden.bs.modal", function () {
-    $('#pageURL').val('');
-    $('#fetchPage').prop('disabled', true);
-    
+  $on($id("urlModal"), "hidden.bs.modal", function () {
+    { const el = $id('pageURL'); if (el) el.value = ''; }
+    { const el = $id('fetchPage'); if (el) el.disabled = true; }
+
     // Ensure any remaining timers are cleared
-    const $modal = $(this);
-    const existingTimer = $modal.data('focusTimer');
+    const modalEl = this;
+    const existingTimer = modalEl.dataset.focusTimer;
     if (existingTimer) {
-      clearTimeout(existingTimer);
-      $modal.removeData('focusTimer');
+      clearTimeout(parseInt(existingTimer));
+      delete modalEl.dataset.focusTimer;
     }
   });
 
   // Use the form handlers module for URL input validation
   if (formHandlers && formHandlers.setupUrlValidation) {
     formHandlers.setupUrlValidation(
-      document.getElementById('pageURL'), 
-      document.getElementById('fetchPage')
+      $id('pageURL'), 
+      $id('fetchPage')
     );
   } else {
     // Fallback to direct event handler
-    $("#pageURL").on("change keyup input", function() {
-      const url = this.value;
-      // check if url is a valid url starting with http or https
-      const validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
-      $('#fetchPage').prop('disabled', !validUrl);
-    });
+    var _urlEl = $id("pageURL");
+    if (_urlEl) {
+      ["change", "keyup", "input"].forEach(function(_evt) {
+        _urlEl.addEventListener(_evt, function() {
+          var url = this.value;
+          // check if url is a valid url starting with http or https
+          var validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
+          var _fetchEl = $id('fetchPage');
+          if (_fetchEl) _fetchEl.disabled = !validUrl;
+        });
+      });
+    }
   }
 
-  $("#fetchPage").on("click", async function () {
-    const url = $("#pageURL").val();
+  $on($id("fetchPage"), "click", async function () {
+    const url = ($id("pageURL") || {}).value;
     
     try {
-      const urlLabel = $("#urlLabel").val() || "";
+      const urlLabel = ($id("urlLabel") || {}).value || "";
       
       // Disable UI elements during processing
-      $("#urlModal button").prop("disabled", true);
-      $("#url-spinner").show();
+      document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = true; });
+      $show($id("url-spinner"));
       
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.fetchWebpage(url, urlLabel);
@@ -3451,30 +3696,30 @@ $(function () {
       if (response && response.success) {
         // Extract content and append it to the message
         const content = response.content;
-        const message = $("#message").val().replace(/\n+$/, "");
-        $("#message").val(`${message}\n\n${content}`);
+        const message = ($id("message") || {}).value.replace(/\n+$/, "");
+        { const el = $id("message"); if (el) el.value = `${message}\n\n${content}`; }
         
         // Use the UI utilities module for resizing
         if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize(document.getElementById('message'), 100);
+          uiUtils.autoResize($id('message'), 100);
         } else {
-          autoResizeFallback(document.getElementById('message'), 100);
+          autoResizeFallback($id('message'), 100);
         }
         
         // Clean up UI
-        $("#url-spinner").hide();
-        $("#urlModal button").prop('disabled', false);
-        $("#urlModal").modal("hide");
-        $("#back_to_bottom").trigger("click");
-        $("#message").focus();
+        $hide($id("url-spinner"));
+        document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+        $dispatch($id("back_to_bottom"), "click");
+        { const el = $id("message"); if (el) el.focus(); }
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to fetch webpage";
         
         // Clean up UI
-        $("#url-spinner").hide();
-        $("#urlModal button").prop('disabled', false);
-        $("#urlModal").modal("hide");
+        $hide($id("url-spinner"));
+        document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
+        bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3483,9 +3728,9 @@ $(function () {
       console.error("Error fetching webpage:", error);
       
       // Clean up UI on error
-      $("#url-spinner").hide();
-      $("#urlModal button").prop("disabled", false);
-      $("#urlModal").modal("hide");
+      $hide($id("url-spinner"));
+      document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
+      bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3494,16 +3739,16 @@ $(function () {
     }
   });
 
-  $("#temperature").on("input", function () {
-    $("#temperature-value").text(parseFloat($(this).val()).toFixed(1));
+  $on($id("temperature"), "input", function() {
+    { const el = $id("temperature-value"); if (el) el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
-  $("#presence-penalty").on("input", function () {
-    $("#presence-penalty-value").text(parseFloat($(this).val()).toFixed(1));
+  $on($id("presence-penalty"), "input", function() {
+    { const el = $id("presence-penalty-value"); if (el) el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
-  $("#frequency-penalty").on("input", function () {
-    $("#frequency-penalty-value").text(parseFloat($(this).val()).toFixed(1));
+  $on($id("frequency-penalty"), "input", function() {
+    { const el = $id("frequency-penalty-value"); if (el) el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
   //////////////////////////////
@@ -3516,29 +3761,29 @@ $(function () {
     if (e) e.preventDefault();
     const scrollTime = window.UIConfig ? 
       window.UIConfig.TIMING.SCROLL_ANIMATION : 500;
-    $("#main").animate({ scrollTop: 0 }, scrollTime);
+    { const el = $id("main"); if (el) el.scrollTo({ top: 0, behavior: "smooth" }); }
   }
   
   function scrollToBottom(e) {
     if (e) e.preventDefault();
     const scrollTime = window.UIConfig ? 
       window.UIConfig.TIMING.SCROLL_ANIMATION : 500;
-    $("#main").animate({ scrollTop: $("#main").prop("scrollHeight") }, scrollTime);
+    { const el = $id("main"); if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }); }
   }
-  
+
   // Click handlers
-  $("#back_to_top").on("click", scrollToTop);
-  $("#back_to_bottom").on("click", scrollToBottom);
+  $on($id("back_to_top"), "click", scrollToTop);
+  $on($id("back_to_bottom"), "click", scrollToBottom);
   
   // Keyboard handlers (Enter and Space)
-  $("#back_to_top").on("keydown", function(e) {
+  $on($id("back_to_top"), "keydown", function(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       scrollToTop();
     }
   });
   
-  $("#back_to_bottom").on("keydown", function(e) {
+  $on($id("back_to_bottom"), "keydown", function(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       scrollToBottom();
@@ -3552,13 +3797,13 @@ $(function () {
   // Restore STT model from cookie
   const savedSTTModel = getCookie("stt-model");
   if (savedSTTModel) {
-    $("#stt-model").val(savedSTTModel);
+    { const el = $id("stt-model"); if (el) el.value = savedSTTModel; }
     params["stt_model"] = savedSTTModel;
   }
 
-  $("#tts-provider").on("change", function () {
+  $on($id("tts-provider"), "change", function() {
     const oldProvider = params["tts_provider"];
-    params["tts_provider"] = $("#tts-provider option:selected").val();
+    params["tts_provider"] = ($id("tts-provider") || {}).value;
     
     // Reset audio elements when switching TTS providers
     if (oldProvider !== params["tts_provider"] && typeof window.resetAudioElements === 'function') {
@@ -3566,25 +3811,30 @@ $(function () {
     }
     
     // Hide all voice selection elements first
-    $("#elevenlabs-voices").hide();
-    $("#openai-voices").hide();
-    $("#gemini-voices").hide();
-    $("#webspeech-voices").hide();
-    
+    $hide($id("elevenlabs-voices"));
+    $hide($id("openai-voices"));
+    $hide($id("gemini-voices"));
+    $hide($id("mistral-voices"));
+    $hide($id("webspeech-voices"));
+    $show($id("tts-speed-container")); // Show speed slider by default (hidden for providers that don't support it)
+
     // Show the appropriate voice selection based on provider
     if (params["tts_provider"] === "elevenlabs" || params["tts_provider"] === "elevenlabs-flash" || params["tts_provider"] === "elevenlabs-multilingual" || params["tts_provider"] === "elevenlabs-v3") {
-      $("#elevenlabs-voices").show();
+      $show($id("elevenlabs-voices"));
     } else if (params["tts_provider"] === "gemini-flash" || params["tts_provider"] === "gemini-pro") {
-      $("#gemini-voices").show();
+      $show($id("gemini-voices"));
+    } else if (params["tts_provider"] === "mistral") {
+      $show($id("mistral-voices"));
+      $hide($id("tts-speed-container"));
     } else if (params["tts_provider"] === "webspeech") {
-      $("#webspeech-voices").show();
+      $show($id("webspeech-voices"));
       // Initialize Web Speech API voices if they haven't been loaded
       if (typeof initWebSpeech === 'function') {
         initWebSpeech();
       }
     } else {
       // Default for OpenAI providers
-      $("#openai-voices").show();
+      $show($id("openai-voices"));
     }
 
     setCookie("tts-provider", params["tts_provider"], 30);
@@ -3593,40 +3843,40 @@ $(function () {
     }
   });
 
-  $("#tts-voice").on("change", function () {
-    params["tts_voice"] = $("#tts-voice option:selected").val();
+  $on($id("tts-voice"), "change", function() {
+    params["tts_voice"] = ($id("tts-voice") || {}).value;
     setCookie("tts-voice", params["tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_voice_change');
     }
   });
 
-  $("#elevenlabs-tts-voice").on("change", function () {
-    params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice option:selected").val();
+  $on($id("elevenlabs-tts-voice"), "change", function() {
+    params["elevenlabs_tts_voice"] = ($id("elevenlabs-tts-voice") || {}).value;
     setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('elevenlabs_voice_change');
     }
   });
 
-  $("#gemini-tts-voice").on("change", function () {
-    params["gemini_tts_voice"] = $("#gemini-tts-voice option:selected").val();
+  $on($id("gemini-tts-voice"), "change", function() {
+    params["gemini_tts_voice"] = ($id("gemini-tts-voice") || {}).value;
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('gemini_voice_change');
     }
   });
 
-  $("#stt-model").on("change", function () {
-    params["stt_model"] = $("#stt-model option:selected").val();
+  $on($id("stt-model"), "change", function() {
+    params["stt_model"] = ($id("stt-model") || {}).value;
     setCookie("stt-model", params["stt_model"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('stt_model_change');
     }
   });
 
-  $("#conversation-language").on("change", function () {
-    params["conversation_language"] = $("#conversation-language option:selected").val();
+  $on($id("conversation-language"), "change", function() {
+    params["conversation_language"] = ($id("conversation-language") || {}).value;
     setCookie("conversation-language", params["conversation_language"], 30);
     // Also update asr_lang for STT/TTS
     params["asr_lang"] = params["conversation_language"];
@@ -3655,94 +3905,96 @@ $(function () {
     }
   });
 
-  $("#tts-speed").on("input", function () {
-    $("#tts-speed-value").text(parseFloat($(this).val()).toFixed(2));
-    params["tts_speed"] = parseFloat($(this).val());
+  $on($id("tts-speed"), "input", function() {
+    { const el = $id("tts-speed-value"); if (el) el.textContent = parseFloat(this.value).toFixed(2); }
+    params["tts_speed"] = parseFloat(this.value);
     setCookie("tts-speed", params["tts_speed"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_speed_change');
     }
   });
 
-  $("#error-close").on("click", function (event) {
+  $on($id("error-close"), "click", function(event) {
     event.preventDefault();
   })
 
-  $("#alert-close").on("click", function (event) {
+  $on($id("alert-close"), "click", function(event) {
     event.preventDefault();
-    $("#alert-box").hide();
+    $hide($id("alert-box"));
   })
 
-  $("#initial-prompt-toggle").on("click", function () {
-    const $prompt = $("#initial-prompt");
-    const $icon = $("#initial-prompt-icon");
+  // Prompt toggle buttons (mutually exclusive, both can be off)
+  window.setPromptView = function(view, animate) {
+    const speed = animate ? 100 : 0;
 
-    if ($prompt.is(":visible")) {
-      $prompt.slideUp(100);
-      $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
+    // Update button active state and chevron icons
+    { const el = $id("prompt-toggle-assistant"); if (el) el.classList.toggle("active", view === 'assistant'); }
+    { const el = $id("prompt-icon-assistant"); if (el) { el.classList.toggle("fa-chevron-down", view === 'assistant'); el.classList.toggle("fa-chevron-right", view !== 'assistant'); } }
+    { const el = $id("prompt-toggle-aiuser"); if (el) el.classList.toggle("active", view === 'aiuser'); }
+    { const el = $id("prompt-icon-aiuser"); if (el) { el.classList.toggle("fa-chevron-down", view === 'aiuser'); el.classList.toggle("fa-chevron-right", view !== 'aiuser'); } }
+
+    // Show/hide textareas
+    if (view === 'assistant') {
+      $hide($id("ai-user-initial-prompt"));
+      { const el = $id("initial-prompt"); if (el) { $show(el); autoResize(el, 0); } }
+    } else if (view === 'aiuser') {
+      $hide($id("initial-prompt"));
+      { const el = $id("ai-user-initial-prompt"); if (el) { $show(el); autoResize(el, 0); } }
     } else {
-      $prompt.slideDown(100, function() {
-        autoResize(document.getElementById('initial-prompt'), 0);
-      });
-      $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
+      $hide($id("initial-prompt"));
+      $hide($id("ai-user-initial-prompt"));
     }
+  };
+
+  $on($id("prompt-toggle-assistant"), "click", function() {
+    window.setPromptView(this.classList.contains("active") ? 'hidden' : 'assistant', true);
   });
-
-  $("#ai-user-initial-prompt-toggle").on("click", function () {
-    const $prompt = $("#ai-user-initial-prompt");
-    const $icon = $("#ai-user-initial-prompt-icon");
-
-    if ($prompt.is(":visible")) {
-      $prompt.slideUp(100);
-      $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
-    } else {
-      $prompt.slideDown(100, function() {
-        autoResize(document.getElementById('ai-user-initial-prompt'), 0);
-      });
-      $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
-    }
+  $on($id("prompt-toggle-aiuser"), "click", function() {
+    window.setPromptView(this.classList.contains("active") ? 'hidden' : 'aiuser', true);
   });
 
   // Disable voice features for browsers that don't support them, and for iOS/iPadOS
   if (!runningOnChrome && !runningOnEdge && !runningOnSafari || 
      /iPad|iPhone|iPod/.test(navigator.userAgent)) {
     // Hide the entire voice input row instead of just the button
-    $("#voice-input-row").hide();
-    $("#auto-speech").hide();
-    $("#auto-speech-form").hide();
+    $hide($id("voice-input-row"));
+    $hide($id("auto-speech"));
+    $hide($id("auto-speech-form"));
     // Set message placeholder to standard text - simplified without voice
     // Will be properly translated when i18n initializes
   } else {
     // Show voice input row
-    $("#voice-input-row").show();
+    $show($id("voice-input-row"));
     // Set message placeholder will be handled by i18n initialization
   }
 
-  $("#select-role").on("change", function () {
-    const role = $("#select-role option:selected").val();
+  $on($id("select-role"), "change", function() {
+    const role = this.value;
+    const _icon = document.querySelector("#role-icon i");
+    if (!_icon) return;
     if (role === "user" || role === "sample-user") {
-      $("#role-icon i").removeClass("fa-robot fa-bars").addClass("fa-face-smile");
+      _icon.classList.remove("fa-robot", "fa-bars"); _icon.classList.add("fa-face-smile");
     } else if (role === "sample-assistant") {
-      $("#role-icon i").removeClass("fa-face-smile fa-bars").addClass("fa-robot");
+      _icon.classList.remove("fa-face-smile", "fa-bars"); _icon.classList.add("fa-robot");
     } else if (role === "sample-system") {
-      $("#role-icon i").removeClass("fa-face-smile fa-robot").addClass("fa-bars");
+      _icon.classList.remove("fa-face-smile", "fa-robot"); _icon.classList.add("fa-bars");
     }
   });
 
-  const selectedApp = $('#apps');
-  if (selectedApp.prop('selectedIndex') === -1) {
-    selectedApp.prop('selectedIndex', 0);
+  const selectedApp = $id('apps');
+  if (selectedApp && selectedApp.selectedIndex === -1) {
+    selectedApp.selectedIndex = 0;
   }
 
-  const fileInput = $('#file-load');
-  const loadButton = $('#import-button');
-  const loadForm = $('#loadModal form');
+  const fileInput = $id('file-load');
+  const loadButton = $id('import-button');
+  const loadForm = document.querySelector('#loadModal form');
 
   // Handle form submission with async/await pattern
-  loadForm.on('submit', async function(event) {
+  loadForm.addEventListener('submit', async function(event) {
     event.preventDefault();
-    
-    const file = fileInput[0].files[0];
+
+    const file = fileInput.files[0];
     if (!file) {
       setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.selectFileImport') : 'Please select a file to import', "error");
       return;
@@ -3753,9 +4005,9 @@ $(function () {
       window.isProcessingImport = true;
       window.skipAssistantInitiation = true;
 
-      $("#monadic-spinner").show();
-      $("#loadModal button").prop("disabled", true);
-      $("#load-spinner").show();
+      $show($id("monadic-spinner"));
+      document.querySelectorAll("#loadModal button").forEach(function(_el) { _el.disabled = true; });
+      $show($id("load-spinner"));
 
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.importSession(file);
@@ -3763,7 +4015,7 @@ $(function () {
       // Process the response
       if (response && response.success) {
         // Clean up UI after successful import
-        $("#loadModal").modal("hide");
+        bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
 
         // Don't clear messages here - let WebSocket 'past_messages' handler do it
@@ -3781,8 +4033,8 @@ $(function () {
         setAlert(`${errorMessage}`, "error");
 
         // Keep modal open to allow another attempt
-        $("#loadModal button").prop("disabled", false);
-        $("#load-spinner").hide();
+        document.querySelectorAll("#loadModal button").forEach(function(_el) { _el.disabled = false; });
+        $hide($id("load-spinner"));
       }
       
     } catch (error) {
@@ -3798,87 +4050,99 @@ $(function () {
       setAlert(`${importErrorMsg}: ${errorMessage}`, "error");
 
       // Hide modal since there was an AJAX error
-      $("#loadModal").modal("hide");
+      bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
 
     } finally {
       // Always clean up UI elements
-      $("#monadic-spinner").hide();
-      $("#loadModal button").prop("disabled", false);
-      $("#load-spinner").hide();
-      fileInput.val('');
+      $hide($id("monadic-spinner"));
+      document.querySelectorAll("#loadModal button").forEach(function(_el) { _el.disabled = false; });
+      $hide($id("load-spinner"));
+      if (fileInput) fileInput.value = '';
     }
   });
-  
+
   // Enable/disable load button based on file selection
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('file-load'), 
-      document.getElementById('import-button')
+      $id('file-load'),
+      $id('import-button')
     );
   } else {
     // Fallback to direct event handler
-    fileInput.on('change', function () {
-      if (fileInput[0].files.length > 0) {
-        loadButton.prop('disabled', false);
+    fileInput.addEventListener('change', function () {
+      if (fileInput.files.length > 0) {
+        if (loadButton) loadButton.disabled = false;
       } else {
-        loadButton.prop('disabled', true);
+        if (loadButton) loadButton.disabled = true;
       }
     });
   }
 
-  const fileFile = $('#fileFile');
-  const fileButton = $('#uploadFile');
+  const fileFile = $id('fileFile');
+  const fileButton = $id('uploadFile');
 
   // Use the form handlers module for file upload validation
   if (formHandlers && formHandlers.setupFileValidation) {
     formHandlers.setupFileValidation(
-      document.getElementById('fileFile'), 
-      document.getElementById('uploadFile')
+      $id('fileFile'),
+      $id('uploadFile')
     );
   } else {
     // Fallback to direct event handler
-    fileFile.on('change', function () {
-      if (fileFile[0].files.length > 0) {
-        fileButton.prop('disabled', false);
+    fileFile.addEventListener('change', function () {
+      if (fileFile.files.length > 0) {
+        if (fileButton) fileButton.disabled = false;
       } else {
-        fileButton.prop('disabled', true);
+        if (fileButton) fileButton.disabled = true;
       }
     });
   }
 
-  // Initialize tooltips with better configuration
-  $("#discourse").tooltip({
-    selector: '.card-header [title]',
-    delay: { show: 0, hide: 0 },
-    show: 100,
-    container: 'body' // Place tooltips in body for easier management
-  });
+  // Initialize tooltips with delegated observation for dynamically added elements
+  {
+    const discourseEl = $id("discourse");
+    if (discourseEl) {
+      // Initialize tooltips on existing elements
+      discourseEl.querySelectorAll('.card-header [title]').forEach(function(el) {
+        new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
+      });
+      // Observe for new elements and initialize tooltips on them
+      const tooltipObserver = new MutationObserver(function() {
+        discourseEl.querySelectorAll('.card-header [title]').forEach(function(el) {
+          if (!bootstrap.Tooltip.getInstance(el)) {
+            new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
+          }
+        });
+      });
+      tooltipObserver.observe(discourseEl, { childList: true, subtree: true });
+    }
+  }
 
   // Add global function to clean up all tooltips
   window.cleanupAllTooltips = function() {
-    $('.tooltip').remove(); // Directly remove all tooltip elements
-    $('[data-bs-original-title]').tooltip('dispose'); // Bootstrap 5
-    $('[data-original-title]').tooltip('dispose'); // Bootstrap 4
+    document.querySelectorAll('.tooltip').forEach(function(_el) { _el.remove(); }); // Directly remove all tooltip elements
+    document.querySelectorAll("[data-bs-original-title]").forEach(function(_el) { var _tip = bootstrap.Tooltip.getInstance(_el); if (_tip) _tip.dispose(); }); // Bootstrap 5
+    document.querySelectorAll("[data-original-title]").forEach(function(_el) { var _tip = bootstrap.Tooltip.getInstance(_el); if (_tip) _tip.dispose(); }); // Bootstrap 4
   };
 
   // Remove tooltips when clicking anywhere in the document
-  $(document).on('click', function(e) {
-    if (!$(e.target).closest('.func-play, .func-stop, .func-copy, .func-delete, .func-edit').length) {
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.func-play, .func-stop, .func-copy, .func-delete, .func-edit')) {
       cleanupAllTooltips();
     }
   });
 
-  $("#message").on("keydown", function (event) {
+  $on($id("message"), "keydown", function(event) {
     if (event.key === "Tab") {
       event.preventDefault();
-      $("#send").focus();
+      { const el = $id("send"); if (el) el.focus(); }
     }
   });
 
-  $("#select-role").on("keydown", function (event) {
+  $on($id("select-role"), "keydown", function(event) {
     if (event.key === "Tab") {
       event.preventDefault();
-      $("#send").focus();
+      { const el = $id("send"); if (el) el.focus(); }
     }
   });
 
@@ -3891,24 +4155,20 @@ $(function () {
   // Helper function to update RTL for message areas only (defined globally)
   function updateRTLInterface(langCode) {
     if (isRTLLanguage(langCode)) {
-      $("body").addClass("rtl-messages");
+      document.body.classList.add("rtl-messages");
     } else {
-      $("body").removeClass("rtl-messages");
+      document.body.classList.remove("rtl-messages");
     }
   }
   
-  $(document).ready(function () {
-    $("#initial-prompt").css("display", "none");
-    $("#initial-prompt-toggle").prop("checked", false);
-    $("#ai-user-initial-prompt").css("display", "none");
-    $("#ai-user-initial-prompt-toggle").prop("checked", false);
-    $("#ai-user-toggle").prop("checked", false);
+  (function () {
+    if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
     
     // Initialize interface language from cookie
     // Load saved conversation language
     const savedConversationLanguage = getCookie("conversation-language");
     if (savedConversationLanguage) {
-      $("#conversation-language").val(savedConversationLanguage);
+      { const el = $id("conversation-language"); if (el) el.value = savedConversationLanguage; }
       params["conversation_language"] = savedConversationLanguage;
       params["asr_lang"] = savedConversationLanguage;
       // Set RTL/LTR on page load
@@ -3926,7 +4186,7 @@ $(function () {
       
       // Also register special handler for message text input
       // This ensures search is closed when focusing the input field
-      $("#message").on("focus", function() {
+      $on($id("message"), "focus", function() {
         if (uiUtils.simulateEscapeKey) {
           uiUtils.simulateEscapeKey();
         }
@@ -3934,7 +4194,7 @@ $(function () {
     }
     
     // Set focus to the apps dropdown instead of start button
-    $("#apps").focus();
+    { const el = $id("apps"); if (el) el.focus(); }
     
     // Common viewport setup for all devices
     const viewportMeta = document.querySelector('meta[name="viewport"]');
@@ -3944,10 +4204,10 @@ $(function () {
     
     // Apply only minimum iOS class without special behavior
     if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-      $("body").addClass("ios-device");
+      document.body.classList.add("ios-device");
       
       // Special handling for iOS to ensure proper scrolling
-      if ($(window).width() < 600) {
+      if (window.innerWidth < 600) {
         // Run optimization immediately and after a small delay
         optimizeMobileScrolling();
         setTimeout(optimizeMobileScrolling, window.UIConfig ? window.UIConfig.TIMING.SCROLL_ANIMATION : 500);
@@ -3955,12 +4215,12 @@ $(function () {
     }
     
     // Always run mobile optimization on page load for small screens
-    if ($(window).width() < 600) {
+    if (window.innerWidth < 600) {
       // Initial optimization
       optimizeMobileScrolling();
       
       // Run again after load is complete to ensure proper sizing
-      $(window).on('load', function() {
+      window.addEventListener('load', function() {
         optimizeMobileScrolling();
       });
     }
@@ -3973,63 +4233,59 @@ $(function () {
     
     // Ensure consistent height between the apps select and the custom dropdown group headers
     setTimeout(function() {
-      const appsHeight = $("#apps").outerHeight();
-      $(".custom-dropdown-group").css("height", appsHeight + "px");
+      const appsHeight = ($id("apps") || {}).offsetHeight;
+      document.querySelectorAll(".custom-dropdown-group").forEach(function(_el) { _el.style.height = appsHeight + "px"; });
     }, 100);
     
     // Initialize app icon in select dropdown
     updateAppSelectIcon();
     
     function setupCustomDropdown() {
-      const $select = $("#apps");
-      const $customDropdown = $("#custom-apps-dropdown");
+      const $select = $id("apps");
+      const $customDropdown = $id("custom-apps-dropdown");
       let isDropdownOpen = false;
       
       // Function to close the dropdown
       function closeDropdown() {
         if (isDropdownOpen) {
-          $customDropdown.hide();
+          $hide($customDropdown);
           isDropdownOpen = false;
           // Remove the document click handler
-          $(document).off("click.customDropdown");
+          /* removed: document off "click.customDropdown" */;
         }
       }
       
       // Function to open the dropdown
       function openDropdown() {
         if (!isDropdownOpen) {
-          $customDropdown.show();
+          $show($customDropdown);
           isDropdownOpen = true;
           
           // Get current selected value
-          const currentValue = $select.val();
+          const currentValue = $select.value;
           
           // Clear any existing highlights
-          $(".custom-dropdown-option.highlighted").removeClass("highlighted");
+          document.querySelectorAll(".custom-dropdown-option.highlighted").forEach(function(_el) { _el.classList.remove("highlighted"); });
           
           // First, collapse all group containers
-          $(".group-container").addClass("collapsed");
-          $(".custom-dropdown-group .group-toggle-icon i")
-            .removeClass("fa-chevron-down")
-            .addClass("fa-chevron-right");
+          document.querySelectorAll(".group-container").forEach(function(_el) { _el.classList.add("collapsed"); });
+          document.querySelectorAll(".custom-dropdown-group .group-toggle-icon i").forEach(function(_el) { _el.classList.remove("fa-chevron-down"); _el.classList.add("fa-chevron-right"); });
           
           // Find and highlight the option matching the current selection
-          const $selectedOption = $(`.custom-dropdown-option[data-value="${currentValue}"]`);
-          if ($selectedOption.length) {
-            $selectedOption.addClass("highlighted");
-            
+          const $selectedOption = document.querySelector(`.custom-dropdown-option[data-value="${currentValue}"]`);
+          if ($selectedOption) {
+            $selectedOption.classList.add("highlighted");
+
             // Find the parent group container and expand it
             const $parentGroup = $selectedOption.closest(".group-container");
-            if ($parentGroup.length) {
-              $parentGroup.removeClass("collapsed");
-              
+            if ($parentGroup) {
+              $parentGroup.classList.remove("collapsed");
+
               // Update the toggle icon
-              const groupId = $parentGroup.attr("id");
+              const groupId = $parentGroup.id;
               const groupName = groupId.replace("group-", "");
-              const $groupHeader = $(`.custom-dropdown-group[data-group="${groupName}"]`);
-              $groupHeader.find(".group-toggle-icon i")
-                .removeClass("fa-chevron-right")
-                .addClass("fa-chevron-down");
+              const $groupHeader = document.querySelector(`.custom-dropdown-group[data-group="${groupName}"]`);
+              if ($groupHeader) { const _icon = $groupHeader.querySelector(".group-toggle-icon i"); if (_icon) { _icon.classList.remove("fa-chevron-right"); _icon.classList.add("fa-chevron-down"); } }
             }
             
             // Ensure the selected option is visible in the dropdown
@@ -4040,15 +4296,15 @@ $(function () {
           positionDropdown();
           
           // Update the height of group headers to match the apps select
-          const appsHeight = $("#apps").outerHeight();
-          $(".custom-dropdown-group").css("height", appsHeight + "px");
+          const appsHeight = ($id("apps") || {}).offsetHeight;
+          document.querySelectorAll(".custom-dropdown-group").forEach(function(_el) { _el.style.height = appsHeight + "px"; });
           
           // Set up click outside handler with a small delay to avoid immediate closing
           setTimeout(function() {
-            $(document).on("click.customDropdown", function(e) {
+            document.addEventListener("click", function _customDropdownClick(e) {
               // Check if click is outside the dropdown and trigger elements
               // Also check if the click is not on a group header (which toggles group expansion)
-              if (!$(e.target).closest("#custom-apps-dropdown, #app-select-overlay, .app-select-wrapper").length) {
+              if (!e.target.closest("#custom-apps-dropdown, #app-select-overlay, .app-select-wrapper")) {
                 closeDropdown();
               }
             });
@@ -4057,7 +4313,7 @@ $(function () {
       }
       
       // Show custom dropdown when clicking on the overlay div
-      $("#app-select-overlay").on("click", function(e) {
+      $on($id("app-select-overlay"), "click", function(e) {
         e.preventDefault();
         e.stopPropagation();
         
@@ -4070,24 +4326,24 @@ $(function () {
       });
       
       // Also add click handler to the wrapper as a fallback
-      $(".app-select-wrapper").on("click", function(e) {
-        if ($(e.target).is("#app-select-overlay")) {
+      { const _wrapEl = document.querySelector(".app-select-wrapper"); if (_wrapEl) _wrapEl.addEventListener("click", function(e) {
+        if (e.target.matches("#app-select-overlay")) {
           // Already handled by the overlay click handler
           return;
         }
         e.preventDefault();
         e.stopPropagation();
-        
+
         // Toggle custom dropdown
         if (isDropdownOpen) {
           closeDropdown();
         } else {
           openDropdown();
         }
-      });
+      }); }
       
       // Add global ESC key handler that works regardless of focus
-      $(document).on("keydown.customDropdownEsc", function(e) {
+      document.addEventListener("keydown", function(e) {
         if (e.key === "Escape" && isDropdownOpen) {
           e.preventDefault();
           e.stopPropagation();
@@ -4097,77 +4353,77 @@ $(function () {
       });
       
       // Add keyboard navigation to the custom dropdown
-      $(document).on("keydown", function(e) {
+      document.addEventListener("keydown", function(e) {
         if (isDropdownOpen) {
-          const $options = $(".custom-dropdown-option:not(.disabled)");
-          const $highlighted = $(".custom-dropdown-option.highlighted");
-          let index = $options.index($highlighted);
-          
+          const $options = Array.from(document.querySelectorAll(".custom-dropdown-option:not(.disabled)"));
+          const $highlighted = document.querySelector(".custom-dropdown-option.highlighted");
+          let index = $highlighted ? $options.indexOf($highlighted) : -1;
+
           switch (e.key) {
             case "ArrowDown":
               e.preventDefault();
-              e.stopPropagation(); // Prevent event from bubbling up
+              e.stopPropagation();
               // Move to next non-disabled option
               if (index < $options.length - 1) {
-                if ($highlighted.length) {
-                  $highlighted.removeClass("highlighted");
+                if ($highlighted) {
+                  $highlighted.classList.remove("highlighted");
                 }
-                const $next = $options.eq(index + 1);
-                $next.addClass("highlighted");
-                
+                const $next = $options[index + 1];
+                if ($next) $next.classList.add("highlighted");
+
                 // Ensure the element is visible in the dropdown
                 ensureVisibleInDropdown($next, $customDropdown);
               } else if (index === -1) {
                 // No selection yet, select first non-disabled
-                const $first = $options.first();
-                $first.addClass("highlighted");
+                const $first = $options[0];
+                if ($first) $first.classList.add("highlighted");
                 ensureVisibleInDropdown($first, $customDropdown);
               } else {
                 // Already at the bottom, circle back to the first non-disabled item
-                $highlighted.removeClass("highlighted");
-                const $first = $options.first();
-                $first.addClass("highlighted");
+                if ($highlighted) $highlighted.classList.remove("highlighted");
+                const $first = $options[0];
+                if ($first) $first.classList.add("highlighted");
                 ensureVisibleInDropdown($first, $customDropdown);
               }
-              return false; // Prevent default and stop propagation
+              return false;
               break;
-              
+
             case "ArrowUp":
               e.preventDefault();
-              e.stopPropagation(); // Prevent event from bubbling up
+              e.stopPropagation();
               // Move to previous non-disabled option
               if (index > 0) {
-                $highlighted.removeClass("highlighted");
-                const $prev = $options.eq(index - 1);
-                $prev.addClass("highlighted");
-                
+                if ($highlighted) $highlighted.classList.remove("highlighted");
+                const $prev = $options[index - 1];
+                if ($prev) $prev.classList.add("highlighted");
+
                 // Ensure the element is visible in the dropdown
                 ensureVisibleInDropdown($prev, $customDropdown);
               } else if (index === 0) {
                 // At first item, circle to the last non-disabled one
-                $highlighted.removeClass("highlighted");
-                const $last = $options.last();
-                $last.addClass("highlighted");
+                if ($highlighted) $highlighted.classList.remove("highlighted");
+                const $last = $options[$options.length - 1];
+                if ($last) $last.classList.add("highlighted");
                 ensureVisibleInDropdown($last, $customDropdown);
               }
               break;
-              
+
             case "Enter":
             case " ": // Space key
               e.preventDefault();
-              e.stopPropagation(); // Prevent event from bubbling up
-              if ($highlighted.length) {
+              e.stopPropagation();
+              if ($highlighted) {
                 // Trigger click on the highlighted option
                 $highlighted.click();
               }
-              return false; // Prevent default and stop propagation
+              return false;
               break;
-              
+
             case "Escape":
               e.preventDefault();
-              e.stopPropagation(); // Prevent event from bubbling up
+              e.stopPropagation();
               closeDropdown();
-              return false; // Prevent default and stop propagation
+              return false;
               break;
           }
           return true;
@@ -4176,115 +4432,111 @@ $(function () {
       
       // Helper function to ensure the highlighted element is visible in the dropdown
       function ensureVisibleInDropdown($element, $container) {
-        if (!$element.length || !$container.length) return;
-        
-        const containerHeight = $container.height();
-        const containerScrollTop = $container.scrollTop();
-        const elementTop = $element.position().top;
-        const elementHeight = $element.outerHeight();
-        
+        if (!$element || !$container) return;
+
+        const containerHeight = $container.clientHeight;
+        const containerScrollTop = $container.scrollTop;
+        const elementTop = $element.offsetTop - $container.scrollTop;
+        const elementHeight = $element.offsetHeight;
+
         // If element is above the visible area
         if (elementTop < 0) {
-          $container.scrollTop(containerScrollTop + elementTop);
+          $container.scrollTop = containerScrollTop + elementTop;
         }
         // If element is below the visible area
         else if (elementTop + elementHeight > containerHeight) {
-          $container.scrollTop(containerScrollTop + elementTop + elementHeight - containerHeight);
+          $container.scrollTop = containerScrollTop + elementTop + elementHeight - containerHeight;
         }
       }
       
       // Handle option selection
-      $(document).on("click", ".custom-dropdown-option", function() {
+      document.addEventListener("click", function(e) { const _delegateTarget = e.target.closest(".custom-dropdown-option"); if (!_delegateTarget) return;
         // Check if this option is disabled
-        if ($(this).hasClass("disabled")) {
+        if (_delegateTarget.classList.contains("disabled")) {
           return; // Don't do anything for disabled options
         }
-        
-        const value = $(this).data("value");
-        
+
+        const value = _delegateTarget.dataset.value;
+
         // Update the real select value
-        $select.val(value).trigger("change");
-        
+        $select.value = value;
+        $dispatch($select, "change");
+
         // Close dropdown using the proper method
         closeDropdown();
       });
-      
+
       // Add mouse hover functionality to highlight options
-      $(document).on("mouseenter", ".custom-dropdown-option", function() {
+      document.addEventListener("mouseover", function(e) { const _delegateTarget = e.target.closest(".custom-dropdown-option"); if (!_delegateTarget) return;
         // Don't highlight disabled options
-        if ($(this).hasClass("disabled")) {
+        if (_delegateTarget.classList.contains("disabled")) {
           return;
         }
-        $(".custom-dropdown-option.highlighted").removeClass("highlighted");
-        $(this).addClass("highlighted");
+        document.querySelectorAll(".custom-dropdown-option.highlighted").forEach(function(_el) { _el.classList.remove("highlighted"); });
+        _delegateTarget.classList.add("highlighted");
       });
       
       // Update dropdown position on window resize
-      $(window).on("resize", function() {
+      window.addEventListener("resize", function() {
         if (isDropdownOpen) {
           positionDropdown();
         }
         
         // Ensure group headers maintain the same height as the apps select
-        const appsHeight = $("#apps").outerHeight();
-        $(".custom-dropdown-group").css("height", appsHeight + "px");
+        const appsHeight = ($id("apps") || {}).offsetHeight;
+        document.querySelectorAll(".custom-dropdown-group").forEach(function(_el) { _el.style.height = appsHeight + "px"; });
       });
       
       // Helper function to position the dropdown
       function positionDropdown() {
         // Get the select wrapper and its position
-        const $selectWrapper = $(".app-select-wrapper");
-        const $parent = $selectWrapper.parent();
-        const wrapperRect = $selectWrapper[0].getBoundingClientRect();
-        
+        const $selectWrapper = document.querySelector(".app-select-wrapper");
+        if (!$selectWrapper) return;
+
         // Set dropdown position accurately based on the wrapper's position
-        $customDropdown.css({
-          top: $selectWrapper.outerHeight() + "px",
-          left: "0px",
-          width: $selectWrapper.outerWidth() + "px",
-          zIndex: 1100
-        });
+        $customDropdown.style.top = $selectWrapper.offsetHeight + "px";
+        $customDropdown.style.left = "0px";
+        $customDropdown.style.width = $selectWrapper.offsetWidth + "px";
+        $customDropdown.style.zIndex = 1100;
       }
       
       // Clean up event handlers when the page is unloaded
-      $(window).on("beforeunload", function() {
+      window.addEventListener("beforeunload", function() {
         if (isDropdownOpen) {
           closeDropdown();
         }
         // Remove the global ESC key handler
-        $(document).off("keydown.customDropdownEsc");
+        /* removed: document off "keydown.customDropdownEsc" */;
       });
     }
     
     // Function to set up enhanced styling for other select elements
     function setupEnhancedSelects() {
       // Apply to all form-select elements except #apps (which has its own custom dropdown)
-      $(".form-select").not("#apps").each(function() {
-        const $select = $(this);
-        
+      document.querySelectorAll(".form-select:not(#apps)").forEach(function(_el) {
         // Skip if select already has custom styling
-        if ($select.data("enhanced") === true) {
+        if (_el.dataset.enhanced === "true") {
           return;
         }
-        
+
         // Mark as enhanced to avoid double processing
-        $select.data("enhanced", true);
-        
+        _el.dataset.enhanced = "true";
+
         // Apply compact styling to all options
-        $select.find("option").addClass("enhanced-option");
-        
+        _el.querySelectorAll("option").forEach(function(opt) { opt.classList.add("enhanced-option"); });
+
         // Apply special styling for optgroup labels if any
-        $select.find("optgroup").addClass("enhanced-optgroup");
-        
+        _el.querySelectorAll("optgroup").forEach(function(og) { og.classList.add("enhanced-optgroup"); });
+
         // Apply special styling for disabled options (like separators)
-        $select.find("option[disabled]").addClass("enhanced-separator");
+        _el.querySelectorAll("option[disabled]").forEach(function(opt) { opt.classList.add("enhanced-separator"); });
       });
     }
     
     // Load AI User provider from cookie
     const savedProvider = getCookie("ai_user_provider");
     if (savedProvider) {
-      $("#ai_user_provider").val(savedProvider);
+      { const el = $id("ai_user_provider"); if (el) el.value = savedProvider; }
       
       // Apply provider styling if updateProviderStyle is available
       if (typeof updateProviderStyle === 'function') {
@@ -4302,15 +4554,15 @@ $(function () {
     setCookieValues();
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
-      uiUtils.adjustImageUploadButton($("#model").val());
+      uiUtils.adjustImageUploadButton(($id("model") || {}).value);
     } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-      window.shims.uiUtils.adjustImageUploadButton($("#model").val());
+      window.shims.uiUtils.adjustImageUploadButton(($id("model") || {}).value);
     }
-    $("#monadic-spinner").show();
+    $show($id("monadic-spinner"));
     
     // Event handlers for the message deletion confirmation dialog
-    $("#deleteMessageOnly").on("click", function() {
-      const data = $("#deleteConfirmation").data();
+    $on($id("deleteMessageOnly"), "click", function() {
+      const data = ($id("deleteConfirmation") || {}).dataset;
       if (data && data.mid) {
         // Check if it's a system message that needs special handling
         if (data.isSystemMessage) {
@@ -4318,13 +4570,13 @@ $(function () {
         } else {
           deleteMessageOnly(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
         }
-        $("#deleteConfirmation").modal("hide");
+        bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
       }
     });
     
     // Handle deletion of the current message and all subsequent messages
-    $("#deleteMessageAndSubsequent").on("click", function() {
-      const data = $("#deleteConfirmation").data();
+    $on($id("deleteMessageAndSubsequent"), "click", function() {
+      const data = ($id("deleteConfirmation") || {}).dataset;
       if (data && data.mid) {
         // Check if it's a system message that needs special handling
         if (data.isSystemMessage) {
@@ -4332,8 +4584,30 @@ $(function () {
         } else {
           deleteMessageAndSubsequent(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
         }
-        $("#deleteConfirmation").modal("hide");
+        bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
       }
     });
-  });
+
+    // Lightbox modal controls (state variables are in the outer scope near MutationObserver)
+    $on($id("lightboxImage"), "click", function() {
+      bootstrap.Modal.getOrCreateInstance($id("screenshotLightbox")).hide();
+    });
+
+    $on($id("lightboxPrev"), "click", function(e) {
+      e.stopPropagation();
+      if (lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
+    });
+
+    $on($id("lightboxNext"), "click", function(e) {
+      e.stopPropagation();
+      if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
+    });
+
+    // Arrow key navigation for lightbox (Escape is handled by Bootstrap's keyboard: true default)
+    document.addEventListener("keydown", function(e) {
+      if (!($id("screenshotLightbox") && $id("screenshotLightbox").classList.contains("show"))) return;
+      if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
+      if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
+    });
+  })();
 });

@@ -1,0 +1,95 @@
+# RuboCop Configuration for Monadic Chat
+#
+# Strategy: Bug detection and security rules only.
+# Style/formatting rules are disabled to avoid noise on a large existing codebase.
+# Matches the ESLint config philosophy (eslint.config.mjs).
+
+plugins:
+  - rubocop-performance
+
+AllCops:
+  TargetRubyVersion: 3.1
+  NewCops: disable
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "tmp/**/*"
+    - "bin/**/*"
+    - "public/vendor/**/*"
+
+inherit_from: .rubocop_todo.yml
+
+inherit_mode:
+  merge:
+    - Exclude
+
+# ══════════════════════════════════════════════════════════════
+# Disable all style/formatting cops — we only want bug detection
+# ══════════════════════════════════════════════════════════════
+
+Style:
+  Enabled: false
+
+Layout:
+  Enabled: false
+
+Naming:
+  Enabled: false
+
+# ══════════════════════════════════════════════════════════════
+# Lint cops — Bug detection (high value)
+# ══════════════════════════════════════════════════════════════
+
+Lint:
+  Enabled: true
+
+# Allow pp for debugging (controlled by EXTRA_LOGGING in production)
+Lint/Debugger:
+  Enabled: false
+
+# Permit eval in DSL loader (MDSL files use eval by design)
+Security/Eval:
+  Exclude:
+    - "lib/monadic/dsl.rb"
+    - "lib/monadic/dsl/**/*"
+
+# Allow rescuing Exception in top-level handlers
+Lint/RescueException:
+  Enabled: false
+
+# Suppress assignment in condition warnings (common Ruby idiom)
+Lint/AssignmentInCondition:
+  Enabled: false
+
+# Allow empty blocks (used in stubs, callbacks)
+Lint/EmptyBlock:
+  Enabled: false
+
+# Allow unused method arguments (common in tool method signatures)
+Lint/UnusedMethodArgument:
+  Enabled: false
+
+# Allow unused block arguments
+Lint/UnusedBlockArgument:
+  Enabled: false
+
+# ══════════════════════════════════════════════════════════════
+# Metrics — Disabled (existing code is large but functional)
+# ══════════════════════════════════════════════════════════════
+
+Metrics:
+  Enabled: false
+
+# ══════════════════════════════════════════════════════════════
+# Gemspec cops — Disabled (not relevant for app gemspec)
+# ══════════════════════════════════════════════════════════════
+
+Gemspec:
+  Enabled: false
+
+# ══════════════════════════════════════════════════════════════
+# Performance cops — Enabled (safe, no false positives)
+# ══════════════════════════════════════════════════════════════
+
+Performance:
+  Enabled: true

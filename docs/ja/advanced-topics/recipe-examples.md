@@ -18,7 +18,7 @@ app "MathTutorOpenAI" do
 
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # providerDefaultsにフォールバック
     temperature 0.7
   end
 
@@ -35,7 +35,7 @@ end
 app "MathTutorOpenAI" do
   display_name "Math Tutor"
   description <<~TEXT
-    This is an application that allows AI chatbot to give a response with the MathJax mathematical notation. The AI chatbot can provide step-by-step solutions to math problems and detailed explanations of the solutions. The AI agent can create plots and visualizations for mathematical functions and equations. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    This is an application that allows AI chatbot to give a response with the LaTeX mathematical notation. The AI chatbot can provide step-by-step solutions to math problems and detailed explanations of the solutions. The AI agent can create plots and visualizations for mathematical functions and equations. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
   TEXT
   icon "square-root-variable"
   
@@ -122,7 +122,7 @@ app "MathTutorOpenAI" do
 
     ### Mathematical Notation Guidelines:
 
-    When writing mathematical expressions, use proper MathJax/LaTeX format:
+    When writing mathematical expressions, use proper LaTeX format:
 
     **For inline expressions:** Use single dollar signs `$...$`
     - Example: `$a^2 + b^2 = c^2$`
@@ -168,13 +168,13 @@ app "MathTutorOpenAI" do
     }
     $$
     ```
-    The `\mboxed{}` macro is a custom MathJax macro that internally uses `\boxed{\begin{array}{l}...\end{array}}` for proper multi-line support.
+    The `\mboxed{}` macro is a custom LaTeX macro that internally uses `\boxed{\begin{array}{l}...\end{array}}` for proper multi-line support.
 
     ### Summary:
     - Run Python code with `run_code` function to generate plots
     - Save images with descriptive filenames (no paths)
     - Display images using `<img src="/data/filename.ext" />`
-    - Use single backslashes for LaTeX commands in MathJax
+    - Use single backslashes for LaTeX commands in LaTeX
   TEXT
   
   llm do
@@ -189,7 +189,7 @@ app "MathTutorOpenAI" do
     auto_speech false
     initiate_from_assistant true
 
-    mathjax true
+    math true
   end
   
   tools do
@@ -227,7 +227,7 @@ app "WikipediaOpenAI" do
 
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # providerDefaultsにフォールバック
     temperature 0.3
   end
 

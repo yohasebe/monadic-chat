@@ -225,8 +225,8 @@
     <!-- Custom CSS in monadic.css uses @layer to override Bootstrap without !important -->
     <link rel="stylesheet" href="css/vendor-layers.css?timestamp=<%= @timestamp %>">
 
-    <!-- jQuery UI CSS (local or CDN) -->
-    <link rel="stylesheet" href="vendor/css/jquery-ui.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.1/themes/base/jquery-ui.min.css';this.integrity='sha512-TFee0335YRJoyiqz8hA8KV3P0tXa5CpRBSoM0Wnkn7JoJx1kaq1yXL/rb8YFpWXkMOjRcv5txv+C6UluttluCQ==';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';">
+    <!-- KaTeX CSS (local or CDN) -->
+    <link rel="stylesheet" href="vendor/css/katex.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css';">
 
     <!-- Font Awesome CSS (local or CDN) -->
     <link rel="stylesheet" href="vendor/css/all.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';this.integrity='sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';">
@@ -285,8 +285,12 @@
         <div class="container-fluid pt-0 p-3" id="contents">
       <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
         <div id="menu" class="col-md-4 order-md-2 scrollable">
-          <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class="pb-2 mb-1"><span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span></h5>
+          <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#monadic-info-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="monadic-info-panel-body" class="collapse show px-3 pb-3">
             <div class="mb-3 flex-container-wrap">
               <div id="monadic-homepage">
                 <% if @debug_mode %>
@@ -324,11 +328,15 @@
               <div id="base-app-title" class="ms-2 like-h5"></div>
             </div>
             <div id="base-app-desc" class="mt-2 mb-1"></div>
+            </div><!-- end #monadic-info-panel-body -->
           </div>
 
-          <div id="ai-status-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5><span class="text" data-i18n="ui.aiAssistantAndUser"><i class="fa-solid fa-robot"></i> AI Assistant & AI User</span></h5>
-
+          <div id="ai-status-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#ai-status-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.aiAssistantAndUser"><i class="fa-solid fa-robot"></i> AI Assistant & AI User</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="ai-status-panel-body" class="collapse show px-3 pb-3">
             <div class="mt-3 text">
               <div class="mb-1">
                 <div><span class="me-2 assistant-color fw-bold" data-i18n="ui.aiAssistant">AI Assistant</span></div>
@@ -344,10 +352,15 @@
             <div class="mb-2"></div>
             <h5><span class="text" data-i18n="ui.statistics"><i class="fas fa-chart-line"></i> Statistics</span></h5>
             <div id="stats-message" class="mt-3 text" data-i18n="ui.noDataAvailable">No data available</div>
+            </div><!-- end #ai-status-panel-body -->
           </div>
 
-          <div id="pdf-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
-            <h5 class="pb-2"><span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span></h5>
+          <div id="pdf-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display: none;">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#pdf-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="pdf-panel-body" class="collapse show px-3 pb-3">
             <div id="local-pdf-section">
               <div class="like-h6"><i class="fas fa-database"></i> Local PDF (PGVector) <small class="text-muted" id="local-pdf-info"></small></div>
               <div class="d-flex gap-2 flex-wrap mt-2">
@@ -369,15 +382,20 @@
               <div id="cloud-pdf-list" class="mt-2"></div>
               <div id="cloud-pdf-meta" class="mt-1 text-muted small"></div>
             </div>
+            </div><!-- end #pdf-panel-body -->
           </div>
 
-          <div id="context-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
-            <h5 class="d-flex align-items-center">
+          <div id="context-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display: none;">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#context-panel-body" aria-expanded="true">
               <span class="text flex-grow-1" data-i18n="ui.sessionContext"><i class="fas fa-brain"></i> Session Context</span>
-              <button class="btn btn-sm btn-link p-0" id="context-toggle-all" title="Toggle all sections">
-                <i class="fas fa-chevron-down"></i>
-              </button>
+              <span class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-link p-0" id="context-toggle-all" title="Toggle all sections" onclick="event.stopPropagation()">
+                  <i class="fas fa-arrows-up-down"></i>
+                </button>
+                <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+              </span>
             </h5>
+            <div id="context-panel-body" class="collapse show px-3 pb-3">
             <div class="text-muted small mb-2 d-flex align-items-center gap-2" id="context-legend" style="display: none;">
               <span data-i18n="ui.contextTurnLegend">T = Turn</span>
               <span class="badge bg-secondary" id="context-turn-badge" title="Total turns">0</span>
@@ -393,10 +411,15 @@
                 Cancel
               </button>
             </div>
+            </div><!-- end #context-panel-body -->
           </div>
 
-          <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text" data-i18n="ui.sessionLabel"><i class="fas fa-sliders"></i> Session Controls</span></h5>
+          <div id="control-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#control-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.sessionLabel"><i class="fas fa-sliders"></i> Session Controls</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="control-panel-body" class="collapse show px-3 pb-3">
             <div class="session-buttons d-flex align-items-center flex-wrap">
               <button class="btn btn-sm btn-warning" id="reset" title="Reset Conversation" data-i18n="ui.reset"><i class="fas fa-stop" ></i> Reset</button>
               <button class="btn btn-sm btn-secondary" id="load" title="Import conversation from file" data-i18n="ui.import"><i class="fas fa-file-import"></i> Import</button>
@@ -405,20 +428,54 @@
             </div>
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.resetDescription"> Press "Reset" to clear conversation and reset parameters to defaults while keeping current app selection.</div>
+            </div><!-- end #control-panel-body -->
           </div>
 
-          <div id="theme-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text" data-i18n="ui.theme"><i class="fas fa-palette"></i> Theme</span></h5>
+          <div id="theme-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#theme-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.theme"><i class="fas fa-palette"></i> Theme</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="theme-panel-body" class="collapse show px-3 pb-3">
             <div class="theme-buttons d-flex align-items-center flex-wrap gap-2">
               <button class="btn btn-sm btn-secondary" id="theme-system" title="Follow system theme preference" data-i18n="ui.themeSystem"><i class="fas fa-desktop"></i> System</button>
               <button class="btn btn-sm btn-secondary" id="theme-light" title="Use light theme" data-i18n="ui.themeLight"><i class="fas fa-sun"></i> Light</button>
               <button class="btn btn-sm btn-secondary" id="theme-dark" title="Use dark theme" data-i18n="ui.themeDark"><i class="fas fa-moon"></i> Dark</button>
             </div>
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.themeDescription">Select your preferred color theme or follow system settings.</div>
+            </div><!-- end #theme-panel-body -->
           </div>
 
-          <div id="voice-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text" data-i18n="ui.speech"><i class="fas fa-comment-dots"></i> Speech</span></h5>
+          <div id="interaction-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#interaction-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.interactionControls"><i class="fas fa-hand-pointer"></i> Interaction</span>
+              <span class="d-flex align-items-center gap-2">
+                <span id="interaction-toggle-all" class="btn btn-sm btn-secondary" data-i18n="ui.toggleAll" onclick="event.stopPropagation()">toggle all</span>
+                <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+              </span>
+            </h5>
+            <div id="interaction-panel-body" class="collapse show px-3 pb-3">
+            <div class="form-check form-switch mb-2" id="auto-speech-form">
+              <input class="form-check-input" type="checkbox" id="check-auto-speech">
+              <label class="form-check-label" for="check-auto-speech" data-i18n="ui.autoSpeech">Auto speech</label>
+            </div>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="check-easy-submit">
+              <label class="form-check-label" for="check-easy-submit"><span data-i18n="ui.easySubmit">Easy submit</span> <small data-i18n="ui.easySubmitHint">(with Enter key or Stop button)</small></label>
+            </div>
+            <div class="form-check form-switch" id="config-auto-scroll">
+              <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
+              <label class="form-check-label" for="auto-scroll-toggle" data-i18n="ui.autoScroll">Auto scroll while streaming</label>
+            </div>
+            </div><!-- end #interaction-panel-body -->
+          </div>
+
+          <div id="voice-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#voice-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.speech"><i class="fas fa-comment-dots"></i> Speech</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="voice-panel-body" class="collapse show px-3 pb-3">
 
             <div class="my-1">
               <label for="stt-model" class="div-label my-2" data-i18n="ui.speechToTextModel">Speech-to-Text Model</label>
@@ -431,6 +488,8 @@
                 <option id="elevenlabs-stt-scribe-v2" value="scribe_v2" disabled>ElevenLabs Scribe v2</option>
                 <option id="elevenlabs-stt-scribe" value="scribe_v1" disabled>ElevenLabs Scribe v1</option>
                 <option id="elevenlabs-stt-scribe-experimental" value="scribe_v1_experimental" disabled>ElevenLabs Scribe v1 (Experimental)</option>
+                <option id="cohere-stt-transcribe" value="cohere-transcribe-03-2026" disabled>Cohere Transcribe</option>
+                <option id="mistral-stt-voxtral" value="voxtral-mini-transcribe-2507" disabled>Mistral Voxtral Transcribe</option>
               </select>
             </div>
 
@@ -445,7 +504,15 @@
                 <option id="elevenlabs-v3-provider-option" value="elevenlabs-v3" disabled>ElevenLabs (v3)</option>
                 <option id="gemini-flash-provider-option" value="gemini-flash" disabled>Gemini (Flash TTS)</option>
                 <option id="gemini-pro-provider-option" value="gemini-pro" disabled>Gemini (Pro TTS)</option>
+                <option id="mistral-tts-provider-option" value="mistral" disabled>Mistral (Voxtral TTS)</option>
                 <option id="webspeech-provider-option" value="webspeech" selected>Web Speech API</option>
+              </select>
+            </div>
+
+            <div id="mistral-voices" class="my-1" style="display: none;">
+              <label for="mistral-tts-voice" class="div-label my-2">Mistral Text-to-Speech Voice</label>
+              <select class="form-select form-select-sm" id="mistral-tts-voice">
+                <!-- Voices populated by JavaScript from websocket mistral_voices message -->
               </select>
             </div>
 
@@ -515,11 +582,12 @@
               </select>
             </div>
 
-            <div class="my-1">
+            <div class="my-1" id="tts-speed-container">
               <label for="tts-speed" class="div-label my-2" data-i18n="ui.ttsSpeed">TTS Speed (<span id="tts-speed-value">1.00</span>)</label><br />
               <input type="range" class="div-range" min="0.70" max="1.20" step="0.01" value="1.00" id="tts-speed">
             </div>
 
+            </div><!-- end #voice-panel-body -->
           </div>
 
           <div class="mx-2 me-1 flex-end">
@@ -530,6 +598,21 @@
         </div>
 
         <div id="main" class="col-md-8 order-md-1 scrollable">
+          <div id="config-wrapper">
+          <!-- Config Summary Bar (visible when collapsed, hidden initially) -->
+          <div id="config-summary" class="rounded p-2 px-3 shaded-panel mb-2" style="display:none; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#config-body" aria-expanded="false" aria-controls="config-body">
+            <div class="d-flex align-items-center">
+              <span id="summary-app-icon" class="me-2"></span>
+              <span id="summary-app-name" class="fw-semibold me-2"></span>
+              <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
+            </div>
+            <div class="d-flex align-items-center mt-1" style="font-size: 0.85em;">
+              <span id="summary-model-name" class="text-secondary me-2"></span>
+              <span id="summary-indicators"></span>
+            </div>
+          </div>
+
+          <div id="config-body" class="collapse show">
           <div id="config" class="rounded p-3 shaded-panel">
             <h5 class="pb-0 panel-section-header"><span class="text" data-i18n="ui.systemSettings"><i class="fa-solid fa-bars"></i> System Settings</span></h5>
 
@@ -546,7 +629,7 @@
                     </select>
                     <div id="app-select-overlay" class="app-select-overlay"></div>
                   </div>
-                  <div id="custom-apps-dropdown">
+                  <div id="custom-apps-dropdown" style="display: none;">
                     <!-- Options will be inserted here by JavaScript -->
                   </div>
                 </div>
@@ -570,20 +653,26 @@
 
             <form class="row my-3" id="model_and_file">
               <div class="col-5">
-                <label for="model" class="form-label text-nowrap" data-i18n="ui.model">Model</label>
+                <div class="d-flex align-items-center">
+                  <label for="model" class="form-label text-nowrap mb-0" data-i18n="ui.model">Model</label>
+                  <div class="form-check form-switch ms-auto mb-0">
+                    <input class="form-check-input" type="checkbox" id="show-all-models">
+                    <label class="form-check-label small" for="show-all-models" data-i18n="ui.showAllModels">All</label>
+                  </div>
+                </div>
                 <select class="form-select form-select-sm me-3" size="1" id="model" ></select>
               </div>
 
               <div class="col-auto ms-2">
-                <label class="form-label text-nowrap" for="reasoning-effort" data-i18n="ui.reasoningEffort">Reasoning Effort</label>
-                <div class="d-flex align-items-center gap-2">
-                  <select class="form-select form-select-sm" id="reasoning-effort">
-                    <option value="minimal">minimal</option>
-                    <option value="low">low</option>
-                    <option value="medium" selected>medium</option>
-                    <option value="high">high</option>
-                  </select>
+                <div class="d-flex align-items-center" style="min-height: 1.5rem;">
+                  <label class="form-label text-nowrap mb-0" for="reasoning-effort" data-i18n="ui.reasoningEffort">Reasoning Effort</label>
                 </div>
+                <select class="form-select form-select-sm" id="reasoning-effort">
+                  <option value="minimal">minimal</option>
+                  <option value="low">low</option>
+                  <option value="medium" selected>medium</option>
+                  <option value="high">high</option>
+                </select>
               </div>
             </form>
 
@@ -608,78 +697,54 @@
             </form>
 
             <div class="row my-3">
-              <div id="config-initial-prompt" class="">
-                <button type="button" class="btn btn-sm btn-outline-secondary me-3" id="initial-prompt-toggle" title="Toggle initial prompt visibility">
-                  <i class="fas fa-chevron-down" id="initial-prompt-icon"></i>
-                  <span data-i18n="ui.initialPromptAssistant">Initial Prompt for Assistant</span>
-                </button>
-                <div class="form-check form-switch form-switch-inline me-3">
-                  <label class="form-check-label" for="prompt-caching" data-i18n="ui.promptCaching">Prompt Caching</label>
-                  <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
+              <div id="config-prompts">
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary text-start" id="prompt-toggle-assistant">
+                    <i class="fas fa-chevron-right" id="prompt-icon-assistant"></i>
+                    <span data-i18n="ui.initialPromptAssistant">Initial Prompt for AI Assistant</span>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary text-start" id="prompt-toggle-aiuser">
+                    <i class="fas fa-chevron-right" id="prompt-icon-aiuser"></i>
+                    <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
+                  </button>
                 </div>
-                <div class="form-check form-switch form-switch-inline me-3">
+                <textarea class="form-control form-control-sm textarea-resizable" id="initial-prompt" style="display: none;"></textarea>
+                <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt" style="display: none;"></textarea>
+              </div>
+            </div>
+
+            <div class="row my-3">
+              <div class="d-flex align-items-center flex-wrap gap-3">
+                <div class="form-check form-switch form-switch-inline">
                   <label class="form-check-label" for="websearch" data-i18n="ui.webSearch">Web Search</label>
                   <input class="form-check-input" type="checkbox" id="websearch">
                 </div>
-
-                <textarea class="form-control form-control-sm textarea-resizable" id="initial-prompt"></textarea>
-              </div>
-            </div>
-
-            <div class="row my-3">
-              <div id="config-ai-user-initial-prompt" class="">
-                <button type="button" class="btn btn-sm btn-outline-secondary me-3" id="ai-user-initial-prompt-toggle" title="Toggle AI User initial prompt visibility">
-                  <i class="fas fa-chevron-down" id="ai-user-initial-prompt-icon"></i>
-                  <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
-                </button>
-                <div class="form-check form-switch form-switch-inline me-3">
+                <div class="form-check form-switch form-switch-inline" id="thinking-display-container" style="display: none;">
+                  <label class="form-check-label" for="show-thinking" data-i18n="ui.showThinking">Show Thinking</label>
+                  <input class="form-check-input" type="checkbox" id="show-thinking" checked>
+                </div>
+                <div class="form-check form-switch form-switch-inline">
                   <label class="form-check-label" for="initiate-from-assistant" data-i18n="ui.startFromAssistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
                 </div>
-                <div class="form-check form-switch form-switch-inline me-3">
-                  <label class="form-check-label" for="mathjax" data-i18n="ui.mathRendering">Math Rendering</label>
-                  <input class="form-check-input" type="checkbox" id="mathjax">
-                </div>
-                <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt"></textarea>
-              </div>
-            </div>
-
-            <div class="row my-3 align-items-center">
-              <div class="col-12">
-                <fieldset>
-                  <legend data-i18n="ui.voiceConversationControls">Voice Conversation Interaction Controls
-                    <span id="interaction-toggle-all" class="btn btn-sm btn-secondary" data-i18n="ui.toggleAll">toggle all</span>
-                  </legend>
-                  <div class="form-check form-switch float-start me-3" id="auto-speech-form">
-                    <input class="form-check-input" type="checkbox" id="check-auto-speech">
-                    <label class="form-check-label" for="check-auto-speech" data-i18n="ui.autoSpeech">Auto speech</label>
-                  </div>
-                  <div class="form-check form-switch float-start me-3">
-                    <input class="form-check-input" type="checkbox" id="check-easy-submit">
-                    <label class="form-check-label" for="check-easy-submit"><span data-i18n="ui.easySubmit">Easy submit</span> <small data-i18n="ui.easySubmitHint">(with Enter key or Stop button)</small></label>
-                  </div>
-                </fieldset>
-              </div>
-            </div>
-
-            <div class="row my-3">
-              <div id="config-auto-scroll" class="">
-                <div class="form-check form-switch">
-                  <label class="form-check-label" for="auto-scroll-toggle" data-i18n="ui.autoScroll">Auto scroll while streaming</label>
-                  <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
+                <div class="form-check form-switch form-switch-inline">
+                  <label class="form-check-label" for="math" data-i18n="ui.mathRendering">Math Rendering</label>
+                  <input class="form-check-input" type="checkbox" id="math">
                 </div>
               </div>
             </div>
 
 
-            <div class="row mt-3">
-              <div class="col-2">
-                <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
-              </div>
-            </div>
           </div>
+          </div><!-- end #config-body -->
 
-          <div id="main-panel" class="rounded p-3 shaded-panel" style="display: none;">
+          <!-- Start button (outside collapse, always visible until session starts) -->
+          <div id="config-actions" class="mt-2 mb-2">
+            <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
+          </div>
+          </div><!-- end #config-wrapper -->
+
+          <div id="main-panel" class="rounded p-3 shaded-panel d-none">
             <h5 class="pb-0 mb-0 panel-section-header"><span class="text" data-i18n="ui.dialog"><i class="fas fa-comments"></i> Dialog</span></h5>
             <!-- Workflow Viewer Panel -->
             <div id="workflow-viewer-panel" class="wv-panel-collapsed">
@@ -735,8 +800,8 @@
                 <div class="col-auto">
                   <div class="d-flex align-items-center flex-wrap">
                     <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
-                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> From file</button>
-                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> From URL</button>
+                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
+                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>
                     <button id="audio-upload" class="btn btn-sm btn-warning text-nowrap me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>
@@ -799,7 +864,6 @@
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-sm btn-primary me-2" title="Send message to AI assistant" data-i18n="ui.send"><i class="fas fa-paper-plane"></i> Send</button>
                     <button id="clear" class="btn btn-sm btn-secondary me-2" title="Clear text in input field" data-i18n="ui.clear"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="settings" class="btn btn-sm btn-secondary me-2" title="Show system settings panel" data-i18n="ui.settings"><i class="fas fa-bars"></i>&nbsp;Settings</button>
                   </div>
                   <div class="mt-2 ms-1 textbox-caption">
                     <span data-i18n="ui.pressToSend">Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
@@ -1029,16 +1093,41 @@
           <div class="modal-body">
             <label for="imageFile" class="form-label" data-i18n="ui.modals.fileToImportLabel">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>
             <input class="form-control form-control-sm" id="imageFile" type="file" name="imageFile" accept=".pdf,.jpg,.jpeg,.png,.gif">
+            <div id="url-input-section" style="display: none;">
+              <hr class="my-2">
+              <label for="imageUrlInput" class="form-label" data-i18n="ui.modals.fileUrlLabel">Or enter file URL</label>
+              <div class="input-group input-group-sm">
+                <input type="url" class="form-control" id="imageUrlInput" placeholder="https://...">
+                <button class="btn btn-outline-primary" id="addUrlFile" type="button" data-i18n="ui.add">Add</button>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <div id="select_image_error" class="size-error text-warning mb-2"></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.done">Done</button>
             <button type="submit" id="uploadImage" value="image" class="btn btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
           </div>
         </div>
       </div>
     </div>
+    <!-- Screenshot Lightbox Modal -->
+    <div class="modal fade" id="screenshotLightbox" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 95vw;">
+        <div class="modal-content" style="background: transparent; border: none; box-shadow: none;">
+          <div class="modal-body p-0 text-center position-relative">
+            <div id="lightboxContainer" style="display: inline-block; position: relative;">
+              <img id="lightboxImage" src="" alt="Screenshot" style="max-width: 95vw; max-height: 85vh; object-fit: contain; cursor: pointer; border-radius: 4px;">
+            </div>
+            <div id="lightboxCounter" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;"></div>
+            <button id="lightboxPrev" class="btn btn-sm" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&lsaquo;</button>
+            <button id="lightboxNext" class="btn btn-sm" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&rsaquo;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- FontAwesome Spinner `#spinner i`-->
-    <div id="monadic-spinner">
+    <div id="monadic-spinner" style="display: none;">
       <span data-i18n="ui.messages.spinnerStarting"><i class="fas fa-comment fa-pulse"></i> Starting</span>
     </div>
 
@@ -1046,37 +1135,33 @@
     <!-- Bootstrap JS (local or CDN) -->
     <script src="vendor/js/bootstrap.bundle.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js';this.integrity='sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI';this.crossOrigin='anonymous';"></script>
 
-    <!-- jQuery (local or CDN) -->
-    <script src="vendor/js/jquery.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js';this.integrity='sha512-3gJwYpMe3QewGELv8k/BX9vcqhryRdzRMxVfq6ngyWXwo03GFEzjsUm8Q7RZcHPHksttq7/GFoxjCVUjkjvPdw==';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
-
-    <!-- jQuery UI (local or CDN) -->
-    <script src="vendor/js/jquery-ui.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.1/jquery-ui.min.js';this.integrity='sha512-MSOo1aY+3pXCOCdGAYoBZ6YGI0aragoQsg1mKKBHXCYPIWxamwOE7Drh+N5CPgGI5SA9IEKJiPjdfqWFWmZtRA==';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
-
     <!-- Opus Media Recorder (local or CDN) -->
     <script src="vendor/js/OpusMediaRecorder.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js';"></script>
     <script src="vendor/js/encoderWorker.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js';"></script>
 
-    <script src="js/mathjax-config.js"></script>
-    <!-- MathJax (local or CDN) -->
-    <script src="vendor/js/tex-mml-chtml.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+    <!-- KaTeX (local or CDN) -->
+    <script>
+      // Temporarily hide module/exports to prevent KaTeX UMD from using CommonJS path
+      var _savedModule = typeof module !== 'undefined' ? module : undefined;
+      var _savedExports = typeof exports !== 'undefined' ? exports : undefined;
+      if (typeof module !== 'undefined') { module = undefined; }
+      if (typeof exports !== 'undefined') { exports = undefined; }
+    </script>
+    <script src="vendor/js/katex.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js';"></script>
+    <script>
+      // Restore module/exports after KaTeX has loaded as browser global
+      if (typeof _savedModule !== 'undefined') { module = _savedModule; }
+      if (typeof _savedExports !== 'undefined') { exports = _savedExports; }
+    </script>
     
-    <!-- Mermaid (local or CDN) -->
-    <script src="vendor/js/mermaid.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';"></script>
-
-    <!-- ABC.js (local or CDN) -->
-    <script src="vendor/js/abcjs-basic-min.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js';"></script>
-
-    <!-- markdown-it (local or CDN) -->
+    <!-- markdown-it (local or CDN) — always needed for message rendering -->
     <script src="vendor/js/markdown-it.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
 
-    <!-- highlight.js (local or CDN) -->
+    <!-- highlight.js (local or CDN) — always needed for code blocks -->
     <script src="vendor/js/highlight.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
 
-    <!-- maxGraph (bundled IIFE, no CDN fallback) -->
-    <script src="vendor/js/maxgraph.bundle.js"></script>
-
-    <!-- Debug configuration - must be loaded before all other scripts -->
-    <script src="js/debug-config.js?timestamp=<%= @timestamp %>"></script>
+    <!-- Mermaid (~2.5 MB), ABCjs (~472 KB), maxGraph (~608 KB) are lazy-loaded -->
+    <!-- on first use via LazyLoader. See js/monadic/lazy-loader.js -->
 
     <!-- Pass server configuration to frontend -->
     <script>
@@ -1084,52 +1169,10 @@
       window.AUTO_TTS_REALTIME_MODE = <%= CONFIG["AUTO_TTS_REALTIME_MODE"] || false %>;
     </script>
 
-    <!-- Client-side rendering utilities (must be loaded before websocket.js) -->
-    <script src="js/monadic/syntax-highlight.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/markdown-renderer.js?timestamp=<%= @timestamp %>"></script>
-
-    <script src="js/monadic/storage-helper.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/theme-manager.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/theme-ui.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/status-config.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/reasoning-mapper.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/reasoning-labels.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/reasoning-ui-manager.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/model_loader.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/version-utils.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/session_state.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/model_utils.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/utilities.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/shims.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ui-config.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ui-state.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/error-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/dom-cache.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ui-utilities.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/context-panel.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/workflow-viewer.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/form-handlers.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-audio-constants.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-content-renderer.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-auto-speech.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-audio-playback.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-audio-queue.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-ui-helpers.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/websocket-handlers.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/websocket.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/websearch_tavily_check.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/tts.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/recording.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/select_image.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/mask_editor.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/syntax-theme-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/i18n/translations.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/pdf_export.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/utilities_websearch_patch.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic-improvements.js?timestamp=<%= @timestamp %>"></script>
+    <!-- Bundled application scripts (68 modules, minified) -->
+    <!-- Source files in js/monadic/ are kept for development and testing -->
+    <!-- Rebuild with: npm run build:js -->
+    <script src="js/monadic.bundle.min.js?timestamp=<%= @timestamp %>"></script>
     
     <!-- Make sure clipboard operations work in DevTools -->
     <script>
@@ -1144,10 +1187,10 @@
     <!-- No inline styles - all styles moved to monadic.css -->
     
     <!-- Scroll buttons - outside main container for proper floating -->
-    <div id="back_to_bottom" role="button" aria-label="Scroll to bottom" tabindex="0">
+    <div id="back_to_bottom" role="button" aria-label="Scroll to bottom" tabindex="0" style="display: none;">
       <a href="#" aria-hidden="true"><i class="fas fa-arrow-down"></i></a>
     </div>
-    <div id="back_to_top" role="button" aria-label="Scroll to top" tabindex="0">
+    <div id="back_to_top" role="button" aria-label="Scroll to top" tabindex="0" style="display: none;">
       <a href="#" aria-hidden="true"><i class="fas fa-arrow-up"></i></a>
     </div>
 

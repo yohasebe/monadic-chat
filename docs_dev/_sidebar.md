@@ -44,6 +44,8 @@
 
 * 🔌 External APIs
   * [External API Integration](external_apis/)
+  * [Ollama Dynamic Capabilities](ollama_dynamic_capabilities.md)
+  * [Ollama Tool Calling History](ollama_tool_calling_history.md)
 
 * 🖥️ Electron
   * [Electron Paths](electron-paths.md)

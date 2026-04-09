@@ -43,7 +43,7 @@ function renderThinkingBlock(thinkingContent, title = null) {
  * @param {string} blockId - The ID of the thinking block to toggle
  */
 function toggleThinkingBlock(blockId) {
-  const block = document.getElementById(blockId);
+  const block = $id(blockId);
   if (!block) return;
 
   const content = block.querySelector('.thinking-block-content');
@@ -131,33 +131,36 @@ function handleFragmentWithAudio(data, processAudio) {
           if (data.fragment.type === 'fragment') {
             const text = data.fragment.content || '';
             // Create or clear the temp-card for streaming
-            if (!$("#temp-card").length) {
+            if (!$id("temp-card")) {
               // Create a new temporary card for streaming text
-              const tempCard = $(`
-                <div id="temp-card" class="card mt-3 streaming-card">
-                  <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-                    <div class="fs-5 card-title mb-0">
-                      <span class="card-role-icon"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+              const discourse = $id("discourse");
+              if (discourse) {
+                discourse.insertAdjacentHTML('beforeend', `
+                  <div id="temp-card" class="card mt-3 streaming-card">
+                    <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
+                      <div class="fs-5 card-title mb-0">
+                        <span class="card-role-icon"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+                      </div>
+                    </div>
+                    <div class="card-body role-assistant">
+                      <div class="card-text"></div>
                     </div>
                   </div>
-                  <div class="card-body role-assistant">
-                    <div class="card-text"></div>
-                  </div>
-                </div>
-              `);
-              $("#discourse").append(tempCard);
+                `);
+              }
             } else if (data.fragment.start === true || data.fragment.is_first === true) {
               // If this is marked as the first fragment of a streaming response, clear the existing content
-              $("#temp-card .card-text").empty();
+              const existingText = document.querySelector("#temp-card .card-text");
+              if (existingText) existingText.innerHTML = '';
             }
-            
+
             // Add text to the temporary card
-            const tempText = $("#temp-card .card-text");
-            if (tempText.length) {
+            const tempTextEl = document.querySelector("#temp-card .card-text");
+            if (tempTextEl) {
               // Use DocumentFragment for efficient DOM manipulation while preserving newlines
               const docFrag = document.createDocumentFragment();
               const lines = text.split('\n');
-              
+
               lines.forEach((line, index) => {
                 // Add line break for all lines except the first
                 if (index > 0) {
@@ -168,12 +171,12 @@ function handleFragmentWithAudio(data, processAudio) {
                   docFrag.appendChild(document.createTextNode(line));
                 }
               });
-              
+
               // Append all at once for better performance
-              tempText[0].appendChild(docFrag);
+              tempTextEl.appendChild(docFrag);
             } else {
               // Basic fallback - append to some container if available
-              const streamingContainer = document.getElementById('streaming-container');
+              const streamingContainer = $id('streaming-container');
               if (streamingContainer) {
                 streamingContainer.textContent += text;
               }
@@ -207,7 +210,7 @@ function handleFragmentWithAudio(data, processAudio) {
             const utterance = new SpeechSynthesisUtterance(text);
             
             // Get voice settings from UI
-            const voiceElement = document.getElementById('webspeech-voice');
+            const voiceElement = $id('webspeech-voice');
             if (voiceElement && voiceElement.value) {
               // Find the matching voice object
               const selectedVoice = window.speechSynthesis.getVoices().find(v => 
@@ -219,7 +222,7 @@ function handleFragmentWithAudio(data, processAudio) {
             }
             
             // Get speed setting
-            const speedElement = document.getElementById('tts-speed');
+            const speedElement = $id('tts-speed');
             if (speedElement && speedElement.value) {
               utterance.rate = parseFloat(speedElement.value) || 1.0;
             }
@@ -307,8 +310,10 @@ function handleFragmentWithAudio(data, processAudio) {
  */
 function handleTokenVerification(data) {
   if (data && data.type === 'token_verified') {
-    $('#api-token').val(data.token);
-    $('#ai-user-initial-prompt').val(data.ai_user_initial_prompt);
+    const apiTokenEl = $id('api-token');
+    if (apiTokenEl) apiTokenEl.value = data.token;
+    const aiUserPromptEl = $id('ai-user-initial-prompt');
+    if (aiUserPromptEl) aiUserPromptEl.value = data.ai_user_initial_prompt;
     
     // Don't show "Ready for input" immediately after token verification
     // The actual ready state will be set when processing is complete
@@ -327,9 +332,15 @@ function handleTokenVerification(data) {
 function handleErrorMessage(data) {
   if (data && data.type === 'error') {
     // First enable all basic controls
-    $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
-    $('#message').show();
-    $('#message').prop('disabled', false);
+    ['send', 'clear', 'image-file', 'voice', 'doc', 'url'].forEach(id => {
+      const el = $id(id);
+      if (el) el.disabled = false;
+    });
+    const messageEl = $id('message');
+    if (messageEl) {
+      $show(messageEl);
+      messageEl.disabled = false;
+    }
 
     // On error, set both flags to true to ensure spinner hides
     if (typeof window.setTextResponseCompleted === 'function') {
@@ -341,46 +352,48 @@ function handleErrorMessage(data) {
     if (typeof window.checkAndHideSpinner === 'function') {
       window.checkAndHideSpinner();
     } else {
-      $('#monadic-spinner').hide();
+      const spinnerEl = $id('monadic-spinner');
+      $hide(spinnerEl);
     }
-    
+
     // Special handling for AI User errors (critical for Perplexity)
     const isAIUserError = data.content && data.content.toString().includes("AI User error");
     if (isAIUserError) {
-      // Explicitly re-enable the AI User button 
-      $('#ai_user').prop('disabled', false);
+      // Explicitly re-enable the AI User button
+      const aiUserEl = $id('ai_user');
+      if (aiUserEl) aiUserEl.disabled = false;
     }
-    
+
     // Create error card with System header (same as system_info)
-    // Use jQuery's text() method to properly escape the content
-    const $errorDiv = $('<div class="error-message"><i class="fas fa-exclamation-circle"></i> </div>');
-    
-    // Handle both string and object error content
+    // Properly escape the content to prevent XSS
     let errorContent = data.content;
     if (typeof errorContent === 'object' && errorContent !== null) {
       // Extract error message from object
       errorContent = errorContent.message || errorContent.error || JSON.stringify(errorContent);
     }
-    
-    $errorDiv.append($('<span>').text(errorContent));
-    
-    const errorElement = createCard("system", 
-      "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
-      $errorDiv[0].outerHTML, 
-      "en", 
-      null, 
-      true, 
+
+    const errorSpan = document.createElement('span');
+    errorSpan.textContent = errorContent;
+    const errorDivHtml = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> ${errorSpan.outerHTML}</div>`;
+
+    const errorElement = createCard("system",
+      "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
+      errorDivHtml,
+      "en",
+      null,
+      true,
       []
     );
-    $("#discourse").append(errorElement);
+    const discourseEl = $id("discourse");
+    if (discourseEl && errorElement) discourseEl.appendChild(errorElement);
     
     // Don't call setAlert here as we've already created the error card
     // This prevents duplicate error messages
     
     // Auto-scroll if enabled
     if (autoScroll) {
-      const chatBottom = document.getElementById('chat-bottom');
-      if (!isElementInViewport(chatBottom)) {
+      const chatBottom = $id('chat-bottom');
+      if (chatBottom && !isElementInViewport(chatBottom)) {
         chatBottom.scrollIntoView(false);
       }
     }
@@ -539,7 +552,8 @@ function handleHtmlMessage(data, createCardFunc) {
       // Create card if function is provided
       if (typeof createCardFunc === 'function') {
         // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
-        const turnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
+        const discourseEl = $id('discourse');
+        const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
         createCardFunc('assistant',
                      '<span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>',
                      finalHtml,
@@ -552,19 +566,29 @@ function handleHtmlMessage(data, createCardFunc) {
         // Remove temp-card AFTER the final card is created
         // This ensures smooth transition from streaming display to final card
         // (moreComing block will create a new temp-card if needed)
-        $('#temp-card').remove();
+        const tempCard = $id('temp-card');
+        if (tempCard) tempCard.remove();
       }
 
       // Note: Auto TTS highlighting is handled in processSequentialAudio()
       // when the first audio segment arrives, not here during card creation
 
-      // UI Updates
-      $('#message').show();
-      $('#message').val('');
-      $('#message').prop('disabled', false);
-      $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
-      $('#select-role').prop('disabled', false);
-      
+      // UI Updates — ensure user panel is visible (hidden during initiate_from_assistant)
+      const userPanelEl = $id('user-panel');
+      $show(userPanelEl);
+      const msgEl = $id('message');
+      if (msgEl) {
+        $show(msgEl);
+        msgEl.value = '';
+        msgEl.disabled = false;
+      }
+      ['send', 'clear', 'image-file', 'voice', 'doc', 'url'].forEach(id => {
+        const el = $id(id);
+        if (el) el.disabled = false;
+      });
+      const selectRoleEl = $id('select-role');
+      if (selectRoleEl) selectRoleEl.disabled = false;
+
       // Check if we should hide spinner - hide if not calling function OR if streaming is complete
       if (!window.callingFunction || window.streamingResponse) {
         // Mark text response as completed and check if we can hide spinner
@@ -575,10 +599,12 @@ function handleHtmlMessage(data, createCardFunc) {
           window.checkAndHideSpinner();
         } else {
           // Fallback if function not available
-          $('#monadic-spinner').hide();
+          const spinnerEl = $id('monadic-spinner');
+          $hide(spinnerEl);
         }
-        $('#cancel_query').hide();
-        
+        const cancelEl = $id('cancel_query');
+        $hide(cancelEl);
+
         // Reset streaming flag
         if (window.streamingResponse) {
           window.streamingResponse = false;
@@ -597,7 +623,8 @@ function handleHtmlMessage(data, createCardFunc) {
         }
       } else {
         // Keep spinner visible but update message
-        $('#monadic-spinner span').html('<i class="fas fa-cogs fa-pulse"></i> Processing tools');
+        const spinnerSpan = document.querySelector('#monadic-spinner span');
+        if (spinnerSpan) spinnerSpan.innerHTML = '<i class="fas fa-cogs fa-pulse"></i> Processing tools';
       }
 
       // If more content is coming (tool calls in progress), prepare for next streaming
@@ -618,32 +645,38 @@ function handleHtmlMessage(data, createCardFunc) {
         window._lastProcessedIndex = -1;
 
         // Remove any existing temp-card to avoid duplicates
-        $('#temp-card').remove();
+        const existingTempCard = $id('temp-card');
+        if (existingTempCard) existingTempCard.remove();
 
         // Create new temp-card for next streaming
-        const tempCard = $(`
-          <div id="temp-card" class="card mt-3 streaming-card">
-            <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-              <div class="fs-5 card-title mb-0">
-                <span class="card-role-icon"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+        const discourseForTemp = $id('discourse');
+        if (discourseForTemp) {
+          discourseForTemp.insertAdjacentHTML('beforeend', `
+            <div id="temp-card" class="card mt-3 streaming-card">
+              <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
+                <div class="fs-5 card-title mb-0">
+                  <span class="card-role-icon"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+                </div>
+              </div>
+              <div class="card-body role-assistant">
+                <div class="card-text"></div>
               </div>
             </div>
-            <div class="card-body role-assistant">
-              <div class="card-text"></div>
-            </div>
-          </div>
-        `);
-        $('#discourse').append(tempCard);
-        tempCard.show();
-        console.log('[handleHtmlMessage] temp-card created and shown, length:', $('#temp-card').length);
+          `);
+          const newTempCard = $id('temp-card');
+          $show(newTempCard);
+        }
+        console.log('[handleHtmlMessage] temp-card created and shown, length:', $id('temp-card') ? 1 : 0);
 
         // Show processing indicator
         const processingToolsText = typeof webUIi18n !== 'undefined'
           ? webUIi18n.t('ui.messages.spinnerProcessingTools')
           : 'Processing tools';
-        $('#monadic-spinner span').html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-        $('#monadic-spinner').show();
-        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+        const spinnerSpanEl = document.querySelector('#monadic-spinner span');
+        if (spinnerSpanEl) spinnerSpanEl.innerHTML = `<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`;
+        const spinnerForMore = $id('monadic-spinner');
+        $show(spinnerForMore);
+        $id('cancel_query').style.setProperty('display', 'flex', 'important');
       }
 
       return true;
@@ -670,9 +703,11 @@ function handleSampleSuccess(data) {
     if (typeof window.checkAndHideSpinner === 'function') {
       window.checkAndHideSpinner();
     } else {
-      $("#monadic-spinner").hide();
+      const spinnerEl = $id("monadic-spinner");
+      $hide(spinnerEl);
     }
-    $('#cancel_query').hide();
+    const cancelEl = $id('cancel_query');
+    $hide(cancelEl);
     
     // Show success alert
     const roleText = data.role === "user" ? "User" : 
@@ -695,43 +730,52 @@ function handleSampleSuccess(data) {
 function handleSTTMessage(data) {
   if (data && data.type === 'stt') {
     // Update message input with transcribed text
-    $('#message').val($('#message').val() + ' ' + data.content);
-    
+    const msgEl = $id('message');
+    if (msgEl) msgEl.value = (msgEl.value || '') + ' ' + data.content;
+
     // Update p-value display if logprob is available
     if (data.logprob !== undefined) {
-      $('#asr-p-value').text('Last Speech-to-Text p-value: ' + data.logprob);
+      const pValueEl = $id('asr-p-value');
+      if (pValueEl) pValueEl.textContent = 'Last Speech-to-Text p-value: ' + data.logprob;
     }
-    
+
     // Re-enable controls
-    $('#send, #clear, #voice').prop('disabled', false);
-    
+    ['send', 'clear', 'voice'].forEach(id => {
+      const el = $id(id);
+      if (el) el.disabled = false;
+    });
+
     // Hide the spinner now that speech recognition is complete
     // Use checkAndHideSpinner to respect Auto Speech mode
     if (typeof window.checkAndHideSpinner === 'function') {
       window.checkAndHideSpinner();
     } else {
-      $('#monadic-spinner').hide();
+      const spinnerEl = $id('monadic-spinner');
+      $hide(spinnerEl);
     }
-    
+
     // Auto submit if enabled
-    if ($('#check-easy-submit').is(':checked')) {
-      $('#send').click();
+    const easySubmitEl = $id('check-easy-submit');
+    if (easySubmitEl && easySubmitEl.checked) {
+      const sendEl = $id('send');
+      if (sendEl) sendEl.click();
     }
-    
+
     // Show success alert if function is available
     if (typeof setAlert === 'function') {
       const voiceMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.voiceRecognitionFinished') : 'Voice recognition finished';
       setAlert(`<i class="fa-solid fa-circle-check"></i> ${voiceMsg}`, 'secondary');
     }
-    
+
     // Make sure amplitude chart is hidden
-    $('#amplitude').hide();
-    
+    const amplitudeEl = $id('amplitude');
+    $hide(amplitudeEl);
+
     // Set focus back to input field if function is available
     if (typeof setInputFocus === 'function') {
       setInputFocus();
     }
-    
+
     return true;
   }
   return false;
@@ -746,24 +790,33 @@ function handleCancelMessage(data) {
   if (data && data.type === 'cancel') {
     // More comprehensive UI reset to ensure all elements are properly enabled
     // Reset input field state
-    $('#message').attr('placeholder', typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : 'Type your message...');
-    $('#message').prop('disabled', false);
-    
+    const msgEl = $id('message');
+    if (msgEl) {
+      msgEl.setAttribute('placeholder', typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : 'Type your message...');
+      msgEl.disabled = false;
+      $show(msgEl);
+    }
+
     // Re-enable all controls - include AI user button explicitly
-    $('#send, #clear, #image-file, #voice, #doc, #url, #ai_user').prop('disabled', false);
-    $('#select-role').prop('disabled', false);
-    $('#ai_user_provider').prop('disabled', false);
-    
+    ['send', 'clear', 'image-file', 'voice', 'doc', 'url', 'ai_user'].forEach(id => {
+      const el = $id(id);
+      if (el) el.disabled = false;
+    });
+    const selectRoleEl = $id('select-role');
+    if (selectRoleEl) selectRoleEl.disabled = false;
+    const aiUserProviderEl = $id('ai_user_provider');
+    if (aiUserProviderEl) aiUserProviderEl.disabled = false;
+
     // Hide cancel button
-    $('#cancel_query').hide();
-    
-    // Show message input and hide spinner
-    $('#message').show();
+    const cancelEl = $id('cancel_query');
+    $hide(cancelEl);
+
     // Use checkAndHideSpinner to respect Auto Speech mode
     if (typeof window.checkAndHideSpinner === 'function') {
       window.checkAndHideSpinner();
     } else {
-      $('#monadic-spinner').hide();
+      const spinnerEl = $id('monadic-spinner');
+      $hide(spinnerEl);
     }
     
     // Reset any flags that might be in an inconsistent state

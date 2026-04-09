@@ -5,8 +5,10 @@ require 'ostruct'
 require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
-require_relative "./utils/flask_app_client"
+require_relative "./utils/extra_logger"
+require_relative "./utils/tokenizer"
 require_relative "./utils/progressive_tool_manager"
+require_relative "./utils/system_defaults"
 
 Dir.glob(File.expand_path("adapters/**/*.rb", __dir__)).sort.each do |rb|
   require rb
@@ -35,8 +37,9 @@ end
 require_relative "./app_extensions"
 
 class MonadicApp
-  include MonadicAgent
   include MonadicHelper
+  include ImageAnalysisAgent
+  include AudioTranscriptionAgent
   include StringUtils
   include MonadicChat::AppExtensions
 
@@ -44,8 +47,6 @@ class MonadicApp
   @app_settings = {}
 
   class << self
-    attr_reader :model_data, :app_settings
-    
     def register_models(vendor_name, models)
       @model_data[vendor_name] ||= Set.new
       # Assign the result of merge back to @model_data[vendor_name]
@@ -83,19 +84,10 @@ class MonadicApp
     end
   end
 
-  # Initialize FlaskAppClient with health check in distributed mode
+  # Initialize native Ruby tokenizer (tiktoken_ruby)
   begin
-    TOKENIZER = FlaskAppClient.new
-    
-    # Log connectivity status in client mode
-    distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] || "off"
-    if distributed_mode == "client"
-      if TOKENIZER.service_available?
-        puts "[MonadicApp] Successfully connected to Python service in client mode"
-      else
-        puts "[MonadicApp] WARNING: Failed to connect to Python service in client mode. Some token-related features may not work."
-      end
-    end
+    TOKENIZER = Tokenizer.new
+    puts "[MonadicApp] Tokenizer initialized (tiktoken_ruby)"
   rescue StandardError => e
     puts "[MonadicApp] Error initializing tokenizer: #{e.message}"
     TOKENIZER = nil
@@ -149,8 +141,6 @@ class MonadicApp
       Your ONLY task is to generate the next user message in this conversation - nothing more, nothing less.
   PROMPT
 
-  # access the flask app client so that it gets ready before the first request
-
   attr_accessor :api_key, :context, :embeddings_db, :settings
 
   @@extra_logging = false
@@ -161,10 +151,8 @@ class MonadicApp
     @embeddings_db = nil
     @settings = {}
 
-    if CONFIG["EXTRA_LOGGING"] && !@@extra_logging
-      File.open(EXTRA_LOG_FILE, "w") do |f|
-        f.puts "Extra log file created at #{Time.now}\n\n"
-      end
+    if Monadic::Utils::ExtraLogger.enabled? && !@@extra_logging
+      Monadic::Utils::ExtraLogger.log { "Extra log file created" }
       @@extra_logging = true
     end
   end
@@ -260,7 +248,7 @@ class MonadicApp
   end
 
 
-  def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
+  def json2html(hash, iteration: 0, exclude_empty: true, math: false)
     return hash.to_s unless hash.is_a?(Hash)
 
     iteration += 1
@@ -268,7 +256,7 @@ class MonadicApp
 
     if hash.key?("message")
       message = hash["message"]
-      output += StringUtils.markdown_to_html(message, mathjax: mathjax)
+      output += StringUtils.markdown_to_html(message, math: math)
       output += "<hr />"
       hash = hash.reject { |k, _| k == "message" }
     end
@@ -296,7 +284,7 @@ class MonadicApp
         output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
         output += "</div>"
         output += "<div class='json-content'>"
-        output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
+        output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, math: math)
         output += "</div></div>"
       else
         case value
@@ -307,7 +295,7 @@ class MonadicApp
           output += " <i class='fas fa-chevron-down float-right'></i> <span class='toggle-text'>click to toggle</span>"
           output += "</div>"
           output += "<div class='json-content'>"
-          output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)
+          output += json2html(value, iteration: iteration, exclude_empty: exclude_empty, math: math)
           output += "</div></div>"
         when Array
           if value.all? { |v| v.is_a?(String) }
@@ -324,10 +312,10 @@ class MonadicApp
             output += "<ul class='no-bullets'>"
             value.each do |v|
               output += if v.is_a?(String)
-                          v = StringUtils.markdown_to_html(v, mathjax: mathjax)
+                          v = StringUtils.markdown_to_html(v, math: math)
                           "<li>#{v}</li>"
                         else
-                          "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty, mathjax: mathjax)}</li>"
+                          "<li>#{json2html(v, iteration: iteration, exclude_empty: exclude_empty, math: math)}</li>"
                         end
             end
             output += "</ul>"
@@ -344,7 +332,7 @@ class MonadicApp
           else
             output += "<div class='json-item' data-depth='#{iteration}' data-key='#{data_key}'>"
             output += "<span>#{key}: </span>"
-            value = StringUtils.markdown_to_html(value, mathjax: mathjax)
+            value = StringUtils.markdown_to_html(value, math: math)
             output += "<span>#{value}</span>"
             output += "</div>"
           end
@@ -419,8 +407,13 @@ class MonadicApp
     end
 
     # Use longer timeout for media generation (videos, images, and TTS can take several minutes)
-    timeout_value = if command.include?("video_generator_veo") || command.include?("video_generator_openai")
-                      480  # 8 minutes for video generation
+    timeout_value = if command.include?("video_generator_gemini") || command.include?("video_generator_openai")
+                      # Extract --max-wait value from command if present, add 60s buffer
+                      max_wait_match = command.match(/--max-wait\s+(\d+)/)
+                      max_wait = max_wait_match ? max_wait_match[1].to_i : 600
+                      max_wait + 60  # buffer for script startup and download
+                    elsif command.include?("video_generator_grok")
+                      600  # 10 minutes for Grok video generation
                     elsif command.include?("image_generator_openai") || command.include?("image_generator_grok")
                       300  # 5 minutes for image generation
                     elsif command.include?("tts_query")
@@ -440,13 +433,31 @@ class MonadicApp
       if stdout.strip.empty?
         success
       else
-        "#{success_with_output}#{stdout}"
+        "#{success_with_output}#{truncate_output(stdout)}"
       end
     else
       "Error occurred: #{stderr}"
     end
   rescue StandardError => e
     "Error occurred: #{e.message}"
+  end
+
+  # Truncate large command output to avoid bloating LLM context.
+  # Keeps first and last lines with a notice in between.
+  MAX_OUTPUT_BYTES = 50_000   # ~50 KB
+  HEAD_LINES = 100
+  TAIL_LINES = 50
+
+  def truncate_output(text)
+    return text if text.bytesize <= MAX_OUTPUT_BYTES
+
+    lines = text.lines
+    return text if lines.size <= HEAD_LINES + TAIL_LINES
+
+    head = lines.first(HEAD_LINES).join
+    tail = lines.last(TAIL_LINES).join
+    omitted = lines.size - HEAD_LINES - TAIL_LINES
+    "#{head}\n... (#{omitted} lines omitted — output truncated to #{MAX_OUTPUT_BYTES / 1000} KB) ...\n\n#{tail}"
   end
 
   def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: false)
@@ -583,7 +594,7 @@ class MonadicApp
           if image_files.any?
             output = "#{success}\n\nIMAGE FILES CREATED (verified to exist):\n"
             image_files.each { |f| output += "- #{f}\n" }
-            output += "\nYou can safely display these images using <img src=\"#{image_files.first}\" /> tags."
+            output += "\nThese images are automatically displayed in the chat. Do NOT include <img> tags in your response."
 
             other_files = file_paths - image_files
             if other_files.any?
@@ -592,10 +603,10 @@ class MonadicApp
           else
             output = "#{success}; File(s) generated or modified: #{file_paths.join(", ")}"
           end
-          output += "\n\nOutput: #{stdout}" if stdout.strip.length.positive?
+          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
         else
           output = "#{success}\n\nNOTE: No image files were created. Do NOT display any images."
-          output += "\n\nOutput: #{stdout}" if stdout.strip.length.positive?
+          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
         end
 
         # Clean up temporary file if keep_file is false
@@ -651,16 +662,16 @@ class MonadicApp
     begin
       require 'timeout'
       stdout, stderr, status = nil, nil, nil
-      
+
       Timeout::timeout(timeout) do
         stdout, stderr, status = Open3.capture3(command)
       end
     rescue Timeout::Error
       error_msg = "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort."
       return ["", error_msg, OpenStruct.new(success?: false)]
+    end
 
-    # output log data of input and output
-    # create a log (COMMAND_LOG_FILE) to store the command and its output
+    # Log command input and output
     begin
       Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
     rescue StandardError
@@ -675,7 +686,6 @@ class MonadicApp
     end
 
     [stdout, stderr, status]
-    end
   end
 
   def self.doc2markdown(filename)
@@ -724,21 +734,10 @@ class MonadicApp
   def markdownify(text)
     provider = CONFIG["AI_USER_PROVIDER"] || "openai"
     
-    # Default model based on provider
-    provider_defaults = {
-      "openai" => "gpt-4.1",
-      "anthropic" => "claude-sonnet-4-6",
-      "cohere" => "command-a-reasoning-08-2025",
-      "gemini" => "gemini-2.5-flash",
-      "mistral" => "mistral-large-latest",
-      "grok" => "grok-2-1212",
-      "perplexity" => "sonar",
-      "deepseek" => "deepseek-chat"
-    }
-    
-    model = provider_defaults[provider.downcase] || "gpt-4.1"
+    # Default model from SystemDefaults (env var > providerDefaults > hardcoded fallback)
+    model = SystemDefaults.get_default_model(provider.downcase)
     sys_prompt = <<~PROMPT
-    Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
+    Convert a text document to markdown format. The text is extracted using the browser's textContent property. Thus it does not retain the original formatting and structure of the webpage. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
       PROMPT
     parameters = {
       "model" => model,

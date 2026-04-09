@@ -58,22 +58,22 @@ const UI_STATE = {
 
 // Check if we're in mobile mode
 function isMobileView() {
-  return $(window).width() < UI_BREAKPOINTS.MOBILE;
+  return window.innerWidth < UI_BREAKPOINTS.MOBILE;
 }
 
 // Check if we're in tablet mode (menu/content exclusive)
 function isTabletView() {
-  return $(window).width() < UI_BREAKPOINTS.TABLET;
+  return window.innerWidth < UI_BREAKPOINTS.TABLET;
 }
 
 // Check if we're in desktop mode
 function isDesktopView() {
-  return $(window).width() >= UI_BREAKPOINTS.TABLET;
+  return window.innerWidth >= UI_BREAKPOINTS.TABLET;
 }
 
 // Get current breakpoint name
 function getCurrentBreakpoint() {
-  const width = $(window).width();
+  const width = window.innerWidth;
   if (width < UI_BREAKPOINTS.MOBILE) return 'mobile';
   if (width < UI_BREAKPOINTS.TABLET) return 'tablet';
   if (width < UI_BREAKPOINTS.DESKTOP) return 'desktop';

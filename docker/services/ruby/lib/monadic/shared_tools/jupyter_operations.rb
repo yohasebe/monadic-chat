@@ -90,6 +90,19 @@ module MonadicSharedTools
         session[:last_notebook_url] = $1
       end
 
+      # Store gallery HTML for notebook plot images (server-side display).
+      # No _image vision injection — avoids tool-call loops in code execution apps.
+      if run.to_s == "true" && result.is_a?(String) && result.include?("executed successfully")
+        image_files = extract_notebook_images(filename: filename)
+        if image_files.any? && session
+          gallery_html = image_files.map { |img|
+            "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"
+          }.join("\n")
+          session[:tool_html_fragments] ||= []
+          session[:tool_html_fragments] << gallery_html
+        end
+      end
+
       result
     end
 

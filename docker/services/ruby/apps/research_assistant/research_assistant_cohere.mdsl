@@ -102,7 +102,6 @@ app "ResearchAssistantCohere" do
 
   llm do
     provider "cohere"
-    model "command-a-reasoning-08-2025"
     reasoning_effort "disabled"
     context_size 30
   end
@@ -116,7 +115,7 @@ app "ResearchAssistantCohere" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     monadic true  # Uses Session State mechanism for research progress tracking
   end
 
@@ -144,6 +143,9 @@ app "ResearchAssistantCohere" do
 
     # Import unified web search tools (conditional - native or Tavily)
     import_shared_tools :web_search_tools, visibility: "conditional"
+
+    # Import image analysis tools (conditional - requires any vision provider API key)
+    import_shared_tools :image_analysis, visibility: "conditional"
 
     # Research progress management tools
     define_tool "load_research_progress", "Load current research progress (topics, findings, sources) from session state" do

@@ -141,57 +141,57 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
 
-    context 'with MathJax enabled' do
-      it 'includes MathJax prompt with regular escaping for standard mode' do
+    context 'with math enabled' do
+      it 'includes math prompt with regular escaping for standard mode' do
         session = {
-          parameters: { "mathjax" => true }
+          parameters: { "math" => true }
         }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:mathjax)
-        expect(result[0][:content]).to include('MathJax notation')
+        expect(result[0][:name]).to eq(:math)
+        expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\frac{k(k + 1)}{2}')  # Single backslash (literal)
         expect(result[0][:content]).not_to include('\\\\frac')  # Not double-escaped
         expect(result[0][:content]).to include('\\begin{itemize}')  # Includes limitations
       end
 
-      it 'includes MathJax prompt with extra escaping for monadic mode' do
+      it 'includes math prompt with extra escaping for monadic mode' do
         session = {
-          parameters: { "mathjax" => true, "monadic" => true }
+          parameters: { "math" => true, "monadic" => true }
         }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:mathjax)
-        expect(result[0][:content]).to include('MathJax notation')
+        expect(result[0][:name]).to eq(:math)
+        expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
         expect(result[0][:content]).not_to include('\\begin{itemize}')  # No limitations section
       end
 
-      it 'includes MathJax prompt with extra escaping for jupyter mode' do
+      it 'includes math prompt with extra escaping for jupyter mode' do
         session = {
-          parameters: { "mathjax" => true, "jupyter" => true }
+          parameters: { "math" => true, "jupyter" => true }
         }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:mathjax)
-        expect(result[0][:content]).to include('MathJax notation')
+        expect(result[0][:name]).to eq(:math)
+        expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
       end
 
-      it 'excludes MathJax prompt when mathjax is false' do
+      it 'excludes math prompt when math is false' do
         session = {
-          parameters: { "mathjax" => false }
+          parameters: { "math" => false }
         }
         options = {}
 
@@ -227,13 +227,80 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
 
+    context 'with autonomy setting' do
+      it 'includes high autonomy prompt when autonomy is "high"' do
+        session = {
+          parameters: { "autonomy" => "high" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:autonomy)
+        expect(result[0][:content]).to include('AUTONOMY MODE: HIGH')
+        expect(result[0][:content]).to include('Execute actions immediately')
+        expect(result[0][:content]).to include('Do NOT use propose_plan')
+      end
+
+      it 'includes low autonomy prompt when autonomy is "low"' do
+        session = {
+          parameters: { "autonomy" => "low" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:autonomy)
+        expect(result[0][:content]).to include('AUTONOMY MODE: LOW')
+        expect(result[0][:content]).to include('Before EVERY action')
+        expect(result[0][:content]).to include('Always use propose_plan')
+      end
+
+      it 'excludes autonomy injection when autonomy is "medium"' do
+        session = {
+          parameters: { "autonomy" => "medium" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result).to be_empty
+      end
+
+      it 'excludes autonomy injection when autonomy is not set' do
+        session = {
+          parameters: {}
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result).to be_empty
+      end
+
+      it 'works with symbol key for autonomy' do
+        session = {
+          parameters: { autonomy: "high" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:autonomy)
+        expect(result[0][:content]).to include('AUTONOMY MODE: HIGH')
+      end
+    end
+
     context 'with multiple conditions met' do
       it 'returns injections in priority order' do
         session = {
           runtime_settings: { language: 'en' },
           parameters: {
             "stt_model" => "gpt-4o-transcribe-diarize",
-            "mathjax" => true
+            "math" => true
           }
         }
         options = {
@@ -246,12 +313,34 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         result = described_class.build_injections(session: session, options: options)
 
         expect(result.length).to eq(5)
-        # Check priority order: language(100) > websearch(80) > diarization(60) > mathjax(50) > suffix(40)
+        # Check priority order: language(100) > websearch(80) > diarization(60) > math(50) > suffix(40)
         expect(result[0][:name]).to eq(:language_preference)
         expect(result[1][:name]).to eq(:websearch)
         expect(result[2][:name]).to eq(:stt_diarization_warning)
-        expect(result[3][:name]).to eq(:mathjax)
+        expect(result[3][:name]).to eq(:math)
         expect(result[4][:name]).to eq(:system_prompt_suffix)
+      end
+
+      it 'includes autonomy in correct priority order' do
+        session = {
+          runtime_settings: { language: 'en' },
+          parameters: {
+            "autonomy" => "high"
+          }
+        }
+        options = {
+          websearch_enabled: true,
+          reasoning_model: false,
+          websearch_prompt: 'Web search prompt'
+        }
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(3)
+        # Check priority order: language(100) > autonomy(90) > websearch(80)
+        expect(result[0][:name]).to eq(:language_preference)
+        expect(result[1][:name]).to eq(:autonomy)
+        expect(result[2][:name]).to eq(:websearch)
       end
     end
   end

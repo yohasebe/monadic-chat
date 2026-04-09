@@ -66,7 +66,7 @@ app "ChatPlusGrok" do
 
   llm do
     provider "xai"
-    model "grok-4-1-fast-reasoning"
+    reasoning_effort "low"
     context_size 20
     parallel_function_calling true  # Enable parallel function calling for proper tool execution
   end

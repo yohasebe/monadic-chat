@@ -8,29 +8,19 @@
 
 ## 概要
 
-PythonサービスはFlaskベースのAPIサーバーで、以下を提供します：
+Pythonサービスは計算ツールとJupyterLab環境を提供します：
 
-- **トークンカウント** - tiktokenライブラリを使用したテキストのトークン数計算
-- **エンコーディング管理** - エンコーディング名の取得とトークンシーケンスのデコード
-- **JupyterLabアクセス** - ポート8889での直接JupyterLabインターフェース（Flask APIとは別）
+- **JupyterLabアクセス** - ポート8889での直接JupyterLabインターフェース
 - **科学計算ライブラリ** - JupyterLab環境でNumPy、Pandas、Matplotlibが利用可能
 - **オプションパッケージ** - LaTeX、NLTK、spaCyなど（インストールオプションで設定可能）
 
 ## アーキテクチャ
 
-- **Flask APIサーバー** (`docker/services/python/flask/flask_server.py`) - トークンカウントREST API
 - **JupyterLabサーバー** - 直接ノートブックインターフェース（ポート8889）
 - **実行環境** - 科学ライブラリを含む分離されたPythonランタイム
 - **Dockerコンテナ** - オプション依存関係を持つスタンドアロンサービス
 
-## 主要Flask APIエンドポイント
-
-- `GET /health` - サービス可用性のヘルスチェック
-- `GET /warmup` - 一般的なエンコーディングを事前ロードしてレイテンシを削減
-- `POST /get_encoding_name` - モデルのtiktokenエンコーディング名を取得
-- `POST /count_tokens` - テキストのトークン数をカウント
-- `POST /get_tokens_sequence` - カンマ区切りのトークンシーケンスを取得
-- `POST /decode_tokens` - トークンを元のテキストにデコード
+注意：トークンカウントは以前このコンテナのFlask APIサーバーで処理されていましたが、パフォーマンス向上のためネイティブRuby実装（`tiktoken_ruby` gem）に移行されました。
 
 ## インストールオプション
 

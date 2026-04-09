@@ -194,4 +194,45 @@ describe('MarkdownRenderer Module', () => {
       expect(html).toContain('<hr />');
     });
   });
+
+  describe('DrawIO raw XML detection regex (step 5b)', () => {
+    // The regex used in renderMarkdown step 5b — extracted for direct testing
+    const drawioRawRegex = /(<\?xml[^>]*\?>\s*\n)?<mxfile\b[\s\S]*?<diagram\b[\s\S]*?<\/mxfile>/g;
+
+    it('matches valid DrawIO XML with diagram element', () => {
+      const xml = '<mxfile><diagram id="test" name="Page-1"><mxGraphModel><root></root></mxGraphModel></diagram></mxfile>';
+      expect(xml.match(drawioRawRegex)).not.toBeNull();
+    });
+
+    it('matches DrawIO XML with XML declaration prefix', () => {
+      const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<mxfile><diagram id="test"><mxGraphModel></mxGraphModel></diagram></mxfile>';
+      expect(xml.match(drawioRawRegex)).not.toBeNull();
+    });
+
+    it('matches multi-line DrawIO XML', () => {
+      const xml = [
+        '<mxfile host="app.diagrams.net">',
+        '  <diagram id="test" name="Page-1">',
+        '    <mxGraphModel><root><mxCell id="0"/></root></mxGraphModel>',
+        '  </diagram>',
+        '</mxfile>'
+      ].join('\n');
+      expect(xml.match(drawioRawRegex)).not.toBeNull();
+    });
+
+    it('does not match mxfile without diagram element (prose mention)', () => {
+      const text = 'The <mxfile> tag is used in DrawIO format</mxfile>';
+      expect(text.match(drawioRawRegex)).toBeNull();
+    });
+
+    it('does not match incomplete mxfile reference in prose', () => {
+      const text = 'DrawIO uses <mxfile> as the root element.';
+      expect(text.match(drawioRawRegex)).toBeNull();
+    });
+
+    it('does not match mxfilename (word boundary check)', () => {
+      const text = '<mxfilename>test</mxfilename>';
+      expect(text.match(drawioRawRegex)).toBeNull();
+    });
+  });
 });

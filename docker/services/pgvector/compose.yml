@@ -9,7 +9,7 @@ services:
         HELP_EXPORT_ID: "${HELP_EXPORT_ID:-initial_empty_database}"
     container_name: monadic-chat-pgvector-container
     ports:
-      - "5433:5432"
+      - "${HOST_BINDING:-127.0.0.1}:5433:5432"
     environment:
       # Use md5 password authentication instead of trust
       # Note: scram-sha-256 is preferred for new installations, but md5 is kept for compatibility
@@ -30,7 +30,6 @@ services:
       start_period: 5s
     networks:
       - monadic-chat-network
-    restart: unless-stopped
     deploy:
       resources:
         limits:

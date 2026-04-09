@@ -37,6 +37,10 @@ DOCKER_CHECK_INTERVAL=1
 # REPORTING=--verbose
 REPORTING=
 
+# All Docker Compose profiles used by profiled services (see profiles: keys in compose.yml files).
+# Used for full build/stop operations that must include every service regardless of on-demand startup.
+ALL_PROFILES="--profile python --profile selenium"
+
 # Define the path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=$(eval echo ~${SUDO_USER})
@@ -392,6 +396,13 @@ build_ruby_container() {
   else
     gems_hash="unknown"
   fi
+  # Pre-build JS bundle on host if node + esbuild are available (minified),
+  # otherwise Dockerfile fallback will concatenate inside the container.
+  local bundle_script="${ROOT_DIR}/../scripts/build_js_bundle.mjs"
+  if command -v node >/dev/null 2>&1 && [ -f "${bundle_script}" ]; then
+    node "${bundle_script}" 2>/dev/null || true
+  fi
+
   # Optional no-cache for diagnostics or user-requested force rebuild
   local build_extra=""
   if [ "${FORCE_REBUILD:-false}" = "true" ] || [ "${FORCE_RUBY_REBUILD_NO_CACHE}" = "true" ]; then
@@ -961,8 +972,9 @@ build_docker_compose() {
   echo "" >> "${log_file}"
 
   # Execute docker compose build and redirect output to log file with or without cache
+  # Include all profiles so profiled services (python, selenium) are also built
   local build_start_epoch=$(date +%s)
-  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
   local build_status=${PIPESTATUS[0]}
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))
@@ -1433,12 +1445,9 @@ start_docker_compose() {
   if ${DOCKER} images | grep -q "yohasebe/selenium"; then
     if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
       echo "[HTML]: <p>Starting Selenium container...</p>"
-      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
-
-      # Restart Ruby container to reflect availability
-      sleep 2
-      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
+      # Ruby detects Selenium dynamically via WebAutomation.available? (TTL cache)
+      # No restart needed — availability is checked on each tool invocation and UI load
     fi
   else
     echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #ff9800;'></i> <strong>Selenium container image not found.</strong></p>"
@@ -1446,9 +1455,15 @@ start_docker_compose() {
     echo "[HTML]: <p>The system will continue without Selenium. Web scraping features will use Tavily API as fallback.</p><hr />"
   fi
 
-  # Wait for all containers to be fully running before listing
-  # This prevents race conditions where containers are in 'restarting' state
-  sleep 3
+  # Brief wait for container list to stabilize, then enumerate
+  local wait_end=$((SECONDS + 5))
+  while [ $SECONDS -lt $wait_end ]; do
+    # Check if any monadic-chat container is still in 'restarting' state
+    if ! ${DOCKER} ps --filter "name=monadic-chat" --format "{{.Status}}" 2>/dev/null | grep -qi "restarting"; then
+      break
+    fi
+    sleep 0.5
+  done
 
   local containers=$("${DOCKER}" ps --filter "name=monadic-chat" --format "{{.Names}}")
 
@@ -1464,17 +1479,17 @@ start_docker_compose() {
   fi
 }
 
-# Function to stop Docker Compose
+# Function to stop Docker Compose (includes all profiled services)
 down_docker_compose() {
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
 }
 
-# Define a function to stop Docker Compose
+# Define a function to stop Docker Compose (includes all profiled services)
 stop_docker_compose() {
   # Use docker compose with project name to properly stop all containers
   # Add --timeout 5 to speed up shutdown (default is 10 seconds)
   # Docker compose v2 stops containers in parallel by default
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" stop --timeout 5"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" stop --timeout 5"
 }
 
 # Function to stop a container
@@ -1494,21 +1509,21 @@ export_database() {
 
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
-  # Stop the Docker Compose services
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down --remove-orphans"
+  # Stop all Docker Compose services (including profiled services)
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down --remove-orphans"
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "${ROOT_DIR}" && git pull origin main
 
-  # Build and start the Docker Compose services
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} build --no-cache"
+  # Build all Docker Compose services (including profiled services)
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build --no-cache"
 }
 
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
-  # Stop the Docker Compose services with project name
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" down --remove-orphans"
+  # Stop all Docker Compose services with project name (including profiled services)
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
 
   local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
@@ -1656,7 +1671,8 @@ build_ruby_container)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_python_container)
@@ -1674,7 +1690,8 @@ build_python_container)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_user_containers)
@@ -1697,7 +1714,8 @@ build_user_containers)
   elif ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_selenium_container)
@@ -1712,7 +1730,8 @@ build_selenium_container)
   if ${DOCKER} images | grep -q "yohasebe/selenium"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Selenium container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
   fi
   ;;
 build)
@@ -1728,32 +1747,38 @@ build)
   set_docker_compose
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down"
 
   # Run build_docker_compose and check if it succeeded
   if build_docker_compose "no-cache"; then
     # Record timestamp of successful full build
     date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
 
-    # Start the containers after building
-    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"; then
+    # Start all containers (including profiled services) after full build
+    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"; then
       # Wait a moment for containers to start
       sleep 3
 
-      # Verify all required containers exist (get list once and check all)
+      # Verify all containers exist (including profiled services started by full build)
       container_list=$(${DOCKER} container ls --all --format "{{.Names}}")
       if echo "$container_list" | grep -q "^monadic-chat-ruby-container$" && \
          echo "$container_list" | grep -q "^monadic-chat-python-container$" && \
-         echo "$container_list" | grep -q "^monadic-chat-pgvector-container$"; then
+         echo "$container_list" | grep -q "^monadic-chat-pgvector-container$" && \
+         echo "$container_list" | grep -q "^monadic-chat-selenium-container$"; then
         echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
+        echo "[SERVER STARTED]"
+        docker_start_log "silent"
       else
-        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Build completed but some containers were not created.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+        echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
       fi
     else
-      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Failed to start containers. Please run 'docker system df' to check disk space.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+      echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
     fi
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container build failed. Please run 'docker system df' to check disk space.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li></ul>"
   fi
   ;;
 check)
@@ -1809,14 +1834,10 @@ start-selenium)
   # Verify image was built successfully before proceeding
   if ${DOCKER} images | grep -q "yohasebe/selenium"; then
     echo "[HTML]: <p>Starting Selenium container...</p>"
-    eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
+    eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
 
-    # Restart Ruby container to update SELENIUM_AVAILABLE
-    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
-      sleep 2
-      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
-    fi
+    # Ruby detects Selenium dynamically via WebAutomation.available? (TTL cache)
+    # No restart needed — availability is checked on each tool invocation and UI load
 
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Selenium container started successfully.</p><hr />"
   else
@@ -1854,6 +1875,38 @@ export-db)
   ;;
 import-db)
   import_db
+  ;;
+ensure-service)
+  # On-demand container startup for profiled services.
+  # Called by Ruby when an app requires Python/Selenium.
+  # Usage: monadic.sh ensure-service python|selenium
+  SERVICE_NAME="${2:-}"
+  set_docker_compose
+  case "$SERVICE_NAME" in
+    python)
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-python-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d python_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    selenium)
+      # Selenium requires Python; ensure both are running
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-python-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d python_service" 2>/dev/null
+      fi
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    *)
+      echo "Unknown service: ${SERVICE_NAME}" >&2
+      ;;
+  esac
   ;;
 *)
   echo "Usage: $0 {build|start|stop|restart|update|remove|check}" >&2

@@ -5,9 +5,17 @@ require "json"
 require "optparse"
 require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/model_spec"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
+end
+
+# Resolve default video model from providerDefaults SSOT
+def default_grok_video_model
+  Monadic::Utils::ModelSpec.default_video_model("xai")
+rescue
+  nil
 end
 
 # Data paths to try (container path first, then local path)
@@ -114,7 +122,7 @@ shared_folder = get_save_path
 
 # Build request payload
 payload = {
-  model: "grok-imagine-video",
+  model: default_grok_video_model,
   prompt: options[:prompt],
   duration: options[:duration],
   aspect_ratio: options[:aspect_ratio],

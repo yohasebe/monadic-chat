@@ -99,6 +99,7 @@
     "restart": "Neustarten",
     "openConsole": "Konsole öffnen",
     "openBrowser": "Browser öffnen",
+    "openNoVNC": "noVNC öffnen",
     "openSharedFolder": "Gemeinsamen Ordner öffnen",
     "openConfigFolder": "Config-Ordner öffnen",
     "openLogFolder": "Log-Ordner öffnen",

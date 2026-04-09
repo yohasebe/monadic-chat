@@ -2,7 +2,7 @@
  * ws-content-renderer.js
  *
  * Content rendering utilities extracted from websocket.js:
- * MathJax, Mermaid, ABC notation, copy-code buttons, message rendering,
+ * KaTeX math, Mermaid, ABC notation, copy-code buttons, message rendering,
  * toggle/source-code helpers.
  */
 (function() {
@@ -86,96 +86,136 @@
     if (!element) {
       return;
     }
-    element.find("div.card-text div.highlighter-rouge").each(function () {
-      var highlighterElement = $(this);
-      if (highlighterElement.find(".copy-code-button").length === 0) {
-        var codeElement = highlighterElement.find("code");
-        if (codeElement.length) {
-          var copyButton = $('<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>');
-          highlighterElement.append(copyButton);
+    var container = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!container || !container.querySelectorAll) return;
 
-          copyButton.click(function () {
-            var text = codeElement.text();
-            var icon = copyButton.find("i");
+    function showCopyIcon(icon, success) {
+      var addClass = success ? "fa-check" : "fa-xmark";
+      icon.classList.remove("fa-copy");
+      icon.classList.add(addClass);
+      icon.style.color = "#DC4C64";
+      setTimeout(function() {
+        icon.classList.remove(addClass);
+        icon.classList.add("fa-copy");
+        icon.style.color = "";
+      }, 1000);
+    }
 
-            try {
-              var textarea = document.createElement('textarea');
-              textarea.value = text;
-              textarea.style.position = 'fixed';
-              textarea.style.opacity = 0;
-              document.body.appendChild(textarea);
-              textarea.select();
+    container.querySelectorAll("div.card-text div.highlighter-rouge").forEach(function (highlighterElement) {
+      if (highlighterElement.querySelector(".copy-code-button")) return;
+      var codeElement = highlighterElement.querySelector("code");
+      if (!codeElement) return;
 
-              var success = document.execCommand('copy');
-              document.body.removeChild(textarea);
+      var copyButton = document.createElement('div');
+      copyButton.className = 'copy-code-button';
+      copyButton.innerHTML = '<i class="fa-solid fa-copy"></i>';
+      highlighterElement.appendChild(copyButton);
 
-              if (!success) {
-                throw new Error('execCommand copy failed');
-              }
+      copyButton.addEventListener('click', function () {
+        var text = codeElement.textContent;
+        var icon = copyButton.querySelector("i");
 
-              icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-              setTimeout(function() {
-                icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
-              }, 1000);
-            } catch (err) {
-              console.error("Failed to copy text: ", err);
+        try {
+          var textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = 0;
+          document.body.appendChild(textarea);
+          textarea.select();
 
-              try {
-                if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
-                  window.electronAPI.writeClipboard(text);
-                  icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-                  setTimeout(function() {
-                    icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
-                  }, 1000);
-                } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                  navigator.clipboard.writeText(text)
-                    .then(function() {
-                      icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-                      setTimeout(function() {
-                        icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
-                      }, 1000);
-                    })
-                    .catch(function() {
-                      icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-                      setTimeout(function() {
-                        icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
-                      }, 1000);
-                    });
-                } else {
-                  throw new Error('No clipboard API available');
-                }
-              } catch (fallbackErr) {
-                console.error("All clipboard methods failed: ", fallbackErr);
-                icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-                setTimeout(function() {
-                  icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
-                }, 1000);
-              }
+          var success = document.execCommand('copy');
+          document.body.removeChild(textarea);
+
+          if (!success) {
+            throw new Error('execCommand copy failed');
+          }
+
+          showCopyIcon(icon, true);
+        } catch (err) {
+          console.error("Failed to copy text: ", err);
+
+          try {
+            if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
+              window.electronAPI.writeClipboard(text);
+              showCopyIcon(icon, true);
+            } else if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text)
+                .then(function() {
+                  showCopyIcon(icon, true);
+                })
+                .catch(function() {
+                  showCopyIcon(icon, false);
+                });
+            } else {
+              throw new Error('No clipboard API available');
             }
-          });
+          } catch (fallbackErr) {
+            console.error("All clipboard methods failed: ", fallbackErr);
+            showCopyIcon(icon, false);
+          }
         }
-      }
+      });
     });
   }
 
-  // ── MathJax ────────────────────────────────────────────────────────
+  // ── KaTeX ──────────────────────────────────────────────────────────
 
-  function applyMathJax(element) {
-    if (element.hasClass("diagram")) {
+  var katexMacros = {
+    "\\R": "\\mathbb{R}",
+    "\\N": "\\mathbb{N}",
+    "\\Z": "\\mathbb{Z}",
+    "\\Q": "\\mathbb{Q}",
+    "\\C": "\\mathbb{C}"
+  };
+
+  function renderKatexInHTML(html) {
+    if (typeof katex === 'undefined') return html;
+
+    // Display math: $$...$$ (may span multiple lines)
+    html = html.replace(/\$\$([\s\S]+?)\$\$/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    // Display math: \[...\]
+    html = html.replace(/\\\[([\s\S]+?)\\\]/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    // Inline math: $...$ (single line, not preceded by \)
+    html = html.replace(/(?<![\\$])\$([^\n$]+?)\$(?!\$)/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    // Inline math: \(...\)
+    html = html.replace(/\\\(([\s\S]+?)\\\)/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    return html;
+  }
+
+  function applyMath(element) {
+    var domElement = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!domElement) return;
+    if (domElement.classList.contains("diagram")) {
       return;
     }
 
-    if (typeof MathJax === 'undefined') {
-      console.error('MathJax is not loaded. Please make sure to include the MathJax script in your HTML file.');
+    if (typeof katex === 'undefined') {
       return;
     }
 
-    var domElement = element.get(0);
-    MathJax.typesetPromise([domElement])
-      .then(function() {})
-      .catch(function(err) {
-        console.error('Error re-rendering MathJax element:', err);
-      });
+    // KaTeX rendering is now done at markdown-renderer level (placeholder → rendered HTML).
+    // This function remains as a fallback for any remaining raw delimiters.
+    domElement.innerHTML = renderKatexInHTML(domElement.innerHTML);
   }
 
   // ── Mermaid ────────────────────────────────────────────────────────
@@ -206,23 +246,27 @@
   }
 
   async function applyMermaid(element) {
+    // Lazy-load Mermaid on first use
+    if (window.LazyLoader) await window.LazyLoader.mermaid();
+    if (typeof mermaid === 'undefined') return;
     mermaid.initialize(mermaid_config);
 
-    element.find(".mermaid-code").each(function (index) {
-      var mermaidElement = $(this);
-      mermaidElement.addClass("sourcecode");
-      mermaidElement.find("pre").addClass("sourcecode");
-      var mermaidText = mermaidElement.text().trim();
+    var domEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!domEl) return;
+    domEl.querySelectorAll(".mermaid-code").forEach(function (mermaidDom, index) {
+      mermaidDom.classList.add("sourcecode");
+      mermaidDom.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
+      var mermaidText = mermaidDom.textContent.trim();
       var sanitizedMermaidText = sanitizeMermaidSource(mermaidText);
-      mermaidElement.find("pre").text(mermaidText);
-      addToggleSourceCode(mermaidElement, "Toggle Mermaid Diagram");
+      mermaidDom.querySelectorAll("pre").forEach(function(pre) { pre.textContent = mermaidText; });
+      addToggleSourceCode(mermaidDom, "Toggle Mermaid Diagram");
 
       var containerId = 'diagram-' + index;
-      var diagramContainer = $('<div class="diagram-wrapper">' +
-        '<div class="diagram" id="' + containerId + '"><mermaid>' + sanitizedMermaidText + '</mermaid></div>' +
-        '<div class="error-message" id="error-' + containerId + '" style="display: none;"></div>' +
-        '</div>');
-      mermaidElement.after(diagramContainer);
+      var wrapper = document.createElement('div');
+      wrapper.className = 'diagram-wrapper';
+      wrapper.innerHTML = '<div class="diagram" id="' + containerId + '"><mermaid>' + sanitizedMermaidText + '</mermaid></div>' +
+        '<div class="error-message" id="error-' + containerId + '" style="display: none;"></div>';
+      mermaidDom.parentNode.insertBefore(wrapper, mermaidDom.nextSibling);
 
       try {
         var type = mermaid.detectType(sanitizedMermaidText);
@@ -230,12 +274,16 @@
           throw new Error("Invalid diagram type");
         }
       } catch (error) {
-        var errorElement = diagramContainer.find('#error-' + containerId);
-        errorElement.html('<div class="alert alert-danger">' +
-          '<strong>Mermaid Syntax Error:</strong><br>' +
-          error.message +
-          '</div>').show();
-        diagramContainer.find('.diagram').hide();
+        var errorElement = wrapper.querySelector('#error-' + containerId);
+        if (errorElement) {
+          errorElement.innerHTML = '<div class="alert alert-danger">' +
+            '<strong>Mermaid Syntax Error:</strong><br>' +
+            error.message +
+            '</div>';
+          $show(errorElement);
+        }
+        var diagramEl = wrapper.querySelector('.diagram');
+        $hide(diagramEl);
       }
     });
 
@@ -245,12 +293,36 @@
       console.error('Mermaid rendering error:', error);
     }
 
-    element.find(".diagram").each(function (index) {
-      var diagram = $(this);
-      if (diagram.is(':visible')) {
-        var downloadButton = $('<div class="mb-3"><button class="btn btn-secondary btn-sm">Download SVG</button></div>');
-        downloadButton.on('click', function () {
-          var svgElement = diagram.find('svg')[0];
+    // Trim excess whitespace from Mermaid-rendered SVGs.
+    // Mermaid sometimes generates viewBoxes larger than the actual diagram content,
+    // leaving empty space on the right and below. Measure real content bounds via
+    // getBBox() and shrink the viewBox + max-width accordingly.
+    domEl.querySelectorAll(".diagram:not(.drawio-diagram) svg").forEach(function(svgEl) {
+      try {
+        var bbox = svgEl.getBBox();
+        if (!bbox || bbox.width <= 0 || bbox.height <= 0) return;
+
+        var padding = 8;
+        var newX = Math.floor(bbox.x - padding);
+        var newY = Math.floor(bbox.y - padding);
+        var newW = Math.ceil(bbox.width + padding * 2);
+        var newH = Math.ceil(bbox.height + padding * 2);
+
+        svgEl.setAttribute('viewBox', newX + ' ' + newY + ' ' + newW + ' ' + newH);
+        // Constrain SVG to its content width — prevents stretching to full container
+        svgEl.style.maxWidth = newW + 'px';
+      } catch(e) {
+        // getBBox() may fail in non-browser environments — graceful fallback
+      }
+    });
+
+    domEl.querySelectorAll(".diagram").forEach(function (diagramDom, index) {
+      if (diagramDom.style.display !== 'none' && diagramDom.offsetParent !== null) {
+        var downloadButton = document.createElement('div');
+        downloadButton.className = 'mb-3';
+        downloadButton.innerHTML = '<button class="btn btn-secondary btn-sm">Download SVG</button>';
+        downloadButton.addEventListener('click', function () {
+          var svgElement = diagramDom.querySelector('svg');
           if (svgElement) {
             var serializer = new XMLSerializer();
             var source = serializer.serializeToString(svgElement);
@@ -265,8 +337,158 @@
             URL.revokeObjectURL(url);
           }
         });
-        diagram.after(downloadButton);
+        diagramDom.parentNode.insertBefore(downloadButton, diagramDom.nextSibling);
       }
+    });
+  }
+
+  // ── DrawIO viewer lazy loader ─────────────────────────────────────
+
+  var drawioViewerLoaded = false;
+  var drawioViewerLoading = false;
+  var drawioViewerCallbacks = [];
+
+  function ensureDrawIOViewer(callback) {
+    if (drawioViewerLoaded && typeof window.GraphViewer !== 'undefined') {
+      callback();
+      return;
+    }
+    drawioViewerCallbacks.push(callback);
+    if (drawioViewerLoading) return;
+
+    drawioViewerLoading = true;
+
+    // Suppress auto-init: viewer-static.min.js ends with an IIFE that calls
+    //   if (window.onDrawioViewerLoad) window.onDrawioViewerLoad();
+    //   else GraphViewer.processElements();
+    // By defining onDrawioViewerLoad, we prevent the automatic processElements()
+    // call so we can invoke it manually at the right time in our callback.
+    window.onDrawioViewerLoad = function() {
+      // intentionally empty — auto-init suppressed
+    };
+
+    function onLoadSuccess() {
+      drawioViewerLoaded = true;
+      drawioViewerLoading = false;
+      var cbs = drawioViewerCallbacks.slice();
+      drawioViewerCallbacks = [];
+      cbs.forEach(function(cb) { try { cb(); } catch(e) { console.error(e); } });
+    }
+
+    function onAllFailed() {
+      drawioViewerLoading = false;
+      var cbs = drawioViewerCallbacks.slice();
+      drawioViewerCallbacks = [];
+      cbs.forEach(function(cb) { try { cb(new Error('Failed to load DrawIO viewer')); } catch(e) {} });
+    }
+
+    // Try local file first, then CDN fallback (same pattern as mermaid.min.js)
+    var script = document.createElement('script');
+    script.src = 'vendor/js/viewer-static.min.js';
+    script.onload = onLoadSuccess;
+    script.onerror = function() {
+      // Fallback to CDN
+      script.remove();
+      var cdnScript = document.createElement('script');
+      cdnScript.src = 'https://viewer.diagrams.net/js/viewer-static.min.js';
+      cdnScript.onload = onLoadSuccess;
+      cdnScript.onerror = onAllFailed;
+      document.head.appendChild(cdnScript);
+    };
+    document.head.appendChild(script);
+  }
+
+  // ── DrawIO ────────────────────────────────────────────────────────
+
+  function applyDrawIO(element) {
+    var drawDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!drawDomEl) return;
+    var drawioElements = drawDomEl.querySelectorAll(".drawio-code");
+    if (drawioElements.length === 0) return;
+
+    var pendingRenders = [];
+
+    drawioElements.forEach(function(elDom, index) {
+      elDom.classList.add("sourcecode");
+      elDom.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
+
+      var preEl = elDom.querySelector("pre");
+      var rawText = preEl ? preEl.textContent.trim() : '';
+      var xmlContent = rawText;
+
+      if (preEl) preEl.textContent = rawText;
+      addToggleSourceCode(elDom, "Toggle DrawIO Diagram");
+
+      var containerId = 'drawio-diagram-' + index + '-' + Date.now();
+
+      // Build DOM programmatically to avoid HTML parser issues with XML in attributes
+      var wrapper = document.createElement('div');
+      wrapper.className = 'diagram-wrapper';
+
+      var diagramDiv = document.createElement('div');
+      diagramDiv.className = 'diagram drawio-diagram';
+      diagramDiv.id = containerId;
+
+      var mxgraphDiv = document.createElement('div');
+      mxgraphDiv.className = 'mxgraph';
+      // Set data-mxgraph via DOM API — bypasses HTML parser entirely
+      mxgraphDiv.setAttribute('data-mxgraph', JSON.stringify({
+        highlight: "#0000ff", nav: true, resize: true, xml: xmlContent
+      }));
+
+      diagramDiv.appendChild(mxgraphDiv);
+      wrapper.appendChild(diagramDiv);
+
+      var errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.id = 'error-' + containerId;
+      $hide(errorDiv);
+      wrapper.appendChild(errorDiv);
+
+      elDom.parentNode.insertBefore(wrapper, elDom.nextSibling);
+      pendingRenders.push({ containerId: containerId, xmlContent: xmlContent, diagramContainer: wrapper });
+    });
+
+    if (pendingRenders.length === 0) return;
+
+    ensureDrawIOViewer(function(err) {
+      if (err) {
+        pendingRenders.forEach(function(item) {
+          var errEl = item.diagramContainer.querySelector('#error-' + item.containerId);
+          if (errEl) {
+            errEl.innerHTML = '<div class="alert alert-danger"><strong>DrawIO Viewer Error:</strong><br>Failed to load viewer library.</div>';
+            $show(errEl);
+          }
+          var diagEl = item.diagramContainer.querySelector('.diagram');
+          $hide(diagEl);
+        });
+        return;
+      }
+
+      try {
+        if (window.GraphViewer && typeof GraphViewer.processElements === 'function') {
+          GraphViewer.processElements();
+        }
+      } catch(e) { console.error('DrawIO render error:', e); }
+
+      // Download .drawio buttons
+      pendingRenders.forEach(function(item, idx) {
+        var diagEl = item.diagramContainer.querySelector('.diagram');
+        if (diagEl && diagEl.style.display !== 'none' && diagEl.offsetParent !== null) {
+          var btn = document.createElement('div');
+          btn.className = 'mb-3';
+          btn.innerHTML = '<button class="btn btn-secondary btn-sm">Download .drawio</button>';
+          btn.addEventListener('click', function() {
+            var blob = new Blob([item.xmlContent], { type: 'application/xml;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'diagram-' + (idx + 1) + '.drawio';
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+          });
+          diagEl.parentNode.insertBefore(btn, diagEl.nextSibling);
+        }
+      });
     });
   }
 
@@ -329,13 +551,18 @@
     ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
   }
 
-  function applyAbc(element) {
-    element.find(".abc-code").each(function () {
-      $(this).addClass("sourcecode");
-      $(this).find("pre").addClass("sourcecode");
-      var abcElement = $(this);
+  async function applyAbc(element) {
+    // Lazy-load ABCjs on first use
+    if (window.LazyLoader) await window.LazyLoader.abcjs();
+    if (typeof ABCJS === 'undefined') return;
+    var abcDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!abcDomEl) return;
+    abcDomEl.querySelectorAll(".abc-code").forEach(function (abcDom) {
+      abcDom.classList.add("sourcecode");
+      abcDom.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
       var abcId = '' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
-      var abcText = abcElement.find("pre").text().trim();
+      var preEl = abcDom.querySelector("pre");
+      var abcText = preEl ? preEl.textContent.trim() : '';
       abcText = abcText.split("\n").map(function(line) { return line.trim(); }).join("\n");
 
       var instrument = "";
@@ -344,10 +571,10 @@
         instrument = instrumentMatch[1];
       }
 
-      abcElement.find("pre").text(abcText);
+      if (preEl) preEl.textContent = abcText;
       var abcSVG = 'abc-svg-' + abcId;
       var abcMidi = 'abc-midi-' + abcId;
-      addToggleSourceCode(abcElement, "Toggle ABC Notation");
+      addToggleSourceCode(abcDom, "Toggle ABC Notation");
 
       // Create DOM elements directly (avoids ABCJS ID lookup timing issues)
       var svgDiv = document.createElement('div');
@@ -356,12 +583,8 @@
       var midiDiv = document.createElement('div');
       midiDiv.id = abcMidi;
       midiDiv.className = 'abc-midi';
-      var spacerDiv = document.createElement('div');
-      spacerDiv.innerHTML = '&nbsp;';
-
-      abcElement.after(spacerDiv);
-      abcElement.after(midiDiv);
-      abcElement.after(svgDiv);
+      abcDom.parentNode.insertBefore(midiDiv, abcDom.nextSibling);
+      abcDom.parentNode.insertBefore(svgDiv, abcDom.nextSibling);
 
       var abcOptions = {
         add_classes: true,
@@ -370,10 +593,10 @@
         soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
         scale: 0.65,
         staffwidth: 740,
-        paddingtop: 10,
-        paddingbottom: 10,
+        paddingtop: 6,
+        paddingbottom: 2,
         format: {
-          titlefont: '"itim-music,Itim" 14',
+          titlefont: '"itim-music,Itim" 11',
           gchordfont: '"itim-music,Itim" 9',
           vocalfont: '"itim-music,Itim" 9',
           annotationfont: '"itim-music,Itim" 9',
@@ -400,6 +623,36 @@
         console.error('[applyAbc] ABCJS.renderAbc returned empty result for:', abcText.substring(0, 100));
       }
       var visualObj = renderResult ? renderResult[0] : null;
+
+      // Trim excess bottom whitespace from the viewBox set by ABCJS responsive mode.
+      // ABCJS responsive:"resize" creates a viewBox that is often taller than the
+      // actual notation content, producing a visible gap before the MIDI player.
+      // We measure the real content bounds via child <g> getBBox() and shrink the
+      // viewBox height accordingly.
+      var svgEl = svgDiv.querySelector('svg');
+      if (svgEl) {
+        var vb = svgEl.getAttribute('viewBox');
+        if (vb) {
+          var parts = vb.split(/[\s,]+/).map(Number);
+          if (parts.length === 4) {
+            var maxBottom = 0;
+            var children = svgEl.children;
+            for (var ci = 0; ci < children.length; ci++) {
+              if (children[ci].tagName === 'g') {
+                try {
+                  var gb = children[ci].getBBox();
+                  var bottom = gb.y + gb.height;
+                  if (bottom > maxBottom) maxBottom = bottom;
+                } catch(e) { /* getBBox may fail on hidden elements */ }
+              }
+            }
+            // Only trim if we found content and it's meaningfully shorter than viewBox
+            if (maxBottom > 0 && maxBottom + 8 < parts[3]) {
+              svgEl.setAttribute('viewBox', parts[0] + ' ' + parts[1] + ' ' + parts[2] + ' ' + (maxBottom + 8));
+            }
+          }
+        }
+      }
 
       // Always set up ABCJS MIDI synth for playback
       if (visualObj && ABCJS.synth.supportsAudio()) {
@@ -458,63 +711,72 @@
   // ── Toggle / source code helpers ───────────────────────────────────
 
   function applyToggle(element, nl2br) {
-    if (element.find(".sourcecode-toggle").length > 0) {
+    var toggleDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!toggleDomEl) return;
+    if (toggleDomEl.querySelector(".sourcecode-toggle")) {
       return;
     }
-    element.find(".toggle").each(function () {
-      var toggleElement = $(this);
-      toggleElement.addClass("sourcecode");
-      toggleElement.find("pre").addClass("sourcecode");
+    toggleDomEl.querySelectorAll(".toggle").forEach(function (toggleEl) {
+      toggleEl.classList.add("sourcecode");
+      toggleEl.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
 
       if (nl2br) {
-        var toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
-        toggleElement.find("pre").text(toggleText);
+        var toggleText = toggleEl.textContent.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
+        var preEl = toggleEl.querySelector("pre");
+        if (preEl) preEl.textContent = toggleText;
       }
-      addToggleSourceCode(toggleElement, toggleElement.data("label"));
+      addToggleSourceCode(toggleEl, toggleEl.dataset.label);
     });
   }
 
   function addToggleSourceCode(element, title) {
+    var domEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!domEl) return;
     title = title || "Toggle Show/Hide";
-    if (element.data("title")) {
-      title = element.data("title");
+    if (domEl.dataset.title) {
+      title = domEl.dataset.title;
     }
     var toggleHide = "<i class='fa-solid fa-toggle-on'></i> " + title;
     var toggleShow = "<i class='fa-solid fa-toggle-off'></i> " + title;
-    var controlDiv = '<div class="sourcecode-toggle unselectable">' + toggleShow + '</div>';
-    element.before(controlDiv);
-    element.prev().click(function () {
-      var sourcecode = $(this).next();
-      sourcecode.toggle();
-      if (sourcecode.is(":visible")) {
-        $(this).html(toggleHide);
+    var controlDiv = document.createElement('div');
+    controlDiv.className = 'sourcecode-toggle unselectable';
+    controlDiv.innerHTML = toggleShow;
+    domEl.parentNode.insertBefore(controlDiv, domEl);
+    controlDiv.addEventListener('click', function () {
+      var sourcecode = this.nextElementSibling;
+      if (sourcecode.style.display === 'none') {
+        $show(sourcecode);
+        this.innerHTML = toggleHide;
       } else {
-        $(this).html(toggleShow);
+        $hide(sourcecode);
+        this.innerHTML = toggleShow;
       }
     });
-    element.hide();
+    $hide(domEl);
   }
 
   function formatSourceCode(element) {
-    element.find(".sourcecode").each(function () {
-      var sourceCodeElement = $(this);
-      var sourceCode = sourceCodeElement.text().trim();
-      sourceCodeElement.find("code").text(sourceCode);
+    var fmtDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!fmtDomEl) return;
+    fmtDomEl.querySelectorAll(".sourcecode").forEach(function (sourceCodeElement) {
+      var sourceCode = sourceCodeElement.textContent.trim();
+      var codeEl = sourceCodeElement.querySelector("code");
+      if (codeEl) codeEl.textContent = sourceCode;
     });
   }
 
   function cleanupListCodeBlocks(element) {
-    element.find('li').each(function() {
-      var $li = $(this);
-      var children = $li.contents();
-
-      children.each(function(index) {
-        if (this.nodeType === Node.TEXT_NODE) {
-          var text = $(this).text().trim();
+    var clDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!clDomEl) return;
+    clDomEl.querySelectorAll('li').forEach(function(li) {
+      var childNodes = Array.from(li.childNodes);
+      childNodes.forEach(function(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          var text = node.textContent.trim();
           if (text.match(/^[0-9]{1,2}$/)) {
-            var prevSibling = $(this).prev();
-            if (prevSibling.hasClass('highlight') || prevSibling.find('.highlight').length > 0) {
-              $(this).remove();
+            var prevSibling = node.previousElementSibling;
+            if (prevSibling && (prevSibling.classList.contains('highlight') || prevSibling.querySelector('.highlight'))) {
+              node.remove();
             }
           }
         }
@@ -525,6 +787,7 @@
   // ── isElementInViewport ────────────────────────────────────────────
 
   function isElementInViewport(element) {
+    if (!element) return false;
     var rect = element.getBoundingClientRect();
     return (
       rect.top >= 0 &&
@@ -540,13 +803,14 @@
     getMessageMonadicFlag: getMessageMonadicFlag,
     renderMessage: renderMessage,
     setCopyCodeButton: setCopyCodeButton,
-    applyMathJax: applyMathJax,
+    applyMath: applyMath,
     mermaid_config: mermaid_config,
     sanitizeMermaidSource: sanitizeMermaidSource,
     applyMermaid: applyMermaid,
     abcCursorControl: abcCursorControl,
     abcClickListener: abcClickListener,
     applyAbc: applyAbc,
+    applyDrawIO: applyDrawIO,
     applyToggle: applyToggle,
     addToggleSourceCode: addToggleSourceCode,
     formatSourceCode: formatSourceCode,
@@ -557,8 +821,9 @@
   window.WsContentRenderer = ns;
 
   // Backward-compat individual exports
-  window.applyMathJax = applyMathJax;
+  window.applyMath = applyMath;
   window.applyMermaid = applyMermaid;
+  window.applyDrawIO = applyDrawIO;
   window.applyAbc = applyAbc;
   window.applyToggle = applyToggle;
   window.addToggleSourceCode = addToggleSourceCode;

@@ -119,34 +119,9 @@ if (!window.DataTransfer) {
 const WebSocket = require('ws');
 global.WebSocket = WebSocket;
 
-// Load jQuery from actual source
-function loadJQuery() {
-  const jqueryPath = path.join(__dirname, '../../../docker/services/ruby/public/vendor/js/jquery.min.js');
-  if (fs.existsSync(jqueryPath)) {
-    const jqueryCode = fs.readFileSync(jqueryPath, 'utf8');
-    const scriptEl = document.createElement('script');
-    scriptEl.textContent = jqueryCode;
-    document.head.appendChild(scriptEl);
-    global.$ = window.$;
-    global.jQuery = window.jQuery;
-  } else {
-    console.warn('jQuery file not found at:', jqueryPath);
-  }
-}
-
 // Load other required libraries
 function loadLibraries() {
-  // These would be loaded similarly if needed for specific tests
-  // For now, we'll add minimal stubs that match real API
-  
-  // MathJax stub (matches real API)
-  window.MathJax = {
-    typesetPromise: (elements) => Promise.resolve(),
-    startup: {
-      document: null,
-      promise: Promise.resolve()
-    }
-  };
+  // Minimal stubs that match real API
   
   // Mermaid stub (matches real API)
   window.mermaid = {
@@ -160,7 +135,6 @@ function loadLibraries() {
 
 // Initialize the test environment
 function initializeTestEnvironment() {
-  loadJQuery();
   loadLibraries();
   
   // Add global test helpers to window
@@ -213,7 +187,6 @@ initializeTestEnvironment();
 module.exports = {
   window,
   document,
-  loadJQuery,
   loadLibraries,
   initializeTestEnvironment
 };

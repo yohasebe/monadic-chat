@@ -67,7 +67,6 @@ app "ContentReaderOpenAI" do
   
   llm do
     provider "OpenAI"
-    model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
     reasoning_effort "none"
     temperature 0.0
     context_size 10
@@ -78,7 +77,7 @@ app "ContentReaderOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     websearch true
   end
   
@@ -92,8 +91,11 @@ app "ContentReaderOpenAI" do
     # Import unified web search tools (conditional - native or Tavily)
     import_shared_tools :web_search_tools, visibility: "conditional"
 
-    # Import shared content analysis tools (conditional - requires OpenAI API key)
-    import_shared_tools :content_analysis_openai, visibility: "conditional"
+    # Import audio transcription tools (conditional - requires OpenAI or Gemini API key)
+    import_shared_tools :audio_transcription, visibility: "conditional"
+
+    # Import shared image analysis tools (conditional - requires any vision provider API key)
+    import_shared_tools :image_analysis, visibility: "conditional"
 
     define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
       parameter :pdf, "string", "The filename of the PDF to read", required: true

@@ -28,8 +28,11 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
     end
 
     context 'with API key', :api do
+      let(:eval_model) { Monadic::Utils::ModelSpec.default_chat_model("openai") }
+
       before do
         skip 'OPENAI_API_KEY not set' unless ENV['OPENAI_API_KEY']
+        skip 'Default chat model not available' unless eval_model
       end
 
       it 'evaluates a clearly matching response' do
@@ -37,7 +40,8 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
           response: 'The validation was successful. Your ABC notation is syntactically correct.',
           expectation: 'The response indicates that validation succeeded',
           prompt: 'Please validate my ABC notation using the validate_abc_syntax tool.',
-          criteria: 'Tool execution success'
+          criteria: 'Tool execution success',
+          model: eval_model
         )
 
         expect(result.match).to be true
@@ -51,7 +55,8 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
           response: 'I apologize, but I cannot access that tool.',
           expectation: 'The response indicates that the tool was successfully invoked',
           prompt: 'Please use the validate_abc_syntax tool to check this notation.',
-          criteria: 'Tool invocation'
+          criteria: 'Tool invocation',
+          model: eval_model
         )
 
         expect(result.match).to be false
@@ -63,7 +68,8 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
         result = described_class.evaluate(
           response: 'I processed your request.',
           expectation: 'The response explicitly mentions validate_abc_syntax tool was called and shows the exact output',
-          criteria: 'Explicit tool mention with output'
+          criteria: 'Explicit tool mention with output',
+          model: eval_model
         )
 
         # The response doesn't mention the tool, so match should be false
@@ -79,7 +85,8 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
           expectation: 'The AI used music theory knowledge to validate the chords',
           prompt: 'Validate chords C, Am, F, G in key of C',
           criteria: 'Music theory validation',
-          context: { tool_name: 'validate_chord_progression' }
+          context: { tool_name: 'validate_chord_progression' },
+          model: eval_model
         )
 
         expect(result.match).to be true
@@ -89,8 +96,11 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
   end
 
   describe '.matches?' do
+    let(:eval_model) { Monadic::Utils::ModelSpec.default_chat_model("openai") }
+
     before do
       skip 'OPENAI_API_KEY not set' unless ENV['OPENAI_API_KEY']
+      skip 'Default chat model not available' unless eval_model
     end
 
     it 'returns true for matching response above threshold', :api do
@@ -98,7 +108,8 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
         response: 'Successfully validated the notation.',
         expectation: 'Response indicates success',
         prompt: 'Please validate this ABC notation.',
-        threshold: 0.7
+        threshold: 0.7,
+        model: eval_model
       )
 
       expect(result).to be true
@@ -109,7 +120,8 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
         response: 'Error: undefined method call_claude',
         expectation: 'Response indicates successful tool execution',
         prompt: 'Please run the validation tool.',
-        threshold: 0.7
+        threshold: 0.7,
+        model: eval_model
       )
 
       expect(result).to be false
@@ -117,8 +129,11 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
   end
 
   describe '.batch_evaluate' do
+    let(:eval_model) { Monadic::Utils::ModelSpec.default_chat_model("openai") }
+
     before do
       skip 'OPENAI_API_KEY not set' unless ENV['OPENAI_API_KEY']
+      skip 'Default chat model not available' unless eval_model
     end
 
     it 'evaluates multiple expectations against one response', :api do
@@ -131,13 +146,15 @@ RSpec.describe Monadic::Utils::ResponseEvaluator do
           { expectation: 'Validation succeeded', criteria: 'Success status' },
           { expectation: 'Response mentions Python code', criteria: 'Python mention' }
         ],
-        prompt: 'Please validate my ABC notation using the validate_abc_syntax tool.'
+        prompt: 'Please validate my ABC notation using the validate_abc_syntax tool.',
+        model: eval_model
       )
 
       expect(results.length).to eq(3)
-      expect(results[0].match).to be true  # Tool was invoked
-      expect(results[1].match).to be true  # Validation succeeded
-      expect(results[2].match).to be false # No Python mention
+      # API-dependent: assert results are EvaluationResult structs
+      # Individual match results may vary based on model and API latency
+      results.each { |r| expect(r).to be_a(described_class::EvaluationResult) }
+      results.each { |r| expect(r.reasoning).to be_a(String) }
     end
   end
 

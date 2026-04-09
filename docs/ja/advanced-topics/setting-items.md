@@ -72,7 +72,7 @@ featuresブロック内のすべての設定はオプションです：
   - `false` - 無効（デフォルト）
 - `mermaid` - Mermaidダイアグラムレンダリングを有効化
 - `abc` - ABC音楽記譜法を有効化
-- `mathjax` - LaTeX数式レンダリングを有効化
+- `math` - LaTeX数式レンダリングを有効化
 
 #### コンテキスト管理
 - `context_size` - 含める過去のメッセージ数

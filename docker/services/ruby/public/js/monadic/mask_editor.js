@@ -6,7 +6,7 @@
 // Open mask editor for the selected image
 function openMaskEditor(imageData) {
   // Create modal dialog
-  const modal = $(`
+  var modalHTML = `
     <div class="modal fade" id="maskEditorModal" tabindex="-1" role="dialog" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -37,9 +37,14 @@ function openMaskEditor(imageData) {
                     <i class="fas fa-eraser"></i> Eraser
                   </button>
                 </div>
-                <button id="clearMask" class="btn btn-danger w-100 mb-3">
-                  <i class="fas fa-trash"></i> Clear Mask
-                </button>
+                <div class="btn-group mb-3 w-100" role="group">
+                  <button id="undoMask" class="btn btn-outline-secondary w-50">
+                    <i class="fas fa-undo"></i> Undo
+                  </button>
+                  <button id="clearMask" class="btn btn-danger w-50">
+                    <i class="fas fa-trash"></i> Clear
+                  </button>
+                </div>
                 <div class="alert alert-info">
                   <p><i class="fas fa-info-circle"></i> Draw on areas you want AI to edit. White areas will be replaced by AI. Black areas will be preserved.
                 </div>
@@ -55,372 +60,425 @@ function openMaskEditor(imageData) {
         </div>
       </div>
     </div>
-  `);
-  
-  $("body").append(modal);
-  $("#maskEditorModal").modal("show");
-  
-  // Initialize canvas 
-  const canvas = document.getElementById("maskCanvas");
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  var maskModalEl = $id('maskEditorModal');
+  bootstrap.Modal.getOrCreateInstance(maskModalEl).show();
+
+  // Initialize canvas
+  const canvas = $id("maskCanvas");
   const ctx = canvas.getContext("2d");
   let isDrawing = false;
   let tool = "brush"; // brush or eraser
-  
+
+  // Stroke-based undo state
+  let strokes = [];       // [{tool, points: [{x,y}], brushSize}]
+  let currentStroke = [];
+  let currentBrushSize = 0;
+
   // Update brush size display
-  $("#brushSize").on("input", function() {
-    $("#brushSizeValue").text(`${$(this).val()}px`);
-  });
-  
+  var brushSizeInput = $id('brushSize');
+  if (brushSizeInput) {
+    brushSizeInput.addEventListener('input', function() {
+      var sizeLabel = $id('brushSizeValue');
+      if (sizeLabel) sizeLabel.textContent = this.value + 'px';
+    });
+  }
+
   // Load image and set canvas size
   const img = new Image();
   img.onload = function() {
     // Calculate display size (maintain aspect ratio and fit in modal)
-    const maxWidth = $(".modal-body .col-md-8").width() - 20;
+    var colEl = document.querySelector(".modal-body .col-md-8");
+    const maxWidth = (colEl ? colEl.clientWidth : 600) - 20;
     const maxHeight = window.innerHeight * 0.6;
-    
+
     let width = img.width;
     let height = img.height;
-    
+
     if (width > maxWidth) {
       const ratio = maxWidth / width;
       width = maxWidth;
       height = height * ratio;
     }
-    
+
     if (height > maxHeight) {
       const ratio = maxHeight / height;
       height = height * ratio;
       width = width * ratio;
     }
-    
+
     // Set canvas display size
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
-    
-    // Set canvas actual size (same as original image)
+
+    // Set canvas actual size (same as original image for mask output quality)
     canvas.width = img.width;
     canvas.height = img.height;
-    
-    // Initialize background as black (preserved area)
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Show original image as a semi-transparent background
-    ctx.globalAlpha = 0.6;
-    ctx.drawImage(img, 0, 0);
-    ctx.globalAlpha = 1.0;
+
+    drawBase();
   };
   img.src = imageData.data;
-  
-  // Drawing tool event handlers
-  $("#brushTool").on("click", function() {
-    tool = "brush";
-    $(this).addClass("active");
-    $("#eraserTool").removeClass("active");
-  });
-  
-  $("#eraserTool").on("click", function() {
-    tool = "eraser";
-    $(this).addClass("active");
-    $("#brushTool").removeClass("active");
-  });
-  
-  $("#clearMask").on("click", function() {
-    // Clear to black background
+
+  // --- Drawing helpers ---
+
+  function drawBase() {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Redraw the semi-transparent image
     ctx.globalAlpha = 0.6;
     ctx.drawImage(img, 0, 0);
     ctx.globalAlpha = 1.0;
-  });
-  
-  // Drawing event handlers
-  canvas.addEventListener("mousedown", startDrawing);
-  canvas.addEventListener("mousemove", draw);
-  canvas.addEventListener("mouseup", stopDrawing);
-  canvas.addEventListener("mouseout", stopDrawing);
-  
-  // Touch screen support
-  canvas.addEventListener("touchstart", handleTouch);
-  canvas.addEventListener("touchmove", handleTouch);
-  canvas.addEventListener("touchend", stopDrawing);
-  
-  function handleTouch(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent(e.type === "touchstart" ? "mousedown" : "mousemove", {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
   }
-  
-  function startDrawing(e) {
-    isDrawing = true;
-    draw(e);
-  }
-  
-  function draw(e) {
-    if (!isDrawing) return;
-    
-    // Calculate position, accounting for canvas scaling
+
+  function getCanvasCoords(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-    const brushSize = parseInt($("#brushSize").val());
-    
-    if (tool === "brush") {
-      // For the brush tool, simply use white fill for areas to edit
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }
+
+  function scaledBrushSize() {
+    const rect = canvas.getBoundingClientRect();
+    var sizeInput = $id('brushSize');
+    return parseInt(sizeInput ? sizeInput.value : '20') * (canvas.width / rect.width);
+  }
+
+  function drawDot(x, y, brushSize, useTool) {
+    if (useTool === "brush") {
       ctx.beginPath();
       ctx.arc(x, y, brushSize, 0, Math.PI * 2);
       ctx.fillStyle = "white";
       ctx.fill();
     } else {
-      // For eraser, directly redraw the background
       eraseCircle(x, y, brushSize);
     }
   }
-  
+
   // Helper function to erase a circle cleanly
   function eraseCircle(x, y, radius) {
-    // To fix the white outline issue:
-    // 1. Define the circle path with no stroke
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-    
-    // 2. Fill with black (default background)
     ctx.fillStyle = "black";
     ctx.fill();
-    
-    // 3. Draw semi-transparent original image over this area
-    // Save current global alpha value
+
     const currentAlpha = ctx.globalAlpha;
-    
-    // Set reduced opacity for background reference image
     ctx.globalAlpha = 0.6;
-    
-    // Create a tightly-fitted clipping region around our circle
     ctx.save();
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.clip();
-    
-    // Draw the entire image - this ensures proper positioning
     ctx.drawImage(img, 0, 0);
-    
-    // Remove clipping
     ctx.restore();
-    
-    // Restore original alpha
     ctx.globalAlpha = currentAlpha;
   }
-  
-  function stopDrawing() {
-    isDrawing = false;
+
+  function replayStrokes() {
+    for (const stroke of strokes) {
+      for (const pt of stroke.points) {
+        drawDot(pt.x, pt.y, stroke.brushSize, stroke.tool);
+      }
+    }
   }
-  
+
+  function redrawAll() {
+    drawBase();
+    replayStrokes();
+  }
+
+  function endStroke() {
+    if (!isDrawing) return;
+    isDrawing = false;
+    if (currentStroke.length > 0) {
+      strokes.push({
+        tool: tool,
+        points: currentStroke,
+        brushSize: currentBrushSize
+      });
+      currentStroke = [];
+    }
+  }
+
+  // Drawing tool event handlers
+  var brushToolBtn = $id('brushTool');
+  var eraserToolBtn = $id('eraserTool');
+
+  if (brushToolBtn) {
+    brushToolBtn.addEventListener('click', function() {
+      tool = "brush";
+      this.classList.add("active");
+      if (eraserToolBtn) eraserToolBtn.classList.remove("active");
+    });
+  }
+
+  if (eraserToolBtn) {
+    eraserToolBtn.addEventListener('click', function() {
+      tool = "eraser";
+      this.classList.add("active");
+      if (brushToolBtn) brushToolBtn.classList.remove("active");
+    });
+  }
+
+  // Undo last stroke
+  var undoBtn = $id('undoMask');
+  if (undoBtn) {
+    undoBtn.addEventListener('click', function() {
+      if (strokes.length > 0) {
+        strokes.pop();
+        redrawAll();
+      }
+    });
+  }
+
+  // Clear all strokes
+  var clearBtn = $id('clearMask');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      strokes = [];
+      drawBase();
+    });
+  }
+
+  // --- Mouse event handlers ---
+  canvas.addEventListener("mousedown", function(e) {
+    isDrawing = true;
+    const pt = getCanvasCoords(e.clientX, e.clientY);
+    currentBrushSize = scaledBrushSize();
+    currentStroke = [pt];
+    drawDot(pt.x, pt.y, currentBrushSize, tool);
+  });
+
+  canvas.addEventListener("mousemove", function(e) {
+    if (!isDrawing) return;
+    const pt = getCanvasCoords(e.clientX, e.clientY);
+    currentStroke.push(pt);
+    drawDot(pt.x, pt.y, currentBrushSize, tool);
+  });
+
+  canvas.addEventListener("mouseup", endStroke);
+  canvas.addEventListener("mouseout", endStroke);
+
+  // --- Touch event handlers (direct coordinate extraction, passive: false) ---
+  canvas.addEventListener("touchstart", function(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const pt = getCanvasCoords(touch.clientX, touch.clientY);
+    isDrawing = true;
+    currentBrushSize = scaledBrushSize();
+    currentStroke = [pt];
+    drawDot(pt.x, pt.y, currentBrushSize, tool);
+  }, {passive: false});
+
+  canvas.addEventListener("touchmove", function(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const pt = getCanvasCoords(touch.clientX, touch.clientY);
+    currentStroke.push(pt);
+    drawDot(pt.x, pt.y, currentBrushSize, tool);
+  }, {passive: false});
+
+  canvas.addEventListener("touchend", endStroke);
+
   // Save mask
-  $("#saveMask").on("click", function() {
+  var saveBtn = $id('saveMask');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
     try {
       // Create a clean copy of the mask (without the semi-transparent image)
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = canvas.width;
       tempCanvas.height = canvas.height;
       const tempCtx = tempCanvas.getContext("2d");
-      
+
       // Copy only the mask
       tempCtx.drawImage(canvas, 0, 0);
-      
+
       // Create mask data with a clearer naming convention that identifies it as a mask
-      // Use a prefix that clearly identifies this as a mask image
-      // Using plain "mask__" prefix to ensure the name is clearly identifiable as a mask
       const maskFilename = `mask__${imageData.title}`;
-      
+
       // Create mask with proper alpha channel as required by OpenAI
-      // The transparent areas will be edited, filled areas preserved
       const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
       const data = imgData.data;
-      
+
       // Convert black pixels to white with full opacity, white pixels to transparent
-      // This follows OpenAI's requirement: transparent areas = edited, filled areas = preserved
       for (let i = 0; i < data.length; i += 4) {
-        // If pixel is white or light (drawn area to be edited)
         if (data[i] > 200 && data[i+1] > 200 && data[i+2] > 200) {
-          // Make it transparent (area to be edited)
-          data[i+3] = 0; // Set alpha to 0 (fully transparent)
+          data[i+3] = 0;
         } else {
-          // Make non-white pixels white with full opacity (area to be preserved)
-          data[i] = 255;   // R
-          data[i+1] = 255; // G
-          data[i+2] = 255; // B
-          data[i+3] = 255; // A (fully opaque)
+          data[i] = 255;
+          data[i+1] = 255;
+          data[i+2] = 255;
+          data[i+3] = 255;
         }
       }
-      
+
       // Create a separate visible mask image for the UI display
-      // This makes the mask clearly visible with the drawn areas in black
       const visibleMaskCanvas = document.createElement("canvas");
       visibleMaskCanvas.width = canvas.width;
       visibleMaskCanvas.height = canvas.height;
       const visibleMaskCtx = visibleMaskCanvas.getContext("2d");
-      
-      // Set background to white
+
       visibleMaskCtx.fillStyle = "white";
       visibleMaskCtx.fillRect(0, 0, visibleMaskCanvas.width, visibleMaskCanvas.height);
-      
-      // Draw the original mask (before transparency conversion) in black
+
       const originalImgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
       const originalData = originalImgData.data;
       const visibleMaskImgData = visibleMaskCtx.getImageData(0, 0, visibleMaskCanvas.width, visibleMaskCanvas.height);
       const visibleMaskData = visibleMaskImgData.data;
-      
-      // Convert white pixels to black for visibility
+
       for (let i = 0; i < originalData.length; i += 4) {
-        // If pixel was white in original (drawn areas)
         if (originalData[i] > 200 && originalData[i+1] > 200 && originalData[i+2] > 200) {
-          // Make it black in the visible mask
-          visibleMaskData[i] = 0;     // R
-          visibleMaskData[i+1] = 0;   // G
-          visibleMaskData[i+2] = 0;   // B
-          visibleMaskData[i+3] = 255; // A (fully opaque)
+          visibleMaskData[i] = 0;
+          visibleMaskData[i+1] = 0;
+          visibleMaskData[i+2] = 0;
+          visibleMaskData[i+3] = 255;
         }
       }
-      
-      // Put the visible mask data back on the canvas
+
       visibleMaskCtx.putImageData(visibleMaskImgData, 0, 0);
-      
-      // Put the modified image data back on the canvas
       tempCtx.putImageData(imgData, 0, 0);
-      
-      // Use the global currentMaskData from select_image.js
+
       window.currentMaskData = {
         title: maskFilename,
-        data: tempCanvas.toDataURL("image/png"), // The OpenAI-compatible mask with transparency
-        display_data: visibleMaskCanvas.toDataURL("image/png"), // The visible black mask for UI display
+        data: tempCanvas.toDataURL("image/png"),
+        display_data: visibleMaskCanvas.toDataURL("image/png"),
         type: "image/png",
         for_image: imageData.title,
-        is_mask: true, // Add a flag to identify this as a mask
-        mask_for: imageData.title // Reference to the original image
+        is_mask: true,
+        mask_for: imageData.title
       };
-      
-      // Add mask to images array so it gets sent with the message
-      // This ensures it's saved to the shared folder like other images
+
       images.push(window.currentMaskData);
-      
-      // Show success alert
+
       const maskCreatedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskCreated') : 'Mask created for';
       setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskCreatedMsg} ${imageData.title}`, "success");
-      
-      // Find if the image is already in the display
-      const existingImageIndex = images.findIndex(img => 
+
+      const existingImageIndex = images.findIndex(img =>
         img.title === imageData.title && img !== window.currentMaskData
       );
-      
-      // If the original image exists separately from the mask, use that
+
+      var imageUsedEl = $id('image-used');
+
       if (existingImageIndex !== -1) {
-        // Create mask overlay container on top of the existing image
-        $("#image-used").append(`
-          <div class="mask-overlay-container" data-original-image="${imageData.title}">
-            <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
-            <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
-            <div class="mask-overlay-label">MASK</div>
-            <div class="mask-controls">
-              <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
-                <i class="fas fa-times"></i> Remove Mask
-              </button>
-              <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
-                <i class="fas fa-eye-slash"></i> Toggle Mask
-              </button>
+        if (imageUsedEl) {
+          imageUsedEl.insertAdjacentHTML('beforeend', `
+            <div class="mask-overlay-container" data-original-image="${imageData.title}">
+              <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
+              <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
+              <div class="mask-overlay-label">MASK</div>
+              <div class="mask-controls">
+                <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
+                  <i class="fas fa-times"></i> Remove Mask
+                </button>
+                <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
+                  <i class="fas fa-eye-slash"></i> Toggle Mask
+                </button>
+              </div>
             </div>
-          </div>
-        `);
-        
-        // Remove original image from display (it's now part of the overlay)
-        $(`.image-container:has(img[alt="${imageData.title}"])`).hide();
+          `);
+        }
+
+        // Hide original image container
+        var origImg = document.querySelector(`.image-container img[alt="${imageData.title}"]`);
+        if (origImg) {
+          var container = origImg.closest('.image-container');
+          $hide(container);
+        }
       } else {
-        // Create mask overlay container with the base image
-        $("#image-used").append(`
-          <div class="mask-overlay-container" data-original-image="${imageData.title}">
-            <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
-            <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
-            <div class="mask-overlay-label">MASK</div>
-            <div class="mask-controls">
-              <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
-                <i class="fas fa-times"></i> Remove Mask
-              </button>
-              <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
-                <i class="fas fa-eye-slash"></i> Toggle Mask
-              </button>
+        if (imageUsedEl) {
+          imageUsedEl.insertAdjacentHTML('beforeend', `
+            <div class="mask-overlay-container" data-original-image="${imageData.title}">
+              <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
+              <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
+              <div class="mask-overlay-label">MASK</div>
+              <div class="mask-controls">
+                <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
+                  <i class="fas fa-times"></i> Remove Mask
+                </button>
+                <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
+                  <i class="fas fa-eye-slash"></i> Toggle Mask
+                </button>
+              </div>
             </div>
-          </div>
-        `);
+          `);
+        }
       }
-      
-      // Handle mask removal
-      $(".remove-mask").on("click", function() {
-        // Get the mask filename from the data attribute
-        const maskFilename = $(this).data("mask-filename");
-        const originalImageTitle = $(this).closest(".mask-overlay-container").data("original-image");
-        
-        // Remove mask from images array
-        const indexToRemove = images.findIndex(img => img.title === maskFilename);
-        if (indexToRemove !== -1) {
-          images.splice(indexToRemove, 1);
-        }
-        
-        // Clear global mask data
-        window.currentMaskData = null;
-        
-        // Remove the mask overlay container
-        $(this).closest(".mask-overlay-container").remove();
-        
-        // Show the original image if it exists
-        $(`.image-container:has(img[alt="${originalImageTitle}"]):hidden`).fadeIn();
-        
-        // Update the display to ensure everything is shown correctly
-        updateFileDisplay(images);
-        
-        // Show success alert
-        const maskRemovedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskRemoved') : 'Mask removed';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskRemovedMsg}`, "success");
+
+      // Handle mask removal (use event delegation)
+      document.querySelectorAll('.remove-mask').forEach(function(btn) {
+        btn.onclick = function() {
+          var mfn = this.dataset.maskFilename;
+          var overlayContainer = this.closest('.mask-overlay-container');
+          var originalImageTitle = overlayContainer ? overlayContainer.dataset.originalImage : null;
+
+          var indexToRemove = images.findIndex(function(img) { return img.title === mfn; });
+          if (indexToRemove !== -1) {
+            images.splice(indexToRemove, 1);
+          }
+
+          window.currentMaskData = null;
+
+          if (overlayContainer) overlayContainer.remove();
+
+          // Show the original image if it exists
+          if (originalImageTitle) {
+            var hiddenImg = document.querySelector(`.image-container img[alt="${originalImageTitle}"]`);
+            if (hiddenImg) {
+              var hiddenContainer = hiddenImg.closest('.image-container');
+              if (hiddenContainer && hiddenContainer.style.display === 'none') {
+                $show(hiddenContainer);
+              }
+            }
+          }
+
+          updateFileDisplay(images);
+
+          var maskRemovedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskRemoved') : 'Mask removed';
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskRemovedMsg}`, "success");
+        };
       });
-      
+
       // Handle mask toggle
-      $(".toggle-mask").on("click", function() {
-        const $maskOverlay = $(this).closest(".mask-overlay-container").find(".mask-overlay");
-        const $icon = $(this).find("i");
-        
-        if ($maskOverlay.css("opacity") === "0") {
-          // Show mask
-          $maskOverlay.css("opacity", "0.6");
-          $icon.removeClass("fa-eye").addClass("fa-eye-slash");
-        } else {
-          // Hide mask
-          $maskOverlay.css("opacity", "0");
-          $icon.removeClass("fa-eye-slash").addClass("fa-eye");
-        }
+      document.querySelectorAll('.toggle-mask').forEach(function(btn) {
+        btn.onclick = function() {
+          var overlayContainer = this.closest('.mask-overlay-container');
+          var maskOverlay = overlayContainer ? overlayContainer.querySelector('.mask-overlay') : null;
+          var icon = this.querySelector('i');
+
+          if (maskOverlay) {
+            var currentOpacity = window.getComputedStyle(maskOverlay).opacity;
+            if (currentOpacity === "0") {
+              maskOverlay.style.opacity = "0.6";
+              if (icon) { icon.classList.remove("fa-eye"); icon.classList.add("fa-eye-slash"); }
+            } else {
+              maskOverlay.style.opacity = "0";
+              if (icon) { icon.classList.remove("fa-eye-slash"); icon.classList.add("fa-eye"); }
+            }
+          }
+        };
       });
-      
+
       // Close modal
-      $("#maskEditorModal").modal("hide");
-      setTimeout(() => {
-        $("#maskEditorModal").remove();
+      bootstrap.Modal.getOrCreateInstance(maskModalEl).hide();
+      setTimeout(function() {
+        var modalToRemove = $id('maskEditorModal');
+        if (modalToRemove) modalToRemove.remove();
       }, 500);
     } catch (error) {
       console.error("Error saving mask:", error);
       setAlert("Error creating mask: " + error.message, "error");
     }
-  });
-  
+    });
+  }
+
   // Cleanup when modal is closed
-  $("#maskEditorModal").on("hidden.bs.modal", function() {
-    $(this).remove();
-  });
+  if (maskModalEl) {
+    maskModalEl.addEventListener('hidden.bs.modal', function() {
+      this.remove();
+    });
+  }
 }
 
 // Export functions to window for browser environment

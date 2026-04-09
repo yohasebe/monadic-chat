@@ -7,12 +7,12 @@
 
 ### 現在のモックベーステストの問題
 1. **過度なモック**: テストが実際の動作ではなくモック実装をテストしている
-2. **壊れやすいテスト**: jQueryの使用方法の変更にモックの更新が必要
+2. **壊れやすいテスト**: DOM操作パターンの変更にモックの更新が必要
 3. **誤った自信**: テストはパスするが実際のブラウザの動作を反映していない
 4. **メンテナンス負担**: `test/setup.js`と`test/helpers.js`の複雑なモックシステム
 
 ### 現在のモックインフラストラクチャ
-- チェーンメソッド付きグローバルjQueryモック
+- チェーンメソッド付きグローバルモック
 - 手動で作成されたモックDOM要素
 - 実際の接続ではなくWebSocketモック
 - グローバル変数に保存されたイベントハンドラー
@@ -22,7 +22,7 @@
 
 ### コア原則
 1. **実際のDOMを使用**: jsdomに実際のDOM機能を提供させる
-2. **実際のライブラリ**: 実際のjQuery、MathJax、mermaidライブラリを読み込む
+2. **実際のライブラリ**: 実際のKaTeX、mermaidライブラリを読み込む
 3. **統合フォーカス**: 分離された関数ではなく、ユーザーワークフローをテスト
 4. **イベント駆動**: 手動トリガーではなく実際のDOMイベントを使用
 5. **状態検証**: モック呼び出しではなく実際のDOM状態をチェック
@@ -63,8 +63,8 @@ test('send button triggers message submission', async () => {
   // 実際のHTMLフィクスチャを読み込む
   document.body.innerHTML = await loadFixture('chat-interface.html');
 
-  // 実際のjQueryを読み込む
-  await loadScript('/js/jquery.min.js');
+  // DOMヘルパーを読み込む
+  
   await loadScript('/js/monadic.js');
 
   // テストWebSocketサーバーを設定

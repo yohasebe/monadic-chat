@@ -211,7 +211,7 @@ RSpec.describe "Claude Thinking Content Extraction" do
     end
 
     it "identifies non-thinking Claude models" do
-      models = ["claude-3-haiku-20240307", "claude-sonnet-4-20250514"]
+      models = ["claude-haiku-4-5-20251001", "claude-sonnet-4-20250514"]
 
       models.each do |model_name|
         # These models existed before extended thinking

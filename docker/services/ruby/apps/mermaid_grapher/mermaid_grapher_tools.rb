@@ -1,8 +1,11 @@
 require 'cgi'
 require 'json'
+require 'fileutils'
+require 'shellwords'
 require_relative '../../lib/monadic/utils/environment'
 
-class MermaidGrapherOpenAI < MonadicApp
+# Shared tools for Mermaid Grapher (provider-independent)
+module MermaidGrapherTools
   def validate_mermaid_syntax(code:)
     raise ArgumentError, "Code cannot be empty" if code.to_s.strip.empty?
 
@@ -20,139 +23,103 @@ class MermaidGrapherOpenAI < MonadicApp
       )
     )
   end
-  
+
   def preview_mermaid(code:)
     sanitized_code = sanitize_mermaid_code(code)
 
+    # 1. Validate
     validation_payload = run_full_validation(sanitized_code, source: :preview_tool)
     return format_tool_response(validation_payload) unless validation_payload[:success]
 
+    # 2. Generate HTML
     timestamp = Time.now.to_i
-    html_filename = "mermaid_preview_#{timestamp}.html"
+    html_filename = "mermaid_live_#{timestamp}.html"
     screenshot_filename = "mermaid_preview_#{timestamp}.png"
-    
-    # Determine correct path based on environment
     shared_volume = Monadic::Utils::Environment.shared_volume
-    
     html_path = File.join(shared_volume, html_filename)
-    screenshot_path = File.join(shared_volume, screenshot_filename)
-    
-    # Create HTML with Mermaid.js
-    html_content = <<~HTML
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
-        <style>
-          body { 
-            background: transparent;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-          }
-          .mermaid { 
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          }
-        </style>
-      </head>
-      <body>
-        <div class="mermaid">
-#{escape_mermaid_code_for_html(sanitized_code)}
-        </div>
-        <script>
-          mermaid.initialize({ 
-            startOnLoad: true,
-            theme: 'default',
-            securityLevel: 'loose'
-          });
-        </script>
-      </body>
-      </html>
-    HTML
-    
-    # Write HTML file
-    File.write(html_path, html_content)
-    
-    # Use Selenium to take screenshot
-    command = <<~CMD
-      bash -c 'cd /monadic/scripts && python -c "
-import time
-from selenium import webdriver
-from selenium.webdriver.common.by import By
+    File.write(html_path, build_mermaid_html(sanitized_code))
 
-options = webdriver.ChromeOptions()
-options.add_argument(\\"--headless\\")
-options.add_argument(\\"--no-sandbox\\")
-options.add_argument(\\"--disable-dev-shm-usage\\")
-options.add_argument(\\"--window-size=1920,1080\\")
+    # 3. Browser session management via web_navigator.py
+    file_url = "file:///monadic/data/#{html_filename}"
 
-# Try Docker network hostname first, fallback to localhost
-selenium_urls = [
-    \\"http://monadic-chat-selenium-container:4444/wd/hub\\",
-    \\"http://localhost:4444/wd/hub\\"
-]
+    if mermaid_session_active?
+      # Navigate existing session
+      nav_output = send_command(
+        command: "web_navigator.py --action navigate --url #{Shellwords.escape(file_url)}",
+        container: "python"
+      )
+      nav_result = parse_mermaid_response(nav_output)
+      unless nav_result[:success]
+        # Session expired — start fresh
+        start_output = send_command(
+          command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
+          container: "python"
+        )
+        start_result = parse_mermaid_response(start_output)
+        return format_tool_response(build_preview_error(start_result)) unless start_result[:success]
+      end
+    else
+      # No active session — start new
+      start_output = send_command(
+        command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
+        container: "python"
+      )
+      start_result = parse_mermaid_response(start_output)
+      return format_tool_response(build_preview_error(start_result)) unless start_result[:success]
+    end
 
-driver = None
-for url in selenium_urls:
-    try:
-        driver = webdriver.Remote(command_executor=url, options=options)
-        break
-    except Exception:
-        continue
+    # 4. Wait for Mermaid rendering
+    sleep(3)
 
-if not driver:
-    raise Exception(\\"Failed to connect to Selenium\\")
+    # 5. Capture full-page screenshot (resizes viewport or tiles for tall content)
+    ss_output = send_command(command: "web_navigator.py --action full_screenshot", container: "python")
+    ss_result = parse_mermaid_response(ss_output)
 
-try:
-    driver.get(\\"file:///monadic/data/#{html_filename}\\")
-    time.sleep(3)  # Wait for mermaid to render
-    
-    # Find the mermaid element
-    mermaid_element = driver.find_element(By.CLASS_NAME, \\"mermaid\\")
-    
-    # Take screenshot of just the mermaid element
-    mermaid_element.screenshot(\\"/monadic/data/#{screenshot_filename}\\")
-    print(\\"SUCCESS: Screenshot saved\\")
-    
-except Exception as e:
-    print(f\\"ERROR: {str(e)}\\")
-    
-finally:
-    driver.quit()
-"'
-    CMD
-    
-    result = run_bash_command(command: command)
+    if ss_result[:success] && ss_result[:tiled] && ss_result[:screenshots]
+      # Tiled mode: multiple overlapping screenshots for tall diagrams
+      image_files = copy_screenshot_tiles(ss_result[:screenshots], "mermaid_preview_#{timestamp}", shared_volume)
+      if image_files.any?
+        # No gallery_html — Mermaid diagrams are rendered as SVG directly by
+        # the client-side MarkdownRenderer. Instead, inject via _image so the
+        # LLM can verify the rendered diagram without showing it to the user.
+        {
+          success: true,
+          filename: image_files.first,
+          tile_count: image_files.size,
+          message: "Preview captured as #{image_files.size} tiled images. The diagram is rendered as SVG in the chat.",
+          validated_code: sanitized_code,
+          _image: image_files
+        }
+      else
+        format_tool_response(build_preview_payload(
+          success: false,
+          error: "Failed to process tiled screenshots",
+          validated_code: sanitized_code
+        ))
+      end
+    elsif ss_result[:success] && ss_result[:screenshot]
+      # Single image mode: diagram fits in one capture
+      src = File.join(shared_volume, ss_result[:screenshot])
+      dst = File.join(shared_volume, screenshot_filename)
+      FileUtils.cp(src, dst) if File.exist?(src)
 
-    tool_payload = if result.is_a?(String) && result.include?("SUCCESS") && File.exist?(screenshot_path)
+      # No gallery_html — Mermaid diagrams are rendered as SVG directly by
+      # the client-side MarkdownRenderer. Instead, inject via _image so the
+      # LLM can verify the rendered diagram without showing it to the user.
       {
         success: true,
         filename: screenshot_filename,
-        message: "Preview image saved as '#{screenshot_filename}' in the shared folder"
+        message: "Preview image saved as '#{screenshot_filename}'. The diagram is rendered as SVG in the chat.",
+        validated_code: sanitized_code,
+        _image: screenshot_filename
       }
     else
-      error_match = result.to_s.match(/ERROR: (.+)/)
-      error_msg = error_match ? error_match[1] : "Failed to generate preview"
-      {
+      format_tool_response(build_preview_payload(
         success: false,
-        error: error_msg,
-        suggestion: "Check the mermaid syntax and try again"
-      }
+        error: ss_result[:error] || "Failed to capture screenshot",
+        validated_code: sanitized_code
+      ))
     end
-
-    tool_payload[:validated_code] = sanitized_code
-
-    combined_payload = build_preview_payload(tool_payload)
-    combined_payload[:validated_code] ||= sanitized_code
-
-    format_tool_response(combined_payload)
   rescue StandardError => e
     format_tool_response(
       build_preview_payload(
@@ -161,14 +128,27 @@ finally:
       )
     )
   ensure
-    # Clean up HTML file
-    File.delete(html_path) if html_path && File.exist?(html_path)
+    # Keep latest HTML (browser is displaying it); clean up older ones
+    cleanup_old_mermaid_files(keep_latest: html_filename) if html_filename
   end
-  
+
+  def stop_mermaid_browser
+    output = send_command(command: "web_navigator.py --action stop", container: "python")
+    result = parse_mermaid_response(output)
+
+    # Clean up all live HTML files
+    cleanup_old_mermaid_files
+
+    format_tool_response({
+      success: true,
+      message: result[:message] || "Mermaid browser session ended."
+    })
+  end
+
   def analyze_mermaid_error(code:, error:)
     error_str = error.to_s.downcase
     suggestions = []
-    
+
     # Common error patterns and their fixes
     error_patterns = {
       "parse error" => [
@@ -197,14 +177,14 @@ finally:
         "Each line should have exactly 3 comma-separated values"
       ]
     }
-    
+
     # Find matching patterns and collect suggestions
     error_patterns.each do |pattern, fixes|
       if error_str.include?(pattern)
         suggestions.concat(fixes)
       end
     end
-    
+
     # Add general suggestions if no specific match
     if suggestions.empty?
       suggestions = [
@@ -213,7 +193,7 @@ finally:
         "Ensure all special characters are properly escaped"
       ]
     end
-    
+
     format_tool_response(
       {
         success: true,
@@ -225,7 +205,7 @@ finally:
       }
     )
   end
-  
+
   def fetch_mermaid_docs(diagram_type:)
     # Map common names to documentation URLs
     doc_urls = {
@@ -239,9 +219,9 @@ finally:
       "sankey" => "https://mermaid.js.org/syntax/sankey.html",
       "mindmap" => "https://mermaid.js.org/syntax/mindmap.html"
     }
-    
+
     url = doc_urls[diagram_type.downcase] || "https://mermaid.js.org/intro/"
-    
+
     format_tool_response(
       {
         success: true,
@@ -254,6 +234,105 @@ finally:
   end
 
   private
+
+  # Copy tiled screenshot files to stable filenames and return the list
+  def copy_screenshot_tiles(tile_filenames, base_name, shared_volume)
+    tile_filenames.each_with_index.filter_map do |tile_file, idx|
+      src = File.join(shared_volume, tile_file)
+      next unless File.exist?(src)
+
+      dst_name = "#{base_name}_tile#{idx + 1}.png"
+      FileUtils.cp(src, File.join(shared_volume, dst_name))
+      dst_name
+    end
+  end
+
+  # Check if a web_navigator browser session is active.
+  # Verifies both the session file existence and the Selenium service health
+  # to avoid unnecessary navigate attempts when the container has crashed.
+  def mermaid_session_active?
+    session_file = File.join(Monadic::Utils::Environment.shared_volume, ".browser_session_id")
+    return false unless File.exist?(session_file) && !File.read(session_file).strip.empty?
+
+    # Quick health check — if Selenium is unreachable, clear stale session file
+    unless selenium_service_reachable?
+      File.delete(session_file) rescue nil
+      return false
+    end
+
+    true
+  end
+
+  # Lightweight Selenium service health check (2 s timeout)
+  def selenium_service_reachable?
+    require "net/http"
+    uri = URI("http://selenium_service:4444/status")
+    Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
+      http.get(uri.path).is_a?(Net::HTTPSuccess)
+    end
+  rescue StandardError
+    false
+  end
+
+  # Parse JSON response from web_navigator.py
+  def parse_mermaid_response(output)
+    json_match = output.to_s.match(/\{.+\}/m)
+    return { success: false, error: "No JSON response from navigator" } unless json_match
+
+    JSON.parse(json_match[0], symbolize_names: true)
+  rescue JSON::ParserError => e
+    { success: false, error: "Failed to parse response: #{e.message}" }
+  end
+
+  # Build HTML page for Mermaid rendering
+  def build_mermaid_html(code)
+    <<~HTML
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+        <style>
+          html, body {
+            margin: 0;
+            padding: 20px;
+            background: white;
+          }
+          .mermaid {
+            display: inline-block;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="mermaid">
+    #{escape_mermaid_code_for_html(code)}
+        </div>
+        <script>mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });</script>
+      </body>
+      </html>
+    HTML
+  end
+
+  # Build error response for preview failures
+  def build_preview_error(result)
+    build_preview_payload(
+      success: false,
+      error: result[:error] || "Failed to start browser session"
+    )
+  end
+
+  # Remove old mermaid_live_*.html and mermaid_preview_*.png files, optionally keeping one HTML
+  def cleanup_old_mermaid_files(keep_latest: nil)
+    shared_volume = Monadic::Utils::Environment.shared_volume
+    Dir.glob(File.join(shared_volume, "mermaid_live_*.html")).each do |f|
+      next if keep_latest && File.basename(f) == keep_latest
+
+      FileUtils.rm_f(f)
+    end
+    Dir.glob(File.join(shared_volume, "mermaid_preview_*.png")).each do |f|
+      FileUtils.rm_f(f)
+    end
+  end
 
   def format_tool_response(payload)
     safe_payload = stringify_keys(payload)
@@ -317,7 +396,7 @@ finally:
     sanitized = sanitized.gsub(/\[(.*?)\]/m) do |match|
       inner = match[1..-2]
       inner = inner.gsub(/\n\s*\n+/, "\n")
-      inner = inner.strip.gsub(/\n\s*/, '\\n')
+      inner = inner.strip.gsub(/\n\s*/, '<br/>')
       "[#{inner}]"
     end
     sanitized.lines.map { |line| line.rstrip }.reject(&:empty?).join("\n")
@@ -326,20 +405,24 @@ finally:
   def run_full_validation(code, source: nil)
     puts "[DEBUG run_full_validation] Starting validation, source: #{source}" if ENV['DEBUG']
     result = begin
-      puts "[DEBUG run_full_validation] Attempting Selenium validation..." if ENV['DEBUG']
-      actual_validation = validate_with_mermaid_cli(code)
-      puts "[DEBUG run_full_validation] Selenium validation result: #{actual_validation.inspect}" if ENV['DEBUG']
-      build_validation_payload(actual_validation)
+      if source == :preview_tool
+        # Skip Selenium validation for preview: the live preview itself tests
+        # rendering, and a headless validation session would block the single
+        # Selenium Grid slot that web_navigator needs for the visible preview.
+        puts "[DEBUG run_full_validation] Using static validation for preview (avoids Selenium slot conflict)" if ENV['DEBUG']
+        build_validation_payload(static_validation(code))
+      else
+        puts "[DEBUG run_full_validation] Attempting Selenium validation..." if ENV['DEBUG']
+        actual_validation = validate_with_mermaid_cli(code)
+        puts "[DEBUG run_full_validation] Selenium validation result: #{actual_validation.inspect}" if ENV['DEBUG']
+        build_validation_payload(actual_validation)
+      end
     rescue => e
       puts "[DEBUG run_full_validation] Selenium validation failed: #{e.message}, falling back to static validation" if ENV['DEBUG']
       build_validation_payload(static_validation(code))
     end
 
     result[:validated_code] = code
-
-    # Note: Removed @context usage to prevent race conditions between concurrent sessions.
-    # The validation workflow now relies on the LLM following the correct sequence
-    # (validate_mermaid_syntax before preview_mermaid) without server-side state tracking.
 
     unless result[:success]
       result[:workflow_status] = 'validation_failed' if result[:workflow_status] == 'validation_passed'
@@ -355,17 +438,17 @@ finally:
 
     code.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;')
   end
-  
+
   def validate_with_mermaid_cli(code)
     # Use Selenium to validate Mermaid diagram
     timestamp = Time.now.to_i
     html_filename = "mermaid_test_#{timestamp}.html"
-    
+
     # Determine correct path based on environment
     shared_volume = Monadic::Utils::Environment.shared_volume
-    
+
     html_path = File.join(shared_volume, html_filename)
-    
+
     # Create HTML with Mermaid.js
     html_content = <<~HTML
       <!DOCTYPE html>
@@ -374,23 +457,23 @@ finally:
         <meta charset="utf-8">
         <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
         <style>
-          body { 
-            background: #1e1e1e; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
+          body {
+            background: #1e1e1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
             margin: 0;
           }
-          #error { 
-            color: red; 
-            font-family: monospace; 
+          #error {
+            color: red;
+            font-family: monospace;
             white-space: pre-wrap;
             padding: 20px;
           }
-          .mermaid { 
-            background: white; 
-            padding: 20px; 
+          .mermaid {
+            background: white;
+            padding: 20px;
             border-radius: 8px;
           }
         </style>
@@ -401,17 +484,17 @@ finally:
 #{escape_mermaid_code_for_html(code)}
         </div>
         <script>
-          mermaid.initialize({ 
+          mermaid.initialize({
             startOnLoad: true,
             theme: 'default',
             securityLevel: 'loose'
           });
-          
+
           // Capture any errors
           window.addEventListener('error', function(e) {
             document.getElementById('error').textContent = 'Error: ' + e.message;
           });
-          
+
           // Also catch mermaid specific errors
           mermaid.parseError = function(err, hash) {
             document.getElementById('error').textContent = 'Mermaid Error: ' + err;
@@ -420,10 +503,10 @@ finally:
       </body>
       </html>
     HTML
-    
+
     # Write HTML file
     File.write(html_path, html_content)
-    
+
     # Use Selenium to check for errors
     command = <<~CMD
       bash -c 'cd /monadic/scripts && python -c "
@@ -458,11 +541,11 @@ if not driver:
 try:
     driver.get(\\"file:///monadic/data/#{html_filename}\\")
     time.sleep(2)  # Wait for mermaid to render
-    
+
     # Check for errors
     error_element = driver.find_element(By.ID, \\"error\\")
     error_text = error_element.text.strip()
-    
+
     if error_text:
         print(\\"ERROR: \\" + error_text)
     else:
@@ -472,12 +555,12 @@ try:
             print(\\"SUCCESS: Diagram rendered successfully\\")
         else:
             print(\\"ERROR: No SVG element found - diagram may have failed to render\\")
-            
+
 finally:
     driver.quit()
 "'
     CMD
-    
+
     result = run_bash_command(command: command)
 
     puts "[DEBUG validate_with_mermaid_cli] Selenium result: #{result.inspect}" if ENV['DEBUG']
@@ -518,47 +601,47 @@ finally:
   rescue StandardError => e
     raise e  # Re-raise to be caught by validate_mermaid_syntax
   end
-  
+
   def static_validation(code)
     errors = []
     lines = code.strip.split("\n")
-    
+
     # Check for diagram type declaration
     first_line = lines.first.strip
-    valid_types = %w[graph flowchart sequenceDiagram classDiagram stateDiagram-v2 erDiagram 
-                     journey gantt pie quadrantChart requirementDiagram gitGraph C4Context 
-                     mindmap timeline sankey-beta xychart-beta block-beta packet-beta 
+    valid_types = %w[graph flowchart sequenceDiagram classDiagram stateDiagram-v2 erDiagram
+                     journey gantt pie quadrantChart requirementDiagram gitGraph C4Context
+                     mindmap timeline sankey-beta xychart-beta block-beta packet-beta
                      kanban architecture-beta]
-    
+
     unless valid_types.any? { |type| first_line.start_with?(type) }
       errors << "Missing or invalid diagram type declaration. Should start with one of: #{valid_types.join(', ')}"
     end
-    
+
     # Special handling for sankey-beta
     if first_line == "sankey-beta"
       validate_sankey_syntax(lines[1..-1], errors)
     else
       validate_general_syntax(lines, errors)
     end
-    
+
     # Check for balanced brackets
     check_balanced_brackets(code, errors)
-    
+
     if errors.empty?
       { valid: true, message: "Static syntax validation passed" }
     else
       { valid: false, errors: errors }
     end
   end
-  
+
   def validate_sankey_syntax(lines, errors)
     lines.each_with_index do |line, index|
       next if line.strip.empty? || line.strip.start_with?("%%")
-      
+
       # Check for arrow notation in sankey (common error)
       if line.include?("-->") || line.include?("->")
         errors << "Line #{index + 2}: Sankey diagrams use CSV format (source,target,value), not arrow notation. Example: 'Japan,USA,300'"
-        
+
         # Try to extract what they might have meant
         if match = line.match(/(\w+)(?:\[[^\]]+\])?\s*(\d+)?\s*-->\s*(\w+)(?:\[[^\]]+\])?/)
           source = match[1]
@@ -579,34 +662,34 @@ finally:
       end
     end
   end
-  
+
   def validate_general_syntax(lines, errors)
     lines.each_with_index do |line, index|
       # Skip empty lines and comments
       next if line.strip.empty? || line.strip.start_with?("%%")
-      
+
       # Check for tabs (should use spaces)
       if line.include?("\t")
         errors << "Line #{index + 1}: Use spaces instead of tabs for indentation"
       end
-      
+
       # Check for unescaped brackets in labels
       if line =~ /[^\\][\[\]()]/ && line.include?(":")
         errors << "Line #{index + 1}: Brackets and parentheses in labels should be escaped with backslash"
       end
     end
   end
-  
+
   def check_balanced_brackets(code, errors)
     # Remove escaped brackets and brackets in strings
     cleaned_code = code.gsub(/\\[\[\](){}]/, "").gsub(/"[^"]*"/, "")
-    
+
     brackets = {
       "{" => "}",
       "[" => "]",
       "(" => ")"
     }
-    
+
     stack = []
     cleaned_code.each_char do |char|
       if brackets.keys.include?(char)
@@ -619,16 +702,16 @@ finally:
         end
       end
     end
-    
+
     unless stack.empty?
       errors << "Unclosed brackets: #{stack.join(', ')}"
     end
   end
-  
+
   def generate_quick_fixes(code, error)
     fixes = []
     error_str = error.to_s
-    
+
     # Auto-fix suggestions based on error type
     if code.strip.start_with?("sankey-beta") && code.include?("-->")
       lines = code.split("\n")
@@ -648,13 +731,13 @@ finally:
           end
         end
       end
-      
+
       fixes << {
         description: "Convert Sankey arrow notation to CSV format",
         fixed_code: fixed_lines.join("\n")
       }
     end
-    
+
     if error_str.include?("tab")
       fixed_code = code.gsub("\t", "  ")
       fixes << {
@@ -662,7 +745,7 @@ finally:
         fixed_code: fixed_code
       }
     end
-    
+
     fixes
   end
 end

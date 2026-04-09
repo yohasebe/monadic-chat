@@ -20,6 +20,13 @@ module MonadicSharedTools
   module PythonExecution
     include MonadicHelper
 
+    # Supported image extensions for _image enrichment (SVG excluded — not supported by ToolImageUtils)
+    IMAGE_EXTENSIONS = %w[png jpg jpeg gif webp].freeze
+    # Maximum file size for _image injection (5 MB)
+    MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024
+    # Maximum number of images to inject per tool call
+    MAX_IMAGES_PER_CALL = 5
+
     # Execute program code and return the output
     #
     # Delegates to MonadicHelper#run_code which handles:
@@ -87,8 +94,8 @@ module MonadicSharedTools
         end
       end
 
-      # Return output directly (MonadicHelper already formats it)
-      output_json
+      # Enrich output with _image if image files were generated
+      enrich_with_images(output_json, session: session)
     end
 
     # Execute a bash command in the Python container
@@ -167,6 +174,53 @@ module MonadicSharedTools
     def lib_installer(command:, packager: "pip")
       # Call existing MonadicHelper implementation
       super(command: command, packager: packager)
+    end
+
+    private
+
+    # Post-process run_code output: detect generated images and store gallery HTML
+    # for server-side display via WebSocket (tool_html_fragments).
+    #
+    # Does NOT return _image key — vision injection into LLM context is intentionally
+    # omitted for code execution tools. Injecting images as "user" messages triggers
+    # additional API round-trips, causing tool-call loops. Gallery HTML ensures the
+    # user sees images correctly without LLM involvement.
+    #
+    # Apps that need the LLM to see screenshots (browser automation, diagram preview)
+    # return _image explicitly from their own tool methods.
+    def enrich_with_images(output, session: nil)
+      return output unless output.is_a?(String)
+
+      # Extract /data/filename.ext patterns from the output
+      image_basenames = output.scan(%r{/data/([\w\-. ]+\.(?:#{IMAGE_EXTENSIONS.join("|")}))})
+                              .flatten
+                              .uniq
+
+      return output if image_basenames.empty?
+
+      data_path = Monadic::Utils::Environment.data_path
+
+      # Filter: file must exist and be ≤ MAX_IMAGE_FILE_SIZE
+      valid_images = image_basenames.select do |basename|
+        full_path = File.join(data_path, basename)
+        File.exist?(full_path) && File.size(full_path) <= MAX_IMAGE_FILE_SIZE
+      end.first(MAX_IMAGES_PER_CALL)
+
+      return output if valid_images.empty?
+
+      # Store gallery HTML for server-side injection via WebSocket.
+      # This bypasses LLM filename hallucination — the correct <img> tags
+      # are appended to the response regardless of what the LLM writes.
+      if session
+        gallery_html = valid_images.map { |img|
+          "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"
+        }.join("\n")
+        session[:tool_html_fragments] ||= []
+        session[:tool_html_fragments] << gallery_html
+      end
+
+      # Return original text — no _image key, no vision injection
+      output
     end
   end
 end

@@ -70,7 +70,7 @@ app "ChatPlusDeepSeek" do
 
   llm do
     provider "deepseek"
-    model "deepseek-chat"
+    reasoning_effort "low"
     context_size 20
   end
 

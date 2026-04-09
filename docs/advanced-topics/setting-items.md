@@ -75,7 +75,7 @@ All settings in the features block are optional:
   - `false` - Disabled (default)
 - `mermaid` - Enable Mermaid diagram rendering
 - `abc` - Enable ABC music notation
-- `mathjax` - Enable LaTeX math rendering
+- `math` - Enable LaTeX math rendering
 
 #### Context Management
 - `context_size` - Number of previous messages to include

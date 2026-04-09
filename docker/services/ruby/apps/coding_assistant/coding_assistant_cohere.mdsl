@@ -72,7 +72,6 @@ app "CodingAssistantCohere" do
   llm do
     provider "cohere"
     # Use reasoning model for better tool handling and more coherent responses
-    model "command-a-reasoning-08-2025"
     reasoning_effort "disabled"
     temperature 0.0
   end
@@ -83,7 +82,7 @@ app "CodingAssistantCohere" do
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false
-    mathjax false
+    math false
     initiate_from_assistant false
     group "Cohere"
   end

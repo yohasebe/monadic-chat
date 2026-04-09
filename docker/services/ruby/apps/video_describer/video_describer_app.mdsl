@@ -68,7 +68,6 @@ app "VideoDescriberApp" do
   
   llm do
     provider "openai"
-    model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
     reasoning_effort "none"
   end
 
@@ -90,8 +89,11 @@ app "VideoDescriberApp" do
   end
 
   tools do
-    # Video Describer needs analyze_video tool always available
-    import_shared_tools :content_analysis_openai, visibility: "always"
+    # Video analysis tool (provider-independent vision capabilities)
+    import_shared_tools :video_analysis, visibility: "always"
+
+    # Audio transcription (provider-independent, used for video audio track)
+    import_shared_tools :audio_transcription, visibility: "always"
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"

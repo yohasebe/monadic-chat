@@ -90,10 +90,15 @@
       const isFirstSegment = nextExpectedSequence === 1;
       if (isFirstSegment && globalAudioQueue.length === 0 && !isProcessingAudioQueue) {
         setTimeout(function() {
-          const $assistantCards = $('.role-assistant').closest('.card').not('#temp-card');
-          if ($assistantCards.length > 0) {
-            const $latestCard = $assistantCards.last();
-            const cardId = $latestCard.attr('id');
+          const allAssistantEls = document.querySelectorAll('.role-assistant');
+          const assistantCards = [];
+          allAssistantEls.forEach(function(el) {
+            const card = el.closest('.card');
+            if (card && card.id !== 'temp-card') assistantCards.push(card);
+          });
+          if (assistantCards.length > 0) {
+            const latestCard = assistantCards[assistantCards.length - 1];
+            var cardId = latestCard.id;
             if (cardId && typeof window.highlightStopButton === 'function') {
               window.highlightStopButton(cardId);
             }
@@ -169,7 +174,8 @@
         window.setTtsPlaybackStarted(true);
         window.checkAndHideSpinner();
       } else {
-        $("#monadic-spinner").hide();
+        var spinner = $id("monadic-spinner");
+        $hide(spinner);
       }
 
       if (typeof window.hideTtsToast === 'function') window.hideTtsToast();

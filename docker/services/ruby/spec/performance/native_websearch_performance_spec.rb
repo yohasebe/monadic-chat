@@ -170,7 +170,7 @@ RSpec.describe "Native Web Search Performance", :performance do
       successes = 0
       
       test_queries.first(3).each do |query|
-        session = create_test_session("gemini-2.5-flash", query, 
+        session = create_test_session("gemini-3-flash-preview", query, 
                                      websearch: true, 
                                      reasoning_effort: "minimal")
         
@@ -213,7 +213,7 @@ RSpec.describe "Native Web Search Performance", :performance do
       end
       
       if CONFIG["GEMINI_API_KEY"]
-        providers << { name: "Gemini", model: "gemini-2.5-flash", helper_class: "GeminiHelper" }
+        providers << { name: "Gemini", model: "gemini-3-flash-preview", helper_class: "GeminiHelper" }
       end
       
       providers.each do |provider|
@@ -331,7 +331,7 @@ RSpec.describe "Native Web Search Performance", :performance do
       # Perform searches
       5.times do |i|
         session = create_test_session(
-          "gemini-2.5-flash",
+          "gemini-3-flash-preview",
           "Search query #{i}: Latest news",
           websearch: true,
           reasoning_effort: "minimal"

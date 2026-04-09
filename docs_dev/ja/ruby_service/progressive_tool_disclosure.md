@@ -194,7 +194,7 @@ end
 1. **`web_automation`** (4ツール)
    - 必要: SeleniumおよびPythonコンテナ
    - スクリーンショットキャプチャ、Webスクレイピング
-   - 使用アプリ: Visual Web Explorer、AutoForge
+   - 使用アプリ: Web Insight、AutoForge
 
 2. **`video_analysis_openai`** (1ツール)
    - 必要: OpenAI APIキー

@@ -23,6 +23,7 @@
     "logs": "로그 열기",
     "settings": "설정",
     "openBrowser": "브라우저",
+    "openNoVNC": "noVNC 열기",
     "openSharedFolder": "공유 폴더",
     "quit": "종료",
     "edit": "편집",

@@ -35,7 +35,6 @@ app "ImageGeneratorOpenAI" do
 
   llm do
     provider "openai"
-    model ["gpt-5.2", "gpt-5.1"]
     temperature 0.0
     reasoning_effort "none"
     context_size 10
@@ -126,7 +125,7 @@ app "ImageGeneratorOpenAI" do
 
     define_tool "generate_image_with_openai", "Generate or edit images using OpenAI models." do
       parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: true, enum: ["generate", "edit"]
-      parameter :model, "string", "Model to use for image generation", required: true, enum: ["gpt-image-1.5", "chatgpt-image-latest"]
+      parameter :model, "string", "Model to use for image generation", required: true, enum: (Monadic::Utils::ModelSpec.get_provider_models("openai", "image") rescue ["gpt-image-1.5", "chatgpt-image-latest"])
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: false
       parameter :images, "array", "Array of image filenames for editing or variation operations", required: false, items: {
         type: "string",

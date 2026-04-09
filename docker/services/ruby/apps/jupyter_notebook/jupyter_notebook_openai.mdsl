@@ -37,13 +37,12 @@ app "JupyterNotebookOpenAI" do
   
   llm do
     provider "openai"
-    model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
-    reasoning_effort "none"
+    reasoning_effort "low"
     temperature 0.0
     context_size 20
 
     agents do
-      code_generator model: "gpt-5.2-codex"
+      code_generator model: "gpt-5.3-codex"
     end
   end
 
@@ -210,6 +209,11 @@ app "JupyterNotebookOpenAI" do
     6. Re-run with run_jupyter_cells to verify the fix
     7. Maximum 2 retry attempts per error to prevent infinite loops
     8. If still failing after 2 attempts, report the issue to the user with error details
+
+    TOOL LOOP PREVENTION:
+    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
+    - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
+    - If you find yourself about to call the same tool you just called, STOP and return a response instead
 
     IMPORTANT: You no longer need to manually call get_jupyter_cells_with_results after add_jupyter_cells.
     The tool does this automatically and includes error information in the response.
@@ -395,6 +399,12 @@ app "JupyterNotebookOpenAI" do
     WHEN TO USE: Notebook creation with code execution, data analysis pipelines, multi-cell operations.
     WHEN TO SKIP: Simple explanations, direct answers, single markdown cells.
     Maximum 3 verification attempts per task.
+
+    ## FINAL RESPONSE CHECKLIST (apply to EVERY response after tool calls)
+    Before submitting your response, verify:
+    ✅ Notebook link is included as clickable HTML: <a href='URL' target='_blank'>filename.ipynb</a>
+    ✅ You did NOT call the same tool twice in a row
+    ✅ Response summarizes what was done (cells added, errors fixed, etc.)
   TEXT
 
   features do
@@ -403,7 +413,7 @@ app "JupyterNotebookOpenAI" do
     auto_speech false
     monadic true  # Uses Session State for notebook context tracking
     jupyter true
-    mathjax true
+    math true
     initiate_from_assistant true
   end
 

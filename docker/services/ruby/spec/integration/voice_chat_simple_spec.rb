@@ -35,15 +35,8 @@ RSpec.describe "Voice Chat Simple Integration", :integration do
         expect(content).to include('easy_submit true')
         expect(content).to include('auto_speech true')
         
-        # Check provider-specific model
-        case provider
-        when "openai"
-          expect(content).to match(/gpt-4o|gpt-4|gpt-5/i)
-        when "claude"
-          expect(content).to match(/claude-3|claude-2|claude-sonnet|claude-haiku|claude-opus/i)
-        when "gemini"
-          expect(content).to match(/gemini/i)
-        end
+        # Check provider is set (model resolved via providerDefaults SSOT)
+        expect(content).to match(/provider\s+"?\w+/)
       end
     end
   end

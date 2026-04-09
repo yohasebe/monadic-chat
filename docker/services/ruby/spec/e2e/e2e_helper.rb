@@ -116,7 +116,7 @@ module E2EHelper
   end
 
   # Send a chat message via WebSocket
-  def send_chat_message(ws_connection, message_text, app: "ChatOpenAI", model: "gpt-4o", max_tokens: nil, skip_activation: false, websearch: nil, reasoning_effort: nil)
+  def send_chat_message(ws_connection, message_text, app: "ChatOpenAI", model: "gpt-4.1", max_tokens: nil, skip_activation: false, websearch: nil, reasoning_effort: nil)
     # Determine if this provider needs special handling for initiate_from_assistant: false
     needs_initial_message = false
     if !skip_activation && (app.include?("Gemini") || app.include?("DeepSeek") || app.include?("Mistral"))
@@ -168,7 +168,7 @@ module E2EHelper
       system_prompt_msg = {
         "message" => "SYSTEM_PROMPT",
         "content" => initial_prompt,
-        "mathjax" => false,
+        "math" => false,
         "monadic" => false
       }
       ws_connection[:client].send(JSON.generate(system_prompt_msg))

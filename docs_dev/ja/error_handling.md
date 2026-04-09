@@ -9,9 +9,14 @@
 - 履歴は最後の10エントリに制限されます。仕様は停止条件を検証するために合成エラーを注入できます。
 
 ## FunctionCallErrorHandler
-- ベンダーヘルパー（OpenAI、Claude、Gemini）によって消費され、ツールレスポンスを検出器に接続するMixin。
+- ベンダーヘルパー（OpenAI、Claude、Gemini、Grok、Mistral、Cohere、DeepSeek、Perplexity、Ollama）によって消費され、ツールレスポンスを検出器に接続するMixin。
+- `function_return_is_error?` は以下の3形式でエラーを検出:
+  - **文字列プレフィックス**: `"ERROR:"`、`"Error:"`、`"Error executing code"`、`"Error occurred"`、`"❌"`
+  - **Hash**: `{ success: false }` または `{ "success" => false }`
+  - **JSON文字列**: `"success":false` または `"success": false` を含む文字列
 - `handle_function_error`は失敗を記録し、緩和ガイダンスを含むフラグメントを発行し、検出器が停止を要求したときに`session[:parameters]["stop_retrying"]`を設定します。
 - `reset_error_tracking(session)`は新しい会話のために状態をクリアします。デバッグ中にセッションを手動で巻き戻す際に呼び出します。
+- **規約**: すべてのツールメソッドはエラーを `❌` で始まる文字列として返すべきです。`{ success: false }.to_json` ではなくプレーン文字列を使用してください。
 
 ## NetworkErrorHandler
 - 指数バックオフ（`with_network_retry`）で送信HTTP呼び出しをラップします。

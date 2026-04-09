@@ -64,9 +64,9 @@ app "CodingAssistantDeepSeek" do
   
   llm do
     provider "deepseek"
-    # Reasoner is default for better tool calling reliability
-    # Chat is faster but may have DSML formatting issues with file operations
-    model ["deepseek-reasoner", "deepseek-chat"]
+    reasoning_effort "low"
+    # Chat is default for faster responses; reasoner available for complex tasks
+    model ["deepseek-chat", "deepseek-reasoner"]
   end
   
   display_name "Coding Assistant"
@@ -75,7 +75,7 @@ app "CodingAssistantDeepSeek" do
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     easy_submit false
     auto_speech false
-    mathjax false
+    math false
     initiate_from_assistant false
     group "DeepSeek"
   end

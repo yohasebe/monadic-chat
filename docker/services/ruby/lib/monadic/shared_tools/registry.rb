@@ -371,50 +371,199 @@ module MonadicSharedTools
             parameters: []
           },
           {
-            name: "capture_webpage_text",
-            description: "Extract text content from a web page in Markdown format",
+            name: "start_browser",
+            description: "Start an interactive browser session visible via noVNC and navigate to a URL",
             parameters: [
               {
                 name: :url,
                 type: "string",
-                description: "The URL of the web page to extract text from",
+                description: "The URL to open in the browser",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "browser_navigate",
+            description: "Navigate the interactive browser to a new URL",
+            parameters: [
+              {
+                name: :url,
+                type: "string",
+                description: "The URL to navigate to",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "browser_click",
+            description: "Click an element on the page by CSS selector",
+            parameters: [
+              {
+                name: :selector,
+                type: "string",
+                description: "CSS selector of the element to click",
                 required: true
               },
               {
-                name: :use_image_recognition,
-                type: "boolean",
-                description: "Use image recognition to extract text (useful when HTML parsing fails)",
+                name: :description,
+                type: "string",
+                description: "Brief description of what is being clicked",
                 required: false
               }
             ]
           },
           {
-            name: "debug_application",
-            description: "Debug a generated web application using Selenium",
+            name: "browser_type",
+            description: "Type text into an input field by CSS selector",
             parameters: [
               {
-                name: :spec,
-                type: "object",
-                description: "Specification with project name to debug",
+                name: :selector,
+                type: "string",
+                description: "CSS selector of the input element",
+                required: true
+              },
+              {
+                name: :text,
+                type: "string",
+                description: "Text to type into the element",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "browser_screenshot",
+            description: "Take a screenshot of the current interactive browser page",
+            parameters: []
+          },
+          {
+            name: "browser_get_page_info",
+            description: "Get page title, URL, and interactive elements with CSS selectors",
+            parameters: []
+          },
+          {
+            name: "annotate_elements",
+            description: "Annotate candidate elements with numbered labels on the screenshot for user disambiguation",
+            parameters: [
+              {
+                name: :selectors,
+                type: "array",
+                description: "Array of CSS selectors for candidate elements (max 9)",
+                required: true,
+                items: { type: "string" }
+              }
+            ]
+          },
+          {
+            name: "browser_scroll",
+            description: "Scroll the interactive browser page. Supports relative (up/down) and absolute (top/bottom) scrolling.",
+            parameters: [
+              {
+                name: :direction,
+                type: "string",
+                description: "Scroll direction: 'up'/'down' for relative, 'top'/'bottom' for absolute (default: 'down')",
+                required: false
+              },
+              {
+                name: :amount,
+                type: "integer",
+                description: "Scroll amount in pixels for up/down (default: 500, ignored for top/bottom)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "browser_press_key",
+            description: "Send a key press to the browser, optionally focusing an element first",
+            parameters: [
+              {
+                name: :key,
+                type: "string",
+                description: "The key to press (Enter, Escape, Tab, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Backspace, Space)",
+                required: true
+              },
+              {
+                name: :selector,
+                type: "string",
+                description: "Optional CSS selector of an element to focus before pressing the key",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "browser_select",
+            description: "Select an option from a <select> dropdown by value or visible text",
+            parameters: [
+              {
+                name: :selector,
+                type: "string",
+                description: "CSS selector of the <select> element",
+                required: true
+              },
+              {
+                name: :value,
+                type: "string",
+                description: "Option value to select",
+                required: false
+              },
+              {
+                name: :text,
+                type: "string",
+                description: "Option text to select (partial match)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "browser_back",
+            description: "Navigate back in browser history",
+            parameters: []
+          },
+          {
+            name: "browser_forward",
+            description: "Navigate forward in browser history",
+            parameters: []
+          },
+          {
+            name: "stop_browser",
+            description: "Stop the interactive browser session",
+            parameters: []
+          },
+        ],
+        default_hint: "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots or interactively browse the web using Selenium.",
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::WebAutomation.available? }
+      },
+
+      audio_transcription: {
+        module_name: 'MonadicSharedTools::AudioTranscription',
+        tools: [
+          {
+            name: "analyze_audio",
+            description: "Transcribe audio from an audio file using speech-to-text capabilities",
+            parameters: [
+              {
+                name: :audio,
+                type: "string",
+                description: "The filename of the audio to transcribe",
                 required: true
               }
             ]
           }
         ],
-        default_hint: "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium.",
+        default_hint: 'Call request_tool("audio_transcription") when you need to transcribe audio content.',
         visibility: 'conditional',
-        available_when: -> { MonadicSharedTools::WebAutomation.available? }
+        available_when: -> { MonadicSharedTools::AudioTranscription.available? }
       },
 
-      content_analysis_openai: {
-        module_name: 'MonadicSharedTools::ContentAnalysisOpenAI',
+      video_analysis: {
+        module_name: 'MonadicSharedTools::VideoAnalysis',
         tools: [
           {
             name: "analyze_video",
-            description: "Analyze video content and generate description using OpenAI's multimodal capabilities (image recognition + audio transcription)",
+            description: "Analyze video content and generate description using vision capabilities (image recognition + audio transcription)",
             parameters: [
               {
-                name: :filename,
+                name: :file,
                 type: "string",
                 description: "The video file to analyze",
                 required: true
@@ -432,10 +581,19 @@ module MonadicSharedTools
                 required: false
               }
             ]
-          },
+          }
+        ],
+        default_hint: 'Call request_tool("video_analysis") when you need to analyze video content.',
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::VideoAnalysis.available? }
+      },
+
+      image_analysis: {
+        module_name: 'MonadicSharedTools::ImageAnalysis',
+        tools: [
           {
             name: "analyze_image",
-            description: "Analyze and describe the contents of an image file using OpenAI's vision capabilities",
+            description: "Analyze and describe the contents of an image file using vision capabilities",
             parameters: [
               {
                 name: :message,
@@ -450,23 +608,11 @@ module MonadicSharedTools
                 required: true
               }
             ]
-          },
-          {
-            name: "analyze_audio",
-            description: "Analyze and transcribe audio from an audio file using OpenAI's Whisper",
-            parameters: [
-              {
-                name: :audio,
-                type: "string",
-                description: "The filename of the audio to analyze",
-                required: true
-              }
-            ]
           }
         ],
-        default_hint: "Call request_tool(\"content_analysis_openai\") when you need to analyze video, image, or audio content using OpenAI's multimodal capabilities.",
+        default_hint: 'Call request_tool("image_analysis") when you need to analyze image content.',
         visibility: 'conditional',
-        available_when: -> { MonadicSharedTools::ContentAnalysisOpenAI.available? }
+        available_when: -> { MonadicSharedTools::ImageAnalysis.available? }
       },
 
       session_context: {

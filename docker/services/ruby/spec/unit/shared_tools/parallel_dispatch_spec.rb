@@ -258,7 +258,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       end
 
       it "uses provider default model when session is nil" do
-        expect(app).to receive(:sub_agent_api_call).with(kind_of(String), anything, anything, anything, websearch: false).and_return("text")
+        expect(app).to receive(:sub_agent_api_call).with(anything, anything, anything, anything, websearch: false).and_return("text")
         tasks = [{ "id" => "t1", "prompt" => "test" }]
         app.dispatch_parallel_tasks(tasks: tasks, session: nil)
       end
@@ -388,7 +388,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
 
         result = app.gemini_sub_call(
           "https://generativelanguage.googleapis.com/v1beta",
-          "key", "gemini-2.5-flash", "test", 120
+          "key", "gemini-3-flash-preview", "test", 120
         )
         expect(result).to eq("Hello from Gemini")
       end
@@ -581,7 +581,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         end
 
         app.gemini_websearch_sub_call(
-          "https://generativelanguage.googleapis.com/v1beta", "key", "gemini-2.5-flash", "test", 120
+          "https://generativelanguage.googleapis.com/v1beta", "key", "gemini-3-flash-preview", "test", 120
         )
       end
 
@@ -593,7 +593,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         allow(mock_response).to receive(:status).and_return(200)
 
         result = app.gemini_websearch_sub_call(
-          "https://generativelanguage.googleapis.com/v1beta", "key", "gemini-2.5-flash", "test", 120
+          "https://generativelanguage.googleapis.com/v1beta", "key", "gemini-3-flash-preview", "test", 120
         )
         expect(result).to eq("Grounded result")
       end
@@ -697,12 +697,12 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
 
     it "routes Grok to responses_api_sub_call when websearch: true" do
       expect(app).to receive(:responses_api_sub_call).and_return("result")
-      app.sub_agent_api_call("grok-3", "test", grok_cfg, 120, websearch: true)
+      app.sub_agent_api_call("grok-4-1-fast-non-reasoning", "test", grok_cfg, 120, websearch: true)
     end
 
     it "routes Gemini to gemini_websearch_sub_call when websearch: true" do
       expect(app).to receive(:gemini_websearch_sub_call).and_return("result")
-      app.sub_agent_api_call("gemini-2.5-flash", "test", gemini_cfg, 120, websearch: true)
+      app.sub_agent_api_call("gemini-3-flash-preview", "test", gemini_cfg, 120, websearch: true)
     end
 
     it "routes Claude to anthropic_websearch_sub_call when websearch: true" do

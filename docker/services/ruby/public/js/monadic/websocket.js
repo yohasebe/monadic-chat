@@ -22,7 +22,9 @@ try {
 // Note: WebSocket connection will be established after ensureMonadicTabId() is defined
 // See bottom of this file for actual connection initialization
 let ws;  // Will be set after tab ID is ready
-let isConnecting = false;  // Guard to prevent duplicate connection attempts
+// Shared mutable state - accessible via window for ws-visibility-handler.js
+if (typeof window._wsIsConnecting === 'undefined') window._wsIsConnecting = false;
+if (typeof window._wsReconnectionTimer === 'undefined') window._wsReconnectionTimer = null;
 
 // Properly close WebSocket connection before creating new one
 // This prevents connection accumulation after sleep/wake cycles
@@ -44,7 +46,7 @@ function closeCurrentWebSocket() {
     ws = null;
   }
 }
-let initialLoadComplete = false; // Flag to track initial load
+window.initialLoadComplete = false; // Flag to track initial load
 if (typeof window.skipAssistantInitiation === 'undefined') {
   window.skipAssistantInitiation = false;
 }
@@ -71,7 +73,7 @@ if (!window.logTL) {
 }
 
 // OpenAI API token verification
-let verified = null;
+window.verified = null;
 
 const { getMessageAppName, getMessageMonadicFlag, renderMessage } = window.WsContentRenderer || {};
 const { registerAudioElement, stopAllActiveAudio } = window.WsAudioPlayback || {};
@@ -97,14 +99,13 @@ const TOKEN_VERIFY_TIMEOUT_MS = (window.WsAudioConstants || {}).TOKEN_VERIFY_TIM
 const VERIFY_CHECK_INTERVAL_MS = (window.WsAudioConstants || {}).VERIFY_CHECK_INTERVAL_MS || 1000;
 const RESPONSE_TIMEOUT_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOUT_MS || 30000;
 const RESPONSE_TIMEOUT_SLOW_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOUT_SLOW_MS || 60000;
-const BUSY_CHECK_INTERVAL_MS = (window.WsAudioConstants || {}).BUSY_CHECK_INTERVAL_MS || 500;
-const BUSY_CHECK_MAX_WAIT_MS = (window.WsAudioConstants || {}).BUSY_CHECK_MAX_WAIT_MS || 10000;
+// BUSY_CHECK_INTERVAL_MS, BUSY_CHECK_MAX_WAIT_MS now in ws-streaming-handler.js
 
 // Stop-button highlighting, checkAndHideSpinner now in ws-auto-speech.js
 const { highlightStopButton, removeStopButtonHighlight, checkAndHideSpinner } = window.WsAutoSpeech || {};
 
 // message is submitted upon pressing enter
-const message = $("#message")[0];
+const message = $id("message");
 
 message.addEventListener("compositionstart", function () {
   message.dataset.ime = "true";
@@ -116,23 +117,31 @@ message.addEventListener("compositionend", function () {
 
 document.addEventListener("keydown", function (event) {
   // Right Arrow key - activate voice input when Easy Submit is enabled
-  if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
+  const easySubmitEl = $id("check-easy-submit");
+  const messageEl = $id("message");
+  const easySubmitChecked = easySubmitEl && easySubmitEl.checked;
+  const messageHasFocus = document.activeElement === messageEl;
+
+  if (easySubmitChecked && !messageHasFocus && event.key === "ArrowRight") {
     event.preventDefault();
-    // Only activate voice button if session has begun (config is hidden and main panel is visible)
-    if ($("#voice").prop("disabled") === false && !$("#config").is(":visible") && $("#main-panel").is(":visible")) {
-      $("#voice").click();
+    // Only activate voice button if session has begun (main panel is visible)
+    const voiceEl = $id("voice");
+    const mainPanelEl = $id("main-panel");
+    if (voiceEl && !voiceEl.disabled && mainPanelEl && mainPanelEl.style.display !== "none") {
+      voiceEl.click();
     }
   }
 
   // Enter key - submit message when focus is not in textarea
-  if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "Enter" && message.dataset.ime !== "true") {
+  if (easySubmitChecked && !messageHasFocus && event.key === "Enter" && message.dataset.ime !== "true") {
     // Only submit if message is not empty
     if (message.value.trim() !== "") {
       event.preventDefault();
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
         // Ignore auto-submit when tab is not in foreground
       } else {
-        $("#send").click();
+        const sendEl = $id("send");
+        if (sendEl) sendEl.click();
       }
     }
   }
@@ -173,10 +182,11 @@ function stopPing() {
   }
 }
 
-const chatBottom = $("#chat-bottom").get(0);
-let autoScroll = true;
+window.chatBottom = $id("chat-bottom");
+window.autoScroll = true;
 
-const mainPanel = $("#main-panel").get(0);
+const mainPanel = $id("main-panel");
+window.mainPanel = mainPanel;
 
 function ensureMonadicTabId() {
   try {
@@ -203,226 +213,8 @@ function ensureMonadicTabId() {
 window.getMonadicTabId = ensureMonadicTabId;
 const MONADIC_TAB_ID = ensureMonadicTabId();
 
-// Handle fragment message from streaming response
-// This function will be used by the fragment_with_audio handler and all vendor helpers
-window.handleFragmentMessage = function(fragment) {
-  console.log('[handleFragmentMessage] Called with:', fragment ? fragment.type : 'null', 'content length:', fragment?.content?.length || 0);
-  if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-    // Skip streaming updates in background tabs to avoid duplicate rendering and TTS triggers
-    window.__lastSkippedFragment = fragment;
-    return;
-  }
-  if (fragment && fragment.type === 'fragment') {
-    console.log('[handleFragmentMessage] Processing fragment, temp-card exists:', $('#temp-card').length, 'visible:', $('#temp-card').is(':visible'), 'display:', $('#temp-card').css('display'));
-    const text = fragment.content || '';
-
-    // Debug logging for streaming fragment ordering
-    if (window.debugFragments) {
-      const now = performance.now();
-      console.log('[Fragment Debug]', {
-        content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
-        sequence: fragment.sequence,
-        index: fragment.index,
-        timestamp: fragment.timestamp || Date.now(),
-        is_first: fragment.is_first,
-        lastSequence: window._lastProcessedSequence,
-        lastIndex: window._lastProcessedIndex,
-        processingTime: now,
-        timeSinceLast: window._lastFragmentTime ? (now - window._lastFragmentTime).toFixed(2) + 'ms' : 'N/A'
-      });
-      window._lastFragmentTime = now;
-    }
-
-    // Skip empty fragments
-    if (!text) return;
-
-    // Create or get temporary card
-    let tempCard = $("#temp-card");
-    if (!tempCard.length) {
-      // Initialize tracking
-      window._lastProcessedSequence = -1;
-      window._lastProcessedIndex = -1;
-
-      // Only clear #chat if it exists and has content from old streaming approach
-      if ($("#chat").length && $("#chat").html().trim() !== "") {
-        $("#chat").empty();
-      }
-
-      // Create a new temporary card for streaming text
-      tempCard = $(`
-        <div id="temp-card" class="card mt-3 streaming-card">
-          <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-            <div class="fs-5 card-title mb-0">
-              <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-            </div>
-          </div>
-          <div class="card-body role-assistant">
-            <div class="card-text"></div>
-          </div>
-        </div>
-      `);
-      $("#discourse").append(tempCard);
-      tempCard.show(); // Ensure temp-card is visible after creation
-    } else if (fragment.start === true || fragment.is_first === true) {
-      // If this is marked as the first fragment of a streaming response, clear the existing content
-      $("#temp-card .card-text").empty();
-      window._lastProcessedSequence = -1;
-      window._lastProcessedIndex = -1;
-
-      // Move the temp card to the end of #discourse to ensure correct position
-      // This handles cases where the card was left in an old position from previous streaming
-      tempCard.detach();
-      $("#discourse").append(tempCard);
-    }
-
-    // Prefer sequence number over index for duplicate detection
-    // Sequence is more reliable as it's incremented for each fragment sent
-    if (fragment.sequence !== undefined) {
-      // Track sequence gaps for debugging
-      if (window.debugFragments && window._lastProcessedSequence !== undefined && window._lastProcessedSequence !== -1) {
-        const expectedSequence = window._lastProcessedSequence + 1;
-        if (fragment.sequence !== expectedSequence) {
-          console.warn('[Fragment Debug] SEQUENCE GAP DETECTED:', {
-            expected: expectedSequence,
-            received: fragment.sequence,
-            gap: fragment.sequence - expectedSequence,
-            content: text.substring(0, 30)
-          });
-          // Track gap history for later analysis
-          window._sequenceGaps = window._sequenceGaps || [];
-          window._sequenceGaps.push({ expected: expectedSequence, received: fragment.sequence, time: performance.now() });
-        }
-      }
-
-      if (window._lastProcessedSequence !== undefined && window._lastProcessedSequence >= fragment.sequence) {
-        // Skip duplicate or out-of-order fragments
-        console.warn('[handleFragmentMessage] SKIPPING fragment - sequence:', fragment.sequence, 'lastSequence:', window._lastProcessedSequence);
-        if (window.debugFragments) {
-          window._skippedFragments = window._skippedFragments || [];
-          window._skippedFragments.push({ sequence: fragment.sequence, content: text.substring(0, 30), time: performance.now() });
-        }
-        return;
-      }
-      window._lastProcessedSequence = fragment.sequence;
-    } else if (fragment.index !== undefined) {
-      // Fallback to index-based detection for backwards compatibility
-      if (window._lastProcessedIndex !== undefined && window._lastProcessedIndex >= fragment.index) {
-        // Skip duplicate or out-of-order fragments
-        console.warn('[handleFragmentMessage] SKIPPING fragment - index:', fragment.index, 'lastIndex:', window._lastProcessedIndex);
-        return;
-      }
-      window._lastProcessedIndex = fragment.index;
-    } else {
-      // If no index is provided, use timestamp-based duplicate detection
-      // This is a fallback for providers that don't send index
-      const now = Date.now();
-      const fragmentKey = `${text}_${fragment.timestamp || now}`;
-
-      // Check if we've seen this exact fragment (content + timestamp) recently
-      if (window._recentFragments && window._recentFragments[fragmentKey]) {
-        if (window.debugFragments) {
-          console.log('[Fragment Debug] Skipping duplicate fragment - content:', text);
-        }
-        return;
-      }
-
-      // Store this fragment temporarily
-      window._recentFragments = window._recentFragments || {};
-      window._recentFragments[fragmentKey] = now;
-
-      // Clean up old entries after 1 second
-      setTimeout(() => {
-        delete window._recentFragments[fragmentKey];
-      }, 1000);
-    }
-
-    // Add to streaming text display
-    const tempText = $("#temp-card .card-text");
-    console.log('[handleFragmentMessage] .card-text exists:', tempText.length, 'adding text length:', text.length);
-    if (tempText.length) {
-      // Ensure temp-card is visible when adding content
-      $("#temp-card").show();
-      // Debug: Log current text content before adding
-      if (window.debugFragments) {
-        console.log('[Fragment Debug] Before append - DOM text length:', tempText[0].textContent.length);
-        console.log('[Fragment Debug] Adding fragment:', text);
-      }
-
-      // Use DocumentFragment for efficient DOM manipulation while preserving newlines
-      const docFrag = document.createDocumentFragment();
-      const lines = text.split('\n');
-
-      lines.forEach((line, index) => {
-        // Add line break for all lines except the first
-        if (index > 0) {
-          docFrag.appendChild(document.createElement('br'));
-        }
-        // Add text node for each line (automatically escapes HTML)
-        if (line) {
-          docFrag.appendChild(document.createTextNode(line));
-        }
-      });
-
-      // Append all at once for better performance
-      tempText[0].appendChild(docFrag);
-      console.log('[handleFragmentMessage] Appended to .card-text, new length:', tempText[0].textContent.length);
-
-      // Debug: Log after append
-      if (window.debugFragments) {
-        console.log('[Fragment Debug] After append - DOM text length:', tempText[0].textContent.length);
-      }
-    } else {
-      console.warn('[handleFragmentMessage] WARNING: .card-text not found, cannot append fragment');
-    }
-
-    // If this is a final fragment, clean up
-    if (fragment.final) {
-      window._lastProcessedIndex = -1;
-      window._lastProcessedSequence = -1;
-    }
-  }
-};
-
-// Debug function to check streaming fragment issues after a response
-// Usage: window.debugFragments = true; window.debugFragmentSummary()
-window.debugFragmentSummary = function() {
-  if (!window.debugFragments) {
-    console.log('Enable debug mode first: window.debugFragments = true');
-    return;
-  }
-  console.log('=== Fragment Debug Summary ===');
-  console.log('Last processed sequence:', window._lastProcessedSequence);
-  console.log('Last processed index:', window._lastProcessedIndex);
-
-  if (window._sequenceGaps && window._sequenceGaps.length > 0) {
-    console.warn('Sequence gaps detected:', window._sequenceGaps.length);
-    window._sequenceGaps.forEach(gap => console.warn('  Gap:', gap));
-  } else {
-    console.log('No sequence gaps detected ✓');
-  }
-
-  if (window._skippedFragments && window._skippedFragments.length > 0) {
-    console.warn('Skipped fragments:', window._skippedFragments.length);
-    window._skippedFragments.forEach(f => console.warn('  Skipped:', f));
-  } else {
-    console.log('No skipped fragments ✓');
-  }
-
-  console.log('==============================');
-};
-
-// Reset debug tracking for new streaming response
-window.resetFragmentDebug = function() {
-  window._lastProcessedSequence = -1;
-  window._lastProcessedIndex = -1;
-  window._sequenceGaps = [];
-  window._skippedFragments = [];
-  window._lastFragmentTime = null;
-  window._timeline = [];
-  if (window.debugFragments) {
-    console.log('[Fragment Debug] Tracking reset');
-  }
-};
+// handleFragmentMessage, debugFragmentSummary, resetFragmentDebug
+// — extracted to ws-fragment-handler.js (window.WsFragmentHandler)
 
 // Make defaultApp globally available
 window.defaultApp = DEFAULT_APP;
@@ -430,9 +222,8 @@ window.defaultApp = DEFAULT_APP;
 // isElementInViewport now in ws-content-renderer.js
 const isElementInViewport = window.isElementInViewport;
 
-// applyMathJax, mermaid_config, sanitizeMermaidSource, applyMermaid now in ws-content-renderer.js
-const applyMathJax = window.applyMathJax;
 const applyMermaid = window.applyMermaid;
+const applyDrawIO = window.applyDrawIO;
 
 // ABC notation, toggle, and source-code helpers now in ws-content-renderer.js
 const applyToggle = window.applyToggle;
@@ -483,15 +274,15 @@ const addToAudioQueue = window.addToAudioQueue;
 const resetSessionState = window.resetSessionState;
 
 
-let responseStarted = false;
-let callingFunction = false;
+window.responseStarted = false;
+window.callingFunction = false;
 // Track if we're currently streaming a response
-let streamingResponse = false; // Keep local variable for backward compatibility
+window.streamingResponse = false;
 // Track whether reasoning/thinking fragments are currently streaming
 let reasoningStreamActive = false;
 // Track tool execution progress across the full tool chain
-let toolCallCount = 0;
-let currentToolName = '';
+window.toolCallCount = 0;
+window.currentToolName = '';
 // Track spinner check interval to prevent duplicates
 window.spinnerCheckInterval = null;
 
@@ -512,39 +303,48 @@ function formatToolName(name) {
 }
 
 function updateToolStatus(toolName, count) {
-  const tempCard = $("#temp-card");
-  if (!tempCard.length) return;
+  const tempCard = $id("temp-card");
+  if (!tempCard) return;
 
-  let toolStatus = tempCard.find("#tool-status");
-  if (!toolStatus.length) {
+  let toolStatus = $id("tool-status");
+  if (!toolStatus) {
     // Dynamically inject into the card header's right-side area
-    let rightArea = tempCard.find(".card-header .d-flex.align-items-center").last();
-    if (!rightArea.length || rightArea.hasClass("card-title")) {
-      rightArea = $('<div class="me-1 text-secondary d-flex align-items-center"></div>');
-      tempCard.find(".card-header").append(rightArea);
+    const headerEl = tempCard.querySelector(".card-header");
+    const flexAreas = headerEl ? headerEl.querySelectorAll(".d-flex.align-items-center") : [];
+    let rightArea = flexAreas.length > 0 ? flexAreas[flexAreas.length - 1] : null;
+    if (!rightArea || rightArea.classList.contains("card-title")) {
+      rightArea = document.createElement("div");
+      rightArea.className = "me-1 text-secondary d-flex align-items-center";
+      if (headerEl) headerEl.appendChild(rightArea);
     }
-    toolStatus = $('<span id="tool-status" class="tool-status-label me-2"></span>');
-    const indicator = rightArea.find("#indicator");
-    if (indicator.length) {
-      toolStatus.insertBefore(indicator);
+    toolStatus = document.createElement("span");
+    toolStatus.id = "tool-status";
+    toolStatus.className = "tool-status-label me-2";
+    const indicator = rightArea.querySelector("#indicator");
+    if (indicator) {
+      rightArea.insertBefore(toolStatus, indicator);
     } else {
-      rightArea.prepend(toolStatus);
+      rightArea.insertBefore(toolStatus, rightArea.firstChild);
     }
   }
 
   if (toolName && count > 0) {
-    toolStatus.html(
-      '<i class="fas fa-cog fa-spin me-1"></i>' + formatToolName(toolName) + ' <span class="tool-call-count">(' + count + ')</span>'
-    ).show();
+    toolStatus.innerHTML =
+      '<i class="fas fa-cog fa-spin me-1"></i>' + formatToolName(toolName) + ' <span class="tool-call-count">(' + count + ')</span>';
+    $show(toolStatus);
   } else {
-    toolStatus.hide();
+    $hide(toolStatus);
   }
 }
 
 function clearToolStatus() {
-  toolCallCount = 0;
-  currentToolName = '';
-  $("#tool-status").hide().empty();
+  window.toolCallCount = 0;
+  window.currentToolName = '';
+  const toolStatusEl = $id("tool-status");
+  if (toolStatusEl) {
+    $hide(toolStatusEl);
+    toolStatusEl.innerHTML = '';
+  }
 }
 window.clearToolStatus = clearToolStatus;
 
@@ -571,8 +371,8 @@ function connect_websocket(callback) {
   const ws = new WebSocket(wsUrl);
 
 // Tracks which app was loaded from server parameters/import. Keep empty by default.
-let loadedApp = "Chat";
-  let infoHtml = "";
+// Exposed on window for access from extracted handler modules (ws-app-data-handlers.js)
+window.loadedApp = "Chat";
 
   // Restore session state on page load
   if (window.SessionState) {
@@ -595,14 +395,15 @@ let loadedApp = "Chat";
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
     if (!isForegroundTab()) {
-      $('#monadic-spinner').hide();
+      const spinnerEl = $id('monadic-spinner');
+      $hide(spinnerEl);
     }
     // Get UI language from cookie or default to 'en'
     const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
     ws.send(JSON.stringify({
       message: "CHECK_TOKEN",
       initial: true,
-      contents: $("#token").val(),
+      contents: ($id("token") || {}).value || '',
       ui_language: uiLanguage
     }));
 
@@ -635,6 +436,7 @@ let loadedApp = "Chat";
           }
 
           mediaSource = new MediaSource();
+          window.mediaSource = mediaSource; // Sync to window for ws-audio-handler.js
 
           // Create named handler for sourceopen (stored for later removal)
           mediaSourceOpenHandler = function() {
@@ -678,6 +480,7 @@ let loadedApp = "Chat";
                     }
                   }
                 };
+                window.processAudioDataQueue = processAudioDataQueue; // Sync to window
               } else {
                 // Chrome and others work well with mpeg
                 // Check if mediaSource is valid before using it
@@ -691,6 +494,7 @@ let loadedApp = "Chat";
                 // Store handler reference for proper cleanup
                 sourceBufferUpdateEndHandler = processAudioDataQueue;
                 sourceBuffer.addEventListener('updateend', sourceBufferUpdateEndHandler);
+                window.processAudioDataQueue = processAudioDataQueue; // Sync to window
               }
             } catch (e) {
               console.error("Error setting up MediaSource: ", e);
@@ -716,6 +520,7 @@ let loadedApp = "Chat";
             if ('MediaSource' in window && !window.basicAudioMode) {
               try {
                 mediaSource = new MediaSource();
+                window.mediaSource = mediaSource;
               } catch (e) {
                 console.error("Error creating MediaSource after reset: ", e);
                 window.basicAudioMode = true;
@@ -727,6 +532,7 @@ let loadedApp = "Chat";
           registerAudioElement(audio); // Track for stop button
           audio.src = URL.createObjectURL(mediaSource);
           window.audio = audio; // Export to window for global access
+          window.audioDataQueue = audioDataQueue; // Sync queue to window
         } catch (e) {
           console.error("Error creating audio element: ", e);
           // Fallback to basic audio mode
@@ -741,11 +547,11 @@ let loadedApp = "Chat";
 
       // Add a CSS class to body for iOS-specific styling if needed
       if (isIOS) {
-        $("body").addClass("ios-device");
+        document.body.classList.add("ios-device");
         if (isMobileIOS) {
-          $("body").addClass("mobile-ios-device");
+          document.body.classList.add("mobile-ios-device");
         } else if (isIPad) {
-          $("body").addClass("ipad-device");
+          document.body.classList.add("ipad-device");
         }
       }
     }
@@ -755,10 +561,10 @@ let loadedApp = "Chat";
 
     // Add timeout for token verification (30 seconds)
     let verificationTimeout = setTimeout(function() {
-      if (!verified) {
+      if (!window.verified) {
         console.warn('[Token Verification] Timeout after 30 seconds');
         // Set to partial to allow proceeding with limited functionality
-        verified = "partial";
+        window.verified = "partial";
 
         // Show timeout error message
         const timeoutText = typeof webUIi18n !== 'undefined' ?
@@ -772,12 +578,12 @@ let loadedApp = "Chat";
 
     // Check verified status at a regular interval
     let verificationCheckTimer = setInterval(function () {
-      if (verified) {
-        if (!initialLoadComplete) {  // Only send LOAD on initial connection
+      if (window.verified) {
+        if (!window.initialLoadComplete) {  // Only send LOAD on initial connection
           // Get UI language from cookie or default to 'en'
           const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
           ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
-          initialLoadComplete = true; // Set the flag after the initial load
+          window.initialLoadComplete = true; // Set the flag after the initial load
         }
         startPing();
         if (callback) {
@@ -789,46 +595,19 @@ let loadedApp = "Chat";
     }, VERIFY_CHECK_INTERVAL_MS);
   }
 
-  function updateAppAndModelSelection(parameters) {
-    // Mark import flow to preserve app/model/group during proceedWithAppChange
-    if (typeof window !== 'undefined') {
-      window.isImporting = true;
-      window.lastImportTime = Date.now();
-    }
-    // Only update if the values are not already set correctly
-    if (parameters.app_name && $("#apps").val() !== parameters.app_name) {
-      $("#apps").val(parameters.app_name).trigger('change');
-      // Update overlay icon immediately to avoid blank state until proceedWithAppChange runs
-      if (typeof updateAppSelectIcon === 'function') {
-        setTimeout(() => updateAppSelectIcon(parameters.app_name), 0);
-      }
-    }
-    // Wait for app change to complete before setting model
-    setTimeout(() => {
-      if (parameters.model && $("#model").val() !== parameters.model) {
-        $("#model").val(parameters.model).trigger('change');
-      }
-      // End of import flow; allow normal app/model changes afterwards
-      if (typeof window !== 'undefined') {
-        setTimeout(() => { window.isImporting = false; }, 500);
-      }
-    }, 200);
-  }
-
   // Helper function to append a card to the discourse
   function appendCard(role, badge, html, lang, mid, status, images, turnNumber = null) {
     const htmlElement = createCard(role, badge, html, lang, mid, status, images, false, turnNumber);
-    $("#discourse").append(htmlElement);
+    const discourseEl = $id("discourse");
+    if (discourseEl) discourseEl.appendChild(htmlElement);
 
     // Defer applyRenderers to ensure DOM is fully ready
     if (window.MarkdownRenderer) {
       setTimeout(() => {
-        window.MarkdownRenderer.applyRenderers(htmlElement[0]);
+        window.MarkdownRenderer.applyRenderers(htmlElement);
       }, 0);
     }
     updateItemStates();
-
-    const htmlContent = $("#discourse div.card:last");
 
     // Use toBool helper for defensive boolean evaluation
     const toBool = window.toBool || ((value) => {
@@ -838,41 +617,39 @@ let loadedApp = "Chat";
     });
 
     if (toBool(params["toggle"])) {
-      applyToggle(htmlContent);
+      applyToggle(htmlElement);
     }
 
-    // Phase 2: Disabled old applyMermaid/MathJax/ABC - now handled by MarkdownRenderer.applyRenderers()
-    // if (toBool(params["mermaid"])) {
-    //   applyMermaid(htmlContent);
-    // }
+    formatSourceCode(htmlElement);
+    cleanupListCodeBlocks(htmlElement);
 
-    // if (toBool(params["mathjax"])) {
-    //   applyMathJax(htmlContent);
-    // }
-
-    // if (toBool(params["abc"])) {
-    //   applyAbc(htmlContent);
-    // }
-
-    formatSourceCode(htmlContent);
-    cleanupListCodeBlocks(htmlContent);
-
-    setCopyCodeButton(htmlContent);
+    setCopyCodeButton(htmlElement);
 
     // Compact PDF metadata block: group elements after the first <hr> into a .pdf-meta wrapper
     try {
-      const $ct = htmlContent.find('.card-text');
-      const $hr = $ct.find('hr').first();
-      if ($hr.length) {
-        const $metaElems = $hr.nextAll().not('.pdf-meta');
-        if ($metaElems.length) {
-          const $wrap = $('<div class="pdf-meta"></div>');
-          $metaElems.detach().appendTo($wrap);
-          $hr.after($wrap);
+      const cardText = htmlElement.querySelector('.card-text');
+      const hr = cardText ? cardText.querySelector('hr') : null;
+      if (hr) {
+        const metaElems = [];
+        let sibling = hr.nextElementSibling;
+        while (sibling) {
+          if (!sibling.classList.contains('pdf-meta')) {
+            metaElems.push(sibling);
+          }
+          sibling = sibling.nextElementSibling;
+        }
+        if (metaElems.length) {
+          const wrap = document.createElement('div');
+          wrap.className = 'pdf-meta';
+          metaElems.forEach(el => wrap.appendChild(el));
+          hr.insertAdjacentElement('afterend', wrap);
         }
       }
     } catch (_) { console.warn("[WebSocket] Reasoning block rendering failed:", _); }
   }
+
+  // Expose appendCard for extracted handler modules
+  window.appendCard = appendCard;
 
   // Helper function to display an error message
   function displayErrorMessage(message) {
@@ -891,13 +668,22 @@ let loadedApp = "Chat";
     const timeoutDuration = isSlowProvider ? RESPONSE_TIMEOUT_SLOW_MS : RESPONSE_TIMEOUT_MS;
 
     const messageTimeout = setTimeout(function() {
-      if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
+      const userPanelEl = $id("user-panel");
+      const sendBtnEl = $id("send");
+      if (userPanelEl && userPanelEl.style.display !== "none" && sendBtnEl && sendBtnEl.disabled) {
 
-        $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
-        $("#message").prop("disabled", false);
-        $("#select-role").prop("disabled", false);
-        $("#monadic-spinner").hide();
-        $("#cancel_query").hide();
+        ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user"].forEach(function(id) {
+          const el = $id(id);
+          if (el) el.disabled = false;
+        });
+        const msgEl = $id("message");
+        if (msgEl) msgEl.disabled = false;
+        const roleEl = $id("select-role");
+        if (roleEl) roleEl.disabled = false;
+        const spinnerEl = $id("monadic-spinner");
+        $hide(spinnerEl);
+        const cancelEl = $id("cancel_query");
+        $hide(cancelEl);
 
         // Reset state flags
         if (window.responseStarted !== undefined) window.responseStarted = false;
@@ -935,690 +721,90 @@ let loadedApp = "Chat";
     }
     switch (data["type"]) {
       case "fragment_with_audio": {
-        // Handle the optimized combined fragment and audio message
-        let handled = false;
-
-        if (wsHandlers && typeof wsHandlers.handleFragmentWithAudio === 'function') {
-          // Create audio processing function similar to the one in handleAudioMessage
-          const processAudio = (audioData) => {
-            try {
-              // Ensure MediaSource is initialized if not already
-              if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-
-                initializeMediaSourceForAudio();
-              }
-
-              // Handle based on browser environment
-              if (window.firefoxAudioMode) {
-                if (!window.firefoxAudioQueue) {
-                  window.firefoxAudioQueue = [];
-                }
-
-                if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-                  window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-                }
-
-                window.firefoxAudioQueue.push(audioData);
-                processAudioDataQueue();
-              } else if (window.basicAudioMode) {
-                // For iOS and other devices without MediaSource
-                playAudioDirectly(audioData);
-              } else {
-                // Standard approach for modern browsers
-                audioDataQueue.push(audioData);
-                processAudioDataQueue();
-
-                // Ensure audio playback starts automatically for auto_speech
-                // Skip if segment-based queue is active to prevent duplicate audio
-              if (audio && !(window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) && window.globalAudioQueue.length === 0 && !(window.WsAudioQueue && window.WsAudioQueue.getCurrentSegmentAudio())) {
-                // Always attempt to play, even if not paused (may be needed for some browsers)
-                audio.play().catch(err => {
-                  // Debug log removed
-
-                  // User interaction might be required, show indicator
-                  if (err.name === 'NotAllowedError') {
-                    const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
-            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
-                  }
-                });
-              }
-              }
-            } catch (e) {
-              console.error("Error in audio processing:", e);
-            }
-          };
-
-          // Pass the message and processing function to the handler
-          handled = wsHandlers.handleFragmentWithAudio(data, processAudio);
+        const wah = window.WsAudioHandler;
+        if (wah && typeof wah.handleFragmentWithAudio === 'function') {
+          wah.handleFragmentWithAudio(data);
         }
-
-        if (!handled) {
-          console.warn("Combined fragment_with_audio message was not handled properly");
-        }
-
         break;
       }
 
       case "wait": {
-        callingFunction = true;
-
-        // Check if content is a translation key
-        let waitContent = data["content"];
-        if (waitContent === 'generating_ai_user_response') {
-          waitContent = getTranslation('ui.messages.generatingAIUserResponse', 'Generating AI user response...');
-        }
-
-        // Check if this is an agent progress message (from internal agents)
-        // These should be displayed in temp card, not status-message
-        const isAgentProgress = (
-          data["source"] && (
-            data["source"] === "OpenAICodeAgent" ||
-            data["source"] === "ClaudeCodeAgent" ||
-            data["source"] === "GrokCodeAgent" ||
-            data["source"] === "ImageGenerator" ||
-            data["source"] === "VideoAnalyzer" ||
-            data["source"] === "SecondOpinion" ||
-            data["source"] === "ParallelDispatch" ||
-            data["source"] === "ParallelCodeExecution" ||
-            data["source"] === "MultiProviderVerification" ||
-            // Add other agent sources as needed
-            data["source"].includes("Agent") ||
-            data["source"].includes("Generator") ||
-            data["source"].includes("Analyzer")
-          )
-        );
-
-        if (isAgentProgress) {
-          // Build localized message if i18n data is available for agent progress
-          let displayContent = waitContent;
-          if (data["minutes"] !== undefined) {
-            const minutes = data["minutes"];
-            const remaining = data["remaining"];
-            let messageKey;
-            let iconHtml = '<i class="fas fa-laptop-code"></i>';
-
-            // Select appropriate message based on agent source and time elapsed
-            if (data["source"] === "OpenAICodeAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
-              if (minutes <= 1) {
-                messageKey = 'openaiCodeGenerating';
-              } else if (minutes <= 2) {
-                messageKey = 'openaiCodeStructuring';
-              } else if (minutes <= 3) {
-                messageKey = 'openaiCodeAnalyzing';
-              } else if (minutes <= 4) {
-                messageKey = 'openaiCodeOptimizing';
-              } else {
-                messageKey = 'openaiCodeFinalizing';
-              }
-            } else if (data["source"] === "ClaudeCodeAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
-              if (minutes <= 1) {
-                messageKey = 'claudeCodeGenerating';
-              } else if (minutes <= 2) {
-                messageKey = 'claudeCodeStructuring';
-              } else if (minutes <= 3) {
-                messageKey = 'claudeCodeAnalyzing';
-              } else if (minutes <= 4) {
-                messageKey = 'claudeCodeOptimizing';
-              } else {
-                messageKey = 'claudeCodeFinalizing';
-              }
-            } else {
-              // For other agents, use generic progress messages
-              if (minutes <= 1) {
-                messageKey = 'agentProcessing';
-              } else if (minutes <= 3) {
-                messageKey = 'agentAnalyzing';
-              } else {
-                messageKey = 'agentFinalizing';
-              }
-            }
-
-            // Get localized base message
-            let localizedMessage = getTranslation(`ui.messages.${messageKey}`, waitContent);
-
-            // Build message - only add elapsed time if minutes > 0
-            if (minutes > 0) {
-              const elapsedText = getTranslation('ui.messages.elapsedTime', '{minutes} minute(s) elapsed')
-                .replace('{minutes}', minutes);
-              displayContent = `${iconHtml} ${localizedMessage} (${elapsedText})`;
-            } else {
-              // Initial message without elapsed time
-              displayContent = `${iconHtml} ${localizedMessage}`;
-            }
-
-            // Add remaining time only when approaching timeout (less than 5 minutes remaining)
-            if (remaining > 0 && remaining <= 5) {
-              const remainingText = getTranslation('ui.messages.remainingTime', '{minutes} minute(s) remaining')
-                .replace('{minutes}', remaining);
-              displayContent += ` - ${remainingText}`;
-            }
-            displayContent += '...';
-          } else if (data["step_progress"]) {
-            // Unified step progress renderer (sequential & parallel modes)
-            const sp = data["step_progress"];
-            const spMode = sp["mode"] || "sequential";
-            const spCurrent = sp["current"] || 0;
-            const spSteps = sp["steps"] || [];
-
-            // Choose icon and accent colour based on source
-            let spIcon, spColor;
-            switch (data["source"]) {
-              case "OpenAICodeAgent":
-                spIcon = "fa-laptop-code"; spColor = "#4285f4"; break;
-              case "ClaudeCodeAgent":
-                spIcon = "fa-laptop-code"; spColor = "#6f42c1"; break;
-              case "GrokCodeAgent":
-                spIcon = "fa-laptop-code"; spColor = "#6b7280"; break;
-              case "ParallelDispatch":
-                spIcon = "fa-network-wired"; spColor = "#10b981"; break;
-              case "ParallelCodeExecution":
-                spIcon = "fa-code"; spColor = "#10b981"; break;
-              case "MultiProviderVerification":
-                spIcon = "fa-people-arrows"; spColor = "#7c3aed"; break;
-              default:
-                spIcon = "fa-laptop-code"; spColor = "#6b7280"; break;
-            }
-
-            const spHeader = `<i class="fas ${spIcon}" style="color: ${spColor};"></i> ${data["content"] || "Processing..."}`;
-            const indicators = spSteps.map((name, i) => {
-              let icon;
-              if (spMode === "sequential") {
-                if (i < spCurrent) {
-                  icon = `<i class="fas fa-check" style="color: ${spColor};"></i>`;
-                } else if (i === spCurrent) {
-                  icon = '<span class="parallel-task-spinner"></span>';
-                } else {
-                  icon = '<span class="step-pending-dot"></span>';
-                }
-              } else {
-                // parallel mode
-                icon = i < spCurrent
-                  ? `<i class="fas fa-check" style="color: ${spColor};"></i>`
-                  : '<span class="parallel-task-spinner"></span>';
-              }
-              return `<div style="margin: 2px 0;">${icon} ${name}</div>`;
-            }).join('');
-            displayContent = `${spHeader}<div style="margin-top: 4px;"><small>${indicators}</small></div>`;
-          } else if (
-            (data["source"] === "ParallelDispatch" || data["source"] === "MultiProviderVerification") &&
-            data["parallel_progress"]
-          ) {
-            // Legacy parallel_progress renderer (backward compatibility)
-            const isMultiProvider = data["source"] === "MultiProviderVerification";
-            const iconHtml = isMultiProvider
-              ? '<i class="fas fa-people-arrows" style="color: #7c3aed;"></i>'
-              : '<i class="fas fa-network-wired" style="color: #10b981;"></i>';
-            const pp = data["parallel_progress"];
-            const completed = pp["completed"] || 0;
-            const total = pp["total"] || 0;
-            const label = isMultiProvider
-              ? `Provider opinions: ${completed}/${total} completed`
-              : `Parallel tasks: ${completed}/${total} completed`;
-            displayContent = `${iconHtml} ${label}`;
-            if (pp["task_names"]) {
-              const checkColor = isMultiProvider ? "#7c3aed" : "#10b981";
-              const indicators = pp["task_names"].map((name, i) => {
-                const icon = i < completed
-                  ? `<i class="fas fa-check" style="color: ${checkColor};"></i>`
-                  : '<span class="parallel-task-spinner"></span>';
-                return `<div style="margin: 2px 0;">${icon} ${name}</div>`;
-              }).join('');
-              displayContent += `<div style="margin-top: 4px;"><small>${indicators}</small></div>`;
-            }
-          } else if (!waitContent.includes('<i class="fas')) {
-            // Add icon if not already present in fallback content
-            let iconHtml = '<i class="fas fa-laptop-code"></i>';
-            if (data["source"] === "OpenAICodeAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
-            } else if (data["source"] === "ClaudeCodeAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
-            } else if (data["source"] === "GrokCodeAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #6b7280;"></i>';
-            }
-            displayContent = `${iconHtml} ${waitContent}`;
-          }
-
-          // Display agent progress in streaming temp card
-          // Create or get temporary card
-          let tempCard = $("#temp-card");
-          if (!tempCard.length) {
-            // Create a new temporary card for streaming text
-            tempCard = $(`
-              <div id="temp-card" class="card mt-3 streaming-card">
-                <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-                  <div class="fs-5 card-title mb-0">
-                    <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-                  </div>
-                </div>
-                <div class="card-body role-assistant">
-                  <div class="card-text"></div>
-                </div>
-              </div>
-            `);
-            $("#discourse").append(tempCard);
-          } else {
-            // Move existing temp card to the end of #discourse to ensure correct position
-            tempCard.detach();
-            $("#discourse").append(tempCard);
-          }
-
-          // Update the temp card with the progress message using the card's standard text styling
-          $("#temp-card .card-text").html(`<div class="mb-0" style="color: inherit;">${displayContent}</div>`);
-          $("#temp-card").show();
-        } else {
-          // Regular wait messages go to status-message
-          setAlert(waitContent, "warning");
-        }
-
-        // Show the spinner and update its message based on the content
-        $("#monadic-spinner").show();
-
-        // Highlight workflow node based on wait content
-        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-          WorkflowViewer.setStage(data["content"].includes("CALLING FUNCTIONS") ? 'tools' : 'model');
-        }
-
-        // Customize spinner message based on wait content
-        if (data["content"].includes("CALLING FUNCTIONS")) {
-          const callingFunctionsText = getTranslation('ui.messages.spinnerCallingFunctions', 'Calling functions');
-          $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${callingFunctionsText}`);
-        } else if (data["content"].includes("SEARCHING WEB")) {
-          const searchingWebText = getTranslation('ui.messages.spinnerSearchingWeb', 'Searching web');
-          $("#monadic-spinner span").html(`<i class="fas fa-search fa-pulse"></i> ${searchingWebText}`);
-        } else if (data["content"].includes("PROCESSING")) {
-          const processingText = getTranslation('ui.messages.spinnerProcessing', 'Processing');
-          $("#monadic-spinner span").html(`<i class="fas fa-spinner fa-pulse"></i> ${processingText}`);
-        } else {
-          const processingRequestText = getTranslation('ui.messages.spinnerProcessingRequest', 'Processing request');
-          $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}`);
+        const wtoolwh = window.WsToolHandler;
+        if (wtoolwh && typeof wtoolwh.handleWait === 'function') {
+          wtoolwh.handleWait(data);
         }
         break;
       }
 
       case "clear_fragments": {
-        // Clear the fragment buffer in temp-card before streaming post-tool response
-        // This prevents pre-tool text from being concatenated with post-tool response
-        const tempCard = $("#temp-card");
-        if (tempCard.length) {
-          tempCard.find(".card-text").empty();
-          // Reset sequence tracking
-          window._lastProcessedSequence = -1;
-          window._lastProcessedIndex = -1;
+        const wth = window.WsThinkingHandler;
+        if (wth && typeof wth.handleClearFragments === 'function') {
+          wth.handleClearFragments(data);
         }
         break;
       }
 
       case "tool_executing": {
-        toolCallCount++;
-        currentToolName = data["content"];
-
-        // Show temp card early if hidden (immediate feedback)
-        const toolTempCard = $("#temp-card");
-        if (toolTempCard.length && toolTempCard.is(":hidden")) {
-          toolTempCard.show();
-        }
-
-        // Update temp card header with tool name and count
-        updateToolStatus(currentToolName, toolCallCount);
-
-        // Update workflow viewer
-        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setActiveTool) {
-          WorkflowViewer.setActiveTool(data["content"], toolCallCount);
+        const wtoolh = window.WsToolHandler;
+        if (wtoolh && typeof wtoolh.handleToolExecuting === 'function') {
+          wtoolh.handleToolExecuting(data);
         }
         break;
       }
 
       case "thinking":
       case "reasoning": {
-        // Handle thinking/reasoning content during streaming (like Claude's thinking blocks)
-        const content = data.content || '';
-        if (!content) break;
-        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-          WorkflowViewer.setStage('model');
+        const wthh = window.WsThinkingHandler;
+        if (wthh && typeof wthh.handleThinking === 'function') {
+          wthh.handleThinking(data);
         }
-        if (typeof window.setReasoningStreamActive === 'function') {
-          window.setReasoningStreamActive(true);
-        }
-        ensureThinkingSpinnerVisible();
-
-        // Create or get temporary reasoning card
-        let tempReasoningCard = $("#temp-reasoning-card");
-        if (!tempReasoningCard.length) {
-          const titleText = data.type === 'thinking' ?
-            (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinkingProcess') : 'Thinking Process') :
-            (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.reasoningProcess') : 'Reasoning Process');
-
-          tempReasoningCard = $(`
-            <div id="temp-reasoning-card" class="card mt-3 streaming-card">
-              <div class="card-header p-2 ps-3">
-                <div class="fs-6 card-title mb-0 text-muted d-flex align-items-center">
-                  <i class="fas fa-brain me-2"></i>
-                  <span>${titleText}</span>
-                </div>
-              </div>
-              <div class="card-body">
-                <div class="card-text"></div>
-              </div>
-            </div>
-          `);
-          $("#discourse").append(tempReasoningCard);
-        }
-
-        // Append thinking/reasoning content
-        const tempText = $("#temp-reasoning-card .card-text");
-        if (tempText.length) {
-          // Use DocumentFragment for efficient DOM manipulation while preserving newlines
-          const docFrag = document.createDocumentFragment();
-          const lines = content.split('\n');
-
-          lines.forEach((line, index) => {
-            if (index > 0) {
-              docFrag.appendChild(document.createElement('br'));
-            }
-            if (line) {
-              docFrag.appendChild(document.createTextNode(line));
-            }
-          });
-
-          tempText[0].appendChild(docFrag);
-        }
-
         break;
       }
 
       case "web_speech": {
-        // Handle Web Speech API text
-        window.lastTTSMode = 'web_speech';
-        $("#monadic-spinner").hide();
-
-        if (window.speechSynthesis && typeof window.ttsSpeak === 'function') {
-          try {
-            // Get text from data
-            const text = data.content || '';
-
-            // Use the browser's Web Speech API directly
-            const utterance = new SpeechSynthesisUtterance(text);
-
-            // Get voice settings from UI
-            const voiceElement = document.getElementById('webspeech-voice');
-            if (voiceElement && voiceElement.value) {
-              // Find the matching voice object
-              const selectedVoice = window.speechSynthesis.getVoices().find(v =>
-                v.name === voiceElement.value);
-
-              if (selectedVoice) {
-                utterance.voice = selectedVoice;
-              }
-            }
-
-            // Get speed setting
-            const speedElement = document.getElementById('tts-speed');
-            if (speedElement && speedElement.value) {
-              utterance.rate = parseFloat(speedElement.value) || 1.0;
-            }
-
-            // Set event handlers for proper button state management
-            utterance.onend = function() {
-              // Remove Stop button highlight when speech ends
-              if (typeof removeStopButtonHighlight === 'function') {
-                removeStopButtonHighlight();
-              }
-            };
-
-            utterance.onerror = function(event) {
-              console.error('Web Speech API error:', event);
-              // Remove Stop button highlight on error
-              if (typeof removeStopButtonHighlight === 'function') {
-                removeStopButtonHighlight();
-              }
-            };
-
-            // Speak the text
-            window.speechSynthesis.speak(utterance);
-          } catch (e) {
-            console.error("Error using Web Speech API:", e);
-            setAlert("Web Speech API error: " + e.message, "warning");
-            // Remove Stop button highlight on error
-            if (typeof removeStopButtonHighlight === 'function') {
-              removeStopButtonHighlight();
-            }
-          }
-        } else {
-          console.error("Web Speech API not available");
-          const notAvailableText = typeof webUIi18n !== 'undefined' ?
-            webUIi18n.t('ui.messages.webSpeechNotAvailable') : 'Web Speech API not available in this browser';
-          setAlert(notAvailableText, "warning");
-          // Remove Stop button highlight if API not available
-          if (typeof removeStopButtonHighlight === 'function') {
-            removeStopButtonHighlight();
-          }
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleWebSpeech === 'function') {
+          tth.handleWebSpeech(data);
         }
         break;
       }
 
       case "audio": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleAudioMessage === 'function') {
-          // Custom audio processor for the extracted handler
-          const processAudio = (audioData) => {
-            // Ensure MediaSource is initialized if not already
-            if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-
-              initializeMediaSourceForAudio();
-            }
-
-            // Handle Firefox special case
-            if (window.firefoxAudioMode) {
-              // Add to the Firefox queue instead
-              if (!window.firefoxAudioQueue) {
-                window.firefoxAudioQueue = [];
-              }
-              // Limit Firefox queue size as well
-              if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-                window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-              }
-              window.firefoxAudioQueue.push(audioData);
-              processAudioDataQueue();
-            } else if (window.basicAudioMode) {
-              // Basic mode for iOS and other devices without MediaSource support
-              playAudioDirectly(audioData);
-            } else {
-              // Regular MediaSource approach for other browsers
-              audioDataQueue.push(audioData);
-              processAudioDataQueue();
-
-              // Make sure audio is playing with error handling
-              // Skip if segment-based queue is active to prevent duplicate audio
-              if (audio && !(window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) && window.globalAudioQueue.length === 0 && !(window.WsAudioQueue && window.WsAudioQueue.getCurrentSegmentAudio())) {
-                const playPromise = audio.play();
-                if (playPromise !== undefined) {
-                  playPromise.catch(err => {
-                    // Debug log removed
-                    if (err.name === 'NotAllowedError') {
-                      const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
-            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
-                    }
-                  });
-                }
-              }
-            }
-          };
-
-          handled = wsHandlers.handleAudioMessage(data, processAudio);
-        }
-
-        if (!handled) {
-          // Fallback to inline handling
-          // For Auto TTS, keep spinner visible until audio actually starts playing
-          // For manual TTS (Play button), hide immediately as before
-          if (!window.autoSpeechActive && !window.autoPlayAudio) {
-            $("#monadic-spinner").hide();
-          }
-
-          // Check for duplicate audio - use same ID generation as handler
-          const fallbackAudioId = data.sequence_id || data.t_index ||
-                                  (data.content ? String(data.content).substring(0, 50) : Date.now().toString());
-
-          // Skip if this audio was already processed by the handler
-          if (window.wsHandlers && typeof window.wsHandlers.isAudioProcessed === 'function') {
-            if (window.wsHandlers.isAudioProcessed(fallbackAudioId)) {
-              console.debug('[Fallback Audio] Skipping duplicate audio:', fallbackAudioId);
-              break; // Skip this audio - already processed by handler
-            }
-            // Mark as processed to prevent future duplicates
-            if (typeof window.wsHandlers.markAudioProcessed === 'function') {
-              window.wsHandlers.markAudioProcessed(fallbackAudioId);
-            }
-          }
-
-          try{
-            // Check if response contains an error
-            if (data.content) {
-              // Handle error that might be an object
-              if (typeof data.content === 'object' && (data.content.error || data.content.type === 'error')) {
-                console.error("API error:", data.content.error || data.content.message || data.content);
-                // Convert to error message format that handleErrorMessage expects
-                data.type = 'error';
-                data.content = data.content.message || data.content.error || JSON.stringify(data.content);
-                handleErrorMessage(data);
-                break;
-              }
-              // Handle error in string format
-              else if (typeof data.content === 'string' && data.content.includes('error')) {
-                try {
-                  const errorData = JSON.parse(data.content);
-                  if (errorData.error || errorData.type === 'error') {
-                    console.error("API error:", errorData.error || errorData.message);
-                    // Convert to standard error format
-                    data.type = 'error';
-                    data.content = errorData.message || errorData.error || JSON.stringify(errorData);
-                    handleErrorMessage(data);
-                    break;
-                  }
-                } catch (e) {
-                  // If not valid JSON, continue with regular processing
-                }
-              }
-            }
-
-            // Check if this is PCM audio from Gemini
-            const provider = $("#tts-provider").val();
-            const isPCMFromGemini = (provider === "gemini-flash" || provider === "gemini-pro") && data.mime_type && data.mime_type.includes("audio/L16");
-
-            if (isPCMFromGemini) {
-              // Handle PCM audio from Gemini
-              const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-
-              // Extract PCM parameters from MIME type (e.g., "audio/L16;codec=pcm;rate=24000")
-              const mimeMatch = data.mime_type.match(/rate=(\d+)/);
-              const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
-
-              // Convert PCM to playable audio using Web Audio API
-              playPCMAudio(audioData, sampleRate);
-              break;
-            }
-
-            const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-
-            // Device/browser specific audio processing
-            if (window.firefoxAudioMode) {
-              // Firefox special case
-              if (!window.firefoxAudioQueue) {
-                window.firefoxAudioQueue = [];
-              }
-              // Limit Firefox queue size as well
-              if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-                window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-              }
-              window.firefoxAudioQueue.push(audioData);
-              processAudioDataQueue();
-            } else if (window.basicAudioMode) {
-              // iOS and other devices without MediaSource support
-              playAudioDirectly(audioData);
-            } else {
-              // Standard MediaSource approach for modern browsers
-              audioDataQueue.push(audioData);
-              processAudioDataQueue();
-
-              // Make sure audio is playing with error handling
-              // Skip if segment-based queue is active to prevent duplicate audio
-              if (audio && !(window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) && window.globalAudioQueue.length === 0 && !(window.WsAudioQueue && window.WsAudioQueue.getCurrentSegmentAudio())) {
-                const playPromise = audio.play();
-                if (playPromise !== undefined) {
-                  playPromise.catch(err => {
-                    // Debug log removed
-                    if (err.name === 'NotAllowedError') {
-                      const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
-            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
-                    }
-                  });
-                }
-              }
-            }
-
-          } catch (e) {
-            console.error("Error processing audio data:", e);
-          }
+        const wahAudio = window.WsAudioHandler;
+        if (wahAudio && typeof wahAudio.handleAudio === 'function') {
+          wahAudio.handleAudio(data);
         }
         break;
       }
 
       case "tts_progress": {
-        // Keep spinner visible during TTS processing
-        // Simple "Processing audio" text without progress counter
-        $("#monadic-spinner")
-          .find("span")
-          .html('<i class="fas fa-headphones fa-pulse"></i> Processing audio');
-
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleTTSProgress === 'function') {
+          tth.handleTTSProgress(data);
+        }
         break;
       }
 
       case "tts_complete": {
-        // For Auto TTS, keep spinner visible until audio actually starts playing
-        // For manual TTS (Play button), hide immediately as before
-        if (!window.autoSpeechActive && !window.autoPlayAudio) {
-          // Manual TTS: hide spinner immediately
-          $("#monadic-spinner").hide();
-
-          // Reset spinner to default state for other operations
-          $("#monadic-spinner")
-            .find("span i")
-            .removeClass("fa-headphones")
-            .addClass("fa-comment");
-          $("#monadic-spinner")
-            .find("span")
-            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleTTSComplete === 'function') {
+          tth.handleTTSComplete(data);
         }
-        // For Auto TTS: spinner will be hidden when audio playback actually starts
-
         break;
       }
 
       case "tts_stopped": {
-        // TTS was stopped, reset the UI state
-        $("#monadic-spinner").hide();
-
-        // Reset response state
-        responseStarted = false;
-
-        // Set alert to ready state - only if system is not busy
-        if (!isSystemBusy()) {
-          const readyToStartText = typeof webUIi18n !== 'undefined' ?
-            webUIi18n.t('ui.messages.readyToStart') : 'Ready to start';
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
+        const ttsStopHandler = window.WsTTSHandler;
+        if (ttsStopHandler && typeof ttsStopHandler.handleTTSStopped === 'function') {
+          ttsStopHandler.handleTTSStopped(data);
         }
-
         break;
       }
 
       case "tts_notice": {
-        // TTS notice: partial output or skipped due to text length
-        const noticeContent = data.content;
-        if (noticeContent) {
-          showTtsNotice(noticeContent);
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleTTSNotice === 'function') {
+          tth.handleTTSNotice(data);
         }
         break;
       }
@@ -1628,2710 +814,240 @@ let loadedApp = "Chat";
       }
 
       case "context_extraction_started": {
-        // Handle context extraction start notification
-        if (typeof ContextPanel !== "undefined") {
-          ContextPanel.showLoading();
-          if (window.debugWebSocket) console.log("[WS] Context extraction started");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleContextExtractionStarted === 'function') {
+          wsh.handleContextExtractionStarted(data);
         }
         break;
       }
 
       case "context_update": {
-        // Handle context update from server (sent by ContextExtractorAgent)
-        // Includes both context data and optional schema for dynamic rendering
-        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-          WorkflowViewer.setStage('context');
-        }
-        if (typeof ContextPanel !== "undefined") {
-          ContextPanel.hideLoading();
-          if (data.context) {
-            ContextPanel.updateContext(data.context, data.schema || null);
-            if (window.debugWebSocket) console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleContextUpdate === 'function') {
+          wsh.handleContextUpdate(data);
         }
         break;
       }
 
       case "language_updated": {
-        // Show notification about language change
-        const languageName = data.language_name || data.language;
-        const languageChangedText = typeof webUIi18n !== 'undefined' ?
-          webUIi18n.t('ui.messages.languageChanged') : 'Language changed to';
-        setAlert(`<i class='fa-solid fa-globe'></i> ${languageChangedText} ${languageName}`, "success");
-
-        // Update the selector if needed (in case it was changed server-side)
-        if (data.language && $("#conversation-language").val() !== data.language) {
-          $("#conversation-language").val(data.language);
-        }
-
-        // Update RTL/LTR for message areas based on text direction
-        if (data.text_direction) {
-          if (data.text_direction === "rtl") {
-            $("body").addClass("rtl-messages");
-            if (window.debugWebSocket) console.log("RTL messages enabled for:", data.language);
-          } else {
-            $("body").removeClass("rtl-messages");
-            if (window.debugWebSocket) console.log("LTR messages enabled for:", data.language);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleLanguageUpdated === 'function') {
+          wsh.handleLanguageUpdated(data);
         }
         break;
       }
 
       case "processing_status": {
-        // Show processing status as alert, not in connection-status
-        setAlert(`<i class='fas fa-hourglass-half'></i> ${data.content}`, "info");
-
-        // Ensure spinner remains visible
-        if (!$("#monadic-spinner").is(":visible")) {
-          $("#monadic-spinner").show();
-        }
-
-        // Also show as system message
-        const $systemDiv = $('<div class="system-info-message"><i class="fas fa-hourglass-half"></i> </div>');
-        // Handle case where content might be an object
-        const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
-        $systemDiv.append($('<span>').text(contentText));
-
-        const systemElement = createCard("system",
-          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-          $systemDiv[0].outerHTML,
-          "en",
-          null,
-          true,
-          []
-        );
-        $("#discourse").append(systemElement);
-        if (window.MarkdownRenderer) {
-          window.MarkdownRenderer.applyRenderers(systemElement[0]);
-        }
-
-        // Auto-scroll if enabled
-        if (autoScroll) {
-          const chatBottom = document.getElementById('chat-bottom');
-          if (!isElementInViewport(chatBottom)) {
-            chatBottom.scrollIntoView(false);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleProcessingStatus === 'function') {
+          wsh.handleProcessingStatus(data);
         }
         break;
       }
 
       case "system_info": {
-        // Display system information in the conversation
-        // Use jQuery's text() method to properly escape the content
-        const $systemDiv = $('<div class="system-info-message"><i class="fas fa-info-circle"></i> </div>');
-        // Handle case where content might be an object
-        const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
-        $systemDiv.append($('<span>').text(contentText));
-
-        const systemElement = createCard("system",
-          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-          $systemDiv[0].outerHTML,
-          "en",
-          null,
-          true,
-          []
-        );
-        $("#discourse").append(systemElement);
-        if (window.MarkdownRenderer) {
-          window.MarkdownRenderer.applyRenderers(systemElement[0]);
-        }
-
-        // Auto-scroll if enabled
-        if (autoScroll) {
-          const chatBottom = document.getElementById('chat-bottom');
-          if (!isElementInViewport(chatBottom)) {
-            chatBottom.scrollIntoView(false);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSystemInfo === 'function') {
+          wsh.handleSystemInfo(data);
         }
         break;
       }
 
       case "error": {
-        // Clear any pending spinner check interval on error
-        if (window.spinnerCheckInterval) {
-          clearInterval(window.spinnerCheckInterval);
-          window.spinnerCheckInterval = null;
+        const werr = window.WsErrorHandler;
+        if (werr && typeof werr.handleError === 'function') {
+          werr.handleError(data);
         }
-
-        // Reset streaming flags
-        streamingResponse = false;
-        if (window.UIState) {
-          window.UIState.set('streamingResponse', false);
-          window.UIState.set('isStreaming', false);
-        }
-        responseStarted = false;
-        callingFunction = false;
-
-        // Check if content is a translation key or an object with key and details
-        let errorContent = data.content;
-
-        // Handle various error message formats
-        if (typeof errorContent === 'object' && errorContent.key) {
-          // Handle structured error with key and details
-          if (errorContent.key === 'ai_user_error') {
-            errorContent = `${getTranslation('ui.messages.aiUserError', 'AI User error')}: ${errorContent.details}`;
-          }
-        } else if (typeof errorContent === 'string') {
-          // Map translation keys to translated messages
-          const errorTranslations = {
-            'ai_user_requires_conversation': 'ui.messages.aiUserRequiresConversation',
-            'message_not_found_for_editing': 'ui.messages.messageNotFoundForEditing',
-            'voice_input_empty': 'ui.messages.voiceInputEmpty',
-            'text_input_empty': 'ui.messages.textInputEmpty',
-            'invalid_message_format': 'ui.messages.invalidMessageFormat',
-            'api_stopped_safety': 'ui.messages.apiStoppedSafety',
-            'something_went_wrong': 'ui.messages.somethingWentWrong',
-            'error_processing_sample': 'ui.messages.errorProcessingSample',
-            'content_not_found': 'ui.messages.contentNotFound',
-            'empty_response': 'ui.messages.emptyResponse'
-          };
-
-          if (errorTranslations[errorContent]) {
-            // Get the English fallback from the key
-            const fallbacks = {
-              'ai_user_requires_conversation': 'AI User requires an existing conversation. Please start a conversation first.',
-              'message_not_found_for_editing': 'Message not found for editing',
-              'voice_input_empty': 'Voice input is empty',
-              'text_input_empty': 'The text input is empty',
-              'invalid_message_format': 'Invalid message format received',
-              'api_stopped_safety': 'The API stopped responding because of safety reasons',
-              'something_went_wrong': 'Something went wrong',
-              'error_processing_sample': 'Error processing sample message',
-              'content_not_found': 'Content not found in response',
-              'empty_response': 'Empty response from API'
-            };
-            errorContent = getTranslation(errorTranslations[errorContent], fallbacks[errorContent] || errorContent);
-          }
-        }
-
-        // Check if error during AI User generation (message starts with AI User error)
-        const isAIUserError = errorContent && errorContent.toString().includes(getTranslation('ui.messages.aiUserError', 'AI User error'));
-
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleErrorMessage === 'function') {
-          // Pass the translated content to the handler
-          const translatedData = { ...data, content: errorContent };
-          handled = wsHandlers.handleErrorMessage(translatedData);
-        } else {
-          // Fallback to inline handling
-          $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
-          $("#message").show();
-          $("#message").prop("disabled", false);
-          $("#monadic-spinner").hide();
-          setAlert(errorContent, 'error');
-          handled = true;
-        }
-
-        // Additional UI operations specific to our application context
-        if (handled) {
-          $("#select-role").prop("disabled", false);
-
-          // Only update status-message if system is not busy
-          if (!isSystemBusy()) {
-            $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
-          }
-
-          // Reset UI panels and indicators
-          clearToolStatus();
-          $("#temp-card").hide();
-          $("#indicator").hide();
-          $("#user-panel").show();
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-
-          // For AI User errors, don't delete messages but re-enable the AI User button
-          if (isAIUserError) {
-            // Explicitly re-enable the AI User button - critical fix for Perplexity
-            $("#ai_user").prop("disabled", false);
-            // Also update the AI User button state based on messages
-            updateAIUserButtonState(messages);
-          } else {
-            // For non-AI User errors, remove user message that caused error (if it exists)
-            const lastCard = $("#discourse .card").last();
-            if (lastCard.find(".user-color").length !== 0) {
-              deleteMessage(lastCard.attr('id'));
-            }
-
-            // Restore the message content so user can edit and retry
-            $("#message").val(params["message"]);
-          }
-
-          // Notify Workflow Viewer of error state
-          if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-            WorkflowViewer.setStage('error');
-          }
-
-          // Reset response tracking flags to ensure clean state
-          responseStarted = false;
-          callingFunction = false;
-          streamingResponse = false;
-          if (window.UIState) {
-            window.UIState.set('streamingResponse', false);
-            window.UIState.set('isStreaming', false);
-          }
-
-          // Set focus back to input field
-          setInputFocus();
-        }
-
         break;
       }
 
       case "token_verified": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleTokenVerification === 'function') {
-          handled = wsHandlers.handleTokenVerification(data);
-        } else {
-          // Fallback to inline handling
-          $("#api-token").val(data["token"]);
-          $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
-          handled = true;
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleTokenVerified === 'function') {
+          wch.handleTokenVerified(data);
         }
-
-        // These operations are still needed regardless of which path handled the message
-        if (handled) {
-          verified = "full";
-          // Don't show "Ready" here - wait until apps_list is fully loaded
-          // This prevents "Ready" from appearing while apps are still being loaded
-          // The status will be updated to "Ready" by the apps_list handler
-
-          // Enable OpenAI TTS options when token is verified
-          $("#openai-tts-4o").prop("disabled", false);
-          $("#openai-tts").prop("disabled", false);
-          $("#openai-tts-hd").prop("disabled", false);
-
-          // Enable OpenAI STT models when token is verified
-          $("#openai-stt-4o-mini").prop("disabled", false);
-          $("#openai-stt-4o").prop("disabled", false);
-          $("#openai-stt-4o-diarize").prop("disabled", false);
-          $("#openai-stt-whisper").prop("disabled", false);
-
-          // Set default STT model if none selected or current selection is disabled
-          const currentSTTModel = $("#stt-model").val();
-          if (!currentSTTModel || $("#stt-model option:selected").prop("disabled")) {
-            $("#stt-model").val("gpt-4o-mini-transcribe-2025-12-15").trigger("change");
-          }
-
-          // Set OpenAI TTS as default when it becomes available
-          // (unless user has already selected another provider)
-          const currentProvider = $("#tts-provider").val();
-          if (currentProvider === "webspeech") {
-            $("#tts-provider").val("openai-tts-4o").trigger("change");
-          }
-          $("#start").prop("disabled", false);
-          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #conversation-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
-          // TTS speed is already enabled by default and should remain enabled
-
-          // Update the available AI User providers when token is verified
-          // Check if the function exists before calling it
-          if (typeof window.updateAvailableProviders === 'function') {
-            window.updateAvailableProviders();
-          } else {
-
-          }
-        }
-
         break;
       }
 
       case "open_ai_api_error": {
-        verified = "partial";
-
-        $("#start").prop("disabled", false);
-        $("#send, #clear").prop("disabled", false);
-
-        $("#api-token").val("");
-
-        // Disable OpenAI TTS options when API connection fails
-        $("#openai-tts-4o").prop("disabled", true);
-        $("#openai-tts").prop("disabled", true);
-        $("#openai-tts-hd").prop("disabled", true);
-
-        // Disable OpenAI STT models when API connection fails
-        $("#openai-stt-4o").prop("disabled", true);
-        $("#openai-stt-4o-diarize").prop("disabled", true);
-        $("#openai-stt-4o-mini").prop("disabled", true);
-        $("#openai-stt-whisper").prop("disabled", true);
-
-        const cannotConnectText = getTranslation('ui.messages.cannotConnectToAPI', 'Cannot connect to OpenAI API');
-        setAlert(`<i class='fa-solid fa-bolt'></i> ${cannotConnectText}`, "warning");
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleOpenAIAPIError === 'function') {
+          wch.handleOpenAIAPIError(data);
+        }
         break;
       }
       case "token_not_verified": {
-
-        verified = "partial";
-
-        $("#start").prop("disabled", false);
-        $("#send, #clear").prop("disabled", false);
-
-        $("#api-token").val("");
-
-        // Disable OpenAI TTS options when token is not verified
-        $("#openai-tts-4o").prop("disabled", true);
-        $("#openai-tts").prop("disabled", true);
-        $("#openai-tts-hd").prop("disabled", true);
-
-        // Disable OpenAI STT models when token is not verified
-        $("#openai-stt-4o").prop("disabled", true);
-        $("#openai-stt-4o-diarize").prop("disabled", true);
-        $("#openai-stt-4o-mini").prop("disabled", true);
-        $("#openai-stt-whisper").prop("disabled", true);
-
-        const tokenNotSetText = getTranslation('ui.messages.validTokenNotSet', 'Valid OpenAI token not set');
-        setAlert(`<i class='fa-solid fa-bolt'></i> ${tokenNotSetText}`, "warning");
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleTokenNotVerified === 'function') {
+          wch.handleTokenNotVerified(data);
+        }
         break;
       }
       case "apps": {
-        // Check if this message is from a parameter update (apps list refresh after settings change)
-        const fromParamUpdate = data["from_param_update"] === true;
-
-        window.appsMessageCount = (window.appsMessageCount || 0) + 1;
-        window.logTL('apps_received', {
-          count: window.appsMessageCount,
-          hasAppsKeys: Object.keys(apps).length,
-          currentSelect: $("#apps").val(),
-          fromParamUpdate
-        });
-
-        let version_string = data["version"]
-        data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
-        $("#monadic-version-number").html(version_string);
-
-        // Check if this is an update to existing apps (e.g., from language change)
-        const isUpdate = Object.keys(apps).length > 0;
-
-        if (isUpdate) {
-          // Update existing apps data with new content (for language updates or reset)
-          for (const [key, value] of Object.entries(data["content"])) {
-            apps[key] = value;  // Update or add the app data
-          }
-
-          // Update the currently displayed app description if needed
-          const currentApp = $("#apps").val();
-          if (currentApp && apps[currentApp]) {
-            const descriptionOnly = apps[currentApp]["description"] || "";
-            if (typeof window.setBaseAppDescription === 'function') {
-              window.setBaseAppDescription(descriptionOnly);
-            } else {
-              $("#base-app-desc").html(descriptionOnly);
-            }
-            if (typeof window.updateAppBadges === 'function') {
-              window.updateAppBadges(currentApp);
-            }
-
-            // If this is after a reset, re-initialize the app
-            // Check if parameters message hasn't been received yet
-            if (!data["from_parameters"] && !fromParamUpdate) {
-              // Re-initialize the current app with proceedWithAppChange
-              setTimeout(function() {
-                if (typeof window.proceedWithAppChange === 'function') {
-                  window.proceedWithAppChange(currentApp);
-                }
-              }, 100);
-            }
-          }
-        } else {
-          // Persist full app data to the global map so downstream code can read system_prompt, etc.
-          try {
-            for (const [key, value] of Object.entries(data["content"])) {
-              // Skip invalid entries
-              if (!key || key === 'undefined' || key.trim() === '') {
-                console.warn('[WebSocket] Skipping invalid app in global cache with key:', key);
-                continue;
-              }
-              // Skip apps with missing display name and app name
-              const displayName = value && (value["display_name"] || value["app_name"]);
-              if (!displayName || displayName === 'undefined') {
-                console.warn('[WebSocket] Skipping app with missing display name in cache:', key);
-                continue;
-              }
-              apps[key] = value;
-            }
-            window.logTL && window.logTL('apps_cached_to_global', { keys: Object.keys(apps).length });
-
-            // No need to log imported_tool_groups in production; keep data available in apps object
-          } catch (_) { console.warn("[WebSocket] App caching failed:", _); }
-
-          // Prepare arrays for app classification
-          let regularApps = [];
-          let specialApps = {};
-
-          // Classify apps into regular and special groups
-          for (const [key, value] of Object.entries(data["content"])) {
-            // Skip invalid entries (undefined, null, or empty key)
-            if (!key || key === 'undefined' || key.trim() === '') {
-              console.warn('[WebSocket] Skipping invalid app entry with key:', key);
-              continue;
-            }
-
-            // Skip apps with missing display name and app name (would show as "undefined")
-            const displayName = value && (value["display_name"] || value["app_name"]);
-            if (!displayName || displayName === 'undefined') {
-              console.warn('[WebSocket] Skipping app with missing display name:', key, value);
-              continue;
-            }
-
-            const group = value["group"];
-
-            // Check if app belongs to OpenAI group (regular apps)
-            if (group && group.trim().toLowerCase() === "openai") {
-              regularApps.push([key, value]);
-            } else if (group && group.trim() !== "") {
-              // Other groups go to special apps
-              if (!specialApps[group]) {
-                specialApps[group] = [];
-              }
-              specialApps[group].push([key, value]);
-            } else {
-              // create a group called "Extra" for apps without a group
-              if (!specialApps["Extra"]) {
-                specialApps["Extra"] = [];
-              }
-              specialApps["Extra"].push([key, value]);
-            }
-          }
-
-          // Sort regular apps: Chat first, then alphabetically
-          regularApps.sort((a, b) => {
-            const textA = a[1]["display_name"] || a[1]["app_name"];
-            const textB = b[1]["display_name"] || b[1]["app_name"];
-
-            // Put Chat first
-            if (textA === "Chat") return -1;
-            if (textB === "Chat") return 1;
-
-            return textA.localeCompare(textB);
-          });
-
-          // Sort apps within each special group: Chat first, then alphabetically
-          for (const group of Object.keys(specialApps)) {
-            specialApps[group].sort((a, b) => {
-              const textA = a[1]["display_name"] || a[1]["app_name"];
-              const textB = b[1]["display_name"] || b[1]["app_name"];
-
-              // Put Chat first
-              if (textA === "Chat") return -1;
-              if (textB === "Chat") return 1;
-
-              return textA.localeCompare(textB);
-            });
-          }
-
-          // Add apps to selector
-          // First add the OpenAI Apps label and regular apps
-          // Always show OpenAI apps, regardless of verification status
-
-          // Check if all OpenAI apps are disabled
-          const allOpenAIAppsDisabled = regularApps.every(([key, value]) => value.disabled === "true");
-
-          // Add OpenAI separator to standard select
-          $("#apps").append('<option disabled>──OpenAI──</option>');
-          // Add OpenAI separator to custom dropdown with conditional styling
-          const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
-          const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
-          const openAIGroupId = normalizeGroupId("OpenAI");
-          $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
-            <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
-            <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-          </div>`);
-          // Create a container for the OpenAI apps (normalized id for toggle)
-          $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${openAIGroupId}"></div>`);
-
-          for (const [key, value] of regularApps) {
-            apps[key] = value;
-            // Use display_name if available, otherwise fall back to app_name
-            const displayText = value["display_name"] || value["app_name"];
-            const appIcon = value["icon"] || "";
-            const isDisabled = value.disabled === "true";
-
-            // Add option to standard select
-            if (isDisabled) {
-                $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
-              } else {
-                $("#apps").append(`<option value="${key}">${displayText}</option>`);
-              }
-
-              // Add the same option to custom dropdown with icon
-              const disabledClass = isDisabled ? ' disabled' : '';
-              const disabledTitle = isDisabled ? ' title="API key required"' : '';
-              const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
-                <span style="margin-right: 8px;">${appIcon}</span>
-                <span>${displayText}</span></div>`);
-              $(`#group-${openAIGroupId}`).append($option);
-            }
-
-          // sort specialApps by group name in the order:
-          // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"
-          // and set it to the specialApps object
-          specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => {
-            const order = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
-            return order.indexOf(a[0]) - order.indexOf(b[0]);
-          }));
-
-          // Normalize group names to be HTML-id friendly
-          function normalizeGroupId(group) {
-            return group.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          }
-            // Add special groups with their labels
-            for (const group of Object.keys(specialApps)) {
-              if (specialApps[group].length > 0) {
-              // Check if all apps in this group are disabled
-              const allAppsDisabled = specialApps[group].every(([key, value]) => value.disabled === "true");
-
-              // Always show groups even if all apps are disabled
-              // This allows users to see what apps exist but are unavailable
-              if (true) {
-                // Add group header to standard select
-                $("#apps").append(`<option disabled>──${group}──</option>`);
-
-                // Add group header to custom dropdown with conditional styling
-                const groupClass = allAppsDisabled ? ' all-disabled' : '';
-                // Special handling for Ollama - it doesn't require an API key
-                const disabledMessage = group === "Ollama" ? "(Ollama is not running)" : "(API key required)";
-                const groupTitle = allAppsDisabled ?
-                  (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required for this provider"') : '';
-                $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
-                  <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
-                  <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-                </div>`);
-
-                // Create container for this group's apps
-                const normalizedGroupId = normalizeGroupId(group);
-                $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
-
-                for (const [key, value] of specialApps[group]) {
-                  apps[key] = value;
-                  // Use display_name if available, otherwise fall back to app_name
-                  const displayText = value["display_name"] || value["app_name"];
-                  const appIcon = value["icon"] || "";
-                  const isDisabled = value.disabled === "true";
-
-                  // Add option to standard select
-                  if (isDisabled) {
-                    $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
-                  } else {
-                    $("#apps").append(`<option value="${key}">${displayText}</option>`);
-                  }
-
-                  // Add the same option to custom dropdown with icon
-                  const disabledClass = isDisabled ? ' disabled' : '';
-                  // Special handling for Ollama apps
-                  const disabledTitle = isDisabled ?
-                    (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required"') : '';
-                  const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
-                    <span style="margin-right: 8px;">${appIcon}</span>
-                    <span>${displayText}</span></div>`);
-                  const normalizedGroupId = normalizeGroupId(group);
-                  $(`#group-${normalizedGroupId}`).append($option);
-                }
-              }
-            }
-          }
-
-          // Set up group toggle functionality
-          $(".custom-dropdown-group").on("click", function() {
-            const group = $(this).data("group");
-            const normalizedGroupId = normalizeGroupId(group);
-            const container = $(`#group-${normalizedGroupId}`);
-            const icon = $(this).find(".group-toggle-icon i");
-
-            container.toggleClass("collapsed");
-
-            if (container.hasClass("collapsed")) {
-              icon.removeClass("fa-chevron-down").addClass("fa-chevron-right");
-            } else {
-              icon.removeClass("fa-chevron-right").addClass("fa-chevron-down");
-            }
-          });
-
-          // Find the currently selected app's group and ensure it's expanded
-          const currentApp = $("#apps").val();
-          if (currentApp) {
-            setTimeout(() => {
-              const currentAppOption = $(`.custom-dropdown-option[data-value="${currentApp}"]`);
-              if (currentAppOption.length > 0) {
-                const parentGroup = currentAppOption.parent(".group-container");
-                if (parentGroup.length > 0) {
-                  // Ensure this group is expanded
-                  parentGroup.removeClass("collapsed");
-                  // Update the icon
-                  const groupId = parentGroup.attr("id");
-                  const groupName = groupId.replace("group-", "");
-                  // Need to handle potential dashes in the group name for xAI Grok
-                  let groupSelector = groupName;
-                  const groupHeader = $(`.custom-dropdown-group[data-group="${groupSelector}"]`);
-                  groupHeader.find(".group-toggle-icon i").removeClass("fa-chevron-right").addClass("fa-chevron-down");
-                }
-              }
-            }, 100);
-          }
-
-          // If import payload specifies an app_name, or there is already a valid selection in #apps,
-          // skip auto-selection to avoid overriding an existing choice (import or user selection).
-          const importRequestedApp = data && data["content"] && data["content"]["app_name"];
-          const currentSelectVal = $("#apps").val();
-          const hasCurrentValidSelection = !!(currentSelectVal && $("#apps option[value='" + currentSelectVal + "']").length);
-          // On initial load without session restore, ignore browser's auto-selection to prioritize Chat apps
-          const hasSessionRestore = !!(window.lastApp && window.lastApp !== null);
-          const isInitialLoad = window.appsMessageCount === 1 && !window.initialAppLoaded && !hasSessionRestore;
-          window.logTL('app_selection_state', {
-            importRequestedApp,
-            currentSelectVal,
-            hasCurrentValidSelection,
-            isInitialLoad,
-            lastApp: window.lastApp,
-            isRestoringSession: window.isRestoringSession,
-            initialAppLoaded: window.initialAppLoaded,
-            appsMessageCount: window.appsMessageCount
-          });
-          // Select the default app only when not importing and no valid selection exists
-          let firstValidApp;
-
-          // PRIORITY 1: Check if window.lastApp exists (from session restoration)
-          if (!firstValidApp && window.lastApp && $("#apps option[value='" + window.lastApp + "']").length && !$("#apps option[value='" + window.lastApp + "']").prop('disabled')) {
-            firstValidApp = window.lastApp;
-          } else if (window.lastApp) {
-            window.logTL('restored_app_unavailable', { lastApp: window.lastApp });
-          }
-
-          // PRIORITY 2: Try to find a Chat app from OpenAI (if API key is available)
-          if (!firstValidApp) {
-            const openAIChatOption = $("#apps option").filter(function() {
-              return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
-            }).first();
-
-            if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && openAIChatOption.length > 0) {
-              firstValidApp = openAIChatOption.val();
-            } else {
-              // Look for any Chat app from other providers
-              const anyChatOption = $("#apps option").filter(function() {
-                const val = $(this).val();
-                return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
-              }).first();
-
-              if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && anyChatOption.length > 0) {
-                firstValidApp = anyChatOption.val();
-              } else {
-                // Fallback: select the first available non-disabled app
-                if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad)) {
-                  const fallbackApp = $("#apps option").filter(function() {
-                    return !$(this).prop('disabled') && !$(this).text().includes('──');
-                  }).first();
-                  firstValidApp = fallbackApp.val();
-                }
-              }
-            }
-          }
-
-          // Set the app in dropdown if we have a valid app to select
-          // During session restoration, we may already have a selection but still need to initialize
-          const shouldSetApp = !importRequestedApp && firstValidApp && (!hasCurrentValidSelection || window.isRestoringSession);
-
-          if (shouldSetApp) {
-            $("#apps").val(firstValidApp);
-
-            // Set lastApp to prevent confirmation dialog on initial load
-            // Use window.lastApp to ensure it's accessible across all scopes
-            window.lastApp = firstValidApp;
-
-            // Ensure stop_apps_trigger is false so change event will be processed
-            stop_apps_trigger = false;
-
-            // Use display_name if available, otherwise fall back to app_name
-            const selectedApp = apps[firstValidApp];
-            if (selectedApp) {
-              const displayText = selectedApp["display_name"] || selectedApp["app_name"];
-              $("#base-app-title").text(displayText);
-
-              // Update badges immediately
-              if (selectedApp["monadic"]) {
-                $("#monadic-badge").show();
-              } else {
-                $("#monadic-badge").hide();
-              }
-
-              if (selectedApp["websearch"]) {
-                $("#websearch-badge").show();
-              } else {
-                $("#websearch-badge").hide();
-              }
-
-              if (selectedApp["tools"]) {
-                $("#tools-badge").show();
-              } else {
-                $("#tools-badge").hide();
-              }
-
-              if (selectedApp["mathjax"]) {
-                $("#math-badge").show();
-              } else {
-                $("#math-badge").hide();
-              }
-
-              $("#base-app-icon").html(selectedApp["icon"]);
-
-              const descriptionOnly = selectedApp["description"] || "";
-              if (typeof window.setBaseAppDescription === 'function') {
-                window.setBaseAppDescription(descriptionOnly);
-              } else {
-                $("#base-app-desc").html(descriptionOnly);
-              }
-              if (typeof window.updateAppBadges === 'function') {
-                window.updateAppBadges(firstValidApp);
-              }
-
-              if (firstValidApp === "PDF") {
-                ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-              }
-
-              // Call proceedWithAppChange directly to ensure proper initialization
-              // Use setTimeout to ensure DOM and all dependencies are ready
-              if (!fromParamUpdate) {
-                setTimeout(function() {
-                  const recentlyImported = (typeof window !== 'undefined' && window.lastImportTime) ? (Date.now() - window.lastImportTime < 1000) : false;
-                  const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
-                  window.logTL('apps_first_timeout', {
-                    recentlyImported,
-                    hasCurrentValidSelection,
-                    firstValidApp,
-                    isRestoringSession: window.isRestoringSession,
-                    isImportingNotRestoring,
-                    willProceed: !(isImportingNotRestoring || recentlyImported)
-                  });
-                  // Skip only during import (when NOT restoring session), not during session restoration
-                  if (typeof window !== 'undefined' && (isImportingNotRestoring || recentlyImported)) {
-                    return;
-                  }
-                  window.logTL('auto_select_app', { firstValidApp });
-                  if (typeof window.proceedWithAppChange === 'function') {
-                    // Ensure flag is set before calling proceedWithAppChange
-                    // This guarantees confirmation dialog is skipped when syncing from server
-                    // Check if variable is defined before using it
-                    if (typeof hasCurrentAppFromServer !== 'undefined' && hasCurrentAppFromServer) {
-                      window.currentAppFromServer = firstValidApp;
-                    }
-                    // Call proceedWithAppChange directly for reliable initialization
-                    window.proceedWithAppChange(firstValidApp);
-                    window.logTL('proceedWithAppChange_called_from_apps', { app: firstValidApp });
-
-                  } else {
-                    // Fallback to triggering change event if function not available
-                    $("#apps").trigger('change');
-                    window.logTL('apps_change_triggered');
-                  }
-                }, 100);
-              }
-            }
-          }
-
-        // One-time initialization: if first APPS build resulted in a selected value but we didn't auto-select above
-        // (e.g., because hasCurrentValidSelection was true due to default selection), explicitly initialize.
-        if (!fromParamUpdate) {
-          setTimeout(function() {
-            try {
-              const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
-              window.logTL('apps_second_timeout_check', {
-                appsMessageCount: window.appsMessageCount,
-                importRequestedApp,
-                initialAppLoaded: window.initialAppLoaded,
-                selectedApp: $("#apps").val(),
-                isImporting: window.isImporting,
-                isRestoringSession: window.isRestoringSession,
-                isImportingNotRestoring,
-                willProceed: (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring)
-              });
-              // Skip during import (when NOT restoring session), but allow during session restoration
-              if (!fromParamUpdate && window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
-                const sel = $("#apps").val();
-                if (sel) {
-                  window.logTL && window.logTL('proceedWithAppChange_on_first_selected', { app: sel });
-                  if (typeof window.proceedWithAppChange === 'function') {
-                    window.proceedWithAppChange(sel);
-                    // Set flag AFTER proceedWithAppChange completes
-                    window.initialAppLoaded = true;
-                  } else {
-                    $("#apps").trigger('change');
-                    window.initialAppLoaded = true;
-                  }
-                }
-              } else {
-                window.logTL('apps_second_timeout_skipped', {
-                  importRequestedApp,
-                  selectedApp: $("#apps").val(),
-                  fromParamUpdate,
-                  appsMessageCount: window.appsMessageCount,
-                  initialAppLoaded: window.initialAppLoaded,
-                  isImportingNotRestoring
-                });
-              }
-            } catch (e) {
-              console.error('Error in second timeout:', e);
-            }
-          }, 150);
-        }
-
-          // Update the AI User provider dropdown if the function is available
-          if (typeof window.updateAvailableProviders === 'function') {
-            window.updateAvailableProviders();
-          } else {
-
-          }
-        }
-        // Set originalParams to the first valid app or Chat if available
-        originalParams = apps["Chat"] || apps[$("#apps").val()] || {};
-
-        // Process pending parameters if any
-        if (window.pendingParameters) {
-          const params = window.pendingParameters;
-          window.pendingParameters = null;
-
-          // Process the stored parameters after a delay to ensure DOM is ready
-          if (params.app_name) {
-            loadedApp = params.app_name;
-            window.logTL('pending_parameters_found', { app: params.app_name });
-            // Add delay to ensure dropdown is fully populated
-            setTimeout(() => {
-              // Call loadParams which will handle the app and model selection
-              loadParams(params, "loadParams");
-            }, 100);
-          }
-        } else {
-          // Only reset params if we don't have pending parameters to load
-          // AND if we're not in a loaded session (after import)
-          // AND if this is truly the first APPS message
-          const currentApp = $("#apps").val();
-          const isFirstAppsMessage = window.appsMessageCount === 1;
-
-          window.logTL('post_apps_maybe_reset', { currentApp, isFirstAppsMessage, loadedApp });
-
-          // Only reset if this is the first apps message and no app is selected
-          // OR if there's no loaded app from import
-          if (isFirstAppsMessage && (!currentApp || currentApp === "") && !loadedApp) {
-            resetParams();
-            window.logTL('resetParams_called_after_apps');
-          } else {
-            // If app is already configured, update badges for initial display
-            if (isFirstAppsMessage && currentApp && typeof window.updateAppBadges === 'function') {
-              setTimeout(function() {
-                window.updateAppBadges(currentApp);
-              }, 200);
-            }
-          }
+        const adh = window.WsAppDataHandlers;
+        if (adh && typeof adh.handleAppsMessage === 'function') {
+          adh.handleAppsMessage(data);
         }
         break;
       }
       case "parameters": {
-        // Check if we have valid content
-        if (!data["content"] || Object.keys(data["content"]).length === 0) {
-          // Empty parameters, this is normal for initial load
-          break;
+        const adh = window.WsAppDataHandlers;
+        if (adh && typeof adh.handleParametersMessage === 'function') {
+          adh.handleParametersMessage(data);
         }
-
-        const fromParamUpdate = data["from_param_update"] === true;
-
-        // Skip full loadParams for param sync updates from the same session
-        // These are echoes of our own changes and shouldn't reset UI state
-        if (fromParamUpdate) {
-          // Just update the local params object without resetting UI
-          Object.assign(params, data["content"]);
-          break;
-        }
-
-        if (data["from_import"]) {
-          setAutoSpeechSuppressed(true, { reason: 'parameters import' });
-          if (typeof window !== 'undefined') {
-            window.isProcessingImport = true;
-            window.skipAssistantInitiation = true;
-          }
-        }
-
-        // Store parameters for later processing if apps not loaded yet
-        if (!apps || Object.keys(apps).length === 0) {
-          window.pendingParameters = data["content"];
-          break;
-        }
-
-        // Only process if we have an app_name
-        if (data["content"]["app_name"]) {
-
-          loadedApp = data["content"]["app_name"];
-          // Note: Removed "Please wait" message as it's too brief to be useful
-          // (parameters -> past_messages processing takes ~100ms)
-
-          // Call loadParams which will handle everything including model selection
-          window.logTL('parameters_received', {
-            app_name: data["content"]["app_name"],
-            has_initial_prompt: !!data["content"]["initial_prompt"],
-            model: data["content"]["model"],
-            group: data["content"]["group"]
-          });
-
-          let releaseParamSuppression = false;
-          if (typeof window !== "undefined") {
-            window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
-            releaseParamSuppression = true;
-          }
-
-          try {
-            // Check if loadParams is defined
-            if (typeof loadParams === 'function') {
-              loadParams(data["content"], "loadParams");
-              window.logTL('loadParams_called_from_parameters', { calledFor: 'loadParams' });
-
-              // Call proceedWithAppChange to ensure model list is populated
-              // This is necessary when parameters message arrives before apps message completes
-              const requestedApp = data["content"]["app_name"];
-              const currentAppSelection = (typeof $ === "function" && $("#apps").length) ? $("#apps").val() : null;
-              const needsAppSync =
-                !window.initialAppLoaded ||
-                window.isProcessingImport ||
-                !currentAppSelection ||
-                currentAppSelection !== requestedApp;
-
-              if (requestedApp && typeof window.proceedWithAppChange === 'function' && needsAppSync && window.apps[requestedApp]) {
-                // Use requestAnimationFrame to ensure DOM is ready (double-call for rendering completion)
-                requestAnimationFrame(() => {
-                  requestAnimationFrame(() => {
-                    window.proceedWithAppChange(requestedApp);
-                    window.logTL('proceedWithAppChange_called_from_parameters', { app: requestedApp });
-                  });
-                });
-              }
-            } else if (typeof window.loadParams === 'function') {
-              window.loadParams(data["content"], "loadParams");
-
-              // Call proceedWithAppChange for window.loadParams as well
-              if (data["content"]["app_name"] && typeof window.proceedWithAppChange === 'function' && window.apps[data["content"]["app_name"]]) {
-                // Use requestAnimationFrame to ensure DOM is ready (double-call for rendering completion)
-                requestAnimationFrame(() => {
-                  requestAnimationFrame(() => {
-                    window.proceedWithAppChange(data["content"]["app_name"]);
-                    window.logTL('proceedWithAppChange_called_from_parameters', { app: data["content"]["app_name"] });
-                  });
-                });
-              }
-            } else {
-              // Direct fallback approach
-              const appName = data["content"]["app_name"];
-              const model = data["content"]["model"];
-
-              // Set the app directly
-              if (appName) {
-                $("#apps").val(appName);
-                // Trigger change to update model list
-                $("#apps").trigger('change');
-
-                // Set model after a delay
-                setTimeout(() => {
-                  if (model) {
-                    $("#model").val(model);
-                    if ($("#model").val() !== model) {
-                      console.error("Failed to set model:", model);
-                      // Try again with a longer delay
-                      setTimeout(() => {
-                        $("#model").val(model);
-                        $("#model").trigger('change');
-                      }, 500);
-                    } else {
-                      $("#model").trigger('change');
-                    }
-                  }
-                }, 300);
-              }
-            }
-          } finally {
-            if (releaseParamSuppression) {
-              setTimeout(() => {
-                window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 1) - 1);
-              }, 600);
-            }
-          }
-
-          // Mark as initialized to prevent duplicate initialization from timeout blocks
-          window.initialAppLoaded = true;
-
-          // Don't rebuild the model list here - loadParams already handles it
-          // The code below was causing the model selector to be reset
-          break;
-        }
-
-        // This code should only run if there's no app_name in parameters
-        // (which means it's not a loaded session)
-
-        // All providers now support AI User functionality
-
-        const currentApp = apps[$("#apps").val()] || apps[window.defaultApp];
-
-        // Use shared utility function to get models for the app
-        let models = currentApp ? getModelsForApp(currentApp) : [];
-
-        if (currentApp) {
-          let openai = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
-          let modelList = listModels(models, openai);
-          $("#model").html(modelList);
-        }
-
-        // Select the appropriate model using shared utility function
-        let model;
-        if (currentApp) {
-          // Use the model from parameters if available, otherwise use default
-          if (data["content"]["model"] && models.includes(data["content"]["model"])) {
-            model = data["content"]["model"];
-          } else {
-            model = getDefaultModelForApp(currentApp, models);
-          }
-        }
-
-          // Extract provider name from current app group using shared function if available
-          let provider;
-          if (typeof getProviderFromGroup === 'function' && currentApp && currentApp["group"]) {
-            provider = getProviderFromGroup(currentApp["group"]);
-          } else {
-            // Fallback implementation if the function is not available
-            provider = "OpenAI";
-            if (currentApp && currentApp["group"]) {
-              const group = currentApp["group"].toLowerCase();
-            if (group.includes("anthropic") || group.includes("claude")) {
-              provider = "Anthropic";
-            } else if (group.includes("gemini") || group.includes("google")) {
-              provider = "Google";
-            } else if (group.includes("cohere")) {
-              provider = "Cohere";
-            } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-              provider = "Mistral";
-            } else if (group.includes("perplexity")) {
-              provider = "Perplexity";
-            } else if (group.includes("deepseek")) {
-              provider = "DeepSeek";
-            } else if (group.includes("grok") || group.includes("xai")) {
-              provider = "xAI";
-            } else if (group.includes("ollama")) {
-              provider = "Ollama";
-            }
-          }
-          }
-
-          // Update model display with Provider (Model) format
-          if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-            $("#model-selected").text(`${provider} (${model} - ${modelSpec[model]["reasoning_effort"]})`);
-          } else {
-            $("#model-selected").text(`${provider} (${model})`);
-          }
-
-          $("#model").val(model);
-
-          // Use display_name if available, otherwise fall back to app_name
-          if (currentApp) {
-            $("#base-app-title").text(currentApp["display_name"] || currentApp["app_name"]);
-            $("#base-app-icon").html(currentApp["icon"]);
-
-            if (currentApp["monadic"]) {
-              $("#monadic-badge").show();
-            } else {
-              $("#monadic-badge").hide();
-            }
-
-            if (currentApp["tools"]) {
-              $("#tools-badge").show();
-            } else {
-              $("#tools-badge").hide();
-            }
-
-            const descriptionOnly = currentApp["description"] || "";
-            if (typeof window.setBaseAppDescription === 'function') {
-              window.setBaseAppDescription(descriptionOnly);
-            } else {
-              $("#base-app-desc").html(descriptionOnly);
-            }
-
-            // Trigger badge update after description is set
-            if (typeof window.updateAppBadges === 'function') {
-              setTimeout(function() {
-                window.updateAppBadges(currentApp["app_name"]);
-              }, 150);
-            }
-          }
-        }
-
-        $("#start").focus();
-
-        updateAppAndModelSelection(data["content"]);
         break;
+      }
       case "elevenlabs_voices": {
-        const cookieValue = getCookie("elevenlabs-tts-voice");
-        let voices = data["content"];
-        if (voices.length > 0) {
-          // set ElevenLabs provider options enabled (TTS)
-          $("#elevenlabs-flash-provider-option").prop("disabled", false);
-          $("#elevenlabs-multilingual-provider-option").prop("disabled", false);
-          $("#elevenlabs-v3-provider-option").prop("disabled", false);
-          // set ElevenLabs STT options enabled
-          $("#elevenlabs-stt-scribe-v2").prop("disabled", false);
-          $("#elevenlabs-stt-scribe").prop("disabled", false);
-          $("#elevenlabs-stt-scribe-experimental").prop("disabled", false);
-          // Do not set ElevenLabs as default - prefer openai-tts-4o
-        } else {
-          // set ElevenLabs provider options disabled (TTS)
-          $("#elevenlabs-flash-provider-option").prop("disabled", true);
-          $("#elevenlabs-multilingual-provider-option").prop("disabled", true);
-          $("#elevenlabs-v3-provider-option").prop("disabled", true);
-          // set ElevenLabs STT options disabled
-          $("#elevenlabs-stt-scribe-v2").prop("disabled", true);
-          $("#elevenlabs-stt-scribe").prop("disabled", true);
-          $("#elevenlabs-stt-scribe-experimental").prop("disabled", true);
-        }
-        $("#elevenlabs-tts-voice").empty();
-        voices.forEach((voice) => {
-          if (cookieValue === voice.voice_id) {
-            $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
-          } else {
-            $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
-          }
-        });
-
-        // Apply saved cookie value for voice if it exists
-        const savedVoice = getCookie("elevenlabs-tts-voice");
-        if (savedVoice && $(`#elevenlabs-tts-voice option[value="${savedVoice}"]`).length > 0) {
-          $("#elevenlabs-tts-voice").val(savedVoice);
-        }
-
-        // Apply saved cookie value for provider if it was elevenlabs
-        const savedProvider = getCookie("tts-provider");
-        if (["elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"].includes(savedProvider)) {
-          $("#tts-provider").val(savedProvider).trigger("change");
+        const adh = window.WsAppDataHandlers;
+        if (adh && typeof adh.handleElevenLabsVoices === 'function') {
+          adh.handleElevenLabsVoices(data);
         }
         break;
       }
       case "gemini_voices": {
-        const cookieValue = getCookie("gemini-tts-voice");
-        let voices = data["content"];
-        if (voices.length > 0) {
-          // set both gemini provider options enabled
-          $("#gemini-flash-provider-option").prop("disabled", false);
-          $("#gemini-pro-provider-option").prop("disabled", false);
-
-          // Enable Gemini STT model
-          $("#gemini-stt-flash").prop("disabled", false);
-
-          // Populate the gemini voice select element
-          $("#gemini-tts-voice").empty();
-          voices.forEach((voice) => {
-            if (cookieValue === voice.voice_id) {
-              $("#gemini-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
-            } else {
-              $("#gemini-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
-            }
-          });
-
-          // Apply saved cookie value for voice if it exists
-          const savedVoice = getCookie("gemini-tts-voice");
-          if (savedVoice && $(`#gemini-tts-voice option[value="${savedVoice}"]`).length > 0) {
-            $("#gemini-tts-voice").val(savedVoice);
-          }
-        } else {
-          // set both gemini provider options disabled
-          $("#gemini-flash-provider-option").prop("disabled", true);
-          $("#gemini-pro-provider-option").prop("disabled", true);
-
-          // Disable Gemini STT model
-          $("#gemini-stt-flash").prop("disabled", true);
+        const adh = window.WsAppDataHandlers;
+        if (adh && typeof adh.handleGeminiVoices === 'function') {
+          adh.handleGeminiVoices(data);
         }
-
-        // Apply saved cookie value for provider if it was gemini
-        const savedProvider = getCookie("tts-provider");
-        if (savedProvider === "gemini-flash" || savedProvider === "gemini-pro") {
-          $("#tts-provider").val(savedProvider).trigger("change");
+        break;
+      }
+      case "mistral_voices": {
+        const adh = window.WsAppDataHandlers;
+        if (adh && typeof adh.handleMistralVoices === 'function') {
+          adh.handleMistralVoices(data);
         }
         break;
       }
       case "stt": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleSTTMessage === 'function') {
-          handled = wsHandlers.handleSTTMessage(data);
-        }
-
-        if (!handled) {
-          // Fallback to inline handling
-          $("#message").val($("#message").val() + " " + data["content"]);
-          let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
-          $("#asr-p-value").text(logprob);
-          $("#send, #clear, #voice").prop("disabled", false);
-
-          // Restore original placeholder
-          const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-          $("#message").attr("placeholder", origPlaceholder);
-
-          // Ensure amplitude chart is hidden after processing
-          $("#amplitude").hide();
-
-          if ($("#check-easy-submit").is(":checked")) {
-            if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-              if (window.debugWebSocket) console.log('[Send] Ignoring auto-submit: tab is not foreground');
-            } else {
-              $("#send").click();
-            }
-          }
-          const voiceFinishedText = getTranslation('ui.messages.voiceRecognitionFinished', 'Voice recognition finished');
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${voiceFinishedText}`, "secondary");
-          setInputFocus()
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSTT === 'function') {
+          wsh.handleSTT(data);
         }
         break;
       }
       case "info": {
-        infoHtml = formatInfo(data["content"]);
-        if (infoHtml !== "") {
-          setStats(infoHtml);
+        const wih = window.WsInfoHandler;
+        if (wih && typeof wih.handleInfo === 'function') {
+          wih.handleInfo(data);
         }
-
-        // CRITICAL: For initial load (no messages), ALWAYS hide spinner immediately
-        // This prevents "Processing Audio" from appearing in new tabs
-        if (messages.length === 0) {
-          // Reset Auto Speech completion flags
-          if (typeof window.setTextResponseCompleted === 'function') {
-            window.setTextResponseCompleted(true);
-          }
-          if (typeof window.setTtsPlaybackStarted === 'function') {
-            window.setTtsPlaybackStarted(true);
-          }
-
-          // FORCE hide spinner unconditionally - new tabs should never show spinner
-          $("#monadic-spinner").hide();
-
-          // Reset to default spinner state
-          $("#monadic-spinner")
-            .find("span i")
-            .removeClass("fa-headphones fa-brain fa-circle-nodes fa-cogs")
-            .addClass("fa-comment");
-          $("#monadic-spinner")
-            .find("span")
-            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-        }
-        // For non-initial loads, follow standard logic
-        else if (!callingFunction && !streamingResponse) {
-          window.setTextResponseCompleted(true);
-          if (typeof window.checkAndHideSpinner === 'function') {
-            window.checkAndHideSpinner();
-          } else {
-            $("#monadic-spinner").hide();
-          }
-        }
-
-        // Then update status message after spinner is hidden
-        const hasAppsData = window.apps && Object.keys(window.apps).length > 0;
-        const hasDOMOptions = $("#apps option").length > 0;
-
-        if (!hasAppsData && !hasDOMOptions) {
-          const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
-          setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
-        } else {
-          // Show "Ready" unless we're calling functions or streaming
-          if (!callingFunction && !streamingResponse) {
-            const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
-          }
-        }
-
-        // Fallback: if DOM options are empty but apps data exists (race on Electron startup), rebuild using normal path
-        if (hasAppsData && $("#apps option").length === 0) {
-          console.warn('[WARN] Apps data present but DOM options empty. Rebuilding selectors with standard builder.');
-          // Reuse normal rendering logic by simulating initial (non-update) path
-          const rebuildData = { content: apps };
-          try {
-            // Clear dropdowns then re-render using existing logic
-            $("#apps").empty();
-            $("#custom-apps-dropdown").empty();
-            // Re-run the classification/rendering block (extracted from main branch)
-            let regularApps = [];
-            let specialApps = {};
-            for (const [key, value] of Object.entries(rebuildData.content)) {
-              // Skip invalid entries
-              if (!key || key === 'undefined' || key.trim() === '') {
-                continue;
-              }
-              // Skip apps with missing display name and app name
-              const displayName = value && (value["display_name"] || value["app_name"]);
-              if (!displayName || displayName === 'undefined') {
-                continue;
-              }
-              const group = value["group"];
-              if (group && group.trim().toLowerCase() === "openai") {
-                regularApps.push([key, value]);
-              } else if (group && group.trim() !== "") {
-                if (!specialApps[group]) {
-                  specialApps[group] = [];
-                }
-                specialApps[group].push([key, value]);
-              } else {
-                if (!specialApps["Extra"]) {
-                  specialApps["Extra"] = [];
-                }
-                specialApps["Extra"].push([key, value]);
-              }
-            }
-            regularApps.sort((a, b) => {
-              const textA = a[1]["display_name"] || a[1]["app_name"];
-              const textB = b[1]["display_name"] || b[1]["app_name"];
-              if (textA === "Chat") return -1;
-              if (textB === "Chat") return 1;
-              return textA.localeCompare(textB);
-            });
-            const groupOrder = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
-            specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => groupOrder.indexOf(a[0]) - groupOrder.indexOf(b[0])));
-            const normalizeGroupId = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-
-            // OpenAI group
-            const allOpenAIAppsDisabled = regularApps.every(([key, value]) => value.disabled === "true");
-            $("#apps").append('<option disabled>──OpenAI──</option>');
-            const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
-            const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
-            const openAIGroupId = normalizeGroupId("OpenAI");
-            $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
-              <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
-              <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-            </div>`);
-            $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${openAIGroupId}"></div>`);
-            for (const [key, value] of regularApps) {
-              apps[key] = value;
-              const displayText = value["display_name"] || value["app_name"];
-              const appIcon = value["icon"] || "";
-              const isDisabled = value.disabled === "true";
-              if (isDisabled) {
-                $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
-              } else {
-                $("#apps").append(`<option value="${key}">${displayText}</option>`);
-              }
-              const disabledClass = isDisabled ? ' disabled' : '';
-              const disabledTitle = isDisabled ? ' title="API key required"' : '';
-              const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
-                <span style="margin-right: 8px;">${appIcon}</span>
-                <span>${displayText}</span></div>`);
-              $(`#group-${openAIGroupId}`).append($option);
-            }
-
-            // Special groups
-            for (const group of Object.keys(specialApps)) {
-              if (specialApps[group].length > 0) {
-                const allAppsDisabled = specialApps[group].every(([key, value]) => value.disabled === "true");
-                $("#apps").append(`<option disabled>──${group}──</option>`);
-                const groupClass = allAppsDisabled ? ' all-disabled' : '';
-                const disabledMessage = group === "Ollama" ? "(Ollama is not running)" : "(API key required)";
-                const groupTitle = allAppsDisabled ?
-                  (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required for this provider"') : '';
-                $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
-                  <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
-                  <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-                </div>`);
-                const normalizedGroupId = normalizeGroupId(group);
-                $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
-                for (const [key, value] of specialApps[group]) {
-                  apps[key] = value;
-                  const displayText = value["display_name"] || value["app_name"];
-                  const appIcon = value["icon"] || "";
-                  const isDisabled = value.disabled === "true";
-                  if (isDisabled) {
-                    $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
-                  } else {
-                    $("#apps").append(`<option value="${key}">${displayText}</option>`);
-                  }
-                  const disabledClass = isDisabled ? ' disabled' : '';
-                  const disabledTitle = isDisabled ?
-                    (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required"') : '';
-                  const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
-                    <span style="margin-right: 8px;">${appIcon}</span>
-                    <span>${displayText}</span></div>`);
-                  const normalizedId = normalizeGroupId(group);
-                  $(`#group-${normalizedId}`).append($option);
-                }
-              }
-            }
-
-            // Collapse/expand handlers
-            $(".custom-dropdown-group").on("click", function() {
-              const group = $(this).data("group");
-              const normalizedGroupId = normalizeGroupId(group);
-              const container = $(`#group-${normalizedGroupId}`);
-              const icon = $(this).find(".group-toggle-icon i");
-              container.toggleClass("collapsed");
-              if (container.hasClass("collapsed")) {
-                icon.removeClass("fa-chevron-down").addClass("fa-chevron-right");
-              } else {
-                icon.removeClass("fa-chevron-right").addClass("fa-chevron-down");
-              }
-            });
-
-            // Select first available app and trigger change
-            const firstApp = $("#apps option:not(:disabled)").first().val();
-            if (firstApp) {
-              $("#apps").val(firstApp).trigger('change');
-            }
-          } catch (e) {
-            console.error('Failed to rebuild selectors from apps data:', e);
-          }
-        }
-        if (window.debugWebSocket) console.log('[INFO-END] Exiting info handler');
         break;
       }
       case "pdf_titles": {
-        const rows = data["content"].map((title, index) => {
-          const safeTitle = String(title).replace(/</g, '&lt;');
-          return `<div class="d-flex align-items-center justify-content-between py-1 border-bottom pdf-db-row">`
-               +   `<span class="pdf-db-name">${safeTitle}</span>`
-               +   `<button id='pdf-del-${index}' type='button' class='btn btn-sm btn-outline-secondary'>`
-               +     `<i class='fa-regular fa-trash-can text-secondary'></i>`
-               +   `</button>`
-               + `</div>`;
-        }).join("");
-        $("#pdf-titles").html(rows || `<span class='text-secondary'>(none)</span>`);
-        data["content"].forEach((title, index) => {
-          $(`#pdf-del-${index}`).off('click').on('click', function () {
-            // Detect iOS/iPadOS
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-            if (isIOS) {
-              // Use standard confirm dialog on iOS
-              const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
-              if (confirm(`${base} ${title}?`)) {
-                ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
-              }
-            } else {
-              // Use Bootstrap modal on other platforms
-              $("#pdfDeleteConfirmation").modal("show");
-              $("#pdfToDelete").text(title);
-              $("#pdfDeleteConfirmed").off("click").on("click", function (event) {
-                event.preventDefault();
-                ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
-                $("#pdfDeleteConfirmation").modal("hide");
-                $("#pdfToDelete").text("");
-              });
-            }
-          });
-        });
-        break
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handlePDFTitles === 'function') {
+          wsh.handlePDFTitles(data);
+        }
+        break;
       }
       case "pdf_deleted": {
-        if (data["res"] === "success") {
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${data["content"]}`, "info");
-        } else {
-          setAlert(data["content"], "error");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handlePDFDeleted === 'function') {
+          wsh.handlePDFDeleted(data);
         }
-        ws.send(JSON.stringify({ "message": "PDF_TITLES" }));
         break;
       }
       case "change_status": {
-        // change the status of each of the cards according to the data content
-        // if the active status of the card is changed, add or remove "active" class from the child span containing "status" class
-        data["content"].forEach((msg) => {
-          const card = $(`#${msg["mid"]}`);
-          if (card.length) {
-            if (msg["active"]) {
-              card.find(".status").addClass("active");
-            } else {
-              card.find(".status").removeClass("active");
-            }
-          }
-        });
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleChangeStatus === 'function') {
+          wsh.handleChangeStatus(data);
+        }
         break;
       }
       case "past_messages": {
-        const serverMessages = Array.isArray(data["content"]) ? data["content"] : [];
-        if (window.debugWebSocket) console.log(`[Session] Rendering past_messages (count=${serverMessages.length})`);
-
-        if (data["from_import"]) {
-          setAutoSpeechSuppressed(true, { reason: 'past_messages import' });
-          window.isProcessingImport = true;
-          window.skipAssistantInitiation = true;
+        const wmr = window.WsMessageRenderer;
+        if (wmr && typeof wmr.handlePastMessages === 'function') {
+          wmr.handlePastMessages(data);
         }
-
-        if (typeof window !== 'undefined') {
-          window.isRestoringSession = false;
-        }
-
-        const shouldSyncSessionState =
-          window.SessionState &&
-          typeof window.SessionState.clearMessages === "function" &&
-          typeof window.SessionState.addMessage === "function";
-
-        if (shouldSyncSessionState) {
-          window.SessionState.clearMessages();
-        }
-
-        if (typeof mids !== "undefined" && typeof mids.clear === "function") {
-          mids.clear();
-        }
-
-        $("#discourse").empty();
-
-        const currentApp = $("#apps").val();
-        if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === "function") {
-          window.SessionState.setCurrentApp(currentApp);
-        }
-
-        const currentModel = $("#model").val();
-        if (currentModel && window.SessionState) {
-          window.SessionState.app.model = currentModel;
-        }
-
-        // Track turn number for assistant cards during session restore
-        let assistantTurnCount = 0;
-
-        serverMessages.forEach((msg, index) => {
-          if (!msg || typeof msg !== "object") {
-            return;
-          }
-
-          if (!msg.mid) {
-            msg.mid = `restored-${Date.now()}-${index}`;
-          }
-
-          if (shouldSyncSessionState) {
-            window.SessionState.addMessage({ ...msg });
-          }
-
-          if (index === 0 && msg.role === "system") {
-            return;
-          }
-
-          switch (msg.role) {
-            case "user": {
-              let text = (msg.text || "").trim();
-              if (text.startsWith("{") && text.endsWith("}")) {
-                try {
-                  const json = JSON.parse(text);
-                  text = json.message || text;
-                } catch (err) {
-                  console.warn('[Session] Failed to parse user message JSON', err);
-                }
-              }
-              const safeHtml = text
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/\n/g, "<br>")
-                .replace(/\s/g, " ");
-              const images = Array.isArray(msg.images) ? msg.images : [];
-              // User turn number is the next assistant turn (current count + 1)
-              const userTurnNumber = assistantTurnCount + 1;
-              const userCard = createCard(
-                "user",
-                "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>",
-                `<p>${safeHtml}</p>`,
-                msg.lang,
-                msg.mid,
-                msg.active,
-                images,
-                false,  // monadic parameter
-                userTurnNumber  // turnNumber
-              );
-              $("#discourse").append(userCard);
-              break;
-            }
-            case "assistant": {
-              // Increment turn count for this assistant message
-              assistantTurnCount++;
-              const badge =
-                msg.badge ||
-                "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
-              const assistantCard = createCard(
-                "assistant",
-                badge,
-                renderMessage(msg),
-                msg.lang,
-                msg.mid,
-                msg.active,
-                Array.isArray(msg.images) ? msg.images : [],
-                false,  // monadic parameter
-                assistantTurnCount  // turnNumber
-              );
-              $("#discourse").append(assistantCard);
-              if (window.MarkdownRenderer) {
-                window.MarkdownRenderer.applyRenderers(assistantCard[0]);
-              }
-              break;
-            }
-            case "info": {
-              const infoCard = createCard(
-                "info",
-                "<span class='text-secondary'><i class='fas fa-info-circle'></i></span> <span class='fw-bold fs-6 text-info'>Info</span>",
-                renderMessage(msg),
-                msg.lang,
-                msg.mid,
-                msg.active
-              );
-              $("#discourse").append(infoCard);
-              if (window.MarkdownRenderer) {
-                window.MarkdownRenderer.applyRenderers(infoCard[0]);
-              }
-              break;
-            }
-            case "system": {
-              const systemCard = createCard(
-                "system",
-                "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-                renderMessage(msg),
-                msg.lang,
-                msg.mid,
-                msg.active
-              );
-              $("#discourse").append(systemCard);
-              if (window.MarkdownRenderer) {
-                window.MarkdownRenderer.applyRenderers(systemCard[0]);
-              }
-              break;
-            }
-            default:
-              break;
-          }
-
-          if (typeof mids !== "undefined" && typeof mids.add === "function") {
-            mids.add(msg.mid);
-          }
-        });
-
-        if (!shouldSyncSessionState && Array.isArray(window.messages)) {
-          window.messages = [...serverMessages];
-        }
-
-        setStats(formatInfo(serverMessages), "info");
-
-        const hasConversation = serverMessages.some((m) => m.role !== "system");
-        const labelPromise = window.i18nReady || Promise.resolve();
-        labelPromise.then(() => {
-          if (hasConversation) {
-            const continueText =
-              typeof webUIi18n !== "undefined" && webUIi18n.initialized
-                ? webUIi18n.t("ui.session.continueSession")
-                : "Continue Session";
-            $("#start-label").text(continueText);
-          } else {
-            const startText =
-              typeof webUIi18n !== "undefined" && webUIi18n.initialized
-                ? webUIi18n.t("ui.session.startSession")
-                : "Start Session";
-            $("#start-label").text(startText);
-          }
-        });
-
-        const connectedText =
-          typeof webUIi18n !== "undefined" && webUIi18n.initialized
-            ? webUIi18n.t("ui.messages.connected")
-            : "Connected";
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedText}`, "success");
-
-        updateAIUserButtonState(serverMessages);
-
-        if (window.SessionState && typeof window.SessionState.clearResetFlags === "function") {
-          window.SessionState.clearResetFlags();
-        }
-        // Clear isProcessingImport flag after import completes
-        if (window.isProcessingImport) {
-          window.isProcessingImport = false;
-        }
-        // Clear skipAssistantInitiation for non-import cases
-        if (window.skipAssistantInitiation && !data["from_import"]) {
-          window.skipAssistantInitiation = false;
-        }
-        // After loading past messages, set initialLoadComplete to true
-        initialLoadComplete = true;
         break;
       }
       case "message": {
-        if (data["content"] === "DONE") {
-          // Check if tool calls are pending
-          if (data["finish_reason"] === "tool_calls") {
-            // Keep spinner visible for tool calls
-            callingFunction = true;
-            $("#monadic-spinner").show();
-            const processingToolsText = getTranslation('ui.messages.spinnerProcessingTools', 'Processing tools');
-            $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-          } else {
-            // No tool calls, ensure callingFunction is false
-            callingFunction = false;
-            if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-              WorkflowViewer.setStage('done');
-            }
-          }
-          ws.send(JSON.stringify({ "message": "HTML" }));
-        } else if (data["content"] === "CLEAR") {
-          $("#chat").html("");
-          $("#temp-card .status").hide();
-          $("#indicator").show();
+        const wtoolmh = window.WsToolHandler;
+        if (wtoolmh && typeof wtoolmh.handleMessage === 'function') {
+          wtoolmh.handleMessage(data);
         }
         break;
       }
       case "ai_user_started": {
-        const generatingText = getTranslation('ui.messages.generatingAIUserResponse', 'Generating AI user response...');
-        setAlert(`<i class='fas fa-spinner fa-spin'></i> ${generatingText}`, "warning");
-
-        // Show the cancel button
-        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-
-        // Show spinner and update its message with robot animation
-        $("#monadic-spinner").css("display", "block");
-        const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-          webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
-        $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
-
-        // Disable the input elements
-        $("#message").prop("disabled", true);
-        $("#send").prop("disabled", true);
-        $("#clear").prop("disabled", true);
-        $("#image-file").prop("disabled", true);
-        $("#voice").prop("disabled", true);
-        $("#doc").prop("disabled", true);
-        $("#url").prop("disabled", true);
-        $("#ai_user").prop("disabled", true);
-        $("#select-role").prop("disabled", true);
-
+        const auh = window.WsAIUserHandler;
+        if (auh && typeof auh.handleAIUserStarted === 'function') {
+          auh.handleAIUserStarted(data);
+        }
         break;
       }
       case "ai_user": {
-        // Append AI user content to the message field
-        $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
-
-        // Make sure the message panel is visible
-        if (autoScroll && !isElementInViewport(mainPanel)) {
-          mainPanel.scrollIntoView(false);
+        const auh = window.WsAIUserHandler;
+        if (auh && typeof auh.handleAIUser === 'function') {
+          auh.handleAIUser(data);
         }
         break;
       }
       case "ai_user_finished": {
-
-
-        // Trim extra whitespace from the final message
-        const trimmedContent = data["content"].trim();
-
-        // Set the message content
-        $("#message").val(trimmedContent);
-
-        // Hide cancel button and spinner
-        document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-        $("#monadic-spinner").css("display", "none");
-
-        // Re-enable all input elements individually
-        $("#message").prop("disabled", false);
-        $("#send").prop("disabled", false);
-        $("#clear").prop("disabled", false);
-        $("#image-file").prop("disabled", false);
-        $("#voice").prop("disabled", false);
-        $("#doc").prop("disabled", false);
-        $("#url").prop("disabled", false);
-        $("#pdf-import").prop("disabled", false);
-        $("#ai_user").prop("disabled", false);
-        $("#select-role").prop("disabled", false);
-
-        // Update alert message to success state
-        const generatedText = getTranslation('ui.messages.aiUserResponseGenerated', 'AI user response generated');
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${generatedText}`, "success");
-
-        // Ensure the panel is visible
-        if (!isElementInViewport(mainPanel)) {
-          mainPanel.scrollIntoView(false);
+        const auh = window.WsAIUserHandler;
+        if (auh && typeof auh.handleAIUserFinished === 'function') {
+          auh.handleAIUserFinished(data);
         }
-
-        // Focus on the input field
-        setInputFocus();
         break;
       }
 
       case "success": {
-        // Handle success messages from the server
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSuccess === 'function') {
+          wsh.handleSuccess(data);
+        }
         break;
       }
 
       case "edit_success": {
-        // Handle successful message edit
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
-
-        // Get the message card by mid
-        const $card = $(`#${data.mid}`);
-        if (!$card.length) {
-          return;
-        }
-
-        const $cardText = $card.find(".card-text");
-
-        // Update the HTML content
-        if (data.html) {
-          // Update the card with the HTML from server
-          $cardText.html(data.html);
-
-          // Apply renderers to the updated content
-          if (window.MarkdownRenderer) {
-            window.MarkdownRenderer.applyRenderers($cardText[0]);
-          }
-
-          // Check if we have preserved images from before editing
-          const $preservedImages = $cardText.data('preservedImages');
-
-          // Add images if they exist
-          if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-            // Group mask images with their original images
-            const imageMap = new Map();
-            const maskImages = [];
-
-            // First pass - identify all mask images and base images
-            data.images.forEach(image => {
-              if (image.is_mask || (image.title && image.title.startsWith("mask__"))) {
-                // Store mask images separately with reference to their base image
-                maskImages.push(image);
-              } else {
-                // Store base images in a map with their title as key
-                imageMap.set(image.title, image);
-              }
-            });
-
-            // Second pass - create HTML for each base image, with its mask if available
-            let image_data = "";
-
-            // Process regular images first
-            imageMap.forEach((image, title) => {
-              // Check if this image has a mask
-              const maskImage = maskImages.find(mask =>
-                mask.mask_for === title ||
-                (mask.title && mask.title.includes(title.replace(/\.[^.]+$/, "")))
-              );
-
-              if (maskImage) {
-                // This image has a mask - render as overlay
-                image_data += `
-                  <div class="mask-overlay-container mb-3">
-                    <img class='base-image' alt='${image.title}' src='${image.data}' />
-                    <img class='mask-overlay' alt='${maskImage.title}' src='${maskImage.display_data || maskImage.data}' style="opacity: 0.6;" />
-                    <div class="mask-overlay-label">MASK</div>
-                  </div>
-                `;
-              } else if (image.type === 'application/pdf') {
-                // PDF file
-                image_data += `
-                  <div class="pdf-preview mb-3">
-                    <i class="fas fa-file-pdf text-danger"></i>
-                    <span class="ms-2">${image.title}</span>
-                  </div>
-                `;
-              } else {
-                // Regular image without mask
-                image_data += `
-                  <img class='base64-image mb-3' src='${image.data}' alt='${image.title}' style='max-width: 100%; height: auto;' />
-                `;
-              }
-            });
-
-            // Finally, add any mask images that don't have a matching base image
-            maskImages.forEach(mask => {
-              if (!imageMap.has(mask.mask_for)) {
-                image_data += `
-                  <img class='base64-image mb-3' src='${mask.display_data || mask.data}' alt='${mask.title}' style='max-width: 100%; height: auto;' />
-                `;
-              }
-            });
-
-            $cardText.append(image_data);
-          } else if ($preservedImages && $preservedImages.length > 0) {
-            // If no images from server but we have preserved images, restore them
-            $cardText.append($preservedImages);
-          }
-
-          // Clean up the preserved images data
-          $cardText.removeData('preservedImages');
-
-          // Update the messages array with the new images
-          const messageIndex = messages.findIndex((m) => m.mid === data.mid);
-          if (messageIndex !== -1 && data.images) {
-            messages[messageIndex].images = data.images;
-          }
-
-          // Apply all the required processing for assistant messages
-          const htmlContent = $card;
-
-          // Use toBool helper for defensive boolean evaluation
-          const toBool = window.toBool || ((value) => {
-            if (typeof value === 'boolean') return value;
-            if (typeof value === 'string') return value === 'true';
-            return !!value;
-          });
-
-          if (toBool(params["toggle"])) {
-            applyToggle(htmlContent);
-          }
-
-          if (toBool(params["mermaid"])) {
-            applyMermaid(htmlContent);
-          }
-
-          if (toBool(params["mathjax"])) {
-            applyMathJax(htmlContent);
-          }
-
-          if (toBool(params["abc"])) {
-            applyAbc(htmlContent);
-          }
-
-          formatSourceCode(htmlContent);
-          cleanupListCodeBlocks(htmlContent);
-
-          setCopyCodeButton(htmlContent);
+        const wmr = window.WsMessageRenderer;
+        if (wmr && typeof wmr.handleEditSuccess === 'function') {
+          wmr.handleEditSuccess(data);
         }
         break;
       }
 
       case "html": {
-        responseStarted = false;
-
-        // Reset completion tracking flags at start of new response
-        window.setTextResponseCompleted(false);
-        window.setTtsPlaybackStarted(false);
-
-        // Reset sequence retry count for new response
-        if (window.WsAudioQueue && window.WsAudioQueue.setSequenceRetryCount) {
-          window.WsAudioQueue.setSequenceRetryCount(0);
+        const wsh = window.WsHtmlHandler;
+        if (wsh && typeof wsh.handleHtml === 'function') {
+          wsh.handleHtml(data);
         }
-
-        // Note: We no longer reset callingFunction here as it was premature.
-        // The flag will be properly reset in streaming_complete handler with appropriate delays.
-        // This prevents "Ready for input" from appearing while function calls are still ongoing.
-
-        // Check if more content is coming (tool calls in progress)
-        const moreComing = data["more_coming"] === true;
-
-        // Note: temp-card is now removed AFTER card creation in handleHtmlMessage
-        // This ensures streaming content stays visible until the final card replaces it
-
-        // Remove temp-reasoning-card as we're about to show the final HTML
-        $("#temp-reasoning-card").remove();
-        if (typeof window.setReasoningStreamActive === 'function') {
-          window.setReasoningStreamActive(false);
-        }
-
-        // Always add message to SessionState for persistence, regardless of which handler processes it
-        window.SessionState.addMessage(data["content"]);
-
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
-          handled = wsHandlers.handleHtmlMessage(data, appendCard);
-          if (handled) {
-            // moreComing handling is now done inside handleHtmlMessage
-            // so cancel_query visibility is controlled there
-            if (!data["more_coming"]) {
-              document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            }
-          }
-        }
-
-        // Update AI User button state
-        updateAIUserButtonState(messages);
-
-        if (!handled) {
-          // Fallback to inline handling
-          // Note: SessionState.addMessage already called above
-
-          // Phase 2: Use MarkdownRenderer if html field is missing
-          let html;
-          if (data["content"]["html"]) {
-            html = data["content"]["html"];
-          } else if (data["content"]["text"]) {
-            // Client-side rendering with MarkdownRenderer
-            html = window.MarkdownRenderer ?
-              window.MarkdownRenderer.render(data["content"]["text"], { appName: data["content"]["app_name"] }) :
-              data["content"]["text"];
-          } else {
-            console.error("Message has neither html nor text field:", data["content"]);
-            html = "";
-          }
-
-          if (data["content"]["thinking"]) {
-            // Use the unified thinking block renderer if available
-            if (typeof renderThinkingBlock === 'function') {
-              const thinkingTitle = typeof webUIi18n !== 'undefined' ?
-                webUIi18n.t('ui.messages.thinkingProcess') : "Thinking Process";
-              html = renderThinkingBlock(data["content"]["thinking"], thinkingTitle) + html;
-            } else {
-              // Fallback to old style if function not available
-              html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html;
-            }
-          } else if(data["content"]["reasoning_content"]) {
-            // Use the unified thinking block renderer if available
-            if (typeof renderThinkingBlock === 'function') {
-              const reasoningTitle = typeof webUIi18n !== 'undefined' ?
-                webUIi18n.t('ui.messages.reasoningProcess') : "Reasoning Process";
-              html = renderThinkingBlock(data["content"]["reasoning_content"], reasoningTitle) + html;
-            } else {
-              // Fallback to old style if function not available
-              html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html;
-            }
-          }
-
-          if (data["content"]["role"] === "assistant") {
-            // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
-            const turnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
-            appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
-
-            // If more content is coming (tool calls), prepare for next streaming
-            if (moreComing) {
-              // Keep input disabled and streaming state active
-              callingFunction = true;
-              streamingResponse = true;
-              responseStarted = false; // Reset for next streaming
-              if (window.UIState) {
-                window.UIState.set('streamingResponse', true);
-                window.UIState.set('isStreaming', true);
-              }
-
-              // Re-show and reset temp-card for next streaming
-              // Reset sequence tracking for new streaming session
-              // This is critical - without this, fragments may be skipped as duplicates
-              window._lastProcessedSequence = -1;
-              window._lastProcessedIndex = -1;
-
-              let tempCard = $("#temp-card");
-              if (!tempCard.length) {
-                // Create new temp-card if it doesn't exist
-                tempCard = $(`
-                  <div id="temp-card" class="card mt-3 streaming-card">
-                    <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-                      <div class="fs-5 card-title mb-0">
-                        <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-                      </div>
-                    </div>
-                    <div class="card-body role-assistant">
-                      <div class="card-text"></div>
-                    </div>
-                  </div>
-                `);
-                $("#discourse").append(tempCard);
-              } else {
-                // Reset existing temp-card
-                tempCard.find(".card-text").empty();
-                tempCard.detach();
-                $("#discourse").append(tempCard);
-              }
-              tempCard.show();
-
-              // Show spinner with "Processing tools" message
-              const processingToolsText = typeof webUIi18n !== 'undefined' ?
-                webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
-              $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-              $("#monadic-spinner").show();
-
-              // Keep cancel button visible
-              document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-            } else {
-              // Final message - normal completion flow
-              // Show message input and hide spinner
-              $("#message").show();
-              $("#message").val(""); // Clear the message after successful response
-              $("#message").prop("disabled", false);
-              // Re-enable all input controls
-              $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-              $("#select-role").prop("disabled", false);
-
-              // Reset streaming flag as response is done
-              streamingResponse = false;
-              if (window.UIState) {
-                window.UIState.set('streamingResponse', false);
-                window.UIState.set('isStreaming', false);
-              }
-
-              // Clear any pending spinner check interval
-              if (spinnerCheckInterval) {
-                clearInterval(spinnerCheckInterval);
-                spinnerCheckInterval = null;
-              }
-
-              // Hide spinner unless we're calling functions or streaming
-              // Note: We check callingFunction and streamingResponse directly here,
-              // not isSystemBusy(), to avoid circular dependency with spinner visibility
-              if (!callingFunction && !streamingResponse) {
-                // Mark text response as completed
-                window.setTextResponseCompleted(true);
-                // Check if we can hide spinner (depends on Auto Speech mode)
-                checkAndHideSpinner();
-              }
-
-              // If this is the first assistant message (from initiate_from_assistant), show user panel
-              if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
-                $("#user-panel").show();
-                setInputFocus();
-              }
-
-              document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-
-              // For assistant messages, don't show "Ready to start" immediately
-              // Wait for streaming to complete
-              const receivedText = typeof webUIi18n !== 'undefined' ?
-                webUIi18n.t('ui.messages.responseReceived') : 'Response received';
-              setAlert(`<i class='fa-solid fa-circle-check'></i> ${receivedText}`, "success");
-
-              // Handle auto_speech for TTS auto-playback
-              // Support both boolean and string values for backward compatibility
-              const autoSpeechEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-              const realtimeMode = window.params && window.params["auto_tts_realtime_mode"] === true;
-              const suppressionActive = typeof isAutoSpeechSuppressed === 'function' && isAutoSpeechSuppressed();
-              const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : !(typeof document !== 'undefined' && document.hidden);
-
-              if (!inForeground) {
-                setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
-                window.autoSpeechActive = false;
-                window.autoPlayAudio = false;
-              } else if (suppressionActive) {
-                window.autoSpeechActive = false;
-                window.autoPlayAudio = false;
-                if (typeof window.setTtsPlaybackStarted === 'function') {
-                  window.setTtsPlaybackStarted(true);
-                }
-                if (typeof checkAndHideSpinner === 'function') {
-                  checkAndHideSpinner();
-                } else {
-                  resetAutoSpeechSpinner();
-                }
-                if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
-                  clearTimeout(window.autoTTSSpinnerTimeout);
-                  window.autoTTSSpinnerTimeout = null;
-                }
-              } else if (window.autoSpeechActive || autoSpeechEnabled) {
-                // Message ID check: prevent duplicate TTS for the same message (e.g., on sleep/wake reconnection)
-                const currentMid = data["content"]["mid"];
-                if (currentMid && window.WsAudioQueue && currentMid === window.WsAudioQueue.getLastAutoTtsMessageId()) {
-                  console.debug('[Auto TTS] Skipped - already played for message:', currentMid);
-                  // Mark TTS as "completed" (skipped) so spinner hides properly
-                  window.autoSpeechActive = false;
-                  window.autoPlayAudio = false;
-                  if (typeof window.setTtsPlaybackStarted === 'function') {
-                    window.setTtsPlaybackStarted(true);
-                  }
-                  // Hide spinner since we're skipping TTS
-                  if (typeof checkAndHideSpinner === 'function') {
-                    checkAndHideSpinner();
-                  }
-                } else {
-                  // Record message ID before triggering TTS
-                  if (currentMid && window.WsAudioQueue && window.WsAudioQueue.setLastAutoTtsMessageId) {
-                    window.WsAudioQueue.setLastAutoTtsMessageId(currentMid);
-                  }
-
-                  // For Auto TTS, the SERVER automatically triggers TTS after streaming completes.
-                  // We do NOT click the Play button here to avoid duplicate audio.
-                  // The server will send audio messages which the client will receive and play.
-                  //
-                  // We just need to:
-                  // 1. Highlight the Stop button for visual feedback
-                  // 2. Set a timeout to hide spinner if audio doesn't arrive
-                  setTimeout(() => {
-                    const lastCard = $("#discourse div.card:last");
-                    if (lastCard.length > 0) {
-                      // Early highlight for Auto TTS: provides immediate visual feedback
-                      const cardId = lastCard.attr('id');
-                      if (cardId && typeof window.highlightStopButton === 'function') {
-                        window.highlightStopButton(cardId);
-                      }
-                    }
-
-                    // Set timeout to force hide spinner if audio doesn't start playing
-                    scheduleAutoTtsSpinnerTimeout();
-
-                    // Note: window.autoSpeechActive will be reset when audio starts playing
-                    // See audio.play() promise handler where spinner is hidden
-                  }, 100);
-                }
-              }
-            }
-          } else {
-            // For non-assistant messages, show "Ready for input" only if system is not busy
-            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            if (!isSystemBusy()) {
-              const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-            }
-          }
-
-        } else if (data["content"]["role"] === "user") {
-          let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
-          let images;
-          if (data["content"]["images"] !== undefined) {
-            images = data["content"]["images"]
-          }
-          // Use the appendCard helper function
-          // User turn number is existing assistant cards + 1 (excluding temp-card)
-          const userTurnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
-          appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
-          $("#message").show();
-          $("#message").prop("disabled", false);
-          // Reset streaming flag as response is done
-          streamingResponse = false;
-          if (window.UIState) {
-            window.UIState.set('streamingResponse', false);
-            window.UIState.set('isStreaming', false);
-          }
-
-          // Clear any pending spinner check interval
-          if (spinnerCheckInterval) {
-            clearInterval(spinnerCheckInterval);
-            spinnerCheckInterval = null;
-          }
-
-          // Hide spinner unless we're calling functions or streaming
-          // Note: We check callingFunction and streamingResponse directly here,
-          // not isSystemBusy(), to avoid circular dependency with spinner visibility
-          if (!callingFunction && !streamingResponse) {
-            // Mark text response as completed
-            window.setTextResponseCompleted(true);
-            // Check if we can hide spinner (depends on Auto Speech mode)
-            checkAndHideSpinner();
-          }
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          // Only show "Ready for input" if system is not busy
-          if (!isSystemBusy()) {
-            const readyText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-          }
-        } else if (data["content"]["role"] === "system") {
-          // Use the appendCard helper function
-          appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
-          $("#message").show();
-          $("#message").prop("disabled", false);
-          // Reset streaming flag as response is done
-          streamingResponse = false;
-          if (window.UIState) {
-            window.UIState.set('streamingResponse', false);
-            window.UIState.set('isStreaming', false);
-          }
-
-          // Clear any pending spinner check interval
-          if (spinnerCheckInterval) {
-            clearInterval(spinnerCheckInterval);
-            spinnerCheckInterval = null;
-          }
-
-          // Hide spinner unless we're calling functions or streaming
-          // Note: We check callingFunction and streamingResponse directly here,
-          // not isSystemBusy(), to avoid circular dependency with spinner visibility
-          if (!callingFunction && !streamingResponse) {
-            // Mark text response as completed
-            window.setTextResponseCompleted(true);
-            // Check if we can hide spinner (depends on Auto Speech mode)
-            checkAndHideSpinner();
-          }
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          // Only show "Ready for input" if system is not busy
-          if (!isSystemBusy()) {
-            const readyText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-          }
-        }
-
-        $("#chat").html("");
-        clearToolStatus();
-        $("#temp-card").hide();
-        $("#indicator").hide();
-        $("#user-panel").show();
-
-        // Make sure message input is enabled
-        $("#message").prop("disabled", false);
-
-        if (!isElementInViewport(mainPanel)) {
-          mainPanel.scrollIntoView(false);
-        }
-
-        setInputFocus();
-
         break;
       }
       case "user": {
-        const importInProgress = (typeof window !== 'undefined') && window.isImporting;
-        if (isAutoSpeechSuppressed() && !importInProgress) {
-          setAutoSpeechSuppressed(false, { log: false });
+        const wsu = window.WsStreamingHandler;
+        if (wsu && typeof wsu.handleUser === 'function') {
+          wsu.handleUser(data);
         }
-        if (typeof window !== 'undefined') {
-          window.skipAssistantInitiation = false;
-          window.isProcessingImport = false;
-        }
-        // Check if we have a temporary message to remove first
-        const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
-        if (tempMessageIndex !== -1) {
-          window.SessionState.removeMessage(tempMessageIndex);
-        }
-
-        // Create the proper message object
-        let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
-        if (data["content"]["images"] !== undefined) {
-          message_obj.images = data["content"]["images"];
-        }
-        window.SessionState.addMessage(message_obj);
-
-        // Format content for display
-        let content_text = (data["content"]["text"] || "").trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
-        let images;
-        if (data["content"]["images"] !== undefined) {
-          images = data["content"]["images"];
-        }
-
-        // Use the appendCard helper function to show the user message
-        // User turn number is existing assistant cards + 1 (excluding temp-card)
-        const userTurnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
-        appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
-
-        // Scroll down immediately after showing user message to make it visible
-        if (!isElementInViewport(mainPanel)) {
-          mainPanel.scrollIntoView(false);
-        }
-
-        // Show loading indicators and clear any previous card content
-        if ($("#temp-card").length) {
-          $("#temp-card .card-text").empty(); // Clear any existing content
-          $("#temp-card").show();
-          window._lastProcessedIndex = -1; // Reset index tracking
-          window._lastProcessedSequence = -1; // Reset sequence tracking
-
-          // Move existing temp card to the end of #discourse to ensure correct position
-          const tempCard = $("#temp-card");
-          tempCard.detach();
-          $("#discourse").append(tempCard);
-        } else {
-          // Create a new temp card if it doesn't exist
-          const tempCard = $(`
-            <div id="temp-card" class="card mt-3 streaming-card">
-              <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-                <div class="fs-5 card-title mb-0">
-                  <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-                </div>
-              </div>
-              <div class="card-body role-assistant">
-                <div class="card-text"></div>
-              </div>
-            </div>
-          `);
-          $("#discourse").append(tempCard);
-          window._lastProcessedIndex = -1;
-          window._lastProcessedSequence = -1;
-        }
-
-        $("#temp-card .status").hide();
-        $("#indicator").show();
-        // Keep the user panel visible but disable interactive elements
-        $("#message").prop("disabled", true);
-        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", true);
-        $("#select-role").prop("disabled", true);
-        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-
-        // Show informative spinner message with brain animation icon
-        const processingRequestText = typeof webUIi18n !== 'undefined' ?
-          webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
-        $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
-        $("#monadic-spinner").show(); // Ensure spinner is visible
-
-        // Mark that we're starting a response process
-        streamingResponse = true;
-        if (window.UIState) {
-          window.UIState.set('streamingResponse', true);
-          window.UIState.set('isStreaming', true);
-        }
-        responseStarted = false; // Will be set to true when streaming starts
-
-        // Clear any existing interval first
-        if (window.spinnerCheckInterval) {
-          clearInterval(window.spinnerCheckInterval);
-          window.spinnerCheckInterval = null;
-        }
-
-        // Keep spinner visible during the initial gap between processing and receiving
-        // Only check for a short period (3 seconds max) to prevent infinite loops
-        let checkCount = 0;
-        window.spinnerCheckInterval = setInterval(() => {
-          checkCount++;
-
-          // Stop checking after 3 seconds or if response has started
-          if (checkCount > 30 || responseStarted || !streamingResponse) {
-            clearInterval(window.spinnerCheckInterval);
-            window.spinnerCheckInterval = null;
-            return;
-          }
-
-          // Only re-show spinner if it's hidden and we're still waiting for first fragment
-          if (streamingResponse && !responseStarted && !$("#monadic-spinner").is(":visible")) {
-            const processingRequestText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
-            $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
-            $("#monadic-spinner").show();
-          }
-        }, 100); // Check every 100ms
-
         break;
       }
 
       case "display_sample": {
-        // Immediately display the sample message
-        const content = data.content;
-        if (!content || !content.mid || !content.role || !content.text || !content.badge) {
-          console.error("Invalid display_sample message format:", data);
-          break;
+        const wmr = window.WsMessageRenderer;
+        if (wmr && typeof wmr.handleDisplaySample === 'function') {
+          wmr.handleDisplaySample(data);
         }
-
-        // First check if this message already exists
-        if ($("#" + content.mid).length > 0) {
-          break;
-        }
-
-        // Phase 2: Render text client-side using MarkdownRenderer
-        let renderedHtml;
-        if (content.role === "user") {
-          // User messages: simple HTML escaping and line breaks
-          renderedHtml = "<p>" + content.text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ") + "</p>";
-        } else {
-          // Assistant and system messages: use MarkdownRenderer
-          renderedHtml = window.MarkdownRenderer ? window.MarkdownRenderer.render(content.text) : content.text;
-        }
-
-        // Create appropriate element based on role
-        const cardElement = createCard(
-          content.role,
-          content.badge,
-          renderedHtml,
-          "en", // Default language
-          content.mid,
-          true  // Always active
-        );
-
-        // Append to discourse
-        $("#discourse").append(cardElement);
-        // applyRenderers is called within MarkdownRenderer.render(), so no need to call again
-        // But for safety, call it anyway in case render() wasn't used
-        if (window.MarkdownRenderer && content.role !== "assistant" && content.role !== "system") {
-          window.MarkdownRenderer.applyRenderers(cardElement[0]);
-        }
-
-        // Add message to messages array to ensure edit functionality works correctly
-        // This ensures sample messages are treated consistently with API-generated messages
-        if (content.text) {
-          const messageObj = {
-            "role": content.role,
-            "text": content.text,
-            "mid": content.mid
-          };
-
-          // Add to messages array - this ensures last message detection works correctly
-          window.SessionState.addMessage(messageObj);
-        }
-
-        // Apply appropriate styling based on current settings
-        const htmlContent = $("#discourse div.card:last");
-
-        // Use toBool helper for defensive boolean evaluation
-        const toBool = window.toBool || ((value) => {
-          if (typeof value === 'boolean') return value;
-          if (typeof value === 'string') return value === 'true';
-          return !!value;
-        });
-
-        if (toBool(params["toggle"])) {
-          applyToggle(htmlContent);
-        }
-
-        if (toBool(params["mermaid"])) {
-          applyMermaid(htmlContent);
-        }
-
-        if (toBool(params["mathjax"])) {
-          applyMathJax(htmlContent);
-        }
-
-        if (toBool(params["abc"])) {
-          applyAbc(htmlContent);
-        }
-
-        formatSourceCode(htmlContent);
-        cleanupListCodeBlocks(htmlContent);
-
-        setCopyCodeButton(htmlContent);
-
-        // Scroll to bottom
-        if (autoScroll && !isElementInViewport(chatBottom)) {
-          chatBottom.scrollIntoView(false);
-        }
-
         break;
       }
 
       case "sample_success": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleSampleSuccess === 'function') {
-          handled = wsHandlers.handleSampleSuccess(data);
-        }
-
-        if (!handled) {
-          // Clear any pending timeout to prevent error message
-          if (window.currentSampleTimeout) {
-            clearTimeout(window.currentSampleTimeout);
-            window.currentSampleTimeout = null;
-          }
-
-          // Hide UI elements
-          $("#monadic-spinner").hide();
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-
-          // Show success alert
-          const roleText = data.role === "user" ? "User" :
-                          data.role === "assistant" ? "Assistant" : "System";
-          const sampleAddedText = getTranslation('ui.messages.sampleMessageAdded', 'Sample message added');
-          setAlert(`<i class='fas fa-check-circle'></i> ${sampleAddedText}`, "success");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSampleSuccess === 'function') {
+          wsh.handleSampleSuccess(data);
         }
         break;
       }
 
       case "streaming_complete": {
-        // Handle streaming completion
-        streamingResponse = false;
-        if (window.UIState) {
-          window.UIState.set('streamingResponse', false);
-          window.UIState.set('isStreaming', false);
+        const wstream = window.WsStreamingHandler;
+        if (wstream && typeof wstream.handleStreamingComplete === 'function') {
+          wstream.handleStreamingComplete(data);
         }
-
-        // Clear any pending spinner check interval
-        if (window.spinnerCheckInterval) {
-          clearInterval(window.spinnerCheckInterval);
-          window.spinnerCheckInterval = null;
-        }
-
-        // Hide the spinner unless we're calling functions or streaming
-        // Note: We check callingFunction and streamingResponse directly here,
-        // not isSystemBusy(), to avoid circular dependency with spinner visibility
-        if (!callingFunction && !streamingResponse) {
-          // Mark text response as completed
-          window.setTextResponseCompleted(true);
-
-          // CRITICAL: Check foreground state - background tabs should not show spinners
-          const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
-
-          // Check Auto Speech from multiple sources
-          const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-          const checkboxEnabled = $("#check-auto-speech").is(":checked");
-          const autoSpeechActive = window.autoSpeechActive === true;
-          const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
-
-          if (autoSpeechEnabled && !window.ttsPlaybackStarted && inForeground) {
-            // Auto Speech enabled, TTS not started yet, and tab is foreground
-            // NOTE: The SERVER now automatically triggers TTS after streaming completes.
-            // We do NOT set autoSpeechActive here or trigger any TTS from the client.
-            // The server sends audio directly, and the client just plays it.
-            // Setting autoSpeechActive = true here could cause race conditions with
-            // MediaSource audio playback, so we leave it as-is.
-            if (window.debugWebSocket) console.log('[streaming_complete] Auto Speech enabled - server will send audio');
-
-            // NOTE: Do NOT show "Processing audio" spinner here.
-            // The server-triggered TTS will send audio messages directly.
-            // Spinner visibility is handled by the audio playback code.
-          } else {
-            // Check if we can hide spinner (depends on Auto Speech mode)
-            if (typeof window.checkAndHideSpinner === 'function') {
-              window.checkAndHideSpinner();
-            } else {
-              $("#monadic-spinner").hide();
-            }
-          }
-        }
-
-        // Check if system is busy before showing "Ready for input"
-        // Set a proper delay to ensure all DOM updates and async operations are complete
-        setTimeout(function() {
-          // Only show "Ready for input" if system is not busy
-          if (!isSystemBusy()) {
-            const readyText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-          } else {
-            // If system is still busy, wait and check again
-            let checkInterval = setInterval(function() {
-              if (!isSystemBusy()) {
-                clearInterval(checkInterval);
-                const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-                setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-              }
-            }, BUSY_CHECK_INTERVAL_MS);
-
-            // Safety timeout to prevent infinite checking
-            setTimeout(function() {
-              clearInterval(checkInterval);
-              const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-            }, BUSY_CHECK_MAX_WAIT_MS);
-          }
-
-          // Always ensure UI elements are enabled
-          $("#message").prop("disabled", false);
-          $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-          $("#select-role").prop("disabled", false);
-
-          // Focus on the message input
-          setInputFocus();
-
-          // Reset sequence tracking for next message (realtime TTS)
-          // This ensures each new message starts from seq1
-          if (typeof window.resetSequenceTracking === 'function') {
-            window.resetSequenceTracking();
-          }
-        }, 250); // Initial 250ms delay
-
         break;
       }
 
       case "cancel": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleCancelMessage === 'function') {
-          handled = wsHandlers.handleCancelMessage(data);
-        }
-
-        if (!handled) {
-          // Remove temporary message if it exists
-          const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
-          if (tempMessageIndex !== -1) {
-            window.SessionState.removeMessage(tempMessageIndex);
-          }
-
-          // Remove any UI cards that may have been created during this initial message
-          if (messages.length === 0) {
-            $("#discourse").empty();
-          }
-
-          // Don't clear the message so users can edit and resubmit
-          $("#message").attr("placeholder", typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message...");
-          $("#message").prop("disabled", false);
-
-          // Re-enable all the UI elements individually
-          $("#send").prop("disabled", false);
-          $("#clear").prop("disabled", false);
-          $("#image-file").prop("disabled", false);
-          $("#voice").prop("disabled", false);
-          $("#doc").prop("disabled", false);
-          $("#url").prop("disabled", false);
-          $("#ai_user").prop("disabled", false);
-          $("#select-role").prop("disabled", false);
-
-          $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-
-          // Hide loading indicators
-          clearToolStatus();
-          $("#temp-card").hide();
-          $("#indicator").hide();
-
-          // Show message input and hide spinner
-          $("#message").show();
-          $("#monadic-spinner").css("display", "none");
-
-          // Update AI User button state
-          updateAIUserButtonState(messages);
-
-          // Show canceled message
-          const operationCanceledText = getTranslation('ui.messages.operationCanceled', 'Operation canceled');
-          setAlert(`<i class='fa-solid fa-ban' style='color: #FF7F07;'></i> ${operationCanceledText}`, "warning");
-
-          setInputFocus();
+        const wcancel = window.WsErrorHandler;
+        if (wcancel && typeof wcancel.handleCancel === 'function') {
+          wcancel.handleCancel(data);
         }
         break;
       }
@@ -4343,80 +1059,21 @@ let loadedApp = "Chat";
       }
 
       default: {
-        // Check if this is a fragment message
-        if (data.type === "fragment") {
-          // Handle fragment messages from all vendors
-          if (!responseStarted) {
-            const respondingText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
-            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            responseStarted = true;
-            streamingResponse = true; // Mark that we're streaming
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', true);
-              window.UIState.set('isStreaming', true);
-            }
-            if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-              WorkflowViewer.setStage('response');
-            }
-          }
-
-          // Always update spinner for fragments to ensure continuity
-          if (streamingResponse) {
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-            $("#monadic-spinner").show(); // Ensure spinner is visible
-          }
-
-          // Use the dedicated fragment handler
-          window.handleFragmentMessage(data);
-
-          $("#indicator").show();
-          if (autoScroll && !isElementInViewport(chatBottom)) {
-            chatBottom.scrollIntoView(false);
-          }
-        } else {
-          // Handle other default messages (for backward compatibility)
-          let content = data["content"];
-          if (!responseStarted || callingFunction) {
-            const respondingText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
-            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            callingFunction = false;
-            responseStarted = true;
-            streamingResponse = true; // Mark that we're streaming
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', true);
-              window.UIState.set('isStreaming', true);
-            }
-            // Show and update spinner message for streaming
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-            $("#monadic-spinner").show(); // Ensure spinner is visible
-          }
-          $("#indicator").show();
-          if (content !== undefined) {
-            // remove the leading new line characters from content
-            content = content.replace(/^\n+/, "");
-            $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
-          }
-          if (autoScroll && !isElementInViewport(chatBottom)) {
-            chatBottom.scrollIntoView(false);
-          }
+        const wsd = window.WsStreamingHandler;
+        if (wsd && typeof wsd.handleDefaultMessage === 'function') {
+          wsd.handleDefaultMessage(data);
         }
       }
     }
   }
 
   ws.onclose = function (_e) {
-    initialLoadComplete = false;
+    window.initialLoadComplete = false;
 
     // CRITICAL: Reset isConnecting flag when connection closes
     // This prevents handleVisibilityChange from being permanently blocked
     // if connection fails before onopen callback fires
-    isConnecting = false;
+    window._wsIsConnecting = false;
 
     // Update state if available
     if (window.UIState) {
@@ -4442,7 +1099,7 @@ let loadedApp = "Chat";
     console.error(`[WebSocket] Socket error for ${wsUrl}:`, err.message || 'Unknown error');
 
     // Reset isConnecting flag on error (onclose will also reset, but be safe)
-    isConnecting = false;
+    window._wsIsConnecting = false;
 
     // Update state if available
     if (window.UIState) {
@@ -4468,381 +1125,21 @@ let loadedApp = "Chat";
   return ws;
 }
 
-// WebSocket connection management - constants from ws-audio-constants.js
-let reconnectionTimer = null; // Store the timer to allow cancellation
+// reconnect_websocket — extracted to ws-reconnect-handler.js (window.WsReconnectHandler)
+// Uses window._wsReconnectionTimer and window.ws for shared state
+const reconnect_websocket = window.reconnect_websocket;
 
-// Improved WebSocket reconnection logic with proper cleanup and retry handling
-// Note: Parameter renamed from 'ws' to 'currentWs' to avoid shadowing the module-level 'ws' variable
-function reconnect_websocket(currentWs, callback) {
-  // In silent mode (intentional stop), suppress reconnection attempts
-  try {
-    if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
-      return;
-    }
-  } catch (_) { console.warn("[WebSocket] Silent reconnect check failed:", _); }
-  // Prevent multiple reconnection attempts for the same WebSocket
-  if (currentWs && currentWs._isReconnecting) {
-    if (window.debugWebSocket) console.log("Already attempting to reconnect, skipping duplicate attempt");
-    return;
-  }
-
-  // Store reconnection attempts in the WebSocket object itself
-  // This ensures each WebSocket manages its own reconnection state
-  if (currentWs && currentWs._reconnectAttempts === undefined) {
-    currentWs._reconnectAttempts = 0;
-  }
-
-  // Limit maximum reconnection attempts
-  if (currentWs && currentWs._reconnectAttempts >= maxReconnectAttempts) {
-    console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
-    // In silent mode, keep showing 'Stopped'; otherwise show failure
-    if (!window.silentReconnectMode) {
-      const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
-      setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
-    }
-
-    // Properly clean up any pending timers
-    currentWs._isReconnecting = false;
-    if (reconnectionTimer) {
-      clearTimeout(reconnectionTimer);
-      reconnectionTimer = null;
-    }
-    return;
-  }
-
-  // Mark as reconnecting
-  if (currentWs) {
-    currentWs._isReconnecting = true;
-  }
-
-  // Calculate exponential backoff delay (use currentWs for attempt tracking, fallback to 0)
-  const attemptCount = (currentWs && currentWs._reconnectAttempts) || 0;
-  const delay = baseReconnectDelay * Math.pow(1.5, attemptCount);
-
-  // Clear any existing reconnection timer
-  if (reconnectionTimer) {
-    clearTimeout(reconnectionTimer);
-    reconnectionTimer = null;
-  }
-
-  try {
-    // Check WebSocket state (use currentWs if provided, otherwise check module-level ws)
-    const wsToCheck = currentWs || ws;
-    const currentState = wsToCheck ? wsToCheck.readyState : WebSocket.CLOSED;
-
-    switch (currentState) {
-      case WebSocket.CLOSED:
-        // Socket is closed, create a new one
-        if (currentWs) {
-          currentWs._reconnectAttempts = (currentWs._reconnectAttempts || 0) + 1;
-        }
-
-        // Stop any active ping interval
-        stopPing();
-
-        // After maximum attempts, just show final error and don't reconnect
-        const currentAttempts = currentWs ? currentWs._reconnectAttempts : 0;
-        if (currentAttempts >= maxReconnectAttempts) {
-          const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
-          setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
-          return; // Exit without creating new connection
-        }
-
-        // Get connection details
-        let connectionDetails = "";
-        let host = "localhost";
-        let port = "4567";
-
-        // Get hostname from browser URL if not localhost
-        if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-          host = window.location.hostname;
-          port = window.location.port || "4567";
-          connectionDetails = ` to ${host}:${port}`;
-        }
-
-        // In silent mode, do not spam connection messages
-        if (!window.silentReconnectMode) {
-          const message = `<i class='fa-solid fa-sync fa-spin'></i> Connecting${connectionDetails}...`;
-          setAlert(message, "warning");
-        }
-
-        // Clear audio state before reconnection to prevent stale sequences
-        try {
-          clearAudioQueue();
-        } catch (e) {
-          console.warn('[reconnect_websocket] Error clearing audio queue:', e);
-        }
-
-        // CRITICAL: Close old WebSocket before creating new one to prevent connection accumulation
-        closeCurrentWebSocket();
-
-        // Create new connection and assign to module-level ws (no shadowing now)
-        ws = connect_websocket(callback);
-        window.ws = ws;  // Update global reference
-        break;
-
-      case WebSocket.CLOSING:
-        // Wait for socket to fully close before reconnecting
-        if (window.debugWebSocket) console.log(`Socket is closing. Waiting ${delay}ms before reconnection attempt.`);
-        reconnectionTimer = setTimeout(() => {
-          if (currentWs) {
-            currentWs._isReconnecting = false; // Reset flag before next attempt
-          }
-          reconnect_websocket(currentWs, callback);
-        }, delay);
-        break;
-
-      case WebSocket.CONNECTING:
-        // Socket is still trying to connect, wait a bit before checking again
-        if (window.debugWebSocket) console.log(`Socket is connecting. Checking again in ${delay}ms.`);
-        reconnectionTimer = setTimeout(() => {
-          if (currentWs) {
-            currentWs._isReconnecting = false; // Reset flag before next attempt
-          }
-          reconnect_websocket(currentWs, callback);
-        }, delay);
-        break;
-
-      case WebSocket.OPEN:
-        // Connection is successful, reset counters on the active connection
-        if (ws) {
-          ws._reconnectAttempts = 0;
-          ws._isReconnecting = false;
-        }
-
-        // Start ping to keep connection alive
-        startPing();
-
-        // Update UI
-        const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
-        // Clear silent mode and cookie when successfully connected again
-        try {
-          window.silentReconnectMode = false;
-          document.cookie = 'silent_reconnect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        } catch(_) { console.warn("[WebSocket] Silent reconnect cleanup failed:", _); }
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
-
-        // Execute callback if provided
-        if (callback && typeof callback === 'function') {
-          callback(ws);
-        }
-        break;
-    }
-  } catch (error) {
-    console.error("Error during WebSocket reconnection:", error);
-
-    // Schedule another attempt with backoff on error
-    reconnectionTimer = setTimeout(() => {
-      // Increment attempt counter on error
-      if (currentWs) {
-        currentWs._reconnectAttempts = (currentWs._reconnectAttempts || 0) + 1;
-        currentWs._isReconnecting = false; // Reset flag before next attempt
-      }
-      reconnect_websocket(currentWs, callback);
-    }, delay);
-  }
-}
-
-function handleVisibilityChange() {
-  // Only take action when tab becomes visible again
-  if (!document.hidden) {
-    try {
-      // Check if actual processing (streaming/function calls) is happening
-      const stillProcessing = streamingResponse === true || callingFunction === true ||
-        (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
-
-      // Always reset TTS flags and hide stale spinners on visibility change
-      // Note: We intentionally do NOT restore spinner here to prevent stale "Processing audio" after sleep/wake
-      // If actual processing is happening, the processing code will show/update the spinner appropriately
-      if (window.debugWebSocket) console.log('[handleVisibilityChange] Tab visible, resetting TTS state (stillProcessing=' + stillProcessing + ')');
-
-      // Reset TTS flags to "completed" state to prevent stale audio processing
-      window.autoSpeechActive = false;
-      window.autoPlayAudio = false;
-      if (typeof window.setTtsPlaybackStarted === 'function') {
-        window.setTtsPlaybackStarted(true);
-      }
-      if (typeof window.setTextResponseCompleted === 'function') {
-        window.setTextResponseCompleted(true);
-      }
-
-      // Stop any ongoing Web Speech API
-      if (typeof window.speechSynthesis !== 'undefined') {
-        try {
-          window.speechSynthesis.cancel();
-        } catch (e) {
-          console.warn('[handleVisibilityChange] Error stopping speech synthesis:', e);
-        }
-      }
-
-      // Clear any pending Auto TTS timeout
-      if (window.autoTTSSpinnerTimeout) {
-        clearTimeout(window.autoTTSSpinnerTimeout);
-        window.autoTTSSpinnerTimeout = null;
-      }
-
-      // Remove TTS button highlight if active
-      if (typeof removeStopButtonHighlight === 'function') {
-        removeStopButtonHighlight();
-      }
-
-      // Handle spinner visibility based on actual processing state
-      if ($("#monadic-spinner").is(":visible")) {
-        // Spinner is visible - check if we should hide stale "Processing audio" spinners
-        const spinnerText = $("#monadic-spinner").find("span").text();
-        const isProcessingAudio = spinnerText.toLowerCase().includes('processing') &&
-                                   spinnerText.toLowerCase().includes('audio');
-
-        if (isProcessingAudio && !stillProcessing) {
-          if (window.debugWebSocket) console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
-          $("#monadic-spinner").hide();
-          $("#monadic-spinner")
-            .find("span i")
-            .removeClass("fa-headphones fa-brain fa-circle-nodes")
-            .addClass("fa-comment");
-          $("#monadic-spinner")
-            .find("span")
-            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-        }
-      } else if (stillProcessing) {
-        // Spinner was hidden (likely due to tab switch) but we're still processing
-        // Restore the spinner to indicate ongoing processing
-        if (window.debugWebSocket) console.log('[handleVisibilityChange] Restoring spinner - still processing');
-        $("#monadic-spinner").show();
-
-        // Determine appropriate spinner state based on processing type
-        if (callingFunction) {
-          const processingToolsText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-            webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
-          $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-        } else if (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive()) {
-          const thinkingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-            webUIi18n.t('ui.messages.spinnerThinking') : 'Thinking...';
-          $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${thinkingText}`);
-        } else {
-          const processingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-            webUIi18n.t('ui.messages.spinnerProcessing') : 'Processing';
-          $("#monadic-spinner span").html(`<i class="fas fa-spinner fa-pulse"></i> ${processingText}`);
-        }
-      }
-
-      // Clear any existing reconnection timer to prevent duplicate reconnection attempts
-      if (reconnectionTimer) {
-        clearTimeout(reconnectionTimer);
-        reconnectionTimer = null;
-      }
-
-      // Prevent duplicate connection attempts during rapid visibility changes
-      if (isConnecting) {
-        if (window.debugWebSocket) console.log('[handleVisibilityChange] Connection attempt already in progress, skipping');
-        return;
-      }
-
-      // Handle different WebSocket states
-      switch (ws ? ws.readyState : WebSocket.CLOSED) {
-        case WebSocket.CLOSED:
-        case WebSocket.CLOSING:
-
-          // Reset reconnection attempts for a fresh start when user returns to tab
-          if (ws && ws._reconnectAttempts !== undefined) {
-            ws._reconnectAttempts = 0;
-          }
-
-          // Get connection details if not using localhost
-          let connectionMessage = "";
-          if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            const host = window.location.hostname;
-            const port = window.location.port || "4567";
-            connectionMessage = ` to ${host}:${port}`;
-          }
-
-          // Show reconnection message unless in silent stopped mode
-          if (!window.silentReconnectMode) {
-            const alertMessage = `<i class='fa-solid fa-server'></i> ${getTranslation('ui.messages.connectionLost','Connection lost')}${connectionMessage}`;
-            setAlert(alertMessage, "warning");
-          } else {
-            const stoppedText = getTranslation('ui.messages.stopped', 'Stopped');
-            setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
-          }
-
-          // Clear audio state before reconnection to prevent stale sequences
-          // This ensures new TTS sessions start fresh without waiting for old sequence numbers
-          try {
-            clearAudioQueue();
-          } catch (e) {
-            console.warn('[handleVisibilityChange] Error clearing audio queue:', e);
-          }
-
-          // CRITICAL: Close old WebSocket before creating new one to prevent connection accumulation
-          closeCurrentWebSocket();
-
-          // Set connecting guard
-          isConnecting = true;
-
-          // Establish a new connection with proper callback
-          ws = connect_websocket((newWs) => {
-            isConnecting = false;  // Reset guard
-            window.ws = ws;  // Update global reference for other files (utilities.js, cards.js)
-            if (newWs && newWs.readyState === WebSocket.OPEN) {
-              // Reload data from server
-              newWs.send(JSON.stringify({ message: "LOAD" }));
-              // Restart ping to keep connection alive
-              startPing();
-              // Update UI with connection info if appropriate
-              const successMessage = connectionMessage
-                ? `<i class='fa-solid fa-circle-check'></i> Connected${connectionMessage}`
-                : "<i class='fa-solid fa-circle-check'></i> Connected";
-
-              setAlert(successMessage, "info");
-              try { window.silentReconnectMode = false; } catch(_) { console.warn("[WebSocket] Silent mode reset failed:", _); }
-            }
-          });
-          break;
-
-        case WebSocket.CONNECTING:
-          // Already attempting to connect, let the process continue
-          break;
-
-        case WebSocket.OPEN:
-          // Connection is already open, verify it's still active
-          ws.send(JSON.stringify({ message: "PING" }));
-          const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
-          break;
-      }
-    } catch (error) {
-      console.error("Error handling visibility change:", error);
-
-      // Reset connecting guard on error
-      isConnecting = false;
-
-      // Cleanup any pending timers
-      if (reconnectionTimer) {
-        clearTimeout(reconnectionTimer);
-      }
-
-      // Reset reconnection counter and attempt to reconnect on error
-      if (ws && ws._reconnectAttempts !== undefined) {
-        ws._reconnectAttempts = 0;
-      }
-
-      // Start a new reconnection attempt with a fresh counter
-      reconnectionTimer = setTimeout(() => {
-        reconnect_websocket(ws);
-      }, 1000); // Short delay before reconnection
-    }
-  }
-}
-
-document.addEventListener('visibilitychange', handleVisibilityChange);
+// handleVisibilityChange and visibilitychange listener
+// — extracted to ws-visibility-handler.js (window.WsVisibilityHandler)
+// Uses window._wsIsConnecting and window._wsReconnectionTimer for shared state
 
 // Clean up WebSocket when page is unloaded
 window.addEventListener('beforeunload', function() {
   stopPing();
 
-  if (reconnectionTimer) {
-    clearTimeout(reconnectionTimer);
-    reconnectionTimer = null;
+  if (window._wsReconnectionTimer) {
+    clearTimeout(window._wsReconnectionTimer);
+    window._wsReconnectionTimer = null;
   }
 
   if (typeof clearAudioQueue === 'function') clearAudioQueue();
@@ -4868,9 +1165,9 @@ window.addEventListener('beforeunload', function() {
 
 // Export functions for browser environment
 window.connect_websocket = connect_websocket;
-window.reconnect_websocket = reconnect_websocket;
+// reconnect_websocket is now in ws-reconnect-handler.js
 window.closeCurrentWebSocket = closeCurrentWebSocket;
-window.handleVisibilityChange = handleVisibilityChange;
+// handleVisibilityChange is now in ws-visibility-handler.js
 window.startPing = startPing;
 window.stopPing = stopPing;
 
@@ -4883,8 +1180,8 @@ if (typeof module !== 'undefined' && module.exports) {
   const _ui = (typeof window !== 'undefined' && window.WsUiHelpers) || {};
   module.exports = {
     connect_websocket,
-    reconnect_websocket,
-    handleVisibilityChange,
+    reconnect_websocket: (typeof window !== 'undefined' && window.reconnect_websocket) || function() {},
+    handleVisibilityChange: (typeof window !== 'undefined' && window.handleVisibilityChange) || function() {},
     startPing,
     stopPing,
     updateAIUserButtonState: _ui.updateAIUserButtonState || updateAIUserButtonState,

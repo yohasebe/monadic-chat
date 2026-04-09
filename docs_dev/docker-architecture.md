@@ -5,7 +5,7 @@
 Monadic Chat uses multiple Docker containers for different functionalities:
 
 - **Ruby** (`monadic-chat-ruby-container`): Main application server (Falcon/Rack with 2 workers for personal use)
-- **Python** (`monadic-chat-python-container`): Flask API for Python tools & embeddings
+- **Python** (`monadic-chat-python-container`): JupyterLab, Python tools & script execution
 - **PostgreSQL/PGVector** (`monadic-chat-pgvector-container`): Vector database for embeddings
 - **Selenium** (`monadic-chat-selenium-container`): Web automation for capture/search
 
@@ -19,7 +19,39 @@ Monadic Chat uses multiple Docker containers for different functionalities:
 ### Production Mode
 - All containers managed by Docker Compose (`docker/services/compose.yml`)
 - Ruby app runs inside the Ruby container
-- Auto-restart on failures (compose policies)
+
+### On-Demand Container Startup (Compose Profiles)
+
+Python and Selenium containers use Docker Compose **profiles** and are NOT started by default.
+Only Ruby + PGVector start on `docker compose up`.
+
+| Container | Profile | Started When |
+|-----------|---------|-------------|
+| Ruby | (none) | Always at startup |
+| PGVector | (none) | Always at startup |
+| Python | `python` | App requires code execution, Jupyter, or data analysis |
+| Selenium | `selenium` | App requires web automation (Web Insight, AutoForge, etc.) |
+
+Container startup is triggered automatically when the user selects an app that requires it.
+The `ContainerDependencies` module (`lib/monadic/utils/container_dependencies.rb`) determines
+which services each app needs based on MDSL settings (tool groups, jupyter flag, pdf_vector_storage).
+
+Manual startup: `monadic.sh ensure-service python|selenium`
+
+**Exception — Full lifecycle operations include all profiles**: `build` (Build All), `update`,
+`down_docker_compose`, `stop_docker_compose`, and `remove_containers` must operate on every
+service regardless of on-demand startup. These commands use `${ALL_PROFILES}` (defined once at
+the top of `monadic.sh`) which expands to `--profile python --profile selenium`, ensuring
+profiled services are built, stopped, or removed together with the default services.
+
+### Restart Policies
+
+| Container | Policy | Rationale |
+|-----------|--------|-----------|
+| Ruby | default (`no`) | Lifecycle managed by Electron/Compose; avoids blocking Docker Resource Saver |
+| Python | default (`no`) | Started on demand; no independent lifecycle |
+| PGVector | default (`no`) | Monadic-only DB; avoids blocking Docker Resource Saver |
+| Selenium | default (`no`) | Started on demand; no independent lifecycle |
 
 ### Python image build (verified promotion)
 - Rebuild is invoked via `docker/monadic.sh build_python_container`.
@@ -58,10 +90,14 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 ## Port Mappings (defaults)
 
 - 4567: Ruby web server
-- 5070: Python Flask API (see `PYTHON_PORT` in docs)
+- 8889: JupyterLab
 - 5433: PostgreSQL/PGVector
 - 4444: Selenium Grid
 - 11434: Ollama API (when enabled)
+
+All ports use the `HOST_BINDING` environment variable to control the bind address:
+- **Default** (`127.0.0.1`): Ports are only accessible from localhost (Standalone mode)
+- **Server mode** (`0.0.0.0`): Ports are accessible from the network (set via `HOST_BINDING=0.0.0.0` in `~/monadic/config/env`)
 
 ## Troubleshooting
 

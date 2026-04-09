@@ -7,8 +7,8 @@ app "MathTutorDeepSeek" do
 
   llm do
     provider "deepseek"
-    model "deepseek-chat"
     temperature 0.0
+    reasoning_effort "low"
     context_size 25
   end
 
@@ -17,7 +17,7 @@ app "MathTutorDeepSeek" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     group "DeepSeek"
     monadic true  # Uses Session State mechanism for learning progress tracking
   end

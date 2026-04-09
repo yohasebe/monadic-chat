@@ -34,8 +34,8 @@ app "JupyterNotebookGrok" do
   
   llm do
     provider "xai"
-    model "grok-4-1-fast-non-reasoning"
     temperature 0.0
+    reasoning_effort "low"
     max_tokens 4096
     tool_choice "auto"  # Let Grok decide when to use tools
     parallel_function_calling true  # Explicitly enable parallel function calling (default)
@@ -136,6 +136,11 @@ app "JupyterNotebookGrok" do
     IMPORTANT: No need to manually call get_jupyter_cells_with_results after add_jupyter_cells.
     Maximum 2 retry attempts for error fixes to prevent infinite loops.
 
+    TOOL LOOP PREVENTION:
+    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
+    - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
+    - If you find yourself about to call the same tool you just called, STOP and return a response instead
+
     ## Session Management
     
     - The tools will return the actual notebook filename with timestamp (e.g., notebook_20250828_143025.ipynb)
@@ -189,6 +194,12 @@ app "JupyterNotebookGrok" do
     WHEN TO USE: Notebook creation with code execution, data analysis pipelines, multi-cell operations.
     WHEN TO SKIP: Simple explanations, direct answers, single markdown cells.
     Maximum 3 verification attempts per task.
+
+    ## FINAL RESPONSE CHECKLIST (apply to EVERY response after tool calls)
+    Before submitting your response, verify:
+    ✅ Notebook link is included as clickable HTML: <a href='URL' target='_blank'>filename.ipynb</a>
+    ✅ You did NOT call the same tool twice in a row
+    ✅ Response summarizes what was done (cells added, errors fixed, etc.)
   TEXT
 
   features do
@@ -197,7 +208,7 @@ app "JupyterNotebookGrok" do
     auto_speech false
     monadic true  # Uses Session State for notebook context tracking
     jupyter true
-    mathjax true
+    math true
     initiate_from_assistant true
   end
 

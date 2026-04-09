@@ -9,11 +9,19 @@ require "dotenv/load"
 require_relative "environment"
 require_relative "ssl_configuration"
 
+begin
+  require_relative "model_spec"
+rescue LoadError
+  # ModelSpec may not be available in standalone mode
+end
+
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
 end
 
-EMBEDDINGS_MODEL = "text-embedding-3-large"
+EMBEDDINGS_MODEL = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.default_embedding_model("openai")
+                   end
 # OpenAI's text-embedding-3-large produces 3072-dimensional vectors
 # We use the full dimensions as pgvector supports this without indexes
 # Note: pgvector index limits: ivfflat/HNSW - 2000 dims, halfvec - 4000 dims

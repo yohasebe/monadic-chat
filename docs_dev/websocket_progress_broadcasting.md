@@ -122,11 +122,12 @@ This means messages may not be reaching the WebSocket connection. Verify that `W
 
 ## Code Locations
 
-- Main implementation: `docker/services/ruby/lib/monadic/utils/websocket.rb:91-269`
-- OpenAI Code integration: `docker/services/ruby/lib/monadic/agents/openai_code_agent.rb:start_progress_thread`
-- AutoForge integration: `docker/services/ruby/apps/auto_forge/auto_forge_tools.rb`
-- JavaScript handler: `docker/services/ruby/public/js/monadic/websocket.js:2427-2557`
-- Tests: `docker/services/ruby/spec/lib/monadic/utils/websocket_helper_spec.rb`
+- WebSocket core: `lib/monadic/utils/websocket.rb` (connection routing, `send_or_broadcast` helper)
+- Connection manager: `lib/monadic/utils/websocket/connection_manager.rb` (`broadcast_progress`, `send_to_session`, `broadcast_to_all`)
+- OpenAI Code integration: `lib/monadic/agents/openai_code_agent.rb` (`start_progress_thread`)
+- AutoForge integration: `apps/auto_forge/auto_forge_tools.rb`
+- JavaScript handler: `public/js/monadic/ws-tool-handler.js` (wait/message display)
+- Tests: `spec/lib/monadic/utils/websocket_helper_spec.rb`
 
 ## Session Isolation for Multi-User Environments
 
@@ -241,10 +242,10 @@ After the initial 4 handlers, **ALL** remaining session-specific broadcasts were
 
 #### Streaming Logic (CRITICAL - Most Complex)
 16. **Main streaming initialization** - Error broadcasts for app not found, fragment errors
-17. **Realtime TTS async callbacks** - Three separate callback contexts:
-    - Flushed buffer callback (lines ~2462-2474)
-    - Long sentence callback (lines ~2528-2542)
-    - Final segment callback (lines ~2664-2676)
+17. **Realtime TTS async callbacks** - Three separate callback contexts in `websocket/streaming_handler.rb`:
+    - Flushed buffer callback
+    - Long sentence callback
+    - Final segment callback
 18. **Streaming fragments** - Four different fragment types:
     - Realtime mode fragments
     - Post-completion mode fragments
@@ -265,14 +266,13 @@ After the initial 4 handlers, **ALL** remaining session-specific broadcasts were
 
 The following broadcasts correctly remain global as they represent system-wide shared resources:
 
-1. **Voice Lists** (`push_voice_data`):
-   - `elevenlabs_voices` (line 793)
-   - `gemini_voices` (line 808)
+1. **Voice Lists** (`push_voice_data` in `websocket/tts_handler.rb`):
+   - `elevenlabs_voices` and `gemini_voices`
    - These are system capabilities, not user-specific data
 
-2. **Method Definition**: `broadcast_to_all` method itself (line 103)
+2. **Method Definition**: `broadcast_to_all` in `websocket/connection_manager.rb`
 
-3. **Fallback Clauses**: All `else` branches in session-targeted functions use `broadcast_to_all` as fallback
+3. **Fallback**: `send_or_broadcast` helper defaults to `broadcast_to_all` when no session ID is available
 
 ### Session ID Capture Pattern
 
@@ -282,13 +282,9 @@ For async blocks and callbacks, session ID must be captured in outer scope:
 # Capture session ID BEFORE entering async blocks
 ws_session_id = Thread.current[:websocket_session_id]
 
-# Use captured variable inside async callbacks
+# Use the centralized helper (defined in websocket.rb)
 some_async_operation do |result|
-  if ws_session_id
-    WebSocketHelper.send_to_session(result.to_json, ws_session_id)
-  else
-    WebSocketHelper.broadcast_to_all(result.to_json)
-  end
+  send_or_broadcast(result.to_json, ws_session_id)
 end
 ```
 
@@ -297,22 +293,16 @@ end
 On 2025-11-07, a final systematic review using grep found 3 additional handlers that were missed in the initial implementation:
 
 22. **`update_message_status_after_edit` helper** - Called by `handle_edit_message`, broadcasts status updates after message edits
-    - **Location**: `websocket.rb:1232-1263`
+    - **Location**: `websocket/message_editor.rb` (`update_message_status_after_edit`)
     - **Broadcasts**: `change_status` (when messages changed), `info` (always)
-    - **Why Critical**: Message editing status updates were leaking to all users
-    - **Fix**: Added session ID capture and session-targeted broadcasting for both message types
 
 23. **TTS handler** - Manual TTS requests when user clicks TTS button
-    - **Location**: `websocket.rb:1481-1519`
+    - **Location**: `websocket/tts_handler.rb` (`handle_ws_tts`)
     - **Broadcasts**: TTS audio responses (Web Speech API or generated audio)
-    - **Why Critical**: User's private TTS audio was being sent to all connected users
-    - **Fix**: Added session ID capture at handler start, used for both Web Speech API responses and generated TTS audio
 
 24. **TTS_STREAM handler** - Streaming TTS during AI responses with TTS enabled
-    - **Location**: `websocket.rb:1520-1564`
+    - **Location**: `websocket/tts_handler.rb` (`handle_ws_tts_stream`)
     - **Broadcasts**: Web Speech API responses AND streaming audio fragments via callback
-    - **Why Critical**: AI response TTS was being broadcast to all users during streaming
-    - **Fix**: Added session ID capture and applied to both Web Speech API branch and streaming callback closure
 
 These fixes complete the session isolation implementation. All user-specific data and audio are now properly isolated.
 

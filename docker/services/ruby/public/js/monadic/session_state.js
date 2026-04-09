@@ -182,29 +182,11 @@
     },
 
     // === Legacy Methods (for backward compatibility) ===
-    setResetFlags: function() {
-      this.forceNewSession = true;
-      this.justReset = true;
-      this.session.forceNew = true;
-      this.session.justReset = true;
-      this.notifyListeners('session:reset-flags-set');
-    },
-    
-    clearForceNewSession: function() {
-      this.forceNewSession = false;
-      this.session.forceNew = false;
-      this.notifyListeners('session:force-new-cleared');
-    },
-    
     clearJustReset: function() {
       this.justReset = false;
       this.session.justReset = false;
     },
-    
-    shouldForceNewSession: function() {
-      return this.forceNewSession === true || this.session.forceNew === true;
-    },
-    
+
     resetAllFlags: function() {
       this.forceNewSession = false;
       this.justReset = false;
@@ -464,7 +446,7 @@
         let maxMessages = this.config.maxStoredMessages;
 
         // Check if context size is enabled and get its value
-        const contextSizeElement = document.getElementById('context-size');
+        const contextSizeElement = $id('context-size');
         if (contextSizeElement && !contextSizeElement.disabled) {
           const contextSize = parseInt(contextSizeElement.value, 10);
           if (!isNaN(contextSize) && contextSize > 0) {

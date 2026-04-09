@@ -1,0 +1,57 @@
+app "VoiceChatOllama" do
+  description do
+    en <<~TEXT
+    Conversational AI with voice input and output using local Ollama models. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    ローカルOllamaモデルを使用した音声入出力対応の会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    使用本地Ollama模型的语音输入输出对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    로컬 Ollama 모델을 사용한 음성 입출력 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    IA conversacional con voz usando modelos locales de Ollama. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    IA conversationnelle vocale avec modèles Ollama locaux. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    Konversations-KI mit Sprache und lokalen Ollama-Modellen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "microphone"
+
+  system_prompt <<~PROMPT
+  You are a friendly chat buddy talking to the user. You are adept at keeping pleasant conversations going. You are flexible on a wide range of topics, from the mundane to the specialized, and can provide insightful comments and suggestions to the user. Please keep each response simple and kind.
+
+  Please follow these guidelines:
+
+  - Do not include a sample of user utterances at the beginning of a conversation.
+  - Keep your responses brief (under 50 words) for better voice playback. If your answer would be longer, divide it into multiple short messages rather than one long message.
+  - Try to keep your response as short as possible.
+  PROMPT
+
+  include_modules "OllamaHelper"
+
+  llm do
+    provider "ollama"
+  end
+
+  display_name "Voice Chat"
+
+  features do
+    easy_submit true
+    auto_speech true
+    initiate_from_assistant true
+  end
+end

@@ -92,5 +92,63 @@ RSpec.describe "MonadicSharedTools::Planning" do
         expect(result).to include("Do NOT execute")
       end
     end
+
+    context "with autonomy high" do
+      let(:session) { { parameters: { "autonomy" => "high" } } }
+
+      it "auto-approves the plan" do
+        result = app.propose_plan(plan: plan_text, summary: summary, session: session)
+
+        expect(result).to include("PLAN AUTO-APPROVED")
+        expect(result).to include("high autonomy mode")
+        expect(result).to include(summary)
+        expect(result).to include(plan_text)
+      end
+
+      it "sets status to auto_approved" do
+        app.propose_plan(plan: plan_text, summary: summary, session: session)
+
+        expect(session[:proposed_plan][:status]).to eq("auto_approved")
+      end
+
+      it "does not instruct to wait for user approval" do
+        result = app.propose_plan(plan: plan_text, summary: summary, session: session)
+
+        expect(result).not_to include("Do NOT execute")
+        expect(result).not_to include("Ask the user")
+      end
+
+      it "works with symbol key for autonomy" do
+        session_sym = { parameters: { autonomy: "high" } }
+        result = app.propose_plan(plan: plan_text, summary: summary, session: session_sym)
+
+        expect(result).to include("PLAN AUTO-APPROVED")
+        expect(session_sym[:proposed_plan][:status]).to eq("auto_approved")
+      end
+    end
+
+    context "with autonomy medium" do
+      let(:session) { { parameters: { "autonomy" => "medium" } } }
+
+      it "uses normal approval flow" do
+        result = app.propose_plan(plan: plan_text, summary: summary, session: session)
+
+        expect(result).to include("PLAN REGISTERED")
+        expect(result).to include("Do NOT execute")
+        expect(session[:proposed_plan][:status]).to eq("pending")
+      end
+    end
+
+    context "with no autonomy setting" do
+      let(:session) { { parameters: {} } }
+
+      it "uses normal approval flow" do
+        result = app.propose_plan(plan: plan_text, summary: summary, session: session)
+
+        expect(result).to include("PLAN REGISTERED")
+        expect(result).to include("Do NOT execute")
+        expect(session[:proposed_plan][:status]).to eq("pending")
+      end
+    end
   end
 end

@@ -58,6 +58,7 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
   - `GrokCodeAgent` for Grok code generation
 - Handles project management, optional CLI asset generation, and file I/O
 - Coordinates between orchestration and code generation
+- **Project resolution fallback**: When `debug_application` is called without a project name (e.g., `debug_application({})`), `resolve_project_context` falls back to the most recently created project with an `index.html`. This prevents infinite generate→debug→regenerate loops when the LLM omits the project name parameter.
 
 #### 3. Application Logic (`auto_forge.rb`)
 - Main application class

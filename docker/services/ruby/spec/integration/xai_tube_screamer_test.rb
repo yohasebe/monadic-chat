@@ -25,7 +25,7 @@ RSpec.describe "xAI Live Search - Tube Screamer Query", :integration do
         "Grok"
       end
       
-      def markdown_to_html(text, mathjax: false)
+      def markdown_to_html(text, math: false)
         text
       end
       

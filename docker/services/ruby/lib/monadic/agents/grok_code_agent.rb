@@ -41,7 +41,7 @@ module Monadic
       # @param prompt [String] The complete prompt to send to Grok-Code
       # @param app_name [String] Name of the calling app for logging (optional)
       # @param timeout [Integer] Request timeout in seconds (optional)
-      # @param model [String] Model to use (optional, defaults to grok-code-fast-1)
+      # @param model [String] Model to use (optional, defaults to providerDefaults)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
       def call_grok_code(prompt:, app_name: nil, timeout: nil, model: nil, &block)
         begin
@@ -76,11 +76,12 @@ module Monadic
             }
           end
 
-          # Determine model to use with priority: argument > MDSL config > env var > default
+          # Determine model to use with priority: argument > MDSL config > env var > providerDefaults
+          grok_code_default = Monadic::Utils::ModelSpec.default_code_model("xai")
           actual_model = model ||
                          @context&.dig(:agents, :code_generator) ||
                          ENV['GROK_CODE_MODEL'] ||
-                         "grok-code-fast-1"
+                         grok_code_default
 
           # Log model selection for debugging
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -169,7 +170,7 @@ module Monadic
             {
               code: content,
               success: true,
-              model: "grok-code-fast-1"
+              model: actual_model
             }
           else
             {
@@ -245,7 +246,8 @@ module Monadic
       # @param prompt [String] The prompt to send
       # @param model [String] The model to use
       # @return [Hash] Session object for api_request
-      def build_session(prompt:, model: "grok-code-fast-1")
+      def build_session(prompt:, model: nil)
+        model ||= Monadic::Utils::ModelSpec.default_code_model("xai")
         # Get the field name for message content
         content_field = message_content_field.to_s
 

@@ -99,7 +99,7 @@ RSpec.describe "ParallelDispatch Web Search Integration", :integration do
         result = app.gemini_websearch_sub_call(
           "https://generativelanguage.googleapis.com/v1beta",
           CONFIG["GEMINI_API_KEY"],
-          "gemini-2.5-flash",
+          "gemini-3-flash-preview",
           query,
           timeout
         )

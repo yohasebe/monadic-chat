@@ -14,7 +14,7 @@ RSpec.describe "image_generator_grok.rb minimal tests" do
     it "shows error when no prompt provided" do
       result = run_script([])
       expect(result[:stdout]).to include("ERROR: A prompt is required")
-      expect(result[:status].success?).to be true  # Script exits normally
+      expect(result[:status].exitstatus).to eq(1)  # Script exits with error status
     end
     
     it "accepts prompt with -p flag" do

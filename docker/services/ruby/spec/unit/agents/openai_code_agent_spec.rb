@@ -86,17 +86,19 @@ RSpec.describe Monadic::Agents::OpenAICodeAgent do
 
       it "makes successful API call" do
         result = app.call_openai_code(prompt: "Write a function")
+        expected_model = Monadic::Utils::ModelSpec.default_code_model("openai")
 
         expect(result[:success]).to be true
         expect(result[:code]).to eq("Generated code")
-        expect(result[:model]).to eq("gpt-5.2-codex")
+        expect(result[:model]).to eq(expected_model)
       end
 
       it "builds session with correct structure" do
         app.call_openai_code(prompt: "Test prompt")
         session = app.last_session
+        expected_model = Monadic::Utils::ModelSpec.default_code_model("openai")
 
-        expect(session[:parameters]["model"]).to eq("gpt-5.2-codex")
+        expect(session[:parameters]["model"]).to eq(expected_model)
         expect(session[:messages].first["text"]).to eq("Test prompt")
         expect(session[:messages].first["role"]).to eq("user")
       end

@@ -122,9 +122,14 @@
               if (playPromise !== undefined) {
                 playPromise.then(function() {
                   if (window.autoSpeechActive || window.autoPlayAudio) {
-                    $("#monadic-spinner").hide();
-                    $("#monadic-spinner").find("span i").removeClass("fa-headphones").addClass("fa-comment");
-                    $("#monadic-spinner").find("span").html('<i class="fas fa-comment fa-pulse"></i> Starting');
+                    var sp = $id("monadic-spinner");
+                    if (sp) {
+                      $hide(sp);
+                      var spIcon = sp.querySelector("span i");
+                      if (spIcon) { spIcon.classList.remove("fa-headphones"); spIcon.classList.add("fa-comment"); }
+                      var spSpan = sp.querySelector("span");
+                      if (spSpan) spSpan.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+                    }
                     if (window.autoTTSSpinnerTimeout) {
                       clearTimeout(window.autoTTSSpinnerTimeout);
                       window.autoTTSSpinnerTimeout = null;
@@ -133,9 +138,14 @@
                     window.autoPlayAudio = false;
                   }
                 }).catch(function(err) {
-                  $("#monadic-spinner").hide();
-                  $("#monadic-spinner").find("span i").removeClass("fa-headphones").addClass("fa-comment");
-                  $("#monadic-spinner").find("span").html('<i class="fas fa-comment fa-pulse"></i> Starting');
+                  var sp2 = $id("monadic-spinner");
+                  if (sp2) {
+                    $hide(sp2);
+                    var sp2Icon = sp2.querySelector("span i");
+                    if (sp2Icon) { sp2Icon.classList.remove("fa-headphones"); sp2Icon.classList.add("fa-comment"); }
+                    var sp2Span = sp2.querySelector("span");
+                    if (sp2Span) sp2Span.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+                  }
                   if (window.autoTTSSpinnerTimeout) {
                     clearTimeout(window.autoTTSSpinnerTimeout);
                     window.autoTTSSpinnerTimeout = null;
@@ -436,7 +446,7 @@
       if (typeof window.setTextResponseCompleted === 'function') window.setTextResponseCompleted(true);
       if (typeof window.setTtsPlaybackStarted === 'function') window.setTtsPlaybackStarted(true);
       if (typeof window.checkAndHideSpinner === 'function') window.checkAndHideSpinner();
-      else $("#monadic-spinner").hide();
+      else { $hide($id("monadic-spinner")); }
 
       try {
         const wavBlob = createWAVFromPCM(pcmData, sampleRate);
@@ -452,7 +462,7 @@
           if (typeof window.setTextResponseCompleted === 'function') window.setTextResponseCompleted(true);
           if (typeof window.setTtsPlaybackStarted === 'function') window.setTtsPlaybackStarted(true);
           if (typeof window.checkAndHideSpinner === 'function') window.checkAndHideSpinner();
-          else $("#monadic-spinner").hide();
+          else { $hide($id("monadic-spinner")); }
           window.autoSpeechActive = false;
           window.autoPlayAudio = false;
         });
@@ -461,7 +471,7 @@
         if (typeof window.setTextResponseCompleted === 'function') window.setTextResponseCompleted(true);
         if (typeof window.setTtsPlaybackStarted === 'function') window.setTtsPlaybackStarted(true);
         if (typeof window.checkAndHideSpinner === 'function') window.checkAndHideSpinner();
-        else $("#monadic-spinner").hide();
+        else { $hide($id("monadic-spinner")); }
       }
     }
   }

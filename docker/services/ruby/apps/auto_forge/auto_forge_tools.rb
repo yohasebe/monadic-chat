@@ -467,7 +467,15 @@ module AutoForgeTools
 
     result[:project_name] = context[:project_name]
     result[:html_path] = context[:html_path]
-    format_debug_report(result)
+    report_text = format_debug_report(result)
+
+    # Return gallery_html for server-side display (vendor helpers auto-inject into session)
+    if result[:screenshot]
+      gallery = "<div class=\"generated_image\"><img src=\"/data/#{result[:screenshot]}\" /></div>"
+      { text: report_text, gallery_html: gallery }
+    else
+      report_text
+    end
   rescue => e
     "❌ Debug error: #{e.message.gsub(/<.*?>/, '')[0..200]}"
   end
@@ -932,7 +940,7 @@ module AutoForgeTools
   def sanitize_filename(name)
     candidate = name.to_s.strip
     return nil if candidate.empty?
-    return nil if candidate.match?(%r{[\/\\]}) || candidate.include?(" ") || candidate.include?('..')
+    return nil if candidate.match?(%r{[\/\\]}) || candidate.include?("\0") || candidate.include?('..')
 
     sanitized = candidate.gsub(/[^a-z0-9._-]/i, '_')
     sanitized = sanitized[0, 128]
@@ -1329,9 +1337,21 @@ module AutoForgeTools
       }
     end
 
-    return { success: false, error_type: :missing_name } if project_name.nil? || project_name.empty?
-
-    project_info = AutoForgeUtils.find_recent_project(project_name)
+    # When no project name is given, fall back to the most recent project.
+    # This prevents infinite loops when the LLM calls debug_application({})
+    # after generate_application without passing the project name.
+    if project_name.nil? || project_name.empty?
+      recent_projects = AutoForgeUtils.list_projects
+      if recent_projects.any? && recent_projects.first[:has_index]
+        project_info = recent_projects.first
+        project_name = project_info[:name]
+        puts "[AutoForge] No project name specified, using most recent: #{project_name}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      else
+        return { success: false, error_type: :missing_name }
+      end
+    else
+      project_info = AutoForgeUtils.find_recent_project(project_name)
+    end
     unless project_info
       return {
         success: false,

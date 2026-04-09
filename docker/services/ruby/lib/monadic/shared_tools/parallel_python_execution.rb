@@ -93,6 +93,20 @@ module MonadicSharedTools
       # Force-stop further tool calls after results are returned.
       session[:call_depth_per_turn] = FORCE_STOP_DEPTH if session
 
+      # --- Collect images from Hash results ---
+      all_images = []
+      results.each do |r|
+        output = r["output"]
+        if output.is_a?(Hash)
+          # run_code returned enriched result with _image
+          r["output"] = output[:text] || output["text"] || output.to_s
+          images = output[:_image] || output["_image"]
+          all_images.concat(Array(images)) if images
+        end
+      end
+      all_images.uniq!
+      all_images = all_images.first(5)
+
       # --- Build result ---
       succeeded = results.count { |r| r["success"] }
       results_json = JSON.pretty_generate({
@@ -102,15 +116,28 @@ module MonadicSharedTools
         "results" => results
       })
 
-      <<~RESULT
+      result_text = <<~RESULT
         PARALLEL CODE EXECUTION COMPLETED. #{succeeded}/#{tasks.length} succeeded.
 
         Results:
         #{results_json}
 
-        Present all results to the user. Show any generated images using <div class="generated_image"><img src="/data/FILENAME" /></div>.
-        Do NOT call any more tools.
+        Present all results to the user. Generated images are automatically displayed in the chat.
+        Do NOT call any more tools. Do NOT include <img> tags in your response.
       RESULT
+
+      # Store gallery HTML for server-side injection (bypasses LLM filename hallucination)
+      if all_images.any? && session
+        gallery_html = all_images.map { |img|
+          "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"
+        }.join("\n")
+        session[:tool_html_fragments] ||= []
+        session[:tool_html_fragments] << gallery_html
+      end
+
+      # Return text only — no _image key to avoid vision injection loops.
+      # Gallery HTML handles user-facing display.
+      result_text
     end
 
     private

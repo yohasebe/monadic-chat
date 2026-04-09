@@ -1,3 +1,5 @@
+require 'shellwords'
+
 module MonadicHelper
   # Adapter for OpenAI function generate_image
   # Accepts keyword args from function call: operation, model, prompt, images, mask, n, size, quality, output_format, background, output_compression
@@ -18,39 +20,39 @@ module MonadicHelper
     # Build CLI command
     parts = []
     parts << "image_generator_openai.rb"
-    parts << "-o #{operation}"
-    parts << "-m #{model}"
-    parts << "-p \"#{prompt}\"" if prompt
-    parts << "-n #{n}"
-    parts << "-s \"#{size}\"" if size
-    parts << "-q #{quality}" if quality
-    parts << "-f #{output_format}" if output_format
-    parts << "-b #{background}" if background
-    parts << "--compression #{output_compression}" if output_compression && output_compression.to_i > 0
-    parts << "--fidelity #{input_fidelity}" if input_fidelity
-    
+    parts << "-o #{Shellwords.shellescape(operation)}"
+    parts << "-m #{Shellwords.shellescape(model)}"
+    parts << "-p #{Shellwords.shellescape(prompt)}" if prompt
+    parts << "-n #{n.to_i}"
+    parts << "-s #{Shellwords.shellescape(size)}" if size
+    parts << "-q #{Shellwords.shellescape(quality)}" if quality
+    parts << "-f #{Shellwords.shellescape(output_format)}" if output_format
+    parts << "-b #{Shellwords.shellescape(background)}" if background
+    parts << "--compression #{output_compression.to_i}" if output_compression && output_compression.to_i > 0
+    parts << "--fidelity #{Shellwords.shellescape(input_fidelity)}" if input_fidelity
+
     # Process image parameters
     if images
       Array(images).each do |img|
-        parts << "-i \"#{img}\""
+        parts << "-i #{Shellwords.shellescape(img)}"
       end
     end
-    
+
     # Handle mask parameter
     # If mask is explicitly provided, use it
     if mask
       # Get the mask filename to pass to the script for name preservation
       mask_filename = File.basename(mask.to_s)
-      parts << "--mask \"#{mask}\""
-      parts << "--original-name \"#{mask_filename}\""
+      parts << "--mask #{Shellwords.shellescape(mask)}"
+      parts << "--original-name #{Shellwords.shellescape(mask_filename)}"
     # For edit operation, check if there's a mask associated with the image in MonadicApp
     elsif operation == "edit" && images && images.size == 1
       # Get the original image filename
       original_image = File.basename(images.first.to_s)
-      
+
       # Set shared folder path for mask images
       shared_folder = Monadic::Utils::Environment.shared_volume
-      
+
       # Look for mask file directly in the shared folder with naming convention
       # Try all possible naming conventions for masks
       # 1. mask__ prefix (new clear naming)
@@ -60,7 +62,7 @@ module MonadicHelper
       mask_pattern2 = File.join(shared_folder, "mask_for_#{original_image.gsub(/\.[^.]+$/, '')}.png")
       mask_pattern3 = File.join(shared_folder, "mask_*_#{original_image.gsub(/\.[^.]+$/, '')}.png")
       mask_files = Dir.glob([mask_pattern1, mask_pattern2, mask_pattern3])
-      
+
       if mask_files.any?
         # Use the most recent mask file (in case there are multiple)
         # Filter out directories just in case
@@ -69,22 +71,26 @@ module MonadicHelper
         if mask_path && File.exist?(mask_path)
           # Pass the mask filename to preserve it in output
           mask_filename = File.basename(mask_path)
-          parts << "--mask \"#{mask_path}\""
-          parts << "--original-name \"#{mask_filename}\""
+          parts << "--mask #{Shellwords.shellescape(mask_path)}"
+          parts << "--original-name #{Shellwords.shellescape(mask_filename)}"
         end
       end
     end
-    
+
     cmd = parts.join(' ')
     send_command(command: cmd, container: "ruby")
   end
 
 
-  def generate_image_with_grok(prompt: "", aspect_ratio: nil)
+  def generate_image_with_grok(prompt: "", aspect_ratio: nil, operation: "generate", images: nil)
     require 'json'
 
-    parts = ["image_generator_grok.rb", "-p \"#{prompt}\""]
-    parts << "-a \"#{aspect_ratio}\"" if aspect_ratio
+    parts = ["image_generator_grok.rb", "-p", Shellwords.shellescape(prompt)]
+    parts << "-o" << Shellwords.shellescape(operation) if operation && operation != "generate"
+    parts << "-a" << Shellwords.shellescape(aspect_ratio) if aspect_ratio
+    if images.is_a?(Array)
+      images.each { |img| parts << "-i" << Shellwords.shellescape(img) }
+    end
     command = parts.join(' ')
 
     # Use block form to get detailed stdout/stderr/status for better error reporting
@@ -144,14 +150,14 @@ module MonadicHelper
     # Build CLI command
     parts = []
     parts << "video_generator_grok.rb"
-    parts << "-p \"#{prompt}\""
-    parts << "-d #{duration}" if duration
-    parts << "-a \"#{aspect_ratio}\"" if aspect_ratio
-    parts << "-r #{resolution}" if resolution
-    parts << "--max-wait #{max_wait}"
+    parts << "-p" << Shellwords.shellescape(prompt)
+    parts << "-d" << duration.to_i.to_s if duration
+    parts << "-a" << Shellwords.shellescape(aspect_ratio) if aspect_ratio
+    parts << "-r" << Shellwords.shellescape(resolution) if resolution
+    parts << "--max-wait" << max_wait.to_i.to_s
 
     if image_path && !image_path.to_s.strip.empty?
-      parts << "-i \"#{image_path}\""
+      parts << "-i" << Shellwords.shellescape(image_path)
       session[:grok_last_video_image] = File.basename(image_path) if session
     end
 
@@ -199,8 +205,12 @@ module MonadicHelper
 
   # Adapter for OpenAI Sora video generation
   # Accepts keyword args from function call: prompt, model, size, seconds, image_path, remix_video_id
-  def generate_video_with_sora(prompt:, model: "sora-2", size: "1280x720", seconds: "8",
-                                image_path: nil, remix_video_id: nil, max_wait: 420, session: nil)
+  def generate_video_with_sora(prompt:, model: nil, size: "1280x720", seconds: "8",
+                                image_path: nil, remix_video_id: nil, max_wait: 600, session: nil)
+    model ||= if defined?(Monadic::Utils::ModelSpec)
+                 Monadic::Utils::ModelSpec.default_video_model("openai")
+               end
+
     # Resolve image_path from session if not provided directly
     if image_path.nil? && session && session[:messages]
       last_user_msg = session[:messages].reverse.find { |m| m["role"] == "user" }
@@ -227,21 +237,21 @@ module MonadicHelper
     # Build CLI command
     parts = []
     parts << "video_generator_openai.rb"
-    parts << "-p \"#{prompt}\""
-    parts << "-m #{model}"
-    parts << "-s \"#{size}\""
-    parts << "-d #{seconds}"
-    parts << "--max-wait #{max_wait}"
+    parts << "-p" << Shellwords.shellescape(prompt)
+    parts << "-m" << Shellwords.shellescape(model)
+    parts << "-s" << Shellwords.shellescape(size)
+    parts << "-d" << Shellwords.shellescape(seconds.to_s)
+    parts << "--max-wait" << max_wait.to_i.to_s
 
     # Handle image-to-video
     if image_path && !image_path.to_s.strip.empty?
-      parts << "-i \"#{image_path}\""
+      parts << "-i" << Shellwords.shellescape(image_path)
       session[:openai_last_video_image] = File.basename(image_path) if session
     end
 
     # Handle remix
     if remix_video_id && !remix_video_id.to_s.strip.empty?
-      parts << "-r \"#{remix_video_id}\""
+      parts << "-r" << Shellwords.shellescape(remix_video_id)
     end
 
     cmd = parts.join(' ')

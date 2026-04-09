@@ -47,3 +47,9 @@ class MailComposerPerplexity < MonadicApp
   include MonadicHelper
   include MonadicSharedTools::FileOperations
 end
+
+class MailComposerOllama < MonadicApp
+  include OllamaHelper if defined?(OllamaHelper)
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
+end

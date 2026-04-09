@@ -20,11 +20,27 @@ RSpec.describe AutoForgeTools do
   end
 
   describe '#diagnose_and_suggest_fixes' do
-    it 'returns an error message when project name is missing' do
+    it 'returns an error message when no projects exist and name is missing' do
+      allow(AutoForgeUtils).to receive(:list_projects).and_return([])
       message = tool.diagnose_and_suggest_fixes({})
 
       expect(message).to include('❌ Diagnosis failed')
       expect(message).to include('Missing project name')
+    end
+
+    it 'falls back to most recent project when name is missing' do
+      allow(tool).to receive(:debug_application_raw).and_return(
+        success: true,
+        project_name: 'RecentApp',
+        javascript_errors: [],
+        warnings: [],
+        summary: ['✅ Page loaded successfully'],
+        performance: { loadTime: 100, renderTime: 80 },
+        functionality_tests: []
+      )
+
+      message = tool.diagnose_and_suggest_fixes({})
+      expect(message).to include('✅ Diagnosis Complete')
     end
 
     it 'stores diagnosis data when debug succeeds' do

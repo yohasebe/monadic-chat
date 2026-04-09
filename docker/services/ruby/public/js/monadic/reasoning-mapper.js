@@ -103,7 +103,7 @@ class ReasoningMapper {
           
         case 'Anthropic':
           if (spec.supports_thinking === true && (spec.thinking_budget || spec.supports_thinking_level)) {
-            options = spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) ? spec.reasoning_effort[0] : ['low', 'high'];
+            options = spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) ? spec.reasoning_effort[0] : ['low', 'medium', 'high'];
           }
           break;
 

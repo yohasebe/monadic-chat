@@ -5,37 +5,27 @@ require_relative '../../lib/monadic/adapters/file_analysis_helper'
 require 'fileutils'
 
 # Test implementation that mimics MonadicApp behavior
+# analyze_image delegates to image_analysis_agent (ImageAnalysisAgent)
+# analyze_audio delegates to audio_transcription_agent (AudioTranscriptionAgent)
 class TestFileAnalysisApp
   include MonadicHelper
   attr_reader :settings
-  
+
   def initialize
     @settings = {
       "model" => "gpt-4.1",
-      :model => "gpt-4.1"
+      "provider" => "openai"
     }
   end
-  
-  # Mock check_vision_capability method
-  def check_vision_capability(model)
-    # Return model as-is for testing
-    model
+
+  # Mock image_analysis_agent (called by MonadicHelper#analyze_image)
+  def image_analysis_agent(message:, image_path:)
+    "Image analysis result for: #{image_path}"
   end
-  
-  def send_command(command:, container:, **kwargs)
-    container_name = "monadic-chat-#{container}-container"
-    container_running = system("docker ps --format '{{.Names}}' | grep -q '^#{container_name}$'")
-    
-    if container_running
-      # Use Docker container
-      `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
-    else
-      # Use local execution
-      data_dir = File.join(Dir.home, "monadic", "data")
-      Dir.chdir(data_dir) do
-        `#{command} 2>&1`
-      end
-    end
+
+  # Mock audio_transcription_agent (called by MonadicHelper#analyze_audio)
+  def audio_transcription_agent(audio_path:, model: nil, response_format: "text", lang_code: nil)
+    "Audio transcription result for: #{audio_path}"
   end
 end
 
@@ -98,9 +88,10 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
       it "handles special characters in image paths" do
         # Create test image with special characters
         special_path = File.join(Monadic::Utils::Environment.data_path, "test image (special).png")
-        
-        # Copy test image to special path
-        FileUtils.cp(@test_image_path, special_path)
+
+        # Create a fresh image for this test (source may be cleaned up by after block)
+        png_data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A].pack("C*")
+        File.binwrite(special_path, png_data)
         
         result = app_instance.analyze_image(
           message: "Test special path",
@@ -197,27 +188,4 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
     end
   end
   
-  describe "command execution verification" do
-    it "executes commands in the correct container" do
-      # This test verifies that commands are actually executed
-      # We can check this by looking at the command format
-      
-      # For image analysis
-      image_command = app_instance.send(:build_image_command, 
-        message: "test",
-        image_path: "/test.jpg",
-        model: "gpt-4.1"
-      )
-      expect(image_command).to include("image_query.rb")
-      expect(image_command).to include("gpt-4.1")
-      
-      # For audio analysis  
-      audio_command = app_instance.send(:build_audio_command,
-        audio: "/test.mp3",
-        model: "whisper-1"
-      )
-      expect(audio_command).to include("stt_query.rb")
-      expect(audio_command).to include("whisper-1")
-    end
-  end if false  # Disable this test if the private methods don't exist
 end

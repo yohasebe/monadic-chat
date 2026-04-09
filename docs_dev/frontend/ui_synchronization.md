@@ -22,10 +22,10 @@ User Action → loadParams() → DOM Updates → Event Triggers → UI Component
 ```
 
 **Key Functions:**
-- `loadParams()`: Loads app/model parameters into UI (websocket.js)
+- `loadParams()`: Loads app/model parameters into UI (utilities.js)
 - `showReasoningUI()` / `hideReasoningUI()`: Toggle reasoning display
 - `updateModelSelectedBadge()`: Update model selection indicator
-- Event handlers: jQuery `change` events on form inputs
+- Event handlers: Native `change` events on form inputs via `addEventListener`
 
 ## Known Synchronization Issues
 
@@ -34,68 +34,40 @@ User Action → loadParams() → DOM Updates → Event Triggers → UI Component
 **Problem**: The `#model-selected` badge doesn't update immediately when switching apps.
 
 **Root Cause**:
-- `loadParams()` triggers `#model option:first.prop('selected', true)` to select the default model
-- This fires a jQuery `change` event that updates reasoning UI components
+- `loadParams()` selects the default model option
+- This fires a `change` event that updates reasoning UI components
 - Reasoning UI update modifies DOM structure, sometimes overriding model badge update
 - Timing race condition: badge update vs reasoning UI DOM modifications
 
 **Example Failure Scenario:**
 ```javascript
 // In loadParams()
-$('#model option').prop('selected', false);
-$('#model option:first').prop('selected', true);  // Fires 'change' event
+const modelEl = document.getElementById('model');
+modelEl.value = defaultModel;
+modelEl.dispatchEvent(new Event('change', { bubbles: true }));
 
 // Change handler updates reasoning UI
-$('#model').on('change', function() {
+modelEl.addEventListener('change', function() {
   showReasoningUI();  // Modifies DOM
   updateBadge();      // May get overridden if reasoning UI touches badge area
 });
 ```
 
-**Solution A (Recommended)**: Create Dedicated `updateModelSelectedBadge()` Helper
+**Solution (Recommended)**: Use `setTimeout(..., 0)` for deferred badge update
 
 ```javascript
-function updateModelSelectedBadge() {
-  const selectedModel = $('#model option:selected').text();
-  $('#model-selected').text(selectedModel);
-}
-
-// Call explicitly after loadParams completes
 function loadParams() {
   // ... load all parameters ...
-  $('#model option:first').prop('selected', true);
+  const modelEl = document.getElementById('model');
+  modelEl.value = defaultModel;
 
   // Ensure badge updates after all DOM modifications
   setTimeout(() => {
-    updateModelSelectedBadge();
+    const selectedEl = document.getElementById('model-selected');
+    if (selectedEl) selectedEl.textContent = modelEl.value;
   }, 0);
 }
 ```
-
-**Benefits:**
-- ✅ Explicit control over badge updates
-- ✅ Decouples from option selection timing
-- ✅ Can be called after all DOM modifications complete
-- ✅ Easy to debug and test
-
-**Solution B (Minimal)**: Add `trigger('change')` at End of `loadParams()`
-
-```javascript
-function loadParams() {
-  // ... load all parameters ...
-  $('#model option:first').prop('selected', true);
-
-  // Force synchronization after all loadParams operations
-  $('#model').trigger('change');
-}
-```
-
-**Trade-offs:**
-- ✅ Less invasive, minimal code changes
-- ❌ Couples timing to change event propagation
-- ❌ May trigger unwanted side effects if change handler does more than badge update
-
-**Implementation Guidance**: Prefer Solution A for deterministic updates; Solution B remains available when event-driven propagation is acceptable.
 
 ## Best Practices
 
@@ -139,12 +111,12 @@ Deep event chains make timing issues hard to debug:
 
 ```javascript
 // ❌ Fragile: Chain of events
-$('#input-a').on('change', () => {
-  $('#input-b').trigger('change');  // Fires another handler
+inputA.addEventListener('change', () => {
+  inputB.dispatchEvent(new Event('change', { bubbles: true }));
 });
 
-$('#input-b').on('change', () => {
-  $('#input-c').trigger('change');  // And another...
+inputB.addEventListener('change', () => {
+  inputC.dispatchEvent(new Event('change', { bubbles: true }));
 });
 
 // ✅ Better: Explicit orchestration
@@ -159,12 +131,10 @@ function updateAllInputs() {
 
 ### 1. Check Event Order
 
-Add logging to understand event firing sequence:
-
 ```javascript
-$('#model').on('change', function() {
+document.getElementById('model').addEventListener('change', function() {
   console.log('[SYNC] Model change event fired', {
-    selected: $(this).val(),
+    selected: this.value,
     timestamp: Date.now()
   });
 });
@@ -172,14 +142,13 @@ $('#model').on('change', function() {
 
 ### 2. Verify DOM State
 
-Check actual DOM state vs expected state:
-
 ```javascript
 function debugModelSelection() {
+  const modelEl = document.getElementById('model');
+  const badgeEl = document.getElementById('model-selected');
   console.log({
-    dropdownValue: $('#model').val(),
-    badgeText: $('#model-selected').text(),
-    selectedOption: $('#model option:selected').text()
+    dropdownValue: modelEl ? modelEl.value : null,
+    badgeText: badgeEl ? badgeEl.textContent : null
   });
 }
 ```
@@ -192,6 +161,6 @@ function debugModelSelection() {
 
 ## Related Files
 
-- `docker/services/ruby/public/js/monadic/websocket.js`: `loadParams()` implementation
-- `docker/services/ruby/public/js/monadic/ui/reasoning.js`: Reasoning UI updates
-- `docker/services/ruby/public/js/monadic/ui/badges.js`: Badge update logic (if exists)
+- `docker/services/ruby/public/js/monadic/utilities.js`: `loadParams()` implementation
+- `docker/services/ruby/public/js/monadic.js`: Main app logic, event handlers
+- `docker/services/ruby/public/js/monadic/badge-renderer.js`: Badge update logic

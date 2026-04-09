@@ -41,25 +41,6 @@ describe('Recording Module', () => {
       messages: []
     });
     
-    // Override any jQuery mocks with more specific implementations
-    $("#voice").toggleClass = jest.fn().mockReturnThis();
-    $("#voice").html = jest.fn().mockReturnThis();
-    $("#voice").prop = jest.fn().mockReturnThis();
-    $("#voice").trigger = jest.fn().mockReturnThis(); 
-    
-    $("#send").prop = jest.fn().mockReturnThis();
-    $("#clear").prop = jest.fn().mockReturnThis();
-    
-    $("#amplitude").show = jest.fn().mockReturnThis();
-    $("#amplitude").hide = jest.fn().mockReturnThis();
-    
-    $("#asr-p-value").text = jest.fn().mockReturnThis();
-    $("#asr-p-value").hide = jest.fn().mockReturnThis();
-    $("#asr-p-value").show = jest.fn().mockReturnThis();
-    
-    // Set up the language selection dropdown
-    $("#asr-lang").val = jest.fn().mockReturnValue('en-US');
-    
     // Mock global functions and variables
     global.setAlert = jest.fn();
     global.reconnect_websocket = jest.fn((ws, callback) => {

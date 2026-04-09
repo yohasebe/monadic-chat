@@ -56,7 +56,7 @@
      * @param {string} themeName - Theme name (e.g., 'github', 'monokai')
      */
     changeTheme: function(themeName) {
-      const themeLink = document.getElementById('hljs-theme');
+      const themeLink = $id('hljs-theme');
       if (!themeLink) {
         console.warn('hljs-theme link element not found');
         return;

@@ -46,6 +46,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "websocket-client-simple"
   spec.add_development_dependency "prawn"
   spec.add_development_dependency "rspec-retry", "~> 0.6"
+  spec.add_development_dependency "rubocop", "~> 1.75"
+  spec.add_development_dependency "rubocop-performance", "~> 1.25"
 
   spec.add_dependency "activesupport", "~> 8.0"
   spec.add_dependency "cld"
@@ -74,6 +76,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'rexml', '~> 3.4.2'
   spec.add_dependency "sinatra", "~> 4.2"
   spec.add_dependency "falcon", "~> 0.51"
+  spec.add_dependency "tiktoken_ruby", "~> 0.0.15"
 
   # Uncomment to use RSyntaxTree
   # spec.add_dependency "rsyntaxtree"

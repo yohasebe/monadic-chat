@@ -7,8 +7,8 @@ app "MathTutorGemini" do
   
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
-    reasoning_effort "none"  # Disabled for MathJax compatibility
+    model ["gemini-3.1-pro-preview", "gemini-3-flash-preview"]
+    reasoning_effort "none"  # Disabled for math rendering compatibility
     temperature 0.0
     max_tokens 8192
     context_size 25
@@ -19,7 +19,7 @@ app "MathTutorGemini" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     group "Google"
     monadic true  # Uses Session State mechanism for learning progress tracking
   end

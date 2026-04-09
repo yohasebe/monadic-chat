@@ -181,7 +181,7 @@ The `monadic true` flag cannot be automatically inferred from tool definitions b
 1. **UI Badge Display**: The frontend shows a visual indicator for monadic apps
 2. **Markdown Rendering**: Different rendering logic is applied for monadic vs non-monadic responses
 3. **Claude Thinking Mode**: Claude's extended thinking is disabled when `monadic true` + structured outputs
-4. **MathJax Escaping**: Different LaTeX escaping rules apply in monadic mode
+4. **Math Escaping**: Different LaTeX escaping rules apply in monadic mode
 5. **TTS Processing**: Post-completion TTS behavior differs based on this flag
 
 ### Checklist for Session State Apps

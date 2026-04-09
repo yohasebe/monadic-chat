@@ -20,20 +20,20 @@ module TestMonadicAppBehavior
     @settings ||= {}
   end
   
-  def send_command(command:, container:, success_with_output: nil)
+  def send_command(command:, container:, success_with_output: nil, timeout: 120)
     container_name = "monadic-chat-#{container}-container"
     container_running = system("docker ps --format '{{.Names}}' | grep -q '^#{container_name}$'")
-    
+
     if container_running
       # Use timeout to prevent hanging
       require 'timeout'
       begin
-        output = Timeout.timeout(30) do
+        output = Timeout.timeout(timeout) do
           `docker exec -w /monadic/data #{container_name} #{command} 2>&1`
         end
         status = $?.success?
       rescue Timeout::Error
-        output = "Command timed out after 30 seconds"
+        output = "Command timed out after #{timeout} seconds"
         status = false
       end
     else
@@ -431,12 +431,15 @@ RSpec.describe "App Helpers Integration", type: :integration do
         "--mode", "md",
         "--filepath", "/monadic/data/"
       ].join(" ")
-      
+
+      # Use 300s timeout: Selenium Grid (maxSessions:1) queues requests,
+      # so during full test suite runs we must wait for other tests to release the session
       result = test_instance.send_command(
         command: fetch_command,
-        container: "python"
+        container: "python",
+        timeout: 300
       )
-      
+
       # Check that it processed the page
       expect(result).to match(/Successfully saved|saved|\.md/)
       
@@ -454,11 +457,13 @@ RSpec.describe "App Helpers Integration", type: :integration do
         "--timeout-sec", "30"  # Increase timeout for more reliability
       ].join(" ")
       
+      # Use 300s timeout for Selenium Grid queue wait
       result = test_instance.send_command(
         command: screenshot_command,
-        container: "python"
+        container: "python",
+        timeout: 300
       )
-      
+
       # Check for successful screenshot or timeout message
       expect(result).to match(/saved|\.png|timed out/)
       

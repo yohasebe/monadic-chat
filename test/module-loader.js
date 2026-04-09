@@ -17,15 +17,9 @@ function loadModule(modulePath, mockWindow = {}) {
   const moduleCode = fs.readFileSync(fullPath, 'utf8');
   
   // Create a sandbox environment
-  const $ = mockWindow.$ || global.$ || (() => ({ width: () => 1024 }));
-  const jQuery = mockWindow.jQuery || global.jQuery || $;
-  
   const sandbox = {
     window: {
       ...mockWindow,
-      // Ensure jQuery is available
-      $: $,
-      jQuery: jQuery,
       // Add any other required globals
       setTimeout: global.setTimeout,
       clearTimeout: global.clearTimeout,
@@ -40,8 +34,6 @@ function loadModule(modulePath, mockWindow = {}) {
         memory: {}
       }
     },
-    $: $,  // Make $ available at top level too
-    jQuery: jQuery,
     document: global.document,
     console: global.console,
     module: { exports: {} },

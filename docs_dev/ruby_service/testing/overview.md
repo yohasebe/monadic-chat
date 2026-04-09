@@ -38,7 +38,7 @@ We've implemented several shared testing utilities to improve code reuse and con
 
 3. **API Integrations**
    - `interaction_utils_spec.rb` - Tests for API interactions
-   - `flask_app_client_spec.rb` - Tests for Flask API client
+   - `tokenizer_spec.rb` - Tests for native tokenizer (tiktoken_ruby)
    - `embeddings_spec.rb` - Tests for vector embeddings
    - `websocket_spec.rb` - Tests for WebSocket functionality
 

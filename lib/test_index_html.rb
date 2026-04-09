@@ -211,13 +211,23 @@ class TestIndexHTML
       stats = suite[:stats]
       if stats
         has_failures = stats[:failed] > 0
-        status_class = has_failures ? 'failed' : 'passed'
-        status_text = has_failures ? '❌ Failed' : '✅ Passed'
+        no_tests_ran = stats[:total] == 0
+        if no_tests_ran
+          status_class = 'skipped'
+          status_text = '⚠️ Skipped (0 tests ran)'
+        elsif has_failures
+          status_class = 'failed'
+          status_text = '❌ Failed'
+        else
+          status_class = 'passed'
+          status_text = '✅ Passed'
+        end
         counts_parts = []
         counts_parts << "#{stats[:passed]} passed" if stats[:passed] > 0
         counts_parts << "#{stats[:failed]} failed" if stats[:failed] > 0
         counts_parts << "#{stats[:pending]} pending" if stats[:pending] > 0
         counts_line = counts_parts.any? ? "<p class=\"counts\">#{counts_parts.join(', ')}</p>" : ''
+        counts_line = '<p class="counts">No tests executed (Docker not running?)</p>' if no_tests_ran
       else
         status_class = suite[:status] ? 'passed' : 'failed'
         status_text = suite[:status] ? '✅ Passed' : '❌ Failed'

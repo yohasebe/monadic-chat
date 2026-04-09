@@ -11,7 +11,7 @@ RSpec.describe "Gemini Tool Continuation" do
 
   describe "Gemini Monadic Mode and Function Calling" do
     it "supports both monadic mode and function calling simultaneously in Gemini 3" do
-      # Gemini 3 (gemini-3-flash-preview, gemini-3-pro-preview) resolves
+      # Gemini 3+ (gemini-3-flash-preview, gemini-3.1-pro-preview) resolves
       # the limitation that existed in Gemini 2.5 where monadic mode
       # and function calling could not work together.
       #

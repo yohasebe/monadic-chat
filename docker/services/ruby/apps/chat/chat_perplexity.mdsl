@@ -43,6 +43,7 @@ app "ChatPerplexity" do
   
   llm do
     provider "perplexity"
+    reasoning_effort "low"
     model "sonar"
   end
   

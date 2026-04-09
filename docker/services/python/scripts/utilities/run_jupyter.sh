@@ -26,10 +26,18 @@ stop_jupyterlab() {
 
 if [ "$1" == "run" ]; then
     if [ -f "$SCRIPT_DIR/jupyter_lab.pid" ]; then
-        echo "JupyterLab is already running. Restarting . . ."
-        stop_jupyterlab
+        PID=$(cat "$SCRIPT_DIR/jupyter_lab.pid")
+        if kill -0 "$PID" 2>/dev/null; then
+            # Process is alive — return success without restarting
+            echo "JupyterLab is running. PID: $PID"
+        else
+            # Stale PID file — process is dead, clean up and restart
+            rm -f "$SCRIPT_DIR/jupyter_lab.pid"
+            start_jupyterlab
+        fi
+    else
+        start_jupyterlab
     fi
-    start_jupyterlab
 elif [ "$1" == "stop" ]; then
     stop_jupyterlab
 else

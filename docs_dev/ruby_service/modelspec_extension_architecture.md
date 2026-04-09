@@ -29,7 +29,7 @@ Use the following checklist whenever a model is added, renamed, or removed. Log 
    - Maintain alphabetical order within each provider section to reduce diff noise.
 
 3. **Update defaults where required**
-   - If the provider should surface the new model by default, update `docker/services/ruby/lib/monadic/utils/system_defaults.rb` and the UI mapping in `app/main.js`.
+   - If the provider should surface the new model by default, update `providerDefaults` in `model_spec.js` (the SSOT for default models).
    - Document any new environment variables in `docs/reference/configuration.md` and the Japanese counterpart.
 
 4. **Sync documentation and samples**

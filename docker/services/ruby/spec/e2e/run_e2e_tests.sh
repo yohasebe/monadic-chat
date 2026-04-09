@@ -201,7 +201,7 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
       attempt=$((attempt + 1))
       if [ $attempt -eq $max_attempts ]; then
         echo "   ✗ Selenium did not become ready in time"
-        echo "   Note: Visual Web Explorer and Mermaid Grapher tests may fail"
+        echo "   Note: Web Insight and Mermaid Grapher tests may fail"
       else
         echo -n "."
         sleep 1

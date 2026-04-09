@@ -126,17 +126,17 @@
   --inline-code-bg: rgba(0, 0, 0, 0.05);
 
   /* Badge Colors */
-  --badge-tools-bg: #ffebee;
-  --badge-tools-border: #ffcdd2;
-  --badge-tools-color: #c62828;
-  --badge-capabilities-bg: #e8f4f8;
-  --badge-capabilities-border: #b3e5fc;
-  --badge-capabilities-color: #01579b;
+  --badge-tools-bg: #f5f0f0;
+  --badge-tools-border: #e0d8d8;
+  --badge-tools-color: #7a5a5a;
+  --badge-capabilities-bg: #f0f3f5;
+  --badge-capabilities-border: #d8e0e5;
+  --badge-capabilities-color: #5a6a7a;
   --badge-category-label: #666;
 
   /* Tool Group Badge */
-  --tool-group-badge-bg: #e3f2fd;
-  --tool-group-badge-color: #1565c0;
+  --tool-group-badge-bg: #f0f3f5;
+  --tool-group-badge-color: #5a6a7a;
 
   /* Alert Message Colors */
   --alert-info-bg: #e3f2fd;
@@ -247,17 +247,17 @@
   --inline-code-bg: rgba(255, 255, 255, 0.1);
 
   /* Badge Colors */
-  --badge-tools-bg: #4a2020;
-  --badge-tools-border: #6a3030;
-  --badge-tools-color: #f47983;
-  --badge-capabilities-bg: #1a3040;
-  --badge-capabilities-border: #2a4a5a;
-  --badge-capabilities-color: #8fb3e8;
+  --badge-tools-bg: #3a2e2e;
+  --badge-tools-border: #4a3e3e;
+  --badge-tools-color: #c8b0b0;
+  --badge-capabilities-bg: #2e3338;
+  --badge-capabilities-border: #3e4348;
+  --badge-capabilities-color: #b0b8c0;
   --badge-category-label: #b0b0b0;
 
   /* Tool Group Badge */
-  --tool-group-badge-bg: #1a3050;
-  --tool-group-badge-color: #8fb3e8;
+  --tool-group-badge-bg: #2e3338;
+  --tool-group-badge-color: #b0b8c0;
 
   /* Alert Message Colors */
   --alert-info-bg: #1a3050;
@@ -896,7 +896,7 @@ img.base64-image {
   max-width: 400px;
   max-height: 200px;
   margin: 1.5rem 0 20px 0;
-  cursor: pointer;
+  cursor: default;
 }
 
 .reset-area,
@@ -997,7 +997,6 @@ div.card-body.role-system {
 
 #back_to_top,
 #back_to_bottom {
-  display: none; /* Initially hidden */
   position: fixed;
   z-index: 1050; /* Above menu overlay (1040) but below modals (9999) */
   transition: opacity var(--transition-normal) ease;
@@ -1498,7 +1497,21 @@ div.sourcecode-toggle:hover {
 }
 
 div.diagram {
-  margin: 20px 0;
+  margin: 10px 0;
+}
+
+div.diagram svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.abc-svg {
+  max-width: 760px;
+}
+
+.abc-svg svg {
+  display: block;
 }
 
 .abc-svg .highlight {
@@ -1523,7 +1536,8 @@ div.diagram {
 }
 
 .abc-midi {
-  margin: 8px 0 12px;
+  max-width: 760px;
+  margin: 2px 0 12px;
 }
 
 /* Override ABCJS player controls — force compact size regardless of .abcjs-large */
@@ -1933,7 +1947,6 @@ legend {
 }
 
 #monadic-spinner {
-  display: none;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -2383,10 +2396,16 @@ pre code {
 
 /* END: CODE STYLE IMPROVEMENTS */
 
-#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #voice-panel {
+#config, #main-panel {
   border: none;
   border-bottom: 1px solid var(--border-light);
   padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+#monadic-info-panel, #ai-status-panel, #pdf-panel, #context-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
+  border: none;
+  border-bottom: 1px solid var(--border-light);
   margin-bottom: 1rem;
 }
 
@@ -2703,10 +2722,22 @@ h1 {
   max-width: 100%;
   height: auto;
   display: inline-block;
+  cursor: default;
 }
 
-.generated_image img:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+/* Screenshot Lightbox */
+#screenshotLightbox .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+#screenshotLightbox .modal-content {
+  background: transparent !important;
+  overflow: visible !important;
+}
+
+#lightboxPrev:hover,
+#lightboxNext:hover {
+  background: rgba(0, 0, 0, 0.75) !important;
 }
 
 /* Alternative selector for syntax tree SVGs if needed */
@@ -3595,7 +3626,6 @@ img.base64-image,
 /* Custom apps dropdown */
 
 #custom-apps-dropdown {
-  display: none;
   position: absolute;
   top: 100%;
   left: 0;
@@ -3831,23 +3861,23 @@ img.base64-image,
 }
 
 #status-message.text-success {
-  color: #0a4a2e !important;
+  color: #1a8a4a !important;
 }
 
 #status-message.text-warning {
-  color: #6c3507 !important;
+  color: #c47a00 !important;
 }
 
 #status-message.text-danger {
-  color: #861b29 !important;
+  color: #c62828 !important;
 }
 
 #status-message.text-info {
-  color: #05326e !important;
+  color: #1565c0 !important;
 }
 
 #status-message.text-secondary {
-  color: #495057 !important;
+  color: #546e7a !important;
 }
 
 /* Bootstrap tooltip styling */
@@ -3856,7 +3886,7 @@ img.base64-image,
 }
 
 .tooltip .tooltip-inner {
-  background-color: #000000 !important;
+  background-color: #555555 !important;
   color: #ffffff !important;
   border-radius: 0.25rem;
   padding: 0.5rem 0.75rem;
@@ -3869,22 +3899,22 @@ img.base64-image,
 
 .bs-tooltip-top .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="top"] .tooltip-arrow::before {
-  border-top-color: #000000 !important;
+  border-top-color: #555555 !important;
 }
 
 .bs-tooltip-bottom .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="bottom"] .tooltip-arrow::before {
-  border-bottom-color: #000000 !important;
+  border-bottom-color: #555555 !important;
 }
 
 .bs-tooltip-start .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="left"] .tooltip-arrow::before {
-  border-left-color: #000000 !important;
+  border-left-color: #555555 !important;
 }
 
 .bs-tooltip-end .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="right"] .tooltip-arrow::before {
-  border-right-color: #000000 !important;
+  border-right-color: #555555 !important;
 }
 
 #status-message[title] {
@@ -3903,23 +3933,6 @@ img.base64-image,
 
 #temp-card .card-header {
   background-color: #f7fafc;
-}
-
-/* MathJax font styling */
-.MathJax {
-  font-family: "Computer Modern", "Latin Modern", "Latin Modern Math", "STIX Two Math", "STIX", "TeX", serif !important;
-}
-
-.mjx-math {
-  font-size: 100% !important;
-}
-
-.mjx-char {
-  letter-spacing: 0.02em;
-}
-
-mjx-container[display="false"] {
-  vertical-align: middle !important;
 }
 
 /* Parallel dispatch task spinner */
@@ -5063,8 +5076,8 @@ i.fas.fa-bolt,
   }
   
   .navbar-container {
-    padding-bottom: 20px;
-    margin-bottom: -20px;
+    padding: 0;
+    margin: 0;
   }
 
   #toggle-menu {
@@ -5105,15 +5118,8 @@ i.fas.fa-bolt,
   }
 
   #main-nav .navbar-brand {
-    height: 65px;
+    height: auto;
     padding: 0;
-  }
-
-  #main-nav .navbar-brand > div:first-child {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    height: 100%;
   }
 
   #main-nav .navbar-brand img {
@@ -5746,6 +5752,8 @@ i.fas.fa-bolt,
   display: none !important;
 }
 
+
+
 /* Note: Bootstrap already has .d-none, but we add .hidden for semantic clarity */
 
 /* Opacity utilities */
@@ -5760,4 +5768,61 @@ i.fas.fa-bolt,
 
 } /* end @layer utilities */
 
+/* ── Collapsible Settings Header ─────────────────────────── */
+
+#config-summary {
+  background: var(--bg-panel, #f8f9fa);
+  border: 1px solid var(--border-light, #dee2e6);
+  transition: background-color 0.15s ease;
+  user-select: none;
+}
+
+#config-summary:hover {
+  background: var(--bg-hover, #e9ecef);
+}
+
+.config-collapse-icon {
+  transition: transform 0.3s ease;
+  font-size: 0.85em;
+  color: var(--text-secondary, #6c757d);
+}
+
+/* Rotate chevron when config-body is expanded */
+#config-summary[aria-expanded="true"] .config-collapse-icon {
+  transform: rotate(180deg);
+}
+
+.setting-locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+#config-actions {
+  padding: 0 0.5rem;
+}
+
+/* Sidebar collapsible panel headers */
+.sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-collapse-toggle:hover {
+  background: var(--bg-hover, #e9ecef);
+}
+
+.sidebar-collapse-icon {
+  transition: transform 0.3s ease;
+  font-size: 0.75em;
+  color: var(--text-secondary, #6c757d);
+}
+
+/* Rotate chevron when panel body is expanded */
+.sidebar-collapse-toggle[aria-expanded="true"] .sidebar-collapse-icon {
+  transform: rotate(180deg);
+}
 

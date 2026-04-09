@@ -17,12 +17,19 @@ class DockerContainerManager
   
   class << self
     def ensure_containers_running
+      # Pre-check: Docker daemon must be running
+      unless docker_daemon_available?
+        msg = "Docker daemon is not running. Start Docker Desktop before running tests."
+        puts "\n❌ #{msg}\n"
+        raise RuntimeError, msg
+      end
+
       # Check if all containers are already running and healthy
       if containers_healthy?
         puts "\n✅ All required containers are already running!\n\n"
         return
       end
-      
+
       puts "\n⚡ Starting required containers for tests..."
       start_missing_containers
       wait_for_containers_ready
@@ -30,6 +37,13 @@ class DockerContainerManager
     rescue => e
       puts "❌ Failed to start containers: #{e.message}"
       raise
+    end
+
+    def docker_daemon_available?
+      _, status = Open3.capture2("docker info", err: File::NULL)
+      status.success?
+    rescue
+      false
     end
     
     def stop_containers
@@ -118,11 +132,8 @@ class DockerContainerManager
     end
 
     def python_healthy?
-      uri = URI("http://localhost:5070/health")
-      response = Net::HTTP.get_response(uri)
-      response.is_a?(Net::HTTPSuccess)
-    rescue StandardError
-      false
+      # Python container has no health endpoint; just check it's running
+      container_running?("python")
     end
     
     def start_missing_containers

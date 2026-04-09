@@ -29,12 +29,34 @@
     }
   }
 
+  // Fetch Ollama-specific model capabilities (vision/tools/thinking) from
+  // /api/ollama/models. Unlike cloud providers, Ollama models are installed
+  // locally by the user and vary per machine, so their capabilities must be
+  // queried dynamically from Ollama's /api/show endpoint at runtime.
+  // Returns an empty object if Ollama is unreachable — the UI still works,
+  // it just won't show vision upload for Ollama models we can't inspect.
+  async function loadOllamaCapabilities() {
+    try {
+      const response = await fetch('/api/ollama/models');
+      if (!response.ok) return {};
+      const data = await response.json();
+      return data.models || {};
+    } catch (error) {
+      console.warn('[Model Loader] Could not fetch Ollama capabilities:', error.message);
+      return {};
+    }
+  }
+
   // Initialize model specifications
   async function initializeModels() {
     const models = await loadModelSpec();
 
-    // Replace global modelSpec with loaded specifications
-    window.modelSpec = models;
+    // Merge API models + dynamic Ollama capabilities INTO the existing
+    // window.modelSpec object (which is the same reference as the `const modelSpec`
+    // in model_spec.js). Replacing with `window.modelSpec = newObj` would break
+    // code that captured the original object reference via the const binding.
+    const ollamaModels = await loadOllamaCapabilities();
+    Object.assign(window.modelSpec, models, ollamaModels);
     window.modelsLoaded = true;
 
     // Dispatch event to notify that models are loaded
@@ -56,18 +78,13 @@
   // before model specifications are loaded from API
   window.addEventListener('modelsLoaded', function() {
     // Check if model selector exists and is empty
-    const modelSelect = document.getElementById('model');
+    const modelSelect = $id('model');
     if (modelSelect && modelSelect.options.length === 0) {
       // Model selector is empty, need to repopulate
       // Trigger app change to rebuild model list
-      const appsSelect = document.getElementById('apps');
+      const appsSelect = $id('apps');
       if (appsSelect && appsSelect.value) {
-        // Use jQuery if available, otherwise dispatch native event
-        if (typeof $ !== 'undefined' && $.fn.trigger) {
-          $(appsSelect).trigger('change');
-        } else {
-          appsSelect.dispatchEvent(new Event('change'));
-        }
+        $dispatch(appsSelect, 'change');
       }
     }
   });

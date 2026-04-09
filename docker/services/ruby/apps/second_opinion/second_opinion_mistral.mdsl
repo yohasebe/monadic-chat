@@ -38,7 +38,7 @@ app "SecondOpinionMistral" do
   
   llm do
     provider "mistral"
-    model "mistral-large-latest"
+    reasoning_effort "low"
     temperature 0.0
   end
 

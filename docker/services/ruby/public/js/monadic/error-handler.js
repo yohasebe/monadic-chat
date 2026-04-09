@@ -166,8 +166,13 @@
    * Initialize global error handler
    */
   function initializeGlobalHandler() {
-    // Handle uncaught errors
+    // Handle uncaught errors (filter out browser extension errors)
     window.addEventListener('error', function(event) {
+      // Skip errors from browser extensions
+      if (event.filename && (event.filename.indexOf('chrome-extension://') !== -1 || event.filename.indexOf('moz-extension://') !== -1)) {
+        return;
+      }
+
       logError({
         category: ERROR_CATEGORIES.SYSTEM,
         message: 'Uncaught error',
@@ -177,15 +182,30 @@
       });
     });
     
-    // Handle promise rejections
+    // Handle promise rejections (filter out browser extension errors)
     window.addEventListener('unhandledrejection', function(event) {
+      // Skip errors from browser extensions (e.g., 1Password, Adobe Acrobat)
+      var reason = event.reason;
+      if (reason instanceof Error) {
+        var stack = reason.stack || '';
+        var msg = reason.message || '';
+        // Filter by extension URL in stack trace
+        if (stack.indexOf('chrome-extension://') !== -1 || stack.indexOf('moz-extension://') !== -1) {
+          return;
+        }
+        // Filter known extension-caused errors (jQuery removed from project)
+        if (msg === '$ is not defined' || msg === 'jQuery is not defined') {
+          return;
+        }
+      }
+
       logError({
         category: ERROR_CATEGORIES.SYSTEM,
         message: 'Unhandled promise rejection',
-        details: event.reason,
+        details: reason,
         level: ERROR_LEVELS.WARNING
       });
-      
+
       // Prevent default browser behavior
       event.preventDefault();
     });

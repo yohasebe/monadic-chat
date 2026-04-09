@@ -45,7 +45,7 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 **A**: Check the following:
 
 1. Make sure Docker Desktop is running.
-2. Ensure that the necessary ports (4567, 5070, 5433, 8889) are not already in use by other applications.
+2. Ensure that the necessary ports (4567, 5433, 8889) are not already in use by other applications.
 3. Look at the console output for any error messages.
 4. Try restarting the application or rebuilding the containers from the console.
 
@@ -56,7 +56,7 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 **A**: While most features require internet access to communicate with language model APIs, you can use Monadic Chat offline with Ollama:
 
 1. Install Ollama on your system ([ollama.com](https://ollama.com/download))
-2. Pull the models you need (e.g., `ollama pull qwen3:4b`)
+2. Pull the models you need (e.g., `ollama pull gemma4:e4b`)
 3. Once models are downloaded, you can use the Chat app with Ollama provider offline
 
 Note that other features like web search, image generation, and cloud-based language models still require internet access.

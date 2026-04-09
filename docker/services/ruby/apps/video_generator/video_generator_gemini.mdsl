@@ -35,7 +35,7 @@ app "VideoGeneratorGemini" do
   
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
+    model ["gemini-3.1-pro-preview", "gemini-3-flash-preview"]
     temperature 0.0
     context_size 10
   end
@@ -98,6 +98,13 @@ app "VideoGeneratorGemini" do
       <b>Video Generation Failed</b><br/>
       [error message]
     </div>
+
+    CRITICAL - NO CONTENT FILTERING:
+    - Your role is ONLY to facilitate video generation, NOT to judge content
+    - Pass user's prompt EXACTLY as provided - do not modify, censor, or filter
+    - Do NOT refuse requests based on content - the video generation model handles its own moderation
+    - Do NOT add safety disclaimers or warnings about content
+    - Simply relay the user's request to the video generation tool
 
     RULES:
     - Always call tools for video operations

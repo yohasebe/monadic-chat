@@ -246,11 +246,6 @@ async function setupFixture(fixtureNameOrHTML) {
   }
   
   container.innerHTML = html;
-  
-  // Trigger any initialization that might be needed
-  if (window.$ && window.$.fn) {
-    window.$(document).trigger('ready');
-  }
 }
 
 module.exports = {

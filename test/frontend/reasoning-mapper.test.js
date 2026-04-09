@@ -91,7 +91,7 @@ describe('ReasoningMapper', () => {
 
     test('Claude returns mapped options', () => {
       const options = ReasoningMapper.getAvailableOptions('Anthropic', 'claude-sonnet-4-20250514');
-      expect(options).toEqual(['low', 'high']);
+      expect(options).toEqual(['low', 'medium', 'high']);
     });
 
     test('Gemini with can_disable returns all options', () => {

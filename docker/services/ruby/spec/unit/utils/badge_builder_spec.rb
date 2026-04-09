@@ -189,26 +189,26 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     context "with features" do
       it "builds capability badges from features" do
         settings = {
-          features: { monadic: true, mathjax: true }
+          features: { monadic: true, math: true }
         }
 
         result = described_class.build_all_badges(settings)
 
         expect(result[:capabilities].size).to eq(2)
-        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("monadic", "mathjax")
+        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("monadic", "math")
       end
 
       it "marks user-controlled features correctly" do
         settings = {
-          features: { mathjax: true, monadic: true }
+          features: { math: true, monadic: true }
         }
 
         result = described_class.build_all_badges(settings)
 
-        mathjax_badge = result[:capabilities].find { |b| b[:id] == "mathjax" }
+        math_badge = result[:capabilities].find { |b| b[:id] == "math" }
         monadic_badge = result[:capabilities].find { |b| b[:id] == "monadic" }
 
-        expect(mathjax_badge[:user_controlled]).to be true
+        expect(math_badge[:user_controlled]).to be true
         expect(monadic_badge[:user_controlled]).to be false
       end
 
@@ -234,7 +234,8 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
 
         backend_badges = result[:capabilities].select { |b| b[:subtype] == :backend }
         expect(backend_badges.size).to eq(1)
-        expect(backend_badges[0][:label]).to eq("gpt-5-codex")
+        # Uses generic label from AGENT_TYPE_LABELS, not raw model name
+        expect(backend_badges[0][:label]).to eq("code generation")
       end
 
       it "includes backend models from agents block" do
@@ -249,7 +250,8 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
 
         backend_badges = result[:capabilities].select { |b| b[:subtype] == :backend }
         expect(backend_badges.size).to eq(2)
-        expect(backend_badges.map { |b| b[:label] }).to contain_exactly("gpt-5-codex", "whisper-1")
+        # Labels use AGENT_TYPE_LABELS mapping or snake_case → space conversion
+        expect(backend_badges.map { |b| b[:label] }).to contain_exactly("code generation", "speech to text")
       end
 
       it "skips nil or empty model names" do

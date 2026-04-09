@@ -149,10 +149,10 @@ describe('TTS Module', () => {
     beforeEach(() => {
       global.ttsSpeak = function(text, stream, callback) {
         // Get settings from UI
-        const provider = $("#tts-provider").val();
-        const voice = $("#tts-voice").val();
-        const elevenlabs_voice = $("#elevenlabs-tts-voice").val();
-        const speed = parseFloat($("#tts-speed").val());
+        const provider = document.getElementById("tts-provider").value;
+        const voice = document.getElementById("tts-voice").value;
+        const elevenlabs_voice = document.getElementById("elevenlabs-tts-voice").value;
+        const speed = parseFloat(document.getElementById("tts-speed").value);
       
         // Determine mode based on streaming flag
         let mode = "TTS";
@@ -254,9 +254,9 @@ describe('TTS Module', () => {
     });
     
     it('should not include speed parameter when it is 1.0', () => {
-      // Set speed to 1.0
-      $('#tts-speed').val.mockReturnValue('1.0');
-      
+      // Set speed to 1.0 (already set in HTML fixture)
+      document.getElementById('tts-speed').value = '1.0';
+
       ttsSpeak('Hello world', false);
       
       const sentData = JSON.parse(global.ws.send.mock.calls[0][0]);

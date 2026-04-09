@@ -8,8 +8,8 @@ app "MathTutorGrok" do
   
   llm do
     provider "xai"
-    model "grok-4-1-fast-reasoning"  # Fast reasoning model with reasoning disabled for MathJax compatibility
     temperature 0.0
+    reasoning_effort "low"
     max_tokens 4096
     tool_choice "auto"  # Enable tool usage
     context_size 25
@@ -20,7 +20,7 @@ app "MathTutorGrok" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    mathjax true
+    math true
     group "xAI"
     monadic true  # Uses Session State mechanism for learning progress tracking
   end

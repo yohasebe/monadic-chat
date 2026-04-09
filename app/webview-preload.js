@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   zoomReset: () => ipcRenderer.send('zoom-reset'),
   // Reset web UI session
   resetWebUI: () => ipcRenderer.send('reset-web-ui'),
+  // Open noVNC viewer window
+  openNoVNC: () => ipcRenderer.send('open-novnc'),
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
   // Clipboard access

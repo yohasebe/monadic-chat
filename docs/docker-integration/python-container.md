@@ -147,12 +147,6 @@ pip install --no-cache-dir mecab-python3
 
 Noto CJK fonts and a configured `matplotlibrc` are included so matplotlib can render Japanese text properly.
 
-## Flask API Server (port 5070)
-
-- Entry: `/monadic/flask/flask_server.py`
-- Endpoints: `/health`, `/count_tokens`, `/get_tokens_sequence`, `/decode_tokens`, `/get_encoding_name`, etc.
-- Auto-starts with the container and is consumed by the Ruby backend.
-
 ## Script layout
 
 ```

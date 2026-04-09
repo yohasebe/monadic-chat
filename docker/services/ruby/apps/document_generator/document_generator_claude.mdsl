@@ -91,7 +91,6 @@ app "DocumentGeneratorClaude" do
 
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-6"
     betas ["code-execution-2025-08-25", "skills-2025-10-02", "files-api-2025-04-14"]
   end
 
@@ -99,7 +98,7 @@ app "DocumentGeneratorClaude" do
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
-    websearch false
+    websearch true
     group "Anthropic"
     skills ["xlsx", "pptx", "docx", "pdf"]
   end

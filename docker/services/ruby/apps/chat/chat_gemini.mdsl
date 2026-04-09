@@ -51,7 +51,6 @@ app "ChatGemini" do
   
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
     reasoning_effort "none"
   end
   

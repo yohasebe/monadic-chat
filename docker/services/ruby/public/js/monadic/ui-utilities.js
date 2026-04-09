@@ -54,91 +54,101 @@ function setupTextarea(textarea, initialHeight) {
  */
 function adjustScrollButtons() {
   try {
-    const mainPanel = $("#main");
-    
+    const mainPanel = $id('main');
+    if (!mainPanel) return;
+
     // Use centralized configuration if available
-    const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : $(window).width() < 600;
-    const isTablet = window.UIConfig ? window.UIConfig.isTabletView() : $(window).width() < 768;
-  
+    const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : window.innerWidth < 600;
+    const isTablet = window.UIConfig ? window.UIConfig.isTabletView() : window.innerWidth < 768;
+
     // On mobile and tablet screens where menu/content are exclusive, check toggle state
     if (isMobile || isTablet) {
     // Check if toggle button has menu-hidden class
     // When menu-hidden class is present, menu is hidden and main is showing
     // When menu-hidden class is absent, menu is showing and main is hidden
-    const toggleBtn = $("#toggle-menu");
-    const isMenuHidden = toggleBtn.hasClass("menu-hidden");
-    
+    const toggleBtn = $id('toggle-menu');
+    const isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
+
     if (!isMenuHidden) {
       // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons
-      $("#back_to_top").hide();
-      $("#back_to_bottom").hide();
+      const topBtn = $id('back_to_top');
+      const bottomBtn = $id('back_to_bottom');
+      $hide(topBtn);
+      $hide(bottomBtn);
       return;
     }
   }
-  
-  // Also check for menu-visible class (mobile menu state) 
-  if ($("body").hasClass("menu-visible")) {
-    $("#back_to_top").hide();
-    $("#back_to_bottom").hide();
+
+  // Also check for menu-visible class (mobile menu state)
+  if (document.body.classList.contains('menu-visible')) {
+    const topBtn = $id('back_to_top');
+    const bottomBtn = $id('back_to_bottom');
+    $hide(topBtn);
+    $hide(bottomBtn);
     return;
   }
-  
+
   // Safe access to dimensions with fallbacks for iOS
-  const mainHeight = mainPanel.height() || 0;
-  const mainScrollHeight = mainPanel.prop("scrollHeight") || 0;
-  const mainScrollTop = mainPanel.scrollTop() || 0;
-  
+  const mainHeight = mainPanel.clientHeight || 0;
+  const mainScrollHeight = mainPanel.scrollHeight || 0;
+  const mainScrollTop = mainPanel.scrollTop || 0;
+
   // Get scroll button elements
-  const backToTopBtn = $("#back_to_top");
-  const backToBottomBtn = $("#back_to_bottom");
-  
+  const backToTopBtn = $id('back_to_top');
+  const backToBottomBtn = $id('back_to_bottom');
+
   // Position buttons relative to main panel
-  const mainOffset = mainPanel.offset();
-  const mainWidth = mainPanel.width();
-  if (mainOffset) {
-    const buttonRight = $(window).width() - (mainOffset.left + mainWidth) + 30;
-    backToTopBtn.css("right", buttonRight + "px");
-    backToBottomBtn.css("right", buttonRight + "px");
+  const mainRect = mainPanel.getBoundingClientRect();
+  const mainWidth = mainPanel.clientWidth;
+  if (mainRect) {
+    const buttonRight = window.innerWidth - (mainRect.left + mainWidth) + 30;
+    if (backToTopBtn) backToTopBtn.style.right = buttonRight + "px";
+    if (backToBottomBtn) backToBottomBtn.style.right = buttonRight + "px";
   }
-  
+
     // Calculate thresholds using config or default
     const scrollThreshold = window.UIConfig ? window.UIConfig.TIMING.SCROLL_THRESHOLD : 100;
-  
+
   // Show top button when scrolled down enough from the top
   // This should work even when at the bottom
   if (mainScrollTop > scrollThreshold) {
-    backToTopBtn.fadeIn(200);
+    $show(backToTopBtn);
   } else {
-    backToTopBtn.fadeOut(200);
+    $hide(backToTopBtn);
   }
-  
+
     // Show bottom button when not near the bottom
     const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
     if (distanceFromBottom > scrollThreshold) {
-      backToBottomBtn.fadeIn(200);
+      $show(backToBottomBtn);
     } else {
-      backToBottomBtn.fadeOut(200);
+      $hide(backToBottomBtn);
     }
   } catch (error) {
     console.error("Error in adjustScrollButtons:", error);
     // Hide buttons on error to prevent stuck visible state
-    $("#back_to_top, #back_to_bottom").hide();
+    var topBtn = $id('back_to_top');
+    var bottomBtn = $id('back_to_bottom');
+    $hide(topBtn);
+    $hide(bottomBtn);
   }
 }
 
 /**
  * Sets up tooltips for specific UI elements
  * Includes error handling for Electron compatibility
- * @param {jQuery} container - Container element to attach tooltips to
+ * @param {HTMLElement} container - Container element to attach tooltips to
  */
 function setupTooltips(container) {
   try {
-    if (container && container.tooltip) {
-      container.tooltip({
-        selector: '.card-header [title]',
-        delay: { show: 0, hide: 0 },
-        show: 100,
-        container: 'body' // Place tooltips in body for easier management
+    if (container && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+      var titleEls = container.querySelectorAll('.card-header [title]');
+      titleEls.forEach(function(el) {
+        new bootstrap.Tooltip(el, {
+          trigger: 'hover',
+          delay: { show: 0, hide: 0 },
+          container: 'body'
+        });
       });
     }
   } catch (e) {
@@ -153,17 +163,18 @@ function setupTooltips(container) {
  */
 function cleanupAllTooltips() {
   try {
-    $('.tooltip').remove(); // Directly remove all tooltip elements
-    
-    // Safely dispose tooltips if the method is available
-    const bsElements = $('[data-bs-original-title]');
-    if (bsElements.length && bsElements.tooltip) {
-      bsElements.tooltip('dispose'); // Bootstrap 5
-    }
-    
-    const originalElements = $('[data-original-title]');
-    if (originalElements.length && originalElements.tooltip) {
-      originalElements.tooltip('dispose'); // Bootstrap 4
+    document.querySelectorAll('.tooltip').forEach(function(el) { el.remove(); });
+
+    // Safely dispose tooltips if Bootstrap is available
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+      document.querySelectorAll('[data-bs-original-title]').forEach(function(el) {
+        var tip = bootstrap.Tooltip.getInstance(el);
+        if (tip) tip.dispose();
+      });
+      document.querySelectorAll('[data-original-title]').forEach(function(el) {
+        var tip = bootstrap.Tooltip.getInstance(el);
+        if (tip) tip.dispose();
+      });
     }
   } catch (e) {
     console.warn('Tooltip cleanup error:', e);
@@ -176,10 +187,11 @@ function cleanupAllTooltips() {
  */
 function adjustImageUploadButton(selectedModel) {
   if (!modelSpec || !selectedModel) return;
-  
+
   const modelData = modelSpec[selectedModel];
-  const imageFileElement = $("#image-file");
-  const currentApp = $("#apps").val();
+  const imageFileElement = $id('image-file');
+  const appsElement = $id('apps');
+  const currentApp = appsElement ? appsElement.value : null;
 
   // Check if current app is an image generation app using the common function
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
@@ -188,42 +200,50 @@ function adjustImageUploadButton(selectedModel) {
   // Show button if model has vision capability OR if it's an image generation app
   if ((modelData && modelData.vision_capability) || isImageGenerationApp) {
     // Enable the button
-    imageFileElement.prop("disabled", false);
-    
-    // Check if the model's provider supports PDF using the common function
+    if (imageFileElement) imageFileElement.disabled = false;
+
+    // Check if the model's provider supports PDF/File Inputs using the common functions
     const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
-    
-    // If it's an image generation app, show "Image" regardless of PDF support
+    const isFileInputsEnabled = window.isFileInputsSupportedForModel ? window.isFileInputsSupportedForModel(selectedModel) : false;
+
+    // Button text labels
     const imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
     const imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
-    
-    if (isImageGenerationApp && !allowPdfInImageApp) {
-      imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
-    } else if (isImageGenerationApp && allowPdfInImageApp) {
-      imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
-    } else if (isPdfEnabled) {
-      imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
-    } else {
-      imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
-    }
-    
-    // Also update the file input's accept attribute
-    const imageFileInput = $('#imageFile');
-    if (imageFileInput.length) {
-      if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
-        imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
+    const fileText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.file') : 'File';
+
+    if (imageFileElement) {
+      if (isImageGenerationApp && !allowPdfInImageApp) {
+        imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
+      } else if (isImageGenerationApp && allowPdfInImageApp) {
+        imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
+      } else if (isFileInputsEnabled) {
+        imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.file">' + fileText + '</span>';
+      } else if (isPdfEnabled) {
+        imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
       } else {
-        imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
+        imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
       }
     }
-    
-    if (imageFileElement.show) {
-      imageFileElement.show();
+
+    // Also update the file input's accept attribute
+    const imageFileInput = $id('imageFile');
+    if (imageFileInput) {
+      if (isFileInputsEnabled && !isImageGenerationApp) {
+        imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
+      } else if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
+        imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp');
+      } else {
+        imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
+      }
+    }
+
+    if (imageFileElement) {
+      $show(imageFileElement);
     }
   } else {
-    imageFileElement.prop("disabled", true);
-    if (imageFileElement.hide) {
-      imageFileElement.hide();
+    if (imageFileElement) {
+      imageFileElement.disabled = true;
+      $hide(imageFileElement);
     }
   }
 }
@@ -241,33 +261,38 @@ function simulateEscapeKey() {
     bubbles: true,
     cancelable: true
   });
-  
+
   // Dispatch event on document to close browser's search dialog
   document.dispatchEvent(escEvent);
 }
 
 /**
  * Sets up click handlers on interactive elements to close search dialog
- * @param {jQuery} containerSelector - Selector for the container to add handlers to
+ * @param {string} containerSelector - CSS selector for the container to add handlers to
  */
-function setupSearchCloseHandlers(containerSelector = 'body') {
+function setupSearchCloseHandlers(containerSelector) {
+  if (containerSelector === undefined) containerSelector = 'body';
   // Find all relevant UI elements that should dismiss search dialog when clicked
-  // We select only specific UI elements, not document-wide, to prevent unwanted behavior
-  const uiElements = $(containerSelector).find('#message, #send, #clear, #voice, #discourse, .card, #model, #reasoning-effort, textarea, button');
-  
+  var container = document.querySelector(containerSelector);
+  if (!container) return;
+
+  var uiElements = container.querySelectorAll('#message, #send, #clear, #voice, #discourse, .card, #model, #reasoning-effort, textarea, button');
+
   // Since mousedown happens before focus events, use it to close search before focus
-  uiElements.on('mousedown', function(e) {
-    // Only simulate Escape if this isn't part of the search UI
-    if (!isPartOfSearchUI(e.target)) {
-      simulateEscapeKey();
-    }
+  uiElements.forEach(function(el) {
+    el.addEventListener('mousedown', function(e) {
+      // Only simulate Escape if this isn't part of the search UI
+      if (!isPartOfSearchUI(e.target)) {
+        simulateEscapeKey();
+      }
+    });
   });
-  
+
   // Helper function to check if element is part of search UI
   function isPartOfSearchUI(element) {
     // Skip check if element is null or undefined
     if (!element) return false;
-    
+
     // Check tag name for common search elements (case-insensitive)
     const tagName = element.tagName ? element.tagName.toLowerCase() : '';
     if (tagName === 'input' && element.type === 'search') {
@@ -285,11 +310,11 @@ function setupSearchCloseHandlers(containerSelector = 'body') {
         }
         parent = parent.parentElement;
       }
-      
+
       // Additional check for Safari/Firefox search UI buttons
       if (element.getAttribute('aria-label')) {
         const label = element.getAttribute('aria-label').toLowerCase();
-        if (label.includes('search') || label.includes('find') || 
+        if (label.includes('search') || label.includes('find') ||
             label.includes('next') || label.includes('previous')) {
           return true;
         }
@@ -304,25 +329,25 @@ function setupSearchCloseHandlers(containerSelector = 'body') {
         return true;
       }
     }
-    
+
     // Also check if any parent elements match search UI criteria
     // This handles cases where user clicks on inner elements of search UI
     let parent = element.parentElement;
     let searchPatterns = ['find', 'search', 'findinpage', 'findbar'];
-    
+
     while (parent) {
       // Check for shadow DOM elements (used by Chrome's search UI)
       if (parent.shadowRoot) {
         return true;
       }
-      
+
       if (parent.className && typeof parent.className === 'string') {
         const parentClass = parent.className.toLowerCase();
         if (searchPatterns.some(pattern => parentClass.includes(pattern))) {
           return true;
         }
       }
-      
+
       if (parent.id && searchPatterns.some(pattern => parent.id.toLowerCase().includes(pattern))) {
         return true;
       }
@@ -331,10 +356,10 @@ function setupSearchCloseHandlers(containerSelector = 'body') {
       if (parent.getAttribute && parent.getAttribute('role') === 'dialog') {
         return true;
       }
-      
+
       parent = parent.parentElement;
     }
-    
+
     // Additional check for the element being part of browser's default search UI
     // Most browsers place search dialog in a special container
     if (window.getComputedStyle(element).zIndex > 1000) {
@@ -344,7 +369,7 @@ function setupSearchCloseHandlers(containerSelector = 'body') {
         return true;
       }
     }
-    
+
     return false;
   }
 }

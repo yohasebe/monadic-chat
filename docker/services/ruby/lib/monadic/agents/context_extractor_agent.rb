@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../utils/system_defaults"
+require_relative "../utils/extra_logger"
 require "net/http"
 require "uri"
 require "json"
@@ -100,7 +101,7 @@ module ContextExtractorAgent
     "mistral" => "https://api.mistral.ai/v1/chat/completions",
     "cohere" => "https://api.cohere.ai/v2/chat",
     "deepseek" => "https://api.deepseek.com/v1/chat/completions",
-    "ollama" => "http://host.docker.internal:11434/api/chat"
+    "ollama" => nil  # Resolved dynamically via OllamaHelper.find_endpoint
   }.freeze
 
   # Detect the dominant language of the conversation text
@@ -113,7 +114,7 @@ module ContextExtractorAgent
     # Use the CLD gem for accurate language detection
     CLD.detect_language(text)[:code]
   rescue StandardError => e
-    puts "[ContextExtractor] Language detection error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Language detection error: #{e.message}" }
     "en"  # Default to English on error
   end
 
@@ -129,11 +130,7 @@ module ContextExtractorAgent
     provider = normalize_provider(provider)
 
     # Debug: Log provider normalization
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] extract_context called with provider=#{provider}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] extract_context called with provider=#{provider}" }
 
     model = SystemDefaults.get_default_model(provider)
 
@@ -143,18 +140,10 @@ module ContextExtractorAgent
     end
 
     # Debug: Log model lookup result
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] model lookup result: model=#{model.inspect}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] model lookup result: model=#{model.inspect}" }
 
     if model.nil?
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: model is nil for provider=#{provider}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] EARLY RETURN: model is nil for provider=#{provider}" }
       return nil
     end
 
@@ -162,18 +151,10 @@ module ContextExtractorAgent
     api_key = get_api_key_for_provider(provider)
 
     # Debug: Log API key check
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] API key present: #{!api_key.nil? && !api_key.empty?}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] API key present: #{!api_key.nil? && !api_key.empty?}" }
 
     if api_key.nil? && provider != "ollama"
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: no API key for provider=#{provider}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] EARLY RETURN: no API key for provider=#{provider}" }
       return nil
     end
 
@@ -186,7 +167,7 @@ module ContextExtractorAgent
       # Detect language from the combined conversation text
       conversation_for_detection = "#{user_message}\n#{assistant_response}"
       detected_language = detect_conversation_language(conversation_for_detection)
-      puts "[ContextExtractor] Detected language: #{detected_language}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Detected language: #{detected_language}" }
     end
 
     # Build the extraction prompt dynamically with language support
@@ -201,47 +182,23 @@ module ContextExtractorAgent
     system_message = "#{extraction_prompt}\n\nConversation to analyze:\n#{conversation_text}"
 
     begin
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] Calling API: provider=#{provider}, model=#{model}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Calling API: provider=#{provider}, model=#{model}" }
 
       result = call_provider_api(provider, model, system_message, api_key)
 
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] API result: #{result.nil? ? 'nil' : "#{result.length} chars"}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] API result: #{result.nil? ? 'nil' : "#{result.length} chars"}" }
 
       if result.is_a?(String) && !result.empty?
-        if CONFIG && CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [ContextExtractor] Raw API response: #{result[0..500].inspect}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Raw API response: #{result[0..500].inspect}" }
         parsed = parse_context_json(result, effective_schema)
-        if CONFIG && CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [ContextExtractor] Parsed context: #{parsed.inspect}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Parsed context: #{parsed.inspect}" }
         parsed
       else
-        if CONFIG && CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [ContextExtractor] API returned empty or nil result")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[ContextExtractor] API returned empty or nil result" }
         nil
       end
     rescue StandardError => e
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] API exception: #{e.class}: #{e.message}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] API exception: #{e.class}: #{e.message}" }
       log_extraction_error(provider, model, e)
       nil
     end
@@ -322,7 +279,7 @@ module ContextExtractorAgent
     # DeepSeek reasoner returns reasoning_content separately, content has the actual response
     data.dig("choices", 0, "message", "content")
   rescue StandardError => e
-    puts "[ContextExtractor] OpenAI-compatible API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] OpenAI-compatible API error: #{e.message}" }
     nil
   end
 
@@ -362,7 +319,7 @@ module ContextExtractorAgent
     end
     nil
   rescue StandardError => e
-    puts "[ContextExtractor] xAI Responses API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] xAI Responses API error: #{e.message}" }
     nil
   end
 
@@ -400,7 +357,7 @@ module ContextExtractorAgent
     end
     nil
   rescue StandardError => e
-    puts "[ContextExtractor] Anthropic API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Anthropic API error: #{e.message}" }
     nil
   end
 
@@ -439,13 +396,11 @@ module ContextExtractorAgent
     data = JSON.parse(response)
 
     # Log full response structure for debugging
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        finish_reason = data.dig("candidates", 0, "finishReason")
-        token_count = data.dig("usageMetadata", "candidatesTokenCount")
-        log.puts("[#{Time.now}] [ContextExtractor] Gemini response: finishReason=#{finish_reason}, tokens=#{token_count}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log {
+      finish_reason = data.dig("candidates", 0, "finishReason")
+      token_count = data.dig("usageMetadata", "candidatesTokenCount")
+      "[ContextExtractor] Gemini response: finishReason=#{finish_reason}, tokens=#{token_count}"
+    }
 
     # Gemini thinking models may have multiple parts (thought + text)
     # Find the last text part (thinking comes first if present)
@@ -460,7 +415,7 @@ module ContextExtractorAgent
     end
     nil
   rescue StandardError => e
-    puts "[ContextExtractor] Gemini API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Gemini API error: #{e.message}" }
     nil
   end
 
@@ -469,7 +424,7 @@ module ContextExtractorAgent
     uri = URI.parse(API_ENDPOINTS["cohere"])
 
     # Check if this is a reasoning/thinking model
-    is_reasoning_model = model.to_s.include?("reasoning") || model.to_s.include?("command-a")
+    is_reasoning_model = model.to_s.include?("reasoning")
 
     request_body = {
       "model" => model,
@@ -507,17 +462,16 @@ module ContextExtractorAgent
     end
     nil
   rescue StandardError => e
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] Cohere API error: #{e.class}: #{e.message}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Cohere API error: #{e.class}: #{e.message}" }
     nil
   end
 
   # Call Ollama API (local, no API key required)
   def call_ollama_api(model, system_message)
-    uri = URI.parse(API_ENDPOINTS["ollama"])
+    # Resolve endpoint dynamically (localhost in dev, host.docker.internal in container)
+    ollama_endpoint = defined?(OllamaHelper) ? OllamaHelper.find_endpoint : nil
+    return nil unless ollama_endpoint
+    uri = URI.parse("#{ollama_endpoint}/chat")
 
     request_body = {
       "model" => model,
@@ -526,6 +480,7 @@ module ContextExtractorAgent
         { "role" => "user", "content" => "Extract context and return JSON only." }
       ],
       "stream" => false,
+      "think" => false,  # Disable thinking for fast context extraction
       "options" => {
         "temperature" => 0.3
       }
@@ -541,7 +496,7 @@ module ContextExtractorAgent
     data = JSON.parse(response)
     data.dig("message", "content")
   rescue StandardError => e
-    puts "[ContextExtractor] Ollama API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Ollama API error: #{e.message}" }
     nil
   end
 
@@ -561,11 +516,11 @@ module ContextExtractorAgent
     if response.code.to_i >= 200 && response.code.to_i < 300
       response.body
     else
-      puts "[ContextExtractor] HTTP error #{response.code}: #{response.body[0..200]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] HTTP error #{response.code}: #{response.body[0..200]}" }
       nil
     end
   rescue StandardError => e
-    puts "[ContextExtractor] HTTP request error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] HTTP request error: #{e.message}" }
     nil
   end
 
@@ -585,11 +540,11 @@ module ContextExtractorAgent
     if response.code.to_i >= 200 && response.code.to_i < 300
       response.body
     else
-      puts "[ContextExtractor] Local HTTP error #{response.code}: #{response.body[0..200]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Local HTTP error #{response.code}: #{response.body[0..200]}" }
       nil
     end
   rescue StandardError => e
-    puts "[ContextExtractor] Local HTTP request error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Local HTTP request error: #{e.message}" }
     nil
   end
 
@@ -617,10 +572,10 @@ module ContextExtractorAgent
       models = OllamaHelper.list_models
       models&.first || OllamaHelper::DEFAULT_MODEL
     else
-      OllamaHelper::DEFAULT_MODEL rescue "qwen3:4b"
+      OllamaHelper::DEFAULT_MODEL rescue "gemma4:e4b"
     end
   rescue StandardError => e
-    puts "[ContextExtractor] Error getting Ollama models: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Error getting Ollama models: #{e.message}" }
     nil
   end
 
@@ -632,19 +587,11 @@ module ContextExtractorAgent
   # @param session_id [String] WebSocket session ID for broadcasting
   # @param schema [Hash] The context schema defining fields to extract (optional)
   def process_and_broadcast_context(session, user_message, assistant_response, provider, session_id, schema = nil)
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] process_and_broadcast_context called")
-        log.puts("[#{Time.now}] [ContextExtractor]   provider=#{provider}, session_id=#{session_id ? 'present' : 'nil'}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] process_and_broadcast_context called" }
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor]   provider=#{provider}, session_id=#{session_id ? 'present' : 'nil'}" }
 
     if session_id.nil?
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: session_id is nil")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] EARLY RETURN: session_id is nil" }
       return
     end
 
@@ -653,20 +600,12 @@ module ContextExtractorAgent
     # Extract conversation language from session runtime settings
     language = session.dig(:runtime_settings, :language) || session.dig("runtime_settings", "language")
 
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] Calling extract_context with language=#{language}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Calling extract_context with language=#{language}" }
 
     context = extract_context(session, user_message, assistant_response, provider, effective_schema, language)
 
     if context.nil?
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: extract_context returned nil")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] EARLY RETURN: extract_context returned nil" }
       return
     end
 
@@ -676,22 +615,14 @@ module ContextExtractorAgent
     has_content = field_names.any? { |name| context[name]&.any? }
 
     if !has_content
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: no content to broadcast")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] EARLY RETURN: no content to broadcast" }
       return
     end
 
     # Merge with existing context from session (using dynamic schema)
     merged_context = merge_with_session_context(session, context, effective_schema)
 
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] Broadcasting context update to session #{session_id}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Broadcasting context update to session #{session_id}" }
 
     # Broadcast to sidebar via WebSocket (include schema for frontend rendering)
     broadcast_context_update(session_id, merged_context, effective_schema)
@@ -699,7 +630,7 @@ module ContextExtractorAgent
     # Also save to session state
     save_context_to_session(session, merged_context)
 
-    log_extraction_success(provider, merged_context, effective_schema) if CONFIG && CONFIG["EXTRA_LOGGING"]
+    log_extraction_success(provider, merged_context, effective_schema)
   end
 
   private
@@ -727,27 +658,15 @@ module ContextExtractorAgent
     # Remove markdown code blocks if present
     cleaned = text.gsub(/```json\s*/i, "").gsub(/```\s*/, "").strip
 
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] parse_context_json: cleaned text = #{cleaned[0..300].inspect}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] parse_context_json: cleaned text = #{cleaned[0..300].inspect}" }
 
     # Try to find JSON object in the text - use greedy match for nested structures
     # Match from first { to last } to handle arrays inside
     if match = cleaned.match(/\{.*\}/m)
       cleaned = match[0]
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] parse_context_json: matched JSON = #{cleaned[0..300].inspect}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] parse_context_json: matched JSON = #{cleaned[0..300].inspect}" }
     else
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ContextExtractor] parse_context_json: No JSON match found")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] parse_context_json: No JSON match found" }
     end
 
     parsed = JSON.parse(cleaned)
@@ -765,7 +684,7 @@ module ContextExtractorAgent
 
     result
   rescue JSON::ParserError => e
-    puts "[ContextExtractor] JSON parse error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] JSON parse error: #{e.message}" }
     nil
   end
 
@@ -914,12 +833,12 @@ module ContextExtractorAgent
 
     if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
       WebSocketHelper.send_to_session(message.to_json, session_id)
-      puts "[ContextExtractor] Sent context_update to session #{session_id}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Sent context_update to session #{session_id}" }
     else
-      puts "[ContextExtractor] WebSocketHelper not available" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] WebSocketHelper not available" }
     end
   rescue StandardError => e
-    puts "[ContextExtractor] Broadcast error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Broadcast error: #{e.message}" }
   end
 
   # Remove items associated with a specific turn from context
@@ -1012,7 +931,7 @@ module ContextExtractorAgent
       broadcast_context_update(session_id, updated_context, effective_schema)
     end
 
-    puts "[ContextExtractor] Handled deletion of turn #{deleted_turn}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Handled deletion of turn #{deleted_turn}" }
   end
 
   # Handle context update when multiple messages are deleted (e.g., "delete this and below")
@@ -1049,7 +968,7 @@ module ContextExtractorAgent
       broadcast_context_update(session_id, result, effective_schema)
     end
 
-    puts "[ContextExtractor] Handled bulk deletion from turn #{starting_turn}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Handled bulk deletion from turn #{starting_turn}" }
   end
 
   # Mark items from a specific turn as edited and re-extract context
@@ -1099,24 +1018,25 @@ module ContextExtractorAgent
       broadcast_context_update(session_id, updated_context, effective_schema)
     end
 
-    puts "[ContextExtractor] Handled edit of turn #{turn}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Handled edit of turn #{turn}" }
   end
 
   # Logging helpers
   def log_extraction_error(provider, model, error)
-    return unless CONFIG && CONFIG["EXTRA_LOGGING"]
-    puts "[ContextExtractor] Error with #{provider}/#{model}: #{error.message}"
+    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Error with #{provider}/#{model}: #{error.message}" }
   end
 
   def log_extraction_success(provider, context, schema = nil)
-    effective_schema = schema || DEFAULT_SCHEMA
-    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+    Monadic::Utils::ExtraLogger.log {
+      effective_schema = schema || DEFAULT_SCHEMA
+      fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
 
-    field_counts = fields.map do |field|
-      name = field[:name] || field["name"]
-      "#{name}=#{(context[name] || []).length}"
-    end.join(", ")
+      field_counts = fields.map do |field|
+        name = field[:name] || field["name"]
+        "#{name}=#{(context[name] || []).length}"
+      end.join(", ")
 
-    puts "[ContextExtractor] Extracted: #{field_counts}"
+      "[ContextExtractor] Extracted: #{field_counts}"
+    }
   end
 end

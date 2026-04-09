@@ -278,4 +278,216 @@ RSpec.describe GeminiHelper do
       expect(out).to eq(["text"])
     end
   end
+
+  describe 'MIME detection for auto-attach' do
+    # Test the extension-to-MIME mapping used in send_query auto-attach
+
+    def mime_for(filename)
+      case File.extname(filename.to_s).downcase
+      when ".png" then "image/png"
+      when ".jpg", ".jpeg" then "image/jpeg"
+      when ".gif" then "image/gif"
+      when ".webp" then "image/webp"
+      else "image/png"
+      end
+    end
+
+    it 'detects PNG MIME type' do
+      expect(mime_for("image.png")).to eq("image/png")
+    end
+
+    it 'detects JPG MIME type' do
+      expect(mime_for("photo.jpg")).to eq("image/jpeg")
+    end
+
+    it 'detects JPEG MIME type' do
+      expect(mime_for("photo.jpeg")).to eq("image/jpeg")
+    end
+
+    it 'detects GIF MIME type' do
+      expect(mime_for("anim.gif")).to eq("image/gif")
+    end
+
+    it 'detects WebP MIME type' do
+      expect(mime_for("photo.webp")).to eq("image/webp")
+    end
+
+    it 'defaults to PNG for unknown extensions' do
+      expect(mime_for("file.bmp")).to eq("image/png")
+    end
+
+    it 'handles case-insensitive extensions' do
+      expect(mime_for("IMAGE.PNG")).to eq("image/png")
+      expect(mime_for("photo.JPG")).to eq("image/jpeg")
+    end
+
+    it 'handles nil filename' do
+      expect(mime_for(nil)).to eq("image/png")
+    end
+  end
+
+  describe '#build_url_context_html (XSS prevention)' do
+    it 'escapes HTML special characters in URLs' do
+      url_context = {
+        "urlMetadata" => [{
+          "retrievedUrl" => 'https://example.com/page?q=<script>alert("xss")</script>',
+          "urlRetrievalStatus" => "URL_RETRIEVAL_STATUS_SUCCESS"
+        }]
+      }
+      result = helper.send(:build_url_context_html, url_context)
+      expect(result).to include('&lt;script&gt;')
+      expect(result).not_to include('<script>')
+    end
+
+    it 'rejects javascript: protocol URLs as links' do
+      url_context = {
+        "urlMetadata" => [{
+          "retrievedUrl" => 'javascript:alert(1)',
+          "urlRetrievalStatus" => "URL_RETRIEVAL_STATUS_SUCCESS"
+        }]
+      }
+      result = helper.send(:build_url_context_html, url_context)
+      expect(result).not_to include('href=')
+    end
+
+    it 'rejects data: protocol URLs as links' do
+      url_context = {
+        "urlMetadata" => [{
+          "retrievedUrl" => 'data:text/html,<script>alert(1)</script>',
+          "urlRetrievalStatus" => "URL_RETRIEVAL_STATUS_SUCCESS"
+        }]
+      }
+      result = helper.send(:build_url_context_html, url_context)
+      expect(result).not_to include('href=')
+    end
+
+    it 'allows https URLs as links' do
+      url_context = {
+        "urlMetadata" => [{
+          "retrievedUrl" => 'https://example.com/safe',
+          "urlRetrievalStatus" => "URL_RETRIEVAL_STATUS_SUCCESS"
+        }]
+      }
+      result = helper.send(:build_url_context_html, url_context)
+      expect(result).to include("href='https://example.com/safe'")
+    end
+
+    it 'returns nil for empty urlMetadata' do
+      expect(helper.send(:build_url_context_html, { "urlMetadata" => [] })).to be_nil
+    end
+
+    it 'handles nil retrievedUrl gracefully' do
+      url_context = {
+        "urlMetadata" => [{
+          "retrievedUrl" => nil,
+          "urlRetrievalStatus" => "URL_RETRIEVAL_STATUS_SUCCESS"
+        }]
+      }
+      result = helper.send(:build_url_context_html, url_context)
+      expect(result).not_to include('href=')
+    end
+  end
+
+  describe '#build_grounding_metadata_html (XSS prevention)' do
+    it 'escapes HTML in web search queries' do
+      grounding = {
+        "webSearchQueries" => ['<img src=x onerror="alert(1)">'],
+        "groundingChunks" => []
+      }
+      result = helper.send(:build_grounding_metadata_html, grounding)
+      expect(result).to include('&lt;img')
+      expect(result).not_to include('<img src=')
+    end
+
+    it 'escapes HTML in chunk titles' do
+      grounding = {
+        "webSearchQueries" => ['test query'],
+        "groundingChunks" => [{
+          "web" => {
+            "uri" => "https://example.com",
+            "title" => '"><script>alert(1)</script>'
+          }
+        }]
+      }
+      result = helper.send(:build_grounding_metadata_html, grounding)
+      expect(result).to include('&lt;script&gt;')
+      expect(result).not_to include('<script>')
+    end
+
+    it 'escapes HTML in chunk URLs' do
+      grounding = {
+        "webSearchQueries" => ['test'],
+        "groundingChunks" => [{
+          "web" => {
+            "uri" => 'https://example.com/page?a=1&b=2',
+            "title" => "Test"
+          }
+        }]
+      }
+      result = helper.send(:build_grounding_metadata_html, grounding)
+      expect(result).to include('&amp;b=2')
+    end
+
+    it 'rejects javascript: protocol in chunk URLs' do
+      grounding = {
+        "webSearchQueries" => ['test'],
+        "groundingChunks" => [{
+          "web" => {
+            "uri" => 'javascript:alert(document.cookie)',
+            "title" => "Malicious"
+          }
+        }]
+      }
+      result = helper.send(:build_grounding_metadata_html, grounding)
+      expect(result).not_to include('href=')
+      expect(result).to include('Malicious')
+    end
+
+    it 'returns nil when webSearchQueries is empty' do
+      expect(helper.send(:build_grounding_metadata_html, { "webSearchQueries" => [] })).to be_nil
+    end
+  end
+
+  describe 'method visibility' do
+    let(:helper_class) { Class.new { include GeminiHelper } }
+
+    # Public API methods
+    %i[api_request process_json_data process_functions send_query
+       generate_video_with_veo generate_image_with_gemini generate_image_with_imagen_direct].each do |method|
+      it "#{method} is public" do
+        expect(helper_class.public_method_defined?(method)).to be(true),
+          "Expected #{method} to be public"
+      end
+    end
+
+    # Private helper methods (extracted from api_request)
+    %i[resolve_gemini_model_capabilities build_gemini_request_body
+       prepare_gemini_message_contents configure_gemini_tools
+       execute_gemini_api_call handle_gemini_api_error].each do |method|
+      it "#{method} is private" do
+        expect(helper_class.private_method_defined?(method)).to be(true),
+          "Expected #{method} to be private"
+      end
+    end
+
+    # Private helper methods (extracted from process_json_data)
+    %i[build_url_context_html build_grounding_metadata_html
+       process_gemini_stream_part generate_gemini_fallback_response
+       assemble_gemini_final_result].each do |method|
+      it "#{method} is private" do
+        expect(helper_class.private_method_defined?(method)).to be(true),
+          "Expected #{method} to be private"
+      end
+    end
+
+    # Private helper methods (extracted from process_functions)
+    %i[prepare_gemini_tool_arguments invoke_gemini_tool_function
+       handle_media_generation_result handle_gemini_tool_execution_error
+       translate_role unwrap_single_markdown_code_block].each do |method|
+      it "#{method} is private" do
+        expect(helper_class.private_method_defined?(method)).to be(true),
+          "Expected #{method} to be private"
+      end
+    end
+  end
 end

@@ -4,6 +4,12 @@ require "securerandom"
 require "base64"
 require "http"
 
+begin
+  require_relative "../../lib/monadic/utils/model_spec"
+rescue LoadError
+  # ModelSpec not available in this environment
+end
+
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 5
 READ_TIMEOUT = 60
@@ -70,7 +76,8 @@ def img2url(image_path, max_dimension = 512)
   "data:#{mime_type};base64,#{base64_data}"
 end
 
-def image_query(message, image, model = "gpt-4.1")
+def image_query(message, image, model = nil)
+  model ||= (defined?(Monadic::Utils::ModelSpec) && Monadic::Utils::ModelSpec.default_vision_model("openai"))
   num_retrial = 0
 
   begin
@@ -162,7 +169,7 @@ end
 # Assuming the first argument is the message and the second is the image path/url
 message = ARGV[0]
 image_path_or_url = ARGV[1]
-model = ARGV[2] || "gpt-4.1"
+model = ARGV[2] || (defined?(Monadic::Utils::ModelSpec) && Monadic::Utils::ModelSpec.default_vision_model("openai"))
 
 if message.nil? || image_path_or_url.nil?
   puts "Usage: #{$PROGRAM_NAME} 'message' 'image_path_or_url' 'model'"

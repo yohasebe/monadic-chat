@@ -443,3 +443,6 @@ SQL,エスキューエル
 - 詳細なガイドは[ドキュメント](/)を確認
 - [設定リファレンス](/ja/reference/configuration.md)をレビュー
 - 基本については[クイックスタートチュートリアル](/ja/getting-started/quick-start.md)を参照
+### Q: PythonコンテナやユーザーコンテナをリビルドしたらStartが失敗しました。Rubyもリビルドする必要がありますか？
+
+**A**: Startコマンドはオーケストレーションのヘルスチェックを実行し、必要に応じてRubyコントロールプレーンを自動的に1回リフレッシュ（Dockerキャッシュを使用）して起動を続行します。これはコンソールに情報メッセージとして表示されます。最終的に起動が失敗する場合は、`~/monadic/log/docker_startup.log`を確認してください（`Auto-rebuilt Ruby due to failed health probe`を探してください）。ヘルスプローブは`~/monadic/config/env`の`START_HEALTH_TRIES`と`START_HEALTH_INTERVAL`で調整できます。

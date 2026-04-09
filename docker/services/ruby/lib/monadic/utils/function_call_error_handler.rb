@@ -3,13 +3,25 @@
 # Mixin module for vendor helpers to track and handle repeated function call errors
 module FunctionCallErrorHandler
   # Detect whether a function return value indicates an error.
-  # Covers multiple error formats: "ERROR:", "Error executing code:", "Error occurred:", etc.
+  # Covers multiple error formats:
+  #   - String prefixes: "ERROR:", "Error:", "Error executing code:", "Error occurred:", "❌"
+  #   - Hash with { success: false } or { "success" => false }
+  #   - JSON string containing {"success":false}
   def function_return_is_error?(function_return)
+    # Hash-style error detection (e.g., { success: false, error: "..." })
+    if function_return.is_a?(Hash)
+      return true if function_return[:success] == false || function_return["success"] == false
+    end
+
     text = function_return.to_s
     return true if text.start_with?("ERROR:")
     return true if text.start_with?("Error executing code")
     return true if text.start_with?("Error occurred")
     return true if text.start_with?("Error:")
+    return true if text.start_with?("❌")
+
+    # JSON string with success:false (e.g., from .to_json calls)
+    return true if text.include?('"success":false') || text.include?('"success": false')
 
     false
   end
@@ -47,14 +59,34 @@ module FunctionCallErrorHandler
     false # Continue processing
   end
   
-  # Check if we should stop due to repeated errors
-  def should_stop_for_errors?(session)
-    session[:parameters] && session[:parameters]["stop_retrying"]
+  # Record a tool call (regardless of success/failure) for cycle detection
+  def record_tool_call(session, function_name)
+    ErrorPatternDetector.record_tool_call(session, function_name)
   end
-  
+
+  # Check if we should stop due to repeated errors OR tool call cycles
+  def should_stop_for_errors?(session)
+    return true if session[:parameters] && session[:parameters]["stop_retrying"]
+
+    if ErrorPatternDetector.tool_call_cycle_detected?(session)
+      session[:parameters] ||= {}
+      session[:parameters]["stop_retrying"] = true
+      return true
+    end
+
+    false
+  end
+
+  # Get stop message (error suggestion or cycle warning)
+  def stop_message_for_session(session)
+    ErrorPatternDetector.tool_cycle_message(session) ||
+      ErrorPatternDetector.get_error_suggestion(session)
+  end
+
   # Reset error tracking for a new conversation
   def reset_error_tracking(session)
     session[:error_patterns] = nil
+    ErrorPatternDetector.reset_tool_tracking(session)
     session[:parameters]["stop_retrying"] = false if session[:parameters]
   end
 end

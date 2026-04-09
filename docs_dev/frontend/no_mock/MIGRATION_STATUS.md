@@ -38,20 +38,20 @@
 
 ### What Works Well
 1. **Real DOM Testing**: Using jsdom with actual DOM APIs provides realistic test environment
-2. **Real jQuery**: Loading actual jQuery library eliminates mock maintenance
-3. **Event Handling**: Real DOM events propagate naturally
+2. **No jQuery Dependency**: jQuery has been fully removed from the codebase (2026-03-30). All DOM operations use vanilla JS.
+3. **Event Handling**: Real DOM events propagate naturally (use `{bubbles: true}` for dispatched events)
 4. **Async Operations**: `waitFor` utilities handle timing issues gracefully
 
 ### Challenges Resolved
 1. **TextEncoder/TextDecoder**: Added polyfills for Node.js compatibility
 2. **DataTransfer API**: Created custom polyfill for clipboard operations
-3. **jQuery Path**: Located correct vendor path for jQuery
+3. **jQuery Removal**: All `$()` calls replaced with `document.getElementById()`, `querySelector()`, etc.
 4. **Fixture Loading**: Simplified to avoid ESM module issues
 5. **ClipboardEvent**: Used Event with custom clipboardData property
 
 ### Key Differences from Mock-Based Tests
-- No manual mock maintenance required
-- Tests reflect actual user behavior
+- No manual mock maintenance required (jQuery mocks eliminated)
+- Tests reflect actual user behavior via vanilla DOM APIs
 - Real async timing instead of fake timers
 - Actual DOM state verification
 - True event propagation

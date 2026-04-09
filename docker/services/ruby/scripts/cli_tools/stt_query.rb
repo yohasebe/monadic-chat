@@ -23,7 +23,16 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
 
-def stt_api_request(audiofile, response_format = "text", lang_code = nil, model = "gpt-4o-transcribe")
+# Resolve default STT model from providerDefaults SSOT
+def default_stt_model
+  require 'monadic/utils/model_spec'
+  Monadic::Utils::ModelSpec.default_audio_model("openai")
+rescue LoadError
+  nil
+end
+
+def stt_api_request(audiofile, response_format = "text", lang_code = nil, model = nil)
+  model ||= default_stt_model
   num_retrial = 0
 
   begin
@@ -74,7 +83,7 @@ audiofile = ARGV[0]
 outpath = ARGV[1] || "."
 response_format = ARGV[2] || "json"  # Changed default from srt to json
 lang_code = ARGV[3] || nil
-model = ARGV[4] || "gpt-4o-transcribe"  # Added model parameter with default
+model = ARGV[4] || default_stt_model  # Resolved from providerDefaults SSOT
 
 if audiofile.nil?
   puts "ERROR: No audio file provided."

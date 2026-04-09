@@ -27,8 +27,8 @@ When you use the `Actions/Start JupyterLab` menu in the Monadic Chat console to 
 - **Syntax Tree**: Generated syntax tree diagrams (SVG format)
 - **Concept Visualizer**: Generated concept diagrams (SVG format)
 - **Mermaid Grapher**: Generated diagram preview images (PNG format)
-- **DrawIO Grapher**: Generated diagram files (.drawio format)
-- **Visual Web Explorer**: Captured website screenshots (PNG format)
+- **DrawIO Grapher**: Generated diagram files (.drawio format) and preview images (PNG format)
+- **Web Insight**: Captured website screenshots (PNG format)
 
 Files are saved directly in the shared folder with generated filenames that often include timestamps or unique identifiers. It's recommended to periodically clean up unnecessary files.
 

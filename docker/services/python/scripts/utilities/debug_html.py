@@ -165,6 +165,23 @@ def debug_html(html_path):
         except Exception:
             pass
 
+        # Capture viewport screenshot for visual verification
+        try:
+            # Set a reasonable viewport size
+            driver.set_window_size(1280, 900)
+            time.sleep(0.5)
+            screenshot_filename = f"autoforge_debug_{int(time.time())}.png"
+            screenshot_path = f"/monadic/data/{screenshot_filename}"
+            driver.save_screenshot(screenshot_path)
+            if Path(screenshot_path).exists():
+                results['screenshot'] = screenshot_filename
+                results['viewport'] = {'width': 1280, 'height': 900}
+        except Exception as e:
+            results['warnings'].append({
+                'message': f'Screenshot capture failed: {str(e)}',
+                'timestamp': time.time()
+            })
+
     except WebDriverException as e:
         results['success'] = False
         results['errors'].append(f"WebDriver error: {str(e)}")

@@ -92,7 +92,7 @@ end
 
 ### 1. Message Isolation by app_name
 
-**Implementation**: `lib/monadic/utils/websocket.rb:313-315, 523-526, 1163-1169`
+**Implementation**: `websocket/misc_handlers.rb` (`handle_ws_system_prompt`, `handle_ws_sample`) and `websocket/html_handler.rb` (`handle_ws_html`)
 
 ```ruby
 # Save messages with app_name
@@ -378,4 +378,5 @@ end
 - `docs_dev/common-issues.md` - Troubleshooting guide
 - `docs_dev/developer/development_workflow.md` - Public developer guidelines
 - `lib/monadic/app.rb` - MonadicApp base class
-- `lib/monadic/utils/websocket.rb` - Session management
+- `lib/monadic/utils/websocket.rb` - WebSocket routing and session management
+- `lib/monadic/utils/websocket/` - Sub-modules (connection_manager, streaming_handler, html_handler, misc_handlers, etc.)

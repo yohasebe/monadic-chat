@@ -159,7 +159,6 @@ app "MusicLabGrok" do
 
   llm do
     provider "xai"
-    model "grok-3"
     temperature 0.5
     context_size 20
   end

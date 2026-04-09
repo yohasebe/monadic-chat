@@ -70,7 +70,6 @@ app "ResearchAssistantDeepSeek" do
 
   llm do
     provider "deepseek"
-    model "deepseek-chat"
     context_size 30
   end
 
@@ -80,9 +79,10 @@ app "ResearchAssistantDeepSeek" do
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.0
+    reasoning_effort "low"
     easy_submit false
     auto_speech false
-    mathjax true
+    math true
     initiate_from_assistant true
     # Note: monadic mode disabled for DeepSeek due to tool loop issues
   end
@@ -105,5 +105,8 @@ app "ResearchAssistantDeepSeek" do
 
     # Import unified web search tools (Tavily for DeepSeek)
     import_shared_tools :web_search_tools, visibility: "conditional"
+
+    # Import image analysis tools (conditional - requires any vision provider API key)
+    import_shared_tools :image_analysis, visibility: "conditional"
   end
 end

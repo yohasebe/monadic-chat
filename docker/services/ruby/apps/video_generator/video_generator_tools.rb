@@ -7,13 +7,10 @@ class VideoGeneratorGemini < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include GeminiHelper if defined?(GeminiHelper)
 
-  # Initialize with special flag for conversation history management
   def initialize(*args)
     super
-    # Flag to clear tool call history from orchestration model context
-    # This prevents the model from seeing previous tool calls and results
-    # which would cause it to repeatedly call the same tool
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   # Override to add monadic state saving for uploaded images
@@ -54,21 +51,35 @@ class VideoGeneratorOpenAI < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include MonadicHelper
 
-  # Initialize with special flag for conversation history management
   def initialize(*args)
     super
-    # Flag to clear tool call history from orchestration model context
-    # This prevents the model from seeing previous tool calls and results
-    # which would cause it to repeatedly call the same tool
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
+  end
+
+  # Compute dynamic max_wait based on video duration
+  # Base: 600s (10 min) + 30s per video second
+  def self.compute_max_wait(seconds)
+    base = 600
+    duration = seconds.to_i
+    return base if duration <= 0
+
+    base + (duration * 30)
   end
 
   # Override to add monadic state saving for uploaded images
-  def generate_video_with_sora(prompt:, model: "sora-2", size: "1280x720", seconds: "8", image_path: nil, remix_video_id: nil, session: nil)
+  def generate_video_with_sora(prompt:, model: nil, size: "1280x720", seconds: "8", image_path: nil, remix_video_id: nil, session: nil)
+    # Resolve model via SSOT before validation
+    model ||= if defined?(Monadic::Utils::ModelSpec)
+                 Monadic::Utils::ModelSpec.default_video_model("openai")
+               end
+
     validate_sora_params(prompt: prompt, model: model, size: size, seconds: seconds)
 
-    # Call the parent implementation
-    result_json = super
+    # Call the parent implementation with dynamic timeout
+    result_json = super(prompt: prompt, model: model, size: size, seconds: seconds,
+                        image_path: image_path, remix_video_id: remix_video_id,
+                        max_wait: self.class.compute_max_wait(seconds), session: session)
 
     # Save uploaded image filename to monadic state for later reuse
     if session && image_path && !image_path.to_s.strip.empty?
@@ -94,13 +105,17 @@ class VideoGeneratorOpenAI < MonadicApp
   def validate_sora_params(prompt:, model:, size:, seconds:)
     raise ArgumentError, "Prompt cannot be empty" if prompt.to_s.strip.empty?
 
-    valid_models = %w[sora-2 sora-2-pro]
+    valid_models = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.get_provider_models("openai", "video") || %w[sora-2 sora-2-pro]
+                   else
+                     %w[sora-2 sora-2-pro]
+                   end
     raise ArgumentError, "Invalid model: #{model}" unless valid_models.include?(model)
 
     valid_sizes = %w[1280x720 1920x1080 1080x1920 720x1280 1792x1024 1024x1792]
     raise ArgumentError, "Invalid size: #{size}" unless valid_sizes.include?(size)
 
-    valid_seconds = %w[4 8 12 16]
+    valid_seconds = %w[4 8 12 16 20]
     raise ArgumentError, "Invalid duration: #{seconds}" unless valid_seconds.include?(seconds.to_s)
 
     true
@@ -114,6 +129,7 @@ class VideoGeneratorGrok < MonadicApp
   def initialize(*args)
     super
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil, image_path: nil, session: nil)

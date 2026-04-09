@@ -23,22 +23,22 @@ Monadic Chat uses the following priority order for configuration values (highest
    - User-defined settings take highest priority
    - Override all other configuration sources
 
-2. **System Defaults** (`config/system_defaults.json`)
-   - Provider-specific default models and settings
+2. **Provider Defaults** (`providerDefaults` in `model_spec.js`)
+   - Provider-specific default models defined as the single source of truth (SSOT)
    - Applied when no environment variable is set
 
 3. **Hardcoded Defaults**
    - Built-in fallback values in the code
-   - Used as last resort when neither ENV nor system_defaults provide a value
+   - Used as last resort when neither ENV nor providerDefaults provide a value
 
 ### Example
 
 For the OpenAI default model:
 - If `OPENAI_DEFAULT_MODEL=<model-id>` is set in `~/monadic/config/env`, it will be used
-- Otherwise, the value from `system_defaults.json` will be used
+- Otherwise, the value from `providerDefaults` in `model_spec.js` will be used
 - If neither exists, the hardcoded default in the application will be applied
 
-> **Note**: For current default values, refer to `docker/services/ruby/config/system_defaults.json`. Model names are updated frequently, so it's recommended to check the implementation files for the latest values.
+> **Note**: For current default values, refer to `providerDefaults` in `docker/services/ruby/public/js/monadic/model_spec.js`. Model names are updated frequently, so it's recommended to check the implementation files for the latest values.
 
 ## API Keys
 
@@ -56,7 +56,7 @@ For the OpenAI default model:
 
 ## Model Settings
 
-> **Note**: For default values, refer to `docker/services/ruby/config/system_defaults.json`. The table below shows variable names and usage only.
+> **Note**: For default values, refer to `providerDefaults` in `docker/services/ruby/public/js/monadic/model_spec.js`. The table below shows variable names and usage only.
 
 | Variable | Description | Usage Example |
 |----------|-------------|---------------|
@@ -69,6 +69,12 @@ For the OpenAI default model:
 | `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
 | `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `PERPLEXITY_DEFAULT_MODEL=<model-id>` |
 | `GROK_DEFAULT_MODEL` | Default model for Grok apps | `GROK_DEFAULT_MODEL=<model-id>` |
+
+### Model Selection in the UI
+
+The **Model** dropdown shows a curated list of recommended models for the selected app. This list comes from the app's MDSL definition or the provider's default model set.
+
+To see all available models from the provider, toggle the **All** switch next to the Model label. In "All" mode, models that are incompatible with the current app (e.g., models without tool support for apps that require tools) are automatically excluded. Your toggle preference is saved across sessions via a browser cookie.
 
 ## System Settings
 
@@ -88,7 +94,7 @@ For the OpenAI default model:
 
 | Variable | Description | Default | Range/Options |
 |----------|-------------|---------|---------------|
-| `STT_MODEL` | Speech-to-text model | See system_defaults.json | Refer to provider documentation for available models |
+| `STT_MODEL` | Speech-to-text model | See model_spec.js | Refer to provider documentation for available models |
 | `TTS_DICT_PATH` | Path to TTS pronunciation dictionary | (optional) | File path |
 | `TTS_DICT_DATA` | Inline TTS pronunciation data | (optional) | CSV format |
 | `AUTO_TTS_MIN_LENGTH` | Minimum text length before TTS generation in realtime mode | `50` | 20-200 characters |
@@ -109,7 +115,6 @@ For the OpenAI default model:
 | `DISTRIBUTED_MODE` | Enable multi-user server mode | `false` | `true`, `false`, `server` |
 | `SESSION_SECRET` | Secret key for session management | (generated) | Any string |
 | `MCP_SERVER_ENABLED` | Enable Model Context Protocol server | `false` | `true`, `false` |
-| `PYTHON_PORT` | Port for Python container services | `5070` | 1024-65535 |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | Enable Jupyter in server mode | `false` | `true`, `false` |
 
 ### Application Modes

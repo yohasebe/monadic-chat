@@ -8,24 +8,6 @@
  * audio ID tracking (clearProcessedAudioIds, isAudioProcessed, markAudioProcessed)
  */
 
-// Minimal jQuery mock
-global.$ = jest.fn().mockImplementation(selector => ({
-  val: jest.fn().mockReturnThis(),
-  text: jest.fn().mockReturnThis(),
-  prop: jest.fn().mockReturnThis(),
-  attr: jest.fn().mockReturnThis(),
-  show: jest.fn().mockReturnThis(),
-  hide: jest.fn().mockReturnThis(),
-  append: jest.fn().mockReturnThis(),
-  remove: jest.fn().mockReturnThis(),
-  empty: jest.fn().mockReturnThis(),
-  html: jest.fn().mockReturnThis(),
-  css: jest.fn().mockReturnThis(),
-  length: 0,
-  0: { outerHTML: '<div></div>', appendChild: jest.fn() },
-  is: jest.fn().mockReturnValue(false)
-}));
-
 global.setAlert = jest.fn();
 global.setInputFocus = jest.fn();
 global.autoScroll = false;
@@ -36,39 +18,36 @@ global.Uint8Array = { from: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3]))
 global.clearTimeout = jest.fn();
 global.setTimeout = jest.fn(cb => { if (typeof cb === 'function') cb(); return 1; });
 
-// Mock document methods
-global.document = {
-  ...global.document,
-  getElementById: jest.fn(() => ({
-    scrollIntoView: jest.fn(),
-    innerHTML: '',
-    appendChild: jest.fn(),
-    style: { setProperty: jest.fn() },
-    classList: { toggle: jest.fn(), add: jest.fn(), remove: jest.fn(), contains: jest.fn() }
-  })),
-  createElement: jest.fn(() => {
-    let _text = '';
-    return {
-      get textContent() { return _text; },
-      set textContent(v) { _text = v; },
-      get innerHTML() { return _text.replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-    };
-  }),
-  createDocumentFragment: jest.fn(() => ({
-    appendChild: jest.fn()
-  })),
-  createTextNode: jest.fn(text => ({ nodeType: 3, textContent: text })),
-  hidden: false,
-  visibilityState: 'visible'
-};
-
 global.URL = { createObjectURL: jest.fn(), revokeObjectURL: jest.fn() };
 global.Blob = jest.fn();
+
+// Common element IDs
+const commonIds = [
+  'monadic-spinner', 'cancel_query', 'message', 'send', 'clear',
+  'voice', 'doc', 'url', 'image-file', 'discourse', 'amplitude',
+  'asr-p-value', 'check-easy-submit', 'select-role', 'ai_user',
+  'ai_user_provider', 'user-panel', 'temp-card', 'api-token',
+  'ai-user-initial-prompt', 'chat-bottom'
+];
+
+function setupDom() {
+  document.body.innerHTML = '';
+  commonIds.forEach(id => {
+    const el = document.createElement('div');
+    el.id = id;
+    document.body.appendChild(el);
+  });
+  // Add spinner span
+  const spinnerEl = document.getElementById('monadic-spinner');
+  const spanEl = document.createElement('span');
+  spinnerEl.appendChild(spanEl);
+}
 
 const handlers = require('../../docker/services/ruby/public/js/monadic/websocket-handlers');
 
 beforeEach(() => {
   jest.clearAllMocks();
+  setupDom();
   handlers.clearProcessedAudioIds();
 });
 
@@ -109,13 +88,10 @@ describe('Audio ID Tracking', () => {
     });
 
     it('evicts old IDs when exceeding MAX_PROCESSED_IDS', () => {
-      // MAX_PROCESSED_IDS is 100 in the implementation
       for (let i = 0; i < 110; i++) {
         handlers.markAudioProcessed(`id-${i}`);
       }
-      // Oldest IDs should be evicted (keeps last 50 after cleanup)
       expect(handlers.isAudioProcessed('id-0')).toBe(false);
-      // Recent IDs should still be present
       expect(handlers.isAudioProcessed('id-109')).toBe(true);
     });
   });

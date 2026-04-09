@@ -51,6 +51,10 @@ module MathTutorTools
       add_to_context_panel(field: :tips, items: tips, session: session)
     end
 
+    # Force-stop further tool calls — save_learning_progress marks end of turn.
+    # This prevents _image injection from triggering additional run_code cycles.
+    session[:call_depth_per_turn] = 99_999 if session
+
     result
   end
 

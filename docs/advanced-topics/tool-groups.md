@@ -91,7 +91,7 @@ These tool groups require specific containers or API keys to be available:
 - Debug web applications with automated testing
 - Scrape web content
 
-**Apps using this**: Visual Web Explorer (all providers), AutoForge (all providers)
+**Apps using this**: Web Insight (all providers), AutoForge (all providers)
 
 **How to enable**:
 1. Go to **Actions** menu

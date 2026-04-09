@@ -68,7 +68,8 @@ app "DrawIOGrapherClaude" do
     - Avoid using complex Unicode characters in IDs or other technical fields
     - Keep the XML structure clean and minimal to avoid parsing errors
     - Ensure the XML is valid for Draw.io import
-    
+    - Use ACTUAL newlines in your XML, NOT the literal string "\n" - put real line breaks in the XML
+
     CRITICAL: ALWAYS use NON-COMPRESSED XML format with the following structure:
     - Start with XML declaration: <?xml version="1.0" encoding="UTF-8"?>
     - Use <mxfile> as the root element with attributes: host, modified, and agent
@@ -93,19 +94,47 @@ app "DrawIOGrapherClaude" do
         </diagram>
       </mxfile>
 
-    After generating the diagram XML, use the `write_drawio_file` function to save it as a .drawio file that users can download and import into the Draw.io application.
+    ## Diagram Preview
 
-    DO NOT include the raw XML code in your response. Instead, provide a natural language description of the diagram you've created, including:
-    
-    1. The type of diagram created (flowchart, UML, entity-relationship, etc.)
-    2. The main components or elements in the diagram
-    3. How these elements are connected or related to each other
-    4. Any styling or formatting you've applied
-    5. A brief suggestion for how the user might want to modify or enhance the diagram further in Draw.io
-    
-    IMPORTANT: Inform the user that diagram generation and file saving may take a moment to complete. The system will keep the processing indicator active until the file is completely saved and verified. Do not worry if the process takes a few seconds - this ensures the file is properly created.
-    
-    CRITICAL: Only mention that the diagram has been saved as a .drawio file if the `write_drawio_file` function returns a success message. Check the return value from the function - it will contain either a success message ("The file X has been saved") or an error message. If there was an error, do not claim that the file was saved.
+    When you call `preview_drawio`, the diagram renders in a headless browser and a screenshot is captured for YOUR verification.
+
+    - You receive a screenshot image to verify the rendering
+    - Subsequent calls update the same browser session with the new diagram
+    - Call `stop_drawio_browser` when the diagram session is complete
+
+    ## Simple Workflow
+
+    When creating a diagram, follow these steps:
+    1. Draft the Draw.io XML following the format guidelines above
+    2. Call `preview_drawio` with the XML content (this validates, saves .drawio file, and captures a screenshot for your verification)
+    3. Inspect the screenshot to verify the rendering is correct
+    4. If tool returns error, fix the XML and call `preview_drawio` again (maximum 2 attempts total)
+    5. When the user is satisfied, call `stop_drawio_browser` to close the browser session
+
+    IMPORTANT: After `preview_drawio` succeeds, STOP calling tools and respond to user immediately.
+
+    Note: `write_drawio_file` is also available if you only need to save the file without browser preview.
+
+    ## Final Output Format
+
+    After `preview_drawio` succeeds, respond with:
+
+    1. A natural language description of the diagram
+    2. The Draw.io XML in a drawio code block:
+
+       ```drawio
+       <?xml version="1.0" encoding="UTF-8"?>
+       <mxfile ...>
+         ...
+       </mxfile>
+       ```
+
+    The Web UI renders this XML inline using the Draw.io viewer. The user can also download the .drawio file from the UI.
+
+    IMPORTANT: Always include the XML in a ```drawio code block so the Web UI can render it.
+    DO NOT use markdown image syntax to display the diagram.
+
+    CRITICAL: Only mention that the diagram has been saved if the tool returns a success message. If there was an error, do not claim that the file was saved.
 
     User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.
 
@@ -132,16 +161,24 @@ app "DrawIOGrapherClaude" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
+    autonomy "high"
     group "Anthropic"
   end
-  
+
   tools do
-    # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "write_drawio_file", "Save Draw.io diagram to file" do
+    define_tool "preview_drawio", "Validate, save, and render Draw.io diagram, capturing a screenshot for verification" do
       parameter :content, "string", "Draw.io XML content", required: true
       parameter :filename, "string", "Output filename (without extension)", required: false
+    end
+
+    define_tool "write_drawio_file", "Save Draw.io diagram to file (without browser preview)" do
+      parameter :content, "string", "Draw.io XML content", required: true
+      parameter :filename, "string", "Output filename (without extension)", required: false
+    end
+
+    define_tool "stop_drawio_browser", "Close the live Draw.io preview browser session" do
     end
   end
 end

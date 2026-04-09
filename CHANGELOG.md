@@ -1,3 +1,96 @@
+- [April, 2026] 1.0.0-beta.9
+  - **Ollama Integration Overhaul**: Dynamic model capability detection via `/api/show`, thinking/vision/tool calling/structured output support
+    - New apps: Voice Chat, Mail Composer for Ollama
+    - New endpoint: `/api/ollama/models` for dynamic model capability metadata
+    - Dynamic model list refresh (no server restart needed after `ollama pull`)
+  - **Bug Fix**: Ollama tool calling was completely non-functional (JSON string parsing missing in `format_tools_for_ollama`)
+  - **Bug Fix**: "Show Thinking" toggle ignored by 7 of 9 providers — fixed in shared `html_handler.rb`
+  - **Bug Fix**: Jupyter Notebook tool call loop — made `run_jupyter` idempotent, fixed ambiguous "already exists" responses
+  - **Improvement**: Disabled thinking/reasoning in code execution apps (Jupyter, Code Interpreter) to prevent excessive tool calls
+  - **Improvement**: Tool call cycle detection in ErrorPatternDetector (alternating pattern A→B→A→B detection across all providers)
+  - **Improvement**: Clarified UI button labels ("Text from file" / "Text from URL" / "Attach file") in 7 languages
+  - **Improvement**: Auto-rebuild JS bundle in `rake server:debug` when sources change
+  - **Improvement**: Translation duplicate key linter (`npm run test:translations-duplicates`)
+  - **Improvement**: API test retry with exponential backoff to prevent rate limiting failures
+  - **Bug Fix**: Gemini Jupyter empty response after notebook creation — added nudge retry mechanism
+  - **Bug Fix**: Gemini Jupyter false success message when only notebook created (no cells added)
+  - **Bug Fix**: Gemini Jupyter premature tool removal due to duplicate tool call counting
+  - **Bug Fix**: Claude text lost after tool calls — pre-tool text now preserved in final response
+  - **Bug Fix**: Grok Image Generator showed stale images after session reset — removed auto-attach
+  - **Bug Fix**: ContextExtractor Ollama endpoint hardcoded to `host.docker.internal` — now uses dynamic endpoint
+  - **Bug Fix**: `modelSpec` const reference not updated by dynamic Ollama merge — fixed with `Object.assign` into existing object
+  - **Improvement**: Default Show Thinking toggle to OFF for all providers
+  - **Improvement**: Default `reasoning_effort` to `"none"` in DSL; apps opt in with `"low"` or higher
+  - **Improvement**: Cache-Control no-cache headers in dev mode to prevent stale JS bundle
+  - **Improvement**: Translate app prompts improved with follow-up language handling
+  - **Improvement**: Softer sidebar badge colors, fixed image hover cursor
+  - **Cleanup**: Disabled OpenAI Video Generator (Sora API shutdown), removed 28 duplicate translation keys
+- [March, 2026] 1.0.0-beta.9
+  - Version updated from 1.0.0-beta.8
+  - **Major Backend Refactoring**: Eliminated all monolithic files (2,000+ lines)
+    - `websocket.rb` (3,400 lines) split into 9 sub-modules (connection_manager, streaming_handler, tts_handler, etc.)
+    - `monadic.rb` (1,700 lines) split into 5 route files (api, upload, session, static, pdf)
+    - `dsl.rb` (1,270 lines) split into 5 modules (configurations, loader, provider_config, tool_definitions, tool_formatters)
+    - `interaction_utils.rb` split into tts_utils, stt_utils, and tavily_utils
+    - `string_utils.rb` — markdown_utils extracted
+  - **Major Frontend Refactoring**: Modularized JavaScript codebase
+    - `websocket.js` (4,900 lines) split into 16 handler modules (ws-*-handler.js)
+    - `utilities.js` — 7 modules extracted (alert-manager, badge-renderer, card-renderer, cookie-utils, json-tree-toggle, model-capabilities, text-utils)
+  - **JS Bundle Build Pipeline**: 69 script files concatenated and minified into single bundle (46.7% size reduction)
+  - **Lazy Loading**: Mermaid, ABCjs, and maxgraph (~3.6 MB) deferred from initial page load
+  - **tiktoken_ruby Migration**: Replaced Python Flask tokenizer with native tiktoken_ruby gem (Rust binding)
+    - Eliminates Python container dependency for tokenization
+    - Port 5070 removed, Flask server deleted
+  - **providerDefaults SSOT**: Centralized model defaults in model_spec.js (8 categories: chat, code, vision, audio, image, video, tts, embedding)
+    - Removed all hardcoded model name fallbacks from agents and scripts
+  - **jQuery Complete Removal**: Eliminated jQuery 3.7.0 dependency entirely (45 files, ~4,600 call sites converted to vanilla JS)
+    - Bootstrap 5 modal/tooltip migrated to native JavaScript API
+    - 87KB library removed from page load
+    - DOM helper utilities (`$id`, `$show`, `$hide`, `$toggle`, `$on`, `$dispatch`) for concise null-safe DOM operations
+  - **jQuery UI Removal**: Removed jQuery UI dependency (248KB), replaced draggable with PointerEvents
+  - **MathJax → KaTeX**: Migrated math rendering from MathJax to KaTeX (75% JS size reduction: 1.1MB → 272KB)
+  - **Mistral Voxtral TTS**: Text-to-speech via Mistral API with 30 preset voices (9 languages: EN/FR/ES/DE/IT/PT/NL/HI/AR)
+  - **Mistral Voxtral STT**: Speech-to-text via Mistral API (13 languages including Japanese, Chinese, Korean)
+  - **Cohere Transcribe STT**: Speech-to-text via Cohere API (14 languages including Japanese) with automatic WebM-to-MP3 conversion
+  - **Docker Optimization**: On-demand container startup via Compose Profiles (Python/Selenium start only when needed, reducing idle resource usage)
+  - **Docker Optimization**: Python container no longer blocks Ruby container startup (parallel startup)
+  - **RuboCop**: Added linting with conservative config, detected and fixed 4 bugs
+  - **ExtraLogger**: Unified logging across 16 files
+  - **Mermaid Grapher**: User-language labels, _image vision verification, PNG cleanup
+  - **Model Lifecycle**: Removed 6 sunset models (5 Cohere + grok-3), deprecated model UI filtering
+  - **Tool Error Handling**: Standardized error format (❌ prefix) across all tool methods, enhanced error detection for Hash/JSON returns, prevents infinite tool call loops
+  - **AutoForge**: Fixed infinite loop when debug_application called without project name (auto-resolves to most recent project)
+  - **UI Improvements**: Tooltip hover-out behavior, status message visibility, scrollIntoView null crash fixes
+  - **Recording**: AudioContext.resume() async handling, native MediaRecorder preference over polyfill
+  - **Test Suite**: ~4,500 tests (Ruby 2,554 unit + 565 integration + 30 system, Frontend 1,203)
+  - **Session Stability**:
+    - Output truncation (50KB limit) for send_command/send_code to prevent LLM context bloat
+    - Automatic stripping of base64 image data from inactive session messages to prevent unbounded session growth
+    - Orchestration history expanded from 1 to 3 rounds for iterative Image/Video editing workflows
+  - **Docker Optimization**: pgvector restart policy changed to default (no), enabling Docker Resource Saver
+  - **Selenium Health Check**: Mermaid/DrawIO Grapher now verifies Selenium container health before session reuse
+  - **Build All Fix**: Includes all Compose profiles (python/selenium) in build/up/down/stop operations; emits SERVER STARTED signal so Electron transitions to Ready state after full build
+  - **UI Visibility Fix**: Reset → Start Session no longer leaves message area hidden (main-panel now synchronizes both d-none class and inline display style symmetrically)
+
+- [March, 2026] 1.0.0-beta.8
+  - Version updated from 1.0.0-beta.7
+  - **Web Insight** (renamed from Visual Web Explorer): Screenshot-based web capture with browser automation
+    - Annotate elements tool for interactive web analysis
+    - Lightbox/zoom for screenshot gallery
+    - Automatic whitespace trimming for screenshots
+    - Perceptual hash deduplication for viewport screenshots
+  - **noVNC Live Preview**: Added to DrawIO Grapher and Mermaid Grapher for real-time diagram viewing
+  - **OpenAI File Inputs API**: Integration with file_id caching and extended format support
+  - **Mask Editor**: Added undo support and stroke-based drawing
+  - **Provider-Independent Agents**: ImageAnalysisAgent, VideoAnalyzeAgent, AudioTranscriptionAgent for multi-provider vision/audio support
+  - **MDSL Autonomy Levels**: Added autonomy configuration for app definitions
+  - **Electron noVNC Viewer**: Dedicated viewer window for container GUI applications
+  - **Install Options UI**: Consolidated into Settings panel tab (removed standalone window)
+  - **Model Lifecycle**: Added deprecated model metadata, UI filtering, and session auto-migration
+  - **Gallery HTML Pipeline**: Enhanced image display and vendor helper integration
+  - **Security**: Path traversal guard for agents with precise regex matching
+  - **Documentation**: EN/JA parity check script, updated diagram self-verification docs
+
 - [February, 2026] 1.0.0-beta.7
   - Version updated from 1.0.0-beta.6
   - **Parallel Python Execution**: Added `parallel_run_code` shared tool for Code Interpreter

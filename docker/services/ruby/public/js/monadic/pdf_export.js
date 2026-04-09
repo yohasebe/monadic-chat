@@ -109,8 +109,10 @@
    * Get current app information
    */
   function getAppInfo() {
-    const appName = $('#base-app-title').text() || 'Monadic Chat';
-    const modelText = $('#model-selected').text() || 'Unknown Model';
+    const appTitleEl = $id('base-app-title');
+    const modelSelectedEl = $id('model-selected');
+    const appName = (appTitleEl && appTitleEl.textContent) || 'Monadic Chat';
+    const modelText = (modelSelectedEl && modelSelectedEl.textContent) || 'Unknown Model';
 
     // Parse provider and model from text like "OpenAI (gpt-4o)" or "OpenAI (gpt-4o - high)"
     let provider = 'Unknown Provider';
@@ -322,27 +324,9 @@
         // Wait a bit for styles to load
         setTimeout(() => {
           try {
-            // Check if MathJax is available in the iframe
-            if (iframe.contentWindow.MathJax && iframe.contentWindow.MathJax.typesetPromise) {
-              iframe.contentWindow.MathJax.typesetPromise().then(() => {
-                iframe.contentWindow.print();
-                // Remove iframe after print dialog is shown
-                setTimeout(() => {
-                  if (iframe.parentNode) {
-                    document.body.removeChild(iframe);
-                  }
-                }, 100);
-              }).catch((err) => {
-                console.error('MathJax rendering error:', err);
-                iframe.contentWindow.print();
-                setTimeout(() => {
-                  if (iframe.parentNode) {
-                    document.body.removeChild(iframe);
-                  }
-                }, 100);
-              });
-            } else {
-              // No MathJax, print immediately
+            // KaTeX renders synchronously during page load, so math is already rendered
+            // Just print immediately
+            {
               iframe.contentWindow.print();
               setTimeout(() => {
                 if (iframe.parentNode) {

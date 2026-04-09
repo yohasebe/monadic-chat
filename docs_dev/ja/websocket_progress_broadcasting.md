@@ -122,11 +122,12 @@ EXTRA_LOGGING=true
 
 ## コードの場所
 
-- メイン実装：`docker/services/ruby/lib/monadic/utils/websocket.rb:91-269`
-- OpenAI Code統合：`docker/services/ruby/lib/monadic/agents/openai_code_agent.rb:start_progress_thread`
-- AutoForge統合：`docker/services/ruby/apps/auto_forge/auto_forge_tools.rb`
-- JavaScriptハンドラー：`docker/services/ruby/public/js/monadic/websocket.js:2427-2557`
-- テスト：`docker/services/ruby/spec/lib/monadic/utils/websocket_helper_spec.rb`
+- WebSocketコア：`lib/monadic/utils/websocket.rb`（接続ルーティング、`send_or_broadcast`ヘルパー）
+- 接続マネージャー：`lib/monadic/utils/websocket/connection_manager.rb`（`broadcast_progress`, `send_to_session`, `broadcast_to_all`）
+- OpenAI Code統合：`lib/monadic/agents/openai_code_agent.rb`（`start_progress_thread`）
+- AutoForge統合：`apps/auto_forge/auto_forge_tools.rb`
+- JavaScriptハンドラー：`public/js/monadic/ws-tool-handler.js`（wait/message表示）
+- テスト：`spec/lib/monadic/utils/websocket_helper_spec.rb`
 
 ## 注意事項
 

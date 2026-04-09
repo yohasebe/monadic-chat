@@ -35,8 +35,9 @@ app "JupyterNotebookGemini" do
 
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-pro"]
+    model ["gemini-3.1-pro-preview", "gemini-3-flash-preview"]
     temperature 0.0
+    reasoning_effort "low"
     max_tokens 8192
     context_size 20
   end
@@ -106,8 +107,12 @@ app "JupyterNotebookGemini" do
 
     CORRECT approach (ALWAYS DO):
     - User: "Create a data analysis notebook"
-    - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
+    - You: [Actually execute] run_jupyter → create_and_populate_jupyter_notebook(filename:, cells:)
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
+
+    IMPORTANT: When creating a new notebook WITH code, ALWAYS use `create_and_populate_jupyter_notebook`
+    instead of separate `create_jupyter_notebook` + `add_jupyter_cells` calls. This combined tool
+    creates the notebook and adds cells in a single operation, which is more reliable and efficient.
 
     ## Response Format (CRITICAL)
 
@@ -157,6 +162,11 @@ app "JupyterNotebookGemini" do
     6. Maximum 2 retry attempts per error to prevent infinite loops
     7. If still failing after 2 attempts, report the issue to the user with error details
 
+    TOOL LOOP PREVENTION:
+    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
+    - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
+    - If you find yourself about to call the same tool you just called, STOP and return a response instead
+
     Advanced notebook management:
     - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
     - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
@@ -193,6 +203,12 @@ app "JupyterNotebookGemini" do
     WHEN TO USE: Notebook creation with code execution, data analysis pipelines, multi-cell operations.
     WHEN TO SKIP: Simple explanations, direct answers, single markdown cells.
     Maximum 3 verification attempts per task.
+
+    ## FINAL RESPONSE CHECKLIST (apply to EVERY response after tool calls)
+    Before submitting your response, verify:
+    ✅ Notebook link is included as clickable HTML: <a href='URL' target='_blank'>filename.ipynb</a>
+    ✅ You did NOT call the same tool twice in a row
+    ✅ Response summarizes what was done (cells added, errors fixed, etc.)
   TEXT
 
   features do
@@ -227,6 +243,13 @@ app "JupyterNotebookGemini" do
 
     # Import verification tools for Self-Verification protocol
     import_shared_tools :verification, visibility: "always"
+
+    # Combined notebook creation + cell population (preferred for Gemini)
+    define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook and add code/markdown cells in a single operation. ALWAYS use this instead of separate create + add calls." do
+      parameter :filename, "string", "Name for the notebook (timestamp will be appended automatically)", required: true
+      parameter :cells, "array", "Array of cell objects, each with 'cell_type' ('code' or 'markdown') and 'source' (string or array of strings)", required: true
+      parameter :run, "boolean", "Whether to execute the cells after adding (default: true)", required: false
+    end
 
     # Monadic state management tool (read-only - saving is automatic)
     define_tool "monadic_load_state", "Load notebook context from session state. Use this ONLY when you need to reference previous notebook state (e.g., to get the current notebook filename or check if Jupyter is running). Do NOT call this on every turn." do

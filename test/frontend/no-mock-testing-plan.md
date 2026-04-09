@@ -7,12 +7,12 @@ This document outlines the strategy for refactoring Monadic Chat's UI tests from
 
 ### Problems with Current Mock-Based Tests
 1. **Over-mocking**: Tests are testing mock implementations rather than actual behavior
-2. **Brittle Tests**: Changes to jQuery usage require mock updates
+2. **Brittle Tests**: Changes to DOM manipulation require mock updates
 3. **False Confidence**: Tests pass but don't reflect real browser behavior
 4. **Maintenance Burden**: Complex mock system in `test/setup.js` and `test/helpers.js`
 
 ### Current Mock Infrastructure
-- Global jQuery mock with chained methods
+- Global mock objects with chained methods
 - Mock DOM elements created manually
 - WebSocket mocks instead of real connections
 - Event handlers stored in global variables
@@ -22,7 +22,7 @@ This document outlines the strategy for refactoring Monadic Chat's UI tests from
 
 ### Core Principles
 1. **Use Real DOM**: Let jsdom provide actual DOM functionality
-2. **Real Libraries**: Load actual jQuery, MathJax, mermaid libraries
+2. **Real Libraries**: Load actual KaTeX, mermaid libraries
 3. **Integration Focus**: Test user workflows, not isolated functions
 4. **Event-Driven**: Use real DOM events instead of manual triggers
 5. **State Verification**: Check actual DOM state, not mock calls
@@ -63,8 +63,8 @@ test('send button triggers message submission', async () => {
   // Load actual HTML fixture
   document.body.innerHTML = await loadFixture('chat-interface.html');
   
-  // Load real jQuery
-  await loadScript('/js/jquery.min.js');
+  // 
+  
   await loadScript('/js/monadic.js');
   
   // Set up test WebSocket server

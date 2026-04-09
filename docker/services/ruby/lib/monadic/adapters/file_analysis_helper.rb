@@ -1,19 +1,12 @@
 module MonadicHelper
-  def analyze_image(message: "", image_path: "", model: "gpt-5")
+  def analyze_image(message: "", image_path: "", model: nil)
     message = message.gsub(/"/, '\"')
-
-    model = settings["model"] || settings[:model]
-    model = check_vision_capability(model) || "gpt-5"
-
-    command = "image_query.rb \"#{message}\" \"#{image_path}\" \"#{model}\""
-    send_command(command: command, container: "ruby")
+    image_analysis_agent(message: message, image_path: image_path)
   end
 
-  def analyze_audio(audio: "", model: "gpt-4o-mini-transcribe-2025-12-15")
+  def analyze_audio(audio: "", model: nil)
     # Get STT model from Web UI settings (stored in session by websocket handler)
     stt_model = settings["stt_model"] || settings[:stt_model] || model
-
-    command = "stt_query.rb \"#{audio}\" \".\" \"json\" \"\" \"#{stt_model}\""
-    send_command(command: command, container: "ruby")
+    audio_transcription_agent(audio_path: audio, model: stt_model)
   end
 end

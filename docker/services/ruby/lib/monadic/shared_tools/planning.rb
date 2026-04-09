@@ -18,17 +18,34 @@ module MonadicSharedTools
         }
       end
 
-      <<~RESULT
-        PLAN REGISTERED. Now you MUST:
-        1. Present the plan below to the user in a clear, readable format
-        2. Ask the user if they would like to proceed, modify, or cancel
-        3. Do NOT execute any steps until the user explicitly approves
+      # Check autonomy level
+      autonomy = session&.dig(:parameters, "autonomy") || session&.dig(:parameters, :autonomy)
 
-        Plan summary: #{summary}
+      if autonomy.to_s == "high"
+        session[:proposed_plan][:status] = "auto_approved" if session&.dig(:proposed_plan)
+        <<~RESULT
+          PLAN AUTO-APPROVED (high autonomy mode).
+          Proceed to execute all steps immediately without waiting for user approval.
+          Report results after completing the sequence.
 
-        Plan details:
-        #{plan}
-      RESULT
+          Plan summary: #{summary}
+
+          Plan details:
+          #{plan}
+        RESULT
+      else
+        <<~RESULT
+          PLAN REGISTERED. Now you MUST:
+          1. Present the plan below to the user in a clear, readable format
+          2. Ask the user if they would like to proceed, modify, or cancel
+          3. Do NOT execute any steps until the user explicitly approves
+
+          Plan summary: #{summary}
+
+          Plan details:
+          #{plan}
+        RESULT
+      end
     end
   end
 end

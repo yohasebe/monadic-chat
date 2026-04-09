@@ -32,29 +32,27 @@ const testUtilities = {
       .join(" ");
   },
   
-  // App selector icon and UI updates
+  // App selector icon and UI updates (vanilla JS, matching production code)
   updateAppSelectIcon: (appValue) => {
     // If no appValue is provided, use current selected app
-    if (!appValue && $("#apps").val()) {
-      appValue = $("#apps").val();
+    if (!appValue) {
+      const appsEl = document.getElementById("apps");
+      if (appsEl && appsEl.value) {
+        appValue = appsEl.value;
+      }
     }
-    
-    // If apps object is not yet populated or app not found, do nothing
-    if (!appValue || !global.apps || !global.apps[appValue] || !global.apps[appValue]["icon"]) {
-      return;
+
+    // Try to obtain icon HTML from apps definition first
+    let iconHtml = (appValue && global.apps && global.apps[appValue]) ? global.apps[appValue]["icon"] : null;
+
+    // Final fallback: use a generic chat icon
+    if (!iconHtml) {
+      iconHtml = '<i class="fas fa-comment"></i>';
     }
-    
-    // Get the icon HTML from the apps object
-    const iconHtml = global.apps[appValue]["icon"];
-    
+
     // Update the icon in the static icon span
-    $("#app-select-icon").html(iconHtml);
-    
-    // Also update the active class in the custom dropdown if it exists
-    if ($("#custom-apps-dropdown").length > 0) {
-      $(".custom-dropdown-option").removeClass("active");
-      $(`.custom-dropdown-option[data-value="${appValue}"]`).addClass("active");
-    }
+    const appSelectIcon = document.getElementById("app-select-icon");
+    if (appSelectIcon) appSelectIcon.innerHTML = iconHtml;
   },
   
   // Model and format functions
@@ -361,49 +359,11 @@ describe('Utilities Module', () => {
 
     describe('updateAppSelectIcon', () => {
       const { updateAppSelectIcon } = testUtilities;
-      let mockJQuery;
-      let originalJQuery;
-      
+
       beforeEach(() => {
-        // Save original jQuery implementation
-        originalJQuery = global.$;
-        
-        // Set up mock elements
-        const mockAppSelectIcon = {
-          html: jest.fn()
-        };
-        
-        const mockAppsSelect = {
-          val: jest.fn().mockReturnValue('TestApp')
-        };
-        
-        const mockCustomDropdown = {
-          length: 1
-        };
-        
-        const mockDropdownOptions = {
-          removeClass: jest.fn(),
-          addClass: jest.fn()
-        };
-        
-        // Setup jQuery mock
-        mockJQuery = jest.fn(selector => {
-          if (selector === "#app-select-icon") return mockAppSelectIcon;
-          if (selector === "#apps") return mockAppsSelect;
-          if (selector === "#custom-apps-dropdown") return mockCustomDropdown;
-          if (selector === ".custom-dropdown-option") return mockDropdownOptions;
-          if (selector === '.custom-dropdown-option[data-value="TestApp"]') return mockDropdownOptions;
-          return {
-            html: jest.fn(),
-            val: jest.fn(),
-            length: 0,
-            removeClass: jest.fn(),
-            addClass: jest.fn()
-          };
-        });
-        
-        global.$ = mockJQuery;
-        
+        // Set up DOM elements
+        document.body.innerHTML = '<span id="app-select-icon"></span><select id="apps"><option value="TestApp">Test App</option></select>';
+
         // Setup global apps object
         global.apps = {
           'TestApp': {
@@ -412,82 +372,30 @@ describe('Utilities Module', () => {
           }
         };
       });
-      
+
       afterEach(() => {
-        // Restore original jQuery
-        global.$ = originalJQuery;
         delete global.apps;
+        document.body.innerHTML = '';
       });
-      
+
       it('should update the icon in the standard selector', () => {
         updateAppSelectIcon('TestApp');
-        
-        // Should call html with the correct icon
-        expect(mockJQuery("#app-select-icon").html).toHaveBeenCalledWith('<i class="fas fa-test"></i>');
+
+        expect(document.getElementById('app-select-icon').innerHTML).toBe('<i class="fas fa-test"></i>');
       });
-      
-      it('should update active class in custom dropdown if it exists', () => {
-        updateAppSelectIcon('TestApp');
-        
-        // Should remove active class from all options
-        expect(mockJQuery(".custom-dropdown-option").removeClass).toHaveBeenCalledWith("active");
-        
-        // Should add active class to selected option
-        expect(mockJQuery('.custom-dropdown-option[data-value="TestApp"]').addClass).toHaveBeenCalledWith("active");
-      });
-      
+
       it('should use current app value if no app value provided', () => {
+        document.getElementById('apps').value = 'TestApp';
         updateAppSelectIcon();
-        
-        // Should get current app value
-        expect(mockJQuery("#apps").val).toHaveBeenCalled();
-        
-        // Should update with that value's icon
-        expect(mockJQuery("#app-select-icon").html).toHaveBeenCalledWith('<i class="fas fa-test"></i>');
+
+        expect(document.getElementById('app-select-icon').innerHTML).toBe('<i class="fas fa-test"></i>');
       });
-      
-      it('should do nothing if app not found in apps object', () => {
-        // Using an app that doesn't exist
+
+      it('should use fallback icon if app not found in apps object', () => {
         updateAppSelectIcon('NonExistentApp');
-        
-        // Should not update anything
-        expect(mockJQuery("#app-select-icon").html).not.toHaveBeenCalled();
-      });
-      
-      it('should do nothing if no custom dropdown exists', () => {
-        // Create new mocks specifically for this test
-        const mockAppSelectIcon = { html: jest.fn() };
-        const mockAppsSelect = { val: jest.fn().mockReturnValue('TestApp') };
-        const mockCustomDropdown = { length: 0 }; // This is the key difference - length 0 means dropdown doesn't exist
-        const mockDropdownOptions = { removeClass: jest.fn(), addClass: jest.fn() };
-        
-        // Create completely new mock implementation for this test
-        const newMockJQuery = jest.fn(selector => {
-          if (selector === "#app-select-icon") return mockAppSelectIcon;
-          if (selector === "#apps") return mockAppsSelect;
-          if (selector === "#custom-apps-dropdown") return mockCustomDropdown;
-          if (selector === ".custom-dropdown-option") return mockDropdownOptions;
-          if (selector === '.custom-dropdown-option[data-value="TestApp"]') return mockDropdownOptions;
-          return { html: jest.fn(), val: jest.fn(), length: 0, removeClass: jest.fn(), addClass: jest.fn() };
-        });
-        
-        // Temporarily replace global $ function
-        const oldJQuery = global.$;
-        global.$ = newMockJQuery;
-        
-        try {
-          updateAppSelectIcon('TestApp');
-          
-          // Should update icon 
-          expect(mockAppSelectIcon.html).toHaveBeenCalledWith('<i class="fas fa-test"></i>');
-          
-          // But should not update dropdown classes because custom dropdown doesn't exist
-          expect(mockDropdownOptions.removeClass).not.toHaveBeenCalled();
-          expect(mockDropdownOptions.addClass).not.toHaveBeenCalled();
-        } finally {
-          // Restore original $ function
-          global.$ = oldJQuery;
-        }
+
+        // Falls back to generic chat icon
+        expect(document.getElementById('app-select-icon').innerHTML).toBe('<i class="fas fa-comment"></i>');
       });
     });
   });
@@ -545,12 +453,72 @@ describe('Utilities Module', () => {
           count_messages: '1234567', // string number
           count_all_tokens: 9876543  // actual number
         };
-        
+
         const result = formatInfo(info);
-        
+
         // Should format both string and numeric values as localized numbers
         expect(result).toContain('1,234,567');
         expect(result).toContain('9,876,543');
+      });
+    });
+  });
+
+  describe('File Inputs API capability functions', () => {
+    // Pure function implementations mirrored from utilities.js for unit testing
+    // (avoids external dependencies when requiring the module)
+    function isFileInputsSupportedForModel(selectedModel) {
+      if (!selectedModel || typeof modelSpec === 'undefined') return false;
+      const data = modelSpec[selectedModel];
+      return !!(data && data.supports_file_inputs);
+    }
+
+    function isResponsesApiModel(selectedModel) {
+      if (!selectedModel || typeof modelSpec === 'undefined') return false;
+      const data = modelSpec[selectedModel];
+      return !!(data && data.api_type === "responses");
+    }
+
+    describe('isFileInputsSupportedForModel', () => {
+      it('returns false for null model', () => {
+        expect(isFileInputsSupportedForModel(null)).toBe(false);
+      });
+
+      it('returns false for undefined model', () => {
+        expect(isFileInputsSupportedForModel(undefined)).toBe(false);
+      });
+
+      it('returns true when modelSpec has supports_file_inputs', () => {
+        global.modelSpec = { 'gpt-5': { supports_file_inputs: true } };
+        expect(isFileInputsSupportedForModel('gpt-5')).toBe(true);
+        delete global.modelSpec;
+      });
+
+      it('returns false for model without the flag', () => {
+        global.modelSpec = { 'gpt-3.5-turbo': {} };
+        expect(isFileInputsSupportedForModel('gpt-3.5-turbo')).toBe(false);
+        delete global.modelSpec;
+      });
+    });
+
+    describe('isResponsesApiModel', () => {
+      it('returns false for null model', () => {
+        expect(isResponsesApiModel(null)).toBe(false);
+      });
+
+      it('returns false for undefined model', () => {
+        expect(isResponsesApiModel(undefined)).toBe(false);
+      });
+
+      it('returns true when modelSpec has api_type responses', () => {
+        global.modelSpec = { 'gpt-5': { api_type: 'responses' } };
+        expect(isResponsesApiModel('gpt-5')).toBe(true);
+        delete global.modelSpec;
+      });
+
+      it('returns false for chat completions model', () => {
+        global.modelSpec = { 'gpt-4o': {} };
+        expect(isResponsesApiModel('gpt-4o')).toBe(false);
+        delete global.modelSpec;
       });
     });
   });

@@ -307,38 +307,40 @@ function resetAudioVariables() {
     }
     window.checkAndHideSpinner();
   } else {
-    $("#monadic-spinner").hide();
+    const _spinnerEl = $id("monadic-spinner");
+    $hide(_spinnerEl);
   }
 }
 
 // Populate the Web Speech voices in the dropdown
 function populateWebSpeechVoices() {
-  const webSpeechSelect = $("#webspeech-voice");
-  if (webSpeechSelect.length === 0) return;
-  
-  webSpeechSelect.empty();
-  
+  const webSpeechSelect = $id("webspeech-voice");
+  if (!webSpeechSelect) return;
+
+  webSpeechSelect.innerHTML = '';
+
   // Filter for high-quality voices
   const highQualityVoices = filterHighQualityVoices(webSpeechVoices);
   console.debug(`Found ${highQualityVoices.length} high-quality voices out of ${webSpeechVoices.length} total voices`);
-  
+
   // Hide Web Speech option if no quality voices available
-  const ttsProviderSelect = $("#tts-provider");
-  const webspeechOption = ttsProviderSelect.find("option[value='webspeech']");
-  
+  const ttsProviderSelect = $id("tts-provider");
+  const webspeechOption = ttsProviderSelect ? ttsProviderSelect.querySelector("option[value='webspeech']") : null;
+
   if (highQualityVoices.length === 0) {
     // Hide the webspeech option if no quality voices available
-    webspeechOption.hide();
+    $hide(webspeechOption);
     // If webspeech was selected, switch to another provider
-    if (ttsProviderSelect.val() === "webspeech") {
-      ttsProviderSelect.val("openai").trigger("change");
+    if (ttsProviderSelect && ttsProviderSelect.value === "webspeech") {
+      ttsProviderSelect.value = "openai";
+      $dispatch(ttsProviderSelect, "change");
     }
     return;
   } else {
     // Show the webspeech option if quality voices are available
-    webspeechOption.show();
+    $show(webspeechOption);
   }
-  
+
   // Group voices by language for better organization
   const voicesByLang = {};
   highQualityVoices.forEach(voice => {
@@ -348,84 +350,85 @@ function populateWebSpeechVoices() {
     }
     voicesByLang[lang].push(voice);
   });
-  
+
   // Sort languages alphabetically
   const sortedLangs = Object.keys(voicesByLang).sort();
-  
+
   // Create language optgroups and add voices
   sortedLangs.forEach(lang => {
     // Create language group
-    const languageGroup = $("<optgroup></optgroup>").attr("label", lang);
-    
+    const languageGroup = document.createElement("optgroup");
+    languageGroup.setAttribute("label", lang);
+
     // Sort voices by name within each language
     const sortedVoices = voicesByLang[lang].sort((a, b) => {
       return a.name.localeCompare(b.name);
     });
-    
+
     // Add voices to this language group
     sortedVoices.forEach(voice => {
       // Get provider for display
       const provider = getVoiceProvider(voice);
-      
+
       // Create a more informative label
       let qualityIndicator = "";
-      
+
       // Add quality indicator if available
-      if (voice.name.toLowerCase().includes('neural') || 
+      if (voice.name.toLowerCase().includes('neural') ||
           voice.name.toLowerCase().includes('premium') ||
           (voice.voiceURI && (
-            voice.voiceURI.includes('premium') || 
+            voice.voiceURI.includes('premium') ||
             voice.voiceURI.includes('enhanced')
           ))) {
         qualityIndicator = "★ ";  // Star for premium voices
       }
-      
-      const option = $("<option></option>")
-        .val(voice.name) // Use voice name as value (more stable than index)
-        .text(`${qualityIndicator}${voice.name} [${provider}]`)
-        .attr("data-provider", provider)
-        .attr("data-lang", voice.lang)
-        .attr("data-index", webSpeechVoices.indexOf(voice)) // Store index as data attribute if needed
-        .attr("title", `Voice: ${voice.name}\nProvider: ${provider}\nLanguage: ${voice.lang}`);
-      
+
+      const option = document.createElement("option");
+      option.value = voice.name;
+      option.textContent = `${qualityIndicator}${voice.name} [${provider}]`;
+      option.setAttribute("data-provider", provider);
+      option.setAttribute("data-lang", voice.lang);
+      option.setAttribute("data-index", webSpeechVoices.indexOf(voice));
+      option.setAttribute("title", `Voice: ${voice.name}\nProvider: ${provider}\nLanguage: ${voice.lang}`);
+
       // Mark default voice as selected or use saved voice
       if (window.savedWebspeechVoice && voice.name === window.savedWebspeechVoice) {
-        option.prop('selected', true);
+        option.selected = true;
       } else if (voice.default && !window.savedWebspeechVoice) {
-        option.prop('selected', true);
+        option.selected = true;
       }
-      
-      languageGroup.append(option);
+
+      languageGroup.appendChild(option);
     });
-    
-    webSpeechSelect.append(languageGroup);
+
+    webSpeechSelect.appendChild(languageGroup);
   });
-  
+
   // Try to select appropriate default voice if no default is set
-  if (webSpeechSelect.find("option:selected").length === 0) {
+  if (!webSpeechSelect.querySelector("option:checked")) {
     // Try to find a voice matching browser language
     const browserLang = navigator.language || 'en-US';
-    let matchingOption = webSpeechSelect.find(`option[data-lang^="${browserLang.split('-')[0]}"]`).first();
-    
+    let matchingOption = webSpeechSelect.querySelector(`option[data-lang^="${browserLang.split('-')[0]}"]`);
+
     // If no match, default to English if available
-    if (matchingOption.length === 0) {
-      matchingOption = webSpeechSelect.find('option[data-lang^="en"]').first();
+    if (!matchingOption) {
+      matchingOption = webSpeechSelect.querySelector('option[data-lang^="en"]');
     }
-    
+
     // Select the matching option
-    if (matchingOption.length > 0) {
-      matchingOption.prop('selected', true);
+    if (matchingOption) {
+      matchingOption.selected = true;
     }
   }
-  
+
   // Add change event listener to save the selected voice in cookie
-  webSpeechSelect.off('change').on('change', function() {
-    const selectedVoice = $(this).val();
+  webSpeechSelect.onchange = function() {
+    const selectedVoice = this.value;
     if (selectedVoice && typeof setCookie === 'function') {
       setCookie('webspeech-voice', selectedVoice, 365); // Save for 1 year
       console.debug("Saved Web Speech voice to cookie:", selectedVoice);
     }
-  });
+  };
 }
 
 // Speak text using Web Speech API
@@ -444,7 +447,8 @@ function speakWithWebSpeech(text, speed, callback) {
       }
       window.checkAndHideSpinner();
     } else {
-      $("#monadic-spinner").hide();
+      const _spinnerEl = $id("monadic-spinner");
+    $hide(_spinnerEl);
     }
     return false;
   }
@@ -455,8 +459,11 @@ function speakWithWebSpeech(text, speed, callback) {
   // If no high-quality voices available, fallback to cloud providers
   if (highQualityVoices.length === 0) {
     console.warn('No high-quality Web Speech voices available, falling back to cloud provider');
-    const ttsProviderSelect = $("#tts-provider");
-    ttsProviderSelect.val("openai").trigger("change");
+    const ttsProviderSelect = $id("tts-provider");
+    if (ttsProviderSelect) {
+      ttsProviderSelect.value = "openai";
+      $dispatch(ttsProviderSelect, "change");
+    }
     if (typeof callback === 'function') callback(false);
     // Hide spinner on error - respect Auto Speech mode
     if (typeof window.checkAndHideSpinner === 'function') {
@@ -468,21 +475,22 @@ function speakWithWebSpeech(text, speed, callback) {
       }
       window.checkAndHideSpinner();
     } else {
-      $("#monadic-spinner").hide();
+      const _spinnerEl = $id("monadic-spinner");
+      $hide(_spinnerEl);
     }
     return false;
   }
-  
+
   // Cancel any previous speech
   window.speechSynthesis.cancel();
-  
+
   // Create a new utterance
   const utterance = new SpeechSynthesisUtterance(text);
-  
+
   // Set voice if selected
-  const voiceSelect = $("#webspeech-voice");
-  if (voiceSelect.length > 0) {
-    const voiceValue = voiceSelect.val();
+  const voiceSelect = $id("webspeech-voice");
+  if (voiceSelect) {
+    const voiceValue = voiceSelect.value;
     
     // Try to find the voice by name
     const selectedVoice = webSpeechVoices.find(v => v.name === voiceValue);
@@ -530,13 +538,15 @@ function speakWithWebSpeech(text, speed, callback) {
     // So we don't need to hide it here on onend event
 
     // Reset spinner to default state for other operations
-    $("#monadic-spinner")
-      .find("span")
-      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+    const endSpinner = $id("monadic-spinner");
+    if (endSpinner) {
+      const endSpan = endSpinner.querySelector("span");
+      if (endSpan) endSpan.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+    }
 
     if (typeof callback === 'function') callback(true);
   };
-  
+
   utterance.onerror = function(event) {
     console.error('SpeechSynthesis error:', event);
     // Hide spinner on error - respect Auto Speech mode
@@ -549,12 +559,15 @@ function speakWithWebSpeech(text, speed, callback) {
       }
       window.checkAndHideSpinner();
     } else {
-      $("#monadic-spinner").hide();
+      const _spinnerEl = $id("monadic-spinner");
+      $hide(_spinnerEl);
     }
     // Reset spinner to default state
-    $("#monadic-spinner")
-      .find("span")
-      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+    const errSpinner = $id("monadic-spinner");
+    if (errSpinner) {
+      const errSpan = errSpinner.querySelector("span");
+      if (errSpan) errSpan.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+    }
     
     if (typeof callback === 'function') callback(false);
   };
@@ -566,8 +579,10 @@ function speakWithWebSpeech(text, speed, callback) {
 
 function ttsSpeak(text, stream, callback) {
   // Get settings from UI
-  const provider = $("#tts-provider").val();
-  const speed = parseFloat($("#tts-speed").val());
+  const ttsProviderEl = $id("tts-provider");
+  const ttsSpeedEl = $id("tts-speed");
+  const provider = ttsProviderEl ? ttsProviderEl.value : "";
+  const speed = ttsSpeedEl ? parseFloat(ttsSpeedEl.value) : 1.0;
 
   // Early returns for invalid conditions
   if (!text) {
@@ -586,7 +601,10 @@ function ttsSpeak(text, stream, callback) {
     if (highQualityVoices.length === 0) {
       console.warn("No high-quality voices available. Falling back to cloud TTS.");
       // Auto-switch to cloud provider
-      $("#tts-provider").val("openai").trigger("change");
+      if (ttsProviderEl) {
+        ttsProviderEl.value = "openai";
+        $dispatch(ttsProviderEl, "change");
+      }
       // Use new provider
       return ttsSpeak(text, stream, callback);
     }
@@ -600,9 +618,14 @@ function ttsSpeak(text, stream, callback) {
   }
   
   // For traditional TTS providers (OpenAI, ElevenLabs, Gemini)
-  const voice = $("#tts-voice").val();
-  const elevenlabs_voice = $("#elevenlabs-tts-voice").val();
-  const gemini_voice = $("#gemini-tts-voice").val();
+  const ttsVoiceEl = $id("tts-voice");
+  const voice = ttsVoiceEl ? ttsVoiceEl.value : "";
+  const elevenlabsEl = $id("elevenlabs-tts-voice");
+  const elevenlabs_voice = elevenlabsEl ? elevenlabsEl.value : "";
+  const geminiEl = $id("gemini-tts-voice");
+  const gemini_voice = geminiEl ? geminiEl.value : "";
+  const mistralEl = $id("mistral-tts-voice");
+  const mistral_voice = mistralEl ? mistralEl.value : "";
   
   
   // Determine mode based on streaming flag
@@ -620,6 +643,7 @@ function ttsSpeak(text, stream, callback) {
     voice: voice,
     elevenlabs_voice: elevenlabs_voice,
     gemini_voice: gemini_voice,
+    mistral_voice: mistral_voice,
     response_format: response_format
   };
 

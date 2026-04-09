@@ -55,11 +55,9 @@ This container is necessary to run Monadic Chat applications. It is also used to
 - **Apps that require this container**: All apps (this is the core container that runs the web interface and manages all Monadic Chat functionality)
 
 ### Python Container (`monadic-chat-python-container`) :id=python-container
-This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab and a Flask API server also run on this container.
-- **Ports**: 
-  - 8889 (JupyterLab)
-  - 5070 (Flask API server for tokenization and other services)
-- **Main features**: Python code execution, JupyterLab, Flask API server, LaTeX support (for diagram generation), tokenization services
+This container is used to run Python scripts that extend the functionality of Monadic Chat. JupyterLab also runs on this container.
+- **Port**: 8889 (JupyterLab)
+- **Main features**: Python code execution, JupyterLab, LaTeX support (for diagram generation)
 - **Apps that use this container**: 
   - `Code Interpreter` - Executes Python code for data analysis and calculations
   - `Jupyter Notebook` - Interactive notebook interface for code execution
@@ -77,7 +75,7 @@ This container is used to operate a virtual web browser using Selenium for web s
   - `Content Reader` - Fetches and extracts content from web pages
   - `Mermaid Grapher` - Validates Mermaid diagrams and creates preview screenshots
   - `Research Assistant` - Uses web scraping for gathering information
-  - `Visual Web Explorer` - Captures web page screenshots and extracts text content
+  - `Web Insight` - Captures web page screenshots and extracts text content
   - Any app using `fetch_html_content` or `selenium_agent` tools
 
 ### pgvector Container (`monadic-chat-pgvector-container`) :id=pgvector-container
@@ -110,7 +108,6 @@ The following containers enable additional features:
 - Diagram generation (Syntax Tree, Concept Visualizer)
 - Video analysis (Video Describer)
 - Any app using LaTeX rendering
-- Provides Flask API server on port 5070 for tokenization services
 
 **Selenium Container**: Required for:
 - Web content fetching (Content Reader, Research Assistant)

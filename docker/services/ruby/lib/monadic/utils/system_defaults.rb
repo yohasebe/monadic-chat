@@ -1,43 +1,15 @@
 # frozen_string_literal: true
 
-require 'json'
+require_relative 'model_spec'
 
 module SystemDefaults
   module_function
 
-  # Load system defaults from JSON file
-  def load_defaults
-    # Try multiple possible locations for system_defaults.json
-    possible_paths = [
-      # Non-mounted internal defaults inside image
-      '/monadic/internal_config/system_defaults.json',
-      # Relative path (may resolve under /monadic/config which can be a bind mount)
-      File.join(File.dirname(__FILE__), '../../../config/system_defaults.json'),
-      # Typical mounted path
-      '/monadic/config/system_defaults.json',
-      File.join(ENV['WORKSPACE'] || '/monadic', 'config/system_defaults.json')
-    ]
-    
-    defaults_file = possible_paths.find { |path| File.exist?(path) }
-    
-    unless defaults_file
-      puts "Warning: system_defaults.json not found in any of: #{possible_paths.join(', ')}" if ENV['DEBUG'] || ENV['EXTRA_LOGGING']
-      return {}
-    end
-    
-    begin
-      JSON.parse(File.read(defaults_file))
-    rescue JSON::ParserError => e
-      puts "Warning: Failed to parse system_defaults.json: #{e.message}" if ENV['DEBUG'] || ENV['EXTRA_LOGGING']
-      {}
-    end
-  end
-
   # Get default model for a provider
-  # Priority: ENV variable > system_defaults.json > fallback
+  # Priority: ENV variable > providerDefaults (model_spec.js SSOT) > nil
   def get_default_model(provider)
     provider = provider.to_s.downcase
-    
+
     # Map provider names to environment variable names
     env_var_map = {
       'openai' => 'OPENAI_DEFAULT_MODEL',
@@ -53,15 +25,14 @@ module SystemDefaults
       'deepseek' => 'DEEPSEEK_DEFAULT_MODEL',
       'ollama' => 'OLLAMA_DEFAULT_MODEL'
     }
-    
+
     env_var = env_var_map[provider]
-    
-    # Log for debugging AI User issues
+
     if ENV['EXTRA_LOGGING'] || ENV['DEBUG']
       puts "[SystemDefaults] Getting default model for provider: #{provider}"
       puts "[SystemDefaults] Env var name: #{env_var}"
     end
-    
+
     # First, check environment variable (user override)
     if env_var && defined?(CONFIG) && CONFIG
       val = CONFIG[env_var]
@@ -71,30 +42,24 @@ module SystemDefaults
       # Treat nil/empty/whitespace-only as not configured
       return val unless val.nil? || val.to_s.strip.empty?
     end
-    
-    # Second, check system defaults
-    defaults = load_defaults
-    provider_defaults = defaults.dig('provider_defaults', provider)
-    
-    if ENV['EXTRA_LOGGING'] || ENV['DEBUG']
-      puts "[SystemDefaults] Loaded defaults: #{defaults.keys.inspect}"
-      puts "[SystemDefaults] Provider defaults for #{provider}: #{provider_defaults.inspect}"
-    end
-    
-    if provider_defaults && provider_defaults['model']
-      model = provider_defaults['model']
-      if ENV['EXTRA_LOGGING'] || ENV['DEBUG']
-        puts "[SystemDefaults] Returning default model: #{model}"
+
+    # Second, check providerDefaults in model_spec.js (SSOT)
+    begin
+      model_spec_default = Monadic::Utils::ModelSpec.get_provider_default(provider, "chat")
+      if model_spec_default
+        if ENV['EXTRA_LOGGING'] || ENV['DEBUG']
+          puts "[SystemDefaults] Using providerDefaults from model_spec.js: #{model_spec_default}"
+        end
+        return model_spec_default
       end
-      return model
+    rescue => e
+      puts "[SystemDefaults] Warning: Failed to read providerDefaults: #{e.message}" if ENV['EXTRA_LOGGING'] || ENV['DEBUG']
     end
-    
+
     # No default found
     if ENV['EXTRA_LOGGING'] || ENV['DEBUG']
       puts "[SystemDefaults] No default model found for #{provider}"
     end
     nil
   end
-
-
 end

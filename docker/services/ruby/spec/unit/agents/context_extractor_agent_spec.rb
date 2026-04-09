@@ -387,8 +387,8 @@ RSpec.describe ContextExtractorAgent do
       expect(ContextExtractorAgent::API_ENDPOINTS).to have_key("ollama")
     end
 
-    it "uses host.docker.internal URL for ollama" do
-      expect(ContextExtractorAgent::API_ENDPOINTS["ollama"]).to include("host.docker.internal:11434")
+    it "uses dynamic endpoint resolution for ollama (nil in constant, resolved at runtime)" do
+      expect(ContextExtractorAgent::API_ENDPOINTS["ollama"]).to be_nil
     end
   end
 

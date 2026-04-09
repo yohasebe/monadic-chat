@@ -5,10 +5,8 @@
  * - Mock global objects (console, document, window)
  * - Mock browser APIs (fetch, WebSocket)
  * - Mock DOM elements
- * - Setup for jQuery and other libraries
+ * - Setup for visualization libraries (mermaid, ABCJS, etc.)
  */
-
-const { createJQueryMock } = require('./helpers');
 
 // Mock global variables and functions needed for tests
 
@@ -101,14 +99,8 @@ const createElementWithId = (type, id) => {
   ['input', 'check-easy-submit']
 ].forEach(([type, id]) => createElementWithId(type, id));
 
-// Setup jQuery using helpers
-global.$ = createJQueryMock();
-global.jQuery = global.$;
-
 // Setup common JavaScript visualization libraries
-global.MathJax = {
-  typesetPromise: jest.fn().mockResolvedValue(true)
-};
+// (jQuery and MathJax have been removed from the project)
 
 global.mermaid = {
   initialize: jest.fn(),
@@ -146,6 +138,14 @@ global.getCookie = jest.fn();
 global.setInputFocus = jest.fn();
 global.listModels = jest.fn().mockReturnValue('<option>model1</option>');
 global.modelSpec = { 'gpt-4.1': { reasoning_effort: 'high' } };
+
+// DOM helper functions (from dom-helpers.js)
+global.$id = function(id) { return document.getElementById(id); };
+global.$show = function(el) { if (el) el.style.display = ""; };
+global.$hide = function(el) { if (el) el.style.display = "none"; };
+global.$toggle = function(el, visible) { if (el) el.style.display = visible ? "" : "none"; };
+global.$on = function(el, event, fn, options) { if (el) el.addEventListener(event, fn, options); };
+global.$dispatch = function(el, eventName) { if (el) el.dispatchEvent(new Event(eventName, { bubbles: true })); };
 
 // Mock browser multimedia APIs
 global.Audio = jest.fn().mockImplementation(() => ({

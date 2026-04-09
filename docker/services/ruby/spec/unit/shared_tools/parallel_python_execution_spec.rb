@@ -97,23 +97,28 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
     context "successful execution" do
       it "returns PARALLEL CODE EXECUTION COMPLETED message" do
         result = app.parallel_run_code(tasks: valid_tasks, session: session)
-        expect(result).to include("PARALLEL CODE EXECUTION COMPLETED")
+        # Result may be String or Hash
+        text = result.is_a?(Hash) ? result[:text] : result
+        expect(text).to include("PARALLEL CODE EXECUTION COMPLETED")
       end
 
       it "returns correct success count" do
         result = app.parallel_run_code(tasks: valid_tasks, session: session)
-        expect(result).to include("2/2 succeeded")
+        text = result.is_a?(Hash) ? result[:text] : result
+        expect(text).to include("2/2 succeeded")
       end
 
       it "includes task IDs in results" do
         result = app.parallel_run_code(tasks: valid_tasks, session: session)
-        expect(result).to include("stats")
-        expect(result).to include("chart")
+        text = result.is_a?(Hash) ? result[:text] : result
+        expect(text).to include("stats")
+        expect(text).to include("chart")
       end
 
       it "includes instruction to present results" do
         result = app.parallel_run_code(tasks: valid_tasks, session: session)
-        expect(result).to include("Do NOT call any more tools")
+        text = result.is_a?(Hash) ? result[:text] : result
+        expect(text).to include("Do NOT call any more tools")
       end
 
       it "calls run_code for each task" do
@@ -129,6 +134,22 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
           .with(code: "print('chart')", command: "python", extension: "py")
           .and_return('{"success": true}')
         app.parallel_run_code(tasks: valid_tasks, session: session)
+      end
+    end
+
+    context "result format" do
+      it "always returns String (no _image vision injection)" do
+        result = app.parallel_run_code(tasks: valid_tasks, session: session)
+        expect(result).to be_a(String)
+        expect(result).to include("PARALLEL CODE EXECUTION COMPLETED")
+      end
+
+      it "handles run_code returning String outputs" do
+        allow(app).to receive(:run_code).and_return('{"success": true, "output": "done"}')
+
+        result = app.parallel_run_code(tasks: valid_tasks, session: session)
+        expect(result).to be_a(String)
+        expect(result).to include("2/2 succeeded")
       end
     end
 
@@ -159,8 +180,9 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
         end
 
         result = app.parallel_run_code(tasks: valid_tasks, session: session)
-        expect(result).to include("PARALLEL CODE EXECUTION COMPLETED")
-        expect(result).to include("1/2 succeeded")
+        text = result.is_a?(Hash) ? result[:text] : result
+        expect(text).to include("PARALLEL CODE EXECUTION COMPLETED")
+        expect(text).to include("1/2 succeeded")
       end
     end
 
@@ -171,15 +193,17 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
         end
 
         result = app.parallel_run_code(tasks: valid_tasks, timeout: 60, session: session)
-        expect(result).to include("PARALLEL CODE EXECUTION COMPLETED")
-        expect(result).to include("0/2 succeeded")
-        expect(result).to include("Timed out")
+        text = result.is_a?(Hash) ? result[:text] : result
+        expect(text).to include("PARALLEL CODE EXECUTION COMPLETED")
+        expect(text).to include("0/2 succeeded")
+        expect(text).to include("Timed out")
       end
 
       it "clamps timeout to MAX_CODE_TIMEOUT" do
         tasks = [{ "id" => "t1", "code" => "print(1)" }]
         result = app.parallel_run_code(tasks: tasks, timeout: 999, session: session)
-        expect(result).to include("PARALLEL CODE EXECUTION COMPLETED")
+        text = result.is_a?(Hash) ? result[:text] : result
+        expect(text).to include("PARALLEL CODE EXECUTION COMPLETED")
       end
     end
 

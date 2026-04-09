@@ -84,7 +84,7 @@ module MonadicSharedTools
       unless model
         # Use provider-appropriate default from PROVIDER_CONFIG rather than hardcoding
         provider_cfg = resolve_provider_config
-        model = SystemDefaults.get_default_model(provider_cfg[:api_key_env]&.sub("_API_KEY", "")&.downcase) || "gpt-4.1"
+        model = SystemDefaults.get_default_model(provider_cfg[:api_key_env]&.sub("_API_KEY", "")&.downcase)
       end
       timeout_val = [(timeout || DEFAULT_TIMEOUT), MAX_TIMEOUT].min
 

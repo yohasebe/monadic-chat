@@ -46,7 +46,6 @@ app "LanguagePracticeDeepSeek" do
   
   llm do
     provider "deepseek"
-    model "deepseek-chat"
   end
   
   display_name "Language Practice"

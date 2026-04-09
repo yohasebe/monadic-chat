@@ -6,6 +6,8 @@ $LOAD_PATH.uniq!
 require_relative "monadic/utils/document_store_registry"
 require_relative "monadic/utils/pdf_storage_config"
 require_relative "monadic/utils/ssl_configuration"
+require_relative "monadic/utils/workflow_viewer_helpers"
+require_relative "monadic/utils/container_dependencies"
 require_relative "monadic/mcp/server"
 
 # Optional startup profiling
@@ -14,665 +16,6 @@ if ENV['PROFILE_STARTUP'] == 'true'
   at_exit { StartupProfiler.report }
 end
 
-# API: PDF storage status (mode/local/cloud presence/VS id)
-get "/api/pdf_storage_status" do
-  content_type :json
-  begin
-    # Determine app key for registry scope
-    app_key = begin
-      (session[:parameters] && session[:parameters]["app_name"]) || "default"
-    rescue StandardError
-      "default"
-    end
-    # VS presence
-    vs_id = begin
-      Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-    rescue StandardError
-      nil
-    end
-    if (!vs_id || vs_id.to_s.empty?) && CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-      env_vs = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip
-      vs_id = env_vs unless env_vs.empty?
-    end
-    if (!vs_id || vs_id.to_s.empty?)
-      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
-      if File.exist?(vs_meta_path)
-        begin
-          meta = JSON.parse(File.read(vs_meta_path))
-          vs_id = meta["vector_store_id"] if meta && meta["vector_store_id"]
-        rescue StandardError
-          # ignore
-        end
-      end
-    end
-    cloud_present = !!vs_id
-  # Local presence (fast check)
-  local_present = begin
-    if defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
-      if EMBEDDINGS_DB.respond_to?(:any_docs?)
-        EMBEDDINGS_DB.any_docs?
-      else
-        arr = list_pdf_titles
-        arr.is_a?(Array) && !arr.empty?
-      end
-    else
-      false
-    end
-  rescue StandardError
-    false
-  end
-    # Mode resolution (no hybrid)
-    session_mode = (defined?(session) ? session[:pdf_storage_mode].to_s.downcase : '')
-  configured_mode = get_pdf_storage_mode
-  mode = if session_mode == 'local'
-    'local'
-  elsif session_mode == 'cloud' && cloud_present
-    'cloud'
-  elsif configured_mode == 'cloud' && cloud_present
-    'cloud'
-  elsif configured_mode == 'local' && local_present
-    'local'
-  elsif cloud_present
-    'cloud'
-  elsif local_present
-    'local'
-  else
-    configured_mode
-  end
-    { success: true, mode: mode, vector_store_id: vs_id, local_present: local_present, cloud_present: cloud_present }.to_json
-  rescue StandardError => e
-    status 500
-    { success: false, error: e.message }.to_json
-  end
-end
-
-# AI User: expose defaults per provider for UI (SSOT-based)
-get "/api/ai_user_defaults" do
-  content_type :json
-  begin
-    providers = %w[openai anthropic gemini cohere mistral deepseek grok perplexity]
-    result = {}
-    providers.each do |p|
-      has_key = case p
-        when 'openai' then !!(CONFIG['OPENAI_API_KEY'] && !CONFIG['OPENAI_API_KEY'].to_s.strip.empty?)
-        when 'anthropic' then !!(CONFIG['ANTHROPIC_API_KEY'] && !CONFIG['ANTHROPIC_API_KEY'].to_s.strip.empty?)
-        when 'gemini' then !!(CONFIG['GEMINI_API_KEY'] && !CONFIG['GEMINI_API_KEY'].to_s.strip.empty?)
-        when 'cohere' then !!(CONFIG['COHERE_API_KEY'] && !CONFIG['COHERE_API_KEY'].to_s.strip.empty?)
-        when 'mistral' then !!(CONFIG['MISTRAL_API_KEY'] && !CONFIG['MISTRAL_API_KEY'].to_s.strip.empty?)
-        when 'deepseek' then !!(CONFIG['DEEPSEEK_API_KEY'] && !CONFIG['DEEPSEEK_API_KEY'].to_s.strip.empty?)
-        when 'grok' then !!(CONFIG['XAI_API_KEY'] && !CONFIG['XAI_API_KEY'].to_s.strip.empty?)
-        when 'perplexity' then !!(CONFIG['PERPLEXITY_API_KEY'] && !CONFIG['PERPLEXITY_API_KEY'].to_s.strip.empty?)
-        else false
-      end
-      default_model = SystemDefaults.get_default_model(p)
-      result[p] = { has_key: has_key, default_model: default_model }
-    end
-    { success: true, defaults: result }.to_json
-  rescue StandardError => e
-    status 500
-    { success: false, error: e.message }.to_json
-  end
-end
-
-# OpenAI Responses: PDF upload/list/clear (vector store)
-post "/openai/pdf" do
-  content_type :json
-  action = params["action"] || "upload"
-  api_key = CONFIG["OPENAI_API_KEY"]
-  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
-
-  begin
-    case action
-    when "upload"
-      unless params["pdfFile"]
-        return { success: false, error: "No file selected. Please choose a PDF file to upload." }.to_json
-      end
-
-      file_param = params["pdfFile"]
-      filename = file_param["filename"]
-      tempfile = file_param["tempfile"]
-
-      # Determine app scope (for registry)
-      app_key = begin
-        (session[:parameters] && session[:parameters]["app_name"]) || "default"
-      rescue StandardError
-        "default"
-      end
-
-      # Calculate file hash (sha256 + size)
-      file_hash = begin
-        sha = Digest::SHA256.file(tempfile.path).hexdigest
-        size = File.size(tempfile.path)
-        "#{sha}_#{size}"
-      rescue StandardError
-        nil
-      end
-
-      headers = { "Authorization" => "Bearer #{api_key}" }
-      api_base = "https://api.openai.com/v1"
-
-      # Deduplication: if a file with the same hash exists in registry, try reusing it
-      dedup_candidate = nil
-      begin
-        app_entry = Monadic::Utils::DocumentStoreRegistry.get_app(app_key)
-        files = app_entry.dig('cloud', 'files') || []
-        dedup_candidate = files.find { |f| file_hash && f['hash'] == file_hash }
-      rescue StandardError
-        dedup_candidate = nil
-      end
-
-      file_id = nil
-      uploaded_new_file = false
-      if dedup_candidate && dedup_candidate['file_id']
-        file_id = dedup_candidate['file_id']
-        puts "[OpenAI PDF] Dedup candidate found for app=#{app_key} file_id=#{file_id}"
-      else
-        # Upload file to OpenAI Files API
-        form = {
-          purpose: "assistants",
-          file: HTTP::FormData::File.new(tempfile.path, filename: filename, content_type: "application/pdf")
-        }
-        upload_res = HTTP.headers(headers).post("#{api_base}/files", form: form)
-        unless upload_res.status.success?
-          puts "[OpenAI PDF] File upload failed: status=#{upload_res.status} body=#{upload_res.body.to_s[0..200]}"
-          return { success: false, error: "OpenAI file upload failed: #{upload_res.status}" }.to_json
-        end
-        upload_json = JSON.parse(upload_res.body.to_s) rescue nil
-        file_id = upload_json && upload_json["id"]
-        unless file_id
-          puts "[OpenAI PDF] Invalid file upload response: #{upload_res.body.to_s[0..200]}"
-          return { success: false, error: "OpenAI file upload response invalid" }.to_json
-        end
-        uploaded_new_file = true
-        puts "[OpenAI PDF] Uploaded file: filename=#{filename} file_id=#{file_id}"
-      end
-
-      # Resolve Vector Store ID (session -> app ENV -> registry -> global ENV -> fallback meta -> create new)
-      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
-      # app-specific ENV
-      app_env_vs = begin
-        key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
-        val = CONFIG[key]
-        s = val.to_s.strip
-        s.empty? ? nil : s
-      rescue StandardError
-        nil
-      end
-      # registry
-      reg_vs_id = begin
-        Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-      rescue StandardError
-        nil
-      end
-      # global ENV
-      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-      vs_id = nil
-      # read fallback meta
-      fallback_vs = nil
-      if File.exist?(vs_meta_path)
-        begin
-          meta = JSON.parse(File.read(vs_meta_path))
-          fallback_vs = meta["vector_store_id"]
-        rescue StandardError
-          fallback_vs = nil
-        end
-      end
-      vs_id = session[:openai_vector_store_id]
-      vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      # Prefer explicit ENV over registry for predictability
-      vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
-      vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
-
-      unless vs_id
-        # create a new VS for this app/system
-        name = "monadic-pdf-navigator-#{Time.now.utc.strftime('%Y%m%d')}-#{SecureRandom.hex(4)}"
-        vs_res = HTTP.headers({ **headers, "Content-Type" => "application/json" }).post(
-          "#{api_base}/vector_stores",
-          body: { name: name }.to_json
-        )
-        unless vs_res.status.success?
-          puts "[OpenAI PDF] Vector store creation failed: status=#{vs_res.status} body=#{vs_res.body.to_s[0..200]}"
-          return { success: false, error: "Vector store creation failed: #{vs_res.status}" }.to_json
-        end
-        vs_json = JSON.parse(vs_res.body.to_s) rescue nil
-        vs_id = vs_json && vs_json["id"]
-        unless vs_id
-          puts "[OpenAI PDF] Invalid vector store response: #{vs_res.body.to_s[0..200]}"
-          return { success: false, error: "Vector store creation response invalid" }.to_json
-        end
-        puts "[OpenAI PDF] Vector store ready: vs_id=#{vs_id}"
-        # persist to fallback meta if ENV is not set
-        if env_vs_id.nil? || env_vs_id.empty?
-          begin
-            meta = { "vector_store_id" => vs_id, "files" => [] }
-            File.write(vs_meta_path, JSON.pretty_generate(meta))
-            puts "[OpenAI PDF] Tip: set OPENAI_VECTOR_STORE_ID=#{vs_id} in .env for reuse"
-          rescue StandardError => e
-            puts "[OpenAI PDF] Failed to write VS meta: #{e.message}"
-          end
-        end
-        # Save to registry (app-scoped)
-        begin
-          Monadic::Utils::DocumentStoreRegistry.set_cloud_vs(app_key, vs_id)
-        rescue StandardError => e
-          puts "[Registry] Failed to set VS for app #{app_key}: #{e.message}"
-        end
-      end
-      # Reflect VS into session for runtime helpers that still consult session
-      session[:openai_vector_store_id] = vs_id
-
-      # Add file to vector store
-      add_res = HTTP.headers({ **headers, "Content-Type" => "application/json" }).post(
-        "#{api_base}/vector_stores/#{vs_id}/files",
-        body: { file_id: file_id }.to_json
-      )
-      unless add_res.status.success?
-        # If dedup re-attach failed (stale file id), attempt full upload once
-        if dedup_candidate && !uploaded_new_file
-          begin
-            form = {
-              purpose: "assistants",
-              file: HTTP::FormData::File.new(tempfile.path, filename: filename, content_type: "application/pdf")
-            }
-            upload_res = HTTP.headers(headers).post("#{api_base}/files", form: form)
-            if upload_res.status.success?
-              upj = JSON.parse(upload_res.body.to_s) rescue nil
-              file_id = upj && upj["id"]
-              if file_id
-                retry_add = HTTP.headers({ **headers, "Content-Type" => "application/json" }).post(
-                  "#{api_base}/vector_stores/#{vs_id}/files",
-                  body: { file_id: file_id }.to_json
-                )
-                unless retry_add.status.success?
-                  puts "[OpenAI PDF] Add file to vector store failed after retry: status=#{retry_add.status} body=#{retry_add.body.to_s[0..200]}"
-                  return { success: false, error: "Adding file to vector store failed: #{retry_add.status}" }.to_json
-                end
-                uploaded_new_file = true
-              else
-                return { success: false, error: "OpenAI file upload response invalid (retry)" }.to_json
-              end
-            else
-              puts "[OpenAI PDF] File upload (retry) failed: status=#{upload_res.status} body=#{upload_res.body.to_s[0..200]}"
-              return { success: false, error: "OpenAI file upload failed (retry): #{upload_res.status}" }.to_json
-            end
-          rescue StandardError => e
-            return { success: false, error: "OpenAI file attach failed: #{e.message}" }.to_json
-          end
-        else
-          puts "[OpenAI PDF] Add file to vector store failed: status=#{add_res.status} body=#{add_res.body.to_s[0..200]}"
-          return { success: false, error: "Adding file to vector store failed: #{add_res.status}" }.to_json
-        end
-      end
-      puts "[OpenAI PDF] Linked file to vector store: vs_id=#{vs_id} file_id=#{file_id}"
-      # Update registry with file record
-      begin
-        # Only append a new file record if we actually uploaded a new file or if no record exists
-        app_entry = Monadic::Utils::DocumentStoreRegistry.get_app(app_key)
-        known = (app_entry.dig('cloud', 'files') || []).any? { |f| f['file_id'] == file_id }
-        if uploaded_new_file || !known
-          Monadic::Utils::DocumentStoreRegistry.add_cloud_file(app_key, file_id: file_id, filename: filename, hash: file_hash)
-        end
-      rescue StandardError => e
-        puts "[Registry] Failed to update registry: #{e.message}"
-      end
-      # Mark session storage mode as cloud for downstream routing
-      begin
-        session[:pdf_storage_mode] = 'cloud'
-      rescue StandardError
-        # no-op
-      end
-      # Update fallback meta file with this file entry
-      if (env_vs_id.nil? || env_vs_id.empty?)
-        begin
-          meta = File.exist?(vs_meta_path) ? (JSON.parse(File.read(vs_meta_path)) rescue {}) : {}
-          meta["vector_store_id"] = vs_id
-          meta["files"] ||= []
-          meta["files"] << { "file_id" => file_id, "filename" => filename, "created_at" => Time.now.utc.iso8601 }
-          File.write(vs_meta_path, JSON.pretty_generate(meta))
-        rescue StandardError => e
-          puts "[OpenAI PDF] Failed to update VS meta: #{e.message}"
-        end
-      end
-
-      # Invalidate caches for mode/presence
-      begin
-        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-      rescue StandardError
-        # no-op
-      end
-      { success: true, filename: filename, vector_store_id: vs_id, file_id: file_id, deduplicated: (!uploaded_new_file) }.to_json
-
-    else
-      status 400
-      { success: false, error: "Unsupported action" }.to_json
-    end
-  rescue => e
-    { success: false, error: "OpenAI PDF endpoint error: #{e.class}: #{e.message}" }.to_json
-  end
-end
-
-# Capabilities: return install-option driven availability for frontend gating
-get "/api/capabilities" do
-  content_type :json
-  begin
-    latex_enabled = !!(CONFIG && CONFIG['INSTALL_LATEX'])
-    latex_available = false
-    if latex_enabled
-      # Try a quick health check via docker exec (python container); cache in memory for a short time
-      @@latex_health ||= { ts: Time.at(0), ok: false }
-      if (Time.now - @@latex_health[:ts]) > 120 # 2 minutes TTL
-        ok = false
-        begin
-          # This command should succeed when LaTeX minimal set is installed
-          ok = system("docker exec monadic-chat-python-container sh -lc 'pdflatex -version >/dev/null 2>&1'")
-        rescue StandardError
-          ok = false
-        end
-        @@latex_health = { ts: Time.now, ok: ok }
-      end
-      latex_available = @@latex_health[:ok]
-    end
-
-    providers = {
-      openai: !!(CONFIG && CONFIG['OPENAI_API_KEY'] && !CONFIG['OPENAI_API_KEY'].to_s.strip.empty?),
-      anthropic: !!(CONFIG && CONFIG['ANTHROPIC_API_KEY'] && !CONFIG['ANTHROPIC_API_KEY'].to_s.strip.empty?),
-      tavily: !!(CONFIG && CONFIG['TAVILY_API_KEY'] && !CONFIG['TAVILY_API_KEY'].to_s.strip.empty?)
-    }
-
-    resp = {
-      success: true,
-      latex: { enabled: latex_enabled, available: latex_available },
-      providers: providers,
-      selenium: { enabled: true }
-    }
-    resp.to_json
-  rescue StandardError => e
-    # Be lenient: never 500 for capabilities; return defaults instead
-    {
-      success: false,
-      error: e.message,
-      latex: { enabled: false, available: false },
-      providers: { openai: false, anthropic: false, tavily: false },
-      selenium: { enabled: true }
-    }.to_json
-  end
-end
-
-get "/openai/pdf" do
-  content_type :json
-  action = params["action"] || "list"
-  api_key = CONFIG["OPENAI_API_KEY"]
-  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
-
-  begin
-    case action
-    when "list"
-      # Resolve VS from session/app ENV/registry/global ENV/fallback
-      app_key = begin
-        (session[:parameters] && session[:parameters]["app_name"]) || "default"
-      rescue StandardError
-        "default"
-      end
-      app_env_vs = begin
-        key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
-        val = CONFIG[key]
-        s = val.to_s.strip
-        s.empty? ? nil : s
-      rescue StandardError
-        nil
-      end
-      reg_vs_id = begin
-        Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-      rescue StandardError
-        nil
-      end
-      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
-      fallback_vs = nil
-      if File.exist?(vs_meta_path)
-        begin
-          meta = JSON.parse(File.read(vs_meta_path))
-          fallback_vs = meta["vector_store_id"]
-        rescue StandardError
-          fallback_vs = nil
-        end
-      end
-      vs_id = session[:openai_vector_store_id]
-      vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
-      vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
-      # Keep session in sync for downstream usage
-      session[:openai_vector_store_id] = vs_id if vs_id
-      return { success: true, files: [], vector_store_id: nil }.to_json unless vs_id
-      headers = { "Authorization" => "Bearer #{api_key}" }
-      api_base = "https://api.openai.com/v1"
-      res = HTTP.headers(headers).get("#{api_base}/vector_stores/#{vs_id}/files")
-      if res.status.success?
-        base = JSON.parse(res.body.to_s) rescue { "data" => [] }
-        raw = base["data"] || []
-        # Enrich with filename via /v1/files/{id}
-        files = raw.map do |f|
-          fid = f["id"]
-          fname = nil
-          begin
-            details = HTTP.headers(headers).get("#{api_base}/files/#{fid}")
-            if details.status.success?
-              dj = JSON.parse(details.body.to_s) rescue nil
-              fname = dj && dj["filename"]
-            end
-          rescue StandardError
-            fname = nil
-          end
-          { id: fid, filename: fname, status: f["status"] }
-        end
-        { success: true, files: files, vector_store_id: vs_id }.to_json
-      else
-        { success: false, error: "Failed to fetch file list: #{res.status}" }.to_json
-      end
-    else
-      status 400
-      { success: false, error: "Unsupported action" }.to_json
-    end
-  rescue => e
-    { success: false, error: "OpenAI PDF list error: #{e.class}: #{e.message}" }.to_json
-  end
-end
-
-delete "/openai/pdf" do
-  content_type :json
-  action = params["action"] || "clear"
-  api_key = CONFIG["OPENAI_API_KEY"]
-  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
-  begin
-    case action
-    when "clear"
-      headers = { "Authorization" => "Bearer #{api_key}" }
-      api_base = "https://api.openai.com/v1"
-      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
-      app_key = begin
-        (session[:parameters] && session[:parameters]["app_name"]) || "default"
-      rescue StandardError
-        "default"
-      end
-      app_env_vs = begin
-        key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
-        val = CONFIG[key]
-        s = val.to_s.strip
-        s.empty? ? nil : s
-      rescue StandardError
-        nil
-      end
-      reg_vs_id = begin
-        Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-      rescue StandardError
-        nil
-      end
-      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-      fallback_vs = nil
-      if File.exist?(vs_meta_path)
-        begin
-          meta = JSON.parse(File.read(vs_meta_path))
-          fallback_vs = meta["vector_store_id"]
-        rescue StandardError
-          fallback_vs = nil
-        end
-      end
-      vs_id = session[:openai_vector_store_id]
-      vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
-      vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
-
-      if vs_id
-        if env_vs_id && !env_vs_id.empty?
-          # ENV fixed: Keep VS itself, delete only the contents (files)
-          files_res = HTTP.headers(headers).get("#{api_base}/vector_stores/#{vs_id}/files")
-          if files_res.status.success?
-            data = (JSON.parse(files_res.body.to_s) rescue {})
-            (data["data"] || []).each do |f|
-              fid = f["id"]
-              begin
-                HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{fid}")
-              rescue StandardError => e
-                Monadic::Utils::ExtraLogger.log { "[Cleanup] VS file delete failed: #{e.message}" }
-              end
-              begin
-                HTTP.headers(headers).delete("#{api_base}/files/#{fid}")
-              rescue StandardError => e
-                Monadic::Utils::ExtraLogger.log { "[Cleanup] File delete failed: #{e.message}" }
-              end
-            end
-          end
-          # Clear files in metadata
-          if File.exist?(vs_meta_path)
-            begin
-              meta = (JSON.parse(File.read(vs_meta_path)) rescue {})
-              meta["files"] = []
-              File.write(vs_meta_path, JSON.pretty_generate(meta))
-            rescue StandardError => e
-              Monadic::Utils::ExtraLogger.log { "[Cleanup] Metadata clear failed: #{e.message}" }
-            end
-          end
-          # Also clear files for this app in registry
-          begin
-            Monadic::Utils::DocumentStoreRegistry.clear_cloud(app_key)
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[Cleanup] Registry clear failed: #{e.message}" }
-          end
-        else
-          # No ENV fixed: Delete VS itself and clear metadata
-          begin
-            HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}")
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[Cleanup] VS delete failed: #{e.message}" }
-          end
-          if File.exist?(vs_meta_path)
-            begin
-              File.write(vs_meta_path, JSON.pretty_generate({}))
-            rescue StandardError => e
-              Monadic::Utils::ExtraLogger.log { "[Cleanup] Metadata write failed: #{e.message}" }
-            end
-          end
-          # Clear VS and files in registry
-          begin
-            Monadic::Utils::DocumentStoreRegistry.clear_cloud(app_key)
-            Monadic::Utils::DocumentStoreRegistry.set_cloud_vs(app_key, nil)
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[Cleanup] Registry clear failed: #{e.message}" }
-          end
-        end
-      end
-      # Bump session cache version to invalidate mode/presence caches
-      begin
-        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
-      end
-      { success: true }.to_json
-    when "delete"
-      file_id = params["file_id"]
-      return { success: false, error: "file_id required" }.to_json unless file_id
-      headers = { "Authorization" => "Bearer #{api_key}" }
-      api_base = "https://api.openai.com/v1"
-      # Best-effort: remove from vector store (if present), then delete file
-      app_key = begin
-        (session[:parameters] && session[:parameters]["app_name"]) || "default"
-      rescue StandardError
-        "default"
-      end
-      app_env_vs = begin
-        key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
-        val = CONFIG[key]
-        s = val.to_s.strip
-        s.empty? ? nil : s
-      rescue StandardError
-        nil
-      end
-      reg_vs_id = begin
-        Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-      rescue StandardError
-        nil
-      end
-      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
-      fallback_vs = nil
-      if File.exist?(vs_meta_path)
-        begin
-          meta = JSON.parse(File.read(vs_meta_path))
-          fallback_vs = meta["vector_store_id"]
-        rescue StandardError
-          fallback_vs = nil
-        end
-      end
-      vs_id = session[:openai_vector_store_id]
-      vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
-      vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
-      vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
-      begin
-        if vs_id
-          HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{file_id}")
-        end
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[Cleanup] VS file unlink failed: #{e.message}" }
-      end
-      del_res = HTTP.headers(headers).delete("#{api_base}/files/#{file_id}")
-      if del_res.status.success?
-        # update fallback meta if present
-        if File.exist?(vs_meta_path)
-          begin
-            meta = (JSON.parse(File.read(vs_meta_path)) rescue {})
-            meta["files"] = (meta["files"] || []).reject { |f| f["file_id"] == file_id }
-            File.write(vs_meta_path, JSON.pretty_generate(meta))
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[Cleanup] Metadata update failed: #{e.message}" }
-          end
-        end
-        begin
-          Monadic::Utils::DocumentStoreRegistry.remove_cloud_file(app_key, file_id)
-        rescue StandardError => e
-          Monadic::Utils::ExtraLogger.log { "[Cleanup] Registry file remove failed: #{e.message}" }
-        end
-        # Bump cache version
-        begin
-          session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-        rescue StandardError => e
-          Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
-        end
-        { success: true }.to_json
-      else
-        { success: false, error: "Failed to delete file: #{del_res.status}" }.to_json
-      end
-    else
-      status 400
-      { success: false, error: "Unsupported action" }.to_json
-    end
-  rescue => e
-    { success: false, error: "OpenAI PDF clear error: #{e.class}: #{e.message}" }.to_json
-  end
-end
 
 require "active_support"
 require "active_support/core_ext/hash/indifferent_access"
@@ -710,7 +53,7 @@ require_relative "monadic/utils/environment"
 IN_CONTAINER = Monadic::Utils::Environment.in_container?
 
 require_relative "monadic/utils/setup"
-require_relative "monadic/utils/flask_app_client"
+require_relative "monadic/utils/tokenizer"
 require_relative "monadic/utils/help_embeddings_loader"
 
 require_relative "monadic/utils/string_utils"
@@ -732,6 +75,7 @@ require_relative "monadic/utils/model_spec_loader"
 require_relative "monadic/utils/language_config"
 require_relative "monadic/utils/selenium_helper"
 require_relative "monadic/utils/tts_text_extractor"
+require_relative "monadic/utils/tool_image_utils"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"
@@ -873,68 +217,11 @@ rescue => e
 end
 
 # Workflow Viewer helpers: extract graph data from app settings
-def wv_extract_tools(s)
-  pt = s[:progressive_tools] || s["progressive_tools"] || {}
-  all_names = pt[:all_tool_names] || pt["all_tool_names"] || []
-  always_visible = pt[:always_visible] || pt["always_visible"] || []
-  conditional = pt[:conditional] || pt["conditional"] || []
-  conditional_map = conditional.each_with_object({}) do |c, h|
-    name = c[:name] || c["name"]
-    h[name] = {
-      visibility: (c[:visibility] || c["visibility"]).to_s,
-      unlock_hint: c[:unlock_hint] || c["unlock_hint"]
-    }
-  end
-
-  all_names.map do |name|
-    meta = conditional_map[name]
-    {
-      name: name,
-      visibility: meta ? meta[:visibility] : "always",
-      unlock_hint: meta ? meta[:unlock_hint] : nil
-    }
-  end
-end
-
-def wv_extract_shared_tool_groups(s)
-  groups = s[:imported_tool_groups] || s["imported_tool_groups"] || []
-  groups.map do |g|
-    group_name = (g[:name] || g["name"]).to_sym
-    tool_names = begin
-      MonadicSharedTools::Registry.tools_for(group_name).map(&:name)
-    rescue ArgumentError
-      []
-    end
-    {
-      name: group_name.to_s,
-      visibility: (g[:visibility] || g["visibility"]).to_s,
-      tool_count: g[:tool_count] || g["tool_count"] || tool_names.size,
-      tool_names: tool_names
-    }
-  end
-end
-
-def wv_extract_agents(s)
-  agents = s[:agents] || s["agents"] || {}
-  agents.each_with_object({}) do |(k, v), h|
-    h[k.to_s] = v.to_s
-  end
-end
-
-def wv_extract_features(s)
-  flags = %w[websearch monadic image pdf jupyter mermaid mathjax abc
-             image_generation easy_submit auto_speech initiate_from_assistant]
-  result = flags.each_with_object({}) do |f, h|
-    val = s[f.to_sym]
-    val = s[f] if val.nil?
-    h[f] = !!val
-  end
-  # Normalize: pdf_vector_storage and pdf_upload imply pdf capability
-  unless result["pdf"]
-    result["pdf"] = !!(s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"])
-  end
-  result
-end
+# Workflow Viewer helpers — delegated to Monadic::Utils::WorkflowViewerHelpers
+def wv_extract_tools(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_tools(s)
+def wv_extract_shared_tool_groups(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_shared_tool_groups(s)
+def wv_extract_agents(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_agents(s)
+def wv_extract_features(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_features(s)
 
 def handle_error(message)
   session[:error] = message
@@ -1043,11 +330,11 @@ def load_tts_dict(tts_dict_data = nil)
     begin
       file_data = File.read(config_dict_path)
       tts_dict = StringUtils.process_tts_dictionary(file_data)
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from config directory" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "TTS Dictionary loaded with #{tts_dict.size} entries from config directory" }
       CONFIG["TTS_DICT"] = tts_dict
       return
     rescue => e
-      puts "Error reading TTS dictionary from config: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "Error reading TTS dictionary from config: #{e.message}" }
     end
   end
   
@@ -1056,17 +343,17 @@ def load_tts_dict(tts_dict_data = nil)
     begin
       file_data = File.read(ENV['TTS_DICT_PATH'])
       tts_dict = StringUtils.process_tts_dictionary(file_data)
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_PATH (development mode)" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_PATH (development mode)" }
     rescue => e
-      puts "Error reading TTS dictionary from TTS_DICT_PATH: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "Error reading TTS dictionary from TTS_DICT_PATH: #{e.message}" }
     end
   # 3. Legacy support: Try using TTS_DICT_DATA if it exists
   elsif tts_dict_data || CONFIG["TTS_DICT_DATA"]
     data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"]
     tts_dict = StringUtils.process_tts_dictionary(data_to_process)
-    puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_DATA (legacy mode)" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_DATA (legacy mode)" }
   else
-    puts "No TTS Dictionary data available" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "No TTS Dictionary data available" }
   end
   
   CONFIG["TTS_DICT"] = tts_dict || {}
@@ -1078,25 +365,23 @@ def init_apps
   klass = Object.const_get("MonadicApp")
   
   # If in debug mode, log we're processing apps
-  if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-    puts "Initializing apps in normal mode"
-    puts "Debug: environment has DISTRIBUTED_MODE=#{ENV["DISTRIBUTED_MODE"]}"
-  end
+  Monadic::Utils::ExtraLogger.log { "Initializing apps in normal mode" }
+  Monadic::Utils::ExtraLogger.log { "Debug: environment has DISTRIBUTED_MODE=#{ENV["DISTRIBUTED_MODE"]}" }
   
   klass.subclasses.each do |a|
     app = a.new
     class_settings = a.instance_variable_get(:@settings)
     
     # Debug: Log reasoning_effort for OpenAI apps
-    if a.name.include?("OpenAI") && CONFIG["EXTRA_LOGGING"]
-      puts "#{a.name} class settings: reasoning_effort = #{class_settings[:reasoning_effort].inspect}"
+    if a.name.include?("OpenAI")
+      Monadic::Utils::ExtraLogger.log { "#{a.name} class settings: reasoning_effort = #{class_settings[:reasoning_effort].inspect}" }
     end
     
     app.settings = ActiveSupport::HashWithIndifferentAccess.new(class_settings)
     
     # Debug: Log instance settings after assignment
-    if a.name.include?("OpenAI") && CONFIG["EXTRA_LOGGING"]
-      puts "#{a.name} instance settings: reasoning_effort = #{app.settings[:reasoning_effort].inspect}"
+    if a.name.include?("OpenAI")
+      Monadic::Utils::ExtraLogger.log { "#{a.name} instance settings: reasoning_effort = #{app.settings[:reasoning_effort].inspect}" }
     end
 
     # Evaluate the disabled expression if it's a string containing Ruby code
@@ -1106,7 +391,7 @@ def init_apps
       rescue => e
         # If evaluation fails, assume the app is disabled
         app.settings["disabled"] = true
-        puts "Warning: Failed to evaluate disabled condition for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Warning: Failed to evaluate disabled condition for #{a.name}: #{e.message}" }
       end
     end
 
@@ -1117,7 +402,7 @@ def init_apps
       rescue => e
         # If evaluation fails, use empty array
         app.settings["models"] = []
-        puts "Warning: Failed to evaluate models for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Warning: Failed to evaluate models for #{a.name}: #{e.message}" }
       end
     end
 
@@ -1126,9 +411,10 @@ def init_apps
       begin
         app.settings["model"] = eval(app.settings["model"])
       rescue => e
-        # If evaluation fails, use a default model
-        app.settings["model"] = "gpt-4.1"
-        puts "Warning: Failed to evaluate model for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        # If evaluation fails, use provider default from SSOT
+        provider_key = app.settings["provider"] || "openai"
+        app.settings["model"] = SystemDefaults.get_default_model(provider_key)
+        Monadic::Utils::ExtraLogger.log { "Warning: Failed to evaluate model for #{a.name}: #{e.message}" }
       end
     end
 
@@ -1225,12 +511,11 @@ def init_apps
 
         <script>
           document.querySelectorAll('.generated_image img').forEach((img) => {
+            img.setAttribute('data-action', 'open');
+            img.style.cursor = 'pointer';
             img.addEventListener('click', (e) => {
               window.open(e.target.src, '_blank');
             });
-          });
-          document.querySelectorAll('.generated_image img').forEach((img) => {
-            img.style.cursor = 'pointer';
           });
         </script>
       RSUFFIX
@@ -1325,7 +610,7 @@ def init_apps
 
     # Skip apps with invalid app_name (nil, empty, or "undefined")
     if app_name.nil? || app_name.to_s.strip.empty? || app_name.to_s == "undefined"
-      puts "[WARNING] Skipping app with invalid app_name: #{app.class.name}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[WARNING] Skipping app with invalid app_name: #{app.class.name}" }
       next
     end
 
@@ -1348,7 +633,7 @@ def init_apps
          settings["jupyter"] == "true" ||
          app_name.to_s.downcase.include?("jupyter") ||
          settings["display_name"].to_s.downcase.include?("jupyter")
-        puts "Filtering out Jupyter app in server mode: #{app_name}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Filtering out Jupyter app in server mode: #{app_name}" }
       else
         filtered_apps[app_name] = app
       end
@@ -1396,924 +681,32 @@ configure do
   end
 end
 
-# API endpoint to check environment settings
-get "/api/environment" do
-  content_type :json
-  {
-    has_tavily_key: !CONFIG["TAVILY_API_KEY"].to_s.empty?,
-    max_stored_messages: (CONFIG["MAX_STORED_MESSAGES"] || "1000").to_i
-  }.to_json
-end
+# Content type mapping for documentation serving (shared across docs routes)
+DOCS_CONTENT_TYPE_MAP = {
+  ".html" => "text/html",
+  ".md" => "text/markdown",
+  ".js" => "application/javascript",
+  ".css" => "text/css",
+  ".json" => "application/json",
+  ".png" => "image/png",
+  ".jpg" => "image/jpeg",
+  ".jpeg" => "image/jpeg",
+  ".gif" => "image/gif",
+  ".svg" => "image/svg+xml",
+  ".ico" => "image/x-icon",
+  ".woff" => "font/woff",
+  ".woff2" => "font/woff2",
+  ".ttf" => "font/ttf",
+  ".eot" => "application/vnd.ms-fontobject"
+}.freeze
+
+# Load route definitions from separate files
+require_relative "monadic/routes/pdf_routes"
+require_relative "monadic/routes/api_routes"
+require_relative "monadic/routes/static_routes"
+require_relative "monadic/routes/upload_routes"
+require_relative "monadic/routes/session_routes"
 
-# API endpoint for dynamically loading model specifications
-# Merges default model_spec.js with user's custom models.json
-get "/api/models" do
-  content_type :json
-  
-  begin
-    default_spec_path = File.join(settings.public_folder, "js/monadic/model_spec.js")
-    merged_spec = ModelSpecLoader.load_merged_spec(default_spec_path)
-    JSON.generate(merged_spec)
-  rescue => e
-    STDERR.puts "[Model Spec Error] #{e.message}"
-    STDERR.puts e.backtrace if CONFIG["EXTRA_LOGGING"]
-    status 500
-    JSON.generate({ error: "Failed to load model specifications" })
-  end
-end
-
-# Accept requests from the client
-get "/" do
-  @timestamp = Time.now.to_i
-  session[:parameters] ||= {}
-  session[:messages] ||= []
-  session[:version] = Monadic::VERSION
-  session[:docker] = Monadic::Utils::Environment.in_container?
-
-  # Get UI language from environment variable (set by Electron app)
-  @ui_language = ENV['UI_LANGUAGE'] || 'en'
-
-  # Pass DEBUG_MODE to template for conditional local documentation link
-  @debug_mode = CONFIG["DEBUG_MODE"] || false
-
-  # Check if this is a WebSocket upgrade request
-  if env["HTTP_UPGRADE"]&.downcase == "websocket" && env["HTTP_CONNECTION"]&.downcase&.include?("upgrade")
-    websocket_handler(env)
-  else
-    erb :index
-  end
-end
-
-# Serve local development documentation in debug mode (internal docs_dev)
-# NOTE: This MUST come before the /docs/?* route to avoid matching /docs_dev/ as /docs/_dev/
-get "/docs_dev/?*" do
-  # Only serve docs_dev in debug mode
-  unless CONFIG["DEBUG_MODE"]
-    status 404
-    return "Documentation not available in production mode"
-  end
-
-  # Get the requested path (remove leading /docs_dev/)
-  requested_path = params[:splat].first || ""
-
-  # Security: prevent path traversal attacks
-  requested_path = requested_path.gsub(/\.\./, "")
-
-  # Determine the docs_dev root directory (relative to lib/monadic.rb)
-  # From docker/services/ruby/lib/monadic.rb to docs_dev/
-  docs_dev_root = File.expand_path("../../../../../docs_dev", __FILE__)
-
-  # Log the request for debugging
-  puts "[DEBUG_MODE] Docs_dev request: requested_path='#{requested_path}', docs_dev_root='#{docs_dev_root}'" if CONFIG["EXTRA_LOGGING"]
-
-  # Build the full file path
-  if requested_path.empty?
-    file_path = File.join(docs_dev_root, "index.html")
-  else
-    file_path = File.join(docs_dev_root, requested_path)
-  end
-
-  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
-
-  # Check if file exists and is within docs_dev directory
-  if File.exist?(file_path) && !File.directory?(file_path)
-    real_file_path = File.realpath(file_path)
-    real_docs_dev_root = File.realpath(docs_dev_root)
-
-    if real_file_path.start_with?(real_docs_dev_root)
-      # Set appropriate content type based on file extension
-      content_type_map = {
-        ".html" => "text/html",
-        ".md" => "text/markdown",
-        ".js" => "application/javascript",
-        ".css" => "text/css",
-        ".json" => "application/json",
-        ".png" => "image/png",
-        ".jpg" => "image/jpeg",
-        ".jpeg" => "image/jpeg",
-        ".gif" => "image/gif",
-        ".svg" => "image/svg+xml",
-        ".ico" => "image/x-icon",
-        ".woff" => "font/woff",
-        ".woff2" => "font/woff2",
-        ".ttf" => "font/ttf",
-        ".eot" => "application/vnd.ms-fontobject"
-      }
-
-      ext = File.extname(file_path)
-      content_type content_type_map[ext] || "text/plain"
-
-      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
-      send_file file_path
-    else
-      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_dev_root}" if CONFIG["EXTRA_LOGGING"]
-      status 403
-      "Access forbidden"
-    end
-  else
-    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
-    status 404
-    "File not found: #{requested_path}"
-  end
-end
-
-# Serve local documentation in debug mode (public docs)
-get "/docs/?*" do
-  # Only serve docs in debug mode
-  unless CONFIG["DEBUG_MODE"]
-    status 404
-    return "Documentation not available in production mode"
-  end
-
-  # Get the requested path (remove leading /docs/)
-  requested_path = params[:splat].first || ""
-
-  # Security: prevent path traversal attacks
-  requested_path = requested_path.gsub(/\.\./, "")
-
-  # Determine the docs root directory (relative to lib/monadic.rb)
-  # From docker/services/ruby/lib/monadic.rb to docs/
-  docs_root = File.expand_path("../../../../../docs", __FILE__)
-
-  # Log the request for debugging
-  puts "[DEBUG_MODE] Docs request: requested_path='#{requested_path}', docs_root='#{docs_root}'" if CONFIG["EXTRA_LOGGING"]
-
-  # Build the full file path
-  if requested_path.empty?
-    file_path = File.join(docs_root, "index.html")
-  else
-    file_path = File.join(docs_root, requested_path)
-  end
-
-  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
-
-  # Check if file exists and is within docs directory
-  if File.exist?(file_path) && !File.directory?(file_path)
-    real_file_path = File.realpath(file_path)
-    real_docs_root = File.realpath(docs_root)
-
-    if real_file_path.start_with?(real_docs_root)
-      # Set appropriate content type based on file extension
-      content_type_map = {
-        ".html" => "text/html",
-        ".md" => "text/markdown",
-        ".js" => "application/javascript",
-        ".css" => "text/css",
-        ".json" => "application/json",
-        ".png" => "image/png",
-        ".jpg" => "image/jpeg",
-        ".jpeg" => "image/jpeg",
-        ".gif" => "image/gif",
-        ".svg" => "image/svg+xml",
-        ".ico" => "image/x-icon",
-        ".woff" => "font/woff",
-        ".woff2" => "font/woff2",
-        ".ttf" => "font/ttf",
-        ".eot" => "application/vnd.ms-fontobject"
-      }
-
-      ext = File.extname(file_path)
-      content_type content_type_map[ext] || "text/plain"
-
-      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
-      send_file file_path
-    else
-      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_root}" if CONFIG["EXTRA_LOGGING"]
-      status 403
-      "Access forbidden"
-    end
-  else
-    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
-    status 404
-    "File not found: #{requested_path}"
-  end
-end
-
-def fetch_file(file_name)
-  # Prevent path traversal attacks by sanitizing the filename
-  safe_name = File.basename(file_name)
-  
-  datadir = Monadic::Utils::Environment.data_path
-  file_path = File.join(datadir, safe_name)
-  
-  begin
-    # Resolve real paths to handle symlinks
-    real_path = File.realpath(file_path) if File.exist?(file_path)
-    real_datadir = File.realpath(datadir)
-    
-    # Ensure proper directory separator
-    real_datadir_with_sep = real_datadir.end_with?(File::SEPARATOR) ? 
-                           real_datadir : 
-                           real_datadir + File::SEPARATOR
-    
-    if real_path && real_path.start_with?(real_datadir_with_sep) && File.exist?(file_path)
-      send_file file_path
-    else
-      status 404
-      "Sorry, the file you are looking for is unavailable."
-    end
-  rescue StandardError => e
-    puts "File fetch error: #{e.message}" if ENV["DEBUG"]
-    status 404
-    "Sorry, the file you are looking for is unavailable."
-  end
-end
-
-# Convert a string to a integer
-def string_to_int(str)
-  hash = Digest::SHA256.hexdigest(str)
-  int_value = hash[0..7].to_i(16) % 2_147_483_648 # 0 to 2,147,483,647
-  int_value -= 2_147_483_648 if int_value > 1_073_741_823
-  int_value
-end
-
-get "/monadic/data/:file_name" do
-  fetch_file(params[:file_name])
-end
-
-get "/data/:file_name" do
-  fetch_file(params[:file_name])
-end
-
-get "/:filename" do |filename|
-  redirect to("/data/#{filename}")
-end
-
-# Accept requests from the client to provide language codes and country names
-get "/lctags" do
-  languages = I18nData.languages
-  countries = I18nData.countries
-  content_type :json
-  return { "languages" => languages, "countries" => countries }.to_json
-end
-
-# API: PDF storage defaults and availability for UI
-get "/api/pdf_storage_defaults" do
-  content_type :json
-  begin
-    default_storage = get_pdf_storage_mode
-    pgvector_available = begin
-      defined?(EMBEDDINGS_DB) && !EMBEDDINGS_DB.nil?
-    rescue StandardError
-      false
-    end
-    { default_storage: default_storage, pgvector_available: pgvector_available }.to_json
-  rescue StandardError => e
-    status 500
-    { default_storage: 'local', pgvector_available: false }.to_json
-  end
-end
-
-# API: Deduplicated app list for batch SVG export
-get "/api/apps/graph_list" do
-  content_type :json
-  begin
-    by_display = {}
-    APPS.each do |app_name, app|
-      s = app.settings
-      dn = (s[:display_name] || s["display_name"] || app_name).to_s
-      provider = (s[:provider] || s["provider"] || s[:group] || s["group"]).to_s.downcase
-      existing = by_display[dn]
-      if existing.nil? || (provider == "openai" && existing[:provider] != "openai")
-        by_display[dn] = { app_name: app_name, display_name: dn, provider: provider }
-      end
-    end
-    by_display.values.sort_by { |e| e[:display_name] }.to_json
-  rescue StandardError => e
-    status 500
-    { error: e.message }.to_json
-  end
-end
-
-# API: Graph data for Workflow Viewer
-get "/api/app/:name/graph" do
-  content_type :json
-  begin
-    app_name = params[:name]
-    app = defined?(APPS) && APPS[app_name]
-    unless app
-      status 404
-      return { error: "App not found" }.to_json
-    end
-
-    s = app.settings
-
-    prompt_text = (s[:initial_prompt] || s["initial_prompt"]).to_s
-    output_types = ["text"]
-    output_types << "image" if s[:image_generation] || s["image_generation"]
-    output_types << "audio" if s[:auto_speech] || s["auto_speech"]
-
-    input_types = ["text"]
-    input_types << "image" if s[:image] || s["image"]
-    input_types << "pdf" if s[:pdf] || s["pdf"] || s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"]
-
-    {
-      app_name: s[:app_name] || s["app_name"],
-      display_name: s[:display_name] || s["display_name"] || s[:app_name],
-      icon: s[:icon] || s["icon"],
-      provider: (s[:provider] || s["provider"] || s[:group] || s["group"]).to_s.downcase,
-      models: s[:models] || s["models"] || [s[:model] || s["model"]].compact,
-      core: {
-        temperature: s[:temperature] || s["temperature"],
-        reasoning_effort: s[:reasoning_effort] || s["reasoning_effort"],
-        context_size: s[:context_size] || s["context_size"],
-        max_tokens: s[:max_tokens] || s["max_tokens"]
-      },
-      system_prompt: prompt_text.length > 2000 ? prompt_text[0, 2000] + "..." : prompt_text,
-      input_types: input_types,
-      output_types: output_types,
-      tools: wv_extract_tools(s),
-      shared_tool_groups: wv_extract_shared_tool_groups(s),
-      agents: wv_extract_agents(s),
-      features: wv_extract_features(s),
-      context_schema: (s[:context_schema] || s["context_schema"] || {})
-    }.to_json
-  rescue StandardError => e
-    status 500
-    { error: e.message }.to_json
-  end
-end
-
-# Get monadic_state for export (Session State mechanism)
-get "/monadic_state" do
-  content_type :json
-  if session[:monadic_state]
-    # Convert symbol keys to strings for JSON serialization
-    serializable_state = session[:monadic_state].each_with_object({}) do |(app_key, app_data), result|
-      # Skip special keys that don't follow the standard structure
-      next if [:conversation_context, :context_schema, "conversation_context", "context_schema"].include?(app_key)
-
-      if app_data.is_a?(Hash)
-        result[app_key.to_s] = app_data.each_with_object({}) do |(state_key, state_entry), app_result|
-          next unless state_entry.is_a?(Hash) && state_entry.key?(:data)
-          app_result[state_key.to_s] = {
-            "data" => state_entry[:data],
-            "version" => state_entry[:version],
-            "updated_at" => state_entry[:updated_at]
-          }
-        end
-      end
-    end
-
-    response_data = { success: true, monadic_state: serializable_state }
-
-    # Include conversation_context (Session Context) if present
-    conversation_context = session[:monadic_state][:conversation_context] || session[:monadic_state]["conversation_context"]
-    if conversation_context
-      response_data[:session_context] = conversation_context
-    end
-
-    # Include context_schema if present
-    context_schema = session[:monadic_state][:context_schema] || session[:monadic_state]["context_schema"]
-    if context_schema
-      response_data[:context_schema] = context_schema
-    end
-
-    response_data.to_json
-  else
-    { success: true, monadic_state: nil }.to_json
-  end
-end
-
-# Upload a Session JSON file to load past messages
-post "/load" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
-    
-    if params[:file]
-      begin
-        file = params[:file][:tempfile]
-        content = file.read
-        json_data = JSON.parse(content)
-
-        # Validate required fields
-        unless json_data["parameters"] && json_data["messages"]
-          return { success: false, error: "Invalid format: missing parameters or messages" }.to_json
-        end
-
-        # Set session data
-        session[:status] = "loaded"
-        # Force initiate_from_assistant and auto_speech to false to prevent unwanted auto-behaviors on import
-        # (deletion is not enough because app defaults will override missing keys)
-        imported_params = json_data["parameters"].dup
-        imported_params["initiate_from_assistant"] = false
-        imported_params["auto_speech"] = false
-        session[:parameters] = imported_params
-
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] [Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}"
-          extra_log.close
-        end
-
-        # Check if the first message is a system message
-        if json_data["messages"].first && json_data["messages"].first["role"] == "system"
-          session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
-        end
-
-        # Restore monadic_state if present in import data (for Session State mechanism)
-        if json_data["monadic_state"]
-          # Convert string keys to symbols for consistency
-          session[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
-            result[app_key] = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
-              app_result[state_key] = {
-                data: state_entry["data"],
-                version: state_entry["version"].to_i,
-                updated_at: state_entry["updated_at"]
-              }
-            end
-          end
-
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] [Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}"
-            extra_log.close
-          end
-        end
-
-        # Restore session_context if present in import data (for Session Context feature)
-        if json_data["session_context"]
-          session[:monadic_state] ||= {}
-          session[:monadic_state][:conversation_context] = json_data["session_context"]
-
-          # Also store context_schema if present
-          if json_data["context_schema"]
-            session[:monadic_state][:context_schema] = json_data["context_schema"]
-          end
-
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] [Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}"
-            extra_log.close
-          end
-        end
-
-        # Process messages
-        app_name = json_data["parameters"]["app_name"]
-        session[:messages] = json_data["messages"].uniq.map do |msg|
-          # Skip invalid messages
-          next unless msg["role"] && msg["text"]
-          
-          text = msg["text"]
-          
-          # Create message object with required fields
-          mid = msg["mid"] || SecureRandom.hex(4)
-          message_obj = { 
-            "role" => msg["role"], 
-            "text" => text, 
-            "html" => text, 
-            "lang" => detect_language(text), 
-            "mid" => mid, 
-            "active" => true 
-          }
-          message_obj["app_name"] = app_name if app_name
-          if json_data["parameters"].key?("monadic")
-            message_obj["monadic"] = json_data["parameters"]["monadic"]
-          end
-          # Preserve token count if present in import (for accurate stats without recomputation)
-          message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
-          
-          # Add optional fields if present
-          message_obj["thinking"] = msg["thinking"] if msg["thinking"]
-          message_obj["images"] = msg["images"] if msg["images"]
-          message_obj
-        end.compact # Remove nil values from invalid messages
-
-        if session[:websocket_session_id]
-          WebSocketHelper.update_session_state(
-            session[:websocket_session_id],
-            messages: session[:messages],
-            parameters: session[:parameters]
-          )
-        end
-
-        # Debug logging after import (only when EXTRA_LOGGING is enabled)
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] JSON import: #{session[:messages].size} messages loaded for app '#{json_data['parameters']['app_name']}'"
-          extra_log.close
-        end
-
-        # Push imported data to client via WebSocket (eliminates need for reload)
-        begin
-          # Prepare apps data
-          apps_data = prepare_apps_data
-
-          # Filter messages by app_name and exclude search messages
-          current_app_name = session[:parameters]["app_name"]
-          filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
-
-          # Get the WebSocket session ID for targeted sending (prevents cross-tab contamination)
-          # Try to get tab_id from params first (sent by form-handlers.js)
-          ws_session_id = params[:tab_id] || session[:websocket_session_id]
-
-          if ws_session_id
-            # Send to specific tab/session only (prevents other tabs from receiving import data)
-            # Mark messages as from_import to ensure parameters waits for apps processing
-            WebSocketHelper.send_to_session({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json, ws_session_id) unless apps_data.empty?
-            sleep(0.2) # Increased delay to ensure apps message is fully processed before parameters
-            WebSocketHelper.send_to_session({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json, ws_session_id) unless session[:parameters].empty?
-            sleep(0.05)
-            WebSocketHelper.send_to_session({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json, ws_session_id)
-
-            # Send session_context if present (for Session Context feature)
-            if session[:monadic_state] && session[:monadic_state][:conversation_context]
-              context_schema = session[:monadic_state][:context_schema] || nil
-              WebSocketHelper.send_to_session({
-                "type" => "context_update",
-                "context" => session[:monadic_state][:conversation_context],
-                "schema" => context_schema,
-                "from_import" => true
-              }.to_json, ws_session_id)
-            end
-          else
-            # Fallback to broadcast if no session ID (shouldn't happen in normal operation)
-            WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json) unless apps_data.empty?
-            sleep(0.2)
-            WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json) unless session[:parameters].empty?
-            sleep(0.05)
-            WebSocketHelper.broadcast_to_all({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json)
-
-            # Send session_context if present (for Session Context feature)
-            if session[:monadic_state] && session[:monadic_state][:conversation_context]
-              context_schema = session[:monadic_state][:context_schema] || nil
-              WebSocketHelper.broadcast_to_all({
-                "type" => "context_update",
-                "context" => session[:monadic_state][:conversation_context],
-                "schema" => context_schema,
-                "from_import" => true
-              }.to_json)
-            end
-          end
-
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] JSON import: Pushed #{filtered_messages.size} messages via WebSocket (with from_import flag)"
-            extra_log.close
-          end
-        rescue => e
-          # Log error but don't fail the import - client can still reload manually if needed
-          logger.warn "Failed to push import data via WebSocket: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-        end
-
-        { success: true, app_name: json_data['parameters']['app_name'] }.to_json
-      rescue JSON::ParserError => e
-        { success: false, error: "Invalid JSON format" }.to_json
-      rescue => e
-        { success: false, error: "Import error: #{e.message}" }.to_json
-      end
-    else
-      { success: false, error: "No file selected" }.to_json
-    end
-  else
-    # For regular form submissions, maintain original behavior
-    if params[:file]
-      begin
-        file = params[:file][:tempfile]
-        content = file.read
-        json_data = JSON.parse(content)
-        session[:status] = "loaded"
-        session[:parameters] = json_data["parameters"]
-
-        # Check if the first message is a system message
-        if json_data["messages"].first && json_data["messages"].first["role"] == "system"
-          session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
-        end
-
-        # Restore monadic_state if present in import data (for Session State mechanism)
-        if json_data["monadic_state"]
-          session[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
-            result[app_key] = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
-              app_result[state_key] = {
-                data: state_entry["data"],
-                version: state_entry["version"].to_i,
-                updated_at: state_entry["updated_at"]
-              }
-            end
-          end
-        end
-
-        session[:messages] = json_data["messages"].uniq.map do |msg|
-          text = msg["text"]
-          message_obj = { "role" => msg["role"], "text" => text, "html" => text, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
-          message_obj["app_name"] = json_data["parameters"]["app_name"] if json_data["parameters"]["app_name"]
-          if json_data["parameters"].key?("monadic")
-            message_obj["monadic"] = json_data["parameters"]["monadic"]
-          end
-          message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
-          message_obj["thinking"] = msg["thinking"] if msg["thinking"]
-          message_obj["images"] = msg["images"] if msg["images"]
-          message_obj
-        end
-
-        if session[:websocket_session_id]
-          WebSocketHelper.update_session_state(
-            session[:websocket_session_id],
-            messages: session[:messages],
-            parameters: session[:parameters]
-          )
-        end
-      rescue JSON::ParserError
-        handle_error("Error: Invalid JSON file. Please upload a valid JSON file.")
-      end
-    else
-      handle_error("Error: No file selected. Please choose a JSON file to upload.")
-    end
-    redirect "/"
-  end
-end
-
-# Convert a document file to text
-ALLOWED_AUDIO_EXTS = %w[.mp3 .wav .m4a .ogg .flac .mid .midi].freeze
-
-post "/upload_audio" do
-  content_type :json
-  if params["audioFile"]
-    begin
-      file_handler = params["audioFile"]["tempfile"]
-      filename = File.basename(params["audioFile"]["filename"])
-      ext = File.extname(filename).downcase
-      unless ALLOWED_AUDIO_EXTS.include?(ext)
-        file_handler.close
-        return { success: false, error: "Unsupported file type: #{ext}" }.to_json
-      end
-      user_data_dir = Monadic::Utils::Environment.data_path
-      dest_path = File.join(user_data_dir, filename)
-      File.open(dest_path, "wb") { |f| f.write(file_handler.read) }
-      file_handler.close
-      utf8_filename = filename.force_encoding("UTF-8")
-      { success: true, filename: utf8_filename }.to_json
-    rescue => e
-      { success: false, error: "Upload failed: #{e.message}" }.to_json
-    end
-  else
-    { success: false, error: "No file selected" }.to_json
-  end
-end
-
-post "/document" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
-    
-    if params["docFile"]
-      begin
-        doc_file_handler = params["docFile"]["tempfile"]
-        # name the file based on datetime if no title is provided
-        doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-        # get filename from the file handler (basename prevents path traversal)
-        filename = File.basename(params["docFile"]["filename"])
-
-        user_data_dir = Monadic::Utils::Environment.data_path
-
-        # Copy the file to user data directory
-        doc_file_path = File.join(user_data_dir, filename)
-        File.open(doc_file_path, "wb") do |f|
-          f.write(doc_file_handler.read)
-        end
-
-        utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
-        doc_file_handler.close
-
-        markdown = MonadicApp.doc2markdown(utf8_filename)
-        
-        # Check if we got any meaningful content
-        if markdown.to_s.strip.empty?
-          return { success: false, error: "No content could be extracted from the document" }.to_json
-        end
-
-        doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
-        result = if doc_label.to_s != ""
-                  "\n---\n" + doc_label + "\n---\n" + doc_text
-                else
-                  "\n---\n" + doc_text
-                end
-        
-        { success: true, content: result }.to_json
-      rescue => e
-        { success: false, error: "Error processing document: #{e.message}" }.to_json
-      end
-    else
-      { success: false, error: "No file selected. Please choose a document file to convert." }.to_json
-    end
-  else
-    # For regular form submissions, maintain original behavior
-    if params["docFile"]
-      doc_file_handler = params["docFile"]["tempfile"]
-      # name the file based on datetime if no title is provided
-      doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-      # get filename from the file handler
-      filename = params["docFile"]["filename"]
-
-      user_data_dir = Monadic::Utils::Environment.data_path
-
-      # Copy the file to user data directory
-      doc_file_path = File.join(user_data_dir, filename)
-      File.open(doc_file_path, "wb") do |f|
-        f.write(doc_file_handler.read)
-      end
-
-      utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
-      doc_file_handler.close
-
-      markdown = MonadicApp.doc2markdown(utf8_filename)
-
-      doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
-      if doc_label.to_s != ""
-        "\n---\n" + doc_label + "\n---\n" + doc_text
-      else
-        "\n---\n" + doc_text
-      end
-    else
-      session[:error] = "Error: No file selected. Please choose a document file to convert."
-    end
-  end
-end
-
-
-# Fetch the webpage content
-post "/fetch_webpage" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
-
-    if params["pageURL"]
-      begin
-        url = params["pageURL"]
-        url_decoded = CGI.unescape(url)
-        label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-
-        # Web UI always uses Selenium for URL fetching
-        # (Tavily is only used within Research Assistant apps)
-        markdown = MonadicApp.fetch_webpage(url)
-
-        # Check if we got any meaningful content
-        if markdown.to_s.strip.empty?
-          return { success: false, error: "No content could be extracted from the webpage" }.to_json
-        end
-
-        webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
-        result = if label.to_s != ""
-                  "---\n" + label + "\n---\n" + webpage_text
-                else
-                  "---\n" + webpage_text
-                end
-
-        { success: true, content: result }.to_json
-      rescue => e
-        { success: false, error: "Error fetching webpage: #{e.message}" }.to_json
-      end
-    else
-      { success: false, error: "No URL provided" }.to_json
-    end
-  else
-    # For regular form submissions, use Selenium
-    if params["pageURL"]
-      url = params["pageURL"]
-      url_decoded = CGI.unescape(url)
-      label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-
-      # Web UI always uses Selenium for URL fetching
-      markdown = MonadicApp.fetch_webpage(url)
-
-      webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
-      if label.to_s != ""
-        "---\n" + label + "\n---\n" + webpage_text
-      else
-        "---\n" + webpage_text
-      end
-    else
-      session[:error] = "Error: No URL provided"
-    end
-  end
-end
-
-# Upload a PDF file
-post "/pdf" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
-    
-    if params["pdfFile"]
-      begin
-        # Check if EMBEDDINGS_DB is available
-        unless EMBEDDINGS_DB
-          return { success: false, error: "Database connection not available" }.to_json
-        end
-        pdf_file_handler = params["pdfFile"]["tempfile"]
-        temp_file = Tempfile.new("temp_pdf")
-        temp_file.binmode
-        temp_file.write(pdf_file_handler.read)
-        temp_file.rewind
-
-        # Close the original file handler
-        pdf_file_handler.close
-
-        pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
-        pdf.extract
-
-        # Close and delete the temporary file
-        temp_file.close
-        temp_file.unlink
-
-        doc_data = { items: 0, metadata: {} }
-        items_data = []
-
-        # Check if text was extracted successfully
-        if pdf.split_text.empty?
-          return { success: false, error: "No text could be extracted from the PDF file" }.to_json
-        end
-
-        pdf.split_text.each do |i|
-          title = if params["pdfTitle"].to_s != ""
-                    params["pdfTitle"]
-                  else
-                    params["pdfFile"]["filename"]
-                  end
-
-          doc_data[:title] = title
-          doc_data[:items] += 1
-
-          items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
-        end
-        
-        api_key = settings.api_key
-        if api_key.nil? || api_key.empty?
-          return { success: false, error: "API key not configured" }.to_json
-        end
-        
-        EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: api_key)
-        # Mark session storage mode as local for downstream routing
-        begin
-          session[:pdf_storage_mode] = 'local'
-        rescue StandardError
-          # no-op
-        end
-        # Invalidate caches for mode/presence
-        begin
-          session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-        rescue StandardError
-          # no-op
-        end
-        return { success: true, filename: params["pdfFile"]["filename"] }.to_json
-      rescue TextEmbeddings::DatabaseError => e
-        return { success: false, error: "Database error: #{e.message}" }.to_json
-      rescue PG::Error => e
-        return { success: false, error: "PostgreSQL error: #{e.message}" }.to_json
-      rescue => e
-        return { success: false, error: "Error processing PDF: #{e.class.name} - #{e.message}" }.to_json
-      end
-    else
-      return { success: false, error: "No file selected. Please choose a PDF file to upload." }.to_json
-    end
-  else
-    # For regular form submissions, maintain original behavior
-    if params["pdfFile"]
-      pdf_file_handler = params["pdfFile"]["tempfile"]
-      temp_file = Tempfile.new("temp_pdf")
-      temp_file.binmode
-      temp_file.write(pdf_file_handler.read)
-      temp_file.rewind
-
-      # Close the original file handler
-      pdf_file_handler.close
-
-      pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
-      pdf.extract
-
-      # Close and delete the temporary file
-      temp_file.close
-      temp_file.unlink
-
-      doc_data = { items: 0, metadata: {} }
-      items_data = []
-
-      pdf.split_text.each do |i|
-        title = if params["pdfTitle"].to_s != ""
-                  params["pdfTitle"]
-                else
-                  params["pdfFile"]["filename"]
-                end
-
-        doc_data[:title] = title
-        doc_data[:items] += 1
-
-        items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
-      end
-      EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
-      begin
-        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-      rescue StandardError
-      end
-      return params["pdfFile"]["filename"]
-    else
-      session[:error] = "Error: No file selected. Please choose a PDF file to upload."
-    end
-  end
-end
-
-# Create endpoints for each app in the APPS hash
 APPS.each do |k, v|
   # convert `k` from a capitalized multi word title to snake_case
   # e.g., `Monadic App` to `monadic_app`
@@ -2329,11 +722,83 @@ APPS.each do |k, v|
       )
     end
     parameters = v.settings.dup
-    
-    
     session[:parameters] = parameters
+
+    # On-demand container startup: ensure required containers are running
+    # in a background thread so the redirect is not delayed.
+    Thread.new do
+      Monadic::Utils::ContainerDependencies.ensure_services_for_app(parameters)
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[ContainerDeps] #{e.message}" }
+    end
+
     redirect "/"
   end
+end
+
+# ──────────────────────────────────────────────────────────────
+# Private helper methods (shared across routes)
+# ──────────────────────────────────────────────────────────────
+
+def error_json(message)
+  { success: false, error: message }.to_json
+end
+
+def resolve_openai_app_key
+  (session[:parameters] && session[:parameters]["app_name"]) || "default"
+rescue StandardError
+  "default"
+end
+
+def openai_pdf_headers(api_key)
+  headers = { "Authorization" => "Bearer #{api_key}", "OpenAI-Beta" => "assistants=v2" }
+  api_base = "https://api.openai.com/v1"
+  [headers, api_base]
+end
+
+def vs_meta_path
+  File.join(Monadic::Utils::Environment.data_path, "pdf_navigator_openai.json")
+end
+
+def bump_pdf_cache_version
+  session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+rescue StandardError
+  # no-op
+end
+
+def resolve_vector_store_id(app_key)
+  # Priority: session → app-specific ENV → global ENV → registry → fallback meta
+  app_env_vs = begin
+    key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
+    val = CONFIG[key]
+    s = val.to_s.strip
+    s.empty? ? nil : s
+  rescue StandardError
+    nil
+  end
+  reg_vs_id = begin
+    Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
+  rescue StandardError
+    nil
+  end
+  env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
+  fallback_vs = nil
+  if File.exist?(vs_meta_path)
+    begin
+      meta = JSON.parse(File.read(vs_meta_path))
+      fallback_vs = meta["vector_store_id"]
+    rescue StandardError
+      fallback_vs = nil
+    end
+  end
+  vs_id = session[:openai_vector_store_id]
+  vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
+  vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
+  vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
+  vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
+  # Keep session in sync for downstream usage
+  session[:openai_vector_store_id] = vs_id if vs_id
+  vs_id
 end
 
 # Note: Signal handling is managed by Falcon server

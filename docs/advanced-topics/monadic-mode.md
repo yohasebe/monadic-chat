@@ -48,7 +48,7 @@ The following apps use Session State mechanism for context management:
 
 | App | Provider | Description |
 |-----|----------|-------------|
-| Chat Plus | OpenAI, Claude, Ollama | Conversational AI with context tracking |
+| Chat Plus | OpenAI, Claude | Conversational AI with context tracking |
 | Voice Interpreter | OpenAI, Cohere | Real-time voice translation |
 | Language Practice Plus | OpenAI, Claude | Language learning with feedback |
 

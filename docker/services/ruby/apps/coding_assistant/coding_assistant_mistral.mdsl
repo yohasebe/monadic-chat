@@ -54,7 +54,7 @@ app "CodingAssistantMistral" do
   
   llm do
     provider "mistral"
-    model "mistral-large-latest"
+    reasoning_effort "low"
     temperature 0.0
   end
   
@@ -64,7 +64,7 @@ app "CodingAssistantMistral" do
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false
-    mathjax false
+    math false
     initiate_from_assistant false
     group "Mistral"
   end

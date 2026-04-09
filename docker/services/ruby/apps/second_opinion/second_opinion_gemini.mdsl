@@ -38,7 +38,6 @@ app "SecondOpinionGemini" do
   
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
     temperature 0.0
     reasoning_effort "low"
   end

@@ -177,7 +177,7 @@ rake jstest           # JavaScript tests (Jest)
 | Test Type | Required Dependencies |
 |-----------|----------------------|
 | `spec_unit` | Ruby only |
-| `spec_integration` | • PostgreSQL + pgvector (Docker, port 5433)<br>• Python container (Flask API, port 5070)<br>• Selenium container (port 4444)<br>• OpenAI API key (for embeddings) |
+| `spec_integration` | • PostgreSQL + pgvector (Docker, port 5433)<br>• Python container (Docker)<br>• Selenium container (port 4444)<br>• OpenAI API key (for embeddings) |
 | `spec_system` | Ruby only |
 | `spec_docker` | All Docker containers running |
 | `spec_e2e` | • All Docker containers<br>• AI provider API keys<br>• WebSocket server (auto-started) |

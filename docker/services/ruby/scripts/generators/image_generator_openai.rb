@@ -7,15 +7,34 @@ require "optparse"
 require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 
+begin
+  require_relative "../../lib/monadic/utils/model_spec"
+rescue LoadError
+  # ModelSpec may not be available in standalone mode
+end
+
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
 end
+
+# Resolve image models from providerDefaults SSOT
+def resolve_openai_image_models
+  if defined?(Monadic::Utils::ModelSpec)
+    Monadic::Utils::ModelSpec.get_provider_models("openai", "image") || []
+  else
+    []
+  end
+rescue
+  []
+end
+
+ALLOWED_IMAGE_MODELS = resolve_openai_image_models
 
 # Parse command line arguments
 
 options = {
   operation: "generate",
-  model: "gpt-image-1.5",
+  model: ALLOWED_IMAGE_MODELS.first,
   size: "1024x1024",
   quality: "auto",
   output_format: "png",
@@ -34,10 +53,10 @@ parser = OptionParser.new do |opts|
     end
   end
 
-  opts.on("-m", "--model MODEL", "Model: gpt-image-1.5, chatgpt-image-latest") do |model|
+  opts.on("-m", "--model MODEL", "Model: #{ALLOWED_IMAGE_MODELS.join(', ')}") do |model|
     options[:model] = model
-    unless %w[gpt-image-1.5 chatgpt-image-latest].include?(model)
-      puts "ERROR: Invalid model. Allowed models are gpt-image-1.5, chatgpt-image-latest."
+    unless ALLOWED_IMAGE_MODELS.include?(model)
+      puts "ERROR: Invalid model. Allowed models are #{ALLOWED_IMAGE_MODELS.join(', ')}."
       exit
     end
   end
@@ -87,6 +106,16 @@ parser = OptionParser.new do |opts|
     options[:n] = count.to_i
   end
 
+  opts.on("--image-url URL", "Image URL for JSON-based edit (can be specified multiple times)") do |url|
+    options[:image_urls] ||= []
+    options[:image_urls] << url
+  end
+
+  opts.on("--image-file-id FILE_ID", "OpenAI file ID for JSON-based edit (can be specified multiple times)") do |file_id|
+    options[:image_file_ids] ||= []
+    options[:image_file_ids] << file_id
+  end
+
   opts.on("--verbose", "Enable verbose output") do
     options[:verbose] = true
   end
@@ -108,8 +137,10 @@ when "generate"
     exit
   end
 when "edit"
-  unless options[:prompt] && options[:images]
+  has_images = options[:images] || options[:image_urls] || options[:image_file_ids]
+  unless options[:prompt] && has_images
     puts "ERROR: A prompt and at least one input image are required for edit operation."
+    puts "Provide images via -i (file path), --image-url (URL), or --image-file-id (file ID)."
     exit
   end
 end
@@ -208,68 +239,110 @@ def generate_image(options, num_retrials = 3)
       
     when "edit"
       url = "https://api.openai.com/v1/images/edits"
+      use_json_mode = options[:image_urls] || options[:image_file_ids]
 
-      # Prepare multipart form with image[] array
-      form = {}
+      if use_json_mode
+        # JSON mode: reference images by URL or file_id (no file upload needed)
+        body = {
+          model: options[:model],
+          prompt: options[:prompt],
+          n: options[:n]
+        }
 
-      # Add basic parameters
-      form[:model] = options[:model]
-      form[:prompt] = options[:prompt]
-      form[:n] = options[:n].to_s
-
-      # Add specific parameters
-      form[:size] = options[:size] if options[:size]
-      form[:quality] = options[:quality] if options[:quality]
-      form[:output_format] = options[:output_format] if options[:output_format]
-      form[:background] = options[:background] if options[:background]
-      form[:output_compression] = options[:output_compression].to_s if options[:output_compression]
-      form[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
-
-      # Add images with proper MIME types
-      options[:images].each do |img_path|
-        mime_type = get_mime_type(img_path)
-        form[:"image[]"] ||= []
-
-        image_file = HTTP::FormData::File.new(
-          img_path,
-          content_type: mime_type,
-          filename: File.basename(img_path)
-        )
-
-        if form[:"image[]"].is_a?(Array)
-          form[:"image[]"] << image_file
-        else
-          form[:"image[]"] = [form[:"image[]"], image_file]
+        # Build image references array (field name is "images", per API docs)
+        img_refs = []
+        (options[:image_urls] || []).each do |img_url|
+          img_refs << { image_url: img_url }
         end
-      end
+        (options[:image_file_ids] || []).each do |file_id|
+          img_refs << { file_id: file_id }
+        end
+        # Also include any local files as base64 data URIs
+        (options[:images] || []).each do |img_path|
+          mime_type = get_mime_type(img_path)
+          data = Base64.strict_encode64(File.binread(img_path))
+          img_refs << { image_url: "data:#{mime_type};base64,#{data}" }
+        end
+        body[:images] = img_refs
 
-      # Add mask if provided
-      if options[:mask]
-        mime_type = get_mime_type(options[:mask])
-        form[:mask] = HTTP::FormData::File.new(
-          options[:mask],
-          content_type: mime_type,
-          filename: File.basename(options[:mask])
-        )
-      end
+        body[:size] = options[:size] if options[:size]
+        body[:quality] = options[:quality] if options[:quality]
+        body[:output_format] = options[:output_format] if options[:output_format]
+        body[:background] = options[:background] if options[:background]
+        body[:output_compression] = options[:output_compression] if options[:output_compression]
+        body[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
 
-      puts "Sending request to edit image with prompt: #{options[:prompt]}" if options[:verbose]
-      puts "Form data keys: #{form.keys}" if options[:verbose]
+        puts "Sending JSON edit request with prompt: #{options[:prompt]}" if options[:verbose]
+        puts "Image references: #{img_refs.size}" if options[:verbose]
 
-      # Debug information
-      if options[:verbose]
-        form.each do |key, value|
-          if value.is_a?(HTTP::FormData::File)
-            puts "  #{key}: File (#{value.content_type})"
-          elsif value.is_a?(Array) && value.all? { |v| v.is_a?(HTTP::FormData::File) }
-            puts "  #{key}: Array of Files (#{value.map { |v| v.content_type }.join(', ')})"
+        headers = {
+          "Content-Type": "application/json",
+          Authorization: "Bearer #{api_key}"
+        }
+        res = HTTP.headers(headers).post(url, json: body)
+      else
+        # Multipart mode: upload local files directly
+        form = {}
+
+        # Add basic parameters
+        form[:model] = options[:model]
+        form[:prompt] = options[:prompt]
+        form[:n] = options[:n].to_s
+
+        # Add specific parameters
+        form[:size] = options[:size] if options[:size]
+        form[:quality] = options[:quality] if options[:quality]
+        form[:output_format] = options[:output_format] if options[:output_format]
+        form[:background] = options[:background] if options[:background]
+        form[:output_compression] = options[:output_compression].to_s if options[:output_compression]
+        form[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
+
+        # Add images with proper MIME types
+        options[:images].each do |img_path|
+          mime_type = get_mime_type(img_path)
+          form[:"image[]"] ||= []
+
+          image_file = HTTP::FormData::File.new(
+            img_path,
+            content_type: mime_type,
+            filename: File.basename(img_path)
+          )
+
+          if form[:"image[]"].is_a?(Array)
+            form[:"image[]"] << image_file
           else
-            puts "  #{key}: #{value}"
+            form[:"image[]"] = [form[:"image[]"], image_file]
           end
         end
-      end
 
-      res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
+        # Add mask if provided
+        if options[:mask]
+          mime_type = get_mime_type(options[:mask])
+          form[:mask] = HTTP::FormData::File.new(
+            options[:mask],
+            content_type: mime_type,
+            filename: File.basename(options[:mask])
+          )
+        end
+
+        puts "Sending multipart edit request with prompt: #{options[:prompt]}" if options[:verbose]
+        puts "Form data keys: #{form.keys}" if options[:verbose]
+
+        # Debug information
+        if options[:verbose]
+          form.each do |key, value|
+            if value.is_a?(HTTP::FormData::File)
+              puts "  #{key}: File (#{value.content_type})"
+            elsif value.is_a?(Array) && value.all? { |v| v.is_a?(HTTP::FormData::File) }
+              puts "  #{key}: Array of Files (#{value.map { |v| v.content_type }.join(', ')})"
+            else
+              puts "  #{key}: #{value}"
+            end
+          end
+        end
+
+        res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
+      end
     end
     
     if res.status.success?

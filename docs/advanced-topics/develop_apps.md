@@ -28,9 +28,52 @@ In Monadic Chat, you can develop AI chatbot applications using original system p
 - Use consistent parameter names: `fetch_text_from_file` uses `:file`, `fetch_text_from_pdf` uses `:pdf`
 - Empty `tools do` blocks can cause "Maximum function call depth exceeded" errors
 
-For detailed information on MDSL format, see [Monadic DSL Documentation](monadic_dsl.md).
+### Benefits of MDSL Format
 
-### How to Add an Advanced App
+1. **Simple syntax**: Minimizes Ruby boilerplate code
+2. **Provider support**: Easy to support multiple LLM providers
+3. **Maintainability**: Clean separation of configuration and logic
+4. **Consistency**: Unified app definition format
+
+### Basic MDSL Structure
+
+For detailed information on MDSL format, including all available blocks and settings, see [Monadic DSL Documentation](monadic_dsl.md).
+
+### File Structure Patterns
+
+**Pattern A: Constants sharing (multi-provider)**
+```
+apps/coding_assistant/
+├── coding_assistant_constants.rb # Shared constants (ICON, DESCRIPTION, etc.)
+├── coding_assistant_tools.rb     # Tool implementation (facade pattern)
+├── coding_assistant_openai.mdsl  # OpenAI-specific config
+├── coding_assistant_claude.mdsl  # Claude-specific config
+└── coding_assistant_gemini.mdsl  # Gemini-specific config
+```
+
+**Pattern B: Simple (standard tools only)**
+```
+apps/simple_app/
+└── simple_app_openai.mdsl # Complete MDSL definition (no additional Ruby files needed)
+```
+
+**Pattern C: Tool implementation (recommended)**
+```
+apps/novel_writer/
+├── novel_writer_tools.rb         # Tool implementation with facade pattern
+├── novel_writer_openai.mdsl      # OpenAI MDSL definition
+└── novel_writer_claude.mdsl      # Claude MDSL definition
+```
+
+## Steps to Add an App
+
+1. Create an MDSL file for the app.
+2. Save the MDSL file in the `apps` directory of the shared folder (`~/monadic/data/apps`).
+3. Restart Monadic Chat.
+
+MDSL files can be saved in any subdirectory under the `apps` directory.
+
+## How to Add an Advanced App
 
 For robust app development, use MDSL with the facade pattern:
 - Create `app_name_provider.mdsl` for each provider (e.g., `chat_openai.mdsl`)
@@ -88,7 +131,7 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
   end
   
   system_prompt "You are a helpful assistant."
@@ -157,7 +200,7 @@ end
 
 **Benefits:**
 - ✅ **User control**: Users can customize models via `~/monadic/config/env`
-- ✅ **Automatic fallback**: Uses `system_defaults.json` when ENV variable not set
+- ✅ **Automatic fallback**: Uses `providerDefaults` from `model_spec.js` when ENV variable not set
 - ✅ **Future-proof**: No hardcoded model names that become outdated
 - ✅ **Consistency**: Matches system-wide model preferences
 
@@ -166,7 +209,7 @@ end
 Model values are resolved in this order:
 1. Explicit MDSL value (if provided)
 2. Environment variable from `~/monadic/config/env`
-3. System defaults from `docker/services/ruby/config/system_defaults.json`
+3. Provider defaults from `providerDefaults` in `model_spec.js` (SSOT)
 4. Hardcoded fallback
 
 **Alternative: Multiple Model Options**
@@ -333,7 +376,7 @@ For a complete overview of which apps are compatible with which models, see the 
 
 !> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed in the console. App loading errors are shown when starting the server with details about which apps failed to load and why.
 
-### Settings
+## Settings
 
 There are required and optional settings. If the required settings are not specified, an error message will be displayed on the browser screen when the application starts. Here are the required settings:
 
@@ -455,3 +498,60 @@ class MyAppOpenAI < MonadicApp
   end
 end
 ```
+
+## MCP Adapter Development
+
+?> **Experimental Feature**: MCP (Model Context Protocol) support is an experimental feature and may change in future releases.
+
+Monadic Chat includes an experimental MCP server that allows external AI assistants to access Monadic Chat functionality through a standardized protocol.
+
+### MCP Adapter Structure
+
+MCP adapters are located in `docker/services/ruby/lib/monadic/mcp/adapters/` and must implement three core methods:
+
+```ruby
+# example_adapter.rb
+module Monadic
+  module MCP
+    module Adapters
+      class ExampleAdapter
+        def list_tools
+          # Return an array of tool definitions
+        end
+
+        def handles_tool?(tool_name)
+          # Return true if this adapter handles the tool
+        end
+
+        def execute_tool(tool_name, arguments)
+          # Execute the tool and return the result
+        end
+      end
+    end
+  end
+end
+```
+
+### Available Adapters
+
+| Adapter | Purpose | Tools | Output |
+|---------|---------|-------|--------|
+| **Help** | Documentation search | 3 tools | Text responses |
+| **Mermaid** | Diagram validation & generation | 4 tools | PNG images |
+| **Syntax Tree** | Tree notation & visualization | 5 tools | SVG images |
+
+### Configuration
+
+Enable the MCP server in `~/monadic/config/env`:
+
+```bash
+MCP_SERVER_ENABLED=true
+MCP_SERVER_PORT=3100
+```
+
+### Security Considerations
+
+- **Localhost binding**: MCP server accepts local connections only
+- **Input validation**: All adapters implement length and character validation
+- **Error sanitization**: Stack traces are hidden in production
+- **Container isolation**: Image generation uses isolated Docker containers

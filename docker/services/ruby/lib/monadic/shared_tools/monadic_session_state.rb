@@ -86,6 +86,40 @@ module Monadic
         entry = dig_state(session, app_key, key)
         entry ? entry[:version].to_i : 0
       end
+
+      # Fetch last images from monadic state or legacy session keys.
+      # Tolerant to symbol/string keys. Uses legacy_prefix for provider-specific fallbacks.
+      # @param session [Hash] Session hash
+      # @param app_key [String] App name key for monadic_state lookup
+      # @param legacy_prefix [String] Provider prefix for legacy keys (e.g., "openai", "grok", "gemini3")
+      # @return [Array<String>, nil] Array of image filenames or nil
+      def fetch_last_images_from_session(session, app_key, legacy_prefix: nil)
+        # monadic_state lookup (symbol and string keys)
+        monadic_state = session[:monadic_state] || session["monadic_state"] || {}
+        app_state = monadic_state[app_key] || monadic_state[app_key.to_s] || {}
+        last_images_entry = app_state[:last_images] || app_state["last_images"]
+        data = last_images_entry && (last_images_entry[:data] || last_images_entry["data"])
+        return data if data.is_a?(Array) && !data.empty?
+
+        return nil unless legacy_prefix
+
+        # legacy {prefix}_last_image_generation
+        gen_key_sym = :"#{legacy_prefix}_last_image_generation"
+        gen_key_str = "#{legacy_prefix}_last_image_generation"
+        legacy = session[gen_key_sym] || session[gen_key_str]
+        if legacy
+          imgs = legacy[:images] || legacy["images"]
+          return imgs if imgs.is_a?(Array) && !imgs.empty?
+        end
+
+        # single last image fallback
+        img_key_sym = :"#{legacy_prefix}_last_image"
+        img_key_str = "#{legacy_prefix}_last_image"
+        last_image = session[img_key_sym] || session[img_key_str]
+        return [last_image] if last_image
+
+        nil
+      end
     end
   end
 end

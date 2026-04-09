@@ -349,21 +349,21 @@ RSpec.describe AIUserAgent do
       stub_const('CONFIG', {})
 
       model = agent.send(:default_model_for_provider, "openai")
-      expect(model).to eq("gpt-5.2")
+      expect(model).to eq("gpt-5.4")
 
       model = agent.send(:default_model_for_provider, "anthropic")
       expect(model).to eq("claude-sonnet-4-6")
     end
 
     it 'handles various provider names' do
-      # These values should match system_defaults.json provider_defaults
+      # These values should match providerDefaults in model_spec.js
       providers_and_defaults = {
         "gemini" => "gemini-3-flash-preview",
         "mistral" => "mistral-large-latest",
         "grok" => "grok-4-1-fast-non-reasoning",
-        "perplexity" => "sonar-reasoning-pro",
+        "perplexity" => "sonar",
         "deepseek" => "deepseek-chat",
-        "cohere" => "command-a-reasoning-08-2025"
+        "cohere" => "command-a-03-2025"
       }
 
       stub_const('CONFIG', {})

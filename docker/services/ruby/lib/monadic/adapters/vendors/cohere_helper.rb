@@ -8,6 +8,7 @@ require_relative "../base_vendor_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/extra_logger"
 
 module CohereHelper
   include BaseVendorHelper
@@ -90,126 +91,34 @@ module CohereHelper
       "Cohere"
     end
 
-    # Fetches available models from Cohere API
-    # Returns an array of model names, excluding embedding and reranking models
-    def list_models
-      # Return cached models if they exist
-      return $MODELS[:cohere] if $MODELS[:cohere]
-
-      api_key = CONFIG["COHERE_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          # Cache the filtered models
-          model_data = JSON.parse(res.body)
-          api_models = model_data["models"].map do |model|
-            model["name"]
-          end.filter do |model|
-            !model.include?("embed") && !model.include?("rerank")
-          end
-          
-          # Add models from model_spec that have deprecated: false flag
-          begin
-            # Use ModelSpecLoader to get the merged model spec
-            model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
-            model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
-            
-            if model_spec
-              # Find Cohere models with deprecated: false
-              model_spec.each do |model_name, model_config|
-                if model_name.match?(/^(command|c4ai)/) && 
-                   model_config["deprecated"] == false &&
-                   !api_models.include?(model_name)
-                  api_models << model_name
-                end
-              end
-            end
-          rescue => e
-            # If there's any error loading model_spec, just use API models
-            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-          end
-          
-          $MODELS[:cohere] = api_models.sort
-          $MODELS[:cohere]
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
-
-    # Method to manually clear the cache if needed
-    def clear_models_cache
-      $MODELS[:cohere] = nil
-    end
-    
-    # Class method version for DSL
-    def self.list_models
-      # Return cached models if they exist
-      return $MODELS[:cohere] if $MODELS[:cohere]
-
-      api_key = CONFIG["COHERE_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          # Cache the filtered models
-          model_data = JSON.parse(res.body)
-          api_models = model_data["models"].map do |model|
-            model["name"]
-          end.filter do |model|
-            !model.include?("embed") && !model.include?("rerank")
-          end
-          
-          # Add models from model_spec that have deprecated: false flag
-          begin
-            # Use ModelSpecLoader to get the merged model spec
-            model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
-            model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
-            
-            if model_spec
-              # Find Cohere models with deprecated: false
-              model_spec.each do |model_name, model_config|
-                if model_name.match?(/^(command|c4ai)/) && 
-                   model_config["deprecated"] == false &&
-                   !api_models.include?(model_name)
-                  api_models << model_name
-                end
-              end
-            end
-          rescue => e
-            # If there's any error loading model_spec, just use API models
-            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-          end
-          
-          $MODELS[:cohere] = api_models.sort
-          $MODELS[:cohere]
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
   end
+
+  define_model_lister :cohere,
+    api_key_config: "COHERE_API_KEY",
+    endpoint_path: "/models" do |json|
+      api_models = (json["models"] || [])
+        .map { |m| m["name"] }
+        .reject { |name| name.include?("embed") || name.include?("rerank") }
+
+      # Enrich with non-deprecated Cohere models from model_spec
+      begin
+        model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
+        model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
+        if model_spec
+          model_spec.each do |model_name, model_config|
+            if model_name.match?(/^(command|c4ai)/) &&
+               model_config["deprecated"] == false &&
+               !api_models.include?(model_name)
+              api_models << model_name
+            end
+          end
+        end
+      rescue => e
+        Monadic::Utils::ExtraLogger.log { "[Cohere] Warning: Could not load model_spec: #{e.message}" }
+      end
+
+      api_models.sort
+    end
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
@@ -441,13 +350,13 @@ module CohereHelper
     response = nil
     
     # Simple retry logic
-    MAX_RETRIES.times do |attempt|
+    MAX_RETRIES.times do
       response = http.timeout(
         connect: open_timeout,
         write: write_timeout,
         read: read_timeout
       ).post(target_uri, json: body)
-      
+
       break if response&.status&.success?
       sleep RETRY_DELAY
     end
@@ -880,29 +789,311 @@ module CohereHelper
     nil
   end
 
+  # Build the messages array from context, including image handling.
+  # Returns [messages, messages_containing_img] on success, or an error Array to return immediately.
+  private def build_cohere_messages(context, session, obj, role, message, initial_prompt, websearch, &block)
+    messages = []
+    messages_containing_img = false
+
+    # Check if Progressive Tool Disclosure is enabled
+    ptd_active = APPS[obj["app_name"]]&.respond_to?(:settings) && APPS[obj["app_name"]].settings.dig(:progressive_tools)
+
+    # Use unified system prompt injector
+    initial_prompt_with_suffix = Monadic::Utils::SystemPromptInjector.augment(
+      base_prompt: initial_prompt.to_s,
+      session: session,
+      options: {
+        websearch_enabled: websearch,
+        reasoning_model: false,
+        websearch_prompt: ptd_active ? nil : WEBSEARCH_PROMPT,
+        system_prompt_suffix: obj["system_prompt_suffix"]
+      },
+      separator: "\n\n---\n\n"
+    )
+
+    # Check if any messages contain images
+    context.each do |msg|
+      if msg["images"] && msg["images"].any?
+        messages_containing_img = true
+        break
+      end
+    end
+
+    # Also check current message for images
+    if role == "user" && session[:messages].last && session[:messages].last["images"] && session[:messages].last["images"].any?
+      messages_containing_img = true
+    end
+
+    # Add system message
+    messages << { "role" => "system", "content" => initial_prompt_with_suffix }
+
+    # Add context messages
+    context.each do |msg|
+      next if msg["text"].to_s.strip.empty?
+      next if msg["role"] == "system"
+
+      if CONFIG["EXTRA_LOGGING"]
+        DebugHelper.debug("Adding context message - role: #{msg['role']}, text length: #{msg['text'].to_s.length}", category: :api, level: :debug)
+      end
+
+      if msg["images"] && msg["images"].any?
+        result = build_cohere_image_message(msg, obj, translate_role(msg["role"]), &block)
+        return result if result.is_a?(Array) # error response
+        messages << result
+      else
+        messages << { "role" => translate_role(msg["role"]), "content" => msg["text"].to_s.strip }
+      end
+    end
+
+    # Detect initiate_from_assistant initial greeting
+    is_initial_greeting = messages.length == 1 && messages[0]["role"] == "system"
+
+    # Add current user message if not a tool call
+    if role != "tool"
+      suffix_options = is_initial_greeting ? {} : { prompt_suffix: obj["prompt_suffix"] }
+      current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(
+        base_message: message,
+        session: session,
+        options: suffix_options
+      )
+
+      latest_msg = session[:messages].last
+      if latest_msg && latest_msg["images"] && latest_msg["images"].any? && role == "user"
+        messages_containing_img = true
+        result = build_cohere_image_message(latest_msg, obj, "user", text_override: current_message, &block)
+        return result if result.is_a?(Array) # error response
+        messages << result
+      else
+        messages << { "role" => "user", "content" => current_message }
+      end
+    end
+
+    [messages, messages_containing_img]
+  end
+
+  # Build a single Cohere message with image content. Returns the message hash, or error Array.
+  private def build_cohere_image_message(msg, obj, role, text_override: nil, &block)
+    content = [{ "type" => "text", "text" => (text_override || msg["text"].to_s.strip) }]
+
+    msg["images"].each do |img|
+      begin
+        spec_vision = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+        vision_capable = spec_vision.nil? ? true : !!spec_vision
+        spec_pdf = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+        pdf_capable = spec_pdf.nil? ? false : !!spec_pdf
+      rescue StandardError
+        vision_capable = true
+        pdf_capable = false
+      end
+      if ENV[COHERE_LEGACY_MODE_ENV] == "true"
+        vision_capable = true
+        pdf_capable = true
+      end
+
+      if img["type"] == "application/pdf"
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Cohere",
+          message: "Cohere does not support PDF input. Please paste relevant text or use a provider that supports PDFs (e.g., Perplexity via URL, Gemini, Claude).",
+          code: 400
+        )
+        res = { "type" => "error", "content" => formatted_error }
+        block&.call res
+        return [res]
+      end
+      unless vision_capable
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Cohere",
+          message: "This model does not support image input (vision).",
+          code: 400
+        )
+        res = { "type" => "error", "content" => formatted_error }
+        block&.call res
+        return [res]
+      end
+
+      if img["data"].start_with?("data:")
+        content << { "type" => "image", "image" => img["data"] }
+      else
+        mime_type = img["type"] || "image/jpeg"
+        content << { "type" => "image", "image" => "data:#{mime_type};base64,#{img["data"]}" }
+      end
+    end
+
+    { "role" => role, "content" => content }
+  end
+
+  # Configure reasoning (thinking) mode for Cohere command-a-reasoning models.
+  # Modifies body in-place: sets body["thinking"] and potentially body["messages"] for single-text workaround.
+  private def configure_cohere_reasoning(body, messages, obj, session)
+    is_reasoning_model = CohereHelper.is_thinking_model?(obj["model"])
+    valid_reasoning_values = %w[enabled disabled]
+    if is_reasoning_model && !valid_reasoning_values.include?(obj["reasoning_effort"].to_s.strip.downcase)
+      obj["reasoning_effort"] = "enabled"
+    end
+
+    return unless is_reasoning_model && obj["reasoning_effort"]
+
+    has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }
+
+    Monadic::Utils::ExtraLogger.log { "Cohere reasoning check:\n  Model: #{obj["model"]}\n  Reasoning effort: #{obj["reasoning_effort"]}\n  Has assistant messages: #{has_assistant_messages}\n  Message count: #{messages.size}\n  Message roles: #{messages.map { |m| m["role"] }.join(", ")}" }
+
+    if obj["reasoning_effort"] == "enabled"
+      if has_assistant_messages
+        Monadic::Utils::ExtraLogger.log { "Cohere: Using single-text workaround for reasoning model with history" }
+
+        conversation_text = format_conversation_as_single_text(messages)
+
+        # Add language reminder at the end of flattened text
+        lang = session[:runtime_settings]&.[](:language)
+        if lang == "auto"
+          conversation_text += "\n\nIMPORTANT: Respond in the same language as the user's latest message (after 'Now, the user asks:'). Default to English if unclear."
+        elsif lang && lang != ""
+          lang_info = Monadic::Utils::LanguageConfig::LANGUAGES[lang]
+          if lang_info
+            conversation_text += "\n\nIMPORTANT: You MUST respond in #{lang_info[:english]}."
+          end
+        end
+
+        body["messages"] = [{ "role" => "user", "content" => conversation_text }]
+        body["thinking"] = { "type" => "enabled" }
+
+        Monadic::Utils::ExtraLogger.log { "  Single text format applied. New message count: #{body["messages"].size}\n  Thinking enabled: #{body["thinking"].inspect}\n  Message preview (first 500 chars):\n  #{body["messages"][0]["content"][0..500]}...\n  Total message length: #{body["messages"][0]["content"].length} chars" }
+      else
+        body["thinking"] = { "type" => "enabled" }
+        DebugHelper.debug("Cohere: Reasoning enabled for #{obj["model"]} (no assistant messages)", category: :api, level: :info)
+      end
+    else
+      body["thinking"] = { "type" => "disabled" }
+      DebugHelper.debug("Cohere: Reasoning disabled for #{obj["model"]}", category: :api, level: :info)
+    end
+  end
+
+  # Configure tools for the request: progressive disclosure, legacy tools, SSOT capability check.
+  # Modifies body in-place.
+  private def configure_cohere_tools(body, obj, app, session, role, websearch)
+    return if role == "tool"
+
+    app_settings = APPS[app]&.settings
+    app_tools = app_settings&.[]("tools")
+    progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
+    progressive_enabled = !!progressive_settings
+
+    Monadic::Utils::ExtraLogger.log { "\n=== COHERE TOOLS CONFIG ===\nApp: #{app}, Progressive: #{progressive_enabled}, Tools count: #{app_tools&.length || 0}" }
+
+    if app_settings
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app,
+          session: session,
+          app_settings: app_settings,
+          default_tools: app_tools
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Cohere: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
+      end
+    end
+
+    if progressive_enabled
+      final_tools = Array(app_tools).flatten.compact.select { |tool| tool.is_a?(Hash) }
+      if final_tools.empty?
+        body.delete("tools")
+      else
+        body["tools"] = final_tools
+      end
+    else
+      if obj["tools"] && !obj["tools"].empty?
+        base_tools = Array(app_tools || []).select { |tool| tool.is_a?(Hash) }
+        body["tools"] = base_tools
+        body["tools"].push(*WEBSEARCH_TOOLS) if websearch && body["tools"]
+        body["tools"].uniq! if body["tools"]
+      elsif app_tools && !app_tools.empty?
+        body["tools"] = Array(app_tools).select { |tool| tool.is_a?(Hash) }
+        body["tools"].push(*WEBSEARCH_TOOLS) if websearch
+        body["tools"].uniq!
+      elsif websearch
+        body["tools"] = WEBSEARCH_TOOLS
+      else
+        body.delete("tools")
+      end
+    end
+
+    # SSOT: If the model is not tool-capable, remove tools/tool_choice
+    begin
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability")
+      tool_capable = spec_tool.nil? ? true : !!spec_tool
+    rescue StandardError
+      tool_capable = true
+    end
+    if ENV[COHERE_LEGACY_MODE_ENV] == "true"
+      tool_capable = true
+    end
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+  end
+
+  # Execute the Cohere HTTP API call with retries, and route to streaming processing.
+  private def execute_cohere_api_call(headers, body, app, session, call_depth, &block)
+    target_uri = "#{API_ENDPOINT}/chat"
+    http = HTTP.headers(headers)
+
+    res = nil
+    MAX_RETRIES.times do |i|
+      begin
+        res = http.timeout(
+          connect: open_timeout,
+          write: write_timeout,
+          read: read_timeout
+        ).post(target_uri, json: body)
+        break if res.status.success?
+        sleep RETRY_DELAY * (i + 1)
+      rescue HTTP::Error, HTTP::TimeoutError => e
+        next unless i == MAX_RETRIES - 1
+        formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+          provider: "Cohere", message: "Network error: #{e.message}", timeout: true
+        )
+        res = { "type" => "error", "content" => formatted_error }
+        block&.call res
+        return [res]
+      end
+    end
+
+    unless res&.status&.success?
+      error_report = begin
+                      JSON.parse(res.body)
+                    rescue StandardError
+                      { "message" => "Unknown error occurred" }
+                    end
+      Monadic::Utils::ExtraLogger.log { "[Cohere API Error] #{error_report}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "Cohere",
+        message: error_report["message"] || "Unknown API error",
+        code: res.status.code
+      )
+      res = { "type" => "error", "content" => formatted_error }
+      block&.call res
+      return [res]
+    end
+
+    process_json_data(app: app, session: session, query: body, res: res.body, call_depth: call_depth, &block)
+  end
+
+  public
+
   # Main API request handler
   def api_request(role, session, call_depth: 0, &block)
-    # Reset call_depth counter for each new user turn
-    # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
     end
 
-    # Use per-turn counter instead of parameter for tracking
     current_call_depth = session[:call_depth_per_turn] || 0
-
-    empty_tool_results = role == "empty_tool_results"
     num_retrial = 0
 
-    # Defer API key validation until after user message is sent (for UX consistency)
-
-    # Get the parameters from the session
     obj = session[:parameters]
     app = obj["app_name"]
 
-    # Get the initial system prompt from the session
-    # Handle case where session[:messages] might be nil or empty
     session[:messages] ||= []
     initial_prompt = if session[:messages].empty? || session[:messages].first.nil?
                        obj["initial_prompt"] || ""
@@ -910,27 +1101,15 @@ module CohereHelper
                        session[:messages].first&.dig("text").to_s
                      end
 
-    # Parse numerical parameters
     temperature = obj["temperature"]&.to_f
-    
-    # Handle max_tokens
     max_tokens = obj["max_tokens"]&.to_i
-    
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    # Handle both string and boolean values for websearch parameter
     has_tavily = !!CONFIG["TAVILY_API_KEY"]
     requested_web = (obj["websearch"] == "true" || obj["websearch"] == true)
     websearch = has_tavily && requested_web
     message = obj["message"]
-    
-    # Debug logging for websearch
-    if websearch
-      DebugHelper.debug("Cohere websearch enabled", category: :api, level: :info)
-    else
-      DebugHelper.debug("Cohere websearch disabled (requested=#{requested_web}, has_tavily=#{has_tavily})", category: :api, level: :info)
-    end
 
     # Handle non-tool messages and update session
     if role != "tool"
@@ -988,374 +1167,37 @@ module CohereHelper
     end
     session[:messages].each { |msg| msg["active"] = false }
     context = session[:messages][0...-1].last(context_size).each { |msg| msg["active"] = true }
+    strip_inactive_image_data(session)
 
-    # Configure API request headers
-    headers = {
-      "accept" => "application/json",
-      "content-type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
+    # Build messages
+    messages_result = build_cohere_messages(context, session, obj, role, message, initial_prompt, websearch, &block)
+    return messages_result if messages_result.is_a?(Array) && messages_result.first.is_a?(Hash) && messages_result.first["type"] == "error"
+    messages, messages_containing_img = messages_result
 
-    # Prepare messages array for v2 API format
-    messages = []
-    messages_containing_img = false
-
-    # Check if Progressive Tool Disclosure is enabled
-    # If PTD is active, don't add WEBSEARCH_PROMPT (it conflicts with PTD instructions)
-    ptd_active = APPS[app]&.respond_to?(:settings) && APPS[app].settings.dig(:progressive_tools)
-
-    # Use unified system prompt injector
-    initial_prompt_with_suffix = Monadic::Utils::SystemPromptInjector.augment(
-      base_prompt: initial_prompt.to_s,
-      session: session,
-      options: {
-        websearch_enabled: websearch,
-        reasoning_model: false,
-        websearch_prompt: ptd_active ? nil : WEBSEARCH_PROMPT,
-        system_prompt_suffix: obj["system_prompt_suffix"]
-      },
-      separator: "\n\n---\n\n"
-    )
-
-    # Check if any messages contain images first
-    context.each do |msg|
-      if msg["images"] && msg["images"].any?
-        messages_containing_img = true
-        break
-      end
-    end
-    
-    # Also check current message for images
-    if role == "user" && session[:messages].last && session[:messages].last["images"] && session[:messages].last["images"].any?
-      messages_containing_img = true
-    end
-
-    # Add system message (initial prompt)
-    messages << {
-      "role" => "system",
-      "content" => initial_prompt_with_suffix
-    }
-
-    # Add context messages with appropriate roles
-    context.each do |msg|
-      next if msg["text"].to_s.strip.empty?  # Skip empty messages
-      next if msg["role"] == "system"  # System prompt already added above with augmentation
-      
-      # Debug logging for message construction
-      if CONFIG["EXTRA_LOGGING"]
-        DebugHelper.debug("Adding context message - role: #{msg['role']}, text length: #{msg['text'].to_s.length}", category: :api, level: :debug)
-      end
-      
-      # Check if message contains images
-      if msg["images"] && msg["images"].any?
-        content = []
-        
-        # Add text content first
-        content << {
-          "type" => "text",
-          "text" => msg["text"].to_s.strip
-        }
-        
-        # Add images (SSOT-gated)
-        msg["images"].each do |img|
-          begin
-            spec_vision = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
-            vision_capable = spec_vision.nil? ? true : !!spec_vision
-            spec_pdf = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
-            pdf_capable = spec_pdf.nil? ? false : !!spec_pdf
-          rescue StandardError
-            vision_capable = true
-            pdf_capable = false
-          end
-          if ENV[COHERE_LEGACY_MODE_ENV] == "true"
-            vision_capable = true
-            pdf_capable = true
-          end
-          if img["type"] == "application/pdf"
-            unless pdf_capable
-              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-                provider: "Cohere",
-                message: "This model does not support PDF input.",
-                code: 400
-              )
-              res = { "type" => "error", "content" => formatted_error }
-              block&.call res
-              return [res]
-            end
-            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-              provider: "Cohere",
-              message: "Cohere does not support PDF input. Please paste relevant text or use a provider that supports PDFs (e.g., Perplexity via URL, Gemini, Claude).",
-              code: 400
-            )
-            res = { "type" => "error", "content" => formatted_error }
-            block&.call res
-            return [res]
-          end
-          unless vision_capable
-            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-              provider: "Cohere",
-              message: "This model does not support image input (vision).",
-              code: 400
-            )
-            res = { "type" => "error", "content" => formatted_error }
-            block&.call res
-            return [res]
-          end
-          # Cohere expects base64 images with proper formatting
-          if img["data"].start_with?("data:")
-            content << {
-              "type" => "image",
-              "image" => img["data"]
-            }
-          else
-            # If it's already base64 without the data URL prefix
-            mime_type = img["type"] || "image/jpeg"
-            content << {
-              "type" => "image",
-              "image" => "data:#{mime_type};base64,#{img["data"]}"
-            }
-          end
-        end
-        
-        messages << {
-          "role" => translate_role(msg["role"]),
-          "content" => content
-        }
-      else
-        # Regular text-only message
-        messages << {
-          "role" => translate_role(msg["role"]),
-          "content" => msg["text"].to_s.strip
-        }
-      end
-    end
-
-    # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
-    # After the context loop, if only the system message exists in messages,
-    # this is the first turn with no prior conversation exchanges
-    is_initial_greeting = messages.length == 1 && messages[0]["role"] == "system"
-
-    # Add current user message if not a tool call
-    if role != "tool"
-      # Use unified system prompt injector for user message augmentation
-      # Skip prompt_suffix for initial greeting to avoid conflicting language instructions
-      suffix_options = if is_initial_greeting
-                         {}
-                       else
-                         { prompt_suffix: obj["prompt_suffix"] }
-                       end
-      current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(
-        base_message: message,
-        session: session,
-        options: suffix_options
-      )
-      
-      # Check if the current message has images
-      latest_msg = session[:messages].last
-      if latest_msg && latest_msg["images"] && latest_msg["images"].any? && role == "user"
-        messages_containing_img = true
-        content = []
-        
-        # Add text content
-        content << {
-          "type" => "text",
-          "text" => current_message
-        }
-        
-        # Add images from the latest message
-        latest_msg["images"].each do |img|
-          begin
-            spec_vision = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
-            vision_capable = spec_vision.nil? ? true : !!spec_vision
-            spec_pdf = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
-            pdf_capable = spec_pdf.nil? ? false : !!spec_pdf
-          rescue StandardError
-            vision_capable = true
-            pdf_capable = false
-          end
-          if ENV[COHERE_LEGACY_MODE_ENV] == "true"
-            vision_capable = true
-            pdf_capable = true
-          end
-          if img["type"] == "application/pdf"
-            unless pdf_capable
-              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-                provider: "Cohere",
-                message: "This model does not support PDF input.",
-                code: 400
-              )
-              res = { "type" => "error", "content" => formatted_error }
-              block&.call res
-              return [res]
-            end
-            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-              provider: "Cohere",
-              message: "Cohere does not support PDF input. Please paste relevant text or use a provider that supports PDFs (e.g., Perplexity via URL, Gemini, Claude).",
-              code: 400
-            )
-            res = { "type" => "error", "content" => formatted_error }
-            block&.call res
-            return [res]
-          end
-          unless vision_capable
-            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-              provider: "Cohere",
-              message: "This model does not support image input (vision).",
-              code: 400
-            )
-            res = { "type" => "error", "content" => formatted_error }
-            block&.call res
-            return [res]
-          end
-          if img["data"].start_with?("data:")
-            content << {
-              "type" => "image",
-              "image" => img["data"]
-            }
-          else
-            mime_type = img["type"] || "image/jpeg"
-            content << {
-              "type" => "image",
-              "image" => "data:#{mime_type};base64,#{img["data"]}"
-            }
-          end
-        end
-        
-        messages << {
-          "role" => "user",
-          "content" => content
-        }
-      else
-        # Regular text-only message
-        messages << {
-          "role" => "user",
-          "content" => current_message
-        }
-      end
-    end
-
-    # SSOT: Resolve capabilities
+    # Resolve streaming capability
     begin
       spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
-      streaming_source = spec_stream.nil? ? "fallback" : "spec"
       supports_streaming = spec_stream.nil? ? true : !!spec_stream
     rescue StandardError
-      streaming_source = "fallback"
       supports_streaming = true
     end
-    if ENV[COHERE_LEGACY_MODE_ENV] == "true"
-      supports_streaming = true
-      streaming_source = "legacy"
-    end
+    supports_streaming = true if ENV[COHERE_LEGACY_MODE_ENV] == "true"
 
-    # Construct request body with v2 API compatible parameters
-    body = {
-      "model" => obj["model"],
-      "stream" => supports_streaming,
-    }
-
-    # Add optional parameters with validation
+    # Construct request body
+    body = { "model" => obj["model"], "stream" => supports_streaming }
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
 
-    # Include tool results in messages if this is a tool response
-    # This must be done BEFORE the reasoning model workaround, which combines messages into single text
+    # Include tool results for tool responses
     if role == "tool" && obj["tool_results"]
       messages = messages + obj["tool_results"]
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Cohere: Added #{obj["tool_results"].size} tool result messages to conversation"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "Cohere: Added #{obj["tool_results"].size} tool result messages to conversation" }
     end
 
-    # Handle reasoning (thinking) parameter for command-a-reasoning models
-    # Check if this is a reasoning model
-    is_reasoning_model = CohereHelper.is_thinking_model?(obj["model"])
-    # If reasoning model but not specified or invalid value, set a safe default (enabled)
-    # Valid values are "enabled" and "disabled" - treat nil, empty, "none", or other invalid values as needing default
-    valid_reasoning_values = %w[enabled disabled]
-    if is_reasoning_model && !valid_reasoning_values.include?(obj["reasoning_effort"].to_s.strip.downcase)
-      obj["reasoning_effort"] = "enabled"
-    end
-    if is_reasoning_model && obj["reasoning_effort"]
-      # Check if we have conversation history with assistant messages
-      has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }
-      
-      # Debug logging
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Cohere reasoning check:"
-          f.puts "  Model: #{obj["model"]}"
-          f.puts "  Reasoning effort: #{obj["reasoning_effort"]}"
-          f.puts "  Has assistant messages: #{has_assistant_messages}"
-          f.puts "  Message count: #{messages.size}"
-          f.puts "  Message roles: #{messages.map { |m| m["role"] }.join(", ")}"
-        end
-      end
-      
-      if obj["reasoning_effort"] == "enabled"
-        if has_assistant_messages
-          # Workaround for Cohere reasoning model issue:
-          # When thinking is enabled and there are assistant messages in history,
-          # we need to combine the conversation into a single user message
-          # Always log this important information
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "[#{Time.now}] Cohere: Using single-text workaround for reasoning model with history"
-            end
-          end
-          
-          # Combine all messages into a single conversation context
-          conversation_text = format_conversation_as_single_text(messages)
+    # Configure reasoning mode
+    configure_cohere_reasoning(body, messages, obj, session)
 
-          # Add language reminder at the end of flattened text (high salience position)
-          # In single-text format, LANGUAGE MATCHING is buried in the middle and gets ignored
-          lang = session[:runtime_settings]&.[](:language)
-          if lang == "auto"
-            conversation_text += "\n\nIMPORTANT: Respond in the same language as the user's latest message (after 'Now, the user asks:'). Default to English if unclear."
-          elsif lang && lang != ""
-            lang_info = Monadic::Utils::LanguageConfig::LANGUAGES[lang]
-            if lang_info
-              conversation_text += "\n\nIMPORTANT: You MUST respond in #{lang_info[:english]}."
-            end
-          end
-
-          # Replace messages with single user message containing the conversation
-          body["messages"] = [
-            {
-              "role" => "user",
-              "content" => conversation_text
-            }
-          ]
-          
-          # Enable thinking even with single-text workaround
-          # This should work because Cohere sees it as a fresh conversation
-          body["thinking"] = { "type" => "enabled" }
-          
-          # Log the final message structure
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "  Single text format applied. New message count: #{body["messages"].size}"
-              f.puts "  Thinking enabled: #{body["thinking"].inspect}"
-              f.puts "  Message preview (first 500 chars):"
-              f.puts "  #{body["messages"][0]["content"][0..500]}..."
-              f.puts "  Total message length: #{body["messages"][0]["content"].length} chars"
-            end
-          end
-        else
-          # First turn or no assistant messages - can use thinking normally
-          body["thinking"] = { "type" => "enabled" }
-          DebugHelper.debug("Cohere: Reasoning enabled for #{obj["model"]} (no assistant messages)", category: :api, level: :info)
-        end
-      else
-        body["thinking"] = { "type" => "disabled" }
-        DebugHelper.debug("Cohere: Reasoning disabled for #{obj["model"]}", category: :api, level: :info)
-      end
-    end
-
-
-    # Check if we need to switch to vision-capable model (SSOT)
+    # Switch to vision-capable model if needed
     if messages_containing_img
       begin
         vprop = Monadic::Utils::ModelSpec.get_model_property(body["model"], "vision_capability")
@@ -1365,327 +1207,126 @@ module CohereHelper
       end
       unless current_vision
         original_model = body["model"]
-        # Prefer a known Cohere vision model if available in spec
-        vision_model = "command-a-vision-07-2025"
-        body["model"] = vision_model
+        body["model"] = "command-a-vision-07-2025"
         if block && original_model != body["model"]
-          system_msg = {
-            "type" => "system_info",
-            "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
-          }
-          block.call system_msg
+          block.call({ "type" => "system_info", "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability." })
         end
       end
     end
 
-    # Get tools from app settings and apply progressive disclosure if configured
-    app_settings = APPS[app]&.settings
-    app_tools = app_settings&.[]("tools")
-    progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
-    progressive_enabled = !!progressive_settings
-
-    # TEMPORARY DEBUG: Write to file
-    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-      f.puts "\n=== #{Time.now} COHERE REQUEST START ==="
-      f.puts "App: #{app}"
-      f.puts "Progressive enabled: #{progressive_enabled}"
-      f.puts "App tools count: #{app_tools&.length || 0}"
-      if app_tools
-        f.puts "App tools: #{app_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.inspect}"
-      end
-      if progressive_settings
-        f.puts "Progressive metadata structure:"
-        f.puts "  Keys: #{progressive_settings.keys.inspect}"
-        f.puts "  always_visible: #{progressive_settings[:always_visible].inspect}"
-        f.puts "  all_tool_names: #{progressive_settings[:all_tool_names].inspect}"
-        if progressive_settings[:conditional]
-          f.puts "  conditional count: #{progressive_settings[:conditional].length}"
-          progressive_settings[:conditional].each_with_index do |cond, idx|
-            f.puts "    [#{idx}] name=#{cond[:name].inspect}, unlock_conditions=#{cond[:unlock_conditions].inspect}"
-          end
-        end
-      end
-    end
-
-    if app_settings
-      begin
-        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
-          app_name: app,
-          session: session,
-          app_settings: app_settings,
-          default_tools: app_tools
-        )
-
-        # TEMPORARY DEBUG: Write filtered tools
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "After visible_tools filter:"
-          f.puts "  Filtered tools count: #{app_tools&.length || 0}"
-          if app_tools
-            f.puts "  Visible tools: #{app_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.inspect}"
-          end
-          unlocked = session.dig(:progressive_tools, app.to_s, :unlocked) || []
-          f.puts "  Unlocked in session: #{unlocked.inspect}"
-        end
-      rescue StandardError => e
-        DebugHelper.debug("Cohere: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
-        # TEMPORARY DEBUG
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "ERROR in visible_tools: #{e.message}"
-          f.puts e.backtrace.first(5).join("\n")
-        end
-      end
-    end
-    
-    # Only include tools if this is not a tool response
-    if role != "tool"
-      if progressive_enabled
-        # Progressive disclosure: use ONLY filtered app_tools, ignore obj["tools"]
-        final_tools = Array(app_tools).flatten.compact.select { |tool| tool.is_a?(Hash) }
-
-        if final_tools.empty?
-          body.delete("tools")
-          DebugHelper.debug("Cohere progressive tools: none unlocked", category: :api, level: :debug)
-          # TEMPORARY DEBUG
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "FINAL: No tools sent to API (all filtered out)"
-          end
-        else
-          body["tools"] = final_tools
-          DebugHelper.debug("Cohere progressive tools: #{final_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.join(', ')}", category: :api, level: :debug)
-          # TEMPORARY DEBUG
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "FINAL: Tools sent to API: #{final_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.inspect}"
-          end
-        end
-      else
-        # Handle tools differently for Cohere (legacy behaviour)
-        if obj["tools"] && !obj["tools"].empty?
-          base_tools = app_tools || []
-          base_tools = Array(base_tools).select { |tool| tool.is_a?(Hash) }
-          body["tools"] = base_tools
-          body["tools"].push(*WEBSEARCH_TOOLS) if websearch && body["tools"]
-          body["tools"].uniq! if body["tools"]
-          DebugHelper.debug("Cohere tools with websearch: #{body["tools"]&.map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-        elsif app_tools && !app_tools.empty?
-          # If no tools param but app has tools, use them
-          body["tools"] = Array(app_tools).select { |tool| tool.is_a?(Hash) }
-          body["tools"].push(*WEBSEARCH_TOOLS) if websearch
-          body["tools"].uniq!
-          DebugHelper.debug("Cohere tools from app settings: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-        elsif websearch
-          body["tools"] = WEBSEARCH_TOOLS
-          DebugHelper.debug("Cohere tools (websearch only): #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-        else
-          body.delete("tools")
-          DebugHelper.debug("Cohere: No tools enabled", category: :api, level: :debug)
-        end
-      end
-
-      # Cohere v2 API does not support the tool_choice parameter.
-      # Omitting it defaults to auto mode (model decides when to use tools).
-    end # end of role != "tool"
-
-    # SSOT: If the model is not tool-capable, remove tools/tool_choice
-    begin
-      spec_tool = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability")
-      tool_source = spec_tool.nil? ? "fallback" : "spec"
-      tool_capable = spec_tool.nil? ? true : !!spec_tool
-    rescue StandardError
-      tool_source = "fallback"
-      tool_capable = true
-    end
-    if ENV[COHERE_LEGACY_MODE_ENV] == "true"
-      tool_capable = true
-      tool_source = "legacy"
-    end
-    unless tool_capable
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
+    # Configure tools
+    configure_cohere_tools(body, obj, app, session, role, websearch)
 
     # Set messages if not already set by reasoning workaround
-    # Note: tool_results are already included in messages (added earlier, before reasoning workaround)
-    if !body["messages"]
-      body["messages"] = messages
-    end
-
+    body["messages"] ||= messages
     body["messages"] = Array(body["messages"]).compact
     body["messages"].map! { |msg| normalize_cohere_message(msg) }
     body["messages"].reject! { |msg| cohere_message_empty?(msg) }
 
+    # Ensure at least one user message
     unless body["messages"].any? { |m| m.is_a?(Hash) && m["role"] == "user" && extract_cohere_text(m).to_s.strip != "" }
       fallback_text = obj["message"].to_s.strip
       fallback_text = "Hello" if fallback_text.empty?
-      body["messages"] << normalize_cohere_message({
-        "role" => "user",
-        "content" => [
-          {
-            "type" => "text",
-            "text" => fallback_text
-          }
-        ]
-      })
-    end
-    
-    # Debug logging for message structure
-    if CONFIG["EXTRA_LOGGING"]
-      DebugHelper.debug("Sending #{body['messages'].length} messages to Cohere API", category: :api, level: :info)
-      body["messages"].each_with_index do |msg, idx|
-        DebugHelper.debug("Message #{idx}: role=#{msg['role']}, content_length=#{msg['content'].to_s.length}", category: :api, level: :debug)
-        # Log first 100 chars of content for debugging
-        if msg['content']
-          content_preview = msg['content'].to_s[0..100]
-          DebugHelper.debug("  Content preview: #{content_preview}...", category: :api, level: :debug)
-        end
-      end
+      body["messages"] << normalize_cohere_message({ "role" => "user", "content" => [{ "type" => "text", "text" => fallback_text }] })
     end
 
-    # Handle initiate_from_assistant case where only system message exists
+    # Handle initiate_from_assistant
     if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
-      # Generic prompt that asks the assistant to follow system instructions
-      initial_message = "Please proceed according to your system instructions and introduce yourself."
-      
-      body["messages"] << {
-        "role" => "user",
-        "content" => initial_message
-      }
+      body["messages"] << { "role" => "user", "content" => "Please proceed according to your system instructions and introduce yourself." }
     end
 
-    # Capability audit (optional)
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        audit = []
-        audit << "streaming:#{supports_streaming}(#{streaming_source})"
-        audit << "tools:#{tool_capable}(#{tool_source})"
-        # vision/pdf audit by spec
-        begin
-          vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
-          vsrc = vprop.nil? ? "fallback" : "spec"
-          audit << "vision:#{!!vprop}(#{vsrc})"
-          pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
-          psrc = pprop.nil? ? "fallback" : "spec"
-          audit << "pdf:#{!!pprop}(#{psrc})"
-        rescue StandardError
-        end
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Cohere SSOT capabilities for #{obj['model']}: #{audit.join(', ')}"
-        end
-      rescue StandardError
-      end
-    end
+    # Capability audit
+    Monadic::Utils::ExtraLogger.log { "Cohere SSOT capabilities for #{obj['model']}: model=#{body['model']}, messages=#{body['messages']&.size}" }
 
-    # Log the complete API request for debugging
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "\n[#{Time.now}] === COHERE API REQUEST ==="
-        f.puts "Model: #{body["model"]}"
-        f.puts "Thinking: #{body["thinking"].inspect}"
-        f.puts "Stream: #{body["stream"]}"
-        f.puts "Number of messages: #{body["messages"]&.size}"
-        
-        if body["messages"]
-          body["messages"].each_with_index do |msg, idx|
-            f.puts "\nMessage #{idx + 1}:"
-            f.puts "  Role: #{msg["role"]}"
-            if msg["content"]
-              content_str = msg["content"].to_s
-              f.puts "  Content length: #{content_str.length} chars"
-              if content_str.length <= 1000
-                f.puts "  Content: #{content_str}"
-              else
-                f.puts "  Content (first 500 chars): #{content_str[0..500]}..."
-                f.puts "  Content (last 200 chars): ...#{content_str[-200..-1]}"
-              end
-            end
-          end
-        end
-        
-        f.puts "\n=== END API REQUEST ===\n"
-      end
-    end
-
-    # Force text-only response when force-stop is active (e.g., after parallel dispatch
-    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
-    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
+    # Force text-only response when force-stop is active
     if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
       body.delete("tools")
       body.delete("tool_choice")
     end
 
-    target_uri = "#{API_ENDPOINT}/chat"
-    http = HTTP.headers(headers)
+    # Configure headers and execute API call
+    headers = {
+      "accept" => "application/json",
+      "content-type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
 
-    res = nil
-    MAX_RETRIES.times do |i|
-      begin
-        res = http.timeout(
-          connect: open_timeout,
-          write: write_timeout,
-          read: read_timeout
-        ).post(target_uri, json: body)
-        
-        break if res.status.success?
-        
-        sleep RETRY_DELAY * (i + 1) # Exponential backoff
-      rescue HTTP::Error, HTTP::TimeoutError => e
-        next unless i == MAX_RETRIES - 1
-
-        error_message = "Network error: #{e.message}"
-        STDERR.puts "[Cohere] #{error_message}" if CONFIG["EXTRA_LOGGING"]
-        formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-          provider: "Cohere",
-          message: error_message,
-          timeout: true
-        )
-        res = { "type" => "error", "content" => formatted_error }
-        block&.call res
-        return [res]
-      end
-    end
-
-    # Handle API error responses
-    unless res&.status&.success?
-      error_report = begin
-                      JSON.parse(res.body)
-                    rescue StandardError
-                      { "message" => "Unknown error occurred" }
-                    end
-      STDERR.puts "[Cohere API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
-      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-        provider: "Cohere",
-        message: error_report["message"] || "Unknown API error",
-        code: res.status.code
-      )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-      return [res]
-    end
-
-    # Process streaming response
-    process_json_data(app: app,
-                      session: session,
-                      query: body,
-                      res: res.body,
-                      call_depth: call_depth, &block)
+    execute_cohere_api_call(headers, body, app, session, call_depth, &block)
   rescue StandardError => e
-    STDERR.puts "[Cohere] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[Cohere] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
-    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-      provider: "Cohere",
-      message: "Unexpected error: #{e.message}"
-    )
+    Monadic::Utils::ExtraLogger.log { "[Cohere] Unexpected error: #{e.message}" }
+    Monadic::Utils::ExtraLogger.log { "[Cohere] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(provider: "Cohere", message: "Unexpected error: #{e.message}")
     res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end
 
+  # Build the final text response from streaming results, including thinking and usage
+  private def build_cohere_text_response(result:, obj:, finish_reason:, thinking_content:,
+                                         fragment_sequence:, usage_input_tokens:,
+                                         usage_output_tokens:, usage_total_tokens:, &block)
+    if result
+      # Send DONE message to complete the stream
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason })
+
+      response = [
+        {
+          "choices" => [
+            {
+              "finish_reason" => finish_reason,
+              "message" => { "content" => result }
+            }
+          ]
+        }
+      ]
+
+      # Add thinking content if collected
+      if thinking_content && !thinking_content.empty?
+        response[0]["choices"][0]["message"]["thinking"] = thinking_content.join("")
+      end
+
+      # Attach usage if captured
+      if usage_input_tokens || usage_output_tokens || usage_total_tokens
+        response[0]["usage"] = {
+          "input_tokens" => usage_input_tokens,
+          "output_tokens" => usage_output_tokens,
+          "total_tokens" => usage_total_tokens
+        }.compact
+      end
+      response
+    else
+      # No text content — reasoning model fallback
+      is_reasoning_model = obj["reasoning_model"] || CohereHelper.is_thinking_model?(obj["model"])
+      reasoning_actually_enabled = obj["reasoning_effort"] == "enabled"
+
+      if is_reasoning_model && reasoning_actually_enabled
+        default_response = "I've processed your request. How can I help you further?"
+
+        block&.call({
+          "type" => "fragment", "content" => default_response,
+          "sequence" => fragment_sequence, "timestamp" => Time.now.to_f,
+          "is_first" => fragment_sequence == 0
+        })
+        block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" })
+
+        [{ "choices" => [{ "finish_reason" => finish_reason || "stop", "message" => { "content" => default_response } }] }]
+      else
+        if CONFIG["EXTRA_LOGGING"]
+          DebugHelper.debug("Unexpected empty response for non-reasoning scenario", category: :api, level: :warn)
+        end
+
+        block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+        [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "" } }] }]
+      end
+    end
+  end
+
+  public
+
   # Process streaming JSON response data
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
-    end
+    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})" }
+    Monadic::Utils::ExtraLogger.log_json("Query", query)
 
     # Store the request parameters for constructing the final response
     obj = session[:parameters]
@@ -1729,9 +1370,7 @@ module CohereHelper
             json_data = matched.match(pattern)[1]
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"]
-              extra_log.puts(JSON.pretty_generate(json))
-            end
+            Monadic::Utils::ExtraLogger.log_json("Cohere stream chunk", json)
 
             # Handle different event types from v2 streaming API
             case json["type"]
@@ -1846,19 +1485,13 @@ module CohereHelper
                                 end
                 
                 # Log error details if finish_reason is ERROR
-                if json["delta"]["finish_reason"] == "ERROR" && CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts "\n[#{Time.now}] === COHERE API ERROR ==="
-                    f.puts "Finish reason: ERROR"
-                    if json["delta"]["error"]
-                      f.puts "Error message: #{json["delta"]["error"]}"
-                    end
-                    if json["delta"]["usage"]
-                      f.puts "Usage info: #{json["delta"]["usage"].inspect}"
-                    end
-                    f.puts "Full delta: #{json["delta"].inspect}"
-                    f.puts "=== END ERROR ===\n"
-                  end
+                if json["delta"]["finish_reason"] == "ERROR"
+                  error_lines = ["\n=== COHERE API ERROR ===", "Finish reason: ERROR"]
+                  error_lines << "Error message: #{json["delta"]["error"]}" if json["delta"]["error"]
+                  error_lines << "Usage info: #{json["delta"]["usage"].inspect}" if json["delta"]["usage"]
+                  error_lines << "Full delta: #{json["delta"].inspect}"
+                  error_lines << "=== END ERROR ===\n"
+                  Monadic::Utils::ExtraLogger.log { error_lines.join("\n") }
                 end
                 # Capture usage if present on message-end
                 if json["delta"]["usage"].is_a?(Hash)
@@ -1879,37 +1512,22 @@ module CohereHelper
         end
       end
     rescue StandardError => e
-      STDERR.puts "[Cohere Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      STDERR.puts "[Cohere Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
-    end
-
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log.close
+      Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Error: #{e.message}" }
+      Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     end
 
     # Prepare final result from accumulated text
     result = texts.empty? ? nil : texts.join("")
-    
-    # Debug logging for final result
+
     if CONFIG["EXTRA_LOGGING"]
       DebugHelper.debug("Cohere streaming complete - texts array size: #{texts.size}, result length: #{result.to_s.length}", category: :api, level: :info)
-      if result.nil?
-        DebugHelper.debug("Result is nil - checking reasoning model fallback", category: :api, level: :info)
-        DebugHelper.debug("Session messages count: #{session[:messages]&.size || 0}", category: :api, level: :info)
-        DebugHelper.debug("Is reasoning model: #{obj['reasoning_model']}, effort: #{obj['reasoning_effort']}", category: :api, level: :info)
-      else
-        DebugHelper.debug("Result has content: #{result[0..100]}...", category: :api, level: :debug)
-      end
-    end
-    
-    # Process citations if any were collected
-    if result && citations.any?
-      result = process_citations(result, citations)
     end
 
-    # Process accumulated tool calls if any exist
+    # Process citations if any were collected
+    result = process_citations(result, citations) if result && citations.any?
+
+    # Route to tool processing or build final text response
     if accumulated_tool_calls.any?
-      # Use tool_plan_content for context (internal reasoning), not texts (user-facing)
       tool_plan_text = tool_plan_content.empty? ? nil : tool_plan_content.join("")
       context = [
         {
@@ -1927,317 +1545,207 @@ module CohereHelper
         ) }]
       end
 
-      # Execute tool calls and get results
-      # process_functions makes recursive api_request which handles DONE message
-      # Return directly to avoid duplicate DONE messages
       return process_functions(app, session, accumulated_tool_calls, context, session[:call_depth_per_turn], &block)
     else
-      # Handle regular text response or empty response (e.g., only thinking content)
-      
-      if result
-        final_result = result
-
-        # Send DONE message to complete the stream
-        res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
-        block&.call res
-        
-        response = [
-          {
-            "choices" => [
-              {
-                "finish_reason" => finish_reason,
-                "message" => { "content" => final_result }
-              }
-            ]
-          }
-        ]
-
-        # Add thinking content if collected
-        # Note: Cohere sends thinking in small fragments during streaming,
-        # so we concatenate without extra separators
-        if thinking_content && !thinking_content.empty?
-          response[0]["choices"][0]["message"]["thinking"] = thinking_content.join("")
-        end
-
-        # Attach usage if captured
-        if usage_input_tokens || usage_output_tokens || usage_total_tokens
-          response[0]["usage"] = {
-            "input_tokens" => usage_input_tokens,
-            "output_tokens" => usage_output_tokens,
-            "total_tokens" => usage_total_tokens
-          }.compact
-        end
-        response
-      else
-        # No text content (only thinking or genuinely empty response)
-        # Check if this was a reasoning model with thinking content
-        # Debug logging to understand the issue
-        if CONFIG["EXTRA_LOGGING"]
-          DebugHelper.debug("Empty response - checking reasoning model status", category: :api, level: :info)
-          DebugHelper.debug("obj['reasoning_model']: #{obj['reasoning_model'].inspect}", category: :api, level: :info)
-          DebugHelper.debug("obj['reasoning_effort']: #{obj['reasoning_effort'].inspect}", category: :api, level: :info)
-          DebugHelper.debug("obj['model']: #{obj['model'].inspect}", category: :api, level: :info)
-        end
-        
-        # For Cohere reasoning models, check using local method
-        is_reasoning_model = obj["reasoning_model"] || CohereHelper.is_thinking_model?(obj["model"])
-        
-        # Check if reasoning was actually enabled for this request
-        # With the new single-text workaround, thinking is always enabled when requested
-        # So we only need to check if this is a reasoning model with thinking enabled
-        reasoning_actually_enabled = obj["reasoning_effort"] == "enabled"
-        
-        if is_reasoning_model && reasoning_actually_enabled
-          # For reasoning models with thinking enabled but no text output,
-          # return a default message. This is normal behavior for Cohere reasoning models
-          # when they complete their thinking but don't generate additional text.
-          default_response = "I've processed your request. How can I help you further?"
-          
-          # Send the response as a fragment first
-          res = {
-            "type" => "fragment",
-            "content" => default_response,
-            "sequence" => fragment_sequence,
-            "timestamp" => Time.now.to_f,
-            "is_first" => fragment_sequence == 0
-          }
-          fragment_sequence += 1
-          block&.call res
-          
-          # Send DONE message to complete the stream
-          done_msg = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" }
-          block&.call done_msg
-          
-          [
-            {
-              "choices" => [
-                {
-                  "finish_reason" => finish_reason || "stop",
-                  "message" => { "content" => default_response }
-                }
-              ]
-            }
-          ]
-        else
-          # For non-reasoning models or when reasoning is disabled, return empty response
-          # This should not happen in normal flow, but handle gracefully
-          if CONFIG["EXTRA_LOGGING"]
-            DebugHelper.debug("Unexpected empty response for non-reasoning scenario", category: :api, level: :warn)
-          end
-          
-          # Return a minimal response
-          empty_response = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-          block&.call empty_response
-          
-          [
-            {
-              "choices" => [
-                {
-                  "finish_reason" => "stop",
-                  "message" => { "content" => "" }
-                }
-              ]
-            }
-          ]
-        end
-      end
+      build_cohere_text_response(
+        result: result, obj: obj, finish_reason: finish_reason,
+        thinking_content: thinking_content, fragment_sequence: fragment_sequence,
+        usage_input_tokens: usage_input_tokens, usage_output_tokens: usage_output_tokens,
+        usage_total_tokens: usage_total_tokens, &block
+      )
     end
   end
+
+  # Execute a single Cohere tool function: parse arguments, dispatch, handle errors
+  # Returns [context_entry, error_stop] tuple
+  private def invoke_cohere_tool_function(app, session, tool_call, function_name, &block)
+    tool_call_id = tool_call["id"]
+
+    # Parse and sanitize function arguments
+    arguments = tool_call.dig("function", "arguments")
+    argument_hash = if arguments.is_a?(String) && !arguments.empty?
+      begin
+        JSON.parse(arguments)
+      rescue JSON::ParserError
+        {}
+      end
+    else
+      {}
+    end
+
+    argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+      next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
+
+      memo[k.to_sym] = v
+    end
+
+    # Special handling for check_environment function
+    argument_hash = {} if function_name == "check_environment" && argument_hash.empty?
+
+    # Handle progressive disclosure: unlock requested tool
+    if function_name == "request_tool" && argument_hash[:tool_name] && APPS[app]&.respond_to?(:settings)
+      begin
+        requested_tool = argument_hash[:tool_name].to_s
+        Monadic::Utils::ProgressiveToolManager.unlock_tool(
+          session: session, app_name: app, tool_name: requested_tool
+        )
+        DebugHelper.debug("Cohere progressive tools: unlocked requested tool '#{requested_tool}' via request_tool", category: :api, level: :info)
+      rescue StandardError => e
+        DebugHelper.debug("Cohere progressive tools: failed to unlock requested tool due to #{e.message}", category: :api, level: :warning)
+      end
+    end
+
+    # Inject session for tools that need it
+    method_obj = APPS[app].method(function_name.to_sym) rescue nil
+    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
+      argument_hash[:session] = session
+    end
+
+    # Execute function and capture result
+    begin
+      function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+      send_verification_notification(session, &block) if function_name == "report_verification"
+      Monadic::Utils::TtsTextExtractor.extract_tts_text(
+        app: app, function_name: function_name,
+        argument_hash: argument_hash, session: session
+      )
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[Cohere Tools] Function execution error: #{e.message}" }
+      function_return = Monadic::Utils::ErrorFormatter.tool_error(
+        provider: "Cohere", tool_name: function_name, message: e.message
+      )
+    end
+
+    # Check for repeated errors
+    if handle_function_error(session, function_return, function_name, &block)
+      error_entry = {
+        "role" => "tool", "tool_call_id" => tool_call_id,
+        "content" => [{ "type" => "text", "text" => function_return.to_s }]
+      }
+      return [error_entry, true]
+    end
+
+    # Store gallery_html for server-side injection
+    if function_return.is_a?(Hash) && function_return[:gallery_html]
+      session[:tool_html_fragments] ||= []
+      session[:tool_html_fragments] << function_return[:gallery_html]
+    end
+
+    # Collect _image for visual self-verification and clean underscore keys
+    pending_images = nil
+    if function_return.is_a?(Hash) && function_return[:_image]
+      pending_images = Array(function_return[:_image])
+      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
+      serialized_return = JSON.generate(clean_return)
+    else
+      serialized_return = nil
+    end
+
+    # Process function return to detect generated images
+    processed_return = function_return.to_s
+    if processed_return.include?("File(s) generated or modified:")
+      file_matches = processed_return.scan(/\/data\/[^\s,]+(?:\.\w+)?/)
+      image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
+      image_files = file_matches.filter_map do |fp|
+        clean_path = fp.gsub(/[,;.]$/, '')
+        clean_path if image_extensions.any? { |ext| clean_path.downcase.end_with?(ext) }
+      end
+
+      if image_files.any?
+        processed_return += "\n\nIMPORTANT: Display the generated image(s) using the following HTML:\n"
+        image_files.each { |img_path| processed_return += "<div class=\"generated_image\"><img src=\"#{img_path}\" /></div>\n" }
+        processed_return += "\nPlease include the above HTML in your response to show the image(s) to the user."
+      end
+    end
+
+    # Determine content for the tool result document
+    result_content = serialized_return || (function_return.is_a?(Hash) || function_return.is_a?(Array) ?
+                      JSON.generate(function_return) : processed_return)
+
+    tool_entry = {
+      "role" => "tool", "tool_call_id" => tool_call_id,
+      "content" => [
+        {
+          "type" => "document",
+          "document" => {
+            "id" => tool_call_id,
+            "data" => { "results" => result_content }
+          }
+        }
+      ]
+    }
+
+    [tool_entry, false, pending_images]
+  end
+
+  public
 
   # Process function calls from the API response
   def process_functions(app, session, tool_calls, context, call_depth, &block)
     obj = session[:parameters]
-    tool_results = []
-    
-    # First, tell the client that function processing is starting
-    begin_msg = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> PROCESSING FUNCTION RESULTS" }
-    block&.call begin_msg
-    
+    pending_tool_images = nil
+
+    block&.call({ "type" => "wait", "content" => "<i class='fas fa-cogs'></i> PROCESSING FUNCTION RESULTS" })
+
     tool_calls.each do |tool_call|
-      # Extract function name and validate
       function_name = tool_call.dig("function", "name")
       next if function_name.nil?
+
+      record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      # Important: Keep the original tool_call_id exactly as received
-      tool_call_id = tool_call["id"]  # This ID must match exactly what the API sent
+      tool_entry, error_stop, images = invoke_cohere_tool_function(app, session, tool_call, function_name, &block)
+      pending_tool_images = images if images&.any?
 
-      # Parse and sanitize function arguments
-      arguments = tool_call.dig("function", "arguments")
-      argument_hash = if arguments.is_a?(String) && !arguments.empty?
-        begin
-          JSON.parse(arguments)
-        rescue JSON::ParserError
-          # If not valid JSON, use an empty hash
-          {}
-        end
-      else
-        {}
+      if tool_entry
+        context << tool_entry
+        next if error_stop
       end
-
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        # skip if the value is nil or null but not if it is of the string class
-        next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
-
-        memo[k.to_sym] = v
-        memo
-      end
-
-      # Special handling for check_environment function
-      if function_name == "check_environment" && argument_hash.empty?
-        argument_hash = {}  # Ensure it's an empty hash, not nil
-      end
-
-      # Handle progressive disclosure: if request_tool is called, unlock the requested tool
-      if function_name == "request_tool" && argument_hash[:tool_name] && APPS[app]&.respond_to?(:settings)
-        begin
-          requested_tool = argument_hash[:tool_name].to_s
-          Monadic::Utils::ProgressiveToolManager.unlock_tool(
-            session: session,
-            app_name: app,
-            tool_name: requested_tool
-          )
-          DebugHelper.debug("Cohere progressive tools: unlocked requested tool '#{requested_tool}' via request_tool", category: :api, level: :info)
-        rescue StandardError => e
-          DebugHelper.debug("Cohere progressive tools: failed to unlock requested tool due to #{e.message}", category: :api, level: :warning)
-        end
-      end
-
-      # Inject session for tools that need it (e.g., monadic state tools)
-      method_obj = APPS[app].method(function_name.to_sym) rescue nil
-      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-        argument_hash[:session] = session
-      end
-
-      # Execute function and capture result
-      begin
-        function_return = APPS[app].send(function_name.to_sym, **argument_hash)
-
-        send_verification_notification(session, &block) if function_name == "report_verification"
-
-        # Extract TTS text from tool parameters if tts_target is configured
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: function_name,
-          argument_hash: argument_hash,
-          session: session
-        )
-      rescue StandardError => e
-        STDERR.puts "[Cohere Tools] Function execution error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-        function_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "Cohere",
-          tool_name: function_name,
-          message: e.message
-        )
-      end
-
-      # Use the error handler module to check for repeated errors
-      if handle_function_error(session, function_return, function_name, &block)
-        # Add the error result so the model sees it, then skip to next tool
-        tool_results << {
-          role: "tool",
-          tool_call_id: tool_call_id,
-          content: [{ type: "text", text: function_return.to_s }]
-        }
-        next # stop_retrying flag is set — will be checked after the loop
-      end
-
-      # Process function return to detect generated images and enhance the response
-      processed_return = function_return.to_s
-      
-      # Check if files were generated (especially images)
-      if processed_return.include?("File(s) generated or modified:")
-        # Extract file paths
-        file_matches = processed_return.scan(/\/data\/[^\s,]+(?:\.\w+)?/)
-        
-        # For each file path, check if it's an image and enhance the response
-        image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
-        image_files = []
-        
-        file_matches.each do |file_path|
-          # Clean up the file path (remove trailing punctuation)
-          clean_path = file_path.gsub(/[,;.]$/, '')
-          
-          # Check if it's an image file
-          if image_extensions.any? { |ext| clean_path.downcase.end_with?(ext) }
-            image_files << clean_path
-          end
-        end
-        
-        # If we found image files, add explicit instructions to the result
-        if !image_files.empty?
-          processed_return += "\n\nIMPORTANT: Display the generated image(s) using the following HTML:\n"
-          image_files.each do |img_path|
-            processed_return += "<div class=\"generated_image\"><img src=\"#{img_path}\" /></div>\n"
-          end
-          processed_return += "\nPlease include the above HTML in your response to show the image(s) to the user."
-        end
-      end
-
-      # Format tool results maintaining exact tool_call_id
-      context << {
-        "role" => "tool",
-        "tool_call_id" => tool_call_id,
-        "content" => [
-          {
-            "type" => "document", 
-            "document" => {
-              "id" => tool_call_id,
-              "data" => {
-                "results" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? 
-                            JSON.generate(function_return) : 
-                            processed_return
-              }
-            }
-          }
-        ]
-      }
     end
 
-    # Capture tool requests for progressive disclosure (e.g., request_tool("tavily_search"))
+    # Capture tool requests for progressive disclosure
     if APPS[app]&.respond_to?(:settings)
       begin
-        # Extract tool_plan text from context (assistant message content)
         assistant_msg = context.find { |msg| msg["role"] == "assistant" }
         assistant_text = assistant_msg&.dig("tool_plan") || ""
-
-        # Debug logging to understand what we're capturing
-        DebugHelper.debug("Cohere progressive tools: assistant_msg keys = #{assistant_msg&.keys&.inspect}", category: :api, level: :info)
-        DebugHelper.debug("Cohere progressive tools: assistant_text = '#{assistant_text[0..200]}'", category: :api, level: :info)
-
         Monadic::Utils::ProgressiveToolManager.capture_tool_requests(
-          session: session,
-          app_name: app,
-          app_settings: APPS[app].settings,
-          text: assistant_text
+          session: session, app_name: app,
+          app_settings: APPS[app].settings, text: assistant_text
         )
-
-        # Check if unlock worked
-        unlocked = session.dig(:progressive_tools, app.to_s, :unlocked) || []
-        DebugHelper.debug("Cohere progressive tools: unlocked tools = #{unlocked.inspect}", category: :api, level: :info)
       rescue StandardError => e
         DebugHelper.debug("Cohere progressive tools: failed to capture tool requests due to #{e.message}", category: :api, level: :warning)
       end
     end
 
-    # Store the tool results in the session
+    # Inject tool-generated images as user message for vision-capable models
+    if pending_tool_images&.any?
+      image_parts = pending_tool_images.filter_map do |img_filename|
+        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+        next unless img
+
+        { "type" => "image", "image" => "data:#{img[:media_type]};base64,#{img[:base64_data]}" }
+      end
+      if image_parts.any?
+        context << {
+          "role" => "user",
+          "content" => [
+            { "type" => "text", "text" => "[Tool-generated image. Verify the visual output before presenting results.]" },
+            *image_parts
+          ]
+        }
+      end
+    end
+
+    # Store tool results and check for error stopping
     obj["tool_results"] = context
 
-    # Stop if repeated errors detected (set by handle_function_error above)
     if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
     end
 
-    # Tell the client we're done with function processing before making the recursive API request
-    done_msg = { "type" => "wait", "content" => "<i class='fas fa-check-circle'></i> FUNCTION CALLS COMPLETE" }
-    block&.call done_msg
-
-    # Signal frontend to clear fragment buffer before streaming post-tool response
-    # This prevents pre-tool text from being concatenated with post-tool response
-    clear_msg = { "type" => "clear_fragments" }
-    block&.call clear_msg
+    block&.call({ "type" => "wait", "content" => "<i class='fas fa-check-circle'></i> FUNCTION CALLS COMPLETE" })
+    block&.call({ "type" => "clear_fragments" })
 
     # Make recursive API request with tool results
     api_request("tool", session, call_depth: call_depth, &block)

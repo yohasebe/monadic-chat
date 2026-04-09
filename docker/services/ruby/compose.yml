@@ -19,8 +19,7 @@ services:
       - log:/monadic/log
       - ~/monadic/log:/monadic/log
     ports:
-      - "${HOST_BINDING:-0.0.0.0}:4567:4567"
-    restart: always
+      - "${HOST_BINDING:-127.0.0.1}:4567:4567"
     stdin_open: true
     tty: true
     command: ["sh", "/usr/local/bin/entrypoint.sh"]
@@ -37,5 +36,7 @@ services:
     depends_on:
       pgvector_service:
         condition: service_healthy
-      python_service:
-        condition: service_started
+      # Python dependency removed: Ruby communicates with Python only via
+      # docker exec (on user interaction), not at startup. Both containers
+      # now start in parallel for faster startup time.
+      # Python availability is checked dynamically by WebAutomation.available?

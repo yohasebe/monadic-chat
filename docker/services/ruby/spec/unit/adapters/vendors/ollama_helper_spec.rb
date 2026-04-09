@@ -17,13 +17,9 @@ RSpec.describe OllamaHelper do
         expect(OllamaHelper::DEFAULT_MODEL).not_to be_empty
       end
 
-      it 'matches the value in system_defaults.json' do
-        defaults_path = File.expand_path('../../../../../../config/system_defaults.json', __FILE__)
-        if File.exist?(defaults_path)
-          defaults = JSON.parse(File.read(defaults_path))
-          expected_model = defaults.dig('provider_defaults', 'ollama', 'model')
-          expect(OllamaHelper::DEFAULT_MODEL).to eq(expected_model) if expected_model
-        end
+      it 'matches the value in providerDefaults' do
+        expected_model = Monadic::Utils::ModelSpec.get_provider_default("ollama", "chat")
+        expect(OllamaHelper::DEFAULT_MODEL).to eq(expected_model) if expected_model
       end
     end
 
@@ -203,9 +199,197 @@ RSpec.describe OllamaHelper do
       expect(result[1]["function"]["name"]).to eq("claude_tool")
     end
 
-    it 'returns empty array for non-array non-hash input' do
-      expect(helper.send(:format_tools_for_ollama, "string")).to eq([])
+    it 'parses JSON string tools (as sent by the WebSocket layer)' do
+      # app_data.rb serializes the tools array to JSON before sending over
+      # WebSocket, so the backend receives tools_config as a String here.
+      json_tools = [
+        {
+          "type" => "function",
+          "function" => {
+            "name" => "list_files",
+            "description" => "List files",
+            "parameters" => { "type" => "object", "properties" => {} }
+          }
+        }
+      ].to_json
+
+      result = helper.send(:format_tools_for_ollama, json_tools)
+      expect(result.size).to eq(1)
+      expect(result[0]["function"]["name"]).to eq("list_files")
+    end
+
+    it 'returns empty array for empty or malformed JSON string' do
+      expect(helper.send(:format_tools_for_ollama, "")).to eq([])
+      expect(helper.send(:format_tools_for_ollama, "   ")).to eq([])
+      expect(helper.send(:format_tools_for_ollama, "{not valid json")).to eq([])
+    end
+
+    it 'returns empty array for numeric input' do
       expect(helper.send(:format_tools_for_ollama, 42)).to eq([])
+    end
+  end
+
+  describe '#translate_response_format_for_ollama' do
+    it 'maps json_object type to "json" string' do
+      result = helper.send(:translate_response_format_for_ollama, { "type" => "json_object" })
+      expect(result).to eq("json")
+    end
+
+    it 'extracts nested schema from json_schema type' do
+      rf = {
+        "type" => "json_schema",
+        "json_schema" => {
+          "schema" => {
+            "type" => "object",
+            "properties" => { "name" => { "type" => "string" } }
+          }
+        }
+      }
+      result = helper.send(:translate_response_format_for_ollama, rf)
+      expect(result).to eq({ "type" => "object", "properties" => { "name" => { "type" => "string" } } })
+    end
+
+    it 'parses JSON string response_format' do
+      json_rf = '{"type":"json_object"}'
+      expect(helper.send(:translate_response_format_for_ollama, json_rf)).to eq("json")
+    end
+
+    it 'accepts symbol keys' do
+      result = helper.send(:translate_response_format_for_ollama, { type: "json_object" })
+      expect(result).to eq("json")
+    end
+
+    it 'returns nil for malformed input' do
+      expect(helper.send(:translate_response_format_for_ollama, nil)).to be_nil
+      expect(helper.send(:translate_response_format_for_ollama, "not valid json")).to be_nil
+      expect(helper.send(:translate_response_format_for_ollama, 42)).to be_nil
+    end
+
+    it 'returns nil when json_schema is missing the schema key' do
+      rf = { "type" => "json_schema", "json_schema" => {} }
+      expect(helper.send(:translate_response_format_for_ollama, rf)).to be_nil
+    end
+  end
+
+  describe '#supports_thinking?' do
+    context 'when API capabilities are available' do
+      it 'returns true when capabilities include "thinking"' do
+        allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+          .and_return({ capabilities: ["completion", "thinking"], context_length: 8192, fetched_at: Time.now })
+        expect(helper.send(:supports_thinking?, "any-model")).to be true
+      end
+
+      it 'returns false when capabilities exclude "thinking"' do
+        allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+          .and_return({ capabilities: ["completion", "tools"], context_length: 8192, fetched_at: Time.now })
+        expect(helper.send(:supports_thinking?, "any-model")).to be false
+      end
+    end
+
+    context 'when API is unreachable (fallback to name heuristic)' do
+      before do
+        allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+      end
+
+      it 'detects Qwen3 thinking variants by name suffix' do
+        expect(helper.send(:supports_thinking?, "qwen3-vl:8b-thinking")).to be true
+        expect(helper.send(:supports_thinking?, "qwen3:32b-thinking")).to be true
+      end
+
+      it 'detects DeepSeek-R1 family' do
+        expect(helper.send(:supports_thinking?, "deepseek-r1:7b")).to be true
+        expect(helper.send(:supports_thinking?, "deepseek-r1:latest")).to be true
+      end
+
+      it 'is case-insensitive' do
+        expect(helper.send(:supports_thinking?, "QWEN3-VL:8B-THINKING")).to be true
+        expect(helper.send(:supports_thinking?, "DeepSeek-R1")).to be true
+      end
+
+      it 'returns false for non-thinking-named models' do
+        expect(helper.send(:supports_thinking?, "llama3.2:3b")).to be false
+        expect(helper.send(:supports_thinking?, "mistral:7b")).to be false
+      end
+    end
+
+    it 'returns false for nil or non-string input' do
+      expect(helper.send(:supports_thinking?, nil)).to be false
+      expect(helper.send(:supports_thinking?, 42)).to be false
+      expect(helper.send(:supports_thinking?, [])).to be false
+    end
+  end
+
+  describe '.fetch_model_capabilities' do
+    before { OllamaHelper.reset_capabilities_cache }
+
+    it 'returns nil for invalid input' do
+      expect(OllamaHelper.fetch_model_capabilities(nil)).to be_nil
+      expect(OllamaHelper.fetch_model_capabilities("")).to be_nil
+      expect(OllamaHelper.fetch_model_capabilities(42)).to be_nil
+    end
+
+    it 'returns nil when endpoint is unreachable' do
+      allow(OllamaHelper).to receive(:find_endpoint).and_return(nil)
+      expect(OllamaHelper.fetch_model_capabilities("some-model")).to be_nil
+    end
+
+    it 'caches successful lookups within TTL' do
+      # Pre-populate cache to verify the short-circuit path
+      OllamaHelper.instance_variable_get(:@capabilities_cache)["cached-model"] = {
+        capabilities: ["completion", "tools"],
+        context_length: 4096,
+        fetched_at: Time.now
+      }
+      # Should not call find_endpoint if cache is fresh
+      expect(OllamaHelper).not_to receive(:find_endpoint)
+      result = OllamaHelper.fetch_model_capabilities("cached-model")
+      expect(result[:capabilities]).to eq(["completion", "tools"])
+    end
+
+    it 'expires cache entries past TTL' do
+      # Insert a stale entry
+      OllamaHelper.instance_variable_get(:@capabilities_cache)["stale-model"] = {
+        capabilities: ["completion"],
+        context_length: 4096,
+        fetched_at: Time.now - (OllamaHelper::CAPABILITIES_CACHE_TTL + 10)
+      }
+      allow(OllamaHelper).to receive(:find_endpoint).and_return(nil)
+      # Stale cache → should re-fetch → find_endpoint returns nil → overall nil
+      expect(OllamaHelper.fetch_model_capabilities("stale-model")).to be_nil
+    end
+  end
+
+  describe '.list_models_with_capabilities' do
+    before { OllamaHelper.reset_capabilities_cache }
+
+    it 'returns a hash shaped like modelSpec entries' do
+      allow(OllamaHelper).to receive(:list_models).and_return(["test-model"])
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).with("test-model")
+        .and_return({ capabilities: ["completion", "vision", "tools", "thinking"], context_length: 131072, fetched_at: Time.now })
+
+      result = OllamaHelper.list_models_with_capabilities
+      expect(result["test-model"]).to include(
+        "context_window" => [1, 131072],
+        "tool_capability" => true,
+        "vision_capability" => true,
+        "supports_thinking" => true
+      )
+    end
+
+    it 'uses name-based fallback when capability fetch fails' do
+      allow(OllamaHelper).to receive(:list_models).and_return(["qwen3-vl:8b-thinking", "llama3.2:3b"])
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+
+      result = OllamaHelper.list_models_with_capabilities
+      expect(result["qwen3-vl:8b-thinking"]["vision_capability"]).to be true
+      expect(result["qwen3-vl:8b-thinking"]["supports_thinking"]).to be true
+      expect(result["llama3.2:3b"]["vision_capability"]).to be false
+      expect(result["llama3.2:3b"]["supports_thinking"]).to be false
+    end
+
+    it 'returns empty hash when no models are installed' do
+      allow(OllamaHelper).to receive(:list_models).and_return([])
+      expect(OllamaHelper.list_models_with_capabilities).to eq({})
     end
   end
 
@@ -228,6 +412,41 @@ RSpec.describe OllamaHelper do
 
       expect(texts.join).to eq("Hello world!")
       expect(finish_reason).to eq("stop")
+    end
+
+    it 'parses thinking fragments from Ollama 0.9+ streaming chunks' do
+      # Ollama 0.9+ returns thinking content in a separate `thinking` field
+      # when `think: true` is set in the request body.
+      chunks = [
+        { "message" => { "content" => "", "thinking" => "Let" }, "done" => false },
+        { "message" => { "content" => "", "thinking" => " me" }, "done" => false },
+        { "message" => { "content" => "", "thinking" => " think..." }, "done" => false },
+        { "message" => { "content" => "Answer", "thinking" => "" }, "done" => true }
+      ]
+
+      thinking_texts = []
+      content_texts = []
+
+      chunks.each do |json|
+        thinking_fragment = json.dig("message", "thinking").to_s
+        thinking_texts << thinking_fragment unless thinking_fragment.empty?
+        content_fragment = json.dig("message", "content").to_s
+        content_texts << content_fragment unless content_fragment.empty?
+      end
+
+      expect(thinking_texts.join).to eq("Let me think...")
+      expect(content_texts.join).to eq("Answer")
+    end
+
+    it 'handles chunks where content and thinking coexist' do
+      # Defensive: a single chunk could technically carry both fields.
+      chunk = { "message" => { "content" => "Hi", "thinking" => "greeting" }, "done" => false }
+
+      thinking_fragment = chunk.dig("message", "thinking").to_s
+      content_fragment = chunk.dig("message", "content").to_s
+
+      expect(thinking_fragment).to eq("greeting")
+      expect(content_fragment).to eq("Hi")
     end
 
     it 'detects tool calls in done chunk' do

@@ -23,6 +23,7 @@
     "logs": "打开日志",
     "settings": "设置",
     "openBrowser": "浏览器",
+    "openNoVNC": "打开 noVNC",
     "openSharedFolder": "共享文件夹",
     "quit": "退出",
     "edit": "编辑",

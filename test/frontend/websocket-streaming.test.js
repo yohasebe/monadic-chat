@@ -11,47 +11,51 @@ describe('WebSocket Streaming Complete Handler', () => {
   
   describe('streaming_complete message handler', () => {
     it('should process streaming_complete message correctly', () => {
-      // Mock jQuery
-      const mockHide = jest.fn();
-      const mockProp = jest.fn();
-      
-      global.$ = jest.fn().mockReturnValue({
-        hide: mockHide,
-        prop: mockProp
-      });
-      
+      // Set up DOM elements
+      const spinner = document.createElement('div');
+      spinner.id = 'monadic-spinner';
+      document.body.appendChild(spinner);
+
+      const message = document.createElement('textarea');
+      message.id = 'message';
+      message.disabled = true;
+      document.body.appendChild(message);
+
       // Mock global functions
       global.setAlert = jest.fn();
       global.setInputFocus = jest.fn();
-      
-      // Create the handler code directly (extracted from websocket.js)
+
+      // Create the handler code (vanilla JS, matching current websocket.js)
+      const spinnerRef = spinner;
+      const messageRef = message;
       const handleStreamingComplete = () => {
-        $("#monadic-spinner").hide();
+        spinnerRef.style.display = "none";
         setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
-        $("#message").prop("disabled", false);
-        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", false);
-        $("#select-role").prop("disabled", false);
+        messageRef.disabled = false;
         setInputFocus();
       };
-      
+
       // Execute the handler
       handleStreamingComplete();
-      
+
       // Verify the spinner is hidden
-      expect(global.$).toHaveBeenCalledWith("#monadic-spinner");
-      expect(mockHide).toHaveBeenCalled();
-      
+      expect(spinner.style.display).toBe('none');
+
       // Verify status is updated
       expect(global.setAlert).toHaveBeenCalledWith(
         "<i class='fa-solid fa-circle-check'></i> Ready for input",
         "success"
       );
-      
+
       // Verify input focus is set
       expect(global.setInputFocus).toHaveBeenCalled();
-      
-      // Verify UI elements are enabled
-      expect(mockProp).toHaveBeenCalledWith("disabled", false);
+
+      // Verify message input is enabled
+      expect(message.disabled).toBe(false);
+
+      // Cleanup
+      spinner.remove();
+      message.remove();
     });
   });
   

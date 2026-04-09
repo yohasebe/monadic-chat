@@ -64,7 +64,10 @@ end
 
 begin
   require "rubocop/rake_task"
-  RuboCop::RakeTask.new
+  RuboCop::RakeTask.new do |task|
+    task.options = ["--config", "docker/services/ruby/.rubocop.yml"]
+    task.patterns = ["docker/services/ruby/**/*.rb"]
+  end
   task default: %i[spec rubocop]
 rescue LoadError
   # RuboCop is not available, skip it
@@ -107,6 +110,27 @@ namespace :server do
   desc "Start development server using CLI-managed Docker (no Electron)"
   task :debug do
     puts "Starting Monadic development server (Docker-managed via CLI)..."
+
+    # Auto-rebuild the JS bundle if any frontend source is newer than the
+    # bundled output. This prevents the common "I edited a JS file but my
+    # changes don't show up" trap during development.
+    bundle_path = File.expand_path("docker/services/ruby/public/js/monadic.bundle.min.js")
+    if File.exist?(bundle_path)
+      bundle_mtime = File.mtime(bundle_path)
+      source_globs = [
+        "docker/services/ruby/public/js/monadic/**/*.js",
+        "docker/services/ruby/public/js/i18n/translations.js",
+        "docker/services/ruby/public/js/debug-config.js"
+      ]
+      stale = source_globs.any? do |glob|
+        Dir[File.expand_path(glob)].any? { |f| File.mtime(f) > bundle_mtime }
+      end
+      if stale
+        puts "\n📦 JS sources changed since last bundle build — rebuilding..."
+        sh "npm run build:js"
+        puts
+      end
+    end
 
     # Force EXTRA_LOGGING to true in debug mode
     ENV['EXTRA_LOGGING'] = 'true'
@@ -303,6 +327,13 @@ namespace :lint do
   task :deprecated_models do
     Dir.chdir(File.expand_path(__dir__)) do
       system('npm run lint:deprecated-models') || abort('Deprecated model lint failed')
+    end
+  end
+
+  desc "Check model lifecycle consistency across codebase"
+  task :model_consistency do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('npm run lint:model-consistency') || abort('Model consistency check failed')
     end
   end
 end
@@ -1523,10 +1554,10 @@ namespace :spec_e2e do
     end
   end
   
-  desc "Run E2E tests for Visual Web Explorer"
-  task :visual_web_explorer do
+  desc "Run E2E tests for Web Insight"
+  task :web_insight do
     Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh visual_web_explorer"
+      sh "./spec/e2e/run_e2e_tests.sh web_insight"
     end
   end
   
@@ -2760,6 +2791,15 @@ namespace :test do
 
     # Set TEST_OUTPUT_DIR so RSpec SummaryFormatter uses this directory
     ENV['TEST_OUTPUT_DIR'] = output_dir
+
+    # Pre-check: Docker daemon must be running for Ruby tests
+    docker_check = system("docker info > /dev/null 2>&1")
+    unless docker_check
+      puts "\n❌ Docker daemon is not running!"
+      puts "   Please start Docker Desktop before running tests."
+      puts "   (JavaScript and Python tests do not require Docker)\n\n"
+      exit 1
+    end
 
     # Determine what tests to run based on api_level
     run_media = (api_level == 'full')

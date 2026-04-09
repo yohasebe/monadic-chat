@@ -111,7 +111,7 @@ end
 
 **Key Points**:
 - Uses real DOM via jsdom
-- Loads actual JavaScript libraries (jQuery, etc.)
+- Loads actual JavaScript libraries (KaTeX, Mermaid, etc.)
 - Tests user workflows, not implementation details
 - Verifies actual DOM state changes
 

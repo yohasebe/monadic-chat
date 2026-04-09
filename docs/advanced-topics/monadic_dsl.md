@@ -131,7 +131,7 @@ Model values are resolved in this order (highest to lowest):
 
 1. **Explicit MDSL value**: `model "<model-id>"` (highest priority)
 2. **Environment variable**: `ENV["OPENAI_DEFAULT_MODEL"]` from `~/monadic/config/env`
-3. **System defaults**: `docker/services/ruby/config/system_defaults.json`
+3. **Provider defaults**: `providerDefaults` in `model_spec.js` (SSOT)
 4. **Hardcoded fallback**: Built-in default values
 
 **Multiple Model Options**
@@ -177,7 +177,7 @@ PROMPT
 features do
   auto_speech false       # Enable automatic text-to-speech for assistant messages
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
-  mathjax true            # Enable mathematical notation rendering using MathJax
+  math true            # Enable mathematical notation rendering using KaTeX
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Enable Mermaid diagram rendering for flowcharts and diagrams
   websearch true          # Enable web search capability (alias: web_search)
@@ -193,8 +193,21 @@ features do
   image_generation true   # Enable AI image generation tools in conversation
   monadic true            # REQUIRED for Session State apps - enables context management via tools
   initiate_from_assistant true # Allow assistant to send first message in conversation
+  autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
 end
 ```
+
+#### Autonomy Levels
+
+The `autonomy` feature controls how much confirmation the assistant seeks before executing actions:
+
+| Level | Behavior |
+|-------|----------|
+| `"high"` | Execute actions immediately without confirmation. Skip the Plan-Approve-Execute protocol. Only pause for ambiguous intent, passwords, or destructive actions. |
+| `"medium"` | Default behavior. The assistant follows standard confirmation patterns including the Plan-Approve-Execute protocol for multi-step tasks. |
+| `"low"` | Ask for explicit user confirmation before every action. Always use `propose_plan` for tasks with 2 or more steps. |
+
+When omitted, autonomy defaults to `"medium"` (no prompt injection). Web Insight uses `"high"` to enable smooth interactive browser sessions without repeated confirmation prompts.
 
 ### 5. Tool Definitions
 
@@ -316,7 +329,7 @@ app "MathTutorOpenAI" do  # Class name must match: AppName + Provider
   end
 
   features do
-    mathjax true        # Enable math notation rendering
+    math true        # Enable math notation rendering
   end
   
   tools do
@@ -414,7 +427,7 @@ app "MermaidGrapherOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
     temperature 0.0
   end
   
@@ -466,7 +479,7 @@ app "WikipediaOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
     temperature 0.3
   end
   

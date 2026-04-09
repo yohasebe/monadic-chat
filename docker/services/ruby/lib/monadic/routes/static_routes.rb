@@ -2,9 +2,22 @@
 
 # Static file serving, documentation, and root page routes
 
+# Prevent aggressive browser/WebView caching of JS/CSS assets in dev mode.
+# In production (Electron), the timestamp query parameter handles cache busting.
+before do
+  if ENV['DEBUG_MODE'] == 'true'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+  end
+end
+
 # Accept requests from the client
 get "/" do
-  @timestamp = Time.now.to_i
+  # Use bundle file mtime for cache busting — changes only when bundle is rebuilt.
+  # In dev mode, Cache-Control: no-cache (above) ensures fresh assets regardless.
+  bundle_path = File.join(settings.public_folder, "js/monadic.bundle.min.js")
+  @timestamp = File.exist?(bundle_path) ? File.mtime(bundle_path).to_i : Time.now.to_i
   session[:parameters] ||= {}
   session[:messages] ||= []
   session[:version] = Monadic::VERSION

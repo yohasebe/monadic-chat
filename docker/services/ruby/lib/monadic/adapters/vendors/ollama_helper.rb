@@ -384,12 +384,15 @@ module OllamaHelper
       }
     }
 
-    # Enable thinking for models that support it. Respect the user's
-    # "Show Thinking" toggle: when disabled, skip `think: true` so Ollama
-    # answers directly without reasoning tokens (faster, no visible trace).
-    # Qwen3/DeepSeek-R1 are hybrid models that handle both modes gracefully.
+    # Enable thinking for models that support it. Controlled by two factors:
+    # 1. reasoning_effort: "none" disables thinking entirely (matches other providers)
+    # 2. show_thinking toggle: user can disable per-request via UI
+    # Both must allow thinking for `think: true` to be sent.
+    reasoning_effort = obj["reasoning_effort"]
+    reasoning_disabled = reasoning_effort == "none"
     show_thinking = obj["show_thinking"]
-    thinking_requested = show_thinking.nil? || ![false, "false"].include?(show_thinking)
+    show_thinking_off = [false, "false"].include?(show_thinking)
+    thinking_requested = !reasoning_disabled && !show_thinking_off
     if thinking_requested && supports_thinking?(obj["model"])
       body["think"] = true
     end

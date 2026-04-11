@@ -40,6 +40,11 @@
   // function to re-resolve the ID on demand.
   window.getMonadicTabId = ensureMonadicTabId;
 
+  // Eager initialization at bundle load so window.monadicTabId is
+  // immediately available to any consumer that reads it synchronously
+  // (rather than through window.getMonadicTabId()).
+  ensureMonadicTabId();
+
   window.WsTabId = {
     ensure: ensureMonadicTabId
   };

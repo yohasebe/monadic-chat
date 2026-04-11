@@ -134,8 +134,9 @@ window.autoScroll = true;
 const mainPanel = $id("main-panel");
 window.mainPanel = mainPanel;
 
-// Per-tab identifier now in ws-tab-id.js (window.WsTabId, window.getMonadicTabId).
-const MONADIC_TAB_ID = window.getMonadicTabId();
+// Per-tab identifier now in ws-tab-id.js.
+// window.monadicTabId is initialized eagerly by that module at load time.
+// Call window.getMonadicTabId() at the point of use to re-resolve the ID.
 
 // handleFragmentMessage, debugFragmentSummary, resetFragmentDebug
 // — extracted to ws-fragment-handler.js (window.WsFragmentHandler)
@@ -226,7 +227,7 @@ window.isReasoningStreamActive = function() {
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
   let wsUrl = 'ws://localhost:4567';
-  // Always use the function to get tab ID, never reference MONADIC_TAB_ID directly
+  // Always resolve the tab ID through the getter so it tracks sessionStorage changes.
   const tabId = window.getMonadicTabId ? window.getMonadicTabId() : null;
 
   // If accessing from a non-localhost address, use that instead

@@ -499,6 +499,11 @@ module ClaudeHelper
     beta_flags = []
     beta_flags.concat(Array(spec_beta)) if spec_beta
     beta_flags.concat(Array(app_beta)) if app_beta
+
+    # Advisor Tool beta header (auto-added when the app opts in via MDSL advisor_tool block)
+    advisor_settings = claude_advisor_settings(app)
+    beta_flags << "advisor-tool-2026-03-01" if advisor_settings
+
     beta_flags.uniq!
     headers["anthropic-beta"] = beta_flags.join(",") if beta_flags.any?
 
@@ -607,6 +612,45 @@ module ClaudeHelper
     Monadic::Utils::ExtraLogger.log { "Claude: code_execution_20250825 tool added for Skills" }
   end
 
+  # Fetch the Advisor Tool settings for an app, supporting both symbol and string keys.
+  # Returns nil if the app has not opted in.
+  private def claude_advisor_settings(app)
+    settings = APPS[app]&.settings
+    return nil unless settings
+    cfg = settings[:advisor_tool] || settings["advisor_tool"]
+    return nil if cfg.nil? || (cfg.respond_to?(:empty?) && cfg.empty?)
+    cfg
+  end
+
+  # Add the Anthropic Advisor Tool entry to the tools array when configured.
+  # The advisor tool is a server-side tool: the executor decides when to invoke it,
+  # and Anthropic runs a sub-inference on the advisor model server-side.
+  private def add_claude_advisor_tool(body, app)
+    advisor_cfg = claude_advisor_settings(app)
+    return unless advisor_cfg
+
+    model_value  = advisor_cfg[:model]    || advisor_cfg["model"]    || "claude-opus-4-6"
+    max_uses_val = advisor_cfg[:max_uses] || advisor_cfg["max_uses"]
+    caching_val  = advisor_cfg[:caching]  || advisor_cfg["caching"]
+
+    tool_entry = {
+      "type"  => "advisor_20260301",
+      "name"  => "advisor",
+      "model" => model_value
+    }
+    tool_entry["max_uses"] = max_uses_val if max_uses_val
+    if caching_val.is_a?(Hash)
+      normalized = caching_val.each_with_object({}) { |(k, v), h| h[k.to_s] = v }
+      tool_entry["caching"] = normalized
+    end
+
+    body["tools"] ||= []
+    unless body["tools"].any? { |t| t.is_a?(Hash) && (t["type"] == "advisor_20260301" || t[:type] == "advisor_20260301") }
+      body["tools"] << tool_entry
+      Monadic::Utils::ExtraLogger.log { "Claude: advisor_20260301 tool added (advisor_model=#{model_value}, max_uses=#{max_uses_val || 'unlimited'})" }
+    end
+  end
+
   # Configure tools on the request body for both user and tool roles.
   # Handles tool parsing, PTD filtering, websearch, Skills, and tool_choice.
   private def configure_claude_tools(body, obj, app, session, role, thinking_enabled, use_native_websearch)
@@ -656,6 +700,7 @@ module ClaudeHelper
       end
 
       add_claude_skills_tool(body, app_skills)
+      add_claude_advisor_tool(body, app)
 
       # Add web_search if not yet present
       if websearch_enabled && use_native_websearch
@@ -694,6 +739,7 @@ module ClaudeHelper
       end
 
       add_claude_skills_tool(body, app_skills)
+      add_claude_advisor_tool(body, app)
 
       Monadic::Utils::ExtraLogger.log {
         msg = "Claude processing tool results:\nTools included: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}"
@@ -702,17 +748,50 @@ module ClaudeHelper
       }
     end
 
-    # Filter non-tool-capable models: keep only native web_search
+    # Filter non-tool-capable models: keep only server-side tools (web_search, advisor)
     if body["tools"] && !tool_capable
-      body["tools"].select! { |t| t.is_a?(Hash) && (t["type"] == "web_search_20250305" || t[:type] == "web_search_20250305") }
+      body["tools"].select! do |t|
+        next false unless t.is_a?(Hash)
+        type = t["type"] || t[:type]
+        type == "web_search_20250305" || type == "advisor_20260301"
+      end
     end
 
     # Clean up and set tool_choice
     if body["tools"] && !body["tools"].empty?
       body["tools"].uniq!
-      if !thinking_enabled && role != "tool" && !body["tool_choice"]
+      if !body["tool_choice"]
         has_websearch = body["tools"].any? { |t| t.is_a?(Hash) && (t["type"] == "web_search_20250305" || t[:type] == "web_search_20250305") }
-        body["tool_choice"] = { "type" => "any" } if tool_capable || has_websearch
+        advisor_enabled = !claude_advisor_settings(app).nil?
+
+        if role == "tool"
+          # Tool-role requests (submitting tool results). The model decides
+          # whether to call more tools or respond with text — we don't force
+          # a tool call. However, when advisor is enabled we still want to
+          # forbid parallel tool calls so the advisor's inline guidance can
+          # influence the next single tool choice rather than racing with it.
+          if advisor_enabled
+            body["tool_choice"] = { "type" => "auto", "disable_parallel_tool_use" => true }
+          end
+        elsif thinking_enabled
+          # With extended thinking, Claude only accepts tool_choice.type "auto"
+          # or "none" (not "any" or "tool"). Only set tool_choice when we
+          # actually need to add `disable_parallel_tool_use` — otherwise the
+          # default behavior (auto, parallel allowed) is fine.
+          if advisor_enabled
+            body["tool_choice"] = { "type" => "auto", "disable_parallel_tool_use" => true }
+          end
+        elsif tool_capable || has_websearch
+          tool_choice_value = { "type" => "any" }
+          # When the Advisor Tool is enabled, disable parallel tool use so the
+          # advisor's guidance can influence the next decision rather than
+          # racing in parallel with tool calls whose results it cannot see.
+          # Parallel calls cause the advisor to make judgments on incomplete
+          # transcripts (it sees invocations but not results), which leads to
+          # hallucinated criticism of work already in flight.
+          tool_choice_value["disable_parallel_tool_use"] = true if advisor_enabled
+          body["tool_choice"] = tool_choice_value
+        end
       end
     else
       body.delete("tools")
@@ -865,6 +944,11 @@ module ClaudeHelper
       session[:tool_call_sequence] = []
       session[:parallel_dispatch_called] = nil
       session[:images_injected_this_turn] = Set.new
+      # Clear accumulated tool-turn context from any previous user request.
+      # function_returns is built up across multiple tool rounds within a
+      # single user request (see assemble_claude_tool_context); starting a
+      # new user turn means the accumulator should reset.
+      session[:parameters]&.delete("function_returns")
     end
 
     current_call_depth = session[:call_depth_per_turn] || 0
@@ -1113,6 +1197,31 @@ module ClaudeHelper
                 usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
                 usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
                 usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
+
+                # Advisor Tool bills sub-inference under usage.iterations[] with
+                # type "advisor_message". Top-level usage already excludes advisor
+                # tokens (per Anthropic docs), so we only log the breakdown here
+                # rather than adjust the aggregate. This keeps token accounting
+                # consistent with non-advisor requests while making the cost of
+                # advisor calls visible in debug logs.
+                iterations = usage["iterations"]
+                if iterations.is_a?(Array) && !iterations.empty?
+                  advisor_iters  = iterations.select { |it| it.is_a?(Hash) && it["type"] == "advisor_message" }
+                  executor_iters = iterations.select { |it| it.is_a?(Hash) && it["type"] == "message" }
+                  if advisor_iters.any?
+                    advisor_in  = advisor_iters.sum { |it| it["input_tokens"].to_i }
+                    advisor_out = advisor_iters.sum { |it| it["output_tokens"].to_i }
+                    executor_in  = executor_iters.sum { |it| it["input_tokens"].to_i }
+                    executor_out = executor_iters.sum { |it| it["output_tokens"].to_i }
+                    Monadic::Utils::ExtraLogger.log {
+                      "Claude: usage.iterations breakdown\n" \
+                      "  advisor_calls: #{advisor_iters.length}\n" \
+                      "  advisor  input: #{advisor_in}, output: #{advisor_out}\n" \
+                      "  executor input: #{executor_in}, output: #{executor_out}\n" \
+                      "  top-level reflects executor only"
+                    }
+                  end
+                end
               end
             end
 
@@ -1140,6 +1249,30 @@ module ClaudeHelper
               # Check for file_id in Skills output
               if json["content_block"]["output"] && json["content_block"]["output"]["file_id"]
                 tool_calls.last["file_id"] = json["content_block"]["output"]["file_id"]
+              end
+            elsif new_content_type == "advisor_tool_result"
+              # Advisor Tool (advisor_20260301) server-side sub-inference result.
+              # Arrives fully formed in a single content_block_start event (no deltas).
+              # We surface the advice to the UI so users can see the planner's output,
+              # and we intentionally do NOT append to tool_calls — the advisor is a
+              # server-executed tool whose invocation is tracked by the paired
+              # server_tool_use block.
+              advisor_content = json.dig("content_block", "content")
+              advisor_result_type = advisor_content.is_a?(Hash) ? advisor_content["type"] : nil
+              tool_use_id = json.dig("content_block", "tool_use_id")
+
+              if advisor_result_type == "advisor_result"
+                advice_text = advisor_content["text"].to_s
+                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result received\n  tool_use_id: #{tool_use_id}\n  length: #{advice_text.length} chars" }
+                if advice_text.length > 0
+                  block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
+                end
+              elsif advisor_result_type == "advisor_redacted_result"
+                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result (redacted) received\n  tool_use_id: #{tool_use_id}" }
+                block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
+              elsif advisor_result_type == "advisor_tool_result_error"
+                error_code = advisor_content["error_code"]
+                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result error\n  code: #{error_code}\n  tool_use_id: #{tool_use_id}" }
               end
             elsif new_content_type == "bash_code_execution_tool_result" || new_content_type == "text_editor_code_execution_tool_result"
               # Handle Skills tool results (file_id can be in different locations depending on the tool type)
@@ -1379,7 +1512,13 @@ module ClaudeHelper
                                             thinking_signature, redacted_thinking_result, &block)
     session[:call_depth_per_turn] += 1
 
-    context = []
+    # Multi-turn tool sequences within a single user request accumulate here.
+    # We start from the previous turn's function_returns (if any) so that each
+    # new tool turn extends the full history rather than replacing it.
+    # Without this, the model sees only the latest turn's tool_use in the
+    # next request and may hallucinate that earlier work never happened.
+    previous_returns = session[:parameters] && session[:parameters]["function_returns"]
+    context = previous_returns.is_a?(Array) ? previous_returns.dup : []
     context << { "role" => "assistant", "content" => [] }
 
     if thinking_result || @thinking.to_s != ""

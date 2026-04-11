@@ -225,6 +225,28 @@ module MonadicDSL
       end
     end
 
+    # Advisor Tool opt-in (Anthropic Advisor Tool beta).
+    # Usage:
+    #   advisor_tool  # enable with defaults (claude-opus-4-6)
+    #   advisor_tool do
+    #     model    "claude-opus-4-6"
+    #     max_uses 3
+    #     caching  true
+    #   end
+    def advisor_tool(enable = nil, &block)
+      if block_given?
+        config = AdvisorToolConfiguration.new
+        config.instance_eval(&block)
+        @state.settings[:advisor_tool] = config.to_hash
+      elsif enable == false
+        @state.settings[:advisor_tool] = nil
+      elsif enable.is_a?(Hash)
+        @state.settings[:advisor_tool] = enable
+      else
+        @state.settings[:advisor_tool] = { model: AdvisorToolConfiguration::DEFAULT_MODEL }
+      end
+    end
+
     def tools(tools_array = nil, &block)
       if tools_array
         # Direct array of tools provided (e.g., for Gemini/OpenAI style)
@@ -498,6 +520,16 @@ module MonadicDSL
     # Add betas if specified
     if state.settings[:betas]
       class_def << "        @settings[:betas] = #{state.settings[:betas].inspect}\n"
+    end
+
+    # Add advisor_tool if specified (Anthropic Advisor Tool beta)
+    if state.settings[:advisor_tool]
+      class_def << "        @settings[:advisor_tool] = #{state.settings[:advisor_tool].inspect}\n"
+    end
+
+    # Add context_management if specified (Anthropic Context Management beta)
+    if state.settings[:context_management]
+      class_def << "        @settings[:context_management] = #{state.settings[:context_management].inspect}\n"
     end
 
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)

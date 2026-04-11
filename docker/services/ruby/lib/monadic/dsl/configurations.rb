@@ -32,6 +32,41 @@ module MonadicDSL
     end
   end
 
+  # Advisor Tool Configuration (Anthropic Advisor Tool beta)
+  # See docs_dev/provider_specific_features.md and the Anthropic documentation:
+  # https://docs.claude.com/en/docs/agents-and-tools/tool-use/advisor-tool
+  class AdvisorToolConfiguration
+    DEFAULT_MODEL = "claude-opus-4-6".freeze
+
+    def initialize
+      @config = { model: DEFAULT_MODEL }
+    end
+
+    def model(value)
+      @config[:model] = value
+    end
+
+    def max_uses(value)
+      @config[:max_uses] = value
+    end
+
+    # Accepts true (enables ephemeral 5m), false, a ttl string ("5m"/"1h"), or a hash
+    def caching(value)
+      @config[:caching] =
+        case value
+        when true       then { type: "ephemeral", ttl: "5m" }
+        when false, nil then nil
+        when "5m", "1h" then { type: "ephemeral", ttl: value }
+        when Hash       then value
+        else value
+        end
+    end
+
+    def to_hash
+      @config.compact
+    end
+  end
+
   # Context Schema Configuration DSL
   # Defines what context fields should be tracked for monadic apps
   # Each field represents a category of information to extract from conversations

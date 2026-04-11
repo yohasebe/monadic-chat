@@ -85,7 +85,7 @@ Chat. For implementation details, see the linked source or companion docs.
 | Feature | Type | Activation | Source | Notes |
 |---|---|---|---|---|
 | Prompt caching (`cache_control: ephemeral`) | api_feature | Always on | `claude_helper.rb:513` | Default short-TTL cache applied to system prompt |
-| Context editing (`clear_thinking`, `clear_tool_uses`) | beta_header | Model-gated + MDSL override | `claude_helper.rb:516-546` | Beta: `context-management-2025-06-27`. See `claude_context_management.md` |
+| Context editing (`clear_thinking`, `clear_tool_uses`) | beta_header | **Default-on** for supported models; MDSL override or `context_management false` to opt out | `claude_helper.rb:521-558` | Beta: `context-management-2025-06-27`. See `claude_context_management.md`. Opt-out falls back to `context_size` sliding window only |
 | Model context window exceeded handling | beta_header | Always on when supported | `claude_helper.rb:545` | Beta: `model-context-window-exceeded-2025-08-26` |
 | Extended thinking (adaptive/budget) | model_param | Model-gated | `claude_helper.rb:526-566` | `thinking.type: adaptive\|enabled`, `budget_tokens` |
 | Web search tool (native) | server_tool | MDSL `features.websearch` | `claude_helper.rb:~631,667` | `web_search_20250305`, `max_uses` cap |
@@ -108,6 +108,7 @@ parallel beta-header handling.**
 | Feature | Type | Activation | Source | Notes |
 |---|---|---|---|---|
 | Responses API (`/v1/responses`) | api_feature | Default for supported models | `openai_helper.rb:~1172` | Reasoning token preservation across tool calls |
+| Server-side compaction (`context_management`) | api_feature | **Default-on** for Responses API requests; MDSL override via `compaction do ... end` or `compaction false` to opt out | `openai_helper.rb:1360-1388` | GA Feb 2026. Default threshold `150_000` tokens (SSOT: `MonadicDSL::CompactionConfiguration::DEFAULT_COMPACT_THRESHOLD`). Opt-out falls back to `context_size` sliding window only. Applies only to Responses API — chat/completions-only models receive no compaction |
 | Reasoning effort | model_param | Model-gated + MDSL | `openai_helper.rb:~371,516-527` | `reasoning.effort` for o-series and GPT-5-family |
 | Adaptive reasoning | model_param | Model-gated | `openai_helper.rb` | Varies by model |
 | Structured output (`response_format`) | api_feature | App config | `openai_helper.rb` | `json_object`, `json_schema` |
@@ -168,12 +169,43 @@ considered for its counterpart.
 | UX goal | Claude | OpenAI | Gemini | Others |
 |---|---|---|---|---|
 | **Mid-generation planning assistance** | Advisor Tool (`advisor-tool-2026-03-01`) | GPT-5-Codex agent (client-side) | — | — |
-| **Long-conversation compaction** | Context editing (`clear_*`) | Compaction API (planned) | — | — |
+| **Long-conversation compaction** | Context editing (`clear_*`), default-on, opt-out via `context_management false` | Compaction API (default-on, threshold `150_000`), opt-out via `compaction false` | — | Others fall back to `context_size` sliding window. Unified MDSL pattern: both providers accept `<feature> false` to fall back to client-side trimming only |
 | **Extended thinking / reasoning** | `thinking.type` + `budget_tokens` | `reasoning.effort` | `thinking_level` / `thinking_budget` | DeepSeek R1 family, Ollama `think` |
 | **Prompt caching** | `cache_control: ephemeral` | Automatic (Responses API) | — | — |
 | **Server-side web search** | `web_search_20250305` | Responses API web_search | — | Grok live/x search; Tavily fallback for others |
 | **File inputs** | Files API (`files-api-2025-04-14`) | File Inputs API + `file_id` cache | — | — |
 | **Structured output** | `output_format` | `response_format` (`json_schema`) | `response_schema` | Ollama `format` |
+
+## Default-on provider features with unified opt-out (2026-04)
+
+Some provider features are serious enough that apps should get them "for
+free" without touching MDSL, yet users must still be able to turn them off
+explicitly for corner cases. Both of Monadic Chat's server-side
+context-management features follow this pattern:
+
+| DSL call | Behavior |
+|---|---|
+| *(not specified)* | **Default-on** at the provider's default settings |
+| `compaction do compact_threshold N end` (OpenAI) / `context_management do edits [...] end` (Claude) | Custom settings override |
+| `compaction false` (OpenAI) / `context_management false` (Claude) | **Explicit opt-out** — falls back to `context_size` sliding window only |
+
+**Rules for implementing this pattern in a new feature:**
+
+1. The DSL method must set `settings[<key>] = false` on explicit opt-out
+   (not `nil`) so the helper can distinguish "unset" from "disabled".
+2. The `class_def` emit in `dsl.rb` must use `unless settings[<key>].nil?`
+   (not `if settings[<key>]`) so `false` is preserved through MDSL reload.
+3. The helper must branch on `setting == false` first, then on `Hash`, and
+   finally fall through to the default. Log the opt-out case via
+   `Monadic::Utils::ExtraLogger.log` so the decision is traceable.
+4. Default threshold constants must live in exactly one place — prefer the
+   `<Feature>Configuration` class in `dsl/configurations.rb` and reference
+   it from the helper (e.g. `MonadicDSL::CompactionConfiguration::DEFAULT_COMPACT_THRESHOLD`).
+5. For beta-header-gated features, also skip the beta header when opted out —
+   otherwise the server will expect a directive that Monadic isn't sending.
+
+See `openai_helper.rb:1360-1388` and `claude_helper.rb:521-558` for the
+canonical reference implementations.
 
 ## How to add a feature in this document
 

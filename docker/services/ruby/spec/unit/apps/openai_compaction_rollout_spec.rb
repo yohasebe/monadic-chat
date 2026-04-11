@@ -86,4 +86,63 @@ RSpec.describe 'OpenAI Compaction rollout — integration' do
                      'WebInsightOpenAI',
                      150_000
   end
+
+  # End-to-end verification of the `compaction false` / `context_management false`
+  # opt-out sentinels. This covers the full pipeline:
+  #   DSL method → AppState settings → class_def emit → @settings on loaded class.
+  # Without this test, a regression in the `unless .nil?` emit guard would
+  # silently convert false → nil and the helper would not recognize the opt-out.
+  describe 'Opt-out sentinels through the MDSL loader' do
+    require 'tempfile'
+
+    let(:tmp_mdsl) do
+      file = Tempfile.new(['opt_out_test', '.mdsl'])
+      file.write(<<~MDSL)
+        app "OptOutTestApp" do
+          description "Spec fixture for opt-out sentinel round-trip"
+          icon "fa-flask"
+          display_name "Opt Out Test"
+
+          llm do
+            provider "openai"
+          end
+
+          compaction false
+          context_management false
+
+          features do
+            disabled false
+          end
+        end
+      MDSL
+      file.close
+      file
+    end
+
+    after do
+      tmp_mdsl.unlink
+    end
+
+    it 'preserves `compaction false` through DSL emit to the generated class' do
+      MonadicDSL::Loader.load(tmp_mdsl.path)
+      settings = Object.const_get('OptOutTestApp').instance_variable_get(:@settings)
+
+      # Must be literally false, not nil — otherwise openai_helper falls
+      # through to the default-on branch and attaches context_management.
+      expect(settings).to have_key(:compaction).or have_key('compaction')
+      value = settings[:compaction]
+      value = settings['compaction'] if value.nil?
+      expect(value).to eq(false)
+    end
+
+    it 'preserves `context_management false` through DSL emit to the generated class' do
+      MonadicDSL::Loader.load(tmp_mdsl.path)
+      settings = Object.const_get('OptOutTestApp').instance_variable_get(:@settings)
+
+      expect(settings).to have_key(:context_management).or have_key('context_management')
+      value = settings[:context_management]
+      value = settings['context_management'] if value.nil?
+      expect(value).to eq(false)
+    end
+  end
 end

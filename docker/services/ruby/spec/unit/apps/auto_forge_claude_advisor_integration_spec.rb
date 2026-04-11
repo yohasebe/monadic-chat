@@ -17,17 +17,25 @@ RSpec.describe 'AutoForge Claude advisor_tool integration' do
     Object.const_set(:APPS, {}) unless Object.const_defined?(:APPS)
   end
 
+  # Force a fresh MDSL load before every example. Using the
+  # `unless Object.const_defined?` optimization causes intermittent
+  # failures under RSpec random ordering: an earlier example in a
+  # sibling describe block may have left the class cached at a state
+  # produced by a different MDSL loader pass, and the guard then skips
+  # reloading. See claude_advisor_rollout_spec.rb for the same fix.
+  before do
+    MonadicDSL::Loader.load(mdsl_path)
+  end
+
   it 'the MDSL file exists' do
     expect(File.exist?(mdsl_path)).to be true
   end
 
   it 'loads auto_forge_claude.mdsl without errors' do
-    expect { MonadicDSL::Loader.load(mdsl_path) }.not_to raise_error
     expect(Object.const_defined?('AutoForgeClaude')).to be true
   end
 
   it 'carries advisor_tool settings into the generated class @settings' do
-    MonadicDSL::Loader.load(mdsl_path) unless Object.const_defined?('AutoForgeClaude')
     settings = Object.const_get('AutoForgeClaude').instance_variable_get(:@settings)
     advisor = settings[:advisor_tool] || settings['advisor_tool']
 

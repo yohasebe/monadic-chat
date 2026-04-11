@@ -1,11 +1,11 @@
 app "AutoForgeClaude" do
   description do
     en <<~TEXT
-    Autonomous application builder powered by Claude Opus 4.5. Creates web applications (HTML/CSS/JS) and command-line tools.
+    Autonomous application builder powered by Claude Sonnet 4.6 with a Claude Opus 4.6 advisor. Creates web applications (HTML/CSS/JS) and command-line tools.
     TEXT
 
     ja <<~TEXT
-    Claude Opus 4.5を利用した自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
+    Claude Sonnet 4.6を実行役、Claude Opus 4.6をアドバイザーとして用いる自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
     TEXT
   end
 
@@ -16,7 +16,20 @@ app "AutoForgeClaude" do
   llm do
     provider "anthropic"
     reasoning_effort "low"
+    # Executor: Sonnet 4.6 for disciplined instruction-following and fast
+    # turn-around. The Anthropic Advisor Tool's canonical pairing is
+    # "Sonnet executor + Opus advisor" — Sonnet handles the bulk of tool
+    # calls while Opus is consulted only for strategic guidance.
+    model "claude-sonnet-4-6"
+  end
+
+  # Advisor Tool (Anthropic beta): consult Opus 4.6 for strategic guidance on
+  # long autonomous loops. The advisor sees the full transcript and returns
+  # a short plan or course correction; the executor (Sonnet 4.6) continues.
+  advisor_tool do
     model "claude-opus-4-6"
+    max_uses 3
+    caching true
   end
 
   features do
@@ -28,44 +41,57 @@ app "AutoForgeClaude" do
   end
 
   system_prompt <<~TEXT
-    You are Auto Forge powered by Claude Opus 4.5, an autonomous application builder. Create complete web applications and CLI tools based on the user's requirements. Follow the same workflow as the OpenAI version: gather requirements, generate the application, and optionally offer debugging for web apps only when Selenium is available.
+    You are Auto Forge, an application builder powered by Claude Sonnet 4.6 as the executor, with Claude Opus 4.6 available as an advisor via the `advisor` tool. You create complete web applications (single-file HTML/CSS/JS) and command-line tools from user specifications.
 
-    ## Tooling Guidelines
-    - Do not call any tool until all required fields are collected (name, type, description, features).
-    - Use generate_application for the primary artifact only once per specification.
-    - Use list_projects to show previously generated Auto Forge projects to the user.
-    - After generating a CLI project, offer generate_additional_file only when the file would be genuinely useful (e.g., README for usage, requirements when dependencies exist, config when the tool needs customization). Do not suggest unnecessary files.
-    - Use debug_application to test web applications with Selenium and detect errors. Offer Selenium-based debugging exclusively for HTML/CSS/JavaScript web applications.
+    ## Default Workflow
 
-    ## Plan-Approve-Execute Protocol
+    For most requests, follow this simple linear flow:
 
-    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+    1. **Gather requirements** — collect name, type (web/cli), description, and features. If the user has already described them clearly, proceed immediately. If something critical is missing and cannot be reasonably inferred, ask ONE clarifying question.
+    2. **Generate** — call `generate_application` with the spec. Call it ONCE per user request.
+    3. **Finish** — call `finish_task` with a one-sentence summary and the deliverable path. This signals completion and closes the turn.
+    4. **Present** — after `finish_task` returns, write a brief recap for the user (what you built, how to open it) and wait for their next instruction.
 
-    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
-    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
-    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+    That's the whole default loop. Enter a verification or diagnostic step only when the user explicitly asks you to verify or debug.
 
-    WHEN TO USE: Multi-component application generation, iterative debugging cycles, projects requiring specification validation before generation.
-    WHEN TO SKIP: Simple single-file app generation, quick modifications to existing projects.
+    ## Optional diagnostics (only when the user requests them)
 
-    ## Self-Verification Protocol
+    - `debug_application`: call it when the user asks to test, verify, or check for errors, or when `generate_application` returns an error. Otherwise skip it after a successful generation.
+    - If debugging reveals real issues, adjust the spec and call `generate_application` ONE MORE TIME, then call `finish_task`. Cap total regeneration at two attempts per user request.
 
-    After completing tool-based tasks, verify your work before presenting results:
+    ## Advisor Tool (Anthropic beta)
 
-    1. **EXECUTE**: Complete the task using the appropriate tools.
-    2. **VERIFY**: Call `debug_application` to test the generated application with Selenium. Check for JavaScript errors and functionality issues.
-    3. **RECORD**: Call `report_verification` with the outcome:
-       - status "passed" if all checks succeed — present the result
-       - status "issues_found" if problems detected — fix and re-verify
-       - status "fixed" if you found and corrected issues — present the corrected result
+    You have access to an `advisor` tool that consults Claude Opus 4.6. It takes NO parameters — the advisor sees your full conversation automatically. Its response is a short, enumerated plan.
 
-    WHEN TO USE: After generating or modifying web applications.
-    WHEN TO SKIP: Simple specification gathering, listing projects, direct questions.
-    Maximum 3 verification attempts per task.
+    Call advisor at most 2 times per user request, and only in these situations:
+    - BEFORE `generate_application` when the user's spec is genuinely ambiguous or architecturally non-trivial and you want a second opinion on the approach.
+    - When stuck (e.g., two generation attempts both failed in the same way).
 
-    ### Debug Screenshot Display
+    Skip advisor entirely for simple, well-specified tasks (e.g., "a todo app with local storage") and generate directly. When you do call advisor, call it ALONE in its own turn, then call `generate_application` in the next turn based on the advice. Once `finish_task` has been called, the task is complete and advisor is no longer relevant.
 
-    When `debug_application` captures a screenshot, it is automatically displayed in the chat for the user to see. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
+    Give the advice serious weight, but trust empirical evidence over advisor opinion when they conflict.
+
+    ## Completion rule (HARD REQUIREMENT)
+
+    Every user request that produces a deliverable ends with a `finish_task` call. After `finish_task` returns, your final action is to write one or two sentences confirming what was built and where to find it. `finish_task` is an explicit "done" marker, not a verification step.
+
+    ### Format of the final recap (the text after finish_task)
+
+    Once `finish_task` has returned, the deliverable is already saved on disk. Your text response should be a confirmation in the past tense that tells the user two things: what was built (name and key features) and where the file lives.
+
+    Example structure (use this shape in your own words):
+    > "I've built **AppName** — a [short description with 2-3 key features]. Open `[full file path]` in your browser to try it."
+
+    ## Other tools
+
+    - `list_projects` — use when the user asks what you've built before.
+    - `validate_specification` — use only if you suspect the spec is malformed; normally skip it and go straight to `generate_application`.
+    - `generate_additional_file` — for CLI projects only, offer README / requirements / config when genuinely useful.
+    - `claude_code_agent` — escape hatch for complex code generation tasks that exceed the primary generator; rarely needed.
+
+    ## Debug screenshot note
+
+    When `debug_application` captures a screenshot, it is automatically shown to the user in the chat. You work from the text-based debug report plus your knowledge of the generated code; the visual is for the user's reference.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry
@@ -73,12 +99,6 @@ app "AutoForgeClaude" do
 
   # AutoForge-specific tools
   tools do
-    # Import planning tools for Plan-Approve-Execute protocol
-    import_shared_tools :planning, visibility: "always"
-
-    # Import verification tools for Self-Verification protocol
-    import_shared_tools :verification, visibility: "always"
-
     define_tool "generate_application", "Generate a complete application" do
       parameter :spec, "object", "Application specification including name, type, description, and features", required: true
     end
@@ -100,8 +120,13 @@ app "AutoForgeClaude" do
       parameter :files, "array", "Array of file objects with path and content", required: false
     end
 
-    define_tool "debug_application", "Debug a generated web application using Selenium to detect JavaScript errors, test functionality, and measure performance" do
+    define_tool "debug_application", "Debug a generated web application using Selenium to detect JavaScript errors, test functionality, and measure performance. Only use when the user requests verification." do
       parameter :spec, "object", "Specification with project name to debug (e.g., {\"name\": \"ProjectName\"})", required: true
+    end
+
+    define_tool "finish_task", "Signal that the current task is complete and the deliverable is ready to present. Call this as the FINAL tool after generate_application (and any optional diagnostics). No further tool calls should happen in the same turn after finish_task returns." do
+      parameter :summary, "string", "Brief one-sentence summary of what was built", required: true
+      parameter :deliverable, "string", "Path to the main deliverable file (e.g., the generated index.html or CLI script)", required: false
     end
   end
 end

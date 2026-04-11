@@ -84,6 +84,38 @@ describe('Version Comparison', () => {
       expect(compareVersions('1.0.0-beta.3', '1.0.0-beta.4')).toBeLessThan(0);
       expect(compareVersions('1.0.0-beta.5', '1.0.0-beta.3')).toBeGreaterThan(0);
     });
+
+    // Regression: 2-digit vs 1-digit prerelease numbers
+    // Prior to the fix, compareVersions used localeCompare on the entire
+    // prerelease string, so "beta.10" was treated as LESS than "beta.9"
+    // (because the character "1" precedes "9" in lexical order).
+    // This caused the beta.9 → beta.10 update check to silently fail
+    // and report "you are using the latest version" to beta.9 users.
+    // The fix splits prerelease identifiers on "." and compares numeric
+    // components numerically per semver.org §11.4.1.
+    test('should compare double-digit prerelease as numeric (beta.10 > beta.9)', () => {
+      expect(compareVersions('1.0.0-beta.10', '1.0.0-beta.9')).toBeGreaterThan(0);
+      expect(compareVersions('1.0.0-beta.9', '1.0.0-beta.10')).toBeLessThan(0);
+      expect(compareVersions('1.0.0-beta.10', '1.0.0-beta.10')).toBe(0);
+    });
+
+    test('should handle triple-digit and cross-scale progression', () => {
+      expect(compareVersions('1.0.0-beta.100', '1.0.0-beta.99')).toBeGreaterThan(0);
+      expect(compareVersions('1.0.0-beta.20', '1.0.0-beta.3')).toBeGreaterThan(0);
+      expect(compareVersions('1.0.0-beta.11', '1.0.0-beta.2')).toBeGreaterThan(0);
+    });
+
+    test('should give non-numeric identifiers higher precedence than numeric (semver §11.4.3)', () => {
+      // Non-numeric identifiers > numeric identifiers
+      expect(compareVersions('1.0.0-alpha', '1.0.0-1')).toBeGreaterThan(0);
+      expect(compareVersions('1.0.0-1', '1.0.0-alpha')).toBeLessThan(0);
+    });
+
+    test('should treat longer prerelease as greater when all common parts equal', () => {
+      // semver.org §11.4.4: larger set of prerelease fields is higher precedence
+      expect(compareVersions('1.0.0-beta.1.0', '1.0.0-beta.1')).toBeGreaterThan(0);
+      expect(compareVersions('1.0.0-beta.1', '1.0.0-beta.1.0')).toBeLessThan(0);
+    });
   });
 
   describe('Edge cases', () => {

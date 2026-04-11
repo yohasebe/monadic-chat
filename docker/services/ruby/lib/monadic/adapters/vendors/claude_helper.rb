@@ -519,11 +519,19 @@ module ClaudeHelper
     }
 
     # Context management
+    # Default-on for models that support it: clear_thinking + clear_tool_uses
+    # are automatically attached. Apps can override with custom edits via
+    # MDSL `context_management do edits [...] end`, or disable entirely with
+    # `context_management false` — in that case only the context_size sliding
+    # window (client-side) trims history. The beta header is still attached
+    # when the model supports it so that the server recognizes our opt-out.
     begin
       supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(obj["model"])
-      if supports_context_management && role != "tool"
-        app_context_management = APPS[app]&.settings&.[]("context_management")
+      app_context_management = APPS[app]&.settings&.[]("context_management")
+      app_context_management = APPS[app]&.settings&.[](:context_management) if app_context_management.nil?
+      opted_out = (app_context_management == false)
 
+      if supports_context_management && role != "tool" && !opted_out
         if app_context_management
           body["context_management"] = app_context_management
         else
@@ -542,11 +550,13 @@ module ClaudeHelper
           }
           body["context_management"] = { "edits" => edits }
         end
+      elsif opted_out
+        Monadic::Utils::ExtraLogger.log { "Claude: context_management opt-out (context_size sliding window only)" }
       end
 
       beta_headers = []
       beta_headers.concat(headers["anthropic-beta"].split(",").map(&:strip)) if headers["anthropic-beta"]
-      beta_headers << "context-management-2025-06-27" if supports_context_management && role != "tool"
+      beta_headers << "context-management-2025-06-27" if supports_context_management && role != "tool" && !opted_out
       beta_headers << "model-context-window-exceeded-2025-08-26"
       headers["anthropic-beta"] = beta_headers.uniq.join(",") unless beta_headers.empty?
     rescue StandardError => e

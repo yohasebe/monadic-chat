@@ -217,27 +217,43 @@ module MonadicDSL
       SimplifiedFeatureConfiguration.new(@state).instance_eval(&block)
     end
     
-    def context_management(&block)
+    # Anthropic Context Management (beta, default-on for models that support it).
+    # Usage:
+    #   context_management do              # custom edits (overrides default clear_thinking/clear_tool_uses)
+    #     edits [...]
+    #   end
+    #   context_management false           # explicit opt-out → fall back to context_size sliding window only
+    def context_management(enable = nil, &block)
       if block_given?
         config = ContextManagementConfiguration.new
         config.instance_eval(&block)
         @state.settings[:context_management] = config.to_hash
+      elsif enable == false
+        # Explicit opt-out sentinel: claude_helper checks `== false`
+        # and skips attaching context_management, leaving context_size
+        # (client-side sliding window) as the only trimming mechanism.
+        @state.settings[:context_management] = false
       end
     end
 
-    # OpenAI Compaction opt-in (Responses API server-side compaction, GA).
+    # OpenAI Compaction (Responses API server-side compaction, GA).
+    # Default-on: apps inherit the default threshold unless they opt out.
     # Usage:
-    #   compaction                         # enable with the default threshold (150_000 tokens)
+    #   compaction                         # explicit default (same as not specifying)
     #   compaction do
-    #     compact_threshold 180_000
+    #     compact_threshold 180_000        # custom threshold
     #   end
+    #   compaction false                   # explicit opt-out → fall back to context_size sliding window only
     def compaction(enable = nil, &block)
       if block_given?
         config = CompactionConfiguration.new
         config.instance_eval(&block)
         @state.settings[:compaction] = config.to_hash
       elsif enable == false
-        @state.settings[:compaction] = nil
+        # Explicit opt-out sentinel: openai_helper checks `== false`
+        # and skips attaching context_management, leaving context_size
+        # (client-side sliding window) as the only trimming mechanism.
+        @state.settings[:compaction] = false
       elsif enable.is_a?(Hash)
         @state.settings[:compaction] = enable
       else
@@ -547,13 +563,17 @@ module MonadicDSL
       class_def << "        @settings[:advisor_tool] = #{state.settings[:advisor_tool].inspect}\n"
     end
 
-    # Add context_management if specified (Anthropic Context Management beta)
-    if state.settings[:context_management]
+    # Add context_management if specified (Anthropic Context Management beta).
+    # Emit `false` as-is so claude_helper can distinguish explicit opt-out from
+    # the unset default (which falls through to the hardcoded default edits).
+    unless state.settings[:context_management].nil?
       class_def << "        @settings[:context_management] = #{state.settings[:context_management].inspect}\n"
     end
 
-    # Add compaction if specified (OpenAI Responses API server-side compaction)
-    if state.settings[:compaction]
+    # Add compaction if specified (OpenAI Responses API server-side compaction).
+    # Emit `false` as-is so openai_helper can distinguish explicit opt-out from
+    # the unset default (which defaults to enabled at the default threshold).
+    unless state.settings[:compaction].nil?
       class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
     end
 

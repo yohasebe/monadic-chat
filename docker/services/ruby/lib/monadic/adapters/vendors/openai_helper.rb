@@ -28,6 +28,11 @@ module OpenAIHelper
   # 20 round-trips is generous for most workflows; Auto Forge complex builds may use 15+.
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
+  # Default threshold for Responses API server-side compaction.
+  # 150K leaves ~50K headroom inside GPT-5's 200K context window
+  # for the model to render a complete response after compaction fires.
+  # Apps can override via MDSL `compaction do compact_threshold N end`.
+  DEFAULT_COMPACT_THRESHOLD = 150_000
   REASONING_CONTEXT_MAX = 3
 
   define_timeouts "OPENAI", open: 20, read: 600, write: 120
@@ -1358,23 +1363,31 @@ module OpenAIHelper
     end
 
     # OpenAI Responses API server-side compaction (GA, Feb 2026).
-    # When the app opts in via MDSL `compaction do compact_threshold N end`,
-    # attach the context_management parameter so that the server
-    # automatically compacts the conversation when the rendered token count
-    # crosses the threshold. This keeps long agentic loops under the model's
-    # context window without client-side trimming.
+    # Default-on: every Responses API request gets a context_management block
+    # at the default threshold unless the app explicitly opted out with
+    # MDSL `compaction false`. Apps can override the threshold via
+    # `compaction do compact_threshold N end`. This keeps long agentic loops
+    # under the model's context window without client-side trimming, while
+    # still letting apps fall back to the context_size sliding window alone.
     # See docs_dev/provider_specific_features.md for policy context.
     current_app_for_compaction = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
-    compaction_settings = APPS[current_app_for_compaction]&.settings&.[]("compaction") ||
-                          APPS[current_app_for_compaction]&.settings&.[](:compaction)
-    if compaction_settings && !compaction_settings.empty?
-      threshold = compaction_settings[:compact_threshold] || compaction_settings["compact_threshold"]
-      if threshold && threshold.to_i > 0
-        responses_body["context_management"] = [
-          { "type" => "compaction", "compact_threshold" => threshold.to_i }
-        ]
-        Monadic::Utils::ExtraLogger.log { "OpenAI: context_management compaction enabled (compact_threshold=#{threshold.to_i})" }
+    compaction_settings = APPS[current_app_for_compaction]&.settings&.[]("compaction")
+    compaction_settings = APPS[current_app_for_compaction]&.settings&.[](:compaction) if compaction_settings.nil?
+
+    if compaction_settings == false
+      # Explicit opt-out — rely on context_size sliding window only.
+      Monadic::Utils::ExtraLogger.log { "OpenAI: compaction opt-out (context_size sliding window only)" }
+    else
+      threshold = nil
+      if compaction_settings.is_a?(Hash) && !compaction_settings.empty?
+        threshold = compaction_settings[:compact_threshold] || compaction_settings["compact_threshold"]
       end
+      threshold = DEFAULT_COMPACT_THRESHOLD if threshold.nil? || threshold.to_i <= 0
+
+      responses_body["context_management"] = [
+        { "type" => "compaction", "compact_threshold" => threshold.to_i }
+      ]
+      Monadic::Utils::ExtraLogger.log { "OpenAI: context_management compaction enabled (compact_threshold=#{threshold.to_i})" }
     end
 
     # Simplified logging for Responses API

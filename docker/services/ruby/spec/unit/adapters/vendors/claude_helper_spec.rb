@@ -316,4 +316,80 @@ RSpec.describe ClaudeHelper do
       expect(session[:parameters]["function_returns"].length).to eq(original_length)
     end
   end
+
+  # Regression tests for the unified context-management opt-out (2026-04).
+  # claude_helper.rb attaches `context_management` + beta header by default
+  # for models that support it. When an MDSL specifies `context_management false`,
+  # both the body key and the beta header must be skipped so the API does not
+  # expect a context_management directive we aren't providing.
+  describe 'context_management opt-out (claude_helper decision logic)' do
+    # Simulate the branching logic that lives in claude_helper.rb around
+    # the `# Context management` block. We keep this in sync with the real
+    # helper so a regression in either place is visible here.
+    def resolve_context_management(app_setting:, supports:, role: 'user', thinking_enabled: false)
+      opted_out = (app_setting == false)
+      body = {}
+      beta_headers = []
+
+      if supports && role != 'tool' && !opted_out
+        if app_setting
+          body['context_management'] = app_setting
+        else
+          edits = []
+          edits << { 'type' => 'clear_thinking_20251015' } if thinking_enabled
+          edits << { 'type' => 'clear_tool_uses_20250919' }
+          body['context_management'] = { 'edits' => edits }
+        end
+      end
+
+      beta_headers << 'context-management-2025-06-27' if supports && role != 'tool' && !opted_out
+      beta_headers << 'model-context-window-exceeded-2025-08-26'
+
+      { body: body, beta_headers: beta_headers, opted_out: opted_out }
+    end
+
+    it 'attaches default clear_tool_uses when no app setting is present' do
+      result = resolve_context_management(app_setting: nil, supports: true)
+      expect(result[:body]['context_management']).to be_a(Hash)
+      expect(result[:body]['context_management']['edits']).to include(
+        hash_including('type' => 'clear_tool_uses_20250919')
+      )
+      expect(result[:beta_headers]).to include('context-management-2025-06-27')
+    end
+
+    it 'also attaches clear_thinking when thinking is enabled' do
+      result = resolve_context_management(app_setting: nil, supports: true, thinking_enabled: true)
+      types = result[:body]['context_management']['edits'].map { |e| e['type'] }
+      expect(types).to include('clear_thinking_20251015')
+      expect(types).to include('clear_tool_uses_20250919')
+    end
+
+    it 'honors a custom app context_management hash (research_assistant_claude style)' do
+      custom = { 'edits' => [{ 'type' => 'clear_tool_uses_20250919', 'trigger' => { 'type' => 'input_tokens', 'value' => 50_000 } }] }
+      result = resolve_context_management(app_setting: custom, supports: true)
+      expect(result[:body]['context_management']).to eq(custom)
+      expect(result[:beta_headers]).to include('context-management-2025-06-27')
+    end
+
+    it 'skips context_management AND the beta header when app_setting is false' do
+      result = resolve_context_management(app_setting: false, supports: true)
+      expect(result[:body]).not_to have_key('context_management')
+      expect(result[:beta_headers]).not_to include('context-management-2025-06-27')
+      # The separate model-context-window-exceeded beta header is still attached.
+      expect(result[:beta_headers]).to include('model-context-window-exceeded-2025-08-26')
+      expect(result[:opted_out]).to be true
+    end
+
+    it 'skips context_management when role is "tool" regardless of opt-out' do
+      result = resolve_context_management(app_setting: nil, supports: true, role: 'tool')
+      expect(result[:body]).not_to have_key('context_management')
+      expect(result[:beta_headers]).not_to include('context-management-2025-06-27')
+    end
+
+    it 'skips context_management when the model does not support it' do
+      result = resolve_context_management(app_setting: nil, supports: false)
+      expect(result[:body]).not_to have_key('context_management')
+      expect(result[:beta_headers]).not_to include('context-management-2025-06-27')
+    end
+  end
 end

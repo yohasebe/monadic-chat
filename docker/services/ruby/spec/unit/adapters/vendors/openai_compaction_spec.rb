@@ -54,6 +54,59 @@ RSpec.describe 'OpenAI Compaction integration' do
     end
   end
 
+  describe 'MonadicDSL compaction method — opt-out semantics' do
+    # Build a real SimplifiedAppDefinition around a minimal AppState so we
+    # exercise the actual DSL method body, including the false-sentinel
+    # branch added for the unified context-management design.
+    def build_app_definition
+      state = MonadicDSL::AppState.new('SpecApp')
+      MonadicDSL::SimplifiedAppDefinition.new(state)
+    end
+
+    it 'sets :compaction to false when `compaction false` is called' do
+      app = build_app_definition
+      app.compaction(false)
+      expect(app.instance_variable_get(:@state).settings[:compaction]).to eq(false)
+    end
+
+    it 'sets :compaction to the default hash when called with no args' do
+      app = build_app_definition
+      app.compaction
+      expect(app.instance_variable_get(:@state).settings[:compaction]).to eq(
+        { compact_threshold: 150_000 }
+      )
+    end
+
+    it 'sets :compaction to the hash produced by a block' do
+      app = build_app_definition
+      app.compaction do
+        compact_threshold 200_000
+      end
+      expect(app.instance_variable_get(:@state).settings[:compaction]).to eq(
+        { compact_threshold: 200_000 }
+      )
+    end
+  end
+
+  describe 'MonadicDSL context_management method — opt-out semantics' do
+    def build_app_definition
+      state = MonadicDSL::AppState.new('SpecApp')
+      MonadicDSL::SimplifiedAppDefinition.new(state)
+    end
+
+    it 'sets :context_management to false when `context_management false` is called' do
+      app = build_app_definition
+      app.context_management(false)
+      expect(app.instance_variable_get(:@state).settings[:context_management]).to eq(false)
+    end
+
+    it 'leaves :context_management unset when called with no args and no block' do
+      app = build_app_definition
+      app.context_management
+      expect(app.instance_variable_get(:@state).settings[:context_management]).to be_nil
+    end
+  end
+
   describe 'openai_helper compaction wiring' do
     # Test that the openai_helper reads the app's compaction settings and
     # attaches them to the Responses API body. We don't run the full
@@ -63,75 +116,74 @@ RSpec.describe 'OpenAI Compaction integration' do
       stub_const('APPS', {})
     end
 
-    it 'attaches context_management when app has compaction settings' do
-      fake_app = Struct.new(:settings).new({ 'compaction' => { compact_threshold: 150_000 } })
-      APPS['TestApp'] = fake_app
+    # Simulated openai_helper decision logic (mirrors the real helper in
+    # openai_helper.rb L1360+). Kept inline so the test documents the full
+    # branching logic: custom settings vs default-on vs explicit opt-out.
+    DEFAULT_COMPACT_THRESHOLD_SPEC = 150_000
 
-      # Simulate the code from convert_to_responses_api_body
-      responses_body = {}
-      compaction_settings = APPS['TestApp']&.settings&.[]('compaction') ||
-                            APPS['TestApp']&.settings&.[](:compaction)
-      if compaction_settings && !compaction_settings.empty?
+    def resolve_compaction_for(app_name)
+      compaction_settings = APPS[app_name]&.settings&.[]('compaction')
+      compaction_settings = APPS[app_name]&.settings&.[](:compaction) if compaction_settings.nil?
+      return :opt_out if compaction_settings == false
+
+      threshold = nil
+      if compaction_settings.is_a?(Hash) && !compaction_settings.empty?
         threshold = compaction_settings[:compact_threshold] || compaction_settings['compact_threshold']
-        if threshold && threshold.to_i > 0
-          responses_body['context_management'] = [
-            { 'type' => 'compaction', 'compact_threshold' => threshold.to_i }
-          ]
-        end
       end
+      threshold = DEFAULT_COMPACT_THRESHOLD_SPEC if threshold.nil? || threshold.to_i <= 0
+      [{ 'type' => 'compaction', 'compact_threshold' => threshold.to_i }]
+    end
 
-      expect(responses_body['context_management']).to eq(
+    it 'attaches context_management when app has custom compaction settings' do
+      APPS['TestApp'] = Struct.new(:settings).new({ 'compaction' => { compact_threshold: 120_000 } })
+      expect(resolve_compaction_for('TestApp')).to eq(
+        [{ 'type' => 'compaction', 'compact_threshold' => 120_000 }]
+      )
+    end
+
+    it 'attaches context_management at the default threshold when compaction is not specified' do
+      # Default-on: apps without an explicit `compaction` setting get the
+      # default threshold. This is the new behavior as of the unified
+      # context-management design.
+      APPS['TestApp'] = Struct.new(:settings).new({ 'other_key' => 'value' })
+      expect(resolve_compaction_for('TestApp')).to eq(
         [{ 'type' => 'compaction', 'compact_threshold' => 150_000 }]
       )
     end
 
-    it 'does not attach context_management when app has no compaction settings' do
-      fake_app = Struct.new(:settings).new({ 'other_key' => 'value' })
-      APPS['TestApp'] = fake_app
+    it 'returns :opt_out when app explicitly sets compaction false' do
+      APPS['TestApp'] = Struct.new(:settings).new({ 'compaction' => false })
+      expect(resolve_compaction_for('TestApp')).to eq(:opt_out)
+    end
 
-      responses_body = {}
-      compaction_settings = APPS['TestApp']&.settings&.[]('compaction') ||
-                            APPS['TestApp']&.settings&.[](:compaction)
-      if compaction_settings && !compaction_settings.empty?
-        responses_body['context_management'] = [
-          { 'type' => 'compaction', 'compact_threshold' => compaction_settings[:compact_threshold] }
-        ]
-      end
-
-      expect(responses_body).not_to have_key('context_management')
+    it 'accepts symbol key for the compaction setting' do
+      APPS['TestApp'] = Struct.new(:settings).new({ compaction: { compact_threshold: 180_000 } })
+      expect(resolve_compaction_for('TestApp')).to eq(
+        [{ 'type' => 'compaction', 'compact_threshold' => 180_000 }]
+      )
     end
 
     it 'accepts both symbol and string keys for the compact_threshold' do
-      # When MDSL emits settings via class_def, keys may be converted to
-      # strings or stay as symbols depending on HashWithIndifferentAccess
-      # usage. Support both.
       %w[symbol string].each do |key_type|
         threshold_key = (key_type == 'symbol' ? :compact_threshold : 'compact_threshold')
-        fake_app = Struct.new(:settings).new({ 'compaction' => { threshold_key => 180_000 } })
-        APPS['TestApp'] = fake_app
-
-        compaction_settings = APPS['TestApp']&.settings&.[]('compaction')
-        threshold = compaction_settings[:compact_threshold] || compaction_settings['compact_threshold']
-        expect(threshold).to eq(180_000)
+        APPS['TestApp'] = Struct.new(:settings).new({ 'compaction' => { threshold_key => 180_000 } })
+        expect(resolve_compaction_for('TestApp')).to eq(
+          [{ 'type' => 'compaction', 'compact_threshold' => 180_000 }]
+        )
       end
     end
 
-    it 'skips context_management when compact_threshold is zero or missing' do
-      fake_app = Struct.new(:settings).new({ 'compaction' => { compact_threshold: 0 } })
-      APPS['TestApp'] = fake_app
+    it 'falls back to default threshold when compact_threshold is zero or missing' do
+      APPS['TestApp'] = Struct.new(:settings).new({ 'compaction' => { compact_threshold: 0 } })
+      expect(resolve_compaction_for('TestApp')).to eq(
+        [{ 'type' => 'compaction', 'compact_threshold' => 150_000 }]
+      )
+    end
 
-      responses_body = {}
-      compaction_settings = APPS['TestApp']&.settings&.[]('compaction')
-      if compaction_settings && !compaction_settings.empty?
-        threshold = compaction_settings[:compact_threshold] || compaction_settings['compact_threshold']
-        if threshold && threshold.to_i > 0
-          responses_body['context_management'] = [
-            { 'type' => 'compaction', 'compact_threshold' => threshold.to_i }
-          ]
-        end
-      end
-
-      expect(responses_body).not_to have_key('context_management')
+    it 'returns default-on when the app is missing entirely (APPS lookup nil)' do
+      expect(resolve_compaction_for('NonexistentApp')).to eq(
+        [{ 'type' => 'compaction', 'compact_threshold' => 150_000 }]
+      )
     end
   end
 

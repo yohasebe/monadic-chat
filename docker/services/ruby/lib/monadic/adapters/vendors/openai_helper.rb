@@ -1357,6 +1357,26 @@ module OpenAIHelper
       responses_body.delete("tool_choice")
     end
 
+    # OpenAI Responses API server-side compaction (GA, Feb 2026).
+    # When the app opts in via MDSL `compaction do compact_threshold N end`,
+    # attach the context_management parameter so that the server
+    # automatically compacts the conversation when the rendered token count
+    # crosses the threshold. This keeps long agentic loops under the model's
+    # context window without client-side trimming.
+    # See docs_dev/provider_specific_features.md for policy context.
+    current_app_for_compaction = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
+    compaction_settings = APPS[current_app_for_compaction]&.settings&.[]("compaction") ||
+                          APPS[current_app_for_compaction]&.settings&.[](:compaction)
+    if compaction_settings && !compaction_settings.empty?
+      threshold = compaction_settings[:compact_threshold] || compaction_settings["compact_threshold"]
+      if threshold && threshold.to_i > 0
+        responses_body["context_management"] = [
+          { "type" => "compaction", "compact_threshold" => threshold.to_i }
+        ]
+        Monadic::Utils::ExtraLogger.log { "OpenAI: context_management compaction enabled (compact_threshold=#{threshold.to_i})" }
+      end
+    end
+
     # Simplified logging for Responses API
     Monadic::Utils::ExtraLogger.log {
       lines = ["Responses API: model=#{responses_body['model']}, tools=#{responses_body['tools']&.length || 0}"]

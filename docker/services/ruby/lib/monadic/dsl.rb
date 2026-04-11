@@ -225,6 +225,26 @@ module MonadicDSL
       end
     end
 
+    # OpenAI Compaction opt-in (Responses API server-side compaction, GA).
+    # Usage:
+    #   compaction                         # enable with the default threshold (150_000 tokens)
+    #   compaction do
+    #     compact_threshold 180_000
+    #   end
+    def compaction(enable = nil, &block)
+      if block_given?
+        config = CompactionConfiguration.new
+        config.instance_eval(&block)
+        @state.settings[:compaction] = config.to_hash
+      elsif enable == false
+        @state.settings[:compaction] = nil
+      elsif enable.is_a?(Hash)
+        @state.settings[:compaction] = enable
+      else
+        @state.settings[:compaction] = { compact_threshold: CompactionConfiguration::DEFAULT_COMPACT_THRESHOLD }
+      end
+    end
+
     # Advisor Tool opt-in (Anthropic Advisor Tool beta).
     # Usage:
     #   advisor_tool  # enable with defaults (claude-opus-4-6)
@@ -530,6 +550,11 @@ module MonadicDSL
     # Add context_management if specified (Anthropic Context Management beta)
     if state.settings[:context_management]
       class_def << "        @settings[:context_management] = #{state.settings[:context_management].inspect}\n"
+    end
+
+    # Add compaction if specified (OpenAI Responses API server-side compaction)
+    if state.settings[:compaction]
+      class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
     end
 
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)

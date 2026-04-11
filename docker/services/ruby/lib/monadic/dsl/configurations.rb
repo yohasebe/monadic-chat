@@ -32,6 +32,32 @@ module MonadicDSL
     end
   end
 
+  # Compaction Configuration (OpenAI Responses API server-side compaction)
+  # See docs_dev/provider_specific_features.md and the OpenAI documentation:
+  # https://developers.openai.com/api/docs/guides/compaction
+  #
+  # When the rendered token count crosses compact_threshold, the server runs
+  # server-side compaction and returns an encrypted compaction item that
+  # carries forward key prior state into the next request. This keeps long
+  # agentic conversations under the model's context window automatically.
+  class CompactionConfiguration
+    # Sensible default for GPT-5-class models with 200K context windows
+    # (roughly 75% of the window, leaves headroom for a complete response).
+    DEFAULT_COMPACT_THRESHOLD = 150_000
+
+    def initialize
+      @config = { compact_threshold: DEFAULT_COMPACT_THRESHOLD }
+    end
+
+    def compact_threshold(value)
+      @config[:compact_threshold] = value
+    end
+
+    def to_hash
+      @config
+    end
+  end
+
   # Advisor Tool Configuration (Anthropic Advisor Tool beta)
   # See docs_dev/provider_specific_features.md and the Anthropic documentation:
   # https://docs.claude.com/en/docs/agents-and-tools/tool-use/advisor-tool

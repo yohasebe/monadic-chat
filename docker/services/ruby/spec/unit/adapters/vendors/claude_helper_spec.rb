@@ -230,4 +230,90 @@ RSpec.describe ClaudeHelper do
       expect(result).to eq(".pdf")
     end
   end
+
+  # Regression: multi-turn tool context inheritance.
+  # Without this, assemble_claude_tool_context rebuilt context from an empty
+  # array on each tool turn, so after N rounds the model only saw the Nth
+  # tool_use and forgot rounds 1..N-1 — causing it to hallucinate that earlier
+  # work (e.g. generate_application) had never happened.
+  describe '#assemble_claude_tool_context (multi-turn inheritance)' do
+    let(:session) do
+      {
+        parameters: { "app_name" => "TestApp", "function_returns" => nil },
+        call_depth_per_turn: 0
+      }
+    end
+
+    let(:tool_calls) do
+      [{
+        "id" => "toolu_round2",
+        "name" => "second_tool",
+        "input" => '{"arg":"value"}',
+        "type" => "tool_use"
+      }]
+    end
+
+    before do
+      # Stub process_functions: we only care about the `context` argument it receives.
+      allow(helper).to receive(:process_functions) do |_app, _session, _tools, context, _depth, &_blk|
+        @captured_context = context
+        []
+      end
+    end
+
+    it 'starts with an empty context when no previous function_returns exist' do
+      helper.send(:assemble_claude_tool_context,
+                  "TestApp", session, tool_calls, "some text", nil, nil, nil)
+
+      # One assistant turn only (text + tool_use).
+      expect(@captured_context.length).to eq(1)
+      expect(@captured_context.first["role"]).to eq("assistant")
+      assistant_content = @captured_context.first["content"]
+      expect(assistant_content).to include(
+        hash_including("type" => "text", "text" => "some text")
+      )
+      expect(assistant_content).to include(
+        hash_including("type" => "tool_use", "name" => "second_tool")
+      )
+    end
+
+    it 'inherits previous function_returns as the starting context' do
+      previous_returns = [
+        { "role" => "assistant", "content" => [
+          { "type" => "tool_use", "id" => "toolu_round1", "name" => "first_tool", "input" => {} }
+        ]},
+        { role: "user", content: [
+          { "type" => "tool_result", "tool_use_id" => "toolu_round1", "content" => "round 1 result" }
+        ]}
+      ]
+      session[:parameters]["function_returns"] = previous_returns
+
+      helper.send(:assemble_claude_tool_context,
+                  "TestApp", session, tool_calls, nil, nil, nil, nil)
+
+      # Round 1 (assistant + user) + Round 2 assistant = 3 entries.
+      expect(@captured_context.length).to eq(3)
+      expect(@captured_context[0]["content"].first["name"]).to eq("first_tool")
+      expect(@captured_context[1][:content].first["content"]).to eq("round 1 result")
+      expect(@captured_context[2]["role"]).to eq("assistant")
+      expect(@captured_context[2]["content"]).to include(
+        hash_including("type" => "tool_use", "name" => "second_tool")
+      )
+    end
+
+    it 'does not mutate the session function_returns array directly' do
+      previous_returns = [
+        { "role" => "assistant", "content" => [{ "type" => "text", "text" => "prev" }] }
+      ]
+      session[:parameters]["function_returns"] = previous_returns
+      original_length = previous_returns.length
+
+      helper.send(:assemble_claude_tool_context,
+                  "TestApp", session, tool_calls, nil, nil, nil, nil)
+
+      # The stored reference should not have been extended in place;
+      # assemble_claude_tool_context dup's previous_returns before appending.
+      expect(session[:parameters]["function_returns"].length).to eq(original_length)
+    end
+  end
 end

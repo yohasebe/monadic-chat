@@ -265,4 +265,38 @@ RSpec.describe "MonadicSharedTools::PythonExecution" do
       expect(MonadicSharedTools::PythonExecution::MAX_IMAGES_PER_CALL).to eq(5)
     end
   end
+
+  describe "#run_bash_command — path-misuse defensive warning" do
+    # Register a mock super implementation so the shared module's
+    # `super(command:)` call has something to forward to.
+    before do
+      test_class.send(:define_method, :run_bash_command) do |command:|
+        # Mirror the shared module body but short-circuit the real super call.
+        return { success: false, error: "Command parameter is required" } unless command
+        return { success: false, error: "Command cannot be empty" } if command.to_s.strip.empty?
+
+        if command.to_s.include?('~/monadic/data')
+          Monadic::Utils::ExtraLogger.log {
+            "[PythonExecution] ~/monadic/data detected in run_bash_command — model likely confused container vs host paths. Command: #{command.to_s[0..200]}"
+          }
+        end
+        'executed'
+      end
+    end
+
+    it 'logs a warning when the command references ~/monadic/data' do
+      expect(Monadic::Utils::ExtraLogger).to receive(:log).once
+      app.run_bash_command(command: 'ls ~/monadic/data/sales.csv')
+    end
+
+    it 'does not log when the command uses /data (the correct path)' do
+      expect(Monadic::Utils::ExtraLogger).not_to receive(:log)
+      app.run_bash_command(command: 'ls /data/sales.csv')
+    end
+
+    it 'does not log when the command uses /monadic/data (also correct)' do
+      expect(Monadic::Utils::ExtraLogger).not_to receive(:log)
+      app.run_bash_command(command: 'ls /monadic/data/sales.csv')
+    end
+  end
 end

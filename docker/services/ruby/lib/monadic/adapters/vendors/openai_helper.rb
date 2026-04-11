@@ -1539,6 +1539,14 @@ module OpenAIHelper
       # This allows the AI to perform fresh searches for each user question
       session[:parameters]["help_topics_call_count"] = 0 if session[:parameters]
       session[:parameters]["help_topics_prev_queries"] = [] if session[:parameters]
+
+      # Clear accumulated tool-turn context from any previous user request.
+      # `function_returns` is built up across multiple tool rounds within a
+      # single user request (see assemble_openai_chat_tool_results /
+      # assemble_openai_tool_results_from_responses). Starting a new user
+      # turn must reset the accumulator, otherwise the next request will
+      # replay stale tool_use/tool_result pairs.
+      session[:parameters]&.delete("function_returns")
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -1932,6 +1940,13 @@ module OpenAIHelper
 
   # Assemble tool call results from Chat API streaming and invoke process_functions.
   # Returns result Array.
+  #
+  # Multi-turn tool sequences within a single user request accumulate in
+  # `session[:parameters]["function_returns"]` so that each new tool turn
+  # extends the full history rather than replacing it. Without this, the
+  # model would see only the latest turn's tool_use in the next request
+  # and hallucinate that earlier tool work never happened. This mirrors
+  # the Claude fix in claude_helper.rb#assemble_claude_tool_context.
   private def assemble_openai_chat_tool_results(app, session, tools_hash, result, &block)
     session[:call_depth_per_turn] += 1
 
@@ -1965,7 +1980,11 @@ module OpenAIHelper
       end
     end
 
-    context = []
+    # Start from the previous turn's function_returns (if any) so that each
+    # new tool turn extends the full history rather than replacing it.
+    previous_returns = session[:parameters] && session[:parameters]["function_returns"]
+    context = previous_returns.is_a?(Array) ? previous_returns.dup : []
+
     if result
       merged = result["choices"][0]["message"].merge(tools_hash.first[1]["choices"][0]["message"])
       context << merged
@@ -3017,8 +3036,14 @@ module OpenAIHelper
       }
     end
 
-    # Build context with any text content so far
-    context = []
+    # Build context with any text content so far.
+    # Start from the previous turn's function_returns (if any) so that each
+    # new tool turn extends the full history rather than replacing it. See
+    # assemble_openai_chat_tool_results for the chat-API twin of this fix
+    # and claude_helper.rb#assemble_claude_tool_context for the origin.
+    previous_returns = session[:parameters] && session[:parameters]["function_returns"]
+    context = previous_returns.is_a?(Array) ? previous_returns.dup : []
+
     message = {
       "role" => "assistant",
       "tool_calls" => tool_calls

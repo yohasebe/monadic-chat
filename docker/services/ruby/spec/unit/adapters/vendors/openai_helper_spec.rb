@@ -200,4 +200,76 @@ RSpec.describe OpenAIHelper do
       expect(helper.resolve_file_id_for_input(session, img)).to be_nil
     end
   end
+
+  # Regression: multi-turn tool context inheritance (2026-04).
+  # Mirrors the Claude Phase 1 fix in claude_helper_spec.rb. Without this,
+  # assemble_openai_chat_tool_results and assemble_openai_tool_results_from_responses
+  # rebuilt context from an empty array each tool turn, so after N rounds
+  # the next request only carried the Nth turn's tool_use/tool_result pair
+  # and the model hallucinated that earlier work had never happened.
+  describe '#assemble_openai_chat_tool_results (multi-turn inheritance)' do
+    let(:session) do
+      {
+        parameters: { "app_name" => "TestApp", "function_returns" => nil },
+        call_depth_per_turn: 0
+      }
+    end
+
+    let(:tools_hash) do
+      [[
+        'call_round2',
+        {
+          'choices' => [{
+            'message' => {
+              'role' => 'assistant',
+              'content' => nil,
+              'tool_calls' => [{ 'id' => 'call_round2', 'function' => { 'name' => 'second_tool', 'arguments' => '{}' } }]
+            }
+          }]
+        }
+      ]]
+    end
+
+    before do
+      allow(helper).to receive(:process_functions) do |_app, _session, _tools, context, _depth, &_blk|
+        @captured_context = context
+        []
+      end
+    end
+
+    it 'starts with an empty context when no previous function_returns exist' do
+      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+      expect(@captured_context.length).to eq(1)
+      expect(@captured_context.first['role']).to eq('assistant')
+    end
+
+    it 'inherits previous function_returns as the starting context' do
+      previous_returns = [
+        { 'role' => 'assistant', 'content' => nil,
+          'tool_calls' => [{ 'id' => 'call_round1', 'function' => { 'name' => 'first_tool', 'arguments' => '{}' } }] },
+        { 'role' => 'tool', 'tool_call_id' => 'call_round1', 'content' => 'round 1 result' }
+      ]
+      session[:parameters]['function_returns'] = previous_returns
+
+      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+
+      # Round 1 (assistant + tool) + Round 2 assistant = 3 entries.
+      expect(@captured_context.length).to eq(3)
+      expect(@captured_context[0]['tool_calls'].first['function']['name']).to eq('first_tool')
+      expect(@captured_context[1]['content']).to eq('round 1 result')
+      expect(@captured_context[2]['tool_calls'].first['function']['name']).to eq('second_tool')
+    end
+
+    it 'does not mutate the session function_returns array in place' do
+      previous_returns = [
+        { 'role' => 'assistant', 'content' => 'prev', 'tool_calls' => [] }
+      ]
+      session[:parameters]['function_returns'] = previous_returns
+      original_length = previous_returns.length
+
+      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+
+      expect(session[:parameters]['function_returns'].length).to eq(original_length)
+    end
+  end
 end

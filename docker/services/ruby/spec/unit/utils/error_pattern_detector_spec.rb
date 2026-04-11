@@ -348,4 +348,87 @@ RSpec.describe ErrorPatternDetector do
       expect(patterns_string).to include("display")
     end
   end
+
+  describe '.detect_tool_call_cycle (hybrid threshold)' do
+    let(:fresh_session) { {} }
+
+    def call(name)
+      described_class.record_tool_call(fresh_session, name)
+    end
+
+    def call_then_error(name)
+      described_class.record_tool_call(fresh_session, name)
+      described_class.mark_last_tool_errored(fresh_session)
+    end
+
+    # ─── Strict threshold (error present): fires at 3 multi-tool reps / 5 single ───
+
+    it 'flags a 6-call generate→debug loop when one call errored (strict, 3 reps)' do
+      call('generate_application')
+      call_then_error('debug_application')
+      2.times do
+        call('generate_application')
+        call('debug_application')
+      end
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to eq(['generate_application', 'debug_application'])
+    end
+
+    it 'flags a 5-call run_code repetition when calls errored (strict, 5 reps)' do
+      5.times { call_then_error('run_code') }
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to eq(['run_code'])
+    end
+
+    # ─── Permissive ceiling (all success): fires at 5 multi-tool reps / 8 single ───
+
+    it 'does not flag a 6-call all-success generate→debug loop (under permissive ceiling)' do
+      3.times do
+        call('generate_application')
+        call('debug_application')
+      end
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to be_nil
+    end
+
+    it 'does not flag an 8-call all-success generate→debug loop (still under ceiling)' do
+      4.times do
+        call('generate_application')
+        call('debug_application')
+      end
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to be_nil
+    end
+
+    it 'flags a 10-call all-success generate→debug loop (hits permissive ceiling at 5 reps)' do
+      5.times do
+        call('generate_application')
+        call('debug_application')
+      end
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to eq(['generate_application', 'debug_application'])
+    end
+
+    it 'does not flag 7 all-success run_code repetitions (under cycle_len=1 ceiling of 8)' do
+      7.times { call('run_code') }
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to be_nil
+    end
+
+    it 'flags 8 all-success run_code repetitions (hits cycle_len=1 ceiling)' do
+      8.times { call('run_code') }
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to eq(['run_code'])
+    end
+
+    # ─── Backward compat ───
+
+    it 'handles legacy String entries without crashing' do
+      fresh_session[:tool_call_sequence] = %w[a b a b a b]
+      # Legacy String entries are treated as non-errored; 6 calls is below the
+      # permissive ceiling (5 reps * 2 = 10), so no cycle fires.
+      expect(described_class.detect_tool_call_cycle(fresh_session)).to be_nil
+
+      # Marking last as errored should upgrade the entry
+      described_class.mark_last_tool_errored(fresh_session)
+      expect(fresh_session[:tool_call_sequence].last).to eq({ name: 'b', errored: true })
+    end
+
+    it 'mark_last_tool_errored is a no-op on empty sequence' do
+      expect { described_class.mark_last_tool_errored(fresh_session) }.not_to raise_error
+    end
+  end
 end

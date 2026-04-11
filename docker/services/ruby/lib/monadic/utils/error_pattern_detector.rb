@@ -190,36 +190,92 @@ module ErrorPatternDetector
   end
   
   # ─── Tool Call Cycle Detection ───
-  # Tracks the sequence of tool calls (regardless of success/failure) and
-  # detects cyclic patterns that indicate the model is looping. This catches
-  # cases where each individual call succeeds but the model keeps calling
-  # the same tools in a loop (e.g., run_jupyter → create_notebook → run_jupyter).
+  # Tracks the sequence of tool calls and detects cyclic patterns that indicate
+  # the model is stuck in a loop. Each entry stores the function name and an
+  # `errored` flag (set later by mark_last_tool_errored when the tool returns
+  # an error). A cycle is only declared when the recent window contains at
+  # least one errored call, so legitimate iterative-refinement protocols (e.g.
+  # AutoForge's generate→debug verify cycle, or coding agents alternating
+  # write→test) where every call succeeds are not flagged as stuck loops.
 
   def self.record_tool_call(session, function_name)
     session[:tool_call_sequence] ||= []
-    session[:tool_call_sequence] << function_name
+    session[:tool_call_sequence] << { name: function_name.to_s, errored: false }
     # Keep only the most recent calls to limit memory
     session[:tool_call_sequence].shift if session[:tool_call_sequence].length > 20
   end
 
+  # Mark the most recently recorded tool call as having errored. Called from
+  # FunctionCallErrorHandler#handle_function_error after a tool returns an
+  # error-shaped result. Safe to call even if the sequence is empty.
+  def self.mark_last_tool_errored(session)
+    seq = session[:tool_call_sequence]
+    return unless seq && !seq.empty?
+    last = seq.last
+    if last.is_a?(Hash)
+      last[:errored] = true
+    else
+      # Backward compat: upgrade legacy String entry to Hash form
+      seq[-1] = { name: last.to_s, errored: true }
+    end
+  end
+
+  # Return the function name for a sequence entry, accepting either Hash
+  # form (current) or String form (legacy / direct array assignment).
+  def self.entry_name(entry)
+    entry.is_a?(Hash) ? entry[:name] : entry.to_s
+  end
+
+  # Return whether a sequence entry was marked as errored.
+  def self.entry_errored?(entry)
+    entry.is_a?(Hash) ? !!entry[:errored] : false
+  end
+
   # Detect cyclic tool call patterns in the recent sequence.
-  # Returns the detected cycle (Array) or nil.
+  # Returns the detected cycle (Array of function names) or nil.
+  #
+  # Hybrid threshold strategy:
+  # - When any recent call in the window errored, use the strict repetition
+  #   count (3 for multi-tool cycles, 5 for single-tool): this is the
+  #   classical "stuck retrying the same failing operation" pattern.
+  # - When all recent calls succeeded, use a more permissive repetition
+  #   count (5 for multi-tool cycles, 8 for single-tool). This lets
+  #   iterative-refinement protocols (AutoForge's generate→debug verify loop,
+  #   coding agents alternating write→test) run for a while, but still
+  #   provides a ceiling that catches models that keep succeeding without
+  #   declaring done.
   def self.detect_tool_call_cycle(session)
     seq = session[:tool_call_sequence]
     return nil unless seq && seq.length >= 4
 
-    # Check cycle lengths 1, 2, 3 (covers most real-world loops).
-    # Single-tool repetition (cycle_len=1) requires more repetitions to
-    # avoid false positives on legitimate batched calls (e.g. add_cells ×3).
     [1, 2, 3].each do |cycle_len|
-      min_reps = cycle_len == 1 ? 5 : 3
-      needed = cycle_len * min_reps
-      next if seq.length < needed
+      strict_reps     = cycle_len == 1 ? 5 : 3
+      permissive_reps = cycle_len == 1 ? 8 : 5
 
-      recent = seq.last(needed)
-      cycle = recent.first(cycle_len)
-      is_cycle = recent.each_slice(cycle_len).all? { |slice| slice == cycle }
-      return cycle if is_cycle
+      permissive_needed = cycle_len * permissive_reps
+      strict_needed     = cycle_len * strict_reps
+
+      # Try permissive window first (larger). If it matches, we've hit the
+      # all-success ceiling and should stop regardless of errors.
+      if seq.length >= permissive_needed
+        recent       = seq.last(permissive_needed)
+        recent_names = recent.map { |e| entry_name(e) }
+        cycle        = recent_names.first(cycle_len)
+        if recent_names.each_slice(cycle_len).all? { |slice| slice == cycle }
+          return cycle
+        end
+      end
+
+      # Strict window: smaller, requires ≥1 errored call to fire.
+      next if seq.length < strict_needed
+      recent       = seq.last(strict_needed)
+      recent_names = recent.map { |e| entry_name(e) }
+      cycle        = recent_names.first(cycle_len)
+      is_cycle     = recent_names.each_slice(cycle_len).all? { |slice| slice == cycle }
+      next unless is_cycle
+      next unless recent.any? { |e| entry_errored?(e) }
+
+      return cycle
     end
 
     nil

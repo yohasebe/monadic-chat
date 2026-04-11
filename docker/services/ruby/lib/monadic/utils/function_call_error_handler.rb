@@ -29,12 +29,16 @@ module FunctionCallErrorHandler
   # Process function returns and check for repeated errors
   def handle_function_error(session, function_return, function_name, &block)
     return false unless function_return_is_error?(function_return)
-    
+
     # Initialize error pattern detector if not already done
     ErrorPatternDetector.initialize_session(session) unless session[:error_patterns]
-    
+
     # Track the error
     ErrorPatternDetector.add_error(session, function_return.to_s, function_name)
+
+    # Tag the most recently recorded tool call as errored so cycle detection
+    # can distinguish stuck loops from legitimate iterative refinement.
+    ErrorPatternDetector.mark_last_tool_errored(session)
     
     # Check if we should stop retrying
     if ErrorPatternDetector.should_stop_retrying?(session)

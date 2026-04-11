@@ -46,6 +46,14 @@ app "JupyterNotebookOpenAI" do
     end
   end
 
+  # OpenAI Responses API server-side compaction (GA, Feb 2026).
+  # Notebook sessions chain add_jupyter_cells calls that each carry full cell
+  # outputs (stdout, rendered images, tracebacks) into the next turn. Default
+  # threshold handles the common case; longer investigations benefit most.
+  compaction do
+    compact_threshold 150_000
+  end
+
   system_prompt <<~TEXT
     You are an agent that can create and read Jupyter Notebooks.
 

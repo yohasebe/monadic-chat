@@ -44,6 +44,14 @@ app "CodeInterpreterOpenAI" do
     end
   end
 
+  # OpenAI Responses API server-side compaction (GA, Feb 2026).
+  # Multi-step data analysis pipelines (run_code + verification + replotting)
+  # accumulate token-heavy code outputs over long sessions. Default threshold
+  # is appropriate here; loosen only if users report early compaction artifacts.
+  compaction do
+    compact_threshold 150_000
+  end
+
   system_prompt <<~TEXT
     You are an assistant designed to help users write and run code and visualize data upon their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
 

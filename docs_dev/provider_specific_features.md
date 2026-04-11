@@ -92,6 +92,8 @@ Chat. For implementation details, see the linked source or companion docs.
 | Files API | beta_header | Per-request | `claude_helper.rb:1741` | Beta: `files-api-2025-04-14` |
 | Per-app beta headers | beta_header | MDSL `betas [...]` | `claude_helper.rb:490-503` | App-level opt-in, e.g. document_generator_claude.mdsl uses `code-execution-2025-08-25`, `skills-2025-10-02` |
 | Per-spec beta headers | beta_header | `model_spec.js` `betas` | `claude_helper.rb:490-503` | Model-capability-level opt-in |
+| **Advisor Tool** | beta_header + server_tool | MDSL `advisor_tool do ... end` | `claude_helper.rb:488-503, 607-644` | Beta: `advisor-tool-2026-03-01`. Auto-added when app opts in. Forces `disable_parallel_tool_use: true`. First consumer: AutoForge Claude |
+| Multi-turn tool context accumulation | client_side | Automatic | `claude_helper.rb:1506-1520` | Preserves `function_returns` across recursive `api_request("tool")` so the model sees full multi-turn tool history. Critical for apps with sequential tool chains (generate → verify → finish) |
 | Structured output | api_feature | App config | `claude_helper.rb:~815` | `output_format` |
 | Tool choice forcing | api_feature | Internal | `claude_helper.rb:~715` | `tool_choice: {type: any}` |
 
@@ -165,7 +167,7 @@ considered for its counterpart.
 
 | UX goal | Claude | OpenAI | Gemini | Others |
 |---|---|---|---|---|
-| **Mid-generation planning assistance** | Advisor Tool (planned) | GPT-5-Codex agent (client-side) | — | — |
+| **Mid-generation planning assistance** | Advisor Tool (`advisor-tool-2026-03-01`) | GPT-5-Codex agent (client-side) | — | — |
 | **Long-conversation compaction** | Context editing (`clear_*`) | Compaction API (planned) | — | — |
 | **Extended thinking / reasoning** | `thinking.type` + `budget_tokens` | `reasoning.effort` | `thinking_level` / `thinking_budget` | DeepSeek R1 family, Ollama `think` |
 | **Prompt caching** | `cache_control: ephemeral` | Automatic (Responses API) | — | — |
@@ -183,15 +185,40 @@ When adopting a new provider-specific feature:
 4. If user-visible, update `docs/` and `docs/ja/`.
 5. Run through the checklist at the top of this document.
 
+## Adoption history
+
+### Phase 1 — Claude Advisor Tool (2026-04-11) ✅
+
+**Beta header**: `advisor-tool-2026-03-01`
+**Integration point**: `claude_helper.rb`
+**MDSL surface**: dedicated `advisor_tool do model "..."; max_uses N; caching true; end` block
+**First consumer**: AutoForge Claude (Sonnet 4.6 executor + Opus 4.6 advisor — the canonical pairing recommended by Anthropic)
+
+**What landed together in Phase 1**:
+1. **Advisor Tool infrastructure**: DSL block, tools-array injection, beta-header auto-add, streaming parser for `advisor_tool_result` content blocks, `usage.iterations[]` breakdown logging.
+2. **`disable_parallel_tool_use`**: Auto-enabled when `advisor_tool` is opted in, for both thinking-on (`tool_choice.auto`) and thinking-off (`tool_choice.any`) paths. Required because parallel tool calls confuse the advisor (it sees invocations but not other tools' results).
+3. **Multi-turn tool context fix**: Previously, `assemble_claude_tool_context` rebuilt context from scratch each tool turn, dropping earlier `tool_use`/`tool_result` blocks from subsequent requests. This caused models to hallucinate that earlier work never happened. Fixed by accumulating through `session[:parameters]["function_returns"]` and clearing at new user turns.
+4. **Error-aware hybrid cycle detection**: `ErrorPatternDetector` now tracks success/failure per tool call and uses a two-tier threshold — strict (3 reps multi-tool / 5 single) when errors are present, permissive (5 reps multi-tool / 8 single) when all succeeded. Prevents false-positive stops on legitimate iterative refinement while preserving the stuck-loop safety net.
+5. **AutoForge Claude restructured**: Verification Protocol / Plan-Approve-Execute / Stop Conditions removed from the system prompt. Replaced with a linear `generate → finish_task → recap` workflow and a positive-only prompt that avoids LLM negative-prompt attractors. New `finish_task` tool (AutoForge-specific) shares the `FORCE_STOP_DEPTH` mechanism with `report_verification` so both work as explicit completion signals.
+
+**Lessons learned (keep in mind for future adoptions)**:
+- **Negative prompting is an attractor**. Bad examples in system prompts get regenerated verbatim by LLMs. Use positive framing only ("The task is already complete" rather than "Do not regenerate").
+- **Multi-turn tool flows require context accumulation**. Any app that calls more than one tool sequentially in a single user request needs the `function_returns` accumulator to work. This likely affects other Claude apps and should be validated in Phase 2.
+- **Advisor parallel calls are dangerous**. Always set `disable_parallel_tool_use: true` when advisor is enabled.
+- **Sonnet executor is the canonical pairing**. Opus executor has stronger improvement bias and loops on complex specs; Sonnet is more disciplined and cheaper.
+
 ## Planned adoptions
 
 These features are under active consideration. See `MEMORY.md` for current
 status and ownership.
 
-- **Claude Advisor Tool** (`advisor-tool-2026-03-01`) — Phase 1 target.
-  Integration point: `claude_helper.rb` via existing `spec_beta` / `app_beta`
-  merge mechanism. MDSL surface: `betas [...]` or new dedicated opt-in.
-  Consumer candidates: AutoForge Claude, Code Interpreter Claude, Coding
-  Assistant Claude, Jupyter Notebook Claude.
+- **Multi-turn context fix — horizontal validation** — Phase 2 scope. The
+  `function_returns` accumulator bug likely affected other Claude apps
+  (Research Assistant, Code Interpreter, Jupyter Notebook). Verify that the
+  Phase 1 fix has resolved any latent symptoms in those apps.
+- **Advisor Tool expansion** — Phase 2 scope. Extend the `advisor_tool` opt-in
+  to Code Interpreter Claude, Coding Assistant Claude, and Jupyter Notebook
+  Claude. Each app will need a tuned `max_uses` based on its typical loop
+  depth.
 - **OpenAI Compaction API (GA)** — Phase 3 target. Integration point:
   `openai_helper.rb`. Semantic counterpart to Claude's context editing.

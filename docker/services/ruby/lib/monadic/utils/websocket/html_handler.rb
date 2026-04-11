@@ -10,6 +10,27 @@ module WebSocketHelper
   # Fragments beyond this limit are silently dropped (oldest first).
   MAX_TOOL_HTML_FRAGMENTS = 20
 
+  # Regex for extracting /data/FILENAME.ext image references from HTML.
+  TOOL_HTML_IMAGE_REGEX = %r{<img[^>]+src=["']/data/([\w\-. ]+\.(?:png|jpg|jpeg|gif|webp))["']}i
+
+  # Drop gallery fragments whose images are already embedded in the LLM text.
+  # Prevents duplicate chart display when a tool's enrich_with_images helper
+  # appends a generated_image gallery AND the model also writes <img> tags
+  # despite run_code's "Do NOT include <img> tags" instruction (app.rb L597).
+  # A fragment is dropped only when ALL of its images are already in the text,
+  # so fragments carrying any new image still render.
+  private def dedupe_tool_html_fragments(text, fragments)
+    llm_embedded = text.scan(TOOL_HTML_IMAGE_REGEX).flatten.map(&:downcase)
+    return fragments if llm_embedded.empty?
+
+    llm_embedded_set = llm_embedded.to_set
+    fragments.reject do |fragment|
+      next false unless fragment.include?('generated_image')
+      fragment_files = fragment.scan(TOOL_HTML_IMAGE_REGEX).flatten.map(&:downcase)
+      fragment_files.any? && fragment_files.all? { |f| llm_embedded_set.include?(f) }
+    end
+  end
+
   private def handle_ws_html(connection, obj, session, thread, queue)
     thread&.join
     until queue.empty?
@@ -29,6 +50,8 @@ module WebSocketHelper
             Monadic::Utils::ExtraLogger.log { "[WebSocket] Truncating tool_html_fragments from #{stored_fragments.size} to #{MAX_TOOL_HTML_FRAGMENTS}" }
             stored_fragments = stored_fragments.last(MAX_TOOL_HTML_FRAGMENTS)
           end
+
+          stored_fragments = dedupe_tool_html_fragments(text.to_s, stored_fragments)
           text = text.to_s + "\n\n" + stored_fragments.join("\n\n")
           # Reset per-turn image-dedup trackers used by shared tools.
           # The Jupyter add_jupyter_cells tool remembers PNG hashes seen

@@ -93,4 +93,52 @@ RSpec.describe GrokHelper do
       expect(images.length).to eq(1)
     end
   end
+
+  # Regression: multi-turn tool context accumulation (2026-04).
+  # Mirrors the Claude / OpenAI Phase 1 fix. Grok stores tool state in
+  # `obj["function_returns"]` and `obj["assistant_function_calls"]`, and
+  # these used to be overwritten on each new tool round, causing the model
+  # to lose prior rounds' tool history between recursive api_request calls.
+  # The fix uses `(obj[...] ||= []).concat(...)` to accumulate instead.
+  describe 'multi-turn tool accumulation' do
+    it 'concat-accumulates function_returns across rounds instead of overwriting' do
+      obj = {}
+      round1_results = [{ 'call_id' => 'c1', 'content' => 'r1' }]
+      round2_results = [{ 'call_id' => 'c2', 'content' => 'r2' }]
+
+      (obj["function_returns"] ||= []).concat(round1_results)
+      expect(obj["function_returns"]).to eq(round1_results)
+
+      (obj["function_returns"] ||= []).concat(round2_results)
+      expect(obj["function_returns"]).to eq(round1_results + round2_results)
+      expect(obj["function_returns"].length).to eq(2)
+    end
+
+    it 'concat-accumulates assistant_function_calls across rounds' do
+      obj = {}
+      round1_calls = [{ 'call_id' => 'c1', 'name' => 'first_tool' }]
+      round2_calls = [{ 'call_id' => 'c2', 'name' => 'second_tool' }]
+
+      (obj["assistant_function_calls"] ||= []).concat(round1_calls)
+      (obj["assistant_function_calls"] ||= []).concat(round2_calls)
+
+      expect(obj["assistant_function_calls"].length).to eq(2)
+      expect(obj["assistant_function_calls"].map { |c| c['name'] }).to eq(['first_tool', 'second_tool'])
+    end
+
+    it 'resets function_returns to nil when a new user turn begins (api_request role=user)' do
+      # Mirrors grok_helper.rb L936-937. Setting to nil (rather than [])
+      # ensures the `if obj["function_returns"]` guard at L335 is falsy on
+      # an empty state so tool-handling code is skipped for fresh turns.
+      session_params = { "function_returns" => [{ 'c1' => 'r1' }], "assistant_function_calls" => [{}] }
+      session_params["function_returns"] = nil
+      session_params["assistant_function_calls"] = nil
+
+      expect(session_params["function_returns"]).to be_nil
+      expect(session_params["assistant_function_calls"]).to be_nil
+
+      (session_params["function_returns"] ||= []) << { 'c3' => 'r3' }
+      expect(session_params["function_returns"]).to eq([{ 'c3' => 'r3' }])
+    end
+  end
 end

@@ -505,10 +505,14 @@ module GrokHelper
           { "id" => fc["call_id"] || fc["id"], "function" => { "name" => fc["name"], "arguments" => fc["arguments"] || "{}" } }
         end
 
-        obj["assistant_function_calls"] = function_calls.map do |fc|
+        # Accumulate across multi-turn tool rounds within a single user request.
+        # Without the `||= [] + ...` pattern, each new tool round would overwrite
+        # prior rounds' calls and the model would lose the history of what it
+        # already called. Mirrors the Claude / OpenAI multi-turn context fix.
+        (obj["assistant_function_calls"] ||= []).concat(function_calls.map do |fc|
           { "type" => "function_call", "id" => fc["id"], "call_id" => fc["call_id"] || fc["id"],
             "name" => fc["name"], "arguments" => fc["arguments"] || "{}" }
-        end
+        end)
 
         session[:call_depth_per_turn] += 1
         if session[:call_depth_per_turn] > MAX_FUNC_CALLS
@@ -1453,8 +1457,9 @@ module GrokHelper
       end
 
       if tool_calls.any?
-        # Store assistant function calls in Responses API format for context
-        obj["assistant_function_calls"] = tools.filter_map do |item_id, tool_data|
+        # Store assistant function calls in Responses API format for context.
+        # Accumulate across rounds so prior turns' calls remain visible.
+        (obj["assistant_function_calls"] ||= []).concat(tools.filter_map do |item_id, tool_data|
           next unless tool_data["completed"]
           {
             "type" => "function_call",
@@ -1463,7 +1468,7 @@ module GrokHelper
             "name" => tool_data["name"] || "unknown",
             "arguments" => tool_data["arguments"] || "{}"
           }
-        end
+        end)
 
         Monadic::Utils::ExtraLogger.log {
           lines = ["Grok tool calls collected from streaming:"]
@@ -1633,8 +1638,10 @@ module GrokHelper
       next if error_stop
     end
 
-    # Store tool results in session for API request
-    obj["function_returns"] = tool_results
+    # Store tool results in session for API request.
+    # Accumulate across rounds so prior turns' results remain visible to
+    # the model on the next API call. Mirrors the Claude / OpenAI fix.
+    (obj["function_returns"] ||= []).concat(tool_results)
 
     # Check if we've reached max call depth
     if call_depth >= MAX_FUNC_CALLS

@@ -114,6 +114,15 @@ app "ResearchAssistantOpenAI" do
     end
   end
 
+  # OpenAI Responses API server-side compaction (GA, Feb 2026).
+  # Mirrors the Claude variant's aggressive context_management policy — research
+  # sessions accumulate large web_search / code_execution tool results quickly,
+  # so compact earlier than the 150K default to keep agentic loops inside the
+  # model's context window without client-side trimming.
+  compaction do
+    compact_threshold 120_000
+  end
+
   display_name "Research Assistant"
 
   features do

@@ -16,6 +16,8 @@
 #   - run_bash_command: Execute bash commands in Python container
 #   - check_environment: Inspect Docker container environment
 
+require_relative '../utils/extra_logger'
+
 module MonadicSharedTools
   module PythonExecution
     include MonadicHelper
@@ -127,6 +129,19 @@ module MonadicSharedTools
         return {
           success: false,
           error: "Command cannot be empty"
+        }
+      end
+
+      # Defensive warning: models occasionally misuse `~/monadic/data`
+      # (the host-side path the user sees) instead of `/data` (the
+      # container path) because the system prompt mentions both. Inside
+      # the container, `~` expands to `/root`, so the lookup silently
+      # fails and the model may improvise with fake data. Flag this in
+      # the logs so the MDSL PATH CONVENTIONS guidance can be audited.
+      # See code_interpreter_claude.mdsl "PATH CONVENTIONS" block.
+      if command.to_s.include?('~/monadic/data')
+        Monadic::Utils::ExtraLogger.log {
+          "[PythonExecution] ~/monadic/data detected in run_bash_command — model likely confused container vs host paths. Command: #{command.to_s[0..200]}"
         }
       end
 

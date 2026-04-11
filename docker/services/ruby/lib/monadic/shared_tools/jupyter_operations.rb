@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'set'
+
 # JupyterOperations Shared Tools
 #
 # Provides core Jupyter Notebook operations for creating, managing, and executing
@@ -92,8 +94,28 @@ module MonadicSharedTools
 
       # Store gallery HTML for notebook plot images (server-side display).
       # No _image vision injection — avoids tool-call loops in code execution apps.
+      #
+      # Deduplication: we pass session[:_jupyter_seen_image_hashes] into
+      # extract_notebook_images so that plots already emitted in an earlier
+      # add_jupyter_cells call (within the same user turn) are not re-saved
+      # and re-appended to tool_html_fragments. Without this, a multi-batch
+      # notebook creation (e.g., 3 calls to add_jupyter_cells) would emit
+      # the first batch's plot 3 times because extract_notebook_images walks
+      # the entire notebook on each call.
+      #
+      # The set is populated on first tool run of a turn. It is NOT cleared
+      # here; vendor helpers reset it at user-turn boundaries by clearing
+      # session state relevant to a turn (see claude_helper.rb api_request
+      # role == "user" block). For providers without an explicit reset, the
+      # set is cleared when tool_html_fragments is consumed by the html
+      # handler, so a stale set cannot persist beyond one assistant response.
       if run.to_s == "true" && result.is_a?(String) && result.include?("executed successfully")
-        image_files = extract_notebook_images(filename: filename)
+        seen_hashes = if session
+                        session[:_jupyter_seen_image_hashes] ||= Set.new
+                      else
+                        nil
+                      end
+        image_files = extract_notebook_images(filename: filename, seen_hashes: seen_hashes)
         if image_files.any? && session
           gallery_html = image_files.map { |img|
             "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"

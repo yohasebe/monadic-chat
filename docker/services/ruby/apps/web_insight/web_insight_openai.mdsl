@@ -109,6 +109,14 @@ app "WebInsightOpenAI" do
     temperature 0.0
   end
 
+  # OpenAI Responses API server-side compaction (GA, Feb 2026).
+  # Web Insight chains web_search + Selenium page captures + image analysis,
+  # where each tool turn carries page content forward. 150K default balances
+  # evidence retention against compaction headroom.
+  compaction do
+    compact_threshold 150_000
+  end
+
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     monadic false

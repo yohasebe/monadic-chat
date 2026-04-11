@@ -217,11 +217,69 @@ module MonadicDSL
       SimplifiedFeatureConfiguration.new(@state).instance_eval(&block)
     end
     
-    def context_management(&block)
+    # Anthropic Context Management (beta, default-on for models that support it).
+    # Usage:
+    #   context_management do              # custom edits (overrides default clear_thinking/clear_tool_uses)
+    #     edits [...]
+    #   end
+    #   context_management false           # explicit opt-out → fall back to context_size sliding window only
+    def context_management(enable = nil, &block)
       if block_given?
         config = ContextManagementConfiguration.new
         config.instance_eval(&block)
         @state.settings[:context_management] = config.to_hash
+      elsif enable == false
+        # Explicit opt-out sentinel: claude_helper checks `== false`
+        # and skips attaching context_management, leaving context_size
+        # (client-side sliding window) as the only trimming mechanism.
+        @state.settings[:context_management] = false
+      end
+    end
+
+    # OpenAI Compaction (Responses API server-side compaction, GA).
+    # Default-on: apps inherit the default threshold unless they opt out.
+    # Usage:
+    #   compaction                         # explicit default (same as not specifying)
+    #   compaction do
+    #     compact_threshold 180_000        # custom threshold
+    #   end
+    #   compaction false                   # explicit opt-out → fall back to context_size sliding window only
+    def compaction(enable = nil, &block)
+      if block_given?
+        config = CompactionConfiguration.new
+        config.instance_eval(&block)
+        @state.settings[:compaction] = config.to_hash
+      elsif enable == false
+        # Explicit opt-out sentinel: openai_helper checks `== false`
+        # and skips attaching context_management, leaving context_size
+        # (client-side sliding window) as the only trimming mechanism.
+        @state.settings[:compaction] = false
+      elsif enable.is_a?(Hash)
+        @state.settings[:compaction] = enable
+      else
+        @state.settings[:compaction] = { compact_threshold: CompactionConfiguration::DEFAULT_COMPACT_THRESHOLD }
+      end
+    end
+
+    # Advisor Tool opt-in (Anthropic Advisor Tool beta).
+    # Usage:
+    #   advisor_tool  # enable with defaults (claude-opus-4-6)
+    #   advisor_tool do
+    #     model    "claude-opus-4-6"
+    #     max_uses 3
+    #     caching  true
+    #   end
+    def advisor_tool(enable = nil, &block)
+      if block_given?
+        config = AdvisorToolConfiguration.new
+        config.instance_eval(&block)
+        @state.settings[:advisor_tool] = config.to_hash
+      elsif enable == false
+        @state.settings[:advisor_tool] = nil
+      elsif enable.is_a?(Hash)
+        @state.settings[:advisor_tool] = enable
+      else
+        @state.settings[:advisor_tool] = { model: AdvisorToolConfiguration::DEFAULT_MODEL }
       end
     end
 
@@ -498,6 +556,25 @@ module MonadicDSL
     # Add betas if specified
     if state.settings[:betas]
       class_def << "        @settings[:betas] = #{state.settings[:betas].inspect}\n"
+    end
+
+    # Add advisor_tool if specified (Anthropic Advisor Tool beta)
+    if state.settings[:advisor_tool]
+      class_def << "        @settings[:advisor_tool] = #{state.settings[:advisor_tool].inspect}\n"
+    end
+
+    # Add context_management if specified (Anthropic Context Management beta).
+    # Emit `false` as-is so claude_helper can distinguish explicit opt-out from
+    # the unset default (which falls through to the hardcoded default edits).
+    unless state.settings[:context_management].nil?
+      class_def << "        @settings[:context_management] = #{state.settings[:context_management].inspect}\n"
+    end
+
+    # Add compaction if specified (OpenAI Responses API server-side compaction).
+    # Emit `false` as-is so openai_helper can distinguish explicit opt-out from
+    # the unset default (which defaults to enabled at the default threshold).
+    unless state.settings[:compaction].nil?
+      class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
     end
 
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)

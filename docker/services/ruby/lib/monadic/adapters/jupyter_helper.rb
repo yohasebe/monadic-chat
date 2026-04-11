@@ -1,5 +1,6 @@
 require 'shellwords'
 require 'cgi'
+require 'digest'
 require_relative '../utils/extra_logger'
 
 module MonadicHelper
@@ -674,7 +675,16 @@ module MonadicHelper
   # @param filename [String] notebook filename (with or without .ipynb)
   # @param max_images [Integer] maximum images to extract (default 5)
   # @return [Array<String>] array of saved image basenames, empty if none found
-  def extract_notebook_images(filename:, max_images: 5)
+  # Extract image outputs from a notebook and save them as standalone PNG files
+  # in the shared data directory. Returns the list of saved basenames.
+  #
+  # Deduplication: `seen_hashes` is an optional Set of SHA-256 hex digests of
+  # PNG data that have already been extracted in the current session. When
+  # provided, images whose hash is in the set are skipped (and not saved as
+  # new files), and newly-saved images have their hash added to the set.
+  # This prevents the same plot from being re-emitted as a new file across
+  # multiple `add_jupyter_cells(run: true)` calls within a single user turn.
+  def extract_notebook_images(filename:, max_images: 5, seen_hashes: nil)
     filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
     data_path = Monadic::Utils::Environment.data_path
     notebook_path = File.join(data_path, filename_with_ext)
@@ -707,6 +717,16 @@ module MonadicHelper
                    end
         next unless png_data.is_a?(String) && !png_data.empty?
 
+        # Hash the PNG data (base64 string) and skip if already seen in the
+        # current turn. This is the primary guard against duplicate image
+        # emissions when add_jupyter_cells is called multiple times per turn.
+        if seen_hashes
+          content_hash = Digest::SHA256.hexdigest(png_data)
+          if seen_hashes.include?(content_hash)
+            next
+          end
+        end
+
         # Decode and save the image
         begin
           unique_id = saved_images.size + 1
@@ -721,6 +741,7 @@ module MonadicHelper
           end
 
           saved_images << image_filename
+          seen_hashes << content_hash if seen_hashes && content_hash
         rescue StandardError => e
           Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Failed to save notebook image: #{e.message}" }
         end

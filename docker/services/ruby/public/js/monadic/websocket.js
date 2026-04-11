@@ -104,48 +104,7 @@ const RESPONSE_TIMEOUT_SLOW_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOU
 // Stop-button highlighting, checkAndHideSpinner now in ws-auto-speech.js
 const { highlightStopButton, removeStopButtonHighlight, checkAndHideSpinner } = window.WsAutoSpeech || {};
 
-// message is submitted upon pressing enter
-const message = $id("message");
-
-message.addEventListener("compositionstart", function () {
-  message.dataset.ime = "true";
-});
-
-message.addEventListener("compositionend", function () {
-  message.dataset.ime = "false";
-});
-
-document.addEventListener("keydown", function (event) {
-  // Right Arrow key - activate voice input when Easy Submit is enabled
-  const easySubmitEl = $id("check-easy-submit");
-  const messageEl = $id("message");
-  const easySubmitChecked = easySubmitEl && easySubmitEl.checked;
-  const messageHasFocus = document.activeElement === messageEl;
-
-  if (easySubmitChecked && !messageHasFocus && event.key === "ArrowRight") {
-    event.preventDefault();
-    // Only activate voice button if session has begun (main panel is visible)
-    const voiceEl = $id("voice");
-    const mainPanelEl = $id("main-panel");
-    if (voiceEl && !voiceEl.disabled && mainPanelEl && mainPanelEl.style.display !== "none") {
-      voiceEl.click();
-    }
-  }
-
-  // Enter key - submit message when focus is not in textarea
-  if (easySubmitChecked && !messageHasFocus && event.key === "Enter" && message.dataset.ime !== "true") {
-    // Only submit if message is not empty
-    if (message.value.trim() !== "") {
-      event.preventDefault();
-      if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-        // Ignore auto-submit when tab is not in foreground
-      } else {
-        const sendEl = $id("send");
-        if (sendEl) sendEl.click();
-      }
-    }
-  }
-});
+// IME tracking + Easy Submit keyboard shortcuts now in ws-input-handler.js
 
 const setCopyCodeButton = window.setCopyCodeButton;
 
@@ -158,28 +117,15 @@ let wsHandlers = window.wsHandlers;
 
 let reconnectDelay = (window.WsAudioConstants || {}).baseReconnectDelay || 1000;
 
-let pingInterval;
-
+// Ping interval management now in ws-ping.js (window.WsPing).
+// Thin wrappers preserve the `ws` closure so existing call sites
+// (and window.startPing / window.stopPing consumers) keep working.
 function startPing() {
-  // Clear any existing ping interval to avoid duplicates
-  stopPing();
-
-  // Start new ping interval
-  pingInterval = setInterval(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ message: 'PING' }));
-    } else {
-      // If the websocket is no longer open, stop pinging
-      stopPing();
-    }
-  }, PING_INTERVAL_MS);
+  window.WsPing.start(function() { return ws; }, PING_INTERVAL_MS);
 }
 
 function stopPing() {
-  if (pingInterval) {
-    clearInterval(pingInterval);
-    pingInterval = null; // Properly null out the reference
-  }
+  window.WsPing.stop();
 }
 
 window.chatBottom = $id("chat-bottom");
@@ -188,30 +134,9 @@ window.autoScroll = true;
 const mainPanel = $id("main-panel");
 window.mainPanel = mainPanel;
 
-function ensureMonadicTabId() {
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      let tabId = sessionStorage.getItem('monadicTabId');
-      if (!tabId) {
-        tabId = (typeof crypto !== 'undefined' && crypto.randomUUID) ?
-          crypto.randomUUID() :
-          `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        sessionStorage.setItem('monadicTabId', tabId);
-      }
-      window.monadicTabId = tabId;
-      return tabId;
-    }
-  } catch (e) {
-    console.warn('[Session] Unable to access sessionStorage for tab ID:', e);
-  }
-  if (!window.monadicTabId) {
-    window.monadicTabId = `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
-  return window.monadicTabId;
-}
-
-window.getMonadicTabId = ensureMonadicTabId;
-const MONADIC_TAB_ID = ensureMonadicTabId();
+// Per-tab identifier now in ws-tab-id.js.
+// window.monadicTabId is initialized eagerly by that module at load time.
+// Call window.getMonadicTabId() at the point of use to re-resolve the ID.
 
 // handleFragmentMessage, debugFragmentSummary, resetFragmentDebug
 // — extracted to ws-fragment-handler.js (window.WsFragmentHandler)
@@ -295,63 +220,14 @@ window.isReasoningStreamActive = function() {
   return reasoningStreamActive;
 };
 
-// ── Tool execution progress helpers ──────────────────────────
-
-function formatToolName(name) {
-  if (!name) return '';
-  return name.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-}
-
-function updateToolStatus(toolName, count) {
-  const tempCard = $id("temp-card");
-  if (!tempCard) return;
-
-  let toolStatus = $id("tool-status");
-  if (!toolStatus) {
-    // Dynamically inject into the card header's right-side area
-    const headerEl = tempCard.querySelector(".card-header");
-    const flexAreas = headerEl ? headerEl.querySelectorAll(".d-flex.align-items-center") : [];
-    let rightArea = flexAreas.length > 0 ? flexAreas[flexAreas.length - 1] : null;
-    if (!rightArea || rightArea.classList.contains("card-title")) {
-      rightArea = document.createElement("div");
-      rightArea.className = "me-1 text-secondary d-flex align-items-center";
-      if (headerEl) headerEl.appendChild(rightArea);
-    }
-    toolStatus = document.createElement("span");
-    toolStatus.id = "tool-status";
-    toolStatus.className = "tool-status-label me-2";
-    const indicator = rightArea.querySelector("#indicator");
-    if (indicator) {
-      rightArea.insertBefore(toolStatus, indicator);
-    } else {
-      rightArea.insertBefore(toolStatus, rightArea.firstChild);
-    }
-  }
-
-  if (toolName && count > 0) {
-    toolStatus.innerHTML =
-      '<i class="fas fa-cog fa-spin me-1"></i>' + formatToolName(toolName) + ' <span class="tool-call-count">(' + count + ')</span>';
-    $show(toolStatus);
-  } else {
-    $hide(toolStatus);
-  }
-}
-
-function clearToolStatus() {
-  window.toolCallCount = 0;
-  window.currentToolName = '';
-  const toolStatusEl = $id("tool-status");
-  if (toolStatusEl) {
-    $hide(toolStatusEl);
-    toolStatusEl.innerHTML = '';
-  }
-}
-window.clearToolStatus = clearToolStatus;
+// Tool execution progress indicator now in ws-tool-status-ui.js
+// (window.WsToolStatusUi, also exported as window.updateToolStatus / window.clearToolStatus
+// for back-compat with ws-tool-handler.js which does free-variable lookup).
 
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
   let wsUrl = 'ws://localhost:4567';
-  // Always use the function to get tab ID, never reference MONADIC_TAB_ID directly
+  // Always resolve the tab ID through the getter so it tracks sessionStorage changes.
   const tabId = window.getMonadicTabId ? window.getMonadicTabId() : null;
 
   // If accessing from a non-localhost address, use that instead

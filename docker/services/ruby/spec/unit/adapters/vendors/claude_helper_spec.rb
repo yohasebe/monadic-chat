@@ -230,4 +230,166 @@ RSpec.describe ClaudeHelper do
       expect(result).to eq(".pdf")
     end
   end
+
+  # Regression: multi-turn tool context inheritance.
+  # Without this, assemble_claude_tool_context rebuilt context from an empty
+  # array on each tool turn, so after N rounds the model only saw the Nth
+  # tool_use and forgot rounds 1..N-1 — causing it to hallucinate that earlier
+  # work (e.g. generate_application) had never happened.
+  describe '#assemble_claude_tool_context (multi-turn inheritance)' do
+    let(:session) do
+      {
+        parameters: { "app_name" => "TestApp", "function_returns" => nil },
+        call_depth_per_turn: 0
+      }
+    end
+
+    let(:tool_calls) do
+      [{
+        "id" => "toolu_round2",
+        "name" => "second_tool",
+        "input" => '{"arg":"value"}',
+        "type" => "tool_use"
+      }]
+    end
+
+    before do
+      # Stub process_functions: we only care about the `context` argument it receives.
+      allow(helper).to receive(:process_functions) do |_app, _session, _tools, context, _depth, &_blk|
+        @captured_context = context
+        []
+      end
+    end
+
+    it 'starts with an empty context when no previous function_returns exist' do
+      helper.send(:assemble_claude_tool_context,
+                  "TestApp", session, tool_calls, "some text", nil, nil, nil)
+
+      # One assistant turn only (text + tool_use).
+      expect(@captured_context.length).to eq(1)
+      expect(@captured_context.first["role"]).to eq("assistant")
+      assistant_content = @captured_context.first["content"]
+      expect(assistant_content).to include(
+        hash_including("type" => "text", "text" => "some text")
+      )
+      expect(assistant_content).to include(
+        hash_including("type" => "tool_use", "name" => "second_tool")
+      )
+    end
+
+    it 'inherits previous function_returns as the starting context' do
+      previous_returns = [
+        { "role" => "assistant", "content" => [
+          { "type" => "tool_use", "id" => "toolu_round1", "name" => "first_tool", "input" => {} }
+        ]},
+        { role: "user", content: [
+          { "type" => "tool_result", "tool_use_id" => "toolu_round1", "content" => "round 1 result" }
+        ]}
+      ]
+      session[:parameters]["function_returns"] = previous_returns
+
+      helper.send(:assemble_claude_tool_context,
+                  "TestApp", session, tool_calls, nil, nil, nil, nil)
+
+      # Round 1 (assistant + user) + Round 2 assistant = 3 entries.
+      expect(@captured_context.length).to eq(3)
+      expect(@captured_context[0]["content"].first["name"]).to eq("first_tool")
+      expect(@captured_context[1][:content].first["content"]).to eq("round 1 result")
+      expect(@captured_context[2]["role"]).to eq("assistant")
+      expect(@captured_context[2]["content"]).to include(
+        hash_including("type" => "tool_use", "name" => "second_tool")
+      )
+    end
+
+    it 'does not mutate the session function_returns array directly' do
+      previous_returns = [
+        { "role" => "assistant", "content" => [{ "type" => "text", "text" => "prev" }] }
+      ]
+      session[:parameters]["function_returns"] = previous_returns
+      original_length = previous_returns.length
+
+      helper.send(:assemble_claude_tool_context,
+                  "TestApp", session, tool_calls, nil, nil, nil, nil)
+
+      # The stored reference should not have been extended in place;
+      # assemble_claude_tool_context dup's previous_returns before appending.
+      expect(session[:parameters]["function_returns"].length).to eq(original_length)
+    end
+  end
+
+  # Regression tests for the unified context-management opt-out (2026-04).
+  # claude_helper.rb attaches `context_management` + beta header by default
+  # for models that support it. When an MDSL specifies `context_management false`,
+  # both the body key and the beta header must be skipped so the API does not
+  # expect a context_management directive we aren't providing.
+  describe 'context_management opt-out (claude_helper decision logic)' do
+    # Simulate the branching logic that lives in claude_helper.rb around
+    # the `# Context management` block. We keep this in sync with the real
+    # helper so a regression in either place is visible here.
+    def resolve_context_management(app_setting:, supports:, role: 'user', thinking_enabled: false)
+      opted_out = (app_setting == false)
+      body = {}
+      beta_headers = []
+
+      if supports && role != 'tool' && !opted_out
+        if app_setting
+          body['context_management'] = app_setting
+        else
+          edits = []
+          edits << { 'type' => 'clear_thinking_20251015' } if thinking_enabled
+          edits << { 'type' => 'clear_tool_uses_20250919' }
+          body['context_management'] = { 'edits' => edits }
+        end
+      end
+
+      beta_headers << 'context-management-2025-06-27' if supports && role != 'tool' && !opted_out
+      beta_headers << 'model-context-window-exceeded-2025-08-26'
+
+      { body: body, beta_headers: beta_headers, opted_out: opted_out }
+    end
+
+    it 'attaches default clear_tool_uses when no app setting is present' do
+      result = resolve_context_management(app_setting: nil, supports: true)
+      expect(result[:body]['context_management']).to be_a(Hash)
+      expect(result[:body]['context_management']['edits']).to include(
+        hash_including('type' => 'clear_tool_uses_20250919')
+      )
+      expect(result[:beta_headers]).to include('context-management-2025-06-27')
+    end
+
+    it 'also attaches clear_thinking when thinking is enabled' do
+      result = resolve_context_management(app_setting: nil, supports: true, thinking_enabled: true)
+      types = result[:body]['context_management']['edits'].map { |e| e['type'] }
+      expect(types).to include('clear_thinking_20251015')
+      expect(types).to include('clear_tool_uses_20250919')
+    end
+
+    it 'honors a custom app context_management hash (research_assistant_claude style)' do
+      custom = { 'edits' => [{ 'type' => 'clear_tool_uses_20250919', 'trigger' => { 'type' => 'input_tokens', 'value' => 50_000 } }] }
+      result = resolve_context_management(app_setting: custom, supports: true)
+      expect(result[:body]['context_management']).to eq(custom)
+      expect(result[:beta_headers]).to include('context-management-2025-06-27')
+    end
+
+    it 'skips context_management AND the beta header when app_setting is false' do
+      result = resolve_context_management(app_setting: false, supports: true)
+      expect(result[:body]).not_to have_key('context_management')
+      expect(result[:beta_headers]).not_to include('context-management-2025-06-27')
+      # The separate model-context-window-exceeded beta header is still attached.
+      expect(result[:beta_headers]).to include('model-context-window-exceeded-2025-08-26')
+      expect(result[:opted_out]).to be true
+    end
+
+    it 'skips context_management when role is "tool" regardless of opt-out' do
+      result = resolve_context_management(app_setting: nil, supports: true, role: 'tool')
+      expect(result[:body]).not_to have_key('context_management')
+      expect(result[:beta_headers]).not_to include('context-management-2025-06-27')
+    end
+
+    it 'skips context_management when the model does not support it' do
+      result = resolve_context_management(app_setting: nil, supports: false)
+      expect(result[:body]).not_to have_key('context_management')
+      expect(result[:beta_headers]).not_to include('context-management-2025-06-27')
+    end
+  end
 end

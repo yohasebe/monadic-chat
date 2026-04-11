@@ -17,6 +17,7 @@ require_relative "../../utils/openai_file_inputs_cache"
 require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
+require_relative "../../dsl/configurations"
 module OpenAIHelper
   include BaseVendorHelper
   include InteractionUtils
@@ -1357,6 +1358,34 @@ module OpenAIHelper
       responses_body.delete("tool_choice")
     end
 
+    # OpenAI Responses API server-side compaction (GA, Feb 2026).
+    # Default-on: every Responses API request gets a context_management block
+    # at the default threshold unless the app explicitly opted out with
+    # MDSL `compaction false`. Apps can override the threshold via
+    # `compaction do compact_threshold N end`. This keeps long agentic loops
+    # under the model's context window without client-side trimming, while
+    # still letting apps fall back to the context_size sliding window alone.
+    # See docs_dev/provider_specific_features.md for policy context.
+    current_app_for_compaction = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
+    compaction_settings = APPS[current_app_for_compaction]&.settings&.[]("compaction")
+    compaction_settings = APPS[current_app_for_compaction]&.settings&.[](:compaction) if compaction_settings.nil?
+
+    if compaction_settings == false
+      # Explicit opt-out — rely on context_size sliding window only.
+      Monadic::Utils::ExtraLogger.log { "OpenAI: compaction opt-out (context_size sliding window only)" }
+    else
+      threshold = nil
+      if compaction_settings.is_a?(Hash) && !compaction_settings.empty?
+        threshold = compaction_settings[:compact_threshold] || compaction_settings["compact_threshold"]
+      end
+      threshold = MonadicDSL::CompactionConfiguration::DEFAULT_COMPACT_THRESHOLD if threshold.nil? || threshold.to_i <= 0
+
+      responses_body["context_management"] = [
+        { "type" => "compaction", "compact_threshold" => threshold.to_i }
+      ]
+      Monadic::Utils::ExtraLogger.log { "OpenAI: context_management compaction enabled (compact_threshold=#{threshold.to_i})" }
+    end
+
     # Simplified logging for Responses API
     Monadic::Utils::ExtraLogger.log {
       lines = ["Responses API: model=#{responses_body['model']}, tools=#{responses_body['tools']&.length || 0}"]
@@ -1510,6 +1539,14 @@ module OpenAIHelper
       # This allows the AI to perform fresh searches for each user question
       session[:parameters]["help_topics_call_count"] = 0 if session[:parameters]
       session[:parameters]["help_topics_prev_queries"] = [] if session[:parameters]
+
+      # Clear accumulated tool-turn context from any previous user request.
+      # `function_returns` is built up across multiple tool rounds within a
+      # single user request (see assemble_openai_chat_tool_results /
+      # assemble_openai_tool_results_from_responses). Starting a new user
+      # turn must reset the accumulator, otherwise the next request will
+      # replay stale tool_use/tool_result pairs.
+      session[:parameters]&.delete("function_returns")
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -1903,6 +1940,13 @@ module OpenAIHelper
 
   # Assemble tool call results from Chat API streaming and invoke process_functions.
   # Returns result Array.
+  #
+  # Multi-turn tool sequences within a single user request accumulate in
+  # `session[:parameters]["function_returns"]` so that each new tool turn
+  # extends the full history rather than replacing it. Without this, the
+  # model would see only the latest turn's tool_use in the next request
+  # and hallucinate that earlier tool work never happened. This mirrors
+  # the Claude fix in claude_helper.rb#assemble_claude_tool_context.
   private def assemble_openai_chat_tool_results(app, session, tools_hash, result, &block)
     session[:call_depth_per_turn] += 1
 
@@ -1936,7 +1980,11 @@ module OpenAIHelper
       end
     end
 
-    context = []
+    # Start from the previous turn's function_returns (if any) so that each
+    # new tool turn extends the full history rather than replacing it.
+    previous_returns = session[:parameters] && session[:parameters]["function_returns"]
+    context = previous_returns.is_a?(Array) ? previous_returns.dup : []
+
     if result
       merged = result["choices"][0]["message"].merge(tools_hash.first[1]["choices"][0]["message"])
       context << merged
@@ -2988,8 +3036,14 @@ module OpenAIHelper
       }
     end
 
-    # Build context with any text content so far
-    context = []
+    # Build context with any text content so far.
+    # Start from the previous turn's function_returns (if any) so that each
+    # new tool turn extends the full history rather than replacing it. See
+    # assemble_openai_chat_tool_results for the chat-API twin of this fix
+    # and claude_helper.rb#assemble_claude_tool_context for the origin.
+    previous_returns = session[:parameters] && session[:parameters]["function_returns"]
+    context = previous_returns.is_a?(Array) ? previous_returns.dup : []
+
     message = {
       "role" => "assistant",
       "tool_calls" => tool_calls

@@ -542,6 +542,36 @@ module AutoForgeTools
     handle_fix_response(user_response, diagnosis)
   end
 
+  # Explicit "task complete" signal. The model calls this as its final tool
+  # after generate_application (and any optional diagnostics) to close the
+  # turn cleanly without triggering a verification loop.
+  #
+  # Force-stops the tool call loop by setting session[:call_depth_per_turn]
+  # to a sentinel that exceeds MAX_FUNC_CALLS, which causes the next
+  # assistant response to be text-only (tools stripped from the request).
+  # See claude_helper.rb L1046 for the receiving side.
+  def finish_task(summary:, deliverable: nil, session: nil)
+    force_stop_depth = defined?(MonadicSharedTools::Verification::FORCE_STOP_DEPTH) ? MonadicSharedTools::Verification::FORCE_STOP_DEPTH : 99_999
+    session[:call_depth_per_turn] = force_stop_depth if session
+
+    summary_text = summary.to_s.strip
+    deliverable_path = deliverable.to_s.strip
+    has_deliverable = !deliverable_path.empty?
+
+    # Purely positive framing. Avoid negative commands ("do not ...") because
+    # LLMs tend to treat forbidden phrases as attractors and regenerate them
+    # verbatim. Each line describes what IS true (past tense) or what to DO
+    # next (positive imperative).
+    intro = "✅ TASK FINISHED. The application has been successfully generated and saved."
+    what_was_built = "Summary: #{summary_text}"
+    where = has_deliverable ? "File location: #{deliverable_path}" : nil
+    next_action = "Your final step is to write one or two sentences confirming the build and pointing the user to the file location above."
+
+    [intro, what_was_built, where, next_action].compact.join("\n\n")
+  rescue => e
+    "❌ finish_task error: #{e.message.gsub(/<.*?>/, '')[0..200]}"
+  end
+
   private
 
   def detect_project_type(spec)

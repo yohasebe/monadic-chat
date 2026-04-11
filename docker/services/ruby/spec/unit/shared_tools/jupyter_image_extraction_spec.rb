@@ -210,6 +210,84 @@ RSpec.describe "Jupyter Image Extraction" do
         expect(result.size).to eq(1)
       end
     end
+
+    context "seen_hashes deduplication (per-turn)" do
+      # Simulates the multi-batch add_jupyter_cells pattern that caused
+      # the same plot to be emitted 3 times when adding 3 batches to a
+      # single notebook. The seen_hashes parameter tracks PNG content
+      # hashes across calls so the same plot is only saved once per turn.
+      require 'set'
+
+      it "skips images already recorded in seen_hashes" do
+        fake_b64 = Base64.strict_encode64("plot A content")
+        nb_json = build_notebook_json([code_cell_with_image(fake_b64)])
+        File.write(File.join(data_path, "dedupe.ipynb"), nb_json)
+
+        seen = Set.new
+
+        # First call — image is new, should be extracted.
+        first_result = helper_instance.extract_notebook_images(
+          filename: "dedupe", seen_hashes: seen
+        )
+        expect(first_result.size).to eq(1)
+        expect(seen.size).to eq(1)
+
+        # Second call — same notebook, same image data. Should be skipped.
+        second_result = helper_instance.extract_notebook_images(
+          filename: "dedupe", seen_hashes: seen
+        )
+        expect(second_result).to be_empty
+        expect(seen.size).to eq(1)  # no new hashes added
+      end
+
+      it "extracts only new images when the notebook grows" do
+        b64_old = Base64.strict_encode64("plot A")
+        b64_new = Base64.strict_encode64("plot B")
+
+        # Phase 1: notebook has plot A only
+        nb_json1 = build_notebook_json([code_cell_with_image(b64_old)])
+        File.write(File.join(data_path, "growing.ipynb"), nb_json1)
+
+        seen = Set.new
+        first_result = helper_instance.extract_notebook_images(
+          filename: "growing", seen_hashes: seen
+        )
+        expect(first_result.size).to eq(1)
+        expect(seen.size).to eq(1)
+
+        # Phase 2: notebook now has plot A + plot B
+        nb_json2 = build_notebook_json([
+          code_cell_with_image(b64_old),
+          code_cell_with_image(b64_new)
+        ])
+        File.write(File.join(data_path, "growing.ipynb"), nb_json2)
+
+        second_result = helper_instance.extract_notebook_images(
+          filename: "growing", seen_hashes: seen
+        )
+        # Only plot B (the new one) should be extracted
+        expect(second_result.size).to eq(1)
+        expect(seen.size).to eq(2)
+
+        # The extracted file should contain plot B data
+        saved_content = File.binread(File.join(data_path, second_result.first))
+        expect(saved_content).to eq("plot B")
+      end
+
+      it "extracts all images when seen_hashes is not provided (backward compat)" do
+        # Existing callers that don't pass seen_hashes should continue
+        # to get the full set of images each call.
+        fake_b64 = Base64.strict_encode64("plot content")
+        nb_json = build_notebook_json([code_cell_with_image(fake_b64)])
+        File.write(File.join(data_path, "legacy.ipynb"), nb_json)
+
+        first = helper_instance.extract_notebook_images(filename: "legacy")
+        second = helper_instance.extract_notebook_images(filename: "legacy")
+
+        expect(first.size).to eq(1)
+        expect(second.size).to eq(1)  # still extracts — no dedup without seen_hashes
+      end
+    end
   end
 
   describe "MonadicHelper#get_jupyter_cells_with_results image indication" do

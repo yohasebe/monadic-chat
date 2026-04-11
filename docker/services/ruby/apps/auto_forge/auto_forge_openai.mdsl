@@ -21,6 +21,16 @@ app "AutoForgeOpenAI" do
     reasoning_effort "none"
   end
 
+  # OpenAI Responses API server-side compaction (GA, Feb 2026).
+  # AutoForge runs the longest agentic loop in the app suite — each
+  # generate_application / debug_application cycle carries full HTML/JS
+  # artifacts forward. Push the threshold high (180K) to let the model
+  # keep as much design context as possible before the server compacts,
+  # while staying safely inside the 200K context window.
+  compaction do
+    compact_threshold 180_000
+  end
+
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false

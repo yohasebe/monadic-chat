@@ -84,6 +84,14 @@ app "CodingAssistantOpenAI" do
     end
   end
 
+  # OpenAI Responses API server-side compaction (GA, Feb 2026).
+  # Coding Assistant delegates heavy codegen to gpt-5.3-codex across many
+  # turns; file_operations + run_code results accumulate quickly. Default
+  # 150K threshold matches Code Interpreter OpenAI.
+  compaction do
+    compact_threshold 150_000
+  end
+
   display_name "Coding Assistant"
  
   features do

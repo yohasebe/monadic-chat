@@ -65,4 +65,25 @@ RSpec.describe 'OpenAI Compaction rollout — integration' do
                      'JupyterNotebookOpenAI',
                      150_000
   end
+
+  describe 'Auto Forge OpenAI' do
+    include_examples 'compaction-enabled openai app',
+                     'auto_forge/auto_forge_openai.mdsl',
+                     'AutoForgeOpenAI',
+                     180_000
+  end
+
+  describe 'Coding Assistant OpenAI' do
+    include_examples 'compaction-enabled openai app',
+                     'coding_assistant/coding_assistant_openai.mdsl',
+                     'CodingAssistantOpenAI',
+                     150_000
+  end
+
+  describe 'Web Insight OpenAI' do
+    include_examples 'compaction-enabled openai app',
+                     'web_insight/web_insight_openai.mdsl',
+                     'WebInsightOpenAI',
+                     150_000
+  end
 end

@@ -17,6 +17,7 @@ require_relative "../../utils/openai_file_inputs_cache"
 require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
+require_relative "../../dsl/configurations"
 module OpenAIHelper
   include BaseVendorHelper
   include InteractionUtils
@@ -28,11 +29,6 @@ module OpenAIHelper
   # 20 round-trips is generous for most workflows; Auto Forge complex builds may use 15+.
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
-  # Default threshold for Responses API server-side compaction.
-  # 150K leaves ~50K headroom inside GPT-5's 200K context window
-  # for the model to render a complete response after compaction fires.
-  # Apps can override via MDSL `compaction do compact_threshold N end`.
-  DEFAULT_COMPACT_THRESHOLD = 150_000
   REASONING_CONTEXT_MAX = 3
 
   define_timeouts "OPENAI", open: 20, read: 600, write: 120
@@ -1382,7 +1378,7 @@ module OpenAIHelper
       if compaction_settings.is_a?(Hash) && !compaction_settings.empty?
         threshold = compaction_settings[:compact_threshold] || compaction_settings["compact_threshold"]
       end
-      threshold = DEFAULT_COMPACT_THRESHOLD if threshold.nil? || threshold.to_i <= 0
+      threshold = MonadicDSL::CompactionConfiguration::DEFAULT_COMPACT_THRESHOLD if threshold.nil? || threshold.to_i <= 0
 
       responses_body["context_management"] = [
         { "type" => "compaction", "compact_threshold" => threshold.to_i }

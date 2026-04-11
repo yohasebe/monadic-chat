@@ -905,16 +905,21 @@ const dockerManager = new DockerManager();
 
 // Compare two version strings (e.g., "1.2.3" vs "1.2.4")
 function compareVersions(version1, version2) {
-  // Parse version string into components
+  // Parse version string into components. Split the prerelease into
+  // dot-separated identifiers so we can compare them numerically when
+  // both sides are integers — see semver.org §11.4.1.
+  // Without this split, "beta.10" would compare as lexicographically LESS
+  // than "beta.9" (because "1" < "9" in string order), causing the update
+  // check to report the old version as "latest" when 10 is actually newer.
   const parseVersion = (version) => {
-    const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/);
+    const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?(?:\+[a-zA-Z0-9.-]+)?$/);
     if (!match) return null;
 
     return {
       major: parseInt(match[1], 10),
       minor: parseInt(match[2], 10),
       patch: parseInt(match[3], 10),
-      prerelease: match[4] || null
+      prerelease: match[4] ? match[4].split('.') : []
     };
   };
 
@@ -932,16 +937,34 @@ function compareVersions(version1, version2) {
   if (v1.patch !== v2.patch) return v1.patch - v2.patch;
 
   // If versions are equal but one has prerelease, stable version is higher
-  // Examples: 1.0.0 > 1.0.0-beta.3, 1.0.0-beta.3 < 1.0.0
-  if (v1.prerelease && !v2.prerelease) return -1; // v1 is prerelease, v2 is stable
-  if (!v1.prerelease && v2.prerelease) return 1;  // v1 is stable, v2 is prerelease
+  // (semver.org §11.3): 1.0.0 > 1.0.0-beta.3
+  if (v1.prerelease.length === 0 && v2.prerelease.length > 0) return 1;
+  if (v1.prerelease.length > 0 && v2.prerelease.length === 0) return -1;
 
-  // Both are prerelease or both are stable
-  if (v1.prerelease && v2.prerelease) {
-    return v1.prerelease.localeCompare(v2.prerelease);
+  // Compare prerelease identifiers one by one (semver.org §11.4)
+  const minLength = Math.min(v1.prerelease.length, v2.prerelease.length);
+  for (let i = 0; i < minLength; i++) {
+    const a = v1.prerelease[i];
+    const b = v2.prerelease[i];
+    const aIsNumeric = /^\d+$/.test(a);
+    const bIsNumeric = /^\d+$/.test(b);
+
+    if (aIsNumeric && bIsNumeric) {
+      // Both numeric — compare as integers. This is the fix: "10" > "9"
+      const numA = parseInt(a, 10);
+      const numB = parseInt(b, 10);
+      if (numA !== numB) return numA - numB;
+    } else if (aIsNumeric !== bIsNumeric) {
+      // semver.org §11.4.3: numeric identifiers have lower precedence
+      return aIsNumeric ? -1 : 1;
+    } else {
+      // Both non-numeric — lexical comparison
+      if (a !== b) return a < b ? -1 : 1;
+    }
   }
 
-  return 0;
+  // If all compared identifiers are equal, the one with more is greater
+  return v1.prerelease.length - v2.prerelease.length;
 }
 
 // Check for updates - called manually when user clicks "Check for Updates"

@@ -93,7 +93,7 @@ Chat. For implementation details, see the linked source or companion docs.
 | Per-app beta headers | beta_header | MDSL `betas [...]` | `claude_helper.rb:490-503` | App-level opt-in, e.g. document_generator_claude.mdsl uses `code-execution-2025-08-25`, `skills-2025-10-02` |
 | Per-spec beta headers | beta_header | `model_spec.js` `betas` | `claude_helper.rb:490-503` | Model-capability-level opt-in |
 | **Advisor Tool** | beta_header + server_tool | MDSL `advisor_tool do ... end` | `claude_helper.rb:488-503, 607-644` | Beta: `advisor-tool-2026-03-01`. Auto-added when app opts in. Forces `disable_parallel_tool_use: true`. First consumer: AutoForge Claude |
-| Multi-turn tool context accumulation | client_side | Automatic | `claude_helper.rb:1506-1520` | Preserves `function_returns` across recursive `api_request("tool")` so the model sees full multi-turn tool history. Critical for apps with sequential tool chains (generate → verify → finish) |
+| Multi-turn tool context accumulation | client_side | Automatic | `claude_helper.rb:1520-1521, 951` | Preserves `function_returns` across recursive `api_request("tool")` so the model sees full multi-turn tool history. Critical for apps with sequential tool chains (generate → verify → finish). **Note**: the same fix is replicated in `openai_helper.rb` and `grok_helper.rb` — see the OpenAI / Grok inventory rows below |
 | Structured output | api_feature | App config | `claude_helper.rb:~815` | `output_format` |
 | Tool choice forcing | api_feature | Internal | `claude_helper.rb:~715` | `tool_choice: {type: any}` |
 
@@ -108,6 +108,7 @@ parallel beta-header handling.**
 | Feature | Type | Activation | Source | Notes |
 |---|---|---|---|---|
 | Responses API (`/v1/responses`) | api_feature | Default for supported models | `openai_helper.rb:~1172` | Reasoning token preservation across tool calls |
+| Multi-turn tool context accumulation | client_side | Automatic | `openai_helper.rb:1543-1553, 1982-1985, 3024-3030` | `function_returns` is cleared on `role="user"` and then accumulated across recursive `api_request("tool")` calls so the model sees prior turns' tool_use/tool_result pairs. Applies to both `assemble_openai_chat_tool_results` (Chat Completions) and `assemble_openai_tool_results_from_responses` (Responses API). Without this, agentic loops like AutoForge would hallucinate that earlier `generate_application` calls had never happened |
 | Server-side compaction (`context_management`) | api_feature | **Default-on** for Responses API requests; MDSL override via `compaction do ... end` or `compaction false` to opt out | `openai_helper.rb:1360-1388` | GA Feb 2026. Default threshold `150_000` tokens (SSOT: `MonadicDSL::CompactionConfiguration::DEFAULT_COMPACT_THRESHOLD`). Opt-out falls back to `context_size` sliding window only. Applies only to Responses API — chat/completions-only models receive no compaction |
 | Reasoning effort | model_param | Model-gated + MDSL | `openai_helper.rb:~371,516-527` | `reasoning.effort` for o-series and GPT-5-family |
 | Adaptive reasoning | model_param | Model-gated | `openai_helper.rb` | Varies by model |
@@ -134,6 +135,7 @@ parallel beta-header handling.**
 |---|---|---|---|---|
 | Live search / `x_search` | server_tool | MDSL | `grok_helper.rb:~23` | Responses API server tool |
 | Reasoning effort | model_param | Model-gated | `grok_helper.rb` | — |
+| Multi-turn tool context accumulation | client_side | Automatic | `grok_helper.rb:510-517, 1460-1470, 1642-1644` | `function_returns` and `assistant_function_calls` are concat-accumulated across recursive `api_request("tool")` rounds using the `(obj[...] ||= []).concat(...)` pattern. Prior tool rounds remain visible to the model on the next API call. Cleared on `role="user"` at L936-937. Mirrors the Claude / OpenAI fix |
 
 ### DeepSeek
 

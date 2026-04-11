@@ -30,6 +30,13 @@ module WebSocketHelper
             stored_fragments = stored_fragments.last(MAX_TOOL_HTML_FRAGMENTS)
           end
           text = text.to_s + "\n\n" + stored_fragments.join("\n\n")
+          # Reset per-turn image-dedup trackers used by shared tools.
+          # The Jupyter add_jupyter_cells tool remembers PNG hashes seen
+          # in the current turn to avoid re-emitting the same plot when
+          # the model calls add_jupyter_cells multiple times. Clearing
+          # the set here (at the moment the final assistant response is
+          # sent to the UI) ties its lifetime to a single user turn.
+          session.delete(:_jupyter_seen_image_hashes)
         end
         Monadic::Utils::ExtraLogger.log { "[WebSocket] text extraction: content keys=#{content.keys}, text=#{text.class}:#{text.to_s[0..100]}..." } if CONFIG["EXTRA_LOGGING"] && session["parameters"]["app_name"]&.include?("Perplexity")
         # Extract thinking content uniformly from message

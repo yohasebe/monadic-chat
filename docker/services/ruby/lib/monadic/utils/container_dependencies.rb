@@ -117,11 +117,21 @@ module Monadic
         $?.success?
       end
 
-      # Locate monadic.sh in dev or packaged app environments
+      # Locate monadic.sh in dev or packaged app environments.
+      #
+      # This file lives at `docker/services/ruby/lib/monadic/utils/` (5 levels
+      # deep under the `docker/` folder that also contains `monadic.sh`).
+      # The canonical candidate goes 5 levels up (utils → monadic → lib → ruby
+      # → services → docker) then appends `monadic.sh`. Extra candidates are
+      # kept for packaged Electron environments where the Ruby files may be
+      # laid out slightly differently.
       def find_monadic_sh
+        base = File.dirname(__FILE__)
         candidates = [
-          File.expand_path("../../../../monadic.sh", File.dirname(__FILE__)),
-          File.expand_path("../../../../../docker/monadic.sh", File.dirname(__FILE__))
+          File.expand_path("../../../../../monadic.sh", base), # dev layout: docker/monadic.sh
+          File.expand_path("../../../../monadic.sh", base),    # flattened layout (no services/)
+          File.expand_path("../../../../../docker/monadic.sh", base),
+          File.expand_path("../../../../docker/monadic.sh", base)
         ]
         candidates.find { |path| File.exist?(path) }
       end

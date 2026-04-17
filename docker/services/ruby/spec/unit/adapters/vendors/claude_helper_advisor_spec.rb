@@ -8,19 +8,19 @@ require_relative '../../../../lib/monadic/dsl/configurations'
 # See docs_dev/provider_specific_features.md for the policy context.
 RSpec.describe 'Claude Advisor Tool integration' do
   describe MonadicDSL::AdvisorToolConfiguration do
-    it 'uses claude-opus-4-6 as the default advisor model' do
+    it 'uses claude-opus-4-7 as the default advisor model' do
       cfg = described_class.new
-      expect(cfg.to_hash).to eq(model: 'claude-opus-4-6')
+      expect(cfg.to_hash).to eq(model: 'claude-opus-4-7')
     end
 
     it 'supports custom model, max_uses, and caching' do
       cfg = described_class.new
-      cfg.model 'claude-opus-4-6'
+      cfg.model 'claude-opus-4-7'
       cfg.max_uses 3
       cfg.caching true
 
       hash = cfg.to_hash
-      expect(hash[:model]).to eq('claude-opus-4-6')
+      expect(hash[:model]).to eq('claude-opus-4-7')
       expect(hash[:max_uses]).to eq(3)
       expect(hash[:caching]).to eq(type: 'ephemeral', ttl: '5m')
     end
@@ -78,16 +78,16 @@ RSpec.describe 'Claude Advisor Tool integration' do
     end
 
     it 'returns the config hash when set with symbol keys' do
-      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-6', max_uses: 3 })
+      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-7', max_uses: 3 })
       result = helper.pub_claude_advisor_settings(app_name)
-      expect(result[:model]).to eq('claude-opus-4-6')
+      expect(result[:model]).to eq('claude-opus-4-7')
       expect(result[:max_uses]).to eq(3)
     end
 
     it 'returns the config hash when set with string keys' do
-      stub_app_with_settings('advisor_tool' => { 'model' => 'claude-opus-4-6' })
+      stub_app_with_settings('advisor_tool' => { 'model' => 'claude-opus-4-7' })
       result = helper.pub_claude_advisor_settings(app_name)
-      expect(result['model']).to eq('claude-opus-4-6')
+      expect(result['model']).to eq('claude-opus-4-7')
     end
 
     it 'treats an empty hash as no opt-in' do
@@ -105,18 +105,18 @@ RSpec.describe 'Claude Advisor Tool integration' do
     end
 
     it 'appends an advisor_20260301 entry when configured' do
-      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-6', max_uses: 3 })
+      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-7', max_uses: 3 })
       body = {}
       helper.pub_add_claude_advisor_tool(body, app_name)
       advisor = body['tools'].find { |t| t['type'] == 'advisor_20260301' }
       expect(advisor).not_to be_nil
       expect(advisor['name']).to eq('advisor')
-      expect(advisor['model']).to eq('claude-opus-4-6')
+      expect(advisor['model']).to eq('claude-opus-4-7')
       expect(advisor['max_uses']).to eq(3)
     end
 
     it 'omits max_uses when unset' do
-      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-6' })
+      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-7' })
       body = {}
       helper.pub_add_claude_advisor_tool(body, app_name)
       advisor = body['tools'].first
@@ -125,7 +125,7 @@ RSpec.describe 'Claude Advisor Tool integration' do
 
     it 'normalizes caching hash to string keys' do
       stub_app_with_settings(advisor_tool: {
-        model: 'claude-opus-4-6',
+        model: 'claude-opus-4-7',
         caching: { type: 'ephemeral', ttl: '5m' }
       })
       body = {}
@@ -135,7 +135,7 @@ RSpec.describe 'Claude Advisor Tool integration' do
     end
 
     it 'does not duplicate the advisor tool on a second call' do
-      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-6' })
+      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-7' })
       body = {}
       helper.pub_add_claude_advisor_tool(body, app_name)
       helper.pub_add_claude_advisor_tool(body, app_name)
@@ -143,11 +143,11 @@ RSpec.describe 'Claude Advisor Tool integration' do
       expect(advisor_entries.length).to eq(1)
     end
 
-    it 'defaults to claude-opus-4-6 when model is missing' do
+    it 'defaults to claude-opus-4-7 when model is missing' do
       stub_app_with_settings(advisor_tool: { max_uses: 2 })
       body = {}
       helper.pub_add_claude_advisor_tool(body, app_name)
-      expect(body['tools'].first['model']).to eq('claude-opus-4-6')
+      expect(body['tools'].first['model']).to eq('claude-opus-4-7')
     end
   end
 
@@ -166,7 +166,7 @@ RSpec.describe 'Claude Advisor Tool integration' do
       # configure_claude_tools. Here we assert that an advisor-configured
       # app returns truthy from claude_advisor_settings, which gates the
       # disable_parallel_tool_use flag.
-      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-6' })
+      stub_app_with_settings(advisor_tool: { model: 'claude-opus-4-7' })
       expect(helper.pub_claude_advisor_settings(app_name)).to be_truthy
     end
 
@@ -182,7 +182,7 @@ RSpec.describe 'Claude Advisor Tool integration' do
     it 'separates executor and advisor iterations by type' do
       iterations = [
         { 'type' => 'message',         'input_tokens' => 400, 'output_tokens' => 80  },
-        { 'type' => 'advisor_message', 'input_tokens' => 820, 'output_tokens' => 1600, 'model' => 'claude-opus-4-6' },
+        { 'type' => 'advisor_message', 'input_tokens' => 820, 'output_tokens' => 1600, 'model' => 'claude-opus-4-7' },
         { 'type' => 'message',         'input_tokens' => 1300, 'output_tokens' => 440 }
       ]
 

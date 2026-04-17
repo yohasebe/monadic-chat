@@ -52,6 +52,10 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-6")).to be true
     end
 
+    it "detects adaptive thinking support for Opus 4.7" do
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-7")).to be true
+    end
+
     it "detects adaptive thinking support for Sonnet 4.6" do
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-sonnet-4-6")).to be true
     end

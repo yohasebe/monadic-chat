@@ -535,6 +535,27 @@ const modelSpec = {
     "reasoning_effort": [["none", "low", "medium", "high"], "high"]
   },
   // Anthropic models
+  "claude-opus-4-7": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
+  },
   "claude-opus-4-6": {
     "context_window" : [1, 1000000],
     "api_version": "2023-06-01",

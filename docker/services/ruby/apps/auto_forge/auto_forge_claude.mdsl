@@ -27,7 +27,7 @@ app "AutoForgeClaude" do
   # long autonomous loops. The advisor sees the full transcript and returns
   # a short plan or course correction; the executor (Sonnet 4.6) continues.
   advisor_tool do
-    model "claude-opus-4-6"
+    model "claude-opus-4-7"
     max_uses 3
     caching true
   end

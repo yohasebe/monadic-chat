@@ -49,7 +49,7 @@ app "JupyterNotebookClaude" do
   # multi-cell analysis tasks. The advisor sees the full conversation and
   # returns a short plan; the executor (Sonnet 4.6) continues.
   advisor_tool do
-    model "claude-opus-4-6"
+    model "claude-opus-4-7"
     max_uses 2
     caching true
   end

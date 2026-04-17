@@ -89,6 +89,33 @@ module Monadic
         started
       end
 
+      # Fire-and-forget background trigger to ensure containers for a given
+      # app name. Looks up APPS[app_name], schedules a background thread to
+      # run ensure_services_for_app, and swallows errors after logging them.
+      #
+      # Used by callers that want to kick off startup without waiting (WebSocket
+      # UPDATE_PARAMS, LOAD, and legacy HTTP redirect). Centralising the
+      # Thread.new + rescue + log pattern here keeps those call sites in sync
+      # and avoids per-site drift in error handling.
+      #
+      # @param app_name [String, nil] app_name key into APPS
+      # @param reason [String] short tag for log messages
+      # @return [Boolean] true if a thread was scheduled, false otherwise
+      def ensure_services_async(app_name, reason: "trigger")
+        return false if app_name.nil? || app_name.to_s.strip.empty?
+        return false unless defined?(APPS) && APPS[app_name]
+
+        target_settings = APPS[app_name].settings
+        Thread.new do
+          ensure_services_for_app(target_settings)
+        rescue StandardError => e
+          if defined?(Monadic::Utils::ExtraLogger)
+            Monadic::Utils::ExtraLogger.log { "[ContainerDeps] #{reason}: #{e.message}" }
+          end
+        end
+        true
+      end
+
       # Check if a container is currently running.
       def container_running?(service)
         container_name = CONTAINER_NAMES[service]

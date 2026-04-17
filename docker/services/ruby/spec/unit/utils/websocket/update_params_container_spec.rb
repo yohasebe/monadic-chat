@@ -16,59 +16,38 @@ require "spec_helper"
 
 RSpec.describe "handle_ws_update_params container startup integration" do
   # Isolate the part of the handler we care about (the app-change guard +
-  # background thread call) into a helper so we can test without loading
-  # the entire WebSocket stack.
-  def simulate_update_params(session:, incoming:, apps:)
+  # helper invocation) so we can test without loading the entire WebSocket
+  # stack. Mirrors the real handler logic at misc_handlers.rb L115+.
+  def simulate_update_params(session:, incoming:)
     current_app = session[:parameters]["app_name"]
     new_app = incoming["app_name"]&.to_s
 
     # Merge the incoming params into the session (subset of the real handler)
     session[:parameters].merge!(incoming.transform_keys(&:to_s))
 
-    return nil unless new_app && apps[new_app] && new_app != current_app
+    return nil unless new_app && new_app != current_app
 
-    target_settings = apps[new_app].settings
-    # In the real handler this runs in Thread.new; for the test we call
-    # synchronously so we can assert the invocation.
-    Monadic::Utils::ContainerDependencies.ensure_services_for_app(target_settings)
-    target_settings
-  end
-
-  let(:code_interpreter_settings) do
-    {
-      "app_name" => "CodeInterpreterOpenAI",
-      imported_tool_groups: [{ name: :python_execution, visibility: "always" }]
-    }
-  end
-
-  let(:chat_settings) do
-    {
-      "app_name" => "ChatOpenAI",
-      imported_tool_groups: []
-    }
-  end
-
-  let(:apps) do
-    {
-      "CodeInterpreterOpenAI" => Struct.new(:settings).new(code_interpreter_settings),
-      "ChatOpenAI" => Struct.new(:settings).new(chat_settings)
-    }
+    # In the real handler, ensure_services_async wraps a Thread.new; the
+    # helper-level spec (container_dependencies_spec) verifies that the
+    # Thread runs. Here we just verify the helper is invoked with the
+    # correct app_name.
+    Monadic::Utils::ContainerDependencies.ensure_services_async(new_app, reason: "UPDATE_PARAMS")
+    new_app
   end
 
   before do
     require_relative "../../../../lib/monadic/utils/container_dependencies"
   end
 
-  it "triggers ensure_services_for_app with target app settings on initial selection" do
+  it "triggers ensure_services_async on initial selection" do
     session = { parameters: {} }
     incoming = { "app_name" => "CodeInterpreterOpenAI" }
 
     expect(Monadic::Utils::ContainerDependencies)
-      .to receive(:ensure_services_for_app)
-      .with(code_interpreter_settings)
+      .to receive(:ensure_services_async)
+      .with("CodeInterpreterOpenAI", reason: "UPDATE_PARAMS")
 
-    result = simulate_update_params(session: session, incoming: incoming, apps: apps)
-    expect(result).to eq(code_interpreter_settings)
+    simulate_update_params(session: session, incoming: incoming)
   end
 
   it "triggers on app change (ChatOpenAI -> CodeInterpreterOpenAI)" do
@@ -76,10 +55,10 @@ RSpec.describe "handle_ws_update_params container startup integration" do
     incoming = { "app_name" => "CodeInterpreterOpenAI" }
 
     expect(Monadic::Utils::ContainerDependencies)
-      .to receive(:ensure_services_for_app)
-      .with(code_interpreter_settings)
+      .to receive(:ensure_services_async)
+      .with("CodeInterpreterOpenAI", reason: "UPDATE_PARAMS")
 
-    simulate_update_params(session: session, incoming: incoming, apps: apps)
+    simulate_update_params(session: session, incoming: incoming)
   end
 
   it "does NOT trigger when the same app is re-submitted (no change)" do
@@ -87,9 +66,9 @@ RSpec.describe "handle_ws_update_params container startup integration" do
     incoming = { "app_name" => "CodeInterpreterOpenAI" }
 
     expect(Monadic::Utils::ContainerDependencies)
-      .not_to receive(:ensure_services_for_app)
+      .not_to receive(:ensure_services_async)
 
-    simulate_update_params(session: session, incoming: incoming, apps: apps)
+    simulate_update_params(session: session, incoming: incoming)
   end
 
   it "does NOT trigger when incoming has no app_name" do
@@ -97,18 +76,8 @@ RSpec.describe "handle_ws_update_params container startup integration" do
     incoming = { "temperature" => 0.7 }
 
     expect(Monadic::Utils::ContainerDependencies)
-      .not_to receive(:ensure_services_for_app)
+      .not_to receive(:ensure_services_async)
 
-    simulate_update_params(session: session, incoming: incoming, apps: apps)
-  end
-
-  it "does NOT trigger when the app_name is unknown (APPS missing)" do
-    session = { parameters: {} }
-    incoming = { "app_name" => "TotallyMadeUpApp" }
-
-    expect(Monadic::Utils::ContainerDependencies)
-      .not_to receive(:ensure_services_for_app)
-
-    simulate_update_params(session: session, incoming: incoming, apps: apps)
+    simulate_update_params(session: session, incoming: incoming)
   end
 end

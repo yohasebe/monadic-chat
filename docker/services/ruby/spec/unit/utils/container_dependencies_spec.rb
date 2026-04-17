@@ -239,4 +239,56 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       expect(File.basename(File.dirname(found))).to eq("docker")
     end
   end
+
+  # ensure_services_async is the fire-and-forget wrapper called by three
+  # call sites: UPDATE_PARAMS (handle_ws_update_params), LOAD reconnect
+  # (handle_load_message), and the legacy bookmark route (monadic.rb).
+  # These tests lock down the contract so drift between call sites can't
+  # reintroduce the "wire is there but never fires" class of bug.
+  describe ".ensure_services_async" do
+    before do
+      # APPS is the global module-level registry of apps. Stub it here so the
+      # helper's lookup path is exercised without loading the full app set.
+      code_interpreter_settings = {
+        imported_tool_groups: [{ name: :python_execution, visibility: "always" }]
+      }
+      stub_const("APPS", {
+        "CodeInterpreterOpenAI" => Struct.new(:settings).new(code_interpreter_settings)
+      })
+      # Avoid actually starting containers during the test.
+      allow(described_class).to receive(:ensure_services_for_app).and_return([])
+      # Run the spawned thread inline so expectations are synchronous.
+      allow(Thread).to receive(:new) { |&blk| blk.call; Thread.current }
+    end
+
+    it "returns true and calls ensure_services_for_app when app exists" do
+      expect(described_class).to receive(:ensure_services_for_app)
+        .with(hash_including(imported_tool_groups: an_instance_of(Array)))
+      result = described_class.ensure_services_async("CodeInterpreterOpenAI", reason: "test")
+      expect(result).to be true
+    end
+
+    it "returns false and does nothing when app_name is nil" do
+      expect(described_class).not_to receive(:ensure_services_for_app)
+      expect(described_class.ensure_services_async(nil)).to be false
+    end
+
+    it "returns false and does nothing when app_name is empty string" do
+      expect(described_class).not_to receive(:ensure_services_for_app)
+      expect(described_class.ensure_services_async("")).to be false
+      expect(described_class.ensure_services_async("   ")).to be false
+    end
+
+    it "returns false when the app is not in APPS" do
+      expect(described_class).not_to receive(:ensure_services_for_app)
+      expect(described_class.ensure_services_async("NonexistentApp")).to be false
+    end
+
+    it "swallows errors from ensure_services_for_app without raising" do
+      allow(described_class).to receive(:ensure_services_for_app).and_raise("boom")
+      expect {
+        described_class.ensure_services_async("CodeInterpreterOpenAI", reason: "test-fail")
+      }.not_to raise_error
+    end
+  end
 end

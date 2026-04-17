@@ -14,6 +14,18 @@ module WebSocketHelper
       session[:error] = nil
     end
 
+    # On-demand container startup for session reconnect. When the browser
+    # reconnects with an already-selected app (restored from session state),
+    # UPDATE_PARAMS does not fire because the app_name doesn't change from
+    # the client's perspective. Without this trigger, Code Interpreter /
+    # Jupyter Notebook users who reload the page would find the Python
+    # container stopped (since Electron stops it on Quit) and their first
+    # tool call would fail.
+    restored_app_name = session[:parameters] && session[:parameters]["app_name"]
+    if restored_app_name && !restored_app_name.to_s.strip.empty?
+      Monadic::Utils::ContainerDependencies.ensure_services_async(restored_app_name, reason: "LOAD reconnect")
+    end
+
     # Prepare app data
     apps_data = prepare_apps_data
 

@@ -712,25 +712,19 @@ APPS.each do |k, v|
   # e.g., `Monadic App` to `monadic_app`
   endpoint = k.to_s.gsub(/\s+/, "_").downcase
 
+  # Legacy bookmark-friendly URL. Modern UI flows select apps entirely
+  # via WebSocket (UPDATE_PARAMS — see misc_handlers.rb), so this route
+  # is only hit by stale bookmarks or direct URL navigation. We intentionally
+  # do NOT clear session[:messages] or overwrite the full parameter set —
+  # doing so would silently destroy user-visible state for anyone who
+  # accidentally loaded the URL. We only hint the app_name so the UI can
+  # pre-select it on LOAD, and fire on-demand container startup.
   get "/#{endpoint}" do
-    session[:messages] = []
-    if session[:websocket_session_id]
-      WebSocketHelper.update_session_state(
-        session[:websocket_session_id],
-        messages: session[:messages],
-        parameters: session[:parameters]
-      )
-    end
-    parameters = v.settings.dup
-    session[:parameters] = parameters
+    session[:parameters] ||= {}
+    target_app_name = v.settings[:app_name] || v.settings["app_name"] || k.to_s
+    session[:parameters]["app_name"] = target_app_name
 
-    # On-demand container startup: ensure required containers are running
-    # in a background thread so the redirect is not delayed.
-    Thread.new do
-      Monadic::Utils::ContainerDependencies.ensure_services_for_app(parameters)
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[ContainerDeps] #{e.message}" }
-    end
+    Monadic::Utils::ContainerDependencies.ensure_services_async(target_app_name, reason: "legacy route")
 
     redirect "/"
   end

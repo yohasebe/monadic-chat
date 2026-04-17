@@ -122,19 +122,12 @@ module WebSocketHelper
 
     # On-demand container startup: when the user selects an app that needs
     # Python / Selenium / PGVector, make sure the target container is running
-    # before they send their first message. This is the WebSocket-path
-    # equivalent of the HTTP redirect at monadic.rb#/:endpoint, which modern
-    # UI flows never hit because app selection is WebSocket-only. The helper
-    # is idempotent (checks running state before starting) so we can fire it
-    # on every app change cheaply. Runs in a background thread so the
-    # parameter broadcast is not delayed by docker compose startup latency.
-    if new_app && defined?(APPS) && APPS[new_app] && new_app != current_app
-      target_settings = APPS[new_app].settings
-      Thread.new do
-        Monadic::Utils::ContainerDependencies.ensure_services_for_app(target_settings)
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[ContainerDeps] on app change: #{e.message}" }
-      end
+    # before they send their first message. Modern UI flows select apps
+    # entirely via WebSocket (UPDATE_PARAMS), so the HTTP redirect route is
+    # never hit. The helper is idempotent and runs in a background thread
+    # so the parameter broadcast is not delayed by docker compose latency.
+    if new_app && new_app != current_app
+      Monadic::Utils::ContainerDependencies.ensure_services_async(new_app, reason: "UPDATE_PARAMS")
     end
 
     sanitized = {}

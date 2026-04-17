@@ -1245,7 +1245,7 @@ const providerDefaults = {
     "audio_transcription": ["gemini-3.1-flash-lite-preview"],
     "image": ["gemini-3.1-flash-image-preview", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
-    "tts": ["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
+    "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
     "chat": ["command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
@@ -1262,7 +1262,8 @@ const providerDefaults = {
     "code": ["grok-code-fast-1"],
     "vision": ["grok-4-1-fast-non-reasoning"],
     "image": ["grok-imagine-image"],
-    "video": ["grok-imagine-video"]
+    "video": ["grok-imagine-video"],
+    "tts": ["grok-tts"]
   },
   "perplexity": {
     "chat": ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]

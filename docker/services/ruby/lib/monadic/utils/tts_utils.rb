@@ -185,11 +185,21 @@ module InteractionUtils
         "Content-Type" => "application/json"
       }
 
-      # Apply speed control using natural language instructions
-      # Gemini TTS doesn't have a numeric speed parameter, so we use natural language prompts
-      # For default speed (1.0), skip instruction to reduce latency
-      # Note: Voice-specific style instructions removed to let each voice's natural characteristics come through
-      speed_instruction = if val_speed >= 1.8
+      # Resolve target model first so speed-prefix logic can branch on it.
+      # SSOT: providerDefaults.gemini.tts (primary = gemini-3.1-flash-tts-preview).
+      model_name = resolve_tts_model(provider)
+
+      # Apply speed control using natural language instructions for the 2.5
+      # TTS models. The 3.1 dedicated TTS model (gemini-3.1-flash-tts-preview)
+      # routes through a content classifier that treats pace prefixes as
+      # anomalous prompts — it can respond with text tokens or a
+      # PROHIBITED_CONTENT rejection. For 3.1 we omit the prefix and rely on
+      # player-side playback rate instead. Skipping the prefix at speed 1.0
+      # also reduces latency for the common path on older models.
+      uses_pace_prefix = !model_name.to_s.start_with?("gemini-3")
+      speed_instruction = if !uses_pace_prefix
+        ""  # 3.x TTS models: never prepend pace instruction
+      elsif val_speed >= 1.8
         "[extremely fast] "
       elsif val_speed >= 1.4
         "Speak quickly. "
@@ -225,11 +235,44 @@ module InteractionUtils
         }
       }
 
-      # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
-      model_name = resolve_tts_model(provider)
-      # Always use non-streaming endpoint for better performance
-      # Gemini TTS returns complete audio in one response anyway
+      # Always use non-streaming endpoint for better performance.
+      # Gemini TTS returns complete audio in one response anyway. The 3.1
+      # model is REST-only (no Live API), so this path covers both.
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
+    when "grok"
+      # Grok dedicated TTS REST API. Uses a single model (grok-tts) with 5
+      # voice IDs (eve, ara, rex, sal, leo). Returns MP3 bytes.
+      # See https://docs.x.ai/ (Grok TTS) for the public reference.
+      api_key = CONFIG["XAI_API_KEY"]
+      if api_key.nil?
+        return { "type" => "error", "content" => "ERROR: XAI_API_KEY is not set." }
+      end
+
+      puts "Grok TTS: voice=#{voice}, provider=#{provider}" if ENV["DEBUG_TTS"]
+
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
+
+      model = resolve_tts_model(provider)
+
+      body = {
+        "text" => text_converted,
+        "voice_id" => voice.to_s.downcase,
+        "language" => (language == "auto" ? "auto" : language),
+        "output_format" => {
+          "codec" => "mp3",
+          "sample_rate" => 24000,
+          "bit_rate" => 128000
+        }
+      }
+      body["model"] = model if model && !model.empty?
+
+      # Grok REST TTS is non-streaming. If callers request streaming, they
+      # must degrade to non-streaming here.
+      streaming_supported = false
+      target_uri = "https://api.x.ai/v1/tts"
     else
       # Default error case
       return { "type" => "error", "content" => "ERROR: Unknown TTS provider: #{provider}" }
@@ -844,6 +887,89 @@ module InteractionUtils
         end
       end
 
+    when "grok"
+      # Grok dedicated TTS REST API (non-streaming). Mirrors the synchronous
+      # path in tts_api_request; provided here so the streaming/async helper
+      # can be used uniformly by callers.
+      api_key = CONFIG["XAI_API_KEY"]
+      if api_key.nil?
+        error_result = {
+          "type" => "error",
+          "content" => "ERROR: XAI_API_KEY is not set."
+        }
+        error_result["sequence_id"] = sequence_id if sequence_id
+        Async do
+          block.call(error_result)
+        end
+        return
+      end
+
+      model_name = resolve_tts_model(provider)
+      body = {
+        "text" => text_converted,
+        "voice_id" => voice.to_s.downcase,
+        "language" => (language == "auto" ? "auto" : language),
+        "output_format" => {
+          "codec" => "mp3",
+          "sample_rate" => 24000,
+          "bit_rate" => 128000
+        }
+      }
+      body["model"] = model_name if model_name && !model_name.empty?
+
+      target_uri = "https://api.x.ai/v1/tts"
+      require 'http'
+
+      Thread.new do
+        begin
+          response = HTTP
+            .timeout(connect: 5, read: 30)
+            .headers(
+              "Content-Type" => "application/json",
+              "Authorization" => "Bearer #{api_key}"
+            )
+            .post(target_uri, json: body)
+
+          if response.status.success?
+            audio_bytes = response.body.to_s
+            if audio_bytes.empty?
+              error_result = { "type" => "error", "content" => "ERROR: Empty audio response from Grok TTS" }
+              error_result["sequence_id"] = sequence_id if sequence_id
+              Async { block.call(error_result) }
+              next
+            end
+
+            encoded = Base64.strict_encode64(audio_bytes)
+            result = {
+              "type" => "audio",
+              "content" => encoded,
+              "mime_type" => "audio/mpeg"
+            }
+            result["sequence_id"] = sequence_id if sequence_id
+
+            Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: SUCCESS (Grok) - audio_size=#{audio_bytes.length}, sequence_id=#{sequence_id}" }
+
+            Async { block.call(result) }
+          else
+            error_result = {
+              "type" => "error",
+              "content" => "ERROR: Grok TTS API error: #{response.status} - #{response.body.to_s[0..500]}"
+            }
+            error_result["sequence_id"] = sequence_id if sequence_id
+            Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Grok HTTP error - status=#{response.status}, sequence_id=#{sequence_id}" }
+            Async { block.call(error_result) }
+          end
+        rescue => e
+          error_result = {
+            "type" => "error",
+            "content" => "ERROR: Grok TTS connection failed: #{e.message}"
+          }
+          error_result["sequence_id"] = sequence_id if sequence_id
+          Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Grok connection error - #{e.message}, sequence_id=#{sequence_id}" }
+          Async { block.call(error_result) }
+        end
+      end
+
     when "web-speech", "webspeech"
       # Web Speech API doesn't need HTTP request
       result = {
@@ -919,6 +1045,13 @@ module InteractionUtils
     elsif provider_label =~ /\Amistral/
       tts_models = if defined?(Monadic::Utils::ModelSpec)
                      Monadic::Utils::ModelSpec.get_provider_models("mistral", "tts")
+                   end
+      tts_models&.[](0)
+    elsif provider_label =~ /\Agrok/
+      # Grok TTS uses a single dedicated model (grok-tts).
+      # SSOT: providerDefaults.xai.tts in model_spec.js.
+      tts_models = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.get_provider_models("xai", "tts")
                    end
       tts_models&.[](0)
     elsif provider_label =~ /\Aelevenlabs/

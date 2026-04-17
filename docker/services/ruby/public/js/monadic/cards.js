@@ -200,6 +200,7 @@ function attachEventListeners(card) {
       const elevenlabsEl = $id("elevenlabs-tts-voice");
       const geminiEl = $id("gemini-tts-voice");
       const mistralEl = $id("mistral-tts-voice");
+      const grokEl = $id("grok-tts-voice");
       const convLangEl = $id("conversation-language");
 
       const ttsMessage = {
@@ -210,6 +211,7 @@ function attachEventListeners(card) {
         elevenlabs_tts_voice: elevenlabsEl ? elevenlabsEl.value : '',
         gemini_tts_voice: geminiEl ? geminiEl.value : '',
         mistral_tts_voice: mistralEl ? mistralEl.value : '',
+        grok_tts_voice: grokEl ? grokEl.value : '',
         tts_speed: ttsSpeed,
         conversation_language: convLangEl ? convLangEl.value : "auto",
         mid: mid

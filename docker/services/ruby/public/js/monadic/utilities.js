@@ -1137,6 +1137,7 @@ function setParams() {
   params["elevenlabs_tts_voice"] = getVal("elevenlabs-tts-voice");
   params["gemini_tts_voice"] = getVal("gemini-tts-voice");
   params["mistral_tts_voice"] = getVal("mistral-tts-voice");
+  params["grok_tts_voice"] = getVal("grok-tts-voice");
   params["tts_speed"] = getVal("tts-speed");
   params["conversation_language"] = getVal("conversation-language");
   // Update asr_lang for STT/TTS

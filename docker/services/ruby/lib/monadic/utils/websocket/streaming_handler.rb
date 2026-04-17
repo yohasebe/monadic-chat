@@ -240,6 +240,8 @@ module WebSocketHelper
         voice = obj["gemini_tts_voice"]
       elsif provider == "mistral"
         voice = obj["mistral_tts_voice"]
+      elsif provider == "grok"
+        voice = obj["grok_tts_voice"]
       else
         voice = obj["tts_voice"]
       end

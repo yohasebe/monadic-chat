@@ -215,4 +215,28 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       expect(described_class.service_to_container_name(:pgvector)).to eq("monadic-chat-pgvector-container")
     end
   end
+
+  # Regression: path resolution for monadic.sh in dev layout (2026-04).
+  # Prior to the fix, the candidate paths in find_monadic_sh resolved to
+  # `docker/services/monadic.sh` and `docker/docker/monadic.sh` — neither
+  # file exists. As a result, on-demand container startup fell through to
+  # the `docker compose` fallback which also failed in packaged environments,
+  # and the Python container never auto-started when the user selected
+  # Code Interpreter / Jupyter Notebook apps.
+  describe ".find_monadic_sh" do
+    it "resolves to the real docker/monadic.sh in the dev repository" do
+      found = described_class.find_monadic_sh
+      expect(found).not_to be_nil,
+        "find_monadic_sh returned nil — monadic.sh cannot be located from container_dependencies.rb"
+      expect(File.exist?(found)).to be true
+      expect(File.basename(found)).to eq("monadic.sh")
+    end
+
+    it "finds a file whose parent directory is `docker`" do
+      # Sanity: the found file must live under the project's `docker/` folder,
+      # not a spurious `docker/docker/` or similar doubled path.
+      found = described_class.find_monadic_sh
+      expect(File.basename(File.dirname(found))).to eq("docker")
+    end
+  end
 end

@@ -48,7 +48,7 @@ app "CodeInterpreterClaude" do
   # multi-step data analysis and coding tasks. The advisor sees the full
   # conversation and returns a short plan; the executor continues.
   advisor_tool do
-    model "claude-opus-4-6"
+    model "claude-opus-4-7"
     max_uses 2
     caching true
   end

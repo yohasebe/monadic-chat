@@ -46,7 +46,7 @@ RSpec.describe 'Claude Advisor Tool rollout — integration' do
       advisor = settings[:advisor_tool] || settings['advisor_tool']
 
       expect(advisor).not_to be_nil
-      expect(advisor[:model] || advisor['model']).to eq('claude-opus-4-6')
+      expect(advisor[:model] || advisor['model']).to eq('claude-opus-4-7')
       expect(advisor[:max_uses] || advisor['max_uses']).to eq(expected_max_uses)
 
       caching = advisor[:caching] || advisor['caching']

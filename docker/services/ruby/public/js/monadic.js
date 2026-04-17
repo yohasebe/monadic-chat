@@ -822,7 +822,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      // Enable Mistral TTS / Cohere STT based on API key availability
+      // Enable Mistral TTS / Cohere STT / Grok TTS based on API key availability
       if (aiUserDefaults) {
         if (aiUserDefaults.mistral && aiUserDefaults.mistral.has_key) {
           var mistralTtsOpt = $id("mistral-tts-provider-option");
@@ -833,6 +833,11 @@ document.addEventListener("DOMContentLoaded", function () {
         if (aiUserDefaults.cohere && aiUserDefaults.cohere.has_key) {
           var cohereSttOpt = $id("cohere-stt-transcribe");
           if (cohereSttOpt) cohereSttOpt.disabled = false;
+        }
+        if (aiUserDefaults.grok && aiUserDefaults.grok.has_key) {
+          // Grok TTS uses XAI_API_KEY; expose the option once the key is set.
+          var grokTtsOpt = $id("grok-tts-provider-option");
+          if (grokTtsOpt) grokTtsOpt.disabled = false;
         }
       }
     }
@@ -3815,6 +3820,7 @@ document.addEventListener("DOMContentLoaded", function () {
     $hide($id("openai-voices"));
     $hide($id("gemini-voices"));
     $hide($id("mistral-voices"));
+    $hide($id("grok-voices"));
     $hide($id("webspeech-voices"));
     $show($id("tts-speed-container")); // Show speed slider by default (hidden for providers that don't support it)
 
@@ -3825,6 +3831,11 @@ document.addEventListener("DOMContentLoaded", function () {
       $show($id("gemini-voices"));
     } else if (params["tts_provider"] === "mistral") {
       $show($id("mistral-voices"));
+      $hide($id("tts-speed-container"));
+    } else if (params["tts_provider"] === "grok") {
+      // Grok TTS does not support speed control (no server-side speed param;
+      // playback rate handled client-side via AVAudioPlayer in native clients).
+      $show($id("grok-voices"));
       $hide($id("tts-speed-container"));
     } else if (params["tts_provider"] === "webspeech") {
       $show($id("webspeech-voices"));
@@ -3864,6 +3875,14 @@ document.addEventListener("DOMContentLoaded", function () {
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('gemini_voice_change');
+    }
+  });
+
+  $on($id("grok-tts-voice"), "change", function() {
+    params["grok_tts_voice"] = ($id("grok-tts-voice") || {}).value;
+    setCookie("grok-tts-voice", params["grok_tts_voice"], 30);
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('grok_voice_change');
     }
   });
 

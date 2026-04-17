@@ -617,7 +617,7 @@ function ttsSpeak(text, stream, callback) {
     return false;
   }
   
-  // For traditional TTS providers (OpenAI, ElevenLabs, Gemini)
+  // For traditional TTS providers (OpenAI, ElevenLabs, Gemini, Mistral, Grok)
   const ttsVoiceEl = $id("tts-voice");
   const voice = ttsVoiceEl ? ttsVoiceEl.value : "";
   const elevenlabsEl = $id("elevenlabs-tts-voice");
@@ -626,8 +626,10 @@ function ttsSpeak(text, stream, callback) {
   const gemini_voice = geminiEl ? geminiEl.value : "";
   const mistralEl = $id("mistral-tts-voice");
   const mistral_voice = mistralEl ? mistralEl.value : "";
-  
-  
+  const grokEl = $id("grok-tts-voice");
+  const grok_voice = grokEl ? grokEl.value : "";
+
+
   // Determine mode based on streaming flag
   let mode = stream ? "TTS_STREAM" : "TTS";
   let response_format = "mp3";
@@ -644,6 +646,7 @@ function ttsSpeak(text, stream, callback) {
     elevenlabs_voice: elevenlabs_voice,
     gemini_voice: gemini_voice,
     mistral_voice: mistral_voice,
+    grok_voice: grok_voice,
     response_format: response_format
   };
 

@@ -149,6 +149,7 @@
     "serverVerifyFailed": "サーバーが実行中であることを確認できませんでした。Dockerの状態を確認して再起動してください。",
     "errorConnecting": "サーバーへの接続エラー。Dockerの状態を確認して再起動してください。",
     "newVersionAvailable": "新しいバージョン({{version}})が利用可能です。現在のバージョン: {{current}}。メニューから\"アップデートを確認\"をクリックしてダウンロードしてください。",
+    "downloadingUpdate": "バージョン {{version}} のアップデートをダウンロード中 . . .",
     "usingLatestVersion": "最新バージョン({{version}})を使用しています。",
     "failedToRetrieveVersion": "最新バージョン番号の取得に失敗しました。",
     "failedToCheckUpdates": "アップデートの確認に失敗しました: {{error}}",

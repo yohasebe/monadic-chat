@@ -5,7 +5,7 @@ process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor } = require('electron');
-const { autoUpdater } = require('electron-updater');
+const updater = require('./updater');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
 let extendedContextMenu = null;
 const i18n = require('./i18n');
@@ -996,42 +996,25 @@ function checkForUpdatesManual(showDialog = false) {
             // Show dialog only when menu is clicked
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              buttons: ['Download Now', 'View All Releases', 'Cancel'],
+              buttons: ['Download & Install', 'View All Releases', 'Cancel'],
+              defaultId: 0,
+              cancelId: 2,
               message: 'Update Available',
-              detail: `A new version (${latestVersion}) is available.\nCurrent version: ${currentVersion}\n\nClick "Download Now" to download the version for your system directly.`,
+              detail: `A new version (${latestVersion}) is available.\nCurrent version: ${currentVersion}\n\n"Download & Install" downloads the update in the background; you will be prompted to restart once the download finishes. Docker containers will be stopped gracefully before restart.`,
               icon: path.join(iconDir, 'app-icon.png')
             }).then((result) => {
               if (result.response === 0) {
-                // Download directly based on platform and architecture
-                const platform = process.platform;
-                const arch = process.arch;
-                let downloadUrl = '';
-                
-                if (platform === 'darwin') {
-                  // macOS
-                  if (arch === 'arm64') {
-                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/Monadic.Chat-${latestVersion}-arm64.dmg`;
-                  } else {
-                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/Monadic.Chat-${latestVersion}-x64.dmg`;
-                  }
-                } else if (platform === 'win32') {
-                  // Windows
-                  downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/Monadic.Chat.Setup.${latestVersion}.exe`;
-                } else if (platform === 'linux') {
-                  // Linux
-                  if (arch === 'arm64') {
-                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/monadic-chat_${latestVersion}_arm64.deb`;
-                  } else {
-                    downloadUrl = `https://github.com/yohasebe/monadic-chat/releases/download/v${latestVersion}/monadic-chat_${latestVersion}_amd64.deb`;
-                  }
+                // Start the electron-updater download; progress events are
+                // forwarded to the renderer, and the "update-downloaded"
+                // handler in updater.js prompts the user to restart.
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('command-output',
+                    formatMessage('info', 'messages.downloadingUpdate', { version: latestVersion }));
                 }
-                
-                if (downloadUrl) {
-                  shell.openExternal(downloadUrl);
-                } else {
-                  // Fallback to releases page
-                  shell.openExternal('https://github.com/yohasebe/monadic-chat/releases');
-                }
+                updater.downloadUpdate().catch((err) => {
+                  console.error('downloadUpdate failed:', err);
+                  // updater.js shows a fallback dialog linking to releases
+                });
               } else if (result.response === 1) {
                 // View all releases
                 shell.openExternal('https://github.com/yohasebe/monadic-chat/releases');
@@ -3600,6 +3583,17 @@ app.whenReady().then(async () => {
   if (!app.isDefaultProtocolClient('monadic')) {
     app.setAsDefaultProtocolClient('monadic');
   }
+
+  // Initialize electron-updater wiring. The actual update check continues to
+  // happen in checkForUpdatesManual() via raw.githubusercontent.com; this
+  // module takes over when the user clicks "Download & Install" in the
+  // "Update Available" dialog, handling the GitHub Releases download,
+  // graceful Docker container stop, and relaunch.
+  updater.init({
+    dockerManager,
+    getMainWindow: () => mainWindow,
+    log: console
+  });
 
   // Initialize i18n with saved UI language
   const envPath = getEnvPath();

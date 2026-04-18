@@ -169,6 +169,7 @@
     "serverVerifyFailed": "无法验证服务器正在运行。请检查Docker状态并尝试重启。",
     "errorConnecting": "连接服务器时出错。请检查Docker状态并尝试重启。",
     "newVersionAvailable": "新版本({{version}})可用。当前版本: {{current}}。点击菜单中的\"检查更新\"进行下载。",
+    "downloadingUpdate": "正在下载版本 {{version}} 的更新 . . .",
     "usingLatestVersion": "您正在使用最新版本({{version}})。",
     "failedToRetrieveVersion": "无法获取最新版本号。",
     "failedToCheckUpdates": "检查更新失败: {{error}}",

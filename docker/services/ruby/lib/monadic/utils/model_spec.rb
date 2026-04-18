@@ -255,6 +255,20 @@ module Monadic
           get_model_property(model_name, "supports_adaptive_thinking") == true
         end
 
+        # True when the provider's API returns 400 on any temperature/top_p/top_k
+        # value. Callers must omit sampling params entirely for these models.
+        # Currently applies to Claude Opus 4.7+.
+        def rejects_sampling_params?(model_name)
+          get_model_property(model_name, "rejects_sampling_params") == true
+        end
+
+        # True when the provider's default is to return an empty thinking block.
+        # Callers who want visible reasoning must explicitly request display.
+        # Currently applies to Claude Opus 4.7+.
+        def thinking_display_default_omitted?(model_name)
+          get_model_property(model_name, "thinking_display_default_omitted") == true
+        end
+
         def supports_thinking_level?(model_name)
           get_model_property(model_name, "supports_thinking_level") == true
         end

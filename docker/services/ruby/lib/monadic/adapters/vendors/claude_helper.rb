@@ -195,9 +195,13 @@ module ClaudeHelper
     body = {
       "model" => model,
       "max_tokens" => max_tokens_value,
-      "temperature" => options["temperature"] || 0.7,
       "cache_control" => { "type" => "ephemeral" }
     }
+    # Opus 4.7+ returns 400 on any temperature/top_p/top_k value. Only send
+    # temperature for models that still accept sampling parameters.
+    unless Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
+      body["temperature"] = options["temperature"] || 0.7
+    end
     
     # Extract system message - Claude API expects this as a top-level parameter
     if options["system"]
@@ -431,11 +435,16 @@ module ClaudeHelper
 
       if use_adaptive
         budget_tokens = nil
+        # Opus 4.7 introduces xhigh and max effort levels; earlier adaptive
+        # models (Opus 4.6, Sonnet 4.6) cap out at "high" and will get the
+        # clamped value via the upstream reasoning_effort selector.
         adaptive_effort = case obj["reasoning_effort"]
                           when "minimal" then "low"
                           when "low"     then "low"
                           when "medium"  then "medium"
                           when "high"    then "high"
+                          when "xhigh"   then "xhigh"
+                          when "max"     then "max"
                           else "medium"
                           end
         max_tokens = user_max_tokens
@@ -564,23 +573,32 @@ module ClaudeHelper
     end
 
     # Thinking / temperature / max_tokens
+    rejects_sampling = Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
+    thinking_display_default_omitted = Monadic::Utils::ModelSpec.thinking_display_default_omitted?(model)
+
     if thinking_config[:thinking_enabled]
       body["max_tokens"] = thinking_config[:max_tokens]
-      body["temperature"] = 1
+      # Opus 4.7+ returns 400 on temperature; all earlier thinking-enabled
+      # models require temperature = 1 alongside thinking.
+      body["temperature"] = 1 unless rejects_sampling
       if thinking_config[:adaptive_effort]
         thinking_params = { "type": "adaptive" }
         body["output_config"] = { "effort": thinking_config[:adaptive_effort] }
       else
         thinking_params = { "type": "enabled", "budget_tokens": thinking_config[:budget_tokens] }
       end
-      # Omit thinking display content for faster streaming when user toggles off
-      # Only supported on models with supports_adaptive_thinking (Opus 4.6, Sonnet 4.6)
+      # Thinking display control:
+      # - user opts out  → always send "omitted" (faster streaming).
+      # - user opts in   → on models whose API default is "omitted" (Opus 4.7+)
+      #   we must explicitly send "summarized" to restore visible reasoning.
       if thinking_config[:omit_thinking_display]
         thinking_params["display"] = "omitted"
+      elsif thinking_display_default_omitted
+        thinking_params["display"] = "summarized"
       end
       body["thinking"] = thinking_params
     else
-      body["temperature"] = temperature if temperature
+      body["temperature"] = temperature if temperature && !rejects_sampling
       body["max_tokens"] = thinking_config[:max_tokens] if thinking_config[:max_tokens]
     end
 

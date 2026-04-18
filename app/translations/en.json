@@ -149,6 +149,7 @@
     "serverVerifyFailed": "Could not verify server is running. Please check Docker status and try restart.",
     "errorConnecting": "Error connecting to server. Please check Docker status and try restart.",
     "newVersionAvailable": "A new version ({{version}}) is available. Current version: {{current}}. Click \"Check for Updates\" from the menu to download it.",
+    "downloadingUpdate": "Downloading update to version {{version}} . . .",
     "usingLatestVersion": "You are using the latest version ({{version}}).",
     "failedToRetrieveVersion": "Failed to retrieve the latest version number.",
     "failedToCheckUpdates": "Failed to check for updates: {{error}}",

@@ -81,6 +81,11 @@ function handleTokenVerified(data) {
     if (typeof window.updateAvailableProviders === 'function') {
       window.updateAvailableProviders();
     }
+    // Re-apply TTS/STT option enablement in case the initial run happened
+    // before the backing option elements were rendered.
+    if (typeof window.applyTtsSttEnablement === 'function') {
+      window.applyTtsSttEnablement(window.aiUserDefaults);
+    }
   }
 }
 

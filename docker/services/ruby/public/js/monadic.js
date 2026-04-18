@@ -822,25 +822,29 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      // Enable Mistral TTS / Cohere STT / Grok TTS based on API key availability
-      if (aiUserDefaults) {
-        if (aiUserDefaults.mistral && aiUserDefaults.mistral.has_key) {
-          var mistralTtsOpt = $id("mistral-tts-provider-option");
-          if (mistralTtsOpt) mistralTtsOpt.disabled = false;
-          var mistralSttOpt = $id("mistral-stt-voxtral");
-          if (mistralSttOpt) mistralSttOpt.disabled = false;
-        }
-        if (aiUserDefaults.cohere && aiUserDefaults.cohere.has_key) {
-          var cohereSttOpt = $id("cohere-stt-transcribe");
-          if (cohereSttOpt) cohereSttOpt.disabled = false;
-        }
-        if (aiUserDefaults.grok && aiUserDefaults.grok.has_key) {
-          // Grok TTS uses XAI_API_KEY; expose the option once the key is set.
-          var grokTtsOpt = $id("grok-tts-provider-option");
-          if (grokTtsOpt) grokTtsOpt.disabled = false;
-        }
+    };
+
+    // Enable TTS/STT provider options whose backing API keys are configured.
+    // Kept separate from updateAvailableProviders so that it still runs even
+    // when the ai_user_provider element is absent (which would cause that
+    // function to early-return before reaching these options).
+    window.applyTtsSttEnablement = function(defs) {
+      if (!defs) return;
+      if (defs.mistral && defs.mistral.has_key) {
+        var mistralTtsOpt = $id("mistral-tts-provider-option");
+        if (mistralTtsOpt) mistralTtsOpt.disabled = false;
+        var mistralSttOpt = $id("mistral-stt-voxtral");
+        if (mistralSttOpt) mistralSttOpt.disabled = false;
       }
-    }
+      if (defs.cohere && defs.cohere.has_key) {
+        var cohereSttOpt = $id("cohere-stt-transcribe");
+        if (cohereSttOpt) cohereSttOpt.disabled = false;
+      }
+      if (defs.grok && defs.grok.has_key) {
+        var grokTtsOpt = $id("grok-tts-provider-option");
+        if (grokTtsOpt) grokTtsOpt.disabled = false;
+      }
+    };
     
     // Helper to compute and set the AI User badge text robustly
     function setAiUserBadge() {
@@ -866,7 +870,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // Load SSOT defaults then initialize provider and badge (no async IIFE for compatibility)
     fetchAiUserDefaults().then(function(defs){
       aiUserDefaults = defs || null;
+      window.aiUserDefaults = aiUserDefaults;
       window.updateAvailableProviders();
+      window.applyTtsSttEnablement(aiUserDefaults);
       var providerSel = $id("ai_user_provider");
       const savedProvider = getCookie('ai_user_provider');
       var chosen = savedProvider;
@@ -1635,12 +1641,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
   
-  // Call these functions on document ready
-  document.addEventListener("DOMContentLoaded", function () {
-    setupToggleHandlers();
-    setupEventListeners();
-    setupResizeObserver();
-  });
+  // We are already inside a DOMContentLoaded listener (opened at the top of
+  // this file), so the DOM is ready by the time this runs. Registering a
+  // nested DOMContentLoaded listener here would never fire because the
+  // event has already dispatched.
+  setupToggleHandlers();
+  setupEventListeners();
+  setupResizeObserver();
 
   // Store previous model value for confirmation revert
   let previousModelValue = null;

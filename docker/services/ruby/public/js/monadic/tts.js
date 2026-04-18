@@ -577,7 +577,7 @@ function speakWithWebSpeech(text, speed, callback) {
   return true;
 }
 
-function ttsSpeak(text, stream, callback) {
+function ttsSpeak(text, callback) {
   // Get settings from UI
   const ttsProviderEl = $id("tts-provider");
   const ttsSpeedEl = $id("tts-speed");
@@ -606,7 +606,7 @@ function ttsSpeak(text, stream, callback) {
         $dispatch(ttsProviderEl, "change");
       }
       // Use new provider
-      return ttsSpeak(text, stream, callback);
+      return ttsSpeak(text, callback);
     }
     
     return speakWithWebSpeech(text, speed, callback);
@@ -630,9 +630,10 @@ function ttsSpeak(text, stream, callback) {
   const grok_voice = grokEl ? grokEl.value : "";
 
 
-  // Determine mode based on streaming flag
-  let mode = stream ? "TTS_STREAM" : "TTS";
-  let response_format = "mp3";
+  // aac produces ~28% lower TTFA and ~39% smaller payload than mp3 on OpenAI TTS
+  // (measured 2026-04-18). Providers that don't accept aac fall back to mp3
+  // server-side (see tts_utils.rb Mistral branch).
+  let response_format = "aac";
 
   // Initialize audio
   audioInit();
@@ -640,7 +641,7 @@ function ttsSpeak(text, stream, callback) {
   // Prepare voice data for sending
   const voiceData = {
     provider: provider,
-    message: mode,
+    message: "TTS",
     text: text,
     voice: voice,
     elevenlabs_voice: elevenlabs_voice,

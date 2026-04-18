@@ -147,143 +147,131 @@ describe('TTS Module', () => {
   
   describe('ttsSpeak function', () => {
     beforeEach(() => {
-      global.ttsSpeak = function(text, stream, callback) {
+      global.ttsSpeak = function(text, callback) {
         // Get settings from UI
         const provider = document.getElementById("tts-provider").value;
         const voice = document.getElementById("tts-voice").value;
         const elevenlabs_voice = document.getElementById("elevenlabs-tts-voice").value;
         const speed = parseFloat(document.getElementById("tts-speed").value);
-      
-        // Determine mode based on streaming flag
-        let mode = "TTS";
-        if(stream) {
-          mode = "TTS_STREAM";
-        }
-      
-        let response_format = "mp3";
-      
+
+        let response_format = "aac";
+
         // Initialize audio
         audioInit();
-      
+
         // Early returns for invalid conditions
         if (global.runningOnFirefox) {
           return false;
         }
-      
+
         if (!text) {
           return;
         }
-      
+
         // Prepare voice data for sending
         const voiceData = {
           provider: provider,
-          message: mode,
+          message: "TTS",
           text: text,
           voice: voice,
           elevenlabs_voice: elevenlabs_voice,
           response_format: response_format
         };
-      
+
         // Add speed if it is defined and it is not 1.0
         if (speed && speed !== 1.0) {
           voiceData.speed = speed;
         }
-      
+
         // Send the request to the server
         ws.send(JSON.stringify(voiceData));
-      
+
         // Start playback
         audio.play();
-        
+
         // Call the callback if provided
         if (typeof callback === 'function') {
           callback(true);
         }
       };
-      
+
       // Spy on audioInit
       global.audioInit = jest.fn();
     });
-    
+
     it('should initialize audio and send message with default settings', () => {
-      ttsSpeak('Hello world', false);
-      
+      ttsSpeak('Hello world');
+
       expect(global.audioInit).toHaveBeenCalled();
       expect(global.ws.send).toHaveBeenCalledWith(expect.stringContaining('"message":"TTS"'));
       expect(global.ws.send).toHaveBeenCalledWith(expect.stringContaining('"text":"Hello world"'));
       expect(mockAudio.play).toHaveBeenCalled();
     });
-    
-    it('should send TTS_STREAM message when stream is true', () => {
-      ttsSpeak('Hello world', true);
-      
-      expect(global.ws.send).toHaveBeenCalledWith(expect.stringContaining('"message":"TTS_STREAM"'));
-    });
-    
+
     it('should include speed parameter when not 1.0', () => {
       // Create a modified implementation that always adds speed
       const originalTtsSpeak = global.ttsSpeak;
-      global.ttsSpeak = function(text, stream, callback) {
+      global.ttsSpeak = function(text, callback) {
         const voiceData = {
           provider: 'test',
-          message: stream ? 'TTS_STREAM' : 'TTS',
+          message: 'TTS',
           text: text,
           voice: 'test-voice',
           elevenlabs_voice: 'test-elevenlabs',
-          response_format: 'mp3',
+          response_format: 'aac',
           speed: 1.5 // Force speed value for this test
         };
-        
+
         ws.send(JSON.stringify(voiceData));
         audio.play();
-        
+
         if (typeof callback === 'function') {
           callback(true);
         }
       };
-      
+
       // Test the function
-      ttsSpeak('Hello world', false);
-      
+      ttsSpeak('Hello world');
+
       // Restore original function
       global.ttsSpeak = originalTtsSpeak;
-      
+
       // Check if the speed parameter was included
       const sentData = JSON.parse(global.ws.send.mock.calls[0][0]);
       expect(sentData).toHaveProperty('speed', 1.5);
     });
-    
+
     it('should not include speed parameter when it is 1.0', () => {
       // Set speed to 1.0 (already set in HTML fixture)
       document.getElementById('tts-speed').value = '1.0';
 
-      ttsSpeak('Hello world', false);
-      
+      ttsSpeak('Hello world');
+
       const sentData = JSON.parse(global.ws.send.mock.calls[0][0]);
       expect(sentData).not.toHaveProperty('speed');
     });
-    
+
     it('should return false when running on Firefox', () => {
       global.runningOnFirefox = true;
-      
-      const result = ttsSpeak('Hello world', false);
-      
+
+      const result = ttsSpeak('Hello world');
+
       expect(result).toBe(false);
       expect(global.ws.send).not.toHaveBeenCalled();
     });
-    
+
     it('should return undefined when text is empty', () => {
-      const result = ttsSpeak('', false);
-      
+      const result = ttsSpeak('');
+
       expect(result).toBeUndefined();
       expect(global.ws.send).not.toHaveBeenCalled();
     });
-    
+
     it('should call the callback function if provided', () => {
       const callback = jest.fn();
-      
-      ttsSpeak('Hello world', false, callback);
-      
+
+      ttsSpeak('Hello world', callback);
+
       expect(callback).toHaveBeenCalledWith(true);
     });
   });

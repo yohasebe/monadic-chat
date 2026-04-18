@@ -745,6 +745,11 @@ function handleAppsMessage(data) {
     if (typeof window.updateAvailableProviders === 'function') {
       window.updateAvailableProviders();
     }
+    // TTS/STT provider options may not have existed when the initial
+    // enablement ran; re-apply now that app data has populated the DOM.
+    if (typeof window.applyTtsSttEnablement === 'function') {
+      window.applyTtsSttEnablement(window.aiUserDefaults);
+    }
   }
   // Set originalParams to the first valid app or Chat if available
   window.originalParams = apps["Chat"] || apps[appsSelect ? appsSelect.value : null] || {};

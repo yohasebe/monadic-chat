@@ -40,7 +40,6 @@ Test infrastructure and procedures:
 In-depth documentation of specific features:
 - **[Auto Forge Internals](auto_forge_internals.md)** - Artifact Builder architecture
 - **[SSOT Normalization](ssot_normalization_and_accessors.md)** - Model specification normalization
-- **[TTS Prefetch Optimization](tts_prefetch_optimization.md)** - Text-to-Speech performance optimization
 - **[PDF Registry & Hybrid](pdf_registry_and_hybrid.md)** - PDF document storage abstraction
 
 ### Frontend & Backend

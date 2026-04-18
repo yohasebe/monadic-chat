@@ -242,18 +242,10 @@ After the initial 4 handlers, **ALL** remaining session-specific broadcasts were
 
 #### Streaming Logic (CRITICAL - Most Complex)
 16. **Main streaming initialization** - Error broadcasts for app not found, fragment errors
-17. **Realtime TTS async callbacks** - Three separate callback contexts in `websocket/streaming_handler.rb`:
-    - Flushed buffer callback
-    - Long sentence callback
-    - Final segment callback
-18. **Streaming fragments** - Four different fragment types:
-    - Realtime mode fragments
-    - Post-completion mode fragments
-    - No-TTS fragments
-    - Other fragment types
-19. **Streaming completion** - Streaming complete message
-20. **Streaming errors** - API errors, content not found, empty response errors
-21. **Monadic auto_speech TTS** - Post-completion TTS for Monadic responses
+17. **Streaming fragments** - Fragment forwarding to frontend during LLM streaming
+18. **Streaming completion** - Streaming complete message
+19. **Streaming errors** - API errors, content not found, empty response errors
+20. **Auto_speech TTS** - Post-completion TTS after streaming finishes
 
 ### Connection-Level Fixes
 
@@ -300,20 +292,16 @@ On 2025-11-07, a final systematic review using grep found 3 additional handlers 
     - **Location**: `websocket/tts_handler.rb` (`handle_ws_tts`)
     - **Broadcasts**: TTS audio responses (Web Speech API or generated audio)
 
-24. **TTS_STREAM handler** - Streaming TTS during AI responses with TTS enabled
-    - **Location**: `websocket/tts_handler.rb` (`handle_ws_tts_stream`)
-    - **Broadcasts**: Web Speech API responses AND streaming audio fragments via callback
-
 These fixes complete the session isolation implementation. All user-specific data and audio are now properly isolated.
 
 ### Security Status: COMPLETE
 
 After this comprehensive implementation (including final review fixes):
 
-✅ **All session-specific broadcasts** use session-targeted delivery (24 handler categories total)
+✅ **All session-specific broadcasts** use session-targeted delivery (23 handler categories total)
 ✅ **All error messages** are isolated to the triggering session
 ✅ **All streaming content** is isolated to the requesting session
-✅ **All TTS audio** is delivered only to the requesting session (manual + streaming)
+✅ **All TTS audio** is delivered only to the requesting session
 ✅ **Message edit status updates** are session-isolated
 ✅ **Connection keepalive (PONG)** is connection-specific
 ✅ **Shared resources (voice lists)** correctly remain global

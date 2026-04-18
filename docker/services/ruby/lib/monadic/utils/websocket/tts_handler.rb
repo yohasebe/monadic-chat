@@ -208,30 +208,28 @@ module WebSocketHelper
     end
   end
 
-  # Common TTS playback processing for PLAY_TTS and Auto Speech
-  # This method handles text segmentation, prefetching, and threaded TTS generation
+  # Common TTS playback processing for PLAY_TTS and Auto Speech.
+  # Synthesizes the full text as a single request; when Auto TTS text exceeds
+  # AUTO_TTS_MAX_BYTES, trims at sentence boundaries and notifies the client.
   # @param text [String] Text to convert to speech
   # @param provider [String] TTS provider (e.g., "elevenlabs-v3", "gemini-flash")
   # @param voice [String] Voice ID
   # @param speed [Float] Speech speed
-  # @param response_format [String] Audio format (e.g., "mp3")
+  # @param response_format [String] Audio format (e.g., "aac")
   # @param language [String] Language code
-  # @param realtime_mode [Boolean] If true, use sentence splitting with prefetch (for streaming TTS)
   # @param manual_play [Boolean] If true, this is a manual Play button click - no byte limit applied
   # @param ws_session_id [String, nil] WebSocket session ID for targeted audio delivery
-  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, realtime_mode: false, manual_play: false, ws_session_id: nil)
+  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, manual_play: false, ws_session_id: nil)
     # Use passed ws_session_id or fall back to thread-local variable
     ws_session_id ||= Thread.current[:websocket_session_id]
 
-    Monadic::Utils::ExtraLogger.log { "[DEBUG] start_tts_playback CALLED: text_length=#{text.length}, provider=#{provider}, realtime_mode=#{realtime_mode}, manual_play=#{manual_play}" }
+    Monadic::Utils::ExtraLogger.log { "[DEBUG] start_tts_playback CALLED: text_length=#{text.length}, provider=#{provider}, manual_play=#{manual_play}" }
 
     # Strip Markdown markers and HTML tags before processing
     text = StringUtils.strip_markdown_for_tts(text)
 
     # MANUAL PLAY MODE: User explicitly clicked Play button - no byte limit, play full text
-    # Send notification that full text will be played and Stop button is available
     if manual_play
-      # Send notice for manual playback (full text will be played)
       total_segments = WebSocketHelper.segment_sentences(text).length
 
       notice_message = {
@@ -243,7 +241,6 @@ module WebSocketHelper
       }
       send_or_broadcast(notice_message.to_json, ws_session_id)
 
-      # Play full text without any byte limit
       return start_single_tts_request(
         text: text,
         provider: provider,
@@ -255,363 +252,103 @@ module WebSocketHelper
       )
     end
 
-    # Get max bytes limit from config (only for Auto TTS)
+    # Auto TTS path: cap payload with AUTO_TTS_MAX_BYTES, trimming at sentence
+    # boundaries when necessary, then send as a single TTS request.
     max_bytes = CONFIG["AUTO_TTS_MAX_BYTES"] || 4000
+    text_bytes = text.bytesize
 
-    # POST-COMPLETION MODE (realtime_mode = false): Use whole text without sentence splitting
-    # This provides better audio quality with natural flow and intonation
-    unless realtime_mode
-      text_bytes = text.bytesize
+    Monadic::Utils::ExtraLogger.log { "[TTS] Auto TTS: text_bytes=#{text_bytes}, max_bytes=#{max_bytes}" }
 
-      Monadic::Utils::ExtraLogger.log { "[TTS] Post-completion mode: text_bytes=#{text_bytes}, max_bytes=#{max_bytes}" }
+    if text_bytes <= max_bytes
+      Monadic::Utils::ExtraLogger.log { "[TTS] Text within limit, sending as single request" }
+      return start_single_tts_request(
+        text: text,
+        provider: provider,
+        voice: voice,
+        speed: speed,
+        response_format: response_format,
+        language: language,
+        ws_session_id: ws_session_id
+      )
+    end
 
-      if text_bytes <= max_bytes
-        # Text is within limit - send as single TTS request
-        Monadic::Utils::ExtraLogger.log { "[TTS] Text within limit, sending as single request" }
-        return start_single_tts_request(
-          text: text,
-          provider: provider,
-          voice: voice,
-          speed: speed,
-          response_format: response_format,
-          language: language,
-          ws_session_id: ws_session_id
-        )
+    Monadic::Utils::ExtraLogger.log { "[TTS] Text exceeds limit (#{text_bytes} > #{max_bytes}), using sentence boundary cutoff" }
+
+    all_segments = WebSocketHelper.segment_sentences(text)
+
+    # Accumulate consecutive segments from the beginning until byte limit is reached
+    accumulated_bytes = 0
+    tts_segments = []
+    skipped_segments = []
+    limit_reached = false
+
+    all_segments.each do |segment|
+      if limit_reached
+        skipped_segments << segment
       else
-        # Text exceeds limit - use sentence boundary cutoff
-        Monadic::Utils::ExtraLogger.log { "[TTS] Text exceeds limit (#{text_bytes} > #{max_bytes}), using sentence boundary cutoff" }
-
-        # Segment text to find sentence boundaries
-        all_segments = WebSocketHelper.segment_sentences(text)
-
-        # Accumulate consecutive segments from the beginning until byte limit is reached
-        accumulated_bytes = 0
-        tts_segments = []
-        skipped_segments = []
-        limit_reached = false
-
-        all_segments.each do |segment|
-          if limit_reached
-            # Once limit is reached, all remaining segments are skipped
-            skipped_segments << segment
-          else
-            segment_bytes = segment.bytesize
-            if accumulated_bytes + segment_bytes <= max_bytes
-              tts_segments << segment
-              accumulated_bytes += segment_bytes
-            else
-              # First segment that doesn't fit - mark limit as reached
-              limit_reached = true
-              skipped_segments << segment
-            end
-          end
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[TTS] Sentence boundary cutoff: #{tts_segments.length}/#{all_segments.length} segments included\n[TTS] Accumulated bytes: #{accumulated_bytes}" }
-
-        # Send TTS notice if some segments will be played and some were skipped
-        # (Don't send if tts_segments is empty - that case is handled below)
-        if tts_segments.any? && skipped_segments.any?
-          notice_message = {
-            "type" => "tts_notice",
-            "content" => {
-              "notice_type" => "partial",
-              "segments_played" => tts_segments.length,
-              "segments_total" => all_segments.length,
-              "bytes_played" => accumulated_bytes,
-              "bytes_total" => text_bytes
-            }
-          }
-          send_or_broadcast(notice_message.to_json, ws_session_id)
-        end
-
-        # If no segments fit within limit, always include at least the first segment
-        # It's better to read something than nothing
-        if tts_segments.empty? && all_segments.any?
-          first_segment = skipped_segments.shift  # Move first from skipped to tts
-          tts_segments << first_segment
-          accumulated_bytes = first_segment.bytesize
-
-          Monadic::Utils::ExtraLogger.log { "[TTS] First segment exceeds limit but will be played anyway (#{accumulated_bytes} bytes)" }
-
-          # Update notice to show partial output (1 of N segments)
-          if skipped_segments.any?
-            notice_message = {
-              "type" => "tts_notice",
-              "content" => {
-                "notice_type" => "partial",
-                "segments_played" => 1,
-                "segments_total" => all_segments.length,
-                "bytes_played" => accumulated_bytes,
-                "bytes_total" => text_bytes
-              }
-            }
-            send_or_broadcast(notice_message.to_json, ws_session_id)
-          end
-        end
-
-        # Combine segments and send as single TTS request
-        combined_text = tts_segments.join(" ")
-        return start_single_tts_request(
-          text: combined_text,
-          provider: provider,
-          voice: voice,
-          speed: speed,
-          response_format: response_format,
-          language: language,
-          ws_session_id: ws_session_id
-        )
-      end
-    end
-
-    # REALTIME MODE (realtime_mode = true): Use sentence splitting with prefetch
-    # Process text with TwitterCLDR to split into sentences (faster and better RTL support)
-    segments = WebSocketHelper.segment_sentences(text)
-
-    Monadic::Utils::ExtraLogger.log {
-      msg = "[TTS] Realtime mode: Original text: '#{text[0..100]}...'\n[TTS] Segmented into #{segments.length} segments:"
-      segments.each_with_index { |s, i| msg += "\n[TTS]   [#{i}] '#{s}'" }
-      msg
-    }
-
-    # For Gemini TTS, combine short segments to avoid API failures
-    if provider == "gemini-flash" || provider == "gemini-pro"
-      combined_segments = []
-      current_segment = ""
-
-      segments.each do |segment|
-        # Clean and check text
-        cleaned_text = segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '') # Remove emojis
-        cleaned_text = cleaned_text.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ') # Remove special chars
-        cleaned_text = cleaned_text.strip
-
-        if current_segment.empty?
-          # Start a new segment
-          current_segment = segment
-        elsif cleaned_text.length < 8  # Increased threshold for safety
-          # Current segment is short, combine with existing
-          current_segment += " " + segment
+        segment_bytes = segment.bytesize
+        if accumulated_bytes + segment_bytes <= max_bytes
+          tts_segments << segment
+          accumulated_bytes += segment_bytes
         else
-          # Check if current accumulated segment should be finalized
-          current_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
-          current_cleaned = current_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
-
-          if current_cleaned.length < 8  # Combine if still short
-            current_segment += " " + segment
-          else
-            # Finalize current segment and start new one
-            combined_segments << current_segment if current_cleaned.length >= 3
-            current_segment = segment
-          end
+          limit_reached = true
+          skipped_segments << segment
         end
-      end
-
-      # Don't forget the last segment - but validate it first
-      unless current_segment.empty?
-        final_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
-        final_cleaned = final_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
-        combined_segments << current_segment if final_cleaned.length >= 3
-      end
-
-      segments = combined_segments
-      puts "Gemini TTS: #{ps.segment.length} -> #{segments.length} segments" if ENV["DEBUG_TTS"]
-    end
-
-    # Process each segment
-    prev_texts_for_tts = []
-    segments = Array(segments)
-
-    # ElevenLabs V3: Check if segments should be combined (legacy behavior)
-    # Default is false (use segment splitting for prefetch benefits)
-    # Set ELEVENLABS_V3_COMBINE_SEGMENTS=true to combine all segments into one
-    if provider == "elevenlabs-v3"
-      combine_segments = defined?(CONFIG) && CONFIG["ELEVENLABS_V3_COMBINE_SEGMENTS"].to_s == "true"
-      if combine_segments
-        combined_text = segments.join(" ").strip
-        segments = combined_text.empty? ? [] : [combined_text]
-        Monadic::Utils::ExtraLogger.log { "ElevenLabs V3: Combined all segments into one (legacy mode)" }
-      else
-        Monadic::Utils::ExtraLogger.log { "ElevenLabs V3: Using segment splitting for prefetch (#{segments.length} segments)" }
       end
     end
 
-    # Start a new thread for TTS processing with prefetching
-    @tts_thread = Thread.new do
-      Thread.current[:type] = :tts_playback
+    Monadic::Utils::ExtraLogger.log { "[TTS] Sentence boundary cutoff: #{tts_segments.length}/#{all_segments.length} segments included\n[TTS] Accumulated bytes: #{accumulated_bytes}" }
 
-      # Filter and prepare segments
-      valid_segments = []
-      segments.each do |segment|
-        next if segment.strip.empty?
-
-        # Light filtering for Gemini TTS
-        if provider == "gemini-flash" || provider == "gemini-pro"
-          cleaned_segment = segment.strip
-          next if cleaned_segment.length < 3
-          valid_segments << cleaned_segment
-        else
-          valid_segments << segment
-        end
-      end
-
-      Monadic::Utils::ExtraLogger.log {
-        msg = "[TTS] After filtering: #{valid_segments.length} valid segments"
-        valid_segments.each_with_index { |s, i| msg += "\n[TTS]   Valid[#{i}] '#{s}'" }
-        msg
+    if tts_segments.any? && skipped_segments.any?
+      notice_message = {
+        "type" => "tts_notice",
+        "content" => {
+          "notice_type" => "partial",
+          "segments_played" => tts_segments.length,
+          "segments_total" => all_segments.length,
+          "bytes_played" => accumulated_bytes,
+          "bytes_total" => text_bytes
+        }
       }
-
-      # Prefetch pipeline: Start TTS requests in parallel
-      # Provider-specific prefetch counts based on rate limits and response times:
-      # - Gemini: 4 (slower API, but high rate limit 125-150 QPM)
-      # - OpenAI: 2 (fast API, moderate rate limit)
-      # - ElevenLabs: 2 (concurrent request limit)
-      prefetch_count = case provider
-                       when "gemini-flash", "gemini-pro", "gemini"
-                         4  # Gemini has slower response time, prefetch more
-                       else
-                         2  # Default for other providers
-                       end
-
-      tts_futures = []
-      # Store futures array in thread local for STOP_TTS cleanup
-      Thread.current[:tts_futures] = tts_futures
-
-      # Special handling for Web Speech API - no prefetching needed (no API calls)
-      if provider == "webspeech" || provider == "web-speech"
-        # Process synchronously for Web Speech API
-        valid_segments.each_with_index do |segment, i|
-          res_hash = { "type" => "web_speech", "content" => segment }
-
-          prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
-
-          # Send audio and progress
-          if ws_session_id
-            WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(res_hash.to_json)
-          end
-
-          progress_message = {
-            "type" => "tts_progress",
-            "segment_index" => i,
-            "total_segments" => valid_segments.length,
-            "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
-          }
-          send_or_broadcast(progress_message.to_json, ws_session_id)
-        end
-      else
-        # Prefetch mode for API-based TTS providers
-        # Start initial requests to prevent gaps between sentences
-        (0...prefetch_count).each do |idx|
-          break if idx >= valid_segments.length
-
-          segment = valid_segments[idx]
-          # Get previous_text directly from valid_segments for initial prefetch
-          previous_text = if provider == "elevenlabs-v3"
-                            nil
-                          elsif idx > 0
-                            valid_segments[idx - 1]
-                          else
-                            nil
-                          end
-
-          tts_futures << Thread.new do
-            tts_api_request(segment,
-                          previous_text: previous_text,
-                          provider: provider,
-                          voice: voice,
-                          speed: speed,
-                          response_format: response_format,
-                          language: language)
-          end
-        end
-
-        # Process segments in order
-        valid_segments.each_with_index do |segment, i|
-          Monadic::Utils::ExtraLogger.log { "[TTS] Processing segment #{i}/#{valid_segments.length - 1}: '#{segment[0..50]}...'\n[TTS] tts_futures.length = #{tts_futures.length}, waiting for index #{i}" }
-
-          # Wait for current segment's TTS to complete with error handling
-          begin
-            res_hash = tts_futures[i]&.value
-
-            Monadic::Utils::ExtraLogger.log { "[TTS] Segment #{i} result: #{res_hash ? res_hash["type"] : "nil"}" }
-          rescue StandardError => e
-            # Thread was killed or errored - create error response
-            Monadic::Utils::ExtraLogger.log { "[TTS] Segment #{i} failed with exception: #{e.message}\n[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" }
-            res_hash = {
-              "type" => "error",
-              "content" => "TTS generation failed for segment #{i + 1}"
-            }
-          end
-
-          # Add segment information
-          if res_hash && res_hash["type"] == "audio"
-            res_hash["segment_index"] = i
-            res_hash["total_segments"] = valid_segments.length
-            res_hash["is_segment"] = true
-          end
-
-          # Store for context
-          prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
-
-          # Start next segment's TTS request to maintain prefetch buffer
-          # Use provider-specific prefetch count for optimal performance
-          next_idx = i + prefetch_count
-          if next_idx < valid_segments.length
-            next_segment = valid_segments[next_idx]
-            # Get previous_text directly from valid_segments for prefetch
-            next_previous_text = if provider == "elevenlabs-v3"
-                                  nil
-                                elsif next_idx > 0
-                                  valid_segments[next_idx - 1]
-                                else
-                                  nil
-                                end
-
-            tts_futures << Thread.new do
-              tts_api_request(next_segment,
-                            previous_text: next_previous_text,
-                            provider: provider,
-                            voice: voice,
-                            speed: speed,
-                            response_format: response_format,
-                            language: language)
-            end
-          end
-
-          # Send audio and progress
-          if res_hash && res_hash["type"] != "error"
-            if ws_session_id
-              WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
-            else
-              WebSocketHelper.broadcast_to_all(res_hash.to_json)
-            end
-
-            progress_message = {
-              "type" => "tts_progress",
-              "segment_index" => i,
-              "total_segments" => valid_segments.length,
-              "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
-            }
-            send_or_broadcast(progress_message.to_json, ws_session_id)
-          else
-            puts "TTS segment #{i} failed: #{res_hash&.dig("content") || "Unknown error"}"
-          end
-        end
-      end
-
-      # Signal completion
-      Monadic::Utils::ExtraLogger.log { "[TTS] All segments processed, sending tts_complete" }
-
-      complete_message = {
-        "type" => "tts_complete",
-        "total_segments" => valid_segments.length
-      }.to_json
-      send_or_broadcast(complete_message, ws_session_id)
-
-      Monadic::Utils::ExtraLogger.log { "[TTS] tts_complete sent successfully" }
+      send_or_broadcast(notice_message.to_json, ws_session_id)
     end
+
+    # If no segments fit within the limit, always include at least the first
+    # segment — playing something is better than silence.
+    if tts_segments.empty? && all_segments.any?
+      first_segment = skipped_segments.shift
+      tts_segments << first_segment
+      accumulated_bytes = first_segment.bytesize
+
+      Monadic::Utils::ExtraLogger.log { "[TTS] First segment exceeds limit but will be played anyway (#{accumulated_bytes} bytes)" }
+
+      if skipped_segments.any?
+        notice_message = {
+          "type" => "tts_notice",
+          "content" => {
+            "notice_type" => "partial",
+            "segments_played" => 1,
+            "segments_total" => all_segments.length,
+            "bytes_played" => accumulated_bytes,
+            "bytes_total" => text_bytes
+          }
+        }
+        send_or_broadcast(notice_message.to_json, ws_session_id)
+      end
+    end
+
+    combined_text = tts_segments.join(" ")
+    start_single_tts_request(
+      text: combined_text,
+      provider: provider,
+      voice: voice,
+      speed: speed,
+      response_format: response_format,
+      language: language,
+      ws_session_id: ws_session_id
+    )
   end
+
 
   private def handle_ws_tts(connection, obj, session)
     # Get session ID for targeted broadcasting

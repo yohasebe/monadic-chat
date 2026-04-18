@@ -242,18 +242,10 @@ After the initial 4 handlers, **ALL** remaining session-specific broadcasts were
 
 #### Streaming Logic (CRITICAL - Most Complex)
 16. **Main streaming initialization** - Error broadcasts for app not found, fragment errors
-17. **Realtime TTS async callbacks** - Three separate callback contexts in `websocket/streaming_handler.rb`:
-    - Flushed buffer callback
-    - Long sentence callback
-    - Final segment callback
-18. **Streaming fragments** - Four different fragment types:
-    - Realtime mode fragments
-    - Post-completion mode fragments
-    - No-TTS fragments
-    - Other fragment types
-19. **Streaming completion** - Streaming complete message
-20. **Streaming errors** - API errors, content not found, empty response errors
-21. **Monadic auto_speech TTS** - Post-completion TTS for Monadic responses
+17. **Streaming fragments** - Fragment forwarding to frontend during LLM streaming
+18. **Streaming completion** - Streaming complete message
+19. **Streaming errors** - API errors, content not found, empty response errors
+20. **Auto_speech TTS** - Post-completion TTS after streaming finishes
 
 ### Connection-Level Fixes
 

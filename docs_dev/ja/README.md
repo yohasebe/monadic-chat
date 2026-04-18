@@ -39,7 +39,6 @@
 特定機能の詳細ドキュメント：
 - **[Auto Forge内部実装](auto_forge_internals.md)** - Artifact Builderアーキテクチャ
 - **[SSOT正規化](ssot_normalization_and_accessors.md)** - モデル仕様の正規化
-- **[TTS事前取得最適化](tts_prefetch_optimization.md)** - Text-to-Speechパフォーマンス最適化
 - **[PDFレジストリとハイブリッド](pdf_registry_and_hybrid.md)** - PDFドキュメントストレージの抽象化
 
 ### フロントエンド & バックエンド

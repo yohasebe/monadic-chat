@@ -66,6 +66,7 @@
       "icon": "icons/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "notarize": false,
       "target": [
         "dmg",
         "zip"
@@ -116,6 +117,7 @@
       "icons/**/*"
     ],
     "afterSign": "scripts/notarize.js",
+    "afterAllArtifactBuild": "scripts/notarize-dmg.js",
     "win": {
       "target": [
         "nsis",

@@ -141,6 +141,7 @@
     "serverVerifyFailed": "Konnte nicht überprüfen, ob der Server läuft. Bitte überprüfen Sie den Docker-Status und versuchen Sie einen Neustart.",
     "errorConnecting": "Fehler beim Verbinden mit dem Server. Bitte überprüfen Sie den Docker-Status und versuchen Sie einen Neustart.",
     "newVersionAvailable": "Eine neue Version ({{version}}) ist verfügbar. Aktuelle Version: {{current}}. Klicken Sie im Menü auf \"Nach Updates suchen\", um sie herunterzuladen.",
+    "downloadingUpdate": "Update auf Version {{version}} wird heruntergeladen . . .",
     "usingLatestVersion": "Sie verwenden die neueste Version ({{version}}).",
     "failedToRetrieveVersion": "Fehler beim Abrufen der neuesten Versionsnummer.",
     "failedToCheckUpdates": "Fehler beim Suchen nach Updates: {{error}}",

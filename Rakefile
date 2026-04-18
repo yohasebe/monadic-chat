@@ -953,16 +953,14 @@ task :build do
     # Windows files
     "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
     "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
-    
+
     # macOS files (Apple Silicon only)
     "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
     "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
 
-    # Linux files
-    "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
-    "linux_arm64_deb" => "monadic-chat_VERSION_arm64.deb",
-    "linux_x64_zip" => "monadic-chat_VERSION_x64.zip",
-    "linux_arm64_zip" => "monadic-chat_VERSION_arm64.zip"
+    # Linux files (AppImage is the auto-update-compatible format)
+    "linux_x64_appimage" => "monadic-chat_VERSION_x86_64.AppImage",
+    "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage"
   }
   
   # Find all necessary files using flexible matching
@@ -1924,16 +1922,14 @@ namespace :release do
     # Step 2: Build all packages if needed - check for ALL required file types
     escaped_version = escape_version_for_files(version)
     
-    # Define file patterns to check (macOS is Apple Silicon only)
+    # Define file patterns to check (macOS is Apple Silicon only; Linux uses AppImage)
     file_patterns = {
       "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
       "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
       "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
       "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
-      "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
-      "linux_arm64_deb" => "monadic-chat_VERSION_arm64.deb",
-      "linux_x64_zip" => "monadic-chat_VERSION_x64.zip",
-      "linux_arm64_zip" => "monadic-chat_VERSION_arm64.zip"
+      "linux_x64_appimage" => "monadic-chat_VERSION_x86_64.AppImage",
+      "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage"
     }
     
     # Check which files are missing

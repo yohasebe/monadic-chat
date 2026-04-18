@@ -169,6 +169,7 @@
     "serverVerifyFailed": "서버가 실행 중인지 확인할 수 없습니다. Docker 상태를 확인하고 재시작을 시도하세요.",
     "errorConnecting": "서버 연결 오류. Docker 상태를 확인하고 재시작을 시도하세요.",
     "newVersionAvailable": "새 버전({{version}})을 사용할 수 있습니다. 현재 버전: {{current}}. 메뉴에서 \"업데이트 확인\"을 클릭하여 다운로드하세요.",
+    "downloadingUpdate": "버전 {{version}} 업데이트 다운로드 중 . . .",
     "usingLatestVersion": "최신 버전({{version}})을 사용 중입니다.",
     "failedToRetrieveVersion": "최신 버전 번호를 가져오지 못했습니다.",
     "failedToCheckUpdates": "업데이트 확인 실패: {{error}}",

@@ -141,6 +141,7 @@
     "serverVerifyFailed": "Impossible de vérifier que le serveur est en cours d'exécution. Veuillez vérifier l'état de Docker et essayer de redémarrer.",
     "errorConnecting": "Erreur de connexion au serveur. Veuillez vérifier l'état de Docker et essayer de redémarrer.",
     "newVersionAvailable": "Une nouvelle version ({{version}}) est disponible. Version actuelle : {{current}}. Cliquez sur \"Vérifier les mises à jour\" dans le menu pour la télécharger.",
+    "downloadingUpdate": "Téléchargement de la mise à jour vers la version {{version}} . . .",
     "usingLatestVersion": "Vous utilisez la dernière version ({{version}}).",
     "failedToRetrieveVersion": "Échec de la récupération du numéro de version le plus récent.",
     "failedToCheckUpdates": "Échec de la vérification des mises à jour : {{error}}",

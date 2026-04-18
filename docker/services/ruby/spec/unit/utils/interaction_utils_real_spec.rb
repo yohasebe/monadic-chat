@@ -288,16 +288,6 @@ RSpec.describe InteractionUtils do
         expect(result["type"]).to eq("web_speech")
         expect(result["content"]).to eq("Hello world")
       end
-      
-      it 'calls block for web speech' do
-        called = false
-        utils.tts_api_request("Test", provider: "webspeech", voice: "default", response_format: "mp3") do |res|
-          called = true
-          expect(res["type"]).to eq("web_speech")
-        end
-        
-        expect(called).to be true
-      end
     end
     
     context 'with missing API keys' do

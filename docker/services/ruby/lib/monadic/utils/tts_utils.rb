@@ -44,9 +44,7 @@ module InteractionUtils
                       speed: nil,
                       previous_text: nil,
                       instructions: nil,
-                      language: "auto",
-                      use_net_http: false,
-                      &block)
+                      language: "auto")
 
     # Handle nil text
     return nil if text.nil? || text.empty?
@@ -60,7 +58,6 @@ module InteractionUtils
     num_retrial = 0
 
     val_speed = speed ? speed.to_f : 1.0
-    streaming_supported = true
 
     case provider
     when "openai-tts-4o", "openai-tts", "openai-tts-hd"
@@ -111,8 +108,6 @@ module InteractionUtils
         "model_id" => model
       }
 
-      streaming_supported = provider != "elevenlabs-v3"
-
       if speed
         body["voice_settings"] = {
           "stability" => 0.5,
@@ -129,11 +124,17 @@ module InteractionUtils
         body["language_code"] = language
       end
 
+      # ElevenLabs v3 must use the non-streaming endpoint (full file delivery).
+      # All other ElevenLabs models use the /stream endpoint, which starts
+      # returning audio earlier (lower TTFA) even when we read the body in one
+      # pass. The endpoint choice is independent of our own streaming behavior.
+      # optimize_streaming_latency=3 is the highest quality-preserving level
+      # (level 4 disables text normalization and hurts pronunciation).
       output_format = "mp3_44100_128"
-      target_uri = if streaming_supported
-                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}"
-                   else
+      target_uri = if provider == "elevenlabs-v3"
                      "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
+                   else
+                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}&optimize_streaming_latency=3"
                    end
     when "mistral"
       api_key = CONFIG["MISTRAL_API_KEY"]
@@ -148,10 +149,13 @@ module InteractionUtils
 
       model = resolve_tts_model(provider)
 
+      # Mistral Voxtral supports pcm/wav/mp3/flac/opus (no aac). Fall back to mp3
+      # when the caller asked for a format Mistral cannot produce.
+      mistral_format = %w[mp3 pcm wav flac opus].include?(response_format) ? response_format : "mp3"
       body = {
         "input" => text_converted,
         "model" => model,
-        "response_format" => response_format || "mp3",
+        "response_format" => mistral_format,
         "stream" => false
       }
       # Mistral requires voice_id — use selected voice or fetch first available
@@ -166,12 +170,7 @@ module InteractionUtils
     when "web-speech", "webspeech"
       # For Web Speech API, we don't need to make an API call
       # Return early with a special response
-      if block_given?
-        block.call({ "type" => "web_speech", "content" => text_converted })
-        return nil
-      else
-        return { "type" => "web_speech", "content" => text_converted }
-      end
+      return { "type" => "web_speech", "content" => text_converted }
     when "gemini", "gemini-flash", "gemini-pro"
       api_key = CONFIG["GEMINI_API_KEY"]
       if api_key.nil?
@@ -269,9 +268,6 @@ module InteractionUtils
       }
       body["model"] = model if model && !model.empty?
 
-      # Grok REST TTS is non-streaming. If callers request streaming, they
-      # must degrade to non-streaming here.
-      streaming_supported = false
       target_uri = "https://api.x.ai/v1/tts"
     else
       # Default error case
@@ -279,74 +275,9 @@ module InteractionUtils
     end
 
     begin
-      Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: START - provider=#{provider}, text_length=#{text_converted.length}, block_given=#{block_given?}, use_net_http=#{use_net_http}" }
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: START - provider=#{provider}, text_length=#{text_converted.length}" }
 
-      # Use Net::HTTP for OpenAI TTS when use_net_http is true or when streaming with block
-      if (use_net_http || block_given?) && (provider.include?("openai-tts") || provider == "openai")
-        Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Using Net::HTTP (use_net_http=#{use_net_http}, streaming=#{block_given?})" }
-        require 'net/http'
-        require 'uri'
-
-        uri = URI(target_uri)
-        net_http = Net::HTTP.new(uri.host, uri.port)
-        net_http.use_ssl = true
-        net_http.read_timeout = READ_TIMEOUT
-
-        request = Net::HTTP::Post.new(uri.path)
-        headers.each { |key, value| request[key] = value }
-        request.body = body.to_json
-
-        if block_given?
-          # Streaming mode with Net::HTTP
-          t_index = 0
-
-          net_http.request(request) do |response|
-            unless response.code.to_i == 200
-              error_res = { "type" => "error", "content" => "ERROR: OpenAI TTS API error: #{response.code}" }
-              block.call(error_res)
-              return
-            end
-
-            response.read_body do |chunk|
-              if chunk.length > 0
-                t_index += 1
-                content = Base64.strict_encode64(chunk)
-                hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
-                block.call(hash_res)
-                puts "OpenAI TTS: Streamed chunk #{t_index} (#{chunk.length} bytes)" if ENV["DEBUG_TTS"]
-              end
-            end
-          end
-
-          # Send completion signal
-          t_index += 1
-          finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
-          block.call(finish)
-          return nil
-        else
-          # Non-streaming mode with Net::HTTP
-          Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Net::HTTP non-streaming request" }
-
-          response = net_http.request(request)
-
-          Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Net::HTTP response received - code=#{response.code}, body_size=#{response.body.length}" }
-
-          unless response.code.to_i == 200
-            error_res = { "type" => "error", "content" => "ERROR: OpenAI TTS API error: #{response.code}" }
-            return error_res
-          end
-
-          Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Returning audio (Net::HTTP non-streaming) - body_size=#{response.body.length}" }
-
-          return { "type" => "audio", "content" => Base64.strict_encode64(response.body) }
-        end
-      end
-
-      # For non-Net::HTTP paths, use HTTP gem
       http = HTTP.headers(headers)
-
-      # Gemini TTS now uses non-streaming endpoint (generateContent) for all requests
-      # The streaming-specific code has been removed as it added unnecessary overhead
 
       Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Sending HTTP POST to #{target_uri}" }
 
@@ -370,16 +301,11 @@ module InteractionUtils
             error_report["detail"].to_s.include?("something_went_wrong"))
           # Log the error but don't send to client
           puts "ElevenLabs API warning (suppressed): #{error_report}"
-          # Don't call the block with error and don't return error
-          # This prevents the error from being sent to the client
-          return nil if block_given?
-          # For non-streaming calls, return a silent success to avoid error display
+          # Return a silent success to avoid error display
           return { "type" => "audio", "content" => "" }
         end
 
-        res = { "type" => "error", "content" => "ERROR: #{error_report}" }
-        block&.call res
-        return res
+        return { "type" => "error", "content" => "ERROR: #{error_report}" }
       end
 
       # Handle Gemini response format - convert PCM to WAV for browser compatibility
@@ -396,9 +322,7 @@ module InteractionUtils
           # Check for API error response
           if gemini_response["error"]
             error_msg = gemini_response["error"]["message"] || gemini_response["error"].to_s
-            error_res = { "type" => "error", "content" => "Gemini TTS API Error: #{error_msg}" }
-            block&.call error_res if block_given?
-            return error_res
+            return { "type" => "error", "content" => "Gemini TTS API Error: #{error_msg}" }
           end
 
           # Extract audio data from Gemini response
@@ -429,27 +353,14 @@ module InteractionUtils
 
             puts "Gemini TTS: PCM (#{pcm_data.length} bytes) -> WAV (#{wav_data.length} bytes)" if ENV["DEBUG_TTS"]
 
-            if block_given?
-              # For streaming, send the complete audio at once with WAV MIME type
-              hash_res = { "type" => "audio", "content" => wav_base64, "mime_type" => "audio/wav", "t_index" => 1, "finished" => false }
-              block&.call hash_res
-              finish = { "type" => "audio", "content" => "", "t_index" => 2, "finished" => true }
-              block&.call finish
-              return nil
-            else
-              return { "type" => "audio", "content" => wav_base64, "mime_type" => "audio/wav" }
-            end
+            return { "type" => "audio", "content" => wav_base64, "mime_type" => "audio/wav" }
           else
             # Log detailed error for debugging
             Monadic::Utils::ExtraLogger.log { "[DEBUG] Gemini TTS Error: Invalid response format (no inlineData)\n[DEBUG] Response structure: #{gemini_response.to_json[0..500]}" }
-            error_res = { "type" => "error", "content" => "ERROR: Invalid response format from Gemini TTS API. The API may be experiencing issues." }
-            block&.call error_res if block_given?
-            return error_res
+            return { "type" => "error", "content" => "ERROR: Invalid response format from Gemini TTS API. The API may be experiencing issues." }
           end
         rescue JSON::ParserError => e
-          error_res = { "type" => "error", "content" => "ERROR: Failed to parse Gemini response: #{e.message}" }
-          block&.call error_res if block_given?
-          return error_res
+          return { "type" => "error", "content" => "ERROR: Failed to parse Gemini response: #{e.message}" }
         end
       end
 
@@ -459,55 +370,17 @@ module InteractionUtils
           mistral_response = JSON.parse(res.body.to_s)
           audio_base64 = mistral_response["audio_data"]
           if audio_base64
-            if block_given?
-              hash_res = { "type" => "audio", "content" => audio_base64, "t_index" => 1, "finished" => false }
-              block.call hash_res
-              finish = { "type" => "audio", "content" => "", "t_index" => 2, "finished" => true }
-              block.call finish
-              return nil
-            else
-              return { "type" => "audio", "content" => audio_base64 }
-            end
+            return { "type" => "audio", "content" => audio_base64 }
           else
-            error_res = { "type" => "error", "content" => "ERROR: Invalid response from Mistral TTS API" }
-            block&.call error_res if block_given?
-            return error_res
+            return { "type" => "error", "content" => "ERROR: Invalid response from Mistral TTS API" }
           end
         rescue JSON::ParserError => e
-          error_res = { "type" => "error", "content" => "ERROR: Failed to parse Mistral TTS response: #{e.message}" }
-          block&.call error_res if block_given?
-          return error_res
+          return { "type" => "error", "content" => "ERROR: Failed to parse Mistral TTS response: #{e.message}" }
         end
       end
 
-      t_index = 0
-
-      if block_given?
-        if streaming_supported
-          # For non-OpenAI providers (Gemini, ElevenLabs) that support streaming, emit chunks as they arrive
-          res.body.each do |chunk|
-            t_index += 1
-            content = Base64.strict_encode64(chunk)
-            hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
-            block&.call hash_res
-          end
-          t_index += 1
-          finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
-          block&.call finish
-          return nil
-        else
-          # ElevenLabs v3 responds with a full file; deliver once even in streaming mode
-          encoded = Base64.strict_encode64(res.body.to_s)
-          hash_res = { "type" => "audio", "content" => encoded, "t_index" => 1, "finished" => false }
-          block&.call hash_res
-          finish = { "type" => "audio", "content" => "", "t_index" => 2, "finished" => true }
-          block&.call finish
-          return nil
-        end
-      else
-        Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Returning audio (non-streaming) - body_size=#{res.body.to_s.length}" }
-        { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Returning audio - body_size=#{res.body.to_s.length}" }
+      { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
     rescue => e
       Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request: Exception occurred - #{e.class}: #{e.message}\n#{e.backtrace.join("\n")}" }
       { "type" => "error", "content" => "ERROR: TTS request failed: #{e.message}" }
@@ -659,8 +532,14 @@ module InteractionUtils
         body["language_code"] = language
       end
 
+      # Match the sync-path endpoint selection: v3 uses non-streaming endpoint,
+      # others use /stream with optimize_streaming_latency=3 for lowest TTFA.
       output_format = "mp3_44100_128"
-      target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
+      target_uri = if provider == "elevenlabs-v3"
+                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
+                   else
+                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}&optimize_streaming_latency=3"
+                   end
 
       require 'http'
 

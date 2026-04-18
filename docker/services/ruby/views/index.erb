@@ -1175,12 +1175,6 @@
     <!-- Mermaid (~2.5 MB), ABCjs (~472 KB), maxGraph (~608 KB) are lazy-loaded -->
     <!-- on first use via LazyLoader. See js/monadic/lazy-loader.js -->
 
-    <!-- Pass server configuration to frontend -->
-    <script>
-      // Set AUTO_TTS_REALTIME_MODE from server CONFIG
-      window.AUTO_TTS_REALTIME_MODE = <%= CONFIG["AUTO_TTS_REALTIME_MODE"] || false %>;
-    </script>
-
     <!-- Bundled application scripts (68 modules, minified) -->
     <!-- Source files in js/monadic/ are kept for development and testing -->
     <!-- Rebuild with: npm run build:js -->

@@ -1147,15 +1147,6 @@ function setParams() {
   params["easy_submit"] = spEasySubmit ? spEasySubmit.checked : false;
   params["auto_speech"] = spAutoSpeech ? spAutoSpeech.checked : false;
 
-  // Auto TTS mode: realtime (true) or post-completion (false, default)
-  // This will be set from Electron settings
-  if (typeof window.AUTO_TTS_REALTIME_MODE !== 'undefined') {
-    params["auto_tts_realtime_mode"] = window.AUTO_TTS_REALTIME_MODE;
-  } else {
-    // Default to false (post-completion mode)
-    params["auto_tts_realtime_mode"] = false;
-  }
-
   const spec = modelSpec[params["model"]];
   if (spec && spec["context_window"]) {
     params["max_input_tokens"] = spec["context_window"][1];

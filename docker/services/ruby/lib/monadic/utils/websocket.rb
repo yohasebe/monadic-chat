@@ -59,22 +59,6 @@ module WebSocketHelper
     )
   end
 
-  # Realtime TTS buffer configuration
-  # Minimum character length for TTS processing:
-  # - Sentences ≤ this length are buffered
-  # - Buffer is flushed when total exceeds this length
-  # Larger values (e.g., 50) reduce API calls and errors, improve fluency
-  # but may slightly increase initial response delay
-  # Configurable via AUTO_TTS_MIN_LENGTH environment variable (default: 50, range: 20-200)
-  def self.realtime_tts_min_length
-    value = (ENV['AUTO_TTS_MIN_LENGTH'] || '50').to_i
-    # Enforce bounds: minimum 20, maximum 200
-    [[value, 20].max, 200].min
-  end
-
-  # For backward compatibility and convenience
-  REALTIME_TTS_MIN_LENGTH = realtime_tts_min_length
-
   # Sentence segmentation using TwitterCLDR (faster and better RTL support than PragmaticSegmenter)
   # Returns an array of sentence strings
   def self.segment_sentences(text)
@@ -178,8 +162,6 @@ module WebSocketHelper
       case msg
       when "TTS"
           handle_ws_tts(connection, obj, session)
-        when "TTS_STREAM"
-          handle_ws_tts_stream(connection, obj, session, thread)
         when "CANCEL"
           # Get session ID for targeted broadcasting
           ws_session_id = Thread.current[:websocket_session_id]

@@ -97,7 +97,6 @@ To see all available models from the provider, toggle the **All** switch next to
 | `STT_MODEL` | Speech-to-text model | See model_spec.js | Refer to provider documentation for available models |
 | `TTS_DICT_PATH` | Path to TTS pronunciation dictionary | (optional) | File path |
 | `TTS_DICT_DATA` | Inline TTS pronunciation data | (optional) | CSV format |
-| `AUTO_TTS_MIN_LENGTH` | Minimum text length before TTS generation in realtime mode | `50` | 20-200 characters |
 
 ## Help System Settings
 

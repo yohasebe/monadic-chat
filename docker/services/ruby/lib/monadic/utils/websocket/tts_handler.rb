@@ -660,49 +660,6 @@ module WebSocketHelper
     end
   end
 
-  private def handle_ws_tts_stream(connection, obj, session, thread)
-    # Get session ID for targeted broadcasting
-    ws_session_id = Thread.current[:websocket_session_id]
-
-    thread&.join
-    provider = obj["provider"]
-    if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
-      voice = obj["elevenlabs_voice"]
-    elsif provider == "gemini-flash" || provider == "gemini-pro"
-      voice = obj["gemini_voice"]
-    elsif provider == "mistral"
-      voice = obj["mistral_voice"]
-    elsif provider == "grok"
-      voice = obj["grok_voice"]
-    else
-      voice = obj["voice"]
-    end
-    text = obj["text"]
-    elevenlabs_voice = obj["elevenlabs_voice"]
-    speed = obj["speed"]
-    response_format = obj["response_format"]
-    language = obj["conversation_language"] || "auto"
-    # model = obj["model"]
-
-
-    # Special handling for Web Speech API
-    if provider == "webspeech" || provider == "web-speech"
-      # Create a special response for Web Speech API
-      web_speech_response = { "type" => "web_speech", "content" => text }
-      send_or_broadcast(web_speech_response.to_json, ws_session_id)
-    else
-      # Generate TTS content for other providers (use captured ws_session_id in callback)
-      tts_api_request(text,
-                      provider: provider,
-                      voice: voice,
-                      speed: speed,
-                      response_format: response_format,
-                      language: language) do |fragment|
-        send_or_broadcast(fragment.to_json, ws_session_id)
-    end
-    end
-  end
-
   private def handle_ws_stop_tts(connection, obj, session)
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
@@ -765,7 +722,7 @@ module WebSocketHelper
     end
     text = obj["text"]
     speed = obj["tts_speed"]
-    response_format = "mp3"
+    response_format = "aac"
     language = obj["conversation_language"] || "auto"
 
     # Use common TTS playback method with manual_play: true (no byte limit for explicit Play button)

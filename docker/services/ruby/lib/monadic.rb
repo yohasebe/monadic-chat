@@ -141,7 +141,6 @@ CONFIG = {
   "DEBUG_MODE" => ENV["DEBUG_MODE"] == "true" || false,  # Check if running in debug mode
   "JUPYTER_PORT" => "8889",     # Default Jupyter port
   "WEBSOCKET_PROGRESS_ENABLED" => ENV["WEBSOCKET_PROGRESS_ENABLED"] != "false",  # Default to true, can be disabled via ENV
-  "AUTO_TTS_REALTIME_MODE" => false,  # Default to post-completion mode (false); set to true for realtime TTS during streaming
   "AUTO_TTS_MAX_BYTES" => 400  # Maximum bytes for auto TTS in post-completion mode (default: 400 bytes ≈ 130 Japanese chars or 400 ASCII chars)
 }
 

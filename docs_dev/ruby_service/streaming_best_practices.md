@@ -584,10 +584,15 @@ Common symptoms:
 
 ### Configuration
 
-Enable realtime TTS mode in `~/monadic/config/env`:
+> **Historical note (2026-04)**: Realtime TTS mode (`AUTO_TTS_REALTIME_MODE`) and
+> the TTS_STREAM WebSocket path have been removed. TTS is now always generated
+> after streaming completes. The sequence-buffering patterns below remain a
+> useful reference for any future streaming-audio work but no longer map to
+> active code paths.
+
+Enable debug logging for streaming TTS callback analysis in `~/monadic/config/env`:
 
 ```bash
-AUTO_TTS_REALTIME_MODE=true  # TTS during streaming (not after completion)
 EXTRA_LOGGING=true           # Debug async callback order
 ```
 

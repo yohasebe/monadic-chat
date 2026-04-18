@@ -219,19 +219,6 @@ module WebSocketHelper
     # Convert string "true" to boolean true for compatibility
     obj["auto_speech"] = true if obj["auto_speech"] == "true"
 
-    # Get auto_tts_realtime_mode setting
-    # TEMPORARILY DISABLED (2025-11-07): Realtime mode has a race condition where
-    # LLM streaming can split words mid-character (e.g., "チャット" → "チャ" + "ット"),
-    # causing the sentence segmenter to mark sentences as "complete" before all characters
-    # arrive. This results in truncated TTS audio (e.g., "チャット" → "チャ").
-    # Need to add fragment stabilization (wait 50-100ms after sentence boundary)
-    # before re-enabling.
-    # auto_tts_realtime_mode = obj["auto_tts_realtime_mode"]
-    # if auto_tts_realtime_mode.nil?
-    #   auto_tts_realtime_mode = defined?(CONFIG) && CONFIG["AUTO_TTS_REALTIME_MODE"].to_s == "true"
-    # end
-    auto_tts_realtime_mode = false  # Force POST-COMPLETION mode until race condition is fixed
-
     if obj["auto_speech"]
       provider = obj["tts_provider"]
       if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
@@ -246,7 +233,7 @@ module WebSocketHelper
         voice = obj["tts_voice"]
       end
       speed = obj["tts_speed"]
-      response_format = "mp3"
+      response_format = "aac"
       model = if defined?(Monadic::Utils::ModelSpec)
                 Monadic::Utils::ModelSpec.default_tts_model("openai")
               end
@@ -283,12 +270,6 @@ module WebSocketHelper
       buffer = []
       cutoff = false
 
-      # Initialize sequence counter for realtime TTS (once per message)
-      @realtime_tts_sequence_counter = 0
-
-      # Initialize short sentence buffer for realtime TTS
-      @realtime_tts_short_buffer = []
-
       # Save original auto_speech and monadic values before they might be overwritten
       # These will be used for final segment processing after streaming completes
       original_auto_speech = obj["auto_speech"]
@@ -308,7 +289,7 @@ module WebSocketHelper
       prev_texts_for_tts = []
       responses = app_obj.api_request("user", session) do |fragment|
         # DEBUG: Log all fragment arrivals
-        Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}" }
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}" }
 
         if fragment["type"] == "error"
           error_content = fragment["content"] || fragment.to_s
@@ -319,7 +300,6 @@ module WebSocketHelper
           # Clear server-side buffers before post-tool response streaming
           # This prevents pre-tool text from being concatenated with post-tool response
           buffer.clear
-          @realtime_tts_short_buffer.clear if @realtime_tts_short_buffer
 
           # Send clear_fragments to frontend to clear the UI temp-card
           clear_msg = { "type" => "clear_fragments" }.to_json
@@ -340,168 +320,9 @@ module WebSocketHelper
             msg
           }
 
-          # Wait for complete sentences: TwitterCLDR returns 2+ segments when a sentence is complete
-          # Process all complete sentences (all except the last incomplete one)
-          if !cutoff && segments.size >= 2
-            complete_sentences = segments[0...-1]
-
-            if auto_tts_realtime_mode
-              # REALTIME MODE: Use http.rb async processing for non-blocking TTS
-              Monadic::Utils::ExtraLogger.log { "[DEBUG] REALTIME MODE ACTIVE: auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, segments=#{segments.size}\n[DEBUG] complete_sentences count: #{segments[0...-1].size}" }
-
-              # Process each complete sentence with buffering for short sentences
-              # This prevents pauses between short and long sentence TTS generation
-              complete_sentences.each_with_index do |sentence, idx|
-                split = sentence.split("---")
-                if split.empty?
-                  cutoff = true
-                  break
-                end
-
-                # Process sentence fragments for TTS if auto_speech is enabled
-                if obj["auto_speech"] && !cutoff && !obj["monadic"]
-                  text = split[0] || ""
-
-                  # Strip Markdown markers and HTML tags before TTS processing
-                  text = StringUtils.strip_markdown_for_tts(text)
-
-                  # Filter out very short or emoji-only segments
-                  cleaned_text = text.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
-                  cleaned_text = cleaned_text.gsub(/^\s*[-*]\s+/, '').gsub(/^\s*\d+\.\s+/, '')
-                  cleaned_text = cleaned_text.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ')
-                  cleaned_text = cleaned_text.strip
-
-                  Monadic::Utils::ExtraLogger.log { "[BUFFER] ============================================\n[BUFFER] Sentence #{idx} received\n[BUFFER] Original text: '#{text}'\n[BUFFER] Cleaned text: '#{cleaned_text}'\n[BUFFER] Cleaned length: #{cleaned_text.length}" }
-
-                  # Skip only if text is empty
-                  if text.strip != ""
-                    # Check if this is a short sentence (≤REALTIME_TTS_MIN_LENGTH chars cleaned length)
-                    if cleaned_text.length <= REALTIME_TTS_MIN_LENGTH
-                      # Buffer short sentence instead of sending immediately
-                      @realtime_tts_short_buffer << text
-
-                      # Calculate total buffer length
-                      total_buffer_length = @realtime_tts_short_buffer.map do |buffered_text|
-                        cleaned = buffered_text.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
-                        cleaned = cleaned.gsub(/^\s*[-*]\s+/, '').gsub(/^\s*\d+\.\s+/, '')
-                        cleaned = cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ')
-                        cleaned.strip.length
-                      end.sum
-
-                      Monadic::Utils::ExtraLogger.log {
-                        msg = "[BUFFER] Decision: BUFFERING (≤#{REALTIME_TTS_MIN_LENGTH} chars)\n[BUFFER] Buffer size: #{@realtime_tts_short_buffer.size} sentence(s)\n[BUFFER] Total buffer length: #{total_buffer_length} chars\n[BUFFER] Buffer contents:"
-                        @realtime_tts_short_buffer.each_with_index do |buf_text, buf_idx|
-                          msg += "\n[BUFFER]   [#{buf_idx}]: '#{buf_text}'"
-                        end
-                        msg
-                      }
-
-                      # Check if total buffer length exceeds threshold
-                      # This prevents long pauses while maintaining gap prevention
-                      if total_buffer_length > REALTIME_TTS_MIN_LENGTH
-                        # Flush buffer when accumulated length is sufficient
-                        # Add space between sentences to prevent words from merging
-                        combined_text = @realtime_tts_short_buffer.join(" ")
-                        @realtime_tts_short_buffer.clear
-
-                        Monadic::Utils::ExtraLogger.log { "[BUFFER] *** FLUSHING BUFFER (total: #{total_buffer_length} > #{REALTIME_TTS_MIN_LENGTH}) ***\n[BUFFER] Combined text to send to TTS: '#{combined_text}'\n[BUFFER] Combined text length: #{combined_text.length}" }
-
-                        # Increment counters and create sequence ID
-                        @realtime_tts_sequence_counter += 1
-                        sequence_num = @realtime_tts_sequence_counter
-                        sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
-
-                        # Submit TTS request immediately
-                        Async do
-                          tts_api_request_async(
-                            combined_text,
-                            provider: provider,
-                            voice: voice,
-                            speed: speed,
-                            response_format: response_format,
-                            language: language,
-                            sequence_id: sequence_id
-                          ) do |res_hash|
-                            if res_hash && res_hash["type"] != "error"
-                              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS async callback (flushed buffer): sequence_id=#{sequence_id}, type=#{res_hash["type"]}" }
-                              # Use captured ws_session_id from outer scope
-                              if ws_session_id
-                                WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
-                              else
-                                WebSocketHelper.broadcast_to_all(res_hash.to_json)
-                              end
-                            else
-                              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS failed for flushed buffer: #{res_hash&.[]("content")}" }
-                            end
-                          end
-                        end
-                      end
-                    else
-                      # This is a longer sentence - flush buffer and send combined text
-                      Monadic::Utils::ExtraLogger.log { "[BUFFER] Decision: IMMEDIATE SEND (>#{REALTIME_TTS_MIN_LENGTH} chars)\n[BUFFER] Current buffer has #{@realtime_tts_short_buffer.size} sentence(s)" }
-
-                      combined_text = if @realtime_tts_short_buffer.empty?
-                                       text
-                                     else
-                                       # Combine buffered short sentences with current sentence
-                                       # Add space between sentences to prevent words from merging
-                                       buffered = @realtime_tts_short_buffer.join(" ")
-                                       @realtime_tts_short_buffer.clear
-                                       "#{buffered} #{text}"
-                                     end
-
-                      # Increment counters and create sequence ID
-                      @realtime_tts_sequence_counter += 1
-                      sequence_num = @realtime_tts_sequence_counter
-                      sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
-
-                      Monadic::Utils::ExtraLogger.log { "[BUFFER] *** SENDING TO TTS (long sentence) ***\n[BUFFER] Sequence: #{sequence_num}, ID: #{sequence_id}\n[BUFFER] Combined text to send: '#{combined_text}'\n[BUFFER] Combined text length: #{combined_text.length}" }
-
-                      # Submit TTS request immediately
-                      Async do
-                        tts_api_request_async(
-                          combined_text,
-                          provider: provider,
-                          voice: voice,
-                          speed: speed,
-                          response_format: response_format,
-                          language: language,
-                          sequence_id: sequence_id
-                        ) do |res_hash|
-                          # This callback runs when TTS completes
-                          if res_hash && res_hash["type"] != "error"
-                            Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}" }
-
-                            # Send audio to client (use captured ws_session_id)
-                            if ws_session_id
-                              WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
-                            else
-                              WebSocketHelper.broadcast_to_all(res_hash.to_json)
-                            end
-                          else
-                            # TTS failed, just log it (fragment already sent)
-                            Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS failed for segment: #{res_hash&.[]("content")}" }
-                          end
-                        end
-                      end
-                    end
-                  end
-                end
-              end
-
-              # REALTIME MODE: Keep the last incomplete sentence in buffer
-              buffer = [segments.last]
-
-              # Send the fragment to display text (after TTS processing)
-              send_or_broadcast(fragment.to_json, ws_session_id)
-            else
-              # POST-COMPLETION MODE: Just send fragments, keep everything in buffer
-              send_or_broadcast(fragment.to_json, ws_session_id)
-            end
-          else
-            # Just send the fragment without TTS processing
-            send_or_broadcast(fragment.to_json, ws_session_id)
-          end
+          # Forward fragment to frontend for display. Full-text TTS is
+          # synthesized once the stream completes (post-completion mode).
+          send_or_broadcast(fragment.to_json, ws_session_id)
         else
           # Handle other fragment types (including html, message, etc.)
           Monadic::Utils::ExtraLogger.log { "[WebSocket] Forwarding fragment type='#{fragment["type"]}' to frontend" }
@@ -512,78 +333,10 @@ module WebSocketHelper
 
       Thread.exit if !responses || responses.empty?
 
-      # Process final segment for realtime mode
-      # The last incomplete sentence in buffer needs to be processed after streaming completes
-      # Check both auto_speech and auto_tts_realtime_mode to ensure TTS is intentionally enabled
-      # auto_speech can be boolean true or string "true" from client
-      # Use original_auto_speech saved before streaming started (obj may have been overwritten)
-      auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
-
-      Monadic::Utils::ExtraLogger.log { "[DEBUG] Checking final segment conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled}\n[DEBUG]   cutoff=#{cutoff}, original_monadic=#{original_monadic}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}\n[DEBUG]   Buffer contents: #{buffer.inspect}\n[DEBUG]   Short buffer: #{@realtime_tts_short_buffer.inspect}" }
-
-      if auto_speech_enabled && auto_tts_realtime_mode && !cutoff && !original_monadic
-        # Prefer the provider-returned full text when available to avoid token loss
-        final_text = responses.last && responses.last["text"] ? responses.last["text"].to_s.strip : ""
-
-        # Fallback to buffered join if full text is not present
-        if final_text.empty?
-          final_text = buffer.join.strip
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[DEBUG] Final text from buffer: '#{final_text}'" }
-
-        # Also check if there are any buffered short sentences that haven't been sent yet
-        if !@realtime_tts_short_buffer.empty?
-          # Combine buffered short sentences with final text
-          # Add space between sentences to prevent words from merging
-          buffered = @realtime_tts_short_buffer.join(" ")
-          final_text = if final_text.empty?
-                        buffered
-                      else
-                        "#{buffered} #{final_text}"
-                      end
-          @realtime_tts_short_buffer.clear
-
-          Monadic::Utils::ExtraLogger.log { "[DEBUG] REALTIME MODE: Flushing buffered short sentences into final segment" }
-        end
-
-        if final_text != ""
-          Monadic::Utils::ExtraLogger.log { "[DEBUG] REALTIME MODE: Processing final segment: '#{final_text[0..50]}...' (length=#{final_text.length})" }
-
-          # Generate unique sequence ID for final segment (use same format as streaming segments)
-          # Counter should already be initialized by streaming loop above
-          @realtime_tts_sequence_counter += 1
-          sequence_num = @realtime_tts_sequence_counter
-          sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
-
-          # Call async TTS for final segment
-          tts_api_request_async(
-            final_text,
-            provider: provider,
-            voice: voice,
-            speed: speed,
-            response_format: response_format,
-            language: language,
-            sequence_id: sequence_id
-          ) do |res_hash|
-            if res_hash && res_hash["type"] != "error"
-              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS final segment callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}" }
-              # Use captured ws_session_id from outer scope
-              if ws_session_id
-                WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
-              else
-                WebSocketHelper.broadcast_to_all(res_hash.to_json)
-              end
-            else
-              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS failed for final segment: #{res_hash&.[]("content")}" }
-            end
-          end
-        end
-      end
-
-      # Post-completion TTS processing when realtime mode is FALSE
-      # Use original_auto_speech (saved before fragment loop) because obj may be overwritten
-      # Convert string "true" to boolean true for compatibility
+      # Post-completion TTS processing: synthesize the full response after the
+      # streaming loop finishes. Use original_auto_speech (saved before the
+      # loop) because obj may have been overwritten mid-stream. auto_speech can
+      # arrive as boolean true or string "true" from the client.
       auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
 
       # Check if monadic is nil or empty string (both should be treated as false/disabled)
@@ -602,9 +355,9 @@ module WebSocketHelper
       # the Play button to avoid duplicate audio playback. The client-side code
       # in websocket.js has been updated to skip playButton.click() when Auto TTS
       # is expected (server will send audio automatically).
-      tts_allowed = auto_speech_enabled && !cutoff && !auto_tts_realtime_mode
+      tts_allowed = auto_speech_enabled && !cutoff
 
-      Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION MODE conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}\n[DEBUG]   cutoff=#{cutoff.inspect}\n[DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}\n[DEBUG]   auto_tts_realtime_mode=#{auto_tts_realtime_mode.inspect}\n[DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}\n[DEBUG]   tts_allowed=#{tts_allowed.inspect}" }
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION MODE conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}\n[DEBUG]   cutoff=#{cutoff.inspect}\n[DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}\n[DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}\n[DEBUG]   tts_allowed=#{tts_allowed.inspect}" }
 
       if tts_allowed
         # Stop any existing TTS thread first

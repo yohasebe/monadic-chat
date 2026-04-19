@@ -3,6 +3,7 @@
 require 'base64'
 require 'net/http'
 require_relative 'extra_logger'
+require_relative 'tts_text_processors'
 
 module InteractionUtils
   # Convert raw PCM audio data to WAV format (in memory, no file I/O)
@@ -54,6 +55,8 @@ module InteractionUtils
     else
       text_converted = text
     end
+
+    text_converted = Monadic::Utils::TtsTextProcessors.pre_send(provider, text_converted)
 
     num_retrial = 0
 
@@ -407,6 +410,8 @@ module InteractionUtils
                     else
                       text
                     end
+
+    text_converted = Monadic::Utils::TtsTextProcessors.pre_send(provider, text_converted)
 
     Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: START - provider=#{provider}, text_length=#{text_converted.length}, sequence_id=#{sequence_id}" }
 

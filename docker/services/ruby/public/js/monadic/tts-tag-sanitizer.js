@@ -31,6 +31,33 @@
   var XAI_INLINE_RE = new RegExp("\\[(?:" + XAI_INLINE_MARKERS.join("|") + ")\\]", "gi");
   var XAI_WRAP_RE   = new RegExp("</?(?:" + XAI_WRAP_TAGS.join("|") + ")>", "gi");
 
+  // ElevenLabs v3 audio tags. The prompt restricts the LLM to the curated
+  // single-word set, but the regex accepts multi-word lowercase descriptors
+  // up to ~30 chars so the UI still cleans up when the model improvises.
+  var ELEVENLABS_INLINE_MARKERS = [
+    "laughs", "sighs", "whispers", "excited", "sarcastic", "curious",
+    "crying", "angry", "sad", "happy", "giggles", "sobs", "sings",
+    "exhales", "inhales"
+  ];
+  // NOTE: the "g" flag alone (no "i") keeps the catch-all lowercase-only so
+  // that transcripts preserve all-caps brackets like [TODO] and numeric
+  // brackets like [1] that are not TTS markers.
+  var ELEVENLABS_INLINE_RE = new RegExp(
+    "\\[(?:" + ELEVENLABS_INLINE_MARKERS.join("|") + "|[a-z][a-z ]{2,30})\\]",
+    "g"
+  );
+
+  // Gemini TTS 16 fixed tags plus a loose free-form catch-all.
+  var GEMINI_INLINE_MARKERS = [
+    "amazed", "crying", "curious", "excited", "sighs", "gasp", "giggles",
+    "laughs", "mischievously", "panicked", "sarcastic", "serious",
+    "shouting", "tired", "trembling", "whispers"
+  ];
+  var GEMINI_INLINE_RE = new RegExp(
+    "\\[(?:" + GEMINI_INLINE_MARKERS.join("|") + "|[a-z][a-z ,]{2,60})\\]",
+    "g"
+  );
+
   // Normalize a provider string to a canonical family key.
   function familyFor(provider) {
     var key = String(provider == null ? "" : provider).toLowerCase();
@@ -49,8 +76,19 @@
         .replace(XAI_INLINE_RE, "")
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\s+([,.!?;:])/g, "$1");
+    },
+    "elevenlabs": function(text) {
+      return String(text)
+        .replace(ELEVENLABS_INLINE_RE, "")
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\s+([,.!?;:])/g, "$1");
+    },
+    "gemini": function(text) {
+      return String(text)
+        .replace(GEMINI_INLINE_RE, "")
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\s+([,.!?;:])/g, "$1");
     }
-    // "elevenlabs": TODO — activate once any app uses Eleven v3 audio tags.
   };
 
   // Resolve the current TTS provider from global params (monadic.js exposes

@@ -43,10 +43,32 @@ module Monadic
       XAI_INLINE_RE = /\[(?:#{XAI_INLINE_MARKERS.join('|')})\]/i
       XAI_WRAP_RE   = %r{</?(?:#{XAI_WRAP_TAGS.join('|')})>}i
 
+      # ElevenLabs v3 audio tags include compound phrases (e.g., "laughing
+      # harder"); the display regex matches a tighter curated set but accepts
+      # multi-word lowercase descriptors up to ~30 chars so the UI still
+      # cleans up when the model improvises a tag the prompt did not list.
+      ELEVENLABS_INLINE_MARKERS = %w[laughs sighs whispers excited sarcastic curious
+                                      crying angry sad happy giggles sobs sings
+                                      exhales inhales].freeze
+      # NOTE: no `i` flag — the free-form catch-all is intentionally
+      # lowercase-only so that ordinary all-caps brackets like `[TODO]` or
+      # numeric brackets like `[1]` are preserved in the transcript.
+      ELEVENLABS_INLINE_RE      = /\[(?:#{ELEVENLABS_INLINE_MARKERS.join('|')}|[a-z][a-z ]{2,30})\]/
+
+      # Gemini TTS supports 16 fixed tags plus arbitrary free-form descriptors.
+      # We strip the fixed set plus any short lowercase descriptor in brackets
+      # (same loose fallback as ElevenLabs) — see vocabulary registry for why
+      # the prompt deliberately restricts the LLM to the fixed set only.
+      GEMINI_INLINE_MARKERS = %w[amazed crying curious excited sighs gasp giggles
+                                  laughs mischievously panicked sarcastic serious
+                                  shouting tired trembling whispers].freeze
+      # NOTE: no `i` flag — see the ElevenLabs regex above for the rationale.
+      GEMINI_INLINE_RE      = /\[(?:#{GEMINI_INLINE_MARKERS.join('|')}|[a-z][a-z ,]{2,60})\]/
+
       PRE_SEND = {
         # Registered providers receive a Proc; unregistered ones pass through identity.
-        # xAI and ElevenLabs currently need no pre-send transformation — their
-        # engines consume tags verbatim.
+        # xAI, ElevenLabs and Gemini currently need no pre-send transformation —
+        # their engines consume tags verbatim.
       }.freeze
 
       DISPLAY_SANITIZE = {
@@ -56,8 +78,19 @@ module Monadic
               .gsub(XAI_INLINE_RE, "")
               .gsub(/[ \t]{2,}/, " ")
               .gsub(/\s+([,.!?;:])/, '\1')
+        },
+        "elevenlabs" => ->(text) {
+          text.to_s
+              .gsub(ELEVENLABS_INLINE_RE, "")
+              .gsub(/[ \t]{2,}/, " ")
+              .gsub(/\s+([,.!?;:])/, '\1')
+        },
+        "gemini" => ->(text) {
+          text.to_s
+              .gsub(GEMINI_INLINE_RE, "")
+              .gsub(/[ \t]{2,}/, " ")
+              .gsub(/\s+([,.!?;:])/, '\1')
         }
-        # "elevenlabs" => TODO once Eleven v3 audio tags are used by any app.
       }.freeze
 
       def pre_send(provider, text)

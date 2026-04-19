@@ -29,8 +29,36 @@ module Monadic
             "Let me think. [pause] Okay, here's an idea.",
             '<whisper>Between you and me</whisper> I am not so sure either.'
           ].freeze
+        }.freeze,
+        # ElevenLabs v3 audio-tag vocabulary. The engine accepts a broader set
+        # than listed here (including multi-word tags like "laughing harder"),
+        # but the prompt only advertises curated single-word tags for output
+        # predictability. The display sanitizer matches a wider regex so the
+        # UI still cleans up if the model improvises.
+        "elevenlabs" => {
+          inline:   %w[laughs sighs whispers excited sarcastic curious crying
+                       angry sad happy giggles sobs sings exhales inhales].freeze,
+          wrapping: [].freeze,
+          examples: [
+            'Oh wow [laughs] that is quite a story.',
+            '[whispers] Between you and me, I am not so sure either.',
+            '[excited] That is brilliant news!'
+          ].freeze
+        }.freeze,
+        # Gemini TTS advertises 16 fixed audio tags and also accepts free-form
+        # descriptive tags (e.g., "[like a cartoon dog]"). We intentionally
+        # restrict the prompt to the fixed set to keep LLM output predictable.
+        "gemini" => {
+          inline:   %w[amazed crying curious excited sighs gasp giggles laughs
+                       mischievously panicked sarcastic serious shouting tired
+                       trembling whispers].freeze,
+          wrapping: [].freeze,
+          examples: [
+            '[laughs] That is hilarious!',
+            'Okay, [whispers] do not tell anyone.',
+            '[excited] Guess what just happened?'
+          ].freeze
         }.freeze
-        # ElevenLabs v3 and Gemini are registered in Phase E.
       }.freeze
 
       # Canonical family key for a provider string.

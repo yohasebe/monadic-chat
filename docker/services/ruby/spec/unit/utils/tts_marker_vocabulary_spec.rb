@@ -12,9 +12,21 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
   end
 
   describe '.tag_aware?' do
-    it 'is true for providers whose family has a registered vocabulary' do
+    it 'is true for xAI / Grok' do
       expect(described_class.tag_aware?('grok')).to be true
       expect(described_class.tag_aware?('xai-tts')).to be true
+    end
+
+    it 'is true for ElevenLabs variants' do
+      %w[elevenlabs elevenlabs-flash elevenlabs-multilingual elevenlabs-v3].each do |p|
+        expect(described_class.tag_aware?(p)).to be(true), "expected #{p} to be tag-aware"
+      end
+    end
+
+    it 'is true for Gemini TTS variants' do
+      %w[gemini gemini-flash gemini-pro].each do |p|
+        expect(described_class.tag_aware?(p)).to be(true), "expected #{p} to be tag-aware"
+      end
     end
 
     it 'is false for providers without a vocabulary' do
@@ -78,6 +90,34 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
     it 'returns nil for unregistered providers' do
       expect(described_class.prompt_addendum_for('openai-tts-4o')).to be_nil
       expect(described_class.prompt_addendum_for(nil)).to be_nil
+    end
+
+    context 'for ElevenLabs' do
+      let(:addendum) { described_class.prompt_addendum_for('elevenlabs-v3') }
+
+      it 'lists the curated single-word tag set' do
+        expect(addendum).to include('[laughs]')
+        expect(addendum).to include('[whispers]')
+        expect(addendum).to include('[excited]')
+      end
+
+      it 'omits the wrapping markers section because ElevenLabs has none' do
+        expect(addendum).not_to include('Wrapping markers')
+      end
+    end
+
+    context 'for Gemini' do
+      let(:addendum) { described_class.prompt_addendum_for('gemini-flash') }
+
+      it 'lists Gemini fixed tags only (not free-form)' do
+        expect(addendum).to include('[amazed]')
+        expect(addendum).to include('[mischievously]')
+        expect(addendum).to include('[trembling]')
+      end
+
+      it 'omits the wrapping markers section' do
+        expect(addendum).not_to include('Wrapping markers')
+      end
     end
   end
 end

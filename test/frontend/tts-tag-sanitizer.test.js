@@ -76,11 +76,43 @@ describe('TtsTagSanitizer', () => {
     });
   });
 
+  describe('sanitizeForDisplay (elevenlabs)', () => {
+    it('strips curated inline tags', () => {
+      const input = 'Oh wow [laughs] that is hilarious. [sighs] Anyway.';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'elevenlabs-v3'))
+        .toBe('Oh wow that is hilarious. Anyway.');
+    });
+
+    it('also strips improvised multi-word lowercase descriptors', () => {
+      expect(window.TtsTagSanitizer.sanitizeForDisplay('Hmm [laughing harder] priceless.', 'elevenlabs'))
+        .toBe('Hmm priceless.');
+    });
+
+    it('preserves all-caps and numeric brackets (non-markers)', () => {
+      expect(window.TtsTagSanitizer.sanitizeForDisplay('See [TODO] and [1].', 'elevenlabs'))
+        .toBe('See [TODO] and [1].');
+    });
+  });
+
+  describe('sanitizeForDisplay (gemini)', () => {
+    it('strips the 16 fixed audio tags', () => {
+      const input = 'Really [amazed] wow [mischievously] sneaky [whispers] secret.';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'gemini-flash'))
+        .toBe('Really wow sneaky secret.');
+    });
+
+    it('strips free-form descriptor tags Gemini supports', () => {
+      const input = 'Saying this [sarcastically, one painfully slow word at a time] is the point.';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'gemini-pro'))
+        .toBe('Saying this is the point.');
+    });
+  });
+
   describe('sanitizeForDisplay (other providers)', () => {
     it('is the identity function when no sanitizer is registered', () => {
       const input = '<whisper>kept</whisper> [laugh]';
       expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'openai-tts-4o')).toBe(input);
-      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'gemini-flash')).toBe(input);
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'mistral')).toBe(input);
     });
 
     it('is nil-safe and empty-string safe', () => {
@@ -108,6 +140,16 @@ describe('TtsTagSanitizer', () => {
     it('is not tag-aware when provider is a non-audio-tag provider', () => {
       window.params = { tts_provider: 'openai-tts-4o' };
       expect(window.TtsTagSanitizer.tagAware()).toBe(false);
+    });
+
+    it('is tag-aware for ElevenLabs variants', () => {
+      window.params = { tts_provider: 'elevenlabs-v3' };
+      expect(window.TtsTagSanitizer.tagAware()).toBe(true);
+    });
+
+    it('is tag-aware for Gemini TTS variants', () => {
+      window.params = { tts_provider: 'gemini-flash' };
+      expect(window.TtsTagSanitizer.tagAware()).toBe(true);
     });
   });
 });

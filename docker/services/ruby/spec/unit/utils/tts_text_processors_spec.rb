@@ -82,10 +82,45 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
       end
     end
 
+    context 'with the elevenlabs family' do
+      it 'strips curated inline tags' do
+        input = 'Oh wow [laughs] that is hilarious. [sighs] Anyway.'
+        expect(described_class.sanitize_for_display('elevenlabs-v3', input))
+          .to eq('Oh wow that is hilarious. Anyway.')
+      end
+
+      it 'also strips improvised multi-word lowercase descriptors' do
+        input = 'Hmm [laughing harder] this is priceless.'
+        out = described_class.sanitize_for_display('elevenlabs', input)
+        expect(out).to eq('Hmm this is priceless.')
+      end
+
+      it 'does not strip ordinary bracketed text such as TODO markers' do
+        # Uppercase and digit-only brackets are preserved since they are
+        # unlikely to be TTS markers.
+        expect(described_class.sanitize_for_display('elevenlabs', 'See [TODO] and [1].'))
+          .to eq('See [TODO] and [1].')
+      end
+    end
+
+    context 'with the gemini family' do
+      it 'strips the 16 fixed audio tags' do
+        input = 'Really [amazed] wow [mischievously] sneaky [whispers] secret.'
+        expect(described_class.sanitize_for_display('gemini-flash', input))
+          .to eq('Really wow sneaky secret.')
+      end
+
+      it 'strips free-form descriptor tags Gemini supports' do
+        input = 'Saying this [sarcastically, one painfully slow word at a time] is the point.'
+        expect(described_class.sanitize_for_display('gemini-pro', input))
+          .to eq('Saying this is the point.')
+      end
+    end
+
     it 'is the identity function for providers without a registered sanitizer' do
       input = '<whisper>kept as-is</whisper>'
       expect(described_class.sanitize_for_display('openai-tts-4o', input)).to eq(input)
-      expect(described_class.sanitize_for_display('gemini', input)).to eq(input)
+      expect(described_class.sanitize_for_display('mistral', input)).to eq(input)
     end
 
     it 'is nil-safe' do
@@ -99,9 +134,15 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
       expect(described_class.tag_aware?('grok')).to be true
     end
 
+    it 'reports true for ElevenLabs and Gemini families' do
+      expect(described_class.tag_aware?('elevenlabs-v3')).to be true
+      expect(described_class.tag_aware?('gemini-flash')).to be true
+    end
+
     it 'reports false for providers without one' do
       expect(described_class.tag_aware?('openai-tts-4o')).to be false
-      expect(described_class.tag_aware?('gemini')).to be false
+      expect(described_class.tag_aware?('mistral')).to be false
+      expect(described_class.tag_aware?('webspeech')).to be false
     end
   end
 end

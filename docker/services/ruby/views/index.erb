@@ -509,6 +509,14 @@
                 <option id="grok-tts-provider-option" value="grok" disabled>Grok TTS</option>
                 <option id="webspeech-provider-option" value="webspeech" selected>Web Speech API</option>
               </select>
+              <div id="expressive-speech-indicator" class="mt-1" style="display: none;">
+                <span class="badge text-bg-info" role="status"
+                      data-i18n-title="ui.expressiveSpeechTooltip"
+                      title="The selected TTS engine interprets speech markers that the assistant weaves into its replies.">
+                  <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
+                  <span data-i18n="ui.expressiveSpeech">Expressive Speech</span>
+                </span>
+              </div>
             </div>
 
             <div id="mistral-voices" class="my-1" style="display: none;">

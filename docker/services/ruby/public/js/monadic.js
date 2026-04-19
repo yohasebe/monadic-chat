@@ -2165,6 +2165,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update app icon in the select dropdown
     updateAppSelectIcon(appValue);
 
+    // Refresh Expressive Speech indicator: new app may change auto_speech state
+    if (typeof window.updateExpressiveSpeechIndicator === 'function') {
+      window.updateExpressiveSpeechIndicator();
+    }
+
     // Use toBool helper for defensive boolean evaluation
     const toBool = window.toBool || ((value) => {
       if (typeof value === 'boolean') return value;
@@ -2395,6 +2400,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update toggle button text
     if (typeof window.updateToggleButtonText === 'function') {
       window.updateToggleButtonText();
+    }
+    if (typeof window.updateExpressiveSpeechIndicator === 'function') {
+      window.updateExpressiveSpeechIndicator();
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('auto_speech_toggle');
@@ -3815,6 +3823,23 @@ document.addEventListener("DOMContentLoaded", function () {
     params["stt_model"] = savedSTTModel;
   }
 
+  // Expressive Speech indicator: visible when Auto Speech is on AND the
+  // active TTS provider has a registered speech-marker vocabulary (xAI,
+  // ElevenLabs v3, Gemini). Wired into tts-provider change, check-auto-speech
+  // change, app switch, and initial load via updateExpressiveSpeechIndicator().
+  function updateExpressiveSpeechIndicator() {
+    const badge = $id("expressive-speech-indicator");
+    if (!badge) return;
+    const autoSpeech = ($id("check-auto-speech") || {}).checked === true;
+    const ttsProviderEl = $id("tts-provider");
+    const ttsProvider = ttsProviderEl ? ttsProviderEl.value : "";
+    const tagAware = typeof window !== "undefined" &&
+                     window.TtsTagSanitizer &&
+                     window.TtsTagSanitizer.tagAware(ttsProvider);
+    badge.style.display = (autoSpeech && tagAware) ? "" : "none";
+  }
+  window.updateExpressiveSpeechIndicator = updateExpressiveSpeechIndicator;
+
   $on($id("tts-provider"), "change", function() {
     const oldProvider = params["tts_provider"];
     params["tts_provider"] = ($id("tts-provider") || {}).value;
@@ -3858,6 +3883,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     setCookie("tts-provider", params["tts_provider"], 30);
+    updateExpressiveSpeechIndicator();
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_provider_change');
     }
@@ -4580,6 +4606,7 @@ document.addEventListener("DOMContentLoaded", function () {
       adjustScrollButtonsFallback();
     }
     setCookieValues();
+    updateExpressiveSpeechIndicator();
     // Use UI utilities module if available, otherwise fallback
     if (uiUtils && uiUtils.adjustImageUploadButton) {
       uiUtils.adjustImageUploadButton(($id("model") || {}).value);

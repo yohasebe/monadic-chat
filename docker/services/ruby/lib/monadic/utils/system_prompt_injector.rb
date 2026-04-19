@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'language_config'
+require_relative 'tts_marker_vocabulary'
 
 module Monadic
   module Utils
@@ -184,6 +185,27 @@ module Monadic
           },
           generator: ->(_session, options) {
             options[:system_prompt_suffix].to_s.strip
+          }
+        },
+        # Expressive Speech — appended at the very end so that prompt caches
+        # (Anthropic, OpenAI) keep the stable prefix hot even when the user
+        # switches TTS providers mid-conversation.
+        {
+          name: :expressive_speech,
+          priority: 30,
+          condition: ->(session, _options) {
+            params = session&.[](:parameters) || {}
+            auto_speech = params["auto_speech"] || params[:auto_speech]
+            # Client sends the boolean as either the literal true or the
+            # string "true" depending on transport; accept both.
+            next false unless auto_speech == true || auto_speech.to_s == "true"
+            tts_provider = params["tts_provider"] || params[:tts_provider]
+            Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider)
+          },
+          generator: ->(session, _options) {
+            params = session&.[](:parameters) || {}
+            tts_provider = params["tts_provider"] || params[:tts_provider]
+            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(tts_provider)
           }
         }
       ].freeze

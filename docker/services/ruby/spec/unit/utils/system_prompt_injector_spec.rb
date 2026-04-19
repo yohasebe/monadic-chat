@@ -294,6 +294,65 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
 
+    context 'with Expressive Speech (auto_speech + tag-aware TTS)' do
+      it 'includes the expressive_speech addendum when auto_speech is true and TTS is xAI' do
+        session = {
+          parameters: { "auto_speech" => true, "tts_provider" => "grok" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:expressive_speech)
+        expect(result[0][:content]).to include('[laugh]')
+        expect(result[0][:content]).to include('<whisper>')
+        expect(result[0][:content]).to match(/never name, quote, describe/i)
+      end
+
+      it 'accepts the stringified boolean "true" for auto_speech (WebSocket transport)' do
+        session = {
+          parameters: { "auto_speech" => "true", "tts_provider" => "grok" }
+        }
+
+        result = described_class.build_injections(session: session, options: {})
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:expressive_speech)
+      end
+
+      it 'excludes the addendum when auto_speech is false' do
+        session = {
+          parameters: { "auto_speech" => false, "tts_provider" => "grok" }
+        }
+
+        result = described_class.build_injections(session: session, options: {})
+        expect(result.map { |r| r[:name] }).not_to include(:expressive_speech)
+      end
+
+      it 'excludes the addendum when TTS provider has no vocabulary registered' do
+        session = {
+          parameters: { "auto_speech" => true, "tts_provider" => "openai-tts-4o" }
+        }
+
+        result = described_class.build_injections(session: session, options: {})
+        expect(result.map { |r| r[:name] }).not_to include(:expressive_speech)
+      end
+
+      it 'excludes the addendum when parameters is missing entirely' do
+        result = described_class.build_injections(session: { parameters: nil }, options: {})
+        expect(result.map { |r| r[:name] }).not_to include(:expressive_speech)
+      end
+
+      it 'works with symbol keys for auto_speech and tts_provider' do
+        session = {
+          parameters: { auto_speech: true, tts_provider: "grok" }
+        }
+
+        result = described_class.build_injections(session: session, options: {})
+        expect(result.map { |r| r[:name] }).to include(:expressive_speech)
+      end
+    end
+
     context 'with multiple conditions met' do
       it 'returns injections in priority order' do
         session = {

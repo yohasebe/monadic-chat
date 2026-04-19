@@ -1107,6 +1107,39 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_parallel_function_calling": true
   },
+  "grok-4.20-0309-reasoning": {
+    "context_window" : [1, 2000000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true
+  },
+  "grok-4.20-0309-non-reasoning": {
+    "context_window" : [1, 2000000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true
+  },
+  "grok-4.20-multi-agent-0309": {
+    "context_window" : [1, 2000000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true
+  },
   // Perplexity models
   "sonar-deep-research": {
     "context_window" : [1, 128000],
@@ -1261,12 +1294,13 @@ const providerDefaults = {
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },
   "xai": {
-    "chat": ["grok-4-1-fast-non-reasoning"],
+    "chat": ["grok-4-1-fast-non-reasoning", "grok-4-1-fast-reasoning", "grok-4.20-0309-reasoning", "grok-4.20-0309-non-reasoning", "grok-4.20-multi-agent-0309"],
     "code": ["grok-code-fast-1"],
     "vision": ["grok-4-1-fast-non-reasoning"],
-    "image": ["grok-imagine-image"],
+    "image": ["grok-imagine-image", "grok-imagine-image-pro"],
     "video": ["grok-imagine-video"],
-    "tts": ["grok-tts"]
+    "tts": ["grok-tts"],
+    "audio_transcription": ["xai-stt"]
   },
   "perplexity": {
     "chat": ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]

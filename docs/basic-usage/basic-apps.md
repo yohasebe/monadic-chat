@@ -94,9 +94,9 @@ Chat with the AI using your voice. This app uses your provider's speech recognit
 
 While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
 
-Voice Chat supports the same providers indicated in the availability table. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
+Voice Chat supports the same providers indicated in the availability table. You can freely mix any chat provider with any available TTS provider — for example, using Claude for the conversation while xAI Grok handles the voice. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
-When the xAI Grok variant is selected, speech input and output automatically use the xAI Speech-to-Text and Text-to-Speech engines — the corresponding dropdowns in the Speech Settings Panel are locked for that session. The assistant may weave natural expressive cues (brief pauses, laughter, a whispered aside) into its spoken responses; these cues are applied to the audio only and do not appear in the chat transcript.
+**Expressive Speech**: When you enable Auto Speech and pick a TTS provider that understands speech markers (currently xAI Grok, ElevenLabs v3, and Gemini TTS), a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown. While the badge is active, the assistant may weave natural expressive cues (brief pauses, laughter, a whispered aside) into its spoken responses. These cues are applied to the audio only and do not appear in the chat transcript. Turning off Auto Speech or switching to a TTS provider without marker support silently disables the feature.
 
 <!-- SCREENSHOT: Voice input interface showing waveform animation while speaking -->
 

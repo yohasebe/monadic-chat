@@ -29,8 +29,13 @@ module Monadic
       # collapses them into a single key that the registries look up against.
       def family_for(provider)
         key = provider.to_s.downcase
-        return "xai"        if key == "grok" || key.start_with?("xai")
-        return "elevenlabs" if key.start_with?("elevenlabs")
+        return "xai" if key == "grok" || key.start_with?("xai")
+        # ONLY ElevenLabs v3 interprets inline audio tags. Flash v2.5 and
+        # Multilingual v2 read bracket content as literal text, so they must
+        # not share the v3 family identifier (otherwise Expressive Speech
+        # would inject markers the engine cannot interpret).
+        return "elevenlabs-v3" if key == "elevenlabs-v3" || key == "eleven_v3"
+        return "elevenlabs" if key.start_with?("elevenlabs") || key.start_with?("eleven_")
         return "gemini"     if key.start_with?("gemini")
         return "mistral"    if key.start_with?("mistral") || key.include?("voxtral")
         return "openai"     if key.start_with?("openai") || key.start_with?("tts-")
@@ -79,7 +84,7 @@ module Monadic
               .gsub(/[ \t]{2,}/, " ")
               .gsub(/\s+([,.!?;:])/, '\1')
         },
-        "elevenlabs" => ->(text) {
+        "elevenlabs-v3" => ->(text) {
           text.to_s
               .gsub(ELEVENLABS_INLINE_RE, "")
               .gsub(/[ \t]{2,}/, " ")

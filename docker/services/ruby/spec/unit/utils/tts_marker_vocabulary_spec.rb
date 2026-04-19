@@ -17,9 +17,12 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
       expect(described_class.tag_aware?('xai-tts')).to be true
     end
 
-    it 'is true for ElevenLabs variants' do
-      %w[elevenlabs elevenlabs-flash elevenlabs-multilingual elevenlabs-v3].each do |p|
-        expect(described_class.tag_aware?(p)).to be(true), "expected #{p} to be tag-aware"
+    it 'is true ONLY for ElevenLabs v3 (Flash v2.5 and Multilingual v2 do not interpret tags)' do
+      expect(described_class.tag_aware?('elevenlabs-v3')).to be true
+      expect(described_class.tag_aware?('eleven_v3')).to be true
+
+      %w[elevenlabs elevenlabs-flash elevenlabs-multilingual eleven_flash_v2_5 eleven_multilingual_v2].each do |p|
+        expect(described_class.tag_aware?(p)).to be(false), "expected #{p} to NOT be tag-aware"
       end
     end
 

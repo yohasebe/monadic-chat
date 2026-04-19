@@ -30,12 +30,16 @@ module Monadic
             '<whisper>Between you and me</whisper> I am not so sure either.'
           ].freeze
         }.freeze,
-        # ElevenLabs v3 audio-tag vocabulary. The engine accepts a broader set
-        # than listed here (including multi-word tags like "laughing harder"),
-        # but the prompt only advertises curated single-word tags for output
-        # predictability. The display sanitizer matches a wider regex so the
-        # UI still cleans up if the model improvises.
-        "elevenlabs" => {
+        # ElevenLabs v3 audio-tag vocabulary. ONLY the v3 model interprets
+        # these tags; Flash v2.5 and Multilingual v2 read bracket content as
+        # literal text, so the family key is deliberately "elevenlabs-v3" to
+        # exclude the other variants from Expressive Speech activation.
+        # The engine accepts a broader set than listed here (including
+        # multi-word tags like "laughing harder"), but the prompt only
+        # advertises curated single-word tags for output predictability.
+        # The display sanitizer matches a wider regex so the UI still
+        # cleans up if the model improvises.
+        "elevenlabs-v3" => {
           inline:   %w[laughs sighs whispers excited sarcastic curious crying
                        angry sad happy giggles sobs sings exhales inhales].freeze,
           wrapping: [].freeze,

@@ -28,8 +28,14 @@ describe('TtsTagSanitizer', () => {
       expect(window.TtsTagSanitizer.familyFor('GROK')).toBe('xai');
     });
 
-    it('maps ElevenLabs variants to the elevenlabs family', () => {
-      ['elevenlabs', 'elevenlabs-flash', 'elevenlabs-multilingual', 'elevenlabs-v3']
+    it('maps ElevenLabs v3 to its own tag-aware family', () => {
+      expect(window.TtsTagSanitizer.familyFor('elevenlabs-v3')).toBe('elevenlabs-v3');
+      expect(window.TtsTagSanitizer.familyFor('eleven_v3')).toBe('elevenlabs-v3');
+    });
+
+    it('maps legacy ElevenLabs variants to the non-tag-aware elevenlabs family', () => {
+      ['elevenlabs', 'elevenlabs-flash', 'elevenlabs-multilingual',
+       'eleven_multilingual_v2', 'eleven_flash_v2_5']
         .forEach(p => expect(window.TtsTagSanitizer.familyFor(p)).toBe('elevenlabs'));
     });
 
@@ -76,7 +82,7 @@ describe('TtsTagSanitizer', () => {
     });
   });
 
-  describe('sanitizeForDisplay (elevenlabs)', () => {
+  describe('sanitizeForDisplay (elevenlabs-v3)', () => {
     it('strips curated inline tags', () => {
       const input = 'Oh wow [laughs] that is hilarious. [sighs] Anyway.';
       expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'elevenlabs-v3'))
@@ -84,13 +90,20 @@ describe('TtsTagSanitizer', () => {
     });
 
     it('also strips improvised multi-word lowercase descriptors', () => {
-      expect(window.TtsTagSanitizer.sanitizeForDisplay('Hmm [laughing harder] priceless.', 'elevenlabs'))
+      expect(window.TtsTagSanitizer.sanitizeForDisplay('Hmm [laughing harder] priceless.', 'elevenlabs-v3'))
         .toBe('Hmm priceless.');
     });
 
     it('preserves all-caps and numeric brackets (non-markers)', () => {
-      expect(window.TtsTagSanitizer.sanitizeForDisplay('See [TODO] and [1].', 'elevenlabs'))
+      expect(window.TtsTagSanitizer.sanitizeForDisplay('See [TODO] and [1].', 'elevenlabs-v3'))
         .toBe('See [TODO] and [1].');
+    });
+
+    it('is the identity function for non-v3 ElevenLabs models', () => {
+      const input = '[laughs] Flash cannot interpret this.';
+      ['elevenlabs-flash', 'elevenlabs-multilingual', 'elevenlabs'].forEach(p => {
+        expect(window.TtsTagSanitizer.sanitizeForDisplay(input, p)).toBe(input);
+      });
     });
   });
 
@@ -142,9 +155,14 @@ describe('TtsTagSanitizer', () => {
       expect(window.TtsTagSanitizer.tagAware()).toBe(false);
     });
 
-    it('is tag-aware for ElevenLabs variants', () => {
+    it('is tag-aware for ElevenLabs v3 only (Flash v2.5 / Multilingual v2 are NOT)', () => {
       window.params = { tts_provider: 'elevenlabs-v3' };
       expect(window.TtsTagSanitizer.tagAware()).toBe(true);
+
+      ['elevenlabs-flash', 'elevenlabs-multilingual', 'elevenlabs'].forEach(p => {
+        window.params = { tts_provider: p };
+        expect(window.TtsTagSanitizer.tagAware()).toBe(false);
+      });
     });
 
     it('is tag-aware for Gemini TTS variants', () => {

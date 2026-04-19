@@ -147,7 +147,7 @@ Save the current conversation as a PDF file with syntax highlighting and formatt
 Select your preferred speech-to-text model. Available options include OpenAI, Gemini, ElevenLabs, Cohere, Mistral, and xAI models.
 
 **Text-to-Speech Provider**<br />
-Select the provider for speech synthesis (OpenAI, ElevenLabs, Gemini, Mistral, xAI Grok, or Web Speech API).
+Select the provider for speech synthesis (OpenAI, ElevenLabs, Gemini, Mistral, xAI Grok, or Web Speech API). When Auto Speech is enabled and the selected provider supports inline speech markers (xAI Grok, ElevenLabs v3, Gemini TTS), a ✨ **Expressive Speech** badge appears beneath this dropdown. While the badge is active, the assistant's replies may include natural expressive cues (pauses, laughter, whispered asides) that the voice engine interprets as audio — they do not appear in the written transcript.
 
 **Text-to-Speech Voice**<br />
 Select the voice for speech synthesis. Available voices depend on the selected provider.

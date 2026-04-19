@@ -59,11 +59,16 @@
   );
 
   // Normalize a provider string to a canonical family key.
+  // NOTE: ONLY ElevenLabs v3 interprets inline audio tags — Flash v2.5 and
+  // Multilingual v2 read bracket content as literal text. The v3 variant
+  // therefore gets its own family key so Expressive Speech does not activate
+  // for the legacy ElevenLabs models.
   function familyFor(provider) {
     var key = String(provider == null ? "" : provider).toLowerCase();
-    if (key === "grok" || key.indexOf("xai") === 0)         return "xai";
-    if (key.indexOf("elevenlabs") === 0)                    return "elevenlabs";
-    if (key.indexOf("gemini") === 0)                        return "gemini";
+    if (key === "grok" || key.indexOf("xai") === 0)                    return "xai";
+    if (key === "elevenlabs-v3" || key === "eleven_v3")                return "elevenlabs-v3";
+    if (key.indexOf("elevenlabs") === 0 || key.indexOf("eleven_") === 0) return "elevenlabs";
+    if (key.indexOf("gemini") === 0)                                   return "gemini";
     if (key.indexOf("mistral") === 0 || key.indexOf("voxtral") !== -1) return "mistral";
     if (key.indexOf("openai") === 0 || key.indexOf("tts-") === 0)      return "openai";
     return key;
@@ -77,7 +82,7 @@
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\s+([,.!?;:])/g, "$1");
     },
-    "elevenlabs": function(text) {
+    "elevenlabs-v3": function(text) {
       return String(text)
         .replace(ELEVENLABS_INLINE_RE, "")
         .replace(/[ \t]{2,}/g, " ")

@@ -10,8 +10,13 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
       expect(described_class.family_for('xai-tts')).to eq('xai')
     end
 
-    it 'maps ElevenLabs variants to the elevenlabs family' do
-      %w[elevenlabs elevenlabs-flash elevenlabs-multilingual elevenlabs-v3].each do |p|
+    it 'maps ElevenLabs v3 (and alias) to its own tag-aware family' do
+      expect(described_class.family_for('elevenlabs-v3')).to eq('elevenlabs-v3')
+      expect(described_class.family_for('eleven_v3')).to eq('elevenlabs-v3')
+    end
+
+    it 'maps legacy ElevenLabs variants to the non-tag-aware elevenlabs family' do
+      %w[elevenlabs elevenlabs-flash elevenlabs-multilingual eleven_multilingual_v2 eleven_flash_v2_5].each do |p|
         expect(described_class.family_for(p)).to eq('elevenlabs')
       end
     end
@@ -82,7 +87,7 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
       end
     end
 
-    context 'with the elevenlabs family' do
+    context 'with the elevenlabs-v3 family' do
       it 'strips curated inline tags' do
         input = 'Oh wow [laughs] that is hilarious. [sighs] Anyway.'
         expect(described_class.sanitize_for_display('elevenlabs-v3', input))
@@ -91,15 +96,22 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
 
       it 'also strips improvised multi-word lowercase descriptors' do
         input = 'Hmm [laughing harder] this is priceless.'
-        out = described_class.sanitize_for_display('elevenlabs', input)
+        out = described_class.sanitize_for_display('elevenlabs-v3', input)
         expect(out).to eq('Hmm this is priceless.')
       end
 
       it 'does not strip ordinary bracketed text such as TODO markers' do
         # Uppercase and digit-only brackets are preserved since they are
         # unlikely to be TTS markers.
-        expect(described_class.sanitize_for_display('elevenlabs', 'See [TODO] and [1].'))
+        expect(described_class.sanitize_for_display('elevenlabs-v3', 'See [TODO] and [1].'))
           .to eq('See [TODO] and [1].')
+      end
+
+      it 'leaves tags untouched for non-v3 ElevenLabs models (no sanitizer registered)' do
+        input = '[laughs] kept because Flash cannot interpret it anyway.'
+        %w[elevenlabs-flash elevenlabs-multilingual elevenlabs].each do |p|
+          expect(described_class.sanitize_for_display(p, input)).to eq(input)
+        end
       end
     end
 
@@ -134,9 +146,15 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
       expect(described_class.tag_aware?('grok')).to be true
     end
 
-    it 'reports true for ElevenLabs and Gemini families' do
+    it 'reports true for ElevenLabs v3 and Gemini families' do
       expect(described_class.tag_aware?('elevenlabs-v3')).to be true
       expect(described_class.tag_aware?('gemini-flash')).to be true
+    end
+
+    it 'reports false for ElevenLabs Flash / Multilingual (non-v3 models)' do
+      %w[elevenlabs elevenlabs-flash elevenlabs-multilingual eleven_flash_v2_5 eleven_multilingual_v2].each do |p|
+        expect(described_class.tag_aware?(p)).to be(false), "expected #{p} to NOT be tag-aware"
+      end
     end
 
     it 'reports false for providers without one' do

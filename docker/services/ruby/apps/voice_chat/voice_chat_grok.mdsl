@@ -53,5 +53,9 @@ app "VoiceChatGrok" do
     auto_speech true
     group "xAI"
     initiate_from_assistant true
+    tts_provider "xai"
+    tts_voice "eve"
+    stt_provider "xai"
+    stt_model "xai-stt"
   end
 end

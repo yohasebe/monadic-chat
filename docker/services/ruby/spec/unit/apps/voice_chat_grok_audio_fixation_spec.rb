@@ -35,4 +35,32 @@ RSpec.describe 'VoiceChatGrok audio fixation settings' do
     expect(openai_app.settings['tts_provider']).to be_nil
     expect(openai_app.settings['stt_provider']).to be_nil
   end
+
+  describe 'system prompt TTS markers guidance' do
+    let(:prompt) { app.settings['initial_prompt'].to_s }
+
+    it 'lists inline markers so the model knows the vocabulary' do
+      expect(prompt).to include('[laugh]')
+      expect(prompt).to include('[pause]')
+      expect(prompt).to include('[sigh]')
+    end
+
+    it 'lists wrapping markers' do
+      expect(prompt).to include('<whisper>')
+      expect(prompt).to include('<soft>')
+      expect(prompt).to include('<sing>')
+    end
+
+    it 'includes good-example phrasings that model the natural insertion style' do
+      expect(prompt).to match(/Good examples/i)
+    end
+
+    it 'prohibits meta-reference to the markers' do
+      expect(prompt).to match(/never name, quote, describe, explain, or list the markers/i)
+    end
+
+    it 'preserves the original brevity guideline' do
+      expect(prompt).to include('under 50 words')
+    end
+  end
 end

@@ -843,6 +843,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (defs.grok && defs.grok.has_key) {
         var grokTtsOpt = $id("grok-tts-provider-option");
         if (grokTtsOpt) grokTtsOpt.disabled = false;
+        var xaiSttOpt = $id("xai-stt-option");
+        if (xaiSttOpt) xaiSttOpt.disabled = false;
       }
     };
     
@@ -2014,6 +2016,104 @@ document.addEventListener("DOMContentLoaded", function () {
     proceedWithAppChange(newAppValue);
   });
   
+  // Apply per-app audio fixation: if the active app declares tts_provider /
+  // tts_voice / stt_model in its `features` block, lock the corresponding
+  // dropdowns to those values; otherwise restore them from cookies.
+  //
+  // Provider alias table handles the legacy dropdown value inconsistency:
+  // LLM `provider "xai"` uses "xai", but the tts-provider select option is
+  // historically "grok". MDSL authors may write either form.
+  const AUDIO_FIXATION_TTS_PROVIDER_ALIAS = { xai: "grok" };
+  const AUDIO_FIXATION_VOICE_SELECT_BY_PROVIDER = {
+    grok: "grok-tts-voice",
+    elevenlabs: "elevenlabs-tts-voice",
+    "elevenlabs-flash": "elevenlabs-tts-voice",
+    "elevenlabs-multilingual": "elevenlabs-tts-voice",
+    "elevenlabs-v3": "elevenlabs-tts-voice",
+    "gemini-flash": "gemini-tts-voice",
+    "gemini-pro": "gemini-tts-voice",
+    mistral: "mistral-tts-voice"
+  };
+  const AUDIO_FIXATION_ALL_VOICE_SELECTS = [
+    "tts-voice", "elevenlabs-tts-voice", "gemini-tts-voice",
+    "mistral-tts-voice", "grok-tts-voice"
+  ];
+  const AUDIO_FIXATION_LOCK_TITLE = "Fixed by the current app";
+
+  function applyAudioFixation(appData) {
+    if (!appData) return;
+
+    // --- TTS provider ---
+    const ttsProviderEl = $id("tts-provider");
+    if (ttsProviderEl) {
+      if (appData.tts_provider) {
+        const uiValue = AUDIO_FIXATION_TTS_PROVIDER_ALIAS[appData.tts_provider] || appData.tts_provider;
+        if (ttsProviderEl.value !== uiValue) {
+          ttsProviderEl.value = uiValue;
+          $dispatch(ttsProviderEl, "change");
+        }
+        ttsProviderEl.disabled = true;
+        ttsProviderEl.setAttribute("title", AUDIO_FIXATION_LOCK_TITLE);
+      } else if (ttsProviderEl.disabled) {
+        const saved = getCookie("tts-provider");
+        if (saved && saved !== ttsProviderEl.value) {
+          ttsProviderEl.value = saved;
+          $dispatch(ttsProviderEl, "change");
+        }
+        ttsProviderEl.disabled = false;
+        ttsProviderEl.removeAttribute("title");
+      }
+    }
+
+    // --- TTS voice ---
+    const activeProviderRaw = appData.tts_provider || params["tts_provider"];
+    const activeProvider = AUDIO_FIXATION_TTS_PROVIDER_ALIAS[activeProviderRaw] || activeProviderRaw;
+    const activeVoiceSelectId = AUDIO_FIXATION_VOICE_SELECT_BY_PROVIDER[activeProvider] || "tts-voice";
+
+    AUDIO_FIXATION_ALL_VOICE_SELECTS.forEach(function(id) {
+      const el = $id(id);
+      if (!el) return;
+      if (appData.tts_voice && id === activeVoiceSelectId) {
+        if (el.value !== appData.tts_voice) {
+          el.value = appData.tts_voice;
+          $dispatch(el, "change");
+        }
+        el.disabled = true;
+        el.setAttribute("title", AUDIO_FIXATION_LOCK_TITLE);
+      } else if (el.disabled) {
+        const saved = getCookie(id);
+        if (saved && saved !== el.value) {
+          el.value = saved;
+          $dispatch(el, "change");
+        }
+        el.disabled = false;
+        el.removeAttribute("title");
+      }
+    });
+
+    // --- STT model ---
+    const sttEl = $id("stt-model");
+    if (sttEl) {
+      if (appData.stt_model) {
+        if (sttEl.value !== appData.stt_model) {
+          sttEl.value = appData.stt_model;
+          $dispatch(sttEl, "change");
+        }
+        sttEl.disabled = true;
+        sttEl.setAttribute("title", AUDIO_FIXATION_LOCK_TITLE);
+      } else if (sttEl.disabled) {
+        const saved = getCookie("stt-model");
+        if (saved && saved !== sttEl.value) {
+          sttEl.value = saved;
+          $dispatch(sttEl, "change");
+        }
+        sttEl.disabled = false;
+        sttEl.removeAttribute("title");
+      }
+    }
+  }
+  window.applyAudioFixation = applyAudioFixation;
+
   // Function to handle the actual app change
   // Make it globally accessible for initialization from websocket.js
   window.proceedWithAppChange = function proceedWithAppChange(appValue) {
@@ -2091,7 +2191,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     Object.assign(params, apps[appValue]);
     params["app_name"] = appValue;
-    
+
+    // Apply audio fixation (locks TTS/STT dropdowns to this app's declared
+    // values, or unlocks and restores them from cookies if unset).
+    applyAudioFixation(apps[appValue]);
+
     // Fill initial_prompt from system_prompt if not present (common for Chat apps)
     if (!params["initial_prompt"] && apps[appValue]["system_prompt"]) {
       params["initial_prompt"] = apps[appValue]["system_prompt"];
@@ -3813,7 +3917,15 @@ document.addEventListener("DOMContentLoaded", function () {
     params["stt_model"] = savedSTTModel;
   }
 
-  $on($id("tts-provider"), "change", function() {
+  // Cookie writes are gated on event.isTrusted so that programmatic changes
+  // emitted by applyAudioFixation (via $dispatch, which produces an untrusted
+  // event) do not overwrite the user's persisted preference. Manual dropdown
+  // changes produce trusted events and persist as before.
+  function __audioFixationShouldPersist(event) {
+    return !event || event.isTrusted !== false;
+  }
+
+  $on($id("tts-provider"), "change", function(event) {
     const oldProvider = params["tts_provider"];
     params["tts_provider"] = ($id("tts-provider") || {}).value;
     
@@ -3855,47 +3967,59 @@ document.addEventListener("DOMContentLoaded", function () {
       $show($id("openai-voices"));
     }
 
-    setCookie("tts-provider", params["tts_provider"], 30);
+    if (__audioFixationShouldPersist(event)) {
+      setCookie("tts-provider", params["tts_provider"], 30);
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_provider_change');
     }
   });
 
-  $on($id("tts-voice"), "change", function() {
+  $on($id("tts-voice"), "change", function(event) {
     params["tts_voice"] = ($id("tts-voice") || {}).value;
-    setCookie("tts-voice", params["tts_voice"], 30);
+    if (__audioFixationShouldPersist(event)) {
+      setCookie("tts-voice", params["tts_voice"], 30);
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_voice_change');
     }
   });
 
-  $on($id("elevenlabs-tts-voice"), "change", function() {
+  $on($id("elevenlabs-tts-voice"), "change", function(event) {
     params["elevenlabs_tts_voice"] = ($id("elevenlabs-tts-voice") || {}).value;
-    setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
+    if (__audioFixationShouldPersist(event)) {
+      setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('elevenlabs_voice_change');
     }
   });
 
-  $on($id("gemini-tts-voice"), "change", function() {
+  $on($id("gemini-tts-voice"), "change", function(event) {
     params["gemini_tts_voice"] = ($id("gemini-tts-voice") || {}).value;
-    setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
+    if (__audioFixationShouldPersist(event)) {
+      setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('gemini_voice_change');
     }
   });
 
-  $on($id("grok-tts-voice"), "change", function() {
+  $on($id("grok-tts-voice"), "change", function(event) {
     params["grok_tts_voice"] = ($id("grok-tts-voice") || {}).value;
-    setCookie("grok-tts-voice", params["grok_tts_voice"], 30);
+    if (__audioFixationShouldPersist(event)) {
+      setCookie("grok-tts-voice", params["grok_tts_voice"], 30);
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('grok_voice_change');
     }
   });
 
-  $on($id("stt-model"), "change", function() {
+  $on($id("stt-model"), "change", function(event) {
     params["stt_model"] = ($id("stt-model") || {}).value;
-    setCookie("stt-model", params["stt_model"], 30);
+    if (__audioFixationShouldPersist(event)) {
+      setCookie("stt-model", params["stt_model"], 30);
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('stt_model_change');
     }

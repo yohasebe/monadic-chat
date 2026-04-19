@@ -96,6 +96,8 @@ While the user is speaking, a waveform is displayed. When the user stops speakin
 
 Voice Chat supports the same providers indicated in the availability table. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
+When the xAI Grok variant is selected, speech input and output automatically use the xAI Speech-to-Text and Text-to-Speech engines — the corresponding dropdowns in the Speech Settings Panel are locked for that session. The assistant may weave natural expressive cues (brief pauses, laughter, a whispered aside) into its spoken responses; these cues are applied to the audio only and do not appear in the chat transcript.
+
 <!-- SCREENSHOT: Voice input interface showing waveform animation while speaking -->
 
 The voice input feature displays a visual waveform while you speak. After stopping, it shows a confidence score (p-value) indicating the accuracy of speech recognition.

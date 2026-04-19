@@ -144,10 +144,10 @@ Save the current conversation as a PDF file with syntax highlighting and formatt
 !> **Note:** To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 
 **Speech-to-Text Model**<br />
-Select your preferred speech-to-text model. Available options include OpenAI and Gemini models.
+Select your preferred speech-to-text model. Available options include OpenAI, Gemini, ElevenLabs, Cohere, Mistral, and xAI models.
 
 **Text-to-Speech Provider**<br />
-Select the provider for speech synthesis (OpenAI, ElevenLabs, Gemini, or Web Speech API).
+Select the provider for speech synthesis (OpenAI, ElevenLabs, Gemini, Mistral, xAI Grok, or Web Speech API).
 
 **Text-to-Speech Voice**<br />
 Select the voice for speech synthesis. Available voices depend on the selected provider.

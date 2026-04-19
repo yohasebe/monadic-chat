@@ -120,6 +120,15 @@
     render: function(text, options = {}) {
       if (!text) return '';
 
+      // Strip TTS audio-control markers for display when the active provider
+      // emits them (xAI today; registry-driven so new providers register a
+      // sanitizer without touching this file). The raw text still reaches
+      // the TTS engine via a separate backend buffer, so the voice keeps
+      // its expressive markers while the transcript reads as plain speech.
+      if (typeof window !== 'undefined' && window.TtsTagSanitizer && window.TtsTagSanitizer.tagAware()) {
+        text = window.TtsTagSanitizer.sanitizeForDisplay(text);
+      }
+
       // Initialize markdown-it if needed
       this._initMarkdownIt();
 

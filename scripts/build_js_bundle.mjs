@@ -26,6 +26,7 @@ const FILES = [
   "js/debug-config.js",
   "js/monadic/lazy-loader.js",
   "js/monadic/syntax-highlight.js",
+  "js/monadic/tts-tag-sanitizer.js",
   "js/monadic/markdown-renderer.js",
   "js/monadic/storage-helper.js",
   "js/monadic/theme-manager.js",

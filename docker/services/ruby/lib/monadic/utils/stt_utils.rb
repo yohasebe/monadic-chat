@@ -408,6 +408,94 @@ module InteractionUtils
     end
   end
 
+  # xAI (Grok) Speech-to-Text API request
+  # @param blob [String] The audio data
+  # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
+  # @param lang_code [String] Language code ("en", "ja", ... or "auto")
+  # @param model [String] Currently only "xai-stt" (single model; reserved for future variants)
+  # @return [Hash] Transcription result or error
+  def xai_stt_api_request(blob, format, lang_code, _model)
+    api_key = CONFIG["XAI_API_KEY"]
+    if api_key.nil? || api_key.to_s.strip.empty?
+      return { "type" => "error", "content" => "xAI API key is not configured" }
+    end
+
+    url = "https://api.x.ai/v1/stt"
+
+    # xAI auto-detects container formats (WAV/MP3/OGG/Opus/FLAC/AAC/MP4/M4A/MKV),
+    # so normalisation only serves the file extension which hints detection.
+    normalized_format = format.to_s.downcase
+    normalized_format = "mp3" if normalized_format == "mpeg"
+    normalized_format = "mp4" if normalized_format == "mp4a-latm"
+    normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
+
+    num_retrial = 0
+    response = nil
+    temp_file = nil
+
+    begin
+      temp_file = Tempfile.new([TEMP_AUDIO_FILE, ".#{normalized_format}"])
+      temp_file.binmode
+      temp_file.write(blob)
+      temp_file.flush
+
+      options = { "file" => HTTP::FormData::File.new(temp_file.path) }
+      # xAI's `language` parameter also enables text formatting when supplied.
+      # "auto" means no hint — omit the parameter to let the server auto-detect.
+      options["language"] = lang_code if lang_code && lang_code != "auto"
+
+      form_data = HTTP::FormData.create(options)
+
+      response = HTTP.headers(
+        "Authorization" => "Bearer #{api_key}",
+        "Content-Type" => form_data.content_type
+      ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
+       .post(url, body: form_data.to_s)
+
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        return { "type" => "error", "content" => "ERROR: #{e.message}" }
+      end
+    ensure
+      if temp_file
+        temp_file.close rescue nil
+        temp_file.unlink rescue nil
+      end
+    end
+
+    if response.status.success?
+      result = JSON.parse(response.body)
+      text = (result["text"] || "").to_s.strip
+
+      # Synthesise a minimal logprobs array from word-level timestamps so that
+      # downstream confidence heuristics (which expect non-empty logprobs) do
+      # not misinterpret silence for a failed transcription.
+      logprobs = []
+      if result["words"].is_a?(Array)
+        result["words"].each { logprobs << { "logprob" => 0.0 } }
+      end
+
+      return {
+        "text" => text,
+        "logprobs" => logprobs,
+        "language_code" => result["language"],
+        "duration" => result["duration"]
+      }
+    else
+      error_message = begin
+        err = JSON.parse(response.body)
+        err["error"] || err["message"] || err.to_s
+      rescue JSON::ParserError
+        response.body.to_s
+      end
+      return { "type" => "error", "content" => "xAI STT Error (#{response.status}): #{error_message}" }
+    end
+  end
+
   # Format diarized transcript segments into readable text
   # @param segments [Array<Hash>] Array of segment hashes with 'speaker' and 'text' keys
   # @return [String] Formatted transcript with speaker labels
@@ -443,6 +531,11 @@ module InteractionUtils
     # Route to Mistral API if model starts with "voxtral"
     if model.start_with?("voxtral")
       return mistral_stt_api_request(blob, format, lang_code, model)
+    end
+
+    # Route to xAI API if model starts with "xai-stt"
+    if model.start_with?("xai-stt")
+      return xai_stt_api_request(blob, format, lang_code, model)
     end
 
     lang_code = nil if lang_code == "auto"

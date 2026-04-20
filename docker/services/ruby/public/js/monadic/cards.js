@@ -419,7 +419,11 @@ function attachEventListeners(card) {
       const lastCard = document.querySelector("#discourse .card:last-child");
       const isLastDisplayedCard = lastCard === card;
 
-      if (isLastMessage || isLastDisplayedCard) {
+      // Move-to-input flow is only for revising the user's own last prompt.
+      // Assistant/system edits always use inline Save/Cancel — routing them
+      // through the send pipeline starts a spinner that never clears (sample-*
+      // roles bypass the API call).
+      if ((isLastMessage || isLastDisplayedCard) && currentMessage.role === "user") {
         const messageInput = $id("message");
         if (messageInput) messageInput.value = text;
 

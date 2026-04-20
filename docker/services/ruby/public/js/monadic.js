@@ -3840,46 +3840,53 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   window.updateExpressiveSpeechIndicator = updateExpressiveSpeechIndicator;
 
+  // Lookup table: TTS provider value (as used in the #tts-provider select) ->
+  // { voicePanelId, supportsSpeed, onShow? }. Keeping this data-driven makes
+  // adding a new provider a single-row edit instead of another `else if`
+  // branch in the change handler below. OpenAI-family providers fall through
+  // to the default (#openai-voices) so they don't need explicit entries.
+  const TTS_VOICE_PANELS = {
+    "elevenlabs":              { panelId: "elevenlabs-voices" },
+    "elevenlabs-flash":        { panelId: "elevenlabs-voices" },
+    "elevenlabs-multilingual": { panelId: "elevenlabs-voices" },
+    "elevenlabs-v3":           { panelId: "elevenlabs-voices" },
+    "gemini-flash":            { panelId: "gemini-voices" },
+    "gemini-pro":              { panelId: "gemini-voices" },
+    // Mistral Voxtral exposes no speed parameter server-side.
+    "mistral":                 { panelId: "mistral-voices", supportsSpeed: false },
+    // Grok TTS: playback rate is handled client-side (AVAudioPlayer in native
+    // clients); the server API has no speed field, so the slider is hidden.
+    "grok":                    { panelId: "grok-voices",    supportsSpeed: false },
+    "webspeech":               { panelId: "webspeech-voices", onShow: () => {
+      if (typeof initWebSpeech === "function") initWebSpeech();
+    } }
+  };
+  const TTS_VOICE_PANEL_IDS = ["elevenlabs-voices", "openai-voices", "gemini-voices",
+                               "mistral-voices", "grok-voices", "webspeech-voices"];
+  const TTS_DEFAULT_PANEL_ID = "openai-voices";
+
   $on($id("tts-provider"), "change", function() {
     const oldProvider = params["tts_provider"];
     params["tts_provider"] = ($id("tts-provider") || {}).value;
-    
+
     // Reset audio elements when switching TTS providers
-    if (oldProvider !== params["tts_provider"] && typeof window.resetAudioElements === 'function') {
+    if (oldProvider !== params["tts_provider"] && typeof window.resetAudioElements === "function") {
       window.resetAudioElements();
     }
-    
-    // Hide all voice selection elements first
-    $hide($id("elevenlabs-voices"));
-    $hide($id("openai-voices"));
-    $hide($id("gemini-voices"));
-    $hide($id("mistral-voices"));
-    $hide($id("grok-voices"));
-    $hide($id("webspeech-voices"));
-    $show($id("tts-speed-container")); // Show speed slider by default (hidden for providers that don't support it)
 
-    // Show the appropriate voice selection based on provider
-    if (params["tts_provider"] === "elevenlabs" || params["tts_provider"] === "elevenlabs-flash" || params["tts_provider"] === "elevenlabs-multilingual" || params["tts_provider"] === "elevenlabs-v3") {
-      $show($id("elevenlabs-voices"));
-    } else if (params["tts_provider"] === "gemini-flash" || params["tts_provider"] === "gemini-pro") {
-      $show($id("gemini-voices"));
-    } else if (params["tts_provider"] === "mistral") {
-      $show($id("mistral-voices"));
+    // Hide every voice selection panel and show the speed slider by default;
+    // the lookup below re-selects and optionally hides the slider again.
+    TTS_VOICE_PANEL_IDS.forEach(id => $hide($id(id)));
+    $show($id("tts-speed-container"));
+
+    const entry = TTS_VOICE_PANELS[params["tts_provider"]];
+    const panelId = entry ? entry.panelId : TTS_DEFAULT_PANEL_ID;
+    $show($id(panelId));
+    if (entry && entry.supportsSpeed === false) {
       $hide($id("tts-speed-container"));
-    } else if (params["tts_provider"] === "grok") {
-      // Grok TTS does not support speed control (no server-side speed param;
-      // playback rate handled client-side via AVAudioPlayer in native clients).
-      $show($id("grok-voices"));
-      $hide($id("tts-speed-container"));
-    } else if (params["tts_provider"] === "webspeech") {
-      $show($id("webspeech-voices"));
-      // Initialize Web Speech API voices if they haven't been loaded
-      if (typeof initWebSpeech === 'function') {
-        initWebSpeech();
-      }
-    } else {
-      // Default for OpenAI providers
-      $show($id("openai-voices"));
+    }
+    if (entry && typeof entry.onShow === "function") {
+      entry.onShow();
     }
 
     setCookie("tts-provider", params["tts_provider"], 30);

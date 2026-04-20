@@ -85,6 +85,21 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
         expect(described_class.sanitize_for_display('grok', 'Wait [pause] , really?'))
           .to eq('Wait, really?')
       end
+
+      it 'strips BBCode-style malformed wrap tags emitted by confused LLMs' do
+        # Real-world case: LLM mixed up wrap-tag syntax, wrote `[high]text[/high]`
+        # in square brackets (should have been `<high>text</high>`). Neither the
+        # engine nor the primary regex recognises these; the malformed catchers
+        # handle them defensively.
+        input = 'surprise [high]Wow![/high], fear Eek![/inhale], and more.'
+        expect(described_class.sanitize_for_display('grok', input))
+          .to eq('surprise Wow!, fear Eek!, and more.')
+      end
+
+      it 'strips stray closing-style brackets for inline markers' do
+        expect(described_class.sanitize_for_display('grok', 'Thinking. [/pause] Okay.'))
+          .to eq('Thinking. Okay.')
+      end
     end
 
     context 'with the elevenlabs-v3 family' do

@@ -48,6 +48,16 @@ module Monadic
       XAI_INLINE_RE = /\[(?:#{XAI_INLINE_MARKERS.join('|')})\]/i
       XAI_WRAP_RE   = %r{</?(?:#{XAI_WRAP_TAGS.join('|')})>}i
 
+      # LLM sometimes confuses the two xAI syntaxes and emits BBCode-like
+      # hybrids that neither the engine nor the two patterns above recognise.
+      # Strip these defensively so they never surface in the transcript:
+      #   [/anything]          — closing-style square bracket (inline markers
+      #                          have no closing form, so this is always wrong)
+      #   [wrap-tag]           — a wrap tag (e.g., `high`, `whisper`) written
+      #                          with square brackets instead of angle brackets
+      XAI_MALFORMED_CLOSING_RE = %r{\[/[a-z-]+\]}i
+      XAI_MALFORMED_SQUARE_WRAP_RE = /\[(?:#{XAI_WRAP_TAGS.join('|')})\]/i
+
       # ElevenLabs v3 audio tags include compound phrases (e.g., "laughing
       # harder"); the display regex matches a tighter curated set but accepts
       # multi-word lowercase descriptors up to ~30 chars so the UI still
@@ -81,6 +91,8 @@ module Monadic
           text.to_s
               .gsub(XAI_WRAP_RE, "")
               .gsub(XAI_INLINE_RE, "")
+              .gsub(XAI_MALFORMED_CLOSING_RE, "")
+              .gsub(XAI_MALFORMED_SQUARE_WRAP_RE, "")
               .gsub(/[ \t]{2,}/, " ")
               .gsub(/\s+([,.!?;:])/, '\1')
         },

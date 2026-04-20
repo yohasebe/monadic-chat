@@ -108,6 +108,9 @@ module Monadic
         sections << "- If the user asks about your laughter, sighing, whispering, or \"tags\", answer in plain natural language about the feeling itself, without ever spelling out the marker syntax."
         sections << "- Never open a conversation with a marker — the first utterance should read cleanly."
         sections << "- When in doubt, write the sentence without any marker."
+        unless vocab[:wrapping].empty?
+          sections << "- Syntax is strict: inline markers are a single token in SQUARE brackets with NO closing form (e.g., `[laugh]` — never `[/laugh]` or `[laugh]...[/laugh]`). Wrapping markers use ANGLE brackets with a matching closing tag (e.g., `<whisper>secret</whisper>` — never `[whisper]secret[/whisper]` or `[high]text[/high]`). Mixing the two syntaxes produces broken output."
+        end
 
         sections.join("\n")
       end

@@ -80,6 +80,17 @@ describe('TtsTagSanitizer', () => {
       expect(window.TtsTagSanitizer.sanitizeForDisplay('Wait [pause] , really?', 'grok'))
         .toBe('Wait, really?');
     });
+
+    it('strips BBCode-style malformed wrap tags (LLM syntax confusion)', () => {
+      const input = 'surprise [high]Wow![/high], fear Eek![/inhale], and more.';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'grok'))
+        .toBe('surprise Wow!, fear Eek!, and more.');
+    });
+
+    it('strips stray closing-style brackets even for inline markers', () => {
+      expect(window.TtsTagSanitizer.sanitizeForDisplay('Thinking. [/pause] Okay.', 'grok'))
+        .toBe('Thinking. Okay.');
+    });
   });
 
   describe('sanitizeForDisplay (elevenlabs-v3)', () => {

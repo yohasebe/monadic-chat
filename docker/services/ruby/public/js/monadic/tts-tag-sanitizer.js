@@ -30,6 +30,12 @@
 
   var XAI_INLINE_RE = new RegExp("\\[(?:" + XAI_INLINE_MARKERS.join("|") + ")\\]", "gi");
   var XAI_WRAP_RE   = new RegExp("</?(?:" + XAI_WRAP_TAGS.join("|") + ")>", "gi");
+  // Malformed BBCode-style hybrids the LLM sometimes emits: [/word] closing-
+  // style square brackets, and [wrap-tag] where the word belongs in <>.
+  var XAI_MALFORMED_CLOSING_RE = /\[\/[a-z-]+\]/gi;
+  var XAI_MALFORMED_SQUARE_WRAP_RE = new RegExp(
+    "\\[(?:" + XAI_WRAP_TAGS.join("|") + ")\\]", "gi"
+  );
 
   // ElevenLabs v3 audio tags. The prompt restricts the LLM to the curated
   // single-word set, but the regex accepts multi-word lowercase descriptors
@@ -79,6 +85,8 @@
       return String(text)
         .replace(XAI_WRAP_RE, "")
         .replace(XAI_INLINE_RE, "")
+        .replace(XAI_MALFORMED_CLOSING_RE, "")
+        .replace(XAI_MALFORMED_SQUARE_WRAP_RE, "")
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\s+([,.!?;:])/g, "$1");
     },

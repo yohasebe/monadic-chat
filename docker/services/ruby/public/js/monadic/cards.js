@@ -767,6 +767,12 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 }
 window.deleteMessageAndSubsequent = function(mid, messageIndex) {
+  // HTML dataset attributes arrive as strings. `messageIndex + 1` would then
+  // perform string concatenation ("2" + 1 === "21") and `slice("21")` would
+  // return an empty array — silently skipping the subsequent messages. Coerce
+  // once at the boundary so the rest of the function can treat it as a number.
+  messageIndex = Number(messageIndex);
+
   const cardEl = $id(mid);
 
   if (cardEl && cardEl.querySelector(".role-system")) {

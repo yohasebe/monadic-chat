@@ -20,6 +20,14 @@ const { dialog, shell } = require('electron');
 
 let deps = null;
 let downloadInProgress = false;
+// Set to true once gracefulStopThenInstall enters the quitAndInstall path.
+// main.js's `before-quit` handler checks this via isInstallInProgress() and
+// skips its quit-confirmation/force-exit flow; letting Squirrel.Mac own the
+// full quit-swap-relaunch sequence is the only way the new version actually
+// launches on macOS. When the interception was active, Squirrel's helper
+// saw our forced `app.exit(0)` instead of a normal Electron quit and its
+// relaunch step picked up the pre-swap binary.
+let installInProgress = false;
 // Progress-line throttling: we only append a human-readable line to the
 // command-output panel at 25/50/75/100% milestones so the UI doesn't fill
 // with a dozen near-identical rows. The structured `update-download-progress`
@@ -172,9 +180,21 @@ async function gracefulStopThenInstall() {
   // before quitAndInstall lets Squirrel set up cleanly.
   await new Promise(resolve => setTimeout(resolve, 1500));
 
+  // Signal to main.js's `before-quit` handler that it must let the
+  // internal `app.quit()` (called by quitAndInstall) complete normally,
+  // rather than intercepting it with the usual confirmation / force-exit
+  // flow. Without this, Squirrel.Mac sees `app.exit(0)` instead of a
+  // clean quit, and its relaunch step ends up launching the pre-swap
+  // binary (the old version).
+  installInProgress = true;
+
   // isSilent = false (let user see the installer on Windows),
   // isForceRunAfter = true (relaunch the new version)
   autoUpdater.quitAndInstall(false, true);
 }
 
-module.exports = { init, downloadUpdate, gracefulStopThenInstall };
+function isInstallInProgress() {
+  return installInProgress;
+}
+
+module.exports = { init, downloadUpdate, gracefulStopThenInstall, isInstallInProgress };

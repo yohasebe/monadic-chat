@@ -1187,7 +1187,17 @@ app.on('before-quit', (event) => {
   if (forceQuit) {
     return; // Exit handler without preventing quit
   }
-  
+
+  // Auto-update path: when quitAndInstall is in flight, Squirrel.Mac has
+  // already spawned its helper and is relying on a normal Electron quit
+  // sequence to trigger the binary swap + relaunch. Our confirmation
+  // dialog / forced `app.exit(0)` would short-circuit that, causing the
+  // old binary to be relaunched. Passing the quit through preserves
+  // Squirrel's contract.
+  if (updater.isInstallInProgress && updater.isInstallInProgress()) {
+    return;
+  }
+
   // Otherwise, prevent quit and show confirmation dialog
   if (!isQuittingDialogShown) {
     event.preventDefault();

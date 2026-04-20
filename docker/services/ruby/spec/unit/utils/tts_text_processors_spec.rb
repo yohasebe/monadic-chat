@@ -117,6 +117,47 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
       end
     end
 
+    context 'nested and malformed wrap tags' do
+      it 'handles inline marker inside wrap correctly' do
+        input = '<whisper>hello [laugh] friend</whisper>'
+        expect(described_class.pre_send('elevenlabs-v3', input))
+          .to eq('[whispers] hello [laughs] friend')
+      end
+
+      it 'handles two different wraps nested (inner is converted/dropped)' do
+        input = '<loud>big <whisper>quiet</whisper> end</loud>'
+        expect(described_class.pre_send('elevenlabs-v3', input))
+          .to eq('big [whispers] quiet end')
+      end
+
+      it 'strips orphan whisper tags from nested same-name wraps' do
+        # Non-greedy regex leaves one pair dangling; orphan cleanup removes it.
+        input = '<whisper>A<whisper>nested</whisper>B</whisper>'
+        expect(described_class.pre_send('elevenlabs-v3', input))
+          .to eq('[whispers] AnestedB')
+      end
+
+      it 'strips unclosed <whisper> tags' do
+        expect(described_class.pre_send('gemini-flash', '<whisper>no close here'))
+          .to eq('no close here')
+      end
+
+      it 'strips orphan </whisper> closing tags' do
+        # Orphan removal may leave a single trailing space; acceptable
+        # cosmetic residue vs risking literal readout of the tag.
+        expect(described_class.pre_send('elevenlabs-v3', '<whisper>hi</whisper> and </whisper>'))
+          .to match(/^\[whispers\] hi and\s*$/)
+      end
+
+      it 'leaves xAI wrap structure untouched when target is xAI' do
+        # xAI is the only engine that natively interprets span-wrap syntax;
+        # we preserve user intent and let the engine handle edge cases.
+        input = '<whisper>hello [laugh] friend</whisper>'
+        expect(described_class.pre_send('grok', input))
+          .to eq(input)
+      end
+    end
+
     context 'foreign marker drop (prevents literal readout)' do
       it 'drops ElevenLabs-only emotion markers when target is xAI' do
         input = 'Oh [excited] wow, [sarcastic] really, [trembling] scary!'

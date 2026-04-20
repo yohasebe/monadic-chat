@@ -205,6 +205,31 @@ both the `:expressive_speech` and `:plain_voice_enforcement` rules consult.
 Setting the flag to `false` skips **both** rules — the app's system prompt
 is then untouched by Expressive Speech entirely.
 
+## Nested and malformed wrap tags
+
+The LLM may emit wrap tags that are nested, unclosed, or accompanied by
+orphan closing tags. How `translate_markers` handles each form:
+
+| Form | Target = xAI | Target = ElevenLabs v3 / Gemini |
+|---|---|---|
+| `<whisper>hello [laugh] friend</whisper>` (clean) | passes through | `[whispers] hello [laughs] friend` |
+| `<loud>big <whisper>quiet</whisper> end</loud>` (different-wrap nesting) | passes through | `big [whispers] quiet end` |
+| `<whisper>A<whisper>nested</whisper>B</whisper>` (same-wrap nesting) | passes through | `[whispers] AnestedB` — orphan `<whisper>` and `</whisper>` stripped |
+| `<whisper>unclosed` (missing close) | passes through | `unclosed` — orphan `<whisper>` stripped |
+| `<whisper>hi</whisper> and </whisper>` (extra close) | passes through | `[whispers] hi and ` — orphan closing tag stripped |
+
+**Design choice**: for xAI target we preserve malformed wraps verbatim —
+xAI is the only engine that natively interprets span wraps, so the
+engine (or the user) is the right authority to handle edge cases. For
+non-xAI targets we strip orphan `<whisper>` / `</whisper>` tags after
+conversion so the LLM's formatting mistakes do not leak into the spoken
+audio as literal word "whisper".
+
+The same-wrap nesting case is an artefact of the non-greedy regex
+`<whisper>(.*?)</whisper>`: the match consumes the first close tag found,
+leaving one pair of tags dangling. The dedicated orphan cleanup pass
+(`gsub(%r{</?whisper>}i, "")`) picks those up.
+
 ## Known limitations
 
 - **Free-form Gemini tags are not encouraged.** Gemini accepts arbitrary

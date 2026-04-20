@@ -181,6 +181,14 @@ module Monadic
         if target_family == "elevenlabs-v3" || target_family == "gemini"
           result = result.gsub(%r{<whisper>(.*?)</whisper>}i, '[whispers] \1')
           result = result.gsub(XAI_NON_WHISPER_WRAP_RE, "")
+          # Strip any remaining orphan whisper tags that arise from:
+          # (a) nested same-name wraps — non-greedy regex leaves one pair
+          #     dangling, e.g. `<whisper>A<whisper>B</whisper></whisper>`,
+          # (b) unclosed tags — LLM forgot to emit `</whisper>`,
+          # (c) stray closing tags — extra `</whisper>` without a partner.
+          # Without this pass they would pass through to the engine and be
+          # read literally as text.
+          result = result.gsub(%r{</?whisper>}i, "")
         end
 
         # Pass 3: foreign-marker drop

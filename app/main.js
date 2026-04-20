@@ -884,6 +884,32 @@ class DockerManager {
                 updateContextMenu(false);
               }
 
+              // Release subprocess handles from Electron's event loop before
+              // resolving. Without this, Node sometimes keeps references to
+              // the stdout/stderr streams and the child handle alive for long
+              // enough to block `app.quit()` (observed symptom: app doesn't
+              // close automatically after the auto-update's Docker stop).
+              // Destroying the streams and unref'ing the subprocess makes the
+              // resolution deterministic — the event loop has no reason to
+              // stay awake on our account after this point.
+              try {
+                if (subprocess.stdout) {
+                  subprocess.stdout.removeAllListeners();
+                  subprocess.stdout.destroy();
+                }
+                if (subprocess.stderr) {
+                  subprocess.stderr.removeAllListeners();
+                  subprocess.stderr.destroy();
+                }
+                if (typeof subprocess.unref === 'function') {
+                  subprocess.unref();
+                }
+              } catch (_e) {
+                // Cleanup is best-effort. If streams are already destroyed or
+                // the subprocess object is in an unexpected state, proceed —
+                // resolution is what matters here.
+              }
+
               resolve();
             });
           });

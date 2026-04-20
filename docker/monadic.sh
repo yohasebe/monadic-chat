@@ -1486,10 +1486,16 @@ down_docker_compose() {
 
 # Define a function to stop Docker Compose (includes all profiled services)
 stop_docker_compose() {
-  # Use docker compose with project name to properly stop all containers
-  # Add --timeout 5 to speed up shutdown (default is 10 seconds)
-  # Docker compose v2 stops containers in parallel by default
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" stop --timeout 5"
+  # Use docker compose with project name to properly stop all containers.
+  # Docker compose v2 stops containers in parallel by default.
+  #
+  # --timeout 2 (was 5, default is 10) — Monadic Chat's containers release
+  # quickly on SIGTERM (Falcon / PGVector / Jupyter all handle it cleanly in
+  # well under a second). A 2s SIGTERM-to-SIGKILL grace window keeps the
+  # total Restart-Now-to-relaunch duration predictable and inside the UX
+  # threshold for "feels responsive". The value is not zero because we
+  # still want databases to flush inflight writes gracefully before kill.
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" stop --timeout 2"
 }
 
 # Function to stop a container

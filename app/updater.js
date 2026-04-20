@@ -20,6 +20,12 @@ const { dialog, shell } = require('electron');
 
 let deps = null;
 let downloadInProgress = false;
+// Progress-line throttling: we only append a human-readable line to the
+// command-output panel at 25/50/75/100% milestones so the UI doesn't fill
+// with a dozen near-identical rows. The structured `update-download-progress`
+// event still fires on every tick for any future progress-bar widget.
+const PROGRESS_MILESTONES = [25, 50, 75, 100];
+let loggedMilestones = new Set();
 
 function init(injected) {
   deps = injected; // { dockerManager, getMainWindow, log, i18n }
@@ -35,7 +41,8 @@ function init(injected) {
     const mainWindow = deps.getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
-    // Structured event for any future progress-bar UI.
+    // Structured event (every tick) — any future progress-bar widget can
+    // subscribe to this.
     mainWindow.webContents.send('update-download-progress', {
       percent: Math.round(progress.percent),
       bytesPerSecond: progress.bytesPerSecond,
@@ -43,12 +50,17 @@ function init(injected) {
       total: progress.total
     });
 
-    // Human-readable line in the existing command-output panel so users
-    // can see the download is alive without extra UI work.
+    // Command-output line — throttled to milestone percentages so the log
+    // reads cleanly: 25%, 50%, 75%, done. Otherwise users saw ~20 lines of
+    // "Downloading update: X%" noise.
     const percent = Math.round(progress.percent);
-    const mbps = (progress.bytesPerSecond / 1024 / 1024).toFixed(1);
-    mainWindow.webContents.send('command-output',
-      `[HTML]: <p>Downloading update: ${percent}% (${mbps} MB/s)</p>`);
+    const milestone = PROGRESS_MILESTONES.find(m => percent >= m && !loggedMilestones.has(m));
+    if (milestone !== undefined) {
+      loggedMilestones.add(milestone);
+      const mbps = (progress.bytesPerSecond / 1024 / 1024).toFixed(1);
+      mainWindow.webContents.send('command-output',
+        `[HTML]: <p>Downloading update: ${milestone}% (${mbps} MB/s)</p>`);
+    }
   });
 
   autoUpdater.on('update-downloaded', async (info) => {
@@ -109,6 +121,7 @@ async function downloadUpdate() {
     return;
   }
   downloadInProgress = true;
+  loggedMilestones = new Set();  // Fresh progress log per download attempt
   try {
     await autoUpdater.checkForUpdates();
     await autoUpdater.downloadUpdate();
@@ -149,6 +162,15 @@ async function gracefulStopThenInstall() {
       deps.log.warn('Docker stop failed before quitAndInstall:', err);
     }
   }
+
+  // macOS-specific reliability: Squirrel.Mac's helper process (which
+  // actually swaps the binary and relaunches the app) is spawned right
+  // before the Electron main process exits. Our graceful Docker stop
+  // leaves transient timers/promises in the event loop that can delay
+  // quit just long enough to miss the helper's relaunch window —
+  // observed symptom: app quits but does NOT restart. A short delay
+  // before quitAndInstall lets Squirrel set up cleanly.
+  await new Promise(resolve => setTimeout(resolve, 1500));
 
   // isSilent = false (let user see the installer on Windows),
   // isForceRunAfter = true (relaunch the new version)

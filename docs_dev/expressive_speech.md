@@ -29,14 +29,25 @@ Current tag-aware providers:
 ## Four-layer architecture
 
 ```
-LLM response text (raw with markers)
+LLM response text (raw with any family's markers)
     │
-    ├──► (1) Backend message assembly         →  TTS API (engine interprets markers)
+    ├──► (1) Backend TTS pre-send translation (pre_send in tts_utils.rb:53)
+    │         ├──► concept normalisation ([laughs]/[laugh]/[laughing] → target form)
+    │         ├──► wrap conversion (xAI <whisper>X</whisper> → [whispers] X for Eleven/Gemini)
+    │         └──► foreign-marker drop (markers from other families → removed)
+    │                                                    │
+    │                                                    ▼
+    │                                      Target TTS API (engine interprets markers)
     │
     └──► WebSocket fragment stream
               │
               └──► (2) MarkdownRenderer.render hook
-                      └──► TtsTagSanitizer → clean HTML → DOM (no markers visible)
+                      └──► TtsTagSanitizer.sanitizeForDisplay (UNION of all families)
+                              ├──► own family: full sanitizer (incl. catch-all)
+                              └──► other families: STRICT regex (no catch-all)
+                                                    │
+                                                    ▼
+                                         Clean HTML → DOM (no markers visible)
 
 Chat request (before sending)
     │
@@ -53,29 +64,57 @@ Auto Speech + tag-aware provider both true
 
 `docker/services/ruby/lib/monadic/utils/tts_text_processors.rb`
 
-Two hash tables keyed by canonical family:
+Three hash tables keyed by canonical family:
 
-- `PRE_SEND`: text transform applied just before the TTS API call. Currently
-  identity for all registered families (xAI/ElevenLabs/Gemini all accept
-  markers verbatim). The hook exists for future normalisation needs.
+- `PRE_SEND`: text transform applied just before the TTS API call. For the
+  three tag-aware families (xAI / ElevenLabs v3 / Gemini) it invokes
+  `translate_markers` — a three-pass normaliser that (a) maps inline
+  concepts to the target engine's syntax, (b) converts xAI's wrap-style
+  `<whisper>` tags to inline form for engines that need it, and (c) drops
+  foreign markers that the target engine would read literally.
 - `DISPLAY_SANITIZE`: regex-based stripper applied before the text reaches
-  the DOM. Removes the marker vocabulary while preserving surrounding
-  punctuation.
+  the DOM. Each family's sanitizer uses its own fixed vocabulary plus a
+  free-form catch-all (for ElevenLabs / Gemini improvised descriptors).
+- `INLINE_CONCEPTS`: semantic mapping used by `translate_markers`. Each
+  concept (LAUGH, SIGH, CRY, PAUSE, LONG_PAUSE, INHALE, EXHALE, GIGGLE)
+  has a regex matching any known form across families and per-family
+  rendering (or `nil` to drop when unsupported).
 
 The module also owns `family_for(provider)`, the single normalisation point.
 All other layers delegate through it.
+
+**Translation vs sanitisation, clarified**: both can strip markers, but
+they are called at different points with different goals. `translate_markers`
+runs ONCE at TTS send and changes `[laughs]`→`[laugh]` etc. so the engine
+produces the intended sound. `sanitize_for_display` runs whenever a message
+is rendered, and its job is to keep the transcript clean of ALL marker
+syntax from ANY family (the user may have switched providers mid-session).
+That is why display uses a union-of-all-families approach while translation
+is single-target.
 
 ### Layer 2: Sanitizer frontend mirror
 
 `docker/services/ruby/public/js/monadic/tts-tag-sanitizer.js`
 
-A byte-for-byte mirror of `DISPLAY_SANITIZE` in JS. Exposed as
+A byte-for-byte mirror of `DISPLAY_SANITIZE` in JS, plus the strict
+cross-family regexes used by the union sanitiser. Exposed as
 `window.TtsTagSanitizer` with `familyFor`, `sanitizeForDisplay`, `tagAware`.
 
 Hooked into `markdown-renderer.js` `render()` entry so every assistant card
 — streaming or historical — is sanitised when `params.tts_provider` is tag-aware.
 
-Drift between Ruby and JS is caught by `spec/unit/utils/tts_registry_sync_spec.rb`.
+**Union cleanup behaviour**: when the active provider is tag-aware, the
+function runs the active family's full sanitizer (including its catch-all)
+AND strips other families' STRICT markers. Using strict-only for
+cross-family cleanup avoids false-positives on user-typed lowercase
+brackets like `[done]` or `[foo bar]`.
+
+**Drift scope**: only the marker-vocabulary constants and display
+sanitizers are mirrored in JS. The translation layer (`PRE_SEND`,
+`INLINE_CONCEPTS`, `translate_markers`) is Ruby-only because it runs at
+the TTS API boundary on the backend. `spec/unit/utils/tts_registry_sync_spec.rb`
+catches Ruby/JS drift for the mirrored constants; no JS-side translation
+table exists to drift.
 
 ### Layer 3: Marker vocabulary + prompt injection
 
@@ -110,20 +149,29 @@ Suppose Cartesia Sonic 2 ships inline-marker support. Steps:
    Add a branch to `TtsTextProcessors.family_for` (and its JS twin) mapping
    the dropdown value(s) to the new family.
 
-2. **Add the sanitizer regex** to `DISPLAY_SANITIZE` in Ruby AND JS. Keep the
-   shape consistent (strip markers → collapse double spaces → fix
+2. **Add the display sanitizer** to `DISPLAY_SANITIZE` in Ruby AND JS. Keep
+   the shape consistent (strip markers → collapse double spaces → fix
    space-before-punctuation). If the engine supports free-form descriptor
    tags (like Gemini), include a bounded lowercase catch-all such as
-   `[a-z][a-z ]{2,60}`.
+   `[a-z][a-z ]{2,60}` PLUS a separate strict regex (`..._INLINE_STRICT_RE`)
+   with fixed markers only — the strict variant is used for cross-family
+   cleanup in `sanitize_for_display`.
 
 3. **Add a vocabulary entry** to `TtsMarkerVocabulary::VOCABULARIES` with
    inline markers, wrapping markers (or `[].freeze`), and 2–3 example
    phrasings.
 
-4. **Run `npm test` and `rspec spec/unit/utils/tts_*`**. The registry sync
+4. **Extend translation (Ruby only)**:
+   - Add an `emit` entry for each relevant `INLINE_CONCEPTS` key mapping
+     the concept to the new family's syntax (or `nil` to drop).
+   - Add the family to `FOREIGN_MARKER_RE` so markers from OTHER families
+     are dropped when targeting this one.
+   - Register a `PRE_SEND` translator lambda.
+
+5. **Run `npm test` and `rspec spec/unit/utils/tts_*`**. The registry sync
    spec will fail loudly if Ruby and JS marker lists disagree.
 
-5. **Update `docs/basic-usage/basic-apps.md` + ja/**, plus the tooltip in
+6. **Update `docs/basic-usage/basic-apps.md` + ja/**, plus the tooltip in
    `public/js/i18n/translations.js`, to list the new family under "Supported
    by…".
 

@@ -8,6 +8,13 @@ require_relative '../../../lib/monadic/utils/tts_marker_vocabulary'
 # mirror at public/js/monadic/tts-tag-sanitizer.js. If a maintainer adds a
 # new marker to only one side, these tests fail with a clear message naming
 # the missing token.
+#
+# Scope note: ONLY the display-layer marker vocabulary constants and the
+# family-normalisation logic are mirrored in JS. The TTS-translation layer
+# (`PRE_SEND`, `INLINE_CONCEPTS`, `translate_markers`, `FOREIGN_MARKER_RE`)
+# is Ruby-only because it runs at the TTS API boundary on the backend. No
+# JS counterpart exists, hence nothing to sync — translation tables can be
+# extended freely in Ruby without risk of frontend drift.
 RSpec.describe 'TTS marker registry Ruby/JS sync' do
   let(:js_source) do
     File.read(File.expand_path(

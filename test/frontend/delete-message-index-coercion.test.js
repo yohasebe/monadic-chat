@@ -19,8 +19,15 @@
 
 function makeDeleteAndSubsequent(state) {
   return function deleteMessageAndSubsequent(mid, messageIndex) {
-    // The fix: coerce once at the boundary.
+    // Fix #1: coerce once at the boundary.
     messageIndex = Number(messageIndex);
+
+    // Fix #2: reject NaN / negative sentinels so slice(0) does not wipe the
+    // entire array when the caller could not determine an index.
+    if (!Number.isFinite(messageIndex) || messageIndex < 0) {
+      state.sent.push({ message: "DELETE", mid: mid });
+      return;
+    }
 
     const subsequent = state.messages.slice(messageIndex + 1);
     subsequent.forEach((m) => {
@@ -72,6 +79,22 @@ describe('deleteMessageAndSubsequent — dataset string coercion regression', ()
     deleteMessageAndSubsequent('m-assistant-2', '3');
     expect(state.messages.map(m => m.mid)).toEqual(['m-user-1', 'm-assistant-1', 'm-user-2']);
     expect(state.sent.map(s => s.mid)).toEqual(['m-assistant-2']);
+  });
+
+  it('rejects -1 sentinel: removes only the targeted message, not the whole history', () => {
+    deleteMessageAndSubsequent('m-user-2', -1);
+    // Fix: array remains intact (no slice(0) wipe), only the DELETE for the
+    // targeted mid is sent.
+    expect(state.messages.map(m => m.mid)).toEqual(
+      ['m-user-1', 'm-assistant-1', 'm-user-2', 'm-assistant-2']
+    );
+    expect(state.sent.map(s => s.mid)).toEqual(['m-user-2']);
+  });
+
+  it('rejects NaN (undefined messageIndex) without corrupting state', () => {
+    deleteMessageAndSubsequent('m-user-2', undefined);
+    expect(state.messages).toHaveLength(4);
+    expect(state.sent.map(s => s.mid)).toEqual(['m-user-2']);
   });
 
   it('would have left the following assistant orphaned before the fix', () => {

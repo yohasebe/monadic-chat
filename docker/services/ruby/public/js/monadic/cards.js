@@ -773,6 +773,18 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
   // once at the boundary so the rest of the function can treat it as a number.
   messageIndex = Number(messageIndex);
 
+  // Reject NaN / negative sentinels. `-1` is passed when the caller could not
+  // determine an index, in which case there is nothing to slice from and we
+  // should fall through to a best-effort single-card removal instead of
+  // treating the whole array as "below" (`slice(0)` would delete everything).
+  if (!Number.isFinite(messageIndex) || messageIndex < 0) {
+    const el = $id(mid);
+    if (el) el.remove();
+    ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+    mids.delete(mid);
+    return;
+  }
+
   const cardEl = $id(mid);
 
   if (cardEl && cardEl.querySelector(".role-system")) {
@@ -820,6 +832,12 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
 };
 
 window.deleteMessageOnly = function(mid, messageIndex) {
+  // Normalise numeric index for symmetry with deleteMessageAndSubsequent.
+  // Today JS coercion masks this (array[string] and splice(string) both work),
+  // but any future arithmetic on messageIndex would break — fix the boundary
+  // once rather than risk the same bug class re-emerging.
+  messageIndex = Number(messageIndex);
+
   const cardEl = $id(mid);
   if (!cardEl) {
     console.error("Card not found:", mid);

@@ -21,7 +21,7 @@ The `SystemPromptInjector` module provides:
 1. **System Context** (`:system`)
    - Applied once at conversation start
    - Modifies the initial system message
-   - Currently has 5 active rules
+   - Currently has 7 active rules
 
 2. **User Context** (`:user`)
    - Applied to each user input
@@ -35,10 +35,13 @@ The `SystemPromptInjector` module provides:
 | Priority | Rule Name | Condition | Purpose |
 |----------|-----------|-----------|---------|
 | 100 | `language_preference` | User sets language (not "auto") | Enforce response language |
+| 90 | `autonomy` | `autonomy` set to `"high"` or `"low"` | Inject autonomy-mode instructions (skip or require confirmations) |
 | 80 | `websearch` | Websearch enabled + non-reasoning model | Add web search instructions |
 | 60 | `stt_diarization_warning` | STT model contains "diarize" | Warn about speaker label interpretation |
 | 50 | `math` | math enabled | Add LaTeX formatting instructions |
 | 40 | `system_prompt_suffix` | Suffix provided in options | Append custom system prompt suffix |
+| 30 | `expressive_speech` | Auto Speech on + tag-aware TTS provider (xAI / ElevenLabs v3 / Gemini) + app has not opted out via `expressive_speech false` | Inject the provider's speech-marker vocabulary so the LLM can weave `[laugh]`, `<whisper>…</whisper>`, etc. into its reply |
+| 29 | `plain_voice_enforcement` | Auto Speech on + **non-marker** TTS provider (OpenAI / Mistral / Cohere / ElevenLabs Flash & Multilingual / WebSpeech) + same opt-out gate | Instruct the LLM to output plain prose only, cancelling any marker habit inherited from previous turns |
 
 ### User Context Rules (Priority Order)
 

@@ -188,6 +188,10 @@ features do
   monadic true            # Session Stateアプリでは必須 - ツールによるコンテキスト管理を有効化
   initiate_from_assistant true # AIメッセージで会話を開始
   autonomy "high"         # 自律レベルの設定: "high"、"medium"（デフォルト）、"low"
+  expressive_speech false # このアプリを Expressive Speech の対象から除外します。
+                          # 厳密な出力形式（JSON生成アプリなど）を持つアプリで、
+                          # 音声マーカー指示の追加挿入がシステムプロンプトと衝突する場合に使用。
+                          # 未指定時: Auto Speech がオンかつマーカー対応 TTS プロバイダー選択時に自動発動。
 end
 ```
 

@@ -194,6 +194,11 @@ features do
   monadic true            # REQUIRED for Session State apps - enables context management via tools
   initiate_from_assistant true # Allow assistant to send first message in conversation
   autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
+  expressive_speech false # Opt this app out of Expressive Speech injection.
+                          # Useful for apps with strict output formats (e.g. JSON-producing apps)
+                          # where appended voice-marker instructions would collide with the system prompt.
+                          # Default: not set (the feature activates automatically when Auto Speech is on
+                          # and a marker-capable TTS provider is selected).
 end
 ```
 

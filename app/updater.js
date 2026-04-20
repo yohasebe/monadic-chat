@@ -95,12 +95,22 @@ function init(injected) {
 // Start downloading the available update. Returns a promise that resolves
 // when the download completes; the update-downloaded handler then prompts
 // the user to restart.
+//
+// NOTE: electron-updater throws "Please check update first" if you call
+// downloadUpdate() without first populating its internal UpdateInfo state.
+// Our primary version check goes through checkForUpdatesManual() in
+// main.js (raw.githubusercontent.com → version.rb compare) and never
+// touches electron-updater's state, so we must re-check via the updater
+// here before kicking off the download. The call is cheap — a single
+// YAML fetch from the GitHub release — and returns the UpdateCheckResult
+// we then feed into downloadUpdate().
 async function downloadUpdate() {
   if (downloadInProgress) {
     return;
   }
   downloadInProgress = true;
   try {
+    await autoUpdater.checkForUpdates();
     await autoUpdater.downloadUpdate();
   } catch (err) {
     downloadInProgress = false;

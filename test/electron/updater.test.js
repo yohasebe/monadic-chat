@@ -29,7 +29,9 @@ const autoUpdaterMock = {
 jest.mock('electron-updater', () => ({ autoUpdater: autoUpdaterMock }));
 
 const showMessageBoxMock = jest.fn(() => Promise.resolve({ response: 0 }));
+const appExitMock = jest.fn();
 jest.mock('electron', () => ({
+  app: { exit: appExitMock },
   dialog: { showMessageBox: showMessageBoxMock },
   shell: { openExternal: jest.fn() }
 }));
@@ -61,6 +63,7 @@ describe('app/updater.js — installInProgress state machine', () => {
     Object.keys(autoUpdaterEvents).forEach(k => delete autoUpdaterEvents[k]);
     autoUpdaterMock.quitAndInstall.mockClear();
     showMessageBoxMock.mockClear();
+    appExitMock.mockClear();
   });
 
   it('starts as false before any install activity', () => {
@@ -109,6 +112,34 @@ describe('app/updater.js — installInProgress state machine', () => {
     errorHandler(new Error('network down'));
 
     expect(updater.isInstallInProgress()).toBe(false);
+  });
+
+  it('arms a 5-second safety-net that force-exits if quitAndInstall does not complete', async () => {
+    updater.init(makeDeps());
+    const installPromise = updater.gracefulStopThenInstall();
+    await jest.advanceTimersByTimeAsync(1500);
+    await installPromise;
+    // quitAndInstall was called, but in a real app Electron would have
+    // exited by now. In the mock it does not, so the safety-net timer
+    // should fire after the 5s grace period.
+    expect(appExitMock).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(appExitMock).toHaveBeenCalledWith(0);
+  });
+
+  it('does NOT arm the safety-net when quitAndInstall throws synchronously', async () => {
+    updater.init(makeDeps());
+    autoUpdaterMock.quitAndInstall.mockImplementationOnce(() => {
+      throw new Error('squirrel unreachable');
+    });
+    const installPromise = updater.gracefulStopThenInstall().catch(e => e);
+    await jest.advanceTimersByTimeAsync(1500);
+    await installPromise;
+    // The throw exits gracefulStopThenInstall before the safety-net
+    // setTimeout is registered, so no forced exit happens here — the
+    // error path will surface a dialog to the user instead.
+    await jest.advanceTimersByTimeAsync(10000);
+    expect(appExitMock).not.toHaveBeenCalled();
   });
 
   it('continues with the install even if Docker stop fails', async () => {

@@ -16,7 +16,7 @@
 // download, and handles the download + Docker stop + restart sequence.
 
 const { autoUpdater } = require('electron-updater');
-const { dialog, shell } = require('electron');
+const { app, dialog, shell } = require('electron');
 
 let deps = null;
 let downloadInProgress = false;
@@ -219,6 +219,39 @@ async function gracefulStopThenInstall() {
     }
     throw err;
   }
+
+  // Safety net: belt-and-suspenders for unknown quit blockers.
+  //
+  // Rationale: beta.11.1 → 11.6 fixed five separate paths that could keep
+  // the Electron process alive despite quitAndInstall's internal app.quit()
+  // (checkForUpdates, before-quit handler, Squirrel spawn timing,
+  // installInProgress stale flag, window.on('close') preventDefault...).
+  // Empirically we cannot prove that no sixth path exists: tray handles,
+  // will-quit listeners, orphan child processes, third-party module timers,
+  // novncWindow, etc. could each keep Node's event loop running.
+  //
+  // The user has separately confirmed that manually quitting with Cmd+Q
+  // after the Docker stop correctly triggers Squirrel's relaunch of the
+  // NEW binary — meaning `app.exit(0)` is NOT incompatible with the
+  // relaunch path as long as Squirrel's helper has had time to spawn
+  // (which our 1500ms delay above ensures).
+  //
+  // Therefore: if quitAndInstall did not complete the graceful quit within
+  // 5 seconds, we force-exit. In the normal success case the process has
+  // already terminated and this timer is garbage-collected with it; if an
+  // unknown blocker is present, the timer fires and hands control back to
+  // Squirrel via an `app.exit(0)` — the same path the user's manual Cmd+Q
+  // was demonstrated to take.
+  setTimeout(() => {
+    if (deps && deps.log) {
+      deps.log.warn('quitAndInstall did not complete gracefully within 5s; forcing exit');
+    }
+    try {
+      app.exit(0);
+    } catch (_e) {
+      // If even app.exit fails, there is nothing left we can do.
+    }
+  }, 5000);
 }
 
 function isInstallInProgress() {

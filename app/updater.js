@@ -27,6 +27,10 @@ let downloadInProgress = false;
 // launches on macOS. When the interception was active, Squirrel's helper
 // saw our forced `app.exit(0)` instead of a normal Electron quit and its
 // relaunch step picked up the pre-swap binary.
+//
+// MUST be reset to false on any failure path so the app's normal quit
+// confirmation dialog returns. Otherwise a failed install would leave the
+// app unable to show the "Quit?" dialog for the rest of the session.
 let installInProgress = false;
 // Progress-line throttling: we only append a human-readable line to the
 // command-output panel at 25/50/75/100% milestones so the UI doesn't fill
@@ -59,15 +63,18 @@ function init(injected) {
     });
 
     // Command-output line — throttled to milestone percentages so the log
-    // reads cleanly: 25%, 50%, 75%, done. Otherwise users saw ~20 lines of
-    // "Downloading update: X%" noise.
+    // reads cleanly: 25%, 50%, 75%, done. Collect ALL milestones crossed
+    // since the last event (not just the first) so a progress jump like
+    // 20% → 80% still records 25/50/75 rather than silently dropping them.
+    // Display the ACTUAL percent rather than the milestone value so the
+    // line is honest when a single tick crosses multiple thresholds.
     const percent = Math.round(progress.percent);
-    const milestone = PROGRESS_MILESTONES.find(m => percent >= m && !loggedMilestones.has(m));
-    if (milestone !== undefined) {
-      loggedMilestones.add(milestone);
+    const crossed = PROGRESS_MILESTONES.filter(m => percent >= m && !loggedMilestones.has(m));
+    if (crossed.length > 0) {
+      crossed.forEach(m => loggedMilestones.add(m));
       const mbps = (progress.bytesPerSecond / 1024 / 1024).toFixed(1);
       mainWindow.webContents.send('command-output',
-        `[HTML]: <p>Downloading update: ${milestone}% (${mbps} MB/s)</p>`);
+        `[HTML]: <p>Downloading update: ${percent}% (${mbps} MB/s)</p>`);
     }
   });
 
@@ -93,7 +100,13 @@ function init(injected) {
   });
 
   autoUpdater.on('error', (err) => {
+    // Reset ALL state so the session can recover. Without resetting
+    // installInProgress here, a failed quitAndInstall would leave the
+    // app unable to show its usual quit confirmation dialog for the
+    // rest of the session (the before-quit handler would see the stale
+    // flag and pass quits straight through).
     downloadInProgress = false;
+    installInProgress = false;
     const mainWindow = deps.getMainWindow();
     const message = err && err.message ? err.message : String(err);
 
@@ -178,6 +191,11 @@ async function gracefulStopThenInstall() {
   // quit just long enough to miss the helper's relaunch window —
   // observed symptom: app quits but does NOT restart. A short delay
   // before quitAndInstall lets Squirrel set up cleanly.
+  //
+  // Rationale for 1500ms: empirically chosen. Squirrel's helper spawn is
+  // typically observed in the 200-500ms range after quit signal; 1500ms
+  // gives ~3x headroom for slower systems without being perceptible to
+  // the user who is already waiting for the update to apply.
   await new Promise(resolve => setTimeout(resolve, 1500));
 
   // Signal to main.js's `before-quit` handler that it must let the
@@ -188,13 +206,32 @@ async function gracefulStopThenInstall() {
   // binary (the old version).
   installInProgress = true;
 
-  // isSilent = false (let user see the installer on Windows),
-  // isForceRunAfter = true (relaunch the new version)
-  autoUpdater.quitAndInstall(false, true);
+  try {
+    // isSilent = false (let user see the installer on Windows),
+    // isForceRunAfter = true (relaunch the new version)
+    autoUpdater.quitAndInstall(false, true);
+  } catch (err) {
+    // Roll back the flag if quitAndInstall itself throws synchronously.
+    // Async failures are caught by the 'error' handler registered in init().
+    installInProgress = false;
+    if (deps.log) {
+      deps.log.warn('quitAndInstall threw synchronously:', err);
+    }
+    throw err;
+  }
 }
 
 function isInstallInProgress() {
   return installInProgress;
 }
 
-module.exports = { init, downloadUpdate, gracefulStopThenInstall, isInstallInProgress };
+// Test-only: reset all module-level state between test runs. Not exported in
+// the default module surface to avoid accidental production use.
+function _resetForTests() {
+  deps = null;
+  downloadInProgress = false;
+  installInProgress = false;
+  loggedMilestones = new Set();
+}
+
+module.exports = { init, downloadUpdate, gracefulStopThenInstall, isInstallInProgress, _resetForTests };

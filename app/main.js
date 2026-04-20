@@ -1863,10 +1863,16 @@ function initializeApp() {
     // Set up window close handlers
     if (mainWindow) {
       mainWindow.on('close', (event) => {
-        if (!isQuitting) {
-          event.preventDefault();
-          mainWindow.hide();
+        // Let the close proceed when an auto-update install is in flight;
+        // otherwise Squirrel.Mac's internal app.quit() is aborted here and
+        // the app stays running with just the window hidden, forcing the
+        // user to quit manually (at which point the new version correctly
+        // launches because the binary swap has completed in the background).
+        if (isQuitting || (updater.isInstallInProgress && updater.isInstallInProgress())) {
+          return;
         }
+        event.preventDefault();
+        mainWindow.hide();
       });
     }
 
@@ -2749,10 +2755,13 @@ function createMainWindow() {
   // Don't set menu here - updateApplicationMenu() handles it
 
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
+    // See the matching handler near line ~1865 for rationale — the
+    // install-in-progress bypass keeps Squirrel.Mac's quit path unblocked.
+    if (isQuitting || (updater.isInstallInProgress && updater.isInstallInProgress())) {
+      return;
     }
+    event.preventDefault();
+    mainWindow.hide();
   });
 }
 
@@ -3033,6 +3042,11 @@ function openSettingsWindow(category = null) {
     });
 
     settingsWindow.on('close', (event) => {
+      // During auto-update install, let Squirrel's quit complete without
+      // prompting the save-confirmation flow on the settings window.
+      if (isQuitting || (updater.isInstallInProgress && updater.isInstallInProgress())) {
+        return;
+      }
       // Ask renderer if it wants to save before closing
       event.preventDefault();
       settingsWindow.webContents.send('attempt-close-settings');

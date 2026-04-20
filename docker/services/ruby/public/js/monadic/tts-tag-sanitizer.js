@@ -52,6 +52,13 @@
     "\\[(?:" + ELEVENLABS_INLINE_MARKERS.join("|") + "|[a-z][a-z ]{2,30})\\]",
     "g"
   );
+  // Strict variant — fixed markers only, no free-form catch-all. Used for
+  // cross-family union cleanup where false-positives on user-typed
+  // lowercase brackets would be unacceptable.
+  var ELEVENLABS_INLINE_STRICT_RE = new RegExp(
+    "\\[(?:" + ELEVENLABS_INLINE_MARKERS.join("|") + ")\\]",
+    "gi"
+  );
 
   // Gemini TTS 16 fixed tags plus a loose free-form catch-all.
   var GEMINI_INLINE_MARKERS = [
@@ -62,6 +69,10 @@
   var GEMINI_INLINE_RE = new RegExp(
     "\\[(?:" + GEMINI_INLINE_MARKERS.join("|") + "|[a-z][a-z ,]{2,60})\\]",
     "g"
+  );
+  var GEMINI_INLINE_STRICT_RE = new RegExp(
+    "\\[(?:" + GEMINI_INLINE_MARKERS.join("|") + ")\\]",
+    "gi"
   );
 
   // Normalize a provider string to a canonical family key.
@@ -117,9 +128,30 @@
 
   function sanitizeForDisplay(text, provider) {
     if (text == null || text === "") return text;
-    var fam = familyFor(provider != null ? provider : currentProvider());
-    var fn = DISPLAY_SANITIZE[fam];
-    return fn ? fn(text) : text;
+    var activeProvider = provider != null ? provider : currentProvider();
+    if (!tagAware(activeProvider)) return text;
+
+    var fam = familyFor(activeProvider);
+    // Own family: full sanitizer (includes free-form catch-all for
+    // ElevenLabs/Gemini).
+    var result = DISPLAY_SANITIZE[fam](String(text));
+    // Cross-family cleanup: strip OTHER families' markers that may remain
+    // from previous turns, but use STRICT regexes (no catch-all) so that
+    // user-typed lowercase brackets like [done] or [foo bar] are not
+    // false-positive stripped when the active engine would leave them.
+    if (fam !== "xai") {
+      result = result.replace(XAI_WRAP_RE, "")
+                     .replace(XAI_INLINE_RE, "")
+                     .replace(XAI_MALFORMED_CLOSING_RE, "")
+                     .replace(XAI_MALFORMED_SQUARE_WRAP_RE, "");
+    }
+    if (fam !== "elevenlabs-v3") {
+      result = result.replace(ELEVENLABS_INLINE_STRICT_RE, "");
+    }
+    if (fam !== "gemini") {
+      result = result.replace(GEMINI_INLINE_STRICT_RE, "");
+    }
+    return result.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.!?;:])/g, "$1");
   }
 
   function tagAware(provider) {

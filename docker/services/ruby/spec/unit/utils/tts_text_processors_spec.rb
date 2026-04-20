@@ -48,12 +48,122 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
   describe '.pre_send' do
     it 'is the identity function for unregistered providers' do
       expect(described_class.pre_send('openai-tts-4o', 'hello world')).to eq('hello world')
-      expect(described_class.pre_send('gemini', 'こんにちは')).to eq('こんにちは')
+      expect(described_class.pre_send('mistral', 'こんにちは')).to eq('こんにちは')
     end
 
     it 'returns the original text for nil / empty input without raising' do
       expect(described_class.pre_send('grok', nil)).to be_nil
       expect(described_class.pre_send('grok', '')).to eq('')
+    end
+
+    context 'marker translation to xAI target' do
+      it 'normalises ElevenLabs plural [laughs] to xAI singular [laugh]' do
+        expect(described_class.pre_send('grok', 'Oh [laughs] that was wild.'))
+          .to eq('Oh [laugh] that was wild.')
+      end
+
+      it 'normalises [sighs]/[crying]/[inhales] to xAI forms' do
+        input = 'Well, [sighs] okay [crying] really sad, then [inhales] calm.'
+        expect(described_class.pre_send('grok', input))
+          .to eq('Well, [sigh] okay [cry] really sad, then [inhale] calm.')
+      end
+
+      it 'drops Gemini concepts without xAI equivalents' do
+        # [gasp] maps to xAI [inhale] (mapped); [giggles] maps to [laugh].
+        # Other free-form Gemini descriptors untouched by translation and
+        # later handled by sanitizer on display.
+        expect(described_class.pre_send('grok', 'Hmm [giggles] cute. [gasp] wait.'))
+          .to eq('Hmm [laugh] cute. [inhale] wait.')
+      end
+    end
+
+    context 'marker translation to ElevenLabs v3 target' do
+      it 'normalises xAI singular [laugh] to ElevenLabs plural [laughs]' do
+        expect(described_class.pre_send('elevenlabs-v3', 'Wait [laugh] really?'))
+          .to eq('Wait [laughs] really?')
+      end
+
+      it 'drops xAI [pause] that ElevenLabs does not support' do
+        expect(described_class.pre_send('elevenlabs-v3', 'Think [pause] and speak.'))
+          .to eq('Think and speak.')
+      end
+
+      it 'collapses xAI wrap <whisper>X</whisper> to inline [whispers] X' do
+        expect(described_class.pre_send('elevenlabs-v3', 'Now <whisper>quiet here</whisper> okay?'))
+          .to eq('Now [whispers] quiet here okay?')
+      end
+
+      it 'drops wrap tags other than whisper (no ElevenLabs equivalent)' do
+        expect(described_class.pre_send('elevenlabs-v3', 'Shout <loud>hey</loud> then quiet.'))
+          .to eq('Shout hey then quiet.')
+      end
+    end
+
+    context 'marker translation to Gemini target' do
+      it 'normalises xAI [laugh] to Gemini [laughs]' do
+        expect(described_class.pre_send('gemini-flash', 'Funny [laugh] story.'))
+          .to eq('Funny [laughs] story.')
+      end
+
+      it 'maps xAI [inhale] to Gemini [gasp]' do
+        expect(described_class.pre_send('gemini-pro', 'Oh [inhale] really?'))
+          .to eq('Oh [gasp] really?')
+      end
+
+      it 'drops [exhale] / [pause] / [long-pause] (no Gemini equivalent)' do
+        input = 'Think [pause] deeply, [long-pause] then [exhale] relax.'
+        expect(described_class.pre_send('gemini-flash', input))
+          .to eq('Think deeply, then relax.')
+      end
+    end
+
+    context 'foreign marker drop (prevents literal readout)' do
+      it 'drops ElevenLabs-only emotion markers when target is xAI' do
+        input = 'Oh [excited] wow, [sarcastic] really, [trembling] scary!'
+        expect(described_class.pre_send('grok', input))
+          .to eq('Oh wow, really, scary!')
+      end
+
+      it 'drops Gemini-only emotion markers when target is xAI' do
+        input = 'Hmm [mischievously] and [panicked] then [shouting] hey!'
+        expect(described_class.pre_send('grok', input))
+          .to eq('Hmm and then hey!')
+      end
+
+      it 'drops xAI mouth sounds when target is ElevenLabs v3' do
+        expect(described_class.pre_send('elevenlabs-v3', 'Go [click] [smack] hey.'))
+          .to eq('Go hey.')
+      end
+
+      it 'drops xAI mouth sounds and Gemini-specific markers when target is Gemini' do
+        expect(described_class.pre_send('gemini-flash', 'Wait [smack] okay.'))
+          .to eq('Wait okay.')
+      end
+
+      it 'preserves user-typed brackets like [TODO] (uppercase) and [1] (numeric)' do
+        input = 'See [TODO] in ticket [1] please.'
+        # None of these are vocabulary markers; they pass through to the engine.
+        expect(described_class.pre_send('grok', input)).to eq(input)
+        expect(described_class.pre_send('elevenlabs-v3', input)).to eq(input)
+        expect(described_class.pre_send('gemini-flash', input)).to eq(input)
+      end
+    end
+  end
+
+  describe 'user-text preservation in union display sanitize' do
+    it 'does NOT strip lowercase user-typed brackets that are not fixed markers' do
+      # [done] is lowercase and not in any family's fixed vocabulary; the
+      # active-family (xAI) strict regex ignores it, and cross-family STRICT
+      # regexes also ignore it (they use fixed lists only, no catch-all).
+      expect(described_class.sanitize_for_display('grok', 'Task [done] yesterday.'))
+        .to eq('Task [done] yesterday.')
+    end
+
+    it 'still applies own-family catch-all when active provider is Gemini' do
+      # Gemini family keeps its free-form catch-all for its OWN sanitizer —
+      # so a multi-word descriptor IS stripped when user is on Gemini.
+      expect(described_class.sanitize_for_display('gemini-flash', 'Say this [quickly but clearly] now.'))
+        .to eq('Say this now.')
     end
   end
 
@@ -127,6 +237,26 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
         %w[elevenlabs-flash elevenlabs-multilingual elevenlabs].each do |p|
           expect(described_class.sanitize_for_display(p, input)).to eq(input)
         end
+      end
+    end
+
+    describe 'cross-provider union (mid-session TTS switch cleanup)' do
+      it 'strips xAI wrap markers when the current provider is ElevenLabs v3' do
+        input = 'Sure, <whisper>secret</whisper> and [laugh] here.'
+        expect(described_class.sanitize_for_display('elevenlabs-v3', input))
+          .to eq('Sure, secret and here.')
+      end
+
+      it 'strips ElevenLabs markers when the current provider is xAI' do
+        input = 'Oh [laughs] that is [excited] great news!'
+        expect(described_class.sanitize_for_display('grok', input))
+          .to eq('Oh that is great news!')
+      end
+
+      it 'strips Gemini markers when the current provider is xAI' do
+        input = 'Well, [mischievously] sneaky [trembling] reply.'
+        expect(described_class.sanitize_for_display('grok', input))
+          .to eq('Well, sneaky reply.')
       end
     end
 

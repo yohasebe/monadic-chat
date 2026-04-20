@@ -118,6 +118,41 @@ describe('TtsTagSanitizer', () => {
     });
   });
 
+  describe('sanitizeForDisplay cross-provider union (mid-session TTS switch)', () => {
+    it('strips xAI wrap markers when current provider is ElevenLabs v3', () => {
+      const input = 'Sure, <whisper>secret</whisper> and [laugh] here.';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'elevenlabs-v3'))
+        .toBe('Sure, secret and here.');
+    });
+
+    it('strips ElevenLabs markers when current provider is xAI', () => {
+      const input = 'Oh [laughs] that is [excited] great news!';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'grok'))
+        .toBe('Oh that is great news!');
+    });
+
+    it('strips Gemini markers when current provider is xAI', () => {
+      const input = 'Well, [mischievously] sneaky [trembling] reply.';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'grok'))
+        .toBe('Well, sneaky reply.');
+    });
+
+    it('preserves user-typed lowercase brackets that are not fixed markers', () => {
+      // [done] is lowercase but NOT in any family's fixed vocabulary; the
+      // cross-family STRICT regexes ignore it (they use fixed lists only,
+      // no catch-all). Active family (xAI) is already strict by design.
+      expect(window.TtsTagSanitizer.sanitizeForDisplay('Task [done] yesterday.', 'grok'))
+        .toBe('Task [done] yesterday.');
+    });
+
+    it("still applies own-family catch-all when provider is Gemini (multi-word descriptor)", () => {
+      // Gemini is the active family — its OWN sanitizer keeps its free-form
+      // catch-all, so `[quickly but clearly]` IS stripped.
+      expect(window.TtsTagSanitizer.sanitizeForDisplay('Say this [quickly but clearly] now.', 'gemini-flash'))
+        .toBe('Say this now.');
+    });
+  });
+
   describe('sanitizeForDisplay (gemini)', () => {
     it('strips the 16 fixed audio tags', () => {
       const input = 'Really [amazed] wow [mischievously] sneaky [whispers] secret.';

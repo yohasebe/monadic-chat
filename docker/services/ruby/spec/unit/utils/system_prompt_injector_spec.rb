@@ -351,6 +351,42 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         result = described_class.build_injections(session: session, options: {})
         expect(result.map { |r| r[:name] }).to include(:expressive_speech)
       end
+
+      it 'includes plain_voice_enforcement when auto_speech is on but TTS is non-marker' do
+        session = {
+          parameters: { "auto_speech" => true, "tts_provider" => "openai-tts-4o" }
+        }
+        result = described_class.build_injections(session: session, options: {})
+        names = result.map { |r| r[:name] }
+        expect(names).to include(:plain_voice_enforcement)
+        expect(names).not_to include(:expressive_speech)
+        content = result.find { |r| r[:name] == :plain_voice_enforcement }[:content]
+        expect(content).to match(/do not include inline speech markers/i)
+        expect(content).to include('[laugh]')
+      end
+
+      it 'does NOT fire plain_voice_enforcement when TTS provider is unset' do
+        session = { parameters: { "auto_speech" => true, "tts_provider" => "" } }
+        result = described_class.build_injections(session: session, options: {})
+        expect(result.map { |r| r[:name] }).not_to include(:plain_voice_enforcement)
+      end
+
+      it 'skips both rules when the app MDSL opts out with expressive_speech false' do
+        stub_const('APPS', {
+          'OptOutApp' => Struct.new(:settings).new({ 'expressive_speech' => false })
+        })
+        session = {
+          parameters: {
+            'auto_speech' => true,
+            'tts_provider' => 'grok',
+            'app_name' => 'OptOutApp'
+          }
+        }
+        result = described_class.build_injections(session: session, options: {})
+        names = result.map { |r| r[:name] }
+        expect(names).not_to include(:expressive_speech)
+        expect(names).not_to include(:plain_voice_enforcement)
+      end
     end
 
     context 'with multiple conditions met' do

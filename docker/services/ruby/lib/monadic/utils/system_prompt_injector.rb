@@ -108,7 +108,7 @@ module Monadic
           name: :language_preference,
           priority: 100,
           condition: ->(session, _options) {
-            !session[:runtime_settings]&.[](:language).nil?
+            !session&.[](:runtime_settings)&.[](:language).nil?
           },
           generator: ->(session, _options) {
             lang = session[:runtime_settings][:language]
@@ -119,11 +119,11 @@ module Monadic
           name: :autonomy,
           priority: 90,
           condition: ->(session, _options) {
-            autonomy = session.dig(:parameters, "autonomy") || session.dig(:parameters, :autonomy)
+            autonomy = session&.dig(:parameters, "autonomy") || session&.dig(:parameters, :autonomy)
             %w[high low].include?(autonomy.to_s)
           },
           generator: ->(session, _options) {
-            autonomy = (session.dig(:parameters, "autonomy") || session.dig(:parameters, :autonomy)).to_s
+            autonomy = (session&.dig(:parameters, "autonomy") || session&.dig(:parameters, :autonomy)).to_s
             case autonomy
             when "high"
               AUTONOMY_HIGH_PROMPT
@@ -148,7 +148,7 @@ module Monadic
           name: :stt_diarization_warning,
           priority: 60,
           condition: ->(session, _options) {
-            stt_model = session[:parameters]&.[]("stt_model")
+            stt_model = session&.[](:parameters)&.[]("stt_model")
             stt_model && stt_model.to_s.include?("diarize")
           },
           generator: ->(_session, _options) {
@@ -159,14 +159,14 @@ module Monadic
           name: :math,
           priority: 50,
           condition: ->(session, _options) {
-            session[:parameters]&.[]("math") == true
+            session&.[](:parameters)&.[]("math") == true
           },
           generator: ->(session, _options) {
             parts = [MATH_BASE_PROMPT]
 
             # Add mode-specific escaping instructions
-            monadic_mode = session[:parameters]&.[]("monadic") == true
-            jupyter_mode = session[:parameters]&.[]("jupyter") == true
+            monadic_mode = session&.[](:parameters)&.[]("monadic") == true
+            jupyter_mode = session&.[](:parameters)&.[]("jupyter") == true
 
             if monadic_mode || jupyter_mode
               parts << MATH_MONADIC_PROMPT
@@ -190,22 +190,52 @@ module Monadic
         # Expressive Speech — appended at the very end so that prompt caches
         # (Anthropic, OpenAI) keep the stable prefix hot even when the user
         # switches TTS providers mid-conversation.
+        #
+        # Apps can opt out by declaring `expressive_speech false` in their
+        # MDSL `features` block; this covers both this rule and the
+        # plain_voice_enforcement mirror below.
         {
           name: :expressive_speech,
           priority: 30,
           condition: ->(session, _options) {
-            params = session&.[](:parameters) || {}
-            auto_speech = params["auto_speech"] || params[:auto_speech]
-            # Client sends the boolean as either the literal true or the
-            # string "true" depending on transport; accept both.
-            next false unless auto_speech == true || auto_speech.to_s == "true"
+            next false unless Monadic::Utils::SystemPromptInjector.__expressive_speech_active?(session)
+            params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
             Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider)
           },
           generator: ->(session, _options) {
-            params = session&.[](:parameters) || {}
+            params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
             Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(tts_provider)
+          }
+        },
+        # Plain-voice enforcement — the mirror of expressive_speech. When Auto
+        # Speech is on but the chosen TTS engine cannot interpret inline
+        # markers, instruct the model to emit plain prose. This prevents
+        # in-context learning from old turns (e.g., switching xAI Grok TTS →
+        # OpenAI TTS mid-session) from bleeding markers into the new voice,
+        # where they would be read literally.
+        {
+          name: :plain_voice_enforcement,
+          priority: 29,
+          condition: ->(session, _options) {
+            next false unless Monadic::Utils::SystemPromptInjector.__expressive_speech_active?(session)
+            params = session[:parameters] || {}
+            tts_provider = params["tts_provider"] || params[:tts_provider]
+            # Active when auto_speech is on, a provider is selected, AND that
+            # provider has no marker vocabulary. Web Speech API, OpenAI TTS,
+            # Mistral Voxtral, Cohere, ElevenLabs Flash/Multilingual (v2.5, v2).
+            tts_provider && !tts_provider.to_s.empty? &&
+              !Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider)
+          },
+          generator: ->(_session, _options) {
+            "Voice output note: the current Text-to-Speech engine reads every " \
+            "character literally, including anything inside square or angle " \
+            "brackets. Do NOT include inline speech markers such as " \
+            "[laugh], [pause], <whisper>, etc. in your reply — output plain " \
+            "prose only. If earlier turns contain such markers, ignore them " \
+            "as stage directions from a previous voice engine, not a pattern " \
+            "to continue."
           }
         }
       ].freeze
@@ -226,6 +256,27 @@ module Monadic
       ].freeze
 
       class << self
+        # Shared gate for the two Expressive Speech rules. Returns true when
+        # Auto Speech is on AND the active app has not opted out via MDSL
+        # (`features { expressive_speech false }`). Callers still check the
+        # TTS provider's tag-awareness separately.
+        def __expressive_speech_active?(session)
+          params = session&.[](:parameters) || {}
+          auto_speech = params["auto_speech"] || params[:auto_speech]
+          return false unless auto_speech == true || auto_speech.to_s == "true"
+
+          # Per-app opt-out: if the MDSL declares `expressive_speech false`,
+          # skip both addenda. This lets apps with strict output formats
+          # (e.g., JSON-producing apps) keep their prompt intact.
+          app_name = params["app_name"] || params[:app_name]
+          if defined?(APPS) && app_name && (app = APPS[app_name])
+            opt_out = app.settings["expressive_speech"] rescue nil
+            return false if opt_out == false
+          end
+
+          true
+        end
+
         # Build injection parts based on session and options
         # @param session [Hash] Session data containing runtime settings and parameters
         # @param options [Hash] Options hash containing:

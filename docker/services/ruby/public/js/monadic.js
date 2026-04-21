@@ -3824,19 +3824,56 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Expressive Speech indicator: visible when Auto Speech is on AND the
-  // active TTS provider has a registered speech-marker vocabulary (xAI,
-  // ElevenLabs v3, Gemini). Wired into tts-provider change, check-auto-speech
-  // change, app switch, and initial load via updateExpressiveSpeechIndicator().
+  // active TTS provider has a registered Expressive Speech mechanism.
+  //
+  // Two families of engines are supported, with distinct tooltip copy:
+  //   * Inline-marker engines (xAI Grok / ElevenLabs v3 / Gemini) — the LLM
+  //     embeds short markers (e.g. [laugh], <whisper>) directly in the text
+  //     that the engine interprets as stage directions.
+  //   * Instruction-mode engine (OpenAI gpt-4o-mini-tts) — the LLM emits an
+  //     out-of-band directive block describing voice/tone/pacing that the
+  //     engine reads but does not speak aloud.
+  //
+  // Wired into tts-provider change, check-auto-speech change, app switch,
+  // and initial load via updateExpressiveSpeechIndicator().
   function updateExpressiveSpeechIndicator() {
     const badge = $id("expressive-speech-indicator");
     if (!badge) return;
     const autoSpeech = ($id("check-auto-speech") || {}).checked === true;
     const ttsProviderEl = $id("tts-provider");
     const ttsProvider = ttsProviderEl ? ttsProviderEl.value : "";
+    // Keep the voice dropdown's 4o-only voices hidden for non-4o OpenAI
+    // providers. Attached to this indicator function so every call site
+    // that refreshes the Expressive Speech UI also refreshes the gating.
+    if (typeof applyOpenAIVoiceGating === "function") {
+      applyOpenAIVoiceGating(ttsProvider);
+    }
     const tagAware = typeof window !== "undefined" &&
                      window.TtsTagSanitizer &&
                      window.TtsTagSanitizer.tagAware(ttsProvider);
-    badge.style.display = (autoSpeech && tagAware) ? "" : "none";
+    const show = autoSpeech && tagAware;
+    badge.style.display = show ? "" : "none";
+
+    // Swap the tooltip copy + i18n key based on which mechanism the active
+    // TTS family uses. The label itself ("Expressive Speech") is shared.
+    if (!show) return;
+    const family = window.TtsTagSanitizer &&
+                   typeof window.TtsTagSanitizer.familyFor === "function"
+                   ? window.TtsTagSanitizer.familyFor(ttsProvider) : "";
+    const pill = badge.querySelector("[data-i18n-title], [title]");
+    if (!pill) return;
+    const tooltipKey = family === "openai-instruction"
+      ? "ui.expressiveSpeechInstructionsTooltip"
+      : "ui.expressiveSpeechTooltip";
+    pill.setAttribute("data-i18n-title", tooltipKey);
+    // Translate immediately so the tooltip updates without waiting for a
+    // full re-render of the i18n layer.
+    const translate = (typeof window !== "undefined" && window.safeTranslate) ||
+                      ((k) => k);
+    const translated = translate(tooltipKey, "");
+    if (translated && translated !== tooltipKey) {
+      pill.setAttribute("title", translated);
+    }
   }
   window.updateExpressiveSpeechIndicator = updateExpressiveSpeechIndicator;
 
@@ -3865,6 +3902,30 @@ document.addEventListener("DOMContentLoaded", function () {
                                "mistral-voices", "grok-voices", "webspeech-voices"];
   const TTS_DEFAULT_PANEL_ID = "openai-voices";
 
+  // Show/hide the gpt-4o-mini-tts-only voices (ballad / verse / marin / cedar)
+  // inside the OpenAI voice dropdown. tts-1 and tts-1-hd do NOT accept those
+  // voices, so we hide them when the user picks those models. When the
+  // currently selected voice is one of the 4o-only ones and the user
+  // switches to a non-4o provider, we fall back to the model's default voice.
+  function applyOpenAIVoiceGating(ttsProvider) {
+    const select = $id("tts-voice");
+    if (!select) return;
+    const is4o = (ttsProvider === "openai-tts-4o");
+    let fallbackNeeded = false;
+    Array.from(select.options).forEach(opt => {
+      if (opt.getAttribute("data-tts-4o-only") === "true") {
+        opt.hidden = !is4o;
+        opt.disabled = !is4o;
+        if (!is4o && select.value === opt.value) fallbackNeeded = true;
+      }
+    });
+    if (fallbackNeeded) {
+      select.value = "alloy";
+      params["tts_voice"] = "alloy";
+      setCookie("tts-voice", "alloy", 30);
+    }
+  }
+
   $on($id("tts-provider"), "change", function() {
     const oldProvider = params["tts_provider"];
     params["tts_provider"] = ($id("tts-provider") || {}).value;
@@ -3888,6 +3949,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (entry && typeof entry.onShow === "function") {
       entry.onShow();
     }
+
+    applyOpenAIVoiceGating(params["tts_provider"]);
 
     setCookie("tts-provider", params["tts_provider"], 30);
     updateExpressiveSpeechIndicator();

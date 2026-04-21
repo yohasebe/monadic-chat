@@ -439,6 +439,16 @@
      * @param {object} options - Options { iteration: number }
      * @returns {string} HTML
      */
+    /**
+     * Keys that are valid in a Monadic JSON response but must NOT be
+     * rendered as visible "JSON sections" in the UI. Currently holds the
+     * Expressive Speech instruction-mode field (see
+     * docs_dev/expressive_speech_instruction_mode.md §8.2): the directive
+     * rides in the JSON so it can reach the TTS engine, but the reader
+     * only needs to see the spoken `message` + per-app `context`.
+     */
+    MONADIC_SUPPRESSED_KEYS: new Set(['tts_instructions']),
+
     jsonToHtml: function(hash, options) {
       if (typeof hash !== 'object' || hash === null) {
         return String(hash);
@@ -457,8 +467,9 @@
           .reduce((obj, k) => ({ ...obj, [k]: hash[k] }), {});
       }
 
-      // Render remaining fields
+      // Render remaining fields, skipping any suppressed top-level keys.
       for (const [key, value] of Object.entries(hash)) {
+        if (this.MONADIC_SUPPRESSED_KEYS.has(key)) continue;
         output += this.renderField(key, value, iteration, options);
       }
 

@@ -3,6 +3,14 @@
 Internal architecture notes for the Expressive Speech feature: how the four
 layers connect, how to add a new TTS provider, and known constraints.
 
+> **Companion doc:** This page covers the inline-marker families (xAI Grok /
+> ElevenLabs v3 / Gemini TTS). The out-of-band **instruction-mode** variant
+> used by OpenAI `gpt-4o-mini-tts` is documented separately in
+> [`expressive_speech_instruction_mode.md`](expressive_speech_instruction_mode.md).
+> The two modes share the `:expressive_speech` prompt rule and the display
+> sanitiser, but they ride the directive through different channels (inline
+> markers vs. JSON/sentinel metadata), so each has its own design notes.
+
 ## What it does
 
 Some TTS engines interpret inline markers embedded in the spoken text and

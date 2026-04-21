@@ -1,3 +1,14 @@
+- [April, 2026] 1.0.0-beta.12
+  - **Expressive Speech — Instruction Mode (OpenAI `gpt-4o-mini-tts`)**: The assistant emits a separate voice directive (tone, pacing, emotion, pronunciation, pauses) that the engine reads but does not speak aloud. Two encodings coexist: JSON sibling key for Monadic apps, sentinel-prefix (`<<TTS:…>>`) for non-Monadic apps. The directive never appears in the chat transcript.
+    - New family `openai-instruction` in TTS dispatch (Ruby + JS mirror)
+    - System-prompt addendum generator selects JSON vs sentinel variant based on app Monadic state
+    - Streaming hold-back state machine suppresses the sentinel block from the UI during typewriter rendering
+    - History strip removes per-turn ephemeral TTS metadata from stored assistant messages (both encodings)
+    - UI indicator + localized tooltips distinguish markers vs instructions modes (7 locales)
+    - Voice dropdown gates `ballad` / `verse` / `marin` / `cedar` to `gpt-4o-mini-tts` only
+    - Monadic display renderer suppresses `tts_instructions` from the JSON section list
+    - SSOT: per-TTS-model metadata (`tts_family`, `tts_instructions_capability`, `tts_voices`) added to `model_spec.js` with Ruby accessors
+  - **AutoForge (Grok / OpenAI)**: Added explicit `finish_task` completion signal (already present in Claude variant) to match core tool parity. Reduces over-iteration on complex generation tasks.
 - [April, 2026] 1.0.0-beta.9
   - **Ollama Integration Overhaul**: Dynamic model capability detection via `/api/show`, thinking/vision/tool calling/structured output support
     - New apps: Voice Chat, Mail Composer for Ollama

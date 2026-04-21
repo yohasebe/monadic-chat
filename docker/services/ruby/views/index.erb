@@ -536,9 +536,15 @@
             <div id="openai-voices" class="my-1">
               <label for="tts-voice" class="div-label my-2" data-i18n="ui.openAIVoice">OpenAI Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="tts-voice">
+                <!--
+                  Voices listed here cover the union of OpenAI TTS models.
+                  Those marked data-tts-4o-only are exclusive to
+                  gpt-4o-mini-tts; JavaScript toggles them off when the
+                  user selects OpenAI TTS / TTS HD (tts-1 / tts-1-hd).
+                -->
                 <option value="alloy">Alloy</option>
                 <option value="ash">Ash</option>
-                <option value="ballad">Ballad</option>
+                <option value="ballad" data-tts-4o-only="true">Ballad</option>
                 <option value="coral">Coral</option>
                 <option value="echo">Echo</option>
                 <option value="fable">Fable</option>
@@ -546,6 +552,9 @@
                 <option value="nova">Nova</option>
                 <option value="sage">Sage</option>
                 <option value="shimmer">Shimmer</option>
+                <option value="verse" data-tts-4o-only="true">Verse</option>
+                <option value="marin" data-tts-4o-only="true">Marin</option>
+                <option value="cedar" data-tts-4o-only="true">Cedar</option>
               </select>
             </div>
             

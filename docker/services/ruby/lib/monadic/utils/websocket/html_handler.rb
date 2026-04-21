@@ -5,6 +5,9 @@
 # ABC notation blocks, assembles final HTML message, handles context
 # extraction for monadic apps, and broadcasts to client.
 
+require_relative '../tts_instruction_extractor'
+require_relative '../tts_marker_vocabulary'
+
 module WebSocketHelper
   # Maximum number of tool HTML fragments kept per response cycle.
   # Fragments beyond this limit are silently dropped (oldest first).
@@ -134,6 +137,21 @@ module WebSocketHelper
           if CONFIG["EXTRA_LOGGING"]
             DebugHelper.debug("WebSocket: Added citation HTML to final text", category: :api, level: :info)
           end
+        end
+
+        # Expressive Speech instruction-mode: strip ephemeral TTS metadata
+        # from the stored message so next-turn LLM context does not carry
+        # per-turn directives. Monadic apps store JSON (remove the
+        # `tts_instructions` key); non-Monadic apps store plain text with
+        # a leading `<<TTS:...>>` sentinel (remove that block). No-op for
+        # providers without instruction-mode.
+        tts_provider_for_history = params["tts_provider"] || session[:parameters]&.dig("tts_provider")
+        if tts_provider_for_history &&
+           Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(tts_provider_for_history)
+          final_text = Monadic::Utils::TtsInstructionExtractor.strip_from_history(
+            final_text,
+            app_is_monadic: !!params["monadic"]
+          )
         end
 
        new_data = { "mid" => SecureRandom.hex(4),

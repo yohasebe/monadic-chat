@@ -72,6 +72,7 @@ app "AutoForgeOpenAI" do
     2. SECOND: When you have complete specifications, create a proper spec object
     3. THIRD: Call generate_application with the complete spec
     4. OPTIONAL (Web apps only): After generating a web application, offer debug_application if Selenium is available
+    5. FINALLY: Call `finish_task` with a one-sentence summary and the deliverable path. This is the FINAL tool call of the turn — after it returns, write one or two sentences recapping what was built and where to find it.
 
     Example of correct tool call:
     ```
@@ -219,6 +220,11 @@ app "AutoForgeOpenAI" do
 
     define_tool "debug_application", "Debug a generated web application using Selenium to detect JavaScript errors, test functionality, and measure performance" do
       parameter :spec, "object", "Specification with project name to debug (e.g., {\"name\": \"ProjectName\"})", required: true
+    end
+
+    define_tool "finish_task", "Signal that the current task is complete and the deliverable is ready to present. Call this as the FINAL tool after generate_application (and any optional diagnostics). No further tool calls should happen in the same turn after finish_task returns." do
+      parameter :summary, "string", "Brief one-sentence summary of what was built", required: true
+      parameter :deliverable, "string", "Path to the main deliverable file (e.g., the generated index.html or CLI script)", required: false
     end
   end
 end

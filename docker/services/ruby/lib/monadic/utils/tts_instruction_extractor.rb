@@ -80,6 +80,22 @@ module Monadic
         JSON.generate(parsed)
       end
 
+      # Strip a leading `<<TTS:...>>` sentinel block from a stored-history
+      # plain-text string so the next-turn LLM context starts from the
+      # user-facing reply. No-op when the sentinel is absent.
+      def strip_from_history_sentinel(text)
+        return text unless text.is_a?(String)
+        text.sub(SENTINEL_RE, '')
+      end
+
+      # Unified history-write-time stripper. Pass `app_is_monadic` the same
+      # way `extract` does: the JSON path runs for Monadic apps (removes the
+      # `tts_instructions` field), the sentinel path for non-Monadic apps
+      # (removes the leading `<<TTS:...>>` block). Always nil-safe.
+      def strip_from_history(text, app_is_monadic:)
+        app_is_monadic ? strip_from_history_json(text) : strip_from_history_sentinel(text)
+      end
+
       # -- Streaming helpers -------------------------------------------------
 
       # State-machine-friendly check: "could this buffer grow into a valid

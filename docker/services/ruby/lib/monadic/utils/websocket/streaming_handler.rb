@@ -289,6 +289,20 @@ module WebSocketHelper
         next
       end
 
+      # Expressive Speech instruction-mode streaming hold-back state.
+      # For non-Monadic apps using openai-tts-4o the LLM prefixes the reply
+      # with a `<<TTS:...>>` directive block. We buffer fragments on the
+      # server until either (a) a complete sentinel arrives — then forward
+      # only the remainder, or (b) the accumulated prefix can no longer be
+      # the start of a sentinel — then forward everything accumulated.
+      # Once decided, subsequent fragments pass through unchanged.
+      sentinel_hold_back_active =
+        (original_auto_speech == true || original_auto_speech == "true") &&
+        (original_monadic.nil? || original_monadic.to_s.strip.empty?) &&
+        Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(obj["tts_provider"])
+      sentinel_state = sentinel_hold_back_active ? :scanning : :passthrough
+      sentinel_held = +""
+
       prev_texts_for_tts = []
       responses = app_obj.api_request("user", session) do |fragment|
         # DEBUG: Log all fragment arrivals
@@ -325,13 +339,51 @@ module WebSocketHelper
 
           # Forward fragment to frontend for display. Full-text TTS is
           # synthesized once the stream completes (post-completion mode).
-          send_or_broadcast(fragment.to_json, ws_session_id)
+          #
+          # Instruction-mode (openai-tts-4o, non-Monadic): intercept the
+          # leading `<<TTS:...>>` sentinel so it never flashes in the UI.
+          # See the state machine set up before the streaming loop.
+          if sentinel_state == :scanning
+            sentinel_held << text.to_s
+            consumed = Monadic::Utils::TtsInstructionExtractor.try_consume_sentinel(sentinel_held)
+            if consumed
+              _instructions, remainder = consumed
+              sentinel_state = :passthrough
+              sentinel_held = +""
+              next if remainder.nil? || remainder.empty?
+              forward_fragment = fragment.dup
+              forward_fragment["content"] = remainder
+              send_or_broadcast(forward_fragment.to_json, ws_session_id)
+            elsif Monadic::Utils::TtsInstructionExtractor.possibly_sentinel_start?(sentinel_held)
+              # Still could grow into a sentinel — keep holding back.
+              next
+            else
+              # Definitely not a sentinel — flush what we buffered in one shot.
+              sentinel_state = :passthrough
+              flush_fragment = fragment.dup
+              flush_fragment["content"] = sentinel_held
+              sentinel_held = +""
+              send_or_broadcast(flush_fragment.to_json, ws_session_id)
+            end
+          else
+            send_or_broadcast(fragment.to_json, ws_session_id)
+          end
         else
           # Handle other fragment types (including html, message, etc.)
           Monadic::Utils::ExtraLogger.log { "[WebSocket] Forwarding fragment type='#{fragment["type"]}' to frontend" }
           send_or_broadcast(fragment.to_json, ws_session_id)
         end
         sleep 0.001  # Reduced from 0.01 for faster streaming
+      end
+
+      # Safety valve: if the stream ended while we were still scanning for a
+      # sentinel (e.g., the LLM forgot the wrapper, or the response was very
+      # short), flush the held-back characters so the user sees their text.
+      if sentinel_state == :scanning && !sentinel_held.empty?
+        flush_payload = { "type" => "fragment", "content" => sentinel_held }.to_json
+        send_or_broadcast(flush_payload, ws_session_id)
+        sentinel_held = +""
+        sentinel_state = :passthrough
       end
 
       Thread.exit if !responses || responses.empty?

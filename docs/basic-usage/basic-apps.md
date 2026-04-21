@@ -96,7 +96,12 @@ While the user is speaking, a waveform is displayed. When the user stops speakin
 
 Voice Chat supports the same providers indicated in the availability table. You can freely mix any chat provider with any available TTS provider — for example, using Claude for the conversation while xAI Grok handles the voice. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
-**Expressive Speech**: When you enable Auto Speech and pick a TTS provider that understands speech markers (currently xAI Grok, ElevenLabs v3, and Gemini TTS), a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown. While the badge is active, the assistant may weave natural expressive cues (brief pauses, laughter, a whispered aside) into its spoken responses. These cues are applied to the audio only and do not appear in the chat transcript. Turning off Auto Speech or switching to a TTS provider without marker support silently disables the feature.
+**Expressive Speech**: When you enable Auto Speech and pick a compatible TTS provider, a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown. Two mechanisms are supported, chosen automatically by the selected provider:
+
+- **Inline markers** (xAI Grok, ElevenLabs v3, Gemini TTS): the assistant weaves short markers (brief pauses, laughter, a whispered aside) into the text, and the TTS engine interprets them as stage directions. The markers never surface in the chat transcript — only their audio effect does.
+- **Instruction mode** (OpenAI `gpt-4o-mini-tts`): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The OpenAI TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
+
+Hover the badge for a tooltip that describes the active mechanism. Turning off Auto Speech, or switching to a TTS provider without Expressive Speech support, silently disables the feature.
 
 <!-- SCREENSHOT: Voice input interface showing waveform animation while speaking -->
 

@@ -176,6 +176,44 @@ RSpec.describe Monadic::Utils::TtsInstructionExtractor do
     end
   end
 
+  describe '.strip_from_history_sentinel' do
+    it 'removes a leading <<TTS:...>> block' do
+      input = "<<TTS:Voice: calm.>>\nReply body"
+      expect(described_class.strip_from_history_sentinel(input)).to eq('Reply body')
+    end
+
+    it 'returns the input unchanged when sentinel is absent' do
+      expect(described_class.strip_from_history_sentinel('Hello')).to eq('Hello')
+    end
+
+    it 'does not touch a sentinel in the middle of the text' do
+      input = 'Hello <<TTS:x>> world'
+      expect(described_class.strip_from_history_sentinel(input)).to eq(input)
+    end
+
+    it 'is nil-safe' do
+      expect(described_class.strip_from_history_sentinel(nil)).to be_nil
+    end
+  end
+
+  describe '.strip_from_history' do
+    it 'dispatches to JSON when app_is_monadic' do
+      input = { 'message' => 'Hi', 'tts_instructions' => 'V: calm.' }.to_json
+      parsed = JSON.parse(described_class.strip_from_history(input, app_is_monadic: true))
+      expect(parsed).not_to have_key('tts_instructions')
+    end
+
+    it 'dispatches to sentinel when not app_is_monadic' do
+      input = "<<TTS:V: calm.>>\nHi"
+      expect(described_class.strip_from_history(input, app_is_monadic: false)).to eq('Hi')
+    end
+
+    it 'is nil-safe on both paths' do
+      expect(described_class.strip_from_history(nil, app_is_monadic: true)).to be_nil
+      expect(described_class.strip_from_history(nil, app_is_monadic: false)).to be_nil
+    end
+  end
+
   # ---- Streaming helpers -----------------------------------------------------
 
   describe '.possibly_sentinel_start?' do

@@ -1238,6 +1238,87 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": true
+  },
+
+  // -------------------------------------------------------------------------
+  // TTS model metadata (Expressive Speech SSOT)
+  //
+  // `tts_family` matches the canonical family keys used by
+  // TtsTextProcessors.family_for (Ruby) and TtsTagSanitizer.familyFor (JS).
+  // `tts_instructions_capability: true` means the model accepts the
+  // out-of-band `instructions` parameter (currently OpenAI gpt-4o-mini-tts
+  // only). `tts_voices` is the list the UI uses when it gates the voice
+  // dropdown by the active TTS model.
+  // -------------------------------------------------------------------------
+  "gpt-4o-mini-tts-2025-12-15": {
+    "tts_capability": true,
+    "tts_family": "openai-instruction",
+    "tts_instructions_capability": true,
+    "tts_voices": ["alloy", "ash", "ballad", "coral", "echo", "fable",
+                   "onyx", "nova", "sage", "shimmer", "verse", "marin", "cedar"],
+    "tts_default_voice": "coral",
+    "tts_audio_formats": ["mp3", "opus", "aac", "flac", "wav", "pcm"],
+    "tts_streaming": true
+  },
+  "tts-1-hd": {
+    "tts_capability": true,
+    "tts_family": "openai",
+    "tts_instructions_capability": false,
+    "tts_voices": ["alloy", "ash", "coral", "echo", "fable", "onyx",
+                   "nova", "sage", "shimmer"],
+    "tts_default_voice": "alloy",
+    "tts_audio_formats": ["mp3", "opus", "aac", "flac", "wav", "pcm"],
+    "tts_streaming": true
+  },
+  "tts-1": {
+    "tts_capability": true,
+    "tts_family": "openai",
+    "tts_instructions_capability": false,
+    "tts_voices": ["alloy", "ash", "coral", "echo", "fable", "onyx",
+                   "nova", "sage", "shimmer"],
+    "tts_default_voice": "alloy",
+    "tts_audio_formats": ["mp3", "opus", "aac", "flac", "wav", "pcm"],
+    "tts_streaming": true
+  },
+  "grok-tts": {
+    "tts_capability": true,
+    "tts_family": "xai",
+    "tts_instructions_capability": false
+  },
+  "gemini-3.1-flash-tts-preview": {
+    "tts_capability": true,
+    "tts_family": "gemini",
+    "tts_instructions_capability": false
+  },
+  "gemini-2.5-flash-preview-tts": {
+    "tts_capability": true,
+    "tts_family": "gemini",
+    "tts_instructions_capability": false
+  },
+  "gemini-2.5-pro-preview-tts": {
+    "tts_capability": true,
+    "tts_family": "gemini",
+    "tts_instructions_capability": false
+  },
+  "voxtral-mini-tts-2603": {
+    "tts_capability": true,
+    "tts_family": "mistral",
+    "tts_instructions_capability": false
+  },
+  "eleven_v3": {
+    "tts_capability": true,
+    "tts_family": "elevenlabs-v3",
+    "tts_instructions_capability": false
+  },
+  "eleven_multilingual_v2": {
+    "tts_capability": true,
+    "tts_family": "elevenlabs",
+    "tts_instructions_capability": false
+  },
+  "eleven_flash_v2_5": {
+    "tts_capability": true,
+    "tts_family": "elevenlabs",
+    "tts_instructions_capability": false
   }
 }
 

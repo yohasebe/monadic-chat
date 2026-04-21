@@ -329,6 +329,31 @@ module Monadic
           !!get_model_property(model_name, "supports_file_inputs")
         end
 
+        # --- TTS accessors ---
+
+        # Canonical TTS family key (openai-instruction / openai / xai /
+        # gemini / elevenlabs-v3 / elevenlabs / mistral). Nil when the model
+        # has no TTS metadata.
+        def tts_family(model_name)
+          get_model_property(model_name, "tts_family")
+        end
+
+        # True when the model accepts the out-of-band `instructions`
+        # parameter (OpenAI gpt-4o-mini-tts).
+        def tts_instructions?(model_name)
+          get_model_property(model_name, "tts_instructions_capability") == true
+        end
+
+        # Supported voice list for the TTS model, or nil when unknown.
+        def tts_voices(model_name)
+          get_model_property(model_name, "tts_voices")
+        end
+
+        # Preferred default voice for the TTS model, or nil when unknown.
+        def tts_default_voice(model_name)
+          get_model_property(model_name, "tts_default_voice")
+        end
+
         def deprecated?(model_name)
           get_model_property(model_name, "deprecated") == true
         end

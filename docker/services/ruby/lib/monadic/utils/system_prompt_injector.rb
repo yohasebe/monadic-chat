@@ -201,12 +201,24 @@ module Monadic
             next false unless Monadic::Utils::SystemPromptInjector.__expressive_speech_active?(session)
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
-            Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider)
+            # Active for either inline-marker families (xAI / ElevenLabs v3 /
+            # Gemini) or the out-of-band instruction-meta family (OpenAI
+            # gpt-4o-mini-tts). Both are dispatched through
+            # prompt_addendum_for; the generator picks the right variant.
+            Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider) ||
+              Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(tts_provider)
           },
           generator: ->(session, _options) {
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
-            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(tts_provider)
+            # Instruction-mode's addendum shape depends on whether the active
+            # app is Monadic (JSON sibling field) or not (sentinel prefix).
+            # Marker-mode addendum ignores this flag.
+            app_is_monadic = Monadic::Utils::SystemPromptInjector.__app_is_monadic?(session)
+            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(
+              tts_provider,
+              app_is_monadic: app_is_monadic
+            )
           }
         },
         # Plain-voice enforcement — the mirror of expressive_speech. When Auto
@@ -223,10 +235,16 @@ module Monadic
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
             # Active when auto_speech is on, a provider is selected, AND that
-            # provider has no marker vocabulary. Web Speech API, OpenAI TTS,
-            # Mistral Voxtral, Cohere, ElevenLabs Flash/Multilingual (v2.5, v2).
+            # provider has NO marker vocabulary AND is NOT instruction-mode.
+            # Skipping instruction-mode here is deliberate: the
+            # :expressive_speech rule already instructs the LLM to emit plain
+            # prose within the JSON/sentinel wrapper, so a parallel rule
+            # repeating "plain prose only" would be redundant AND potentially
+            # contradictory with "emit a directive block first". See
+            # docs_dev/expressive_speech_instruction_mode.md §5.7.
             tts_provider && !tts_provider.to_s.empty? &&
-              !Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider)
+              !Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider) &&
+              !Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(tts_provider)
           },
           generator: ->(_session, _options) {
             "Voice output note: the current Text-to-Speech engine reads every " \
@@ -275,6 +293,25 @@ module Monadic
           end
 
           true
+        end
+
+        # Decide the instruction-mode addendum variant. Monadic apps receive
+        # the JSON-sibling version; non-Monadic apps receive the sentinel
+        # prefix version. Uses the session's `monadic` parameter first, then
+        # falls back to the MDSL `monadic` setting.
+        def __app_is_monadic?(session)
+          params = session&.[](:parameters) || {}
+
+          session_monadic = params["monadic"] || params[:monadic]
+          return true if session_monadic == true || session_monadic.to_s == "true"
+
+          app_name = params["app_name"] || params[:app_name]
+          if defined?(APPS) && app_name && (app = APPS[app_name])
+            mdsl_monadic = app.settings["monadic"] rescue nil
+            return true if mdsl_monadic == true || mdsl_monadic.to_s == "true"
+          end
+
+          false
         end
 
         # Build injection parts based on session and options

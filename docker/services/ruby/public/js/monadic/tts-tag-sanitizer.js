@@ -87,9 +87,22 @@
     if (key.indexOf("elevenlabs") === 0 || key.indexOf("eleven_") === 0) return "elevenlabs";
     if (key.indexOf("gemini") === 0)                                   return "gemini";
     if (key.indexOf("mistral") === 0 || key.indexOf("voxtral") !== -1) return "mistral";
+    // gpt-4o-mini-tts (dropdown value "openai-tts-4o") is the only OpenAI TTS
+    // model with the out-of-band `instructions` parameter. Other variants
+    // (tts-1, tts-1-hd) must stay in the generic `openai` family.
+    if (key === "openai-tts-4o")                                       return "openai-instruction";
     if (key.indexOf("openai") === 0 || key.indexOf("tts-") === 0)      return "openai";
     return key;
   }
+
+  // Expressive Speech instruction-mode sentinel: `<<TTS:...>>` at the start
+  // of the text (optional leading whitespace + optional trailing newline).
+  // Non-greedy body so the first `>>` closes the block. Mirror of the Ruby
+  // INSTRUCTION_SENTINEL_DISPLAY_RE.
+  //
+  // JS regex has no `m` flag equivalent to Ruby's `.` matching newlines, so
+  // we use `[\s\S]` instead of `.` to traverse multi-line directive blocks.
+  var INSTRUCTION_SENTINEL_DISPLAY_RE = /^\s*<<TTS:[\s\S]*?>>\n?/;
 
   var DISPLAY_SANITIZE = {
     "xai": function(text) {
@@ -112,6 +125,11 @@
         .replace(GEMINI_INLINE_RE, "")
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\s+([,.!?;:])/g, "$1");
+    },
+    // Expressive Speech instruction mode (OpenAI gpt-4o-mini-tts):
+    // strip the leading `<<TTS:...>>` directive from display.
+    "openai-instruction": function(text) {
+      return String(text).replace(INSTRUCTION_SENTINEL_DISPLAY_RE, "");
     }
   };
 
@@ -150,6 +168,12 @@
     }
     if (fam !== "gemini") {
       result = result.replace(GEMINI_INLINE_STRICT_RE, "");
+    }
+    // Cross-family cleanup for the instruction-mode sentinel: strip any
+    // residual `<<TTS:...>>` left over from a previous openai-tts-4o
+    // session so it does not surface in the transcript.
+    if (fam !== "openai-instruction") {
+      result = result.replace(INSTRUCTION_SENTINEL_DISPLAY_RE, "");
     }
     return result.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.!?;:])/g, "$1");
   }

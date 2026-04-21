@@ -40,7 +40,11 @@ describe('TtsTagSanitizer', () => {
     });
 
     it('maps OpenAI / Gemini / Mistral / Voxtral variants to their families', () => {
-      expect(window.TtsTagSanitizer.familyFor('openai-tts-4o')).toBe('openai');
+      // openai-tts-4o is the only OpenAI TTS model accepting `instructions`
+      // — it lives in its own instruction-meta family.
+      expect(window.TtsTagSanitizer.familyFor('openai-tts-4o')).toBe('openai-instruction');
+      expect(window.TtsTagSanitizer.familyFor('openai-tts')).toBe('openai');
+      expect(window.TtsTagSanitizer.familyFor('openai-tts-hd')).toBe('openai');
       expect(window.TtsTagSanitizer.familyFor('tts-1-hd')).toBe('openai');
       expect(window.TtsTagSanitizer.familyFor('gemini-flash')).toBe('gemini');
       expect(window.TtsTagSanitizer.familyFor('mistral')).toBe('mistral');
@@ -170,8 +174,25 @@ describe('TtsTagSanitizer', () => {
   describe('sanitizeForDisplay (other providers)', () => {
     it('is the identity function when no sanitizer is registered', () => {
       const input = '<whisper>kept</whisper> [laugh]';
-      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'openai-tts-4o')).toBe(input);
+      // openai-tts-4o now has its own (instruction-mode) sanitizer that
+      // strips the <<TTS:...>> sentinel. Without a sentinel in the input,
+      // it also behaves as identity.
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'openai-tts')).toBe(input);
       expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'mistral')).toBe(input);
+    });
+
+    it('strips the <<TTS:...>> sentinel for openai-tts-4o (instruction mode)', () => {
+      const input = '<<TTS:Voice: warm.\nTone: sincere.>>\nHello, how can I help?';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'openai-tts-4o'))
+        .toBe('Hello, how can I help?');
+    });
+
+    it('strips a leftover <<TTS:...>> sentinel for a cross-family active provider', () => {
+      // Session was on openai-tts-4o, now on grok — leftover sentinel in
+      // a prior message should still not surface in the transcript.
+      const input = '<<TTS:Voice: warm.>>\nLeftover from earlier turn.';
+      expect(window.TtsTagSanitizer.sanitizeForDisplay(input, 'grok'))
+        .toBe('Leftover from earlier turn.');
     });
 
     it('is nil-safe and empty-string safe', () => {
@@ -197,8 +218,16 @@ describe('TtsTagSanitizer', () => {
     });
 
     it('is not tag-aware when provider is a non-audio-tag provider', () => {
-      window.params = { tts_provider: 'openai-tts-4o' };
+      // Use openai-tts (plain, no instruction support) — openai-tts-4o is
+      // now tag-aware because it has a sanitizer for the instruction-mode
+      // sentinel.
+      window.params = { tts_provider: 'openai-tts' };
       expect(window.TtsTagSanitizer.tagAware()).toBe(false);
+    });
+
+    it('is tag-aware for openai-tts-4o (instruction-mode sanitizer)', () => {
+      window.params = { tts_provider: 'openai-tts-4o' };
+      expect(window.TtsTagSanitizer.tagAware()).toBe(true);
     });
 
     it('is tag-aware for ElevenLabs v3 only (Flash v2.5 / Multilingual v2 are NOT)', () => {

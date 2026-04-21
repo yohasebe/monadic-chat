@@ -142,7 +142,9 @@ module WebSocketHelper
   # @param response_format [String] Audio format
   # @param language [String] Language code
   # @param ws_session_id [String] WebSocket session ID for targeted broadcasting
-  def start_single_tts_request(text:, provider:, voice:, speed:, response_format:, language:, ws_session_id:)
+  # @param instructions [String, nil] Natural-language "how to speak" directive
+  #   forwarded to OpenAI TTS (`gpt-4o-mini-tts`) only; nil for other providers
+  def start_single_tts_request(text:, provider:, voice:, speed:, response_format:, language:, ws_session_id:, instructions: nil)
     # Special handling for Web Speech API - no API call needed
     if provider == "webspeech" || provider == "web-speech"
       res_hash = { "type" => "web_speech", "content" => text }
@@ -165,7 +167,8 @@ module WebSocketHelper
                                    voice: voice,
                                    speed: speed,
                                    response_format: response_format,
-                                   language: language)
+                                   language: language,
+                                   instructions: instructions)
 
         if res_hash && res_hash["type"] == "audio"
           res_hash["segment_index"] = 0
@@ -219,7 +222,7 @@ module WebSocketHelper
   # @param language [String] Language code
   # @param manual_play [Boolean] If true, this is a manual Play button click - no byte limit applied
   # @param ws_session_id [String, nil] WebSocket session ID for targeted audio delivery
-  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, manual_play: false, ws_session_id: nil)
+  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, manual_play: false, ws_session_id: nil, instructions: nil)
     # Use passed ws_session_id or fall back to thread-local variable
     ws_session_id ||= Thread.current[:websocket_session_id]
 
@@ -248,7 +251,8 @@ module WebSocketHelper
         speed: speed,
         response_format: response_format,
         language: language,
-        ws_session_id: ws_session_id
+        ws_session_id: ws_session_id,
+        instructions: instructions
       )
     end
 
@@ -268,7 +272,8 @@ module WebSocketHelper
         speed: speed,
         response_format: response_format,
         language: language,
-        ws_session_id: ws_session_id
+        ws_session_id: ws_session_id,
+        instructions: instructions
       )
     end
 
@@ -345,7 +350,8 @@ module WebSocketHelper
       speed: speed,
       response_format: response_format,
       language: language,
-      ws_session_id: ws_session_id
+      ws_session_id: ws_session_id,
+      instructions: instructions
     )
   end
 

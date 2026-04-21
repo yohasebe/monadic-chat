@@ -7,6 +7,9 @@
 # Also includes token counting and message analysis utilities used
 # during streaming.
 
+require_relative '../tts_marker_vocabulary'
+require_relative '../tts_instruction_extractor'
+
 module WebSocketHelper
   # Inactive messages longer than this threshold (in characters) are truncated
   # to save memory. Original text is preserved for potential reactivation.
@@ -375,6 +378,30 @@ module WebSocketHelper
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }
 
+        # Expressive Speech instruction-mode extraction: when the active TTS
+        # provider supports the out-of-band `instructions` parameter
+        # (OpenAI gpt-4o-mini-tts), peel the directive from the LLM output
+        # and pass it through to tts_api_request. The extractor is nil-safe
+        # — when the LLM did not emit a directive (e.g., first-turn
+        # conservative response) it returns [text, nil] and the TTS call
+        # just runs in plain mode.
+        #
+        # For tts_text_from_target path we skip extraction: the target text
+        # is a specific tool parameter (not the assistant's raw response),
+        # so it cannot contain the JSON wrapper or sentinel prefix.
+        tts_instructions = nil
+        if !tts_text_from_target && Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(provider)
+          app_is_monadic = !monadic_disabled
+          extracted_text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(
+            text,
+            app_is_monadic: app_is_monadic
+          )
+          text = extracted_text
+          if CONFIG["EXTRA_LOGGING"] && tts_instructions.nil?
+            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-mode parse returned no directive; falling back to plain TTS (provider=#{provider}, monadic=#{app_is_monadic})" }
+          end
+        end
+
         # Only process if there's actual text
         if text.strip != ""
           start_tts_playback(
@@ -384,7 +411,8 @@ module WebSocketHelper
             speed: speed,
             response_format: response_format,
             language: language,
-            ws_session_id: ws_session_id
+            ws_session_id: ws_session_id,
+            instructions: tts_instructions
           )
         end
       end

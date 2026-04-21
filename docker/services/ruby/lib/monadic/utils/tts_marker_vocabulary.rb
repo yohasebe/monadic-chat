@@ -70,8 +70,19 @@ module Monadic
         Monadic::Utils::TtsTextProcessors.family_for(provider)
       end
 
+      # True when the provider has an inline-marker vocabulary (xAI /
+      # ElevenLabs v3 / Gemini). Used to decide if the LLM should be taught
+      # marker syntax.
       def tag_aware?(provider)
         VOCABULARIES.key?(family_for(provider))
+      end
+
+      # True when the provider supports out-of-band instruction-mode (OpenAI
+      # gpt-4o-mini-tts). This is a distinct mechanism from inline markers —
+      # the LLM produces a directive block that rides alongside, not inside,
+      # the message text.
+      def instruction_mode?(provider)
+        family_for(provider) == "openai-instruction"
       end
 
       def vocabulary_for(provider)
@@ -79,9 +90,22 @@ module Monadic
       end
 
       # Produce the addendum text to be appended to the system prompt when
-      # Expressive Speech is active for the given provider. Returns nil when
-      # the provider has no registered vocabulary.
-      def prompt_addendum_for(provider)
+      # Expressive Speech is active. Dispatches to the right generator by
+      # family × app-Monadic state (for instruction mode only — marker
+      # addendum is app-Monadic-agnostic). Returns nil when the provider has
+      # no applicable addendum.
+      #
+      # @param provider [String] TTS provider dropdown value
+      # @param app_is_monadic [Boolean] whether the active app is Monadic
+      def prompt_addendum_for(provider, app_is_monadic: false)
+        return marker_addendum_for(provider)         if tag_aware?(provider)
+        return instruction_addendum(app_is_monadic:) if instruction_mode?(provider)
+        nil
+      end
+
+      # Inline-marker addendum (xAI / ElevenLabs v3 / Gemini). Extracted from
+      # the original prompt_addendum_for body; unchanged behaviour.
+      def marker_addendum_for(provider)
         vocab = vocabulary_for(provider)
         return nil unless vocab
 
@@ -113,6 +137,72 @@ module Monadic
         end
 
         sections.join("\n")
+      end
+
+      # The six-line attribute template shared by both instruction-mode
+      # variants. The LLM fills in each slot with a short natural-language
+      # description. See `docs_dev/expressive_speech_instruction_mode.md` §5.5
+      # for the rationale.
+      INSTRUCTION_ATTRIBUTE_TEMPLATE = <<~TMPL.strip
+        Voice: <character of the voice — e.g., warm and clear, cool and mellow>
+        Tone: <emotional coloring — e.g., sincere, playful, serious>
+        Pacing: <speed and rhythm — e.g., steady and unhurried, rapid and punchy>
+        Emotion: <state being conveyed — e.g., empathetic, excited, calm>
+        Pronunciation: <articulation style — e.g., clear and precise>
+        Pauses: <where to break — e.g., brief after apologies>
+      TMPL
+
+      # Out-of-band instruction-mode addendum (OpenAI gpt-4o-mini-tts).
+      # Produces one of two variants based on whether the active app is
+      # Monadic:
+      #   * Monadic app  → JSON sibling `tts_instructions` field
+      #   * non-Monadic  → `<<TTS:...>>` sentinel prefix (stripped in backend
+      #                    before display; plain text follows the sentinel)
+      def instruction_addendum(app_is_monadic:)
+        app_is_monadic ? instruction_addendum_json : instruction_addendum_sentinel
+      end
+
+      def instruction_addendum_json
+        <<~ADDENDUM.strip
+          Expressive Speech (instruction mode): your JSON response should include an additional top-level field `tts_instructions` alongside `message` and `context`. The value is a 3-6 line directive for the text-to-speech engine using this exact attribute structure (one per line):
+
+          #{INSTRUCTION_ATTRIBUTE_TEMPLATE.lines.map { |l| "  #{l}" }.join.rstrip}
+
+          Keep `tts_instructions` under 600 characters. Match the mood to the `message` content. If the content is neutral, keep directives neutral ("Voice: natural, balanced. Tone: conversational. Pacing: steady.").
+
+          Plain prose only in `message` — no bracketed stage directions like [laugh] or [pause], no angle-bracket tags like <whisper>.
+
+          Example:
+          {
+            "message": "I'm very sorry about the mix-up. Let me sort that out for you right away.",
+            "context": { ... your app's usual context fields ... },
+            "tts_instructions": "Voice: warm, reassuring.\\nTone: sincere, empathetic.\\nPacing: steady, unhurried.\\nEmotion: genuine concern.\\nPronunciation: clear on 'very sorry'.\\nPauses: brief after the apology."
+          }
+        ADDENDUM
+      end
+
+      def instruction_addendum_sentinel
+        <<~ADDENDUM.strip
+          Expressive Speech (instruction mode): begin every response with a text-to-speech directive block, then the actual reply on the next line.
+
+          The directive block uses the literal delimiters `<<TTS:` and `>>` around a 3-6 line instruction set, one attribute per line:
+
+          #{INSTRUCTION_ATTRIBUTE_TEMPLATE.lines.map { |l| "  #{l}" }.join.rstrip}
+
+          Keep the directive block under 600 characters. The delimiters `<<TTS:` and `>>` are stripped before the message is shown to the user; only the reply text after `>>` is displayed and spoken aloud. Match the mood to the reply content. Never refer to the delimiters in your reply.
+
+          Plain prose only in the reply — no bracketed stage directions like [laugh] or [pause], no angle-bracket tags like <whisper>.
+
+          Example:
+          <<TTS:Voice: warm, reassuring.
+          Tone: sincere, empathetic.
+          Pacing: steady, unhurried.
+          Emotion: genuine concern.
+          Pronunciation: clear on 'very sorry'.
+          Pauses: brief after the apology.>>
+
+          I'm very sorry about the mix-up. Let me sort that out for you right away.
+        ADDENDUM
       end
     end
   end

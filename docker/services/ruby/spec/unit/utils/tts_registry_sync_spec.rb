@@ -96,7 +96,7 @@ RSpec.describe 'TTS marker registry Ruby/JS sync' do
         'eleven_flash_v2_5' => 'elevenlabs', 'eleven_multilingual_v2' => 'elevenlabs',
         'gemini' => 'gemini', 'gemini-flash' => 'gemini', 'gemini-pro' => 'gemini',
         'mistral' => 'mistral', 'voxtral-mini-tts-2603' => 'mistral',
-        'openai' => 'openai', 'openai-tts-4o' => 'openai',
+        'openai' => 'openai', 'openai-tts-4o' => 'openai-instruction',
         'tts-1' => 'openai', 'tts-1-hd' => 'openai',
         'webspeech' => 'webspeech'
       }

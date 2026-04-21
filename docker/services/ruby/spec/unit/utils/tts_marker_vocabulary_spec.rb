@@ -91,8 +91,29 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
     end
 
     it 'returns nil for unregistered providers' do
-      expect(described_class.prompt_addendum_for('openai-tts-4o')).to be_nil
+      # openai-tts-4o is now the instruction-meta family (returns a
+      # different kind of addendum). The plain OpenAI TTS models and
+      # unknown providers still have no addendum.
+      expect(described_class.prompt_addendum_for('openai-tts')).to be_nil
+      expect(described_class.prompt_addendum_for('openai-tts-hd')).to be_nil
       expect(described_class.prompt_addendum_for(nil)).to be_nil
+    end
+
+    context 'for OpenAI instruction-mode (openai-tts-4o)' do
+      it 'returns the sentinel-prefix variant by default (non-Monadic app)' do
+        addendum = described_class.prompt_addendum_for('openai-tts-4o')
+        expect(addendum).to include('<<TTS:')
+        expect(addendum).to include('>>')
+        expect(addendum).to include('Voice:')
+        expect(addendum).to include('Tone:')
+      end
+
+      it 'returns the JSON-sibling variant when app_is_monadic: true' do
+        addendum = described_class.prompt_addendum_for('openai-tts-4o', app_is_monadic: true)
+        expect(addendum).to include('tts_instructions')
+        expect(addendum).to include('"message"')
+        expect(addendum).not_to include('<<TTS:')
+      end
     end
 
     context 'for ElevenLabs' do

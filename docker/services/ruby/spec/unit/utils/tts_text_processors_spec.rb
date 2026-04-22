@@ -322,6 +322,21 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
         expect(described_class.sanitize_for_display('gemini-pro', input))
           .to eq('Saying this is the point.')
       end
+
+      # Gemini hybrid — the LLM may emit a leading `<<TTS:...>>` directive
+      # block (in addition to / instead of inline tags). That block is a
+      # director's note for the engine, not user-facing text.
+      it 'strips a leading <<TTS:...>> directive block' do
+        input = "<<TTS:Voice: warm.\nTone: gentle.>>\n[whispers] Hello, friend."
+        expect(described_class.sanitize_for_display('gemini-flash', input))
+          .to eq('Hello, friend.')
+      end
+
+      it 'strips both the directive block and inline tags in one pass' do
+        input = "<<TTS:Voice: excited.>>\n[excited] Look at this! [laughs]"
+        expect(described_class.sanitize_for_display('gemini-pro', input))
+          .to eq('Look at this!')
+      end
     end
 
     it 'is the identity function for providers without a registered sanitizer' do

@@ -114,6 +114,36 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
         expect(addendum).to include('"message"')
         expect(addendum).not_to include('<<TTS:')
       end
+
+      # Both variants must teach the LLM to escalate directive intensity
+      # to match reply intensity. Without this guidance the LLM defaults to
+      # mild adjectives ("warm and playful") even for dramatic content,
+      # which the TTS engine interprets as only slight variation.
+      it 'includes intensity-matching guidance in both variants' do
+        [
+          described_class.prompt_addendum_for('openai-tts-4o'),
+          described_class.prompt_addendum_for('openai-tts-4o', app_is_monadic: true)
+        ].each do |addendum|
+          expect(addendum).to match(/match.{0,30}intensity/i)
+          expect(addendum).to include('visceral')
+          # A selection of the recommended body-state verbs.
+          expect(addendum).to include('breathless')
+          expect(addendum).to include('gasping')
+          expect(addendum).to include('trembling')
+        end
+      end
+
+      it 'includes a dramatic-amusement example in the sentinel variant' do
+        addendum = described_class.prompt_addendum_for('openai-tts-4o')
+        expect(addendum).to include('strong amusement')
+        expect(addendum).to match(/breathless.{0,60}laughter/i)
+      end
+
+      it 'includes a dramatic-amusement example in the JSON variant' do
+        addendum = described_class.prompt_addendum_for('openai-tts-4o', app_is_monadic: true)
+        expect(addendum).to include('strong amusement')
+        expect(addendum).to match(/breathless.{0,60}laughter/i)
+      end
     end
 
     context 'for ElevenLabs' do
@@ -142,6 +172,60 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
       it 'omits the wrapping markers section' do
         expect(addendum).not_to include('Wrapping markers')
       end
+
+      # Hybrid addendum — Gemini accepts both inline tags and a leading
+      # `<<TTS:...>>` directive block (per Google's speech-generation docs).
+      it 'teaches both inline markers AND the sentinel directive block' do
+        expect(addendum).to match(/<<TTS:/)
+        expect(addendum).to include('Voice:')
+        expect(addendum).to include('Tone:')
+        expect(addendum).to include('Pacing:')
+      end
+
+      it 'includes intensity-matching guidance (visceral body-state verbs)' do
+        expect(addendum).to match(/match.{0,30}intensity/i)
+        expect(addendum).to include('breathless')
+        expect(addendum).to include('gasping')
+      end
+
+      it 'permits the LLM to use markers, directive, both, or neither per turn' do
+        expect(addendum).to match(/markers only.{0,80}both.{0,40}neither/im)
+      end
+
+      it 'applies to all Gemini TTS provider dropdown values' do
+        %w[gemini gemini-flash gemini-pro].each do |p|
+          a = described_class.prompt_addendum_for(p)
+          expect(a).to match(/<<TTS:/), "expected #{p} to receive hybrid addendum"
+          expect(a).to include('[whispers]')
+        end
+      end
+    end
+  end
+
+  describe '.instruction_capable?' do
+    it 'is true for OpenAI gpt-4o-mini-tts (out-of-band instructions)' do
+      expect(described_class.instruction_capable?('openai-tts-4o')).to be true
+    end
+
+    it 'is true for Gemini TTS (in-band directive prefix)' do
+      %w[gemini gemini-flash gemini-pro].each do |p|
+        expect(described_class.instruction_capable?(p)).to be(true), "expected #{p} to be instruction_capable"
+      end
+    end
+
+    it 'is false for OpenAI plain TTS (tts-1 / tts-1-hd)' do
+      expect(described_class.instruction_capable?('openai-tts')).to be false
+      expect(described_class.instruction_capable?('openai-tts-hd')).to be false
+    end
+
+    it 'is false for tag-only families (xAI, ElevenLabs v3)' do
+      expect(described_class.instruction_capable?('grok')).to be false
+      expect(described_class.instruction_capable?('elevenlabs-v3')).to be false
+    end
+
+    it 'is nil-safe' do
+      expect(described_class.instruction_capable?(nil)).to be false
+      expect(described_class.instruction_capable?('')).to be false
     end
   end
 end

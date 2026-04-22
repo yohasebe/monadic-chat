@@ -43,10 +43,12 @@ const WorkflowViewer = (function () {
       tool:     dk ? '#4a2c1a' : '#ffedd5',  toolGroup:  dk ? '#3d2a14' : '#fff7ed',
       agent:    dk ? '#3b1a1a' : '#fee2e2',  feature:    dk ? '#2a2a2a' : '#f3f4f6',
       context:  dk ? '#3a3520' : '#fef9c3',
+      speech:   dk ? '#134e4a' : '#ccfbf1',
       inputBdr:    dk ? '#3b82f6' : '#3b82f6',  responseBdr: dk ? '#3b82f6' : '#3b82f6',
       promptBdr:   dk ? '#8b5cf6' : '#7c3aed',  modelBdr:    dk ? '#22c55e' : '#16a34a',
       toolBdr:     dk ? '#f97316' : '#ea580c',  agentBdr:    dk ? '#ef4444' : '#dc2626',
       featureBdr:  dk ? '#6b7280' : '#9ca3af',  contextBdr:  dk ? '#eab308' : '#ca8a04',
+      speechBdr:   dk ? '#14b8a6' : '#0d9488',
       text:    v('--text-primary', '#333'),
       textSub: dk ? '#9ca3af' : '#6b7280',
       edge:    dk ? '#6b7280' : '#9ca3af',
@@ -55,6 +57,7 @@ const WorkflowViewer = (function () {
 
   var LEGEND = [
     { label: 'Input/Response', colour: '#3b82f6' },
+    { label: 'Speech (STT/TTS)', colour: '#0d9488' },
     { label: 'Prompt',         colour: '#7c3aed' },
     { label: 'Model',          colour: '#16a34a' },
     { label: 'Tool',           colour: '#ea580c' },
@@ -276,11 +279,30 @@ const WorkflowViewer = (function () {
     var id = 0;
     var nid = function () { return 'n' + (++id); };
 
+    // Runtime state (user's current settings panel) — drives conditional
+    // STT/TTS nodes and the "Expressive Speech" feature entry.
+    var params = (typeof window !== 'undefined' && window.params) || {};
+    var autoSpeechOn = params.auto_speech === true || params.auto_speech === 'true';
+    var ttsProvider = params.tts_provider || '';
+    var sttModel = params.stt_model || '';
+    var ttsVoice = params.tts_voice || params.elevenlabs_tts_voice ||
+                   params.gemini_tts_voice || params.grok_tts_voice ||
+                   params.mistral_tts_voice || '';
+
+    // 0. Speech Input (STT) — only when Auto Speech is on
+    var sttId = null;
+    if (autoSpeechOn) {
+      sttId = nid();
+      var sttBody = sttModel ? [sttModel] : [];
+      nodes.push({ id: sttId, type: 'speech', heading: 'Speech Input (STT)', body: sttBody, flow: true });
+    }
+
     // 1. User Input
     var inputId = nid();
     var inputTypes = data.input_types || ['text'];
     var inputBody = (inputTypes.length > 1) ? inputTypes.map(function (t) { return titleCase(t); }) : [];
     nodes.push({ id: inputId, type: 'input', heading: 'User Input', body: inputBody, flow: true });
+    if (sttId) flowEdges.push({ from: sttId, to: inputId });
 
     // 2. System Prompt — expandable (scrollable when expanded)
     var promptId = nid();
@@ -323,6 +345,17 @@ const WorkflowViewer = (function () {
     var responseBody = outTypes.map(function (t) { return titleCase(t + ' output'); });
     nodes.push({ id: responseId, type: 'response', heading: 'Response', body: responseBody, flow: true });
     flowEdges.push({ from: modelId, to: responseId });
+
+    // 5. Speech Output (TTS) — only when Auto Speech is on
+    var ttsId = null;
+    if (autoSpeechOn) {
+      ttsId = nid();
+      var ttsBody = [];
+      if (ttsProvider) ttsBody.push(ttsProvider);
+      if (ttsVoice) ttsBody.push('voice: ' + ttsVoice);
+      nodes.push({ id: ttsId, type: 'speech', heading: 'Speech Output (TTS)', body: ttsBody, flow: true });
+      flowEdges.push({ from: responseId, to: ttsId });
+    }
 
     // ── Tools — side node of Model ──────────────────────────────
     var tools = data.tools || [];
@@ -377,6 +410,18 @@ const WorkflowViewer = (function () {
     // ── Features — side node of Model (right) ─────────────────
     var features = data.features || {};
     var onFeatures = Object.keys(features).filter(function (f) { return features[f]; });
+    // Expressive Speech is a runtime-activated feature (auto_speech on +
+    // TTS family with marker vocabulary or out-of-band instructions). We
+    // add it to the features list when currently active so users can see
+    // it applies to this conversation. See docs_dev/expressive_speech.md.
+    if (autoSpeechOn && typeof window !== 'undefined' && window.TtsTagSanitizer) {
+      var fam = window.TtsTagSanitizer.familyFor(ttsProvider);
+      var expressiveActive = window.TtsTagSanitizer.tagAware(ttsProvider) ||
+                             fam === 'openai-instruction';
+      if (expressiveActive && onFeatures.indexOf('expressive_speech') < 0) {
+        onFeatures.push('expressive_speech');
+      }
+    }
     if (onFeatures.length > 0) {
       var fId = nid();
       nodes.push({
@@ -428,6 +473,8 @@ const WorkflowViewer = (function () {
     switch (type) {
     case 'input': case 'response':
       return makeStyle(c.input, c.inputBdr, { arcSize: 40 });
+    case 'speech':
+      return makeStyle(c.speech, c.speechBdr, { arcSize: 40 });
     case 'prompt':
       return makeStyle(c.prompt, c.promptBdr, { rounded: false });
     case 'model':
@@ -1263,6 +1310,8 @@ const WorkflowViewer = (function () {
       $on(zi, 'click', function () { if (graph) graph.zoomIn(); });
       $on(zo, 'click', function () { if (graph) graph.zoomOut(); });
       $on(zf, 'click', function () { fitGraphToContainer(); });
+      var saveBtn = $id('wv-save-svg');
+      $on(saveBtn, 'click', function () { self.downloadSvg(); });
       setupTooltips(); setupClickHandler(); buildLegend();
       setupDrag(); setupResize();
       // Load persisted panel rect (applied when panel opens)
@@ -1345,6 +1394,14 @@ const WorkflowViewer = (function () {
       if (!container || !Graph || !name) return;
       if (this.isOpen()) { this._doLoadApp(name); return; }
       pendingApp = name;
+    },
+    // Trigger a re-render without re-fetching. Useful when runtime state
+    // that influences the graph changes (auto_speech toggle, TTS/STT
+    // provider swap) — buildGraphData reads window.params each call, so
+    // refreshGraph() picks up the new values automatically.
+    refresh: function () {
+      if (!this.isOpen() || !currentData) return;
+      refreshGraph();
     },
     _doLoadApp: function (name) {
       if (!container || !Graph || !name) return;
@@ -1440,6 +1497,31 @@ const WorkflowViewer = (function () {
 
       var serializer = new XMLSerializer();
       return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(clone);
+    },
+    // Trigger a browser download of the current graph as an .svg file.
+    // Filename derives from the current app's display name (slug) with a
+    // safe fallback. No-op when the graph hasn't loaded yet.
+    downloadSvg: function (opts) {
+      var svg = this.exportSvg(opts);
+      if (!svg) return false;
+      var slug = 'workflow';
+      try {
+        if (currentData && (currentData.display_name || currentData.app_name)) {
+          slug = String(currentData.display_name || currentData.app_name)
+            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'workflow';
+        }
+      } catch (e) { /* keep default slug */ }
+      var blob = new Blob([svg], { type: 'image/svg+xml' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'workflow-' + slug + '.svg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Defer revocation so the download has time to start.
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      return true;
     },
     setStage: function (stage) {
       setStageInternal(stage);

@@ -299,7 +299,7 @@ module WebSocketHelper
       sentinel_hold_back_active =
         (original_auto_speech == true || original_auto_speech == "true") &&
         (original_monadic.nil? || original_monadic.to_s.strip.empty?) &&
-        Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(obj["tts_provider"])
+        Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(obj["tts_provider"])
       sentinel_state = sentinel_hold_back_active ? :scanning : :passthrough
       sentinel_held = +""
 
@@ -442,7 +442,7 @@ module WebSocketHelper
         # is a specific tool parameter (not the assistant's raw response),
         # so it cannot contain the JSON wrapper or sentinel prefix.
         tts_instructions = nil
-        if !tts_text_from_target && Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(provider)
+        if !tts_text_from_target && Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(provider)
           app_is_monadic = !monadic_disabled
           extracted_text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(
             text,
@@ -450,7 +450,7 @@ module WebSocketHelper
           )
           text = extracted_text
           if CONFIG["EXTRA_LOGGING"] && tts_instructions.nil?
-            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-mode parse returned no directive; falling back to plain TTS (provider=#{provider}, monadic=#{app_is_monadic})" }
+            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-capable parse returned no directive; falling back to plain TTS (provider=#{provider}, monadic=#{app_is_monadic})" }
           end
         end
 

@@ -121,10 +121,18 @@
         .replace(/\s+([,.!?;:])/g, "$1");
     },
     "gemini": function(text) {
+      // Gemini supports BOTH inline tags AND a leading `<<TTS:...>>`
+      // directive block (hybrid mode — see
+      // docs_dev/expressive_speech.md §Layer 5). Strip both shapes here
+      // so the reply card displays only the spoken content. The trim at
+      // the end removes whitespace left by tags sitting right after the
+      // directive newline or at the end of the reply.
       return String(text)
+        .replace(INSTRUCTION_SENTINEL_DISPLAY_RE, "")
         .replace(GEMINI_INLINE_RE, "")
         .replace(/[ \t]{2,}/g, " ")
-        .replace(/\s+([,.!?;:])/g, "$1");
+        .replace(/\s+([,.!?;:])/g, "$1")
+        .replace(/^\s+|\s+$/g, "");
     },
     // Expressive Speech instruction mode (OpenAI gpt-4o-mini-tts):
     // strip the leading `<<TTS:...>>` directive from display.
@@ -170,9 +178,11 @@
       result = result.replace(GEMINI_INLINE_STRICT_RE, "");
     }
     // Cross-family cleanup for the instruction-mode sentinel: strip any
-    // residual `<<TTS:...>>` left over from a previous openai-tts-4o
-    // session so it does not surface in the transcript.
-    if (fam !== "openai-instruction") {
+    // residual `<<TTS:...>>` left over from a previous openai-tts-4o or
+    // gemini session so it does not surface in the transcript.
+    // openai-instruction and gemini handle the strip in their own
+    // sanitizer; every other family needs the cross-family sweep.
+    if (fam !== "openai-instruction" && fam !== "gemini") {
       result = result.replace(INSTRUCTION_SENTINEL_DISPLAY_RE, "");
     }
     return result.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.!?;:])/g, "$1");

@@ -147,7 +147,7 @@ module WebSocketHelper
         # providers without instruction-mode.
         tts_provider_for_history = params["tts_provider"] || session[:parameters]&.dig("tts_provider")
         if tts_provider_for_history &&
-           Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(tts_provider_for_history)
+           Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(tts_provider_for_history)
           final_text = Monadic::Utils::TtsInstructionExtractor.strip_from_history(
             final_text,
             app_is_monadic: !!params["monadic"]

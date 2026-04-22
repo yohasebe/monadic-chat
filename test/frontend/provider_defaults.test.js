@@ -103,8 +103,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.xai.code[0]).toBe('grok-code-fast-1');
     });
 
-    it('openai image default is gpt-image-1.5', () => {
-      expect(providerDefaults.openai.image[0]).toBe('gpt-image-1.5');
+    it('openai image default is gpt-image-2', () => {
+      expect(providerDefaults.openai.image[0]).toBe('gpt-image-2');
     });
 
     it('openai video category removed (Sora API shutdown)', () => {

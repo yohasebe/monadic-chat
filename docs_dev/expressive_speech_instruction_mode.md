@@ -2,11 +2,14 @@
 
 Implementation design doc for extending Expressive Speech to OpenAI
 `gpt-4o-mini-tts`. This is the companion to `docs_dev/expressive_speech.md`
-(which covers the existing inline-marker families: xAI / ElevenLabs v3 /
-Gemini); read that first.
+(which covers the inline-marker families xAI / ElevenLabs v3 / Gemini and
+the hybrid Gemini mode); read that first.
 
-Status: **design — pre-implementation**. Values and paths below are proposals
-subject to revision once implementation begins.
+Status: **shipped in beta.12** (2026-04-22). The design below matches the
+implementation. Gemini also became instruction-capable in the same release
+as a hybrid variant — see `docs_dev/expressive_speech.md` §"Hybrid mode —
+Gemini" for Gemini-specific notes; this document continues to focus on the
+OpenAI out-of-band path.
 
 ## 1. Problem statement
 
@@ -855,3 +858,106 @@ benefit. Rollback, if needed, is a `git revert`.
 - Research source: memory file
   `openai-tts-instructions-research-2026-04-21.md` (openai-fm presets,
   OpenAI API constraints, provider comparison)
+
+## 16. Implementation discoveries (2026-04-22)
+
+Empirical findings from a live-Voice-Chat debugging session on the day of
+release. These are not in OpenAI's public documentation and are recorded
+here so future maintainers do not have to rediscover them.
+
+### 16.1 Voice × instructions compatibility is the single biggest factor
+
+Running the **exact same** text + instructions + model through the OpenAI
+TTS API with only the `voice` parameter changed produces dramatically
+different expressiveness:
+
+| Voice | Behaviour with visceral instructions |
+|---|---|
+| `alloy` | Inconsistent — sometimes natural, sometimes flat |
+| `coral` | Consistently natural, dynamic, matches directive |
+| `ballad` | Consistently natural, theatrical |
+| `verse` | Inconsistent — flat despite dramatic directives |
+
+**Interpretation**: OpenAI voices are not mere timbre variants. `alloy` is
+designed for controlled, neutral narration and resists strong directive
+changes. `coral` / `ballad` are designed to be expressive and reliably
+follow emotional cues. Choosing a voice that "wants" to be expressive is
+more important than crafting the perfect directive.
+
+**Action taken**: when `openai-tts-4o` is the selected TTS provider, the
+voice dropdown defaults to `coral` (read from
+`modelSpec[...].tts_default_voice` as SSOT). Users who explicitly pick
+another voice have their 4o-specific preference persisted via a separate
+cookie `tts-voice-openai-4o`.
+
+### 16.2 Intensity-matching system-prompt guidance was required
+
+Without explicit guidance, the LLM defaults to mild adjectives ("warm
+and playful", "amused and light") even when the user's request is
+clearly dramatic ("overreact, laugh out loud"). Mild adjectives produce
+mild audio regardless of voice choice.
+
+The addendum now includes `INSTRUCTION_INTENSITY_GUIDANCE` which teaches
+the LLM to escalate to **visceral body-state verbs** — "breathless",
+"gasping", "trembling", "choked", "bursting", "whispered", "quivering" —
+when the reply's emotional register is strong. The engine responds far
+more strongly to vivid physical descriptions than to abstract emotion
+words alone.
+
+The dramatic example in the addendum was deliberately chosen to model
+this style (was: apology scenario with "sincere, empathetic"; now: burst
+of laughter with "breathless, barely containing laughter").
+
+### 16.3 Non-factors — things that do NOT affect output quality
+
+- **`response_format: mp3` vs `aac`** — no audible difference when the
+  same bytes are played back. Initially suspected as a culprit because
+  aac is more compressed, but A/B/C testing with mp3/aac pairs showed
+  equivalent quality. Kept default `aac` for the -28 % TTFA benefit.
+- **em dash `—` vs plain space** — identical output. The LLM often
+  writes `HAHAHA— oh no` and it reads the same as `HAHAHA oh no`.
+- **ALL CAPS vs lowercase onomatopoeia (`HAHAHA` vs `hahaha`)** — the
+  model interprets both as laughter. Note however that **register
+  transitions** matter: `HAHAHAHA oh no` (caps → lowercase) can sound
+  jarring when the TTS drops from shouted laughter to quiet prose, but
+  this was inconclusive across multiple generations.
+
+### 16.4 Gen-to-gen variance is real
+
+Identical API calls (same model, voice, text, instructions,
+response_format) produce slightly different audio each time. Most of the
+variance is natural prosody; occasionally the model produces a noticeably
+flatter or richer render of the same instruction. We accept this rather
+than adding retry logic — a retry only delays the user and adds cost.
+
+### 16.5 The pipeline is innocent
+
+Before touching any prompt/voice tuning, we verified with diagnostic
+logging (since reverted) that:
+- Sentinel is correctly emitted by the LLM
+- Extractor peels it cleanly (`text` = clean reply, `instructions` = the
+  directive body)
+- `tts_api_request` receives `instructions` as a non-nil string
+- The final body sent to `/v1/audio/speech` contains all expected fields
+
+Every failure observed during the session was a **prompt-engineering**
+failure (mild instructions, weak voice choice), not a plumbing bug.
+
+### 16.6 Workflow Viewer integration
+
+`public/js/monadic/workflow-viewer.js` now reads runtime state
+(`window.params`) at render time:
+
+- When `auto_speech` is on, a `speech` node is inserted before User Input
+  (Speech Input / STT, labelled with the current STT model) and after
+  Response (Speech Output / TTS, labelled with provider + voice).
+- The `Features` side node includes `expressive_speech` when the active
+  TTS provider is tag-aware (xAI / ElevenLabs v3 / Gemini) or
+  instruction-mode (`openai-tts-4o`).
+- `WorkflowViewer.refresh()` is called from the settings-panel change
+  handlers (`check-auto-speech`, `tts-provider`, `tts-voice`,
+  `stt-model`) so the graph updates live without re-fetching `/api/app`.
+
+This makes the workflow diagram an accurate, live reflection of the
+Expressive Speech pipeline the user has configured, not a static
+declaration from the MDSL alone.

@@ -85,19 +85,42 @@ module Monadic
         family_for(provider) == "openai-instruction"
       end
 
+      # True when the provider accepts natural-language voice/style
+      # directives — either as an out-of-band parameter (OpenAI) or as a
+      # leading in-band prefix (Gemini). Callers use this to decide whether
+      # to extract a `<<TTS:...>>` block from the LLM response.
+      #
+      # Gemini officially supports both inline tags AND natural-language
+      # style prompts per `ai.google.dev/gemini-api/docs/speech-generation`
+      # ("Controlling speech style with prompts"). We treat the Gemini
+      # family as hybrid: the LLM may emit markers, a directive block, or
+      # both, and the backend routes the directive into the text prefix.
+      def instruction_capable?(provider)
+        return true if instruction_mode?(provider)
+        family_for(provider) == "gemini"
+      end
+
       def vocabulary_for(provider)
         VOCABULARIES[family_for(provider)]
       end
 
       # Produce the addendum text to be appended to the system prompt when
       # Expressive Speech is active. Dispatches to the right generator by
-      # family × app-Monadic state (for instruction mode only — marker
-      # addendum is app-Monadic-agnostic). Returns nil when the provider has
-      # no applicable addendum.
+      # family × capability × app-Monadic state. Returns nil when the
+      # provider has no applicable addendum.
+      #
+      # Dispatch precedence (most specific first):
+      #   tag_aware + instruction_capable (Gemini) → hybrid addendum
+      #   tag_aware only (xAI / ElevenLabs v3)     → marker addendum
+      #   instruction_mode (OpenAI 4o)             → instruction addendum
+      #   else                                     → nil
       #
       # @param provider [String] TTS provider dropdown value
       # @param app_is_monadic [Boolean] whether the active app is Monadic
       def prompt_addendum_for(provider, app_is_monadic: false)
+        if tag_aware?(provider) && instruction_capable?(provider)
+          return hybrid_addendum_for(provider, app_is_monadic: app_is_monadic)
+        end
         return marker_addendum_for(provider)         if tag_aware?(provider)
         return instruction_addendum(app_is_monadic:) if instruction_mode?(provider)
         nil
@@ -162,21 +185,33 @@ module Monadic
         app_is_monadic ? instruction_addendum_json : instruction_addendum_sentinel
       end
 
+      # Intensity-matching guidance shared by both variants. Teaches the LLM
+      # to escalate the directive's vividness when the reply is emotionally
+      # strong, using visceral body-state verbs rather than mild adjectives.
+      # Without this guidance, the LLM tends to default to neutral wording
+      # ("warm and playful") even when the user requested dramatic delivery,
+      # which the TTS engine then interprets as mild variation.
+      INSTRUCTION_INTENSITY_GUIDANCE = <<~TEXT.strip
+        Match the directive's intensity to the reply's intensity. For neutral or factual content, keep directives neutral ("Voice: natural, balanced. Tone: conversational. Pacing: steady."). For strong emotional content — laughter, tears, anger, excitement, fear, awe — use visceral body-state verbs like "breathless", "gasping", "trembling", "choked", "bursting", "whispered", "quivering". The TTS engine responds far more strongly to vivid physical descriptions than to abstract emotion words alone.
+      TEXT
+
       def instruction_addendum_json
         <<~ADDENDUM.strip
           Expressive Speech (instruction mode): your JSON response should include an additional top-level field `tts_instructions` alongside `message` and `context`. The value is a 3-6 line directive for the text-to-speech engine using this exact attribute structure (one per line):
 
           #{INSTRUCTION_ATTRIBUTE_TEMPLATE.lines.map { |l| "  #{l}" }.join.rstrip}
 
-          Keep `tts_instructions` under 600 characters. Match the mood to the `message` content. If the content is neutral, keep directives neutral ("Voice: natural, balanced. Tone: conversational. Pacing: steady.").
+          #{INSTRUCTION_INTENSITY_GUIDANCE}
+
+          Keep `tts_instructions` under 600 characters.
 
           Plain prose only in `message` — no bracketed stage directions like [laugh] or [pause], no angle-bracket tags like <whisper>.
 
-          Example:
+          Example (strong amusement):
           {
-            "message": "I'm very sorry about the mix-up. Let me sort that out for you right away.",
+            "message": "Oh my goodness, stop — you completely caught me off guard with that one.",
             "context": { ... your app's usual context fields ... },
-            "tts_instructions": "Voice: warm, reassuring.\\nTone: sincere, empathetic.\\nPacing: steady, unhurried.\\nEmotion: genuine concern.\\nPronunciation: clear on 'very sorry'.\\nPauses: brief after the apology."
+            "tts_instructions": "Voice: breathless, barely containing laughter.\\nTone: uncontrollably amused, losing composure.\\nPacing: broken by gasps and mid-word chuckles.\\nEmotion: helpless joy, tears of laughter.\\nPronunciation: words faltering between giggles.\\nPauses: sudden bursts for air between thoughts."
           }
         ADDENDUM
       end
@@ -189,20 +224,68 @@ module Monadic
 
           #{INSTRUCTION_ATTRIBUTE_TEMPLATE.lines.map { |l| "  #{l}" }.join.rstrip}
 
-          Keep the directive block under 600 characters. The delimiters `<<TTS:` and `>>` are stripped before the message is shown to the user; only the reply text after `>>` is displayed and spoken aloud. Match the mood to the reply content. Never refer to the delimiters in your reply.
+          #{INSTRUCTION_INTENSITY_GUIDANCE}
+
+          Keep the directive block under 600 characters. The delimiters `<<TTS:` and `>>` are stripped before the message is shown to the user; only the reply text after `>>` is displayed and spoken aloud. Never refer to the delimiters in your reply.
 
           Plain prose only in the reply — no bracketed stage directions like [laugh] or [pause], no angle-bracket tags like <whisper>.
 
-          Example:
-          <<TTS:Voice: warm, reassuring.
-          Tone: sincere, empathetic.
-          Pacing: steady, unhurried.
-          Emotion: genuine concern.
-          Pronunciation: clear on 'very sorry'.
-          Pauses: brief after the apology.>>
+          Example (strong amusement):
+          <<TTS:Voice: breathless, barely containing laughter.
+          Tone: uncontrollably amused, losing composure.
+          Pacing: broken by gasps and mid-word chuckles.
+          Emotion: helpless joy, tears of laughter.
+          Pronunciation: words faltering between giggles.
+          Pauses: sudden bursts for air between thoughts.>>
 
-          I'm very sorry about the mix-up. Let me sort that out for you right away.
+          Oh my goodness, stop — you completely caught me off guard with that one.
         ADDENDUM
+      end
+
+      # Hybrid addendum for engines that accept BOTH inline markers and a
+      # leading natural-language directive block (Gemini TTS). The LLM is
+      # free to choose per-turn: markers only, directive only, both, or
+      # neither. The backend reads the directive block (when present) and
+      # prepends it to the text as an in-band prefix before calling the
+      # Gemini API — Gemini's own models interpret it as a director's note
+      # rather than literal speech. See `docs_dev/expressive_speech.md`.
+      def hybrid_addendum_for(provider, app_is_monadic: false)
+        vocab = vocabulary_for(provider)
+        return nil unless vocab
+
+        inline_line = vocab[:inline].map { |m| "[#{m}]" }.join(" ")
+        attribute_template =
+          INSTRUCTION_ATTRIBUTE_TEMPLATE.lines.map { |l| "  #{l}" }.join.rstrip
+
+        sections = []
+        sections << "Expressive Speech — the Gemini voice engine supports TWO complementary controls that may be used independently or together:"
+        sections << ""
+        sections << "1) Inline markers in the reply text (same as xAI / ElevenLabs v3 style):"
+        sections << "   #{inline_line}"
+        sections << "   Use sparingly at genuine emotional moments — at most one or two per response."
+        sections << ""
+        sections << "2) A leading directive block for higher-level voice shaping. When present, it appears at the very start of the response between the literal delimiters `<<TTS:` and `>>`, with a 3-6 line attribute set (one per line):"
+        sections << ""
+        sections << attribute_template
+        sections << ""
+        sections << "   You may also add extra free-form lines inside the same block for scene, audio-profile, or accent descriptions (e.g., \"Scene: late-night radio studio, warm ambient room tone.\"). Keep the entire block under 600 characters."
+        sections << ""
+        sections << INSTRUCTION_INTENSITY_GUIDANCE
+        sections << ""
+        sections << "Rules (hard constraints):"
+        sections << "- Never name, quote, describe, or list the markers or the directive block's delimiters in your reply. They are silent stage directions, not conversation topics."
+        sections << "- The `<<TTS:...>>` block is stripped before the message is shown to the user; the engine reads it as a director's note, not as speech."
+        sections << "- Never open a conversation with a marker or directive block — the first-turn utterance should read cleanly."
+        sections << "- Per-turn you may use markers only, the directive block only, both, or neither. Match the tool to the moment."
+        sections << ""
+        sections << "Example (hybrid, strong amusement):"
+        sections << "<<TTS:Voice: breathless, barely containing laughter."
+        sections << "Tone: uncontrollably amused."
+        sections << "Pacing: broken by gasps and mid-word chuckles.>>"
+        sections << ""
+        sections << "[laughs] Oh my goodness, stop — [sighs] you completely caught me off guard with that one."
+
+        sections.join("\n")
       end
     end
   end

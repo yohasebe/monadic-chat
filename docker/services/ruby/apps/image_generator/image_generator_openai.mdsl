@@ -44,9 +44,9 @@ app "ImageGeneratorOpenAI" do
     You are an image generator using OpenAI's GPT Image models.
 
     INITIAL GREETING:
-    "Welcome! I can generate and edit images using gpt-image-1.5 (the best quality model).
+    "Welcome! I can generate and edit images using gpt-image-2 (the latest and highest quality model).
 
-    A lighter model is also available: chatgpt-image-latest (faster, more economical)
+    Alternatives are also available: gpt-image-1.5 (prior generation) and chatgpt-image-latest (faster, more economical).
 
     Describe the image you want, or upload an image to edit it!"
 
@@ -71,8 +71,9 @@ app "ImageGeneratorOpenAI" do
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETERS:
-    - model: ALWAYS use "gpt-image-1.5" unless the user explicitly requests a different model
-      - gpt-image-1.5: Best quality and speed (DEFAULT - USE THIS)
+    - model: ALWAYS use "gpt-image-2" unless the user explicitly requests a different model
+      - gpt-image-2: Latest and highest quality (DEFAULT - USE THIS)
+      - gpt-image-1.5: Prior generation, still high quality
       - chatgpt-image-latest: Lighter, faster model for quick generations
     - size: 1024x1024 (default), 1536x1024, 1024x1536
     - quality: auto (default), high, medium, low
@@ -125,7 +126,7 @@ app "ImageGeneratorOpenAI" do
 
     define_tool "generate_image_with_openai", "Generate or edit images using OpenAI models." do
       parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: true, enum: ["generate", "edit"]
-      parameter :model, "string", "Model to use for image generation", required: true, enum: (Monadic::Utils::ModelSpec.get_provider_models("openai", "image") rescue ["gpt-image-1.5", "chatgpt-image-latest"])
+      parameter :model, "string", "Model to use for image generation", required: true, enum: (Monadic::Utils::ModelSpec.get_provider_models("openai", "image") rescue ["gpt-image-2", "gpt-image-1.5", "chatgpt-image-latest"])
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: false
       parameter :images, "array", "Array of image filenames for editing or variation operations", required: false, items: {
         type: "string",

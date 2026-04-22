@@ -238,11 +238,19 @@ module Monadic
               .gsub(/[ \t]{2,}/, " ")
               .gsub(/\s+([,.!?;:])/, '\1')
         },
+        # Gemini supports BOTH inline tags AND a leading `<<TTS:...>>`
+        # directive block (hybrid mode — see
+        # docs_dev/expressive_speech.md §Layer 5). Strip both shapes here
+        # so the transcript shows only the spoken content. The final
+        # `strip` removes whitespace left by tags that sat right after
+        # the directive newline or at the end of the reply.
         "gemini" => ->(text) {
           text.to_s
+              .sub(INSTRUCTION_SENTINEL_DISPLAY_RE, "")
               .gsub(GEMINI_INLINE_RE, "")
               .gsub(/[ \t]{2,}/, " ")
               .gsub(/\s+([,.!?;:])/, '\1')
+              .strip
         },
         # Expressive Speech instruction mode (OpenAI gpt-4o-mini-tts):
         # strip the leading `<<TTS:...>>` directive block from display.
@@ -279,11 +287,15 @@ module Monadic
         result = result.gsub(XAI_MALFORMED_SQUARE_WRAP_RE, "") unless fam == "xai"
         result = result.gsub(ELEVENLABS_INLINE_STRICT_RE, "") unless fam == "elevenlabs-v3"
         result = result.gsub(GEMINI_INLINE_STRICT_RE, "") unless fam == "gemini"
-        # Cross-family cleanup for the instruction-mode sentinel: if the user
-        # previously had openai-tts-4o selected and is now on another family,
-        # strip any residual `<<TTS:...>>` from stored messages so it does
-        # not surface in the transcript.
-        result = result.sub(INSTRUCTION_SENTINEL_DISPLAY_RE, "") unless fam == "openai-instruction"
+        # Cross-family cleanup for the instruction-mode sentinel: if the
+        # user previously had an instruction-capable family (openai-tts-4o
+        # or gemini-*) selected and is now on another family, strip any
+        # residual `<<TTS:...>>` from stored messages so it does not
+        # surface in the transcript. Both families' own sanitizers already
+        # remove it, so this sweep only runs for the others.
+        unless fam == "openai-instruction" || fam == "gemini"
+          result = result.sub(INSTRUCTION_SENTINEL_DISPLAY_RE, "")
+        end
         result.gsub(/[ \t]{2,}/, " ").gsub(/\s+([,.!?;:])/, '\1')
       end
 

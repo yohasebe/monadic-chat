@@ -2404,6 +2404,9 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.updateExpressiveSpeechIndicator === 'function') {
       window.updateExpressiveSpeechIndicator();
     }
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('auto_speech_toggle');
     }
@@ -3907,6 +3910,13 @@ document.addEventListener("DOMContentLoaded", function () {
   // voices, so we hide them when the user picks those models. When the
   // currently selected voice is one of the 4o-only ones and the user
   // switches to a non-4o provider, we fall back to the model's default voice.
+  //
+  // On selecting openai-tts-4o, the voice default is `coral` rather than
+  // `alloy`. gpt-4o-mini-tts responds to the Expressive Speech directive
+  // block with noticeably more dynamic range on coral / ballad than on alloy
+  // / verse — we confirmed this in A/B testing. The per-4o preference is
+  // persisted separately so users who pick alloy on the plain TTS models
+  // still get coral on 4o (and vice versa).
   function applyOpenAIVoiceGating(ttsProvider) {
     const select = $id("tts-voice");
     if (!select) return;
@@ -3923,6 +3933,30 @@ document.addEventListener("DOMContentLoaded", function () {
       select.value = "alloy";
       params["tts_voice"] = "alloy";
       setCookie("tts-voice", "alloy", 30);
+    }
+    if (is4o) {
+      const saved4o = getCookie("tts-voice-openai-4o");
+      // Pull the per-model default voice from model_spec.js (SSOT). Chain:
+      // providerDefaults.openai.tts[0] → modelSpec[model].tts_default_voice.
+      // Falls back to "coral" if the lookup fails (e.g., modelSpec not yet
+      // loaded or the default model was renamed without a voice hint).
+      let ssotDefault = null;
+      try {
+        const defaultModel = (window.providerDefaults &&
+          window.providerDefaults.openai &&
+          window.providerDefaults.openai.tts &&
+          window.providerDefaults.openai.tts[0]) || null;
+        ssotDefault = defaultModel && window.modelSpec &&
+          window.modelSpec[defaultModel] &&
+          window.modelSpec[defaultModel].tts_default_voice;
+      } catch (e) { /* fall through to hardcoded fallback */ }
+      const desired = saved4o || ssotDefault || "coral";
+      if (select.value !== desired && Array.from(select.options).some(o => o.value === desired)) {
+        select.value = desired;
+        params["tts_voice"] = desired;
+        setCookie("tts-voice", desired, 30);
+        if (!saved4o) setCookie("tts-voice-openai-4o", desired, 30);
+      }
     }
   }
 
@@ -3954,6 +3988,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     setCookie("tts-provider", params["tts_provider"], 30);
     updateExpressiveSpeechIndicator();
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_provider_change');
     }
@@ -3962,6 +3999,14 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("tts-voice"), "change", function() {
     params["tts_voice"] = ($id("tts-voice") || {}).value;
     setCookie("tts-voice", params["tts_voice"], 30);
+    // Persist separately when on the 4o model so the per-model preference
+    // survives round-trips through other OpenAI TTS models.
+    if (params["tts_provider"] === "openai-tts-4o") {
+      setCookie("tts-voice-openai-4o", params["tts_voice"], 30);
+    }
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_voice_change');
     }
@@ -3994,6 +4039,9 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("stt-model"), "change", function() {
     params["stt_model"] = ($id("stt-model") || {}).value;
     setCookie("stt-model", params["stt_model"], 30);
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('stt_model_change');
     }

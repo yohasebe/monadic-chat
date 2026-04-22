@@ -1288,17 +1288,17 @@ const modelSpec = {
   "gemini-3.1-flash-tts-preview": {
     "tts_capability": true,
     "tts_family": "gemini",
-    "tts_instructions_capability": false
+    "tts_instructions_capability": true
   },
   "gemini-2.5-flash-preview-tts": {
     "tts_capability": true,
     "tts_family": "gemini",
-    "tts_instructions_capability": false
+    "tts_instructions_capability": true
   },
   "gemini-2.5-pro-preview-tts": {
     "tts_capability": true,
     "tts_family": "gemini",
-    "tts_instructions_capability": false
+    "tts_instructions_capability": true
   },
   "voxtral-mini-tts-2603": {
     "tts_capability": true,
@@ -1347,7 +1347,7 @@ const providerDefaults = {
     "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-4.1"],
     "vision": ["gpt-4.1-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
-    "image": ["gpt-image-1.5", "chatgpt-image-latest"],
+    "image": ["gpt-image-2", "gpt-image-1.5", "chatgpt-image-latest"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"],
     "embedding": ["text-embedding-3-large"]
   },

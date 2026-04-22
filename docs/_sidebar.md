@@ -50,3 +50,4 @@
     - [Adding New Features](/faq/faq-extra-features.md)
 
 - [Changelog](/changelog.md)
+- [Related blog posts](https://yohasebe.com/tags/monadic-chat/)

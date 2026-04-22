@@ -111,6 +111,7 @@ Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant 
 - 💡 **[Advanced Topics](https://yohasebe.github.io/monadic-chat/#/advanced-topics/)**
 - 📖 **[Reference](https://yohasebe.github.io/monadic-chat/#/reference/configuration)**
 - ❓ **[Frequently Asked Questions](https://yohasebe.github.io/monadic-chat/#/faq)**
+- 📝 **[Related blog posts](https://yohasebe.com/tags/monadic-chat/)**
 
 ## Developer
 

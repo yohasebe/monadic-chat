@@ -49,3 +49,4 @@
     - [機能の追加](/ja/faq/faq-extra-features.md)
 
 - [更新履歴](/ja/changelog.md)
+- [関連ブログ記事](https://yohasebe.com/tags/monadic-chat/)

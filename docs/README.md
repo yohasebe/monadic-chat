@@ -77,4 +77,4 @@ Find answers to common questions about Monadic Chat.
 
 ---
 
-📖 **[Changelog](/changelog.md)**
+📖 **[Changelog](/changelog.md)** · 📝 **[Related blog posts](https://yohasebe.com/tags/monadic-chat/)**

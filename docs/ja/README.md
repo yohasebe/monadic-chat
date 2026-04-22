@@ -77,4 +77,4 @@ Monadic Chatに関するよくある質問とその回答。
 
 ---
 
-📖 **[変更履歴](/ja/changelog.md)**
+📖 **[変更履歴](/ja/changelog.md)** · 📝 **[関連ブログ記事](https://yohasebe.com/tags/monadic-chat/)**

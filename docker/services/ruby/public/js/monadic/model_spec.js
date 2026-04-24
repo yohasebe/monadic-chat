@@ -622,7 +622,9 @@ const modelSpec = {
 
     "beta_flags": [
       "interleaved-thinking-2025-05-14"
-    ]
+    ],
+    "sunset_date": "2026-06-15",
+    "successor": "claude-opus-4-7"
   },
   "claude-opus-4-5-20251101": {
     "context_window" : [1, 200000],
@@ -690,7 +692,9 @@ const modelSpec = {
 
     "beta_flags": [
       "interleaved-thinking-2025-05-14"
-    ]
+    ],
+    "sunset_date": "2026-06-15",
+    "successor": "claude-sonnet-4-6"
   },
   "claude-haiku-4-5-20251001": {
     "context_window" : [1, 200000],
@@ -1199,15 +1203,41 @@ const modelSpec = {
     "supports_pdf_upload": false
   },
   // DeepSeek models
-  "deepseek-chat": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0], 
+  // V4 series: unified models with thinking/non-thinking mode toggle
+  "deepseek-v4-flash": {
+    "context_window" : [1, 1000000],
+    "max_output_tokens" : [1, 384000],
+    "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "reasoning_content": ["disabled", "enabled"]
+    "reasoning_content": ["disabled", "enabled"],
+    "reasoning_effort": ["high", "max"]
+  },
+  "deepseek-v4-pro": {
+    "context_window" : [1, 1000000],
+    "max_output_tokens" : [1, 384000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "reasoning_content": ["disabled", "enabled"],
+    "reasoning_effort": ["high", "max"]
+  },
+  // Legacy models (sunset 2026-07-24, successor: deepseek-v4-flash)
+  "deepseek-chat": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 8192],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "reasoning_content": ["disabled", "enabled"],
+    "sunset_date": "2026-07-24",
+    "successor": "deepseek-v4-flash"
   },
   "deepseek-reasoner": {
     "context_window" : [1, 128000],
@@ -1217,7 +1247,9 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "reasoning_content": ["disabled", "enabled"],
-    "tool_capability": true
+    "tool_capability": true,
+    "sunset_date": "2026-07-24",
+    "successor": "deepseek-v4-flash"
   },
   "text-embedding-3-large": {
     "context_window": [1, 8191],
@@ -1387,7 +1419,7 @@ const providerDefaults = {
     "chat": ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]
   },
   "deepseek": {
-    "chat": ["deepseek-chat", "deepseek-reasoner"]
+    "chat": ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"]
   },
   "ollama": {
     "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]

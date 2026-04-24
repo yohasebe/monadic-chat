@@ -718,9 +718,26 @@ module DeepSeekHelper
   end
 
   def configure_deepseek_reasoning(body, obj, is_json, role)
-    is_reasoning_model = obj["model"].include?("reasoner") || obj["model"].include?("-r1")
+    model = obj["model"].to_s
+    is_v4_model = model.include?("deepseek-v4")
+    is_legacy_reasoner = model.include?("reasoner") || model.include?("-r1")
 
-    if is_reasoning_model
+    if is_v4_model
+      # V4 models use thinking.type parameter (API default: enabled).
+      # Map user's reasoning_content UI setting ("disabled"/"enabled") to thinking.type.
+      reasoning_setting = obj["reasoning_content"].to_s
+      thinking_type = reasoning_setting == "disabled" ? "disabled" : "enabled"
+      body["thinking"] = { "type" => thinking_type }
+
+      if thinking_type == "enabled"
+        effort = obj["reasoning_effort"].to_s
+        body["thinking"]["reasoning_effort"] = effort if %w[high max].include?(effort)
+      end
+
+      if is_json && role != "tool"
+        body["response_format"] ||= { "type" => "json_object" }
+      end
+    elsif is_legacy_reasoner
       body.delete("temperature")
       body.delete("presence_penalty")
       body.delete("frequency_penalty")
@@ -1052,8 +1069,9 @@ module DeepSeekHelper
       }
 
       model_name = obj["model"] || ""
-      is_reasoning_model = model_name.include?("reasoner") || model_name.include?("-r1")
-      if is_reasoning_model
+      is_legacy_reasoner = model_name.include?("reasoner") || model_name.include?("-r1")
+      is_v4_thinking = model_name.include?("deepseek-v4") && obj["reasoning_content"].to_s != "disabled"
+      if is_legacy_reasoner || is_v4_thinking
         reasoning_content = text_result&.dig("choices", 0, "message", "reasoning_content")
         if reasoning_content && !reasoning_content.empty?
           assistant_msg["reasoning_content"] = reasoning_content

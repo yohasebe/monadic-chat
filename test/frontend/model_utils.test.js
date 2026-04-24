@@ -220,12 +220,19 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
       expect(models.length).toBeGreaterThan(curatedModels.length);
     });
 
-    it('excludes requires_confirmation models', () => {
+    it('excludes requires_confirmation models via spec flag', () => {
+      // Synthesize a requires_confirmation model to verify the filter still works
+      // (the long-thinking Pro tier has been removed from the OpenAI catalog per policy,
+      // but the filter itself remains for any future requires_confirmation entries)
+      window.modelSpec['gpt-test-confirm-required'] = {
+        requires_confirmation: true,
+        tool_capability: true,
+        context_window: [1, 100000]
+      };
       const appConfig = { group: 'OpenAI', model: 'gpt-5.4' };
       const models = modelUtils.getModelsForApp(appConfig, true);
-      // These models have requires_confirmation: true in model_spec.js
-      expect(models).not.toContain('gpt-5.4-pro');
-      expect(models).not.toContain('gpt-5.2-pro');
+      expect(models).not.toContain('gpt-test-confirm-required');
+      delete window.modelSpec['gpt-test-confirm-required'];
     });
 
     it('excludes tool_capability: false models', () => {

@@ -174,6 +174,21 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // GPT-5.5 (new generation, 1M context, shares gpt-5.4 architecture)
+  "gpt-5.5": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
   // GPT-5.4 Thinking (frontier model, 1M context, computer use)
   "gpt-5.4": {
     "context_window": [1, 1050000],
@@ -214,33 +229,6 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "skip_in_progress_events": true
-  },
-  // GPT-5.4 Pro (maximum accuracy, 1M context)
-  "gpt-5.4-pro": {
-    "context_window": [1, 1050000],
-    "max_output_tokens": [1, 128000],
-    "tool_capability": true,
-    "vision_capability": false,
-    "supports_structured_output": false,
-    "api_type": "responses",
-    "supports_web_search": false,
-    "supports_pdf_upload": false,
-    "skip_in_progress_events": true,
-    "requires_confirmation": true
-  },
-  // GPT-5.2 Pro (maximum accuracy)
-  "gpt-5.2-pro": {
-    "context_window" : [1, 400000],
-    "max_output_tokens" : [1, 128000],
-    // reasoning_effort: not specified - use OpenAI's default (likely "high")
-    "tool_capability": true,
-    "vision_capability": false,
-    "supports_structured_output": false,
-    "api_type": "responses",
-    "supports_web_search": false,
-    "supports_pdf_upload": false,
-    "skip_in_progress_events": true,
-    "requires_confirmation": true
   },
   // Gemini 3 image preview (image generation only) — deprecated
   "gemini-3-pro-image-preview": {
@@ -1145,7 +1133,7 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-5.1"],
+    "chat": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
     "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.4-mini"],
     "vision": ["gpt-5.4-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],

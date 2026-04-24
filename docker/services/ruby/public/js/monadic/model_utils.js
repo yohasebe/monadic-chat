@@ -358,6 +358,7 @@ function filterToLatestVersions(models) {
  *  1. requires_confirmation: true  → always excluded (expensive / special models)
  *  2. tool_capability: false       → excluded, EXCEPT for Perplexity whose models
  *     have no tool support at all (excluding them would leave an empty list)
+ *  3. Non-chat modality (TTS / embedding) → excluded from chat dropdowns
  *
  * @param {Array}  models      - Array of model name strings
  * @param {String} providerKey - Normalized provider key (e.g. "openai", "perplexity")
@@ -374,6 +375,10 @@ function filterModelsForAllMode(models, providerKey) {
 
     // Exclude models requiring confirmation (expensive / special)
     if (ms.requires_confirmation === true) return false;
+
+    // Exclude non-chat modalities (TTS / embedding)
+    if (ms.tts_capability === true) return false;
+    if (ms.embedding_dimensions != null) return false;
 
     // Exclude models without tool capability (Perplexity exempted)
     if (!skipToolFilter && ms.tool_capability === false) return false;

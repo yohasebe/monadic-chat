@@ -241,15 +241,26 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
       delete window.modelSpec['gpt-test-no-tools'];
     });
 
+    it('excludes non-chat modalities (TTS / embedding) from chat dropdown', () => {
+      const appConfig = { group: 'OpenAI', model: 'gpt-5.4' };
+      const models = modelUtils.getModelsForApp(appConfig, true);
+      // TTS models should not appear in chat model selection
+      expect(models).not.toContain('gpt-4o-mini-tts-2025-12-15');
+      expect(models).not.toContain('tts-1');
+      expect(models).not.toContain('tts-1-hd');
+      // Embedding models should not appear either
+      expect(models).not.toContain('text-embedding-3-large');
+    });
+
     it('prepends MDSL models when specified', () => {
       const appConfig = {
         group: 'OpenAI',
-        models: '["gpt-5.4", "gpt-4.1"]'
+        models: '["gpt-5.4", "gpt-5.4-mini"]'
       };
       const models = modelUtils.getModelsForApp(appConfig, true);
       // MDSL models should be first
       expect(models[0]).toBe('gpt-5.4');
-      expect(models[1]).toBe('gpt-4.1');
+      expect(models[1]).toBe('gpt-5.4-mini');
       // Should also include other provider models
       expect(models.length).toBeGreaterThan(2);
     });

@@ -1,3 +1,15 @@
+- [April, 2026] 1.0.0-beta.13
+  - **Security**: Pinned `@xmldom/xmldom` to 0.8.13 via `package.json` overrides to address 4 HIGH severity advisories (PI injection, comment/DocumentType handling, DoS). Affects devDependency only via electron-builder; runtime impact is none.
+  - **DeepSeek V4 Support**: Added two new models (`deepseek-v4-flash`, `deepseek-v4-pro`) with 1M context window, 384K output, and unified thinking + reasoning_effort control via the `thinking: { type, reasoning_effort }` request format.
+    - `providerDefaults` reorganized to prefer V4 models
+    - Legacy `deepseek-chat` / `deepseek-reasoner` marked with sunset 2026-07-24
+    - `dispatch_deepseek_tool_results` extended to handle V4 thinking-mode `reasoning_content` streaming
+  - **Claude 4.0 Sunset Tracking**: Marked `claude-opus-4-20250514` and `claude-sonnet-4-20250514` with sunset 2026-06-15 (per Anthropic's announcement); successor models `claude-opus-4-7` / `claude-sonnet-4-6` already supported.
+  - **OpenAI Reasoning Effort Fixes**: Corrected `reasoning_effort` value lists for 6 OpenAI models after API matrix verification, eliminating silent 400 errors.
+    - `gpt-5.3-chat-latest`: restricted to `medium` only (other values returned 400)
+    - `gpt-5.4-mini` / `gpt-5.4-nano`: added `none` and `xhigh` (5-value vocabulary)
+    - `o3` / `o3-mini` / `o4-mini`: added `xhigh` (was previously omitted)
+  - **Model Catalog Cleanup**: Removed 5 OpenAI models incompatible with the gpt-5.4 baseline architecture (non-streaming path, incomplete spec, or bespoke UX requirements): `o1-pro`, `o3-pro`, `gpt-5-pro`, `o3-deep-research`, `o4-mini-deep-research`.
 - [April, 2026] 1.0.0-beta.12
   - **Expressive Speech — Instruction Mode (OpenAI `gpt-4o-mini-tts`)**: The assistant emits a separate voice directive (tone, pacing, emotion, pronunciation, pauses) that the engine reads but does not speak aloud. Two encodings coexist: JSON sibling key for Monadic apps, sentinel-prefix (`<<TTS:…>>`) for non-Monadic apps. The directive never appears in the chat transcript.
     - New family `openai-instruction` in TTS dispatch (Ruby + JS mirror)

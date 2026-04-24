@@ -101,7 +101,7 @@ Time allowed to send request data to the API server.
 ## Special Timeout Handling
 
 ### OpenAI Responses API
-The Responses API (used for GPT-5-Codex and o3-pro) automatically uses extended timeout:
+The Responses API (used for GPT-5-Codex) automatically uses extended timeout:
 - **READ_TIMEOUT**: 1200 seconds (20 minutes)
 - This override is applied programmatically and cannot be changed via env variables
 

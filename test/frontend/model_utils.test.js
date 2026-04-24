@@ -226,7 +226,6 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
       // These models have requires_confirmation: true in model_spec.js
       expect(models).not.toContain('gpt-5.4-pro');
       expect(models).not.toContain('gpt-5.2-pro');
-      expect(models).not.toContain('o1-pro');
     });
 
     it('excludes tool_capability: false models', () => {

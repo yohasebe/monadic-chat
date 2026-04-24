@@ -31,22 +31,22 @@ RSpec.describe "OpenAI Web Search Processing Message" do
       # Original user model for regular chat
       original_user_model = "gpt-4.1-mini"
       
-      # Check condition: processing message is only for slow models (e.g., o3-pro)
+      # Check condition: processing message is only for slow models (e.g., o3)
       # Web search itself does not trigger the message for regular models
       # gpt-4.1-mini now uses Responses API via model_spec
       expect(Monadic::Utils::ModelSpec.responses_api?(original_user_model)).to be true
       expect(Monadic::Utils::ModelSpec.supports_web_search?(original_user_model)).to be true
-      
+
       # Slow reasoning model example (o3 family)
-      o3_model = "o3-pro"
+      o3_model = "o3"
       # Ensure it's recognized as a reasoning model eligible for the slow-path UX
       expect(Monadic::Utils::ModelSpec.is_reasoning_model?(o3_model)).to be true
     end
-    
-    it "should show 'This may take a while' only for o3-pro models" do
+
+    it "should show 'This may take a while' only for slow reasoning models" do
       # List of models that should show the processing message
-      # Only o3-pro is guaranteed to be a slow Responses API model in our spec
-      models_with_message = ["o3-pro"]
+      # o3 is a slow Responses API reasoning model in our spec
+      models_with_message = ["o3"]
       
       # List of models that should NOT show the message
       models_without_message = [
@@ -56,7 +56,7 @@ RSpec.describe "OpenAI Web Search Processing Message" do
         "gpt-3.5-turbo"
       ]
       
-      # Verify o3-pro is a responses API model and considered slow in helper logic
+      # Verify o3 is a responses API model and considered slow in helper logic
       models_with_message.each do |model|
         # Assert they are recognized as reasoning models (slow-path)
         expect(Monadic::Utils::ModelSpec.is_reasoning_model?(model)).to be true

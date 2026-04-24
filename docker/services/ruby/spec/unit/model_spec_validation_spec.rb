@@ -15,7 +15,7 @@ require_relative "../../lib/monadic/adapters/vendors/perplexity_helper"
 PROJECT_ROOT ||= File.expand_path("../..", __dir__)
 
 # Normalize model name by removing date suffixes
-# e.g., "gpt-5-pro-2025-10-06" → "gpt-5-pro"
+# e.g., "gpt-5.4-pro-2025-10-06" → "gpt-5.4-pro"
 def normalize_model_name(model)
   model.sub(/-\d{4}-\d{2}-\d{2}$/, '')
 end

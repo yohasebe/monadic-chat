@@ -44,21 +44,6 @@ const modelSpec = {
     "supports_web_search": true,
     "skip_in_progress_events": true
   },
-  "gpt-5-pro": {
-    "context_window" : [1, 400000],
-    "max_output_tokens" : [1, 272000],
-    "reasoning_effort": [["high"], "high"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_structured_output": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "supports_image_generation": true,
-    "supports_pdf_upload": true,
-    "supports_file_inputs": true,
-    "skip_in_progress_events": true,
-    "streaming_not_supported": true
-  },
   // gpt-4.1 models
   "gpt-4.1": {
     "context_window" : [1, 1047576],
@@ -440,16 +425,6 @@ const modelSpec = {
     "supports_pdf": false,
     "supports_pdf_upload": false
   },
-  // reasoning models
-  "o1-pro": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_streaming": false,
-    "requires_confirmation": true
-  },
   // O3 series models
   "o3": {
     "context_window": [1, 200000],
@@ -466,24 +441,6 @@ const modelSpec = {
     "latency_tier": "slow",
     "is_reasoning_model": true
   },
-  "o3-pro": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
-    "supports_streaming": false,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "latency_tier": "slow",
-    "is_reasoning_model": true,
-    "supports_file_inputs": true,
-    "requires_confirmation": true
-  },
   "o3-mini": {
     "context_window": [1, 200000],
     "max_output_tokens": [1, 100000],
@@ -495,18 +452,6 @@ const modelSpec = {
     "vision_capability": false,
     "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
     "api_type": "responses",
-    "is_reasoning_model": true
-  },
-  "o3-deep-research": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "high"],
     "is_reasoning_model": true
   },
   // O4 series models
@@ -522,17 +467,6 @@ const modelSpec = {
     "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
     "api_type": "responses",
     "supports_web_search": true
-  },
-  "o4-mini-deep-research": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "high"]
   },
   // Anthropic models
   "claude-opus-4-7": {

@@ -44,68 +44,6 @@ const modelSpec = {
     "supports_web_search": true,
     "skip_in_progress_events": true
   },
-  // gpt-4.1 models
-  "gpt-4.1": {
-    "context_window" : [1, 1047576],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf_upload": true,
-    "supports_file_inputs": true,
-    "api_type": "responses",
-    "skip_in_progress_events": true
-  },
-  "gpt-4.1-mini": {
-    "context_window" : [1, 1047576],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf_upload": true,
-    "supports_file_inputs": true,
-    "api_type": "responses",
-    "skip_in_progress_events": true
-  },
-  "gpt-4.1-nano": {
-    "context_window" : [1, 1047576],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_file_inputs": true,
-    "api_type": "responses",
-    "skip_in_progress_events": true
-  },
-  "gpt-5-chat-latest": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "verbosity": [["medium"], "medium"],
-    "supports_structured_output": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "supports_image_generation": true,
-    "supports_pdf_upload": true,
-    "supports_file_inputs": true,
-    "skip_in_progress_events": true
-  },
   // gpt-5.1 models
   "gpt-5.1": {
     "context_window" : [1, 400000],
@@ -117,25 +55,6 @@ const modelSpec = {
     "supports_structured_output": true,
     "api_type": "responses",
     "supports_web_search": true,
-    "supports_pdf_upload": true,
-    "supports_file_inputs": true,
-    "skip_in_progress_events": true
-  },
-  "gpt-5.1-chat-latest": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "reasoning_effort": [["medium"], "medium"],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "verbosity": [["medium"], "medium"],
-    "supports_structured_output": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "supports_image_generation": true,
     "supports_pdf_upload": true,
     "supports_file_inputs": true,
     "skip_in_progress_events": true
@@ -255,46 +174,6 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
-  // GPT-5.2 Instant (fast, everyday tasks)
-  "gpt-5.2-chat-latest": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "reasoning_effort": [["medium"], "medium"],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "verbosity": [["medium"], "medium"],
-    "supports_structured_output": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "supports_image_generation": true,
-    "supports_pdf_upload": true,
-    "supports_file_inputs": true,
-    "skip_in_progress_events": true
-  },
-  // GPT-5.3 Instant (smoother everyday tasks, hallucination reduction)
-  "gpt-5.3-chat-latest": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "reasoning_effort": [["medium"], "medium"],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "verbosity": [["medium"], "medium"],
-    "supports_structured_output": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "supports_image_generation": true,
-    "supports_pdf_upload": true,
-    "supports_file_inputs": true,
-    "skip_in_progress_events": true
-  },
   // GPT-5.4 Thinking (frontier model, 1M context, computer use)
   "gpt-5.4": {
     "context_window": [1, 1050000],
@@ -389,7 +268,7 @@ const modelSpec = {
     "supports_file_inputs": true,
     "deprecated": true,
     "sunset_date": "2026-06-30",
-    "successor": "gpt-4.1"
+    "successor": "gpt-5.4-mini"
   },
   "gpt-4o-mini": {
     "context_window" : [1, 128000],
@@ -404,7 +283,7 @@ const modelSpec = {
     "supports_file_inputs": true,
     "deprecated": true,
     "sunset_date": "2026-06-30",
-    "successor": "gpt-4.1-mini"
+    "successor": "gpt-5.4-nano"
   },
   // GPT-5-Codex (agent model for coding tasks)
   "gpt-5-codex": {
@@ -424,49 +303,6 @@ const modelSpec = {
     "supports_web_search": false,
     "supports_pdf": false,
     "supports_pdf_upload": false
-  },
-  // O3 series models
-  "o3": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
-    "api_type": "responses",
-    "supports_web_search": true,
-    "latency_tier": "slow",
-    "is_reasoning_model": true
-  },
-  "o3-mini": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": false,
-    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
-    "api_type": "responses",
-    "is_reasoning_model": true
-  },
-  // O4 series models
-  "o4-mini": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
-    "api_type": "responses",
-    "supports_web_search": true
   },
   // Anthropic models
   "claude-opus-4-7": {
@@ -1309,9 +1145,9 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-5.1", "gpt-4.1"],
-    "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-4.1"],
-    "vision": ["gpt-4.1-mini"],
+    "chat": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-5.1"],
+    "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.4-mini"],
+    "vision": ["gpt-5.4-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
     "image": ["gpt-image-2", "gpt-image-1.5", "chatgpt-image-latest"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"],

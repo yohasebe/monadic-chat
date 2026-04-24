@@ -26,7 +26,7 @@ RSpec.describe "API /api/models endpoint" do
         "tool_capability" => true,
         "vision_capability" => true
       },
-      "gpt-4.1" => {
+      "gpt-5.4" => {
         "temperature" => [[0.0, 2.0], 0.5],
         "custom_override" => true
       }
@@ -51,9 +51,9 @@ RSpec.describe "API /api/models endpoint" do
         result = ModelSpecLoader.load_merged_spec(default_spec_path)
         
         expect(result).to be_a(Hash)
-        expect(result.keys).to include("gpt-4.1", "claude-opus-4-20250514")
-        expect(result["gpt-4.1"]).to have_key("context_window")
-        expect(result["gpt-4.1"]).to have_key("max_output_tokens")
+        expect(result.keys).to include("gpt-5.4", "claude-opus-4-20250514")
+        expect(result["gpt-5.4"]).to have_key("context_window")
+        expect(result["gpt-5.4"]).to have_key("max_output_tokens")
       end
     end
 
@@ -71,12 +71,12 @@ RSpec.describe "API /api/models endpoint" do
         expect(result["test-gpt-5"]["vision_capability"]).to eq(true)
         
         # Existing model should be modified
-        expect(result["gpt-4.1"]["temperature"]).to eq([[0.0, 2.0], 0.5])
-        expect(result["gpt-4.1"]["custom_override"]).to eq(true)
+        expect(result["gpt-5.4"]["temperature"]).to eq([[0.0, 2.0], 0.5])
+        expect(result["gpt-5.4"]["custom_override"]).to eq(true)
         
         # Other properties should be preserved
-        expect(result["gpt-4.1"]).to have_key("context_window")
-        expect(result["gpt-4.1"]).to have_key("tool_capability")
+        expect(result["gpt-5.4"]).to have_key("context_window")
+        expect(result["gpt-5.4"]).to have_key("tool_capability")
         
         # Other models should remain unchanged
         expect(result).to have_key("claude-opus-4-20250514")
@@ -85,7 +85,7 @@ RSpec.describe "API /api/models endpoint" do
       it "handles deep merge correctly" do
         # Create a custom model that partially overrides a complex model
         partial_override = {
-          "o3" => {
+          "gpt-5.4-mini" => {
             "temperature" => [[0.0, 2.0], 0.3],
             "reasoning_effort" => [["low", "medium", "high", "ultra"], "high"]
           }
@@ -95,13 +95,13 @@ RSpec.describe "API /api/models endpoint" do
         result = ModelSpecLoader.load_merged_spec(default_spec_path)
         
         # Check that only specified fields were overridden
-        expect(result["o3"]["temperature"]).to eq([[0.0, 2.0], 0.3])
-        expect(result["o3"]["reasoning_effort"]).to eq([["low", "medium", "high", "ultra"], "high"])
+        expect(result["gpt-5.4-mini"]["temperature"]).to eq([[0.0, 2.0], 0.3])
+        expect(result["gpt-5.4-mini"]["reasoning_effort"]).to eq([["low", "medium", "high", "ultra"], "high"])
         
         # Other fields should remain unchanged
-        expect(result["o3"]).to have_key("context_window")
-        expect(result["o3"]).to have_key("max_output_tokens")
-        expect(result["o3"]).to have_key("tool_capability")
+        expect(result["gpt-5.4-mini"]).to have_key("context_window")
+        expect(result["gpt-5.4-mini"]).to have_key("max_output_tokens")
+        expect(result["gpt-5.4-mini"]).to have_key("tool_capability")
       end
     end
 
@@ -116,7 +116,7 @@ RSpec.describe "API /api/models endpoint" do
         result = ModelSpecLoader.load_merged_spec(default_spec_path)
         
         # Should have default models
-        expect(result).to have_key("gpt-4.1")
+        expect(result).to have_key("gpt-5.4")
         expect(result).to have_key("claude-opus-4-20250514")
         
         # Should not have custom models
@@ -229,7 +229,7 @@ RSpec.describe "API /api/models endpoint" do
       result = ModelSpecLoader.load_merged_spec(default_spec_path)
       
       # Should return default models unchanged
-      expect(result).to have_key("gpt-4.1")
+      expect(result).to have_key("gpt-5.4")
       expect(result).to have_key("claude-opus-4-20250514")
     end
 
@@ -266,7 +266,7 @@ RSpec.describe "API /api/models endpoint" do
       expect(result.keys.size).to be > 100
       expect(result).to have_key("test-model-0")
       expect(result).to have_key("test-model-99")
-      expect(result).to have_key("gpt-4.1")
+      expect(result).to have_key("gpt-5.4")
     end
   end
 end

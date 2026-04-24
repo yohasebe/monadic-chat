@@ -117,7 +117,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_vision_model returns the vision default' do
-      expect(described_class.default_vision_model("openai")).to eq("gpt-4.1-mini")
+      expect(described_class.default_vision_model("openai")).to eq("gpt-5.4-mini")
     end
 
     it '.default_audio_model returns the audio_transcription default' do

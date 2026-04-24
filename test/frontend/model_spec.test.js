@@ -25,32 +25,31 @@ describe('Model Specification', () => {
   
   it('should contain major AI models', () => {
     // Test for some key model categories
-    expect(modelSpec['gpt-4.1']).toBeDefined();
+    expect(modelSpec['gpt-5.4']).toBeDefined();
     expect(modelSpec['claude-sonnet-4-6']).toBeDefined();
     expect(modelSpec['gemini-2.5-flash']).toBeDefined();
     expect(modelSpec['command-a-vision-07-2025']).toBeDefined();
     expect(modelSpec['command-a-reasoning-08-2025']).toBeDefined();
     expect(modelSpec['grok-4-1-fast-reasoning']).toBeDefined();
   });
-  
+
   describe('OpenAI Models', () => {
-    it('should have correct parameters for GPT-4.1 model', () => {
-      const model = modelSpec['gpt-4.1'];
-      
+    it('should have correct parameters for GPT-5.4 model', () => {
+      const model = modelSpec['gpt-5.4'];
+
       // Check essential parameters
-      expect(model.context_window).toEqual([1, 1047576]);
-      expect(model.max_output_tokens).toEqual([1, 32768]);
-      expect(model.temperature).toEqual([[0.0, 2.0], 1.0]);
-      expect(model.top_p).toEqual([[0.0, 1.0], 1.0]);
+      expect(model.context_window).toEqual([1, 1050000]);
+      expect(model.max_output_tokens).toEqual([1, 128000]);
+      expect(model.reasoning_effort[0]).toEqual(expect.arrayContaining(['none', 'low', 'medium', 'high', 'xhigh']));
       expect(model.vision_capability).toBe(true);
     });
-    
+
     it('should have the correct capabilities for GPT models', () => {
       // Check vision capabilities for various models
-      expect(modelSpec['gpt-4.1'].vision_capability).toBe(true);
+      expect(modelSpec['gpt-5.4'].vision_capability).toBe(true);
 
       // Check tool capabilities
-      expect(modelSpec['gpt-4.1'].tool_capability).toBe(true);
+      expect(modelSpec['gpt-5.4'].tool_capability).toBe(true);
     });
 
     it('should have correct parameters for GPT-5.4-mini', () => {

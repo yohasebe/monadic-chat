@@ -2635,7 +2635,7 @@ module OpenAIHelper
       # Debug logging for GPT-5 streaming issues
       if Monadic::Utils::ExtraLogger.enabled?
         current_model = state[:streaming_model] || json["model"] || query["model"] || obj["model"]
-        if current_model && (current_model.to_s.downcase.include?("gpt-5") || current_model.to_s.include?("gpt-4.1"))
+        if current_model && current_model.to_s.downcase.include?("gpt-5")
           Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}, sequence: #{state[:fragment_sequence]}" }
         end
       end

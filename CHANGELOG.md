@@ -7,12 +7,15 @@
   - **Claude 4.0 Sunset Tracking**: Marked `claude-opus-4-20250514` and `claude-sonnet-4-20250514` with sunset 2026-06-15 (per Anthropic's announcement); successor models `claude-opus-4-7` / `claude-sonnet-4-6` already supported.
   - **OpenAI Reasoning Effort Fixes**: Corrected `reasoning_effort` value lists for 6 OpenAI models after API matrix verification, eliminating silent 400 errors (the affected models in o3 / o3-mini / o4-mini / gpt-5.4-mini / gpt-5.4-nano / gpt-5.3-chat-latest were later pruned — see Model Architecture Policy below).
   - **Model Architecture Policy**: Introduced `docs_dev/model_architecture_policy.md` defining a baseline-architecture rule for the model catalog. The OpenAI rule: models that declare sampling params (`temperature`/`top_p`/`presence_penalty`/`frequency_penalty`) without explicitly disabling them, or that force bespoke UX paths, are removed from the catalog even before their official sunset.
-  - **Model Catalog Cleanup**: Removed 15 OpenAI models to conform to the new policy.
+  - **Model Catalog Cleanup**: Removed 17 OpenAI models to conform to the new policy.
     - Non-streaming / incomplete spec: `o1-pro`, `o3-pro`, `gpt-5-pro`, `o3-deep-research`, `o4-mini-deep-research`
     - Sampling params declared (o-series): `o3`, `o3-mini`, `o4-mini`
     - Sampling params declared (gpt-4.1): `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
     - Sampling params declared (chat-latest): `gpt-5-chat-latest`, `gpt-5.1-chat-latest`, `gpt-5.2-chat-latest`, `gpt-5.3-chat-latest`
+    - Long-thinking Pro tier (product-level exclusion): `gpt-5.4-pro`, `gpt-5.2-pro` — priced 4-10x base, drop standard chat capabilities, target async reasoning workflows incompatible with interactive chat UX.
     - `providerDefaults`, gpt-4o successor pointers, and four OpenAI MDSL apps updated to reference the remaining baseline-compatible models.
+  - **GPT-5.5 Integration**: Added `gpt-5.5` (1M context, 128K output, Responses API, shares gpt-5.4 architecture). Policy baseline shifted from `gpt-5.4` to `gpt-5.5`; the gpt-5.4 family remains as a clean architectural subset. `providerDefaults.chat` keeps `gpt-5.4` at position 0 for cost-conscious defaults (gpt-5.5 is $5/$30 per 1M vs gpt-5.4 at $1.25/$10); gpt-5.5 is inserted after the 5.4 family.
+  - **Chat Model Dropdown Filter**: `filterModelsForAllMode` now excludes non-chat modalities (`tts_capability === true` and models with `embedding_dimensions`), preventing TTS / embedding entries from leaking into chat model selection dropdowns.
   - **Build Process**: `npm run build:mac-arm64` / `build:win` / `build:linux-*` now rebuild the JS bundle (`build:js`) automatically before invoking electron-builder, preventing stale-bundle regressions in packaged builds.
 - [April, 2026] 1.0.0-beta.12
   - **Expressive Speech — Instruction Mode (OpenAI `gpt-4o-mini-tts`)**: The assistant emits a separate voice directive (tone, pacing, emotion, pronunciation, pauses) that the engine reads but does not speak aloud. Two encodings coexist: JSON sibling key for Monadic apps, sentinel-prefix (`<<TTS:…>>`) for non-Monadic apps. The directive never appears in the chat transcript.

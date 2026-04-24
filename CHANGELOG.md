@@ -5,11 +5,15 @@
     - Legacy `deepseek-chat` / `deepseek-reasoner` marked with sunset 2026-07-24
     - `dispatch_deepseek_tool_results` extended to handle V4 thinking-mode `reasoning_content` streaming
   - **Claude 4.0 Sunset Tracking**: Marked `claude-opus-4-20250514` and `claude-sonnet-4-20250514` with sunset 2026-06-15 (per Anthropic's announcement); successor models `claude-opus-4-7` / `claude-sonnet-4-6` already supported.
-  - **OpenAI Reasoning Effort Fixes**: Corrected `reasoning_effort` value lists for 6 OpenAI models after API matrix verification, eliminating silent 400 errors.
-    - `gpt-5.3-chat-latest`: restricted to `medium` only (other values returned 400)
-    - `gpt-5.4-mini` / `gpt-5.4-nano`: added `none` and `xhigh` (5-value vocabulary)
-    - `o3` / `o3-mini` / `o4-mini`: added `xhigh` (was previously omitted)
-  - **Model Catalog Cleanup**: Removed 5 OpenAI models incompatible with the gpt-5.4 baseline architecture (non-streaming path, incomplete spec, or bespoke UX requirements): `o1-pro`, `o3-pro`, `gpt-5-pro`, `o3-deep-research`, `o4-mini-deep-research`.
+  - **OpenAI Reasoning Effort Fixes**: Corrected `reasoning_effort` value lists for 6 OpenAI models after API matrix verification, eliminating silent 400 errors (the affected models in o3 / o3-mini / o4-mini / gpt-5.4-mini / gpt-5.4-nano / gpt-5.3-chat-latest were later pruned — see Model Architecture Policy below).
+  - **Model Architecture Policy**: Introduced `docs_dev/model_architecture_policy.md` defining a baseline-architecture rule for the model catalog. The OpenAI rule: models that declare sampling params (`temperature`/`top_p`/`presence_penalty`/`frequency_penalty`) without explicitly disabling them, or that force bespoke UX paths, are removed from the catalog even before their official sunset.
+  - **Model Catalog Cleanup**: Removed 15 OpenAI models to conform to the new policy.
+    - Non-streaming / incomplete spec: `o1-pro`, `o3-pro`, `gpt-5-pro`, `o3-deep-research`, `o4-mini-deep-research`
+    - Sampling params declared (o-series): `o3`, `o3-mini`, `o4-mini`
+    - Sampling params declared (gpt-4.1): `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
+    - Sampling params declared (chat-latest): `gpt-5-chat-latest`, `gpt-5.1-chat-latest`, `gpt-5.2-chat-latest`, `gpt-5.3-chat-latest`
+    - `providerDefaults`, gpt-4o successor pointers, and four OpenAI MDSL apps updated to reference the remaining baseline-compatible models.
+  - **Build Process**: `npm run build:mac-arm64` / `build:win` / `build:linux-*` now rebuild the JS bundle (`build:js`) automatically before invoking electron-builder, preventing stale-bundle regressions in packaged builds.
 - [April, 2026] 1.0.0-beta.12
   - **Expressive Speech — Instruction Mode (OpenAI `gpt-4o-mini-tts`)**: The assistant emits a separate voice directive (tone, pacing, emotion, pronunciation, pauses) that the engine reads but does not speak aloud. Two encodings coexist: JSON sibling key for Monadic apps, sentinel-prefix (`<<TTS:…>>`) for non-Monadic apps. The directive never appears in the chat transcript.
     - New family `openai-instruction` in TTS dispatch (Ruby + JS mirror)

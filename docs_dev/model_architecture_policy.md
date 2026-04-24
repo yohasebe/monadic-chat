@@ -14,7 +14,7 @@ A model "diverges" when it forces bespoke handling in the helper code or produce
 
 | Provider | Baseline model | Primary characteristics |
 |---|---|---|
-| OpenAI | `gpt-5.4` | Responses API, no sampling params, `reasoning_effort: [none, low, medium, high, xhigh]`, streaming |
+| OpenAI | `gpt-5.5` | Responses API, no sampling params, `reasoning_effort: [none, low, medium, high, xhigh]`, streaming. `gpt-5.4` family remains in the catalog as an architecturally clean subset (same spec, cheaper tier). |
 | Anthropic | `claude-opus-4-7` / `claude-sonnet-4-6` | Messages API, thinking + adaptive thinking, no sampling params |
 | Google | `gemini-3-flash-preview` (preview is current — special case) | `generate_content`, thinking budget |
 | xAI | `grok-4-1-fast-*` | `/v1/chat/completions`, reasoning toggle via model variant |
@@ -36,6 +36,18 @@ An OpenAI model is **eligible** for inclusion if **both** of the following hold:
 - `supports_streaming: false` — same.
 - Incomplete spec: missing `api_type` when the provider's baseline has it.
 - `latency_tier: "slow"` combined with `requires_confirmation: true` — requires bespoke UX paths that are not justified for past-generation models.
+
+### Product-level exclusion: "long-thinking Pro" variants
+
+Independently of the architecture rule, **"Pro" tier models that target long asynchronous reasoning workloads are excluded** from the Monadic Chat catalog. Examples: `gpt-5-pro`, `gpt-5.2-pro`, `gpt-5.4-pro`, `gpt-5.5-pro`.
+
+**Why:** These models:
+- Are priced 4-10x the base model (e.g., gpt-5.4-pro vs gpt-5.4).
+- Commonly drop standard chat capabilities (web search, vision, PDF, structured output).
+- Target async "answer after minutes" workflows, not interactive streaming chat.
+- `requires_confirmation: true` is a symptom, not the root cause — these models don't fit Monadic Chat's interactive UX regardless of the confirmation gate.
+
+**Exception:** If a provider's entire lineup is "pro-style" (e.g., some reasoning-only vendors), a pro model may be the only available option and should be kept with `requires_confirmation`. This is judged case-by-case.
 
 ## Application Examples
 
@@ -62,6 +74,22 @@ An OpenAI model is **eligible** for inclusion if **both** of the following hold:
 - GPT-5 / -mini / -nano (Responses API, no sampling params — clean subset)
 - All codex models (`supports_*: false` flags — architecturally clean)
 - `gpt-4o` / `gpt-4o-mini` (deprecated, sunset 2026-06-30)
+
+### beta.13 (2026-04-25) — gpt-5.5 integration + Pro exclusion
+
+When `gpt-5.5` launched, two policy actions ran together:
+
+**Baseline shift:** `gpt-5.5` replaces `gpt-5.4` as the OpenAI baseline. The gpt-5.4 family is architecturally identical (Responses API, no sampling params, same reasoning vocabulary) and remains in the catalog as a clean subset — **no gpt-5.4 deletions were triggered**.
+
+**Added:**
+- `gpt-5.5` (architecturally clean, 5-value reasoning, Responses API)
+
+**Removed (Pro exclusion rule applied):**
+- `gpt-5.4-pro` — long-thinking tier, reduced capabilities (no vision/web search/PDF/structured output), `requires_confirmation: true`.
+- `gpt-5.2-pro` — same pattern.
+- `gpt-5.5-pro` — not added (would match the same exclusion).
+
+**providerDefaults order:** gpt-5.4 retained at position 0 for cost-conscious defaults ($1.25/M input vs gpt-5.5 at $5.00/M). gpt-5.5 inserted after the 5.4 family. This reflects a product judgment: the catalog baseline (architecture source of truth) and the fallback default (cost/UX profile) can intentionally diverge.
 
 ## Applying to Other Providers
 

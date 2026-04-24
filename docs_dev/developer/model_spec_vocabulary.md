@@ -203,7 +203,7 @@ The UI provides an "All" toggle next to the Model dropdown. When OFF (default), 
 | Agent-only models | `ui_hidden: true` | Always (both modes) | None |
 
 **Rationale:**
-- `requires_confirmation` models (e.g., `gpt-5.4-pro`) are high-cost and should only be selected intentionally via MDSL or providerDefaults, not through casual browsing.
+- `requires_confirmation` models are high-cost and should only be selected intentionally via MDSL or providerDefaults, not through casual browsing. OpenAI's long-thinking Pro tier is excluded from the catalog entirely per `docs_dev/model_architecture_policy.md`; this flag remains available for providers whose lineup requires explicit user opt-in.
 - `tool_capability: false` models cannot work with most apps (which define tools). The Perplexity exception exists because all Perplexity models lack tool support — excluding them would leave an empty list.
 - The toggle state is persisted via cookie (`show-all-models`) across sessions.
 

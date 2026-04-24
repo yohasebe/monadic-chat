@@ -994,6 +994,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "reasoning_content": ["disabled", "enabled"],
+    "deprecated": true,
     "sunset_date": "2026-07-24",
     "successor": "deepseek-v4-flash"
   },
@@ -1006,6 +1007,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "reasoning_content": ["disabled", "enabled"],
     "tool_capability": true,
+    "deprecated": true,
     "sunset_date": "2026-07-24",
     "successor": "deepseek-v4-flash"
   },
@@ -1177,7 +1179,7 @@ const providerDefaults = {
     "chat": ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]
   },
   "deepseek": {
-    "chat": ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"]
+    "chat": ["deepseek-v4-flash", "deepseek-v4-pro"]
   },
   "ollama": {
     "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]

@@ -117,7 +117,7 @@ module DeepSeekHelper
     end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "deepseek-chat")
+  def send_query(options, model: "deepseek-v4-flash")
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     

@@ -51,7 +51,7 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-03-2025")
         expect(agent.send(:determine_provider_and_model, "perplexity", nil)[1]).to eq("sonar")
-        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-chat")
+        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
       end
     end
     

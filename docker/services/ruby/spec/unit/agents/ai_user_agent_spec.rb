@@ -362,7 +362,7 @@ RSpec.describe AIUserAgent do
         "mistral" => "mistral-large-latest",
         "grok" => "grok-4-1-fast-non-reasoning",
         "perplexity" => "sonar",
-        "deepseek" => "deepseek-chat",
+        "deepseek" => "deepseek-v4-flash",
         "cohere" => "command-a-03-2025"
       }
 

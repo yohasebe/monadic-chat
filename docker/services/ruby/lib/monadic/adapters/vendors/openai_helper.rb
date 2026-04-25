@@ -1109,23 +1109,44 @@ module OpenAIHelper
         end
 
         if has_reasoning || content || !tool_calls.empty?
-          output_items << {
-            "type" => "message",
-            "role" => "assistant",
-            "content" => [{ "type" => "output_text", "text" => content.to_s }]
-          }
+          # Prefer original message item (preserves phase + future unknown fields).
+          # Fall back to constructed item if not captured.
+          message_items_payload = msg["message_items"] || msg[:message_items]
+          if message_items_payload && !message_items_payload.empty?
+            Array(message_items_payload).each do |entry|
+              next unless entry.is_a?(Hash)
+              normalized = entry.transform_keys { |k| k.to_s }
+              normalized.delete("id")
+              output_items << normalized
+            end
+          else
+            output_items << {
+              "type" => "message",
+              "role" => "assistant",
+              "content" => [{ "type" => "output_text", "text" => content.to_s }]
+            }
+          end
         end
 
         tool_calls.each do |tool_call|
           call_id = tool_call["id"] || tool_call[:id]
-          fc_id = call_id.start_with?("fc_") ? call_id : "fc_#{SecureRandom.hex(16)}"
-          output_items << {
-            "type" => "function_call",
-            "id" => fc_id,
-            "call_id" => call_id,
-            "name" => tool_call.dig("function", "name") || tool_call.dig(:function, :name),
-            "arguments" => tool_call.dig("function", "arguments") || tool_call.dig(:function, :arguments)
-          }
+          # Prefer original function_call item (preserves phase + future unknown fields).
+          raw_item = tool_call["raw_item"] || tool_call[:raw_item]
+          if raw_item.is_a?(Hash)
+            normalized = raw_item.transform_keys { |k| k.to_s }
+            normalized["type"] ||= "function_call"
+            normalized.delete("id")
+            output_items << normalized
+          else
+            fc_id = call_id.start_with?("fc_") ? call_id : "fc_#{SecureRandom.hex(16)}"
+            output_items << {
+              "type" => "function_call",
+              "id" => fc_id,
+              "call_id" => call_id,
+              "name" => tool_call.dig("function", "name") || tool_call.dig(:function, :name),
+              "arguments" => tool_call.dig("function", "arguments") || tool_call.dig(:function, :arguments)
+            }
+          end
         end
 
         output_items
@@ -2463,6 +2484,7 @@ module OpenAIHelper
       reasoning_indices: {},
       current_reasoning_id: nil,
       reasoning_items_raw: {},  # Store original reasoning items for reconstruction
+      message_items_raw: [],    # Store original message items (preserves phase + future unknown fields)
       web_search_results: [],
       file_search_results: [],
       image_generation_status: {},
@@ -2679,6 +2701,8 @@ module OpenAIHelper
           state[:tools][item_id]["name"] = item["name"] if item["name"]
           state[:tools][item_id]["call_id"] = item["call_id"] if item["call_id"]
           state[:tools][item_id]["arguments"] ||= ""
+          # Preserve full item for replay (phase + any future unknown fields)
+          state[:tools][item_id]["raw_item"] = item.dup
         end
         res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
         block&.call res
@@ -2728,7 +2752,12 @@ module OpenAIHelper
           state[:tools][item_id]["arguments"] = item["arguments"] if item["arguments"]
           state[:tools][item_id]["call_id"] = item["call_id"] if item["call_id"]
           state[:tools][item_id]["completed"] = true
+          # Update raw_item with the done version (has full arguments, phase, etc.)
+          state[:tools][item_id]["raw_item"] = item.dup
         end
+      elsif item && item["type"] == "message"
+        # Preserve full message item for replay (phase + future unknown fields)
+        state[:message_items_raw] << item.dup
       elsif item && item["type"] == "reasoning"
         rid = item["id"]
         state[:current_reasoning_id] = rid if rid
@@ -3012,7 +3041,8 @@ module OpenAIHelper
           "function" => {
             "name" => tool_data["name"] || "unknown",
             "arguments" => tool_data["arguments"]
-          }
+          },
+          "raw_item" => tool_data["raw_item"]
         }
       elsif tool_data["mcp_completed"] && tool_data["mcp_arguments"]
         function_results << {
@@ -3028,12 +3058,14 @@ module OpenAIHelper
 
     return nil unless function_results.any?
 
-    # Convert to standard format for process_functions
+    # Convert to standard format for process_functions, preserving raw_item for phase replay
     tool_calls = function_results.map do |result|
-      {
+      tc = {
         "id" => result["id"],
         "function" => result["function"]
       }
+      tc["raw_item"] = result["raw_item"] if result["raw_item"]
+      tc
     end
 
     # Build context with any text content so far.
@@ -3086,6 +3118,12 @@ module OpenAIHelper
       end.flatten.join("\n\n").strip
       message["reasoning_content"] = reasoning_text_combined unless reasoning_text_combined.empty?
       obj["reasoning_context"] = JSON.parse(JSON.generate(reasoning_entries.last(REASONING_CONTEXT_MAX)))
+    end
+
+    # Preserve original message items so phase (and future fields) survive replay.
+    # Required when manually managing state for GPT-5.5+ — see docs_dev/model_architecture_policy.md.
+    if state[:message_items_raw] && !state[:message_items_raw].empty?
+      message["message_items"] = state[:message_items_raw].map { |it| it.transform_keys(&:to_s) }
     end
 
     context << message

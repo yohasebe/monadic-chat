@@ -260,6 +260,7 @@ include:
   - "${ROOT_DIR}/services/pgvector/compose.yml"
   - "${ROOT_DIR}/services/python/compose.yml"
   - "${ROOT_DIR}/services/selenium/compose.yml"
+  - "${ROOT_DIR}/services/privacy/compose.yml"
 ${compose_user}
 
 networks:
@@ -271,13 +272,18 @@ volumes:
 EOF
     COMPOSE_MAIN="${HOME_DIR}/monadic/config/compose.yml"
   fi
-  
+
   # Check for compose.override.yml
   COMPOSE_OVERRIDE="${ROOT_DIR}/services/compose.override.yml"
   if [[ -f "${COMPOSE_OVERRIDE}" ]]; then
     COMPOSE_FILES="-f \"${COMPOSE_MAIN}\" -f \"${COMPOSE_OVERRIDE}\""
   else
     COMPOSE_FILES="-f \"${COMPOSE_MAIN}\""
+  fi
+
+  # Privacy dev overlay: expose host port only in dev mode and when privacy is enabled
+  if [[ "${MONADIC_DEV:-false}" == "true" ]] && [[ "${PRIVACY_FILTER:-false}" == "true" ]]; then
+    COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.dev.yml\""
   fi
   
   # Debug: log the compose files being used
@@ -1884,8 +1890,8 @@ import-db)
   ;;
 ensure-service)
   # On-demand container startup for profiled services.
-  # Called by Ruby when an app requires Python/Selenium.
-  # Usage: monadic.sh ensure-service python|selenium
+  # Called by Ruby when an app requires Python/Selenium/Privacy.
+  # Usage: monadic.sh ensure-service python|selenium|privacy
   SERVICE_NAME="${2:-}"
   set_docker_compose
   case "$SERVICE_NAME" in
@@ -1909,10 +1915,44 @@ ensure-service)
         echo "ALREADY_RUNNING"
       fi
       ;;
+    privacy)
+      # Privacy requires explicit user opt-in via PRIVACY_FILTER=true (build-time choice).
+      # If the image was never built, this returns PRIVACY_DISABLED so the caller can
+      # show the "open Settings to enable" dialog.
+      if [[ "${PRIVACY_FILTER:-false}" != "true" ]]; then
+        echo "PRIVACY_DISABLED"
+      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+        echo "PRIVACY_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-privacy-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy up -d privacy_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
     *)
       echo "Unknown service: ${SERVICE_NAME}" >&2
       ;;
   esac
+  ;;
+build_privacy_container)
+  # Build the privacy container based on PRIVACY_FILTER + PRIVACY_LANGS env.
+  # Triggered from the Settings → Actions panel (Block C).
+  if [[ "${PRIVACY_FILTER:-false}" != "true" ]]; then
+    echo "[INFO] Privacy Filter is disabled (PRIVACY_FILTER=false). Skipping build."
+    exit 0
+  fi
+  ensure_data_dir "privacy" 2>/dev/null || true
+  set_docker_compose
+  build_log="${HOME_DIR}/monadic/log/docker_build.log"
+  echo "[INFO] Building privacy container (PRIVACY_LANGS=${PRIVACY_LANGS:-en})..."
+  eval "PRIVACY_LANGS=\"${PRIVACY_LANGS:-en}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
+  if ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+    echo "[INFO] Privacy container build succeeded."
+  else
+    echo "[ERROR] Privacy container build failed. See ${build_log}."
+    exit 1
+  fi
   ;;
 *)
   echo "Usage: $0 {build|start|stop|restart|update|remove|check}" >&2

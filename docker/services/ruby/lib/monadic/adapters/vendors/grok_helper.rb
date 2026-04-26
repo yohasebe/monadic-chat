@@ -465,7 +465,7 @@ module GrokHelper
     # the app does not declare `privacy do; enabled true; end` in MDSL. Grok
     # uses the Responses API shape (body["input"]).
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings) && body["input"].is_a?(Array)
+    if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
       body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
     end
 

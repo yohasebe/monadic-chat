@@ -259,6 +259,50 @@ RSpec.describe BaseVendorHelper do
     end
   end
 
+  describe '#privacy_enabled_for? two-gate activation' do
+    subject(:helper) do
+      Class.new { include BaseVendorHelper }.new
+    end
+
+    let(:enabled_settings) { { privacy: { enabled: true } } }
+    let(:disabled_settings) { { privacy: { enabled: false } } }
+
+    it 'returns false when app_settings is nil' do
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(nil, session)).to be false
+    end
+
+    it 'returns false when MDSL privacy is disabled, even if session opts in' do
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(disabled_settings, session)).to be false
+    end
+
+    it 'returns false when MDSL enables but session does not opt in' do
+      session = { parameters: { 'privacy_session_enabled' => false } }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
+    end
+
+    it 'returns false when session is nil' do
+      expect(helper.privacy_enabled_for?(enabled_settings, nil)).to be false
+    end
+
+    it 'returns false when session has no parameters key' do
+      expect(helper.privacy_enabled_for?(enabled_settings, {})).to be false
+    end
+
+    it 'returns true only when both MDSL and session opt in' do
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be true
+    end
+
+    it 'accepts session[:parameters] (symbol) and session["parameters"] (string) keys' do
+      sym_session = { parameters: { 'privacy_session_enabled' => true } }
+      str_session = { 'parameters' => { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(enabled_settings, sym_session)).to be true
+      expect(helper.privacy_enabled_for?(enabled_settings, str_session)).to be true
+    end
+  end
+
   describe '#apply_privacy_to_messages with Claude-shape content' do
     subject(:helper) do
       Class.new do

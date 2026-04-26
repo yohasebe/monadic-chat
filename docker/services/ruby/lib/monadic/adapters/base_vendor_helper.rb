@@ -181,12 +181,20 @@ module BaseVendorHelper
   # restore_response_text after the response text is finalized. The work is
   # delegated to a session-scoped Pipeline so registry state survives across
   # turns within the same conversation.
-  def privacy_enabled_for?(app_settings)
-    app_settings && app_settings.dig(:privacy, :enabled) == true
+  #
+  # Two-gate activation: the app must declare `privacy do; enabled true; end`
+  # in MDSL AND the user must opt in via the session-level toggle (in Session
+  # Controls). Default OFF means privacy filter is fully opt-in per session.
+  def privacy_enabled_for?(app_settings, session = nil)
+    return false unless app_settings && app_settings.dig(:privacy, :enabled) == true
+    return false unless session.is_a?(Hash)
+    params = session[:parameters] || session["parameters"]
+    return false unless params.is_a?(Hash)
+    params["privacy_session_enabled"] == true
   end
 
   def privacy_pipeline_for(session, app_settings)
-    return nil unless privacy_enabled_for?(app_settings)
+    return nil unless privacy_enabled_for?(app_settings, session)
     session[:_privacy_pipeline] ||= begin
       require_relative '../utils/privacy/pipeline'
       Monadic::Utils::Privacy::Pipeline.new(

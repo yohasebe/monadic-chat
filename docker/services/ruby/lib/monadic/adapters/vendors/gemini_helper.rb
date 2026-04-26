@@ -1981,7 +1981,7 @@ module GeminiHelper
     # Privacy Filter: mask user-message PII before sending to Gemini. No-op
     # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings) && body["contents"].is_a?(Array)
+    if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
       body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
     end
 

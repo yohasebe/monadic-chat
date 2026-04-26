@@ -312,6 +312,10 @@ module WebSocketHelper
     session[:monadic_state]&.clear  # Reset conversation context for Session Context panel
     session[:error] = nil
     session[:obj] = nil
+    # Clear cached privacy pipeline so a new session can re-evaluate the
+    # session-level toggle. Without this, the locked-once-set Pipeline
+    # would survive Reset and ignore the user's new toggle choice.
+    session.delete(:_privacy_pipeline)
     # Clear provider-specific media references to prevent cross-session leakage
     session.keys
       .select { |k| k.is_a?(Symbol) && (k.to_s.match?(/last_image|last_video/) || k == :tool_html_fragments) }

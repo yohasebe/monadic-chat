@@ -50,6 +50,10 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
+  // Privacy Filter session-level toggle. Default OFF; only honored by the
+  // backend when the app's MDSL declares `privacy do; enabled true; end`.
+  const privacySessionEl = $id("check-privacy-session");
+  clone.privacy_session_enabled = (privacySessionEl && privacySessionEl.checked) || false;
   const mathEl = $id("math");
   clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
@@ -2190,6 +2194,40 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("audio-upload"));
     }
 
+    // Privacy Filter session toggle: enable only for apps that declare
+    // `privacy do; enabled true; end` in MDSL. Resets to OFF on every app
+    // change. The lock-on-first-message state lives in window.privacyToggleLocked
+    // and is cleared here so the new session starts editable.
+    {
+      const privacyEl = $id("check-privacy-session");
+      const privacyLabel = $id("check-privacy-session-label");
+      const supportsPrivacy = toBool(apps[appValue]["privacy_enabled"]);
+      window.privacyToggleLocked = false;
+      if (privacyEl) {
+        privacyEl.checked = false;
+        privacyEl.disabled = !supportsPrivacy;
+        if (supportsPrivacy) {
+          privacyEl.removeAttribute("title");
+        } else {
+          const tip = (typeof webUIi18n !== "undefined")
+            ? webUIi18n.t("ui.privacyFilterUnsupported")
+            : "This app does not support Privacy Filter.";
+          privacyEl.setAttribute("title", tip);
+        }
+      }
+      if (privacyLabel) {
+        if (supportsPrivacy) {
+          privacyLabel.removeAttribute("title");
+        } else {
+          const tip = (typeof webUIi18n !== "undefined")
+            ? webUIi18n.t("ui.privacyFilterUnsupported")
+            : "This app does not support Privacy Filter.";
+          privacyLabel.setAttribute("title", tip);
+        }
+      }
+      params["privacy_session_enabled"] = false;
+    }
+
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
 
     let model;
@@ -2429,6 +2467,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('easy_submit_toggle');
+    }
+  })
+
+  $on($id("check-privacy-session"), "change", function() {
+    // Once locked (first message sent), the disabled attribute prevents
+    // further changes. This handler only fires while the toggle is editable.
+    params["privacy_session_enabled"] = !!this.checked;
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('privacy_session_toggle');
     }
   })
 
@@ -2977,6 +3024,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         ws.send(JSON.stringify(params));
+        // Lock the Privacy Filter toggle once the first message of the
+        // session has been sent. The locked state is also enforced by the
+        // backend (Pipeline is cached in session[:_privacy_pipeline]).
+        // Reset / app change / new conversation re-enables editing.
+        {
+          const privacyEl = $id("check-privacy-session");
+          if (privacyEl && !privacyEl.disabled) {
+            privacyEl.disabled = true;
+            window.privacyToggleLocked = true;
+          }
+        }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
         }

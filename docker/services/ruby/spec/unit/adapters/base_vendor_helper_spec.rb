@@ -258,4 +258,67 @@ RSpec.describe BaseVendorHelper do
       expect($MODELS[:test_vendor]).to be_nil
     end
   end
+
+  describe '#apply_privacy_to_messages with Claude-shape content' do
+    subject(:helper) do
+      Class.new do
+        include BaseVendorHelper
+      end.new
+    end
+
+    let(:fake_pipeline) do
+      double('Pipeline').tap do |p|
+        allow(p).to receive(:before_send_to_llm) do |raw|
+          masked_text = raw.text.gsub(/Alice/, '<<PERSON_1>>')
+          double('MaskedMessage', text: masked_text)
+        end
+      end
+    end
+
+    before do
+      require_relative '../../../lib/monadic/utils/privacy/types'
+      allow(helper).to receive(:privacy_pipeline_for).and_return(fake_pipeline)
+    end
+
+    it 'masks user-message text in Anthropic-style content array' do
+      messages = [
+        { "role" => "user", "content" => [{ "type" => "text", "text" => "Email Alice" }] }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["text"]).to eq("Email <<PERSON_1>>")
+    end
+
+    it 'leaves image and document blocks untouched while masking text blocks' do
+      messages = [{
+        "role" => "user",
+        "content" => [
+          { "type" => "image", "source" => { "type" => "base64", "data" => "abc" } },
+          { "type" => "text", "text" => "What does Alice think?" },
+          { "type" => "document", "source" => { "type" => "base64", "data" => "pdf" } }
+        ]
+      }]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["type"]).to eq("image")
+      expect(result[0]["content"][0]["source"]["data"]).to eq("abc")
+      expect(result[0]["content"][1]["text"]).to eq("What does <<PERSON_1>> think?")
+      expect(result[0]["content"][2]["type"]).to eq("document")
+    end
+
+    it 'does not mask assistant-role messages' do
+      messages = [
+        { "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] },
+        { "role" => "assistant", "content" => [{ "type" => "text", "text" => "Hello Alice" }] }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["text"]).to eq("Hi <<PERSON_1>>")
+      expect(result[1]["content"][0]["text"]).to eq("Hello Alice")
+    end
+
+    it 'returns messages unchanged when pipeline is nil (privacy disabled)' do
+      allow(helper).to receive(:privacy_pipeline_for).and_return(nil)
+      messages = [{ "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] }]
+      result = helper.apply_privacy_to_messages(messages, {}, nil)
+      expect(result).to eq(messages)
+    end
+  end
 end

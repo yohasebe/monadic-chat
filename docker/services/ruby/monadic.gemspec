@@ -50,6 +50,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rubocop-performance", "~> 1.25"
 
   spec.add_dependency "activesupport", "~> 8.0"
+  spec.add_dependency "argon2", "~> 2.3"
   spec.add_dependency "cld"
   spec.add_dependency "commonmarker", "~> 2.3"
   spec.add_dependency "csv"

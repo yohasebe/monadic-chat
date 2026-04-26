@@ -200,6 +200,10 @@ module BaseVendorHelper
   # Replace user-message text with masked text in-place. Returns a new array
   # so callers can keep the original messages untouched. system_prompt is
   # never masked (Phase 1 RD-3 decision).
+  #
+  # Handles two payload shapes:
+  #   1. Chat Completions: content is a String
+  #   2. Responses API: content is Array of {type, text} items
   def apply_privacy_to_messages(messages, session, app_settings)
     pipeline = privacy_pipeline_for(session, app_settings)
     return messages unless pipeline
@@ -209,11 +213,28 @@ module BaseVendorHelper
       role = msg[:role] || msg["role"]
       next msg unless role.to_s == "user"
       text_key = msg.key?(:content) ? :content : "content"
-      text = msg[text_key]
-      next msg unless text.is_a?(String)
-      raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
-      masked = pipeline.before_send_to_llm(raw)
-      msg.merge(text_key => masked.text)
+      content = msg[text_key]
+
+      if content.is_a?(String)
+        raw = Monadic::Utils::Privacy::RawMessage.new(content, "user", {})
+        masked = pipeline.before_send_to_llm(raw)
+        msg.merge(text_key => masked.text)
+      elsif content.is_a?(Array)
+        new_content = content.map do |item|
+          next item unless item.is_a?(Hash)
+          item_type = (item[:type] || item["type"]).to_s
+          next item unless %w[input_text text].include?(item_type)
+          item_text_key = item.key?(:text) ? :text : "text"
+          text = item[item_text_key]
+          next item unless text.is_a?(String) && !text.empty?
+          raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
+          masked = pipeline.before_send_to_llm(raw)
+          item.merge(item_text_key => masked.text)
+        end
+        msg.merge(text_key => new_content)
+      else
+        msg
+      end
     end
   end
 

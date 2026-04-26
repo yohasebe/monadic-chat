@@ -593,6 +593,14 @@ module MonadicDSL
       class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
     end
 
+    # Add privacy filter settings if specified.
+    # `:privacy_enabled` is a derived flag used by container_dependencies to
+    # decide whether to require the privacy service.
+    unless state.settings[:privacy].nil?
+      class_def << "        @settings[:privacy] = #{state.settings[:privacy].inspect}\n"
+      class_def << "        @settings[:privacy_enabled] = #{state.settings[:privacy_enabled].inspect}\n"
+    end
+
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)
     if state.settings[:agents] && !state.settings[:agents].empty?
       class_def << "        @settings[:agents] = #{state.settings[:agents].inspect}\n"

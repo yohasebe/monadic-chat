@@ -538,6 +538,12 @@ module WebSocketHelper
             send_or_broadcast(content_error, ws_session_id)
             break
           end
+          # Privacy Filter: restore <<TYPE_N>> placeholders before the message
+          # is finalized. Buffer remains masked so the post-completion TTS path
+          # above can still apply sanitize_for_tts independently.
+          if session[:_privacy_pipeline]
+            raw_content = session[:_privacy_pipeline].after_receive_from_llm(raw_content).text
+          end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
           # Fix mount paths in the same way

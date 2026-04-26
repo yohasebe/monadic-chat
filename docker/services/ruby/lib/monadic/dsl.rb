@@ -261,6 +261,22 @@ module MonadicDSL
       end
     end
 
+    # Privacy Filter (PII masking before LLM, restoration on response).
+    # Usage:
+    #   privacy do
+    #     enabled true
+    #     languages ["ja", "en"]
+    #   end
+    # Setting privacy_enabled=true triggers container_dependencies to require
+    # the :privacy service. Container must be built (PRIVACY_FILTER=true env).
+    def privacy(&block)
+      config = PrivacyFilterConfiguration.new
+      config.instance_eval(&block) if block_given?
+      hash = config.to_hash
+      @state.settings[:privacy] = hash
+      @state.settings[:privacy_enabled] = hash[:enabled]
+    end
+
     # Advisor Tool opt-in (Anthropic Advisor Tool beta).
     # Usage:
     #   advisor_tool  # enable with defaults (claude-opus-4-6)

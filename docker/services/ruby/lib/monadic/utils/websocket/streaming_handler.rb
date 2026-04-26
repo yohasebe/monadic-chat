@@ -428,6 +428,13 @@ module WebSocketHelper
         # Clear session tts_text after use to avoid reusing on next request
         session.delete(:tts_text) if tts_text_from_target
 
+        # Privacy Filter: replace any "<<TYPE_N>>" placeholder with "TYPE N" so
+        # TTS reads a sanitized form instead of speaking the bracket symbols.
+        # Idempotent for non-privacy sessions (no-op when no placeholders).
+        if session[:_privacy_pipeline]
+          text = session[:_privacy_pipeline].sanitize_for_tts(text)
+        end
+
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }
 
         # Expressive Speech instruction-mode extraction: when the active TTS

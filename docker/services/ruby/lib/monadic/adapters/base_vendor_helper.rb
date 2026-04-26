@@ -176,6 +176,54 @@ module BaseVendorHelper
     end
   end
 
+  # Privacy Filter integration helpers.
+  # Vendor helpers call apply_privacy_to_messages just before http.post and
+  # restore_response_text after the response text is finalized. The work is
+  # delegated to a session-scoped Pipeline so registry state survives across
+  # turns within the same conversation.
+  def privacy_enabled_for?(app_settings)
+    app_settings && app_settings.dig(:privacy, :enabled) == true
+  end
+
+  def privacy_pipeline_for(session, app_settings)
+    return nil unless privacy_enabled_for?(app_settings)
+    session[:_privacy_pipeline] ||= begin
+      require_relative '../utils/privacy/pipeline'
+      Monadic::Utils::Privacy::Pipeline.new(
+        backend: Monadic::Utils::Privacy::PresidioBackend.new,
+        config: app_settings[:privacy],
+        session: session
+      )
+    end
+  end
+
+  # Replace user-message text with masked text in-place. Returns a new array
+  # so callers can keep the original messages untouched. system_prompt is
+  # never masked (Phase 1 RD-3 decision).
+  def apply_privacy_to_messages(messages, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return messages unless pipeline
+
+    require_relative '../utils/privacy/types'
+    messages.map do |msg|
+      role = msg[:role] || msg["role"]
+      next msg unless role.to_s == "user"
+      text_key = msg.key?(:content) ? :content : "content"
+      text = msg[text_key]
+      next msg unless text.is_a?(String)
+      raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
+      masked = pipeline.before_send_to_llm(raw)
+      msg.merge(text_key => masked.text)
+    end
+  end
+
+  def restore_response_text(text, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return text unless pipeline
+    return text unless text.is_a?(String) && !text.empty?
+    pipeline.after_receive_from_llm(text).text
+  end
+
   # Generic backoff wrapper. Yields a block and retries on common transient
   # network errors. The caller remains responsible for logging.
   def retry_with_backoff(max_retries: DEFAULT_MAX_RETRIES, delay: DEFAULT_RETRY_DELAY)

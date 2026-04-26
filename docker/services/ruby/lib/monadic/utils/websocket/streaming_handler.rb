@@ -542,7 +542,16 @@ module WebSocketHelper
           # is finalized. Buffer remains masked so the post-completion TTS path
           # above can still apply sanitize_for_tts independently.
           if session[:_privacy_pipeline]
-            raw_content = session[:_privacy_pipeline].after_receive_from_llm(raw_content).text
+            pipeline = session[:_privacy_pipeline]
+            raw_content = pipeline.after_receive_from_llm(raw_content).text
+            # Notify frontend of current privacy state so the indicator updates.
+            state_msg = {
+              "type" => "privacy_state",
+              "enabled" => true,
+              "registry_count" => pipeline.registry_count,
+              "error" => nil
+            }.to_json
+            send_or_broadcast(state_msg, ws_session_id)
           end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')

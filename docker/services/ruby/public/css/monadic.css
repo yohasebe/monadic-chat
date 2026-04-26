@@ -5826,3 +5826,31 @@ i.fas.fa-bolt,
   transform: rotate(180deg);
 }
 
+
+/* Privacy Filter indicator (Block C.2). Four states: ready/active/error.
+   OFF state hides the element via inline style="display:none". */
+.privacy-indicator {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78em;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+.privacy-indicator.privacy-ready {
+  background-color: #f1f3f5;
+  color: #6c757d;
+}
+.privacy-indicator.privacy-active {
+  background-color: #d1f4dc;
+  color: #198754;
+}
+.privacy-indicator.privacy-error {
+  background-color: #f8d7da;
+  color: #b02a37;
+}
+.privacy-indicator i {
+  margin-right: 4px;
+}

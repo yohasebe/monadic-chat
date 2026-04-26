@@ -620,6 +620,14 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "privacy_state": {
+        const wph = window.WsPrivacyHandler;
+        if (wph && typeof wph.handleState === 'function') {
+          wph.handleState(data);
+        }
+        break;
+      }
+
       case "tool_executing": {
         const wtoolh = window.WsToolHandler;
         if (wtoolh && typeof wtoolh.handleToolExecuting === 'function') {

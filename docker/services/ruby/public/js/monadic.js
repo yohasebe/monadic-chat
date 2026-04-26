@@ -3043,6 +3043,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }); });
 
   $on($id("save"), "click", async function () {
+    // Privacy Filter: when active, route export through the 3-mode dialog
+    // (encrypted / masked-only / restored) so PII is handled deliberately.
+    if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.isActive === 'function'
+        && window.WsPrivacyHandler.isActive()) {
+      window.WsPrivacyHandler.openExportDialog();
+      return;
+    }
+
     const allMessages = [];
     const initial_prompt = ($id("initial-prompt") || {}).value;
     const sysid = Math.floor(1000 + Math.random() * 9000);

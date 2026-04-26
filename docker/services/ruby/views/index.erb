@@ -941,7 +941,76 @@
             </div>
           </div>
           <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-primary" id="privacy-registry-export-btn">
+              <i class="fas fa-file-export"></i> Export this conversation
+            </button>
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Privacy Export Dialog (Block D.3) -->
+    <div class="modal fade" id="privacyExportModal" tabindex="-1" aria-labelledby="privacyExportLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="privacyExportLabel"><i class="fas fa-file-export"></i> Export Conversation</h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted mb-3">Choose how to export this conversation. Privacy Filter is active — your conversation contains masked PII.</p>
+
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="privacyExportMode" id="privacyExportModeEncrypted" value="encrypted" checked>
+              <label class="form-check-label" for="privacyExportModeEncrypted">
+                <strong>Encrypted with passphrase</strong> <span class="badge bg-success">recommended</span>
+                <div class="small text-muted">Restored conversation, protected by AES-256-GCM + Argon2id.</div>
+              </label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="privacyExportMode" id="privacyExportModeMasked" value="masked_only">
+              <label class="form-check-label" for="privacyExportModeMasked">
+                <strong>Masked placeholders only</strong>
+                <div class="small text-muted">No registry, no PII in the file. Cannot be restored later.</div>
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="radio" name="privacyExportMode" id="privacyExportModeRestored" value="restored">
+              <label class="form-check-label" for="privacyExportModeRestored">
+                <strong>Restored, no encryption</strong> <span class="badge bg-warning text-dark">⚠ plaintext PII</span>
+                <div class="small text-muted">Use only for trusted, local-only workflows.</div>
+              </label>
+            </div>
+
+            <div id="privacy-export-pass-section" style="display:none;">
+              <hr>
+              <label for="privacy-export-passphrase" class="form-label small">Passphrase</label>
+              <input type="password" class="form-control form-control-sm" id="privacy-export-passphrase" autocomplete="new-password">
+              <label for="privacy-export-passphrase-confirm" class="form-label small mt-2">Confirm</label>
+              <input type="password" class="form-control form-control-sm" id="privacy-export-passphrase-confirm" autocomplete="new-password">
+              <div class="mt-2">
+                <div class="privacy-strength-bar"><div id="privacy-strength-fill"></div></div>
+                <div class="small mt-1">
+                  <span id="privacy-strength-label" class="text-muted">Enter a passphrase</span>
+                </div>
+              </div>
+              <div class="small text-muted mt-2">
+                <i class="fas fa-exclamation-circle"></i>
+                This passphrase is the ONLY way to recover your data. Monadic Chat cannot reset it.
+              </div>
+            </div>
+
+            <div id="privacy-export-restored-warning" class="alert alert-warning small mt-2" style="display:none;">
+              <strong>⚠ Plain export selected.</strong> The exported file will contain unencrypted PII.
+              Confirm you understand by clicking Continue.
+            </div>
+
+            <div id="privacy-export-status" class="small mt-2"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" id="privacy-export-continue" disabled>Continue</button>
           </div>
         </div>
       </div>

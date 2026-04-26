@@ -5854,3 +5854,22 @@ i.fas.fa-bolt,
 .privacy-indicator i {
   margin-right: 4px;
 }
+
+/* Privacy Filter export dialog (Block D.3) — strength meter bar */
+.privacy-strength-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.privacy-strength-bar #privacy-strength-fill {
+  height: 100%;
+  width: 0%;
+  background-color: #dc3545;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+.privacy-strength-bar.score-1 #privacy-strength-fill { width: 25%; background-color: #fd7e14; }
+.privacy-strength-bar.score-2 #privacy-strength-fill { width: 50%; background-color: #ffc107; }
+.privacy-strength-bar.score-3 #privacy-strength-fill { width: 75%; background-color: #20c997; }
+.privacy-strength-bar.score-4 #privacy-strength-fill { width: 100%; background-color: #198754; }

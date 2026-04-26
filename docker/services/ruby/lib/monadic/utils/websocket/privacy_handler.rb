@@ -6,12 +6,23 @@ require 'time'
 require_relative '../privacy/export_cipher'
 
 # WebSocket handlers for the Privacy Filter UI (Blocks C.3 + D.2).
-# Provides registry inspection (modal viewer) and 3-mode export.
+# Provides registry inspection (modal viewer) and the unified export dialog.
+#
+# Export uses two orthogonal axes:
+#   - encrypt:  true (AES-256-GCM + Argon2id) | false (plain JSON)
+#   - content:  "restored" (default)          | "masked" (placeholders only)
+#
+# `encrypt` is always available, regardless of whether the Privacy Filter
+# is active in this session — encryption protects files at rest, while the
+# privacy filter protects data in transit to LLM providers. The two
+# concerns are independent.
+#
 # Registry stays in memory only (RD-1); exports are user-driven via UI.
 
 module WebSocketHelper
   PRIVACY_PLACEHOLDER_RE = /\A<<([A-Z_]+)_(\d+)>>\z/
   PRIVACY_EXPORT_MODES = %w[encrypted masked_only restored].freeze
+  PRIVACY_EXPORT_CONTENT = %w[restored masked].freeze
 
   # Respond to "PRIVACY_REGISTRY" requests with the current placeholder map.
   # The payload is intentionally compact (one row per placeholder) and never
@@ -43,19 +54,21 @@ module WebSocketHelper
     end
   end
 
-  # Handle "PRIVACY_EXPORT" requests. Three modes:
-  #   - encrypted   : AES-256-GCM + Argon2id, payload = restored messages + registry
-  #   - masked_only : placeholders only (registry stripped), no encryption
-  #   - restored    : restored messages + registry, plain JSON (warning UI in C.3)
-  # Sends "privacy_export_data" with base64-encoded JSON content for
+  # Handle "PRIVACY_EXPORT" requests. Two orthogonal axes:
+  #   - encrypt: bool (AES-256-GCM + Argon2id with passphrase, or plain JSON)
+  #   - content: "restored" (default) | "masked" (placeholders only, no registry)
+  #
+  # The legacy `mode` parameter ("encrypted"|"masked_only"|"restored") is
+  # accepted for backward compatibility and translated to the new axes.
+  # Sends "privacy_export_data" with base64-encoded JSON content for the
   # download trigger on the client.
   private def handle_ws_privacy_export(connection, session, obj)
-    mode = (obj["mode"] || "encrypted").to_s
-    unless PRIVACY_EXPORT_MODES.include?(mode)
+    encrypt, content_kind = privacy_export_params(obj)
+    unless PRIVACY_EXPORT_CONTENT.include?(content_kind)
       send_to_client(connection, {
         "type" => "privacy_export_error",
-        "error" => "invalid_mode",
-        "valid_modes" => PRIVACY_EXPORT_MODES
+        "error" => "invalid_content",
+        "valid_content" => PRIVACY_EXPORT_CONTENT
       })
       return
     end
@@ -64,10 +77,32 @@ module WebSocketHelper
     state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
     registry = (state.is_a?(Hash) ? state[:registry] : {}) || {}
     messages = privacy_clean_messages(session[:messages] || [])
-    header = privacy_export_header(session, messages, registry)
 
-    case mode
-    when "encrypted"
+    # When the user requests "masked", apply the registry placeholders to the
+    # message text and drop the registry from the export so the file never
+    # contains real PII. If there is no registry (privacy filter was off),
+    # "masked" is equivalent to "restored" — there are no placeholders to
+    # apply, so the original text passes through unchanged.
+    if content_kind == "masked" && !registry.empty?
+      messages = privacy_remask_messages(messages, registry)
+      registry_to_export = {}
+    else
+      registry_to_export = registry
+    end
+
+    header = privacy_export_header(session, messages, registry_to_export)
+    legacy_mode = privacy_export_legacy_mode(encrypt, content_kind)
+
+    # Include parameters + monadic_state alongside messages so the export
+    # round-trips a full session (matches the historical local export shape).
+    # Strip initiate_from_assistant to prevent automatic assistant turn on
+    # import (parity with the legacy frontend export path).
+    parameters = session[:parameters].is_a?(Hash) ? session[:parameters].dup : {}
+    parameters.delete("initiate_from_assistant")
+    parameters.delete(:initiate_from_assistant)
+    monadic_state = privacy_export_monadic_state(session)
+
+    if encrypt
       passphrase = obj["passphrase"].to_s
       if passphrase.empty?
         send_to_client(connection, {
@@ -76,26 +111,30 @@ module WebSocketHelper
         })
         return
       end
-      payload = { "messages" => messages, "registry" => registry }
+      payload = {
+        "messages" => messages,
+        "registry" => registry_to_export,
+        "parameters" => parameters
+      }
+      payload["monadic_state"] = monadic_state if monadic_state
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
       )
       content = JSON.generate(envelope)
-      filename = privacy_export_filename(session, mode)
-    when "masked_only"
-      masked_messages = privacy_remask_messages(messages, registry)
-      payload = { "header" => header, "messages" => masked_messages }
+    else
+      payload = { "parameters" => parameters, "messages" => messages }
+      payload["registry"] = registry_to_export unless registry_to_export.empty?
+      payload["monadic_state"] = monadic_state if monadic_state
       content = JSON.pretty_generate(payload)
-      filename = privacy_export_filename(session, mode)
-    when "restored"
-      payload = { "header" => header, "messages" => messages, "registry" => registry }
-      content = JSON.pretty_generate(payload)
-      filename = privacy_export_filename(session, mode)
     end
+
+    filename = privacy_export_filename(session, encrypt, content_kind)
 
     send_to_client(connection, {
       "type" => "privacy_export_data",
-      "mode" => mode,
+      "mode" => legacy_mode,
+      "encrypt" => encrypt,
+      "content" => content_kind,
       "filename" => filename,
       "content_base64" => Base64.strict_encode64(content),
       "mime" => "application/json"
@@ -106,6 +145,34 @@ module WebSocketHelper
       "error" => "export_failed",
       "detail" => e.message
     })
+  end
+
+  # Translate request params (new 2-axis form, or legacy 3-mode form) into
+  # the canonical (encrypt, content) tuple. Returns [encrypt:Bool, content:String].
+  private def privacy_export_params(obj)
+    if obj.key?("encrypt") || obj.key?("content")
+      encrypt = obj["encrypt"] == true
+      content_kind = (obj["content"] || "restored").to_s
+      [encrypt, content_kind]
+    else
+      legacy = (obj["mode"] || "restored").to_s
+      case legacy
+      when "encrypted"   then [true,  "restored"]
+      when "masked_only" then [false, "masked"]
+      else                    [false, "restored"]
+      end
+    end
+  end
+
+  # Map the new (encrypt, content) tuple back to the legacy `mode` string so
+  # downstream code (filename hints, telemetry, future migrations) keeps the
+  # familiar vocabulary.
+  private def privacy_export_legacy_mode(encrypt, content_kind)
+    if encrypt
+      content_kind == "masked" ? "encrypted_masked" : "encrypted"
+    else
+      content_kind == "masked" ? "masked_only" : "restored"
+    end
   end
 
   # Strip privacy-internal fields from messages so the export only contains
@@ -133,6 +200,20 @@ module WebSocketHelper
     end
   end
 
+  # Serialize session monadic_state for the export payload. Mirrors the
+  # /monadic_state HTTP endpoint shape (used by the legacy local export) so
+  # exports remain round-trippable through the existing import path. Returns
+  # nil when there is no monadic_state to include.
+  private def privacy_export_monadic_state(session)
+    state = session[:monadic_state]
+    return nil unless state.is_a?(Hash)
+    serializable = state.each_with_object({}) do |(app_key, app_data), result|
+      next if app_key == :privacy || app_key == "privacy"  # RD-1: never persist
+      result[app_key.to_s] = app_data
+    end
+    serializable.empty? ? nil : serializable
+  end
+
   # Build a non-secret header for the envelope. Stays in plaintext so users
   # can identify exports without decrypting (header_sha256 protects against
   # tampering).
@@ -148,17 +229,23 @@ module WebSocketHelper
     }
   end
 
+  # File extension scheme matches the legacy 3-mode names so older importers
+  # keep recognising the files. New combinations reuse the closest legacy
+  # extension (encrypted_masked → .mcp-privacy.json since it is encrypted).
   PRIVACY_EXPORT_EXTENSION = {
-    "encrypted" => ".mcp-privacy.json",
-    "masked_only" => ".masked.json",
-    "restored" => ".plain.json"
+    "encrypted"        => ".mcp-privacy.json",
+    "encrypted_masked" => ".mcp-privacy.json",
+    "masked_only"      => ".masked.json",
+    "restored"         => ".plain.json"
   }.freeze
 
-  private def privacy_export_filename(session, mode)
+  private def privacy_export_filename(session, encrypt, content_kind)
     app_name = session.dig(:parameters, "app_name").to_s
     safe_app = app_name.gsub(/[^a-zA-Z0-9_-]/, "_")
     safe_app = "monadic" if safe_app.empty?
     ts = Time.now.strftime("%Y%m%d-%H%M%S")
-    "#{safe_app}-#{ts}#{PRIVACY_EXPORT_EXTENSION[mode]}"
+    legacy = privacy_export_legacy_mode(encrypt, content_kind)
+    ext = PRIVACY_EXPORT_EXTENSION[legacy] || ".plain.json"
+    "#{safe_app}-#{ts}#{ext}"
   end
 end

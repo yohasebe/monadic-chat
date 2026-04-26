@@ -62,27 +62,53 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
   end
 
   describe 'privacy_export_filename' do
-    it 'sanitizes app_name and uses correct extension per mode' do
-      f = harness.send(:privacy_export_filename, session, 'encrypted')
+    it 'sanitizes app_name and picks an extension matching the (encrypt, content) axes' do
+      f = harness.send(:privacy_export_filename, session, true, 'restored')
       expect(f).to match(/MailComposerOpenAI-\d{8}-\d{6}\.mcp-privacy\.json/)
-      f = harness.send(:privacy_export_filename, session, 'masked_only')
-      expect(f).to match(/\.masked\.json\z/)
-      f = harness.send(:privacy_export_filename, session, 'restored')
-      expect(f).to match(/\.plain\.json\z/)
+      f = harness.send(:privacy_export_filename, session, true, 'masked')
+      expect(f).to end_with('.mcp-privacy.json')
+      f = harness.send(:privacy_export_filename, session, false, 'masked')
+      expect(f).to end_with('.masked.json')
+      f = harness.send(:privacy_export_filename, session, false, 'restored')
+      expect(f).to end_with('.plain.json')
     end
 
     it 'falls back to "monadic" when app_name is missing' do
       bare_session = { parameters: {} }
-      f = harness.send(:privacy_export_filename, bare_session, 'encrypted')
+      f = harness.send(:privacy_export_filename, bare_session, true, 'restored')
       expect(f).to start_with('monadic-')
     end
   end
 
+  describe 'privacy_export_params (legacy mode translation)' do
+    it 'maps legacy mode "encrypted" to (encrypt: true, content: "restored")' do
+      expect(harness.send(:privacy_export_params, { 'mode' => 'encrypted' })).to eq([true, 'restored'])
+    end
+
+    it 'maps legacy mode "masked_only" to (encrypt: false, content: "masked")' do
+      expect(harness.send(:privacy_export_params, { 'mode' => 'masked_only' })).to eq([false, 'masked'])
+    end
+
+    it 'maps legacy mode "restored" to (encrypt: false, content: "restored")' do
+      expect(harness.send(:privacy_export_params, { 'mode' => 'restored' })).to eq([false, 'restored'])
+    end
+
+    it 'falls back to plain restored when both legacy and new params are absent' do
+      expect(harness.send(:privacy_export_params, {})).to eq([false, 'restored'])
+    end
+
+    it 'prefers the new 2-axis form over legacy mode when both are present' do
+      obj = { 'encrypt' => true, 'content' => 'masked', 'mode' => 'restored' }
+      expect(harness.send(:privacy_export_params, obj)).to eq([true, 'masked'])
+    end
+  end
+
   describe 'handle_ws_privacy_export' do
-    it 'rejects unknown modes' do
-      harness.send(:handle_ws_privacy_export, :conn, session, { 'mode' => 'leaky' })
+    it 'rejects unknown content kinds' do
+      harness.send(:handle_ws_privacy_export, :conn, session,
+                   { 'encrypt' => false, 'content' => 'leaky' })
       expect(harness.sent.last['type']).to eq('privacy_export_error')
-      expect(harness.sent.last['error']).to eq('invalid_mode')
+      expect(harness.sent.last['error']).to eq('invalid_content')
     end
 
     it 'rejects encrypted mode without passphrase' do
@@ -132,6 +158,61 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
       parsed = JSON.parse(content)
       expect(parsed['registry']).to eq(registry)
       expect(parsed['messages'][0]['text']).to eq('Email John Smith.')
+    end
+
+    it 'supports encrypted + masked content (axes can be combined freely)' do
+      harness.send(:handle_ws_privacy_export, :conn, session,
+                   { 'encrypt' => true, 'content' => 'masked', 'passphrase' => 'a-strong-passphrase-12345' })
+      payload = harness.sent.last
+      expect(payload['type']).to eq('privacy_export_data')
+      expect(payload['mode']).to eq('encrypted_masked')
+      expect(payload['encrypt']).to be true
+      expect(payload['content']).to eq('masked')
+      expect(payload['filename']).to end_with('.mcp-privacy.json')
+
+      content = Base64.strict_decode64(payload['content_base64'])
+      envelope = JSON.parse(content)
+      decrypted = Monadic::Utils::Privacy::ExportCipher.decrypt(
+        envelope: envelope, passphrase: 'a-strong-passphrase-12345'
+      )
+      parsed = JSON.parse(decrypted)
+      # Masked content drops the registry from the encrypted payload
+      expect(parsed['registry']).to eq({})
+      expect(parsed['messages'][0]['text']).to eq('Email <<PERSON_1>>.')
+    end
+
+    it 'allows encrypting a non-privacy session (registry empty) for at-rest protection' do
+      no_privacy_session = {
+        messages: [{ 'mid' => 'b1', 'role' => 'user', 'text' => 'Plain trade-secret discussion.' }],
+        parameters: { 'app_name' => 'ChatOpenAI' },
+        _privacy_pipeline: nil
+      }
+      harness.send(:handle_ws_privacy_export, :conn, no_privacy_session,
+                   { 'encrypt' => true, 'content' => 'restored', 'passphrase' => 'a-strong-passphrase-12345' })
+      payload = harness.sent.last
+      expect(payload['type']).to eq('privacy_export_data')
+      expect(payload['encrypt']).to be true
+
+      envelope = JSON.parse(Base64.strict_decode64(payload['content_base64']))
+      decrypted = Monadic::Utils::Privacy::ExportCipher.decrypt(
+        envelope: envelope, passphrase: 'a-strong-passphrase-12345'
+      )
+      parsed = JSON.parse(decrypted)
+      expect(parsed['messages'][0]['text']).to eq('Plain trade-secret discussion.')
+    end
+
+    it 'plain export of non-privacy session omits the empty registry from output' do
+      no_privacy_session = {
+        messages: [{ 'mid' => 'c1', 'role' => 'user', 'text' => 'Hi there.' }],
+        parameters: { 'app_name' => 'ChatOpenAI' },
+        _privacy_pipeline: nil
+      }
+      harness.send(:handle_ws_privacy_export, :conn, no_privacy_session,
+                   { 'encrypt' => false, 'content' => 'restored' })
+      payload = harness.sent.last
+      parsed = JSON.parse(Base64.strict_decode64(payload['content_base64']))
+      expect(parsed).not_to have_key('registry')
+      expect(parsed['messages'][0]['text']).to eq('Hi there.')
     end
   end
 end

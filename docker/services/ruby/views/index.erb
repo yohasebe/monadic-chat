@@ -958,67 +958,72 @@
       </div>
     </div>
 
-    <!-- Modal: Privacy Export Dialog (Block D.3) -->
+    <!-- Modal: Export Dialog -->
+    <!-- Two orthogonal axes: encryption (passphrase-protected at rest) and
+         content (restored vs masked, only meaningful when Privacy Filter
+         was used in this session). -->
     <div class="modal fade" id="privacyExportModal" tabindex="-1" aria-labelledby="privacyExportLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="privacyExportLabel"><i class="fas fa-file-export"></i> Export Conversation</h5>
+            <h5 class="modal-title" id="privacyExportLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.exportDialogTitle">Export Conversation</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <p class="small text-muted mb-3">Choose how to export this conversation. Privacy Filter is active — your conversation contains masked PII.</p>
-
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="radio" name="privacyExportMode" id="privacyExportModeEncrypted" value="encrypted" checked>
-              <label class="form-check-label" for="privacyExportModeEncrypted">
-                <strong>Encrypted with passphrase</strong> <span class="badge bg-success">recommended</span>
-                <div class="small text-muted">Restored conversation, protected by AES-256-GCM + Argon2id.</div>
+            <!-- Encryption axis: always shown -->
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="export-encrypt-toggle">
+              <label class="form-check-label" for="export-encrypt-toggle" data-i18n="ui.exportEncryptLabel">
+                <i class="fas fa-shield-alt"></i> <strong>Encrypt with passphrase</strong>
               </label>
             </div>
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="radio" name="privacyExportMode" id="privacyExportModeMasked" value="masked_only">
-              <label class="form-check-label" for="privacyExportModeMasked">
-                <strong>Masked placeholders only</strong>
-                <div class="small text-muted">No registry, no PII in the file. Cannot be restored later.</div>
-              </label>
-            </div>
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="radio" name="privacyExportMode" id="privacyExportModeRestored" value="restored">
-              <label class="form-check-label" for="privacyExportModeRestored">
-                <strong>Restored, no encryption</strong> <span class="badge bg-warning text-dark">⚠ plaintext PII</span>
-                <div class="small text-muted">Use only for trusted, local-only workflows.</div>
-              </label>
-            </div>
+            <div class="textbox-caption mb-3" data-i18n="ui.exportEncryptHint">Protect the exported file at rest using AES-256-GCM + Argon2id. Recommended for files you intend to share, archive, or sync.</div>
 
             <div id="privacy-export-pass-section" style="display:none;">
-              <hr>
-              <label for="privacy-export-passphrase" class="form-label small">Passphrase</label>
+              <label for="privacy-export-passphrase" class="form-label small" data-i18n="ui.exportPassphrase">Passphrase</label>
               <input type="password" class="form-control form-control-sm" id="privacy-export-passphrase" autocomplete="new-password">
-              <label for="privacy-export-passphrase-confirm" class="form-label small mt-2">Confirm</label>
+              <label for="privacy-export-passphrase-confirm" class="form-label small mt-2" data-i18n="ui.exportPassphraseConfirm">Confirm</label>
               <input type="password" class="form-control form-control-sm" id="privacy-export-passphrase-confirm" autocomplete="new-password">
               <div class="mt-2">
                 <div class="privacy-strength-bar"><div id="privacy-strength-fill"></div></div>
                 <div class="small mt-1">
-                  <span id="privacy-strength-label" class="text-muted">Enter a passphrase</span>
+                  <span id="privacy-strength-label" class="text-muted" data-i18n="ui.exportPassphrasePlaceholder">Enter a passphrase</span>
                 </div>
               </div>
-              <div class="small text-muted mt-2">
+              <div class="small text-muted mt-2 mb-3">
                 <i class="fas fa-exclamation-circle"></i>
-                This passphrase is the ONLY way to recover your data. Monadic Chat cannot reset it.
+                <span data-i18n="ui.exportPassphraseWarning">This passphrase is the ONLY way to recover your data. Monadic Chat cannot reset it.</span>
               </div>
             </div>
 
-            <div id="privacy-export-restored-warning" class="alert alert-warning small mt-2" style="display:none;">
-              <strong>⚠ Plain export selected.</strong> The exported file will contain unencrypted PII.
-              Confirm you understand by clicking Continue.
+            <!-- Content axis: shown only when Privacy Filter was used (registry has entries) -->
+            <div id="privacy-export-content-section" style="display:none;">
+              <hr class="my-2">
+              <div class="small fw-bold mb-2" data-i18n="ui.exportContent">Content</div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="privacyExportContent" id="privacyExportContentRestored" value="restored" checked>
+                <label class="form-check-label" for="privacyExportContentRestored">
+                  <span data-i18n="ui.exportContentRestored"><strong>Restored</strong> — original PII reconstructed</span>
+                </label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="privacyExportContent" id="privacyExportContentMasked" value="masked">
+                <label class="form-check-label" for="privacyExportContentMasked">
+                  <span data-i18n="ui.exportContentMasked"><strong>Masked</strong> — placeholders only, no registry</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="privacy-export-restored-warning" class="alert alert-warning small mt-3" style="display:none;">
+              <strong>⚠ <span data-i18n="ui.exportPlainWarningTitle">Plain export selected.</span></strong>
+              <span data-i18n="ui.exportPlainWarningBody">The exported file will contain unencrypted contents. Use only for trusted, local-only workflows.</span>
             </div>
 
             <div id="privacy-export-status" class="small mt-2"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-sm btn-primary" id="privacy-export-continue" disabled>Continue</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" id="privacy-export-continue" data-i18n="ui.exportContinue">Continue</button>
           </div>
         </div>
       </div>

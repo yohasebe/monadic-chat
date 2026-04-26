@@ -20,22 +20,34 @@ def privacy_synthesize_session(header, body, mode)
   app_name = header["app_name"] || "Chat"
   messages = body["messages"] || []
 
-  parameters = { "app_name" => app_name }
-  if defined?(APPS) && APPS[app_name]
-    app_settings = APPS[app_name].settings
-    PRIVACY_SYNTH_APP_KEYS.each do |key|
-      value = app_settings[key] || app_settings[key.to_sym]
-      parameters[key] = value unless value.nil?
-    end
-  end
+  # Prefer parameters embedded in the body (newer rich exports preserve the
+  # full session state). Fall back to rebuilding from APPS when the body has
+  # no parameters (legacy 3-mode privacy exports).
+  body_params = body["parameters"]
+  parameters = if body_params.is_a?(Hash) && !body_params.empty?
+                 body_params.dup
+               else
+                 base = { "app_name" => app_name }
+                 if defined?(APPS) && APPS[app_name]
+                   app_settings = APPS[app_name].settings
+                   PRIVACY_SYNTH_APP_KEYS.each do |key|
+                     value = app_settings[key] || app_settings[key.to_sym]
+                     base[key] = value unless value.nil?
+                   end
+                 end
+                 base["monadic"] = false unless base.key?("monadic")
+                 base
+               end
+  parameters["app_name"] ||= app_name
   parameters["imported_from"] = "privacy_export"
   parameters["imported_mode"] = mode
-  parameters["monadic"] = false unless parameters.key?("monadic")
 
-  {
+  result = {
     "parameters" => parameters,
     "messages" => messages
   }
+  result["monadic_state"] = body["monadic_state"] if body["monadic_state"].is_a?(Hash)
+  result
 end
 
 # Get monadic_state for export (Session State mechanism)
@@ -120,10 +132,16 @@ post "/load" do
           privacy_registry_to_restore = decrypted["registry"] if decrypted["registry"].is_a?(Hash)
         elsif json_data.is_a?(Hash) && json_data["header"].is_a?(Hash) &&
               json_data["messages"].is_a?(Array) && !json_data.key?("parameters")
-          # masked_only or restored plain export
+          # Legacy 3-mode privacy export (masked_only or restored plain).
           mode = json_data["registry"].is_a?(Hash) ? "restored" : "masked_only"
           privacy_registry_to_restore = json_data["registry"] if mode == "restored"
           json_data = privacy_synthesize_session(json_data["header"], json_data, mode)
+        elsif json_data.is_a?(Hash) && json_data["registry"].is_a?(Hash) &&
+              json_data["parameters"].is_a?(Hash)
+          # Newer plain export carries `registry` alongside parameters/messages.
+          # Capture the registry so the privacy pipeline can be re-seeded after
+          # import; the rest of /load handles parameters/messages normally.
+          privacy_registry_to_restore = json_data["registry"]
         end
 
         # Validate required fields

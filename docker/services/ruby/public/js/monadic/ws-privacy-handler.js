@@ -119,13 +119,21 @@
     openRegistryModal();
   });
 
-  // ---- Block D.3: export dialog ---------------------------------------
+  // ---- Unified Export Dialog (2 orthogonal axes) ----------------------
+  //
+  // Encryption is always offered (encrypts the file at rest). The "content"
+  // axis (restored vs masked placeholders) is only shown when the Privacy
+  // Filter has produced registry entries in this session — otherwise there
+  // is nothing to mask.
 
-  // Privacy is "active" when the indicator is currently visible (any non-OFF
-  // state). Used by monadic.js #save handler to intercept the normal export.
+  // Privacy is "active" when the indicator is currently visible AND shows
+  // a non-zero registry count. The indicator label format is
+  // "Privacy ON (N)"; the regex extracts N.
   function isActive() {
     const el = findIndicator();
-    return !!(el && el.style.display !== 'none');
+    if (!el || el.style.display === 'none') return false;
+    const m = (el.textContent || '').match(/\((\d+)\)/);
+    return !!(m && Number(m[1]) > 0);
   }
 
   function openExportDialog() {
@@ -136,14 +144,20 @@
   }
 
   function resetExportDialog() {
-    const enc = document.getElementById('privacyExportModeEncrypted');
-    if (enc) enc.checked = true;
+    const encryptToggle = document.getElementById('export-encrypt-toggle');
+    if (encryptToggle) encryptToggle.checked = false;
+    const restored = document.getElementById('privacyExportContentRestored');
+    if (restored) restored.checked = true;
     const pass = document.getElementById('privacy-export-passphrase');
     const conf = document.getElementById('privacy-export-passphrase-confirm');
     if (pass) pass.value = '';
     if (conf) conf.value = '';
+    // Show the content axis only when the privacy filter produced placeholders
+    // in this session. Without entries, there is nothing meaningful to mask.
+    const contentSection = document.getElementById('privacy-export-content-section');
+    if (contentSection) contentSection.style.display = isActive() ? '' : 'none';
     setExportStatus('');
-    updateExportModeUI('encrypted');
+    updateExportModeUI();
     updateStrengthMeter('');
   }
 
@@ -178,45 +192,45 @@
     label.className = score >= 3 ? 'text-success' : (score >= 2 ? 'text-warning' : 'text-danger');
   }
 
-  function updateExportModeUI(mode) {
+  function updateExportModeUI() {
     const passSection = document.getElementById('privacy-export-pass-section');
     const restoredWarn = document.getElementById('privacy-export-restored-warning');
     const continueBtn = document.getElementById('privacy-export-continue');
     if (!passSection || !restoredWarn || !continueBtn) return;
 
-    if (mode === 'encrypted') {
-      passSection.style.display = '';
-      restoredWarn.style.display = 'none';
-      // Continue enabled only if passphrase is strong enough AND matches
-      checkContinueEnabled();
-    } else if (mode === 'restored') {
-      passSection.style.display = 'none';
-      restoredWarn.style.display = '';
-      continueBtn.disabled = false;
-    } else {
-      passSection.style.display = 'none';
-      restoredWarn.style.display = 'none';
-      continueBtn.disabled = false;
-    }
+    const encrypt = isEncryptChecked();
+    passSection.style.display = encrypt ? '' : 'none';
+    // Show the plaintext warning only when encryption is OFF — that is the
+    // configuration where the file leaves the application in cleartext form.
+    restoredWarn.style.display = encrypt ? 'none' : '';
+    checkContinueEnabled();
   }
 
   function checkContinueEnabled() {
     const continueBtn = document.getElementById('privacy-export-continue');
     if (!continueBtn) return;
-    const mode = currentMode();
-    if (mode !== 'encrypted') {
+    if (!isEncryptChecked()) {
+      // Plain export: always allowed (user has been warned via the alert box).
       continueBtn.disabled = false;
       return;
     }
+    // Minimum bar: 8+ chars and confirm matches. The strength meter informs
+    // the user about quality but does not block — Argon2id KDF makes
+    // brute-forcing expensive even for shorter passphrases, and a stricter
+    // gate pushes users toward the worse choice of "no encryption at all".
     const pass = (document.getElementById('privacy-export-passphrase') || {}).value || '';
     const conf = (document.getElementById('privacy-export-passphrase-confirm') || {}).value || '';
-    const { score } = scorePassphrase(pass);
-    continueBtn.disabled = !(score >= 3 && pass === conf && pass.length > 0);
+    continueBtn.disabled = !(pass.length >= 8 && pass === conf);
   }
 
-  function currentMode() {
-    const checked = document.querySelector('input[name="privacyExportMode"]:checked');
-    return checked ? checked.value : 'encrypted';
+  function isEncryptChecked() {
+    const el = document.getElementById('export-encrypt-toggle');
+    return !!(el && el.checked);
+  }
+
+  function currentContent() {
+    const checked = document.querySelector('input[name="privacyExportContent"]:checked');
+    return checked ? checked.value : 'restored';
   }
 
   function setExportStatus(msg, klass) {
@@ -228,9 +242,14 @@
 
   function sendExport() {
     if (typeof window.ws === 'undefined' || !window.ws) return;
-    const mode = currentMode();
-    const payload = { message: 'PRIVACY_EXPORT', mode: mode };
-    if (mode === 'encrypted') {
+    const encrypt = isEncryptChecked();
+    const content = currentContent();
+    const payload = {
+      message: 'PRIVACY_EXPORT',
+      encrypt: encrypt,
+      content: content
+    };
+    if (encrypt) {
       payload.passphrase = (document.getElementById('privacy-export-passphrase') || {}).value || '';
     }
     setExportStatus('Preparing export...', 'text-muted');
@@ -272,8 +291,15 @@
 
   // Wire dialog interactions (document-level delegation, idempotent).
   document.addEventListener('change', function (ev) {
-    if (ev.target && ev.target.name === 'privacyExportMode') {
-      updateExportModeUI(ev.target.value);
+    if (!ev.target) return;
+    // Encryption toggle (always present)
+    if (ev.target.id === 'export-encrypt-toggle') {
+      updateExportModeUI();
+    }
+    // Content radio (only present when privacy active) — no UI side-effect,
+    // but checkContinueEnabled is cheap and keeps button state in sync.
+    if (ev.target.name === 'privacyExportContent') {
+      checkContinueEnabled();
     }
   });
   document.addEventListener('input', function (ev) {

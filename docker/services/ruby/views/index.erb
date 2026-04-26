@@ -1016,6 +1016,28 @@
       </div>
     </div>
 
+    <!-- Modal: Privacy Import Passphrase Prompt (Block D.4) -->
+    <div class="modal fade" id="privacyImportPassphraseModal" tabindex="-1" aria-labelledby="privacyImportLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="privacyImportLabel"><i class="fas fa-lock-open"></i> Decrypt Privacy Export</h5>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">This file is an encrypted Privacy Filter export. Enter the passphrase used during export.</p>
+            <div id="privacy-import-header-info" class="small text-muted mb-2"></div>
+            <label for="privacy-import-passphrase" class="form-label small">Passphrase</label>
+            <input type="password" class="form-control form-control-sm" id="privacy-import-passphrase" autocomplete="current-password">
+            <div id="privacy-import-error" class="alert alert-danger small mt-2" style="display:none;"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" id="privacy-import-cancel" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" id="privacy-import-continue" disabled>Continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal -->
     <div class="modal fade" id="resetConfirmation" tabindex="-1" aria-labelledby="resetConfirmationLabel" aria-hidden="true">
       <div class="modal-dialog">

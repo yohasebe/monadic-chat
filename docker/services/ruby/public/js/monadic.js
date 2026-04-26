@@ -4198,6 +4198,26 @@ document.addEventListener("DOMContentLoaded", function () {
         bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
 
+        // Privacy import safety net: the WebSocket 'parameters' handler
+        // schedules proceedWithAppChange via rAF, but if rAF is throttled
+        // (background tab, etc.) the dropdown can stall on the previous
+        // app even though loadedApp is correct. Explicitly resync after a
+        // short delay so the System Settings dropdown matches the imported
+        // app (e.g., MailComposerOpenAI).
+        if (response.app_name) {
+          setTimeout(function () {
+            const appsEl = $id('apps');
+            if (appsEl && appsEl.value !== response.app_name && window.apps && window.apps[response.app_name]) {
+              if (typeof window.proceedWithAppChange === 'function') {
+                window.proceedWithAppChange(response.app_name);
+              } else {
+                appsEl.value = response.app_name;
+                $dispatch(appsEl, 'change');
+              }
+            }
+          }, 600);
+        }
+
         // Don't clear messages here - let WebSocket 'past_messages' handler do it
         // This prevents race condition where user clicks "Continue Session" before messages arrive
 

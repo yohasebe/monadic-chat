@@ -138,17 +138,165 @@ async function importSession(file) {
     formData.append('tab_id', window.tabId);
   }
 
+  return await postLoadWithPassphraseRetry(formData, file);
+}
+
+/**
+ * POST /load with optional retry when the backend reports a Privacy Filter
+ * encrypted file requires a passphrase. The user is prompted via the
+ * #privacyImportPassphraseModal; on confirm we re-send the same file plus
+ * the passphrase. Wrong passphrase loops back to the prompt with an error.
+ */
+async function postLoadWithPassphraseRetry(formData, file, lastError) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
+  let res;
   try {
-    const res = await fetch("/load", { method: "POST", body: formData, signal: controller.signal });
+    res = await fetch("/load", {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    });
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Import failed: ${res.status}`);
-    return await res.json();
   } catch (e) {
     clearTimeout(timer);
     throw e;
   }
+  if (!res.ok) throw new Error(`Import failed: ${res.status}`);
+  const data = await res.json();
+  if (data && data.needs_passphrase) {
+    // Hide the Load File modal + spinner so the passphrase prompt is the
+    // sole foreground UI (avoids stacked modals + spinning indicator).
+    suspendLoadModalForPassphrase();
+    let passphrase;
+    try {
+      passphrase = await promptPrivacyImportPassphrase(data, lastError);
+    } finally {
+      // Re-arm the modal/spinner if we'll continue with the retry POST.
+      resumeLoadModalForRetry();
+    }
+    if (passphrase === null) {
+      // Cancelled — also dismiss the Load modal entirely so the user is back
+      // to a clean state instead of staring at the disabled-buttons modal.
+      hideLoadModalCompletely();
+      throw new Error("Import cancelled by user");
+    }
+    const retryForm = new FormData();
+    retryForm.append('file', file);
+    retryForm.append('passphrase', passphrase);
+    if (typeof window.tabId !== 'undefined' && window.tabId) {
+      retryForm.append('tab_id', window.tabId);
+    }
+    return await postLoadWithPassphraseRetry(retryForm, file, data.error || null);
+  }
+  return data;
+}
+
+function suspendLoadModalForPassphrase() {
+  const loadModalEl = document.getElementById('loadModal');
+  if (loadModalEl && window.bootstrap && window.bootstrap.Modal) {
+    window.bootstrap.Modal.getInstance(loadModalEl)?.hide();
+  }
+  const spinner = document.getElementById('monadic-spinner');
+  if (spinner) spinner.style.display = 'none';
+  const loadSpinner = document.getElementById('load-spinner');
+  if (loadSpinner) loadSpinner.style.display = 'none';
+}
+
+function resumeLoadModalForRetry() {
+  // Re-show the spinner so the user knows the next decrypt attempt is in
+  // flight. We do NOT reopen loadModal — passphrase modal stays primary.
+  const spinner = document.getElementById('monadic-spinner');
+  if (spinner) spinner.style.display = '';
+}
+
+function hideLoadModalCompletely() {
+  const loadModalEl = document.getElementById('loadModal');
+  if (loadModalEl && window.bootstrap && window.bootstrap.Modal) {
+    window.bootstrap.Modal.getInstance(loadModalEl)?.hide();
+  }
+  const spinner = document.getElementById('monadic-spinner');
+  if (spinner) spinner.style.display = 'none';
+  const loadSpinner = document.getElementById('load-spinner');
+  if (loadSpinner) loadSpinner.style.display = 'none';
+  document.querySelectorAll('#loadModal button').forEach(function (b) { b.disabled = false; });
+}
+
+function promptPrivacyImportPassphrase(serverData, lastError) {
+  return new Promise(function (resolve) {
+    const modalEl = document.getElementById('privacyImportPassphraseModal');
+    if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
+      const fallback = window.prompt(
+        (lastError === 'wrong_passphrase' ? 'Wrong passphrase. ' : '') +
+        'Enter passphrase for the encrypted privacy export:'
+      );
+      resolve(fallback === null || fallback === undefined ? null : String(fallback));
+      return;
+    }
+
+    const errEl = document.getElementById('privacy-import-error');
+    const headerEl = document.getElementById('privacy-import-header-info');
+    const passInput = document.getElementById('privacy-import-passphrase');
+    const continueBtn = document.getElementById('privacy-import-continue');
+
+    if (errEl) {
+      if (lastError === 'wrong_passphrase') {
+        errEl.textContent = 'Wrong passphrase. Please try again.';
+        errEl.style.display = '';
+      } else {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+    }
+    if (headerEl) {
+      const h = serverData && serverData.header ? serverData.header : {};
+      const lines = [];
+      if (h.app_name) lines.push('App: ' + h.app_name);
+      if (h.created_at) lines.push('Exported: ' + h.created_at);
+      if (h.message_count !== undefined) lines.push('Messages: ' + h.message_count);
+      headerEl.textContent = lines.join(' · ');
+    }
+    if (passInput) passInput.value = '';
+    if (continueBtn) continueBtn.disabled = true;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    function onInput() {
+      if (continueBtn) continueBtn.disabled = !passInput || passInput.value.length === 0;
+    }
+    function onContinue() {
+      cleanup();
+      const value = passInput ? passInput.value : '';
+      modal.hide();
+      resolve(value);
+    }
+    function onCancel() {
+      cleanup();
+      resolve(null);
+    }
+    function cleanup() {
+      if (passInput) passInput.removeEventListener('input', onInput);
+      if (continueBtn) continueBtn.removeEventListener('click', onContinue);
+      modalEl.removeEventListener('hidden.bs.modal', onHidden);
+      const cancelBtn = document.getElementById('privacy-import-cancel');
+      if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+    }
+    function onHidden() {
+      // Resolve null only if neither continue nor explicit cancel resolved already.
+      cleanup();
+      resolve(null);
+    }
+
+    if (passInput) passInput.addEventListener('input', onInput);
+    if (continueBtn) continueBtn.addEventListener('click', onContinue);
+    const cancelBtn = document.getElementById('privacy-import-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+    modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+
+    modal.show();
+    setTimeout(function () { if (passInput) passInput.focus(); }, 200);
+  });
 }
 
 /**

@@ -105,15 +105,23 @@ module MonadicDSL
   #     on_failure :block
   #   end
   class PrivacyFilterConfiguration
+    # Symbols allowed in `mask_types`. DATE_TIME and `:address` (Presidio
+    # LOCATION) are intentionally excluded from the default whitelist because
+    # dates and city names rarely identify individuals and create noise in
+    # the registry.
     ALLOWED_TYPES = %i[person organization email url address postal_code
                        phone credit_card ip iban us_ssn medical_license].freeze
+    # Default whitelist excludes :address (Presidio LOCATION). DATE_TIME is
+    # not in ALLOWED_TYPES at all because dates rarely identify individuals.
+    DEFAULT_MASK_TYPES = %i[person organization email url postal_code
+                            phone credit_card ip iban us_ssn medical_license].freeze
     ALLOWED_FAILURE_MODES = %i[block pass].freeze
 
     def initialize
       @config = {
         enabled: false,
         languages: ['en'],
-        mask_types: ALLOWED_TYPES.dup,
+        mask_types: DEFAULT_MASK_TYPES.dup,
         score_threshold: 0.4,
         honorific_trim: true,
         on_failure: :block

@@ -55,6 +55,10 @@ class AnonymizeRequest(BaseModel):
     languages: list[str] = Field(default_factory=lambda: ["en"])
     registry: dict[str, str] = Field(default_factory=dict)
     options: AnalyzeOptions = Field(default_factory=AnalyzeOptions)
+    # Whitelist of Presidio entity types to mask. Empty list means "no filter
+    # — return all detected types" (legacy behavior). Default kept as None so
+    # existing unfiltered callers stay unchanged.
+    entity_types: list[str] | None = None
 
 
 class DeanonymizeRequest(BaseModel):
@@ -236,6 +240,9 @@ def anonymize(req: AnonymizeRequest) -> dict[str, Any]:
 
     raw_spans = _analyze_per_language(req.text, req.languages, req.options.score_threshold)
     detected = len(raw_spans)
+    if req.entity_types:
+        whitelist = set(req.entity_types)
+        raw_spans = [s for s in raw_spans if s["type"] in whitelist]
     merged = _resolve_overlaps(raw_spans)
     after_merge = len(merged)
     if req.options.honorific_trim:

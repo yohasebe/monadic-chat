@@ -37,6 +37,7 @@ module Monadic
             text: raw_message.text,
             languages: Array(@config[:languages]),
             registry: @registry.registry,
+            entity_types: presidio_entity_types,
             options: {
               score_threshold: @config[:score_threshold],
               honorific_trim: @config[:honorific_trim]
@@ -83,6 +84,15 @@ module Monadic
         end
 
         private
+
+        # Map DSL symbols (:person, :email, ...) to Presidio canonical entity
+        # type strings ("PERSON", "EMAIL_ADDRESS", ...). Returns nil when
+        # mask_types is unset so the backend keeps legacy unfiltered behavior.
+        def presidio_entity_types
+          types = @config[:mask_types]
+          return nil if types.nil? || types.empty?
+          types.map { |t| PRESIDIO_TYPE_MAP[t.to_sym] }.compact
+        end
 
         def handle_failure(err, raw_message)
           mode = (@config[:on_failure] || :block).to_sym

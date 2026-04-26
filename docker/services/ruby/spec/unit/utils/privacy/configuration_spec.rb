@@ -46,4 +46,21 @@ RSpec.describe MonadicDSL::PrivacyFilterConfiguration do
     config = described_class.new
     expect { config.on_failure(:explode) }.to raise_error(ArgumentError, /on_failure must be one of/)
   end
+
+  it "default mask_types excludes :address (LOCATION) but includes :organization" do
+    h = described_class.new.to_hash
+    expect(h[:mask_types]).to include(:person, :organization, :email)
+    expect(h[:mask_types]).not_to include(:address)
+  end
+
+  it "default mask_types contains DEFAULT_MASK_TYPES" do
+    h = described_class.new.to_hash
+    expect(h[:mask_types]).to eq(described_class::DEFAULT_MASK_TYPES.dup)
+  end
+
+  it "accepts :address as an explicit opt-in for LOCATION masking" do
+    config = described_class.new
+    config.mask_types([:person, :address])
+    expect(config.to_hash[:mask_types]).to eq([:person, :address])
+  end
 end

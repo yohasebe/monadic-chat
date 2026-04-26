@@ -17,7 +17,7 @@ module Monadic
           @timeout = timeout
         end
 
-        def anonymize(text:, languages:, registry:, options: {})
+        def anonymize(text:, languages:, registry:, entity_types: nil, options: {})
           body = {
             text: text,
             languages: languages,
@@ -27,6 +27,7 @@ module Monadic
               honorific_trim: options.fetch(:honorific_trim, true)
             }
           }
+          body[:entity_types] = entity_types if entity_types
           resp = post_json('/v1/anonymize', body)
           {
             masked_text: resp['masked_text'],

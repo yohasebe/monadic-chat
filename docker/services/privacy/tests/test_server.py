@@ -86,3 +86,45 @@ def test_deanonymize_reports_missing():
     body = r.json()
     assert "<<PERSON_99>>" in body["stats"]["missing_placeholders"]
     assert body["stats"]["replacements"] == 1
+
+
+def test_entity_types_whitelist_excludes_date_time():
+    # Without entity_types filter: DATE_TIME ("Friday") would be masked.
+    # With entity_types=[PERSON, EMAIL_ADDRESS]: only those two are masked.
+    r = client.post("/v1/anonymize", json={
+        "text": "Email Alice at alice@x.com about the Friday meeting.",
+        "languages": ["en"],
+        "registry": {},
+        "entity_types": ["PERSON", "EMAIL_ADDRESS"],
+    })
+    body = r.json()
+    assert "<<PERSON_1>>" in body["masked_text"]
+    assert "<<EMAIL_ADDRESS_1>>" in body["masked_text"]
+    assert "<<DATE_TIME_1>>" not in body["masked_text"]
+    assert "Friday" in body["masked_text"]
+
+
+def test_entity_types_none_keeps_legacy_behavior():
+    # When entity_types is omitted, all detected types are masked (including
+    # DATE_TIME), preserving backward compatibility.
+    r = client.post("/v1/anonymize", json={
+        "text": "Meet on Monday at noon.",
+        "languages": ["en"],
+        "registry": {},
+    })
+    body = r.json()
+    # Presidio detects "Monday" as DATE_TIME
+    assert "<<DATE_TIME_1>>" in body["masked_text"]
+
+
+def test_entity_types_empty_list_is_no_filter():
+    # An empty list means "no filter" — same as omitting the field. This
+    # avoids a footgun where users send [] thinking it disables masking.
+    r = client.post("/v1/anonymize", json={
+        "text": "Meet on Monday.",
+        "languages": ["en"],
+        "registry": {},
+        "entity_types": [],
+    })
+    body = r.json()
+    assert "<<DATE_TIME_1>>" in body["masked_text"]

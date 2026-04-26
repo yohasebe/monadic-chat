@@ -12,6 +12,24 @@
 module Monadic
   module Utils
     module Privacy
+      # Maps DSL mask_types symbols to Presidio canonical entity type strings.
+      # Source of truth shared by PrivacyFilterConfiguration (DSL whitelist
+      # validation) and Pipeline (runtime translation for the backend).
+      PRESIDIO_TYPE_MAP = {
+        person: 'PERSON',
+        organization: 'ORGANIZATION',
+        email: 'EMAIL_ADDRESS',
+        url: 'URL',
+        address: 'LOCATION',
+        postal_code: 'POSTAL_CODE',
+        phone: 'PHONE_NUMBER',
+        credit_card: 'CREDIT_CARD',
+        ip: 'IP_ADDRESS',
+        iban: 'IBAN_CODE',
+        us_ssn: 'US_SSN',
+        medical_license: 'US_MEDICAL_LICENSE'
+      }.freeze
+
       RawMessage = Struct.new(:text, :role, :meta) do
         def safe_for_llm?
           false

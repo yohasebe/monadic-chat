@@ -461,6 +461,14 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
+    # Privacy Filter: mask user-message PII before sending to xAI. No-op when
+    # the app does not declare `privacy do; enabled true; end` in MDSL. Grok
+    # uses the Responses API shape (body["input"]).
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings) && body["input"].is_a?(Array)
+      body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
+    end
+
     res = nil
     MAX_RETRIES.times do
       res = http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)

@@ -628,6 +628,14 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "privacy_registry": {
+        const wph2 = window.WsPrivacyHandler;
+        if (wph2 && typeof wph2.handleRegistry === 'function') {
+          wph2.handleRegistry(data);
+        }
+        break;
+      }
+
       case "tool_executing": {
         const wtoolh = window.WsToolHandler;
         if (wtoolh && typeof wtoolh.handleToolExecuting === 'function') {

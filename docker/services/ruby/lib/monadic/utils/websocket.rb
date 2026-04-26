@@ -25,6 +25,7 @@ require_relative 'websocket/pdf_handler'
 require_relative 'websocket/streaming_handler'
 require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
+require_relative 'websocket/privacy_handler'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
@@ -222,6 +223,8 @@ module WebSocketHelper
           handle_ws_stop_tts(connection, obj, session)
         when "PLAY_TTS"
           handle_ws_play_tts(connection, obj, session, thread)
+        when "PRIVACY_REGISTRY"
+          handle_ws_privacy_registry(connection, session)
         else # fragment
           thread = handle_ws_streaming(connection, obj, session, queue)
         end

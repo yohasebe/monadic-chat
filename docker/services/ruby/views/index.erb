@@ -910,6 +910,43 @@
       </div>
     </div>
 
+    <!-- Modal: Privacy Registry (Block C.3) -->
+    <div class="modal fade" id="privacyRegistryModal" tabindex="-1" aria-labelledby="privacyRegistryLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="privacyRegistryLabel"><i class="fas fa-lock"></i> Privacy Registry</h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small mb-3">
+              <i class="fas fa-info-circle"></i>
+              This list is held in memory only and is cleared when the conversation is closed.
+              Copy is intentionally disabled to avoid accidental disclosure.
+            </p>
+            <div id="privacy-registry-empty" class="text-center text-muted py-3" style="display:none;">
+              No PII has been masked yet.
+            </div>
+            <div class="table-responsive" id="privacy-registry-table-wrapper" style="display:none;">
+              <table class="table table-sm table-bordered" id="privacy-registry-table" style="user-select: none;">
+                <thead>
+                  <tr>
+                    <th style="width: 35%;">Placeholder</th>
+                    <th style="width: 45%;">Original value</th>
+                    <th style="width: 20%;">Type</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal -->
     <div class="modal fade" id="resetConfirmation" tabindex="-1" aria-labelledby="resetConfirmationLabel" aria-hidden="true">
       <div class="modal-dialog">

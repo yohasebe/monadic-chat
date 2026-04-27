@@ -2197,9 +2197,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // Privacy Filter session toggle: enable only when both gates are met:
     //   1. App MDSL declares `privacy do; enabled true; end`
     //   2. Privacy container is installed (PRIVACY_FILTER=true on server)
-    // Resets to OFF on every app change. The lock-on-first-message state
-    // lives in window.privacyToggleLocked and is cleared here so the new
-    // session starts editable.
+    // The user's last choice per app is restored from localStorage so
+    // switching between apps does not silently discard preferences. The
+    // lock-on-first-message state lives in window.privacyToggleLocked and
+    // is cleared here so the new session starts editable.
     {
       const privacyEl = $id("check-privacy-session");
       const privacyLabel = $id("check-privacy-session-label");
@@ -2208,6 +2209,11 @@ document.addEventListener("DOMContentLoaded", function () {
         ? !!window.MONADIC_PRIVACY_AVAILABLE
         : true; // fall back to permissive if flag is not injected
       const usable = appSupportsPrivacy && containerAvailable;
+      let remembered = false;
+      try {
+        remembered = localStorage.getItem("privacy_pref_" + appValue) === "on";
+      } catch (_) { /* localStorage unavailable (private mode); leave default */ }
+      const initialChecked = usable && remembered;
       // Choose the more informative tooltip when both gates fail: the app
       // doesn't support it anyway, so install instructions are misleading.
       const disabledKey = !appSupportsPrivacy
@@ -2219,7 +2225,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const tooltip = (typeof webUIi18n !== "undefined") ? webUIi18n.t(disabledKey) : fallback;
       window.privacyToggleLocked = false;
       if (privacyEl) {
-        privacyEl.checked = false;
+        privacyEl.checked = initialChecked;
         privacyEl.disabled = !usable;
         if (usable) {
           privacyEl.removeAttribute("title");
@@ -2234,7 +2240,7 @@ document.addEventListener("DOMContentLoaded", function () {
           privacyLabel.setAttribute("title", tooltip);
         }
       }
-      params["privacy_session_enabled"] = false;
+      params["privacy_session_enabled"] = initialChecked;
     }
 
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
@@ -2483,6 +2489,15 @@ document.addEventListener("DOMContentLoaded", function () {
     // Once locked (first message sent), the disabled attribute prevents
     // further changes. This handler only fires while the toggle is editable.
     params["privacy_session_enabled"] = !!this.checked;
+    // Persist the choice per app so re-selecting the same app restores it.
+    // Uninstalling the privacy container or app changes that drop support
+    // are handled at restore time (initialChecked = usable && remembered).
+    try {
+      const appEl = $id("apps");
+      if (appEl && appEl.value) {
+        localStorage.setItem("privacy_pref_" + appEl.value, this.checked ? "on" : "off");
+      }
+    } catch (_) { /* localStorage unavailable in private mode */ }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('privacy_session_toggle');
     }

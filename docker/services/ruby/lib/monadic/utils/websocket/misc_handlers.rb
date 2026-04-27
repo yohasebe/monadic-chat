@@ -116,8 +116,29 @@ module WebSocketHelper
       # App is changing - reset conversation context
       if session[:monadic_state]
         session[:monadic_state][:conversation_context] = nil
+        # Also reset privacy registry — placeholders carry meaning for the
+        # specific conversation that produced them, so a new app/conversation
+        # must start with a clean registry. Drop the cached pipeline so the
+        # next vendor call re-evaluates the (possibly different) privacy
+        # config and session toggle for the new app.
+        session[:monadic_state].delete(:privacy)
+        session[:monadic_state].delete("privacy")
       end
-      Monadic::Utils::ExtraLogger.log { "[WebSocket] App changed from #{current_app} to #{new_app} - context reset" }
+      session.delete(:_privacy_pipeline)
+      # Push a privacy_state event so the frontend indicator reflects the
+      # cleared registry immediately, instead of staying at the previous
+      # app's count until the user sends the first message.
+      ws_session_id = Thread.current[:websocket_session_id]
+      privacy_state_msg = {
+        "type" => "privacy_state",
+        "enabled" => false,
+        "registry_count" => 0,
+        "error" => nil
+      }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(privacy_state_msg, ws_session_id)
+      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] App changed from #{current_app} to #{new_app} - context + privacy reset" }
     end
 
     # On-demand container startup: when the user selects an app that needs

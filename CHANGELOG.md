@@ -1,3 +1,16 @@
+- [April, 2026] 1.0.0-beta.14
+  - **Privacy Filter (PII Masking)**: New opt-in feature that masks personally identifiable information in user messages before sending to AI providers, then restores the original values in the response. Detection runs locally in a separate Docker container (Microsoft Presidio + spaCy) so PII never leaves the host on its way to or from the LLM.
+    - Per-session toggle in Session Controls; locks on first message, remembered per app via localStorage.
+    - Privacy indicator with Registry viewer modal showing each placeholder, original value, and entity type.
+    - Encrypted export (AES-256-GCM + Argon2id) with two orthogonal axes: encryption on/off, content restored/masked. Passphrase-protected import restores the registry alongside the conversation.
+    - Default mask types: PERSON, EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS, IBAN_CODE, US_SSN, MEDICAL_LICENSE, URL. LOCATION and DATE_TIME are excluded by default to avoid noisy masking.
+    - Custom recognizer added for US local phone formats (7-digit and 10-digit variations).
+    - Supported apps: Mail Composer, Chat Plus, Translate, Second Opinion, Chat. Available across all 9 vendor adapters (OpenAI, Claude, Gemini, Cohere, Mistral, Grok, DeepSeek, Perplexity, Ollama).
+    - Output restoration is vendor-agnostic via the streaming handler; vendor-side code only handles input masking.
+    - Privacy container is built on demand via Settings → Install Options → Build Privacy. Master gate `PRIVACY_FILTER=true` plus per-language opt-ins (`PRIVACY_LANGS=en,ja,...`) control image size (~1 GB baseline + 150-300 MB per additional language).
+    - Session Controls toggle is gated on both the app's MDSL declaration and container availability; a context-aware tooltip explains why the toggle is disabled in each case.
+    - Documentation: see `docs/advanced-topics/privacy-filter.md` (English) and `docs/ja/advanced-topics/privacy-filter.md` (Japanese).
+    - Known limitation: assistant-side history is not re-masked. The pipeline applies to the user role on each turn; if the assistant repeats a name in a later turn, that occurrence passes through unchanged.
 - [April, 2026] 1.0.0-beta.13
   - **Security**: Pinned `@xmldom/xmldom` to 0.8.13 via `package.json` overrides to address 4 HIGH severity advisories (PI injection, comment/DocumentType handling, DoS). Affects devDependency only via electron-builder; runtime impact is none.
   - **DeepSeek V4 Support**: Added two new models (`deepseek-v4-flash`, `deepseek-v4-pro`) with 1M context window, 384K output, and unified thinking + reasoning_effort control via the `thinking: { type, reasoning_effort }` request format.

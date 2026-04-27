@@ -35,6 +35,7 @@
     - [Ollamaの利用](/ja/advanced-topics/ollama.md)
     - [ヘルプシステムの設定](/ja/advanced-topics/help-system.md)
     - [MCP統合](/ja/advanced-topics/mcp-integration.md)
+    - [プライバシーフィルター](/ja/advanced-topics/privacy-filter.md)
     
 - **リファレンス**
 

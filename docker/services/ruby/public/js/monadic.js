@@ -2194,35 +2194,44 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("audio-upload"));
     }
 
-    // Privacy Filter session toggle: enable only for apps that declare
-    // `privacy do; enabled true; end` in MDSL. Resets to OFF on every app
-    // change. The lock-on-first-message state lives in window.privacyToggleLocked
-    // and is cleared here so the new session starts editable.
+    // Privacy Filter session toggle: enable only when both gates are met:
+    //   1. App MDSL declares `privacy do; enabled true; end`
+    //   2. Privacy container is installed (PRIVACY_FILTER=true on server)
+    // Resets to OFF on every app change. The lock-on-first-message state
+    // lives in window.privacyToggleLocked and is cleared here so the new
+    // session starts editable.
     {
       const privacyEl = $id("check-privacy-session");
       const privacyLabel = $id("check-privacy-session-label");
-      const supportsPrivacy = toBool(apps[appValue]["privacy_enabled"]);
+      const appSupportsPrivacy = toBool(apps[appValue]["privacy_enabled"]);
+      const containerAvailable = (typeof window.MONADIC_PRIVACY_AVAILABLE !== "undefined")
+        ? !!window.MONADIC_PRIVACY_AVAILABLE
+        : true; // fall back to permissive if flag is not injected
+      const usable = appSupportsPrivacy && containerAvailable;
+      // Choose the more informative tooltip when both gates fail: the app
+      // doesn't support it anyway, so install instructions are misleading.
+      const disabledKey = !appSupportsPrivacy
+        ? "ui.privacyFilterUnsupported"
+        : "ui.privacyFilterNotInstalled";
+      const fallback = !appSupportsPrivacy
+        ? "This app does not support Privacy Filter."
+        : "Privacy Filter is not installed. Open Settings → Install Options to enable it.";
+      const tooltip = (typeof webUIi18n !== "undefined") ? webUIi18n.t(disabledKey) : fallback;
       window.privacyToggleLocked = false;
       if (privacyEl) {
         privacyEl.checked = false;
-        privacyEl.disabled = !supportsPrivacy;
-        if (supportsPrivacy) {
+        privacyEl.disabled = !usable;
+        if (usable) {
           privacyEl.removeAttribute("title");
         } else {
-          const tip = (typeof webUIi18n !== "undefined")
-            ? webUIi18n.t("ui.privacyFilterUnsupported")
-            : "This app does not support Privacy Filter.";
-          privacyEl.setAttribute("title", tip);
+          privacyEl.setAttribute("title", tooltip);
         }
       }
       if (privacyLabel) {
-        if (supportsPrivacy) {
+        if (usable) {
           privacyLabel.removeAttribute("title");
         } else {
-          const tip = (typeof webUIi18n !== "undefined")
-            ? webUIi18n.t("ui.privacyFilterUnsupported")
-            : "This app does not support Privacy Filter.";
-          privacyLabel.setAttribute("title", tip);
+          privacyLabel.setAttribute("title", tooltip);
         }
       }
       params["privacy_session_enabled"] = false;

@@ -8,7 +8,7 @@
 
   ---
 
-**🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [PDF Knowledge Base](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat)
+**🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [PDF Knowledge Base](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat) · [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter)
 
   **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · Perplexity · xAI · DeepSeek · Ollama
 
@@ -85,6 +85,7 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 - **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models, with intelligent session-based continuity for effortless iterative editing and remixing of generated content.
 - **📄 PDF Knowledge Base**: Store and query documents locally (PGVector) or in cloud (OpenAI Vector Store)
 - **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, Grok, and Perplexity
+- **🔒 Privacy Filter** (opt-in): Mask PII locally before sending to AI providers; restore in the response. Supports 9 languages via Microsoft Presidio + spaCy. See [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter).
 - **🔄 Automatic Updates**: In-app notifications and seamless update downloads
 
 ### Featured Applications

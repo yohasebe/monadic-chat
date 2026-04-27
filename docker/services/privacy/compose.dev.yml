@@ -1,0 +1,4 @@
+services:
+  privacy_service:
+    ports:
+      - "127.0.0.1:${PRIVACY_DEV_PORT:-8001}:8000"

@@ -93,6 +93,76 @@ module MonadicDSL
     end
   end
 
+  # Privacy Filter Configuration DSL.
+  # See docs_dev/privacy_filter_design.md (Block B §2) for the full spec.
+  # Usage:
+  #   privacy do
+  #     enabled true
+  #     languages ["ja", "en"]
+  #     mask_types [:person, :organization, :email, :phone, :credit_card]
+  #     score_threshold 0.4
+  #     honorific_trim true
+  #     on_failure :block
+  #   end
+  class PrivacyFilterConfiguration
+    # Symbols allowed in `mask_types`. DATE_TIME and `:address` (Presidio
+    # LOCATION) are intentionally excluded from the default whitelist because
+    # dates and city names rarely identify individuals and create noise in
+    # the registry.
+    ALLOWED_TYPES = %i[person organization email url address postal_code
+                       phone credit_card ip iban us_ssn medical_license].freeze
+    # Default whitelist excludes :address (Presidio LOCATION). DATE_TIME is
+    # not in ALLOWED_TYPES at all because dates rarely identify individuals.
+    DEFAULT_MASK_TYPES = %i[person organization email url postal_code
+                            phone credit_card ip iban us_ssn medical_license].freeze
+    ALLOWED_FAILURE_MODES = %i[block pass].freeze
+
+    def initialize
+      @config = {
+        enabled: false,
+        languages: ['en'],
+        mask_types: DEFAULT_MASK_TYPES.dup,
+        score_threshold: 0.4,
+        honorific_trim: true,
+        on_failure: :block
+      }
+    end
+
+    def enabled(value)
+      @config[:enabled] = !!value
+    end
+
+    def languages(value)
+      @config[:languages] = Array(value).map(&:to_s)
+    end
+
+    def mask_types(value)
+      types = Array(value).map(&:to_sym)
+      invalid = types - ALLOWED_TYPES
+      raise ArgumentError, "Unknown mask_types: #{invalid}" unless invalid.empty?
+      @config[:mask_types] = types
+    end
+
+    def score_threshold(value)
+      raise ArgumentError, "score_threshold must be between 0 and 1" unless (0..1).cover?(value)
+      @config[:score_threshold] = value.to_f
+    end
+
+    def honorific_trim(value)
+      @config[:honorific_trim] = !!value
+    end
+
+    def on_failure(value)
+      sym = value.to_sym
+      raise ArgumentError, "on_failure must be one of #{ALLOWED_FAILURE_MODES}" unless ALLOWED_FAILURE_MODES.include?(sym)
+      @config[:on_failure] = sym
+    end
+
+    def to_hash
+      @config
+    end
+  end
+
   # Context Schema Configuration DSL
   # Defines what context fields should be tracked for monadic apps
   # Each field represents a category of information to extract from conversations

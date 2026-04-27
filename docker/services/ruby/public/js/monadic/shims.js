@@ -357,7 +357,12 @@ window.shims.formHandlers = {
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30000);
-      fetch("/load", { method: "POST", body: formData, signal: controller.signal })
+      fetch("/load", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
         .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Import failed: ${res.status}`)); })
         .then(resolve)
         .catch(e => { clearTimeout(timer); reject(e); });

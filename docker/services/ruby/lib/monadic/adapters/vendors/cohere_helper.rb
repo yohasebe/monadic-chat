@@ -1038,6 +1038,15 @@ module CohereHelper
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
 
+    # Privacy Filter: mask user-message PII before sending to Cohere. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    # Cohere v2 uses messages with content as Array of typed parts ({type: "text",
+    # text: ...}); image parts ({type: "image"}) pass through untouched.
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    end
+
     res = nil
     MAX_RETRIES.times do |i|
       begin

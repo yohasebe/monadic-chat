@@ -59,5 +59,13 @@ app "ChatPerplexity" do
     group "Perplexity"
   end
 
+  privacy do
+    enabled true
+    languages ["en"]
+    score_threshold 0.4
+    honorific_trim true
+    on_failure :block
+  end
+
   # Note: Perplexity API does not support tool/function calling
 end

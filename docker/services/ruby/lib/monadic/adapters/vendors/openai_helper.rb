@@ -1435,6 +1435,18 @@ module OpenAIHelper
     http = HTTP.headers(headers)
     model = body["model"]
 
+    # Privacy Filter: mask user-message PII before sending to OpenAI. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session)
+      if body["messages"].is_a?(Array)
+        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+      end
+      if body["input"].is_a?(Array)
+        body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
+      end
+    end
+
     DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)
     DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
 

@@ -912,6 +912,15 @@ module ClaudeHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
+    # Privacy Filter: mask user-message PII before sending to Anthropic. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    # Claude content is always Array of {type, text|image|document} blocks;
+    # apply_privacy_to_messages skips non-text items.
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    end
+
     if Monadic::Utils::ExtraLogger.enabled? || ENV["DEBUG_CLAUDE"]
       Monadic::Utils::ExtraLogger.log {
         msg = "\nClaude API Headers:\n  x-api-key: #{headers["x-api-key"]&.slice(0, 20)}...\n  anthropic-beta: #{headers["anthropic-beta"]}"

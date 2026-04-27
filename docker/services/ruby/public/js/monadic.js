@@ -50,6 +50,10 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
+  // Privacy Filter session-level toggle. Default OFF; only honored by the
+  // backend when the app's MDSL declares `privacy do; enabled true; end`.
+  const privacySessionEl = $id("check-privacy-session");
+  clone.privacy_session_enabled = (privacySessionEl && privacySessionEl.checked) || false;
   const mathEl = $id("math");
   clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
@@ -2190,6 +2194,55 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("audio-upload"));
     }
 
+    // Privacy Filter session toggle: enable only when both gates are met:
+    //   1. App MDSL declares `privacy do; enabled true; end`
+    //   2. Privacy container is installed (PRIVACY_FILTER=true on server)
+    // The user's last choice per app is restored from localStorage so
+    // switching between apps does not silently discard preferences. The
+    // lock-on-first-message state lives in window.privacyToggleLocked and
+    // is cleared here so the new session starts editable.
+    {
+      const privacyEl = $id("check-privacy-session");
+      const privacyLabel = $id("check-privacy-session-label");
+      const appSupportsPrivacy = toBool(apps[appValue]["privacy_enabled"]);
+      const containerAvailable = (typeof window.MONADIC_PRIVACY_AVAILABLE !== "undefined")
+        ? !!window.MONADIC_PRIVACY_AVAILABLE
+        : true; // fall back to permissive if flag is not injected
+      const usable = appSupportsPrivacy && containerAvailable;
+      let remembered = false;
+      try {
+        remembered = localStorage.getItem("privacy_pref_" + appValue) === "on";
+      } catch (_) { /* localStorage unavailable (private mode); leave default */ }
+      const initialChecked = usable && remembered;
+      // Choose the more informative tooltip when both gates fail: the app
+      // doesn't support it anyway, so install instructions are misleading.
+      const disabledKey = !appSupportsPrivacy
+        ? "ui.privacyFilterUnsupported"
+        : "ui.privacyFilterNotInstalled";
+      const fallback = !appSupportsPrivacy
+        ? "This app does not support Privacy Filter."
+        : "Privacy Filter is not installed. Open Settings → Install Options to enable it.";
+      const tooltip = (typeof webUIi18n !== "undefined") ? webUIi18n.t(disabledKey) : fallback;
+      window.privacyToggleLocked = false;
+      if (privacyEl) {
+        privacyEl.checked = initialChecked;
+        privacyEl.disabled = !usable;
+        if (usable) {
+          privacyEl.removeAttribute("title");
+        } else {
+          privacyEl.setAttribute("title", tooltip);
+        }
+      }
+      if (privacyLabel) {
+        if (usable) {
+          privacyLabel.removeAttribute("title");
+        } else {
+          privacyLabel.setAttribute("title", tooltip);
+        }
+      }
+      params["privacy_session_enabled"] = initialChecked;
+    }
+
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
 
     let model;
@@ -2429,6 +2482,24 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('easy_submit_toggle');
+    }
+  })
+
+  $on($id("check-privacy-session"), "change", function() {
+    // Once locked (first message sent), the disabled attribute prevents
+    // further changes. This handler only fires while the toggle is editable.
+    params["privacy_session_enabled"] = !!this.checked;
+    // Persist the choice per app so re-selecting the same app restores it.
+    // Uninstalling the privacy container or app changes that drop support
+    // are handled at restore time (initialChecked = usable && remembered).
+    try {
+      const appEl = $id("apps");
+      if (appEl && appEl.value) {
+        localStorage.setItem("privacy_pref_" + appEl.value, this.checked ? "on" : "off");
+      }
+    } catch (_) { /* localStorage unavailable in private mode */ }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('privacy_session_toggle');
     }
   })
 
@@ -2977,6 +3048,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         ws.send(JSON.stringify(params));
+        // Lock the Privacy Filter toggle once the first message of the
+        // session has been sent. The locked state is also enforced by the
+        // backend (Pipeline is cached in session[:_privacy_pipeline]).
+        // Reset / app change / new conversation re-enables editing.
+        {
+          const privacyEl = $id("check-privacy-session");
+          if (privacyEl && !privacyEl.disabled) {
+            privacyEl.disabled = true;
+            window.privacyToggleLocked = true;
+          }
+        }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
         }
@@ -3043,6 +3125,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }); });
 
   $on($id("save"), "click", async function () {
+    // Always route through the unified Export dialog. The dialog offers
+    // optional encryption (regardless of Privacy Filter state) plus a
+    // restored/masked content choice when the Privacy Filter is active.
+    if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.openExportDialog === 'function') {
+      window.WsPrivacyHandler.openExportDialog();
+      return;
+    }
+
     const allMessages = [];
     const initial_prompt = ($id("initial-prompt") || {}).value;
     const sysid = Math.floor(1000 + Math.random() * 9000);
@@ -4189,6 +4279,26 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clean up UI after successful import
         bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
+
+        // Privacy import safety net: the WebSocket 'parameters' handler
+        // schedules proceedWithAppChange via rAF, but if rAF is throttled
+        // (background tab, etc.) the dropdown can stall on the previous
+        // app even though loadedApp is correct. Explicitly resync after a
+        // short delay so the System Settings dropdown matches the imported
+        // app (e.g., MailComposerOpenAI).
+        if (response.app_name) {
+          setTimeout(function () {
+            const appsEl = $id('apps');
+            if (appsEl && appsEl.value !== response.app_name && window.apps && window.apps[response.app_name]) {
+              if (typeof window.proceedWithAppChange === 'function') {
+                window.proceedWithAppChange(response.app_name);
+              } else {
+                appsEl.value = response.app_name;
+                $dispatch(appsEl, 'change');
+              }
+            }
+          }, 600);
+        }
 
         // Don't clear messages here - let WebSocket 'past_messages' handler do it
         // This prevents race condition where user clicks "Continue Session" before messages arrive

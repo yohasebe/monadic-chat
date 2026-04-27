@@ -620,6 +620,38 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "privacy_state": {
+        const wph = window.WsPrivacyHandler;
+        if (wph && typeof wph.handleState === 'function') {
+          wph.handleState(data);
+        }
+        break;
+      }
+
+      case "privacy_registry": {
+        const wph2 = window.WsPrivacyHandler;
+        if (wph2 && typeof wph2.handleRegistry === 'function') {
+          wph2.handleRegistry(data);
+        }
+        break;
+      }
+
+      case "privacy_export_data": {
+        const wph3 = window.WsPrivacyHandler;
+        if (wph3 && typeof wph3.handleExportData === 'function') {
+          wph3.handleExportData(data);
+        }
+        break;
+      }
+
+      case "privacy_export_error": {
+        const wph4 = window.WsPrivacyHandler;
+        if (wph4 && typeof wph4.handleExportError === 'function') {
+          wph4.handleExportError(data);
+        }
+        break;
+      }
+
       case "tool_executing": {
         const wtoolh = window.WsToolHandler;
         if (wtoolh && typeof wtoolh.handleToolExecuting === 'function') {

@@ -258,4 +258,111 @@ RSpec.describe BaseVendorHelper do
       expect($MODELS[:test_vendor]).to be_nil
     end
   end
+
+  describe '#privacy_enabled_for? two-gate activation' do
+    subject(:helper) do
+      Class.new { include BaseVendorHelper }.new
+    end
+
+    let(:enabled_settings) { { privacy: { enabled: true } } }
+    let(:disabled_settings) { { privacy: { enabled: false } } }
+
+    it 'returns false when app_settings is nil' do
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(nil, session)).to be false
+    end
+
+    it 'returns false when MDSL privacy is disabled, even if session opts in' do
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(disabled_settings, session)).to be false
+    end
+
+    it 'returns false when MDSL enables but session does not opt in' do
+      session = { parameters: { 'privacy_session_enabled' => false } }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
+    end
+
+    it 'returns false when session is nil' do
+      expect(helper.privacy_enabled_for?(enabled_settings, nil)).to be false
+    end
+
+    it 'returns false when session has no parameters key' do
+      expect(helper.privacy_enabled_for?(enabled_settings, {})).to be false
+    end
+
+    it 'returns true only when both MDSL and session opt in' do
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be true
+    end
+
+    it 'accepts session[:parameters] (symbol) and session["parameters"] (string) keys' do
+      sym_session = { parameters: { 'privacy_session_enabled' => true } }
+      str_session = { 'parameters' => { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(enabled_settings, sym_session)).to be true
+      expect(helper.privacy_enabled_for?(enabled_settings, str_session)).to be true
+    end
+  end
+
+  describe '#apply_privacy_to_messages with Claude-shape content' do
+    subject(:helper) do
+      Class.new do
+        include BaseVendorHelper
+      end.new
+    end
+
+    let(:fake_pipeline) do
+      double('Pipeline').tap do |p|
+        allow(p).to receive(:before_send_to_llm) do |raw|
+          masked_text = raw.text.gsub(/Alice/, '<<PERSON_1>>')
+          double('MaskedMessage', text: masked_text)
+        end
+      end
+    end
+
+    before do
+      require_relative '../../../lib/monadic/utils/privacy/types'
+      allow(helper).to receive(:privacy_pipeline_for).and_return(fake_pipeline)
+    end
+
+    it 'masks user-message text in Anthropic-style content array' do
+      messages = [
+        { "role" => "user", "content" => [{ "type" => "text", "text" => "Email Alice" }] }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["text"]).to eq("Email <<PERSON_1>>")
+    end
+
+    it 'leaves image and document blocks untouched while masking text blocks' do
+      messages = [{
+        "role" => "user",
+        "content" => [
+          { "type" => "image", "source" => { "type" => "base64", "data" => "abc" } },
+          { "type" => "text", "text" => "What does Alice think?" },
+          { "type" => "document", "source" => { "type" => "base64", "data" => "pdf" } }
+        ]
+      }]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["type"]).to eq("image")
+      expect(result[0]["content"][0]["source"]["data"]).to eq("abc")
+      expect(result[0]["content"][1]["text"]).to eq("What does <<PERSON_1>> think?")
+      expect(result[0]["content"][2]["type"]).to eq("document")
+    end
+
+    it 'does not mask assistant-role messages' do
+      messages = [
+        { "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] },
+        { "role" => "assistant", "content" => [{ "type" => "text", "text" => "Hello Alice" }] }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["text"]).to eq("Hi <<PERSON_1>>")
+      expect(result[1]["content"][0]["text"]).to eq("Hello Alice")
+    end
+
+    it 'returns messages unchanged when pipeline is nil (privacy disabled)' do
+      allow(helper).to receive(:privacy_pipeline_for).and_return(nil)
+      messages = [{ "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] }]
+      result = helper.apply_privacy_to_messages(messages, {}, nil)
+      expect(result).to eq(messages)
+    end
+  end
 end

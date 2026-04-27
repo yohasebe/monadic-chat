@@ -25,14 +25,16 @@ module Monadic
       COMPOSE_SERVICES = {
         python: "python_service",
         selenium: "selenium_service",
-        pgvector: "pgvector_service"
+        pgvector: "pgvector_service",
+        privacy: "privacy_service"
       }.freeze
 
       # Docker container names for each logical service
       CONTAINER_NAMES = {
         python: "monadic-chat-python-container",
         selenium: "monadic-chat-selenium-container",
-        pgvector: "monadic-chat-pgvector-container"
+        pgvector: "monadic-chat-pgvector-container",
+        privacy: "monadic-chat-privacy-container"
       }.freeze
 
       module_function
@@ -68,6 +70,14 @@ module Monadic
         # PGVector: needed for local PDF vector storage
         if get.call(:pdf_vector_storage)
           services << :pgvector
+        end
+
+        # Privacy: required when an app declares privacy.enabled in MDSL.
+        # The privacy container itself is only built when the user opts in
+        # via PRIVACY_FILTER=true; ensure-service privacy returns
+        # PRIVACY_DISABLED in that case so the caller can show a setup dialog.
+        if get.call(:privacy_enabled)
+          services << :privacy
         end
 
         services

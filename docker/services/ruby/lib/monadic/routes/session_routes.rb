@@ -3,6 +3,53 @@
 # Session state management routes
 # Export/import conversation state and session data
 
+# Convert a Privacy Filter export (encrypted/masked_only/restored) into the
+# standard { parameters, messages } shape that the rest of /load expects.
+#
+# The header is intentionally compact (only app_name + counts), so we look
+# up the app's actual settings via APPS[app_name] to populate model/
+# initial_prompt/etc. This keeps export files small while preserving the
+# UI invariants that the chat header expects after import.
+PRIVACY_SYNTH_APP_KEYS = %w[
+  model models temperature max_tokens initial_prompt display_name icon
+  group provider reasoning_effort tools description
+].freeze
+
+def privacy_synthesize_session(header, body, mode)
+  header ||= {}
+  app_name = header["app_name"] || "Chat"
+  messages = body["messages"] || []
+
+  # Prefer parameters embedded in the body (newer rich exports preserve the
+  # full session state). Fall back to rebuilding from APPS when the body has
+  # no parameters (legacy 3-mode privacy exports).
+  body_params = body["parameters"]
+  parameters = if body_params.is_a?(Hash) && !body_params.empty?
+                 body_params.dup
+               else
+                 base = { "app_name" => app_name }
+                 if defined?(APPS) && APPS[app_name]
+                   app_settings = APPS[app_name].settings
+                   PRIVACY_SYNTH_APP_KEYS.each do |key|
+                     value = app_settings[key] || app_settings[key.to_sym]
+                     base[key] = value unless value.nil?
+                   end
+                 end
+                 base["monadic"] = false unless base.key?("monadic")
+                 base
+               end
+  parameters["app_name"] ||= app_name
+  parameters["imported_from"] = "privacy_export"
+  parameters["imported_mode"] = mode
+
+  result = {
+    "parameters" => parameters,
+    "messages" => messages
+  }
+  result["monadic_state"] = body["monadic_state"] if body["monadic_state"].is_a?(Hash)
+  result
+end
+
 # Get monadic_state for export (Session State mechanism)
 get "/monadic_state" do
   content_type :json
@@ -55,6 +102,47 @@ post "/load" do
         file = params[:file][:tempfile]
         content = file.read
         json_data = JSON.parse(content)
+
+        # Privacy Filter export detection (Block D.4).
+        # Three forms produced by Block D.2/D.3:
+        #   - encrypted: { schema_version, header, envelope: { kdf, cipher }, integrity }
+        #   - masked_only: { header, messages } — no parameters, placeholders intact
+        #   - restored: { header, messages, registry } — plain JSON
+        # We unwrap each into the standard { parameters, messages } shape so the
+        # rest of /load processes them like any other import.
+        privacy_registry_to_restore = nil
+        if json_data.is_a?(Hash) && json_data["envelope"].is_a?(Hash) &&
+           json_data["envelope"].dig("cipher", "algorithm") == "AES-256-GCM"
+          passphrase = (params[:passphrase] || "").to_s
+          if passphrase.empty?
+            return { needs_passphrase: true, header: json_data["header"] }.to_json
+          end
+          require_relative "../utils/privacy/export_cipher"
+          begin
+            plaintext = Monadic::Utils::Privacy::ExportCipher.decrypt(
+              envelope: json_data, passphrase: passphrase
+            )
+          rescue Monadic::Utils::Privacy::ExportCipher::DecryptionError
+            return { needs_passphrase: true, error: "wrong_passphrase" }.to_json
+          rescue Monadic::Utils::Privacy::ExportCipher::IntegrityError => e
+            return error_json("Privacy file integrity check failed: #{e.message}")
+          end
+          decrypted = JSON.parse(plaintext)
+          json_data = privacy_synthesize_session(json_data["header"], decrypted, "encrypted")
+          privacy_registry_to_restore = decrypted["registry"] if decrypted["registry"].is_a?(Hash)
+        elsif json_data.is_a?(Hash) && json_data["header"].is_a?(Hash) &&
+              json_data["messages"].is_a?(Array) && !json_data.key?("parameters")
+          # Legacy 3-mode privacy export (masked_only or restored plain).
+          mode = json_data["registry"].is_a?(Hash) ? "restored" : "masked_only"
+          privacy_registry_to_restore = json_data["registry"] if mode == "restored"
+          json_data = privacy_synthesize_session(json_data["header"], json_data, mode)
+        elsif json_data.is_a?(Hash) && json_data["registry"].is_a?(Hash) &&
+              json_data["parameters"].is_a?(Hash)
+          # Newer plain export carries `registry` alongside parameters/messages.
+          # Capture the registry so the privacy pipeline can be re-seeded after
+          # import; the rest of /load handles parameters/messages normally.
+          privacy_registry_to_restore = json_data["registry"]
+        end
 
         # Validate required fields
         unless json_data["parameters"] && json_data["messages"]
@@ -143,6 +231,31 @@ post "/load" do
             messages: session[:messages],
             parameters: session[:parameters]
           )
+        end
+
+        # Privacy registry restoration (Block D.4). Pre-seed the in-memory
+        # registry so the next message reuses imported placeholders. RD-1
+        # (memory-only) preserved: this only re-populates session memory.
+        if privacy_registry_to_restore.is_a?(Hash) && !privacy_registry_to_restore.empty?
+          session[:monadic_state] ||= {}
+          session[:monadic_state][:privacy] = {
+            registry: privacy_registry_to_restore,
+            audit: [{ ts: Time.now.to_i, op: :import, count: privacy_registry_to_restore.size }]
+          }
+          # Drop any previously-instantiated pipeline so the next vendor call
+          # rebuilds it from session state (re-reads the imported registry).
+          session.delete(:_privacy_pipeline)
+          # Push fresh privacy_state to the client so the indicator updates.
+          ws_for_state = params[:tab_id] || session[:websocket_session_id]
+          if ws_for_state
+            WebSocketHelper.send_to_session({
+              "type" => "privacy_state",
+              "enabled" => true,
+              "registry_count" => privacy_registry_to_restore.size,
+              "error" => nil
+            }.to_json, ws_for_state)
+          end
+          Monadic::Utils::ExtraLogger.log { "[Privacy] Restored registry with #{privacy_registry_to_restore.size} entries from import" }
         end
 
         # Debug logging after import (only when EXTRA_LOGGING is enabled)

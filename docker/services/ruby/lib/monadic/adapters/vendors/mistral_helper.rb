@@ -476,6 +476,13 @@ module MistralHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
+    # Privacy Filter: mask user-message PII before sending to Mistral. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    end
+
     # Force text-only response when force-stop is active (e.g., after parallel dispatch
     # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
     # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.

@@ -1,0 +1,23 @@
+name: EnUsLocalPhoneRecognizer
+supported_language: en
+supported_entity: PHONE_NUMBER
+patterns:
+  - name: us_local_7digit_dash
+    regex: '\b\d{3}-\d{4}\b'
+    score: 0.45
+  - name: us_local_7digit_dot
+    regex: '\b\d{3}\.\d{4}\b'
+    score: 0.4
+  - name: us_10digit_dash
+    regex: '\b\d{3}-\d{3}-\d{4}\b'
+    score: 0.7
+  - name: us_10digit_paren
+    regex: '\(\d{3}\)\s?\d{3}-\d{4}'
+    score: 0.85
+context:
+  - phone
+  - tel
+  - call
+  - contact
+  - cell
+  - mobile

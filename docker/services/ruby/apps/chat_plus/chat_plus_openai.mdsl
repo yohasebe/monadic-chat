@@ -70,6 +70,14 @@ app "ChatPlusOpenAI" do
     monadic true  # Enables sidebar context panel for session state tracking
   end
 
+  privacy do
+    enabled true
+    languages ["en"]
+    score_threshold 0.4
+    honorific_trim true
+    on_failure :block
+  end
+
   # Define context fields to track for this app
   context_schema do
     field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects discussed in conversation"

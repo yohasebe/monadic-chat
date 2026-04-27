@@ -428,6 +428,13 @@ module WebSocketHelper
         # Clear session tts_text after use to avoid reusing on next request
         session.delete(:tts_text) if tts_text_from_target
 
+        # Privacy Filter: replace any "<<TYPE_N>>" placeholder with "TYPE N" so
+        # TTS reads a sanitized form instead of speaking the bracket symbols.
+        # Idempotent for non-privacy sessions (no-op when no placeholders).
+        if session[:_privacy_pipeline]
+          text = session[:_privacy_pipeline].sanitize_for_tts(text)
+        end
+
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }
 
         # Expressive Speech instruction-mode extraction: when the active TTS
@@ -530,6 +537,21 @@ module WebSocketHelper
             content_error = { "type" => "error", "content" => "content_not_found" }.to_json
             send_or_broadcast(content_error, ws_session_id)
             break
+          end
+          # Privacy Filter: restore <<TYPE_N>> placeholders before the message
+          # is finalized. Buffer remains masked so the post-completion TTS path
+          # above can still apply sanitize_for_tts independently.
+          if session[:_privacy_pipeline]
+            pipeline = session[:_privacy_pipeline]
+            raw_content = pipeline.after_receive_from_llm(raw_content).text
+            # Notify frontend of current privacy state so the indicator updates.
+            state_msg = {
+              "type" => "privacy_state",
+              "enabled" => true,
+              "registry_count" => pipeline.registry_count,
+              "error" => nil
+            }.to_json
+            send_or_broadcast(state_msg, ws_session_id)
           end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')

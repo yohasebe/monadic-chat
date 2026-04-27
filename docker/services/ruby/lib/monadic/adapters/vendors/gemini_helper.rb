@@ -1940,6 +1940,35 @@ module GeminiHelper
     app_tools
   end
 
+  # Mask user-message text within Gemini's contents array. The body shape is
+  # contents = [{ role, parts: [{ text }, { inline_data }, ...] }]; only "user"
+  # role parts with a String "text" key are masked. Inline data, file data, and
+  # function_call/response parts pass through untouched.
+  private def apply_privacy_to_gemini_contents(contents, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return contents unless pipeline
+
+    require_relative '../../utils/privacy/types'
+    contents.map do |item|
+      role = item[:role] || item["role"]
+      next item unless role.to_s == "user"
+      parts_key = item.key?(:parts) ? :parts : "parts"
+      parts = item[parts_key]
+      next item unless parts.is_a?(Array)
+
+      new_parts = parts.map do |part|
+        next part unless part.is_a?(Hash)
+        text_key = part.key?(:text) ? :text : "text"
+        text = part[text_key]
+        next part unless text.is_a?(String) && !text.empty?
+        raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
+        masked = pipeline.before_send_to_llm(raw)
+        part.merge(text_key => masked.text)
+      end
+      item.merge(parts_key => new_parts)
+    end
+  end
+
   # Execute the Gemini API call: endpoint selection, HTTP request with retries, error handling
   def execute_gemini_api_call(headers:, body:, obj:, api_key:, is_thinking_model:, has_pdf_part:,
                               app:, session:, call_depth:, &block)
@@ -1948,6 +1977,13 @@ module GeminiHelper
     target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
 
     http = HTTP.headers(headers)
+
+    # Privacy Filter: mask user-message PII before sending to Gemini. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
+      body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
+    end
 
     # Final safety check: Remove toolConfig if no function_declarations exist
     has_any_function_declarations = body["tools"]&.any? { |tool|

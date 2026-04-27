@@ -478,6 +478,14 @@ module OllamaHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
+    # Privacy Filter: mask user-message PII before sending to Ollama. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    # Ollama uses the OpenAI-compatible chat shape (body["messages"]).
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    end
+
     res = nil
     last_error = nil
     MAX_RETRIES.times do |attempt|

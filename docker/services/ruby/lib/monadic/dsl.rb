@@ -261,6 +261,22 @@ module MonadicDSL
       end
     end
 
+    # Privacy Filter (PII masking before LLM, restoration on response).
+    # Usage:
+    #   privacy do
+    #     enabled true
+    #     languages ["ja", "en"]
+    #   end
+    # Setting privacy_enabled=true triggers container_dependencies to require
+    # the :privacy service. Container must be built (PRIVACY_FILTER=true env).
+    def privacy(&block)
+      config = PrivacyFilterConfiguration.new
+      config.instance_eval(&block) if block_given?
+      hash = config.to_hash
+      @state.settings[:privacy] = hash
+      @state.settings[:privacy_enabled] = hash[:enabled]
+    end
+
     # Advisor Tool opt-in (Anthropic Advisor Tool beta).
     # Usage:
     #   advisor_tool  # enable with defaults (claude-opus-4-6)
@@ -575,6 +591,14 @@ module MonadicDSL
     # the unset default (which defaults to enabled at the default threshold).
     unless state.settings[:compaction].nil?
       class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
+    end
+
+    # Add privacy filter settings if specified.
+    # `:privacy_enabled` is a derived flag used by container_dependencies to
+    # decide whether to require the privacy service.
+    unless state.settings[:privacy].nil?
+      class_def << "        @settings[:privacy] = #{state.settings[:privacy].inspect}\n"
+      class_def << "        @settings[:privacy_enabled] = #{state.settings[:privacy_enabled].inspect}\n"
     end
 
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)

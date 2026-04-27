@@ -176,6 +176,83 @@ module BaseVendorHelper
     end
   end
 
+  # Privacy Filter integration helpers.
+  # Vendor helpers call apply_privacy_to_messages just before http.post and
+  # restore_response_text after the response text is finalized. The work is
+  # delegated to a session-scoped Pipeline so registry state survives across
+  # turns within the same conversation.
+  #
+  # Two-gate activation: the app must declare `privacy do; enabled true; end`
+  # in MDSL AND the user must opt in via the session-level toggle (in Session
+  # Controls). Default OFF means privacy filter is fully opt-in per session.
+  def privacy_enabled_for?(app_settings, session = nil)
+    return false unless app_settings && app_settings.dig(:privacy, :enabled) == true
+    return false unless session.is_a?(Hash)
+    params = session[:parameters] || session["parameters"]
+    return false unless params.is_a?(Hash)
+    params["privacy_session_enabled"] == true
+  end
+
+  def privacy_pipeline_for(session, app_settings)
+    return nil unless privacy_enabled_for?(app_settings, session)
+    session[:_privacy_pipeline] ||= begin
+      require_relative '../utils/privacy/pipeline'
+      Monadic::Utils::Privacy::Pipeline.new(
+        backend: Monadic::Utils::Privacy::PresidioBackend.new,
+        config: app_settings[:privacy],
+        session: session
+      )
+    end
+  end
+
+  # Replace user-message text with masked text in-place. Returns a new array
+  # so callers can keep the original messages untouched. system_prompt is
+  # never masked (Phase 1 RD-3 decision).
+  #
+  # Handles two payload shapes:
+  #   1. Chat Completions: content is a String
+  #   2. Responses API: content is Array of {type, text} items
+  def apply_privacy_to_messages(messages, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return messages unless pipeline
+
+    require_relative '../utils/privacy/types'
+    messages.map do |msg|
+      role = msg[:role] || msg["role"]
+      next msg unless role.to_s == "user"
+      text_key = msg.key?(:content) ? :content : "content"
+      content = msg[text_key]
+
+      if content.is_a?(String)
+        raw = Monadic::Utils::Privacy::RawMessage.new(content, "user", {})
+        masked = pipeline.before_send_to_llm(raw)
+        msg.merge(text_key => masked.text)
+      elsif content.is_a?(Array)
+        new_content = content.map do |item|
+          next item unless item.is_a?(Hash)
+          item_type = (item[:type] || item["type"]).to_s
+          next item unless %w[input_text text].include?(item_type)
+          item_text_key = item.key?(:text) ? :text : "text"
+          text = item[item_text_key]
+          next item unless text.is_a?(String) && !text.empty?
+          raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
+          masked = pipeline.before_send_to_llm(raw)
+          item.merge(item_text_key => masked.text)
+        end
+        msg.merge(text_key => new_content)
+      else
+        msg
+      end
+    end
+  end
+
+  def restore_response_text(text, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return text unless pipeline
+    return text unless text.is_a?(String) && !text.empty?
+    pipeline.after_receive_from_llm(text).text
+  end
+
   # Generic backoff wrapper. Yields a block and retries on common transient
   # network errors. The caller remains responsible for logging.
   def retry_with_backoff(max_retries: DEFAULT_MAX_RETRIES, delay: DEFAULT_RETRY_DELAY)

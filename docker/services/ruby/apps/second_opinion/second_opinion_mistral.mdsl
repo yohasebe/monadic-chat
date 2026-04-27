@@ -123,6 +123,14 @@ app "SecondOpinionMistral" do
     group "Mistral"
   end
 
+  privacy do
+    enabled true
+    languages ["en"]
+    score_threshold 0.4
+    honorific_trim true
+    on_failure :block
+  end
+
   tools do
     define_tool "second_opinion_agent", "Verify the response before returning it to the user" do
       parameter :user_query, "string", "The query given by the user", required: true

@@ -70,6 +70,7 @@ const FILES = [
   "js/monadic/ws-ai-user-handler.js",
   "js/monadic/ws-session-handler.js",
   "js/monadic/ws-tts-handler.js",
+  "js/monadic/ws-privacy-handler.js",
   "js/monadic/ws-connection-handler.js",
   "js/monadic/ws-thinking-handler.js",
   "js/monadic/ws-tool-handler.js",

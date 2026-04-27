@@ -662,7 +662,7 @@ class DockerManager {
             const envConfig = readEnvFile(envPath);
 
             // For build commands, always force rebuild by setting FORCE_REBUILD=true
-            const isBuildCommand = ['build', 'build_ruby_container', 'build_python_container', 'build_user_containers'].includes(command);
+            const isBuildCommand = ['build', 'build_ruby_container', 'build_python_container', 'build_user_containers', 'build_privacy_container'].includes(command);
             const buildEnv = isBuildCommand ? { FORCE_REBUILD: 'true' } : {};
 
             let subprocess = spawn(cmd, [], {
@@ -693,6 +693,10 @@ class DockerManager {
                 translatedOutput = formatMessage('success', 'messages.buildRubyFinished');
               } else if (output.includes('Build of Python container has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildPythonFinished');
+              } else if (output.includes('Privacy container build succeeded')) {
+                translatedOutput = formatMessage('success', 'messages.buildPrivacyFinished');
+              } else if (output.includes('Privacy container build failed')) {
+                translatedOutput = formatMessage('error', 'messages.buildPrivacyFailed');
               } else if (output.includes('Build of user containers has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildUserFinished');
               } else if (output.includes('Build of Monadic Chat has finished')) {
@@ -1723,6 +1727,12 @@ function initializeApp() {
               formatMessage(null, 'messages.buildingUserContainers'),
               'Building', 'Stopped', false);
             break;
+          case 'build_privacy_container':
+            openMainWindow();
+            dockerManager.runCommand('build_privacy_container',
+              formatMessage(null, 'messages.buildingPrivacyContainer'),
+              'Building', 'Stopped', false);
+            break;
           // JupyterLab commands
           case 'start-jupyter':
             if (dockerManager.isServerMode()) {
@@ -2134,7 +2144,11 @@ function updateContextMenu(disableControls = false) {
 
 function updateApplicationMenu() {
   // Make sure to update menu structure to reflect the current status
-  
+  // Read PRIVACY_FILTER from env so the Build Privacy menu reflects the
+  // user's opt-in choice, not just the Docker container status.
+  const envCfg = loadSettings() || {};
+  const privacyFilterOn = String(envCfg.PRIVACY_FILTER || '').toLowerCase() === 'true';
+
   // Create standard menu
   const menu = Menu.buildFromTemplate([
     {
@@ -2323,6 +2337,18 @@ function updateApplicationMenu() {
                 false);
             },
             enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
+          },
+          {
+            label: i18n.t('menu.buildPrivacyContainer'),
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_privacy_container',
+                formatMessage(null, 'messages.buildingPrivacyContainer'),
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: (currentStatus === 'Stopped' || currentStatus === 'Uninstalled') && privacyFilterOn
           },
           {
             type: 'separator'
@@ -3455,10 +3481,17 @@ function saveSettings(data) {
         }
         
         // Normalize install option booleans to string 'true'/'false'
-        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK'];
+        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','PRIVACY_FILTER'];
         installOptionKeys.forEach(k => {
             if (k in data) data[k] = data[k] ? 'true' : 'false';
         });
+        // PRIVACY_LANGS is a comma-separated string (e.g. "en,ja"); normalize
+        // to ensure "en" baseline is always present so the build never fails.
+        if ('PRIVACY_LANGS' in data) {
+            const tokens = String(data.PRIVACY_LANGS || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (!tokens.includes('en')) tokens.unshift('en');
+            data.PRIVACY_LANGS = tokens.join(',');
+        }
 
         // Override existing settings with new data (empty string values are included)
         Object.assign(envConfig, data);
@@ -3521,6 +3554,10 @@ ipcMain.on('save-settings', (_event, data) => {
   const languageChanged = uiLanguage && uiLanguage !== oldUiLanguage;
   
   saveSettings(data);
+
+  // Rebuild the menu so settings-driven enable rules (e.g. PRIVACY_FILTER)
+  // pick up the new env values without requiring a UI language change.
+  updateApplicationMenu();
 
   // Apply login item setting (macOS/Windows only)
   if (process.platform !== 'linux') {

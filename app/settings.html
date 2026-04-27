@@ -755,6 +755,26 @@
                 <label for="imgopt-imagemagick">ImageMagick (convert/mogrify)</label>
               </div>
             </div>
+
+            <div class="setting-group">
+              <label data-i18n="settings.labels.installPrivacyTitle">Privacy Filter (PII Masking)</label>
+              <small class="text-muted" data-i18n="settings.labels.installPrivacyDesc">Mask names, emails, and other personal information before sending to AI providers. Adds a separate ~1 GB container per language.</small>
+              <div class="checkbox-row" style="margin-top: 8px;">
+                <input type="checkbox" id="install-privacy-filter">
+                <label for="install-privacy-filter" data-i18n="settings.labels.installPrivacyEnable">Install Privacy Filter (English baseline)</label>
+              </div>
+              <div id="privacy-langs-extra" style="margin-top: 8px; padding-left: 20px;">
+                <small class="text-muted" data-i18n="settings.labels.installPrivacyLangsLabel">Additional languages (each adds ~150-300 MB)</small>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-ja" disabled><label for="privacy-lang-ja">Japanese (ja)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-de" disabled><label for="privacy-lang-de">German (de)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-es" disabled><label for="privacy-lang-es">Spanish (es)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-fr" disabled><label for="privacy-lang-fr">French (fr)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-it" disabled><label for="privacy-lang-it">Italian (it)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-nl" disabled><label for="privacy-lang-nl">Dutch (nl)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-pt" disabled><label for="privacy-lang-pt">Portuguese (pt)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-zh" disabled><label for="privacy-lang-zh">Chinese (zh)</label></div>
+              </div>
+            </div>
           </div>
 
           <!-- Panel: Actions -->
@@ -794,6 +814,9 @@
                 </button>
                 <button type="button" class="action-btn" id="action-build-user" disabled>
                   <i class="fas fa-user"></i> <span data-i18n="settings.labels.actionBuildUser">Build User</span>
+                </button>
+                <button type="button" class="action-btn" id="action-build-privacy" disabled>
+                  <i class="fas fa-shield-halved"></i> <span data-i18n="settings.labels.actionBuildPrivacy">Build Privacy</span>
                 </button>
               </div>
             </div>
@@ -922,18 +945,63 @@
         }
       }
 
+      // ─── Privacy Filter helpers ───
+      // Spacy languages supported by the privacy container (matches
+      // docker/services/privacy/language_map.json). English is the baseline
+      // and always included when the filter is installed.
+      const PRIVACY_EXTRA_LANGS = ['ja', 'de', 'es', 'fr', 'it', 'nl', 'pt', 'zh'];
+
+      function collectPrivacyLangs() {
+        const langs = ['en'];
+        PRIVACY_EXTRA_LANGS.forEach(code => {
+          const el = document.getElementById('privacy-lang-' + code);
+          if (el && el.checked) langs.push(code);
+        });
+        return langs.join(',');
+      }
+
+      function applyPrivacyLangs(value) {
+        const tokens = String(value || 'en').split(',').map(s => s.trim()).filter(Boolean);
+        PRIVACY_EXTRA_LANGS.forEach(code => {
+          const el = document.getElementById('privacy-lang-' + code);
+          if (el) el.checked = tokens.includes(code);
+        });
+      }
+
+      function syncPrivacyLangsEnabled() {
+        const master = document.getElementById('install-privacy-filter');
+        const enabled = !!(master && master.checked);
+        PRIVACY_EXTRA_LANGS.forEach(code => {
+          const el = document.getElementById('privacy-lang-' + code);
+          if (el) el.disabled = !enabled;
+        });
+        const wrapper = document.getElementById('privacy-langs-extra');
+        if (wrapper) wrapper.style.opacity = enabled ? '1' : '0.5';
+      }
+
+      // Toggle extras + Build Privacy availability when the master flips.
+      document.addEventListener('change', (ev) => {
+        if (ev.target && ev.target.id === 'install-privacy-filter') {
+          syncPrivacyLangsEnabled();
+          updateActionButtons();
+        }
+      });
+
       // ─── Actions Tab Logic ───
       function updateActionButtons() {
         const s = actionDockerStatus;
         const met = actionMetRequirements;
+        const buildable = s === 'Stopped' || s === 'Uninstalled';
+        const privacyOn = !!(document.getElementById('install-privacy-filter') || {}).checked;
         const rules = {
           'action-start': s === 'Stopped',
           'action-stop': ['Running', 'Ready', 'Starting', 'Building'].includes(s),
           'action-restart': s === 'Running' || s === 'Ready',
-          'action-build': s === 'Stopped' || s === 'Uninstalled',
-          'action-build-ruby': s === 'Stopped' || s === 'Uninstalled',
-          'action-build-python': s === 'Stopped' || s === 'Uninstalled',
-          'action-build-user': s === 'Stopped' || s === 'Uninstalled',
+          'action-build': buildable,
+          'action-build-ruby': buildable,
+          'action-build-python': buildable,
+          'action-build-user': buildable,
+          'action-build-privacy': buildable && privacyOn,
           'action-start-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-stop-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-import-db': s === 'Stopped' && met,
@@ -955,6 +1023,7 @@
         'action-build-ruby': 'build_ruby_container',
         'action-build-python': 'build_python_container',
         'action-build-user': 'build_user_containers',
+        'action-build-privacy': 'build_privacy_container',
         'action-start-jupyter': 'start-jupyter',
         'action-stop-jupyter': 'stop-jupyter',
         'action-import-db': 'import-db',
@@ -1059,7 +1128,9 @@
           PYOPT_LIBROSA: document.getElementById('pyopt-librosa').checked,
           PYOPT_MEDIAPIPE: document.getElementById('pyopt-mediapipe').checked,
           PYOPT_TRANSFORMERS: document.getElementById('pyopt-transformers').checked,
-          IMGOPT_IMAGEMAGICK: document.getElementById('imgopt-imagemagick').checked
+          IMGOPT_IMAGEMAGICK: document.getElementById('imgopt-imagemagick').checked,
+          PRIVACY_FILTER: document.getElementById('install-privacy-filter').checked,
+          PRIVACY_LANGS: collectPrivacyLangs()
         };
 
         window.electronAPI.saveSettings(data);
@@ -1197,6 +1268,10 @@
         document.getElementById('pyopt-mediapipe').checked = data.PYOPT_MEDIAPIPE == "true" || false;
         document.getElementById('pyopt-transformers').checked = data.PYOPT_TRANSFORMERS == "true" || false;
         document.getElementById('imgopt-imagemagick').checked = data.IMGOPT_IMAGEMAGICK == "true" || false;
+        // Privacy Filter: master flag + per-language extras parsed from PRIVACY_LANGS=en,ja,...
+        document.getElementById('install-privacy-filter').checked = data.PRIVACY_FILTER == "true" || false;
+        applyPrivacyLangs(data.PRIVACY_LANGS || 'en');
+        syncPrivacyLangsEnabled();
         document.getElementById('ui-language').value = data.UI_LANGUAGE || 'en';
 
         // Sync UI language and track initial value for discard revert

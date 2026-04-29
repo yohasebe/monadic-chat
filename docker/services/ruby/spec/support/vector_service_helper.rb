@@ -24,13 +24,18 @@ module VectorServiceHelper
     qdrant_available? && embeddings_available?
   end
 
+  # Raises an RSpec skip exception when either container is unreachable from
+  # the host. Production mode (Electron) does not expose qdrant/embeddings
+  # ports, so these specs skip cleanly there. Run in dev mode
+  # (compose.dev.yml overlay) to get host-side access.
   def skip_unless_both!
-    unless both_available?
-      missing = []
-      missing << 'qdrant' unless qdrant_available?
-      missing << 'embeddings' unless embeddings_available?
-      skip "Skipping: required containers not running (#{missing.join(', ')}). Start them with: docker compose -f docker/services/compose.yml up -d qdrant_service embeddings_service"
-    end
+    return if both_available?
+    missing = []
+    missing << 'qdrant' unless qdrant_available?
+    missing << 'embeddings' unless embeddings_available?
+    msg = "Skipping: required containers not reachable from host (#{missing.join(', ')}). " \
+          "Run in dev mode (rake server:debug) or expose ports via compose.dev.yml."
+    raise RSpec::Core::Pending::SkipDeclaredInExample.new(msg)
   end
 
   def probe(url)

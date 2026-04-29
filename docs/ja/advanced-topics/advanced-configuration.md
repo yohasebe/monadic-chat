@@ -192,16 +192,6 @@ START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
 ```
 
-### PDFストレージ
-
-```
-# PDFストレージモード (local|cloud)
-PDF_STORAGE_MODE=local
-
-# 後方互換性のためのフォールバック
-PDF_DEFAULT_STORAGE=local
-```
-
 ### ロギング
 
 ```

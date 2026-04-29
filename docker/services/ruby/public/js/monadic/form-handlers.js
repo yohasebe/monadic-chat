@@ -32,38 +32,19 @@ async function uploadPdf(file, fileTitle) {
     if (appName) formData.append("appName", appName);
   } catch (_) { /* no-op */ }
 
-  // Resolve endpoint from server default (Settings).
-  const postTo = async (endpoint) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 120000);
-    try {
-      const res = await fetch(endpoint, { method: "POST", body: formData, signal: controller.signal });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      clearTimeout(timer);
-      throw e;
-    }
-  };
-
-  // Resolve the endpoint from server defaults. We DO NOT retry on upload
-  // failure: the previous catch-and-retry pattern double-uploaded when the
-  // first request appeared to fail client-side (timeout, transient 5xx)
-  // but actually succeeded server-side, leaving duplicate entries.
-  let endpoint = '/pdf';
+  // Do not retry on failure: a transient client-side error can leave the
+  // server-side upload completed, so a retry would create duplicates.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
   try {
-    const res = await fetch('/api/pdf_storage_defaults');
-    if (res.ok) {
-      const info = await res.json();
-      const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
-      endpoint = (mode === 'cloud') ? '/openai/pdf?action=upload' : '/pdf';
-    }
-  } catch (_) {
-    // /api/pdf_storage_defaults is not critical for upload routing; fall back
-    // to local storage when it is unreachable (default behaviour anyway).
+    const res = await fetch('/pdf', { method: "POST", body: formData, signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    clearTimeout(timer);
+    throw e;
   }
-  return await postTo(endpoint);
 }
 
 /**

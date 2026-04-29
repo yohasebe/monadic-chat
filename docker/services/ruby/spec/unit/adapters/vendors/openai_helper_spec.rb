@@ -94,39 +94,6 @@ RSpec.describe OpenAIHelper do
     end
   end
 
-  describe '#get_current_app_key' do
-    it 'returns "default" for empty session hash' do
-      session = {}
-      result = helper.send(:get_current_app_key, session)
-      expect(result).to eq('default')
-    end
-
-    it 'extracts app_name from session parameters' do
-      session = { parameters: { "app_name" => "MyTestApp" } }
-      result = helper.send(:get_current_app_key, session)
-      # Should be lowercased and sanitized
-      expect(result).to match(/mytestapp/i)
-    end
-
-    it 'falls back to current_app when app_name is nil' do
-      session = { parameters: {}, current_app: "FallbackApp" }
-      result = helper.send(:get_current_app_key, session)
-      expect(result).to match(/fallbackapp/i)
-    end
-
-    it 'returns "default" when session has no app info' do
-      session = { parameters: {} }
-      result = helper.send(:get_current_app_key, session)
-      expect(result).to eq('default')
-    end
-
-    it 'sanitizes special characters in app name' do
-      session = { parameters: { "app_name" => 'My App! @#$' } }
-      result = helper.send(:get_current_app_key, session)
-      expect(result).not_to match(/[^a-z0-9_\-]/)
-    end
-  end
-
   describe '#document_type?' do
     it 'returns true for PDF' do
       expect(helper.document_type?("application/pdf")).to be true

@@ -52,10 +52,6 @@ We considered alternatives:
 
 The JSON dump is portable, version-controlled, debuggable (`cat | jq`), and dimension-checked at load time so dimension changes between releases fail fast.
 
-### `pgvector_available` JSON field name preserved
-
-The `/api/pdf_storage_defaults` endpoint still returns `pgvector_available` despite the backend no longer being PGVector. This is for frontend protocol compatibility — `monadic.js` consumes that key. Renaming would require a coordinated change to `monadic.bundle.min.js`. We added a comment in `pdf_routes.rb` noting that the field name is historical and now means "is the local store available". A future cleanup can rename both sides together.
-
 ## Migration impact for existing users
 
 - **Local PDF data is not automatically migrated.** Re-upload PDFs after upgrading. We surface a one-shot upgrade notice in `lib/monadic.rb` when the legacy `monadic-chat-pgvector-data` Docker volume is detected.
@@ -84,6 +80,5 @@ The `/api/pdf_storage_defaults` endpoint still returns `pgvector_available` desp
 
 ## Open follow-ups
 
-- The `pgvector_available` field name (frontend protocol) — rename eventually
 - Multi-language help DB build (currently English only; the model handles JA/ZH/etc. but the build script does not yet ingest `docs/ja/*`)
 - `process_documentation.rb` does not yet support incremental rebuild via content hashes — full rebuild only

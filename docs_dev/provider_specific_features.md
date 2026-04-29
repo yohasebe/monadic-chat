@@ -114,7 +114,6 @@ parallel beta-header handling.**
 | Adaptive reasoning | model_param | Model-gated | `openai_helper.rb` | Varies by model |
 | Structured output (`response_format`) | api_feature | App config | `openai_helper.rb` | `json_object`, `json_schema` |
 | File Inputs API + `file_id` caching | api_feature | Automatic | `openai_helper.rb` | See `developer/file_inputs_api.md` |
-| Vector Store (PDF cloud) | api_feature | Runtime toggle | `openai_helper.rb` | Alternative to PGVector |
 | Web search tool | server_tool | MDSL `features.websearch` | `openai_helper.rb` | Responses API server tool |
 | GPT-5-Codex delegation | client_side | Shared agent module | `agents/gpt5_codex_agent.rb` | Executor/codex split is implemented client-side |
 

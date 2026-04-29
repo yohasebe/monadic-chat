@@ -111,14 +111,10 @@ describe('Form Handlers', () => {
       expect(formAppendMock).toHaveBeenCalledWith('pdfFile', pdfFile);
       expect(formAppendMock).toHaveBeenCalledWith('pdfTitle', 'Test PDF');
 
-      // Verify fetch was called — first for storage defaults, then for /pdf
       expect(global.fetch).toHaveBeenCalled();
       const fetchCalls = global.fetch.mock.calls;
-      // Should have called /api/pdf_storage_defaults first
-      expect(fetchCalls[0][0]).toBe('/api/pdf_storage_defaults');
-      // Then /pdf for the actual upload
-      expect(fetchCalls[1][0]).toBe('/pdf');
-      expect(fetchCalls[1][1].method).toBe('POST');
+      expect(fetchCalls[0][0]).toBe('/pdf');
+      expect(fetchCalls[0][1].method).toBe('POST');
 
       // Restore original FormData
       global.FormData = origFormData;

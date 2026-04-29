@@ -10,7 +10,6 @@ require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/debug_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
-require_relative "../../utils/pdf_storage_config"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/openai_file_inputs_cache"
@@ -92,13 +91,6 @@ module OpenAIHelper
   # Built-in tools available in Responses API
   RESPONSES_API_BUILTIN_TOOLS = {
     "web_search" => { type: "web_search" },
-    "file_search" => ->(vector_store_ids: [], max_num_results: 20) {
-      {
-        type: "file_search",
-        vector_store_ids: vector_store_ids,
-        max_num_results: max_num_results
-      }
-    },
     "code_interpreter" => { type: "code_interpreter" },
     "computer_use" => ->(display_width: 1280, display_height: 720) {
       {
@@ -142,142 +134,6 @@ module OpenAIHelper
 
   # Pre-compiled regex for single-pass replacement (performance optimization)
   SMART_QUOTE_REGEX = Regexp.union(SMART_QUOTE_REPLACEMENTS.keys).freeze
-
-  # --- PDF storage routing helpers (DocumentStore switching) ---
-  def get_current_app_key(session)
-    raw = (defined?(session) ? (session.dig(:parameters, "app_name") || session[:current_app]) : nil)
-    raw = 'default' if raw.nil? || raw.to_s.strip.empty?
-    if defined?(Monadic::Utils::DocumentStoreRegistry)
-      Monadic::Utils::DocumentStoreRegistry.sanitize_app_key(raw)
-    else
-      raw.to_s.strip.downcase.gsub(/[^a-z0-9_\-]/, '_')
-    end
-  end
-
-  def resolve_openai_vs_id(session)
-    # Per-instance cache keyed by session-scoped cache version to avoid stale values
-    ver = (defined?(session) && session && session[:pdf_cache_version]) || 0
-    if instance_variable_defined?(:@cached_vs_id) && instance_variable_defined?(:@cached_vs_id_version)
-      return @cached_vs_id if @cached_vs_id_version == ver
-    end
-    vs_id = nil
-    begin
-      # 1) session
-      vs_id ||= (defined?(session) ? session[:openai_vector_store_id] : nil)
-      # 2) app-specific ENV
-      if vs_id.nil? && defined?(CONFIG)
-        app_key = get_current_app_key(session).upcase
-        app_env = CONFIG["OPENAI_VECTOR_STORE_ID__#{app_key}"] rescue nil
-        vs_id = app_env.to_s.strip unless app_env.nil? || app_env.to_s.strip.empty?
-      end
-      # 3) global ENV (explicit config should take precedence over registry)
-      if vs_id.nil? && defined?(CONFIG)
-        env_vs = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip rescue ""
-        vs_id = env_vs unless env_vs.empty?
-      end
-      # 4) registry
-      if vs_id.nil? && defined?(Monadic::Utils::DocumentStoreRegistry)
-        app_key = get_current_app_key(session)
-        vs_id ||= Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-      end
-      # 5) fallback meta file
-      if vs_id.nil? && defined?(Monadic::Utils::Environment)
-        meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
-        if File.exist?(meta_path)
-          begin
-            meta = JSON.parse(File.read(meta_path))
-            vs_id = meta["vector_store_id"] if meta && meta["vector_store_id"]
-          rescue StandardError
-            vs_id = nil
-          end
-        end
-      end
-    rescue StandardError
-      vs_id = nil
-    end
-    @cached_vs_id = vs_id
-    @cached_vs_id_version = ver
-    vs_id
-  end
-
-  def resolve_pdf_storage_mode(session)
-    # Per-instance cache keyed by session-scoped version to avoid stale results
-    begin
-      if Monadic::Utils::PdfStorageConfig.refresh_from_env
-        remove_instance_variable(:@cached_pdf_mode) if instance_variable_defined?(:@cached_pdf_mode)
-        remove_instance_variable(:@cached_pdf_mode_version) if instance_variable_defined?(:@cached_pdf_mode_version)
-      end
-    rescue StandardError
-      # Ignore refresh issues and continue with existing cache.
-    end
-    ver = (defined?(session) && session && session[:pdf_cache_version]) || 0
-    if instance_variable_defined?(:@cached_pdf_mode) && instance_variable_defined?(:@cached_pdf_mode_version)
-      return @cached_pdf_mode if @cached_pdf_mode_version == ver
-    end
-    begin
-      vs_present = !!resolve_openai_vs_id(session)
-      # Fast local presence check (prefer DB-level LIMIT 1; fallback to title listing if unavailable)
-      local_present = begin
-        if defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
-          if EMBEDDINGS_DB.respond_to?(:any_docs?)
-            EMBEDDINGS_DB.any_docs?
-          elsif Kernel.respond_to?(:list_pdf_titles, true)
-            begin
-              titles = Kernel.send(:list_pdf_titles)
-              titles.respond_to?(:empty?) ? !titles.empty? : false
-            rescue StandardError
-              false
-            end
-          else
-            false
-          end
-        else
-          false
-        end
-      rescue StandardError
-        false
-      end
-      session_mode = (defined?(session) ? session[:pdf_storage_mode].to_s.downcase : '')
-      # Session override takes precedence (immediate switch during runtime)
-      if session_mode == 'local'
-        @cached_pdf_mode = 'local'
-        return @cached_pdf_mode
-      end
-      if session_mode == 'cloud' && vs_present
-        @cached_pdf_mode = 'cloud'
-        return @cached_pdf_mode
-      end
-
-      # Determine configured mode (ENV), with backward compatibility
-      env_mode = begin
-        m = (defined?(CONFIG) ? (CONFIG["PDF_STORAGE_MODE"] || CONFIG["PDF_DEFAULT_STORAGE"] || 'local') : 'local')
-        m.to_s.downcase
-      rescue StandardError
-        'local'
-      end
-
-      # Honor configured mode when available; otherwise fall back to availability
-      @cached_pdf_mode = if env_mode == 'cloud' && vs_present
-        'cloud'
-      elsif env_mode == 'local' && local_present
-        'local'
-      elsif vs_present
-        'cloud'
-      elsif local_present
-        'local'
-      else
-        # Neither available; return configured mode (sanitized)
-        %w[local cloud].include?(env_mode) ? env_mode : 'local'
-      end
-      @cached_pdf_mode_version = ver
-      @cached_pdf_mode
-    rescue StandardError
-      @cached_pdf_mode = 'local'
-      @cached_pdf_mode_version = ver
-      'local'
-    end
-  end
-
 
   WEBSEARCH_PROMPT = <<~TEXT
 
@@ -553,7 +409,7 @@ module OpenAIHelper
     body
   end
 
-  # Configure tools on the request body (parse, PTD filter, PDF cloud file_search).
+  # Configure tools on the request body.
   private def configure_openai_tools(body, obj, app, session, role, caps, use_responses_api)
     skip_tools = caps[:non_tool_model] || (role == "tool" && !use_responses_api)
 
@@ -576,41 +432,6 @@ module OpenAIHelper
 
     # Get tools from app settings first
     app_tools = APPS[app]&.settings&.[]("tools")
-    # For first turn in cloud mode, suppress local DB tools to force cloud file_search first
-    begin
-      app_has_docstore = APPS[app]&.settings&.[]("pdf_vector_storage")
-      user_turns = (session[:messages] || []).count { |m| m && m["role"] == "user" }
-      first_turn = user_turns <= 1
-      if app_has_docstore && first_turn
-        mode_now = resolve_pdf_storage_mode(session)
-        if mode_now != 'local' && app_tools && !app_tools.empty?
-          local_pdf_tools = %w[find_closest_text get_text_snippet list_titles find_closest_doc get_text_snippets]
-          filtered = app_tools.reject do |t|
-            fn = t.is_a?(Hash) ? t.dig("function", "name") : nil
-            local_pdf_tools.include?(fn)
-          end
-          if filtered.size != app_tools.size
-            app_tools = filtered
-            DebugHelper.debug("OpenAI: Suppressed local PDF tools on first turn to force cloud search", category: :api, level: :info)
-          end
-        end
-      end
-    rescue StandardError
-      # keep app_tools as-is on any error
-    end
-    # For PDF Navigator, suppress local DB tools when routing in cloud mode
-    begin
-      current_app = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
-      if current_app.to_s == 'PDFNavigatorOpenAI'
-        resolved_mode = resolve_pdf_storage_mode(session)
-        if resolved_mode == 'cloud'
-          app_tools = []
-          DebugHelper.debug("PDFNavigator: Suppressing local tools (cloud mode)", category: :api, level: :debug)
-        end
-      end
-    rescue StandardError
-      # keep app_tools as-is on any error
-    end
 
     if APPS[app]
       begin
@@ -639,33 +460,6 @@ module OpenAIHelper
     else
       body.delete("tools")
       body.delete("tool_choice")
-    end
-
-    # Add file_search tool for Chat Completions API as well (when app opts into pdf_vector_storage)
-    begin
-      app_has_docstore = APPS[app]&.settings&.[]("pdf_vector_storage")
-      if app_has_docstore && !use_responses_api
-        vs_id = resolve_openai_vs_id(session)
-        resolved_mode = resolve_pdf_storage_mode(session)
-        if vs_id && resolved_mode != 'local'
-          body["tools"] ||= []
-          body["tools"] << {
-            "type" => "file_search",
-            "description" => "Search for information in PDFs stored in OpenAI Vector Store.",
-            "file_search" => {
-              "vector_store_ids" => [vs_id],
-              "max_num_results" => 20
-            }
-          }
-          DebugHelper.debug("OpenAI(Chat): Adding file_search tool with vector_store_id=#{vs_id}", category: :api, level: :debug)
-        else
-          DebugHelper.debug("OpenAI(Chat): Skipping file_search (app_has_docstore=#{!!app_has_docstore}, vs_id_present=#{!!vs_id}, mode=#{resolved_mode}, app=#{app})", category: :api, level: :debug)
-        end
-      else
-        DebugHelper.debug("OpenAI(Chat): Skipping file_search (use_responses_api=#{use_responses_api}, app_has_docstore=#{!!app_has_docstore}, app=#{app})", category: :api, level: :debug)
-      end
-    rescue StandardError => e
-      DebugHelper.debug("OpenAI(Chat): Failed to attach file_search tool: #{e.message}", category: :api, level: :warning)
     end
   end
 
@@ -1231,38 +1025,6 @@ module OpenAIHelper
       end
     end
 
-    # Document search policy hint for cloud mode
-    begin
-      current_app = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
-      vs_hint_id = resolve_openai_vs_id(session)
-      resolved_mode = resolve_pdf_storage_mode(session)
-      app_has_docstore = begin
-        APPS[current_app]&.settings&.[]("pdf_vector_storage")
-      rescue StandardError
-        false
-      end
-
-      if vs_hint_id && app_has_docstore && resolved_mode != 'local'
-        extra = <<~TXT
-        \n\nDOCUMENT SEARCH POLICY (Hybrid Ready):
-        - You have two sources: Local PDF DB (functions) and Cloud File Search (vector store).
-        - Call at most ONCE per source for a given user request.
-        - Prefer the source that is more likely to contain the answer. If the first source returns no relevant results, try the other ONCE.
-        - Do NOT loop or repeat similar searches. If both yield nothing, explain the limitation to the user.
-
-        When you cite results, include a compact metadata footer after an `---` divider with:
-        Doc Title, Snippet tokens, Snippet position. For example:
-        ---
-        Doc Title: <title>
-        Snippet tokens: <tokens>
-        Snippet position: <position>/<total>
-        TXT
-        responses_body["instructions"] = (responses_body["instructions"] || "") + extra
-      end
-    rescue StandardError
-      # no-op hint
-    end
-
     if input_messages.empty?
       input_messages << {
         "role" => "user",
@@ -1311,18 +1073,6 @@ module OpenAIHelper
               "description" => tool_json["function"]["description"],
               "parameters" => tool_json["function"]["parameters"]
             }
-          elsif tool_json["type"] == "file_search"
-            begin
-              vs_id_conv = resolve_openai_vs_id(session)
-              max_n = tool_json.dig("file_search", "max_num_results") || 8
-              {
-                "type" => "file_search",
-                "vector_store_ids" => vs_id_conv ? [vs_id_conv] : [],
-                "max_num_results" => max_n
-              }
-            rescue StandardError
-              tool_json
-            end
           else
             tool_json
           end
@@ -1332,24 +1082,6 @@ module OpenAIHelper
 
       responses_body["tool_choice"] = body["tool_choice"] if body["tool_choice"]
       responses_body["parallel_tool_calls"] = true
-    end
-
-    # Attach File Search tool for Responses API
-    begin
-      current_app = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
-      app_has_docstore = APPS[current_app]&.settings&.[]("pdf_vector_storage")
-      vs_id = resolve_openai_vs_id(session)
-      resolved_mode = resolve_pdf_storage_mode(session)
-
-      if app_has_docstore && vs_id && resolved_mode != 'local'
-        responses_body["tools"] ||= []
-        responses_body["tools"] << RESPONSES_API_BUILTIN_TOOLS["file_search"].call(vector_store_ids: [vs_id], max_num_results: 8)
-        DebugHelper.debug("OpenAI: Adding file_search tool with vector_store_id=#{vs_id} for app=#{current_app}", category: :api, level: :debug)
-      else
-        DebugHelper.debug("OpenAI: Skipping file_search tool (app_has_docstore=#{!!app_has_docstore}, vs_id_present=#{!!vs_id}, mode=#{resolved_mode}, app=#{current_app})", category: :api, level: :debug)
-      end
-    rescue => e
-      DebugHelper.debug("Failed to attach file_search tool: #{e.message}", category: :api, level: :warning)
     end
 
     # Support for structured outputs and verbosity
@@ -1649,21 +1381,6 @@ module OpenAIHelper
     # Update use_responses_api flag if we need it for websearch
     if caps[:use_responses_api_for_websearch] && !use_responses_api
       use_responses_api = true
-    end
-
-    # Force Responses API when Cloud PDF file_search should be available
-    begin
-      app_has_docstore = APPS[app]&.settings&.[]("pdf_vector_storage")
-      if app_has_docstore
-        vs_id_forcing = resolve_openai_vs_id(session)
-        mode_forcing = resolve_pdf_storage_mode(session)
-        if vs_id_forcing && mode_forcing != 'local'
-          use_responses_api = true
-          DebugHelper.debug("OpenAI: Forcing Responses API due to file_search availability (vs_id present, mode=#{mode_forcing})", category: :api, level: :info)
-        end
-      end
-    rescue StandardError
-      # conservative: do nothing
     end
 
     message = nil
@@ -2498,7 +2215,6 @@ module OpenAIHelper
       reasoning_items_raw: {},  # Store original reasoning items for reconstruction
       message_items_raw: [],    # Store original message items (preserves phase + future unknown fields)
       web_search_results: [],
-      file_search_results: [],
       image_generation_status: {},
       # Track usage reported by Responses API
       usage_input_tokens: nil,
@@ -2877,21 +2593,6 @@ module OpenAIHelper
       item_id = json["item_id"]
       if item_id
         state[:web_search_results] << item_id
-      end
-
-    when "response.file_search_call.in_progress"
-      # File search started
-      res = { "type" => "wait", "content" => "<i class='fas fa-file-search'></i> SEARCHING FILES" }
-      block&.call res
-
-    when "response.file_search_call.searching"
-      # File search in progress
-
-    when "response.file_search_call.completed"
-      # File search completed
-      item_id = json["item_id"]
-      if item_id
-        state[:file_search_results] << item_id
       end
 
     when "response.image_generation_call.in_progress"

@@ -3303,45 +3303,6 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("fileFile"); if (el) el.value = ""; }
     bootstrap.Modal.getOrCreateInstance($id("fileModal")).show();
 
-    // Initialize storage mode radios based on current provider/model
-    try {
-      const appName = ($id("apps") || {}).value;
-      const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : '';
-      const isOpenAI = group.toLowerCase() === 'openai';
-      const model = ($id("model") || {}).value;
-      const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
-
-      // Fetch server defaults and availability
-      fetch('/api/pdf_storage_defaults')
-        .then(function(res) { return res.ok ? res.json() : Promise.reject(res); })
-        .then(function(info) {
-          const pgAvailable = !!info.pgvector_available;
-          const defaultStorage = (info.default_storage || 'local').toLowerCase();
-
-          // Enable/disable by availability
-          { const el = $id("storage-local"); if (el) el.disabled = !pgAvailable; }
-          // Always allow selecting Cloud to experiment; routing will still guard by provider
-          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
-
-          // Decide selection
-          let select = 'local';
-          if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
-          if (select === 'cloud' && ($id("storage-cloud") || {}).disabled) select = 'local';
-          if (select === 'local' && ($id("storage-local") || {}).disabled) select = 'cloud';
-
-          if (select === 'cloud') {
-            { const el = $id("storage-cloud"); if (el) el.checked = true; }
-          } else {
-            { const el = $id("storage-local"); if (el) el.checked = true; }
-          }
-        }).catch(function() {
-          // Fallback: prefer local if enabled, else cloud
-          { const el = $id("storage-local"); if (el) el.disabled = false; }
-          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
-          { const el = $id("storage-local"); if (el) el.checked = true; }
-        });
-    } catch (_) { console.warn("[PDF Modal] Storage option init failed:", _); }
-
     // Set a friendly placeholder for file title
     try {
       const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
@@ -3380,20 +3341,10 @@ document.addEventListener("DOMContentLoaded", function () {
         $hide($id("file-spinner"));
         document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
         bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-        // Decide if this was uploaded to OpenAI or local DB
-        const isOpenAIUpload = !!(response.vector_store_id);
-        // Refresh local PDF DB titles only for local ingestion
-        if (!isOpenAIUpload) {
-          sendPdfWsMessage({ message: "PDF_TITLES" });
-        } else {
-          // Auto-refresh cloud list on successful OpenAI upload
-          if (typeof refreshCloudPdfList === 'function') refreshCloudPdfList();
-        }
+        sendPdfWsMessage({ message: "PDF_TITLES" });
         const uploadedFilename = response.filename || "PDF file";
         const uploadMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadSuccess') : 'uploaded successfully';
-        const providerNote = isOpenAIUpload ? ' (OpenAI)' : '';
-        const dedupNote = (isOpenAIUpload && response.deduplicated) ? ' (deduplicated)' : '';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}${providerNote}${dedupNote}`, "success");
+        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}`, "success");
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";
@@ -3604,131 +3555,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Cloud PDF list handlers
-  async function refreshCloudPdfList() {
-    try {
-      const $list = $id("cloud-pdf-list");
-      if (!$list) return;
-      if ($list) $list.innerHTML = ('<span class="text-secondary">Loading...</span>');
-      const listResp = await fetch('/openai/pdf?action=list');
-      const res = listResp.ok ? await listResp.json() : null;
-      if (!res || !res.success) {
-        if ($list) $list.innerHTML = ('<span class="text-danger">Failed to load</span>');
-        return;
-      }
-      // Update Cloud meta (move Vector Store ID to footer; keep header clean)
-      try {
-        const vs = res.vector_store_id || '';
-        { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
-        // Do not show VS in header to avoid confusion
-        // Leave #cloud-pdf-info handling to status refresher
-      } catch (_) { console.warn("[PDF Listing] Metadata update failed:", _); }
-      const files = res.files || [];
-      if (files.length === 0) {
-        if ($list) $list.innerHTML = (`<span class="text-secondary">${getTranslation('ui.noPdfsCloud', 'No cloud PDFs')}</span>`);
-        return;
-      }
-      const rows = files.map(f => {
-        const name = (f.filename || f.id || '').replace(/</g,'&lt;');
-        const attrName = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-        const status = f.status || '';
-        return `<div class="d-flex align-items-center justify-content-between py-1 border-bottom cloud-pdf-row">
-          <span class="cloud-pdf-name">${name} <span class="text-muted">${status ? '('+status+')' : ''}</span></span>
-          <button class="btn btn-sm btn-outline-secondary" data-action="cloud-delete-file" data-file-id="${f.id}" data-file-name="${attrName}"><i class="fa-regular fa-trash-can text-secondary"></i></button>
-        </div>`;
-      });
-      if ($list) $list.innerHTML = (rows.join(''));
-    } catch (e) {
-      { const el = $id("cloud-pdf-list"); if (el) el.innerHTML = '<span class="text-danger">Failed to load</span>'; }
-    }
-  }
-
-  document.addEventListener('click', function(e) { if (!e.target.closest('#cloud-pdf-refresh')) return;
-    e.preventDefault();
-    refreshCloudPdfList();
-  });
-
-  document.addEventListener('click', async function(e) { if (!e.target.closest('#cloud-pdf-clear')) return;
-    e.preventDefault();
-    try {
-      const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllCloudPdfs') : 'Clear all Cloud PDFs?';
-      if (!confirm(msg)) return;
-      const clearRes = await fetch('/openai/pdf?action=clear', { method: 'DELETE' });
-      if (!clearRes.ok) throw new Error(`Clear failed: ${clearRes.status}`);
-      refreshCloudPdfList();
-      setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDFs cleared', 'success');
-    } catch (err) {
-      setAlert('Failed to clear Cloud PDFs', 'error');
-    }
-  });
-
-  document.addEventListener('click', async function(e) { const _delegateTarget = e.target.closest('button[data-action="cloud-delete-file"]'); if (!_delegateTarget) return;
-    e.preventDefault();
-    const fid = _delegateTarget.dataset.fileId;
-    const fname = _delegateTarget.dataset.fileName || _delegateTarget.closest('.cloud-pdf-row').querySelector('.cloud-pdf-name').textContent.trim();
-    if (!fid) return;
-    // Detect iOS/iPadOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isIOS) {
-      const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
-      if (!confirm(`${base} ${fname}?`)) return;
-      try {
-        const delRes = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
-        if (!delRes.ok) throw new Error(`Delete failed: ${delRes.status}`);
-        refreshCloudPdfList();
-        setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
-      } catch (err) {
-        setAlert('Failed to delete Cloud PDF', 'error');
-      }
-    } else {
-      // Reuse the same Bootstrap modal as local delete
-      bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).show();
-      { const el = $id("pdfToDelete"); if (el) el.textContent = fname; }
-      { const el2 = $id("pdfDeleteConfirmed"); if (el2) el2.onclick = async function (event) {
-        event.preventDefault();
-        try {
-          const delRes2 = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
-          if (!delRes2.ok) throw new Error(`Delete failed: ${delRes2.status}`);
-          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
-          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
-          refreshCloudPdfList();
-          setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
-        } catch (err) {
-          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
-          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
-          setAlert('Failed to delete Cloud PDF', 'error');
-        }
-      }; }
-    }
-  });
-
-  // Initial fetch when pdf panel is present
-  setTimeout(refreshCloudPdfList, 500);
-
-  // Fetch and display overall PDF storage status (mode/local/cloud presence)
+  // Fetch and display local PDF storage presence
   async function refreshPdfStorageStatus() {
     try {
       const statusResp = await fetch('/api/pdf_storage_status');
       const res = statusResp.ok ? await statusResp.json() : null;
       if (!res || !res.success) return;
-      const mode = res.mode || 'local';
-      const vs = res.vector_store_id || '';
-      // Footer: full Vector Store ID when available
-      { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
-      // Local header: show ready only; remove redundant (empty)
       { const el = $id("local-pdf-info"); if (el) el.textContent = res.local_present ? '(ready)' : ''; }
-
-      // Toggle sections based on current mode
-      const showCloud = (mode === 'cloud');
-      $toggle($id("cloud-pdf-section"), showCloud);
-      $toggle($id("local-pdf-section"), !showCloud);
-      // Auto-refresh the visible list to keep UI fresh
-      if (showCloud) {
-        refreshCloudPdfList();
-      } else {
-        if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
-      }
+      if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
     } catch (_) { /* ignore */ }
   }
   setTimeout(refreshPdfStorageStatus, 700);

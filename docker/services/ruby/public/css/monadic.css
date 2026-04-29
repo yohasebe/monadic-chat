@@ -2542,10 +2542,9 @@ h1 {
   background: transparent;
 }
 
-/* Harmonize local/Cloud PDF rows */
+/* Local PDF row styling */
 
-.pdf-db-row,
-.cloud-pdf-row {
+.pdf-db-row {
   background: #fff;
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
@@ -2553,13 +2552,11 @@ h1 {
   margin-bottom: 10px;
 }
 
-.pdf-db-row:hover,
-.cloud-pdf-row:hover {
+.pdf-db-row:hover {
   background: #f7f7f7;
 }
 
-.pdf-db-name,
-.cloud-pdf-name {
+.pdf-db-name {
   color: #555;
 }
 

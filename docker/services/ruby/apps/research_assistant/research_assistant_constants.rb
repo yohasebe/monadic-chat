@@ -2,7 +2,7 @@ module ResearchAssistant
   ICON = "flask"
 
   DESCRIPTION = <<~TEXT
-    Research assistant grounded in your PDFs. Persist documents locally or in OpenAI's Vector Store and get answers with citations from their contents; web search is available as an option when needed. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Research assistant grounded in your PDFs. Persist documents in the local PDF database and get answers with citations from their contents; web search is available as an option when needed. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
   TEXT
 
   INITIAL_PROMPT = <<~TEXT

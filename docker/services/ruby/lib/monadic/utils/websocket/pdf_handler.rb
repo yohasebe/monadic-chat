@@ -36,7 +36,6 @@ module WebSocketHelper
 
     if deleted_count.positive?
       send_to_client(connection, { "type" => "pdf_deleted", "res" => "success", "content" => "#{title} deleted successfully" })
-      bump_pdf_session_cache(session)
     else
       send_to_client(connection, { "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" })
     end
@@ -49,14 +48,7 @@ module WebSocketHelper
     store.clear_all if store
     send_to_client(connection, { "type" => "pdf_deleted", "res" => "success", "content" => "All local PDFs deleted" })
     send_to_client(connection, { "type" => "pdf_titles", "content" => [] })
-    bump_pdf_session_cache(session)
   rescue StandardError => e
     send_to_client(connection, { "type" => "pdf_deleted", "res" => "failure", "content" => "Error clearing PDFs: #{e.message}" })
-  end
-
-  private def bump_pdf_session_cache(session)
-    session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-  rescue StandardError => e
-    Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
   end
 end

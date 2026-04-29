@@ -101,23 +101,58 @@ class DockerContainerManager
       end
     end
 
-    def qdrant_healthy?
-      uri = URI("http://localhost:6333/healthz")
+    # Health check via host port (dev mode, when compose.dev.yml overlays
+    # are active and ports are mapped to localhost).
+    def host_port_healthy?(port, path)
+      uri = URI("http://localhost:#{port}#{path}")
       response = Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
         http.get(uri.path)
       end
       response.is_a?(Net::HTTPSuccess)
+    rescue StandardError
+      false
+    end
+
+    # Health check via docker engine (works regardless of host port mapping).
+    # Used when containers are running in production mode (no dev overlay).
+    def docker_health_status(container_name)
+      output, status = Open3.capture2(
+        "docker", "inspect", "--format={{.State.Health.Status}}", container_name
+      )
+      return nil unless status.success?
+      output.strip
+    rescue StandardError
+      nil
+    end
+
+    # Run a command inside a container and return success/failure.
+    def docker_exec_check(container_name, *cmd)
+      _, status = Open3.capture2e("docker", "exec", container_name, *cmd)
+      status.success?
+    rescue StandardError
+      false
+    end
+
+    def qdrant_healthy?
+      # Prefer host-port check (works in dev mode where compose.dev.yml exposes 6333).
+      return true if host_port_healthy?(6333, "/healthz")
+      # Fallback for production mode: hit qdrant from inside the embeddings
+      # container, which shares the docker network and has python+urllib.
+      docker_exec_check(
+        "monadic-chat-embeddings-container",
+        "python", "-c",
+        "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://qdrant_service:6333/healthz', timeout=2).status==200 else 1)"
+      )
     rescue StandardError => e
       puts "[DEBUG] qdrant health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
       false
     end
 
     def embeddings_healthy?
-      uri = URI("http://localhost:8002/v1/health")
-      response = Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
-        http.get(uri.path)
-      end
-      response.is_a?(Net::HTTPSuccess)
+      # Dev mode: host port 8002 → container 8000.
+      return true if host_port_healthy?(8002, "/v1/health")
+      # Production mode: rely on docker's own HEALTHCHECK.
+      docker_health_status("monadic-chat-embeddings-container") == "healthy"
     rescue StandardError => e
       puts "[DEBUG] embeddings health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
       false

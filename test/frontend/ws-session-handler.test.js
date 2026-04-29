@@ -69,6 +69,7 @@ beforeEach(() => {
   window.autoScroll = true;
   window.debugWebSocket = false;
   window.ws = { send: jest.fn() };
+  window.sendPdfWsMessage = jest.fn();
   window.MarkdownRenderer = {
     render: jest.fn().mockReturnValue('<p>rendered</p>'),
     applyRenderers: jest.fn()
@@ -234,8 +235,8 @@ describe('ws-session-handler', () => {
         expect.stringContaining('Deleted doc.pdf'),
         'info'
       );
-      expect(window.ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ message: 'PDF_TITLES' })
+      expect(window.sendPdfWsMessage).toHaveBeenCalledWith(
+        { message: 'PDF_TITLES' }
       );
     });
 

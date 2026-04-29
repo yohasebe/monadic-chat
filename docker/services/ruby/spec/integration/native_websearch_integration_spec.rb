@@ -22,7 +22,7 @@ RSpec.describe "Native Web Search Integration", :integration do
       skip "OpenAI API key not configured" if @skip_openai
     end
 
-    it "performs web search with gpt-4.1-mini model" do
+    it "performs web search with gpt-5.4-mini model" do
       with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
         require_relative "../../lib/monadic/adapters/vendors/openai_helper"
         require_relative "../../lib/monadic/utils/string_utils"
@@ -51,7 +51,7 @@ RSpec.describe "Native Web Search Integration", :integration do
         session = {
           messages: [],
           parameters: {
-            "model" => "gpt-4.1-mini",
+            "model" => "gpt-5.4-mini",
             "websearch" => true,
             "temperature" => 0.0,
             "max_tokens" => 1000,

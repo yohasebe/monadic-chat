@@ -48,7 +48,7 @@ describe('providerDefaults', () => {
   });
 
   describe('category structure', () => {
-    it('openai should have chat, code, vision, audio_transcription, image, video, tts, and embedding', () => {
+    it('openai should have chat, code, vision, audio_transcription, image, and tts', () => {
       const openai = providerDefaults.openai;
       expect(openai.chat).toBeDefined();
       expect(openai.code).toBeDefined();
@@ -57,7 +57,8 @@ describe('providerDefaults', () => {
       expect(openai.image).toBeDefined();
       // openai.video removed (Sora API shutdown)
       expect(openai.tts).toBeDefined();
-      expect(openai.embedding).toBeDefined();
+      // openai.embedding removed (local embeddings via multilingual-e5-base)
+      expect(openai.embedding).toBeUndefined();
     });
 
     it('anthropic should have chat, code, and vision', () => {
@@ -127,8 +128,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.xai.image[0]).toBe('grok-imagine-image');
     });
 
-    it('openai embedding default is text-embedding-3-large', () => {
-      expect(providerDefaults.openai.embedding[0]).toBe('text-embedding-3-large');
+    it('openai embedding category removed (local Qdrant + multilingual-e5-base)', () => {
+      expect(providerDefaults.openai.embedding).toBeUndefined();
     });
   });
 

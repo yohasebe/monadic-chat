@@ -178,11 +178,11 @@ module WebSocketHelper
             WebSocketHelper.broadcast_to_all(cancel_message)
           end
         when "PDF_TITLES"
-          handle_ws_pdf_titles(connection)
+          handle_ws_pdf_titles(connection, obj, session)
         when "DELETE_PDF"
           handle_ws_delete_pdf(connection, obj, session)
         when "DELETE_ALL_PDFS"
-          handle_ws_delete_all_pdfs(connection, session)
+          handle_ws_delete_all_pdfs(connection, obj, session)
         when "CHECK_TOKEN"
           handle_ws_check_token(connection, obj, session)
         when "PING"

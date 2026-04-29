@@ -370,9 +370,20 @@ a:focus-visible {
     transition: background-color 0.01ms, color 0.01ms;
   }
 
-  /* Essential progress spinners must keep animating */
+  /* Essential progress spinners must keep animating — these communicate
+     "system is busy" and would otherwise look like a frozen UI under
+     prefers-reduced-motion: reduce. Includes the Bootstrap spinner-border
+     used by file/PDF/audio/url upload modals. */
   .parallel-task-spinner {
     animation-duration: 0.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .spinner-border {
+    animation-duration: 0.75s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .spinner-grow {
+    animation-duration: 0.75s !important;
     animation-iteration-count: infinite !important;
   }
 }

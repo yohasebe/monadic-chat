@@ -41,8 +41,8 @@ cleanup() {
         "python")
           docker stop monadic-chat-python-container > /dev/null 2>&1 || true
           ;;
-        "pgvector")
-          docker stop monadic-chat-pgvector-container > /dev/null 2>&1 || true
+        "qdrant")
+          docker stop monadic-chat-qdrant-container > /dev/null 2>&1 || true
           ;;
         "selenium")
           docker stop monadic-chat-selenium-container > /dev/null 2>&1 || true
@@ -79,7 +79,7 @@ echo "=============="
 # Check if Docker containers are running
 echo "1. Checking Docker containers..."
 # E2E tests need all containers except Ruby (which runs locally)
-CONTAINERS_NEEDED=("python" "pgvector" "selenium")
+CONTAINERS_NEEDED=("python" "qdrant" "selenium")
 MISSING_CONTAINERS=()
 
 for container in "${CONTAINERS_NEEDED[@]}"; do
@@ -91,9 +91,9 @@ done
 if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
   echo "   ✗ Missing containers: ${MISSING_CONTAINERS[*]}"
   
-  # Check if pgvector is having issues (exit code 137)
-  if docker ps -a | grep "monadic-chat-pgvector-container" | grep -q "Exited (137)"; then
-    echo "   ⚠ pgvector container exited with code 137 (likely OOM)"
+  # Check if qdrant is having issues (exit code 137)
+  if docker ps -a | grep "monadic-chat-qdrant-container" | grep -q "Exited (137)"; then
+    echo "   ⚠ qdrant container exited with code 137 (likely OOM)"
     echo "   Note: PDF Navigator tests will be skipped"
   fi
   
@@ -124,20 +124,20 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
           fi
         fi
         ;;
-      "pgvector")
-        echo "   Starting pgvector container..."
+      "qdrant")
+        echo "   Starting qdrant container..."
         # Try to start existing container first
-        if docker start monadic-chat-pgvector-container 2>/dev/null; then
-          echo "   ✓ Started existing pgvector container"
-          STARTED_CONTAINERS+=("pgvector")
+        if docker start monadic-chat-qdrant-container 2>/dev/null; then
+          echo "   ✓ Started existing qdrant container"
+          STARTED_CONTAINERS+=("qdrant")
         else
           # If container doesn't exist, create it using docker compose
-          echo "   Creating new pgvector container..."
-          if docker compose --project-directory "$PROJECT_DIR" -f "$COMPOSE_FILE" -p 'monadic-chat' up -d pgvector_service; then
-            echo "   ✓ Created and started pgvector container"
-            STARTED_CONTAINERS+=("pgvector")
+          echo "   Creating new qdrant container..."
+          if docker compose --project-directory "$PROJECT_DIR" -f "$COMPOSE_FILE" -p 'monadic-chat' up -d qdrant_service; then
+            echo "   ✓ Created and started qdrant container"
+            STARTED_CONTAINERS+=("qdrant")
           else
-            echo "   ✗ Failed to start pgvector container"
+            echo "   ✗ Failed to start qdrant container"
             exit 1
           fi
         fi
@@ -166,13 +166,13 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
   # Wait for containers to be ready
   echo "   Waiting for containers to be ready..."
   
-  # Wait for pgvector PostgreSQL to be ready if it was started
-  if [[ " ${MISSING_CONTAINERS[@]} " =~ " pgvector " ]]; then
+  # Wait for qdrant PostgreSQL to be ready if it was started
+  if [[ " ${MISSING_CONTAINERS[@]} " =~ " qdrant " ]]; then
     echo "   Waiting for PostgreSQL to be ready..."
     max_attempts=30
     attempt=0
     while [ $attempt -lt $max_attempts ]; do
-      if docker exec monadic-chat-pgvector-container pg_isready -U postgres > /dev/null 2>&1; then
+      if docker exec monadic-chat-qdrant-container pg_isready -U postgres > /dev/null 2>&1; then
         echo "   ✓ PostgreSQL is ready!"
         break
       fi
@@ -220,8 +220,8 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
       echo "   ✓ ${container} container is running"
     else
       echo "   ✗ ${container} container failed to start"
-      # Don't exit if it's just pgvector having issues
-      if [ "$container" != "pgvector" ]; then
+      # Don't exit if it's just qdrant having issues
+      if [ "$container" != "qdrant" ]; then
         exit 1
       fi
     fi

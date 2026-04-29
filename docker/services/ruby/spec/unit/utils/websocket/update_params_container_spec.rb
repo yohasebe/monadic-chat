@@ -4,14 +4,14 @@ require "spec_helper"
 
 # Regression: verify that handle_ws_update_params triggers on-demand
 # container startup when the user selects an app that needs Python,
-# Selenium, or PGVector.
+# Selenium, or Privacy.
 #
 # Prior to this wiring, ContainerDependencies.ensure_services_for_app was
 # only called from the legacy HTTP GET route at monadic.rb `/#{endpoint}`.
 # Modern UI flows select apps entirely via WebSocket (UPDATE_PARAMS), so
 # the HTTP route was never hit and the on-demand startup never fired.
 # The fix adds a background Thread invocation inside the WebSocket
-# UPDATE_PARAMS handler so the Python / Selenium / PGVector containers
+# UPDATE_PARAMS handler so the Python / Selenium / Privacy containers
 # start automatically when the user changes app.
 
 RSpec.describe "handle_ws_update_params container startup integration" do

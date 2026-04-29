@@ -1,6 +1,7 @@
 include:
   - ruby/compose.yml
-  - pgvector/compose.yml
+  - qdrant/compose.yml
+  - embeddings/compose.yml
   - python/compose.yml
   - selenium/compose.yml
   - privacy/compose.yml

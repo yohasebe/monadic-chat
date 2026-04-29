@@ -1,71 +1,47 @@
 # Monadic ヘルプシステム
 
-Monadic ヘルプシステムは、Monadic Chatユーザーのためのインテリジェントなドキュメント検索とアシスタンスを提供します。
+Monadic ヘルプシステムは、Monadic Chat ユーザー向けにドキュメントの検索と回答支援を提供します。
+
+## アーキテクチャ
+
+- **ストレージ**: `qdrant_service` コンテナ上の Qdrant コレクション (`help_docs`: ドキュメント単位、`help_items`: チャンク単位)
+- **埋め込み**: `embeddings_service` コンテナで提供される `intfloat/multilingual-e5-base` (768 次元、L2 正規化)。外部 API キー不要。
+- **ビルドパイプライン**: `rake help:build` が `docs/` 配下の Markdown を分割し (`--include-internal` 指定時は `docs_dev/` も)、JSON ダンプを `docker/services/ruby/help_data/help_db.json` に書き出します。ダンプは Ruby イメージに焼き込まれ、初回起動時に `Monadic::Help::DumpLoader` が Qdrant にインポートします。
 
 ## 機能
 
-1. **埋め込みのバッチ処理**
-   - パフォーマンス向上のために複数のテキストチャンクをバッチで処理
-   - `HELP_EMBEDDINGS_BATCH_SIZE`環境変数で設定可能なバッチサイズ
-   - デフォルトバッチサイズ：50（OpenAI制限で最大2048）
-
-2. **マルチチャンク検索結果**
-   - より良いコンテキストのためにドキュメントごとに複数のテキストチャンクを返す
-   - `HELP_CHUNKS_PER_RESULT`環境変数で設定可能
-   - デフォルト：ドキュメントごとに3チャンク
-   - 結果は平均類似度スコアでドキュメントごとにグループ化
-
-3. **増分更新**
-   - MD5ハッシュを使用して変更されたドキュメントを検出
-   - 変更されたファイルの埋め込みのみを再構築
-   - ドキュメントメタデータにコンテンツハッシュを保存
-   - ドキュメントが変更されていない場合の再構築が大幅に高速化
-
-4. **英語のみのドキュメント**
-   - 英語のドキュメントファイルのみを処理（/ja、/zh、/koディレクトリを除外）
-   - LLMがユーザーの優先言語への翻訳を処理
-   - データベースサイズと処理時間を削減
+- **マルチチャンク検索結果**: 文脈を保つためにドキュメントごとに複数チャンクを返します。`HELP_CHUNKS_PER_RESULT` で設定可能 (デフォルト: 3)。
+- **英語コーパスのみ**: ビルドスクリプトは `docs/ja`、`docs/zh`、`docs/ko` を除外します。LLM がクエリ時にユーザー言語へ翻訳することで、インデックスを小さく保ちつつ多言語アクセスを実現します。
 
 ## 設定
 
-### 環境変数
+| 変数名 | 説明 | デフォルト |
+|--------|------|------------|
+| `HELP_CHUNK_SIZE` | ビルド時の Markdown チャンク文字数 | `3000` |
+| `HELP_OVERLAP_SIZE` | 連続するチャンクの重複文字数 | `500` |
+| `HELP_CHUNKS_PER_RESULT` | クエリ時にドキュメントごとに返すチャンク数 | `3` |
+| `HELP_DATA_DUMP` | プリビルト JSON ダンプのパス (イメージ既定値を上書き) | `/monadic/help_data/help_db.json` |
+| `EMBEDDINGS_URL` | embeddings サービスのベース URL を上書き | (`Monadic::Embeddings::Endpoint` が解決) |
+| `QDRANT_URL` | Qdrant のベース URL を上書き | (`Monadic::VectorStore::Endpoint` が解決) |
 
-- `HELP_EMBEDDINGS_BATCH_SIZE`：各埋め込みバッチで処理するテキストの数（デフォルト：50）
-- `HELP_CHUNKS_PER_RESULT`：検索結果でドキュメントごとに返すテキストチャンクの数（デフォルト：3）
-- `EMBEDDINGS_DEBUG`：埋め込み処理のデバッグログを有効化
-
-### ヘルプデータベースの構築
+## ヘルプ DB のビルド
 
 ```bash
-# 初期構築
+# docs/* + docs_dev/* からダンプをビルド (毎回フル再構築)
 rake help:build
 
-# 完全再構築（既存データを削除）
+# 既存ダンプを削除してから再構築
 rake help:rebuild
 
-# 統計を表示
+# ダンプ統計を表示 (パス、埋め込みモデル、コレクション別ポイント数)
 rake help:stats
 ```
 
-## 実装詳細
+ビルドスクリプトは常にコーパス全体を処理します — 増分スキップは行いません。ローカル CPU 上で約 150 ドキュメント (約 2,500 チャンク) を 1 分以内で埋め込めるため、簡素化を優先しています (Apple Silicon の場合)。
 
-### バッチ処理
-システムは現在、OpenAIのバッチ埋め込みAPIを使用して、単一のリクエストで複数のテキストを処理します：
-- API呼び出しを削減し、パフォーマンスを向上
-- 設定可能なサイズで自動的にバッチ処理を行う
-- 埋め込みの正しい順序を維持
+## 検索 API (Ruby)
 
-### 検索の改善
-- `find_help_topics`：包括的なコンテキストのためにドキュメントごとに複数のチャンクを返す
-- `search_help_by_section`：マルチチャンクサポートでドキュメントセクションごとに結果をフィルタリング
-- 結果には、より良いランキングのための平均類似度スコアが含まれる
-
-### 増分更新
-- 各ドキュメントはそのコンテンツのMD5ハッシュを保存
-- 再構築中、変更されたハッシュを持つドキュメントのみが再処理される
-- タイムスタンプはドキュメントが最後に更新された時を追跡
-
-### 言語処理
-- ドキュメントは英語のみで保存
-- LLMはユーザー言語を検出し、それに応じてレスポンスを翻訳
-- ストレージ要件を削減し、メンテナンスを簡素化
+- `HelpEmbeddings#find_closest_text(query, top_n:, include_internal:)` — 単チャンクヒット
+- `HelpEmbeddings#find_closest_text_multi(query, chunks_per_result:, top_n:, include_internal:)` — ドキュメント単位でグループ化 (1 ドキュメントが結果を独占しない)
+- `HelpEmbeddings#find_closest_doc(query, top_n:, language:)` — ドキュメント単位ヒット
+- `HelpEmbeddings#search(query:, num_results:)` — MCP 互換形式 (`title` / `content` / `metadata` / `distance`)

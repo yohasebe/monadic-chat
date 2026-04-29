@@ -2,70 +2,46 @@
 
 The Monadic Help system provides intelligent documentation search and assistance for Monadic Chat users.
 
+## Architecture
+
+- **Storage**: Qdrant collections (`help_docs` for document-level entries, `help_items` for chunk-level entries) running in the `qdrant_service` container.
+- **Embeddings**: `intfloat/multilingual-e5-base` (768-dim, L2-normalised) served by the `embeddings_service` container. No external API key is required.
+- **Build pipeline**: `rake help:build` chunks Markdown files under `docs/` (and `docs_dev/` when called with `--include-internal`) and writes a JSON dump to `docker/services/ruby/help_data/help_db.json`. The dump is baked into the Ruby image; on first start, `Monadic::Help::DumpLoader` imports it into Qdrant.
+
 ## Features
 
-1. **Batch Processing for Embeddings**
-   - Processes multiple text chunks in batches for improved performance
-   - Configurable batch size via `HELP_EMBEDDINGS_BATCH_SIZE` environment variable
-   - Default batch size: 50 (max: 2048 per OpenAI limits)
-
-2. **Multi-Chunk Search Results**
-   - Returns multiple text chunks per document for better context
-   - Configurable via `HELP_CHUNKS_PER_RESULT` environment variable
-   - Default: 3 chunks per document
-   - Results are grouped by document with average similarity scores
-
-3. **Incremental Updates**
-   - Uses MD5 hashing to detect changed documents
-   - Only rebuilds embeddings for modified files
-   - Stores content hash in document metadata
-   - Significantly faster rebuilds when documentation hasn't changed
-
-4. **English-Only Documentation**
-   - Processes only English documentation files (excludes /ja, /zh, /ko directories)
-   - LLM handles translation to user's preferred language
-   - Reduces database size and processing time
+- **Multi-chunk search results**: Returns multiple chunks per document for better context. Configurable via `HELP_CHUNKS_PER_RESULT` (default: 3).
+- **English-only corpus**: The build script skips `/ja`, `/zh`, `/ko` paths under `docs/`. The LLM handles translation to the user's preferred language at query time, which keeps the index small without sacrificing reach.
 
 ## Configuration
 
-### Environment Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HELP_CHUNK_SIZE` | Characters per Markdown chunk during build | `3000` |
+| `HELP_OVERLAP_SIZE` | Character overlap between consecutive chunks | `500` |
+| `HELP_CHUNKS_PER_RESULT` | Chunks returned per document at query time | `3` |
+| `HELP_DATA_DUMP` | Path to the prebuilt JSON dump (overrides image default) | `/monadic/help_data/help_db.json` |
+| `EMBEDDINGS_URL` | Override the embeddings service base URL | (resolved by `Monadic::Embeddings::Endpoint`) |
+| `QDRANT_URL` | Override the Qdrant base URL | (resolved by `Monadic::VectorStore::Endpoint`) |
 
-- `HELP_EMBEDDINGS_BATCH_SIZE`: Number of texts to process in each embedding batch (default: 50)
-- `HELP_CHUNKS_PER_RESULT`: Number of text chunks to return per document in search results (default: 3)
-- `EMBEDDINGS_DEBUG`: Enable debug logging for embeddings processing
-
-### Building the Help Database
+## Building the help database
 
 ```bash
-# Initial build
+# Build dump from docs/* + docs_dev/* (full rebuild every time)
 rake help:build
 
-# Full rebuild (drops existing data)
+# Drop the existing dump first, then build
 rake help:rebuild
 
-# View statistics
+# Show dump statistics (file path, embedding model, point counts per collection)
 rake help:stats
 ```
 
-## Implementation Details
+The build script always processes the full corpus — there is no incremental skip path. Local CPU embedding of ~150 documents (~2,500 chunks) takes well under a minute on Apple Silicon, so the simplification is intentional.
 
-### Batch Processing
-The system now uses OpenAI's batch embedding API to process multiple texts in a single request:
-- Reduces API calls and improves performance
-- Automatically handles batching with configurable size
-- Maintains correct ordering of embeddings
+## Search APIs (Ruby)
 
-### Search Improvements
-- `find_help_topics`: Returns multiple chunks per document for comprehensive context
-- `search_help_by_section`: Filters results by documentation section with multi-chunk support
-- Results include average similarity scores for better ranking
-
-### Incremental Updates
-- Each document stores an MD5 hash of its content
-- During rebuilds, only documents with changed hashes are reprocessed
-- Timestamps track when documents were last updated
-
-### Language Handling
-- Documentation is stored only in English
-- The LLM detects user language and translates responses accordingly
-- Reduces storage requirements and simplifies maintenance
+- `HelpEmbeddings#find_closest_text(query, top_n:, include_internal:)` — single-chunk hits.
+- `HelpEmbeddings#find_closest_text_multi(query, chunks_per_result:, top_n:, include_internal:)` — grouped by document so a single doc cannot flood the result list.
+- `HelpEmbeddings#find_closest_doc(query, top_n:, language:)` — document-level hits.
+- `HelpEmbeddings#search(query:, num_results:)` — MCP-friendly format with `title` / `content` / `metadata` / `distance`.

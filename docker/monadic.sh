@@ -257,7 +257,8 @@ set_docker_compose() {
     cat <<EOF >"${HOME_DIR}/monadic/config/compose.yml"
 include:
   - "${ROOT_DIR}/services/ruby/compose.yml"
-  - "${ROOT_DIR}/services/pgvector/compose.yml"
+  - "${ROOT_DIR}/services/qdrant/compose.yml"
+  - "${ROOT_DIR}/services/embeddings/compose.yml"
   - "${ROOT_DIR}/services/python/compose.yml"
   - "${ROOT_DIR}/services/selenium/compose.yml"
   - "${ROOT_DIR}/services/privacy/compose.yml"
@@ -281,9 +282,15 @@ EOF
     COMPOSE_FILES="-f \"${COMPOSE_MAIN}\""
   fi
 
-  # Privacy dev overlay: expose host port only in dev mode and when privacy is enabled
-  if [[ "${MONADIC_DEV:-false}" == "true" ]] && [[ "${PRIVACY_FILTER:-false}" == "true" ]]; then
-    COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.dev.yml\""
+  # Dev mode overlays: when Ruby runs on the host (rake server:debug), it
+  # talks to the supporting containers over loopback, so we must expose
+  # their ports. In production these stay internal to the Docker network.
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/qdrant/compose.dev.yml\""
+    COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/embeddings/compose.dev.yml\""
+    if [[ "${PRIVACY_FILTER:-false}" == "true" ]]; then
+      COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.dev.yml\""
+    fi
   fi
   
   # Debug: log the compose files being used
@@ -904,9 +911,10 @@ build_docker_compose() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
   
-  # Get help export ID for build arg
+  # Get help export ID for build-arg cache invalidation (Phase 4 build
+  # script writes this when the prebuilt help DB JSON dump changes).
   local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
@@ -1007,7 +1015,7 @@ build_docker_compose() {
   echo "" >> "${log_file}"
   echo "[IMAGE VERIFICATION]" >> "${log_file}"
   local all_images_exist=true
-  for image in "yohasebe/monadic-chat" "yohasebe/python" "yohasebe/pgvector"; do
+  for image in "yohasebe/monadic-chat" "yohasebe/python" "yohasebe/monadic-embeddings"; do
     if ! ${DOCKER} images | grep -q "${image}"; then
       all_images_exist=false
       echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Required image '${image}' was not created during build.</p>"
@@ -1071,24 +1079,24 @@ save_container_versions() {
   local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
   local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")
   
-  # Calculate hash for PGVector container Dockerfile
-  local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
-  local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
-  
-  # Get help export ID if it exists
+  # Calculate hash for embeddings container Dockerfile
+  local embeddings_dockerfile="${ROOT_DIR}/services/embeddings/Dockerfile"
+  local embeddings_hash=$(calculate_docker_hash "$embeddings_dockerfile")
+
+  # Get help export ID if it exists (Phase 4 build script writes this)
   local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
-  
+
   # Create JSON file with version information and hashes
   cat <<EOF > "$json_file"
 {
   "version": "${MONADIC_VERSION}",
   "python_hash": "${python_hash}",
   "selenium_hash": "${selenium_hash}",
-  "pgvector_hash": "${pgvector_hash}",
+  "embeddings_hash": "${embeddings_hash}",
   "help_export_id": "${help_export_id}"
 }
 EOF
@@ -1100,7 +1108,7 @@ EOF
 
 # Function to check if Dockerfiles have changed since last build
 # Sets global variables for individual container changes:
-#   PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, PGVECTOR_DOCKERFILE_CHANGED
+#   PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, EMBEDDINGS_DOCKERFILE_CHANGED
 # Returns 0 (true) if any changes detected, 1 (false) otherwise
 check_dockerfiles_changed() {
   local config_dir="${HOME_DIR}/monadic/config"
@@ -1109,7 +1117,7 @@ check_dockerfiles_changed() {
   # Initialize change flags (global variables for use in start_docker_compose)
   PYTHON_DOCKERFILE_CHANGED=false
   SELENIUM_DOCKERFILE_CHANGED=false
-  PGVECTOR_DOCKERFILE_CHANGED=false
+  EMBEDDINGS_DOCKERFILE_CHANGED=false
 
   # Calculate current hashes
   local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
@@ -1118,12 +1126,12 @@ check_dockerfiles_changed() {
   local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
   local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")
 
-  local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
-  local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
+  local embeddings_dockerfile="${ROOT_DIR}/services/embeddings/Dockerfile"
+  local embeddings_hash=$(calculate_docker_hash "$embeddings_dockerfile")
 
   # Get current help export ID
   local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
@@ -1132,14 +1140,14 @@ check_dockerfiles_changed() {
   if [ ! -f "$json_file" ]; then
     PYTHON_DOCKERFILE_CHANGED=true
     SELENIUM_DOCKERFILE_CHANGED=true
-    PGVECTOR_DOCKERFILE_CHANGED=true
+    EMBEDDINGS_DOCKERFILE_CHANGED=true
     return 0 # true - changes detected
   fi
 
   # Read stored hashes from JSON file
   local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
   local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_pgvector_hash=$(grep -o '"pgvector_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_embeddings_hash=$(grep -o '"embeddings_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
   local stored_help_export_id=$(grep -o '"help_export_id": *"[^"]*"' "$json_file" | cut -d'"' -f4)
 
   # Check each container individually
@@ -1149,13 +1157,14 @@ check_dockerfiles_changed() {
   if [[ "$stored_selenium_hash" != "$selenium_hash" ]]; then
     SELENIUM_DOCKERFILE_CHANGED=true
   fi
-  # PGVector changes if either Dockerfile or help export ID changed
-  if [[ "$stored_pgvector_hash" != "$pgvector_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
-    PGVECTOR_DOCKERFILE_CHANGED=true
+  # Embeddings changes if either Dockerfile or help export ID changed
+  # (the help DB JSON dump is baked into the embeddings image at build time)
+  if [[ "$stored_embeddings_hash" != "$embeddings_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
+    EMBEDDINGS_DOCKERFILE_CHANGED=true
   fi
 
   # Return true if any changes detected
-  if [[ "$PYTHON_DOCKERFILE_CHANGED" = true || "$SELENIUM_DOCKERFILE_CHANGED" = true || "$PGVECTOR_DOCKERFILE_CHANGED" = true ]]; then
+  if [[ "$PYTHON_DOCKERFILE_CHANGED" = true || "$SELENIUM_DOCKERFILE_CHANGED" = true || "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]]; then
     return 0 # true - changes detected
   fi
 
@@ -1239,7 +1248,7 @@ start_docker_compose() {
   local needs_user_containers=false
 
   # Define the list of required containers - these names must match container_name in compose.yml files
-  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container" "monadic-chat-selenium-container")
+  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-qdrant-container" "monadic-chat-embeddings-container" "monadic-chat-selenium-container")
   local missing_containers=()
 
   # Check if main image exists or needs update
@@ -1254,7 +1263,7 @@ start_docker_compose() {
       local changed_list=""
       if [ "$PYTHON_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Python "; fi
       if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Selenium "; fi
-      if [ "$PGVECTOR_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}PGVector "; fi
+      if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Embeddings "; fi
       echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Rebuilding: Ruby ${changed_list}</p>"
       needs_selective_rebuild=true
     else
@@ -1339,9 +1348,9 @@ start_docker_compose() {
       echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Rebuilding Selenium container (Dockerfile changed)...</p>"
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" build --no-cache selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
-    if [ "$PGVECTOR_DOCKERFILE_CHANGED" = true ]; then
-      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Rebuilding PGVector container (Dockerfile changed)...</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/pgvector/compose.yml\" build --no-cache pgvector_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+    if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then
+      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Rebuilding Embeddings container (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/embeddings/compose.yml\" build --no-cache embeddings_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
 
     # Save updated container versions after selective rebuild
@@ -1555,6 +1564,11 @@ remove_containers() {
   # ↑ remove legacy containers
 
   remove_project_dangling_images
+  remove_volume monadic-chat-qdrant-data
+  remove_volume monadic-chat-embeddings-models
+  # Legacy: remove_volume calls are idempotent and ignore missing volumes,
+  # so this still cleans up after users upgrading from older PGVector-based
+  # installs.
   remove_volume monadic-chat-pgvector-data
 }
 
@@ -1616,50 +1630,85 @@ run_jupyter() {
   fi
 }
 
-# function to export the pgvector database
+# Export the Qdrant data volume to ~/monadic/data/monadic-qdrant.tar.gz.
+# Stops the qdrant container temporarily so the on-disk state is consistent
+# (Qdrant flushes WAL on shutdown), then restarts it.
 export_db() {
-  local container_name="monadic-chat-pgvector-container"
-  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
-    start_docker_compose silent
-  else
-    echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
-    # exit 1
+  local container_name="monadic-chat-qdrant-container"
+  local volume_name="monadic-chat-qdrant-data"
+
+  if ! ${DOCKER} volume inspect "${volume_name}" >/dev/null 2>&1; then
+    echo "[HTML]: <p>Qdrant volume '${volume_name}' not found. Please start Monadic Chat first.</p><hr />"
+    return 1
   fi
 
-  ${DOCKER} exec "${container_name}" sh -c "pg_dump -U postgres monadic | gzip > \"/monadic/data/monadic.gz\""
+  # Stop qdrant for a consistent volume snapshot.
+  local was_running=false
+  if ${DOCKER} ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+    was_running=true
+    ${DOCKER} stop "${container_name}" >/dev/null 2>&1
+  fi
 
-  # if the above command is successful, print the success message
-  if [ $? -eq 0 ]; then
-    stop_docker_compose
-    echo "[HTML]: <p>Document DB has been exported to 'monadic.gz' successfully!</p><hr />"
+  # Use a one-shot alpine container to read from the qdrant volume and write
+  # a gzip tarball into the host shared data directory.
+  ${DOCKER} run --rm \
+    -v "${volume_name}:/source:ro" \
+    -v "${HOME_DIR}/monadic/data:/dest" \
+    alpine:latest \
+    sh -c "cd /source && tar czf /dest/monadic-qdrant.tar.gz ."
+  local exit_code=$?
+
+  if [ "$was_running" = true ]; then
+    ${DOCKER} start "${container_name}" >/dev/null 2>&1
+  fi
+
+  if [ $exit_code -eq 0 ]; then
+    echo "[HTML]: <p>Document DB has been exported to 'monadic-qdrant.tar.gz' successfully!</p><hr />"
   else
     echo "[HTML]: <p>Document DB export failed!</p><hr />"
   fi
 }
 
-# function to import the pgvector database
+# Import a previously exported Qdrant tarball, replacing the current volume.
+# Stops the container, wipes the volume, untars, and restarts.
 import_db() {
-  local container_name="monadic-chat-pgvector-container"
-  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
-    start_docker_compose silent
-  else
-    echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
-    # exit 1
+  local container_name="monadic-chat-qdrant-container"
+  local volume_name="monadic-chat-qdrant-data"
+  local tarball="${HOME_DIR}/monadic/data/monadic-qdrant.tar.gz"
+
+  if [ ! -f "$tarball" ]; then
+    echo "[HTML]: <p>Document DB file 'monadic-qdrant.tar.gz' does not exist. Please place the export file in the shared folder first.</p><hr />"
+    return 1
   fi
 
-  if [ ! -f "${HOME_DIR}/monadic/data/monadic.gz" ]; then
-    echo "[HTML]: <p>Document DB file 'monadic.gz' does not exist. Please set the file in the shared folder first.</p><hr />"
-    # exit 1
+  if ! ${DOCKER} volume inspect "${volume_name}" >/dev/null 2>&1; then
+    echo "[HTML]: <p>Qdrant volume '${volume_name}' not found. Please start Monadic Chat once before importing.</p><hr />"
+    return 1
   fi
 
-  ${DOCKER} exec "${container_name}" sh -c "dropdb -f -U postgres monadic && createdb -U postgres --locale=C --template=template0 monadic && gunzip -t \"/monadic/data/monadic.gz\" && gunzip -c \"/monadic/data/monadic.gz\" | psql -v ON_ERROR_STOP=1 -U postgres monadic || exit 1"
+  # Stop qdrant so the import sees a quiet filesystem.
+  local was_running=false
+  if ${DOCKER} ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+    was_running=true
+    ${DOCKER} stop "${container_name}" >/dev/null 2>&1
+  fi
 
-  # if the above command is successful, print the success message
-  if [ $? -eq 0 ]; then
-    stop_docker_compose
+  # Wipe the volume and untar the export into it.
+  ${DOCKER} run --rm \
+    -v "${volume_name}:/dest" \
+    -v "${HOME_DIR}/monadic/data:/source:ro" \
+    alpine:latest \
+    sh -c "rm -rf /dest/* /dest/.* 2>/dev/null; cd /dest && tar xzf /source/monadic-qdrant.tar.gz"
+  local exit_code=$?
+
+  if [ "$was_running" = true ]; then
+    ${DOCKER} start "${container_name}" >/dev/null 2>&1
+  fi
+
+  if [ $exit_code -eq 0 ]; then
     echo "[HTML]: <p>Document DB has been imported successfully!</p><hr />"
   else
-    echo "[HTML]: <p>Document DB import failed! Please check the database file.</p><hr />"
+    echo "[HTML]: <p>Document DB import failed! Please check the export file.</p><hr />"
   fi
 }
 
@@ -1775,7 +1824,8 @@ build)
       container_list=$(${DOCKER} container ls --all --format "{{.Names}}")
       if echo "$container_list" | grep -q "^monadic-chat-ruby-container$" && \
          echo "$container_list" | grep -q "^monadic-chat-python-container$" && \
-         echo "$container_list" | grep -q "^monadic-chat-pgvector-container$" && \
+         echo "$container_list" | grep -q "^monadic-chat-qdrant-container$" && \
+         echo "$container_list" | grep -q "^monadic-chat-embeddings-container$" && \
          echo "$container_list" | grep -q "^monadic-chat-selenium-container$"; then
         echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
         echo "[SERVER STARTED]"
@@ -1890,8 +1940,8 @@ import-db)
   ;;
 ensure-service)
   # On-demand container startup for profiled services.
-  # Called by Ruby when an app requires Python/Selenium/Privacy.
-  # Usage: monadic.sh ensure-service python|selenium|privacy
+  # Called by Ruby when an app requires extra services.
+  # Usage: monadic.sh ensure-service python|selenium|privacy|qdrant|embeddings
   SERVICE_NAME="${2:-}"
   set_docker_compose
   case "$SERVICE_NAME" in
@@ -1910,6 +1960,26 @@ ensure-service)
       fi
       if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    qdrant)
+      # Vector storage for Help / PDF KB. Always available (no opt-in flag).
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-qdrant-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile qdrant up -d qdrant_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    embeddings)
+      # multilingual-e5-base inference. Required by Help / PDF KB.
+      if ! ${DOCKER} images | grep -q "yohasebe/monadic-embeddings"; then
+        echo "EMBEDDINGS_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-embeddings-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile embeddings up -d embeddings_service" 2>/dev/null
         echo "STARTED"
       else
         echo "ALREADY_RUNNING"

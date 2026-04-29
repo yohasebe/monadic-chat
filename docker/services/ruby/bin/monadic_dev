@@ -68,7 +68,8 @@ end
 REQUIRED_CONTAINER_ALIASES = [
   ["monadic-chat-python-container", "python-container"],
   ["monadic-chat-syntree-container", "syntree-container"],
-  ["monadic-chat-pgvector-container", "pgvector-container"],
+  ["monadic-chat-qdrant-container", "qdrant-container"],
+  ["monadic-chat-embeddings-container", "embeddings-container"],
   # Selenium should be up for browser automation by default; keep legacy name for compatibility
   ["monadic-chat-selenium-container", "selenium-container"]
 ]

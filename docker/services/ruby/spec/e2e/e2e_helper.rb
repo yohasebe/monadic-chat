@@ -28,12 +28,6 @@ if File.exist?(config_path)
   CONFIG = ENV.to_hash
 end
 
-# Set PostgreSQL environment variables for E2E tests
-ENV['POSTGRES_HOST'] ||= 'localhost'
-ENV['POSTGRES_PORT'] ||= '5433'
-ENV['POSTGRES_USER'] ||= 'postgres'
-ENV['POSTGRES_PASSWORD'] ||= 'postgres'
-
 # Load validation helper for shared validations
 require_relative 'validation_helper'
 
@@ -412,8 +406,8 @@ module E2EHelper
   # Check if Docker containers are running
   def check_containers_running
     # For E2E tests, we don't need Ruby container since we run server locally
-    # Only check Python container for Code Interpreter tests
-    # pgvector is only needed for PDF Navigator and Monadic Help
+    # Only check Python container for Code Interpreter tests.
+    # qdrant + embeddings are only needed for PDF Navigator and Monadic Help.
     required_containers = %w[
       monadic-chat-python-container
     ]

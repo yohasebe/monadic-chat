@@ -169,14 +169,18 @@ const providerDefaults = {
 | `image` | Image generation (OpenAI, Gemini, xAI) |
 | `video` | Video generation (Sora, Veo, Grok Imagine) |
 | `tts` | Text-to-speech (OpenAI TTS: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1; Gemini TTS: [0]=flash, [1]=pro) |
-| `embedding` | Text embedding (OpenAI: [0]=text-embedding-3-large) |
+
+> Note: there is no `embedding` category. Help search and the local PDF
+> knowledge base run on a self-hosted `multilingual-e5-base` model in the
+> `embeddings_service` container, not on a provider API. Adding an
+> `embedding` category here would suggest provider-level configurability
+> that does not exist.
 
 **Ruby access** (via `Monadic::Utils::ModelSpec`):
 - `get_provider_default(provider, category)` — first model in list
 - `get_provider_models(provider, category)` — full list
 - `default_chat_model(provider)` / `default_code_model(provider)` / `default_vision_model(provider)` / `default_audio_model(provider)` — convenience accessors
 - `default_image_model(provider)` / `default_video_model(provider)` / `default_tts_model(provider)` — media generation accessors
-- `default_embedding_model(provider)` — embedding model accessor
 - Provider key aliases: `"google"→"gemini"`, `"claude"→"anthropic"`, `"grok"→"xai"`
 
 **Electron access** (via `app/main.js`):

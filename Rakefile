@@ -762,112 +762,18 @@ namespace :build do
     Dir.glob("#{home_directory_path}/data/*").each { |file| FileUtils.rm_f(file) }
     Dir.glob("#{home_directory_path}/dist/*").each { |file| FileUtils.rm_f(file) }
 
-    # Build and export help database unless skipped
+    # Build and export help database unless skipped.
+    #
+    # Regenerates docker/services/ruby/help_data/help_db.json from docs/*
+    # so the Electron bundle ships up-to-date help content. The dump is
+    # consumed at runtime by Monadic::Help::DumpLoader, which imports it
+    # into Qdrant on first start.
+    #
+    # The help:build task itself starts the embeddings_service container
+    # if it is not already running and tears it down when done.
     unless skip_help_db
       puts "\n=== Building Help Database ==="
-      puts "This ensures the packaged app includes up-to-date help content."
-      
-      # Check if OPENAI_API_KEY is available
-      require 'dotenv'
-      config_path = File.expand_path("~/monadic/config/env")
-      if File.exist?(config_path)
-        Dotenv.load(config_path)
-      end
-      
-      if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
-        puts "Warning: OPENAI_API_KEY not found. Skipping help database build."
-        puts "To build the help database, add OPENAI_API_KEY to ~/monadic/config/env"
-      else
-        begin
-          # Check if pgvector container is running
-          pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
-          
-          if pgvector_running
-            puts "pgvector container is already running."
-
-            # Check if Ruby container is running and stop it temporarily
-            ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
-            if ruby_running
-              puts "Stopping Ruby container to release database connections..."
-              system("docker stop monadic-chat-ruby-container")
-            end
-
-            # Run help database rebuild
-            Rake::Task["help:rebuild"].invoke
-
-            # Restart Ruby container if it was running
-            if ruby_running
-              puts "Restarting Ruby container..."
-              system("docker start monadic-chat-ruby-container")
-            end
-          else
-            puts "Starting pgvector container for help database build..."
-            # Try to start existing container first
-            if system("docker start monadic-chat-pgvector-container 2>/dev/null")
-              puts "pgvector container started successfully."
-            else
-              # If container doesn't exist, create it using docker compose
-              puts "Container doesn't exist, creating new one..."
-              compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-              project_dir = File.expand_path("docker/services", __dir__)
-              # Set HOST_OS for Docker Compose
-              ENV['HOST_OS'] ||= `uname -s`.chomp
-              if !system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
-                puts "Warning: Failed to start pgvector container. Skipping help database build."
-                return
-              end
-              puts "pgvector container created and started successfully."
-            end
-            
-            # Wait for PostgreSQL to be ready
-            puts "Waiting for PostgreSQL to be ready..."
-            max_attempts = 30
-            attempt = 0
-            while attempt < max_attempts
-              if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
-                puts "PostgreSQL is ready!"
-                break
-              end
-              attempt += 1
-              print "."
-              sleep 1
-            end
-            
-            if attempt >= max_attempts
-              puts "\nWarning: PostgreSQL did not become ready in time. Skipping help database build."
-            else
-              # Check if Ruby container is running and stop it temporarily
-              ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
-              if ruby_running
-                puts "Stopping Ruby container to release database connections..."
-                system("docker stop monadic-chat-ruby-container")
-              end
-
-              # Run help database rebuild
-              Rake::Task["help:rebuild"].invoke
-
-              # Restart Ruby container if it was running
-              if ruby_running
-                puts "Restarting Ruby container..."
-                system("docker start monadic-chat-ruby-container")
-              end
-            end
-          end
-          
-        rescue => e
-          puts "Warning: Error building help database: #{e.message}"
-          puts "Continuing with package build..."
-        ensure
-          # Stop pgvector if we started it (and user didn't have it running)
-          if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
-            puts "Stopping pgvector container..."
-            compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-            project_dir = File.expand_path("docker/services", __dir__)
-            system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop pgvector_service")
-          end
-        end
-      end
-      
+      Rake::Task["help:build"].invoke
       puts "\n=== Building Electron Packages ==="
     end
 
@@ -1291,51 +1197,33 @@ end
 # Test ruby code with rspec ./docker/services/ruby/spec
 task :spec do
   # Set environment variables for test database connection
-  ENV['POSTGRES_HOST'] ||= 'localhost'
-  ENV['POSTGRES_PORT'] ||= '5433'
-  ENV['POSTGRES_USER'] ||= 'postgres'
-  ENV['POSTGRES_PASSWORD'] ||= 'postgres'
-  
   # Set HOST_OS for Docker Compose
   ENV['HOST_OS'] ||= `uname -s`.chomp
-  
-  # Start pgvector container for tests that require it
-  pgvector_running = system("docker ps | grep -q monadic-chat-pgvector-container")
-  
-  unless pgvector_running
-    puts "Starting pgvector container for tests..."
+
+  # Ensure qdrant + embeddings are running for any integration spec that
+  # touches the vector store. Unit specs mock these and do not need them.
+  qdrant_running = system("docker ps | grep -q monadic-chat-qdrant-container")
+  embeddings_running = system("docker ps | grep -q monadic-chat-embeddings-container")
+
+  if !qdrant_running || !embeddings_running
+    puts "Starting qdrant + embeddings containers for tests..."
     compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-    compose_dev_file = File.expand_path("docker/services/pgvector/compose.dev.yml", __dir__)
+    qdrant_dev_file = File.expand_path("docker/services/qdrant/compose.dev.yml", __dir__)
+    embeddings_dev_file = File.expand_path("docker/services/embeddings/compose.dev.yml", __dir__)
     project_dir = File.expand_path("docker/services", __dir__)
-    
-    # Use both compose.yml and compose.dev.yml for development
-    if File.exist?(compose_dev_file)
-      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -f '#{compose_dev_file}' -p 'monadic-chat' up -d pgvector_service")
-    else
-      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
-      puts "Warning: compose.dev.yml not found. PostgreSQL may not be accessible on port 5433."
-    end
-    
-    # Wait for pgvector to be ready
-    puts "Waiting for pgvector to be ready..."
-    sleep 5
-    
-    # Wait up to 30 seconds for pgvector to accept connections
+
+    overlays = [compose_file]
+    overlays << qdrant_dev_file if File.exist?(qdrant_dev_file)
+    overlays << embeddings_dev_file if File.exist?(embeddings_dev_file)
+    files_arg = overlays.map { |f| "-f '#{f}'" }.join(' ')
+
+    system("docker compose --project-directory '#{project_dir}' #{files_arg} -p 'monadic-chat' up -d qdrant_service embeddings_service")
+
+    puts "Waiting for qdrant to be ready..."
     30.times do
-      if system("docker exec monadic-chat-pgvector-container pg_isready -U postgres", out: File::NULL, err: File::NULL)
-        puts "pgvector is ready!"
-        break
-      end
+      break if system("curl -sf http://localhost:6333/healthz >/dev/null 2>&1")
       sleep 1
     end
-  end
-  
-  # Check if port 5433 is accessible
-  port_check = system("nc -zv localhost 5433 2>/dev/null")
-  unless port_check
-    puts "\n⚠️  Warning: PostgreSQL is not accessible on port 5433"
-    puts "   Tests may fail. Please ensure compose.dev.yml is being used."
-    puts "   Try restarting the container with: docker compose -f docker/services/compose.yml -f docker/services/pgvector/compose.dev.yml up -d pgvector_service\n\n"
   end
   
   # Store paths before changing directory
@@ -1357,12 +1245,12 @@ task :spec do
     sh "bundle exec rspec spec/system #{fmt} --no-fail-fast --no-profile" rescue puts "System tests skipped (not available)"
   end
 ensure
-  # Only stop pgvector if we started it
-  if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
-    puts "Stopping pgvector container..."
+  # Only stop qdrant + embeddings if we started them
+  if (!qdrant_running || !embeddings_running) && ENV['KEEP_VECTOR_SERVICES'] != 'true'
+    puts "Stopping qdrant + embeddings containers..."
     compose_file = File.expand_path("docker/services/compose.yml", root_dir)
     project_dir = File.expand_path("docker/services", root_dir)
-    system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop pgvector_service")
+    system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop qdrant_service embeddings_service")
   end
 end
 
@@ -1379,33 +1267,28 @@ namespace :spec do
     # Set HOST_OS for Docker Compose
     ENV['HOST_OS'] ||= `uname -s`.chomp
 
-    # Start pgvector container for tests that require it
-    pgvector_running = system("docker ps | grep -q monadic-chat-pgvector-container")
+    # Start qdrant + embeddings for tests that require them. Unit specs mock
+    # these so they only matter for integration / system specs.
+    qdrant_running = system("docker ps | grep -q monadic-chat-qdrant-container")
+    embeddings_running = system("docker ps | grep -q monadic-chat-embeddings-container")
 
-    unless pgvector_running
-      puts "Starting pgvector container for tests..."
+    if !qdrant_running || !embeddings_running
+      puts "Starting qdrant + embeddings containers for tests..."
       compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-      compose_dev_file = File.expand_path("docker/services/pgvector/compose.dev.yml", __dir__)
+      qdrant_dev_file = File.expand_path("docker/services/qdrant/compose.dev.yml", __dir__)
+      embeddings_dev_file = File.expand_path("docker/services/embeddings/compose.dev.yml", __dir__)
       project_dir = File.expand_path("docker/services", __dir__)
 
-      # Use both compose.yml and compose.dev.yml for development
-      if File.exist?(compose_dev_file)
-        system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -f '#{compose_dev_file}' -p 'monadic-chat' up -d pgvector_service")
-      else
-        system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
-        puts "Warning: compose.dev.yml not found. PostgreSQL may not be accessible on port 5433."
-      end
+      overlays = [compose_file]
+      overlays << qdrant_dev_file if File.exist?(qdrant_dev_file)
+      overlays << embeddings_dev_file if File.exist?(embeddings_dev_file)
+      files_arg = overlays.map { |f| "-f '#{f}'" }.join(' ')
 
-      # Wait for pgvector to be ready
-      puts "Waiting for pgvector to be ready..."
-      sleep 5
+      system("docker compose --project-directory '#{project_dir}' #{files_arg} -p 'monadic-chat' up -d qdrant_service embeddings_service")
 
-      # Wait up to 30 seconds for pgvector to accept connections
+      puts "Waiting for qdrant to be ready..."
       30.times do
-        if system("docker exec monadic-chat-pgvector-container pg_isready -U postgres", out: File::NULL, err: File::NULL)
-          puts "pgvector is ready!"
-          break
-        end
+        break if system("curl -sf http://localhost:6333/healthz >/dev/null 2>&1")
         sleep 1
       end
     end
@@ -1427,12 +1310,12 @@ namespace :spec do
       puts "\n✅ Quick tests completed (system tests excluded)"
     end
   ensure
-    # Only stop pgvector if we started it
-    if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
-      puts "Stopping pgvector container..."
+    # Only stop qdrant + embeddings if we started them
+    if (!qdrant_running || !embeddings_running) && ENV['KEEP_VECTOR_SERVICES'] != 'true'
+      puts "Stopping qdrant + embeddings containers..."
       compose_file = File.expand_path("docker/services/compose.yml", root_dir)
       project_dir = File.expand_path("docker/services", root_dir)
-      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop pgvector_service")
+      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop qdrant_service embeddings_service")
     end
   end
 end
@@ -2328,260 +2211,106 @@ end
 
 # Help database namespace
 namespace :help do
-  desc "Build help database from documentation (includes internal docs for development)"
-  task :build do
-    puts "Building help database from documentation (including internal docs)..."
-    
-    # Load API key from config
-    require 'dotenv'
-    config_path = File.expand_path("~/monadic/config/env")
-    if File.exist?(config_path)
-      Dotenv.load(config_path)
-    end
-    
-    if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
-      puts "Error: OPENAI_API_KEY not found in ~/monadic/config/env"
-      puts "The help database requires OpenAI API for generating embeddings."
-      exit 1
-    end
-    
-    # Check if pgvector container is running
-    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
-    unless pgvector_running
-      puts "pgvector container is not running. Starting it..."
-      if system("docker start monadic-chat-pgvector-container")
-        puts "pgvector container started successfully."
-        # Wait for PostgreSQL to be ready
-        puts "Waiting for PostgreSQL to be ready..."
-        max_attempts = 30
-        attempt = 0
-        while attempt < max_attempts
-          if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
-            puts "PostgreSQL is ready!"
-            break
-          end
-          attempt += 1
-          print "."
-          sleep 1
-        end
-        
-        if attempt >= max_attempts
-          puts "\nError: PostgreSQL did not become ready in time."
-          exit 1
-        end
-      else
-        puts "Error: Failed to start pgvector container."
-        exit 1
-      end
-    end
-    
-    # Ensure the script has proper Ruby path
-    script_path = File.expand_path("docker/services/ruby/scripts/utilities/process_documentation.rb", __dir__)
-    
-    # Set environment variables for batch processing
-    ENV['HELP_EMBEDDINGS_BATCH_SIZE'] ||= '50'
-    ENV['HELP_CHUNKS_PER_RESULT'] ||= '3'
-    
-    # Check if Ruby container is running
-    ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
-    
-    # Change to the project root directory before running the script
-    Dir.chdir(__dir__) do
-      if ruby_running
-        # Run inside Ruby container with --include-internal flag
-        puts "Running inside Ruby container..."
-        docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb --include-internal'"
-        system(docker_cmd)
-      else
-        # Run locally with --include-internal flag
-        puts "Running locally (Ruby container not running)..."
-        system("ruby #{script_path} --include-internal")
-      end
-      
-      if $?.success?
-        puts "Help database built successfully (including internal documentation)!"
-        puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
-        puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
+  # Help database build pipeline.
+  #
+  # The runtime app does NOT need this to run — it consumes the prebuilt
+  # JSON dump baked into the Ruby image at docker/services/ruby/help_data/.
+  # These tasks regenerate that dump from docs/*.md (and docs_dev/*.md when
+  # internal docs are requested) using the embeddings_service container.
 
-        # Export the database for container builds (internal docs are filtered out during export)
-        puts "\nExporting help database (public documentation only)..."
-        export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
-        
-        if ruby_running
-          # Run export inside Ruby container
-          docker_cmd = "docker exec monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/export_help_database_docker.rb'"
-          if system(docker_cmd)
-            puts "Help database exported successfully!"
-          else
-            puts "Warning: Failed to export help database"
-          end
-        else
-          # Run export locally
-          if system("ruby #{export_script}")
-            puts "Help database exported successfully!"
-          else
-            puts "Warning: Failed to export help database"
-          end
-        end
-      else
-        puts "Error building help database"
-        exit 1
+  HELP_BUILD_SCRIPT = File.expand_path(
+    'docker/services/ruby/scripts/utilities/process_documentation.rb', __dir__
+  )
+
+  HELP_DATA_DUMP = File.expand_path(
+    'docker/services/ruby/help_data/help_db.json', __dir__
+  )
+
+  # Ensure the embeddings_service container is up before invoking the script.
+  # Returns true if it was newly started (so the caller knows to stop it),
+  # or false if it was already running.
+  def ensure_embeddings_service
+    if system("docker ps --format '{{.Names}}' | grep -q '^monadic-chat-embeddings-container$'")
+      return false
+    end
+
+    puts 'Starting embeddings container...'
+    compose_file = File.expand_path('docker/services/compose.yml', __dir__)
+    embeddings_dev = File.expand_path('docker/services/embeddings/compose.dev.yml', __dir__)
+    project_dir = File.expand_path('docker/services', __dir__)
+    overlays = ["-f '#{compose_file}'"]
+    overlays << "-f '#{embeddings_dev}'" if File.exist?(embeddings_dev)
+    system("docker compose --project-directory '#{project_dir}' #{overlays.join(' ')} -p 'monadic-chat' up -d embeddings_service")
+
+    print 'Waiting for embeddings service '
+    60.times do
+      if system('curl -sf http://localhost:8002/v1/health >/dev/null 2>&1')
+        puts ' ready.'
+        return true
       end
+      print '.'
+      sleep 1
+    end
+    puts ' (timeout)'
+    raise 'embeddings_service did not become ready in 60s'
+  end
+
+  desc 'Build help database JSON dump from docs/* (includes internal docs)'
+  task :build do
+    started = ensure_embeddings_service
+    # The script depends on the `http` gem, which lives only in
+    # docker/services/ruby/Gemfile (the project-root Gemfile is minimal).
+    # with_unbundled_env clears the parent BUNDLE_GEMFILE so the inner
+    # `bundle exec` resolves against docker/services/ruby/Gemfile.
+    # The explicit require handles plain `rake build:mac_arm64` invocations
+    # where Bundler is not autoloaded (only `bundle exec rake` autoloads it).
+    require 'bundler'
+    Bundler.with_unbundled_env do
+      Dir.chdir(File.expand_path('docker/services/ruby', __dir__)) do
+        sh "bundle exec ruby '#{HELP_BUILD_SCRIPT}' --include-internal"
+      end
+    end
+    if started && ENV['KEEP_VECTOR_SERVICES'] != 'true'
+      compose_file = File.expand_path('docker/services/compose.yml', __dir__)
+      project_dir = File.expand_path('docker/services', __dir__)
+      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop embeddings_service")
     end
   end
 
-  desc "[DEPRECATED] Use 'rake help:build' instead (now includes internal docs by default)"
+  desc '[DEPRECATED] Use rake help:build instead'
   task :build_dev do
-    puts "WARNING: 'rake help:build_dev' is deprecated."
-    puts "The standard 'rake help:build' now includes internal documentation by default."
-    puts "Redirecting to 'rake help:build'...\n\n"
-
-    # Just call the standard build task
+    warn '[help:build_dev] deprecated; redirecting to help:build.'
     Rake::Task['help:build'].invoke
   end
 
-  desc "Rebuild help database from scratch (includes internal docs for development)"
+  desc 'Rebuild help database JSON dump from scratch'
   task :rebuild do
-    puts "Rebuilding help database from scratch (including internal docs)..."
-    
-    # Load API key from config
-    require 'dotenv'
-    config_path = File.expand_path("~/monadic/config/env")
-    if File.exist?(config_path)
-      Dotenv.load(config_path)
-    end
-    
-    if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
-      puts "Error: OPENAI_API_KEY not found in ~/monadic/config/env"
-      puts "The help database requires OpenAI API for generating embeddings."
-      exit 1
-    end
-    
-    # Check if pgvector container is running
-    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
-    unless pgvector_running
-      puts "pgvector container is not running. Starting it..."
-      if system("docker start monadic-chat-pgvector-container")
-        puts "pgvector container started successfully."
-        # Wait for PostgreSQL to be ready
-        puts "Waiting for PostgreSQL to be ready..."
-        max_attempts = 30
-        attempt = 0
-        while attempt < max_attempts
-          if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
-            puts "PostgreSQL is ready!"
-            break
-          end
-          attempt += 1
-          print "."
-          sleep 1
-        end
-        
-        if attempt >= max_attempts
-          puts "\nError: PostgreSQL did not become ready in time."
-          exit 1
-        end
-      else
-        puts "Error: Failed to start pgvector container."
-        exit 1
-      end
-    end
-    
-    script_path = File.expand_path("docker/services/ruby/scripts/utilities/process_documentation.rb", __dir__)
-    
-    # Set environment variables for batch processing
-    ENV['HELP_EMBEDDINGS_BATCH_SIZE'] ||= '50'
-    ENV['HELP_CHUNKS_PER_RESULT'] ||= '3'
-    
-    # Check if Ruby container is running
-    ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
-    
-    if ruby_running
-      # Ruby container is running but docs directory is not mounted
-      # Always run documentation processing locally
-      puts "Ruby container is running, but documentation processing must run locally..."
-      puts "Running locally with proper database connection..."
-
-      # Set database connection for local execution when containers are running
-      ENV['POSTGRES_HOST'] ||= 'localhost'
-      ENV['POSTGRES_PORT'] ||= '5433'
-      system("ruby #{script_path} --recreate --include-internal")
-    else
-      # Run locally with proper database connection
-      puts "Running locally (Ruby container not running)..."
-      ENV['POSTGRES_HOST'] ||= 'localhost'
-      ENV['POSTGRES_PORT'] ||= '5433'
-      system("ruby #{script_path} --recreate --include-internal")
-    end
-    
-    if $?.success?
-      puts "Help database rebuilt successfully (including internal documentation)!"
-      puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
-      puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
-
-      # Export the database for container builds (internal docs are filtered out during export)
-      puts "\nExporting help database (public documentation only)..."
-      export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
-      
-      if ruby_running
-        # Run export inside Ruby container
-        docker_cmd = "docker exec monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/export_help_database_docker.rb'"
-        if system(docker_cmd)
-          puts "Help database exported successfully!"
-        else
-          puts "Warning: Failed to export help database"
-        end
-      else
-        # Run export locally
-        if system("ruby #{export_script}")
-          puts "Help database exported successfully!"
-        else
-          puts "Warning: Failed to export help database"
-        end
-      end
-    else
-      puts "Error rebuilding help database"
-      exit 1
-    end
+    File.delete(HELP_DATA_DUMP) if File.exist?(HELP_DATA_DUMP)
+    Rake::Task['help:build'].invoke
   end
-  
-  desc "Show help database statistics"
+
+  desc 'Show help database dump statistics'
   task :stats do
-    # Define IN_CONTAINER constant before requiring help_embeddings
-    IN_CONTAINER = File.file?("/.dockerenv")
-    
-    require_relative "docker/services/ruby/lib/monadic/utils/help_embeddings"
-    
-    help_db = HelpEmbeddings.new
-    stats = help_db.get_stats
-    
-    puts "\n=== Help Database Statistics ==="
-    puts "Documents by language:"
-    stats[:documents_by_language].each do |lang, count|
-      puts "  #{lang}: #{count} documents"
+    unless File.exist?(HELP_DATA_DUMP)
+      puts 'No help DB dump found. Run rake help:build first.'
+      exit 1
     end
-    puts "Total items: #{stats[:total_items]}"
-    puts "Average items per document: #{stats[:avg_items_per_doc]}"
+    require 'json'
+    data = JSON.parse(File.read(HELP_DATA_DUMP))
+    puts "Help DB dump: #{HELP_DATA_DUMP}"
+    puts "Version:           #{data['version']}"
+    puts "Embedding model:   #{data['embedding_model']}"
+    puts "Dimension:         #{data['embedding_dimension']}"
+    puts "Exported at:       #{data['exported_at']}"
+    (data['collections'] || {}).each do |name, contents|
+      puts "Collection #{name}: #{(contents['points'] || []).size} points"
+    end
   end
-  
-  desc "Export help database to files"
+
+  desc 'Show the path of the help database dump'
   task :export do
-    puts "Exporting help database..."
-    
-    # Check if pgvector container is running
-    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
-    unless pgvector_running
-      puts "Error: pgvector container is not running. Please start it with 'rake server:start' first."
-      exit 1
-    end
-    
-    export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
-    if system("ruby #{export_script}")
-      puts "Help database exported successfully!"
-    else
-      puts "Error exporting help database"
-      exit 1
-    end
+    puts HELP_DATA_DUMP
+    exit(File.exist?(HELP_DATA_DUMP) ? 0 : 1)
   end
 end
 

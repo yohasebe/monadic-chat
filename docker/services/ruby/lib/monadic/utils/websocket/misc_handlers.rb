@@ -142,11 +142,12 @@ module WebSocketHelper
     end
 
     # On-demand container startup: when the user selects an app that needs
-    # Python / Selenium / PGVector, make sure the target container is running
-    # before they send their first message. Modern UI flows select apps
-    # entirely via WebSocket (UPDATE_PARAMS), so the HTTP redirect route is
-    # never hit. The helper is idempotent and runs in a background thread
-    # so the parameter broadcast is not delayed by docker compose latency.
+    # Python / Selenium / Privacy, make sure the target container is running
+    # before they send their first message. (Qdrant + embeddings are base
+    # services and start with the app.) Modern UI flows select apps entirely
+    # via WebSocket (UPDATE_PARAMS), so the HTTP redirect route is never
+    # hit. The helper is idempotent and runs in a background thread so the
+    # parameter broadcast is not delayed by docker compose latency.
     if new_app && new_app != current_app
       Monadic::Utils::ContainerDependencies.ensure_services_async(new_app, reason: "UPDATE_PARAMS")
     end

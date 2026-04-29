@@ -441,7 +441,7 @@ To use this app, place a video file in the `Shared Folder`, provide its name, an
 Ask questions about the content of your PDF files. After you upload a PDF, the app divides the content into smaller segments and creates text embeddings for each. When you ask a question, the app finds the most relevant segment and provides it to the AI to generate a well-informed answer.
 
 **Key Features:**
-- **Vector database integration**: Properly connects to PGVector database through the `@embeddings_db` instance variable
+- **Vector database integration**: Connects to the local Qdrant store through the `@embeddings_db` instance variable (a `Monadic::Pdf::Store` scoped to this app)
 - **Multiple search methods**: Can find closest text snippets, documents, or retrieve specific segments
 - **Document management**: List all uploaded PDFs and navigate through different documents
 - **Contextual retrieval**: Finds the most relevant text segments based on semantic similarity
@@ -453,7 +453,7 @@ Ask questions about the content of your PDF files. After you upload a PDF, the a
 - `get_text_snippet`: Retrieve a specific text segment by position
 - `get_text_snippets`: Get all text segments from a specific document
 
-?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database (database name: `monadic_user_docs`). The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation. For information about storage mode options (local vs. cloud), see [PDF Storage](./pdf_storage.md).
+?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files. Extracted text is embedded locally with `multilingual-e5-base` and stored in [Qdrant](https://qdrant.tech) (collections: `pdf_docs` and `pdf_items`, scoped per app via the `app_key` payload field). For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation. For information about storage mode options (local vs. cloud), see [PDF Storage](./pdf_storage.md).
 
 **Configuration Options:**
 

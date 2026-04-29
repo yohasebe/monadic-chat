@@ -127,6 +127,26 @@ function broadcastParamsUpdate(reason = null) {
 
 window.broadcastParamsUpdate = broadcastParamsUpdate;
 
+// Helper for WS messages that target the per-app PDF store. Injects the
+// currently-selected app name so the server can resolve the namespace
+// even when the session has not been hydrated yet (UPDATE_PARAMS race).
+function sendPdfWsMessage(payload) {
+  if (typeof window.ws === 'undefined' || !window.ws) return;
+  let appName = '';
+  try {
+    const apps = document.getElementById('apps');
+    if (apps && apps.value) appName = apps.value;
+  } catch (_) { /* no-op */ }
+  const merged = Object.assign({}, payload || {});
+  if (appName && !merged.app_name) merged.app_name = appName;
+  try {
+    window.ws.send(JSON.stringify(merged));
+  } catch (e) {
+    console.warn('[PDF WS] send failed:', e);
+  }
+}
+window.sendPdfWsMessage = sendPdfWsMessage;
+
 // Helper function to get formatted provider name from group
 function getProviderFromGroup(group) {
   if (!group) return "OpenAI";
@@ -2183,7 +2203,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (toBool(apps[appValue]["pdf_vector_storage"])) {
       $show($id("pdf-panel"));
-      ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+      sendPdfWsMessage({ message: "PDF_TITLES" });
     } else {
       $hide($id("pdf-panel"));
     }
@@ -3364,7 +3384,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const isOpenAIUpload = !!(response.vector_store_id);
         // Refresh local PDF DB titles only for local ingestion
         if (!isOpenAIUpload) {
-          ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+          sendPdfWsMessage({ message: "PDF_TITLES" });
         } else {
           // Auto-refresh cloud list on successful OpenAI upload
           if (typeof refreshCloudPdfList === 'function') refreshCloudPdfList();
@@ -3707,7 +3727,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (showCloud) {
         refreshCloudPdfList();
       } else {
-        if (window.ws) ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+        if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
       }
     } catch (_) { /* ignore */ }
   }
@@ -3716,13 +3736,13 @@ document.addEventListener("DOMContentLoaded", function () {
   // Local PDF controls
   document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-refresh')) return;
     e.preventDefault();
-    if (window.ws) ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+    if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
   });
   document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-clear')) return;
     e.preventDefault();
     const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllLocalPdfs') : 'Clear all Local PDFs?';
     if (!confirm(msg)) return;
-    if (window.ws) ws.send(JSON.stringify({ message: "DELETE_ALL_PDFS" }));
+    if (window.ws) sendPdfWsMessage({ message: "DELETE_ALL_PDFS" });
   });
 
   $on($id("url"), "click", function(event) {

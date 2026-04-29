@@ -151,14 +151,6 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     it '.default_code_model returns nil when category does not exist' do
       expect(described_class.default_code_model("cohere")).to be_nil
     end
-
-    it '.default_embedding_model returns the embedding default' do
-      expect(described_class.default_embedding_model("openai")).to eq("text-embedding-3-large")
-    end
-
-    it '.default_embedding_model returns nil for providers without embedding' do
-      expect(described_class.default_embedding_model("anthropic")).to be_nil
-    end
   end
 
   describe '.reload!' do

@@ -102,9 +102,8 @@ To see all available models from the provider, toggle the **All** switch next to
 
 | Variable | Description | Default | Range |
 |----------|-------------|---------|-------|
-| `HELP_CHUNK_SIZE` | Characters per documentation chunk | `3000` | 1000-8000 |
-| `HELP_OVERLAP_SIZE` | Character overlap between chunks | `500` | 100-2000 |
-| `HELP_EMBEDDINGS_BATCH_SIZE` | Batch size for embedding API calls | `50` | 1-100 |
+| `HELP_CHUNK_SIZE` | Characters per documentation chunk (build time) | `3000` | 1000-8000 |
+| `HELP_OVERLAP_SIZE` | Character overlap between chunks (build time) | `500` | 100-2000 |
 | `HELP_CHUNKS_PER_RESULT` | Number of chunks returned per search | `3` | 1-10 |
 
 ## Development Settings
@@ -137,10 +136,10 @@ Monadic Chat supports two application modes that control network accessibility:
 
 | Variable | Description | Default | Note |
 |----------|-------------|---------|------|
-| `POSTGRES_HOST` | PostgreSQL host | `monadic-chat-pgvector-container` | For Docker networking |
-| `POSTGRES_PORT` | PostgreSQL port | `5432` | Standard PostgreSQL port |
-| `POSTGRES_USER` | PostgreSQL user | `postgres` | Database user |
-| `POSTGRES_PASSWORD` | PostgreSQL password | `postgres` | Database password |
+| `QDRANT_URL` | Full URL of the Qdrant service | `http://qdrant_service:6333` (in-container) / `http://localhost:6333` (dev) | Override only when relocating |
+| `EMBEDDINGS_URL` | Full URL of the embeddings service | `http://embeddings_service:8000` (in-container) / `http://localhost:8002` (dev) | Override only when relocating |
+| `EMBEDDINGS_DEV_PORT` | Embeddings host port in dev mode | `8002` | Exposed via `compose.dev.yml` |
+| `QDRANT_DEV_PORT` | Qdrant host port in dev mode | `6333` | Exposed via `compose.dev.yml` |
 
 ## Install Options
 

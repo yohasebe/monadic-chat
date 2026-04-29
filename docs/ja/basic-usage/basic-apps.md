@@ -407,7 +407,7 @@ Web Insightの対応プロバイダーは冒頭の表を参照してください
 
 PDFファイルを読み込み、その内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキストエンベディングが計算されます。ユーザーからの入力を受け取ると、入力文のテキストエンベディング値に最も近いテキストセグメントがユーザーの入力値とともにAIモデルに渡され、その内容に基づいて回答が生成されます。
 
-?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストとエンベディングデータは [PGVector](https://github.com/pgvector/pgvector) データベース（データベース名：`monadic_user_docs`）に確実に保存され、アプリケーションは適切にベクトルデータベースに接続してPDFコンテンツの検索と取得を行います。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。ストレージモードオプション（ローカル vs クラウド）については、[PDFストレージ](./pdf_storage.md)を参照してください。
+?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストはローカルで `multilingual-e5-base` により埋め込まれ、[Qdrant](https://qdrant.tech)（コレクション：`pdf_docs` と `pdf_items`、payload の `app_key` フィールドでアプリ単位にスコープ）に保存されます。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。ストレージモードオプション（ローカル vs クラウド）については、[PDFストレージ](./pdf_storage.md)を参照してください。
 
 **設定オプション：**
 

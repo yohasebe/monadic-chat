@@ -12,7 +12,7 @@
 
   **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · Perplexity · xAI · DeepSeek · Ollama
 
-  **🛠 Built with** · Ruby · Electron · Docker · PostgreSQL · WebSocket
+  **🛠 Built with** · Ruby · Electron · Docker · Qdrant · WebSocket
 
   ---
 
@@ -60,6 +60,8 @@ After installation:
 
 For offline use, install [Ollama](https://ollama.com/) and select it as your provider.
 
+> ⚠️ **Upgrading from 1.0.0-beta.14 or earlier?** Version 1.0.0-beta.15 replaces the OpenAI embeddings + PGVector stack with a fully local pipeline (Qdrant + `multilingual-e5-base`). Help search no longer requires an OpenAI API key. **Existing local PDF data is not migrated automatically — re-upload your PDFs after upgrading.** See the [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog) and [PDF Storage docs](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) for details.
+
 ## Why Monadic Chat?
 
 Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **locally-run AI platform** that gives you:
@@ -83,7 +85,7 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 - **💬 Advanced Conversation Management**: Edit, export/import, and track conversation history with structured context
 - **🎙️ Voice Interaction**: Text-to-speech and speech-to-text with multiple providers and speaker diarization
 - **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models, with intelligent session-based continuity for effortless iterative editing and remixing of generated content.
-- **📄 PDF Knowledge Base**: Store and query documents locally (PGVector) or in cloud (OpenAI Vector Store)
+- **📄 PDF Knowledge Base**: Store and query documents locally (Qdrant + on-device embeddings, no API key required) or in cloud (OpenAI Vector Store)
 - **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, Grok, and Perplexity
 - **🔒 Privacy Filter** (opt-in): Mask PII locally before sending to AI providers; restore in the response. Supports 9 languages via Microsoft Presidio + spaCy. See [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter).
 - **🔄 Automatic Updates**: In-app notifications and seamless update downloads

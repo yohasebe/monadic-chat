@@ -23,6 +23,14 @@ async function uploadPdf(file, fileTitle) {
   const formData = new FormData();
   formData.append("pdfFile", file);
   formData.append("pdfTitle", fileTitle);
+  // Tell the server which app this upload belongs to so the per-app store
+  // gets the right namespace. The session-derived fallback may be stale if
+  // UPDATE_PARAMS has not fired yet for this WebSocket session.
+  try {
+    const appsEl = (typeof document !== 'undefined') ? document.getElementById('apps') : null;
+    const appName = appsEl ? appsEl.value : '';
+    if (appName) formData.append("appName", appName);
+  } catch (_) { /* no-op */ }
 
   // Resolve endpoint from server default (Settings).
   const postTo = async (endpoint) => {
@@ -39,16 +47,23 @@ async function uploadPdf(file, fileTitle) {
     }
   };
 
+  // Resolve the endpoint from server defaults. We DO NOT retry on upload
+  // failure: the previous catch-and-retry pattern double-uploaded when the
+  // first request appeared to fail client-side (timeout, transient 5xx)
+  // but actually succeeded server-side, leaving duplicate entries.
+  let endpoint = '/pdf';
   try {
     const res = await fetch('/api/pdf_storage_defaults');
-    const info = res.ok ? await res.json() : {};
-    const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
-    const endpoint = (mode === 'cloud') ? "/openai/pdf?action=upload" : "/pdf";
-    return await postTo(endpoint);
+    if (res.ok) {
+      const info = await res.json();
+      const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
+      endpoint = (mode === 'cloud') ? '/openai/pdf?action=upload' : '/pdf';
+    }
   } catch (_) {
-    // Fallback to local storage
-    return await postTo('/pdf');
+    // /api/pdf_storage_defaults is not critical for upload routing; fall back
+    // to local storage when it is unreachable (default behaviour anyway).
   }
+  return await postTo(endpoint);
 }
 
 /**

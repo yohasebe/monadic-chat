@@ -650,7 +650,7 @@ function handleAppsMessage(data) {
 
         if (firstValidApp === "PDF") {
           if (window.ws) {
-            window.ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+            window.sendPdfWsMessage({ message: "PDF_TITLES" });
           }
         }
 

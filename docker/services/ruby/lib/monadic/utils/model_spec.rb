@@ -420,10 +420,6 @@ module Monadic
           get_provider_default(provider, "tts")
         end
 
-        def default_embedding_model(provider)
-          get_provider_default(provider, "embedding")
-        end
-
         def reload!
           @spec = nil
           @provider_defaults = nil

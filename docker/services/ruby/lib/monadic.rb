@@ -66,7 +66,7 @@ require_relative "monadic/utils/websocket"
 helpers WebSocketHelper
 
 require_relative "monadic/utils/pdf_text_extractor"
-require_relative "monadic/utils/text_embeddings"
+require_relative "monadic/pdf"
 require_relative "monadic/utils/debug_helper"
 require_relative "monadic/utils/extra_logger"
 require_relative "monadic/utils/json_repair"
@@ -99,11 +99,44 @@ Dotenv.load(envpath)
 # Include TavilyHelper for tavily_fetch method
 include TavilyHelper
 
-# Connect to the database
+# Connect to the PDF store. The Store object is cheap to construct (it just
+# holds clients); first use will lazily bootstrap the Qdrant collections.
 begin
-  EMBEDDINGS_DB = TextEmbeddings.new("monadic_user_docs", recreate_db: false)
-rescue TextEmbeddings::DatabaseError => e
-  puts "[WARNING] Failed to initialize help embeddings database: #{e.message}"
+  EMBEDDINGS_DB = Monadic::Pdf::Store.new(app_key: Monadic::Pdf::Store::DEFAULT_APP_KEY)
+
+  # One-time upgrade hint: surface a clear message to users coming from the
+  # PGVector-based releases (1.0.0-beta.14 and earlier). Their old PDF data
+  # is not migrated automatically; they need to re-import. We detect the
+  # upgrade by the presence of the legacy Docker volume on the host.
+  legacy_volume_marker = File.expand_path("~/monadic/log/pgvector_upgrade_notice_shown")
+  unless File.exist?(legacy_volume_marker)
+    legacy_volume_present = system("docker volume inspect monadic-chat-pgvector-data >/dev/null 2>&1")
+    if legacy_volume_present
+      puts ""
+      puts "============================================================"
+      puts " UPGRADE NOTICE: Local PDF storage backend has changed"
+      puts "============================================================"
+      puts " Monadic Chat 1.0.0-beta.15 replaces the PGVector-based PDF"
+      puts " store with a local Qdrant + multilingual-e5-base stack."
+      puts ""
+      puts " Existing PDFs uploaded under 1.0.0-beta.14 or earlier are"
+      puts " NOT migrated automatically. Please re-upload them so they"
+      puts " are indexed against the new vector backend."
+      puts ""
+      puts " Once you have re-imported, the legacy 'monadic-chat-pgvector-data'"
+      puts " volume can be removed safely:"
+      puts "   docker volume rm monadic-chat-pgvector-data"
+      puts ""
+      puts " See docs/basic-usage/pdf_storage.md for details."
+      puts "============================================================"
+      puts ""
+    end
+    # Don't show again, regardless of whether the volume was present this run.
+    FileUtils.mkdir_p(File.dirname(legacy_volume_marker)) rescue nil
+    File.write(legacy_volume_marker, Time.now.utc.iso8601) rescue nil
+  end
+rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
+  puts "[WARNING] Failed to initialize PDF store: #{e.class}: #{e.message}"
   EMBEDDINGS_DB = nil
 end
 
@@ -227,14 +260,57 @@ def handle_error(message)
   redirect "/"
 end
 
-# List PDF titles in the database with error handling
-def list_pdf_titles
-  begin
-    EMBEDDINGS_DB.list_titles.map { |t| t[:title] }
-  rescue StandardError => e
-    puts "Error listing PDF titles: #{e.message}"
-    []
+# Resolve the PDF store namespace key from the session's current app.
+# Each app gets its own `app_key` so PDFs uploaded under one app do not
+# bleed into another. Falls back to the global default when there is no
+# current app or the lookup fails.
+# Resolve a PDF Store namespace key. Accepts either the Sinatra session
+# hash (HTTP) or any value that responds to dig with :parameters /
+# "app_name". A direct string app name (e.g. passed in form data or a
+# WebSocket message body) takes precedence over the session lookup so
+# clients can always be explicit about which namespace they want, and
+# we never silently fall back to 'global' just because the session has
+# not been hydrated yet.
+def pdf_app_key_for(session_or_app_name)
+  app_name = if session_or_app_name.is_a?(String) || session_or_app_name.is_a?(Symbol)
+               session_or_app_name.to_s
+             elsif session_or_app_name.respond_to?(:[])
+               s = session_or_app_name
+               (s[:parameters] && s[:parameters]["app_name"]) || s["app_name"]
+             else
+               nil
+             end
+
+  return Monadic::Pdf::Store::DEFAULT_APP_KEY if app_name.nil? || app_name.to_s.empty?
+
+  app = APPS[app_name.to_s]
+  if app
+    klass = app.class
+    return klass::APP_KEY if klass.const_defined?(:APP_KEY)
+    klass.name.to_s.downcase
+  else
+    # The frontend may have sent an app name we cannot resolve (e.g. a
+    # different deployment). Fall back to a sanitised form of the raw
+    # name rather than collapsing into 'global'.
+    app_name.to_s.downcase.gsub(/[^a-z0-9]/, '')
   end
+end
+
+# Build a fresh Store. Accepts the same input shapes as pdf_app_key_for.
+def pdf_store_for(session_or_app_name)
+  return nil unless defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
+  Monadic::Pdf::Store.new(app_key: pdf_app_key_for(session_or_app_name))
+end
+
+# List PDF titles in the database with error handling. Scoped via
+# pdf_store_for (accepts session hash or explicit app name string).
+def list_pdf_titles(session_or_app_name = nil)
+  store = pdf_store_for(session_or_app_name) || EMBEDDINGS_DB
+  return [] unless store
+  store.list_titles.map { |t| t[:title] }
+rescue StandardError => e
+  puts "Error listing PDF titles: #{e.message}"
+  []
 end
 
 # Determine configured PDF storage mode (ENV), with backward compatibility

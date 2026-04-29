@@ -158,44 +158,39 @@ class MonadicApp
   end
 
   # --- Generic Local PDF tool handlers (available to all apps) ---
+  # The Store is scoped to an app_key so PDFs uploaded against one app are
+  # not visible from another (preserves the privacy guarantee that the
+  # previous per-database design provided).
   def ensure_embeddings_db
-    if @embeddings_db.nil? && defined?(TextEmbeddings)
-      # Use per-app database name to avoid cross-app mixing
+    @embeddings_db ||= begin
       app_key = begin
         self.class.name.to_s.strip.downcase.gsub(/[^a-z0-9_\-]/, '_')
       rescue StandardError
         'default'
       end
-      base = "monadic_user_docs"
-      db_name = "#{base}_#{app_key}"
-      @embeddings_db = TextEmbeddings.new(db_name, recreate_db: false)
+      Monadic::Pdf::Store.new(app_key: app_key)
     end
-    @embeddings_db
   end
 
   def find_closest_text(text:, top_n:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
-    api_key = @api_key || (defined?(CONFIG) ? CONFIG["OPENAI_API_KEY"] : nil)
-    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.empty?
-    db.find_closest_text(text, top_n: top_n, api_key: api_key) || { error: "Failed to find text" }
+    return { error: "PDF store not available" } unless db
+    db.find_closest_text(text, top_n: top_n)
   rescue => e
     { error: "Error finding text: #{e.class.name} - #{e.message}" }
   end
 
   def find_closest_doc(text:, top_n:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
-    api_key = @api_key || (defined?(CONFIG) ? CONFIG["OPENAI_API_KEY"] : nil)
-    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.empty?
-    db.find_closest_doc(text, top_n: top_n, api_key: api_key) || { error: "Failed to find document" }
+    return { error: "PDF store not available" } unless db
+    db.find_closest_doc(text, top_n: top_n)
   rescue => e
     { error: "Error finding document: #{e.message}" }
   end
 
   def list_titles
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
+    return { error: "PDF store not available" } unless db
     db.list_titles
   rescue => e
     { error: "Error listing titles: #{e.message}" }
@@ -203,7 +198,7 @@ class MonadicApp
 
   def get_text_snippet(doc_id:, position:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
+    return { error: "PDF store not available" } unless db
     db.get_text_snippet(doc_id, position)
   rescue => e
     { error: "Error getting snippet: #{e.message}" }
@@ -211,7 +206,7 @@ class MonadicApp
 
   def get_text_snippets(doc_id:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
+    return { error: "PDF store not available" } unless db
     db.get_text_snippets(doc_id)
   rescue => e
     { error: "Error getting snippets: #{e.message}" }

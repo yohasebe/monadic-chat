@@ -33,10 +33,9 @@ services:
       timeout: 5s
       retries: 8
       start_period: 3s
-    depends_on:
-      pgvector_service:
-        condition: service_healthy
-      # Python dependency removed: Ruby communicates with Python only via
-      # docker exec (on user interaction), not at startup. Both containers
-      # now start in parallel for faster startup time.
-      # Python availability is checked dynamically by WebAutomation.available?
+    # No depends_on. The Ruby service comes up immediately and waits for
+    # qdrant + embeddings via application-level retry. Tight depends_on
+    # ordering is undesirable here because the embeddings container takes
+    # ~30-60 seconds to load multilingual-e5-base on first start, and we
+    # want the Ruby web UI reachable before that finishes.
+    # Python availability is checked dynamically by WebAutomation.available?

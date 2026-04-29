@@ -1,480 +1,306 @@
 # frozen_string_literal: true
 
-require_relative "text_embeddings"
-require "digest"
+require 'json'
 
-# HelpEmbeddings extends TextEmbeddings specifically for the Monadic Chat help system
-# It manages a separate database for documentation embeddings
-class HelpEmbeddings < TextEmbeddings
-  HELP_DB_NAME = "monadic_help"
-  
-  def initialize(recreate_db: false)
-    @conn = self.class.connect_to_db(HELP_DB_NAME, recreate_db: recreate_db)
-    # Create help-specific tables with additional metadata
-    create_help_tables
+require_relative '../vector_store'
+require_relative '../embeddings'
+
+# HelpEmbeddings provides retrieval over the Monadic Chat documentation corpus.
+# Storage is delegated to Qdrant via Monadic::VectorStore; embedding inference
+# is delegated to the embeddings_service via Monadic::Embeddings::Client.
+#
+# This class intentionally does not subclass anything: PDF retrieval uses a
+# different concrete class (Monadic::PdfStore) so we can keep schemas, payload
+# shapes, and tuning knobs decoupled.
+class HelpEmbeddings
+  Schema = Monadic::VectorStore::Schema
+
+  COLLECTIONS = [Schema::HELP_DOCS, Schema::HELP_ITEMS].freeze
+
+  def initialize(vector_store: Monadic::VectorStore.default_backend,
+                 embeddings: Monadic::Embeddings.default_client)
+    @store = vector_store
+    @embeddings = embeddings
   end
 
-  # Override parent methods to use help-specific tables
-  def insert_doc(doc)
-    self.class.with_retry("Inserting help document") do
-      result = @conn.exec_params(
-        "INSERT INTO help_docs (title, file_path, section, language, items, is_internal, metadata, embedding) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8) ON CONFLICT (file_path, language) DO UPDATE SET title = $1, section = $3, items = $5, is_internal = $6, metadata = $7::jsonb, embedding = $8, updated_at = CURRENT_TIMESTAMP RETURNING id",
-        [doc[:title], doc[:file_path], doc[:section], doc[:language] || 'en', doc[:items], doc[:is_internal] || false, doc[:metadata].to_json, doc[:embedding]]
-      )
-      result[0]["id"]
-    end
-  end
+  # Expose for the loader and for tests; callers should generally not poke
+  # the underlying store directly.
+  attr_reader :store, :embeddings
 
-  def insert_item(item)
-    self.class.with_retry("Inserting help item") do
-      @conn.exec_params(
-        "INSERT INTO help_items (doc_id, text, position, heading, is_internal, metadata, embedding) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)",
-        [item[:doc_id], item[:text], item[:position], item[:heading], item[:is_internal] || false, item[:metadata].to_json, item[:embedding]]
-      )
-    end
-  end
+  # ─── Read API (used by monadic_help_tools.rb) ──────────────────────
 
   def find_closest_text(text, top_n: 10, include_internal: false)
-    # get_embeddings returns an array, so we need the first element
-    embeddings = get_embeddings([text])
-    embedding = embeddings.first
-    result = []
+    vec = embed_query(text)
+    filter = include_internal ? nil : without_internal_filter
+    hits = @store.search(
+      collection: Schema::HELP_ITEMS,
+      vector: vec, vector_name: 'content',
+      filter: filter, limit: top_n
+    )
+    hits.map { |hit| item_hit_to_row(hit) }
+  end
 
-    # Build WHERE clause based on include_internal
-    where_clause = include_internal ? "" : "WHERE hi.is_internal = FALSE"
-
-    self.class.with_retry("Finding closest help text") do
-      res = @conn.exec_params(<<~SQL, [embedding, top_n])
-        SELECT
-          hi.text,
-          hi.doc_id,
-          hi.position,
-          hi.heading,
-          hi.metadata,
-          hd.title,
-          hd.file_path,
-          hd.section,
-          hd.language,
-          1 - (hi.embedding <=> $1::vector) AS similarity
-        FROM help_items hi
-        JOIN help_docs hd ON hi.doc_id = hd.id
-        #{where_clause}
-        ORDER BY hi.embedding <=> $1::vector
-        LIMIT $2
-      SQL
-
-      res.each do |row|
-        result << {
-          text: row["text"],
-          doc_id: row["doc_id"].to_i,
-          position: row["position"].to_i,
-          heading: row["heading"],
-          metadata: row["metadata"].is_a?(String) ? JSON.parse(row["metadata"]) : row["metadata"],
-          title: row["title"],
-          file_path: row["file_path"],
-          section: row["section"],
-          language: row["language"],
-          similarity: row["similarity"].to_f
-        }
-      end
+  # Group nearest items by document so a single document does not flood
+  # the result list. Returns at most chunks_per_result chunks per doc.
+  def find_closest_text_multi(text, chunks_per_result: 3, top_n: 5, include_internal: false)
+    initial = find_closest_text(text,
+                                top_n: top_n * chunks_per_result,
+                                include_internal: include_internal)
+    grouped = {}
+    initial.each do |row|
+      doc_id = row[:doc_id]
+      grouped[doc_id] ||= []
+      grouped[doc_id] << row if grouped[doc_id].length < chunks_per_result
     end
-
-    result
+    grouped.values.take(top_n).flatten
   end
 
   def find_closest_doc(text, top_n: 5, language: nil)
-    # get_embeddings returns an array, so we need the first element
-    embeddings = get_embeddings([text])
-    embedding = embeddings.first
-    result = []
-    
-    self.class.with_retry("Finding closest help document") do
-      sql = <<~SQL
-        SELECT 
-          id,
-          title,
-          file_path,
-          section,
-          language,
-          items,
-          metadata,
-          1 - (embedding <=> $1::vector) AS similarity
-        FROM help_docs
-      SQL
-      
-      params = [embedding]
-      
-      if language
-        sql += " WHERE language = $3"
-        params << language
-      end
-      
-      sql += " ORDER BY embedding <=> $1::vector LIMIT $2"
-      params.insert(1, top_n)
-      
-      res = @conn.exec_params(sql, params)
-      
-      res.each do |row|
-        result << {
-          doc_id: row["id"].to_i,
-          title: row["title"],
-          file_path: row["file_path"],
-          section: row["section"],
-          language: row["language"],
-          items: row["items"].to_i,
-          metadata: row["metadata"].is_a?(String) ? JSON.parse(row["metadata"]) : row["metadata"],
-          similarity: row["similarity"].to_f
-        }
-      end
-    end
-    
-    result
+    vec = embed_query(text)
+    filter = language ? language_filter(language) : nil
+    hits = @store.search(
+      collection: Schema::HELP_DOCS,
+      vector: vec, vector_name: 'content',
+      filter: filter, limit: top_n
+    )
+    hits.map { |hit| doc_hit_to_row(hit) }
   end
 
   def list_titles(language: nil)
-    result = []
-    
-    self.class.with_retry("Listing help titles") do
-      sql = "SELECT id, title, file_path, section, language FROM help_docs"
-      params = []
-      
-      if language
-        sql += " WHERE language = $1"
-        params << language
-      end
-      
-      sql += " ORDER BY file_path, section"
-      
-      res = if params.empty?
-              @conn.exec(sql)
-            else
-              @conn.exec_params(sql, params)
-            end
-      
-      res.each do |row|
-        result << {
-          doc_id: row["id"].to_i,
-          title: row["title"],
-          file_path: row["file_path"],
-          section: row["section"],
-          language: row["language"]
-        }
-      end
-    end
-    
-    result
-  end
-
-  def get_text_snippets(doc_id)
-    result = []
-    
-    self.class.with_retry("Getting help snippets") do
-      res = @conn.exec_params(
-        "SELECT text, position, heading, metadata FROM help_items WHERE doc_id = $1 ORDER BY position",
-        [doc_id]
-      )
-      
-      res.each do |row|
-        result << {
-          text: row["text"],
-          position: row["position"].to_i,
-          heading: row["heading"],
-          metadata: JSON.parse(row["metadata"])
-        }
-      end
-    end
-    
-    result
-  end
-
-  # Help-specific method to clear all data
-  def clear_all_help_data
-    self.class.with_retry("Clearing help data") do
-      @conn.exec("TRUNCATE TABLE help_items, help_docs RESTART IDENTITY CASCADE")
-    end
-  end
-
-  # Get statistics about the help database
-  def get_stats
-    stats = {}
-    
-    self.class.with_retry("Getting help database stats") do
-      # Document counts by language
-      res = @conn.exec("SELECT language, COUNT(*) as count FROM help_docs GROUP BY language")
-      stats[:documents_by_language] = {}
-      res.each { |row| stats[:documents_by_language][row["language"]] = row["count"].to_i }
-      
-      # Total items
-      res = @conn.exec("SELECT COUNT(*) as count FROM help_items")
-      stats[:total_items] = res[0]["count"].to_i
-      
-      # Average items per document
-      res = @conn.exec("SELECT AVG(items) as avg FROM help_docs")
-      stats[:avg_items_per_doc] = res[0]["avg"].to_f.round(2)
-    end
-    
-    stats
-  end
-
-  # Make the parent method public for the processing script
-  # texts is an array of text strings
-  def get_embeddings(texts)
-    # Use batch processing method if available
-    # Handle case where CONFIG might not be defined (e.g., when running from scripts)
-    batch_size = if defined?(CONFIG) && CONFIG['HELP_EMBEDDINGS_BATCH_SIZE']
-                   CONFIG['HELP_EMBEDDINGS_BATCH_SIZE'].to_i
-                 else
-                   50
-                 end
-    get_embeddings_batch(texts, batch_size: batch_size)
-  end
-  
-  # Check if a document needs updating based on MD5 hash
-  def document_needs_update?(file_path, content_hash, language = 'en')
-    result = nil
-    
-    self.class.with_retry("Checking document hash") do
-      res = @conn.exec_params(
-        "SELECT metadata->>'content_hash' as hash FROM help_docs WHERE file_path = $1 AND language = $2",
-        [file_path, language]
-      )
-      result = res.first
-    end
-    
-    # Document needs update if not found or hash differs
-    return true if result.nil?
-    result['hash'] != content_hash
-  end
-  
-  # Get multiple chunks for better context
-  def find_closest_text_multi(text, chunks_per_result: 3, top_n: 5, include_internal: false)
-    # Get more results initially to ensure we have enough unique documents
-    initial_results = find_closest_text(text, top_n: top_n * chunks_per_result, include_internal: include_internal)
-
-    # Group by document and take top chunks from each
-    grouped_results = {}
-    initial_results.each do |result|
-      doc_id = result[:doc_id]
-      grouped_results[doc_id] ||= []
-      grouped_results[doc_id] << result if grouped_results[doc_id].length < chunks_per_result
-    end
-
-    # Flatten and limit to requested number of document groups
-    final_results = []
-    grouped_results.values.take(top_n).each do |doc_chunks|
-      final_results.concat(doc_chunks)
-    end
-
-    final_results
-  end
-
-  # Get unique categories from metadata
-  def get_unique_categories
-    result = []
-    
-    self.class.with_retry("Getting unique categories") do
-      res = @conn.exec(<<~SQL)
-        SELECT DISTINCT metadata->>'category' as category
-        FROM help_docs
-        WHERE metadata->>'category' IS NOT NULL
-        ORDER BY category
-      SQL
-      
-      res.each do |row|
-        result << row["category"]
-      end
-    end
-    
-    result
-  end
-
-  # Get help items by category
-  def get_by_category(category)
-    result = []
-    
-    self.class.with_retry("Getting items by category") do
-      res = @conn.exec_params(<<~SQL, [category])
-        SELECT 
-          hd.id,
-          hd.title,
-          hd.file_path,
-          hd.section,
-          hd.language,
-          hd.metadata,
-          array_agg(
-            json_build_object(
-              'text', hi.text,
-              'position', hi.position,
-              'heading', hi.heading
-            ) ORDER BY hi.position
-          ) as items
-        FROM help_docs hd
-        LEFT JOIN help_items hi ON hd.id = hi.doc_id
-        WHERE hd.metadata->>'category' = $1
-        GROUP BY hd.id, hd.title, hd.file_path, hd.section, hd.language, hd.metadata
-        ORDER BY hd.title
-      SQL
-      
-      res.each do |row|
-        result << {
-          doc_id: row["id"].to_i,
-          title: row["title"],
-          file_path: row["file_path"],
-          section: row["section"],
-          language: row["language"],
-          metadata: row["metadata"].is_a?(String) ? JSON.parse(row["metadata"]) : row["metadata"],
-          content: row["items"] ? JSON.parse(row["items"]).map { |item| item["text"] }.join("\n\n") : ""
-        }
-      end
-    end
-    
-    result
-  end
-
-  # Alias for MCP adapter compatibility
-  def search(query:, num_results: 3)
-    results = find_closest_text_multi(query, chunks_per_result: 1, top_n: num_results)
-
-    results.map do |r|
+    filter = language ? language_filter(language) : nil
+    scroll_all(Schema::HELP_DOCS, filter: filter).map do |point|
+      payload = point['payload'] || {}
       {
-        title: r[:title],
-        content: r[:text],
-        metadata: r[:metadata],
-        distance: 1 - r[:similarity]  # Convert similarity to distance
+        doc_id: point['id'],
+        title: payload['title'],
+        file_path: payload['file_path'],
+        section: payload['section'],
+        language: payload['language']
       }
     end
   end
 
-  # Get all file paths currently in the database
-  # Returns a hash with language as key and array of file paths as value
-  def get_all_file_paths
-    result = {}
-
-    self.class.with_retry("Getting all file paths from database") do
-      res = @conn.exec(<<~SQL)
-        SELECT file_path, language
-        FROM help_docs
-        ORDER BY file_path, language
-      SQL
-
-      res.each do |row|
-        language = row["language"]
-        result[language] ||= []
-        result[language] << row["file_path"]
+  def get_text_snippets(doc_id)
+    items = scroll_all(Schema::HELP_ITEMS, filter: doc_id_filter(doc_id))
+    items
+      .map { |p| p['payload'] || {} }
+      .sort_by { |p| (p['position'] || 0).to_i }
+      .map do |p|
+        {
+          text: p['text'],
+          position: p['position'],
+          heading: p['heading'],
+          metadata: p['metadata'] || {}
+        }
       end
-    end
-
-    result
   end
 
-  # Delete documents by file paths
-  # file_paths: array of file paths to delete
-  # language: specific language to delete (nil = all languages)
-  def delete_documents_by_file_paths(file_paths, language: nil)
-    return 0 if file_paths.empty?
-
-    deleted_count = 0
-
-    self.class.with_retry("Deleting documents by file paths") do
-      file_paths.each do |file_path|
-        if language
-          # Delete specific language version
-          res = @conn.exec_params(
-            "DELETE FROM help_docs WHERE file_path = $1 AND language = $2",
-            [file_path, language]
-          )
-        else
-          # Delete all language versions
-          res = @conn.exec_params(
-            "DELETE FROM help_docs WHERE file_path = $1",
-            [file_path]
-          )
-        end
-        deleted_count += res.cmd_tuples
-      end
+  # MCP adapter compatibility: tightened formatting around find_closest_text_multi.
+  def search(query:, num_results: 3)
+    rows = find_closest_text_multi(query, chunks_per_result: 1, top_n: num_results)
+    rows.map do |r|
+      {
+        title: r[:title],
+        content: r[:text],
+        metadata: r[:metadata],
+        distance: 1.0 - r[:similarity].to_f
+      }
     end
-
-    deleted_count
   end
 
-  # Cleanup deleted files from database
-  # Compares database entries with actual files on filesystem
-  # existing_files: hash with language as key and array of relative file paths as value
-  def cleanup_deleted_files(existing_files)
-    db_files = get_all_file_paths
-    deleted_files = []
-
-    db_files.each do |language, db_file_list|
-      existing_file_list = existing_files[language] || []
-
-      # Find files in DB but not in filesystem
-      orphaned_files = db_file_list - existing_file_list
-
-      orphaned_files.each do |file_path|
-        deleted_files << { file_path: file_path, language: language }
-      end
+  def get_stats
+    docs = scroll_all(Schema::HELP_DOCS)
+    by_lang = Hash.new(0)
+    docs.each do |p|
+      by_lang[p.dig('payload', 'language') || 'unknown'] += 1
     end
+    total_items = @store.count(collection: Schema::HELP_ITEMS)
+    avg = if docs.empty?
+            0.0
+          else
+            (docs.sum { |p| (p.dig('payload', 'items') || 0).to_i }.to_f / docs.size).round(2)
+          end
+    {
+      documents_by_language: by_lang,
+      total_items: total_items,
+      avg_items_per_doc: avg
+    }
+  end
 
-    return 0 if deleted_files.empty?
+  def get_unique_categories
+    scroll_all(Schema::HELP_DOCS)
+      .map { |p| p.dig('payload', 'metadata', 'category') }
+      .compact
+      .uniq
+      .sort
+  end
 
-    # Delete orphaned files
-    deleted_count = 0
-    deleted_files.each do |file_info|
-      count = delete_documents_by_file_paths([file_info[:file_path]], language: file_info[:language])
-      if count > 0
-        puts "  Removed orphaned entry: #{file_info[:file_path]} (#{file_info[:language]})"
-        deleted_count += count
-      end
+  def get_by_category(category)
+    scroll_all(Schema::HELP_DOCS, filter: category_filter(category)).map do |doc|
+      payload = doc['payload'] || {}
+      doc_id = doc['id']
+      items = scroll_all(Schema::HELP_ITEMS, filter: doc_id_filter(doc_id))
+              .sort_by { |i| (i.dig('payload', 'position') || 0).to_i }
+      content = items.map { |i| i.dig('payload', 'text') }.compact.join("\n\n")
+      {
+        doc_id: doc_id,
+        title: payload['title'],
+        file_path: payload['file_path'],
+        section: payload['section'],
+        language: payload['language'],
+        metadata: payload['metadata'] || {},
+        content: content
+      }
     end
+  end
 
-    deleted_count
+  # ─── Build / bootstrap API ─────────────────────────────────────────
+
+  # Insert or update a single document. Caller supplies a pre-computed
+  # embedding (build pipelines compute them in batches before calling).
+  def upsert_doc(doc)
+    @store.upsert_points(
+      collection: Schema::HELP_DOCS,
+      points: [{
+        id: doc.fetch(:id),
+        vector: { 'content' => doc.fetch(:embedding) },
+        payload: doc_payload(doc)
+      }]
+    )
+  end
+
+  def upsert_item(item)
+    @store.upsert_points(
+      collection: Schema::HELP_ITEMS,
+      points: [{
+        id: item.fetch(:id),
+        vector: { 'content' => item.fetch(:embedding) },
+        payload: item_payload(item)
+      }]
+    )
+  end
+
+  # Drop both collections and recreate them empty.
+  def clear_all_help_data
+    COLLECTIONS.each { |name| @store.delete_collection(name: name) }
+    bootstrap_collections!
+  end
+
+  # Create collections if they do not yet exist. Idempotent.
+  def bootstrap_collections!
+    COLLECTIONS.each do |name|
+      next if @store.collection_exists?(name: name)
+      defn = Schema::DEFINITIONS[name]
+      @store.create_collection(
+        name: name,
+        vectors: defn[:vectors],
+        payload_indexes: defn[:payload_indexes]
+      )
+    end
+  end
+
+  def data_loaded?
+    bootstrap_collections!
+    @store.count(collection: Schema::HELP_DOCS) > 0
   end
 
   private
 
-  def create_help_tables
-    self.class.with_retry("Creating help tables") do
-      # Docs table with additional help-specific metadata
-      @conn.exec(<<~SQL)
-        CREATE TABLE IF NOT EXISTS help_docs (
-          id serial primary key,
-          title text NOT NULL,
-          file_path text NOT NULL,
-          section text,
-          language text DEFAULT 'en',
-          items integer DEFAULT 0,
-          is_internal boolean DEFAULT FALSE,
-          metadata jsonb DEFAULT '{}',
-          embedding vector(#{EMBEDDINGS_DIMENSION}),
-          created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-          updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(file_path, language)
-        )
-      SQL
+  def embed_query(text)
+    @embeddings.embed_query(text)
+  end
 
-      # Items table with help-specific fields
-      @conn.exec(<<~SQL)
-        CREATE TABLE IF NOT EXISTS help_items (
-          id serial primary key,
-          doc_id integer REFERENCES help_docs(id) ON DELETE CASCADE,
-          text text NOT NULL,
-          position smallint NOT NULL,
-          heading text,
-          is_internal boolean DEFAULT FALSE,
-          metadata jsonb DEFAULT '{}',
-          embedding vector(#{EMBEDDINGS_DIMENSION}),
-          created_at timestamp DEFAULT CURRENT_TIMESTAMP
-        )
-      SQL
+  def doc_payload(doc)
+    {
+      'title' => doc[:title],
+      'file_path' => doc[:file_path],
+      'section' => doc[:section],
+      'language' => doc[:language] || 'en',
+      'items' => doc[:items] || 0,
+      'is_internal' => doc[:is_internal] || false,
+      'metadata' => doc[:metadata] || {}
+    }
+  end
 
-      # Create indexes for better performance
-      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_language ON help_docs(language)")
-      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_file_path ON help_docs(file_path)")
-      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_is_internal ON help_docs(is_internal)")
-      # Note: ivfflat indexes removed due to 2000 dimension limit with text-embedding-3-large (3072 dims)
-      # Consider using HNSW or no index for now
-      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_items_doc_id ON help_items(doc_id)")
-      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_items_is_internal ON help_items(is_internal)")
+  def item_payload(item)
+    {
+      'doc_id' => item[:doc_id],
+      'text' => item[:text],
+      'position' => item[:position],
+      'heading' => item[:heading],
+      'language' => item[:language] || 'en',
+      'is_internal' => item[:is_internal] || false,
+      'metadata' => item[:metadata] || {}
+    }
+  end
+
+  def item_hit_to_row(hit)
+    payload = hit['payload'] || {}
+    doc_payload = fetch_doc_payload(payload['doc_id'])
+    {
+      text: payload['text'],
+      doc_id: payload['doc_id'],
+      position: payload['position'],
+      heading: payload['heading'],
+      metadata: payload['metadata'] || {},
+      title: doc_payload['title'],
+      file_path: doc_payload['file_path'],
+      section: doc_payload['section'],
+      language: payload['language'],
+      similarity: hit['score'].to_f
+    }
+  end
+
+  def doc_hit_to_row(hit)
+    payload = hit['payload'] || {}
+    {
+      doc_id: hit['id'],
+      title: payload['title'],
+      file_path: payload['file_path'],
+      section: payload['section'],
+      language: payload['language'],
+      items: payload['items'].to_i,
+      metadata: payload['metadata'] || {},
+      similarity: hit['score'].to_f
+    }
+  end
+
+  def fetch_doc_payload(doc_id)
+    return {} if doc_id.nil?
+    points = @store.retrieve_points(collection: Schema::HELP_DOCS, ids: [doc_id])
+    points.first&.dig('payload') || {}
+  end
+
+  def without_internal_filter
+    { must: [{ key: 'is_internal', match: { value: false } }] }
+  end
+
+  def language_filter(lang)
+    { must: [{ key: 'language', match: { value: lang } }] }
+  end
+
+  def doc_id_filter(doc_id)
+    { must: [{ key: 'doc_id', match: { value: doc_id.to_i } }] }
+  end
+
+  def category_filter(category)
+    { must: [{ key: 'metadata.category', match: { value: category } }] }
+  end
+
+  def scroll_all(collection, filter: nil, batch_size: 256)
+    results = []
+    offset = nil
+    loop do
+      page = @store.scroll(
+        collection: collection,
+        filter: filter,
+        limit: batch_size,
+        offset: offset
+      )
+      results.concat(page[:points])
+      break if page[:next].nil?
+      offset = page[:next]
     end
+    results
   end
 end

@@ -1,0 +1,4 @@
+services:
+  embeddings_service:
+    ports:
+      - "127.0.0.1:8002:8000"   # FastAPI (host-exposed in dev only)

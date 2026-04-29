@@ -9,7 +9,8 @@ require_relative '../../lib/monadic/utils/environment'
 class DockerContainerManager
   SERVICES_DIR = File.expand_path("../../..", __dir__)
   REQUIRED_SERVICES = {
-    "pgvector" => "pgvector/compose.yml",
+    "qdrant" => "qdrant/compose.yml",
+    "embeddings" => "embeddings/compose.yml",
     "selenium" => "selenium/compose.yml",
     "python" => "python/compose.yml"
   }.freeze
@@ -87,8 +88,10 @@ class DockerContainerManager
     
     def service_healthy?(service)
       case service
-      when "pgvector"
-        postgres_healthy?
+      when "qdrant"
+        qdrant_healthy?
+      when "embeddings"
+        embeddings_healthy?
       when "selenium"
         selenium_healthy?
       when "python"
@@ -97,29 +100,26 @@ class DockerContainerManager
         true
       end
     end
-    
-    def postgres_healthy?
-      require "pg"
-      
-      # Quick check if container is in healthy state
-      container_name = "monadic-chat-pgvector-container"
-      output, = Open3.capture2("docker inspect --format='{{.State.Health.Status}}' #{container_name} 2>/dev/null")
-      
-      # If Docker reports healthy, trust it
-      return true if output.strip == "healthy"
-      
-      # Otherwise try to connect
-      conn = PG.connect(
-        Monadic::Utils::Environment.postgres_params.merge(connect_timeout: 5)
-      )
-      conn.exec("SELECT 1")
-      conn.close
-      true
-    rescue PG::Error => e
-      # Only print detailed errors in debug mode
-      if ENV['DEBUG_CONTAINERS'] && !e.message.include?("starting up")
-        puts "[DEBUG] PostgreSQL health check failed: #{e.message}"
+
+    def qdrant_healthy?
+      uri = URI("http://localhost:6333/healthz")
+      response = Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
+        http.get(uri.path)
       end
+      response.is_a?(Net::HTTPSuccess)
+    rescue StandardError => e
+      puts "[DEBUG] qdrant health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
+      false
+    end
+
+    def embeddings_healthy?
+      uri = URI("http://localhost:8002/v1/health")
+      response = Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
+        http.get(uri.path)
+      end
+      response.is_a?(Net::HTTPSuccess)
+    rescue StandardError => e
+      puts "[DEBUG] embeddings health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
       false
     end
     
@@ -225,10 +225,10 @@ class DockerContainerManager
           break
         else
           unhealthy_count += 1
-          # If pgvector stays unhealthy for too long, try restarting it
-          if unhealthy_count > 15 && !statuses[0]  # pgvector is first
-            puts "\n⚠️  pgvector is taking too long, attempting restart..."
-            system("docker restart monadic-chat-pgvector-container")
+          # If qdrant stays unhealthy for too long, try restarting it.
+          if unhealthy_count > 15 && !statuses[0]  # qdrant is first in REQUIRED_SERVICES
+            puts "\n⚠️  qdrant is taking too long, attempting restart..."
+            system("docker restart monadic-chat-qdrant-container")
             unhealthy_count = 0
           end
           sleep 2

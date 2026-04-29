@@ -69,8 +69,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pandoc-ruby"
   spec.add_dependency "parallel"
   spec.add_dependency "parslet"
-  spec.add_dependency "pg", "~> 1.5"
-  spec.add_dependency "pgvector"
   spec.add_dependency "twitter_cldr"
   spec.add_dependency "rack", "~> 3.2"
   spec.add_dependency "rake"

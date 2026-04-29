@@ -1011,13 +1011,6 @@ const modelSpec = {
     "sunset_date": "2026-07-24",
     "successor": "deepseek-v4-flash"
   },
-  "text-embedding-3-large": {
-    "context_window": [1, 8191],
-    "max_output_tokens": [1, 0],
-    "embedding_dimensions": 3072,
-    "tool_capability": false,
-    "vision_capability": false
-  },
   // Ollama models (local inference)
   // NOTE: Ollama model capabilities are normally fetched dynamically via
   // /api/ollama/models (see model_loader.js). This static entry exists only
@@ -1140,8 +1133,7 @@ const providerDefaults = {
     "vision": ["gpt-5.4-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
     "image": ["gpt-image-2", "gpt-image-1.5", "chatgpt-image-latest"],
-    "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"],
-    "embedding": ["text-embedding-3-large"]
+    "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   "anthropic": {
     "chat": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],

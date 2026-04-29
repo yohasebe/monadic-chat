@@ -62,7 +62,10 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `monadic-chat-ruby-container`
 - `monadic-chat-python-container`
 - `monadic-chat-selenium-container`
-- `monadic-chat-pgvector-container`
+- `monadic-chat-qdrant-container`
+- `monadic-chat-embeddings-container`
+- `monadic-chat-privacy-container` (only present if Privacy Filter is installed)
+- `monadic-chat-pgvector-container` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
 - `monadic-chat-web-container` (legacy)
 - `monadic-chat-container` (legacy)
 
@@ -71,11 +74,16 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `yohasebe/monadic-chat`
 - `yohasebe/python`
 - `yohasebe/selenium`
-- `yohasebe/pgvector`
+- `yohasebe/monadic-embeddings`
+- `qdrant/qdrant`
+- `yohasebe/monadic-privacy` (only if Privacy Filter is installed)
+- `yohasebe/pgvector` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
 
 #### Volumes
 
-- `monadic-chat-pgvector-data`
+- `monadic-chat-qdrant-data`
+- `monadic-chat-embeddings-models`
+- `monadic-chat-pgvector-data` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
 
 ### Manual Removal Commands :id=manual-removal-commands
 
@@ -93,7 +101,10 @@ docker rmi -f yohasebe/python
 # ... (repeat for other images)
 
 # Remove volumes
-docker volume rm monadic-chat-pgvector-data
+docker volume rm monadic-chat-qdrant-data
+docker volume rm monadic-chat-embeddings-models
+# Legacy volumes (only present on installs upgraded from older versions)
+docker volume rm monadic-chat-pgvector-data 2>/dev/null || true
 ```
 
 **Note**: On Linux, if you encounter permission errors, prefix the commands with `sudo`. If a container is running and cannot be removed, stop it first with `docker stop <container-name>`.

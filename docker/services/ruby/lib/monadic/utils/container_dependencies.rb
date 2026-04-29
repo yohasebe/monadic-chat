@@ -25,7 +25,8 @@ module Monadic
       COMPOSE_SERVICES = {
         python: "python_service",
         selenium: "selenium_service",
-        pgvector: "pgvector_service",
+        qdrant: "qdrant_service",
+        embeddings: "embeddings_service",
         privacy: "privacy_service"
       }.freeze
 
@@ -33,16 +34,24 @@ module Monadic
       CONTAINER_NAMES = {
         python: "monadic-chat-python-container",
         selenium: "monadic-chat-selenium-container",
-        pgvector: "monadic-chat-pgvector-container",
+        qdrant: "monadic-chat-qdrant-container",
+        embeddings: "monadic-chat-embeddings-container",
         privacy: "monadic-chat-privacy-container"
       }.freeze
+
+      # Always-on services. The Help system + PDF KB rely on Qdrant (storage)
+      # and the embeddings_service (e5-base inference), so we treat them as
+      # base dependencies rather than per-app extras. Listed here so callers
+      # can request the baseline without inspecting every app's settings.
+      BASE_SERVICES = %i[qdrant embeddings].freeze
 
       module_function
 
       # Determine which extra services an app requires.
-      # Returns a Set of symbols: :python, :selenium, :pgvector
+      # Returns a Set of symbols. Base services (qdrant + embeddings) are
+      # always included so the Help system works regardless of app choice.
       def required_services(settings)
-        services = Set.new
+        services = Set.new(BASE_SERVICES)
 
         # Normalize key access (support both symbol and string keys)
         get = ->(key) { settings[key.to_sym].nil? ? settings[key.to_s] : settings[key.to_sym] }
@@ -65,11 +74,6 @@ module Monadic
         if group_names.any? { |name| SELENIUM_TOOL_GROUPS.include?(name) }
           services << :selenium
           services << :python # Selenium operations run through Python
-        end
-
-        # PGVector: needed for local PDF vector storage
-        if get.call(:pdf_vector_storage)
-          services << :pgvector
         end
 
         # Privacy: required when an app declares privacy.enabled in MDSL.

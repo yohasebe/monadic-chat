@@ -165,7 +165,7 @@ Adjust the playback speed of synthesized speech (0.7 to 1.2).
 **Uploaded PDF**<br />
 This displays a list of PDFs uploaded by clicking the `Import PDF` button. You can give a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.
 
-!> **Warning:** PDF files are converted to text embeddings and stored according to your selected storage mode. For Local Storage mode (PGVector), the database will be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Use the `Export Document DB` feature to back up and restore your data. For more information about storage modes, see [PDF Storage Modes](./pdf_storage.md).
+!> **Warning:** PDF files are converted to text embeddings and stored according to your selected storage mode. For Local Storage mode (Qdrant + multilingual-e5-base), the database may be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Use the `Export Document DB` feature to back up and restore your data. For more information about storage modes, see [PDF Storage Modes](./pdf_storage.md).
 
 ## AI User Feature :id=ai-user-feature
 

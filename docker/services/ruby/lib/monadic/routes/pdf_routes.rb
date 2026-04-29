@@ -1,7 +1,8 @@
 # frozen_string_literal: false
 
 # PDF storage and document management routes
-# Handles local PGVector storage and OpenAI Vector Store (cloud) operations
+# Handles local Qdrant + multilingual-e5-base storage and OpenAI Vector Store
+# (cloud) operations.
 
 # API: PDF storage status (mode/local/cloud presence/VS id)
 get "/api/pdf_storage_status" do
@@ -35,18 +36,10 @@ get "/api/pdf_storage_status" do
       end
     end
     cloud_present = !!vs_id
-  # Local presence (fast check)
+  # Local presence (fast, scoped to the current app's namespace)
   local_present = begin
-    if defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
-      if EMBEDDINGS_DB.respond_to?(:any_docs?)
-        EMBEDDINGS_DB.any_docs?
-      else
-        arr = list_pdf_titles
-        arr.is_a?(Array) && !arr.empty?
-      end
-    else
-      false
-    end
+    store = pdf_store_for(session)
+    store ? store.any_docs? : false
   rescue StandardError
     false
   end
@@ -80,12 +73,14 @@ get "/api/pdf_storage_defaults" do
   content_type :json
   begin
     default_storage = get_pdf_storage_mode
-    pgvector_available = begin
+    local_available = begin
       defined?(EMBEDDINGS_DB) && !EMBEDDINGS_DB.nil?
     rescue StandardError
       false
     end
-    { default_storage: default_storage, pgvector_available: pgvector_available }.to_json
+    # Key kept as `pgvector_available` for frontend compatibility — it now
+    # reflects the local Qdrant + embeddings store rather than PGVector.
+    { default_storage: default_storage, pgvector_available: local_available }.to_json
   rescue StandardError => e
     status 500
     { default_storage: 'local', pgvector_available: false }.to_json
@@ -558,119 +553,73 @@ delete "/openai/pdf" do
   end
 end
 
-# Upload a PDF file (local PGVector storage)
+# Upload a PDF file (local Qdrant storage via Monadic::Pdf::Store)
 post "/pdf" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
+  # Always respond with JSON. The previous code branched on `request.xhr?`
+  # to return a plain-string filename for legacy HTML form submissions, but
+  # the modern frontend uses fetch() (which does not set the
+  # X-Requested-With header), so the plain-string path was actually being
+  # taken for normal uploads — leading to client-side JSON.parse errors.
+  content_type :json
 
-    if params["pdfFile"]
-      begin
-        # Check if EMBEDDINGS_DB is available
-        unless EMBEDDINGS_DB
-          return error_json("Database connection not available")
-        end
-        pdf_file_handler = params["pdfFile"]["tempfile"]
-        temp_file = Tempfile.new("temp_pdf")
-        temp_file.binmode
-        temp_file.write(pdf_file_handler.read)
-        temp_file.rewind
+  return error_json("No file selected. Please choose a PDF file to upload.") unless params["pdfFile"]
 
-        # Close the original file handler
-        pdf_file_handler.close
+  begin
+    # Check if the local store is available. Resolve the namespace from
+    # the explicit appName form field first (frontend always knows which
+    # app it is in), then fall back to the session. Direct field beats
+    # session-derived value because the session may not be hydrated yet
+    # if UPDATE_PARAMS has not fired before the upload.
+    app_name = params["appName"].to_s
+    store = if app_name.empty?
+              pdf_store_for(session)
+            else
+              pdf_store_for(app_name)
+            end
+    return error_json("Database connection not available") unless store
 
-        pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
-        pdf.extract
+    pdf_file_handler = params["pdfFile"]["tempfile"]
+    temp_file = Tempfile.new("temp_pdf")
+    temp_file.binmode
+    temp_file.write(pdf_file_handler.read)
+    temp_file.rewind
+    pdf_file_handler.close
 
-        # Close and delete the temporary file
-        temp_file.close
-        temp_file.unlink
+    pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
+    pdf.extract
+    temp_file.close
+    temp_file.unlink
 
-        doc_data = { items: 0, metadata: {} }
-        items_data = []
+    return error_json("No text could be extracted from the PDF file") if pdf.split_text.empty?
 
-        # Check if text was extracted successfully
-        if pdf.split_text.empty?
-          return error_json("No text could be extracted from the PDF file")
-        end
-
-        pdf.split_text.each do |i|
-          title = if params["pdfTitle"].to_s != ""
-                    params["pdfTitle"]
-                  else
-                    params["pdfFile"]["filename"]
-                  end
-
-          doc_data[:title] = title
-          doc_data[:items] += 1
-
-          items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
-        end
-
-        api_key = settings.api_key
-        if api_key.nil? || api_key.empty?
-          return error_json("API key not configured")
-        end
-
-        EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: api_key)
-        # Mark session storage mode as local for downstream routing
-        begin
-          session[:pdf_storage_mode] = 'local'
-        rescue StandardError
-          # no-op
-        end
-        # Invalidate caches for mode/presence
-        bump_pdf_cache_version
-        return { success: true, filename: params["pdfFile"]["filename"] }.to_json
-      rescue TextEmbeddings::DatabaseError => e
-        return error_json("Database error: #{e.message}")
-      rescue PG::Error => e
-        return error_json("PostgreSQL error: #{e.message}")
-      rescue => e
-        return error_json("Error processing PDF: #{e.class.name} - #{e.message}")
-      end
-    else
-      return error_json("No file selected. Please choose a PDF file to upload.")
+    doc_data = { items: 0, metadata: {} }
+    items_data = []
+    pdf.split_text.each do |i|
+      title = if params["pdfTitle"].to_s != ""
+                params["pdfTitle"]
+              else
+                params["pdfFile"]["filename"]
+              end
+      doc_data[:title] = title
+      doc_data[:items] += 1
+      items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
     end
-  else
-    # For regular form submissions, maintain original behavior
-    if params["pdfFile"]
-      pdf_file_handler = params["pdfFile"]["tempfile"]
-      temp_file = Tempfile.new("temp_pdf")
-      temp_file.binmode
-      temp_file.write(pdf_file_handler.read)
-      temp_file.rewind
 
-      # Close the original file handler
-      pdf_file_handler.close
-
-      pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
-      pdf.extract
-
-      # Close and delete the temporary file
-      temp_file.close
-      temp_file.unlink
-
-      doc_data = { items: 0, metadata: {} }
-      items_data = []
-
-      pdf.split_text.each do |i|
-        title = if params["pdfTitle"].to_s != ""
-                  params["pdfTitle"]
-                else
-                  params["pdfFile"]["filename"]
-                end
-
-        doc_data[:title] = title
-        doc_data[:items] += 1
-
-        items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
-      end
-      EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
-      bump_pdf_cache_version
-      return params["pdfFile"]["filename"]
-    else
-      session[:error] = "Error: No file selected. Please choose a PDF file to upload."
+    # Embeddings are computed locally via the embeddings_service container
+    # so no provider API key is required for the store_embeddings call.
+    store.store_embeddings(doc_data, items_data)
+    begin
+      session[:pdf_storage_mode] = 'local'
+    rescue StandardError
+      # no-op
     end
+    bump_pdf_cache_version
+    { success: true, filename: params["pdfFile"]["filename"] }.to_json
+  rescue Monadic::VectorStore::BackendError => e
+    error_json("Vector store error: #{e.message}")
+  rescue Monadic::Embeddings::ClientError => e
+    error_json("Embeddings service error: #{e.message}")
+  rescue => e
+    error_json("Error processing PDF: #{e.class.name} - #{e.message}")
   end
 end

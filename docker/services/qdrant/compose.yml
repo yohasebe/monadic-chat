@@ -1,0 +1,19 @@
+services:
+  qdrant_service:
+    image: qdrant/qdrant:latest
+    # No profile: this is a base service (always starts with Monadic Chat)
+    # because the Help system depends on it. Use ensure-service qdrant from
+    # Ruby for startup ordering, not profile activation.
+    container_name: monadic-chat-qdrant-container
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - monadic-chat-network
+    restart: "no"
+    # Note: the qdrant image is minimal and does not ship curl/wget, so we
+    # rely on Ruby-side waits hitting GET /healthz on port 6333 instead of a
+    # container-level healthcheck.
+
+volumes:
+  qdrant_storage:
+    name: monadic-chat-qdrant-data

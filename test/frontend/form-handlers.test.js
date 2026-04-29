@@ -58,22 +58,12 @@ document.getElementById = jest.fn();
 // Import the module under test
 const formHandlers = require('../../docker/services/ruby/public/js/monadic/form-handlers');
 
-// Helper: create a mock fetch that returns JSON responses based on URL
+// Helper: create a mock fetch that returns a JSON success response
 function createFetchMock(responseData = { success: true }) {
-  return jest.fn().mockImplementation((url) => {
-    // For uploadPdf: /api/pdf_storage_defaults returns storage mode
-    if (url === '/api/pdf_storage_defaults') {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ default_storage: 'local' })
-      });
-    }
-    // Default: return success JSON
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(responseData)
-    });
-  });
+  return jest.fn().mockImplementation(() => Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve(responseData)
+  }));
 }
 
 // Reset mocks before each test

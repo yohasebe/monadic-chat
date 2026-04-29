@@ -688,14 +688,6 @@
               <small class="text-muted" data-i18n="settings.labels.mcpServerPortDesc">Network port for MCP server. Change only if port 3100 conflicts with another service.</small>
             </div>
 
-            <div class="setting-group">
-              <label for="pdf-storage-mode-setting" data-i18n="settings.labels.pdfStorageMode">PDF Storage Mode</label>
-              <select id="pdf-storage-mode-setting" name="pdf-storage-mode-setting">
-                <option value="local">Local (PGVector)</option>
-                <option value="cloud">Cloud (OpenAI Vector Store)</option>
-              </select>
-              <small class="text-muted" data-i18n="settings.labels.pdfStorageModeDesc">Local uses PGVector database on your machine. Cloud uses OpenAI Vector Store API (requires additional API costs).</small>
-            </div>
           </div>
 
           <!-- Panel: Install Options -->
@@ -1115,7 +1107,6 @@
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
           UI_LANGUAGE: document.getElementById('ui-language').value,
-          PDF_STORAGE_MODE: document.getElementById('pdf-storage-mode-setting').value,
           AUTO_TTS_MAX_BYTES: document.getElementById('auto-tts-max-bytes').value,
           OPEN_AT_LOGIN: document.getElementById('open-at-login').checked,
           MENU_BAR_MODE: document.getElementById('menu-bar-mode').checked,
@@ -1295,10 +1286,6 @@
         const browserValueExists = Array.from(browserModeSelect.options).some(opt => opt.value === browserModeValue);
         browserModeSelect.value = browserValueExists ? browserModeValue : 'external';
         browserModeSelect.setAttribute('data-previous-value', browserModeSelect.value);
-
-        // PDF storage mode (with fallback to PDF_DEFAULT_STORAGE for backward compat)
-        const pdfMode = (data.PDF_STORAGE_MODE || data.PDF_DEFAULT_STORAGE || 'local').toLowerCase();
-        document.getElementById('pdf-storage-mode-setting').value = (pdfMode === 'cloud') ? 'cloud' : 'local';
 
         // Actions tab status
         actionDockerStatus = data.DOCKER_STATUS || 'Stopped';

@@ -85,7 +85,7 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 - **💬 Advanced Conversation Management**: Edit, export/import, and track conversation history with structured context
 - **🎙️ Voice Interaction**: Text-to-speech and speech-to-text with multiple providers and speaker diarization
 - **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models, with intelligent session-based continuity for effortless iterative editing and remixing of generated content.
-- **📄 PDF Knowledge Base**: Store and query documents locally (Qdrant + on-device embeddings, no API key required) or in cloud (OpenAI Vector Store)
+- **📄 PDF Knowledge Base**: Store and query documents locally with Qdrant + on-device embeddings — no API key required
 - **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, Grok, and Perplexity
 - **🔒 Privacy Filter** (opt-in): Mask PII locally before sending to AI providers; restore in the response. Supports 9 languages via Microsoft Presidio + spaCy. See [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter).
 - **🔄 Automatic Updates**: In-app notifications and seamless update downloads

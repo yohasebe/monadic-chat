@@ -3,8 +3,6 @@
 # Optimize load path by removing duplicates
 $LOAD_PATH.uniq!
 
-require_relative "monadic/utils/document_store_registry"
-require_relative "monadic/utils/pdf_storage_config"
 require_relative "monadic/utils/ssl_configuration"
 require_relative "monadic/utils/workflow_viewer_helpers"
 require_relative "monadic/utils/container_dependencies"
@@ -313,25 +311,6 @@ rescue StandardError => e
   []
 end
 
-# Determine configured PDF storage mode (ENV), with backward compatibility
-def get_pdf_storage_mode
-  begin
-    changed = Monadic::Utils::PdfStorageConfig.refresh_from_env
-    if changed && instance_variable_defined?(:@pdf_storage_mode_cache)
-      remove_instance_variable(:@pdf_storage_mode_cache)
-    end
-  rescue StandardError
-    # Ignore refresh errors; fall back to cached value if present.
-  end
-  return @pdf_storage_mode_cache if instance_variable_defined?(:@pdf_storage_mode_cache)
-  begin
-    mode = (CONFIG["PDF_STORAGE_MODE"] || CONFIG["PDF_DEFAULT_STORAGE"] || 'local').to_s.downcase
-    @pdf_storage_mode_cache = %w[local cloud].include?(mode) ? mode : 'local'
-  rescue StandardError
-    @pdf_storage_mode_cache = 'local'
-  end
-end
-
 # Load app files
 def load_app_files
   apps_to_load = {}
@@ -632,23 +611,17 @@ def init_apps
       rescue StandardError
         # non-fatal
       end
-      # Add document search policy hint (no hybrid mode)
-      begin
-        configured_mode = get_pdf_storage_mode
-        storage_desc = (configured_mode == 'cloud') ? 'Cloud File Search (OpenAI Vector Store)' : 'Local PDF Database (functions)'
-        system_prompt_suffix << <<~SYSPSUFFIX
+      # Add document search policy hint (local Qdrant only)
+      system_prompt_suffix << <<~SYSPSUFFIX
 
-          DOCUMENT SEARCH POLICY:
-          - Your document source is: #{storage_desc}.
-          - Use it when the user asks to reference their PDFs or knowledge base.
-          - If no relevant results are found, explain the limitation briefly.
+        DOCUMENT SEARCH POLICY:
+        - Your document source is: Local PDF Database (functions).
+        - Use it when the user asks to reference their PDFs or knowledge base.
+        - If no relevant results are found, explain the limitation briefly.
 
-          When citing results, include a compact metadata footer after an `---` divider with:
-          Doc Title, Snippet tokens, and Snippet position.
-        SYSPSUFFIX
-      rescue StandardError
-        # Non-fatal if mode cannot be determined here
-      end
+        When citing results, include a compact metadata footer after an `---` divider with:
+        Doc Title, Snippet tokens, and Snippet position.
+      SYSPSUFFIX
     end
 
     if app.settings["mermaid"]
@@ -811,63 +784,6 @@ end
 
 def error_json(message)
   { success: false, error: message }.to_json
-end
-
-def resolve_openai_app_key
-  (session[:parameters] && session[:parameters]["app_name"]) || "default"
-rescue StandardError
-  "default"
-end
-
-def openai_pdf_headers(api_key)
-  headers = { "Authorization" => "Bearer #{api_key}", "OpenAI-Beta" => "assistants=v2" }
-  api_base = "https://api.openai.com/v1"
-  [headers, api_base]
-end
-
-def vs_meta_path
-  File.join(Monadic::Utils::Environment.data_path, "pdf_navigator_openai.json")
-end
-
-def bump_pdf_cache_version
-  session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-rescue StandardError
-  # no-op
-end
-
-def resolve_vector_store_id(app_key)
-  # Priority: session → app-specific ENV → global ENV → registry → fallback meta
-  app_env_vs = begin
-    key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
-    val = CONFIG[key]
-    s = val.to_s.strip
-    s.empty? ? nil : s
-  rescue StandardError
-    nil
-  end
-  reg_vs_id = begin
-    Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-  rescue StandardError
-    nil
-  end
-  env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-  fallback_vs = nil
-  if File.exist?(vs_meta_path)
-    begin
-      meta = JSON.parse(File.read(vs_meta_path))
-      fallback_vs = meta["vector_store_id"]
-    rescue StandardError
-      fallback_vs = nil
-    end
-  end
-  vs_id = session[:openai_vector_store_id]
-  vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-  vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
-  vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
-  vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
-  # Keep session in sync for downstream usage
-  session[:openai_vector_store_id] = vs_id if vs_id
-  vs_id
 end
 
 # Note: Signal handling is managed by Falcon server

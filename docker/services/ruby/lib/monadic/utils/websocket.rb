@@ -190,6 +190,16 @@ module WebSocketHelper
           handle_ws_library_delete(connection, obj, session)
         when "LIBRARY_STATS"
           handle_ws_library_stats(connection, obj, session)
+        when "LIBRARY_SAVE"
+          handle_ws_library_save(connection, obj, session)
+        when "LIBRARY_TOGGLE_VISIBILITY"
+          handle_ws_library_toggle_visibility(connection, obj, session)
+        when "LIBRARY_GET_CONVERSATION"
+          handle_ws_library_get_conversation(connection, obj, session)
+        when "LIBRARY_RAG_TOGGLE"
+          handle_ws_library_rag_toggle(connection, obj, session)
+        when "LIBRARY_RAG_QUERY"
+          handle_ws_library_rag_query(connection, obj, session)
         when "CHECK_TOKEN"
           handle_ws_check_token(connection, obj, session)
         when "PING"

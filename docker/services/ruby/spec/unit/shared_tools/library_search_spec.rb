@@ -22,7 +22,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(msg).to include('"alpha"')
     end
 
-    it 'renders each hit with citation, score, and snippet' do
+    it 'renders each hit with a markdown link citation, score, and snippet' do
       hits = [
         {
           text: 'The first relevant passage that the search returned.',
@@ -41,9 +41,14 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       ]
       out = described_class.format_results('q', hits)
       expect(out).to include('Found 2 relevant passages')
-      expect(out).to include('From "My TED Talk" (ted-talk, conversation_id: conv-1)')
+      # Citations use markdown links with the in-app `mc:conv:` URL
+      # scheme so frontend click intercept can open the Viewer modal.
+      expect(out).to include('From [My TED Talk](mc:conv:conv-1) (ted-talk)')
       expect(out).to include('score=0.876')
-      expect(out).to include('From "(untitled)" (monadic-chat, conversation_id: conv-2)')
+      expect(out).to include('From [(untitled)](mc:conv:conv-2) (monadic-chat)')
+      # The trailing instruction tells the LLM to keep the links intact
+      # when summarising — required so RAG citations stay clickable.
+      expect(out).to match(/keep the markdown links/i)
     end
 
     it 'truncates very long snippets to 480 chars with an ellipsis' do
@@ -84,6 +89,27 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     end
   end
 
+  describe '.session_enabled?' do
+    it 'is true when the parameter flag is truthy' do
+      session = { parameters: { 'library_rag_enabled' => true } }
+      expect(described_class.session_enabled?(session)).to be true
+    end
+
+    it 'accepts string-keyed parameters too' do
+      session = { 'parameters' => { 'library_rag_enabled' => true } }
+      expect(described_class.session_enabled?(session)).to be true
+    end
+
+    it 'is false when the flag is missing' do
+      session = { parameters: {} }
+      expect(described_class.session_enabled?(session)).to be false
+    end
+
+    it 'is false on a nil session (early-boot or unauthenticated)' do
+      expect(described_class.session_enabled?(nil)).to be false
+    end
+  end
+
   describe MonadicSharedTools::LibrarySearch::Tools do
     let(:host) do
       Class.new { include MonadicSharedTools::LibrarySearch::Tools }.new
@@ -99,6 +125,10 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
             conversation_language: 'en'
           }
         ])
+      # Inject a session with the per-session RAG toggle ON. Without
+      # this, library_search returns the disabled-toggle message early
+      # and the Retriever stub never runs.
+      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
     end
 
     it 'invokes Retriever with scope :external and returns formatted text' do
@@ -128,13 +158,47 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(out).to start_with('❌ Knowledge Base search failed')
       expect(out).to include('boom')
     end
+
+    it 'short-circuits with the disabled-toggle message when the session flag is OFF' do
+      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => false } })
+      expect(Monadic::Library::Retriever).not_to receive(:cascade_search)
+      out = host.library_search(query: 'q')
+      expect(out).to eq(MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE)
+    end
+
+    it 'falls back to Thread.current[:session] when @session is nil' do
+      host.instance_variable_set(:@session, nil)
+      Thread.current[:session] = { parameters: { 'library_rag_enabled' => true } }
+      begin
+        expect(Monadic::Library::Retriever).to receive(:cascade_search).and_return([])
+        host.library_search(query: 'q')
+      ensure
+        Thread.current[:session] = nil
+      end
+    end
+
+    it 'accepts session: kwarg auto-injected by the vendor dispatcher' do
+      # The vendor tool dispatcher inspects the method signature for a
+      # :session parameter and auto-injects argument_hash[:session].
+      # Without this kwarg the gate would always read nil even after the
+      # UI toggle has been flipped on. Regression guard.
+      host.instance_variable_set(:@session, nil)
+      injected = { parameters: { 'library_rag_enabled' => true } }
+      expect(Monadic::Library::Retriever).to receive(:cascade_search).and_return([])
+      host.library_search(query: 'q', session: injected)
+    end
+
+    it 'declares :session in the method signature so dispatchers inject it' do
+      params = MonadicSharedTools::LibrarySearch::Tools.instance_method(:library_search).parameters
+      expect(params.map(&:last)).to include(:session)
+    end
   end
 
   describe 'Registry registration' do
-    it 'registers :library_search as a conditional tool group' do
+    it 'registers :library_search pointing to the Tools mixin module' do
       group = MonadicSharedTools::Registry::TOOL_GROUPS[:library_search]
       expect(group).not_to be_nil
-      expect(group[:module_name]).to eq('MonadicSharedTools::LibrarySearch')
+      expect(group[:module_name]).to eq('MonadicSharedTools::LibrarySearch::Tools')
       expect(group[:visibility]).to eq('conditional')
       expect(group[:tools].first[:name]).to eq('library_search')
       expect(group[:tools].first[:parameters].map { |p| p[:name] })

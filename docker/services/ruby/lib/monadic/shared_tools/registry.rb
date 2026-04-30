@@ -1070,7 +1070,7 @@ module MonadicSharedTools
       },
 
       library_search: {
-        module_name: 'MonadicSharedTools::LibrarySearch',
+        module_name: 'MonadicSharedTools::LibrarySearch::Tools',
         tools: [
           {
             name: "library_search",

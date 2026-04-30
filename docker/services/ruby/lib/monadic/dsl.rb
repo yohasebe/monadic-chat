@@ -135,28 +135,104 @@ module MonadicDSL
   
   class ConfigurationError < StandardError; end
   
+  # Apps that should NOT receive the auto-injected library_search tool.
+  # These apps either have their own retrieval surface (knowledge_base,
+  # monadic_help, pdf_navigator, content_reader, web_insight), are output
+  # focused (image / video / diagram generators), or have an already
+  # heavy tool list where adding RAG would be noise (code_interpreter,
+  # jupyter_notebook, auto_forge). Match is on the provider-stripped
+  # base class name (e.g. "ChatOpenAI" → "Chat").
+  RAG_EXCLUDED_APP_BASE_NAMES = %w[
+    KnowledgeBase MonadicHelp PdfNavigator ContentReader WebInsight
+    ImageGenerator VideoDescriber VideoGenerator DrawioGrapher MermaidGrapher
+    MusicLab ConceptVisualizer DocumentGenerator SyntaxTree
+    CodeInterpreter JupyterNotebook AutoForge
+    VoiceInterpreter
+  ].freeze
+
+  # Providers without (or with limited) function-calling support that
+  # cannot host the library_search tool.
+  RAG_EXCLUDED_PROVIDERS = %w[perplexity].freeze
+
+  # True when the app should auto-import library_search.
+  def self.library_search_eligible?(state)
+    base = state.name.sub(
+      /OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama\z/, ''
+    )
+    return false if RAG_EXCLUDED_APP_BASE_NAMES.include?(base)
+    provider = state.settings[:provider].to_s.downcase
+    return false if RAG_EXCLUDED_PROVIDERS.include?(provider)
+    true
+  end
+
+  def self.library_search_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :library_search }
+  end
+
+  # After the user's MDSL block runs, ensure library_search is wired into
+  # eligible apps even when they did not declare a `tools do` block at
+  # all. The tool itself is gated by a per-session UI toggle (default
+  # OFF), so this injection just makes RAG *available* — users still
+  # have to enable it explicitly per session in the Knowledge Base panel.
+  def self.inject_library_search!(state)
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    tool_config.import_shared_tools(:library_search, visibility: "always")
+    new_tools = tool_config.to_h
+
+    # Merge with any existing tools the user already configured. The
+    # provider-specific wrapper differs (Gemini uses a function_declarations
+    # hash, others use plain arrays), so we handle both shapes.
+    existing = state.settings[:tools]
+    state.settings[:tools] = merge_tools_for_provider(provider, existing, new_tools)
+  end
+
+  def self.merge_tools_for_provider(provider, existing, additions)
+    return additions if existing.nil? || (existing.respond_to?(:empty?) && existing.empty?)
+    if provider == :gemini
+      existing_arr = (existing.is_a?(Hash) ? (existing['function_declarations'] || []) : []).dup
+      additions_arr = (additions.is_a?(Hash) ? (additions['function_declarations'] || []) : []).dup
+      { 'function_declarations' => existing_arr + additions_arr }
+    elsif existing.is_a?(Array) && additions.is_a?(Array)
+      existing + additions
+    else
+      existing
+    end
+  end
+
   # Module methods
-  
+
   # App definition method
   def self.app(name, &block)
     state = AppState.new(name.gsub(/\s+/, ''))
     # Always store original name as display_name to ensure consistency
     state.settings[:display_name] = name
-    
+
     # Initialize default values
     state.features = {}
     state.settings[:provider] = "OpenAI"
     # model is NOT pre-set here; convert_to_class resolves it per-provider
     # via providerDefaults (SSOT) or ENV variable
     state.settings[:temperature] = 0.7
-    
+
     # Process the DSL block
     app_def = SimplifiedAppDefinition.new(state)
     app_def.instance_eval(&block)
-    
+
+    # Auto-inject library_search for eligible conversational apps that
+    # did not opt in themselves. See library_search_eligible? for the
+    # exclusion policy.
+    if library_search_eligible?(state) && !library_search_already_imported?(state)
+      begin
+        inject_library_search!(state)
+      rescue StandardError => e
+        puts "[DSL] library_search auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
     # Debug the state
     puts "After DSL eval: #{state.name}, display_name: #{state.settings[:display_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-    
+
     convert_to_class(state)
     state
   end
@@ -310,6 +386,19 @@ module MonadicDSL
 
         tool_config = ToolConfiguration.new(@state, provider)
         tool_config.instance_eval(&block)
+
+        # Auto-inject library_search into the SAME ToolConfiguration so
+        # progressive_tools metadata, formatter wrapping, and tool count
+        # stay coherent with whatever the user declared. The tool runs
+        # inside its own per-session toggle gate, default OFF.
+        if MonadicDSL.library_search_eligible?(@state) &&
+           !MonadicDSL.library_search_already_imported?(@state)
+          begin
+            tool_config.import_shared_tools(:library_search, visibility: "always")
+          rescue StandardError => e
+            puts "[DSL] library_search inline-inject skipped for #{@state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          end
+        end
 
         @state.settings[:tools] = tool_config.to_h
       end

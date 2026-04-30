@@ -10,11 +10,12 @@ require_relative '../../support/vector_service_helper'
 # space.
 RSpec.describe 'Embeddings service integration smoke', :integration do
   before(:all) do
-    @client = Monadic::Embeddings::Client.new(endpoint: VectorServiceHelper::EMBEDDINGS_URL)
-  end
+    # In production-mode `rake test:all[full]` the embeddings container runs
+    # on the docker network without a host port. Recreate it with the dev
+    # overlay so the spec process can reach localhost:8002.
+    VectorServiceHelper.ensure_dev_overlay!
 
-  before do
-    skip 'embeddings_service not running' unless VectorServiceHelper.embeddings_available?
+    @client = Monadic::Embeddings::Client.new(endpoint: VectorServiceHelper::EMBEDDINGS_URL)
   end
 
   it 'reports the expected model and dimension via /v1/info' do

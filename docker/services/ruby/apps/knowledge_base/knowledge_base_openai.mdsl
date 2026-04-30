@@ -52,6 +52,16 @@ app "KnowledgeBaseOpenAI" do
       parameter :conversation_id, "string", "Conversation ID", required: true
     end
 
+    define_tool "plot_conversation_trajectory", "Render a Level T discourse trajectory for one conversation as PCA-projected PNG + interactive HTML" do
+      parameter :conversation_id, "string", "Conversation ID", required: true
+      parameter :title, "string", "Optional plot title", required: false
+    end
+
+    define_tool "plot_cross_corpus_trajectory", "Render multiple conversations' trajectories in a shared PCA space (cross-corpus comparison)" do
+      parameter :conversation_ids, "array", "Array of conversation IDs (2-10)", required: true
+      parameter :title, "string", "Optional plot title", required: false
+    end
+
     define_tool "import_conversation_from_text",
                 "Import raw text or JSON into the Library. Auto-detects ChatML, Anthropic Messages, Gemini Contents, Monadic Chat exports, TED Talk transcripts, or speaker-labeled text." do
       parameter :input, "string", "Conversation data (text, JSON string, or Python-repr transcript)", required: true

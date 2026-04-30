@@ -81,6 +81,41 @@ module KnowledgeBaseTools
     "❌ delete_conversation_from_library failed: #{e.message}"
   end
 
+  # ─── Visualization ─────────────────────────────────────────────────────
+
+  def plot_conversation_trajectory(conversation_id:, title: nil)
+    out = with_kb_store { |store|
+      Monadic::Library::Visualizer.plot_trajectory(
+        store: store, conversation_id: conversation_id, title: title
+      )
+    }
+    "✓ Trajectory plotted (#{out[:points]} points)\n" \
+      "  PNG:  #{out[:png_path]}\n" \
+      "  HTML: #{out[:html_path]}"
+  rescue ArgumentError => e
+    "❌ #{e.message}"
+  rescue StandardError => e
+    "❌ plot_conversation_trajectory failed: #{e.message}"
+  end
+
+  def plot_cross_corpus_trajectory(conversation_ids:, title: nil)
+    ids = Array(conversation_ids).compact.reject { |x| x.to_s.strip.empty? }
+    raise ArgumentError, 'conversation_ids must be a non-empty array' if ids.empty?
+
+    out = with_kb_store { |store|
+      Monadic::Library::Visualizer.plot_cross_corpus(
+        store: store, conversation_ids: ids, title: title
+      )
+    }
+    "✓ Cross-corpus trajectory plotted for #{ids.size} conversations\n" \
+      "  PNG:  #{out[:png_path]}\n" \
+      "  HTML: #{out[:html_path]}"
+  rescue ArgumentError => e
+    "❌ #{e.message}"
+  rescue StandardError => e
+    "❌ plot_cross_corpus_trajectory failed: #{e.message}"
+  end
+
   # ─── Import ───────────────────────────────────────────────────────────
 
   def import_conversation_from_text(input:, title: nil, license: nil, visibility: 'personal')

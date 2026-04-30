@@ -22,6 +22,7 @@ require_relative 'websocket/tts_handler'
 require_relative 'websocket/message_editor'
 require_relative 'websocket/audio_handler'
 require_relative 'websocket/pdf_handler'
+require_relative 'websocket/library_handler'
 require_relative 'websocket/streaming_handler'
 require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
@@ -183,6 +184,12 @@ module WebSocketHelper
           handle_ws_delete_pdf(connection, obj, session)
         when "DELETE_ALL_PDFS"
           handle_ws_delete_all_pdfs(connection, obj, session)
+        when "LIBRARY_LIST"
+          handle_ws_library_list(connection, obj, session)
+        when "LIBRARY_DELETE"
+          handle_ws_library_delete(connection, obj, session)
+        when "LIBRARY_STATS"
+          handle_ws_library_stats(connection, obj, session)
         when "CHECK_TOKEN"
           handle_ws_check_token(connection, obj, session)
         when "PING"

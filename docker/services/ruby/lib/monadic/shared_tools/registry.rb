@@ -1067,6 +1067,36 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call dispatch_parallel_tasks when you have 2-5 independent research or analysis tasks to run simultaneously."
+      },
+
+      library_search: {
+        module_name: 'MonadicSharedTools::LibrarySearch',
+        tools: [
+          {
+            name: "library_search",
+            description: "Search the project-wide Knowledge Base (Library) for passages relevant " \
+                         "to a query. Returns turn-level snippets with conversation citations. " \
+                         "Only conversations marked 'shareable' in the Knowledge Base are visible " \
+                         "from this tool; private conversations stay inside the Knowledge Base UI.",
+            parameters: [
+              {
+                name: :query,
+                type: "string",
+                description: "The natural language query to search for.",
+                required: true
+              },
+              {
+                name: :top_n,
+                type: "integer",
+                description: "Number of passages to return (default 3, max 10).",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call library_search when the user references prior project knowledge or asks about content stored in the Knowledge Base.",
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::LibrarySearch.available? }
       }
     }
 

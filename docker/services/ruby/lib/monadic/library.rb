@@ -10,3 +10,4 @@
 require_relative 'library/version'
 require_relative 'library/schema'
 require_relative 'library/store'
+require_relative 'library/importers'

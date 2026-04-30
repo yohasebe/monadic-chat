@@ -2098,6 +2098,67 @@ legend {
   justify-content: space-between
 }
 
+/* ─── Library: Knowledge Base Viewer modal ─────────────────────────── */
+/* The viewer surfaces a saved conversation verbatim, so it should feel
+   like part of the chat surface rather than a stark dialog. We tint the
+   content area with the same panel color used in the sidebar and color
+   each message by speaker role to mirror the live chat cards. */
+
+#libraryViewerModal .modal-content,
+#libraryBrowseModal .modal-content {
+  background-color: var(--bg-panel);
+}
+
+#libraryViewerModal .modal-body {
+  background-color: var(--bg-panel);
+}
+
+/* Per-message backgrounds match the live chat colors (assistant pink,
+   user blue, system off-white). */
+#library-viewer-messages .library-viewer-message {
+  border-radius: 6px;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.5rem;
+  border-bottom: none !important;
+}
+
+#library-viewer-messages .library-viewer-message[data-role="human"] {
+  background-color: var(--bg-card-user);
+}
+
+#library-viewer-messages .library-viewer-message[data-role="assistant"] {
+  background-color: var(--bg-card-assistant);
+}
+
+#library-viewer-messages .library-viewer-message[data-role="system"] {
+  background-color: var(--bg-card-system);
+}
+
+/* Constrain markdown headings inside the viewer so a saved conversation
+   that uses h1/h2 doesn't dwarf the modal layout. The library-viewer-text
+   selector adds enough specificity to beat global Bootstrap heading rules. */
+#libraryViewerModal #library-viewer-messages .library-viewer-text h1 { font-size: 1.2rem !important; margin: 0.4rem 0; }
+#libraryViewerModal #library-viewer-messages .library-viewer-text h2 { font-size: 1.1rem !important; margin: 0.4rem 0; }
+#libraryViewerModal #library-viewer-messages .library-viewer-text h3 { font-size: 1.05rem !important; margin: 0.4rem 0; }
+#libraryViewerModal #library-viewer-messages .library-viewer-text h4,
+#libraryViewerModal #library-viewer-messages .library-viewer-text h5,
+#libraryViewerModal #library-viewer-messages .library-viewer-text h6 { font-size: 1rem !important; margin: 0.4rem 0; }
+
+#library-viewer-messages .library-viewer-text > :first-child { margin-top: 0; }
+#library-viewer-messages .library-viewer-text > :last-child { margin-bottom: 0; }
+
+/* Collapsed-by-default system prompt. <details> renders as a wedge +
+   summary; users opt in to see the full prompt. */
+#library-viewer-messages details.library-viewer-system summary {
+  cursor: pointer;
+  list-style: revert;
+  user-select: none;
+  font-size: 0.875rem;
+}
+#library-viewer-messages details.library-viewer-system[open] summary {
+  margin-bottom: 0.5rem;
+}
+
 /* START: CODE BLOCK STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 
 .highlighter-rouge {

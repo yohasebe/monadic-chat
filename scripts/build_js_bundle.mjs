@@ -86,6 +86,7 @@ const FILES = [
   "js/monadic/ws-tab-id.js",
   "js/monadic/ws-tool-status-ui.js",
   "js/monadic/ws-input-handler.js",
+  "js/monadic/library-panel.js",
   "js/monadic/websocket-handlers.js",
   "js/monadic/websocket.js",
   "js/monadic/websearch_tavily_check.js",

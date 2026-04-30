@@ -1,24 +1,54 @@
 // frozen-by-convention; module-pattern, no globals beyond window.libraryPanel
 //
-// Library (Knowledge Base) sidebar panel renderer.
+// Library (Knowledge Base) sidebar + browse modal + detail modal.
 //
-// Responsibilities:
-//   - Send LIBRARY_LIST / LIBRARY_DELETE / LIBRARY_STATS WebSocket messages.
-//   - Receive library_conversations / library_deleted / library_stats and
-//     render conversation rows + delete buttons into a designated DOM
-//     container.
+// Two surfaces share the same data cache:
+//   - Sidebar  (#library-recent, 5 most recent rows, compact one-line).
+//   - Browse modal (#libraryBrowseModal, search/filter/sort/paginate).
+// Detail modal (#libraryDetailModal) shows full metadata + actions.
 //
-// In Phase 1a this panel is mounted only when the host page exposes the
-// expected container element (#library-panel). Phase 1b will wire it
-// into the main sidebar alongside conversation persistence + RAG toggle.
+// All actions are routed through the WebSocket. The cache is populated
+// from `library_conversations` events; sidebar + browse modal both
+// re-render whenever new data arrives or filters change.
 //
-// Public API:
-//   window.libraryPanel.send(message, payload?) - send a WS message
-//   window.libraryPanel.render(container, rows) - render rows into DOM
-//   window.libraryPanel.handleDeleted(data, container) - refresh after delete
-//   window.libraryPanel.formatStats(stats) - convert stats hash to text
+// Public API (full surface):
+//   window.libraryPanel.init()                 - DOM bootstrap
+//   window.libraryPanel.send(msg, payload?)    - low-level WS send
+//   window.libraryPanel.requestList()
+//   window.libraryPanel.requestStats()
+//   window.libraryPanel.requestRagState()
+//   window.libraryPanel.openSaveModal()
+//   window.libraryPanel.submitSave()
+//   window.libraryPanel.openBrowseModal()
+//   window.libraryPanel.openDetailModal(conversationId)
+//   window.libraryPanel.setRagToggle(enabled)
+//   window.libraryPanel.handleConversations(data)
+//   window.libraryPanel.handleStats(data)
+//   window.libraryPanel.handleSavedMessage(data)
+//   window.libraryPanel.handleDeletedMessage(data)
+//   window.libraryPanel.handleRagState(data)
+//   window.libraryPanel.handleVisibilityUpdated(data)
+//   window.libraryPanel.formatStats(stats)
+//   window.libraryPanel.relativeTime(iso)
+//   window.libraryPanel.compactRowMarkup(row)
+//   window.libraryPanel.applyFilters()
 (function () {
   'use strict';
+
+  // ─── Module state ────────────────────────────────────────────────────
+
+  var state = {
+    allRows: [],            // last received full inventory
+    filteredRows: [],       // after applying search/visibility filter
+    page: 0,                // 0-indexed page in browse modal
+    pageSize: 50,
+    sortKey: 'created_desc',
+    visibilityFilter: 'all',
+    searchTerm: '',
+    selectedId: null        // for detail modal
+  };
+
+  var SIDEBAR_RECENT_LIMIT = 5;
 
   // ─── Sending ─────────────────────────────────────────────────────────
 
@@ -31,6 +61,33 @@
     } catch (e) {
       return false;
     }
+  }
+
+  function requestList() { return send('LIBRARY_LIST'); }
+  function requestStats() { return send('LIBRARY_STATS'); }
+  function requestRagState() { return send('LIBRARY_RAG_QUERY'); }
+  function setRagToggle(enabled) {
+    return send('LIBRARY_RAG_TOGGLE', { contents: { enabled: !!enabled } });
+  }
+  function setVisibility(conversationId, visibility) {
+    return send('LIBRARY_TOGGLE_VISIBILITY', {
+      contents: { conversation_id: conversationId, visibility: visibility }
+    });
+  }
+  function deleteConversation(conversationId) {
+    return send('LIBRARY_DELETE', { contents: conversationId });
+  }
+
+  // ─── i18n helper ─────────────────────────────────────────────────────
+
+  function t(key, fallback) {
+    try {
+      if (typeof window.webUIi18n === 'object' && typeof window.webUIi18n.t === 'function') {
+        var v = window.webUIi18n.t(key);
+        if (v && v !== key) return v;
+      }
+    } catch (_) {}
+    return fallback;
   }
 
   // ─── DOM helpers ─────────────────────────────────────────────────────
@@ -50,75 +107,612 @@
     return '<span class="' + cls + '">' + escapeHtml(v || 'unknown') + '</span>';
   }
 
-  function rowMarkup(row, idx) {
+  // Map a content_type token to a FontAwesome icon class. The Library
+  // currently only stores "conversation" entries, but the importer
+  // surface (Phase 1c) will add document / pdf / code / markdown /
+  // audio types. The Browse modal renders a single icon per row using
+  // this mapping plus a tooltip carrying the readable type name.
+  var TYPE_ICONS = {
+    conversation: 'fa-comments',
+    pdf:          'fa-file-pdf',
+    document:     'fa-file-word',
+    office:       'fa-file-word',
+    code:         'fa-file-code',
+    markdown:     'fa-file-lines',
+    text:         'fa-file-lines',
+    audio:        'fa-file-audio',
+    transcript:   'fa-file-audio',
+    image:        'fa-file-image',
+    video:        'fa-file-video'
+  };
+
+  function typeIconHtml(contentType) {
+    var t = (contentType || 'conversation').toString().toLowerCase();
+    var icon = TYPE_ICONS[t] || 'fa-file';
+    return '<i class="fa-regular ' + icon + ' text-secondary" '
+      + 'title="' + escapeHtml(t) + '" aria-label="' + escapeHtml(t) + '"></i>';
+  }
+
+  // Compact colored dot used in sidebar rows where horizontal space is tight.
+  function visibilityDot(visibility) {
+    var v = (visibility || '').toLowerCase();
+    var color = v === 'shareable' ? '#198754' : '#6c757d';
+    var label = v || 'unknown';
+    return '<span class="library-vis-dot d-inline-block rounded-circle me-1" '
+      + 'style="width: 8px; height: 8px; background:' + color + ';" '
+      + 'title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '"></span>';
+  }
+
+  // Truncate to a given length with an ellipsis. Used so long titles do
+  // not push the action menu offscreen on narrow sidebars.
+  function truncate(text, max) {
+    if (!text) return '';
+    text = String(text);
+    if (text.length <= max) return text;
+    return text.slice(0, max - 1) + '…';
+  }
+
+  // Render a localized relative time stamp (e.g. "2h ago", "3d ago").
+  // Falls back to the original ISO string if parsing fails.
+  function relativeTime(iso) {
+    if (!iso) return '';
+    var d;
+    try { d = new Date(iso); } catch (_) { return String(iso); }
+    if (!d || isNaN(d.getTime())) return String(iso);
+    var diffMs = Date.now() - d.getTime();
+    var diffSec = Math.max(1, Math.floor(diffMs / 1000));
+    if (diffSec < 60) return diffSec + 's';
+    var diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + 'm';
+    var diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return diffH + 'h';
+    var diffD = Math.floor(diffH / 24);
+    if (diffD < 30) return diffD + 'd';
+    var diffMo = Math.floor(diffD / 30);
+    if (diffMo < 12) return diffMo + 'mo';
+    var diffY = Math.floor(diffMo / 12);
+    return diffY + 'y';
+  }
+
+  // ─── Compact row markup (used in sidebar AND browse modal table) ─────
+
+  // Sidebar markup: 1-line. Title + visibility dot + turns + relative time.
+  // No inline action button — sidebar is read-only; for actions the user
+  // opens Browse modal.
+  function compactRowMarkup(row) {
     var title = row.title && row.title.length > 0 ? row.title : '(untitled)';
-    var meta = [];
-    if (row.source) meta.push('source=' + row.source);
-    if (row.language) meta.push('lang=' + row.language);
-    if (typeof row.turns_count === 'number') meta.push('turns=' + row.turns_count);
-    if (typeof row.messages_count === 'number') meta.push('msgs=' + row.messages_count);
-    var convId = escapeHtml(row.conversation_id || '');
+    var turns = (typeof row.turns_count === 'number') ? row.turns_count : '?';
+    var rel = relativeTime(row.created_at);
+    var fullId = row.conversation_id || '';
+    var sourceMeta = [row.source, row.language].filter(Boolean).join(' · ');
+    var tooltip = fullId + (sourceMeta ? ' · ' + sourceMeta : '');
     return (
-      '<div class="library-row d-flex align-items-start justify-content-between py-1 border-bottom" '
-        + 'data-conversation-id="' + convId + '">'
-      +   '<div class="library-row-info flex-grow-1 me-2">'
-      +     '<div class="library-row-title">' + escapeHtml(title) + ' '
-      +       visibilityBadge(row.visibility)
-      +     '</div>'
-      +     '<div class="library-row-meta text-secondary small">'
-      +       'id=' + convId + (meta.length ? ' · ' + escapeHtml(meta.join(' · ')) : '')
-      +     '</div>'
-      +   '</div>'
-      +   '<button id="library-del-' + idx + '" type="button" '
-      +     'class="btn btn-sm btn-outline-secondary library-row-delete" '
-      +     'aria-label="Delete conversation">'
-      +     '<i class="fa-regular fa-trash-can text-secondary"></i>'
-      +   '</button>'
+      '<div class="library-row-compact d-flex align-items-center py-1 small border-bottom" '
+        + 'data-conversation-id="' + escapeHtml(fullId) + '" '
+        + 'title="' + escapeHtml(tooltip) + '">'
+      +   visibilityDot(row.visibility)
+      +   '<span class="flex-grow-1 text-truncate me-2">' + escapeHtml(truncate(title, 40)) + '</span>'
+      +   '<span class="text-secondary text-nowrap">' + turns + 'T · ' + escapeHtml(rel) + '</span>'
       + '</div>'
     );
   }
 
-  // ─── Public renderers ────────────────────────────────────────────────
+  // Browse-modal row: full table row with three inline icon-only buttons
+  // on the right (details / toggle visibility / delete). The modal is wide
+  // enough that a popover dropdown adds clicks without saving space, so we
+  // expose the actions directly instead.
+  function browseRowMarkup(row, idx) {
+    var convId = escapeHtml(row.conversation_id || '');
+    var title = row.title && row.title.length > 0 ? row.title : '(untitled)';
+    var turns = (typeof row.turns_count === 'number') ? row.turns_count : '?';
+    var rel = relativeTime(row.created_at);
+    var visLower = (row.visibility || '').toLowerCase();
+    var toggleLabel = visLower === 'shareable'
+      ? t('ui.libMakePersonal', 'Make personal')
+      : t('ui.libMakeShareable', 'Make shareable');
+    var nextVis = visLower === 'shareable' ? 'personal' : 'shareable';
+    var detailLabel = t('ui.libViewDetails', 'View details');
+    var deleteLabel = t('ui.libDelete', 'Delete');
+    return (
+      '<tr data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
+      +   '<td class="text-center">' + typeIconHtml(row.content_type) + '</td>'
+      +   '<td>'
+      +     '<div class="fw-medium text-truncate" style="max-width: 380px;">' + escapeHtml(truncate(title, 80)) + '</div>'
+      +     '<div class="text-secondary small text-truncate" style="max-width: 380px;">' + escapeHtml(row.source || '') + (row.language ? ' · ' + escapeHtml(row.language) : '') + '</div>'
+      +   '</td>'
+      +   '<td>' + visibilityBadge(row.visibility) + '</td>'
+      +   '<td class="text-end small">' + turns + '</td>'
+      +   '<td class="text-nowrap small text-secondary">' + escapeHtml(rel) + '</td>'
+      +   '<td class="text-end text-nowrap">'
+      +     '<button type="button" class="btn btn-sm btn-outline-secondary me-1 library-action-detail" '
+      +       'title="' + escapeHtml(detailLabel) + '" aria-label="' + escapeHtml(detailLabel) + '">'
+      +       '<i class="fa-solid fa-circle-info"></i>'
+      +     '</button>'
+      +     '<button type="button" class="btn btn-sm btn-outline-secondary me-1 library-action-toggle" '
+      +       'data-next-vis="' + nextVis + '" '
+      +       'title="' + escapeHtml(toggleLabel) + '" aria-label="' + escapeHtml(toggleLabel) + '">'
+      +       '<i class="fa-solid fa-arrows-rotate"></i>'
+      +     '</button>'
+      +     '<button type="button" class="btn btn-sm btn-outline-danger library-action-delete" '
+      +       'title="' + escapeHtml(deleteLabel) + '" aria-label="' + escapeHtml(deleteLabel) + '">'
+      +       '<i class="fa-regular fa-trash-can"></i>'
+      +     '</button>'
+      +   '</td>'
+      + '</tr>'
+    );
+  }
 
-  // Render an inventory of conversations into a container element.
-  // `rows` may be empty — we show a friendly empty-state message.
-  // Each row's delete button gets an onclick that fires LIBRARY_DELETE.
-  function render(container, rows) {
+  // ─── Filtering / sorting / paging ────────────────────────────────────
+
+  function applyFilters() {
+    var rows = (state.allRows || []).slice();
+    if (state.visibilityFilter !== 'all') {
+      rows = rows.filter(function (r) { return (r.visibility || '').toLowerCase() === state.visibilityFilter; });
+    }
+    var q = (state.searchTerm || '').trim().toLowerCase();
+    if (q.length > 0) {
+      rows = rows.filter(function (r) {
+        var hay = [r.title, r.source, r.language, r.conversation_id, r.content_type]
+          .filter(Boolean).join(' ').toLowerCase();
+        return hay.indexOf(q) !== -1;
+      });
+    }
+    rows.sort(function (a, b) {
+      switch (state.sortKey) {
+        case 'created_asc': return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+        case 'title_asc':   return String(a.title || '').localeCompare(String(b.title || ''));
+        case 'turns_desc':  return (b.turns_count || 0) - (a.turns_count || 0);
+        case 'created_desc':
+        default:            return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+      }
+    });
+    state.filteredRows = rows;
+    var maxPage = Math.max(0, Math.ceil(rows.length / state.pageSize) - 1);
+    if (state.page > maxPage) state.page = maxPage;
+  }
+
+  // ─── Renderers ───────────────────────────────────────────────────────
+
+  function recentContainer() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-recent') : null;
+  }
+  function statsContainer() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-stats-info') : null;
+  }
+  function totalBadge() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-total-badge') : null;
+  }
+  function browseTbody() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-browse-tbody') : null;
+  }
+  function browseCountEl() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-browse-count') : null;
+  }
+  function browsePageInfoEl() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-browse-pageinfo') : null;
+  }
+  function browseEmptyEl() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-browse-empty') : null;
+  }
+  function browsePrevBtn() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-browse-prev') : null;
+  }
+  function browseNextBtn() {
+    return (typeof document !== 'undefined') ? document.getElementById('library-browse-next') : null;
+  }
+
+  function emptyText() {
+    return t('ui.libEmpty', 'The Knowledge Base is empty.');
+  }
+
+  function renderSidebarRecent() {
+    var container = recentContainer();
     if (!container) return;
-    var safeRows = Array.isArray(rows) ? rows : [];
-    if (safeRows.length === 0) {
-      container.innerHTML =
-        '<span class="text-secondary">The Knowledge Base is empty.</span>';
+    var rows = state.allRows.slice(0, SIDEBAR_RECENT_LIMIT);
+    if (rows.length === 0) {
+      container.innerHTML = '<div class="small text-secondary fst-italic">' + escapeHtml(emptyText()) + '</div>';
       return;
     }
-    container.innerHTML = safeRows.map(rowMarkup).join('');
+    container.innerHTML = rows.map(compactRowMarkup).join('');
+  }
 
-    safeRows.forEach(function (row, idx) {
-      var btn = container.querySelector('#library-del-' + idx);
-      if (!btn) return;
-      btn.onclick = function () {
-        var convId = row.conversation_id;
-        var label = row.title || convId;
-        var ok = window.confirm
-          ? window.confirm('Permanently delete "' + label + '" from the Knowledge Base?')
-          : true;
-        if (ok) send('LIBRARY_DELETE', { contents: convId });
-      };
+  function renderTotalBadge() {
+    var el = totalBadge();
+    if (!el) return;
+    el.textContent = String(state.allRows.length);
+  }
+
+  function renderBrowseTable() {
+    var tbody = browseTbody();
+    if (!tbody) return;
+    var rows = state.filteredRows;
+    var start = state.page * state.pageSize;
+    var slice = rows.slice(start, start + state.pageSize);
+
+    if (slice.length === 0) {
+      tbody.innerHTML = '';
+      var empty = browseEmptyEl();
+      if (empty) empty.style.display = '';
+    } else {
+      var emptyHide = browseEmptyEl();
+      if (emptyHide) emptyHide.style.display = 'none';
+      tbody.innerHTML = slice.map(function (r, i) { return browseRowMarkup(r, start + i); }).join('');
+      wireBrowseRowActions(tbody);
+    }
+
+    var countEl = browseCountEl();
+    if (countEl) {
+      var total = state.allRows.length;
+      var shown = state.filteredRows.length;
+      var label = total === shown
+        ? shown + ' / ' + total
+        : shown + ' / ' + total + ' ' + t('ui.libFiltered', 'filtered');
+      countEl.textContent = label;
+    }
+
+    var pageInfo = browsePageInfoEl();
+    if (pageInfo) {
+      var first = rows.length === 0 ? 0 : (start + 1);
+      var last = Math.min(rows.length, start + slice.length);
+      pageInfo.textContent = t('ui.libShowing', 'Showing') + ' ' + first + '-' + last + ' / ' + rows.length;
+    }
+    var prev = browsePrevBtn();
+    if (prev) prev.disabled = state.page <= 0;
+    var next = browseNextBtn();
+    if (next) next.disabled = ((state.page + 1) * state.pageSize) >= rows.length;
+  }
+
+  function rerenderAll() {
+    applyFilters();
+    renderSidebarRecent();
+    renderTotalBadge();
+    renderBrowseTable();
+  }
+
+  // ─── Browse-row action wiring ────────────────────────────────────────
+
+  function wireBrowseRowActions(scope) {
+    if (!scope) return;
+    scope.querySelectorAll('tr[data-conversation-id]').forEach(function (tr) {
+      var convId = tr.getAttribute('data-conversation-id');
+      var detailLink = tr.querySelector('.library-action-detail');
+      if (detailLink) {
+        detailLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          openDetailModal(convId);
+        });
+      }
+      var toggleLink = tr.querySelector('.library-action-toggle');
+      if (toggleLink) {
+        toggleLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          var nextVis = toggleLink.getAttribute('data-next-vis') || 'shareable';
+          setVisibility(convId, nextVis);
+        });
+      }
+      var deleteLink = tr.querySelector('.library-action-delete');
+      if (deleteLink) {
+        deleteLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          confirmAndDelete(convId);
+        });
+      }
     });
   }
 
-  // After receiving 'library_deleted', request a refresh so the panel
-  // reflects the post-delete state. Hosts that supply a container also
-  // get the row removed optimistically for snappy UX.
-  function handleDeleted(data, container) {
-    if (data && data.res === 'success' && container) {
-      var convId = data.conversation_id;
-      if (convId) {
-        var row = container.querySelector('[data-conversation-id="' + convId + '"]');
-        if (row && row.parentNode) row.parentNode.removeChild(row);
+  function confirmAndDelete(convId) {
+    var row = state.allRows.find(function (r) { return r.conversation_id === convId; });
+    var label = (row && row.title) ? row.title : convId;
+    var prompt = t('ui.libDeleteConfirm', 'Permanently delete "{title}" from the Knowledge Base?')
+      .replace('{title}', label);
+    var ok = window.confirm ? window.confirm(prompt) : true;
+    if (ok) deleteConversation(convId);
+  }
+
+  // ─── Conversation Viewer modal ───────────────────────────────────────
+
+  // Viewer subsumes the old "detail" modal: it shows metadata, actions
+  // (delete / toggle visibility), and verbatim messages all in one
+  // surface. This keeps the user from juggling two modals when reading a
+  // conversation and acting on it.
+
+  function viewerEl(id) {
+    return (typeof document !== 'undefined') ? document.getElementById(id) : null;
+  }
+
+  function viewerMetaLine(row) {
+    var bits = [];
+    if (row.source) bits.push(escapeHtml(row.source));
+    if (row.language) bits.push('lang=' + escapeHtml(row.language));
+    if (typeof row.turns_count === 'number') bits.push(row.turns_count + 'T');
+    if (typeof row.messages_count === 'number') bits.push(row.messages_count + ' msgs');
+    if (row.created_at) bits.push(escapeHtml(relativeTime(row.created_at)));
+    var vis = (row.visibility || '').toLowerCase();
+    var visClass = vis === 'shareable' ? 'badge bg-success' : 'badge bg-secondary';
+    return bits.join(' · ')
+      + ' <span class="' + visClass + ' ms-2">' + escapeHtml(vis || 'unknown') + '</span>';
+  }
+
+  // Render an array of monadic-conversation v1 messages into the viewer
+  // body. Each message becomes a `.library-viewer-message` block tagged
+  // with `data-role` so per-role CSS can color it like the live chat
+  // cards. System prompts are wrapped in <details> and collapsed by
+  // default so the user is not blasted with a multi-paragraph system
+  // prompt when they just want to read the conversation.
+  function renderViewerMessages(messages, container) {
+    if (!container) return;
+    container.innerHTML = '';
+    if (!Array.isArray(messages) || messages.length === 0) return;
+
+    messages.forEach(function (msg, idx) {
+      var role = msg && msg.speaker && msg.speaker.id ? String(msg.speaker.id) : 'other';
+      var icon = role === 'human' ? 'fa-user'
+        : role === 'assistant' ? 'fa-robot'
+        : role === 'system' ? 'fa-cog' : 'fa-comment';
+      var roleColor = role === 'human' ? 'primary'
+        : role === 'assistant' ? 'danger'
+        : role === 'system' ? 'secondary' : 'secondary';
+      var text = (msg && typeof msg.text === 'string') ? msg.text : '';
+
+      var wrap = document.createElement('div');
+      wrap.className = 'library-viewer-message';
+      wrap.setAttribute('data-message-index', String(idx));
+      wrap.setAttribute('data-role', role);
+
+      if (role === 'system') {
+        // Collapse system prompts behind <details> so the body of the
+        // conversation is what the user sees first.
+        var details = document.createElement('details');
+        details.className = 'library-viewer-system';
+        var summary = document.createElement('summary');
+        summary.className = 'fw-bold text-' + roleColor;
+        summary.innerHTML = '<i class="fas ' + icon + ' me-1"></i>'
+          + escapeHtml(t('ui.libViewerSystemPrompt', 'System prompt')) + ' '
+          + '<span class="text-secondary fw-normal">(' + escapeHtml(t('ui.libViewerClickToExpand', 'click to expand')) + ')</span>';
+        details.appendChild(summary);
+        var sysBody = document.createElement('div');
+        sysBody.className = 'library-viewer-text';
+        renderMarkdownInto(text, sysBody);
+        details.appendChild(sysBody);
+        wrap.appendChild(details);
+      } else {
+        var header = document.createElement('div');
+        header.className = 'fw-bold small mb-1 text-' + roleColor;
+        header.innerHTML = '<i class="fas ' + icon + ' me-1"></i>' + escapeHtml(role);
+        wrap.appendChild(header);
+
+        var body = document.createElement('div');
+        body.className = 'library-viewer-text';
+        renderMarkdownInto(text, body);
+        wrap.appendChild(body);
+      }
+      container.appendChild(wrap);
+    });
+  }
+
+  // Render markdown text into a container, falling back to plain text
+  // when MarkdownRenderer is not loaded (e.g. in jsdom-based unit tests).
+  function renderMarkdownInto(text, container) {
+    if (typeof window.MarkdownRenderer === 'object'
+        && typeof window.MarkdownRenderer.renderAndApply === 'function') {
+      try {
+        window.MarkdownRenderer.renderAndApply(text, container);
+        return;
+      } catch (_) { /* fall through */ }
+    }
+    container.textContent = text;
+  }
+
+  function setViewerLoading(isLoading) {
+    var loadingEl = viewerEl('library-viewer-loading');
+    if (loadingEl) loadingEl.style.display = isLoading ? '' : 'none';
+  }
+
+  function openViewerModal(conversationId) {
+    if (typeof document === 'undefined') return;
+    state.selectedId = conversationId;
+    var row = state.allRows.find(function (r) { return r.conversation_id === conversationId; });
+
+    var titleEl = viewerEl('library-viewer-title');
+    if (titleEl) {
+      var title = (row && row.title) ? row.title : '(untitled)';
+      titleEl.textContent = title;
+    }
+    var metaEl = viewerEl('library-viewer-meta');
+    if (metaEl && row) metaEl.innerHTML = viewerMetaLine(row);
+    var emptyEl = viewerEl('library-viewer-empty');
+    if (emptyEl) emptyEl.style.display = 'none';
+    var messagesEl = viewerEl('library-viewer-messages');
+    if (messagesEl) messagesEl.innerHTML = '';
+
+    var toggleBtn = viewerEl('library-viewer-toggle-vis');
+    var toggleLabel = viewerEl('library-viewer-toggle-label');
+    if (row) {
+      var visLower = (row.visibility || '').toLowerCase();
+      if (toggleBtn) toggleBtn.setAttribute('data-next-vis',
+        visLower === 'shareable' ? 'personal' : 'shareable');
+      if (toggleLabel) {
+        toggleLabel.textContent = visLower === 'shareable'
+          ? t('ui.libMakePersonal', 'Make personal')
+          : t('ui.libMakeShareable', 'Make shareable');
       }
     }
-    send('LIBRARY_LIST');
+
+    setViewerLoading(true);
+
+    // Fire the WS request — handleConversationData renders the body when
+    // the server responds. We fall through to an empty state if the
+    // record has no verbatim messages stored.
+    send('LIBRARY_GET_CONVERSATION', { contents: { conversation_id: conversationId } });
+
+    var modalEl = viewerEl('libraryViewerModal');
+    if (modalEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  // Backwards-compat alias retained so older call sites and tests still
+  // function. The viewer fully subsumes the old detail-only surface.
+  function openDetailModal(conversationId) { return openViewerModal(conversationId); }
+
+  function closeViewerModalIfOpen() {
+    var modalEl = viewerEl('libraryViewerModal');
+    if (modalEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+      var inst = window.bootstrap.Modal.getInstance(modalEl);
+      if (inst) inst.hide();
+    }
+  }
+  // Legacy alias for the previously-removed detail modal close hook.
+  function closeDetailModalIfOpen() { return closeViewerModalIfOpen(); }
+
+  function handleConversationData(data) {
+    setViewerLoading(false);
+    if (!data || data.res !== 'success') {
+      var emptyEl = viewerEl('library-viewer-empty');
+      if (emptyEl) {
+        emptyEl.style.display = '';
+        emptyEl.textContent = (data && data.content)
+          ? data.content
+          : t('ui.libViewerLoadFailure', 'Could not load this conversation.');
+      }
+      return;
+    }
+    var conv = (data.conversation || {});
+    var msgs = conv.messages;
+    if (!Array.isArray(msgs) || msgs.length === 0) {
+      var empty2 = viewerEl('library-viewer-empty');
+      if (empty2) {
+        empty2.style.display = '';
+        empty2.textContent = conv.skipped_reason
+          ? t('ui.libViewerSkipped', 'Verbatim messages were not stored (')
+              + conv.skipped_reason + ').'
+          : t('ui.libViewerEmpty', 'No verbatim messages were stored for this conversation. Re-save it to enable the Viewer.');
+      }
+      return;
+    }
+    renderViewerMessages(msgs, viewerEl('library-viewer-messages'));
+  }
+
+  // ─── Browse modal ────────────────────────────────────────────────────
+
+  function openBrowseModal() {
+    // Auto-refresh on open: this replaces the explicit Refresh button on
+    // the sidebar. The user's intent ("show me what's saved right now")
+    // maps 1:1 to opening the Browse modal, so we treat that click as
+    // the implicit refresh trigger and always pull a fresh snapshot.
+    // Fired before the DOM check so the request goes out even if the
+    // modal element is absent (e.g. embedded widget surfaces in tests).
+    requestList();
+    requestStats();
+
+    if (typeof document === 'undefined') return;
+    var modalEl = document.getElementById('libraryBrowseModal');
+    if (!modalEl) return;
+    state.page = 0;
+    rerenderAll();
+    if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  // ─── WebSocket message handlers ──────────────────────────────────────
+
+  function handleConversations(data) {
+    var rows = (data && Array.isArray(data.content)) ? data.content : [];
+    state.allRows = rows;
+    rerenderAll();
+  }
+
+  function handleStats(data) {
+    var el = statsContainer();
+    if (!el) return;
+    var stats = (data && typeof data.content === 'object') ? data.content : null;
+    el.textContent = formatStats(stats);
+  }
+
+  function handleDeletedMessage(data) {
+    if (data && data.res === 'success') {
+      var convId = data.conversation_id;
+      if (convId) {
+        state.allRows = state.allRows.filter(function (r) { return r.conversation_id !== convId; });
+        rerenderAll();
+      }
+    }
+    requestList();
+    requestStats();
+  }
+
+  function handleSavedMessage(data) {
+    if (!data) return;
+    setSavePending(false);
+    if (data.res === 'success') {
+      requestList();
+      requestStats();
+      var modalEl = (typeof document !== 'undefined') ? document.getElementById('librarySaveModal') : null;
+      if (modalEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+        var inst = window.bootstrap.Modal.getInstance(modalEl);
+        if (inst) inst.hide();
+      }
+      var label = t('ui.libSaveSuccess', 'Saved to Knowledge Base.');
+      flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(label), 'success');
+    } else {
+      var msg = (data && data.content) ? data.content : 'Save failed';
+      var prefix = t('ui.libSaveFailure', 'Failed to save');
+      flashAlert(
+        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(prefix) + ': ' + escapeHtml(msg),
+        'warning'
+      );
+    }
+  }
+
+  function handleRagState(data) {
+    var el = (typeof document !== 'undefined') ? document.getElementById('library-rag-toggle') : null;
+    if (!el) return;
+    var enabled = !!(data && data.enabled);
+    if (el.checked !== enabled) el.checked = enabled;
+  }
+
+  function handleVisibilityUpdated(data) {
+    if (!data) return;
+    if (data.res === 'success') {
+      var convId = data.conversation_id;
+      var visibility = data.visibility;
+      state.allRows.forEach(function (r) {
+        if (r.conversation_id === convId) r.visibility = visibility;
+      });
+      rerenderAll();
+      // Refresh stats so personal/shareable counters update.
+      requestStats();
+      // If the Viewer is showing this conversation, refresh metadata
+      // and toggle-button label only (no re-fetch — messages did not
+      // change). This avoids the loading flicker of a full modal reopen.
+      if (state.selectedId === convId) {
+        var row = state.allRows.find(function (r) { return r.conversation_id === convId; });
+        if (row) {
+          var metaEl = viewerEl('library-viewer-meta');
+          if (metaEl) metaEl.innerHTML = viewerMetaLine(row);
+          var toggleBtn = viewerEl('library-viewer-toggle-vis');
+          var toggleLabel = viewerEl('library-viewer-toggle-label');
+          var visLower = (row.visibility || '').toLowerCase();
+          if (toggleBtn) toggleBtn.setAttribute('data-next-vis',
+            visLower === 'shareable' ? 'personal' : 'shareable');
+          if (toggleLabel) {
+            toggleLabel.textContent = visLower === 'shareable'
+              ? t('ui.libMakePersonal', 'Make personal')
+              : t('ui.libMakeShareable', 'Make shareable');
+          }
+        }
+      }
+      flashAlert(
+        "<i class='fa-solid fa-circle-check'></i> " + escapeHtml(t('ui.libVisibilityUpdated', 'Visibility updated.')),
+        'success'
+      );
+    } else {
+      flashAlert(
+        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(data.content || 'Update failed'),
+        'warning'
+      );
+    }
   }
 
   function formatStats(stats) {
@@ -130,16 +724,337 @@
       + personal + ' personal, ' + shareable + ' shareable)';
   }
 
+  // ─── Save modal helpers (unchanged from prior iteration) ─────────────
+
+  function setSavePending(pending) {
+    if (typeof document === 'undefined') return;
+    var btn = document.getElementById('library-save-confirm');
+    var cancelBtn = document.querySelector('#librarySaveModal [data-bs-dismiss="modal"]');
+    var titleInput = document.getElementById('library-save-title');
+    var radios = document.querySelectorAll('input[name="librarySaveVisibility"]');
+    if (btn) {
+      btn.disabled = !!pending;
+      if (pending) {
+        btn.dataset.origLabel = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('ui.libSavingButton', 'Saving...');
+      } else if (btn.dataset.origLabel) {
+        btn.innerHTML = btn.dataset.origLabel;
+        delete btn.dataset.origLabel;
+      }
+    }
+    if (cancelBtn) cancelBtn.disabled = !!pending;
+    if (titleInput) titleInput.disabled = !!pending;
+    radios.forEach(function (r) { r.disabled = !!pending; });
+  }
+
+  function flashAlert(html, severity) {
+    if (typeof window.setAlert === 'function') {
+      window.setAlert(html, severity);
+    }
+  }
+
+  function currentAppName() {
+    try {
+      var el = document.getElementById('apps');
+      if (el && el.value) return el.value;
+    } catch (_) {}
+    try {
+      var p = (typeof window.params === 'object') ? window.params : null;
+      if (p && p.app_name) return p.app_name;
+    } catch (_) {}
+    return '';
+  }
+
+  function privacyOn() {
+    try {
+      if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.isEnabled === 'function') {
+        return !!window.WsPrivacyHandler.isEnabled();
+      }
+    } catch (_) {}
+    try { return !!window.privacyEnabled; } catch (_) { return false; }
+  }
+
+  function openSaveModal() {
+    if (typeof document === 'undefined') return;
+    var modalEl = document.getElementById('librarySaveModal');
+    if (!modalEl) return;
+
+    var titleInput = document.getElementById('library-save-title');
+    if (titleInput) {
+      titleInput.value = '';
+      titleInput.placeholder = currentAppName() || '';
+    }
+    var pers = document.getElementById('library-vis-personal');
+    if (pers) pers.checked = true;
+
+    var note = document.getElementById('library-save-privacy-note');
+    if (note) note.style.display = privacyOn() ? '' : 'none';
+
+    if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+      var inst = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+      inst.show();
+    }
+  }
+
+  function buildSavePayload(opts) {
+    opts = opts || {};
+    var initialPromptEl = document.getElementById('initial-prompt');
+    var initial = (initialPromptEl && typeof initialPromptEl.value === 'string') ? initialPromptEl.value : '';
+    var sysid = Math.floor(1000 + Math.random() * 9000);
+    var msgs = [];
+    msgs.push({ role: 'system', text: initial, mid: sysid });
+
+    var src = (Array.isArray(window.messages)) ? window.messages : [];
+    src.forEach(function (m, idx) {
+      if (idx === 0 && m && m.role === 'system') return;
+      var entry;
+      if (m.role === 'assistant') {
+        entry = { role: m.role, text: m.text, mid: m.mid, thinking: m.thinking };
+      } else {
+        entry = { role: m.role, text: m.text, mid: m.mid };
+      }
+      if (m.image) entry.image = m.image;
+      msgs.push(entry);
+    });
+
+    var params = (typeof window.setParams === 'function') ? window.setParams() : {};
+    if (params && Object.prototype.hasOwnProperty.call(params, 'initiate_from_assistant')) {
+      delete params.initiate_from_assistant;
+    }
+
+    var payload = {
+      messages: msgs,
+      parameters: params,
+      visibility: opts.visibility || 'personal'
+    };
+    if (opts.title && String(opts.title).trim().length > 0) {
+      payload.title = String(opts.title).trim();
+    }
+    if (opts.monadicState && typeof opts.monadicState === 'object') {
+      payload.monadic_state = opts.monadicState;
+    }
+    return payload;
+  }
+
+  function readModalSelections() {
+    var titleEl = document.getElementById('library-save-title');
+    var title = (titleEl && titleEl.value) ? titleEl.value : '';
+    var visEl = document.querySelector('input[name="librarySaveVisibility"]:checked');
+    var visibility = (visEl && visEl.value) ? visEl.value : 'personal';
+    return { title: title, visibility: visibility };
+  }
+
+  function submitSave() {
+    var sel = readModalSelections();
+    var hasMessages = Array.isArray(window.messages) && window.messages.length > 0;
+    if (!hasMessages) {
+      flashAlert(
+        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libNoMessages', 'There are no messages to save yet.')),
+        'warning'
+      );
+      return false;
+    }
+
+    setSavePending(true);
+    flashAlert(
+      "<i class='fas fa-spinner fa-spin'></i> " + escapeHtml(t('ui.libSavingMessage', 'Saving conversation to Knowledge Base...')),
+      'info'
+    );
+
+    var afterState = function (state2) {
+      var payload = buildSavePayload({
+        title: sel.title, visibility: sel.visibility, monadicState: state2
+      });
+      var ok = send('LIBRARY_SAVE', { contents: payload });
+      if (!ok) {
+        setSavePending(false);
+        flashAlert(
+          "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libSaveFailure', 'Failed to save')) + ': WebSocket not connected',
+          'warning'
+        );
+      }
+    };
+
+    try {
+      fetch('/monadic_state').then(function (resp) {
+        if (!resp || !resp.ok) { afterState(null); return; }
+        return resp.json().then(function (data) {
+          afterState((data && data.monadic_state) ? data.monadic_state : null);
+        });
+      }).catch(function () { afterState(null); });
+    } catch (_) {
+      afterState(null);
+    }
+    return true;
+  }
+
+  // Legacy alias retained for backwards compatibility with the original
+  // single-pane sidebar render (used in older Jest tests).
+  function render(container, rows) {
+    if (!container) return;
+    var safeRows = Array.isArray(rows) ? rows : [];
+    if (safeRows.length === 0) {
+      container.innerHTML =
+        '<span class="text-secondary">' + escapeHtml(emptyText()) + '</span>';
+      return;
+    }
+    container.innerHTML = safeRows.map(compactRowMarkup).join('');
+  }
+
+  // Legacy helper kept so existing Jest tests for the simple delete path
+  // continue to pass.
+  function handleDeleted(data, container) {
+    if (data && data.res === 'success' && container) {
+      var convId = data.conversation_id;
+      if (convId) {
+        var row = container.querySelector('[data-conversation-id="' + convId + '"]');
+        if (row && row.parentNode) row.parentNode.removeChild(row);
+      }
+    }
+    send('LIBRARY_LIST');
+  }
+
+  // ─── DOM bootstrap ───────────────────────────────────────────────────
+
+  function init() {
+    if (typeof document === 'undefined') return;
+
+    var saveBtn = document.getElementById('library-save');
+    if (saveBtn) saveBtn.onclick = openSaveModal;
+
+    var browseBtn = document.getElementById('library-browse');
+    if (browseBtn) browseBtn.onclick = openBrowseModal;
+
+    var confirmBtn = document.getElementById('library-save-confirm');
+    if (confirmBtn) confirmBtn.onclick = submitSave;
+
+    var ragToggle = document.getElementById('library-rag-toggle');
+    if (ragToggle) ragToggle.onchange = function () { setRagToggle(ragToggle.checked); };
+
+    // Browse-modal controls
+    var search = document.getElementById('library-browse-search');
+    if (search) {
+      search.addEventListener('input', function () {
+        state.searchTerm = search.value || '';
+        state.page = 0;
+        applyFilters();
+        renderBrowseTable();
+      });
+    }
+    var visFilter = document.getElementById('library-browse-visibility');
+    if (visFilter) {
+      visFilter.addEventListener('change', function () {
+        state.visibilityFilter = visFilter.value || 'all';
+        state.page = 0;
+        applyFilters();
+        renderBrowseTable();
+      });
+    }
+    var sortSel = document.getElementById('library-browse-sort');
+    if (sortSel) {
+      sortSel.addEventListener('change', function () {
+        state.sortKey = sortSel.value || 'created_desc';
+        state.page = 0;
+        applyFilters();
+        renderBrowseTable();
+      });
+    }
+    var pageSel = document.getElementById('library-browse-pagesize');
+    if (pageSel) {
+      pageSel.addEventListener('change', function () {
+        state.pageSize = parseInt(pageSel.value, 10) || 50;
+        state.page = 0;
+        applyFilters();
+        renderBrowseTable();
+      });
+    }
+    var prev = document.getElementById('library-browse-prev');
+    if (prev) prev.onclick = function () {
+      if (state.page > 0) { state.page -= 1; renderBrowseTable(); }
+    };
+    var next = document.getElementById('library-browse-next');
+    if (next) next.onclick = function () {
+      if (((state.page + 1) * state.pageSize) < state.filteredRows.length) {
+        state.page += 1; renderBrowseTable();
+      }
+    };
+
+    // Global click intercept: any markdown-rendered link of the form
+    // <a href="mc:conv:abc-123"> becomes a viewer trigger instead of a
+    // regular navigation. Handled at document level so it applies to
+    // RAG citations rendered in any chat surface, not just the modals.
+    document.addEventListener('click', function (ev) {
+      var target = ev.target;
+      while (target && target !== document) {
+        if (target.tagName === 'A') {
+          var href = target.getAttribute('href') || '';
+          if (href.indexOf('mc:conv:') === 0) {
+            ev.preventDefault();
+            var convId = href.slice('mc:conv:'.length);
+            if (convId) openViewerModal(convId);
+            return;
+          }
+          break;
+        }
+        target = target.parentNode;
+      }
+    });
+
+    // Viewer-modal action buttons (delete / toggle visibility)
+    var viewerDelete = document.getElementById('library-viewer-delete');
+    if (viewerDelete) viewerDelete.onclick = function () {
+      if (state.selectedId) {
+        confirmAndDelete(state.selectedId);
+        closeViewerModalIfOpen();
+      }
+    };
+    var viewerToggle = document.getElementById('library-viewer-toggle-vis');
+    if (viewerToggle) viewerToggle.onclick = function () {
+      if (!state.selectedId) return;
+      var nextVis = viewerToggle.getAttribute('data-next-vis') || 'shareable';
+      setVisibility(state.selectedId, nextVis);
+    };
+  }
+
   window.libraryPanel = {
+    init: init,
     send: send,
-    render: render,
+    requestList: requestList,
+    requestStats: requestStats,
+    requestRagState: requestRagState,
+    setRagToggle: setRagToggle,
+    setVisibility: setVisibility,
+    deleteConversation: deleteConversation,
+    openSaveModal: openSaveModal,
+    submitSave: submitSave,
+    buildSavePayload: buildSavePayload,
+    readModalSelections: readModalSelections,
+    openBrowseModal: openBrowseModal,
+    openDetailModal: openDetailModal,
+    applyFilters: applyFilters,
+    handleConversations: handleConversations,
+    handleStats: handleStats,
     handleDeleted: handleDeleted,
+    handleDeletedMessage: handleDeletedMessage,
+    handleSavedMessage: handleSavedMessage,
+    handleRagState: handleRagState,
+    handleVisibilityUpdated: handleVisibilityUpdated,
+    handleConversationData: handleConversationData,
+    openViewerModal: openViewerModal,
+    renderViewerMessages: renderViewerMessages,
+    render: render,
+    compactRowMarkup: compactRowMarkup,
+    browseRowMarkup: browseRowMarkup,
+    relativeTime: relativeTime,
+    truncate: truncate,
     formatStats: formatStats,
     escapeHtml: escapeHtml,
-    visibilityBadge: visibilityBadge
+    visibilityBadge: visibilityBadge,
+    visibilityDot: visibilityDot,
+    typeIconHtml: typeIconHtml,
+    _state: state
   };
 
-  // CommonJS export for Jest.
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = window.libraryPanel;
   }

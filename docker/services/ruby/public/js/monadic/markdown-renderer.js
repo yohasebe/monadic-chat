@@ -59,7 +59,20 @@
         }
       });
 
-      // Override link renderer to always open in new tab
+      // Whitelist the in-app `mc:` URL scheme so RAG citations of the
+      // form `[Title](mc:conv:abc-123)` survive markdown-it's default
+      // URL sanitization. The library-panel intercepts clicks on these
+      // and opens the Conversation Viewer modal.
+      const origValidateLink = md.validateLink;
+      md.validateLink = function(url) {
+        if (typeof url === 'string' && url.indexOf('mc:') === 0) return true;
+        return origValidateLink(url);
+      };
+
+      // Override link renderer:
+      //   - external links open in a new tab (existing behavior)
+      //   - mc: links stay in-page so the click handler can intercept them;
+      //     we tag them with data-mc-link for the global click handler.
       const defaultLinkOpen = md.renderer.rules.link_open ||
         function(tokens, idx, options, _env, self) {
           return self.renderToken(tokens, idx, options);
@@ -67,6 +80,21 @@
 
       md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
         const token = tokens[idx];
+        const hrefIdx = token.attrIndex('href');
+        const href = hrefIdx >= 0 ? token.attrs[hrefIdx][1] : '';
+        const isMcLink = typeof href === 'string' && href.indexOf('mc:') === 0;
+
+        if (isMcLink) {
+          // Tag for the global click handler; do NOT open in a new tab.
+          if (token.attrIndex('data-mc-link') < 0) {
+            token.attrPush(['data-mc-link', href]);
+          }
+          if (token.attrIndex('class') < 0) {
+            token.attrPush(['class', 'mc-conv-link']);
+          }
+          return defaultLinkOpen(tokens, idx, options, env, self);
+        }
+
         const targetIdx = token.attrIndex('target');
         if (targetIdx < 0) {
           token.attrPush(['target', '_blank']);

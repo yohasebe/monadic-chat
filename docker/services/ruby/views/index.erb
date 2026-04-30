@@ -379,6 +379,25 @@
             </div><!-- end #pdf-panel-body -->
           </div>
 
+          <div id="library-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#library-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.knowledgeBase"><i class="fas fa-book"></i> Knowledge Base</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="library-panel-body" class="collapse show px-3 pb-3">
+              <div class="d-flex gap-2 mt-2">
+                <button id="library-save" type="button" class="btn btn-sm btn-warning text-nowrap" title="Save current conversation to Knowledge Base" data-i18n-title="ui.libSaveCurrent"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveShort">Save</span></button>
+                <button id="library-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="Browse all saved conversations" data-i18n-title="ui.libBrowseAll"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.libBrowseAllShort">Browse</span></button>
+              </div>
+              <div class="form-check form-switch mt-2 mb-1 d-flex align-items-center">
+                <input class="form-check-input me-2" type="checkbox" role="switch" id="library-rag-toggle">
+                <label class="form-check-label small mb-0 flex-grow-1" for="library-rag-toggle" data-i18n="ui.libRagToggleLabel">Use Knowledge Base for retrieval (this session)</label>
+                <i id="library-rag-help" class="fa-regular fa-circle-question text-secondary small ms-2" role="img" tabindex="0" title="When ON, apps that support tools can retrieve from shareable conversations via library_search. Default OFF." data-i18n-title="ui.libRagToggleHint"></i>
+              </div>
+              <div class="mt-2 small text-secondary" id="library-stats-info"></div>
+            </div><!-- end #library-panel-body -->
+          </div>
+
           <div id="context-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display: none;">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#context-panel-body" aria-expanded="true">
               <span class="text flex-grow-1" data-i18n="ui.sessionContext"><i class="fas fa-brain"></i> Session Context</span>
@@ -423,13 +442,13 @@
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.resetDescription"> Press "Reset" to clear conversation and reset parameters to defaults while keeping current app selection.</div>
             <hr class="my-2">
-            <div class="form-check form-switch mt-2 mb-1" id="privacy-toggle-form">
-              <input class="form-check-input" type="checkbox" id="check-privacy-session" disabled>
-              <label class="form-check-label" for="check-privacy-session" id="check-privacy-session-label" data-i18n="ui.privacyFilter">
+            <div class="form-check form-switch mt-2 mb-1 d-flex align-items-center" id="privacy-toggle-form">
+              <input class="form-check-input me-2" type="checkbox" id="check-privacy-session" disabled>
+              <label class="form-check-label small mb-0 flex-grow-1" for="check-privacy-session" id="check-privacy-session-label" data-i18n="ui.privacyFilter">
                 <i class="fas fa-lock"></i> Privacy Filter
               </label>
+              <i id="privacy-toggle-help" class="fa-regular fa-circle-question text-secondary small ms-2" role="img" tabindex="0" title="Mask names, emails, and phone numbers before sending to the AI. Locked once a message is sent in this session." data-i18n-title="ui.privacyFilterCaption"></i>
             </div>
-            <div class="textbox-caption" id="privacy-toggle-caption" data-i18n="ui.privacyFilterCaption">Mask names, emails, and phone numbers before sending to the AI. Locked once a message is sent in this session.</div>
             </div><!-- end #control-panel-body -->
           </div>
 
@@ -1058,6 +1077,143 @@
           <div class="modal-footer">
             <div></div>
             <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-bs-dismiss="modal" data-i18n="ui.modals.confirm">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Save current conversation to Library -->
+    <div class="modal fade" id="librarySaveModal" tabindex="-1" aria-labelledby="librarySaveModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="librarySaveModalLabel"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveModalTitle">Save Conversation to Knowledge Base</span></h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="library-save-title" class="form-label" data-i18n="ui.libTitleLabel">Title (optional)</label>
+              <input type="text" class="form-control" id="library-save-title" maxlength="200" placeholder="">
+              <div class="form-text small text-secondary" data-i18n="ui.libTitleHint">If left blank, the app name is used as the title.</div>
+            </div>
+            <div class="mb-2">
+              <span class="form-label" data-i18n="ui.libVisibilityLabel">Visibility</span>
+              <div class="form-check mt-1">
+                <input class="form-check-input" type="radio" name="librarySaveVisibility" id="library-vis-personal" value="personal" checked>
+                <label class="form-check-label" for="library-vis-personal">
+                  <strong data-i18n="ui.libVisPersonalLabel">Personal</strong>
+                  <span class="text-secondary small d-block" data-i18n="ui.libVisPersonalDesc">Visible only inside the Knowledge Base app.</span>
+                </label>
+              </div>
+              <div class="form-check mt-1">
+                <input class="form-check-input" type="radio" name="librarySaveVisibility" id="library-vis-shareable" value="shareable">
+                <label class="form-check-label" for="library-vis-shareable">
+                  <strong data-i18n="ui.libVisShareableLabel">Shareable</strong>
+                  <span class="text-secondary small d-block" data-i18n="ui.libVisShareableDesc">Retrievable from other apps via library_search.</span>
+                </label>
+              </div>
+            </div>
+            <div id="library-save-privacy-note" class="alert alert-info py-2 px-3 small mt-2" style="display:none;">
+              <i class="fas fa-shield-halved"></i>
+              <span data-i18n="ui.libPrivacyNote">Privacy Filter is on — text in the saved conversation is the restored (unmasked) version visible in the dialog.</span>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary" data-i18n="ui.libSaveButton">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Browse all conversations in the Knowledge Base -->
+    <div class="modal fade" id="libraryBrowseModal" tabindex="-1" aria-labelledby="libraryBrowseModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="libraryBrowseModalLabel"><i class="fas fa-book"></i> <span data-i18n="ui.libBrowseModalTitle">Knowledge Base Browser</span></h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+              <input type="search" class="form-control form-control-sm" id="library-browse-search" style="max-width: 320px;" placeholder="Search title, source, language..." data-i18n-placeholder="ui.libBrowsePlaceholder">
+              <select class="form-select form-select-sm" id="library-browse-visibility" style="max-width: 160px;">
+                <option value="all" data-i18n="ui.libBrowseAllVis">All visibilities</option>
+                <option value="personal" data-i18n="ui.libVisPersonalLabel">Personal</option>
+                <option value="shareable" data-i18n="ui.libVisShareableLabel">Shareable</option>
+              </select>
+              <select class="form-select form-select-sm" id="library-browse-sort" style="max-width: 180px;">
+                <option value="created_desc" data-i18n="ui.libSortNewest">Newest first</option>
+                <option value="created_asc" data-i18n="ui.libSortOldest">Oldest first</option>
+                <option value="title_asc" data-i18n="ui.libSortTitleAsc">Title A→Z</option>
+                <option value="turns_desc" data-i18n="ui.libSortTurnsDesc">Most turns</option>
+              </select>
+              <select class="form-select form-select-sm" id="library-browse-pagesize" style="max-width: 100px;">
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+              <span class="ms-auto small text-secondary" id="library-browse-count"></span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th class="small text-secondary fw-normal text-center" style="width: 40px;" data-i18n="ui.libColType" title="Content type" data-i18n-title="ui.libColTypeTooltip">Type</th>
+                    <th class="small text-secondary fw-normal" data-i18n="ui.libColTitle">Title</th>
+                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColVisibility">Visibility</th>
+                    <th class="small text-secondary fw-normal text-nowrap text-end" data-i18n="ui.libColTurns">Turns</th>
+                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColCreated">Saved</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="library-browse-tbody"></tbody>
+              </table>
+            </div>
+            <div id="library-browse-empty" class="text-center text-secondary py-4" style="display:none;" data-i18n="ui.libBrowseEmpty">No conversations match your filters.</div>
+          </div>
+          <div class="modal-footer d-flex justify-content-between">
+            <span class="small text-secondary" id="library-browse-pageinfo"></span>
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm btn-secondary" id="library-browse-prev" disabled><i class="fa-solid fa-chevron-left"></i> <span data-i18n="ui.libPrev">Prev</span></button>
+              <button type="button" class="btn btn-sm btn-secondary" id="library-browse-next" disabled><span data-i18n="ui.libNext">Next</span> <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Conversation Viewer (read-only verbatim conversation playback + metadata + actions) -->
+    <div class="modal fade" id="libraryViewerModal" tabindex="-1" aria-labelledby="libraryViewerModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="libraryViewerModalLabel">
+              <i class="fas fa-book"></i>
+              <span id="library-viewer-title" data-i18n="ui.libViewerTitle">Conversation Viewer</span>
+            </h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="library-viewer-meta" class="small text-secondary mb-3"></div>
+            <div id="library-viewer-loading" class="text-center text-secondary py-4" style="display:none;">
+              <i class="fas fa-spinner fa-spin"></i> <span data-i18n="ui.libViewerLoading">Loading conversation...</span>
+            </div>
+            <div id="library-viewer-empty" class="alert alert-warning small" style="display:none;" data-i18n="ui.libViewerEmpty">No verbatim messages were stored for this conversation. Re-save it to enable the Viewer.</div>
+            <div id="library-viewer-messages"></div>
+          </div>
+          <div class="modal-footer d-flex justify-content-between flex-wrap gap-2">
+            <div>
+              <button type="button" class="btn btn-sm btn-outline-danger me-1" id="library-viewer-delete">
+                <i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.libDelete">Delete</span>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="library-viewer-toggle-vis">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <span id="library-viewer-toggle-label" data-i18n="ui.libMakeShareable">Make shareable</span>
+              </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.libClose">Close</button>
           </div>
         </div>
       </div>

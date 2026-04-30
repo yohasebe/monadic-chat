@@ -54,6 +54,37 @@ module Monadic
         summary_row(page[:points].first['payload'] || {})
       end
 
+      # Fetch verbatim messages + metadata for the Conversation Viewer
+      # modal. Returns:
+      #   { conversation_id, title, messages: [...], participants: [...],
+      #     metadata: {...}, skipped_reason: nil | "exceeded X bytes" }
+      # or nil when the conversation is not registered.
+      def get_conversation_messages(store:, conversation_id:, scope: :kb)
+        page = store.scroll(
+          collection: VectorStore::Schema::LIBRARY_SUMMARIES,
+          filter: store.combine_filters(
+            store.visibility_filter(scope),
+            store.conversation_filter(conversation_id)
+          ),
+          limit: 1
+        )
+        return nil if page[:points].empty?
+        payload = page[:points].first['payload'] || {}
+        {
+          conversation_id: payload['conversation_id'],
+          title: payload['title'],
+          source: payload['source'],
+          language: payload['language'],
+          visibility: payload['visibility'],
+          turns_count: payload['turns_count'],
+          messages_count: payload['messages_count'],
+          created_at: payload['created_at'],
+          messages: payload['messages'],
+          participants: payload['participants'],
+          skipped_reason: payload['messages_skipped_reason']
+        }
+      end
+
       # Aggregate counts per visibility — useful for the KB UI / status
       # tools.
       def library_stats(store:)
@@ -120,6 +151,7 @@ module Monadic
       def summary_row(payload)
         {
           conversation_id: payload['conversation_id'],
+          content_type: payload['content_type'] || 'conversation',
           title: payload['title'],
           source: payload['source'],
           language: payload['language'],

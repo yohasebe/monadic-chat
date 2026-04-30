@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'securerandom'
 require 'time'
 
@@ -84,23 +85,61 @@ module Monadic
         end
       end
 
+      # Soft cap on the JSON byte size of the original messages array we
+      # carry inside the summary payload. Above this we skip embedding the
+      # raw messages — the conversation can still be retrieved/searched
+      # via turns, just not displayed verbatim in the Viewer modal.
+      SUMMARY_MESSAGES_MAX_BYTES = 1_000_000
+
       def summary_payload(conversation, turns, visibility)
         meta = conversation['conversation_metadata'] || {}
+        messages = conversation['messages'] || []
+        participants = conversation['participants'] || []
+        messages_payload, messages_skipped_reason = embed_messages_or_skip(conversation['conversation_id'], messages)
+
         payload = {
           'conversation_id' => conversation['conversation_id'],
           'visibility' => visibility.to_s,
+          # content_type is forward-compatible: future importers (PDF /
+          # Office / Markdown / code files) write 'document' / 'pdf' /
+          # 'code' here so the Browse modal can show a per-type icon.
+          'content_type' => (meta['content_type'] || 'conversation').to_s,
           'source' => meta['source'],
           'language' => meta['language'],
           'title' => meta['title'],
           'license' => meta['license'],
           'topics' => meta['topics'],
           'duration_seconds' => meta['duration_seconds'],
-          'participants_count' => (conversation['participants'] || []).size,
-          'messages_count' => (conversation['messages'] || []).size,
+          'participants_count' => participants.size,
+          'messages_count' => messages.size,
           'turns_count' => turns.size,
-          'created_at' => Time.now.utc.iso8601
+          'created_at' => Time.now.utc.iso8601,
+          # Verbatim messages + participants for the Conversation Viewer
+          # modal. Other consumers (search, retrieval) ignore these
+          # fields. Skipped silently when over SUMMARY_MESSAGES_MAX_BYTES.
+          'messages' => messages_payload,
+          'participants' => participants,
+          'messages_skipped_reason' => messages_skipped_reason
         }
         payload.compact
+      end
+
+      # Returns [messages_or_nil, reason_or_nil]. When the JSON-encoded
+      # messages exceed the soft cap, we drop them and stash a reason so
+      # the Viewer can show an actionable explanation.
+      def embed_messages_or_skip(conv_id, messages)
+        return [nil, nil] if messages.empty?
+        size = JSON.generate(messages).bytesize
+        if size > SUMMARY_MESSAGES_MAX_BYTES
+          if defined?(Monadic::Utils::ExtraLogger)
+            Monadic::Utils::ExtraLogger.log {
+              "[Library] messages payload for conversation #{conv_id} is " \
+                "#{size} bytes (limit #{SUMMARY_MESSAGES_MAX_BYTES}); Viewer will mark it as truncated"
+            }
+          end
+          return [nil, "exceeded #{SUMMARY_MESSAGES_MAX_BYTES} bytes (#{size})"]
+        end
+        [messages, nil]
       end
 
       def upsert_summary(conversation, turns, conv_id, visibility, store, embeddings)

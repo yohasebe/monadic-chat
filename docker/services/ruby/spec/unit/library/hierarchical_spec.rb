@@ -72,6 +72,47 @@ RSpec.describe Monadic::Library::Hierarchical do
     end
   end
 
+  describe 'summary payload' do
+    it 'embeds the verbatim messages array for the Conversation Viewer' do
+      captured = nil
+      allow(vector_store).to receive(:upsert_points) do |args|
+        captured = args if args[:collection] == 'library_summaries'
+      end
+      described_class.ingest(two_party_chat, store: store, levels: %i[summary])
+      payload = captured[:points].first[:payload]
+      expect(payload['messages']).to eq(two_party_chat['messages'])
+      expect(payload['participants']).to eq(two_party_chat['participants'])
+      expect(payload).not_to have_key('messages_skipped_reason')
+    end
+
+    it 'omits messages and stashes a reason when over SUMMARY_MESSAGES_MAX_BYTES' do
+      stub_const('Monadic::Library::Hierarchical::SUMMARY_MESSAGES_MAX_BYTES', 100)
+      captured = nil
+      allow(vector_store).to receive(:upsert_points) do |args|
+        captured = args if args[:collection] == 'library_summaries'
+      end
+      described_class.ingest(two_party_chat, store: store, levels: %i[summary])
+      payload = captured[:points].first[:payload]
+      expect(payload['messages']).to be_nil
+      expect(payload['messages_skipped_reason']).to match(/exceeded 100 bytes/)
+    end
+
+    it 'sets messages to nil when the original messages array is empty' do
+      empty = two_party_chat.merge('messages' => [])
+      captured = nil
+      allow(vector_store).to receive(:upsert_points) do |args|
+        captured = args if args[:collection] == 'library_summaries'
+      end
+      # ingest skips summary when there are no turns; force it via a
+      # one-message conversation to keep the summary upsert active.
+      single = two_party_chat.merge('messages' => [two_party_chat['messages'].first])
+      described_class.ingest(single, store: store, levels: %i[summary])
+      payload = captured[:points].first[:payload]
+      expect(payload['messages']).to eq(single['messages'])
+      _ = empty
+    end
+  end
+
   describe 'turn payload' do
     it 'includes speaker, text, message anchors, and turn_idx' do
       captured = nil

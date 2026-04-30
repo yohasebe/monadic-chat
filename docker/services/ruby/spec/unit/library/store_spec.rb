@@ -184,6 +184,35 @@ RSpec.describe Monadic::Library::Store do
     end
   end
 
+  describe '#scroll' do
+    let(:page) { { points: [{ 'id' => 'x' }], next: 'cursor-1' } }
+
+    it 'forwards collection / filter / limit / offset to the vector store' do
+      allow(vector_store).to receive(:scroll).and_return(page)
+      expect(vector_store).to receive(:scroll).with(
+        collection: 'library_summaries',
+        filter: { must: [{ key: 'visibility', match: { value: 'shareable' } }] },
+        limit: 50, offset: 'cur-prev'
+      )
+      store.scroll(
+        collection: 'library_summaries',
+        filter: store.visibility_filter(:external),
+        limit: 50, offset: 'cur-prev'
+      )
+    end
+
+    it 'returns the underlying page hash unchanged' do
+      allow(vector_store).to receive(:scroll).and_return(page)
+      expect(store.scroll(collection: 'library_summaries')).to eq(page)
+    end
+
+    it 'rejects non-Library collections' do
+      expect {
+        store.scroll(collection: 'pdf_docs')
+      }.to raise_error(ArgumentError, /not a Library collection/)
+    end
+  end
+
   describe '#combine_filters' do
     it 'merges multiple `must` arrays into a single filter' do
       a = { must: [{ key: 'x', match: { value: 1 } }] }

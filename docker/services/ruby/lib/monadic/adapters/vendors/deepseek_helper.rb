@@ -168,6 +168,16 @@ module DeepSeekHelper
       "temperature" => options["temperature"] || 0.7,
       "messages" => messages
     }
+
+    # V4 models default to thinking=enabled on the API side, which can consume
+    # the entire max_tokens budget on chain-of-thought and leave content empty.
+    # send_query is a non-streaming probe (used by SecondOpinion / AI User /
+    # ContextExtractor) that wants the final answer directly, so disable
+    # thinking explicitly. Legacy models (deepseek-chat / deepseek-reasoner)
+    # are unaffected.
+    if model.to_s.include?("deepseek-v4")
+      body["thinking"] = { "type" => "disabled" }
+    end
     
     # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
@@ -199,7 +209,19 @@ module DeepSeekHelper
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
-        return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+        message = parsed_response.dig("choices", 0, "message") || {}
+        content = message["content"]
+        # Note: in Ruby, `"" || "fallback"` returns "" because empty strings
+        # are truthy. Treat nil and empty string equivalently so callers can
+        # see the no-content signal. As a last resort, fall back to
+        # reasoning_content (V4 thinking trace) so downstream parsers have
+        # something to work with instead of an empty string.
+        if content.nil? || content.to_s.strip.empty?
+          fallback = message["reasoning_content"]
+          return fallback if fallback.is_a?(String) && !fallback.strip.empty?
+          return "Error: No content in response"
+        end
+        return content
       rescue => e
         return "Error: #{e.message}"
       end

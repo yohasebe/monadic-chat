@@ -245,6 +245,12 @@ module ContextExtractorAgent
 
     # Check for reasoning/thinking models
     is_deepseek_reasoner = provider == "deepseek" && model.to_s.include?("reasoner")
+    # V4 series (deepseek-v4-flash / deepseek-v4-pro) defaults to thinking
+    # enabled on the API side. Context extraction is a simple JSON task that
+    # does not benefit from chain-of-thought, and a 500-token budget would be
+    # consumed by reasoning before content is emitted, returning an empty
+    # response. Disable thinking explicitly for V4 in this path.
+    is_deepseek_v4 = provider == "deepseek" && model.to_s.include?("deepseek-v4")
 
     # Handle OpenAI-specific parameters based on model
     if provider == "openai"
@@ -262,6 +268,12 @@ module ContextExtractorAgent
       # DeepSeek reasoner needs more tokens for reasoning + response
       request_body["max_tokens"] = 2000
       # Don't set temperature for reasoner models
+    elsif is_deepseek_v4
+      # V4 models: turn off thinking so 500 tokens are spent on the JSON
+      # output, not on chain-of-thought. Temperature is supported.
+      request_body["thinking"] = { "type" => "disabled" }
+      request_body["max_tokens"] = 500
+      request_body["temperature"] = 0.3
     else
       # Other providers (xAI, Mistral, regular DeepSeek) use max_tokens and temperature
       request_body["max_tokens"] = 500

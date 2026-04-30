@@ -259,11 +259,27 @@ module ProviderMatrixHelper
         /clarify/i,
         /specify/i,
         /which.*option/i,
+        /which.*would you/i,
+        /choose.*one/i,
+        /pick.*one/i,
         /何か.*ありますか/,
         /教えて.*ください/,
         /お知らせください/,
         /ご希望/,
-        /詳細.*教えて/
+        /詳細.*教えて/,
+        # DeepSeek/V4 often offers a numbered candidate list and asks to pick.
+        /どれが.*ですか/,
+        /どちらが.*ですか/,
+        /どれを/,
+        /選んでください/,
+        /選んで下さい/,
+        /お選びください/,
+        /候補から/,
+        /テーマを決め/,
+        /テーマ.*ください/,
+        /お任せ/,
+        /おまかせ/,
+        /いかがでしょうか/
       ]
 
       # Check if response is short AND matches clarification patterns

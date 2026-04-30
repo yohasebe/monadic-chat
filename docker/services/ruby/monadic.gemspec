@@ -60,6 +60,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "http", "~> 5.2"
   spec.add_dependency "http-form_data"
   spec.add_dependency "i18n_data"
+  spec.add_dependency "json_schemer", "~> 2.3"
   spec.add_dependency "matrix"
   spec.add_dependency "method_source"
   spec.add_dependency "nokogiri", "~> 1.18"

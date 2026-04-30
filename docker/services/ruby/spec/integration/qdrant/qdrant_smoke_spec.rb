@@ -9,14 +9,13 @@ require_relative '../../support/vector_service_helper'
 # http://localhost:6333.
 RSpec.describe 'Qdrant integration smoke', :integration do
   before(:all) do
-    VectorServiceHelper.skip_unless_both! unless VectorServiceHelper.qdrant_available?
+    # In production-mode `rake test:all[full]` the qdrant container runs on
+    # the docker network without a host port. Recreate it with the dev
+    # overlay so the spec process can reach localhost:6333.
+    VectorServiceHelper.ensure_dev_overlay!
 
     @backend = Monadic::VectorStore::QdrantBackend.new(endpoint: VectorServiceHelper::QDRANT_URL)
     @collection = "smoke_test_#{Process.pid}_#{Time.now.to_i}"
-  end
-
-  before do
-    skip 'qdrant not running' unless VectorServiceHelper.qdrant_available?
   end
 
   after(:all) do

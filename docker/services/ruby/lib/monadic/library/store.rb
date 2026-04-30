@@ -103,6 +103,15 @@ module Monadic
         )
       end
 
+      # Page through a Library collection. Mirrors the underlying Qdrant
+      # scroll API: returns { points: [...], next: cursor_or_nil }. Used by
+      # Manager to enumerate the conversation list and similar batch ops.
+      def scroll(collection:, filter: nil, limit: 256, offset: nil)
+        ensure_library_collection!(collection)
+        bootstrap_collections!
+        @store.scroll(collection: collection, filter: filter, limit: limit, offset: offset)
+      end
+
       # ─── Filter helpers (public so higher-level modules can compose) ───
 
       def visibility_filter(scope)

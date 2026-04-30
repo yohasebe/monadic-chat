@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yohasebe.github.io/monadic-chat-schema/v1/monadic-conversation.json",
+  "title": "monadic-conversation",
+  "description": "Standardized conversation data schema developed by the Monadic Chat project. Supports 2-party (user/assistant), multi-party (3+), and monologue (e.g., TED Talks) conversations. The 'monadic-' prefix is the schema family's proper noun, reflecting its lineage from state-monadic context threading in functional programming; it does not assert categorical monad properties.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "conversation_id",
+    "conversation_metadata",
+    "participants",
+    "messages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema format version. Currently fixed at '1.0'."
+    },
+    "conversation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the conversation. UUID v4 recommended."
+    },
+    "conversation_metadata": {
+      "type": "object",
+      "required": ["source", "language", "license"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Origin of the conversation data. Examples: 'monadic-chat', 'ted-talk', 'imported-chatml', 'imported-anthropic', 'plain-text'."
+        },
+        "external_id": {
+          "type": "string",
+          "description": "External identifier when imported from another corpus (e.g., TED talk ID)."
+        },
+        "title": { "type": "string" },
+        "language": {
+          "type": "string",
+          "description": "Primary language as ISO 639-1 (e.g., 'en', 'ja')."
+        },
+        "license": {
+          "type": "string",
+          "description": "License identifier for the content. Free-form string. Examples: 'CC-BY-NC-ND-4.0', 'CC-BY-4.0', 'private', 'proprietary'. Required for accountability and academic reuse."
+        },
+        "publication_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "retrieved_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the conversation was ingested into the Library."
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "duration_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total duration in seconds (for time-based content like talks)."
+        },
+        "cite_as": {
+          "type": "string",
+          "description": "Suggested citation hint (e.g., BibTeX-style)."
+        }
+      }
+    },
+    "participants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/participant" }
+    },
+    "messages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/message" }
+    },
+    "annotations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/annotation" },
+      "default": [],
+      "description": "Linguistic / discourse annotations layered on top of the conversation. Empty array in v1.0 baseline; populated by Phase 2+ tools."
+    }
+  },
+  "$defs": {
+    "participant": {
+      "type": "object",
+      "required": ["id", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "label": {
+          "type": "string",
+          "description": "Human-readable name (e.g., 'Emma Marris', 'Sarah')."
+        },
+        "role": {
+          "enum": ["human", "assistant", "system", "narrator", "other"],
+          "description": "Protocol-level functional category. 'human' = real speaker / user / participant; 'assistant' = LLM or AI agent; 'system' = system instruction author; 'narrator' = single-speaker monologue narrator; 'other' = anything else (e.g., non-LLM machine, animal vocalization)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Free-form descriptive label for the participant's role in the conversation (e.g., 'mother', 'target_child', 'audience_member', 'investigator', 'facilitator'). Inspired by CHILDES CHAT format participant codes — open vocabulary, not enumerated. Empty or omitted is valid for simple 2-party chats."
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Free-form participant metadata (e.g., age, sex, native_language, demographic info). Use for research applications that need richer participant profiles."
+        }
+      }
+    },
+    "message": {
+      "type": "object",
+      "required": ["id", "speaker", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Conversation-unique message identifier. Convention: 'msg-NNNN' or UUID."
+        },
+        "speaker": {
+          "type": "object",
+          "required": ["id"],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Reference to participants[].id"
+            }
+          }
+        },
+        "text": {
+          "type": "string",
+          "description": "Current/latest text. If the message has been edited, prior versions live in metadata.edit_history."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Wall-clock time of the message (e.g., when the LLM responded, or when the user posted). Both timestamp and timing may be present, or either alone."
+        },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Time-based positioning within content (used for talk transcripts, audio-tracked conversations).",
+          "properties": {
+            "offset_seconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "duration_seconds": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "metadata": { "$ref": "#/$defs/message_metadata" }
+      }
+    },
+    "message_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Per-message metadata. Open shape: well-known fields are documented here, but importers / Monadic Chat itself may add app-specific fields (e.g., tts_instructions, mid, images).",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "LLM provider when this message is an assistant response (e.g., 'openai', 'anthropic', 'gemini')."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier (e.g., 'gpt-5.4', 'claude-sonnet-4-6')."
+        },
+        "edited": {
+          "type": "boolean",
+          "description": "True if this message was edited after initial creation."
+        },
+        "edit_history": {
+          "type": "array",
+          "description": "Prior versions in chronological order (oldest first). The current 'text' field is the latest version, not duplicated here.",
+          "items": {
+            "type": "object",
+            "required": ["at", "text", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the prior version was replaced."
+              },
+              "text": {
+                "type": "string",
+                "description": "The text content at that point in history."
+              },
+              "reason": {
+                "enum": [
+                  "user_edit",
+                  "regeneration",
+                  "tool_correction",
+                  "system_revision"
+                ],
+                "description": "user_edit = user manually edited; regeneration = re-generated by LLM; tool_correction = automatic tool/agent fixup; system_revision = system-level revision."
+              }
+            }
+          }
+        },
+        "tools": {
+          "type": "array",
+          "description": "Tool calls associated with this message (LLM-side calls). Free-shape per provider.",
+          "items": { "type": "object" }
+        },
+        "monadic_state": { "$ref": "#/$defs/monadic_state" }
+      }
+    },
+    "monadic_state": {
+      "type": "object",
+      "required": ["version"],
+      "additionalProperties": false,
+      "description": "Monadic Chat's state JSON at the time of this message. External imports may omit this entirely.",
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "1",
+          "description": "monadic_state internal schema version."
+        },
+        "conversation_context": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "ContextExtractorAgent-managed common context. Default fields: topics / people / notes; apps may extend with custom schema fields.",
+          "properties": {
+            "topics": { "type": "array", "items": { "type": "string" } },
+            "people": { "type": "array", "items": { "type": "string" } },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "app_specific": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Per-app freely-shaped state (e.g., NovelWriter characters, MathTutor solved_problems). No schema constraint at v1.0."
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["tier", "unit_type", "anchor", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "tier": {
+          "type": "string",
+          "description": "Annotation layer name (free string). Examples: 'rhetorical_move', 'coreference', 'turn_taking', 'named_entity'."
+        },
+        "unit_type": {
+          "enum": ["message", "turn", "span", "conversation"]
+        },
+        "anchor": {
+          "oneOf": [
+            { "$ref": "#/$defs/anchor_message" },
+            { "$ref": "#/$defs/anchor_range" },
+            { "$ref": "#/$defs/anchor_conversation" }
+          ]
+        },
+        "label": {
+          "type": "string",
+          "description": "Annotation label (controlled vocabulary depends on tier)."
+        },
+        "value": {
+          "description": "Optional free-form value (any JSON type)."
+        },
+        "annotator": {
+          "type": "object",
+          "required": ["id", "type"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string" },
+            "type": {
+              "enum": ["human", "model", "rule"],
+              "description": "How the annotation was produced."
+            }
+          }
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "anchor_message": {
+      "type": "object",
+      "required": ["message_id"],
+      "additionalProperties": false,
+      "properties": {
+        "message_id": { "type": "string" }
+      }
+    },
+    "anchor_range": {
+      "type": "object",
+      "required": ["start_message_id", "end_message_id"],
+      "additionalProperties": false,
+      "properties": {
+        "start_message_id": { "type": "string" },
+        "end_message_id": { "type": "string" },
+        "start_offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Character offset within start_message_id.text"
+        },
+        "end_offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "anchor_conversation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Marker for conversation-level annotations (no specific message reference)."
+    }
+  }
+}

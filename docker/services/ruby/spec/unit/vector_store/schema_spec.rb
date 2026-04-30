@@ -5,10 +5,19 @@ require 'monadic/vector_store/schema'
 
 RSpec.describe Monadic::VectorStore::Schema do
   describe 'collection identifiers' do
-    it 'enumerates four collections in ALL_COLLECTIONS' do
+    it 'enumerates Help/Pdf and Library collections in ALL_COLLECTIONS' do
       expect(described_class::ALL_COLLECTIONS).to contain_exactly(
-        'help_docs', 'help_items', 'pdf_docs', 'pdf_items'
+        'help_docs', 'help_items',
+        'pdf_docs', 'pdf_items',
+        'library_summaries', 'library_turns', 'library_trajectory', 'library_messages'
       )
+    end
+
+    it 'exposes LIBRARY_COLLECTIONS as a 4-element subset of ALL_COLLECTIONS' do
+      expect(described_class::LIBRARY_COLLECTIONS).to contain_exactly(
+        'library_summaries', 'library_turns', 'library_trajectory', 'library_messages'
+      )
+      expect(described_class::ALL_COLLECTIONS).to include(*described_class::LIBRARY_COLLECTIONS)
     end
 
     it 'has a DEFINITIONS entry for every collection' do

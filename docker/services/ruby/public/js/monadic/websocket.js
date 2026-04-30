@@ -283,6 +283,15 @@ window.loadedApp = "Chat";
       ui_language: uiLanguage
     }));
 
+    // Library (Knowledge Base) panel: fetch initial inventory + counts
+    // once the connection is up. The panel is mounted globally and
+    // visible across all apps, so we fire this for every session.
+    if (window.libraryPanel) {
+      try { window.libraryPanel.requestList(); } catch (_) {}
+      try { window.libraryPanel.requestStats(); } catch (_) {}
+      try { window.libraryPanel.requestRagState(); } catch (_) {}
+    }
+
     // Detect browser/device capabilities for audio handling
     const runningOnFirefox = navigator.userAgent.indexOf('Firefox') !== -1;
 
@@ -851,6 +860,48 @@ window.loadedApp = "Chat";
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handlePDFDeleted === 'function') {
           wsh.handlePDFDeleted(data);
+        }
+        break;
+      }
+      case "library_conversations": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleConversations === 'function') {
+          window.libraryPanel.handleConversations(data);
+        }
+        break;
+      }
+      case "library_stats": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleStats === 'function') {
+          window.libraryPanel.handleStats(data);
+        }
+        break;
+      }
+      case "library_deleted": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleDeletedMessage === 'function') {
+          window.libraryPanel.handleDeletedMessage(data);
+        }
+        break;
+      }
+      case "library_saved": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleSavedMessage === 'function') {
+          window.libraryPanel.handleSavedMessage(data);
+        }
+        break;
+      }
+      case "library_rag_state": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleRagState === 'function') {
+          window.libraryPanel.handleRagState(data);
+        }
+        break;
+      }
+      case "library_visibility_updated": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleVisibilityUpdated === 'function') {
+          window.libraryPanel.handleVisibilityUpdated(data);
+        }
+        break;
+      }
+      case "library_conversation_data": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleConversationData === 'function') {
+          window.libraryPanel.handleConversationData(data);
         }
         break;
       }

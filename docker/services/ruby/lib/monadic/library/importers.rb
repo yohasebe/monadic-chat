@@ -16,6 +16,7 @@ require_relative 'importers/gemini_contents'
 require_relative 'importers/monadic_chat_export'
 require_relative 'importers/ted_talk'
 require_relative 'importers/plain_text'
+require_relative 'importers/markdown'
 
 module Monadic
   module Library

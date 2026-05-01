@@ -11,6 +11,12 @@
 require 'tempfile'
 require 'monadic/library'
 
+# Cap each upload at 100 MiB. Larger files would block the Falcon worker
+# during read+extract+embed (synchronous pipeline) and risk filling the
+# imports/ directory. Override with LIBRARY_IMPORT_MAX_BYTES if a power
+# user needs to bypass the limit.
+LIBRARY_IMPORT_MAX_BYTES = (ENV.fetch('LIBRARY_IMPORT_MAX_BYTES', (100 * 1024 * 1024).to_s)).to_i
+
 post "/library/import" do
   content_type :json
 
@@ -19,6 +25,18 @@ post "/library/import" do
   file = params["libraryFile"]
   filename = File.basename(file["filename"].to_s)
   return error_json("Missing filename") if filename.empty?
+
+  # Reject oversized uploads up front so we never write them to disk or
+  # spawn the python extractor on something we will not finish.
+  upload_size = begin
+    file["tempfile"].size
+  rescue StandardError
+    nil
+  end
+  if upload_size && upload_size > LIBRARY_IMPORT_MAX_BYTES
+    mb = (LIBRARY_IMPORT_MAX_BYTES / 1024.0 / 1024.0).round(0)
+    return error_json("File exceeds the #{mb} MB import limit. Split the document or raise LIBRARY_IMPORT_MAX_BYTES.")
+  end
 
   visibility = (params["libraryVisibility"].to_s == 'shareable') ? 'shareable' : 'personal'
 

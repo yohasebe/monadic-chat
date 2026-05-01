@@ -72,7 +72,6 @@ This container is used to operate a virtual web browser using Selenium for web s
 - **Main features**: Chrome browser automation, web scraping
 - **Apps that use this container**: 
   - `Code Interpreter` - Can use Selenium for web scraping tasks
-  - `Content Reader` - Fetches and extracts content from web pages
   - `Mermaid Grapher` - Validates Mermaid diagrams and creates preview screenshots
   - `Research Assistant` - Uses web scraping for gathering information
   - `Web Insight` - Captures web page screenshots and extracts text content
@@ -83,7 +82,7 @@ This container runs the Qdrant vector database used for storing PDF chunks and t
 - **Port**: 6333 (host) → 6333 (REST), 6334 → 6334 (gRPC), exposed only in dev mode
 - **Main features**: Vector similarity search with HNSW indexing, payload filtering, multi-vector storage
 - **Apps that use this container**:
-  - `PDF Navigator` - Stores and searches PDF content using embeddings
+  - `Knowledge Base` - Stores and searches imported PDFs / Office files / Markdown / code / chat sessions using embeddings
   - `Monadic Help` - Searches documentation using vector similarity
   - Any custom RAG (Retrieval-Augmented Generation) apps using `Monadic::VectorStore`
 
@@ -91,7 +90,7 @@ This container runs the Qdrant vector database used for storing PDF chunks and t
 This container hosts a small FastAPI service that wraps the `intfloat/multilingual-e5-base` sentence-transformer model.
 - **Port**: 8002 (host) → 8000 (container), exposed only in dev mode
 - **Main features**: Local 768-dim text embedding for English, Japanese, and many other languages
-- **Apps that use this container**: same set as Qdrant (PDF Navigator, Monadic Help, custom RAG)
+- **Apps that use this container**: same set as Qdrant (Knowledge Base, Monadic Help, custom RAG)
 - No external API key is required; embedding inference runs entirely on the host CPU.
 
 
@@ -117,12 +116,12 @@ The following containers enable additional features:
 - Any app using LaTeX rendering
 
 **Selenium Container**: Required for:
-- Web content fetching (Content Reader, Research Assistant)
+- Web content fetching (Research Assistant, Web Insight)
 - Mermaid diagram validation and preview
 - Web scraping functionality
 
 **Qdrant + Embeddings Containers**: Required for:
-- PDF content search (PDF Navigator)
+- Knowledge Base (file imports + saved chat sessions)
 - Help system (Monadic Help)
 - Custom RAG applications
 

@@ -8,7 +8,7 @@ The vector database functionality in Monadic Chat:
 - Converts text into numerical vector representations (embeddings) locally
 - Stores these vectors in a Qdrant container alongside structured metadata
 - Enables semantic similarity search rather than keyword matching
-- Powers the PDF Navigator app and the Monadic Help app
+- Powers the Knowledge Base app and the Monadic Help app
 
 The pipeline is fully local — no external API key is required to embed text or to search the vector database.
 
@@ -27,13 +27,13 @@ Both containers start automatically with Monadic Chat and require no configurati
 
 ![Vector Database Flow](../assets/images/rag.png ':size=700')
 
-Here is the processing flow in the PDF Navigator app:
+Here is the processing flow in the Knowledge Base import pipeline:
 
-1. **Text Extraction**:
-   - PDFs are processed using PyMuPDF to extract raw text
-   - The text is divided into segments with a configurable token size limit (default: 4000 tokens per segment)
-   - An overlap of configurable lines (default: 4 lines) is kept between consecutive segments to maintain context
-   - These values can be configured in `~/monadic/config/env` via `PDF_RAG_TOKENS` and `PDF_RAG_OVERLAP_LINES`
+1. **Content Extraction**:
+   - PDFs are processed via [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) (`pymupdf4llm.to_markdown`) to recover headings, lists, and tables as Markdown
+   - Office files (`.docx`/`.xlsx`/`.pptx`) are extracted via `python-docx` / `openpyxl` / `python-pptx`
+   - Markdown and source-code files are read directly; section boundaries come from headings and top-level definitions respectively
+   - The extracted content is split into per-section chunks (≈200–4000 chars) with importer-specific boundary rules
 
 2. **Embedding Generation**:
    - Each text segment is sent to the embeddings container, which produces a 768-dimensional vector using `multilingual-e5-base`
@@ -41,8 +41,9 @@ Here is the processing flow in the PDF Navigator app:
    - Vectors are L2-normalized so cosine similarity reduces to a dot product
 
 3. **Vector Storage**:
-   - Each segment becomes a Qdrant point under the `pdf_items` collection, with the embedding as the vector and `{doc_id, text, position, app_key, metadata}` as payload
-   - A document-level point lives in the `pdf_docs` collection with the average of its item embeddings, enabling document-level similarity searches
+   - Each chunk becomes a Qdrant point under the `library_turns` collection, with the embedding as the vector and `{conversation_id, visibility, turn_idx, text, ...}` as payload
+   - A conversation-level point lives in the `library_summaries` collection with title, source, content_type, and a placeholder summary embedding, enabling document-level cascade retrieval
+   - A `library_trajectory` collection holds sliding-window discourse vectors used by the trajectory visualizer
 
 4. **Retrieval Process**:
    - When a user asks a question, the query is embedded with the same model (with the `query:` prefix)
@@ -52,32 +53,30 @@ Here is the processing flow in the PDF Navigator app:
 
 ## Schema :id=database-schema
 
-Qdrant organises data into named collections. Monadic Chat uses four:
+Qdrant organises data into named collections. Monadic Chat uses the following:
 
-- **`pdf_docs`** — One point per uploaded PDF. Vector: average of item embeddings. Payload: `{title, items, app_key, metadata, created_at}`.
-- **`pdf_items`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{doc_id, text, position, app_key, metadata}`.
-- **`help_docs`** — One point per documentation file. Vector: average of item embeddings. Payload: `{title, file_path, section, language, items, is_internal, metadata}`.
-- **`help_items`** — One point per chunk of documentation. Vector: chunk embedding. Payload: `{doc_id, text, position, heading, language, is_internal, metadata}`.
+- **`library_summaries`** — One point per conversation/document. Payload: `{conversation_id, visibility, content_type, source, title, language, license, topics, messages, participants, ...}`. Used as the cascade entry point for retrieval and as the source-of-truth for the Knowledge Base browse list.
+- **`library_turns`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{conversation_id, visibility, turn_idx, speaker_id, text, ...}`. Main RAG retrieval unit consumed by the `library_search` tool.
+- **`library_trajectory`** — One point per sliding-window discourse fragment. Used by the trajectory visualizer.
+- **`help_docs` / `help_items`** — Points for the Monadic Help documentation index. Built into the Ruby image at packaging time and loaded once on first start.
 
 All collections use 768-dimensional vectors with cosine distance and HNSW indexing for fast filtered search.
 
-## App-Level Isolation :id=app-isolation
+## Visibility Filtering :id=visibility
 
-PDFs uploaded via different apps remain separate. Each upload is tagged with an `app_key` in its payload (for example `pdfnavigatoropenai`), and queries always include an `app_key` filter. This preserves the privacy guarantee that the prior per-database design provided, without requiring multiple physical databases.
+Library entries carry a `visibility` payload of either `personal` or `shareable`. The Knowledge Base UI sees both, while the cross-app `library_search` tool only returns `shareable` entries. This replaces the previous per-app PDF isolation model — the Library is project-wide and gates external access through the visibility flag rather than separate physical databases.
 
-## Use in PDF Navigator :id=use-in-pdf-navigator
+## Use in the Knowledge Base :id=use-in-knowledge-base
 
-The PDF Navigator app leverages this system to provide document Q&A:
+The Knowledge Base app uses this system to provide unified content Q&A:
 
-1. Users upload PDF documents via the UI
-2. The system extracts, chunks, embeds, and stores them
-3. Users ask questions about the document content
-4. The system retrieves the most relevant segments using vector similarity search
-5. The segments are provided to the LLM to generate informative answers
+1. Users save the current chat session or click **Import file** in the Browse modal
+2. The system extracts, chunks, embeds, and stores the content (PDFs via PyMuPDF, Office via python-docx/openpyxl/python-pptx, Markdown/code directly)
+3. Users ask questions about the content; other apps can ask too via `library_search` when the user has flipped the entry to `shareable`
+4. The system retrieves the most relevant chunks using a cascade query (summaries → turns) over the Qdrant collections above
+5. Retrieved chunks are passed to the LLM to ground its answer
 
-The app displays which document and text segment was used for each answer, clearly communicating the source of information to users.
-
-?> For information about PDF storage mode options (local vs. cloud), see the [PDF Storage](../basic-usage/pdf_storage.md) documentation.
+Imported files are also persisted under `~/monadic/data/library/imports/` for traceability.
 
 ## Use in Monadic Help :id=use-in-monadic-help
 

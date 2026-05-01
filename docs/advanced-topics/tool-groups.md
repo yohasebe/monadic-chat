@@ -46,7 +46,7 @@ These tool groups are always available and don't require additional setup:
 - Extract text from PDF files
 - Extract text from Office documents (Word, Excel, PowerPoint)
 
-**Apps using this**: Research Assistant, Content Reader, Chat Plus
+**Apps using this**: Research Assistant, Chat Plus
 
 #### Planning (1 tool)
 - Propose structured execution plans for complex multi-step tasks

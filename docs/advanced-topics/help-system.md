@@ -32,7 +32,7 @@ Both containers start automatically with Monadic Chat. The chat model used to ge
 ### Common Questions :id=common-questions
 
 - "How do I generate graphs?" → Will suggest Math Tutor or Mermaid Grapher apps
-- "How can I work with PDFs?" → Will explain PDF Navigator app
+- "How can I work with PDFs?" → Will explain how to import the PDF into the Knowledge Base
 - "What voice features are available?" → Will describe Voice Chat and speech synthesis options
 
 ## Building the Help Database :id=building-help-database

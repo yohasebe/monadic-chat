@@ -27,8 +27,6 @@ RSpec.describe 'Knowledge Base app variants' do
     library_stats
     update_conversation_visibility
     delete_conversation_from_library
-    plot_conversation_trajectory
-    plot_cross_corpus_trajectory
     import_conversation_from_text
   ].freeze
 

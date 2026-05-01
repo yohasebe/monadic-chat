@@ -242,7 +242,7 @@ module Monadic
       end
 
       # Try parsing a String as JSON. If it fails, return the string as-is
-      # so importers like PlainText / TedTalk (Python repr) can take over.
+      # so importers like PlainText can take over.
       def parse_input(input)
         return input unless input.is_a?(String)
         return input if input.strip.empty?

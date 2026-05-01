@@ -19,22 +19,21 @@ module Monadic
       PDF_DOCS = 'pdf_docs'
       PDF_ITEMS = 'pdf_items'
 
-      # Library (Phase 1a) collections. The Library subsystem stores
-      # conversations and documents as a hierarchical embedding tree:
+      # Library collections. The Library subsystem stores conversations
+      # and documents as a hierarchical embedding tree:
       #   library_summaries — one point per conversation, conv-level index
-      #     plus Level 3 summary embedding
-      #   library_turns      — Level 2, the main RAG retrieval unit
-      #   library_trajectory — Level T, sliding-window discourse trajectory
-      #   library_messages   — Level 1, message-level (reserved for Phase 1b+)
+      #     plus the summary embedding used as the cascade entry
+      #   library_turns      — main RAG retrieval unit consumed by
+      #     library_search
+      #   library_messages   — message-level (reserved for future
+      #     fine-grained retrieval; not populated by the current ingest)
       LIBRARY_SUMMARIES = 'library_summaries'
       LIBRARY_TURNS = 'library_turns'
-      LIBRARY_TRAJECTORY = 'library_trajectory'
       LIBRARY_MESSAGES = 'library_messages'
 
       LIBRARY_COLLECTIONS = [
         LIBRARY_SUMMARIES,
         LIBRARY_TURNS,
-        LIBRARY_TRAJECTORY,
         LIBRARY_MESSAGES
       ].freeze
 
@@ -84,14 +83,6 @@ module Monadic
           ]
         },
         LIBRARY_TURNS => {
-          vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
-          payload_indexes: [
-            { field: 'conversation_id', schema: 'keyword' },
-            { field: 'visibility', schema: 'keyword' },
-            { field: 'turn_idx', schema: 'integer' }
-          ]
-        },
-        LIBRARY_TRAJECTORY => {
           vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
           payload_indexes: [
             { field: 'conversation_id', schema: 'keyword' },

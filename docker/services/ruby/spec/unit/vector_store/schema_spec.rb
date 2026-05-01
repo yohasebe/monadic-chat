@@ -9,13 +9,13 @@ RSpec.describe Monadic::VectorStore::Schema do
       expect(described_class::ALL_COLLECTIONS).to contain_exactly(
         'help_docs', 'help_items',
         'pdf_docs', 'pdf_items',
-        'library_summaries', 'library_turns', 'library_trajectory', 'library_messages'
+        'library_summaries', 'library_turns', 'library_messages'
       )
     end
 
-    it 'exposes LIBRARY_COLLECTIONS as a 4-element subset of ALL_COLLECTIONS' do
+    it 'exposes LIBRARY_COLLECTIONS as a subset of ALL_COLLECTIONS' do
       expect(described_class::LIBRARY_COLLECTIONS).to contain_exactly(
-        'library_summaries', 'library_turns', 'library_trajectory', 'library_messages'
+        'library_summaries', 'library_turns', 'library_messages'
       )
       expect(described_class::ALL_COLLECTIONS).to include(*described_class::LIBRARY_COLLECTIONS)
     end

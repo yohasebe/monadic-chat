@@ -22,11 +22,10 @@ RSpec.describe Monadic::Library::Store do
   end
 
   describe 'collection identifiers' do
-    it 'tracks the four Library collections' do
+    it 'tracks the Library collections' do
       expect(described_class::COLLECTIONS).to contain_exactly(
         'library_summaries',
         'library_turns',
-        'library_trajectory',
         'library_messages'
       )
     end
@@ -43,7 +42,6 @@ RSpec.describe Monadic::Library::Store do
       end
 
       expect(vector_store).to receive(:create_collection).with(hash_including(name: 'library_summaries'))
-      expect(vector_store).to receive(:create_collection).with(hash_including(name: 'library_trajectory'))
       expect(vector_store).to receive(:create_collection).with(hash_including(name: 'library_messages'))
       expect(vector_store).not_to receive(:create_collection).with(hash_including(name: 'library_turns'))
 

@@ -106,10 +106,13 @@ module Monadic
       # Page through a Library collection. Mirrors the underlying Qdrant
       # scroll API: returns { points: [...], next: cursor_or_nil }. Used by
       # Manager to enumerate the conversation list and similar batch ops.
-      def scroll(collection:, filter: nil, limit: 256, offset: nil)
+      # Set with_vectors: true when callers (e.g. Visualizer) need the raw
+      # embeddings on each point.
+      def scroll(collection:, filter: nil, limit: 256, offset: nil, with_vectors: false)
         ensure_library_collection!(collection)
         bootstrap_collections!
-        @store.scroll(collection: collection, filter: filter, limit: limit, offset: offset)
+        @store.scroll(collection: collection, filter: filter, limit: limit, offset: offset,
+                      with_vectors: with_vectors)
       end
 
       # ─── Filter helpers (public so higher-level modules can compose) ───

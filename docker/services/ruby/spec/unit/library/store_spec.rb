@@ -192,13 +192,21 @@ RSpec.describe Monadic::Library::Store do
       expect(vector_store).to receive(:scroll).with(
         collection: 'library_summaries',
         filter: { must: [{ key: 'visibility', match: { value: 'shareable' } }] },
-        limit: 50, offset: 'cur-prev'
+        limit: 50, offset: 'cur-prev', with_vectors: false
       )
       store.scroll(
         collection: 'library_summaries',
         filter: store.visibility_filter(:external),
         limit: 50, offset: 'cur-prev'
       )
+    end
+
+    it 'forwards with_vectors when callers ask for raw embeddings' do
+      allow(vector_store).to receive(:scroll).and_return(page)
+      expect(vector_store).to receive(:scroll).with(
+        hash_including(collection: 'library_summaries', with_vectors: true)
+      )
+      store.scroll(collection: 'library_summaries', with_vectors: true)
     end
 
     it 'returns the underlying page hash unchanged' do

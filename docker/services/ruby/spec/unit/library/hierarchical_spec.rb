@@ -44,18 +44,15 @@ RSpec.describe Monadic::Library::Hierarchical do
   describe '.ingest (default levels)' do
     it 'reports counts for each level it produced' do
       counts = described_class.ingest(two_party_chat, store: store)
-      expect(counts).to eq(summary: 1, turns: 4, trajectory: 4)
+      expect(counts).to eq(summary: 1, turns: 4)
     end
 
-    it 'upserts to all three Library collections' do
+    it 'upserts to summary and turn Library collections' do
       expect(vector_store).to receive(:upsert_points).with(
         hash_including(collection: 'library_summaries')
       )
       expect(vector_store).to receive(:upsert_points).with(
         hash_including(collection: 'library_turns')
-      )
-      expect(vector_store).to receive(:upsert_points).with(
-        hash_including(collection: 'library_trajectory')
       )
       described_class.ingest(two_party_chat, store: store)
     end
@@ -130,26 +127,12 @@ RSpec.describe Monadic::Library::Hierarchical do
     end
   end
 
-  describe 'trajectory payload' do
-    it 'includes the window range and is one point per turn' do
-      captured = nil
-      allow(vector_store).to receive(:upsert_points) do |args|
-        captured = args if args[:collection] == 'library_trajectory'
-      end
-      described_class.ingest(two_party_chat, store: store, levels: %i[trajectory], window_size: 2)
-      payloads = captured[:points].map { |p| p[:payload] }
-      expect(payloads.size).to eq(4)
-      expect(payloads.map { |p| p['turn_idx'] }).to eq([0, 1, 2, 3])
-      expect(payloads.map { |p| p['window_size'] }).to eq([1, 2, 2, 2])
-    end
-  end
-
   describe 'level selection' do
     it 'skips summary when not requested' do
       expect(vector_store).not_to receive(:upsert_points).with(
         hash_including(collection: 'library_summaries')
       )
-      counts = described_class.ingest(two_party_chat, store: store, levels: %i[turns trajectory])
+      counts = described_class.ingest(two_party_chat, store: store, levels: %i[turns])
       expect(counts[:summary]).to eq(0)
     end
 
@@ -157,25 +140,22 @@ RSpec.describe Monadic::Library::Hierarchical do
       expect(vector_store).to receive(:upsert_points).with(
         hash_including(collection: 'library_turns')
       )
-      expect(vector_store).not_to receive(:upsert_points).with(
-        hash_including(collection: 'library_trajectory')
-      )
       counts = described_class.ingest(two_party_chat, store: store, levels: %i[turns])
-      expect(counts).to eq(summary: 0, turns: 4, trajectory: 0)
+      expect(counts).to eq(summary: 0, turns: 4)
     end
   end
 
-  describe 'monologue (TED Talk) ingest' do
+  describe 'monologue ingest' do
     let(:talk) do
       {
         'format_version' => '1.0',
         'conversation_id' => 'talk-1',
         'conversation_metadata' => {
-          'source' => 'ted-talk', 'language' => 'en', 'license' => 'CC-BY-NC-ND-4.0',
+          'source' => 'plain-text', 'language' => 'en', 'license' => 'private',
           'duration_seconds' => 60
         },
         'participants' => [
-          { 'id' => 'speaker-1', 'role' => 'narrator', 'description' => 'TED_speaker' }
+          { 'id' => 'speaker-1', 'role' => 'narrator', 'description' => 'narrator' }
         ],
         'messages' => (1..5).map { |i|
           { 'id' => "m#{i}", 'speaker' => { 'id' => 'speaker-1' },
@@ -186,9 +166,8 @@ RSpec.describe Monadic::Library::Hierarchical do
     end
 
     it 'produces one turn per segment for monologues' do
-      counts = described_class.ingest(talk, store: store, levels: %i[turns trajectory])
+      counts = described_class.ingest(talk, store: store, levels: %i[turns])
       expect(counts[:turns]).to eq(5)
-      expect(counts[:trajectory]).to eq(5)
     end
   end
 
@@ -212,10 +191,10 @@ RSpec.describe Monadic::Library::Hierarchical do
   end
 
   describe 'empty conversation' do
-    it 'produces only summary and zero turn / trajectory points' do
+    it 'produces only summary and zero turn points' do
       empty = two_party_chat.merge('messages' => [])
       counts = described_class.ingest(empty, store: store)
-      expect(counts).to eq(summary: 1, turns: 0, trajectory: 0)
+      expect(counts).to eq(summary: 1, turns: 0)
     end
   end
 end

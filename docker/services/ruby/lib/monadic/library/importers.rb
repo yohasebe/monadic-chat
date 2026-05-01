@@ -14,7 +14,6 @@ require_relative 'importers/chatml'
 require_relative 'importers/anthropic_messages'
 require_relative 'importers/gemini_contents'
 require_relative 'importers/monadic_chat_export'
-require_relative 'importers/ted_talk'
 require_relative 'importers/plain_text'
 require_relative 'importers/markdown'
 require_relative 'importers/code'
@@ -30,13 +29,11 @@ module Monadic
       #   - MonadicChatExport (requires both 'parameters' and 'messages')
       #   - AnthropicMessages (only 'user' / 'assistant' roles)
       #   - GeminiContents (uses 'contents' + 'parts')
-      #   - TedTalk (segments with 'text' + 'start')
       #   - ChatML (catch-all for 'user/assistant/system/tool' role hashes)
       #   - PlainText (last resort, string input only)
       REGISTRY = [
         MonadicChatExport,
         GeminiContents,
-        TedTalk,
         AnthropicMessages,
         ChatML,
         PlainText

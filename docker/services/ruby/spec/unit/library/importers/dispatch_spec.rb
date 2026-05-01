@@ -16,11 +16,6 @@ RSpec.describe Monadic::Library::Importers, '.dispatch / .detect' do
     expect(schema.valid?(result)).to be true
   end
 
-  it 'dispatches a TED transcript to TedTalk' do
-    input = [{ 'text' => 'opening line', 'start' => 0.0, 'duration' => 2.0 }]
-    expect(described_class.detect(input)).to eq(Monadic::Library::Importers::TedTalk)
-  end
-
   it 'dispatches Gemini contents to GeminiContents' do
     input = { 'contents' => [{ 'role' => 'user', 'parts' => [{ 'text' => 'hi' }] }] }
     expect(described_class.detect(input)).to eq(Monadic::Library::Importers::GeminiContents)

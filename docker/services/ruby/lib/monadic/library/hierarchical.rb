@@ -5,46 +5,42 @@ require 'securerandom'
 require 'time'
 
 require_relative 'turn_segmenter'
-require_relative 'trajectory'
 
 module Monadic
   module Library
     # Orchestrates the hierarchical embedding pipeline. Takes a
-    # monadic-conversation v1 hash, segments it into turns, builds
-    # trajectory windows, embeds everything via the embeddings client, and
-    # upserts into the four Library Qdrant collections through Store.
+    # monadic-conversation v1 hash, segments it into turns, embeds
+    # everything via the embeddings client, and upserts into the
+    # Library Qdrant collections through Store.
     #
     # Levels:
-    #   :summary     — one point per conversation (Phase 1a uses a
-    #                  placeholder embedding from the first 1-2 turns;
-    #                  Phase 1b will swap in real LLM-generated summaries)
-    #   :turns       — Level 2, the main RAG retrieval unit
-    #   :trajectory  — Level T, sliding-window discourse state
+    #   :summary  — one point per conversation (placeholder embedding
+    #               from the first 1-2 turns; replace with LLM-generated
+    #               summaries in a future phase without breaking the
+    #               vector + metadata flow)
+    #   :turns    — main RAG retrieval unit consumed by library_search
     #
-    # Level 1 (per-message) is reserved for Phase 1b+ and not produced
-    # here.
+    # Per-message embeddings are reserved for a future phase and not
+    # produced here.
     module Hierarchical
       module_function
 
-      DEFAULT_LEVELS = %i[summary turns trajectory].freeze
-      DEFAULT_WINDOW_SIZE = Trajectory::DEFAULT_WINDOW_SIZE
+      DEFAULT_LEVELS = %i[summary turns].freeze
 
       # @param conversation [Hash] monadic-conversation v1 conformant
       # @param store [Monadic::Library::Store]
       # @param visibility ['personal' | 'shareable']
       # @param levels [Array<Symbol>] subset of DEFAULT_LEVELS
-      # @param window_size [Integer] trajectory window size in turns
       # @return [Hash] counts of upserted points per level
       def ingest(conversation,
                  store:,
                  visibility: Store::VISIBILITY_PERSONAL,
-                 levels: DEFAULT_LEVELS,
-                 window_size: DEFAULT_WINDOW_SIZE)
+                 levels: DEFAULT_LEVELS)
         validate_inputs!(conversation, visibility)
         embeddings = store.embeddings
         conv_id = conversation['conversation_id']
         turns = TurnSegmenter.segment(conversation)
-        counts = { summary: 0, turns: 0, trajectory: 0 }
+        counts = { summary: 0, turns: 0 }
 
         if levels.include?(:summary)
           counts[:summary] = upsert_summary(conversation, turns, conv_id, visibility, store, embeddings)
@@ -52,10 +48,6 @@ module Monadic
 
         if levels.include?(:turns) && !turns.empty?
           counts[:turns] = upsert_turns(turns, conv_id, visibility, store, embeddings)
-        end
-
-        if levels.include?(:trajectory) && !turns.empty?
-          counts[:trajectory] = upsert_trajectory(turns, conv_id, visibility, store, embeddings, window_size)
         end
 
         counts
@@ -187,34 +179,6 @@ module Monadic
           points: points
         )
         turns.size
-      end
-
-      def trajectory_payload(window, conv_id, visibility)
-        {
-          'conversation_id' => conv_id,
-          'visibility' => visibility.to_s,
-          'turn_idx' => window[:turn_idx],
-          'start_turn_idx' => window[:start_turn_idx],
-          'end_turn_idx' => window[:end_turn_idx],
-          'window_size' => window[:window_size]
-        }
-      end
-
-      def upsert_trajectory(turns, conv_id, visibility, store, embeddings, window_size)
-        windows = Trajectory.build_windows(turns, window_size: window_size)
-        vectors = embeddings.embed_passages(windows.map { |w| w[:text] })
-        points = windows.each_with_index.map do |window, idx|
-          {
-            id: SecureRandom.uuid,
-            vector: { 'content' => vectors[idx] },
-            payload: trajectory_payload(window, conv_id, visibility)
-          }
-        end
-        store.upsert_points(
-          collection: VectorStore::Schema::LIBRARY_TRAJECTORY,
-          points: points
-        )
-        windows.size
       end
     end
   end

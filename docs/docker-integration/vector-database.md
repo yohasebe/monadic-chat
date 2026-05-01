@@ -43,7 +43,6 @@ Here is the processing flow in the Knowledge Base import pipeline:
 3. **Vector Storage**:
    - Each chunk becomes a Qdrant point under the `library_turns` collection, with the embedding as the vector and `{conversation_id, visibility, turn_idx, text, ...}` as payload
    - A conversation-level point lives in the `library_summaries` collection with title, source, content_type, and a placeholder summary embedding, enabling document-level cascade retrieval
-   - A `library_trajectory` collection holds sliding-window discourse vectors used by the trajectory visualizer
 
 4. **Retrieval Process**:
    - When a user asks a question, the query is embedded with the same model (with the `query:` prefix)
@@ -57,7 +56,6 @@ Qdrant organises data into named collections. Monadic Chat uses the following:
 
 - **`library_summaries`** — One point per conversation/document. Payload: `{conversation_id, visibility, content_type, source, title, language, license, topics, messages, participants, ...}`. Used as the cascade entry point for retrieval and as the source-of-truth for the Knowledge Base browse list.
 - **`library_turns`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{conversation_id, visibility, turn_idx, speaker_id, text, ...}`. Main RAG retrieval unit consumed by the `library_search` tool.
-- **`library_trajectory`** — One point per sliding-window discourse fragment. Used by the trajectory visualizer.
 - **`help_docs` / `help_items`** — Points for the Monadic Help documentation index. Built into the Ruby image at packaging time and loaded once on first start.
 
 All collections use 768-dimensional vectors with cosine distance and HNSW indexing for fast filtered search.

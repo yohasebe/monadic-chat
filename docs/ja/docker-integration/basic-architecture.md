@@ -72,18 +72,17 @@ Seleniumを使用して仮想的なWebブラウザを操作して、Webページ
 - **主な機能**: Chromeブラウザの自動化、Webスクレイピング
 - **このコンテナを使用するアプリ**: 
   - `Code Interpreter` - Webスクレイピングタスクに使用可能
-  - `Content Reader` - WebページからのコンテンツのフェッチとExtraction
   - `Mermaid Grapher` - Mermaid図の検証とプレビュースクリーンショットの作成
   - `Research Assistant` - 情報収集のためのWebスクレイピングを使用
   - `Web Insight` - Webページのスクリーンショット撮影とテキストコンテンツ抽出
   - `fetch_html_content`または`selenium_agent`ツールを使用するアプリ
 
 ### Qdrantコンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
-PDF チャンクとヘルプシステムインデックスを格納する Qdrant ベクトルデータベースを実行するコンテナです。
+Knowledge Base のチャンクとヘルプシステムインデックスを格納する Qdrant ベクトルデータベースを実行するコンテナです。
 - **ポート**: 6333（ホスト） → 6333（REST）、6334 → 6334（gRPC）。dev モードでのみ公開
 - **主な機能**: HNSW インデックス付きベクトル類似度検索、payload フィルタリング、マルチベクトル格納
 - **このコンテナを使用するアプリ**:
-  - `PDF Navigator` - エンベディングを使用した PDF コンテンツの保存と検索
+  - `Knowledge Base` - PDF / Office / Markdown / コード / チャットセッションのインポート内容をエンベディングで保存・検索
   - `Monadic Help` - ベクトル類似度を使用したドキュメント検索
   - `Monadic::VectorStore` を使用するカスタム RAG アプリ
 
@@ -91,7 +90,7 @@ PDF チャンクとヘルプシステムインデックスを格納する Qdrant
 `intfloat/multilingual-e5-base` sentence-transformer モデルをラップする小さな FastAPI サービスを実行します。
 - **ポート**: 8002（ホスト） → 8000（コンテナ）。dev モードでのみ公開
 - **主な機能**: 英語、日本語など多言語に対応するローカル 768 次元テキスト埋め込み
-- **このコンテナを使用するアプリ**: Qdrant と同じ（PDF Navigator、Monadic Help、カスタム RAG）
+- **このコンテナを使用するアプリ**: Qdrant と同じ（Knowledge Base、Monadic Help、カスタム RAG）
 - 外部 API キー不要。埋め込み推論はホスト CPU 上で完結します。
 
 
@@ -117,12 +116,12 @@ PDF チャンクとヘルプシステムインデックスを格納する Qdrant
 - LaTeXレンダリングを使用するアプリ
 
 **Seleniumコンテナ**: 以下に必要：
-- Webコンテンツの取得（Content Reader、Research Assistant）
+- Webコンテンツの取得（Research Assistant、Web Insight）
 - Mermaid図の検証とプレビュー
 - Webスクレイピング機能
 
 **Qdrant + Embeddings コンテナ**: 以下に必要：
-- PDF コンテンツ検索（PDF Navigator）
+- Knowledge Base（ファイルインポート + 保存したチャットセッション）
 - ヘルプシステム（Monadic Help）
 - カスタム RAG アプリケーション
 

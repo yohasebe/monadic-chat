@@ -35,8 +35,7 @@ The table below shows which apps are available for which AI model providers.
 | Speech Draft Helper | ✅ | | | | | | | | |
 | Web Insight | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Video Describer | ✅ | | | | | | | | |
-| PDF Navigator | ✅ | | | | | | | | |
-| Content Reader | ✅ | | | | | | | | |
+| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
@@ -434,63 +433,38 @@ Get a detailed description of any video's content. The app analyzes a video by e
 To use this app, place a video file in the `Shared Folder`, provide its name, and specify the frames per second (fps) for the analysis.
 
 
-### PDF Navigator
+### Knowledge Base
 
-![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
+A unified, project-wide library of conversations and documents. The Knowledge Base is shared across every Monadic Chat app, so anything you save here can be retrieved later from any chat session.
 
-Ask questions about the content of your PDF files. After you upload a PDF, the app divides the content into smaller segments and creates text embeddings for each. When you ask a question, the app finds the most relevant segment and provides it to the AI to generate a well-informed answer.
+The Knowledge Base replaces the previous PDF Navigator and Content Reader apps. Their functionality is consolidated into a single subsystem that handles conversation transcripts, PDFs, Office files, Markdown, and source code uniformly.
 
-**Key Features:**
-- **Vector database integration**: Connects to the local Qdrant store through the `@embeddings_db` instance variable (a `Monadic::Pdf::Store` scoped to this app)
-- **Multiple search methods**: Can find closest text snippets, documents, or retrieve specific segments
-- **Document management**: List all uploaded PDFs and navigate through different documents
-- **Contextual retrieval**: Finds the most relevant text segments based on semantic similarity
+**Two ways to add content:**
 
-**Available Functions:**
-- `find_closest_text`: Search for text snippets most similar to your query
-- `find_closest_doc`: Find entire documents most relevant to your query
-- `list_titles`: View all PDFs currently in the database
-- `get_text_snippet`: Retrieve a specific text segment by position
-- `get_text_snippets`: Get all text segments from a specific document
+1. **Save the current chat session** — the **Save** button in the sidebar serialises the active conversation (messages + participants + metadata) into the Knowledge Base.
+2. **Import a file** — open the Knowledge Base Browser and click **Import file** to upload one of the supported formats below. The file is extracted, chunked, embedded, and stored as a single conversation entry that you can search, view, and rename.
 
-?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files. Extracted text is embedded locally with `multilingual-e5-base` and stored in [Qdrant](https://qdrant.tech) (collections: `pdf_docs` and `pdf_items`, scoped per app via the `app_key` payload field). For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation. For information about storage mode options (local vs. cloud), see [PDF Storage](./pdf_storage.md).
+**Supported import formats:**
 
-**Configuration Options:**
+| Format | Extensions | Notes |
+|---|---|---|
+| Markdown | `.md`, `.markdown`, `.mdx` | YAML frontmatter is promoted into metadata; ATX headings drive section boundaries. |
+| Source code | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql`, and others | Top-level `def`/`class`/`func`/etc. mark chunk boundaries. The programming language is recorded as a topic. |
+| PDF | `.pdf` | Text and structure are extracted via PyMuPDF (`pymupdf4llm.to_markdown`). PDF metadata title becomes the conversation title. |
+| Office | `.docx`, `.xlsx`, `.pptx` | Word paragraphs, Excel sheets, and PowerPoint slides each become a chunk. The Browse modal shows a per-format icon (Word / Excel / PowerPoint). |
 
-PDF Navigator behavior can be customized via environment variables in `~/monadic/config/env`:
+**Visibility model:**
 
-- `PDF_RAG_TOKENS`: Number of tokens per chunk
-- `PDF_RAG_OVERLAP_LINES`: Number of lines to overlap between chunks
+Each entry is either `personal` (visible only inside the Knowledge Base UI) or `shareable` (retrievable from any other Monadic Chat app via the `library_search` tool). Click the rotate icon in the Browse table or the **Make shareable / Make personal** button in the Conversation Viewer to toggle.
 
-<!-- SCREENSHOT: Chat interface showing Import PDF button in the message input area -->
+**Other features:**
 
-When you import a PDF, a dialog allows you to provide a display name for the document. The PDF is then processed and added to the vector database.
+- **Rename** — open the Conversation Viewer, click the pencil icon next to the title, edit, and save. The Browse table updates immediately.
+- **Inventory and stats** — the sidebar shows the most recent saves and total counts. The Browse modal supports search, filtering by visibility, and sorting.
+- **Conversation Viewer** — clicking a row opens a verbatim playback of every message, with system prompts collapsed behind a `<details>` block.
+- **RAG opt-in (per session)** — the **Use Knowledge Base for retrieval** toggle in any chat session lets the LLM call `library_search` against `shareable` entries while answering. Off by default; locks for the duration of the session once you send the first message.
 
-<!-- SCREENSHOT: PDF import dialog showing file selection and optional display name field -->
-
-The PDF Database panel (visible when using PDF Navigator app) shows all uploaded PDFs with their display names and allows you to delete individual documents.
-
-<!-- SCREENSHOT: PDF database panel listing uploaded PDFs with display names and delete icons -->
-
-
-### Content Reader
-
-![Content Reader app icon](../assets/icons/content-reader.png ':size=40')
-
-Have an AI chatbot explain the content of files or web URLs in a clear, beginner-friendly way. You can upload files (like PDFs, Word documents, or code) or simply mention a URL in your prompt, and the app will automatically retrieve the content for the AI to discuss.
-
-To specify a file for the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file, verify the file name and ensure it's accessible from the current code execution environment.
-
-Supported file formats:
-
-- PDF
-- Microsoft Word (docx)
-- Microsoft PowerPoint (pptx)
-- Microsoft Excel (xlsx)
-- CSV
-- Text (txt)
-
-The app can also recognize and describe image files (PNG, JPEG, etc.). Image recognition uses the vision capability of the currently selected model (automatically falls back to a vision-capable model if needed). Additionally, audio files (MP3, etc.) can be transcribed to text. Speech recognition uses the STT model selected in the Speech Settings Panel of the Web UI.
+?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (PyMuPDF / python-docx / openpyxl / python-pptx); imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
 
 ## Code Generation :id=code-generation

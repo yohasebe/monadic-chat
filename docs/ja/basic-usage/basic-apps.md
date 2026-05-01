@@ -35,8 +35,7 @@
 | Speech Draft Helper | ✅ | | | | | | | | |
 | Web Insight | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Video Describer | ✅ | | | | | | | | |
-| PDF Navigator | ✅ | | | | | | | | |
-| Content Reader | ✅ | | | | | | | | |
+| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
@@ -401,46 +400,38 @@ Web Insightの対応プロバイダーは冒頭の表を参照してください
 このアプリを使用するには、ユーザーは動画ファイルを`Shared Folder`に格納して、ファイル名を伝える必要があります。また、フレーム抽出のための秒間フレーム数（fps）を指定する必要があります。
 
 
-### PDF Navigator
+### Knowledge Base
 
-![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
+プロジェクト全体で共有される、会話とドキュメントの統合ライブラリです。Knowledge Base はすべての Monadic Chat アプリから参照可能なため、ここに保存した内容はどのチャットセッションからも検索・引用できます。
 
-PDFファイルを読み込み、その内容に基づいてユーザーの質問に答えるアプリケーションです。`Upload PDF` ボタンをクリックしてファイルを指定してください。ファイルの内容はmax_tokensの長さのセグメントに分割され、セグメントごとにテキストエンベディングが計算されます。ユーザーからの入力を受け取ると、入力文のテキストエンベディング値に最も近いテキストセグメントがユーザーの入力値とともにAIモデルに渡され、その内容に基づいて回答が生成されます。
+Knowledge Base は従来の PDF Navigator と Content Reader を置き換えるサブシステムです。会話のトランスクリプト、PDF、Office ファイル、Markdown、ソースコードを単一のインターフェースで扱えるようにまとめています。
 
-?> PDF ファイルからのテキスト抽出には、[PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) ライブラリが使用されます。抽出したテキストはローカルで `multilingual-e5-base` により埋め込まれ、[Qdrant](https://qdrant.tech)（コレクション：`pdf_docs` と `pdf_items`、payload の `app_key` フィールドでアプリ単位にスコープ）に保存されます。ベクトルデータベース関連の実装に関する詳細は、[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。ストレージモードオプション（ローカル vs クラウド）については、[PDFストレージ](./pdf_storage.md)を参照してください。
+**コンテンツの追加方法は 2 通り:**
 
-**設定オプション：**
+1. **現在のチャットセッションを保存** — サイドバーの **Save** ボタンで、進行中の会話 (メッセージ + 参加者 + メタデータ) を Knowledge Base にシリアライズします。
+2. **ファイルをインポート** — Knowledge Base Browser を開き、**Import file** ボタンから対応形式のファイルをアップロードします。ファイルは抽出・チャンク分割・埋め込みされ、検索・閲覧・リネーム可能な 1 件の会話エントリとして保存されます。
 
-PDF Navigatorの動作は`~/monadic/config/env`の環境変数でカスタマイズできます：
+**インポート対応フォーマット:**
 
-- `PDF_RAG_TOKENS`: チャンクあたりのトークン数
-- `PDF_RAG_OVERLAP_LINES`: チャンク間でオーバーラップする行数
+| フォーマット | 拡張子 | 備考 |
+|---|---|---|
+| Markdown | `.md`, `.markdown`, `.mdx` | YAML フロントマターはメタデータに昇格、ATX 見出しでセクション分割 |
+| ソースコード | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql` ほか | トップレベルの `def`/`class`/`func` などをチャンク境界とみなす。プログラミング言語は topic に記録 |
+| PDF | `.pdf` | PyMuPDF (`pymupdf4llm.to_markdown`) で本文と構造を抽出。PDF メタデータの title が会話タイトルになる |
+| Office | `.docx`, `.xlsx`, `.pptx` | Word の段落、Excel のシート、PowerPoint のスライド単位でチャンク化。Browse モーダルではフォーマット別アイコン (Word / Excel / PowerPoint) で表示 |
 
-<!-- SCREENSHOT: PDF Navigatorアプリ画面 - Upload PDFボタンがハイライトされ、PDFアップロード機能が利用可能な様子 -->
+**可視性 (visibility) モデル:**
 
-<!-- SCREENSHOT: PDFインポートダイアログ - PDFファイルを選択するダイアログと表示名入力フィールドが表示されている様子 -->
+各エントリは `personal` (Knowledge Base UI 内のみ) または `shareable` (他アプリから `library_search` ツール経由で検索可能) のどちらかです。Browse の rotate アイコン、または Conversation Viewer の **Make shareable / Make personal** ボタンで切り替えできます。
 
-<!-- SCREENSHOT: PDFデータベースパネル - アップロード済みPDFファイルのリストと各ファイル名の右側にゴミ箱アイコンが表示されている様子 -->
+**その他の機能:**
 
+- **リネーム** — Conversation Viewer を開き、タイトル横の鉛筆アイコンをクリック、編集して保存。Browse テーブルも即座に反映します。
+- **インベントリと統計** — サイドバーには直近の保存とトータル件数。Browse モーダルでは検索・可視性フィルター・ソートが可能。
+- **Conversation Viewer** — 行をクリックすると全メッセージの逐語表示。システムプロンプトは `<details>` で折り畳み済みで開きます。
+- **RAG オプトイン (セッション単位)** — 任意のチャットセッションで **Use Knowledge Base for retrieval** トグルを ON にすると、LLM が応答中に `library_search` で `shareable` エントリを参照できます。デフォルト OFF、最初のメッセージ送信でセッション中はロックされます。
 
-### Content Reader
-
-![Content Reader app icon](../assets/icons/content-reader.png ':size=40')
-
-提供されたファイルやWeb URLの内容を調べて説明するAIチャットボットを特徴とするアプリケーションです。説明は、わかりやすく、初心者にも理解しやすいように提示されます。ユーザーは、プログラミングコードを含む、さまざまなテキストデータを含むファイルやURLをアップロードすることができます。プロンプトメッセージにURLが記載されている場合、アプリは自動的にコンテンツを取得し、AIとの会話にシームレスに統合します。
-
-AIに読み込ませたいファイルを指定するには、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることをメッセージ中で伝えてください。
-
-`Shared Folder`から、下記のフォーマットのファイルを読み込むことができます。
-
-- PDF
-- Microsoft Word (docx)
-- Microsoft PowerPoint (pptx)
-- Microsoft Excel (xlsx)
-- CSV
-- Text (txt)
-
-PNGやJPEGなどの画像ファイルを読み込んで、その内容を認識・説明させることもできます。画像認識には、選択されているモデルのビジョン機能が使用されます（必要に応じて自動的にビジョン対応モデルにフォールバック）。また、MP3などの音声ファイルを読み込んで、内容をテキストに書き出すことも可能です。音声認識には、Web UIのSpeech Settings Panelで選択されているSTTモデルが使用されます。
+?> Knowledge Base はローカル埋め込み (`multilingual-e5-base`) と Qdrant ベクトルストアを使用します。インポートは Python コンテナ内で実行され (PyMuPDF / python-docx / openpyxl / python-pptx)、アップロードしたファイルは追跡用に `~/monadic/data/library/imports/` にも保存されます。ストレージ内部の詳細は[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
 
 
 ## コード生成 :id=code-generation

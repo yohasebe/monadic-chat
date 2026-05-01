@@ -102,10 +102,12 @@
 - 音声ファイル
 - 動画ファイル
 
-**Content Readerアプリ経由**:
-- Officeドキュメント（Word、Excel、PowerPoint）
-- テキストファイル
-- ウェブコンテンツのURL
+**Knowledge Base 経由**（`Import file`）:
+- Office ドキュメント（.docx / .xlsx / .pptx）
+- PDF
+- Markdown
+- ソースコードファイル
+- チャットセッション（**Save** ボタンで保存）
 
 **処理方法**:
 - 直接分析（ビジョンモデル）
@@ -121,10 +123,10 @@
    - ビジョン対応モデルで動作
    - 単一PDFに最適
 
-2. **PDF Navigatorアプリ**
-   - PDFをベクトルデータベースにインポート
-   - セマンティック検索が可能
-   - 大量のドキュメントコレクションに最適
+2. **Knowledge Base**
+   - Browse モーダルを開いて **Import file** から PDF を取り込む
+   - プロジェクト全体のベクトルデータベースに格納されてセマンティック検索が可能
+   - 大量のドキュメントコレクションに最適。エントリを `shareable` にしておけば他のアプリからも同じ Library を参照できる
 
 3. **Code Interpreter**
    - プログラムによるPDF分析

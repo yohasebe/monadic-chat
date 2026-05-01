@@ -46,7 +46,7 @@
 - PDFファイルからのテキスト抽出
 - Officeドキュメント（Word、Excel、PowerPoint）からのテキスト抽出
 
-**このツールを使用するアプリ**: Research Assistant、Content Reader、Chat Plus
+**このツールを使用するアプリ**: Research Assistant、Chat Plus
 
 #### プランニング（1ツール）
 - 複雑なマルチステップタスクの構造化された実行計画を提案

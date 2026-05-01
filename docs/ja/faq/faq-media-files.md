@@ -9,8 +9,7 @@
 次の基本アプリはファイルの読み込みに対応しています。
 
 - Code Interpreter<br />PythonスクリプトやCSVを含む各種のテキストファイル、Microsoft Officeファイル、オーディオファイル（MP3、WAV、M4A、その他の一般的な形式）
-- Content Reader<br />テキストファイル、PDFファイル、Microsoft Officeファイル、オーディオファイル（MP3、WAV、M4A、その他の一般的な形式）
-- PDF Reader<br />PDFファイル
+- Knowledge Base<br />Browse モーダルの **Import file** ボタンから PDF / Microsoft Office (.docx / .xlsx / .pptx) / Markdown / ソースコードファイルをインポート可能
 - Video Description<br />動画ファイル（MP4、MOV、AVI、MKV、その他の一般的な形式）
 
 `Speech Input`ボタンをクリックして音声入力を行うこともできます。音声入力はSpeech-to-Text APIを使用しており、すべてのアプリで利用可能です。
@@ -19,7 +18,7 @@
 
 ##### Q: PDFの内容について AI エージェントに質問することはできますか？ :id=pdf-content-questions
 
-**A**: はい、いくつかのやり方があります。[`PDF Navigator`](../basic-usage/basic-apps.md#pdf-navigator) アプリでは、提供された PDF の単語エンベディングをデータベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) や [`Content Reader`](../basic-usage/basic-apps.md#content-reader) アプリでは、PDF ファイルを Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
+**A**: はい、いくつかのやり方があります。[`Knowledge Base`](../basic-usage/basic-apps.md#knowledge-base) アプリでは **Import file** から PDF をプロジェクト全体のベクトルデータベースに取り込み、RAG（Retrieval-Augmented Generation）の手法で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) アプリでは、PDF ファイルを Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
 
 また、Anthropic Claude、OpenAI、または Google Gemini のビジョン機能対応モデルを用いたアプリでは、テキスト入力ボックスの下にある `Image` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。このボタンは、対応モデルを使用している場合に動的にPDFアップロードを許可します。詳しくは [PDF のアップロード](../basic-usage/message-input.md#pdf-のアップロード)を参照してください。
 

@@ -58,6 +58,10 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "content_type": {
+          "type": "string",
+          "description": "Coarse content category used by the Library Browse modal and category-aware retrieval. Examples: 'conversation' (default), 'markdown', 'code', 'pdf', 'document'. Open vocabulary; new types may be added without a schema bump."
+        },
         "duration_seconds": {
           "type": "number",
           "minimum": 0,

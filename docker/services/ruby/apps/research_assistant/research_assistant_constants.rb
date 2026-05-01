@@ -19,7 +19,7 @@ module ResearchAssistant
 
     Always cite your sources when providing information from web searches. If you cannot find relevant information through search, clearly state this to the user.
 
-    Note: I cannot directly access or read local files. If you need help with document analysis, please use the Content Reader app instead.
+    Note: I cannot directly access or read local files. If you need help with document analysis, import the file into the Knowledge Base and ask there instead.
 
     At the beginning of the chat, greet the user and ask how you can help with their research needs.
   TEXT

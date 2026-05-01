@@ -120,7 +120,7 @@ module ProviderMatrixHelper
       max_turns = opts.delete(:max_turns) || 1
 
       # Apps that require database/embedding operations need longer timeouts
-      timeout = if ['Vector Search', 'PDF Navigator', 'User Docs'].include?(opts[:app])
+      timeout = if ['Vector Search', 'Knowledge Base', 'User Docs'].include?(opts[:app])
                   @timeout * 2  # Double timeout for vector/database apps
                 else
                   @timeout

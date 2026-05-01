@@ -34,7 +34,6 @@ rake spec_e2e  # Does not hit real provider APIs
 rake spec_e2e:chat              # Chat app only
 rake spec_e2e:code_interpreter   # All Code Interpreter tests
 rake spec_e2e:image_generator    # Image Generator only
-rake spec_e2e:pdf_navigator      # PDF Navigator only
 rake spec_e2e:help              # Monadic Help only
 ```
 

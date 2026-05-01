@@ -467,7 +467,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       # Apps that use auto-discovery and don't need explicit tool mentions
       auto_discovery_apps = %w[
         code_interpreter jupyter_notebook chat_plus language_practice_plus
-        research_assistant speech_draft_helper second_opinion pdf_navigator
+        research_assistant speech_draft_helper second_opinion
         video_describer drawio_grapher mermaid_grapher novel_writer
         math_tutor image_generator video_generator monadic_help
       ]

@@ -215,8 +215,6 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
   # Apps that require special runtime environment (Docker containers, media devices, etc.)
   # These are skipped only if the required environment is not available
   SPECIAL_SETUP_APPS = %w[
-    ContentReader
-    PDFNavigator
     VideoDescriber
     WebInsight
     VoiceChat

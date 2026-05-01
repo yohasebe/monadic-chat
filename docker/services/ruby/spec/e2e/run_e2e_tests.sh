@@ -94,7 +94,7 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
   # Check if qdrant is having issues (exit code 137)
   if docker ps -a | grep "monadic-chat-qdrant-container" | grep -q "Exited (137)"; then
     echo "   ⚠ qdrant container exited with code 137 (likely OOM)"
-    echo "   Note: PDF Navigator tests will be skipped"
+    echo "   Note: Knowledge Base tests will be skipped"
   fi
   
   # Only start the specific containers we need
@@ -179,7 +179,7 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
       attempt=$((attempt + 1))
       if [ $attempt -eq $max_attempts ]; then
         echo "   ✗ PostgreSQL did not become ready in time"
-        echo "   Note: PDF Navigator and Monadic Help tests may fail"
+        echo "   Note: Knowledge Base and Monadic Help tests may fail"
       else
         echo -n "."
         sleep 1

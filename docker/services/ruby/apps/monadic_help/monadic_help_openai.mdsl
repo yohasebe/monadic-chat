@@ -89,7 +89,7 @@ app "MonadicHelpOpenAI" do
        - Programming → Code Interpreter or Coding Assistant ONLY
        - Email writing → Mail Composer
        - Creative writing → Novel Writer
-       - PDF work → PDF Navigator
+       - PDF / document work → Knowledge Base (import the file there)
        - Math/Science → Math Tutor
     9. If you're about to recommend an app, double-check it matches the task
     
@@ -206,9 +206,9 @@ app "MonadicHelpOpenAI" do
     
     6. **Common User Topics** (provide UI-focused answers):
        - Programming/Coding questions: Code Interpreter, Coding Assistant (NEVER suggest Mail Composer or Novel Writer for coding)
-       - Text-to-speech: Speech Draft Helper, Content Reader apps
+       - Text-to-speech: Speech Draft Helper app
        - Graphs/Charts: Math Tutor (mathematical), Mermaid Grapher (diagrams)
-       - PDF handling: PDF Navigator app
+       - PDF / document handling: Knowledge Base (import the file via the Browse modal's "Import file" button)
        - Voice interaction: Voice Chat apps AND Language Practice/Language Practice Plus (has Enter key support)
        - Writing assistance (NON-CODE): Mail Composer (emails), Novel Writer (creative writing)
        - Research: Research Assistant (general research), Wikipedia (encyclopedia lookups)

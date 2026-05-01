@@ -407,7 +407,7 @@ module E2EHelper
   def check_containers_running
     # For E2E tests, we don't need Ruby container since we run server locally
     # Only check Python container for Code Interpreter tests.
-    # qdrant + embeddings are only needed for PDF Navigator and Monadic Help.
+    # qdrant + embeddings are only needed for Knowledge Base and Monadic Help.
     required_containers = %w[
       monadic-chat-python-container
     ]

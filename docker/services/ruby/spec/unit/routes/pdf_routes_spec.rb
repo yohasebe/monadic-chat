@@ -39,7 +39,7 @@ RSpec.describe "PDF Routes logic" do
     end
 
     it "returns app_name from session parameters" do
-      expect(resolve_app_key({ "app_name" => "pdf_navigator" })).to eq("pdf_navigator")
+      expect(resolve_app_key({ "app_name" => "knowledge_base" })).to eq("knowledge_base")
     end
 
     it "returns default when parameters is nil" do

@@ -1377,13 +1377,6 @@ namespace :spec_e2e do
     end
   end
   
-  desc "Run E2E tests for PDF Navigator"
-  task :pdf_navigator do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh pdf_navigator"
-    end
-  end
-  
   desc "Run E2E tests for Monadic Help"
   task :help do
     Dir.chdir("docker/services/ruby") do
@@ -1453,13 +1446,6 @@ namespace :spec_e2e do
   task :voice_chat do
     Dir.chdir("docker/services/ruby") do
       sh "./spec/e2e/run_e2e_tests.sh voice_chat"
-    end
-  end
-  
-  desc "Run E2E tests for Content Reader"
-  task :content_reader do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh content_reader"
     end
   end
   

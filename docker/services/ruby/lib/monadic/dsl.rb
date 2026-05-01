@@ -137,13 +137,13 @@ module MonadicDSL
   
   # Apps that should NOT receive the auto-injected library_search tool.
   # These apps either have their own retrieval surface (knowledge_base,
-  # monadic_help, pdf_navigator, content_reader, web_insight), are output
-  # focused (image / video / diagram generators), or have an already
-  # heavy tool list where adding RAG would be noise (code_interpreter,
-  # jupyter_notebook, auto_forge). Match is on the provider-stripped
-  # base class name (e.g. "ChatOpenAI" → "Chat").
+  # monadic_help, web_insight), are output focused (image / video /
+  # diagram generators), or have an already heavy tool list where adding
+  # RAG would be noise (code_interpreter, jupyter_notebook, auto_forge).
+  # Match is on the provider-stripped base class name (e.g. "ChatOpenAI"
+  # → "Chat").
   RAG_EXCLUDED_APP_BASE_NAMES = %w[
-    KnowledgeBase MonadicHelp PdfNavigator ContentReader WebInsight
+    KnowledgeBase MonadicHelp WebInsight
     ImageGenerator VideoDescriber VideoGenerator DrawioGrapher MermaidGrapher
     MusicLab ConceptVisualizer DocumentGenerator SyntaxTree
     CodeInterpreter JupyterNotebook AutoForge

@@ -43,11 +43,6 @@ RSpec.describe 'Comprehensive Tool Validation' do
       agents: [],
       providers: %w[OpenAI Claude]
     },
-    'content_reader' => {
-      tools: %w[fetch_text_from_file fetch_text_from_office fetch_text_from_pdf],
-      agents: [],
-      providers: %w[OpenAI]
-    },
     'drawio_grapher' => {
       tools: %w[write_drawio_file],
       agents: [],
@@ -82,11 +77,6 @@ RSpec.describe 'Comprehensive Tool Validation' do
       tools: %w[add_character count_num_of_chars count_num_of_words load_novel_context save_novel_context update_progress update_summary],
       agents: [],
       providers: %w[OpenAI Mistral]
-    },
-    'pdf_navigator' => {
-      tools: %w[find_closest_doc find_closest_text get_text_snippet get_text_snippets list_titles],
-      agents: [],
-      providers: %w[OpenAI]
     },
     'research_assistant' => {
       tools: %w[add_finding add_research_notes add_research_topics add_search add_sources load_research_progress save_research_progress request_tool],

@@ -21,22 +21,17 @@ module Monadic
       # Build a structured summary of what's currently in the Library.
       #
       # @param store [Monadic::Library::Store]
-      # @param scope [Symbol] :kb (personal + shareable, what RAG sees) or
-      #   :external (shareable-only). Defaults to :kb because the prompt
-      #   block is meant to describe everything the user has consented to
-      #   expose via the per-session toggle.
+      # @param app_name [String, nil] when given, only entries scoped to
+      #   that app or "Global" are counted (matches what the requesting
+      #   app would actually see via library_search). nil counts the full
+      #   library — used by KB UI surfaces.
       # @param page_size [Integer] internal scroll batch size
-      # @return [Hash] {
-      #   total: Integer,
-      #   by_source: {String => Integer},          # e.g. "monadic-chat" => 1
-      #   by_content_type: {String => Integer}     # e.g. "conversation" => 11
-      # }
-      def summarize(store:, scope: :kb, page_size: 256)
+      def summarize(store:, app_name: nil, page_size: 256)
         by_source = Hash.new(0)
         by_content_type = Hash.new(0)
         total = 0
 
-        each_summary_payload(store: store, scope: scope, page_size: page_size) do |payload|
+        each_summary_payload(store: store, app_name: app_name, page_size: page_size) do |payload|
           total += 1
           source = payload['source'].to_s
           source = '(unknown)' if source.empty?
@@ -54,13 +49,9 @@ module Monadic
         }
       end
 
-      # Iterate every summary payload in the requested scope. Yields the
-      # parsed payload Hash for each point. Uses scroll pagination so
-      # libraries larger than `page_size` still complete in one logical
-      # call.
-      def each_summary_payload(store:, scope: :kb, page_size: 256)
+      def each_summary_payload(store:, app_name: nil, page_size: 256)
         offset = nil
-        filter = store.visibility_filter(scope)
+        filter = store.scope_filter(app_name)
         loop do
           page = store.scroll(
             collection: VectorStore::Schema::LIBRARY_SUMMARIES,

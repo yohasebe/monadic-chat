@@ -5,7 +5,7 @@ require 'monadic/library'
 
 # Behavioural tests for the Library Store facade. The vector store and
 # embeddings client are both stubbed; we only verify that Library::Store
-# builds the right requests and enforces the visibility / conversation_id
+# builds the right requests and enforces the scope_app / conversation_id
 # payload conventions.
 RSpec.describe Monadic::Library::Store do
   let(:vector_store) { instance_double(Monadic::VectorStore::Base) }
@@ -62,7 +62,7 @@ RSpec.describe Monadic::Library::Store do
       {
         id: 'pt-1',
         vector: { 'content' => Array.new(768, 0.0) },
-        payload: { 'conversation_id' => 'conv-abc', 'visibility' => 'personal' }
+        payload: { 'conversation_id' => 'conv-abc', 'scope_app' => 'ChatOpenAI' }
       }
     end
 
@@ -80,24 +80,21 @@ RSpec.describe Monadic::Library::Store do
     end
 
     it 'rejects points without conversation_id' do
-      bad_point = valid_point.merge(payload: { 'visibility' => 'personal' })
+      bad_point = valid_point.merge(payload: { 'scope_app' => 'ChatOpenAI' })
       expect {
         store.upsert_points(collection: 'library_turns', points: [bad_point])
       }.to raise_error(ArgumentError, /conversation_id/)
     end
 
-    it 'rejects points with invalid visibility' do
-      bad_point = valid_point.merge(payload: {
-        'conversation_id' => 'conv-abc',
-        'visibility' => 'excluded' # excluded must never reach the store
-      })
+    it 'rejects points without scope_app' do
+      bad_point = valid_point.merge(payload: { 'conversation_id' => 'conv-abc' })
       expect {
         store.upsert_points(collection: 'library_turns', points: [bad_point])
-      }.to raise_error(ArgumentError, /visibility must be one of/)
+      }.to raise_error(ArgumentError, /scope_app/)
     end
 
     it 'accepts symbol-keyed payload as well as string-keyed' do
-      sym_point = valid_point.merge(payload: { conversation_id: 'conv-abc', visibility: 'shareable' })
+      sym_point = valid_point.merge(payload: { conversation_id: 'conv-abc', scope_app: 'Global' })
       expect(vector_store).to receive(:upsert_points)
       store.upsert_points(collection: 'library_summaries', points: [sym_point])
     end
@@ -106,42 +103,34 @@ RSpec.describe Monadic::Library::Store do
   describe '#search' do
     let(:vec) { Array.new(768, 0.1) }
 
-    it 'restricts to shareable when scope: :external (RAG path)' do
+    it 'restricts to scope_app IN [app_name, "Global"] when app_name is given' do
       expect(vector_store).to receive(:search) do |args|
         filter = args[:filter]
         expect(filter[:must]).to include(
-          { key: 'visibility', match: { value: 'shareable' } }
+          { key: 'scope_app', match: { any: %w[ChatOpenAI Global] } }
         )
       end
-      store.search(collection: 'library_turns', vector: vec, scope: :external)
+      store.search(collection: 'library_turns', vector: vec, app_name: 'ChatOpenAI')
     end
 
-    it 'allows both visibilities when scope: :kb' do
+    it 'omits the scope filter entirely when app_name is nil (KB UI behaviour)' do
       expect(vector_store).to receive(:search) do |args|
-        filter = args[:filter]
-        expect(filter[:must]).to include(
-          { key: 'visibility', match: { any: %w[personal shareable] } }
-        )
+        # When no scope filter is needed and no extra filter is supplied,
+        # the resulting filter is nil so Qdrant searches across everything.
+        expect(args[:filter]).to be_nil
       end
-      store.search(collection: 'library_turns', vector: vec, scope: :kb)
+      store.search(collection: 'library_turns', vector: vec, app_name: nil)
     end
 
-    it 'composes an additional filter with the visibility filter' do
+    it 'composes an additional filter with the scope filter' do
       expect(vector_store).to receive(:search) do |args|
-        filter = args[:filter]
-        keys = filter[:must].map { |c| c[:key] }
-        expect(keys).to include('visibility', 'conversation_id')
+        keys = args[:filter][:must].map { |c| c[:key] }
+        expect(keys).to include('scope_app', 'conversation_id')
       end
       store.search(
-        collection: 'library_turns', vector: vec, scope: :external,
+        collection: 'library_turns', vector: vec, app_name: 'ChatOpenAI',
         filter: store.conversation_filter('conv-abc')
       )
-    end
-
-    it 'rejects an unknown scope' do
-      expect {
-        store.search(collection: 'library_turns', vector: vec, scope: :god_mode)
-      }.to raise_error(ArgumentError, /Unknown scope/)
     end
 
     it 'rejects non-Library collections' do
@@ -152,7 +141,7 @@ RSpec.describe Monadic::Library::Store do
   end
 
   describe '#delete_conversation' do
-    it 'removes the conversation from all four collections' do
+    it 'removes the conversation from every Library collection' do
       Monadic::VectorStore::Schema::LIBRARY_COLLECTIONS.each do |name|
         expect(vector_store).to receive(:delete_points).with(
           collection: name,
@@ -164,23 +153,23 @@ RSpec.describe Monadic::Library::Store do
   end
 
   describe '#conversation_count' do
-    it 'counts summaries with the kb-scope visibility filter, requesting exact counting' do
+    it 'counts summaries with no scope filter when app_name is nil' do
       allow(vector_store).to receive(:count).and_return(7)
       expect(vector_store).to receive(:count).with(
         collection: 'library_summaries',
-        filter: { must: [{ key: 'visibility', match: { any: %w[personal shareable] } }] },
+        filter: nil,
         exact: true
       )
-      expect(store.conversation_count(scope: :kb)).to eq(7)
+      expect(store.conversation_count).to eq(7)
     end
 
-    it 'counts shareable-only with scope: :external using exact counting' do
+    it 'narrows to scope_app IN [app_name, "Global"] when app_name is given' do
       expect(vector_store).to receive(:count).with(
         collection: 'library_summaries',
-        filter: { must: [{ key: 'visibility', match: { value: 'shareable' } }] },
+        filter: { must: [{ key: 'scope_app', match: { any: %w[CodeInterpreterOpenAI Global] } }] },
         exact: true
       )
-      store.conversation_count(scope: :external)
+      store.conversation_count(app_name: 'CodeInterpreterOpenAI')
     end
   end
 
@@ -191,12 +180,12 @@ RSpec.describe Monadic::Library::Store do
       allow(vector_store).to receive(:scroll).and_return(page)
       expect(vector_store).to receive(:scroll).with(
         collection: 'library_summaries',
-        filter: { must: [{ key: 'visibility', match: { value: 'shareable' } }] },
+        filter: { must: [{ key: 'scope_app', match: { any: %w[ChatOpenAI Global] } }] },
         limit: 50, offset: 'cur-prev', with_vectors: false
       )
       store.scroll(
         collection: 'library_summaries',
-        filter: store.visibility_filter(:external),
+        filter: store.scope_filter('ChatOpenAI'),
         limit: 50, offset: 'cur-prev'
       )
     end
@@ -244,13 +233,21 @@ RSpec.describe Monadic::Library::Store do
     end
   end
 
-  describe 'visibility constants' do
-    it 'exposes the two valid persisted visibilities' do
-      expect(described_class::VALID_VISIBILITIES).to eq(%w[personal shareable])
+  describe 'scope constants' do
+    it 'exposes the "Global" sentinel as the cross-app scope value' do
+      expect(described_class::SCOPE_GLOBAL).to eq('Global')
+    end
+  end
+
+  describe '#scope_filter' do
+    it 'returns nil for nil/empty input so KB-UI surfaces see every entry' do
+      expect(store.scope_filter(nil)).to be_nil
+      expect(store.scope_filter('   ')).to be_nil
     end
 
-    it 'never includes "excluded" — that data is filtered before reaching the Store' do
-      expect(described_class::VALID_VISIBILITIES).not_to include('excluded')
+    it 'returns a match.any filter that includes the literal app name + Global' do
+      f = store.scope_filter('ChatOpenAI')
+      expect(f[:must].first[:match][:any]).to eq(%w[ChatOpenAI Global])
     end
   end
 end

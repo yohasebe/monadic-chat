@@ -192,8 +192,8 @@ module WebSocketHelper
           handle_ws_library_stats(connection, obj, session)
         when "LIBRARY_SAVE"
           handle_ws_library_save(connection, obj, session)
-        when "LIBRARY_TOGGLE_VISIBILITY"
-          handle_ws_library_toggle_visibility(connection, obj, session)
+        when "LIBRARY_SET_SCOPE"
+          handle_ws_library_set_scope(connection, obj, session)
         when "LIBRARY_RENAME"
           handle_ws_library_rename(connection, obj, session)
         when "LIBRARY_GET_CONVERSATION"

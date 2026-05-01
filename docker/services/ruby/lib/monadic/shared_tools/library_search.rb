@@ -84,12 +84,21 @@ module MonadicSharedTools
           return MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE
         end
 
+        # Resolve the requesting app's class name from the session so the
+        # cascade can filter on `scope_app IN [app_name, "Global"]`.
+        # Conversations saved while another app was active are
+        # intentionally invisible here — provider variants are separate
+        # scopes ("ChatOpenAI" cannot see "ChatClaude" entries) and
+        # shareable knowledge artifacts use the literal "Global" sentinel
+        # to opt in to cross-app retrieval.
+        app_name = MonadicSharedTools::LibrarySearch.resolve_app_name(resolved_session)
+
         store = MonadicSharedTools::LibrarySearch.default_store
         payload_filter = MonadicSharedTools::LibrarySearch.build_payload_filter(
           content_type: content_type, source: source
         )
         hits = Monadic::Library::Retriever.cascade_search(
-          query, store: store, scope: :kb,
+          query, store: store, app_name: app_name,
           top_n: top_n.to_i.clamp(1, 10),
           payload_filter: payload_filter
         )
@@ -118,6 +127,18 @@ module MonadicSharedTools
     # Default Store factory. Tests can stub this to inject a fake store.
     def default_store
       Monadic::Library::Store.new
+    end
+
+    # Pull the requesting app's class name out of the session params.
+    # Returns nil when the session is missing or app_name is empty so
+    # cascade_search falls back to "no scope filter" — useful for tests
+    # and for the Knowledge Base app itself, which legitimately wants to
+    # see the full library when the user explicitly asked it to.
+    def resolve_app_name(session)
+      params = (session && (session[:parameters] || session['parameters'])) || {}
+      v = params['app_name'] || params[:app_name]
+      v = v.to_s.strip
+      v.empty? ? nil : v
     end
 
     # Format Retriever hits as a compact, citation-ready text block.

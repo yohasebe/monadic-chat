@@ -37,14 +37,14 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     it 'returns the inventory rows with stringified keys' do
       rows = [
         { conversation_id: 'A', title: 'Talk A', source: 'ted-talk',
-          language: 'en', license: 'CC-BY-NC-ND-4.0', visibility: 'shareable',
+          language: 'en', license: 'CC-BY-NC-ND-4.0', scope_app: 'Global',
           turns_count: 7, messages_count: 7, created_at: '2026-04-30T10:00:00Z' },
         { conversation_id: 'B', title: nil, source: 'monadic-chat',
-          language: 'en', license: 'private', visibility: 'personal',
+          language: 'en', license: 'private', scope_app: 'ChatOpenAI',
           turns_count: 4, messages_count: 4, created_at: '2026-04-29T10:00:00Z' }
       ]
       allow(Monadic::Library::Manager).to receive(:list_conversations)
-        .with(hash_including(scope: :kb))
+        .with(hash_including(app_name: nil))
         .and_return(rows)
 
       host.send(:handle_ws_library_list, connection, {}, {})
@@ -103,34 +103,33 @@ RSpec.describe 'WebSocketHelper Library handlers' do
           { 'role' => 'assistant', 'text' => 'Hello!', 'mid' => 3 }
         ],
         'parameters' => { 'app_name' => 'ChatOpenAI', 'model' => 'gpt-5.4' },
-        'visibility' => 'personal',
         'title' => 'Demo'
       }
     end
 
-    it 'ingests via Manager.import_from_text and reports success' do
+    it 'ingests via Manager.import_from_text and reports success with the app_name as the default scope' do
       expect(Monadic::Library::Manager).to receive(:import_from_text)
-        .with(hash_including(store: store, visibility: 'personal'))
-        .and_return(conversation_id: 'conv-9', counts: { summary: 1, turns: 2, trajectory: 0 })
+        .with(hash_including(store: store, scope_app: 'ChatOpenAI'))
+        .and_return(conversation_id: 'conv-9', counts: { summary: 1, turns: 2 })
 
       host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
       msg = replies.first
       expect(msg['type']).to eq('library_saved')
       expect(msg['res']).to eq('success')
       expect(msg['conversation_id']).to eq('conv-9')
-      expect(msg['visibility']).to eq('personal')
-      expect(msg['counts']).to eq('summary' => 1, 'turns' => 2, 'trajectory' => 0)
+      expect(msg['scope_app']).to eq('ChatOpenAI')
+      expect(msg['counts']).to eq('summary' => 1, 'turns' => 2)
     end
 
-    it 'forwards title and license options into Manager.import_from_text' do
+    it 'honours an explicit scope_app from the payload over the app_name fallback' do
       expect(Monadic::Library::Manager).to receive(:import_from_text) do |args|
         expect(args[:options][:title]).to eq('Demo')
         expect(args[:options]).not_to have_key(:license)
-        expect(args[:visibility]).to eq('shareable')
-        { conversation_id: 'conv-X', counts: { summary: 1, turns: 0, trajectory: 0 } }
+        expect(args[:scope_app]).to eq('Global')
+        { conversation_id: 'conv-X', counts: { summary: 1, turns: 0 } }
       end
 
-      payload = valid_payload.merge('visibility' => 'shareable')
+      payload = valid_payload.merge('scope_app' => 'Global')
       host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
       expect(replies.first['res']).to eq('success')
     end
@@ -151,14 +150,6 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       msg = replies.first
       expect(msg['res']).to eq('failure')
       expect(msg['content']).to match(/Missing parameters/)
-    end
-
-    it 'rejects invalid visibility values like "excluded"' do
-      payload = valid_payload.merge('visibility' => 'excluded')
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to match(/visibility must be one of/)
     end
 
     it 'reports failure when Manager raises' do
@@ -187,7 +178,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
         skipped_reason: nil
       }
       expect(Monadic::Library::Manager).to receive(:get_conversation_messages)
-        .with(hash_including(store: store, conversation_id: 'conv-y', scope: :kb))
+        .with(hash_including(store: store, conversation_id: 'conv-y', app_name: nil))
         .and_return(record)
       host.send(:handle_ws_library_get_conversation, connection,
                 { 'contents' => { 'conversation_id' => 'conv-y' } }, {})
@@ -233,39 +224,39 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     end
   end
 
-  describe 'LIBRARY_TOGGLE_VISIBILITY → library_visibility_updated' do
-    it 'forwards to Manager.update_visibility and confirms success' do
-      expect(Monadic::Library::Manager).to receive(:update_visibility)
-        .with(store: store, conversation_id: 'conv-x', visibility: 'shareable').and_return(true)
-      host.send(:handle_ws_library_toggle_visibility, connection,
-                { 'contents' => { 'conversation_id' => 'conv-x', 'visibility' => 'shareable' } }, {})
+  describe 'LIBRARY_SET_SCOPE → library_scope_updated' do
+    it 'forwards to Manager.update_scope_app and confirms success' do
+      expect(Monadic::Library::Manager).to receive(:update_scope_app)
+        .with(store: store, conversation_id: 'conv-x', scope_app: 'Global').and_return(true)
+      host.send(:handle_ws_library_set_scope, connection,
+                { 'contents' => { 'conversation_id' => 'conv-x', 'scope_app' => 'Global' } }, {})
       msg = replies.first
-      expect(msg['type']).to eq('library_visibility_updated')
+      expect(msg['type']).to eq('library_scope_updated')
       expect(msg['res']).to eq('success')
       expect(msg['conversation_id']).to eq('conv-x')
-      expect(msg['visibility']).to eq('shareable')
+      expect(msg['scope_app']).to eq('Global')
     end
 
     it 'rejects payloads missing conversation_id' do
-      host.send(:handle_ws_library_toggle_visibility, connection,
-                { 'contents' => { 'visibility' => 'personal' } }, {})
+      host.send(:handle_ws_library_set_scope, connection,
+                { 'contents' => { 'scope_app' => 'Global' } }, {})
       msg = replies.first
       expect(msg['res']).to eq('failure')
       expect(msg['content']).to match(/Missing conversation_id/)
     end
 
-    it 'rejects invalid visibility values' do
-      host.send(:handle_ws_library_toggle_visibility, connection,
-                { 'contents' => { 'conversation_id' => 'c', 'visibility' => 'excluded' } }, {})
+    it 'rejects empty scope_app values' do
+      host.send(:handle_ws_library_set_scope, connection,
+                { 'contents' => { 'conversation_id' => 'c', 'scope_app' => '   ' } }, {})
       msg = replies.first
       expect(msg['res']).to eq('failure')
-      expect(msg['content']).to match(/visibility must be one of/)
+      expect(msg['content']).to match(/scope_app must not be empty/)
     end
 
     it 'reports failure when Manager raises' do
-      allow(Monadic::Library::Manager).to receive(:update_visibility).and_raise('qdrant down')
-      host.send(:handle_ws_library_toggle_visibility, connection,
-                { 'contents' => { 'conversation_id' => 'c', 'visibility' => 'personal' } }, {})
+      allow(Monadic::Library::Manager).to receive(:update_scope_app).and_raise('qdrant down')
+      host.send(:handle_ws_library_set_scope, connection,
+                { 'contents' => { 'conversation_id' => 'c', 'scope_app' => 'ChatOpenAI' } }, {})
       msg = replies.first
       expect(msg['res']).to eq('failure')
       expect(msg['content']).to eq('qdrant down')

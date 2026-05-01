@@ -324,9 +324,15 @@ module Monadic
         # if Library can't be reached (Qdrant down, transient error) we
         # skip the inventory but still emit the directive so the LLM at
         # least knows to call `library_search`.
-        def build_library_rag_prompt(_session)
+        def build_library_rag_prompt(session)
           parts = [LIBRARY_RAG_HEADER]
-          inventory_block = library_inventory_block
+          # Match exactly what library_search would return: scope to the
+          # requesting app's class plus "Global". Otherwise the LLM is
+          # told about entries it can never retrieve.
+          params = (session && (session[:parameters] || session['parameters'])) || {}
+          app_name = (params['app_name'] || params[:app_name]).to_s.strip
+          app_name = nil if app_name.empty?
+          inventory_block = library_inventory_block(app_name)
           parts << inventory_block if inventory_block
           parts << LIBRARY_RAG_FOOTER
           parts.join("\n\n")
@@ -335,11 +341,11 @@ module Monadic
         # Render the inventory as plain-text bullet lists. Returns nil when
         # the Library is empty or the lookup fails — the caller still
         # injects the directive in that case.
-        def library_inventory_block
+        def library_inventory_block(app_name = nil)
           return nil unless defined?(Monadic::Library::Store)
 
           store = Monadic::Library::Store.new
-          inv = Monadic::Library::Inventory.summarize(store: store, scope: :kb)
+          inv = Monadic::Library::Inventory.summarize(store: store, app_name: app_name)
           return nil if inv[:total].to_i.zero?
 
           lines = ["Knowledge Base inventory (currently stored):"]

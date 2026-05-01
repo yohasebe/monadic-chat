@@ -38,7 +38,12 @@ post "/library/import" do
     return error_json("File exceeds the #{mb} MB import limit. Split the document or raise LIBRARY_IMPORT_MAX_BYTES.")
   end
 
-  visibility = (params["libraryVisibility"].to_s == 'shareable') ? 'shareable' : 'personal'
+  # File imports are knowledge artifacts that the user typically wants
+  # accessible from any app, so they default to the "Global" scope. The
+  # UI can still pass `libraryScopeApp` (e.g. an app class name) when
+  # the caller wants the import scoped to one particular app.
+  scope_app = params["libraryScopeApp"].to_s.strip
+  scope_app = Monadic::Library::Store::SCOPE_GLOBAL if scope_app.empty?
 
   options = {}
   options[:title] = params["libraryTitle"].to_s unless params["libraryTitle"].to_s.strip.empty?
@@ -63,13 +68,13 @@ post "/library/import" do
     )
     store = Monadic::Library::Store.new
     result = Monadic::Library::Manager.import_conversation(
-      store: store, conversation: conversation, visibility: visibility
+      store: store, conversation: conversation, scope_app: scope_app
     )
     {
       success: true,
       filename: filename,
       conversation_id: result[:conversation_id],
-      visibility: visibility,
+      scope_app: scope_app,
       counts: result[:counts].each_with_object({}) { |(k, v), h| h[k.to_s] = v }
     }.to_json
   rescue Monadic::Library::FileImporter::UnsupportedFormatError => e

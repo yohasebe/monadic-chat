@@ -12,11 +12,10 @@ RSpec.describe Monadic::Library::Manager do
     allow(store).to receive(:bootstrap_collections!)
     allow(store).to receive(:upsert_points)
     allow(store).to receive(:delete_conversation).and_return(true)
-    allow(store).to receive(:visibility_filter) { |scope|
-      case scope
-      when :kb       then { must: [{ key: 'visibility', match: { any: %w[personal shareable] } }] }
-      when :external then { must: [{ key: 'visibility', match: { value: 'shareable' } }] }
-      end
+    allow(store).to receive(:scope_filter) { |app|
+      s = app.to_s.strip
+      next nil if s.empty?
+      { must: [{ key: 'scope_app', match: { any: [s, 'Global'] } }] }
     }
     allow(store).to receive(:conversation_filter) { |id|
       { must: [{ key: 'conversation_id', match: { value: id.to_s } }] }
@@ -34,7 +33,7 @@ RSpec.describe Monadic::Library::Manager do
       'vector' => { 'content' => Array.new(768, 0.0) },
       'payload' => {
         'conversation_id' => conv_id,
-        'visibility' => 'personal',
+        'scope_app' => 'Global',
         'source' => 'monadic-chat',
         'language' => 'en',
         'title' => "Conv #{conv_id}",
@@ -71,6 +70,18 @@ RSpec.describe Monadic::Library::Manager do
       rows = described_class.list_conversations(store: store)
       expect(rows.map { |r| r[:conversation_id] }).to contain_exactly('a', 'b')
     end
+
+    it 'narrows to entries the requesting app can see when app_name is given' do
+      expect(store).to receive(:scroll).with(
+        hash_including(filter: hash_including(must: include(hash_including(key: 'scope_app'))))
+      ).and_return(points: [summary_point('A')], next: nil)
+      described_class.list_conversations(store: store, app_name: 'ChatOpenAI')
+    end
+
+    it 'omits the scope filter when app_name is nil (KB UI behaviour)' do
+      expect(store).to receive(:scroll).with(hash_including(filter: nil)).and_return(points: [], next: nil)
+      described_class.list_conversations(store: store, app_name: nil)
+    end
   end
 
   describe '.get_conversation_details' do
@@ -84,96 +95,67 @@ RSpec.describe Monadic::Library::Manager do
       row = described_class.get_conversation_details(store: store, conversation_id: 'A')
       expect(row[:conversation_id]).to eq('A')
       expect(row[:title]).to eq('Conv A')
+      expect(row[:scope_app]).to eq('Global')
     end
   end
 
   describe '.library_stats' do
-    it 'reports total / personal / shareable counts' do
-      allow(store).to receive(:conversation_count).with(scope: :kb).and_return(10)
-      allow(store).to receive(:conversation_count).with(scope: :external).and_return(3)
+    it 'reports total + a per-scope breakdown' do
+      allow(store).to receive(:conversation_count).with(no_args).and_return(4)
+      allow(store).to receive(:scroll).and_return(
+        { points: [
+            summary_point('a', 'scope_app' => 'Global'),
+            summary_point('b', 'scope_app' => 'ChatOpenAI'),
+            summary_point('c', 'scope_app' => 'ChatOpenAI'),
+            summary_point('d', 'scope_app' => 'KnowledgeBaseClaude')
+          ],
+          next: nil }
+      )
       stats = described_class.library_stats(store: store)
-      expect(stats).to eq(
-        conversations_total: 10,
-        conversations_shareable: 3,
-        conversations_personal: 7
+      expect(stats[:conversations_total]).to eq(4)
+      expect(stats[:conversations_by_scope]).to eq(
+        'Global' => 1, 'ChatOpenAI' => 2, 'KnowledgeBaseClaude' => 1
       )
     end
-  end
 
-  describe '.update_visibility' do
-    it 'rewrites visibility on every Library collection' do
-      Monadic::VectorStore::Schema::LIBRARY_COLLECTIONS.each do |c|
-        allow(store).to receive(:scroll).with(hash_including(collection: c)).and_return(
-          { points: [{ 'id' => 'p1', 'vector' => { 'content' => [] }, 'payload' => { 'conversation_id' => 'x', 'visibility' => 'personal' } }], next: nil }
-        )
-      end
-
-      Monadic::VectorStore::Schema::LIBRARY_COLLECTIONS.each do |c|
-        expect(store).to receive(:upsert_points).with(
-          collection: c,
-          points: [hash_including(payload: hash_including('visibility' => 'shareable'))]
-        )
-      end
-      described_class.update_visibility(store: store, conversation_id: 'x', visibility: 'shareable')
-    end
-
-    it 'rejects an invalid visibility value' do
-      expect {
-        described_class.update_visibility(store: store, conversation_id: 'x', visibility: 'gone')
-      }.to raise_error(ArgumentError, /visibility/)
+    it 'falls back to "Global" when scope_app is missing on legacy points' do
+      allow(store).to receive(:conversation_count).with(no_args).and_return(1)
+      allow(store).to receive(:scroll).and_return(
+        { points: [{ 'payload' => { 'conversation_id' => 'x' } }], next: nil }
+      )
+      stats = described_class.library_stats(store: store)
+      expect(stats[:conversations_by_scope]).to eq('Global' => 1)
     end
   end
 
   describe '.delete_conversation' do
     it 'forwards to Store#delete_conversation' do
-      expect(store).to receive(:delete_conversation).with('abc').and_return(true)
       expect(described_class.delete_conversation(store: store, conversation_id: 'abc')).to be true
     end
   end
 
-  describe '.import_from_text' do
-    let(:plain_text_input) do
-      "Alice: Hello, Bob.\nBob: Hi Alice.\n"
-    end
+  describe '.update_scope_app' do
+    let(:scoped_pt) { summary_point('flip-me', 'scope_app' => 'ChatOpenAI') }
 
     before do
-      # embed_passages must return one vector per text input.
-      allow(embeddings).to receive(:embed_passages) { |texts| texts.map { Array.new(768, 0.1) } }
-      allow(store).to receive(:upsert_points)
+      allow(store).to receive(:scroll).and_return({ points: [scoped_pt], next: nil })
     end
 
-    it 'auto-detects PlainText, ingests, and returns counts' do
-      result = described_class.import_from_text(
-        store: store, input: plain_text_input, options: { license: 'CC-BY-4.0' }
+    it 'rewrites scope_app on every Library collection' do
+      expect(store).to receive(:upsert_points)
+        .at_least(:once) do |args|
+          expect(args[:points].first[:payload]['scope_app']).to eq('Global')
+        end
+      result = described_class.update_scope_app(
+        store: store, conversation_id: 'flip-me', scope_app: 'Global'
       )
-      expect(result[:importer]).to eq('PlainText')
-      expect(result[:counts][:turns]).to be > 0
-      expect(result[:conversation_id]).not_to be_nil
+      expect(result).to be true
     end
 
-    it 'parses JSON input as ChatML when system role is present (Anthropic excludes system)' do
-      json_input = JSON.dump([
-        { 'role' => 'system', 'content' => 'Be brief.' },
-        { 'role' => 'user', 'content' => 'hi' },
-        { 'role' => 'assistant', 'content' => 'hello' }
-      ])
-      result = described_class.import_from_text(store: store, input: json_input)
-      expect(result[:importer]).to eq('ChatML')
-    end
-
-    it 'parses bare user/assistant JSON as AnthropicMessages (more specific than ChatML)' do
-      json_input = JSON.dump([
-        { 'role' => 'user', 'content' => 'hi' },
-        { 'role' => 'assistant', 'content' => 'hello' }
-      ])
-      result = described_class.import_from_text(store: store, input: json_input)
-      expect(result[:importer]).to eq('AnthropicMessages')
-    end
-
-    it 'raises for unrecognised input' do
+    it 'rejects a blank scope_app value' do
       expect {
-        described_class.import_from_text(store: store, input: '???random???')
-      }.to raise_error(ArgumentError, /known conversation format/)
+        described_class.update_scope_app(store: store, conversation_id: 'flip-me', scope_app: '   ')
+      }.to raise_error(ArgumentError, /scope_app must be a non-empty string/)
     end
   end
 
@@ -218,13 +200,58 @@ RSpec.describe Monadic::Library::Manager do
     end
   end
 
+  describe '.import_from_text' do
+    let(:plain_text_input) do
+      "Alice: Hello, Bob.\nBob: Hi Alice.\n"
+    end
+
+    before do
+      allow(embeddings).to receive(:embed_passages) { |texts| texts.map { Array.new(768, 0.1) } }
+      allow(store).to receive(:upsert_points)
+    end
+
+    it 'auto-detects PlainText, ingests, and returns counts' do
+      result = described_class.import_from_text(
+        store: store, input: plain_text_input, options: { license: 'CC-BY-4.0' }
+      )
+      expect(result[:importer]).to eq('PlainText')
+      expect(result[:counts][:turns]).to be > 0
+      expect(result[:conversation_id]).not_to be_nil
+    end
+
+    it 'parses JSON input as ChatML when system role is present' do
+      json_input = JSON.dump([
+        { 'role' => 'system', 'content' => 'Be brief.' },
+        { 'role' => 'user', 'content' => 'hi' },
+        { 'role' => 'assistant', 'content' => 'hello' }
+      ])
+      result = described_class.import_from_text(store: store, input: json_input)
+      expect(result[:importer]).to eq('ChatML')
+    end
+
+    it 'parses bare user/assistant JSON as AnthropicMessages' do
+      json_input = JSON.dump([
+        { 'role' => 'user', 'content' => 'hi' },
+        { 'role' => 'assistant', 'content' => 'hello' }
+      ])
+      result = described_class.import_from_text(store: store, input: json_input)
+      expect(result[:importer]).to eq('AnthropicMessages')
+    end
+
+    it 'raises for unrecognised input' do
+      expect {
+        described_class.import_from_text(store: store, input: '???random???')
+      }.to raise_error(ArgumentError, /known conversation format/)
+    end
+  end
+
   describe '.import_conversation' do
     before do
       allow(embeddings).to receive(:embed_passages) { |texts| texts.map { Array.new(768, 0.1) } }
       allow(store).to receive(:upsert_points)
     end
 
-    it 'ingests a pre-built v1 conversation directly (skipping dispatch)' do
+    it 'ingests a pre-built v1 conversation directly' do
       conv = Monadic::Library::Importers::Markdown.import(
         "# Section\n\n" + ('Body. ' * 50), filename: 'notes.md'
       )
@@ -233,16 +260,16 @@ RSpec.describe Monadic::Library::Manager do
       expect(result[:counts][:turns]).to be > 0
     end
 
-    it 'forwards visibility to Hierarchical.ingest' do
+    it 'forwards scope_app to Hierarchical.ingest' do
       conv = Monadic::Library::Importers::Markdown.import(
         "# Section\n\nbody body body. " * 10, filename: 'notes.md'
       )
       described_class.import_conversation(
-        store: store, conversation: conv, visibility: Monadic::Library::Store::VISIBILITY_SHAREABLE
+        store: store, conversation: conv, scope_app: 'ChatOpenAI'
       )
       expect(store).to have_received(:upsert_points).at_least(:once) do |args|
         payload = args[:points].first[:payload]
-        expect(payload['visibility']).to eq('shareable')
+        expect(payload['scope_app']).to eq('ChatOpenAI')
       end
     end
   end

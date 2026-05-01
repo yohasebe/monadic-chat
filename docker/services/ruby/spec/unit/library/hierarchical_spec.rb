@@ -57,15 +57,15 @@ RSpec.describe Monadic::Library::Hierarchical do
       described_class.ingest(two_party_chat, store: store)
     end
 
-    it 'tags every point with conversation_id and visibility' do
+    it 'tags every point with conversation_id and scope_app' do
       payloads = []
       allow(vector_store).to receive(:upsert_points) do |args|
         args[:points].each { |p| payloads << p[:payload] }
       end
-      described_class.ingest(two_party_chat, store: store, visibility: 'shareable')
+      described_class.ingest(two_party_chat, store: store, scope_app: 'ChatOpenAI')
       expect(payloads).not_to be_empty
       expect(payloads.map { |p| p['conversation_id'] }.uniq).to eq(['conv-1'])
-      expect(payloads.map { |p| p['visibility'] }.uniq).to eq(['shareable'])
+      expect(payloads.map { |p| p['scope_app'] }.uniq).to eq(['ChatOpenAI'])
     end
   end
 

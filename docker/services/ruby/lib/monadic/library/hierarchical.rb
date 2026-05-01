@@ -29,25 +29,28 @@ module Monadic
 
       # @param conversation [Hash] monadic-conversation v1 conformant
       # @param store [Monadic::Library::Store]
-      # @param visibility ['personal' | 'shareable']
+      # @param scope_app [String] app class name (e.g. "ChatOpenAI") or
+      #   the Store::SCOPE_GLOBAL sentinel ("Global"). The literal value
+      #   is stored on every produced point and used by library_search to
+      #   decide whether the requesting app may see the conversation.
       # @param levels [Array<Symbol>] subset of DEFAULT_LEVELS
       # @return [Hash] counts of upserted points per level
       def ingest(conversation,
                  store:,
-                 visibility: Store::VISIBILITY_PERSONAL,
+                 scope_app: Store::SCOPE_GLOBAL,
                  levels: DEFAULT_LEVELS)
-        validate_inputs!(conversation, visibility)
+        validate_inputs!(conversation, scope_app)
         embeddings = store.embeddings
         conv_id = conversation['conversation_id']
         turns = TurnSegmenter.segment(conversation)
         counts = { summary: 0, turns: 0 }
 
         if levels.include?(:summary)
-          counts[:summary] = upsert_summary(conversation, turns, conv_id, visibility, store, embeddings)
+          counts[:summary] = upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings)
         end
 
         if levels.include?(:turns) && !turns.empty?
-          counts[:turns] = upsert_turns(turns, conv_id, visibility, store, embeddings)
+          counts[:turns] = upsert_turns(turns, conv_id, scope_app, store, embeddings)
         end
 
         counts
@@ -55,12 +58,11 @@ module Monadic
 
       # ─── Private helpers ───────────────────────────────────────────────
 
-      def validate_inputs!(conversation, visibility)
+      def validate_inputs!(conversation, scope_app)
         raise ArgumentError, 'conversation must be a Hash' unless conversation.is_a?(Hash)
         raise ArgumentError, "missing conversation_id" if conversation['conversation_id'].to_s.empty?
-        unless Store::VALID_VISIBILITIES.include?(visibility.to_s)
-          raise ArgumentError,
-            "visibility must be one of #{Store::VALID_VISIBILITIES.inspect}, got #{visibility.inspect}"
+        if scope_app.to_s.strip.empty?
+          raise ArgumentError, "scope_app must be a non-empty string (an app class name or 'Global')"
         end
       end
 
@@ -83,7 +85,7 @@ module Monadic
       # via turns, just not displayed verbatim in the Viewer modal.
       SUMMARY_MESSAGES_MAX_BYTES = 1_000_000
 
-      def summary_payload(conversation, turns, visibility)
+      def summary_payload(conversation, turns, scope_app)
         meta = conversation['conversation_metadata'] || {}
         messages = conversation['messages'] || []
         participants = conversation['participants'] || []
@@ -91,7 +93,7 @@ module Monadic
 
         payload = {
           'conversation_id' => conversation['conversation_id'],
-          'visibility' => visibility.to_s,
+          'scope_app' => scope_app.to_s,
           # content_type is forward-compatible: future importers (PDF /
           # Office / Markdown / code files) write 'document' / 'pdf' /
           # 'code' here so the Browse modal can show a per-type icon.
@@ -134,7 +136,7 @@ module Monadic
         [messages, nil]
       end
 
-      def upsert_summary(conversation, turns, conv_id, visibility, store, embeddings)
+      def upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings)
         text = build_placeholder_summary_text(conversation, turns)
         return 0 if text.strip.empty?
         vector = embeddings.embed_passages([text]).first
@@ -143,16 +145,16 @@ module Monadic
           points: [{
             id: SecureRandom.uuid,
             vector: { 'content' => vector },
-            payload: summary_payload(conversation, turns, visibility)
+            payload: summary_payload(conversation, turns, scope_app)
           }]
         )
         1
       end
 
-      def turn_payload(turn, conv_id, visibility)
+      def turn_payload(turn, conv_id, scope_app)
         {
           'conversation_id' => conv_id,
-          'visibility' => visibility.to_s,
+          'scope_app' => scope_app.to_s,
           'turn_idx' => turn[:turn_idx],
           'speaker_id' => turn[:speaker_id],
           'speaker_role' => turn[:speaker_role],
@@ -165,13 +167,13 @@ module Monadic
         }.compact
       end
 
-      def upsert_turns(turns, conv_id, visibility, store, embeddings)
+      def upsert_turns(turns, conv_id, scope_app, store, embeddings)
         vectors = embeddings.embed_passages(turns.map { |t| t[:text] })
         points = turns.each_with_index.map do |turn, idx|
           {
             id: SecureRandom.uuid,
             vector: { 'content' => vectors[idx] },
-            payload: turn_payload(turn, conv_id, visibility)
+            payload: turn_payload(turn, conv_id, scope_app)
           }
         end
         store.upsert_points(

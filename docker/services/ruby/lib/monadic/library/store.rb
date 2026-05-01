@@ -5,27 +5,25 @@ require_relative '../embeddings'
 
 module Monadic
   module Library
-    # Storage facade for the Library (Phase 1a). Provides a thin layer over
-    # Qdrant that knows about the four Library collections and the
-    # `visibility` / `conversation_id` payload conventions used everywhere.
+    # Storage facade for the Library. Provides a thin layer over Qdrant
+    # that knows about the Library collections and the `scope_app` /
+    # `conversation_id` payload conventions used everywhere.
     #
-    # Library is global across apps (no app_key scoping). External access is
-    # gated by visibility:
-    #   - 'personal'  : Knowledge Base UI only
-    #   - 'shareable' : library_search tool returns hits to other apps
-    # 'excluded' data is never persisted in the first place — it does not
-    # appear here.
+    # The Library is shared across apps. Cross-app retrieval is gated by
+    # the `scope_app` payload field on each conversation:
+    #   - "<AppClassName>" (e.g. "ChatOpenAI", "JupyterNotebookGrok") —
+    #     library_search only returns hits when the requesting app
+    #     matches this exact class. Provider variants are intentionally
+    #     separate scopes ("ChatOpenAI" and "ChatClaude" do not share).
+    #   - "Global" — searchable from every app + every provider.
     #
-    # Hierarchical ingest (Level 2 turns / Level T trajectory / Level 3
-    # summary) is implemented by higher-level modules (Hierarchical /
-    # Trajectory) on top of this facade. This class only owns the bootstrap
-    # + generic upsert / search / delete plumbing.
+    # The Knowledge Base UI sees every entry regardless of scope_app —
+    # scoping is a retrieval-time concern, not a visibility-from-the-user
+    # concern.
     class Store
       Schema = Monadic::VectorStore::Schema
 
-      VISIBILITY_PERSONAL = 'personal'
-      VISIBILITY_SHAREABLE = 'shareable'
-      VALID_VISIBILITIES = [VISIBILITY_PERSONAL, VISIBILITY_SHAREABLE].freeze
+      SCOPE_GLOBAL = 'Global'
 
       COLLECTIONS = Schema::LIBRARY_COLLECTIONS
 
@@ -39,8 +37,6 @@ module Monadic
 
       # ─── Bootstrap ─────────────────────────────────────────────────────
 
-      # Create any Library collections that do not yet exist. Idempotent and
-      # cheap to call repeatedly.
       def bootstrap_collections!
         COLLECTIONS.each do |name|
           next if @store.collection_exists?(name: name)
@@ -55,10 +51,8 @@ module Monadic
 
       # ─── Generic plumbing ──────────────────────────────────────────────
 
-      # Upsert points into a Library collection. The caller is responsible
-      # for setting `payload['conversation_id']` and `payload['visibility']`
-      # on each point. Validates collection name and visibility values to
-      # catch programming errors early.
+      # Upsert points. Caller must set payload['conversation_id'] and
+      # payload['scope_app']. Validates both up front.
       def upsert_points(collection:, points:)
         ensure_library_collection!(collection)
         Array(points).each { |p| validate_point!(p) }
@@ -66,22 +60,21 @@ module Monadic
         @store.upsert_points(collection: collection, points: points)
       end
 
-      # Search a Library collection. `scope` controls the visibility filter:
-      #   :kb       — visibility in {personal, shareable} (KB UI use)
-      #   :external — visibility = shareable only (RAG via library_search)
-      def search(collection:, vector:, scope: :external, filter: nil, limit: 5)
+      # Search a Library collection. Pass `app_name:` to restrict to
+      # entries scoped to that app or "Global". Pass nil (default) to
+      # search across every entry — used by the KB UI's full-inventory
+      # surfaces.
+      def search(collection:, vector:, app_name: nil, filter: nil, limit: 5)
         ensure_library_collection!(collection)
         bootstrap_collections!
         @store.search(
           collection: collection,
           vector: vector, vector_name: 'content',
-          filter: combine_filters(visibility_filter(scope), filter),
+          filter: combine_filters(scope_filter(app_name), filter),
           limit: limit
         )
       end
 
-      # Remove every point belonging to the given conversation across all
-      # Library collections. Returns true on best-effort success.
       def delete_conversation(conversation_id)
         bootstrap_collections!
         COLLECTIONS.each do |name|
@@ -93,28 +86,18 @@ module Monadic
         true
       end
 
-      # Number of registered conversations — i.e. distinct entries in the
-      # summaries collection (which acts as the conversation index).
-      #
-      # Uses `exact: true` because Qdrant's approximate counter under-counts
-      # `match.any` filters (e.g. visibility scope :kb) by ~1 entry per
-      # cardinal value; for Library-sized collections (≤ low thousands)
-      # exact counting is cheap and the approximation is wrong often
-      # enough to mislead the KB sidebar.
-      def conversation_count(scope: :kb)
+      # Number of registered conversations. Pass app_name to count only
+      # entries this app would see (its own + Global); pass nil for the
+      # total.
+      def conversation_count(app_name: nil)
         bootstrap_collections!
         @store.count(
           collection: Schema::LIBRARY_SUMMARIES,
-          filter: visibility_filter(scope),
+          filter: scope_filter(app_name),
           exact: true
         )
       end
 
-      # Page through a Library collection. Mirrors the underlying Qdrant
-      # scroll API: returns { points: [...], next: cursor_or_nil }. Used by
-      # Manager to enumerate the conversation list and similar batch ops.
-      # Set with_vectors: true when callers (e.g. Visualizer) need the raw
-      # embeddings on each point.
       def scroll(collection:, filter: nil, limit: 256, offset: nil, with_vectors: false)
         ensure_library_collection!(collection)
         bootstrap_collections!
@@ -122,17 +105,16 @@ module Monadic
                       with_vectors: with_vectors)
       end
 
-      # ─── Filter helpers (public so higher-level modules can compose) ───
+      # ─── Filter helpers ────────────────────────────────────────────────
 
-      def visibility_filter(scope)
-        case scope
-        when :kb
-          { must: [{ key: 'visibility', match: { any: VALID_VISIBILITIES } }] }
-        when :external
-          { must: [{ key: 'visibility', match: { value: VISIBILITY_SHAREABLE } }] }
-        else
-          raise ArgumentError, "Unknown scope: #{scope.inspect} (expected :kb or :external)"
-        end
+      # Returns a filter that matches scope_app == app_name OR
+      # scope_app == "Global". When app_name is nil/empty, returns nil so
+      # the caller's combine_filters skips the scope clause entirely
+      # (used by the KB UI to show every entry).
+      def scope_filter(app_name)
+        s = app_name.to_s.strip
+        return nil if s.empty?
+        { must: [{ key: 'scope_app', match: { any: [s, SCOPE_GLOBAL] } }] }
       end
 
       def conversation_filter(conversation_id)
@@ -161,10 +143,9 @@ module Monadic
         if conv_id.nil? || conv_id.to_s.strip.empty?
           raise ArgumentError, "Library point must have payload['conversation_id']"
         end
-        visibility = payload['visibility'] || payload[:visibility]
-        unless VALID_VISIBILITIES.include?(visibility.to_s)
-          raise ArgumentError,
-            "Library point visibility must be one of #{VALID_VISIBILITIES.inspect}, got #{visibility.inspect}"
+        scope_app = payload['scope_app'] || payload[:scope_app]
+        if scope_app.nil? || scope_app.to_s.strip.empty?
+          raise ArgumentError, "Library point must have payload['scope_app'] (an app class name or 'Global')"
         end
       end
     end

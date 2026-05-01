@@ -70,10 +70,10 @@ RSpec.describe Monadic::Library::Retriever do
       described_class.cascade_search('how to ...', store: store)
     end
 
-    it 'searches summaries with scope :external and the configured summary_top_k by default' do
+    it 'searches summaries with no app_name filter and the configured summary_top_k by default' do
       expect(store).to receive(:search).with(hash_including(
         collection: 'library_summaries',
-        scope: :external,
+        app_name: nil,
         limit: Monadic::Library::Retriever::DEFAULT_SUMMARY_TOP_K
       )).and_return([])
       described_class.cascade_search('q', store: store)
@@ -138,10 +138,11 @@ RSpec.describe Monadic::Library::Retriever do
     end
   end
 
-  describe '.cascade_search (kb scope)' do
-    it 'forwards :kb scope so personal data is included' do
-      expect(store).to receive(:search).with(hash_including(scope: :kb)).at_least(:once).and_return([])
-      described_class.cascade_search('q', store: store, scope: :kb)
+  describe '.cascade_search (per-app scoping)' do
+    it 'forwards app_name down to both the summary and turn passes' do
+      expect(store).to receive(:search).with(hash_including(app_name: 'ChatOpenAI'))
+        .at_least(:once).and_return([])
+      described_class.cascade_search('q', store: store, app_name: 'ChatOpenAI')
     end
   end
 

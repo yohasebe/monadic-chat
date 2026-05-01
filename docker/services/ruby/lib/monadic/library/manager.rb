@@ -11,22 +11,29 @@ module Monadic
     # High-level Knowledge Base operations consumed by the Knowledge Base
     # app's tools. These methods sit on top of Store / Hierarchical /
     # Retriever / Importers and expose conversation-level concepts.
+    #
+    # Scoping model (2026-05): every conversation carries a `scope_app`
+    # payload field whose value is either an app class name (e.g.
+    # "ChatOpenAI", "JupyterNotebookGrok") or the literal string
+    # "Global". library_search filters by the requesting app's class
+    # name plus "Global"; the KB UI surfaces below pass `app_name: nil`
+    # so they see the full inventory regardless of scope.
     module Manager
       module_function
 
       # ─── List / inspect ────────────────────────────────────────────────
 
       # Enumerate conversations registered in the summaries collection,
-      # most recently created first. Returns an Array of Hash:
-      #   { conversation_id, title, source, language, license, visibility,
-      #     messages_count, turns_count, duration_seconds, created_at }
-      def list_conversations(store:, scope: :kb, limit: 100)
+      # most recently created first. Pass app_name to restrict to entries
+      # this app would see (its own + Global); pass nil for the full
+      # inventory used by the KB UI.
+      def list_conversations(store:, app_name: nil, limit: 100)
         rows = []
         cursor = nil
         loop do
           page = store.scroll(
             collection: VectorStore::Schema::LIBRARY_SUMMARIES,
-            filter: store.visibility_filter(scope),
+            filter: store.scope_filter(app_name),
             limit: 256, offset: cursor
           )
           page[:points].each { |p|
@@ -41,11 +48,11 @@ module Monadic
 
       # Fetch the full payload of a conversation's summary point. Returns
       # nil when no matching conversation is registered.
-      def get_conversation_details(store:, conversation_id:, scope: :kb)
+      def get_conversation_details(store:, conversation_id:, app_name: nil)
         page = store.scroll(
           collection: VectorStore::Schema::LIBRARY_SUMMARIES,
           filter: store.combine_filters(
-            store.visibility_filter(scope),
+            store.scope_filter(app_name),
             store.conversation_filter(conversation_id)
           ),
           limit: 1
@@ -54,16 +61,12 @@ module Monadic
         summary_row(page[:points].first['payload'] || {})
       end
 
-      # Fetch verbatim messages + metadata for the Conversation Viewer
-      # modal. Returns:
-      #   { conversation_id, title, messages: [...], participants: [...],
-      #     metadata: {...}, skipped_reason: nil | "exceeded X bytes" }
-      # or nil when the conversation is not registered.
-      def get_conversation_messages(store:, conversation_id:, scope: :kb)
+      # Fetch verbatim messages + metadata for the Conversation Viewer.
+      def get_conversation_messages(store:, conversation_id:, app_name: nil)
         page = store.scroll(
           collection: VectorStore::Schema::LIBRARY_SUMMARIES,
           filter: store.combine_filters(
-            store.visibility_filter(scope),
+            store.scope_filter(app_name),
             store.conversation_filter(conversation_id)
           ),
           limit: 1
@@ -75,7 +78,7 @@ module Monadic
           title: payload['title'],
           source: payload['source'],
           language: payload['language'],
-          visibility: payload['visibility'],
+          scope_app: payload['scope_app'],
           turns_count: payload['turns_count'],
           messages_count: payload['messages_count'],
           created_at: payload['created_at'],
@@ -85,41 +88,51 @@ module Monadic
         }
       end
 
-      # Aggregate counts per visibility — useful for the KB UI / status
-      # tools.
+      # Aggregate counts. Returns total + a per-scope breakdown (one
+      # count per distinct scope_app value, including "Global"). Useful
+      # for the KB stats line and for letting the Browse modal render an
+      # accurate filter dropdown.
       def library_stats(store:)
-        bootstrap_summary_count = store.conversation_count(scope: :kb)
-        shareable_count = store.conversation_count(scope: :external)
+        total = store.conversation_count
+        by_scope = Hash.new(0)
+        cursor = nil
+        loop do
+          page = store.scroll(
+            collection: VectorStore::Schema::LIBRARY_SUMMARIES,
+            filter: nil,
+            limit: 256, offset: cursor
+          )
+          page[:points].each do |p|
+            scope = (p['payload'] || {})['scope_app'].to_s
+            scope = Store::SCOPE_GLOBAL if scope.empty?
+            by_scope[scope] += 1
+          end
+          break if page[:next].nil?
+          cursor = page[:next]
+        end
         {
-          conversations_total: bootstrap_summary_count,
-          conversations_shareable: shareable_count,
-          conversations_personal: bootstrap_summary_count - shareable_count
+          conversations_total: total,
+          conversations_by_scope: by_scope
         }
       end
 
       # ─── Mutate ────────────────────────────────────────────────────────
 
-      # Change a conversation's visibility across all four collections by
-      # re-writing the visibility field in each existing point's payload.
-      # Implemented as scroll + upsert for simplicity; Qdrant has no
-      # native partial-payload-update, but upsert with the same id+vector
-      # acts as patch when payload is the only diff.
-      def update_visibility(store:, conversation_id:, visibility:)
-        unless Store::VALID_VISIBILITIES.include?(visibility.to_s)
-          raise ArgumentError,
-            "visibility must be one of #{Store::VALID_VISIBILITIES.inspect}, got #{visibility.inspect}"
+      # Change a conversation's scope_app across every Library
+      # collection. Implemented as scroll + upsert because Qdrant has no
+      # native partial-payload-update.
+      def update_scope_app(store:, conversation_id:, scope_app:)
+        normalized = scope_app.to_s.strip
+        if normalized.empty?
+          raise ArgumentError, "scope_app must be a non-empty string (an app class name or 'Global')"
         end
 
         VectorStore::Schema::LIBRARY_COLLECTIONS.each do |collection|
-          rewrite_visibility(store, collection, conversation_id, visibility.to_s)
+          rewrite_payload_field(store, collection, conversation_id, 'scope_app', normalized)
         end
         true
       end
 
-      # Rewrite the title field on the summary point for a conversation.
-      # Title is stored only on summaries (turn / trajectory points carry
-      # the conversation_id, not the title) so a single collection rewrite
-      # is enough.
       MAX_TITLE_LENGTH = 200
 
       def update_title(store:, conversation_id:, title:)
@@ -131,33 +144,25 @@ module Monadic
           raise ArgumentError, "title must be #{MAX_TITLE_LENGTH} characters or fewer"
         end
 
-        rewrite_title(store, VectorStore::Schema::LIBRARY_SUMMARIES, conversation_id, normalized)
+        rewrite_payload_field(store, VectorStore::Schema::LIBRARY_SUMMARIES,
+                              conversation_id, 'title', normalized,
+                              limit: 1)
         true
       end
 
-      # Best-effort delete that simply forwards to Store. Kept here so
-      # KB tools have a single import surface.
       def delete_conversation(store:, conversation_id:)
         store.delete_conversation(conversation_id)
       end
 
       # ─── Import + ingest ───────────────────────────────────────────────
 
-      # Take raw text or a parsed Ruby Hash/Array, dispatch to a
-      # registered importer, and ingest the resulting conversation via
-      # Hierarchical.ingest. Returns the dispatched importer + ingest
-      # counts so callers can build a confirmation message.
-      #
-      # @param input [String, Hash, Array]
-      # @param options [Hash] forwarded to importer (title, license, etc.)
-      # @return [Hash] { conversation_id:, importer:, counts: {...} }
-      def import_from_text(store:, input:, options: {}, visibility: Store::VISIBILITY_PERSONAL)
+      def import_from_text(store:, input:, options: {}, scope_app: Store::SCOPE_GLOBAL)
         parsed = parse_input(input)
         importer = Importers.detect(parsed)
         raise ArgumentError, 'Could not detect a known conversation format' unless importer
 
         conversation = importer.import(parsed, options)
-        counts = Hierarchical.ingest(conversation, store: store, visibility: visibility)
+        counts = Hierarchical.ingest(conversation, store: store, scope_app: scope_app)
         {
           conversation_id: conversation['conversation_id'],
           importer: importer.name.split('::').last,
@@ -165,12 +170,8 @@ module Monadic
         }
       end
 
-      # Ingest an already-built monadic-conversation v1 hash. File-based
-      # importers (Markdown / Code / PDF / Office) build the hash up-front
-      # by reading the file and calling the right module directly, so they
-      # bypass the dispatch step that import_from_text uses.
-      def import_conversation(store:, conversation:, visibility: Store::VISIBILITY_PERSONAL)
-        counts = Hierarchical.ingest(conversation, store: store, visibility: visibility)
+      def import_conversation(store:, conversation:, scope_app: Store::SCOPE_GLOBAL)
+        counts = Hierarchical.ingest(conversation, store: store, scope_app: scope_app)
         {
           conversation_id: conversation['conversation_id'],
           counts: counts
@@ -187,7 +188,7 @@ module Monadic
           source: payload['source'],
           language: payload['language'],
           license: payload['license'],
-          visibility: payload['visibility'],
+          scope_app: payload['scope_app'],
           messages_count: payload['messages_count'],
           turns_count: payload['turns_count'],
           duration_seconds: payload['duration_seconds'],
@@ -196,53 +197,31 @@ module Monadic
         }.compact
       end
 
-      def rewrite_visibility(store, collection, conversation_id, visibility)
+      # Rewrite a single payload field across every point matching the
+      # given conversation_id in `collection`. Used by update_scope_app
+      # (every collection) and update_title (summaries only). Setting
+      # `limit:` caps how many points to scroll per page; for summaries
+      # there is exactly one point so 1 is enough.
+      def rewrite_payload_field(store, collection, conversation_id, key, value, limit: 256)
         cursor = nil
         loop do
           page = store.scroll(
             collection: collection,
-            filter: store.combine_filters(
-              store.visibility_filter(:kb),
-              store.conversation_filter(conversation_id)
-            ),
-            limit: 256, offset: cursor,
+            filter: store.conversation_filter(conversation_id),
+            limit: limit, offset: cursor,
             with_vectors: true
           )
+          break if page[:points].empty?
           patched = page[:points].map { |p|
-            payload = (p['payload'] || {}).merge('visibility' => visibility)
+            payload = (p['payload'] || {}).merge(key => value)
             { id: p['id'], vector: p['vector'], payload: payload }
           }
-          store.upsert_points(collection: collection, points: patched) unless patched.empty?
+          store.upsert_points(collection: collection, points: patched)
           break if page[:next].nil?
           cursor = page[:next]
         end
       end
 
-      def rewrite_title(store, collection, conversation_id, title)
-        # with_vectors: true is required so the upsert below preserves the
-        # original embedding vector. Without it the vector field comes
-        # back nil and Qdrant rejects the upsert (or worse, replaces the
-        # embedding with null silently).
-        page = store.scroll(
-          collection: collection,
-          filter: store.combine_filters(
-            store.visibility_filter(:kb),
-            store.conversation_filter(conversation_id)
-          ),
-          limit: 1,
-          with_vectors: true
-        )
-        return false if page[:points].empty?
-        patched = page[:points].map { |p|
-          payload = (p['payload'] || {}).merge('title' => title)
-          { id: p['id'], vector: p['vector'], payload: payload }
-        }
-        store.upsert_points(collection: collection, points: patched)
-        true
-      end
-
-      # Try parsing a String as JSON. If it fails, return the string as-is
-      # so importers like PlainText can take over.
       def parse_input(input)
         return input unless input.is_a?(String)
         return input if input.strip.empty?

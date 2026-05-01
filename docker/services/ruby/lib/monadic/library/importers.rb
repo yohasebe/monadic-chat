@@ -18,6 +18,7 @@ require_relative 'importers/ted_talk'
 require_relative 'importers/plain_text'
 require_relative 'importers/markdown'
 require_relative 'importers/code'
+require_relative 'importers/pdf'
 
 module Monadic
   module Library

@@ -58,7 +58,7 @@ app "KnowledgeBaseGrok" do
     end
 
     define_tool "plot_cross_corpus_trajectory", "Render multiple conversations' trajectories in a shared PCA space (cross-corpus comparison)" do
-      parameter :conversation_ids, "array", "Array of conversation IDs (2-10)", required: true
+      parameter :conversation_ids, "array", "Array of conversation IDs (2-10)", required: true, items: { type: "string" }
       parameter :title, "string", "Optional plot title", required: false
     end
 

@@ -131,7 +131,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
     end
 
-    it 'invokes Retriever with scope :external and returns formatted text' do
+    it 'invokes Retriever with scope :kb (personal + shareable) and returns formatted text' do
       canned = [{
         text: 'returned snippet', conversation_id: 'conv-1', turn_idx: 0,
         speaker_role: 'human', start_message_id: 'm-1', score: 0.9,
@@ -139,7 +139,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
         conversation_language: 'en'
       }]
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
-        .with('how it works', hash_including(scope: :external, top_n: 3))
+        .with('how it works', hash_including(scope: :kb, top_n: 3))
         .and_return(canned)
       out = host.library_search(query: 'how it works')
       expect(out).to include('Found 1 relevant passage')
@@ -202,7 +202,73 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(group[:visibility]).to eq('conditional')
       expect(group[:tools].first[:name]).to eq('library_search')
       expect(group[:tools].first[:parameters].map { |p| p[:name] })
-        .to contain_exactly(:query, :top_n)
+        .to contain_exactly(:query, :top_n, :content_type, :source)
+    end
+  end
+
+  describe '.build_payload_filter' do
+    it 'returns nil when neither content_type nor source is provided' do
+      expect(MonadicSharedTools::LibrarySearch.build_payload_filter).to be_nil
+    end
+
+    it 'normalises blank values to nil so an empty string does not collapse the result set' do
+      expect(MonadicSharedTools::LibrarySearch.build_payload_filter(content_type: '', source: '   ')).to be_nil
+    end
+
+    it 'builds a content_type-only filter' do
+      filter = MonadicSharedTools::LibrarySearch.build_payload_filter(content_type: 'pdf')
+      expect(filter).to eq({ must: [{ key: 'content_type', match: { value: 'pdf' } }] })
+    end
+
+    it 'builds a source-only filter' do
+      filter = MonadicSharedTools::LibrarySearch.build_payload_filter(source: 'monadic-chat')
+      expect(filter).to eq({ must: [{ key: 'source', match: { value: 'monadic-chat' } }] })
+    end
+
+    it 'AND-combines content_type and source clauses' do
+      filter = MonadicSharedTools::LibrarySearch.build_payload_filter(
+        content_type: 'conversation', source: 'ted-talk'
+      )
+      expect(filter).to eq({
+        must: [
+          { key: 'content_type', match: { value: 'conversation' } },
+          { key: 'source', match: { value: 'ted-talk' } }
+        ]
+      })
+    end
+  end
+
+  describe 'library_search filter pass-through' do
+    let(:host) do
+      Class.new { include MonadicSharedTools::LibrarySearch::Tools }.new
+    end
+
+    before do
+      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
+    end
+
+    it 'forwards a content_type filter to Retriever.cascade_search' do
+      expect(Monadic::Library::Retriever).to receive(:cascade_search) do |_q, **opts|
+        expect(opts[:payload_filter]).to eq({ must: [{ key: 'content_type', match: { value: 'pdf' } }] })
+        []
+      end
+      host.library_search(query: 'q', content_type: 'pdf')
+    end
+
+    it 'forwards a source filter to Retriever.cascade_search' do
+      expect(Monadic::Library::Retriever).to receive(:cascade_search) do |_q, **opts|
+        expect(opts[:payload_filter]).to eq({ must: [{ key: 'source', match: { value: 'monadic-chat' } }] })
+        []
+      end
+      host.library_search(query: 'q', source: 'monadic-chat')
+    end
+
+    it 'omits payload_filter (nil) when neither narrowing param is given' do
+      expect(Monadic::Library::Retriever).to receive(:cascade_search) do |_q, **opts|
+        expect(opts[:payload_filter]).to be_nil
+        []
+      end
+      host.library_search(query: 'q')
     end
   end
 end

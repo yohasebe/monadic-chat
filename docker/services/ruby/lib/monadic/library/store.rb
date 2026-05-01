@@ -95,11 +95,18 @@ module Monadic
 
       # Number of registered conversations — i.e. distinct entries in the
       # summaries collection (which acts as the conversation index).
+      #
+      # Uses `exact: true` because Qdrant's approximate counter under-counts
+      # `match.any` filters (e.g. visibility scope :kb) by ~1 entry per
+      # cardinal value; for Library-sized collections (≤ low thousands)
+      # exact counting is cheap and the approximation is wrong often
+      # enough to mislead the KB sidebar.
       def conversation_count(scope: :kb)
         bootstrap_collections!
         @store.count(
           collection: Schema::LIBRARY_SUMMARIES,
-          filter: visibility_filter(scope)
+          filter: visibility_filter(scope),
+          exact: true
         )
       end
 

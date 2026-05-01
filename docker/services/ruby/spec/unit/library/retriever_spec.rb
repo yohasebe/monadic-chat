@@ -12,6 +12,16 @@ RSpec.describe Monadic::Library::Retriever do
     allow(store).to receive(:conversation_filter) { |id|
       { must: [{ key: 'conversation_id', match: { value: id.to_s } }] }
     }
+    # Mirror the real Store#combine_filters: AND the :must clauses of the
+    # supplied filters, dropping nils. Tests that omit payload_filter still
+    # see only the conversation_id clause; tests that pass one see both.
+    allow(store).to receive(:combine_filters) { |*filters|
+      merged = { must: [] }
+      filters.compact.each do |f|
+        merged[:must].concat(Array(f[:must])) if f.is_a?(Hash) && f[:must]
+      end
+      merged[:must].empty? ? nil : merged
+    }
     allow(embeddings).to receive(:embed_query).and_return(Array.new(768, 0.1))
   end
 
@@ -60,9 +70,11 @@ RSpec.describe Monadic::Library::Retriever do
       described_class.cascade_search('how to ...', store: store)
     end
 
-    it 'searches summaries with scope :external by default' do
+    it 'searches summaries with scope :external and the configured summary_top_k by default' do
       expect(store).to receive(:search).with(hash_including(
-        collection: 'library_summaries', scope: :external, limit: 3
+        collection: 'library_summaries',
+        scope: :external,
+        limit: Monadic::Library::Retriever::DEFAULT_SUMMARY_TOP_K
       )).and_return([])
       described_class.cascade_search('q', store: store)
     end
@@ -90,6 +102,39 @@ RSpec.describe Monadic::Library::Retriever do
       expect(h[:conversation_source]).to eq('ted-talk')
       expect(h[:text]).to eq('rare insight from A')
       expect(h[:turn_idx]).to eq(3)
+    end
+  end
+
+  describe '.cascade_search payload_filter pass-through' do
+    let(:payload_filter) { { must: [{ key: 'source', match: { value: 'monadic-chat' } }] } }
+
+    it 'forwards payload_filter to the summary pass' do
+      summary_filter_seen = nil
+      allow(store).to receive(:search).with(hash_including(collection: 'library_summaries')) do |args|
+        summary_filter_seen = args[:filter]
+        []
+      end
+      described_class.cascade_search('q', store: store, payload_filter: payload_filter)
+      expect(summary_filter_seen).to eq(payload_filter)
+    end
+
+    it 'does NOT forward payload_filter to the turn pass (turn payloads lack source/content_type)' do
+      # Turn-level payloads only carry conversation_id / visibility /
+      # turn_idx — narrowing fields like `source` live on the summary
+      # alone. Applying payload_filter here would return zero turn hits
+      # whenever the LLM uses a narrowing param. Guard against regression.
+      allow(store).to receive(:search).with(hash_including(collection: 'library_summaries')).and_return([
+        summary_hit('A', 0.92, title: 'Talk A', source: 'monadic-chat')
+      ])
+      turn_filter_seen = nil
+      allow(store).to receive(:search).with(hash_including(collection: 'library_turns')) do |args|
+        turn_filter_seen = args[:filter]
+        []
+      end
+      described_class.cascade_search('q', store: store, payload_filter: payload_filter)
+      expect(turn_filter_seen).to eq(
+        { must: [{ key: 'conversation_id', match: { value: 'A' } }] }
+      )
     end
   end
 

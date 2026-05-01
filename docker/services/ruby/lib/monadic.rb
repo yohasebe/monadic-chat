@@ -754,6 +754,7 @@ require_relative "monadic/routes/api_routes"
 require_relative "monadic/routes/static_routes"
 require_relative "monadic/routes/upload_routes"
 require_relative "monadic/routes/session_routes"
+require_relative "monadic/routes/library_import_routes"
 
 APPS.each do |k, v|
   # convert `k` from a capitalized multi word title to snake_case

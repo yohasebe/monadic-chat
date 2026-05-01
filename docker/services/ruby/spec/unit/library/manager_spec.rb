@@ -176,4 +176,33 @@ RSpec.describe Monadic::Library::Manager do
       }.to raise_error(ArgumentError, /known conversation format/)
     end
   end
+
+  describe '.import_conversation' do
+    before do
+      allow(embeddings).to receive(:embed_passages) { |texts| texts.map { Array.new(768, 0.1) } }
+      allow(store).to receive(:upsert_points)
+    end
+
+    it 'ingests a pre-built v1 conversation directly (skipping dispatch)' do
+      conv = Monadic::Library::Importers::Markdown.import(
+        "# Section\n\n" + ('Body. ' * 50), filename: 'notes.md'
+      )
+      result = described_class.import_conversation(store: store, conversation: conv)
+      expect(result[:conversation_id]).to eq(conv['conversation_id'])
+      expect(result[:counts][:turns]).to be > 0
+    end
+
+    it 'forwards visibility to Hierarchical.ingest' do
+      conv = Monadic::Library::Importers::Markdown.import(
+        "# Section\n\nbody body body. " * 10, filename: 'notes.md'
+      )
+      described_class.import_conversation(
+        store: store, conversation: conv, visibility: Monadic::Library::Store::VISIBILITY_SHAREABLE
+      )
+      expect(store).to have_received(:upsert_points).at_least(:once) do |args|
+        payload = args[:points].first[:payload]
+        expect(payload['visibility']).to eq('shareable')
+      end
+    end
+  end
 end

@@ -91,35 +91,40 @@
     }
 
     #sidebar-footer button {
-      background-color: #ffc107;
-      color: #000;
+      background-color: #0d6efd;
+      color: #fff;
       border: none;
       border-radius: 6px;
-      padding: 6px 14px;
+      padding: 4px 10px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: background-color 0.15s ease;
     }
 
     #sidebar-footer button:hover {
-      background-color: #e0ac07;
+      background-color: #0b5ed7;
     }
 
-    #close-settings-btn {
+    /* Close uses a neutral grey; specificity bumped via descendant
+       selector so it wins over the default #sidebar-footer button rule. */
+    #sidebar-footer #close-settings-btn {
       background-color: #e5e5ea;
       color: #1d1d1f;
     }
 
-    #close-settings-btn:hover {
+    #sidebar-footer #close-settings-btn:hover {
       background-color: #d1d1d6;
     }
 
+    /* Brief acknowledgement after a successful save — stays in the
+       primary blue family rather than flashing green so the colour stays
+       consistent with the policy (blue = confirm/save). */
     #save-settings-btn.saved {
-      background-color: #28a745;
+      background-color: #0a58ca;
       color: #fff;
     }
 
@@ -354,12 +359,12 @@
         border-top-color: #38383a;
       }
 
-      #close-settings-btn {
+      #sidebar-footer #close-settings-btn {
         background-color: #3a3a3c;
         color: #e5e5e7;
       }
 
-      #close-settings-btn:hover {
+      #sidebar-footer #close-settings-btn:hover {
         background-color: #48484a;
       }
 
@@ -1051,8 +1056,8 @@
               <div style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
                 <button id="actionConfirmCancel" style="background-color: #e5e5ea; border: none; padding: 8px 16px;
                     border-radius: 6px; color: #1d1d1f; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Cancel'}</button>
-                <button id="actionConfirmOk" style="background-color: #ffc107; border: none; padding: 8px 16px;
-                    border-radius: 6px; color: #000; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.actionSaveAndExecute') || 'Save & Execute'}</button>
+                <button id="actionConfirmOk" style="background-color: #0d6efd; border: none; padding: 8px 16px;
+                    border-radius: 6px; color: #fff; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.actionSaveAndExecute') || 'Save & Execute'}</button>
               </div>
             </div>
           </div>`;
@@ -1195,8 +1200,8 @@
               <div style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
                 <button id="unsavedDiscard" style="background-color: #e5e5ea; border: none; padding: 8px 16px;
                     border-radius: 6px; color: #1d1d1f; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Close'}</button>
-                <button id="unsavedSave" style="background-color: #ffc107; border: none; padding: 8px 16px;
-                    border-radius: 6px; color: #000; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.saveAndClose') || 'Save and Close'}</button>
+                <button id="unsavedSave" style="background-color: #0d6efd; border: none; padding: 8px 16px;
+                    border-radius: 6px; color: #fff; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.saveAndClose') || 'Save and Close'}</button>
               </div>
             </div>
           </div>`;

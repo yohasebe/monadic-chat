@@ -5,6 +5,12 @@
 # MDSL file.
 
 module KnowledgeBaseConstants
+  ICON = "fa-solid fa-book"
+
+  DESCRIPTION = <<~TEXT
+    Project-wide Knowledge Base. Manage conversations and documents stored in the Library, control sharing across apps, and import external content.
+  TEXT
+
   SYSTEM_PROMPT = <<~PROMPT
     You are the **Knowledge Base** assistant. You manage the project-wide
     Library — a Qdrant + multilingual-e5-base store of conversations and

@@ -90,6 +90,10 @@ RSpec.describe Monadic::Library::Importers::Office do
     it 'derives source from filename with office: prefix' do
       expect(result.dig('conversation_metadata', 'source')).to eq('office:plan.docx')
     end
+
+    it 'auto-derives title from filename when no title given' do
+      expect(result.dig('conversation_metadata', 'title')).to eq('plan')
+    end
   end
 
   describe '.import (xlsx)' do

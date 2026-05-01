@@ -35,6 +35,15 @@ module Monadic
           SecureRandom.uuid
         end
 
+        # Derive a default title from a filename — basename without the
+        # extension. Returns nil when the input is blank so callers can
+        # fall back to other defaults.
+        def derive_title_from_filename(filename)
+          return nil if filename.to_s.strip.empty?
+          base = File.basename(filename.to_s, '.*')
+          base.empty? ? nil : base
+        end
+
         # Compose the conversation_metadata object from explicit options
         # plus required defaults. options is a Hash from the importer caller.
         def build_metadata(source:, options: {})

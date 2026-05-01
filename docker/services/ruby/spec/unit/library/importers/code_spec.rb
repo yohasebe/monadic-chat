@@ -152,6 +152,15 @@ RSpec.describe Monadic::Library::Importers::Code do
     it 'derives source from filename' do
       expect(result.dig('conversation_metadata', 'source')).to eq('code:greeter.rb')
     end
+
+    it 'auto-derives title from filename when no title is given' do
+      expect(result.dig('conversation_metadata', 'title')).to eq('greeter')
+    end
+
+    it 'caller-supplied title wins over filename derivation' do
+      result = described_class.import(ruby_input, filename: 'greeter.rb', title: 'My Greeter')
+      expect(result.dig('conversation_metadata', 'title')).to eq('My Greeter')
+    end
   end
 
   describe '.import (Python)' do

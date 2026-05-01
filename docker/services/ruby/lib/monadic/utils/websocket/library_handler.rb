@@ -10,6 +10,7 @@ require 'monadic/library'
 #   - LIBRARY_STATS  → 'library_stats' (counts only)
 #   - LIBRARY_SAVE   → 'library_saved' (ingest current session into Library)
 #   - LIBRARY_TOGGLE_VISIBILITY → 'library_visibility_updated'
+#   - LIBRARY_RENAME            → 'library_renamed' (in-place title edit)
 #   - LIBRARY_GET_CONVERSATION  → 'library_conversation_data' (verbatim
 #                                  messages for the Viewer modal)
 #   - LIBRARY_RAG_TOGGLE → 'library_rag_state' (per-session RAG opt-in flag)
@@ -122,6 +123,43 @@ module WebSocketHelper
       'type' => 'library_conversation_data', 'res' => 'failure',
       'content' => e.message,
       'conversation_id' => obj.is_a?(Hash) ? obj['contents'] : nil
+    })
+  end
+
+  private def handle_ws_library_rename(connection, obj, _session)
+    payload = obj['contents']
+    payload = {} unless payload.is_a?(Hash)
+    conv_id = payload['conversation_id'].to_s
+    title = payload['title'].to_s
+
+    if conv_id.empty?
+      send_to_client(connection, {
+        'type' => 'library_renamed', 'res' => 'failure',
+        'content' => 'Missing conversation_id'
+      })
+      return
+    end
+
+    store = library_store_for_ws
+    Monadic::Library::Manager.update_title(
+      store: store, conversation_id: conv_id, title: title
+    )
+    send_to_client(connection, {
+      'type' => 'library_renamed', 'res' => 'success',
+      'conversation_id' => conv_id, 'title' => title.strip
+    })
+  rescue ArgumentError => e
+    send_to_client(connection, {
+      'type' => 'library_renamed', 'res' => 'failure',
+      'content' => e.message,
+      'conversation_id' => obj.dig('contents', 'conversation_id')
+    })
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_RENAME failed: #{e.class}: #{e.message}" }
+    send_to_client(connection, {
+      'type' => 'library_renamed', 'res' => 'failure',
+      'content' => e.message,
+      'conversation_id' => obj.dig('contents', 'conversation_id')
     })
   end
 

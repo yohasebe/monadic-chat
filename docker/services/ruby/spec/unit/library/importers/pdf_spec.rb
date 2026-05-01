@@ -81,6 +81,11 @@ RSpec.describe Monadic::Library::Importers::Pdf do
       expect(result.dig('conversation_metadata', 'source')).to eq('pdf')
     end
 
+    it 'falls back to filename-derived title when PDF has no document-properties title' do
+      result = described_class.import(markdown_content, filename: '/papers/Vaswani_et_al.pdf')
+      expect(result.dig('conversation_metadata', 'title')).to eq('Vaswani_et_al')
+    end
+
     it 'uses title option for participant label when provided' do
       result = described_class.import(markdown_content, filename: 'p.pdf', title: 'My PDF')
       expect(result['participants'].first['label']).to eq('My PDF')

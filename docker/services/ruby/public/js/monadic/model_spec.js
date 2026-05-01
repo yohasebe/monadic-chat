@@ -902,6 +902,24 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_parallel_function_calling": true
   },
+  // Unified flagship released 2026-04. Reasoning is always-on and
+  // cannot be tuned via reasoning_effort (the parameter is rejected by
+  // the API). Sampling parameters are partially restricted: temperature
+  // and top_p are accepted, but presence_penalty / frequency_penalty
+  // are rejected, so they are intentionally absent from this spec.
+  // Context window is 1M, smaller than the 4.20 family's 2M.
+  "grok-4.3": {
+    "context_window" : [1, 1000000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true,
+    "structured_output": true
+  },
   // Perplexity models
   "sonar-deep-research": {
     "context_window" : [1, 128000],
@@ -1159,7 +1177,7 @@ const providerDefaults = {
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },
   "xai": {
-    "chat": ["grok-4-1-fast-non-reasoning", "grok-4-1-fast-reasoning", "grok-4.20-0309-reasoning", "grok-4.20-0309-non-reasoning", "grok-4.20-multi-agent-0309"],
+    "chat": ["grok-4-1-fast-non-reasoning", "grok-4-1-fast-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-0309-non-reasoning", "grok-4.20-multi-agent-0309"],
     "code": ["grok-code-fast-1"],
     "vision": ["grok-4-1-fast-non-reasoning"],
     "image": ["grok-imagine-image", "grok-imagine-image-pro"],

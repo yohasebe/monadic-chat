@@ -43,7 +43,8 @@ module Monadic
       end
 
       # Plot multiple conversations' trajectories in a shared PCA space.
-      # Useful for cross-corpus comparison plots in the SemDial paper.
+      # Useful for cross-corpus comparison and side-by-side discourse
+      # analysis across conversations.
       def plot_cross_corpus(store:, conversation_ids:, labels: {}, title: nil)
         raise ArgumentError, 'conversation_ids must be a non-empty array' unless conversation_ids.is_a?(Array) && !conversation_ids.empty?
 

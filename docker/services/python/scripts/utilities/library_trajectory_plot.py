@@ -4,7 +4,7 @@
 Reads a JSON file describing one or more conversations' trajectory points
 (each point is a 768-dimensional embedding paired with metadata), projects
 them down to 2D via numpy SVD-based PCA, and writes:
-  - a PNG file (publication-quality static figure)
+  - a PNG file (static figure suitable for sharing or printing)
   - an interactive HTML file (Plotly)
 
 Output paths are printed as JSON on stdout so the Ruby caller can parse

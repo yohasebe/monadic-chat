@@ -261,7 +261,35 @@ def start_server(opts)
     end
   end
 
-  # STEP 3: Start required support containers (NOT Ruby container)
+  # STEP 3a: When MONADIC_DEV=true, host-side scripts and specs need
+  # qdrant/embeddings to publish their ports. Detect when an existing
+  # container was created without the dev compose overlay (no published
+  # ports) and trigger `monadic.sh start` to recreate via compose, which
+  # picks up compose.dev.yml. Without this, the user has to manually run
+  # `docker rm -f ...` + `MONADIC_DEV=true ./docker/monadic.sh start`.
+  if ENV['MONADIC_DEV'] == 'true'
+    needs_recreate = false
+    %w[monadic-chat-qdrant-container monadic-chat-embeddings-container].each do |cname|
+      next unless container_exists?(cname)
+      ports = `#{DOCKER_CMD} port #{cname} 2>/dev/null`.to_s.strip
+      if ports.empty?
+        puts "⚠️  #{cname} has no host port mapping; dev overlay needs to recreate it"
+        needs_recreate = true
+        break
+      end
+    end
+    if needs_recreate
+      monadic_sh = File.expand_path('../../../monadic.sh', __dir__)
+      if File.executable?(monadic_sh)
+        puts "🔄 Recreating support containers via #{monadic_sh} start (MONADIC_DEV=true)"
+        system({'MONADIC_DEV' => 'true'}, monadic_sh, 'start')
+      else
+        puts "ℹ️  monadic.sh not found at #{monadic_sh}; skipping dev recreate"
+      end
+    end
+  end
+
+  # STEP 3b: Start required support containers (NOT Ruby container)
   REQUIRED_CONTAINER_ALIASES.each do |aliases|
     name = aliases.find { |n| container_exists?(n) }
     next unless name

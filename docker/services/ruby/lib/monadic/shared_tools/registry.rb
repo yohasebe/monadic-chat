@@ -1075,9 +1075,15 @@ module MonadicSharedTools
           {
             name: "library_search",
             description: "Search the project-wide Knowledge Base (Library) for passages relevant " \
-                         "to a query. Returns turn-level snippets with conversation citations. " \
-                         "Only conversations marked 'shareable' in the Knowledge Base are visible " \
-                         "from this tool; private conversations stay inside the Knowledge Base UI.",
+                         "to a query. Returns turn-level snippets with conversation citations as " \
+                         "[Title](mc:conv:<id>) markdown links — preserve them verbatim in your " \
+                         "reply so the user can click through to the original conversation. The " \
+                         "user has explicitly enabled Knowledge Base RAG for this session, so " \
+                         "prefer this tool over your training knowledge for any topic the user " \
+                         "may have stored content about. The system prompt lists what's currently " \
+                         "in the Knowledge Base by `source` and `content_type`; use those keys " \
+                         "with the optional narrowing parameters when the answer is likely in a " \
+                         "specific slice of the Library.",
             parameters: [
               {
                 name: :query,
@@ -1089,6 +1095,18 @@ module MonadicSharedTools
                 name: :top_n,
                 type: "integer",
                 description: "Number of passages to return (default 3, max 10).",
+                required: false
+              },
+              {
+                name: :content_type,
+                type: "string",
+                description: "Optional narrowing filter. One of \"conversation\", \"pdf\", \"document\", \"markdown\", \"code\". Match against the inventory listed in the system prompt; omit to search all content types.",
+                required: false
+              },
+              {
+                name: :source,
+                type: "string",
+                description: "Optional narrowing filter. A specific source key from the inventory (e.g. \"monadic-chat\" for the user's saved chats, or any corpus identifier listed). Omit to search all sources.",
                 required: false
               }
             ]

@@ -2,6 +2,7 @@
 
 require_relative '../../../lib/monadic/utils/system_prompt_injector'
 require_relative '../../../lib/monadic/utils/language_config'
+require_relative '../../../lib/monadic/library/inventory'
 
 RSpec.describe Monadic::Utils::SystemPromptInjector do
   describe '.build_injections' do
@@ -111,6 +112,49 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         result = described_class.build_injections(session: session, options: options)
 
         expect(result).to be_empty
+      end
+    end
+
+    context 'with Knowledge Base RAG toggle' do
+      it 'includes library_rag injection when toggle is true (boolean)' do
+        session = { parameters: { 'library_rag_enabled' => true } }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        rag = result.find { |r| r[:name] == :library_rag }
+        expect(rag).not_to be_nil
+        expect(rag[:content]).to include('Knowledge Base RAG is enabled')
+        expect(rag[:content]).to include('library_search')
+        expect(rag[:content]).to include('mc:conv:')
+      end
+
+      it 'includes library_rag injection when toggle is the string "true"' do
+        session = { parameters: { 'library_rag_enabled' => 'true' } }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        rag = result.find { |r| r[:name] == :library_rag }
+        expect(rag).not_to be_nil
+      end
+
+      it 'omits library_rag injection when toggle is false' do
+        session = { parameters: { 'library_rag_enabled' => false } }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.find { |r| r[:name] == :library_rag }).to be_nil
+      end
+
+      it 'omits library_rag injection when toggle is missing' do
+        session = { parameters: {} }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.find { |r| r[:name] == :library_rag }).to be_nil
       end
     end
 
@@ -461,6 +505,56 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         expect(result[1][:name]).to eq(:autonomy)
         expect(result[2][:name]).to eq(:websearch)
       end
+    end
+  end
+
+  describe '.build_library_rag_prompt' do
+    let(:session) { { parameters: { 'library_rag_enabled' => true } } }
+
+    it 'always includes the directive header even when the inventory is unavailable' do
+      allow(described_class).to receive(:library_inventory_block).and_return(nil)
+      out = described_class.build_library_rag_prompt(session)
+      expect(out).to include('Knowledge Base RAG is enabled')
+      expect(out).to include('content_type')
+      expect(out).to include('source')
+      expect(out).not_to include('Knowledge Base inventory')
+    end
+
+    it 'includes the inventory block when one is available' do
+      inv = "Knowledge Base inventory (currently stored):\nTotal entries: 11\n\nBy source:\n  - monadic-chat: 1 entry\n  - ted-talk: 10 entries"
+      allow(described_class).to receive(:library_inventory_block).and_return(inv)
+      out = described_class.build_library_rag_prompt(session)
+      expect(out).to include('Knowledge Base inventory (currently stored)')
+      expect(out).to include('monadic-chat: 1 entry')
+      expect(out).to include('ted-talk: 10 entries')
+    end
+  end
+
+  describe '.library_inventory_block' do
+    it 'returns nil when the Library is empty' do
+      allow(Monadic::Library::Inventory).to receive(:summarize).and_return(
+        { total: 0, by_source: {}, by_content_type: {} }
+      )
+      expect(described_class.library_inventory_block).to be_nil
+    end
+
+    it 'enumerates source and content_type counts without hard-coding any specific source name' do
+      allow(Monadic::Library::Inventory).to receive(:summarize).and_return({
+        total: 3,
+        by_source: { 'corpus-x' => 2, 'monadic-chat' => 1 },
+        by_content_type: { 'conversation' => 3 }
+      })
+      block = described_class.library_inventory_block
+      expect(block).to include('Total entries: 3')
+      expect(block).to include('corpus-x: 2 entries')
+      expect(block).to include('monadic-chat: 1 entry')
+      expect(block).to include('conversation: 3 entries')
+    end
+
+    it 'returns nil and does not raise when Library lookup fails' do
+      allow(Monadic::Library::Inventory).to receive(:summarize).and_raise(StandardError, 'qdrant down')
+      expect { described_class.library_inventory_block }.not_to raise_error
+      expect(described_class.library_inventory_block).to be_nil
     end
   end
 

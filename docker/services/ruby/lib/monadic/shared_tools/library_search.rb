@@ -4,9 +4,11 @@
 # Exposes the project-wide Knowledge Base (Library) as a retrieval tool
 # that any app can import via `imported_tool_groups [:library_search]`.
 #
-# Visibility filter is enforced on the Store side: scope :external means
-# only conversations marked `shareable` are returned; `personal` data
-# stays inside the Knowledge Base UI.
+# Scope is :kb (personal + shareable). The user opts in to RAG via the
+# per-session toggle in the Knowledge Base sidebar; once enabled, every
+# stored conversation regardless of personal/shareable becomes retrievable.
+# The :external scope (shareable-only) remains in the Store API for future
+# multi-user / public sharing contexts.
 #
 # Available tools:
 #   - library_search: cascade retrieval (summaries → turns) returning
@@ -68,23 +70,49 @@ module MonadicSharedTools
       #
       # @param query [String] user query (required)
       # @param top_n [Integer] number of passages to return (default 3)
+      # @param content_type [String, nil] narrow to a specific content_type
+      #   from the inventory (e.g. "conversation", "pdf", "document",
+      #   "markdown", "code"). Optional.
+      # @param source [String, nil] narrow to a specific source key from the
+      #   inventory (e.g. "monadic-chat", "ted-talk"). Optional.
       # @param session [Hash, nil] auto-injected by the tool dispatcher
       # @return [String] formatted search results or a status message
-      def library_search(query:, top_n: DEFAULT_TOP_N, session: nil)
+      def library_search(query:, top_n: DEFAULT_TOP_N,
+                         content_type: nil, source: nil, session: nil)
         resolved_session = session || @session || Thread.current[:session]
         unless MonadicSharedTools::LibrarySearch.session_enabled?(resolved_session)
           return MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE
         end
 
         store = MonadicSharedTools::LibrarySearch.default_store
+        payload_filter = MonadicSharedTools::LibrarySearch.build_payload_filter(
+          content_type: content_type, source: source
+        )
         hits = Monadic::Library::Retriever.cascade_search(
-          query, store: store, scope: :external,
-          top_n: top_n.to_i.clamp(1, 10)
+          query, store: store, scope: :kb,
+          top_n: top_n.to_i.clamp(1, 10),
+          payload_filter: payload_filter
         )
         MonadicSharedTools::LibrarySearch.format_results(query, hits)
       rescue StandardError => e
         "❌ Knowledge Base search failed: #{e.message}"
       end
+    end
+
+    # Compose an optional Qdrant payload filter from the LLM-supplied
+    # `content_type` / `source` narrowing parameters. Returns nil when
+    # neither was supplied so cascade_search treats it as "no extra
+    # filter". Empty / blank values are normalised to nil so the LLM
+    # passing "" by accident does not collapse the result set.
+    def build_payload_filter(content_type: nil, source: nil)
+      clauses = []
+      ct = content_type.to_s.strip
+      src = source.to_s.strip
+      clauses << { key: 'content_type', match: { value: ct } } unless ct.empty?
+      clauses << { key: 'source', match: { value: src } } unless src.empty?
+      return nil if clauses.empty?
+
+      { must: clauses }
     end
 
     # Default Store factory. Tests can stub this to inject a fake store.

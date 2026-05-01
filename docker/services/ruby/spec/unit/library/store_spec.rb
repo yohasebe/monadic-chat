@@ -166,19 +166,21 @@ RSpec.describe Monadic::Library::Store do
   end
 
   describe '#conversation_count' do
-    it 'counts summaries with the kb-scope visibility filter' do
+    it 'counts summaries with the kb-scope visibility filter, requesting exact counting' do
       allow(vector_store).to receive(:count).and_return(7)
       expect(vector_store).to receive(:count).with(
         collection: 'library_summaries',
-        filter: { must: [{ key: 'visibility', match: { any: %w[personal shareable] } }] }
+        filter: { must: [{ key: 'visibility', match: { any: %w[personal shareable] } }] },
+        exact: true
       )
       expect(store.conversation_count(scope: :kb)).to eq(7)
     end
 
-    it 'counts shareable-only with scope: :external' do
+    it 'counts shareable-only with scope: :external using exact counting' do
       expect(vector_store).to receive(:count).with(
         collection: 'library_summaries',
-        filter: { must: [{ key: 'visibility', match: { value: 'shareable' } }] }
+        filter: { must: [{ key: 'visibility', match: { value: 'shareable' } }] },
+        exact: true
       )
       store.conversation_count(scope: :external)
     end

@@ -83,6 +83,37 @@ module Monadic
           - `$$\\sin(\\theta) = \\frac{\\text{opposite}}{\\text{hypotenuse}}$$`
       PROMPT
 
+      # Library RAG prompt header — injected when the per-session "Use
+      # Knowledge Base" toggle is on. The user has explicitly opted in, so
+      # the LLM should treat library_search as the primary source of truth
+      # for any topic the user may have stored content about. Without this
+      # rule the model often answers from training knowledge even when the
+      # Knowledge Base contains an authoritative passage, which violates the
+      # user's opt-in expectation. The directive also pins the citation
+      # format so the frontend's mc:conv: link interception keeps
+      # round-tripping back to the source conversation.
+      #
+      # The actual injected text is built dynamically by
+      # build_library_rag_prompt so the LLM also sees a category-aware
+      # inventory ("what's currently in the Knowledge Base") plus the
+      # available filter parameters. This lets the LLM make targeted
+      # `library_search` calls instead of blind cross-corpus queries.
+      LIBRARY_RAG_HEADER = <<~PROMPT.strip
+        Knowledge Base RAG is enabled for this session. The user has stored content in the project-wide Knowledge Base and expects you to use it.
+
+        - BEFORE answering substantive factual questions, call `library_search` first to check whether the Knowledge Base contains relevant prior content. This applies even when you believe you already know the answer from your training data.
+        - When `library_search` returns hits, base your answer on the retrieved passages and preserve the markdown citation links `[Title](mc:conv:<id>)` exactly as they appear so the user can click through to the original conversation.
+        - Only fall back to your general knowledge when `library_search` returns no relevant hits, or when the question is purely conversational (greetings, clarifications, formatting requests, etc.).
+        - You may issue multiple `library_search` calls in a single turn with different queries when the user's question spans several topics.
+      PROMPT
+
+      LIBRARY_RAG_FOOTER = <<~PROMPT.strip
+        You may narrow `library_search` with these optional parameters when you have a strong prior about where the answer lives:
+          - `content_type`: one of "conversation", "pdf", "document", "markdown", "code"
+          - `source`: a specific source key from the inventory above (e.g. matching the user's prior corpus or saved chats)
+        Omit them to search the entire Knowledge Base.
+      PROMPT
+
       # Math formatting prompt for regular mode (standard escaping)
       MATH_REGULAR_PROMPT = <<~'PROMPT'.strip
         Good examples of inline LaTeX expressions:
@@ -142,6 +173,18 @@ module Monadic
           },
           generator: ->(_session, options) {
             options[:websearch_prompt].to_s.strip
+          }
+        },
+        {
+          name: :library_rag,
+          priority: 70,
+          condition: ->(session, _options) {
+            params = session&.[](:parameters) || {}
+            toggle = params['library_rag_enabled'] || params[:library_rag_enabled]
+            toggle == true || toggle.to_s == 'true'
+          },
+          generator: ->(session, _options) {
+            Monadic::Utils::SystemPromptInjector.build_library_rag_prompt(session)
           }
         },
         {
@@ -274,6 +317,56 @@ module Monadic
       ].freeze
 
       class << self
+        # Build the library_rag injection. Combines a static directive
+        # (LIBRARY_RAG_HEADER), a data-driven inventory block summarising
+        # what's currently in the Knowledge Base, and a footer describing
+        # the optional filter parameters. The inventory part is best-effort:
+        # if Library can't be reached (Qdrant down, transient error) we
+        # skip the inventory but still emit the directive so the LLM at
+        # least knows to call `library_search`.
+        def build_library_rag_prompt(_session)
+          parts = [LIBRARY_RAG_HEADER]
+          inventory_block = library_inventory_block
+          parts << inventory_block if inventory_block
+          parts << LIBRARY_RAG_FOOTER
+          parts.join("\n\n")
+        end
+
+        # Render the inventory as plain-text bullet lists. Returns nil when
+        # the Library is empty or the lookup fails — the caller still
+        # injects the directive in that case.
+        def library_inventory_block
+          return nil unless defined?(Monadic::Library::Store)
+
+          store = Monadic::Library::Store.new
+          inv = Monadic::Library::Inventory.summarize(store: store, scope: :kb)
+          return nil if inv[:total].to_i.zero?
+
+          lines = ["Knowledge Base inventory (currently stored):"]
+          lines << "Total entries: #{inv[:total]}"
+
+          if inv[:by_source] && !inv[:by_source].empty?
+            lines << ''
+            lines << 'By source:'
+            inv[:by_source].each do |src, count|
+              lines << "  - #{src}: #{count} #{count == 1 ? 'entry' : 'entries'}"
+            end
+          end
+
+          if inv[:by_content_type] && !inv[:by_content_type].empty?
+            lines << ''
+            lines << 'By content type:'
+            inv[:by_content_type].each do |ct, count|
+              lines << "  - #{ct}: #{count} #{count == 1 ? 'entry' : 'entries'}"
+            end
+          end
+
+          lines.join("\n")
+        rescue StandardError => e
+          warn "[SystemPromptInjector] library_inventory_block error: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
+          nil
+        end
+
         # Shared gate for the two Expressive Speech rules. Returns true when
         # Auto Speech is on AND the active app has not opted out via MDSL
         # (`features { expressive_speech false }`). Callers still check the

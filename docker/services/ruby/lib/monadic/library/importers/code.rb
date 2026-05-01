@@ -126,6 +126,7 @@ module Monadic
           metadata_options = options.dup
           metadata_options[:license] ||= metadata_options['license'] || DEFAULT_LICENSE
           metadata_options[:content_type] ||= metadata_options['content_type'] || DEFAULT_CONTENT_TYPE
+          metadata_options[:title] ||= metadata_options['title'] || Base.derive_title_from_filename(filename)
 
           # Promote programming language into topics (the schema's
           # `language` field is reserved for ISO 639-1 human language).

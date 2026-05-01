@@ -90,6 +90,7 @@ module Monadic
           metadata_options = merged_options.dup
           metadata_options[:license] ||= metadata_options['license'] || DEFAULT_LICENSE
           metadata_options[:content_type] ||= metadata_options['content_type'] || DEFAULT_CONTENT_TYPE
+          metadata_options[:title] ||= metadata_options['title'] || Base.derive_title_from_filename(filename)
 
           source = options[:source] || options['source'] || build_source(filename)
 

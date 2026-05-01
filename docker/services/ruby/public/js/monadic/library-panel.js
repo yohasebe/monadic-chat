@@ -45,7 +45,8 @@
     sortKey: 'created_desc',
     visibilityFilter: 'all',
     searchTerm: '',
-    selectedId: null        // for detail modal
+    selectedId: null,       // for detail modal
+    viewerOpenedFromBrowse: false  // re-open Browse after Viewer closes
   };
 
   var SIDEBAR_RECENT_LIMIT = 5;
@@ -103,34 +104,65 @@
 
   function visibilityBadge(visibility) {
     var v = (visibility || '').toLowerCase();
-    var cls = v === 'shareable' ? 'badge bg-success' : 'badge bg-secondary';
+    // Bootstrap 5.3 subtle/emphasis variants give a pastel pill (soft
+    // background with darker text) that reads as a tag rather than a
+    // status alert. Older sibling tests still match the substring
+    // "bg-success" / "bg-secondary" so they remain valid.
+    var cls = v === 'shareable'
+      ? 'badge bg-success-subtle text-success-emphasis'
+      : 'badge bg-secondary-subtle text-secondary-emphasis';
     return '<span class="' + cls + '">' + escapeHtml(v || 'unknown') + '</span>';
   }
 
-  // Map a content_type token to a FontAwesome icon class. The Library
-  // currently only stores "conversation" entries, but the importer
-  // surface (Phase 1c) will add document / pdf / code / markdown /
-  // audio types. The Browse modal renders a single icon per row using
+  // Map a content_type token to a FontAwesome icon class plus a colour
+  // tone. The Library currently stores "conversation" plus the
+  // file-import content_types (markdown / code / pdf / document) added
+  // in Phase 1c. The Browse modal renders a single icon per row using
   // this mapping plus a tooltip carrying the readable type name.
+  // Sub-formats of "document" (docx / xlsx / pptx) are detected via
+  // the `topics` array.
+  //
+  // Colour palette: Material Design 300/400 tones — light enough that
+  // the icons read as soft type indicators rather than dominating the
+  // Title column.
   var TYPE_ICONS = {
-    conversation: 'fa-comments',
-    pdf:          'fa-file-pdf',
-    document:     'fa-file-word',
-    office:       'fa-file-word',
-    code:         'fa-file-code',
-    markdown:     'fa-file-lines',
-    text:         'fa-file-lines',
-    audio:        'fa-file-audio',
-    transcript:   'fa-file-audio',
-    image:        'fa-file-image',
-    video:        'fa-file-video'
+    conversation: { icon: 'fa-comments',   color: '#90A4AE' }, // blue grey 300
+    pdf:          { icon: 'fa-file-pdf',   color: '#E57373' }, // red 300
+    document:     { icon: 'fa-file-word',  color: '#64B5F6' }, // blue 300
+    office:       { icon: 'fa-file-word',  color: '#64B5F6' },
+    code:         { icon: 'fa-file-code',  color: '#BA68C8' }, // purple 300
+    markdown:     { icon: 'fa-file-lines', color: '#4FC3F7' }, // light blue 300
+    text:         { icon: 'fa-file-lines', color: '#4FC3F7' },
+    audio:        { icon: 'fa-file-audio', color: '#AED581' }, // light green 300
+    transcript:   { icon: 'fa-file-audio', color: '#AED581' },
+    image:        { icon: 'fa-file-image', color: '#FFB74D' }, // orange 300
+    video:        { icon: 'fa-file-video', color: '#E57373' }
   };
 
-  function typeIconHtml(contentType) {
+  // Office sub-formats stored in conversation_metadata.topics.
+  var OFFICE_SUBFORMAT_ICONS = {
+    docx: { icon: 'fa-file-word',       color: '#64B5F6', label: 'docx (Word)' },
+    xlsx: { icon: 'fa-file-excel',      color: '#81C784', label: 'xlsx (Excel)' },       // green 300
+    pptx: { icon: 'fa-file-powerpoint', color: '#FF8A65', label: 'pptx (PowerPoint)' }   // deep orange 300
+  };
+
+  function typeIconHtml(contentType, topics) {
     var t = (contentType || 'conversation').toString().toLowerCase();
-    var icon = TYPE_ICONS[t] || 'fa-file';
-    return '<i class="fa-regular ' + icon + ' text-secondary" '
-      + 'title="' + escapeHtml(t) + '" aria-label="' + escapeHtml(t) + '"></i>';
+    var def = TYPE_ICONS[t] || { icon: 'fa-file', color: '#6c757d' };
+    var icon = def.icon;
+    var color = def.color;
+    var label = t;
+    if (t === 'document' && Array.isArray(topics)) {
+      for (var i = 0; i < topics.length; i++) {
+        var sub = OFFICE_SUBFORMAT_ICONS[String(topics[i]).toLowerCase()];
+        if (sub) { icon = sub.icon; color = sub.color; label = sub.label; break; }
+      }
+    }
+    // fa-solid (filled) keeps the icon legible at small sizes; size is
+    // only modestly larger than body text so it does not shout.
+    return '<i class="fa-solid ' + icon + '" '
+      + 'style="color: ' + color + '; font-size: 1.1rem;" '
+      + 'title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '"></i>';
   }
 
   // Compact colored dot used in sidebar rows where horizontal space is tight.
@@ -215,9 +247,9 @@
     var deleteLabel = t('ui.libDelete', 'Delete');
     return (
       '<tr data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
-      +   '<td class="text-center">' + typeIconHtml(row.content_type) + '</td>'
+      +   '<td class="text-center">' + typeIconHtml(row.content_type, row.topics) + '</td>'
       +   '<td>'
-      +     '<div class="fw-medium text-truncate" style="max-width: 380px;">' + escapeHtml(truncate(title, 80)) + '</div>'
+      +     '<div class="fw-medium text-truncate" style="max-width: 380px; color: #374151;">' + escapeHtml(truncate(title, 80)) + '</div>'
       +     '<div class="text-secondary small text-truncate" style="max-width: 380px;">' + escapeHtml(row.source || '') + (row.language ? ' · ' + escapeHtml(row.language) : '') + '</div>'
       +   '</td>'
       +   '<td>' + visibilityBadge(row.visibility) + '</td>'
@@ -428,7 +460,9 @@
     if (typeof row.messages_count === 'number') bits.push(row.messages_count + ' msgs');
     if (row.created_at) bits.push(escapeHtml(relativeTime(row.created_at)));
     var vis = (row.visibility || '').toLowerCase();
-    var visClass = vis === 'shareable' ? 'badge bg-success' : 'badge bg-secondary';
+    var visClass = vis === 'shareable'
+      ? 'badge bg-success-subtle text-success-emphasis'
+      : 'badge bg-secondary-subtle text-secondary-emphasis';
     return bits.join(' · ')
       + ' <span class="' + visClass + ' ms-2">' + escapeHtml(vis || 'unknown') + '</span>';
   }
@@ -518,6 +552,12 @@
       var title = (row && row.title) ? row.title : '(untitled)';
       titleEl.textContent = title;
     }
+    // Show the rename pencil only when we have a real conversation row
+    // bound; the static "Conversation Viewer" placeholder shouldn't be
+    // editable.
+    var renameBtn = viewerEl('library-viewer-rename');
+    if (renameBtn) renameBtn.style.display = row ? '' : 'none';
+    closeRenameEditor();
     var metaEl = viewerEl('library-viewer-meta');
     if (metaEl && row) metaEl.innerHTML = viewerMetaLine(row);
     var emptyEl = viewerEl('library-viewer-empty');
@@ -547,6 +587,17 @@
 
     var modalEl = viewerEl('libraryViewerModal');
     if (modalEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+      // Bootstrap does not reliably route ESC to the topmost stacked
+      // modal, so layering Viewer over Browse leads to ESC closing
+      // Browse while Viewer stays. Avoid the stacking problem entirely
+      // by hiding Browse first; we'll re-open it when the Viewer is
+      // closed (see init's hidden.bs.modal listener).
+      var browseEl = document.getElementById('libraryBrowseModal');
+      if (browseEl && browseEl.classList.contains('show')) {
+        state.viewerOpenedFromBrowse = true;
+        var browseInst = window.bootstrap.Modal.getInstance(browseEl);
+        if (browseInst) browseInst.hide();
+      }
       window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
   }
@@ -888,6 +939,179 @@
     return true;
   }
 
+  // ─── Rename conversation (Viewer modal pencil + inline editor) ──────
+
+  function openRenameEditor() {
+    if (typeof document === 'undefined') return;
+    if (!state.selectedId) return;
+    var row = state.allRows.find(function (r) { return r.conversation_id === state.selectedId; });
+    var titleEl = viewerEl('library-viewer-title');
+    var renameBtn = viewerEl('library-viewer-rename');
+    var form = viewerEl('library-viewer-rename-form');
+    var input = viewerEl('library-viewer-rename-input');
+    if (!form || !input || !titleEl) return;
+    titleEl.style.display = 'none';
+    if (renameBtn) renameBtn.style.display = 'none';
+    form.classList.remove('d-none');
+    input.value = (row && row.title) ? row.title : '';
+    input.focus();
+    input.select();
+  }
+
+  function closeRenameEditor() {
+    if (typeof document === 'undefined') return;
+    var titleEl = viewerEl('library-viewer-title');
+    var renameBtn = viewerEl('library-viewer-rename');
+    var form = viewerEl('library-viewer-rename-form');
+    if (titleEl) titleEl.style.display = '';
+    if (renameBtn) renameBtn.style.display = state.selectedId ? '' : 'none';
+    if (form) form.classList.add('d-none');
+  }
+
+  function submitRename() {
+    if (!state.selectedId) return;
+    var input = viewerEl('library-viewer-rename-input');
+    if (!input) return;
+    var newTitle = (input.value || '').trim();
+    if (!newTitle) {
+      flashAlert(
+        "<i class='fa-solid fa-triangle-exclamation'></i> " +
+          escapeHtml(t('ui.libRenameEmpty', 'Title must not be empty')),
+        'warning'
+      );
+      return;
+    }
+    send('LIBRARY_RENAME', {
+      contents: { conversation_id: state.selectedId, title: newTitle }
+    });
+  }
+
+  function handleRenamedMessage(data) {
+    if (!data) return;
+    if (data.res === 'success') {
+      var convId = data.conversation_id;
+      var newTitle = data.title || '';
+      // Patch the local cache so renderBrowseTable / sidebar / Viewer
+      // reflect the change without waiting for a full LIBRARY_LIST.
+      state.allRows.forEach(function (r) {
+        if (r.conversation_id === convId) r.title = newTitle;
+      });
+      rerenderAll();
+      // Update the modal title display in place.
+      var titleEl = viewerEl('library-viewer-title');
+      if (titleEl && state.selectedId === convId) titleEl.textContent = newTitle;
+      closeRenameEditor();
+      flashAlert(
+        "<i class='fa-solid fa-circle-check'></i> " +
+          escapeHtml(t('ui.libRenameSuccess', 'Title updated.')),
+        'success'
+      );
+    } else {
+      var msg = (data && data.content) ? data.content : 'Rename failed';
+      flashAlert(
+        "<i class='fa-solid fa-triangle-exclamation'></i> " +
+          escapeHtml(t('ui.libRenameFailure', 'Failed to rename')) + ': ' + escapeHtml(msg),
+        'warning'
+      );
+    }
+  }
+
+  // ─── Import file (Markdown / Code / PDF / Office) ────────────────────
+
+  function setImportPending(pending) {
+    if (typeof document === 'undefined') return;
+    var btn = document.getElementById('library-browse-import');
+    if (!btn) return;
+    btn.disabled = !!pending;
+    if (pending) {
+      btn.dataset.origLabel = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' +
+        escapeHtml(t('ui.libImportingButton', 'Importing...'));
+    } else if (btn.dataset.origLabel) {
+      btn.innerHTML = btn.dataset.origLabel;
+      delete btn.dataset.origLabel;
+    }
+  }
+
+  // POST a single file to /library/import and refresh the panel on
+  // success. The endpoint dispatches to the right importer based on file
+  // extension (FileImporter.build_conversation on the Ruby side).
+  function uploadLibraryFile(file, options) {
+    if (!file) return Promise.reject(new Error('No file selected'));
+    options = options || {};
+
+    var formData = new FormData();
+    formData.append('libraryFile', file);
+    if (options.title) formData.append('libraryTitle', options.title);
+    if (options.visibility) formData.append('libraryVisibility', options.visibility);
+    if (options.license) formData.append('libraryLicense', options.license);
+
+    setImportPending(true);
+    flashAlert(
+      "<i class='fas fa-spinner fa-spin'></i> " +
+        escapeHtml(t('ui.libImportingMessage', 'Importing file into Knowledge Base...')),
+      'info'
+    );
+
+    // Cap upload + extraction at 5 minutes — pymupdf4llm can be slow on
+    // very large PDFs, but a runaway request shouldn't lock the UI.
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 300000);
+
+    return fetch('/library/import', {
+      method: 'POST', body: formData, signal: controller.signal
+    })
+      .then(function (res) {
+        clearTimeout(timer);
+        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (out) {
+        setImportPending(false);
+        if (!out.ok || !out.data || out.data.success === false) {
+          var err = (out.data && (out.data.message || out.data.error)) || ('HTTP ' + (out.ok ? 'parse' : 'upload') + ' error');
+          flashAlert(
+            "<i class='fa-solid fa-triangle-exclamation'></i> " +
+              escapeHtml(t('ui.libImportFailure', 'Failed to import')) + ': ' + escapeHtml(err),
+            'warning'
+          );
+          return out.data;
+        }
+        flashAlert(
+          "<i class='fa-solid fa-circle-check'></i> " +
+            escapeHtml(t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (out.data.filename || file.name)),
+          'success'
+        );
+        requestList();
+        requestStats();
+        return out.data;
+      })
+      .catch(function (err) {
+        clearTimeout(timer);
+        setImportPending(false);
+        var msg = (err && err.message) ? err.message : 'Network error';
+        flashAlert(
+          "<i class='fa-solid fa-triangle-exclamation'></i> " +
+            escapeHtml(t('ui.libImportFailure', 'Failed to import')) + ': ' + escapeHtml(msg),
+          'warning'
+        );
+        throw err;
+      });
+  }
+
+  function triggerImportPicker() {
+    var input = document.getElementById('library-import-input');
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  }
+
+  function handleImportFileChange(ev) {
+    var file = ev && ev.target && ev.target.files && ev.target.files[0];
+    if (!file) return;
+    uploadLibraryFile(file).catch(function () { /* error already surfaced */ });
+  }
+
   // Legacy alias retained for backwards compatibility with the original
   // single-pane sidebar render (used in older Jest tests).
   function render(container, rows) {
@@ -924,6 +1148,11 @@
 
     var browseBtn = document.getElementById('library-browse');
     if (browseBtn) browseBtn.onclick = openBrowseModal;
+
+    var importBtn = document.getElementById('library-browse-import');
+    if (importBtn) importBtn.onclick = triggerImportPicker;
+    var importInput = document.getElementById('library-import-input');
+    if (importInput) importInput.addEventListener('change', handleImportFileChange);
 
     var confirmBtn = document.getElementById('library-save-confirm');
     if (confirmBtn) confirmBtn.onclick = submitSave;
@@ -1014,6 +1243,42 @@
       var nextVis = viewerToggle.getAttribute('data-next-vis') || 'shareable';
       setVisibility(state.selectedId, nextVis);
     };
+
+    var renameBtn = document.getElementById('library-viewer-rename');
+    if (renameBtn) renameBtn.onclick = openRenameEditor;
+    var renameSave = document.getElementById('library-viewer-rename-save');
+    if (renameSave) renameSave.onclick = submitRename;
+    var renameCancel = document.getElementById('library-viewer-rename-cancel');
+    if (renameCancel) renameCancel.onclick = closeRenameEditor;
+    var renameInput = document.getElementById('library-viewer-rename-input');
+    if (renameInput) {
+      renameInput.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') {
+          ev.preventDefault(); ev.stopPropagation(); submitRename();
+        }
+        if (ev.key === 'Escape') {
+          // stopPropagation so Bootstrap's modal ESC handler does not
+          // also fire and close the Viewer when the user only meant to
+          // dismiss the inline rename editor.
+          ev.preventDefault(); ev.stopPropagation(); closeRenameEditor();
+        }
+      });
+    }
+
+    // When the Viewer was opened from Browse, re-open Browse after the
+    // user dismisses the Viewer (ESC, Close button, or backdrop click).
+    // This restores the navigation context the user came from.
+    var viewerModalEl = document.getElementById('libraryViewerModal');
+    if (viewerModalEl) {
+      viewerModalEl.addEventListener('hidden.bs.modal', function () {
+        if (!state.viewerOpenedFromBrowse) return;
+        state.viewerOpenedFromBrowse = false;
+        var browseEl = document.getElementById('libraryBrowseModal');
+        if (browseEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+          window.bootstrap.Modal.getOrCreateInstance(browseEl).show();
+        }
+      });
+    }
   }
 
   window.libraryPanel = {
@@ -1029,6 +1294,12 @@
     submitSave: submitSave,
     buildSavePayload: buildSavePayload,
     readModalSelections: readModalSelections,
+    uploadLibraryFile: uploadLibraryFile,
+    triggerImportPicker: triggerImportPicker,
+    openRenameEditor: openRenameEditor,
+    closeRenameEditor: closeRenameEditor,
+    submitRename: submitRename,
+    handleRenamedMessage: handleRenamedMessage,
     openBrowseModal: openBrowseModal,
     openDetailModal: openDetailModal,
     applyFilters: applyFilters,

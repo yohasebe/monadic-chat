@@ -83,6 +83,10 @@ module Monadic
           if metadata_options[:title].to_s.strip.empty? && options[:title]
             metadata_options[:title] = options[:title]
           end
+          # Final fallback: filename basename without extension. PDFs
+          # without document-properties title still get a sensible label
+          # in the Browse modal.
+          metadata_options[:title] ||= Base.derive_title_from_filename(filename)
 
           source = options[:source] || options['source'] || build_source(filename)
 

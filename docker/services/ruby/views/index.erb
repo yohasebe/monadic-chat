@@ -1120,7 +1120,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary" data-i18n="ui.libSaveButton">Save</button>
+            <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary text-nowrap"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveButton">Save</span></button>
           </div>
         </div>
       </div>
@@ -1136,6 +1136,10 @@
           </div>
           <div class="modal-body">
             <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+              <button type="button" class="btn btn-sm btn-primary text-nowrap" id="library-browse-import" data-i18n-title="ui.libImportTooltip" title="Import a Markdown / PDF / Office / code file into the Knowledge Base">
+                <i class="fa-solid fa-file-arrow-up"></i> <span data-i18n="ui.libImportFile">Import file</span>
+              </button>
+              <input type="file" id="library-import-input" hidden accept=".md,.markdown,.mdx,.pdf,.docx,.xlsx,.pptx,.rb,.py,.js,.mjs,.cjs,.jsx,.ts,.tsx,.go,.java,.kt,.kts,.swift,.rs,.c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.cs,.php,.sh,.bash,.zsh,.sql,.pl,.pm,.lua,.ex,.exs,.scala,.clj,.cljs,.hs,.ml,.mli,.r,.jl">
               <input type="search" class="form-control form-control-sm" id="library-browse-search" style="max-width: 320px;" placeholder="Search title, source, language..." data-i18n-placeholder="ui.libBrowsePlaceholder">
               <select class="form-select form-select-sm" id="library-browse-visibility" style="max-width: 160px;">
                 <option value="all" data-i18n="ui.libBrowseAllVis">All visibilities</option>
@@ -1189,9 +1193,17 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="libraryViewerModalLabel">
+            <h5 class="modal-title flex-grow-1 d-flex align-items-center gap-2" id="libraryViewerModalLabel">
               <i class="fas fa-book"></i>
               <span id="library-viewer-title" data-i18n="ui.libViewerTitle">Conversation Viewer</span>
+              <button type="button" class="btn btn-sm btn-link p-0 ms-1" id="library-viewer-rename" data-i18n-title="ui.libRenameTooltip" title="Rename conversation" style="display:none;">
+                <i class="fa-regular fa-pen-to-square"></i>
+              </button>
+              <span id="library-viewer-rename-form" class="d-none flex-grow-1 d-flex align-items-center gap-2">
+                <input type="text" class="form-control form-control-sm" id="library-viewer-rename-input" maxlength="200" data-i18n-placeholder="ui.libRenamePlaceholder" placeholder="Conversation title">
+                <button type="button" class="btn btn-sm btn-primary text-nowrap" id="library-viewer-rename-save"><i class="fa-solid fa-check"></i> <span data-i18n="ui.libRenameSave">Save</span></button>
+                <button type="button" class="btn btn-sm btn-secondary text-nowrap" id="library-viewer-rename-cancel"><i class="fa-solid fa-xmark"></i> <span data-i18n="ui.libRenameCancel">Cancel</span></button>
+              </span>
             </h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>

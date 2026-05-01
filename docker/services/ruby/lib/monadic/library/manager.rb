@@ -116,6 +116,25 @@ module Monadic
         true
       end
 
+      # Rewrite the title field on the summary point for a conversation.
+      # Title is stored only on summaries (turn / trajectory points carry
+      # the conversation_id, not the title) so a single collection rewrite
+      # is enough.
+      MAX_TITLE_LENGTH = 200
+
+      def update_title(store:, conversation_id:, title:)
+        normalized = title.to_s.strip
+        if normalized.empty?
+          raise ArgumentError, 'title must not be blank'
+        end
+        if normalized.length > MAX_TITLE_LENGTH
+          raise ArgumentError, "title must be #{MAX_TITLE_LENGTH} characters or fewer"
+        end
+
+        rewrite_title(store, VectorStore::Schema::LIBRARY_SUMMARIES, conversation_id, normalized)
+        true
+      end
+
       # Best-effort delete that simply forwards to Store. Kept here so
       # KB tools have a single import surface.
       def delete_conversation(store:, conversation_id:)
@@ -172,6 +191,7 @@ module Monadic
           messages_count: payload['messages_count'],
           turns_count: payload['turns_count'],
           duration_seconds: payload['duration_seconds'],
+          topics: payload['topics'],
           created_at: payload['created_at']
         }.compact
       end
@@ -185,7 +205,8 @@ module Monadic
               store.visibility_filter(:kb),
               store.conversation_filter(conversation_id)
             ),
-            limit: 256, offset: cursor
+            limit: 256, offset: cursor,
+            with_vectors: true
           )
           patched = page[:points].map { |p|
             payload = (p['payload'] || {}).merge('visibility' => visibility)
@@ -195,6 +216,29 @@ module Monadic
           break if page[:next].nil?
           cursor = page[:next]
         end
+      end
+
+      def rewrite_title(store, collection, conversation_id, title)
+        # with_vectors: true is required so the upsert below preserves the
+        # original embedding vector. Without it the vector field comes
+        # back nil and Qdrant rejects the upsert (or worse, replaces the
+        # embedding with null silently).
+        page = store.scroll(
+          collection: collection,
+          filter: store.combine_filters(
+            store.visibility_filter(:kb),
+            store.conversation_filter(conversation_id)
+          ),
+          limit: 1,
+          with_vectors: true
+        )
+        return false if page[:points].empty?
+        patched = page[:points].map { |p|
+          payload = (p['payload'] || {}).merge('title' => title)
+          { id: p['id'], vector: p['vector'], payload: payload }
+        }
+        store.upsert_points(collection: collection, points: patched)
+        true
       end
 
       # Try parsing a String as JSON. If it fails, return the string as-is

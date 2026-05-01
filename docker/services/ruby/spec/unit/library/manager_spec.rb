@@ -177,6 +177,47 @@ RSpec.describe Monadic::Library::Manager do
     end
   end
 
+  describe '.update_title' do
+    let(:summary_pt) { summary_point('rename-me', 'title' => 'Old Title') }
+
+    before do
+      allow(store).to receive(:scroll).and_return({ points: [summary_pt], next: nil })
+    end
+
+    it 'rewrites the title on the summaries collection' do
+      expect(store).to receive(:upsert_points) do |args|
+        expect(args[:collection]).to eq(Monadic::VectorStore::Schema::LIBRARY_SUMMARIES)
+        expect(args[:points].first[:payload]['title']).to eq('New Title')
+      end
+      result = described_class.update_title(
+        store: store, conversation_id: 'rename-me', title: 'New Title'
+      )
+      expect(result).to be true
+    end
+
+    it 'strips whitespace from the title before storing' do
+      expect(store).to receive(:upsert_points) do |args|
+        expect(args[:points].first[:payload]['title']).to eq('Trimmed')
+      end
+      described_class.update_title(store: store, conversation_id: 'rename-me', title: '  Trimmed  ')
+    end
+
+    it 'rejects a blank title' do
+      expect {
+        described_class.update_title(store: store, conversation_id: 'rename-me', title: '   ')
+      }.to raise_error(ArgumentError, /must not be blank/)
+    end
+
+    it 'rejects a title longer than the cap' do
+      expect {
+        described_class.update_title(
+          store: store, conversation_id: 'rename-me',
+          title: 'X' * (described_class::MAX_TITLE_LENGTH + 1)
+        )
+      }.to raise_error(ArgumentError, /characters or fewer/)
+    end
+  end
+
   describe '.import_conversation' do
     before do
       allow(embeddings).to receive(:embed_passages) { |texts| texts.map { Array.new(768, 0.1) } }

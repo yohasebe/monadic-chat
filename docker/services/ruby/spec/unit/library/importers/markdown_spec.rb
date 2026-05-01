@@ -120,6 +120,11 @@ RSpec.describe Monadic::Library::Importers::Markdown do
       expect(result.dig('conversation_metadata', 'title')).to eq('Override')
     end
 
+    it 'auto-derives title from filename when neither option nor frontmatter has one' do
+      result = described_class.import(simple_input, filename: '/tmp/research-notes.md')
+      expect(result.dig('conversation_metadata', 'title')).to eq('research-notes')
+    end
+
     it 'falls back to paragraph blocks when no headings are present' do
       body = (['Paragraph one. ' * 30, 'Paragraph two. ' * 30, 'Paragraph three. ' * 30]).join("\n\n")
       result = described_class.import(body)

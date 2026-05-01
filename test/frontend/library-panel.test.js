@@ -671,4 +671,124 @@ describe('library-panel module', () => {
       expect(msg.contents).toEqual({ enabled: true });
     });
   });
+
+  describe('uploadLibraryFile (Import file)', () => {
+    let originalFetch;
+    beforeEach(() => {
+      originalFetch = global.fetch;
+      document.body.innerHTML = `
+        <button id="library-browse-import">Import file</button>
+        <input id="library-import-input" type="file">
+      `;
+    });
+    afterEach(() => {
+      global.fetch = originalFetch;
+      document.body.innerHTML = '';
+    });
+
+    it('POSTs FormData to /library/import and refreshes on success', async () => {
+      let captured = null;
+      global.fetch = jest.fn((url, opts) => {
+        captured = { url: url, opts: opts };
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true, filename: 'paper.pdf', conversation_id: 'c1',
+            visibility: 'personal', counts: { summary: 1, turns: 5, trajectory: 1 }
+          })
+        });
+      });
+      const file = new File(['stub'], 'paper.pdf', { type: 'application/pdf' });
+      const out = await lib.uploadLibraryFile(file, { title: 'Paper', visibility: 'shareable' });
+      expect(captured.url).toBe('/library/import');
+      expect(captured.opts.method).toBe('POST');
+      expect(captured.opts.body instanceof FormData).toBe(true);
+      expect(captured.opts.body.get('libraryFile')).toBe(file);
+      expect(captured.opts.body.get('libraryTitle')).toBe('Paper');
+      expect(captured.opts.body.get('libraryVisibility')).toBe('shareable');
+      expect(out.success).toBe(true);
+      // After success the panel re-pulls the list + stats:
+      expect(sentMessages.find(m => m.message === 'LIBRARY_LIST')).toBeDefined();
+    });
+
+    it('surfaces server-reported errors instead of throwing', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: false, message: 'Unsupported file extension: .xyz' })
+      }));
+      const file = new File(['stub'], 'mystery.xyz', { type: 'application/octet-stream' });
+      const out = await lib.uploadLibraryFile(file);
+      expect(out.success).toBe(false);
+      expect(out.message).toMatch(/Unsupported/);
+      // No refresh on failure:
+      expect(sentMessages.find(m => m.message === 'LIBRARY_LIST')).toBeUndefined();
+    });
+
+    it('triggerImportPicker clicks the hidden file input', () => {
+      const input = document.getElementById('library-import-input');
+      let clicked = 0;
+      input.click = () => { clicked += 1; };
+      lib.triggerImportPicker();
+      expect(clicked).toBe(1);
+    });
+  });
+
+  describe('typeIconHtml sub-format detection', () => {
+    it('falls back to the generic Word icon for content_type=document with no topics', () => {
+      expect(lib.typeIconHtml('document', null)).toContain('fa-file-word');
+    });
+    it('uses the Excel icon when topics include "xlsx"', () => {
+      expect(lib.typeIconHtml('document', ['xlsx'])).toContain('fa-file-excel');
+    });
+    it('uses the PowerPoint icon when topics include "pptx"', () => {
+      expect(lib.typeIconHtml('document', ['pptx'])).toContain('fa-file-powerpoint');
+    });
+    it('falls back gracefully when topics is not an array', () => {
+      expect(lib.typeIconHtml('document', 'docx')).toContain('fa-file-word');
+    });
+  });
+
+  describe('rename conversation', () => {
+    beforeEach(() => {
+      document.body.innerHTML = `
+        <span id="library-viewer-title">Old Title</span>
+        <button id="library-viewer-rename"></button>
+        <span id="library-viewer-rename-form" class="d-none">
+          <input id="library-viewer-rename-input" type="text" value="Old Title">
+          <button id="library-viewer-rename-save"></button>
+          <button id="library-viewer-rename-cancel"></button>
+        </span>
+      `;
+      lib._state.allRows = [{ conversation_id: 'c1', title: 'Old Title' }];
+      lib._state.selectedId = 'c1';
+    });
+
+    it('submitRename sends LIBRARY_RENAME with the trimmed input', () => {
+      const input = document.getElementById('library-viewer-rename-input');
+      input.value = '  New Title  ';
+      lib.submitRename();
+      const msg = sentMessages.find(m => m.message === 'LIBRARY_RENAME');
+      expect(msg).toBeDefined();
+      expect(msg.contents).toEqual({ conversation_id: 'c1', title: 'New Title' });
+    });
+
+    it('submitRename refuses to send a blank title', () => {
+      const input = document.getElementById('library-viewer-rename-input');
+      input.value = '   ';
+      lib.submitRename();
+      expect(sentMessages.find(m => m.message === 'LIBRARY_RENAME')).toBeUndefined();
+    });
+
+    it('handleRenamedMessage patches local state and updates the viewer header', () => {
+      lib.handleRenamedMessage({ res: 'success', conversation_id: 'c1', title: 'New Title' });
+      const titleEl = document.getElementById('library-viewer-title');
+      expect(titleEl.textContent).toBe('New Title');
+      expect(lib._state.allRows[0].title).toBe('New Title');
+    });
+
+    it('handleRenamedMessage on failure does not mutate local state', () => {
+      lib.handleRenamedMessage({ res: 'failure', content: 'oops', conversation_id: 'c1' });
+      expect(lib._state.allRows[0].title).toBe('Old Title');
+    });
+  });
 });

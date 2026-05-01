@@ -77,7 +77,8 @@ module Monadic
               store.conversation_filter(conversation_id)
             ),
             limit: 256,
-            offset: cursor
+            offset: cursor,
+            with_vectors: true
           )
           page[:points].each do |p|
             vector = p.dig('vector', 'content') || []

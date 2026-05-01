@@ -146,6 +146,18 @@ module Monadic
         }
       end
 
+      # Ingest an already-built monadic-conversation v1 hash. File-based
+      # importers (Markdown / Code / PDF / Office) build the hash up-front
+      # by reading the file and calling the right module directly, so they
+      # bypass the dispatch step that import_from_text uses.
+      def import_conversation(store:, conversation:, visibility: Store::VISIBILITY_PERSONAL)
+        counts = Hierarchical.ingest(conversation, store: store, visibility: visibility)
+        {
+          conversation_id: conversation['conversation_id'],
+          counts: counts
+        }
+      end
+
       # ─── Internals ─────────────────────────────────────────────────────
 
       def summary_row(payload)

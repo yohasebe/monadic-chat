@@ -17,6 +17,7 @@ require_relative 'importers/monadic_chat_export'
 require_relative 'importers/ted_talk'
 require_relative 'importers/plain_text'
 require_relative 'importers/markdown'
+require_relative 'importers/code'
 
 module Monadic
   module Library

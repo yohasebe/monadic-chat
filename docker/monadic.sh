@@ -291,6 +291,9 @@ EOF
     if [[ "${PRIVACY_FILTER:-false}" == "true" ]]; then
       COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.dev.yml\""
     fi
+    if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
+      COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/extractor/compose.dev.yml\""
+    fi
   fi
   
   # Debug: log the compose files being used
@@ -2000,6 +2003,21 @@ ensure-service)
         echo "ALREADY_RUNNING"
       fi
       ;;
+    extractor)
+      # Extractor (Knowledge Base Quality Pack) is opt-in via EXTRACTOR_SERVICE=true.
+      # Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT so the caller can prompt
+      # the user to install via Settings → Install Options.
+      if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
+        echo "EXTRACTOR_DISABLED"
+      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+        echo "EXTRACTOR_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-extractor-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor up -d extractor_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
     *)
       echo "Unknown service: ${SERVICE_NAME}" >&2
       ;;
@@ -2021,6 +2039,26 @@ build_privacy_container)
     echo "[INFO] Privacy container build succeeded."
   else
     echo "[ERROR] Privacy container build failed. See ${build_log}."
+    exit 1
+  fi
+  ;;
+build_extractor_container)
+  # Build the extractor container (Knowledge Base Quality Pack: Docling + RapidOCR).
+  # Triggered from the Settings → Actions panel after the user opts in via
+  # Install Options. Image is large (~3GB) and download includes ML models.
+  if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
+    echo "[INFO] Extractor service is disabled (EXTRACTOR_SERVICE=false). Skipping build."
+    exit 0
+  fi
+  ensure_data_dir "extractor" 2>/dev/null || true
+  set_docker_compose
+  build_log="${HOME_DIR}/monadic/log/docker_build.log"
+  echo "[INFO] Building extractor container (EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko})..."
+  eval "EXTRACTOR_OCR=\"${EXTRACTOR_OCR:-rapidocr}\" EXTRACTOR_LANGS=\"${EXTRACTOR_LANGS:-en,ja,zh,ko}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
+  if ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+    echo "[INFO] Extractor container build succeeded."
+  else
+    echo "[ERROR] Extractor container build failed. See ${build_log}."
     exit 1
   fi
   ;;

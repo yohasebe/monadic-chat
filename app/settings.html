@@ -772,6 +772,22 @@
                 <div class="checkbox-row"><input type="checkbox" id="privacy-lang-zh" disabled><label for="privacy-lang-zh">Chinese (zh)</label></div>
               </div>
             </div>
+
+            <div class="setting-group">
+              <label data-i18n="settings.labels.installExtractorTitle">Knowledge Base Quality Pack (Docling)</label>
+              <small class="text-muted" data-i18n="settings.labels.installExtractorDesc">Layout-aware PDF extraction with OCR, table structure, and multilingual support. Adds a separate ~3 GB container; Library imports use it when installed.</small>
+              <div class="checkbox-row" style="margin-top: 8px;">
+                <input type="checkbox" id="install-extractor-service">
+                <label for="install-extractor-service" data-i18n="settings.labels.installExtractorEnable">Install Knowledge Base Quality Pack</label>
+              </div>
+              <div id="extractor-langs-extra" style="margin-top: 8px; padding-left: 20px;">
+                <small class="text-muted" data-i18n="settings.labels.installExtractorLangsLabel">OCR languages (RapidOCR; default covers East Asian + English)</small>
+                <div class="checkbox-row"><input type="checkbox" id="extractor-lang-en" disabled><label for="extractor-lang-en">English (en)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="extractor-lang-ja" disabled><label for="extractor-lang-ja">Japanese (ja)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="extractor-lang-zh" disabled><label for="extractor-lang-zh">Chinese (zh)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="extractor-lang-ko" disabled><label for="extractor-lang-ko">Korean (ko)</label></div>
+              </div>
+            </div>
           </div>
 
           <!-- Panel: Actions -->
@@ -814,6 +830,9 @@
                 </button>
                 <button type="button" class="action-btn" id="action-build-privacy" disabled>
                   <i class="fas fa-shield-halved"></i> <span data-i18n="settings.labels.actionBuildPrivacy">Build Privacy</span>
+                </button>
+                <button type="button" class="action-btn" id="action-build-extractor" disabled>
+                  <i class="fas fa-file-import"></i> <span data-i18n="settings.labels.actionBuildExtractor">Build Extractor</span>
                 </button>
               </div>
             </div>
@@ -982,7 +1001,46 @@
           syncPrivacyLangsEnabled();
           updateActionButtons();
         }
+        if (ev.target && ev.target.id === 'install-extractor-service') {
+          syncExtractorLangsEnabled();
+          updateActionButtons();
+        }
       });
+
+      // ─── Extractor Service (Knowledge Base Quality Pack) helpers ───
+      // RapidOCR-supported languages exposed in the UI. English is included
+      // by default whenever the pack is installed.
+      const EXTRACTOR_OCR_LANGS = ['en', 'ja', 'zh', 'ko'];
+
+      function collectExtractorLangs() {
+        const langs = [];
+        EXTRACTOR_OCR_LANGS.forEach(code => {
+          const el = document.getElementById('extractor-lang-' + code);
+          if (el && el.checked) langs.push(code);
+        });
+        // English is always included as a baseline.
+        if (!langs.includes('en')) langs.unshift('en');
+        return langs.join(',');
+      }
+
+      function applyExtractorLangs(value) {
+        const tokens = String(value || 'en,ja,zh,ko').split(',').map(s => s.trim()).filter(Boolean);
+        EXTRACTOR_OCR_LANGS.forEach(code => {
+          const el = document.getElementById('extractor-lang-' + code);
+          if (el) el.checked = tokens.includes(code);
+        });
+      }
+
+      function syncExtractorLangsEnabled() {
+        const master = document.getElementById('install-extractor-service');
+        const enabled = !!(master && master.checked);
+        EXTRACTOR_OCR_LANGS.forEach(code => {
+          const el = document.getElementById('extractor-lang-' + code);
+          if (el) el.disabled = !enabled;
+        });
+        const wrapper = document.getElementById('extractor-langs-extra');
+        if (wrapper) wrapper.style.opacity = enabled ? '1' : '0.5';
+      }
 
       // ─── Actions Tab Logic ───
       function updateActionButtons() {
@@ -990,6 +1048,7 @@
         const met = actionMetRequirements;
         const buildable = s === 'Stopped' || s === 'Uninstalled';
         const privacyOn = !!(document.getElementById('install-privacy-filter') || {}).checked;
+        const extractorOn = !!(document.getElementById('install-extractor-service') || {}).checked;
         const rules = {
           'action-start': s === 'Stopped',
           'action-stop': ['Running', 'Ready', 'Starting', 'Building'].includes(s),
@@ -999,6 +1058,7 @@
           'action-build-python': buildable,
           'action-build-user': buildable,
           'action-build-privacy': buildable && privacyOn,
+          'action-build-extractor': buildable && extractorOn,
           'action-start-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-stop-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-import-db': s === 'Stopped' && met,
@@ -1021,6 +1081,7 @@
         'action-build-python': 'build_python_container',
         'action-build-user': 'build_user_containers',
         'action-build-privacy': 'build_privacy_container',
+        'action-build-extractor': 'build_extractor_container',
         'action-start-jupyter': 'start-jupyter',
         'action-stop-jupyter': 'stop-jupyter',
         'action-import-db': 'import-db',
@@ -1126,7 +1187,9 @@
           PYOPT_TRANSFORMERS: document.getElementById('pyopt-transformers').checked,
           IMGOPT_IMAGEMAGICK: document.getElementById('imgopt-imagemagick').checked,
           PRIVACY_FILTER: document.getElementById('install-privacy-filter').checked,
-          PRIVACY_LANGS: collectPrivacyLangs()
+          PRIVACY_LANGS: collectPrivacyLangs(),
+          EXTRACTOR_SERVICE: document.getElementById('install-extractor-service').checked,
+          EXTRACTOR_LANGS: collectExtractorLangs()
         };
 
         window.electronAPI.saveSettings(data);
@@ -1268,6 +1331,10 @@
         document.getElementById('install-privacy-filter').checked = data.PRIVACY_FILTER == "true" || false;
         applyPrivacyLangs(data.PRIVACY_LANGS || 'en');
         syncPrivacyLangsEnabled();
+        // Extractor Service: master flag + OCR-language extras (default en,ja,zh,ko)
+        document.getElementById('install-extractor-service').checked = data.EXTRACTOR_SERVICE == "true" || false;
+        applyExtractorLangs(data.EXTRACTOR_LANGS || 'en,ja,zh,ko');
+        syncExtractorLangsEnabled();
         document.getElementById('ui-language').value = data.UI_LANGUAGE || 'en';
 
         // Sync UI language and track initial value for discard revert

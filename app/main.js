@@ -662,7 +662,7 @@ class DockerManager {
             const envConfig = readEnvFile(envPath);
 
             // For build commands, always force rebuild by setting FORCE_REBUILD=true
-            const isBuildCommand = ['build', 'build_ruby_container', 'build_python_container', 'build_user_containers', 'build_privacy_container'].includes(command);
+            const isBuildCommand = ['build', 'build_ruby_container', 'build_python_container', 'build_user_containers', 'build_privacy_container', 'build_extractor_container'].includes(command);
             const buildEnv = isBuildCommand ? { FORCE_REBUILD: 'true' } : {};
 
             let subprocess = spawn(cmd, [], {
@@ -1596,6 +1596,12 @@ function initializeApp() {
               formatMessage(null, 'messages.buildingPrivacyContainer'),
               'Building', 'Stopped', false);
             break;
+          case 'build_extractor_container':
+            openMainWindow();
+            dockerManager.runCommand('build_extractor_container',
+              formatMessage(null, 'messages.buildingExtractorContainer'),
+              'Building', 'Stopped', false);
+            break;
           // JupyterLab commands
           case 'start-jupyter':
             if (dockerManager.isServerMode()) {
@@ -2007,10 +2013,11 @@ function updateContextMenu(disableControls = false) {
 
 function updateApplicationMenu() {
   // Make sure to update menu structure to reflect the current status
-  // Read PRIVACY_FILTER from env so the Build Privacy menu reflects the
-  // user's opt-in choice, not just the Docker container status.
+  // Read PRIVACY_FILTER / EXTRACTOR_SERVICE from env so the Build menus
+  // reflect the user's opt-in choice, not just the Docker container status.
   const envCfg = loadSettings() || {};
   const privacyFilterOn = String(envCfg.PRIVACY_FILTER || '').toLowerCase() === 'true';
+  const extractorServiceOn = String(envCfg.EXTRACTOR_SERVICE || '').toLowerCase() === 'true';
 
   // Create standard menu
   const menu = Menu.buildFromTemplate([
@@ -2212,6 +2219,18 @@ function updateApplicationMenu() {
                 false);
             },
             enabled: (currentStatus === 'Stopped' || currentStatus === 'Uninstalled') && privacyFilterOn
+          },
+          {
+            label: i18n.t('menu.buildExtractorContainer'),
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_extractor_container',
+                formatMessage(null, 'messages.buildingExtractorContainer'),
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: (currentStatus === 'Stopped' || currentStatus === 'Uninstalled') && extractorServiceOn
           },
           {
             type: 'separator'
@@ -3344,7 +3363,7 @@ function saveSettings(data) {
         }
         
         // Normalize install option booleans to string 'true'/'false'
-        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','PRIVACY_FILTER'];
+        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','PRIVACY_FILTER','EXTRACTOR_SERVICE'];
         installOptionKeys.forEach(k => {
             if (k in data) data[k] = data[k] ? 'true' : 'false';
         });
@@ -3354,6 +3373,12 @@ function saveSettings(data) {
             const tokens = String(data.PRIVACY_LANGS || '').split(',').map(s => s.trim()).filter(Boolean);
             if (!tokens.includes('en')) tokens.unshift('en');
             data.PRIVACY_LANGS = tokens.join(',');
+        }
+        // EXTRACTOR_LANGS follows the same pattern; English baseline always present.
+        if ('EXTRACTOR_LANGS' in data) {
+            const tokens = String(data.EXTRACTOR_LANGS || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (!tokens.includes('en')) tokens.unshift('en');
+            data.EXTRACTOR_LANGS = tokens.join(',');
         }
 
         // Override existing settings with new data (empty string values are included)

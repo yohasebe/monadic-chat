@@ -377,16 +377,22 @@ RSpec.describe 'WebSocketHelper Library handlers' do
 
   describe 'LIBRARY_STATS → library_stats' do
     it 'returns the counts payload with stringified keys' do
+      # Manager.library_stats now returns total + per-scope_app counts.
+      # The handler stringifies keys so the JS frontend gets a plain
+      # JSON object it can iterate. Regression guard against accidental
+      # symbol leakage and against a return-shape drift.
       allow(Monadic::Library::Manager).to receive(:library_stats)
         .with(store: store)
-        .and_return(conversations_total: 10, conversations_shareable: 3, conversations_personal: 7)
+        .and_return(
+          conversations_total: 10,
+          conversations_by_scope: { 'Global' => 3, 'ChatOpenAI' => 7 }
+        )
       host.send(:handle_ws_library_stats, connection, {}, {})
       msg = replies.first
       expect(msg['type']).to eq('library_stats')
       expect(msg['content']).to eq(
         'conversations_total' => 10,
-        'conversations_shareable' => 3,
-        'conversations_personal' => 7
+        'conversations_by_scope' => { 'Global' => 3, 'ChatOpenAI' => 7 }
       )
     end
 

@@ -789,7 +789,7 @@ describe('library-panel module', () => {
         '  <div id="library-viewer-loading" style="display:none;"></div>' +
         '  <div id="library-viewer-empty" style="display:none;"></div>' +
         '  <div id="library-viewer-messages"></div>' +
-        '  <button id="library-viewer-toggle-vis" data-next-vis="shareable"></button>' +
+        '  <button id="library-viewer-toggle-scope" data-next-scope="Global"></button>' +
         '  <span id="library-viewer-toggle-label"></span>' +
         '  <button id="library-viewer-delete"></button>' +
         '</div>';

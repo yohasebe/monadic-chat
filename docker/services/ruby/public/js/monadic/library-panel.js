@@ -39,14 +39,33 @@
 
   var state = {
     allRows: [],            // last received full inventory
-    filteredRows: [],       // after applying search/visibility filter
+    filteredRows: [],       // after applying search/scope filter
     page: 0,                // 0-indexed page in browse modal
     pageSize: 50,
     sortKey: 'created_desc',
-    visibilityFilter: 'all',
+    scopeFilter: 'all',     // 'all' | 'Global' | a literal app class name
     searchTerm: '',
     selectedId: null,       // for detail modal
-    viewerOpenedFromBrowse: false  // re-open Browse after Viewer closes
+    viewerOpenedFromBrowse: false, // re-open Browse after Viewer closes
+    // The conversation_id assigned by the server on the most recent
+    // Save of the *current* chat session. While this is set, subsequent
+    // Saves replace the same KB entry instead of creating a new one.
+    // Cleared by clearCurrentConversation() on Reset, app switch, or
+    // when the matching entry is deleted from Browse.
+    currentConversationId: null,
+    // Set while a LIBRARY_SUGGEST_TITLE request is in flight. We use
+    // it to (a) prevent duplicate requests when the user closes and
+    // re-opens the modal quickly, and (b) ignore stale responses if
+    // the user has started typing a title in the meantime.
+    titleSuggestionPending: false,
+    // Cached suggestion + the message count at the moment we received
+    // it. If the user opens Save, gets a suggestion, cancels, then
+    // re-opens Save without sending any new chat turns, we reuse the
+    // cached value rather than burning another LLM call. The cache is
+    // invalidated when the conversation grows (new messages) or when
+    // clearCurrentConversation() fires (Reset / app switch).
+    cachedTitleSuggestion: null,
+    cachedTitleSuggestionMessageCount: 0
   };
 
   var SIDEBAR_RECENT_LIMIT = 5;
@@ -70,9 +89,15 @@
   function setRagToggle(enabled) {
     return send('LIBRARY_RAG_TOGGLE', { contents: { enabled: !!enabled } });
   }
-  function setVisibility(conversationId, visibility) {
-    return send('LIBRARY_TOGGLE_VISIBILITY', {
-      contents: { conversation_id: conversationId, visibility: visibility }
+  function requestTitleSuggestion() {
+    var msgs = (Array.isArray(window.messages) ? window.messages : []).map(function (m) {
+      return { role: m.role, text: m.text };
+    });
+    return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } });
+  }
+  function setScopeApp(conversationId, scopeApp) {
+    return send('LIBRARY_SET_SCOPE', {
+      contents: { conversation_id: conversationId, scope_app: scopeApp }
     });
   }
   function deleteConversation(conversationId) {
@@ -102,16 +127,63 @@
       .replace(/'/g, '&#39;');
   }
 
-  function visibilityBadge(visibility) {
-    var v = (visibility || '').toLowerCase();
-    // Bootstrap 5.3 subtle/emphasis variants give a pastel pill (soft
-    // background with darker text) that reads as a tag rather than a
-    // status alert. Older sibling tests still match the substring
-    // "bg-success" / "bg-secondary" so they remain valid.
-    var cls = v === 'shareable'
+  // Provider class-suffixes used to split app class names back into a
+  // pretty "Base (Provider)" pair. Order is irrelevant since the suffix
+  // set is disjoint.
+  var SCOPE_PROVIDERS = ['OpenAI', 'Claude', 'Gemini', 'Grok', 'Cohere',
+                          'Mistral', 'DeepSeek', 'Perplexity', 'Ollama'];
+
+  // Convert a scope_app payload value into the human-friendly label used
+  // by every UI surface. "Global" stays as-is. "ChatOpenAI" splits into
+  // "Chat (OpenAI)". "JupyterNotebookGrok" splits into
+  // "Jupyter Notebook (Grok)". Unknown shapes pass through verbatim.
+  function formatScopeApp(scopeApp) {
+    if (!scopeApp) return 'Global';
+    if (scopeApp === 'Global') return 'Global';
+    for (var i = 0; i < SCOPE_PROVIDERS.length; i++) {
+      var p = SCOPE_PROVIDERS[i];
+      if (scopeApp.length > p.length &&
+          scopeApp.slice(scopeApp.length - p.length) === p) {
+        var base = scopeApp.slice(0, scopeApp.length - p.length);
+        var pretty = base.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+        return pretty + ' (' + p + ')';
+      }
+    }
+    return scopeApp;
+  }
+
+  function scopeBadge(scopeApp) {
+    var label = formatScopeApp(scopeApp);
+    // "Global" stays the soft-green pill (cross-app reach is the
+    // expansive case); per-app scopes use the muted secondary pill.
+    var cls = label === 'Global'
       ? 'badge bg-success-subtle text-success-emphasis'
       : 'badge bg-secondary-subtle text-secondary-emphasis';
-    return '<span class="' + cls + '">' + escapeHtml(v || 'unknown') + '</span>';
+    return '<span class="' + cls + '">' + escapeHtml(label) + '</span>';
+  }
+
+  // Compute "what scope should clicking the toggle button switch to"
+  // based on the row's current scope_app and the active app from
+  // window.params. Updates the data-next-scope attribute and the visible
+  // label so the user sees the action that will happen, not the
+  // current state.
+  function applyScopeToggleState(row, toggleBtn, toggleLabel) {
+    if (!toggleBtn) return;
+    var current = row.scope_app || 'Global';
+    var nextScope, label;
+    if (current === 'Global') {
+      var currentApp = (typeof window.params === 'object' && window.params && window.params.app_name) || '';
+      nextScope = currentApp;
+      label = currentApp
+        ? t('ui.libMakeAppOnly', 'Make app-only ({app})').replace('{app}', formatScopeApp(currentApp))
+        : t('ui.libMakeAppOnlyDisabled', 'Switch to an app to scope this entry');
+    } else {
+      nextScope = 'Global';
+      label = t('ui.libMakeGlobal', 'Make Global');
+    }
+    toggleBtn.setAttribute('data-next-scope', nextScope);
+    toggleBtn.disabled = (nextScope === '');
+    if (toggleLabel) toggleLabel.textContent = label;
   }
 
   // Map a content_type token to a FontAwesome icon class plus a colour
@@ -165,12 +237,13 @@
       + 'title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '"></i>';
   }
 
-  // Compact colored dot used in sidebar rows where horizontal space is tight.
-  function visibilityDot(visibility) {
-    var v = (visibility || '').toLowerCase();
-    var color = v === 'shareable' ? '#198754' : '#6c757d';
-    var label = v || 'unknown';
-    return '<span class="library-vis-dot d-inline-block rounded-circle me-1" '
+  // Compact colored dot used in sidebar rows where horizontal space is
+  // tight. "Global" entries glow green, app-scoped entries get a muted
+  // grey dot. The tooltip carries the formatted scope label.
+  function scopeDot(scopeApp) {
+    var label = formatScopeApp(scopeApp);
+    var color = label === 'Global' ? '#198754' : '#6c757d';
+    return '<span class="library-scope-dot d-inline-block rounded-circle me-1" '
       + 'style="width: 8px; height: 8px; background:' + color + ';" '
       + 'title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '"></span>';
   }
@@ -208,7 +281,7 @@
 
   // ─── Compact row markup (used in sidebar AND browse modal table) ─────
 
-  // Sidebar markup: 1-line. Title + visibility dot + turns + relative time.
+  // Sidebar markup: 1-line. Title + scope dot + turns + relative time.
   // No inline action button — sidebar is read-only; for actions the user
   // opens Browse modal.
   function compactRowMarkup(row) {
@@ -222,7 +295,7 @@
       '<div class="library-row-compact d-flex align-items-center py-1 small border-bottom" '
         + 'data-conversation-id="' + escapeHtml(fullId) + '" '
         + 'title="' + escapeHtml(tooltip) + '">'
-      +   visibilityDot(row.visibility)
+      +   scopeDot(row.scope_app)
       +   '<span class="flex-grow-1 text-truncate me-2">' + escapeHtml(truncate(title, 40)) + '</span>'
       +   '<span class="text-secondary text-nowrap">' + turns + 'T · ' + escapeHtml(rel) + '</span>'
       + '</div>'
@@ -230,21 +303,36 @@
   }
 
   // Browse-modal row: full table row with three inline icon-only buttons
-  // on the right (details / toggle visibility / delete). The modal is wide
-  // enough that a popover dropdown adds clicks without saving space, so we
-  // expose the actions directly instead.
+  // on the right (details / toggle scope / delete). Shows the scope badge
+  // ("Chat (OpenAI)" / "Global" / etc.) so the user can see at a glance
+  // which app the entry belongs to.
   function browseRowMarkup(row, idx) {
     var convId = escapeHtml(row.conversation_id || '');
     var title = row.title && row.title.length > 0 ? row.title : '(untitled)';
     var turns = (typeof row.turns_count === 'number') ? row.turns_count : '?';
     var rel = relativeTime(row.created_at);
-    var visLower = (row.visibility || '').toLowerCase();
-    var toggleLabel = visLower === 'shareable'
-      ? t('ui.libMakePersonal', 'Make personal')
-      : t('ui.libMakeShareable', 'Make shareable');
-    var nextVis = visLower === 'shareable' ? 'personal' : 'shareable';
+    // Toggle flips between Global and the app's literal class name. We
+    // need the app's class name (whatever the entry was last scoped to,
+    // or whatever app is currently active). Falling back via the row
+    // payload covers normal flow; the toggle is hidden for legacy
+    // entries with no recognisable app class.
+    var currentScope = row.scope_app || 'Global';
+    var nextScope, toggleLabel;
+    if (currentScope === 'Global') {
+      // Flipping to app-only requires a target app. Use the most recent
+      // app the user touched (window.params.app_name) when available.
+      var currentApp = (typeof window.params === 'object' && window.params && window.params.app_name) || null;
+      nextScope = currentApp || '';
+      toggleLabel = currentApp
+        ? t('ui.libMakeAppOnly', 'Make app-only ({app})').replace('{app}', formatScopeApp(currentApp))
+        : t('ui.libMakeAppOnlyDisabled', 'Switch to an app to scope this entry');
+    } else {
+      nextScope = 'Global';
+      toggleLabel = t('ui.libMakeGlobal', 'Make Global');
+    }
     var detailLabel = t('ui.libViewDetails', 'View details');
     var deleteLabel = t('ui.libDelete', 'Delete');
+    var toggleDisabled = (nextScope === '') ? 'disabled' : '';
     return (
       '<tr data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
       +   '<td class="text-center">' + typeIconHtml(row.content_type, row.topics) + '</td>'
@@ -252,7 +340,7 @@
       +     '<div class="fw-medium text-truncate" style="max-width: 380px; color: #374151;">' + escapeHtml(truncate(title, 80)) + '</div>'
       +     '<div class="text-secondary small text-truncate" style="max-width: 380px;">' + escapeHtml(row.source || '') + (row.language ? ' · ' + escapeHtml(row.language) : '') + '</div>'
       +   '</td>'
-      +   '<td>' + visibilityBadge(row.visibility) + '</td>'
+      +   '<td>' + scopeBadge(row.scope_app) + '</td>'
       +   '<td class="text-end small">' + turns + '</td>'
       +   '<td class="text-nowrap small text-secondary">' + escapeHtml(rel) + '</td>'
       +   '<td class="text-end text-nowrap">'
@@ -260,8 +348,8 @@
       +       'title="' + escapeHtml(detailLabel) + '" aria-label="' + escapeHtml(detailLabel) + '">'
       +       '<i class="fa-solid fa-circle-info"></i>'
       +     '</button>'
-      +     '<button type="button" class="btn btn-sm btn-outline-secondary me-1 library-action-toggle" '
-      +       'data-next-vis="' + nextVis + '" '
+      +     '<button type="button" class="btn btn-sm btn-outline-secondary me-1 library-action-toggle" ' + toggleDisabled + ' '
+      +       'data-next-scope="' + escapeHtml(nextScope) + '" '
       +       'title="' + escapeHtml(toggleLabel) + '" aria-label="' + escapeHtml(toggleLabel) + '">'
       +       '<i class="fa-solid fa-arrows-rotate"></i>'
       +     '</button>'
@@ -278,8 +366,8 @@
 
   function applyFilters() {
     var rows = (state.allRows || []).slice();
-    if (state.visibilityFilter !== 'all') {
-      rows = rows.filter(function (r) { return (r.visibility || '').toLowerCase() === state.visibilityFilter; });
+    if (state.scopeFilter && state.scopeFilter !== 'all') {
+      rows = rows.filter(function (r) { return (r.scope_app || 'Global') === state.scopeFilter; });
     }
     var q = (state.searchTerm || '').trim().toLowerCase();
     if (q.length > 0) {
@@ -398,7 +486,45 @@
     applyFilters();
     renderSidebarRecent();
     renderTotalBadge();
+    renderScopeFilterOptions();
     renderBrowseTable();
+  }
+
+  // Refresh the Browse modal's scope filter <select> so it offers one
+  // option per distinct scope_app currently in the table, sorted with
+  // "Global" first. Preserves the active selection when possible.
+  function renderScopeFilterOptions() {
+    if (typeof document === 'undefined') return;
+    var select = document.getElementById('library-browse-scope');
+    if (!select) return;
+
+    var scopes = {};
+    (state.allRows || []).forEach(function (r) {
+      var s = r.scope_app || 'Global';
+      scopes[s] = true;
+    });
+    var sorted = Object.keys(scopes).sort(function (a, b) {
+      if (a === 'Global') return -1;
+      if (b === 'Global') return 1;
+      return a.localeCompare(b);
+    });
+
+    var current = state.scopeFilter || 'all';
+    var html = '<option value="all">' +
+      escapeHtml(t('ui.libBrowseAllScopes', 'All scopes')) + '</option>';
+    sorted.forEach(function (s) {
+      var sel = (s === current) ? ' selected' : '';
+      html += '<option value="' + escapeHtml(s) + '"' + sel + '>' +
+              escapeHtml(formatScopeApp(s)) + '</option>';
+    });
+    // Restore the "all" selection after replacing innerHTML.
+    select.innerHTML = html;
+    if (current !== 'all' && !scopes[current]) {
+      // The previously selected scope is no longer in the row set
+      // (e.g., the only entry in that scope was deleted). Reset to all.
+      state.scopeFilter = 'all';
+    }
+    select.value = state.scopeFilter;
   }
 
   // ─── Browse-row action wiring ────────────────────────────────────────
@@ -415,11 +541,12 @@
         });
       }
       var toggleLink = tr.querySelector('.library-action-toggle');
-      if (toggleLink) {
+      if (toggleLink && !toggleLink.disabled) {
         toggleLink.addEventListener('click', function (e) {
           e.preventDefault();
-          var nextVis = toggleLink.getAttribute('data-next-vis') || 'shareable';
-          setVisibility(convId, nextVis);
+          var nextScope = toggleLink.getAttribute('data-next-scope') || 'Global';
+          if (!nextScope) return; // disabled when there's no current app context
+          setScopeApp(convId, nextScope);
         });
       }
       var deleteLink = tr.querySelector('.library-action-delete');
@@ -444,8 +571,8 @@
   // ─── Conversation Viewer modal ───────────────────────────────────────
 
   // Viewer subsumes the old "detail" modal: it shows metadata, actions
-  // (delete / toggle visibility), and verbatim messages all in one
-  // surface. This keeps the user from juggling two modals when reading a
+  // (delete / toggle scope), and verbatim messages all in one surface.
+  // This keeps the user from juggling two modals when reading a
   // conversation and acting on it.
 
   function viewerEl(id) {
@@ -459,12 +586,8 @@
     if (typeof row.turns_count === 'number') bits.push(row.turns_count + 'T');
     if (typeof row.messages_count === 'number') bits.push(row.messages_count + ' msgs');
     if (row.created_at) bits.push(escapeHtml(relativeTime(row.created_at)));
-    var vis = (row.visibility || '').toLowerCase();
-    var visClass = vis === 'shareable'
-      ? 'badge bg-success-subtle text-success-emphasis'
-      : 'badge bg-secondary-subtle text-secondary-emphasis';
     return bits.join(' · ')
-      + ' <span class="' + visClass + ' ms-2">' + escapeHtml(vis || 'unknown') + '</span>';
+      + ' <span class="ms-2">' + scopeBadge(row.scope_app) + '</span>';
   }
 
   // Render an array of monadic-conversation v1 messages into the viewer
@@ -565,17 +688,10 @@
     var messagesEl = viewerEl('library-viewer-messages');
     if (messagesEl) messagesEl.innerHTML = '';
 
-    var toggleBtn = viewerEl('library-viewer-toggle-vis');
+    var toggleBtn = viewerEl('library-viewer-toggle-scope');
     var toggleLabel = viewerEl('library-viewer-toggle-label');
-    if (row) {
-      var visLower = (row.visibility || '').toLowerCase();
-      if (toggleBtn) toggleBtn.setAttribute('data-next-vis',
-        visLower === 'shareable' ? 'personal' : 'shareable');
-      if (toggleLabel) {
-        toggleLabel.textContent = visLower === 'shareable'
-          ? t('ui.libMakePersonal', 'Make personal')
-          : t('ui.libMakeShareable', 'Make shareable');
-      }
+    if (row && toggleBtn) {
+      applyScopeToggleState(row, toggleBtn, toggleLabel);
     }
 
     setViewerLoading(true);
@@ -687,6 +803,12 @@
       if (convId) {
         state.allRows = state.allRows.filter(function (r) { return r.conversation_id !== convId; });
         rerenderAll();
+        // If the user just deleted the same entry the current session
+        // was bound to, drop the binding so the next Save creates a new
+        // entry rather than failing to replace a non-existent one.
+        if (state.currentConversationId === convId) {
+          state.currentConversationId = null;
+        }
       }
     }
     requestList();
@@ -696,7 +818,21 @@
   function handleSavedMessage(data) {
     if (!data) return;
     setSavePending(false);
+    // Broadcast the save result so external flows (e.g. Reset → Save &
+    // Reset) can react without coupling directly to handleSavedMessage.
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try {
+        window.dispatchEvent(new CustomEvent('library:save:result', { detail: data }));
+      } catch (e) { /* IE/test envs without CustomEvent — ignore */ }
+    }
     if (data.res === 'success') {
+      // Remember the server-assigned id so subsequent Saves on this
+      // session update-in-place. The same id is reused across Save
+      // clicks until the user resets the session, switches apps, or
+      // deletes the entry from Browse.
+      if (data.conversation_id) {
+        state.currentConversationId = data.conversation_id;
+      }
       requestList();
       requestStats();
       var modalEl = (typeof document !== 'undefined') ? document.getElementById('librarySaveModal') : null;
@@ -704,8 +840,10 @@
         var inst = window.bootstrap.Modal.getInstance(modalEl);
         if (inst) inst.hide();
       }
-      var label = t('ui.libSaveSuccess', 'Saved to Knowledge Base.');
-      flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(label), 'success');
+      var defaultLabel = data.updated
+        ? t('ui.libUpdateSuccess', 'Updated existing Knowledge Base entry.')
+        : t('ui.libSaveSuccess', 'Saved to Knowledge Base.');
+      flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(defaultLabel), 'success');
     } else {
       var msg = (data && data.content) ? data.content : 'Save failed';
       var prefix = t('ui.libSaveFailure', 'Failed to save');
@@ -716,6 +854,51 @@
     }
   }
 
+  // External hook: reset the binding so the next Save creates a brand
+  // new KB entry. Called from the conversation reset path and from the
+  // app-switch handler. Exported via window.libraryPanel.
+  function clearCurrentConversation() {
+    state.currentConversationId = null;
+    // The cached title suggestion belongs to the previous logical
+    // conversation; clearing it here ensures a fresh session asks the
+    // LLM for a new title rather than recycling a stale one.
+    state.cachedTitleSuggestion = null;
+    state.cachedTitleSuggestionMessageCount = 0;
+  }
+
+  // Apply an LLM-suggested title to the Save modal's title input. We
+  // intentionally do *not* overwrite anything the user has already
+  // typed: the suggestion is a default, not an override. The placeholder
+  // and spinner are reset whether the suggestion succeeded or not, so
+  // the loading state never lingers.
+  function handleTitleSuggested(data) {
+    state.titleSuggestionPending = false;
+    if (typeof document === 'undefined') return;
+    var input = document.getElementById('library-save-title');
+    if (!input) return;
+    // Reset placeholder so "Suggesting title…" doesn't stick around if
+    // the LLM returned nothing or the user already started typing.
+    input.placeholder = currentAppName() || '';
+    var spinnerEl = document.getElementById('library-save-title-spinner');
+    if (spinnerEl) spinnerEl.style.display = 'none';
+    if (!data || data.res !== 'success') return;
+    var title = (data.title || '').toString().trim();
+    if (!title) return;
+    // Cache the suggestion against the conversation length so that
+    // canceling and re-opening the modal does not fire another LLM
+    // call. The cache is invalidated implicitly when the conversation
+    // grows (count mismatch) and explicitly on Reset / app switch.
+    var count = Array.isArray(window.messages)
+      ? window.messages.filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); }).length
+      : 0;
+    state.cachedTitleSuggestion = title;
+    state.cachedTitleSuggestionMessageCount = count;
+    // Race protection: if the user typed a title while the request
+    // was in flight, leave their input alone.
+    if (input.value && input.value.trim().length > 0) return;
+    input.value = title;
+  }
+
   function handleRagState(data) {
     var el = (typeof document !== 'undefined') ? document.getElementById('library-rag-toggle') : null;
     if (!el) return;
@@ -723,39 +906,31 @@
     if (el.checked !== enabled) el.checked = enabled;
   }
 
-  function handleVisibilityUpdated(data) {
+  function handleScopeUpdated(data) {
     if (!data) return;
     if (data.res === 'success') {
       var convId = data.conversation_id;
-      var visibility = data.visibility;
+      var scopeApp = data.scope_app;
       state.allRows.forEach(function (r) {
-        if (r.conversation_id === convId) r.visibility = visibility;
+        if (r.conversation_id === convId) r.scope_app = scopeApp;
       });
       rerenderAll();
-      // Refresh stats so personal/shareable counters update.
+      // Refresh stats so per-scope counters update.
       requestStats();
       // If the Viewer is showing this conversation, refresh metadata
-      // and toggle-button label only (no re-fetch — messages did not
-      // change). This avoids the loading flicker of a full modal reopen.
+      // + toggle-button label in place. No re-fetch needed.
       if (state.selectedId === convId) {
         var row = state.allRows.find(function (r) { return r.conversation_id === convId; });
         if (row) {
           var metaEl = viewerEl('library-viewer-meta');
           if (metaEl) metaEl.innerHTML = viewerMetaLine(row);
-          var toggleBtn = viewerEl('library-viewer-toggle-vis');
+          var toggleBtn = viewerEl('library-viewer-toggle-scope');
           var toggleLabel = viewerEl('library-viewer-toggle-label');
-          var visLower = (row.visibility || '').toLowerCase();
-          if (toggleBtn) toggleBtn.setAttribute('data-next-vis',
-            visLower === 'shareable' ? 'personal' : 'shareable');
-          if (toggleLabel) {
-            toggleLabel.textContent = visLower === 'shareable'
-              ? t('ui.libMakePersonal', 'Make personal')
-              : t('ui.libMakeShareable', 'Make shareable');
-          }
+          applyScopeToggleState(row, toggleBtn, toggleLabel);
         }
       }
       flashAlert(
-        "<i class='fa-solid fa-circle-check'></i> " + escapeHtml(t('ui.libVisibilityUpdated', 'Visibility updated.')),
+        "<i class='fa-solid fa-circle-check'></i> " + escapeHtml(t('ui.libScopeUpdated', 'Scope updated.')),
         'success'
       );
     } else {
@@ -769,10 +944,21 @@
   function formatStats(stats) {
     if (!stats || typeof stats !== 'object') return '';
     var total = stats.conversations_total || 0;
-    var personal = stats.conversations_personal || 0;
-    var shareable = stats.conversations_shareable || 0;
-    return 'Knowledge Base: ' + total + ' total ('
-      + personal + ' personal, ' + shareable + ' shareable)';
+    var byScope = stats.conversations_by_scope || {};
+    // Render the per-scope breakdown as a compact "Global=N, App=M"
+    // tail. Sorted with Global first so the cross-app pool is the
+    // user's first read.
+    var scopes = Object.keys(byScope);
+    var withGlobalFirst = scopes.sort(function (a, b) {
+      if (a === 'Global') return -1;
+      if (b === 'Global') return 1;
+      return a.localeCompare(b);
+    });
+    var parts = withGlobalFirst.map(function (s) {
+      return formatScopeApp(s) + ' ' + byScope[s];
+    });
+    if (parts.length === 0) return 'Knowledge Base: ' + total + ' total';
+    return 'Knowledge Base: ' + total + ' total (' + parts.join(', ') + ')';
   }
 
   // ─── Save modal helpers (unchanged from prior iteration) ─────────────
@@ -782,7 +968,7 @@
     var btn = document.getElementById('library-save-confirm');
     var cancelBtn = document.querySelector('#librarySaveModal [data-bs-dismiss="modal"]');
     var titleInput = document.getElementById('library-save-title');
-    var radios = document.querySelectorAll('input[name="librarySaveVisibility"]');
+    var radios = document.querySelectorAll('input[name="librarySaveScope"]');
     if (btn) {
       btn.disabled = !!pending;
       if (pending) {
@@ -830,16 +1016,87 @@
     var modalEl = document.getElementById('librarySaveModal');
     if (!modalEl) return;
 
+    // Pre-fill the title with the most recent title we know for the
+    // current session's KB entry. This covers the case where the user
+    // saved with an auto-generated name, then renamed the entry from
+    // the Viewer, then continued the conversation — re-Save should keep
+    // the user's chosen title rather than reverting to a blank field.
+    var existingRow = null;
+    if (state.currentConversationId) {
+      existingRow = state.allRows.find(function (r) {
+        return r.conversation_id === state.currentConversationId;
+      }) || null;
+    }
     var titleInput = document.getElementById('library-save-title');
     if (titleInput) {
-      titleInput.value = '';
+      titleInput.value = (existingRow && existingRow.title) ? existingRow.title : '';
       titleInput.placeholder = currentAppName() || '';
     }
-    var pers = document.getElementById('library-vis-personal');
-    if (pers) pers.checked = true;
+
+    // Reset the in-input spinner each time the modal opens; it gets
+    // re-shown below if a suggestion request is fired.
+    var spinnerEl = document.getElementById('library-save-title-spinner');
+    if (spinnerEl) spinnerEl.style.display = 'none';
+
+    // First-save case: ask the active provider's LLM for a concise
+    // title suggestion. We only do this when the title is blank and
+    // there is real conversation content to summarise — otherwise the
+    // request would be wasted (placeholder/app-name is already a fine
+    // default for an empty session).
+    var conversationCount = Array.isArray(window.messages)
+      ? window.messages.filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); }).length
+      : 0;
+    var hasConversation = conversationCount > 0;
+    if (titleInput && !state.currentConversationId && !titleInput.value && hasConversation && !state.titleSuggestionPending) {
+      // Cached-suggestion fast path: if we already asked the LLM for a
+      // title at the same conversation length and got a result, reuse
+      // it instead of firing another request when the user re-opens
+      // the modal after Cancel.
+      if (state.cachedTitleSuggestion && state.cachedTitleSuggestionMessageCount === conversationCount) {
+        titleInput.value = state.cachedTitleSuggestion;
+      } else {
+        state.titleSuggestionPending = true;
+        titleInput.placeholder = t('ui.libSuggestingTitle', 'Suggesting title…');
+        // Show the inline spinner so the user sees motion while the LLM
+        // works — a static placeholder reads as "frozen" especially on
+        // slower providers. The matching cleanup happens in
+        // handleTitleSuggested regardless of success/failure.
+        if (spinnerEl) spinnerEl.style.display = '';
+        requestTitleSuggestion();
+      }
+    }
+    // Default the radio to "App-only" and inject the active app's
+    // formatted label so the user sees which app the conversation is
+    // about to be scoped to.
+    var appOnlyRadio = document.getElementById('library-scope-app');
+    if (appOnlyRadio) appOnlyRadio.checked = true;
+    var appNameEl = document.getElementById('library-scope-app-name');
+    if (appNameEl) {
+      var appName = currentAppName();
+      appNameEl.textContent = appName ? ' (' + formatScopeApp(appName) + ')' : '';
+    }
 
     var note = document.getElementById('library-save-privacy-note');
     if (note) note.style.display = privacyOn() ? '' : 'none';
+
+    // Update mode: when this session has already been saved, swap the
+    // dialog's title + confirm button + show a warning banner so the
+    // user understands the next click will replace, not duplicate.
+    var isUpdate = !!state.currentConversationId;
+    var titleEl = document.getElementById('library-save-modal-title-text');
+    var confirmEl = document.getElementById('library-save-confirm-text');
+    var updateNote = document.getElementById('library-save-update-note');
+    if (titleEl) {
+      titleEl.textContent = isUpdate
+        ? t('ui.libSaveModalTitleUpdate', 'Update Conversation in Knowledge Base')
+        : t('ui.libSaveModalTitle', 'Save Conversation to Knowledge Base');
+    }
+    if (confirmEl) {
+      confirmEl.textContent = isUpdate
+        ? t('ui.libUpdateButton', 'Update')
+        : t('ui.libSaveButton', 'Save');
+    }
+    if (updateNote) updateNote.style.display = isUpdate ? '' : 'none';
 
     if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
       var inst = window.bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -875,14 +1132,29 @@
 
     var payload = {
       messages: msgs,
-      parameters: params,
-      visibility: opts.visibility || 'personal'
+      parameters: params
     };
+    // scope_app is set explicitly when the user picked "Global". When
+    // the user keeps the default "App-only" radio, we omit scope_app
+    // and let the server fall back to params.app_name (the currently
+    // active app's class name).
+    if (opts.scopeApp && opts.scopeApp !== 'app') {
+      payload.scope_app = opts.scopeApp;
+    }
     if (opts.title && String(opts.title).trim().length > 0) {
       payload.title = String(opts.title).trim();
     }
     if (opts.monadicState && typeof opts.monadicState === 'object') {
       payload.monadic_state = opts.monadicState;
+    }
+    // Carry the existing conversation_id forward when the current
+    // session has already been saved once. The server reads this and
+    // performs delete-then-insert, replacing the prior version in place.
+    var stickyId = (opts.conversationId !== undefined)
+      ? opts.conversationId
+      : state.currentConversationId;
+    if (stickyId) {
+      payload.conversation_id = stickyId;
     }
     return payload;
   }
@@ -890,9 +1162,9 @@
   function readModalSelections() {
     var titleEl = document.getElementById('library-save-title');
     var title = (titleEl && titleEl.value) ? titleEl.value : '';
-    var visEl = document.querySelector('input[name="librarySaveVisibility"]:checked');
-    var visibility = (visEl && visEl.value) ? visEl.value : 'personal';
-    return { title: title, visibility: visibility };
+    var scopeEl = document.querySelector('input[name="librarySaveScope"]:checked');
+    var scope = (scopeEl && scopeEl.value) ? scopeEl.value : 'app';
+    return { title: title, scopeApp: scope };
   }
 
   function submitSave() {
@@ -914,7 +1186,7 @@
 
     var afterState = function (state2) {
       var payload = buildSavePayload({
-        title: sel.title, visibility: sel.visibility, monadicState: state2
+        title: sel.title, scopeApp: sel.scopeApp, monadicState: state2
       });
       var ok = send('LIBRARY_SAVE', { contents: payload });
       if (!ok) {
@@ -1043,7 +1315,7 @@
     var formData = new FormData();
     formData.append('libraryFile', file);
     if (options.title) formData.append('libraryTitle', options.title);
-    if (options.visibility) formData.append('libraryVisibility', options.visibility);
+    if (options.scopeApp) formData.append('libraryScopeApp', options.scopeApp);
     if (options.license) formData.append('libraryLicense', options.license);
 
     setImportPending(true);
@@ -1170,10 +1442,10 @@
         renderBrowseTable();
       });
     }
-    var visFilter = document.getElementById('library-browse-visibility');
-    if (visFilter) {
-      visFilter.addEventListener('change', function () {
-        state.visibilityFilter = visFilter.value || 'all';
+    var scopeFilter = document.getElementById('library-browse-scope');
+    if (scopeFilter) {
+      scopeFilter.addEventListener('change', function () {
+        state.scopeFilter = scopeFilter.value || 'all';
         state.page = 0;
         applyFilters();
         renderBrowseTable();
@@ -1229,7 +1501,7 @@
       }
     });
 
-    // Viewer-modal action buttons (delete / toggle visibility)
+    // Viewer-modal action buttons (delete / toggle scope)
     var viewerDelete = document.getElementById('library-viewer-delete');
     if (viewerDelete) viewerDelete.onclick = function () {
       if (state.selectedId) {
@@ -1237,11 +1509,12 @@
         closeViewerModalIfOpen();
       }
     };
-    var viewerToggle = document.getElementById('library-viewer-toggle-vis');
+    var viewerToggle = document.getElementById('library-viewer-toggle-scope');
     if (viewerToggle) viewerToggle.onclick = function () {
       if (!state.selectedId) return;
-      var nextVis = viewerToggle.getAttribute('data-next-vis') || 'shareable';
-      setVisibility(state.selectedId, nextVis);
+      var nextScope = viewerToggle.getAttribute('data-next-scope');
+      if (!nextScope) return; // disabled when there's no current app context
+      setScopeApp(state.selectedId, nextScope);
     };
 
     var renameBtn = document.getElementById('library-viewer-rename');
@@ -1279,6 +1552,16 @@
         }
       });
     }
+
+    // Tie the per-session conversation_id binding to the SessionState
+    // lifecycle. Reset / new session / app switch all start a different
+    // logical conversation, so the next Save should create a fresh KB
+    // entry instead of replacing the previous one.
+    if (window.SessionState && typeof window.SessionState.on === 'function') {
+      window.SessionState.on('session:reset', clearCurrentConversation);
+      window.SessionState.on('session:new', clearCurrentConversation);
+      window.SessionState.on('app:changed', clearCurrentConversation);
+    }
   }
 
   window.libraryPanel = {
@@ -1288,7 +1571,7 @@
     requestStats: requestStats,
     requestRagState: requestRagState,
     setRagToggle: setRagToggle,
-    setVisibility: setVisibility,
+    setScopeApp: setScopeApp,
     deleteConversation: deleteConversation,
     openSaveModal: openSaveModal,
     submitSave: submitSave,
@@ -1308,8 +1591,10 @@
     handleDeleted: handleDeleted,
     handleDeletedMessage: handleDeletedMessage,
     handleSavedMessage: handleSavedMessage,
+    clearCurrentConversation: clearCurrentConversation,
     handleRagState: handleRagState,
-    handleVisibilityUpdated: handleVisibilityUpdated,
+    handleTitleSuggested: handleTitleSuggested,
+    handleScopeUpdated: handleScopeUpdated,
     handleConversationData: handleConversationData,
     openViewerModal: openViewerModal,
     renderViewerMessages: renderViewerMessages,
@@ -1320,8 +1605,9 @@
     truncate: truncate,
     formatStats: formatStats,
     escapeHtml: escapeHtml,
-    visibilityBadge: visibilityBadge,
-    visibilityDot: visibilityDot,
+    scopeBadge: scopeBadge,
+    scopeDot: scopeDot,
+    formatScopeApp: formatScopeApp,
     typeIconHtml: typeIconHtml,
     _state: state
   };

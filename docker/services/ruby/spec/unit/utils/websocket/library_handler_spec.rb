@@ -160,6 +160,77 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['content']).to eq('embeddings down')
     end
 
+    it 'updates in place when conversation_id is provided (delete-then-ingest)' do
+      payload = valid_payload.merge('conversation_id' => 'conv-9')
+      expect(store).to receive(:delete_conversation).with('conv-9').ordered
+      expect(Monadic::Library::Manager).to receive(:import_from_text).ordered do |args|
+        expect(args[:options][:conversation_id]).to eq('conv-9')
+        { conversation_id: 'conv-9', counts: { summary: 1, turns: 2 } }
+      end
+
+      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
+      msg = replies.first
+      expect(msg['res']).to eq('success')
+      expect(msg['conversation_id']).to eq('conv-9')
+      expect(msg['updated']).to eq(true)
+      expect(msg['content']).to match(/Updated/)
+    end
+
+    it 'creates a new entry (no delete) when conversation_id is absent' do
+      expect(store).not_to receive(:delete_conversation)
+      expect(Monadic::Library::Manager).to receive(:import_from_text)
+        .and_return(conversation_id: 'fresh', counts: { summary: 1, turns: 0 })
+
+      host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
+      msg = replies.first
+      expect(msg['res']).to eq('success')
+      expect(msg['updated']).to eq(false)
+    end
+
+    it 'forwards LIBRARY_SUGGEST_TITLE to the suggester and reports success' do
+      session = { parameters: { 'app_name' => 'ChatOpenAI' } }
+      messages = [{ 'role' => 'user', 'text' => 'Hi' }, { 'role' => 'assistant', 'text' => 'Hello!' }]
+      allow(Monadic::Library::TitleSuggester).to receive(:suggest)
+        .with(messages: messages, app_name: 'ChatOpenAI')
+        .and_return('Friendly hello')
+
+      host.send(:handle_ws_library_suggest_title, connection,
+                { 'contents' => { 'messages' => messages } }, session)
+
+      msg = replies.first
+      expect(msg['type']).to eq('library_title_suggested')
+      expect(msg['res']).to eq('success')
+      expect(msg['title']).to eq('Friendly hello')
+    end
+
+    it 'reports failure when the suggester returns nil (key missing / LLM error)' do
+      allow(Monadic::Library::TitleSuggester).to receive(:suggest).and_return(nil)
+      host.send(:handle_ws_library_suggest_title, connection,
+                { 'contents' => { 'messages' => [{ 'role' => 'user', 'text' => 'Hi' }] } },
+                { parameters: { 'app_name' => 'ChatOpenAI' } })
+      msg = replies.first
+      expect(msg['type']).to eq('library_title_suggested')
+      expect(msg['res']).to eq('failure')
+    end
+
+    it 'rejects an empty messages payload without invoking the suggester' do
+      expect(Monadic::Library::TitleSuggester).not_to receive(:suggest)
+      host.send(:handle_ws_library_suggest_title, connection,
+                { 'contents' => { 'messages' => [] } }, {})
+      expect(replies.first['res']).to eq('failure')
+    end
+
+    it 'surfaces a failure when delete_conversation raises and skips ingest' do
+      payload = valid_payload.merge('conversation_id' => 'conv-9')
+      allow(store).to receive(:delete_conversation).and_raise('qdrant down')
+      expect(Monadic::Library::Manager).not_to receive(:import_from_text)
+
+      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
+      msg = replies.first
+      expect(msg['res']).to eq('failure')
+      expect(msg['content']).to eq('qdrant down')
+    end
+
     it 'reports failure when contents is not a Hash' do
       host.send(:handle_ws_library_save, connection, { 'contents' => 'not-a-hash' }, {})
       msg = replies.first

@@ -1087,31 +1087,48 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="librarySaveModalLabel"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveModalTitle">Save Conversation to Knowledge Base</span></h5>
+            <h5 class="modal-title" id="librarySaveModalLabel"><i class="fas fa-bookmark"></i> <span id="library-save-modal-title-text" data-i18n="ui.libSaveModalTitle">Save Conversation to Knowledge Base</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
               <label for="library-save-title" class="form-label" data-i18n="ui.libTitleLabel">Title (optional)</label>
-              <input type="text" class="form-control" id="library-save-title" maxlength="200" placeholder="">
+              <div class="position-relative">
+                <input type="text" class="form-control" id="library-save-title" maxlength="200" placeholder="" style="padding-right: 2.25rem;">
+                <!-- Wrap the spinner in a span that owns the centering
+                     transform. Putting translate-middle-y on the icon
+                     itself collides with fa-spin's rotation transform
+                     (the keyframes overwrite translateY(-50%) and the
+                     glyph stops appearing to spin). -->
+                <span id="library-save-title-spinner" class="position-absolute" style="right: 0.75rem; top: 50%; transform: translateY(-50%); display: none;" aria-hidden="true">
+                  <i class="fas fa-spinner fa-spin text-secondary"></i>
+                </span>
+              </div>
               <div class="form-text small text-secondary" data-i18n="ui.libTitleHint">If left blank, the app name is used as the title.</div>
             </div>
             <div class="mb-2">
-              <span class="form-label" data-i18n="ui.libVisibilityLabel">Visibility</span>
+              <span class="form-label" data-i18n="ui.libScopeLabel">Scope</span>
               <div class="form-check mt-1">
-                <input class="form-check-input" type="radio" name="librarySaveVisibility" id="library-vis-personal" value="personal" checked>
-                <label class="form-check-label" for="library-vis-personal">
-                  <strong data-i18n="ui.libVisPersonalLabel">Personal</strong>
-                  <span class="text-secondary small d-block" data-i18n="ui.libVisPersonalDesc">Visible only inside the Knowledge Base app.</span>
+                <input class="form-check-input" type="radio" name="librarySaveScope" id="library-scope-app" value="app" checked>
+                <label class="form-check-label" for="library-scope-app">
+                  <strong>
+                    <span data-i18n="ui.libScopeAppOnlyLabel">App-only</span>
+                    <span id="library-scope-app-name" class="text-secondary"></span>
+                  </strong>
+                  <span class="text-secondary small d-block" data-i18n="ui.libScopeAppOnlyDesc">Only retrievable from this same app + provider.</span>
                 </label>
               </div>
               <div class="form-check mt-1">
-                <input class="form-check-input" type="radio" name="librarySaveVisibility" id="library-vis-shareable" value="shareable">
-                <label class="form-check-label" for="library-vis-shareable">
-                  <strong data-i18n="ui.libVisShareableLabel">Shareable</strong>
-                  <span class="text-secondary small d-block" data-i18n="ui.libVisShareableDesc">Retrievable from other apps via library_search.</span>
+                <input class="form-check-input" type="radio" name="librarySaveScope" id="library-scope-global" value="Global">
+                <label class="form-check-label" for="library-scope-global">
+                  <strong data-i18n="ui.libScopeGlobalLabel">Global</strong>
+                  <span class="text-secondary small d-block" data-i18n="ui.libScopeGlobalDesc">Retrievable from every app via library_search.</span>
                 </label>
               </div>
+            </div>
+            <div id="library-save-update-note" class="alert alert-warning py-2 px-3 small mt-2" style="display:none;">
+              <i class="fas fa-arrows-rotate"></i>
+              <span data-i18n="ui.libUpdateNote">This will replace the previous saved version of this conversation.</span>
             </div>
             <div id="library-save-privacy-note" class="alert alert-info py-2 px-3 small mt-2" style="display:none;">
               <i class="fas fa-shield-halved"></i>
@@ -1120,7 +1137,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary text-nowrap"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveButton">Save</span></button>
+            <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary text-nowrap"><i class="fas fa-bookmark"></i> <span id="library-save-confirm-text" data-i18n="ui.libSaveButton">Save</span></button>
           </div>
         </div>
       </div>
@@ -1141,10 +1158,11 @@
               </button>
               <input type="file" id="library-import-input" hidden accept=".md,.markdown,.mdx,.pdf,.docx,.xlsx,.pptx,.rb,.py,.js,.mjs,.cjs,.jsx,.ts,.tsx,.go,.java,.kt,.kts,.swift,.rs,.c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.cs,.php,.sh,.bash,.zsh,.sql,.pl,.pm,.lua,.ex,.exs,.scala,.clj,.cljs,.hs,.ml,.mli,.r,.jl">
               <input type="search" class="form-control form-control-sm" id="library-browse-search" style="max-width: 320px;" placeholder="Search title, source, language..." data-i18n-placeholder="ui.libBrowsePlaceholder">
-              <select class="form-select form-select-sm" id="library-browse-visibility" style="max-width: 160px;">
-                <option value="all" data-i18n="ui.libBrowseAllVis">All visibilities</option>
-                <option value="personal" data-i18n="ui.libVisPersonalLabel">Personal</option>
-                <option value="shareable" data-i18n="ui.libVisShareableLabel">Shareable</option>
+              <select class="form-select form-select-sm" id="library-browse-scope" style="max-width: 200px;">
+                <option value="all" data-i18n="ui.libBrowseAllScopes">All scopes</option>
+                <!-- Additional <option> entries are populated dynamically
+                     from the current row set so the user can filter by
+                     any specific app scope or "Global". -->
               </select>
               <select class="form-select form-select-sm" id="library-browse-sort" style="max-width: 180px;">
                 <option value="created_desc" data-i18n="ui.libSortNewest">Newest first</option>
@@ -1166,7 +1184,7 @@
                   <tr>
                     <th class="small text-secondary fw-normal text-center" style="width: 40px;" data-i18n="ui.libColType" title="Content type" data-i18n-title="ui.libColTypeTooltip">Type</th>
                     <th class="small text-secondary fw-normal" data-i18n="ui.libColTitle">Title</th>
-                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColVisibility">Visibility</th>
+                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColScope">Scope</th>
                     <th class="small text-secondary fw-normal text-nowrap text-end" data-i18n="ui.libColTurns">Turns</th>
                     <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColCreated">Saved</th>
                     <th></th>
@@ -1220,9 +1238,9 @@
               <button type="button" class="btn btn-sm btn-outline-danger me-1" id="library-viewer-delete">
                 <i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.libDelete">Delete</span>
               </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="library-viewer-toggle-vis">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="library-viewer-toggle-scope">
                 <i class="fa-solid fa-arrows-rotate"></i>
-                <span id="library-viewer-toggle-label" data-i18n="ui.libMakeShareable">Make shareable</span>
+                <span id="library-viewer-toggle-label" data-i18n="ui.libMakeGlobal">Make Global</span>
               </button>
             </div>
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.libClose">Close</button>

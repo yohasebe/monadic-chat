@@ -893,9 +893,15 @@ window.loadedApp = "Chat";
         }
         break;
       }
-      case "library_visibility_updated": {
-        if (window.libraryPanel && typeof window.libraryPanel.handleVisibilityUpdated === 'function') {
-          window.libraryPanel.handleVisibilityUpdated(data);
+      case "library_title_suggested": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleTitleSuggested === 'function') {
+          window.libraryPanel.handleTitleSuggested(data);
+        }
+        break;
+      }
+      case "library_scope_updated": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleScopeUpdated === 'function') {
+          window.libraryPanel.handleScopeUpdated(data);
         }
         break;
       }

@@ -249,14 +249,31 @@ module WebSocketHelper
     options[:title] = title.to_s unless title.to_s.empty?
     options[:license] = license.to_s unless license.to_s.empty?
 
+    # When the UI is re-saving a conversation it keeps a hold of the
+    # original conversation_id and sends it back on subsequent saves so
+    # we update-in-place instead of duplicating the entry. Without this
+    # the KB would accumulate every snapshot of an in-progress chat.
+    existing_id = payload['conversation_id'].to_s.strip
+    existing_id = nil if existing_id.empty?
+    options[:conversation_id] = existing_id if existing_id
+
     store = library_store_for_ws
+
+    # Drop the prior version's points first so the upsert below is the
+    # only data Qdrant carries for this conversation_id. delete is a
+    # no-op for an unknown id, so this is safe even when the UI is racing
+    # against an external delete. Failure raises and surfaces as a Save
+    # error instead of silently leaving the KB in a doubled state.
+    store.delete_conversation(existing_id) if existing_id
+
     result = Monadic::Library::Manager.import_from_text(
       store: store, input: importer_input, options: options, scope_app: scope_app
     )
     send_to_client(connection, {
       'type' => 'library_saved', 'res' => 'success',
-      'content' => "Conversation saved to Knowledge Base.",
+      'content' => existing_id ? 'Updated conversation in Knowledge Base.' : 'Conversation saved to Knowledge Base.',
       'conversation_id' => result[:conversation_id],
+      'updated' => !existing_id.nil?,
       'scope_app' => scope_app,
       'counts' => result[:counts].each_with_object({}) { |(k, v), h| h[k.to_s] = v }
     })
@@ -270,6 +287,36 @@ module WebSocketHelper
     send_to_client(connection, {
       'type' => 'library_saved', 'res' => 'failure', 'content' => e.message
     })
+  end
+
+  # Best-effort: ask the user's currently active provider for a concise
+  # title to seed the Save modal with. This runs the LLM out-of-band
+  # from the main chat (a separate one-shot send_query) and the result
+  # only seeds the title field — the user can always overwrite it
+  # before clicking Save. Failure cases (no API key / unknown provider /
+  # LLM error) are reported with res=failure so the UI can clear its
+  # spinner without surfacing a confusing error to the user.
+  private def handle_ws_library_suggest_title(connection, obj, session)
+    payload = obj['contents']
+    payload = {} unless payload.is_a?(Hash)
+    messages = payload['messages']
+    unless messages.is_a?(Array) && !messages.empty?
+      send_to_client(connection, { 'type' => 'library_title_suggested', 'res' => 'failure' })
+      return
+    end
+
+    params = (session && (session[:parameters] || session['parameters'])) || {}
+    app_name = (params['app_name'] || params[:app_name]).to_s
+    title = Monadic::Library::TitleSuggester.suggest(messages: messages, app_name: app_name)
+
+    send_to_client(connection, {
+      'type' => 'library_title_suggested',
+      'res' => title ? 'success' : 'failure',
+      'title' => title
+    })
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SUGGEST_TITLE failed: #{e.class}: #{e.message}" }
+    send_to_client(connection, { 'type' => 'library_title_suggested', 'res' => 'failure' })
   end
 
   private def handle_ws_library_stats(connection, _obj, _session)

@@ -202,6 +202,8 @@ module WebSocketHelper
           handle_ws_library_rag_toggle(connection, obj, session)
         when "LIBRARY_RAG_QUERY"
           handle_ws_library_rag_query(connection, obj, session)
+        when "LIBRARY_SUGGEST_TITLE"
+          handle_ws_library_suggest_title(connection, obj, session)
         when "CHECK_TOKEN"
           handle_ws_check_token(connection, obj, session)
         when "PING"

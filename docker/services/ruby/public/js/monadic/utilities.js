@@ -1218,6 +1218,14 @@ function resetEvent(_event, resetToDefaultApp = false) {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+  // True when the current chat has at least one user/assistant turn
+  // worth saving — system-only sessions (no exchange yet) shouldn't
+  // offer "Save & Reset" because there is nothing to preserve.
+  const hasSaveableContent = (() => {
+    if (!Array.isArray(window.messages)) return false;
+    return window.messages.some(m => m && (m.role === 'user' || m.role === 'assistant'));
+  })();
+
   // For iOS devices, bypass the modal and use standard confirm dialog
   if (isIOS) {
     if (confirm("Are you sure you want to reset the chat?")) {
@@ -1226,6 +1234,13 @@ function resetEvent(_event, resetToDefaultApp = false) {
   } else {
     // For other platforms, use the Bootstrap modal
     const resetModal = $id("resetConfirmation");
+    const saveAndResetBtn = $id("resetSaveAndConfirm");
+    if (saveAndResetBtn) {
+      // Only surface the third button when the user has something to
+      // preserve. Otherwise the dialog is the original two-button
+      // Cancel/Reset shape.
+      saveAndResetBtn.style.display = hasSaveableContent ? '' : 'none';
+    }
     if (resetModal) {
       bootstrap.Modal.getOrCreateInstance(resetModal).show();
       resetModal.addEventListener("shown.bs.modal", function () {
@@ -1238,6 +1253,35 @@ function resetEvent(_event, resetToDefaultApp = false) {
       resetConfirmedBtn.onclick = function (event) {
         event.preventDefault();
         doResetActions(resetToDefaultApp);
+      };
+    }
+    if (saveAndResetBtn) {
+      saveAndResetBtn.onclick = function (event) {
+        event.preventDefault();
+        // Save the conversation but do NOT reset afterwards. The
+        // combined "Save & Reset" action put too much cognitive load
+        // on the user — they would hesitate, fail to choose, and end
+        // up just clicking Cancel. Splitting it into two independent
+        // actions ("Save", then optionally Reset → Confirm again) is
+        // clearer: the Save success notification confirms what
+        // happened, and the user can issue Reset deliberately if
+        // they actually want to discard the session.
+        if (!window.libraryPanel || typeof window.libraryPanel.buildSavePayload !== 'function') return;
+        const payload = window.libraryPanel.buildSavePayload({});
+        try {
+          ws.send(JSON.stringify({ message: 'LIBRARY_SAVE', contents: payload }));
+        } catch (err) {
+          alert('Could not send save request: ' + (err && err.message ? err.message : err));
+          return;
+        }
+        // Close the reset dialog so the success toast from the save
+        // is visible and the user is not left staring at a dialog
+        // that no longer matches their intent.
+        const m = $id("resetConfirmation");
+        if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const inst = bootstrap.Modal.getInstance(m);
+          if (inst) inst.hide();
+        }
       };
     }
   }

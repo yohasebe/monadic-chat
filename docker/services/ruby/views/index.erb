@@ -936,7 +936,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="privacyRegistryLabel"><i class="fas fa-lock"></i> Privacy Registry</h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p class="text-muted small mb-3">
@@ -979,7 +979,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="privacyExportLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.exportDialogTitle">Export Conversation</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <!-- Encryption axis: always shown -->
@@ -1069,13 +1069,14 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="resetConfirmationLabel"><i class="fas fa-arrows-rotate"></i> <span data-i18n="ui.modals.reset">Reset</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <span data-i18n="ui.modals.resetConfirmation">Are you sure you want to reset the chat?</span>
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="resetSaveAndConfirm" class="btn btn-sm btn-primary text-nowrap" style="display:none;"><i class="fas fa-bookmark"></i> <span data-i18n="ui.modals.saveToKnowledgeBase">Save to Knowledge Base</span></button>
             <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-bs-dismiss="modal" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
@@ -1088,7 +1089,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="librarySaveModalLabel"><i class="fas fa-bookmark"></i> <span id="library-save-modal-title-text" data-i18n="ui.libSaveModalTitle">Save Conversation to Knowledge Base</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
@@ -1149,7 +1150,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="libraryBrowseModalLabel"><i class="fas fa-book"></i> <span data-i18n="ui.libBrowseModalTitle">Knowledge Base Browser</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
@@ -1211,22 +1212,22 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title flex-grow-1 d-flex align-items-center gap-2" id="libraryViewerModalLabel">
-              <i class="fas fa-book"></i>
-              <span id="library-viewer-title" data-i18n="ui.libViewerTitle">Conversation Viewer</span>
-              <button type="button" class="btn btn-sm btn-link p-0 ms-1" id="library-viewer-rename" data-i18n-title="ui.libRenameTooltip" title="Rename conversation" style="display:none;">
+            <h5 class="modal-title flex-grow-1 d-flex align-items-center gap-2 me-3" id="libraryViewerModalLabel" style="min-width: 0;">
+              <i class="fas fa-book flex-shrink-0"></i>
+              <span id="library-viewer-title" class="text-truncate" data-i18n="ui.libViewerTitle">Conversation Viewer</span>
+              <button type="button" class="btn btn-sm btn-link p-0 ms-1 flex-shrink-0" id="library-viewer-rename" data-i18n-title="ui.libRenameTooltip" title="Rename conversation" style="display:none;">
                 <i class="fa-regular fa-pen-to-square"></i>
               </button>
-              <span id="library-viewer-rename-form" class="d-none flex-grow-1 d-flex align-items-center gap-2">
-                <input type="text" class="form-control form-control-sm" id="library-viewer-rename-input" maxlength="200" data-i18n-placeholder="ui.libRenamePlaceholder" placeholder="Conversation title">
-                <button type="button" class="btn btn-sm btn-primary text-nowrap" id="library-viewer-rename-save"><i class="fa-solid fa-check"></i> <span data-i18n="ui.libRenameSave">Save</span></button>
-                <button type="button" class="btn btn-sm btn-secondary text-nowrap" id="library-viewer-rename-cancel"><i class="fa-solid fa-xmark"></i> <span data-i18n="ui.libRenameCancel">Cancel</span></button>
+              <span id="library-viewer-rename-form" class="d-none flex-grow-1 d-flex align-items-center gap-2" style="min-width: 0;">
+                <input type="text" class="form-control form-control-sm flex-grow-1" id="library-viewer-rename-input" maxlength="200" data-i18n-placeholder="ui.libRenamePlaceholder" placeholder="Conversation title" style="min-width: 0;">
+                <button type="button" class="btn btn-sm btn-primary text-nowrap flex-shrink-0" id="library-viewer-rename-save" data-i18n="ui.libRenameSave">Save</button>
+                <button type="button" class="btn btn-sm btn-secondary text-nowrap flex-shrink-0" id="library-viewer-rename-cancel" data-i18n="ui.libRenameCancel">Cancel</button>
               </span>
             </h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <div id="library-viewer-meta" class="small text-secondary mb-3"></div>
+            <div id="library-viewer-meta" class="text-secondary mb-3"></div>
             <div id="library-viewer-loading" class="text-center text-secondary py-4" style="display:none;">
               <i class="fas fa-spinner fa-spin"></i> <span data-i18n="ui.libViewerLoading">Loading conversation...</span>
             </div>
@@ -1255,7 +1256,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="pdfDeleteConfirmationLabel"><i class="fas fa-trash"></i> <span data-i18n="ui.modals.deletePDF">Delete PDF</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span class="fw-bold text-secondary-styled" id="pdfToDelete"></span>?
@@ -1274,7 +1275,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="deleteConfirmationTitle"><i class="fas fa-trash"></i> <span data-i18n="ui.modals.deleteMessage">Delete Message</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p data-i18n="ui.howToDeleteMessage">How would you like to delete this message?</p>
@@ -1295,7 +1296,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="appChangeConfirmationTitle"><i class="fas fa-exchange-alt"></i> <span data-i18n="ui.modals.changeApp">Change App</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p data-i18n="ui.modals.appChangeConfirmation">Changing the app will reset all parameters and the current conversation. Do you want to continue?</p>
@@ -1315,7 +1316,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.modals.loadFile">Load File</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <form action="/load" method="post" enctype="multipart/form-data" type="hidden" id="load-form">
             <div class="modal-body">
@@ -1339,7 +1340,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="fileModalLabel"><i class="fas fa-file"></i> <span data-i18n="ui.modals.importFile">Import File</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="file-title" data-i18n="ui.modals.fileTitleOptional">File Title (Optional)</label>
@@ -1366,7 +1367,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromFile">From file</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="doc-label" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
@@ -1392,7 +1393,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="audioUploadModalLabel"><i class="fas fa-music"></i> <span data-i18n="ui.modals.audioUploadTitle">Upload Audio/MIDI</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label for="audioFile" class="form-label" data-i18n="ui.modals.audioFileLabel">Audio or MIDI file (mp3, wav, m4a, ogg, flac, mid, midi)</label>
@@ -1414,7 +1415,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromURL">From URL</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="urlLabel" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
@@ -1442,7 +1443,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image"></i> <span data-i18n="ui.modals.selectFile">Select File</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label for="imageFile" class="form-label" data-i18n="ui.modals.fileToImportLabel">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>

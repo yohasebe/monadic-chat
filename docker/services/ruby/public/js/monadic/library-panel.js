@@ -95,6 +95,25 @@
     });
     return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } });
   }
+
+  // Persist the user's preferred default for the RAG toggle across
+  // sessions/page loads. The server still owns the per-session state
+  // (and the first-message lock), but this lets users avoid flipping
+  // the toggle every time they open a new session. Stored as 'on' or
+  // 'off' so unset/legacy values fall through to the server default.
+  var RAG_DEFAULT_KEY = 'monadic.library.ragDefault';
+  function readRagDefault() {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return null;
+      return window.localStorage.getItem(RAG_DEFAULT_KEY);
+    } catch (e) { return null; }
+  }
+  function writeRagDefault(enabled) {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      window.localStorage.setItem(RAG_DEFAULT_KEY, enabled ? 'on' : 'off');
+    } catch (e) { /* private mode / quota — silently ignore */ }
+  }
   function setScopeApp(conversationId, scopeApp) {
     return send('LIBRARY_SET_SCOPE', {
       contents: { conversation_id: conversationId, scope_app: scopeApp }
@@ -958,7 +977,11 @@
       return formatScopeApp(s) + ' ' + byScope[s];
     });
     if (parts.length === 0) return 'Knowledge Base: ' + total + ' total';
-    return 'Knowledge Base: ' + total + ' total (' + parts.join(', ') + ')';
+    // Use an em dash separator instead of wrapping the breakdown in
+    // outer parens — formatScopeApp("ChatOpenAI") already injects its
+    // own parens for the provider, and a second pair around the list
+    // produces a confusing "( ... ( ... ) ... )" reading.
+    return 'Knowledge Base: ' + total + ' total — ' + parts.join(', ');
   }
 
   // ─── Save modal helpers (unchanged from prior iteration) ─────────────
@@ -1073,7 +1096,11 @@
     var appNameEl = document.getElementById('library-scope-app-name');
     if (appNameEl) {
       var appName = currentAppName();
-      appNameEl.textContent = appName ? ' (' + formatScopeApp(appName) + ')' : '';
+      // Use ": Chat (OpenAI)" rather than " (Chat (OpenAI))" because
+      // formatScopeApp itself returns parentheses around the provider —
+      // wrapping the whole thing in another set of parens looks like
+      // unbalanced punctuation to a casual reader.
+      appNameEl.textContent = appName ? ': ' + formatScopeApp(appName) : '';
     }
 
     var note = document.getElementById('library-save-privacy-note');
@@ -1430,7 +1457,25 @@
     if (confirmBtn) confirmBtn.onclick = submitSave;
 
     var ragToggle = document.getElementById('library-rag-toggle');
-    if (ragToggle) ragToggle.onchange = function () { setRagToggle(ragToggle.checked); };
+    if (ragToggle) {
+      ragToggle.onchange = function () {
+        var on = ragToggle.checked;
+        // Push the preference to localStorage *and* to the server so
+        // the next session inherits the same default and the current
+        // session reflects it immediately. The server handles the
+        // first-message lock, so toggling here before the lock fires
+        // is the user's last chance to change it.
+        writeRagDefault(on);
+        setRagToggle(on);
+      };
+      // Apply the persisted default on first paint. We only push it
+      // upstream when the user previously chose ON — pushing OFF would
+      // be a no-op since OFF is the server's default anyway.
+      if (readRagDefault() === 'on') {
+        ragToggle.checked = true;
+        setRagToggle(true);
+      }
+    }
 
     // Browse-modal controls
     var search = document.getElementById('library-browse-search');
@@ -1527,12 +1572,21 @@
     if (renameInput) {
       renameInput.addEventListener('keydown', function (ev) {
         if (ev.key === 'Enter') {
+          // Suppress Enter while an IME (Japanese/Chinese/Korean) is
+          // composing — that Enter belongs to the IME confirming a
+          // candidate, not to "submit the rename". Without this guard,
+          // typing Japanese in the title would auto-save the moment
+          // the user accepts a kana→kanji conversion.
+          //   - ev.isComposing: standards-compliant flag
+          //   - ev.keyCode === 229: legacy fallback (older Safari/IE)
+          if (ev.isComposing || ev.keyCode === 229) return;
           ev.preventDefault(); ev.stopPropagation(); submitRename();
         }
         if (ev.key === 'Escape') {
           // stopPropagation so Bootstrap's modal ESC handler does not
           // also fire and close the Viewer when the user only meant to
           // dismiss the inline rename editor.
+          if (ev.isComposing || ev.keyCode === 229) return;
           ev.preventDefault(); ev.stopPropagation(); closeRenameEditor();
         }
       });

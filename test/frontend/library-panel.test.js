@@ -164,7 +164,7 @@ describe('library-panel module', () => {
         conversations_by_scope: { Global: 2, ChatOpenAI: 2, KnowledgeBaseClaude: 1 }
       });
       expect(out).toBe(
-        'Knowledge Base: 5 total (Global 2, Chat (OpenAI) 2, Knowledge Base (Claude) 1)'
+        'Knowledge Base: 5 total — Global 2, Chat (OpenAI) 2, Knowledge Base (Claude) 1'
       );
     });
 
@@ -489,7 +489,7 @@ describe('library-panel module', () => {
         conversations_by_scope: { Global: 1, ChatOpenAI: 3 }
       }});
       expect(document.getElementById('library-stats-info').textContent)
-        .toBe('Knowledge Base: 4 total (Global 1, Chat (OpenAI) 3)');
+        .toBe('Knowledge Base: 4 total — Global 1, Chat (OpenAI) 3');
     });
 
     it('refreshes list and stats after a successful save', () => {

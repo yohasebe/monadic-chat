@@ -134,6 +134,84 @@ RSpec.describe Monadic::Library::FileImporter do
     end
   end
 
+  describe '.extractor_service_available? (HTTP gate)' do
+    it 'returns false when EXTRACTOR_SERVICE env is unset' do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXTRACTOR_SERVICE').and_return(nil)
+      expect(described_class.extractor_service_available?).to be false
+    end
+
+    it 'returns false when env is set but the service health probe fails' do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXTRACTOR_SERVICE').and_return('true')
+      fake_client = instance_double(Monadic::Extractor::Client, health: false)
+      allow(Monadic::Extractor::Client).to receive(:new).and_return(fake_client)
+      expect(described_class.extractor_service_available?).to be false
+    end
+
+    it 'returns true when env is set and the service is healthy' do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXTRACTOR_SERVICE').and_return('true')
+      fake_client = instance_double(Monadic::Extractor::Client, health: true)
+      allow(Monadic::Extractor::Client).to receive(:new).and_return(fake_client)
+      expect(described_class.extractor_service_available?).to be true
+    end
+
+    it 'never raises even when the underlying client raises' do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('EXTRACTOR_SERVICE').and_return('true')
+      allow(Monadic::Extractor::Client).to receive(:new).and_raise(RuntimeError, 'boom')
+      expect(described_class.extractor_service_available?).to be false
+    end
+  end
+
+  describe '.import_pdf (extractor_service preferred when available)' do
+    let(:service_response) do
+      {
+        'title' => 'Docling-extracted Paper',
+        'author' => 'Researcher',
+        'page_count' => 5,
+        'markdown' => "# Abstract\n\n" + ('Body content. ' * 30),
+        'extractor_meta' => { 'pipeline' => 'docling-2.x', 'duration_ms' => 4321 }
+      }
+    end
+
+    it 'routes through Extractor::Client when service_available? is true' do
+      allow(described_class).to receive(:extractor_service_available?).and_return(true)
+      fake_client = instance_double(Monadic::Extractor::Client)
+      allow(Monadic::Extractor::Client).to receive(:new).and_return(fake_client)
+      expect(fake_client).to receive(:extract).with(hash_including(format: 'pdf')).and_return(service_response)
+      expect(described_class).not_to receive(:run_python_extractor)
+
+      path = write_temp('paper.pdf', "%PDF-1.4 fake\n")
+      conv = described_class.build_conversation(path: path)
+      expect(conv.dig('conversation_metadata', 'title')).to eq('Docling-extracted Paper')
+      expect(conv.dig('conversation_metadata', 'content_type')).to eq('pdf')
+    end
+
+    it 'falls back to subprocess when service is unavailable' do
+      allow(described_class).to receive(:extractor_service_available?).and_return(false)
+      fallback_json = { 'title' => 'Fallback', 'page_count' => 1, 'markdown' => 'Body. ' * 50 }.to_json
+      expect(described_class).to receive(:run_python_extractor).and_return(fallback_json)
+
+      path = write_temp('paper.pdf', "%PDF-1.4 fake\n")
+      conv = described_class.build_conversation(path: path)
+      expect(conv.dig('conversation_metadata', 'title')).to eq('Fallback')
+    end
+
+    it 'raises ExtractionError when the service is "available" but extract fails' do
+      allow(described_class).to receive(:extractor_service_available?).and_return(true)
+      fake_client = instance_double(Monadic::Extractor::Client)
+      allow(Monadic::Extractor::Client).to receive(:new).and_return(fake_client)
+      allow(fake_client).to receive(:extract)
+        .and_raise(Monadic::Extractor::Client::ExtractionFailedError, 'bad PDF')
+
+      path = write_temp('paper.pdf', "%PDF-1.4 fake\n")
+      expect { described_class.build_conversation(path: path) }
+        .to raise_error(Monadic::Library::FileImporter::ExtractionError, /bad PDF/)
+    end
+  end
+
   describe '.supported_extensions' do
     it 'returns extensions starting with a dot' do
       exts = described_class.supported_extensions

@@ -73,6 +73,14 @@ def extract_docx(path: str) -> dict:
             lines.append("\n".join(rows))
             lines.append("")
 
+    # Image alt text — collected from inline + floating drawings. Authors
+    # often place semantic context here (figure captions, screen-reader
+    # descriptions) that would otherwise be lost since we do not OCR.
+    alt_texts = _docx_alt_texts(doc)
+    if alt_texts:
+        lines.append("**Figures:** " + " / ".join(alt_texts))
+        lines.append("")
+
     return {
         "title": title,
         "author": author,
@@ -80,6 +88,25 @@ def extract_docx(path: str) -> dict:
         "section_count": para_count,
         "markdown": "\n".join(lines).strip() + "\n",
     }
+
+
+def _docx_alt_texts(doc) -> list[str]:
+    out: list[str] = []
+    try:
+        body = doc.element.body
+        # docPr (drawing properties) carries name/descr on inline + anchored shapes.
+        for el in body.iter():
+            tag = el.tag.split("}", 1)[-1] if "}" in el.tag else el.tag
+            if tag != "docPr":
+                continue
+            descr = (el.get("descr") or "").strip()
+            title_attr = (el.get("title") or "").strip()
+            label = descr or title_attr
+            if label:
+                out.append(label)
+    except Exception:
+        return out
+    return out
 
 
 def extract_xlsx(path: str) -> dict:
@@ -127,7 +154,14 @@ def extract_pptx(path: str) -> dict:
     for idx, slide in enumerate(prs.slides, start=1):
         slide_title = ""
         body_parts: list[str] = []
+        alt_texts: list[str] = []
         for shape in slide.shapes:
+            # Image / picture shapes carry alt text on element.descr; capture
+            # so figure context survives into the KB even though we do not
+            # OCR the bitmap itself.
+            descr = _shape_descr(shape)
+            if descr:
+                alt_texts.append(descr)
             if not getattr(shape, "has_text_frame", False) or not shape.has_text_frame:
                 continue
             for paragraph in shape.text_frame.paragraphs:
@@ -143,7 +177,16 @@ def extract_pptx(path: str) -> dict:
                     body_parts.append(text)
 
         heading = slide_title or f"Slide {idx}"
-        body = "\n".join(body_parts) if body_parts else ""
+        body_lines: list[str] = []
+        if body_parts:
+            body_lines.append("\n".join(body_parts))
+        if alt_texts:
+            body_lines.append("**Figures:** " + " / ".join(alt_texts))
+        notes_text = _pptx_notes(slide)
+        if notes_text:
+            body_lines.append("**Speaker notes:**")
+            body_lines.append(notes_text)
+        body = "\n\n".join(body_lines) if body_lines else ""
         sections.append(f"# {heading}\n\n{body}".rstrip())
 
     return {
@@ -153,6 +196,39 @@ def extract_pptx(path: str) -> dict:
         "section_count": len(sections),
         "markdown": ("\n\n".join(sections) + "\n") if sections else "",
     }
+
+
+def _pptx_notes(slide) -> str:
+    """Best-effort speaker-notes extraction. Returns "" when absent."""
+    try:
+        if not getattr(slide, "has_notes_slide", False):
+            return ""
+        notes_slide = slide.notes_slide
+        if notes_slide is None:
+            return ""
+        nf = notes_slide.notes_text_frame
+        if nf is None:
+            return ""
+        text = (nf.text or "").strip()
+        return text
+    except Exception:
+        return ""
+
+
+def _shape_descr(shape) -> str:
+    """Read an image/shape's alt text from the underlying XML element."""
+    try:
+        el = shape.element
+        # nvSpPr / nvPicPr / nvGrpSpPr / nvCxnSpPr → cNvPr@descr
+        for tag in ("nvSpPr", "nvPicPr", "nvGrpSpPr", "nvCxnSpPr"):
+            ns = el.find(f".//{{*}}{tag}/{{*}}cNvPr")
+            if ns is not None:
+                descr = ns.get("descr") or ""
+                if descr.strip():
+                    return descr.strip()
+        return ""
+    except Exception:
+        return ""
 
 
 _DISPATCH = {

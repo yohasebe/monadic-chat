@@ -61,7 +61,7 @@ def _build_chunker():
     try:
         from chonkie import RecursiveChunker
         return RecursiveChunker(
-            tokenizer_or_token_counter="character",
+            tokenizer="character",
             chunk_size=CHUNK_SIZE_CHARS,
             min_characters_per_chunk=200,
         )

@@ -450,7 +450,7 @@ The Knowledge Base replaces the previous PDF Navigator and Content Reader apps. 
 |---|---|---|
 | Markdown | `.md`, `.markdown`, `.mdx` | YAML frontmatter is promoted into metadata; ATX headings drive section boundaries. |
 | Source code | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql`, and others | Top-level `def`/`class`/`func`/etc. mark chunk boundaries. The programming language is recorded as a topic. |
-| PDF | `.pdf` | Text and structure are extracted via PyMuPDF (`pymupdf4llm.to_markdown`). PDF metadata title becomes the conversation title. |
+| PDF | `.pdf` | Text and tables are extracted via pdfplumber and serialised as Markdown. PDF metadata title becomes the conversation title. |
 | Office | `.docx`, `.xlsx`, `.pptx` | Word paragraphs, Excel sheets, and PowerPoint slides each become a chunk. The Browse modal shows a per-format icon (Word / Excel / PowerPoint). |
 
 **Scope model:**
@@ -467,7 +467,7 @@ Each entry is scoped either to a specific app + provider (e.g. `Chat (OpenAI)`) 
 - **RAG opt-in (per session)** — the **Use Knowledge Base for retrieval** toggle in any chat session lets the LLM call `library_search` while answering. The cascade applies the active app's scope filter (`scope_app IN [current_app, "Global"]`). Off by default; locks for the duration of the session once you send the first message. The toggle preference is persisted across sessions so you don't have to flip it every time.
 - **Privacy Filter compatibility** — when Privacy Filter is active, snippets returned by `library_search` are masked through the same Privacy Pipeline before they reach the LLM, so PII stored unmasked in the Knowledge Base does not leak via retrieval.
 
-?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (PyMuPDF / python-docx / openpyxl / python-pptx); imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
+?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (pdfplumber / python-docx / openpyxl / python-pptx); imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
 
 ## Code Generation :id=code-generation

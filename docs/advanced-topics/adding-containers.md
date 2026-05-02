@@ -165,7 +165,7 @@ RUN uv pip install --no-cache \
     jupyterlab ipywidgets plotly \
     numpy  pandas statsmodels \
     matplotlib seaborn \
-    pymupdf pymupdf4llm \
+    pdfplumber pypdfium2 \
     selenium html2text \
     openpyxl python-docx python-pptx \
     requests beautifulsoup4 \

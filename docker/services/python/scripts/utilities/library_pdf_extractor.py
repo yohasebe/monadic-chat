@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """Extract text + metadata from a PDF for Library import.
 
-Uses pymupdf4llm.to_markdown() so structural elements (headings, lists,
-tables) survive into the extracted text. The Ruby PdfImporter consumes
-the resulting markdown like a regular Markdown document, which lets a
-single chunking strategy (heading-or-paragraph splitting) work for both.
+Backend: pdfplumber (MIT) over pdfminer.six. Replaces the previous
+PyMuPDF / pymupdf4llm path (AGPL-3.0).
 
 Output is a JSON object on stdout:
 {
   "title":      "<from PDF metadata or empty>",
   "author":     "<from PDF metadata or empty>",
   "page_count": <int>,
-  "markdown":   "<full document content as markdown>"
+  "markdown":   "<full document content as markdown-ish text + tables>"
 }
+
+This is a transitional implementation. Once the dedicated
+extractor_service container (Docling + RapidOCR) ships, Library
+imports will route through that service for layout-aware extraction
+with OCR support, formula recognition, and structured tables.
 
 Usage:
     python library_pdf_extractor.py /path/to/file.pdf
@@ -21,44 +24,65 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import contextlib
-import io
 import json
+import os
 import sys
+import warnings
 
-# pymupdf prints recommendation notices ("Consider using the
-# pymupdf_layout package…") to stdout on import / first use. Capture
-# stdout while importing and using the libraries so the JSON we emit on
-# stdout is never interleaved with library chatter.
-_silenced = io.StringIO()
-with contextlib.redirect_stdout(_silenced):
-    import pymupdf  # noqa: E402
-    import pymupdf4llm  # noqa: E402
+warnings.filterwarnings("ignore")
+import pdfplumber  # noqa: E402
+
+
+def _format_table_markdown(table):
+    if not table or not table[0]:
+        return ""
+    width = max(len(row) for row in table)
+    lines = []
+    for i, row in enumerate(table):
+        cells = [(c or "").replace("\n", " ").strip() for c in row]
+        cells += [""] * (width - len(cells))
+        lines.append("| " + " | ".join(cells) + " |")
+        if i == 0:
+            lines.append("| " + " | ".join(["---"] * width) + " |")
+    return "\n".join(lines)
+
+
+def _render_page_markdown(page) -> str:
+    text = (page.extract_text() or "").strip()
+    try:
+        tables = page.extract_tables() or []
+    except Exception:
+        tables = []
+
+    parts = []
+    if text:
+        parts.append(text)
+    for t in tables:
+        md = _format_table_markdown(t)
+        if md:
+            parts.append(md)
+    return "\n\n".join(parts)
 
 
 def extract(pdf_path: str) -> dict:
     """Open the PDF and return a dict suitable for JSON serialisation."""
-    # Re-silence stdout for the actual extraction calls — pymupdf may
-    # print further notices when handed a real document.
-    buffer = io.StringIO()
-    with contextlib.redirect_stdout(buffer):
-        doc = pymupdf.open(pdf_path)
-        try:
-            page_count = doc.page_count
-            meta = doc.metadata or {}
-            title = (meta.get("title") or "").strip()
-            author = (meta.get("author") or "").strip()
-        finally:
-            doc.close()
+    pdf = pdfplumber.open(pdf_path)
+    try:
+        meta = pdf.metadata or {}
+        title = (meta.get("Title") or "").strip()
+        author = (meta.get("Author") or "").strip()
+        page_count = len(pdf.pages)
 
-        # pymupdf4llm.to_markdown reopens the file internally.
-        md = pymupdf4llm.to_markdown(pdf_path)
+        pages_md = [_render_page_markdown(p) for p in pdf.pages]
+        markdown = "\n\n".join(p for p in pages_md if p)
+    finally:
+        pdf.close()
 
     return {
         "title": title,
         "author": author,
         "page_count": page_count,
-        "markdown": md,
+        "markdown": markdown,
     }
 
 

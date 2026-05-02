@@ -48,10 +48,9 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
   describe "file validation" do
     it "reports error for non-existent file" do
       result = run_in_container(["/non/existent/file.pdf"])
-      # Relaxed validation: just check that it fails (exit code 1)
-      # Don't check specific error message to avoid dependency on library versions
+      # Errors go to stderr (Unix convention); stdout may be empty.
       expect(result[:status].exitstatus).to eq(1)
-      expect(result[:stdout]).not_to be_empty
+      expect(result[:stderr]).not_to be_empty
     end
 
     it "reports error for non-PDF file" do
@@ -60,10 +59,8 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
 
       begin
         result = run_in_container(["/monadic/data/#{test_file}"])
-        # Relaxed validation: just check that it fails (exit code 1)
-        # Output may include warning messages from PyMuPDF
         expect(result[:status].exitstatus).to eq(1)
-        expect(result[:stdout]).not_to be_empty
+        expect(result[:stderr]).not_to be_empty
       ensure
         cleanup_test_file(test_file)
       end
@@ -188,10 +185,8 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
 
       begin
         result = run_in_container(["/monadic/data/#{test_file}"])
-        # Relaxed validation: just check that it fails (exit code 1)
-        # Error messages may vary depending on PyMuPDF version
         expect(result[:status].exitstatus).to eq(1)
-        expect(result[:stdout]).not_to be_empty
+        expect(result[:stderr]).not_to be_empty
       ensure
         cleanup_test_file(test_file)
       end
@@ -203,10 +198,8 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
 
       begin
         result = run_in_container(["/monadic/data/#{test_file}"])
-        # Relaxed validation: just check that it fails (exit code 1)
-        # Error messages may vary depending on PyMuPDF version
         expect(result[:status].exitstatus).to eq(1)
-        expect(result[:stdout]).not_to be_empty
+        expect(result[:stderr]).not_to be_empty
       ensure
         cleanup_test_file(test_file)
       end

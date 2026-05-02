@@ -106,7 +106,7 @@ turns and lets the retriever expand a top-summary hit into its passages.
 ### File importers
 
 PDF and Office extraction run **inside the Python container**, not the
-Ruby container. This is because the pymupdf4llm / python-docx /
+Ruby container. This is because the pdfplumber / python-docx /
 openpyxl / python-pptx stack is heavy and we did not want to drag it
 into the Ruby image. The Ruby side calls `lib/monadic/library/file_importer.rb`
 which `docker exec`s into the Python container with the uploaded file
@@ -317,7 +317,7 @@ public/js/monadic/websocket.js               # Routes library_* responses to lib
 views/index.erb                              # Modals: librarySaveModal / libraryBrowseModal / libraryViewerModal
 
 docker/services/python/scripts/
-  library_pdf_extractor.py                   # PDF text extraction (pymupdf4llm)
+  library_pdf_extractor.py                   # PDF text extraction (pdfplumber)
   library_office_extractor.py                # Office text extraction (python-docx / openpyxl / python-pptx)
 
 spec/unit/library/                           # Schema / Store / Hierarchical / Retriever / Manager / Inventory / TitleSuggester

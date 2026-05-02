@@ -43,8 +43,9 @@ class PDF2Text
     stdout, stderr, status = Open3.capture3(docker_command)
     if status.success?
       begin
-        # Filter out any non-JSON content before the opening brace
-        # pymupdf4llm may print warnings like "Consider using pymupdf_layout..." to stdout
+        # Filter out any non-JSON content before the opening brace.
+        # PDF backends can occasionally emit informational text to stdout;
+        # we strip anything before the first '{' to keep JSON parsing robust.
         json_start = stdout.index("{")
         if json_start && json_start > 0
           DebugHelper.debug("Filtered #{json_start} bytes of non-JSON prefix from pdf2txt.py output", category: :app, level: :info) if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]

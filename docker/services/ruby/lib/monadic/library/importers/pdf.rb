@@ -10,8 +10,9 @@ module Monadic
       #
       # Two-stage pipeline:
       #   1. Python container extracts text + metadata via
-      #      `library_pdf_extractor.py` (uses pymupdf4llm.to_markdown so
-      #      headings / lists / tables survive into the extracted text).
+      #      `library_pdf_extractor.py` (currently pdfplumber-based;
+      #      will route through the dedicated extractor_service
+      #      container for layout-aware extraction in a later phase).
       #   2. This module turns the extracted markdown into a v1
       #      monadic-conversation, splitting on heading boundaries when
       #      present and falling back to paragraph blocks otherwise.
@@ -33,8 +34,11 @@ module Monadic
         DEFAULT_CONTENT_TYPE = 'pdf'
         DEFAULT_LICENSE = 'private'
 
-        # Heading regex: same H1..H3 rule as Markdown. pymupdf4llm emits
-        # standard ATX headings so the same boundary applies.
+        # Heading regex: same H1..H3 rule as Markdown. The current
+        # pdfplumber backend rarely emits ATX headings; this regex still
+        # works whenever the source PDF was already markdown-like, and
+        # the paragraph fallback covers the common case until Docling
+        # restores layout-aware heading detection.
         SECTION_HEADING_RE = /\A#{Regexp.escape('#')}{1,3}\s+\S/.freeze
 
         MIN_BLOCK_LEN = 200

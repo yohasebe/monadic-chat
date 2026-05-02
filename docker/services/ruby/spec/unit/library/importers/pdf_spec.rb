@@ -7,14 +7,16 @@ require 'monadic/library'
 RSpec.describe Monadic::Library::Importers::Pdf do
   let(:schema) { Monadic::Library::Schema }
 
-  # Simulated pymupdf4llm.to_markdown() output.
+  # Simulated extractor output (markdown blob produced by the Python
+  # container's PDF extractor). The importer is backend-agnostic — it
+  # only sees markdown, not the library that produced it.
   let(:markdown_content) do
     <<~MD
       # Abstract
 
       This paper introduces a method for testing PDF importers without
       involving an actual PDF file. We rely on canned markdown that
-      mirrors what pymupdf4llm.to_markdown() emits in production.
+      mirrors what the Python-side extractor emits in production.
 
       # Introduction
 
@@ -31,7 +33,7 @@ RSpec.describe Monadic::Library::Importers::Pdf do
 
       We use a three-step pipeline:
 
-      1. Extract text via pymupdf4llm
+      1. Extract text from the PDF
       2. Split on heading boundaries
       3. Embed each section
     MD

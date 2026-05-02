@@ -1,204 +1,214 @@
 #!/usr/bin/env python
 
+"""Extract text from PDF files.
+
+Backend: pdfplumber (MIT) over pdfminer.six. Replaces the previous
+PyMuPDF / pymupdf4llm path (AGPL-3.0) so that all PDF tooling in
+Monadic Chat stays under permissive licenses.
+
+CLI / JSON output schema is intentionally preserved so existing Ruby
+callers (read_write_helper.rb, app.rb, pdf_text_extractor.rb) need no
+changes. Heading detection (which pymupdf4llm provided heuristically
+for `--format md`) is intentionally simplified here; Library imports
+will route through the dedicated extractor_service container in a
+later phase to recover layout-aware Markdown via Docling.
+"""
+
 import sys
 import argparse
 import json
 import os
 import warnings
-from typing import Iterator
+from typing import Iterator, List
 
-# Suppress warnings before importing pymupdf4llm to prevent
-# "Consider using the pymupdf_layout package" message from corrupting JSON output
+# Some PDF backends emit informational messages on import; silence them
+# so they cannot interleave with our JSON output.
 warnings.filterwarnings("ignore")
 
-import fitz        # PyMuPDF
-import pymupdf4llm # PyMuPDF4LLM
+import pdfplumber  # noqa: E402
+
+
+def _is_valid_pdf(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(5).startswith(b"%PDF-")
+    except IOError:
+        return False
+
+
+def _format_table_markdown(table: List[List[str]]) -> str:
+    if not table or not table[0]:
+        return ""
+    width = max(len(row) for row in table)
+    lines = []
+    for i, row in enumerate(table):
+        cells = [(c or "").replace("\n", " ").strip() for c in row]
+        cells += [""] * (width - len(cells))
+        lines.append("| " + " | ".join(cells) + " |")
+        if i == 0:
+            lines.append("| " + " | ".join(["---"] * width) + " |")
+    return "\n".join(lines)
+
+
+def _format_table_html(table: List[List[str]]) -> str:
+    if not table:
+        return ""
+    rows = []
+    for row in table:
+        cells = [(c or "").replace("\n", " ").strip() for c in row]
+        rows.append("<tr>" + "".join(f"<td>{_escape_xml(c)}</td>" for c in cells) + "</tr>")
+    return "<table>" + "".join(rows) + "</table>"
+
+
+def _format_table_xml(table: List[List[str]]) -> str:
+    if not table:
+        return ""
+    rows = []
+    for row in table:
+        cells = [(c or "").replace("\n", " ").strip() for c in row]
+        rows.append("<row>" + "".join(f"<cell>{_escape_xml(c)}</cell>" for c in cells) + "</row>")
+    return "<table>" + "".join(rows) + "</table>"
+
+
+def _escape_xml(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _render_page(page, output_format: str) -> str:
+    text = (page.extract_text() or "").strip()
+    try:
+        tables = page.extract_tables() or []
+    except Exception:
+        tables = []
+
+    if output_format == "txt":
+        return text
+
+    if output_format in ("md", "markdown"):
+        parts = []
+        if text:
+            parts.append(text)
+        for t in tables:
+            md = _format_table_markdown(t)
+            if md:
+                parts.append(md)
+        return "\n\n".join(parts)
+
+    if output_format == "html":
+        parts = []
+        if text:
+            for para in text.split("\n\n"):
+                para = para.strip()
+                if para:
+                    parts.append(f"<p>{_escape_xml(para)}</p>")
+        for t in tables:
+            parts.append(_format_table_html(t))
+        return "\n".join(parts)
+
+    if output_format == "xml":
+        parts = ["<page>"]
+        if text:
+            parts.append(f"<text>{_escape_xml(text)}</text>")
+        for t in tables:
+            parts.append(_format_table_xml(t))
+        parts.append("</page>")
+        return "\n".join(parts)
+
+    raise ValueError(f"Invalid output format: {output_format}")
+
 
 def extract_text(pdf_path: str, output_format: str, all_pages: bool, show_progress: bool = False) -> Iterator[str]:
-    """
-    Extract text from PDF file in specified format.
-    
-    Args:
-        pdf_path: Path to the PDF file
-        output_format: Output format ('md', 'txt', 'html', 'xml')
-        all_pages: If True, combine all pages into single output
-        show_progress: Show progress bar for markdown format (default: False)
-    
-    Yields:
-        str: Extracted text in specified format
-    
-    Raises:
-        fitz.FileDataError: If the PDF file is corrupted or invalid
-        FileNotFoundError: If the PDF file does not exist
-        ValueError: If the output format is invalid
+    """Extract text from a PDF in the requested format.
+
+    Yields one string per page (or one combined string when --all-pages).
+    Raises ValueError on invalid format / corrupt input, FileNotFoundError
+    on missing file.
     """
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
-    if output_format not in ['markdown', 'md', 'txt', 'html', 'xml']:
+    if output_format not in ["markdown", "md", "txt", "html", "xml"]:
         raise ValueError(f"Invalid output format: {output_format}")
-    
-    # Check if the file is actually a PDF by checking the header
-    try:
-        with open(pdf_path, 'rb') as f:
-            header = f.read(5)
-            if not header.startswith(b'%PDF-'):
-                raise fitz.FileDataError(f"Error processing PDF: File is not a valid PDF document")
-    except IOError as e:
-        raise fitz.FileDataError(f"Error processing PDF: {str(e)}")
 
-    if output_format in ['markdown', 'md']:
-        try:
-            doc = fitz.open(pdf_path)
-        except Exception as e:
-            raise fitz.FileDataError(f"Error processing PDF: {str(e)}")
-        try:
-            if all_pages:
-                # Process all pages at once
-                md_text = pymupdf4llm.to_markdown(
-                    doc,
-                    show_progress=show_progress,
-                    force_text=True,
-                    table_strategy='lines'
-                )
-                if isinstance(md_text, list):
-                    # Handle case when page_chunks=True
-                    yield '\n'.join(chunk['text'] for chunk in md_text)
-                else:
-                    yield md_text
-            else:
-                # Process pages individually
-                for page_num in range(len(doc)):
-                    md_text = pymupdf4llm.to_markdown(
-                        doc,
-                        pages=[page_num],
-                        show_progress=False,
-                        force_text=True
-                    )
-                    if isinstance(md_text, list):
-                        yield md_text[0]['text']
-                    else:
-                        yield md_text
-        finally:
-            doc.close()
-    else:
-        try:
-            doc = fitz.open(pdf_path)
-        except Exception as e:
-            raise fitz.FileDataError(f"Error processing PDF: {str(e)}")
-        try:
-            if all_pages:
-                if output_format == 'txt':
-                    yield "\n".join([page.get_text() for page in doc])
-                elif output_format == 'html':
-                    yield "\n".join([page.get_text("html") for page in doc])
-                elif output_format == 'xml':
-                    yield "\n".join([page.get_text("xml") for page in doc])
-            else:
-                for page in doc:
-                    if output_format == 'txt':
-                        yield page.get_text()
-                    elif output_format == 'html':
-                        yield page.get_text("html")
-                    elif output_format == 'xml':
-                        yield page.get_text("xml")
-        finally:
-            doc.close()
+    if not _is_valid_pdf(pdf_path):
+        raise ValueError("Error processing PDF: File is not a valid PDF document")
+
+    try:
+        pdf = pdfplumber.open(pdf_path)
+    except Exception as e:
+        raise ValueError(f"Error processing PDF: {str(e)}")
+
+    try:
+        if all_pages:
+            pages = [_render_page(p, output_format) for p in pdf.pages]
+            joiner = "\n\n" if output_format in ("md", "markdown") else "\n"
+            yield joiner.join(p for p in pages if p)
+        else:
+            for p in pdf.pages:
+                yield _render_page(p, output_format)
+    finally:
+        pdf.close()
+
 
 def export_as_json(pdf_path: str, output_format: str, all_pages: bool, show_progress: bool = False) -> None:
-    """
-    Export extracted text as JSON.
-    
-    Args:
-        pdf_path: Path to the PDF file
-        output_format: Output format ('md', 'txt', 'html', 'xml')
-        all_pages: If True, combine all pages into single output
-        show_progress: Show progress bar for markdown format (default: False)
-    
-    Raises:
-        Exception: If any error occurs during processing
-    """
-    data = {'pages': []}
+    data = {"pages": []}
     try:
         for page_text in extract_text(pdf_path, output_format, all_pages, show_progress):
-            data['pages'].append({
-                'text': page_text.strip()
-            })
-        
-        # Save the JSON data to a file
+            data["pages"].append({"text": page_text.strip()})
+
         base_filename = os.path.splitext(os.path.basename(pdf_path))[0]
         output_filename = f"{base_filename}.{output_format}.json"
-        
         json_data = json.dumps(data, ensure_ascii=False, indent=4)
-        with open(output_filename, 'w', encoding='utf-8') as f:
+        with open(output_filename, "w", encoding="utf-8") as f:
             f.write(json_data)
-            
-        # Print the JSON data to stdout
         print(json_data)
 
     except Exception as e:
         print(f"Error processing PDF: {str(e)}", file=sys.stderr)
         raise
 
+
 def export_as_text(pdf_path: str, output_format: str, all_pages: bool, show_progress: bool = False) -> None:
-    """
-    Export extracted text as plain text.
-    
-    Args:
-        pdf_path: Path to the PDF file
-        output_format: Output format ('md', 'txt', 'html', 'xml')
-        all_pages: If True, combine all pages into single output
-        show_progress: Show progress bar for markdown format (default: False)
-    
-    Raises:
-        Exception: If any error occurs during processing
-    """
     try:
         pages = []
         for page_text in extract_text(pdf_path, output_format, all_pages, show_progress):
             pages.append(page_text.strip())
-        
-        # Print the text directly to stdout (no JSON wrapping)
-        print('\n\n'.join(pages))
+        print("\n\n".join(pages))
 
     except Exception as e:
         print(f"Error processing PDF: {str(e)}", file=sys.stderr)
         raise
 
+
 def main() -> None:
-    """
-    Main function to handle command line arguments and process PDF file.
-    
-    Raises:
-        SystemExit: If the program encounters an error
-    """
     parser = argparse.ArgumentParser(
         description="Extract text from a PDF file and output as JSON."
     )
-    parser.add_argument(
-        "pdf_path",
-        help="Path to the PDF file"
-    )
+    parser.add_argument("pdf_path", help="Path to the PDF file")
     parser.add_argument(
         "--format",
-        choices=['md', 'txt', 'html', 'xml'],
-        default='md',
-        help="Output format (md, txt, html, xml)"
+        choices=["md", "txt", "html", "xml"],
+        default="md",
+        help="Output format (md, txt, html, xml)",
     )
     parser.add_argument(
         "--all-pages",
         action="store_true",
-        help="Combine all pages into a single output"
+        help="Combine all pages into a single output",
     )
     parser.add_argument(
         "--show-progress",
         action="store_true",
-        help="Enable progress bar (markdown format only)"
+        help="(retained for CLI compatibility; pdfplumber backend has no progress bar)",
     )
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Output as JSON format (default is plain text)"
+        help="Output as JSON format (default is plain text)",
     )
 
     args = parser.parse_args()
@@ -209,18 +219,19 @@ def main() -> None:
                 args.pdf_path,
                 args.format,
                 args.all_pages,
-                show_progress=args.show_progress
+                show_progress=args.show_progress,
             )
         else:
             export_as_text(
                 args.pdf_path,
                 args.format,
                 args.all_pages,
-                show_progress=args.show_progress
+                show_progress=args.show_progress,
             )
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)
         sys.exit(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

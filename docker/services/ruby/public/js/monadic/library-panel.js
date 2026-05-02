@@ -1352,8 +1352,8 @@
       'info'
     );
 
-    // Cap upload + extraction at 5 minutes — pymupdf4llm can be slow on
-    // very large PDFs, but a runaway request shouldn't lock the UI.
+    // Cap upload + extraction at 5 minutes — large PDFs / OCR-heavy
+    // documents can be slow, but a runaway request shouldn't lock the UI.
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, 300000);
 

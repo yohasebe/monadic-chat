@@ -48,6 +48,20 @@ RSpec.describe Monadic::Library::Importers::Pdf do
     }.to_json
   end
 
+  let(:extraction_json_with_chunks) do
+    {
+      'title' => 'Pre-Chunked Paper',
+      'author' => 'Researcher',
+      'page_count' => 4,
+      'markdown' => markdown_content,
+      'chunks' => [
+        { 'text' => 'Pre-chunked section one. ' * 20, 'metadata' => { 'index' => 0 } },
+        { 'text' => 'Pre-chunked section two. ' * 20, 'metadata' => { 'index' => 1 } },
+        { 'text' => 'Pre-chunked section three. ' * 20, 'metadata' => { 'index' => 2 } }
+      ]
+    }.to_json
+  end
+
   describe '.import' do
     let(:result) { described_class.import(markdown_content, filename: 'paper.pdf') }
 
@@ -139,6 +153,25 @@ RSpec.describe Monadic::Library::Importers::Pdf do
       bare = { 'markdown' => markdown_content }.to_json
       result = described_class.import_extraction_json(bare, filename: 'bare.pdf')
       expect(schema.valid?(result)).to be true
+    end
+
+    it 'consumes pre-segmented chunks when extractor_service supplies them' do
+      result = described_class.import_extraction_json(extraction_json_with_chunks, filename: 'paper.pdf')
+      expect(schema.valid?(result)).to be true
+      texts = result['messages'].map { |m| m['text'] }
+      expect(texts.size).to eq(3)
+      expect(texts.first).to start_with('Pre-chunked section one.')
+      # When chunks are honoured we MUST NOT also see the heading-split
+      # markdown fragments in the messages.
+      expect(texts).not_to include(a_string_starting_with('# Abstract'))
+    end
+
+    it 'ignores chunks payload when it is empty and falls back to markdown split' do
+      payload = JSON.parse(extraction_json_with_chunks)
+      payload['chunks'] = []
+      result = described_class.import_extraction_json(JSON.dump(payload), filename: 'paper.pdf')
+      texts = result['messages'].map { |m| m['text'] }
+      expect(texts.any? { |t| t.start_with?('# Abstract') }).to be true
     end
   end
 

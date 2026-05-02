@@ -30,6 +30,13 @@ LOG = logging.getLogger("extractor.server")
 
 PIPELINE_NAME = "docling-2.x"
 
+# Chunking knobs. Character-based to keep the image free of heavy
+# tokenizer downloads — these sizes track ~250-400 tokens of English
+# prose per chunk, which is comfortably within the e5-base 512-token
+# context used downstream by embeddings_service.
+CHUNK_SIZE_CHARS = 1500
+CHUNK_OVERLAP_CHARS = 200
+
 
 def _build_converter() -> DocumentConverter:
     pipeline_options = PdfPipelineOptions()
@@ -45,6 +52,27 @@ def _build_converter() -> DocumentConverter:
 
 CONVERTER = _build_converter()
 LOG.info("Docling converter initialised (pipeline=%s)", PIPELINE_NAME)
+
+
+def _build_chunker():
+    """Recursive token-aware chunker with overlap. Built lazily so a
+    failure in chonkie does not block the converter from serving.
+    """
+    try:
+        from chonkie import RecursiveChunker
+        return RecursiveChunker(
+            tokenizer_or_token_counter="character",
+            chunk_size=CHUNK_SIZE_CHARS,
+            min_characters_per_chunk=200,
+        )
+    except Exception as exc:  # noqa: BLE001
+        LOG.warning("chonkie not available, will fall back to character split: %s", exc)
+        return None
+
+
+CHUNKER = _build_chunker()
+if CHUNKER is not None:
+    LOG.info("Chonkie RecursiveChunker initialised (chunk_size=%d chars)", CHUNK_SIZE_CHARS)
 
 app = FastAPI(title="Monadic Extractor Service")
 
@@ -82,6 +110,70 @@ def _safe_export_markdown(doc: Any) -> str:
     except Exception as exc:  # noqa: BLE001
         LOG.warning("export_to_markdown failed: %s", exc)
         return ""
+
+
+def _safe_chunks(markdown: str) -> list[dict]:
+    """Run RecursiveChunker over the markdown blob. Returns [] when
+    chunking is disabled or fails — the importer side falls back to its
+    own splitter in that case.
+    """
+    if not markdown or not markdown.strip():
+        return []
+    if CHUNKER is None:
+        return _character_window_chunks(markdown)
+    try:
+        chunks = CHUNKER.chunk(markdown)
+    except Exception as exc:  # noqa: BLE001
+        LOG.warning("chunker failed, falling back to char window: %s", exc)
+        return _character_window_chunks(markdown)
+    out: list[dict] = []
+    for i, c in enumerate(chunks):
+        text = getattr(c, "text", "") or ""
+        if not text.strip():
+            continue
+        out.append({
+            "text": text,
+            "metadata": {
+                "index": i,
+                "start": int(getattr(c, "start_index", 0) or 0),
+                "end": int(getattr(c, "end_index", 0) or 0),
+                "token_count": int(getattr(c, "token_count", 0) or 0),
+            },
+        })
+    return out
+
+
+def _character_window_chunks(markdown: str) -> list[dict]:
+    """Lightweight fallback: sliding character window with overlap.
+    Used when chonkie is unavailable or raises. Keeps the response
+    schema stable so the importer never has to special-case empties.
+    """
+    out: list[dict] = []
+    if not markdown:
+        return out
+    cursor = 0
+    idx = 0
+    n = len(markdown)
+    while cursor < n:
+        end = min(cursor + CHUNK_SIZE_CHARS, n)
+        text = markdown[cursor:end]
+        if text.strip():
+            out.append({
+                "text": text,
+                "metadata": {
+                    "index": idx,
+                    "start": cursor,
+                    "end": end,
+                    "token_count": len(text),
+                },
+            })
+            idx += 1
+        if end >= n:
+            break
+        cursor = end - CHUNK_OVERLAP_CHARS
+        if cursor < 0:
+            cursor = 0
+    return out
 
 
 def _safe_metadata(doc: Any, result: Any) -> tuple[str, str, int]:
@@ -128,6 +220,7 @@ def extract(req: ExtractRequest) -> dict[str, Any]:
 
     markdown = _safe_export_markdown(doc)
     title, author, page_count = _safe_metadata(doc, result)
+    chunks = _safe_chunks(markdown)
     elapsed_ms = int((time.time() - started) * 1000)
 
     return {
@@ -135,9 +228,12 @@ def extract(req: ExtractRequest) -> dict[str, Any]:
         "author": author,
         "page_count": page_count,
         "markdown": markdown,
+        "chunks": chunks,
         "extractor_meta": {
             "pipeline": PIPELINE_NAME,
             "ocr_backend": os.environ.get("EXTRACTOR_OCR_RUNTIME", "rapidocr"),
+            "chunker": "chonkie-recursive" if CHUNKER is not None else "character-window",
+            "chunk_count": len(chunks),
             "duration_ms": elapsed_ms,
         },
     }

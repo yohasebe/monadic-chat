@@ -57,11 +57,22 @@ module Monadic
         # Stage 2 entry point. `content` is the markdown emitted by
         # `library_pdf_extractor.py`. Stage 1 belongs to the WebSocket
         # handler so unit specs stay Docker-free.
+        #
+        # When `options[:pre_segmented_chunks]` is provided (a non-empty
+        # Array<String>), it bypasses split_sections / paragraph_fallback
+        # entirely. extractor_service produces these via Chonkie's
+        # token-aware RecursiveChunker, which handles overlap and CJK
+        # tokenization better than the heuristic fallback path.
         def import(content, options = {})
           raise ArgumentError, 'PDF import requires a String content' unless content.is_a?(String)
 
-          sections = split_sections(content)
-          sections = paragraph_fallback(content) if sections.empty?
+          pre = options[:pre_segmented_chunks] || options['pre_segmented_chunks']
+          if pre.is_a?(Array) && !pre.empty?
+            sections = pre.map(&:to_s).map(&:strip).reject(&:empty?)
+          else
+            sections = split_sections(content)
+            sections = paragraph_fallback(content) if sections.empty?
+          end
           raise ArgumentError, 'PDF import produced no sections' if sections.empty?
 
           speaker_id = options[:speaker_id] || options['speaker_id'] || DEFAULT_SPEAKER_ID
@@ -106,12 +117,20 @@ module Monadic
         # Convenience: parse the JSON the Python extractor emits and call
         # `import` with the right options. Used by the WebSocket handler
         # in production; specs use it via stub data.
+        #
+        # When the JSON includes a non-empty `chunks` array (as
+        # extractor_service produces via Chonkie), it is forwarded as
+        # `:pre_segmented_chunks` so `import` skips its own splitter.
         def import_extraction_json(json_string, options = {})
           parsed = JSON.parse(json_string)
           merged = options.dup
           merged[:title] ||= parsed['title'] unless parsed['title'].to_s.strip.empty?
           merged[:author] ||= parsed['author'] unless parsed['author'].to_s.strip.empty?
           merged[:page_count] ||= parsed['page_count']
+          chunks = parsed['chunks']
+          if chunks.is_a?(Array) && !chunks.empty?
+            merged[:pre_segmented_chunks] = chunks.map { |c| c.is_a?(Hash) ? c['text'].to_s : c.to_s }
+          end
           import(parsed.fetch('markdown', ''), merged)
         end
 

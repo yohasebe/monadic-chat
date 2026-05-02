@@ -17,10 +17,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Docling (MIT, IBM) + RapidOCR ONNX backend (Apache-2.0) +
-# FastAPI server. Pinned to compatible majors; bump cautiously.
+# Chonkie token-aware chunker (MIT) + FastAPI server. Pinned to
+# compatible majors; bump cautiously.
 RUN pip install --no-cache-dir \
       "docling>=2.0,<3.0" \
       "rapidocr-onnxruntime>=1.3,<2.0" \
+      "chonkie[semantic]>=0.5,<2.0" \
       "fastapi==0.115.0" \
       "uvicorn[standard]==0.30.6"
 

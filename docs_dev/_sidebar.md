@@ -26,6 +26,8 @@
 
 * 📦 Feature Documentation
   * [Auto Forge Internals](auto_forge_internals.md)
+  * [Library / Knowledge Base Subsystem](library_subsystem.md)
+  * [Qdrant + Embeddings Migration](qdrant_embeddings_migration.md)
   * [SSOT Normalization](ssot_normalization_and_accessors.md)
   * [SSOT Capabilities Overview](ssot_capabilities_and_model_spec.md)
   * [App Isolation & Session Safety](app_isolation_and_session_safety.md)

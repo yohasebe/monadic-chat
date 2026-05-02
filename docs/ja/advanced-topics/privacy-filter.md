@@ -66,6 +66,12 @@ privacy do
 end
 ```
 
+## Knowledge Base 検索 (`library_search`) との連携
+
+Knowledge Base は会話やインポート文書を**マスク前のまま**保存します（保存ダイアログにもその旨の注意が表示されます）。Privacy Filter が有効なセッションで `library_search` が呼ばれた場合、取得したスニペットも同じ Privacy Pipeline を通過してから LLM に送信されます。Knowledge Base に含まれる PII はリクエスト時に placeholder にマスクされ、LLM の応答側では既存の streaming-handler 経路で復元されます。
+
+これにより、ユーザーが現在のセッションで Privacy Filter を有効にしているにもかかわらず、保存済みの PII が retrieval 経由で LLM に到達する経路を塞いでいます。マスキングは best-effort で、pipeline が例外を投げた場合は raw snippet にフォールバックして検索自体は失敗させません。
+
 ## 暗号化エクスポート
 
 プライバシーフィルターが現在のセッションで少なくとも 1 件のエンティティをマスクしている場合、**Save** ボタンは 2 つの直交する軸を持つ統合エクスポートダイアログを開きます:

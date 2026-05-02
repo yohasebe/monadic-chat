@@ -66,6 +66,12 @@ privacy do
 end
 ```
 
+## Knowledge Base Retrieval (`library_search`)
+
+The Knowledge Base stores conversations and imported documents **unmasked** — the Save dialog warns you about this. When the Privacy Filter is active in a session that calls `library_search`, the retrieved snippets pass through the same Privacy Pipeline before they reach the LLM. Any PII present in the Knowledge Base is masked into placeholders for the request, and the LLM's reply is restored on the way back via the existing streaming-handler pass.
+
+This closes a back-channel that would otherwise let saved PII reach the LLM via retrieval, even though the user enabled the Privacy Filter for the current session. The masking is best-effort — if the pipeline raises, the tool falls back to the raw snippet rather than failing the search.
+
 ## Encrypted Export
 
 When the Privacy Filter has masked at least one entity in the current session, the **Save** button opens a unified export dialog with two orthogonal axes:

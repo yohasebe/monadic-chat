@@ -459,10 +459,13 @@ Each entry is scoped either to a specific app + provider (e.g. `Chat (OpenAI)`) 
 
 **Other features:**
 
+- **Save replaces in place** — saving the same chat session a second time updates the existing entry instead of creating a duplicate. The modal switches to "Update Conversation in Knowledge Base" mode (with an "Update" button and a warning banner) when re-saving. The binding clears on Reset, app switch, or when the entry is deleted from Browse.
+- **AI-suggested titles** — on first save the title field is auto-populated by your current provider's LLM, using the first few turns of the conversation. The suggestion is a default — type freely to override it. Suggestions are cached so canceling and re-opening the dialog does not re-run the model.
 - **Rename** — open the Conversation Viewer, click the pencil icon next to the title, edit, and save. The Browse table updates immediately.
 - **Inventory and stats** — the sidebar shows the most recent saves and total counts. The Browse modal supports search, filtering by scope, and sorting.
 - **Conversation Viewer** — clicking a row opens a verbatim playback of every message, with system prompts collapsed behind a `<details>` block.
-- **RAG opt-in (per session)** — the **Use Knowledge Base for retrieval** toggle in any chat session lets the LLM call `library_search` while answering. The cascade applies the active app's scope filter (`scope_app IN [current_app, "Global"]`). Off by default; locks for the duration of the session once you send the first message.
+- **RAG opt-in (per session)** — the **Use Knowledge Base for retrieval** toggle in any chat session lets the LLM call `library_search` while answering. The cascade applies the active app's scope filter (`scope_app IN [current_app, "Global"]`). Off by default; locks for the duration of the session once you send the first message. The toggle preference is persisted across sessions so you don't have to flip it every time.
+- **Privacy Filter compatibility** — when Privacy Filter is active, snippets returned by `library_search` are masked through the same Privacy Pipeline before they reach the LLM, so PII stored unmasked in the Knowledge Base does not leak via retrieval.
 
 ?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (PyMuPDF / python-docx / openpyxl / python-pptx); imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
 

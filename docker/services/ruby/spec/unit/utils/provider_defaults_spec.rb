@@ -180,6 +180,17 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
   end
 
   describe 'error handling' do
+    # Both tests below stub read_model_spec_js so load_provider_defaults
+    # caches an empty `{}` in `@provider_defaults`. RSpec restores the
+    # method stub after each example, but the cached instance variable
+    # is module-level state that persists into the next spec file.
+    # Without this cleanup, downstream tests that rely on the real
+    # providerDefaults (e.g. ai_user_agent_spec asserting "gpt-5.4" as
+    # the OpenAI fallback) intermittently fail when run in random order.
+    after do
+      described_class.reload!
+    end
+
     it 'load_provider_defaults returns empty hash when JS parsing fails' do
       # Force a reload so next call reads fresh
       described_class.reload!

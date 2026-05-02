@@ -4,11 +4,12 @@
 # Exposes the project-wide Knowledge Base (Library) as a retrieval tool
 # that any app can import via `imported_tool_groups [:library_search]`.
 #
-# Scope is :kb (personal + shareable). The user opts in to RAG via the
-# per-session toggle in the Knowledge Base sidebar; once enabled, every
-# stored conversation regardless of personal/shareable becomes retrievable.
-# The :external scope (shareable-only) remains in the Store API for future
-# multi-user / public sharing contexts.
+# Scope is per-app. The Retriever filters on `scope_app IN
+# [current_app, "Global"]`, so an entry saved while ChatOpenAI was active
+# is not visible to ChatClaude — provider variants are separate scopes.
+# The "Global" sentinel opts an entry in to cross-app retrieval. The user
+# also has to flip the per-session RAG toggle in the Knowledge Base
+# sidebar before this tool will run at all (default OFF).
 #
 # Available tools:
 #   - library_search: cascade retrieval (summaries → turns) returning
@@ -102,10 +103,37 @@ module MonadicSharedTools
           top_n: top_n.to_i.clamp(1, 10),
           payload_filter: payload_filter
         )
-        MonadicSharedTools::LibrarySearch.format_results(query, hits)
+        out = MonadicSharedTools::LibrarySearch.format_results(query, hits)
+        MonadicSharedTools::LibrarySearch.apply_privacy(out, resolved_session)
       rescue StandardError => e
         "❌ Knowledge Base search failed: #{e.message}"
       end
+    end
+
+    # Mask PII in a tool-result payload before the LLM ever sees it.
+    # Knowledge Base entries are stored unmasked (the Save dialog warns
+    # the user about this), so retrieval would otherwise re-expose any
+    # PII present in saved conversations to the next LLM request — even
+    # when the user has Privacy Filter ON for the current session.
+    #
+    # The session-level Privacy Pipeline is created lazily by the vendor
+    # helper at request build time. By the time a tool call fires it has
+    # already been instantiated and is reachable via session[:_privacy_pipeline].
+    # We register the search snippets there so that any placeholder the
+    # LLM echoes back gets restored by streaming_handler against the
+    # same registry — round-trip is symmetric without further wiring.
+    def apply_privacy(text, session)
+      return text unless text.is_a?(String) && !text.empty?
+
+      pipeline = session && (session[:_privacy_pipeline] || session['_privacy_pipeline'])
+      return text unless pipeline.respond_to?(:enabled?) && pipeline.enabled?
+
+      require_relative '../utils/privacy/types'
+      raw = Monadic::Utils::Privacy::RawMessage.new(text, 'tool', {})
+      pipeline.before_send_to_llm(raw).text
+    rescue StandardError => e
+      warn "[LibrarySearch] privacy masking failed: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
+      text
     end
 
     # Compose an optional Qdrant payload filter from the LLM-supplied

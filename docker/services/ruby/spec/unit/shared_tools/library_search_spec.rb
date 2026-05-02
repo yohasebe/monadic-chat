@@ -131,15 +131,18 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
     end
 
-    it 'invokes Retriever with scope :kb (personal + shareable) and returns formatted text' do
+    it 'invokes Retriever with the resolved app_name and returns formatted text' do
       canned = [{
         text: 'returned snippet', conversation_id: 'conv-1', turn_idx: 0,
         speaker_role: 'human', start_message_id: 'm-1', score: 0.9,
         conversation_title: 'T', conversation_source: 'ted-talk',
         conversation_language: 'en'
       }]
+      host.instance_variable_set(:@session, {
+        parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' }
+      })
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
-        .with('how it works', hash_including(scope: :kb, top_n: 3))
+        .with('how it works', hash_including(app_name: 'ChatOpenAI', top_n: 3))
         .and_return(canned)
       out = host.library_search(query: 'how it works')
       expect(out).to include('Found 1 relevant passage')
@@ -191,6 +194,49 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     it 'declares :session in the method signature so dispatchers inject it' do
       params = MonadicSharedTools::LibrarySearch::Tools.instance_method(:library_search).parameters
       expect(params.map(&:last)).to include(:session)
+    end
+
+    it 'masks PII in the formatted result when Privacy Filter is active' do
+      # Knowledge Base entries are stored unmasked. When PF is on, the
+      # tool result must pass through the same Privacy Pipeline that
+      # masks user-role messages so library_search cannot become a
+      # back-channel that leaks PII to the LLM.
+      pipeline = double('pipeline', enabled?: true)
+      expect(pipeline).to receive(:before_send_to_llm) do |raw|
+        # Sanity: the snippet text reaches the pipeline as a tool-role
+        # message so backends can route it correctly.
+        expect(raw.role).to eq('tool')
+        expect(raw.text).to include('returned snippet')
+        Monadic::Utils::Privacy::MaskedMessage.new('MASKED RESULT', 'tool', {})
+      end
+      host.instance_variable_set(:@session, {
+        parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' },
+        _privacy_pipeline: pipeline
+      })
+      out = host.library_search(query: 'q')
+      expect(out).to eq('MASKED RESULT')
+    end
+
+    it 'returns the formatted result unchanged when Privacy Filter is inactive' do
+      pipeline = double('pipeline', enabled?: false)
+      expect(pipeline).not_to receive(:before_send_to_llm)
+      host.instance_variable_set(:@session, {
+        parameters: { 'library_rag_enabled' => true },
+        _privacy_pipeline: pipeline
+      })
+      out = host.library_search(query: 'q')
+      expect(out).to include('Found 1 relevant passage')
+    end
+
+    it 'falls back to raw output when the privacy pipeline raises' do
+      pipeline = double('pipeline', enabled?: true)
+      allow(pipeline).to receive(:before_send_to_llm).and_raise(StandardError, 'boom')
+      host.instance_variable_set(:@session, {
+        parameters: { 'library_rag_enabled' => true },
+        _privacy_pipeline: pipeline
+      })
+      out = host.library_search(query: 'q')
+      expect(out).to include('Found 1 relevant passage')
     end
   end
 

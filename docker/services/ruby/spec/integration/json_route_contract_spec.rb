@@ -51,6 +51,17 @@ RSpec.describe 'JSON-route contract (no X-Requested-With)', :integration do
     # Posting from localhost matches the allow-list and lets the route
     # handler run.
     header 'Host', '127.0.0.1'
+
+    # Pin Environment.data_path to a per-test tempdir so the route's
+    # File.open succeeds whether IN_CONTAINER is set or not. Without
+    # this, IN_CONTAINER=true makes data_path resolve to /monadic/data
+    # which only exists inside the production container.
+    @tmp_data_dir = Dir.mktmpdir('monadic-data-test')
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@tmp_data_dir)
+  end
+
+  after do
+    FileUtils.remove_entry(@tmp_data_dir) if @tmp_data_dir && Dir.exist?(@tmp_data_dir)
   end
 
   describe 'POST /document without X-Requested-With' do

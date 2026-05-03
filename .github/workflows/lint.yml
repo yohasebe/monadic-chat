@@ -1,0 +1,40 @@
+name: Lint
+
+# Anti-pattern lint suite (see docs_dev/architecture_hardening_plan.md
+# for the rationale and the per-rule baselines). Each rule catches one
+# class of regression we have already shipped at least once; running
+# them on every PR is the lowest-cost way to keep that class extinct.
+#
+# The rules use only Ruby's stdlib, so we deliberately skip Bundler and
+# the docker/services/ruby Gemfile to keep this job under 30s.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+jobs:
+  anti-patterns:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: false
+
+      - name: Personal home-directory paths
+        run: ruby scripts/lint/check_personal_paths.rb
+
+      - name: Shell command interpolation escape
+        run: ruby scripts/lint/check_shell_escape.rb
+
+      - name: XHR-route × fetch pair check
+        run: ruby scripts/lint/check_xhr_pair.rb
+
+      - name: /monadic/data literals outside Environment helper
+        run: ruby scripts/lint/check_data_path_literals.rb

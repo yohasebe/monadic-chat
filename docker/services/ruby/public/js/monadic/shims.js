@@ -264,119 +264,62 @@ window.shims.uiUtils = {
   }
 };
 
-// Form Handlers Shims
+// Form Handlers Shims. Routes through window.monadicFetch (which is
+// loaded earlier in the bundle) so the X-Requested-With contract and
+// JSON parsing live in one place.
 window.shims.formHandlers = {
-  // Uploads a PDF file to the server
-  uploadPdf: function(file, fileTitle) {
-    return new Promise((resolve, reject) => {
-      if (!file) {
-        reject(new Error("Please select a PDF file to upload"));
-        return;
-      }
+  uploadPdf: function (file, fileTitle) {
+    if (!file) return Promise.reject(new Error("Please select a PDF file to upload"));
+    if (file.type !== "application/pdf") return Promise.reject(new Error("Please select a PDF file"));
 
-      if (file.type !== "application/pdf") {
-        reject(new Error("Please select a PDF file"));
-        return;
-      }
+    const formData = new FormData();
+    formData.append("pdfFile", file);
+    formData.append("pdfTitle", fileTitle);
 
-      const formData = new FormData();
-      formData.append("pdfFile", file);
-      formData.append("pdfTitle", fileTitle);
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 120000);
-      fetch("/pdf", { method: "POST", body: formData, signal: controller.signal })
-        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Upload failed: ${res.status}`)); })
-        .then(resolve)
-        .catch(e => { clearTimeout(timer); reject(e); });
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
+    return window.monadicFetch.postJson("/pdf", formData, { signal: controller.signal })
+      .finally(() => clearTimeout(timer));
   },
 
-  // Converts a document file to text
-  convertDocument: function(doc, docLabel) {
-    return new Promise((resolve, reject) => {
-      if (!doc) {
-        reject(new Error("Please select a document file to convert"));
-        return;
-      }
+  convertDocument: function (doc, docLabel) {
+    if (!doc) return Promise.reject(new Error("Please select a document file to convert"));
+    if (doc.type === "application/octet-stream") return Promise.reject(new Error("Unsupported file type"));
 
-      if (doc.type === "application/octet-stream") {
-        reject(new Error("Unsupported file type"));
-        return;
-      }
+    const formData = new FormData();
+    formData.append("docFile", doc);
+    formData.append("docLabel", docLabel || "");
 
-      const formData = new FormData();
-      formData.append("docFile", doc);
-      formData.append("docLabel", docLabel || "");
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 60000);
-      fetch("/document", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-        headers: { "X-Requested-With": "XMLHttpRequest" }
-      })
-        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Conversion failed: ${res.status}`)); })
-        .then(resolve)
-        .catch(e => { clearTimeout(timer); reject(e); });
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    return window.monadicFetch.postJson("/document", formData, { signal: controller.signal })
+      .finally(() => clearTimeout(timer));
   },
 
-  // Fetches content from a webpage
-  fetchWebpage: function(url, urlLabel) {
-    return new Promise((resolve, reject) => {
-      if (!url) {
-        reject(new Error("Please specify the URL of the page to fetch"));
-        return;
-      }
+  fetchWebpage: function (url, urlLabel) {
+    if (!url) return Promise.reject(new Error("Please specify the URL of the page to fetch"));
+    if (!url.match(/^(http|https):\/\/[^ "]+$/)) return Promise.reject(new Error("Please enter a valid URL"));
 
-      if (!url.match(/^(http|https):\/\/[^ "]+$/)) {
-        reject(new Error("Please enter a valid URL"));
-        return;
-      }
+    const formData = new FormData();
+    formData.append("pageURL", url);
+    formData.append("urlLabel", urlLabel || "");
 
-      const formData = new FormData();
-      formData.append("pageURL", url);
-      formData.append("urlLabel", urlLabel || "");
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 30000);
-      fetch("/fetch_webpage", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-        headers: { "X-Requested-With": "XMLHttpRequest" }
-      })
-        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Fetch failed: ${res.status}`)); })
-        .then(resolve)
-        .catch(e => { clearTimeout(timer); reject(e); });
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    return window.monadicFetch.postJson("/fetch_webpage", formData, { signal: controller.signal })
+      .finally(() => clearTimeout(timer));
   },
 
-  // Imports a session from a JSON file
-  importSession: function(file) {
-    return new Promise((resolve, reject) => {
-      if (!file) {
-        reject(new Error("Please select a file to import"));
-        return;
-      }
+  importSession: function (file) {
+    if (!file) return Promise.reject(new Error("Please select a file to import"));
 
-      const formData = new FormData();
-      formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 30000);
-      fetch("/load", {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-        headers: { "X-Requested-With": "XMLHttpRequest" }
-      })
-        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Import failed: ${res.status}`)); })
-        .then(resolve)
-        .catch(e => { clearTimeout(timer); reject(e); });
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    return window.monadicFetch.postJson("/load", formData, { signal: controller.signal })
+      .finally(() => clearTimeout(timer));
   },
 
   // Sets up validation for URL input fields
@@ -435,24 +378,16 @@ window.shims.formHandlers = {
     }
   },
 
-  // Uploads an audio or MIDI file for analysis
-  uploadAudioFile: function(file) {
-    return new Promise((resolve, reject) => {
-      if (!file) {
-        reject(new Error("Please select an audio or MIDI file"));
-        return;
-      }
+  uploadAudioFile: function (file) {
+    if (!file) return Promise.reject(new Error("Please select an audio or MIDI file"));
 
-      const formData = new FormData();
-      formData.append("audioFile", file);
+    const formData = new FormData();
+    formData.append("audioFile", file);
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 60000);
-      fetch("/upload_audio", { method: "POST", body: formData, signal: controller.signal })
-        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Audio upload failed: ${res.status}`)); })
-        .then(resolve)
-        .catch(e => { clearTimeout(timer); reject(e); });
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    return window.monadicFetch.postJson("/upload_audio", formData, { signal: controller.signal })
+      .finally(() => clearTimeout(timer));
   }
 };
 

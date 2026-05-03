@@ -761,8 +761,23 @@ class MonadicApp
   def self.fetch_webpage(url)
     max_retrials = 5
     container = "monadic-chat-python-container"
+
+    # Defense in depth: reject URLs that do not look like plain http(s)
+    # before they reach the shell. The Web UI applies the same regex
+    # client-side, but a direct POST or alternative caller (Ruby tool,
+    # WebSocket relay) could otherwise inject shell metacharacters via
+    # the URL.
+    unless url.is_a?(String) && url.match?(/\Ahttps?:\/\/[^\s"'`$\\]+\z/)
+      return "Invalid URL: webpage URL must be a plain http(s) address."
+    end
+
+    # Pass the URL via Shellwords.escape so quoting is robust regardless
+    # of bash-c quoting rules. The escape produces a single-token argv
+    # value whether the URL contains '?', '&', or any other shell-active
+    # character.
+    safe_url = Shellwords.escape(url)
     docker_command = <<~DOCKER
-      docker exec -w #{SHARED_VOL} #{container} bash -c 'webpage_fetcher.py --url \"#{url}\" --mode md --keep-unknown --output stdout'
+      docker exec -w #{SHARED_VOL} #{container} bash -c "webpage_fetcher.py --url #{safe_url} --mode md --keep-unknown --output stdout"
     DOCKER
 
     stdout, stderr, status = self.capture_command(docker_command)

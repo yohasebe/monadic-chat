@@ -210,6 +210,11 @@ describe('library-panel module', () => {
 
     it('pre-fills the latest known title when re-saving the same conversation', () => {
       setupModal();
+      // openSaveModal now refuses empty sessions up front (the Save button
+      // is also disabled when there are no messages), so a re-save scenario
+      // must include at least one user/assistant message to exercise the
+      // pre-fill branch.
+      global.window.messages = [{ role: 'user', text: 'continued', mid: 2 }];
       lib._state.currentConversationId = 'conv-9';
       lib._state.allRows = [
         { conversation_id: 'conv-9', title: 'My renamed conversation' },

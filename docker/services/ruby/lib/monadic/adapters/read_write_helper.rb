@@ -160,11 +160,14 @@ module MonadicHelper
 
     if success
       if Monadic::Utils::Environment.in_container?
-        docker_command = <<~DOCKER
-          docker cp #{filepath} #{container}:#{data_dir}
-        DOCKER
-
-        _stdout, stderr, status = Open3.capture3(docker_command)
+        # Routed through Monadic::Shell so the container name and the
+        # cp invocation share the same source of truth as every other
+        # docker call. This is the H3 POC migration referenced in
+        # docs_dev/architecture_hardening_plan.md.
+        require_relative '../shell'
+        _stdout, stderr, status = Monadic::Shell.cp_to_container(
+          container: :python, host_path: filepath, container_path: data_dir
+        )
 
         if status.exitstatus.zero?
           "The file #{filename}.#{extension} has been written successfully."

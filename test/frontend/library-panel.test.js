@@ -208,6 +208,33 @@ describe('library-panel module', () => {
       expect(document.getElementById('library-save-title').value).toBe('');
     });
 
+    it('refuses to open the modal when the session has no messages', () => {
+      // Defence-in-depth check: the Save button is disabled when
+      // window.messages is empty, but openSaveModal is also exposed on
+      // window.libraryPanel so a programmatic caller could try to open
+      // it directly. The guard inside openSaveModal must short-circuit
+      // and surface a warning rather than silently producing an empty
+      // Knowledge Base entry.
+      setupModal();
+      global.window.messages = [];
+      const flashed = [];
+      const originalSetAlert = global.window.setAlert;
+      global.window.setAlert = (msg, kind) => flashed.push({ msg, kind });
+      try {
+        const before = document.getElementById('library-save-title').value;
+        lib.openSaveModal();
+        // Title input remains untouched; the modal-open side effects
+        // (placeholder, scope selection, etc.) are skipped.
+        expect(document.getElementById('library-save-title').value).toBe(before);
+        // A user-visible warning is queued.
+        expect(flashed.length).toBe(1);
+        expect(flashed[0].kind).toBe('warning');
+        expect(flashed[0].msg).toMatch(/no messages/i);
+      } finally {
+        global.window.setAlert = originalSetAlert;
+      }
+    });
+
     it('pre-fills the latest known title when re-saving the same conversation', () => {
       setupModal();
       // openSaveModal now refuses empty sessions up front (the Save button

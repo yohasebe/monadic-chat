@@ -3020,7 +3020,30 @@ function sendSettingsToRenderer(webContents) {
   settings.APP_VERSION = app.getVersion();
   settings.DOCKER_STATUS = currentStatus || 'Stopped';
   settings.MET_REQUIREMENTS = metRequirements ? 'true' : 'false';
+  settings._BUILD_OPTIONS_SNAPSHOTS = readBuildOptionsSnapshots();
   webContents.send('load-settings', settings);
+}
+
+// Snapshot of the options each container was last built with, recorded by
+// docker/monadic.sh after every successful build. The Settings UI compares
+// the live form values against these snapshots in real time to render a
+// "rebuild needed" badge on the affected sections, without round-tripping
+// through the main process on every checkbox toggle.
+function readBuildOptionsSnapshots() {
+  const logDir = path.join(os.homedir(), 'monadic', 'log');
+  const read = (name) => {
+    try {
+      const text = fs.readFileSync(path.join(logDir, name), 'utf8').replace(/\r\n/g, '\n');
+      return dotenv.parse(text);
+    } catch {
+      return null;
+    }
+  };
+  return {
+    python_service: read('python_build_options.txt'),
+    privacy_service: read('privacy_build_options.txt'),
+    extractor_service: read('extractor_build_options.txt')
+  };
 }
 
 function getEnvPath() {

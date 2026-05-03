@@ -2037,6 +2037,14 @@ build_privacy_container)
   eval "PRIVACY_LANGS=\"${PRIVACY_LANGS:-en}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
   if ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
     echo "[INFO] Privacy container build succeeded."
+    # Snapshot the options used for this build so the Settings UI can
+    # detect when env changes diverge from the last successful build.
+    prev_options_file="${HOME_DIR}/monadic/log/privacy_build_options.txt"
+    {
+      echo "PRIVACY_FILTER=${PRIVACY_FILTER:-false}"
+      echo "PRIVACY_LANGS=${PRIVACY_LANGS:-en}"
+    } > "$prev_options_file"
+    echo "[INFO] Saved build options to ${prev_options_file}"
   else
     echo "[ERROR] Privacy container build failed. See ${build_log}."
     exit 1
@@ -2057,6 +2065,13 @@ build_extractor_container)
   eval "EXTRACTOR_OCR=\"${EXTRACTOR_OCR:-rapidocr}\" EXTRACTOR_LANGS=\"${EXTRACTOR_LANGS:-en,ja,zh,ko}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
   if ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
     echo "[INFO] Extractor container build succeeded."
+    prev_options_file="${HOME_DIR}/monadic/log/extractor_build_options.txt"
+    {
+      echo "EXTRACTOR_SERVICE=${EXTRACTOR_SERVICE:-false}"
+      echo "EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko}"
+      echo "EXTRACTOR_OCR=${EXTRACTOR_OCR:-rapidocr}"
+    } > "$prev_options_file"
+    echo "[INFO] Saved build options to ${prev_options_file}"
   else
     echo "[ERROR] Extractor container build failed. See ${build_log}."
     exit 1

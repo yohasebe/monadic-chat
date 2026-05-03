@@ -158,6 +158,48 @@
       color: #1d1d1f;
     }
 
+    /* Container state badge for Install Options sections. data-state values:
+     *   "in-sync"        — image is built and matches the saved options
+     *   "rebuild-needed" — image exists but a Build now would differ
+     *   "not-built"      — image has not been built yet
+     *   "disabled"       — master toggle off (Privacy / Extractor only)
+     */
+    .setting-group > label[data-state]::after {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 1px 7px;
+      font-weight: 500;
+      font-size: 10px;
+      line-height: 1.5;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      vertical-align: 1px;
+    }
+
+    .setting-group > label[data-state="in-sync"]::after {
+      content: attr(data-container);
+      color: #0071e3;
+      background-color: rgba(0, 113, 227, 0.10);
+    }
+
+    .setting-group > label[data-state="rebuild-needed"]::after {
+      content: attr(data-container) " · rebuild needed";
+      color: #664d03;
+      background-color: rgba(255, 193, 7, 0.20);
+    }
+
+    .setting-group > label[data-state="not-built"]::after {
+      content: attr(data-container) " · not built";
+      color: #664d03;
+      background-color: rgba(255, 193, 7, 0.20);
+    }
+
+    .setting-group > label[data-state="disabled"]::after {
+      content: attr(data-container) " · disabled";
+      color: #86868b;
+      background-color: rgba(134, 134, 139, 0.15);
+    }
+
     .setting-group input,
     .setting-group select {
       width: 100%;
@@ -378,6 +420,21 @@
 
       .setting-group label {
         color: #f5f5f7;
+      }
+
+      .setting-group > label[data-state="in-sync"]::after {
+        color: #0a84ff;
+        background-color: rgba(10, 132, 255, 0.18);
+      }
+
+      .setting-group > label[data-state="rebuild-needed"]::after,
+      .setting-group > label[data-state="not-built"]::after {
+        color: #ffc107;
+      }
+
+      .setting-group > label[data-state="disabled"]::after {
+        color: #8e8e93;
+        background-color: rgba(134, 134, 139, 0.20);
       }
 
       .setting-group input,
@@ -698,7 +755,7 @@
           <!-- Panel: Install Options -->
           <div class="settings-panel" id="panel-install-options">
             <div class="setting-group">
-              <label data-i18n="settings.labels.installLatexTitle">LaTeX</label>
+              <label data-i18n="settings.labels.installLatexTitle" data-container="python_service">LaTeX</label>
               <small class="text-muted" data-i18n="settings.labels.installLatexDesc">Required for Concept Visualizer / Syntax Tree</small>
               <div class="checkbox-row" style="margin-top: 8px;">
                 <input type="checkbox" id="install-latex">
@@ -707,7 +764,7 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.installPythonTitle">Python Libraries (CPU)</label>
+              <label data-i18n="settings.labels.installPythonTitle" data-container="python_service">Python Libraries (CPU)</label>
               <small class="text-muted" data-i18n="settings.labels.installPythonDesc">Pip-installed libraries for Python runtime. Models/datasets are not included.</small>
               <div class="checkbox-row" style="margin-top: 8px;">
                 <input type="checkbox" id="pyopt-nltk">
@@ -736,7 +793,7 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.installMusicTitle">Music Analysis</label>
+              <label data-i18n="settings.labels.installMusicTitle" data-container="python_service">Music Analysis</label>
               <small class="text-muted" data-i18n="settings.labels.installMusicDesc">Required for Music Lab. Installs audio analysis libraries (chord detection, tempo/key estimation, etc.).</small>
               <div class="checkbox-row" style="margin-top: 8px;">
                 <input type="checkbox" id="pyopt-librosa">
@@ -745,7 +802,7 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.installToolsTitle">System Tools (CLI)</label>
+              <label data-i18n="settings.labels.installToolsTitle" data-container="python_service">System Tools (CLI)</label>
               <small class="text-muted" data-i18n="settings.labels.installToolsDesc">OS-level command-line tools available system-wide.</small>
               <div class="checkbox-row" style="margin-top: 8px;">
                 <input type="checkbox" id="imgopt-imagemagick">
@@ -754,7 +811,7 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.installPrivacyTitle">Privacy Filter (PII Masking)</label>
+              <label data-i18n="settings.labels.installPrivacyTitle" data-container="privacy_service">Privacy Filter (PII Masking)</label>
               <small class="text-muted" data-i18n="settings.labels.installPrivacyDesc">Mask names, emails, and other personal information before sending to AI providers. Adds a separate ~1 GB container per language.</small>
               <div class="checkbox-row" style="margin-top: 8px;">
                 <input type="checkbox" id="install-privacy-filter">
@@ -774,7 +831,7 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.installExtractorTitle">Knowledge Base Quality Pack (Docling)</label>
+              <label data-i18n="settings.labels.installExtractorTitle" data-container="extractor_service">Knowledge Base Quality Pack (Docling)</label>
               <small class="text-muted" data-i18n="settings.labels.installExtractorDesc">Layout-aware PDF extraction with OCR, table structure, and multilingual support. Adds a separate ~3 GB container; Library imports use it when installed.</small>
               <div class="checkbox-row" style="margin-top: 8px;">
                 <input type="checkbox" id="install-extractor-service">
@@ -917,6 +974,12 @@
       let actionDockerStatus = 'Stopped';
       let actionMetRequirements = false;
 
+      // Per-container build options snapshots from main process
+      // (~/monadic/log/{python,privacy,extractor}_build_options.txt). The
+      // recomputeRebuildBadges() helper diffs the live form values against
+      // these to flip the "rebuild needed" badges in real time.
+      let buildOptionsSnapshots = {};
+
       const takeSettingsSnapshot = () => {
         const form = document.getElementById('settings-form');
         const obj = {};
@@ -1040,6 +1103,78 @@
         });
         const wrapper = document.getElementById('extractor-langs-extra');
         if (wrapper) wrapper.style.opacity = enabled ? '1' : '0.5';
+      }
+
+      // ─── Container State Badge ───
+      // Each Install Options section title carries a [data-container] badge
+      // whose appearance reflects the build state of that container, derived
+      // from a diff between the live form values and the build options
+      // snapshot recorded by docker/monadic.sh. Possible states (one badge
+      // per section, color & label vary):
+      //   in-sync         — image matches the saved options
+      //   rebuild-needed  — image exists but Build now would differ
+      //   not-built       — image has not been built yet
+      //   disabled        — master toggle off (Privacy / Extractor only)
+      // Master toggles do NOT affect the build itself (they are runtime
+      // flags), so toggling them leaves the in-sync/rebuild-needed verdict
+      // unchanged unless the master is off (then the section is disabled).
+      function recomputeRebuildBadges() {
+        const $val = id => document.getElementById(id);
+
+        const pythonState = (() => {
+          const prev = buildOptionsSnapshots.python_service;
+          if (!prev) return 'not-built';
+          const pyKeys = {
+            INSTALL_LATEX: 'install-latex',
+            PYOPT_NLTK: 'pyopt-nltk',
+            PYOPT_SPACY: 'pyopt-spacy',
+            PYOPT_SCIKIT: 'pyopt-scikit',
+            PYOPT_GENSIM: 'pyopt-gensim',
+            PYOPT_LIBROSA: 'pyopt-librosa',
+            PYOPT_MEDIAPIPE: 'pyopt-mediapipe',
+            PYOPT_TRANSFORMERS: 'pyopt-transformers',
+            IMGOPT_IMAGEMAGICK: 'imgopt-imagemagick'
+          };
+          const diff = Object.entries(pyKeys).some(([envKey, id]) => {
+            const el = $val(id);
+            if (!el) return false;
+            const cur = el.checked ? 'true' : 'false';
+            return prev[envKey] !== undefined && String(prev[envKey]) !== cur;
+          });
+          return diff ? 'rebuild-needed' : 'in-sync';
+        })();
+
+        const privacyState = (() => {
+          if (!$val('install-privacy-filter')?.checked) return 'disabled';
+          const prev = buildOptionsSnapshots.privacy_service;
+          if (!prev) return 'not-built';
+          // PRIVACY_FILTER is a runtime flag; only PRIVACY_LANGS affects build.
+          const cur = collectPrivacyLangs();
+          return (prev.PRIVACY_LANGS !== undefined && prev.PRIVACY_LANGS !== cur)
+            ? 'rebuild-needed' : 'in-sync';
+        })();
+
+        const extractorState = (() => {
+          if (!$val('install-extractor-service')?.checked) return 'disabled';
+          const prev = buildOptionsSnapshots.extractor_service;
+          if (!prev) return 'not-built';
+          // EXTRACTOR_SERVICE is a runtime flag; build depends on LANGS + OCR.
+          const curLangs = collectExtractorLangs();
+          const curOcr = prev.EXTRACTOR_OCR || 'rapidocr';  // no UI yet
+          const langsDiff = prev.EXTRACTOR_LANGS !== undefined && prev.EXTRACTOR_LANGS !== curLangs;
+          const ocrDiff = prev.EXTRACTOR_OCR !== undefined && prev.EXTRACTOR_OCR !== curOcr;
+          return (langsDiff || ocrDiff) ? 'rebuild-needed' : 'in-sync';
+        })();
+
+        const states = {
+          python_service: pythonState,
+          privacy_service: privacyState,
+          extractor_service: extractorState
+        };
+        document.querySelectorAll('label[data-container]').forEach(el => {
+          const c = el.getAttribute('data-container');
+          el.setAttribute('data-state', states[c] || 'in-sync');
+        });
       }
 
       // ─── Actions Tab Logic ───
@@ -1335,6 +1470,13 @@
         document.getElementById('install-extractor-service').checked = data.EXTRACTOR_SERVICE == "true" || false;
         applyExtractorLangs(data.EXTRACTOR_LANGS || 'en,ja,zh,ko');
         syncExtractorLangsEnabled();
+
+        // Pending-rebuild badges. Compare live form values against the build
+        // options snapshot recorded by docker/monadic.sh after each build, so
+        // that any toggle (or Save without rebuilding) is reflected on the
+        // section badge in real time without reopening Settings.
+        buildOptionsSnapshots = data._BUILD_OPTIONS_SNAPSHOTS || {};
+        recomputeRebuildBadges();
         document.getElementById('ui-language').value = data.UI_LANGUAGE || 'en';
 
         // Sync UI language and track initial value for discard revert
@@ -1364,12 +1506,16 @@
         actionMetRequirements = data.MET_REQUIREMENTS === 'true';
         updateActionButtons();
 
-        // Track dirty state
+        // Track dirty state. Also recompute the per-container "rebuild
+        // needed" badges on every change so any toggle (master, language,
+        // Python options) is reflected immediately without reopening the
+        // panel. Recompute is a cheap pure-DOM read; safe to run for any
+        // input, not just Install Options ones.
         settingsDirty = false;
         if (!dirtyListenersAttached) {
           const formEl = document.getElementById('settings-form');
           formEl.querySelectorAll('input, select, textarea').forEach(el => {
-            el.addEventListener('change', () => { settingsDirty = true; });
+            el.addEventListener('change', () => { settingsDirty = true; recomputeRebuildBadges(); });
             el.addEventListener('input', () => { settingsDirty = true; });
           });
           dirtyListenersAttached = true;

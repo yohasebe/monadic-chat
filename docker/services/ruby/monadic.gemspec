@@ -46,6 +46,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "websocket-client-simple"
   spec.add_development_dependency "prawn"
   spec.add_development_dependency "rspec-retry", "~> 0.6"
+  spec.add_development_dependency "rack-test", "~> 2.1"
   spec.add_development_dependency "rubocop", "~> 1.75"
   spec.add_development_dependency "rubocop-performance", "~> 1.25"
 

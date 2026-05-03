@@ -41,7 +41,7 @@ post "/document" do
 
   begin
     doc_file_handler = params["docFile"]["tempfile"]
-    doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    doc_label = params["docLabel"].to_s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
     # basename prevents directory-traversal style filenames
     filename = File.basename(params["docFile"]["filename"])
 
@@ -80,7 +80,7 @@ post "/fetch_webpage" do
   begin
     url = params["pageURL"]
     url_decoded = CGI.unescape(url)
-    label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    label = params["urlLabel"].to_s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
     # Web UI always uses Selenium for URL fetching (Tavily is only
     # exposed inside Research Assistant apps).

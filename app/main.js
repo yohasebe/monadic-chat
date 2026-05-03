@@ -1491,7 +1491,9 @@ function initializeApp() {
           case 'start':
             // Check requirements first
             dockerManager.checkRequirements()
-              .then(() => {
+              .then(() => promptForPendingRebuilds())
+              .then((proceed) => {
+                if (!proceed) return;
                 dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
               })
               .catch((error) => {
@@ -3044,6 +3046,135 @@ function readBuildOptionsSnapshots() {
     privacy_service: read('privacy_build_options.txt'),
     extractor_service: read('extractor_build_options.txt')
   };
+}
+
+// Compute the set of containers that would produce a different image if the
+// user clicked Build now, given the saved env and the build-options
+// snapshots. Returns an empty array when everything is in sync. The Start
+// button uses this to prompt for an optional rebuild before launching the
+// app so users do not silently keep running with stale containers.
+function computePendingContainerBuilds() {
+  const env = readEnvFile(getEnvPath());
+  const snapshots = readBuildOptionsSnapshots();
+  const truthy = (v) => String(v ?? '').toLowerCase() === 'true';
+  const result = [];
+
+  // Python: always relevant (no master flag); never-built also counts.
+  const pyKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK'];
+  const pyPrev = snapshots.python_service;
+  if (!pyPrev) {
+    result.push({
+      container: 'python_service',
+      label: 'Python container',
+      reason: 'not yet built',
+      buildCommand: 'build_python_container',
+      estimate: '15–30 min'
+    });
+  } else {
+    const changed = pyKeys.filter(k => pyPrev[k] !== undefined && String(pyPrev[k]) !== String(env[k] ?? 'false'));
+    if (changed.length) {
+      result.push({
+        container: 'python_service',
+        label: 'Python container',
+        reason: `options changed (${changed.join(', ')})`,
+        buildCommand: 'build_python_container',
+        estimate: '15–30 min'
+      });
+    }
+  }
+
+  // Privacy: only if master is on. Master flag itself does not affect build.
+  if (truthy(env.PRIVACY_FILTER)) {
+    const prev = snapshots.privacy_service;
+    if (!prev) {
+      result.push({
+        container: 'privacy_service',
+        label: 'Privacy Filter',
+        reason: 'not yet built',
+        buildCommand: 'build_privacy_container',
+        estimate: '3–5 min'
+      });
+    } else if (prev.PRIVACY_LANGS !== undefined && prev.PRIVACY_LANGS !== (env.PRIVACY_LANGS ?? '')) {
+      result.push({
+        container: 'privacy_service',
+        label: 'Privacy Filter',
+        reason: `language selection changed (${prev.PRIVACY_LANGS} → ${env.PRIVACY_LANGS || ''})`,
+        buildCommand: 'build_privacy_container',
+        estimate: '3–5 min'
+      });
+    }
+  }
+
+  // Extractor: only if master is on. Build depends on LANGS + OCR backend.
+  if (truthy(env.EXTRACTOR_SERVICE)) {
+    const prev = snapshots.extractor_service;
+    if (!prev) {
+      result.push({
+        container: 'extractor_service',
+        label: 'Knowledge Base Quality Pack',
+        reason: 'not yet built',
+        buildCommand: 'build_extractor_container',
+        estimate: '5–10 min'
+      });
+    } else {
+      const langDiff = prev.EXTRACTOR_LANGS !== undefined && prev.EXTRACTOR_LANGS !== (env.EXTRACTOR_LANGS ?? '');
+      const ocrDiff = prev.EXTRACTOR_OCR !== undefined && prev.EXTRACTOR_OCR !== (env.EXTRACTOR_OCR ?? prev.EXTRACTOR_OCR);
+      if (langDiff || ocrDiff) {
+        const reasons = [];
+        if (langDiff) reasons.push(`languages: ${prev.EXTRACTOR_LANGS} → ${env.EXTRACTOR_LANGS || ''}`);
+        if (ocrDiff) reasons.push(`OCR backend changed`);
+        result.push({
+          container: 'extractor_service',
+          label: 'Knowledge Base Quality Pack',
+          reason: reasons.join('; '),
+          buildCommand: 'build_extractor_container',
+          estimate: '5–10 min'
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+// Start-time gate: if any container needs rebuilding to reflect the saved
+// settings, prompt the user with three choices — rebuild then start, start
+// anyway with the existing images, or cancel. Returns a Promise<boolean>:
+// true means proceed with the Start sequence, false means abort it. When
+// the user opts to rebuild, we run each pending build sequentially through
+// the same dockerManager.runCommand path the Settings → Actions buttons
+// already use, so log/progress display works without extra plumbing.
+async function promptForPendingRebuilds() {
+  const pending = computePendingContainerBuilds();
+  if (pending.length === 0) return true;
+
+  const lines = pending.map(p => `• ${p.label} — ${p.reason} (${p.estimate})`).join('\n');
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    title: 'Container rebuild recommended',
+    message: 'Some containers need to be rebuilt to apply your saved settings.',
+    detail: `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
+    buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true
+  });
+
+  if (choice.response === 2) return false;
+  if (choice.response === 1) return true;
+
+  // Rebuild and Start: walk through pending builds in order. Each await
+  // resolves only when runCommand finishes, so the user sees them progress
+  // sequentially in the main window log.
+  for (const p of pending) {
+    await dockerManager.runCommand(
+      p.buildCommand,
+      formatMessage(null, 'messages.monadicChatPreparing'),
+      'Building',
+      'Stopped'
+    );
+  }
+  return true;
 }
 
 function getEnvPath() {

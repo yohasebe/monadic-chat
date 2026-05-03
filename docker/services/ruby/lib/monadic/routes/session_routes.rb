@@ -91,13 +91,14 @@ get "/monadic_state" do
   end
 end
 
-# Upload a Session JSON file to load past messages
+# Upload a Session JSON file to load past messages. Always returns JSON;
+# the legacy form-submission fallback was unreachable from the Web UI
+# and has been removed for the JsonRoute pattern (see
+# docs_dev/architecture_hardening_plan.md §3.2).
 post "/load" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
+  content_type :json
 
-    if params[:file]
+  if params[:file]
       begin
         file = params[:file][:tempfile]
         content = file.read
@@ -328,60 +329,4 @@ post "/load" do
     else
       error_json("No file selected")
     end
-  else
-    # For regular form submissions, maintain original behavior
-    if params[:file]
-      begin
-        file = params[:file][:tempfile]
-        content = file.read
-        json_data = JSON.parse(content)
-        session[:status] = "loaded"
-        session[:parameters] = json_data["parameters"]
-
-        # Check if the first message is a system message
-        if json_data["messages"].first && json_data["messages"].first["role"] == "system"
-          session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
-        end
-
-        # Restore monadic_state if present in import data (for Session State mechanism)
-        if json_data["monadic_state"]
-          session[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
-            result[app_key] = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
-              app_result[state_key] = {
-                data: state_entry["data"],
-                version: state_entry["version"].to_i,
-                updated_at: state_entry["updated_at"]
-              }
-            end
-          end
-        end
-
-        session[:messages] = json_data["messages"].uniq.map do |msg|
-          text = msg["text"]
-          message_obj = { "role" => msg["role"], "text" => text, "html" => text, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
-          message_obj["app_name"] = json_data["parameters"]["app_name"] if json_data["parameters"]["app_name"]
-          if json_data["parameters"].key?("monadic")
-            message_obj["monadic"] = json_data["parameters"]["monadic"]
-          end
-          message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
-          message_obj["thinking"] = msg["thinking"] if msg["thinking"]
-          message_obj["images"] = msg["images"] if msg["images"]
-          message_obj
-        end
-
-        if session[:websocket_session_id]
-          WebSocketHelper.update_session_state(
-            session[:websocket_session_id],
-            messages: session[:messages],
-            parameters: session[:parameters]
-          )
-        end
-      rescue JSON::ParserError
-        handle_error("Error: Invalid JSON file. Please upload a valid JSON file.")
-      end
-    else
-      handle_error("Error: No file selected. Please choose a JSON file to upload.")
-    end
-    redirect "/"
-  end
 end

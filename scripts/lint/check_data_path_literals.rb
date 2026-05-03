@@ -48,6 +48,7 @@ ALLOWED_EXTENSIONS = %w[.rb .js .mjs .erb .mdsl].freeze
 ACCEPTED_FILES = %w[
   scripts/lint/check_data_path_literals.rb
   docker/services/ruby/lib/monadic/utils/environment.rb
+  docker/services/ruby/lib/monadic/shell.rb
   docker/services/ruby/lib/monadic/app.rb
   docker/services/ruby/lib/monadic/extractor/endpoint.rb
   docker/services/ruby/lib/monadic/embeddings/endpoint.rb

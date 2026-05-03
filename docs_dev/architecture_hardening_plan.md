@@ -182,15 +182,17 @@ under both modes catches them all.
 |---|---|---|---|---|
 | H1 | This document. | none | `docs_dev/architecture_hardening_plan.md` | ✅ landed |
 | H2 | Anti-pattern lint (Axis 1). Four rules + CI hookup. Each rule fails the build when a new violation is introduced. Existing violations are baselined via per-file allowlists so the rules can land without rewriting history. | low | `rake lint:anti_patterns` (Rakefile), `scripts/lint/check_*.rb` (4 scripts), `.github/workflows/lint.yml` | ✅ landed |
-| H3 | Centralised helpers (Axis 2). Three helpers added, one POC migration each. Existing callers untouched. | medium | `Monadic::Shell`, `monadicFetch`, `Monadic::JsonRoute` + POC migrations | 4–6 |
-| H4 | Integration test infrastructure (Axis 3). Opt-in real-Docker smokes for the six flows above. | medium | `spec/integration/smoke/**`, dev-mode parity matrix | 8–12 |
-| H5 | Sweep migration. Every existing `docker exec`, `fetch()` to xhr-route, `request.xhr?` route migrated to its helper. One callsite per commit. | low (but high in volume) | n × small commits | 20–40 |
-| H6 | Tighten the lint. Promote each rule from warn to error once its baseline reaches zero. CI starts blocking PRs that re-introduce these patterns. | low | rule-by-rule promotion | 3–5 |
+| H3 | Centralised helpers (Axis 2). Three helpers added, one POC migration each. Existing callers untouched. | medium | `Monadic::Shell`, `monadicFetch`, `Monadic::JsonRoute` + POC migrations | ✅ landed |
+| H4 | Integration test infrastructure (Axis 3). Opt-in real-Docker smokes for the six flows above. | medium | `spec/integration/smoke/**`, dev-mode parity matrix | ✅ landed |
+| H5 | Sweep migration. Every existing `docker exec`, `fetch()` to xhr-route, `request.xhr?` route migrated to its helper. One callsite per commit. | low (but high in volume) | n × small commits | ✅ landed |
+| H6 | Tighten the lint. Empty all baselines, drop the per-script `ACCEPTED_VIOLATIONS` slack, and add a self-check meta-test that verifies each rule still fails on a deliberate fixture. CI now blocks PRs that re-introduce any of the four patterns. | low | empty baselines + `scripts/lint/spec/check_self_test.rb` + `rake lint:self_check` + CI step | ✅ landed |
 
-H1–H4 are pure additions: none of the existing user-visible behaviour
-changes. H5 is the only phase that rewrites runtime code, and even
-there the helpers have been validated by H3's POCs first. H6 is just a
-config switch; by the time we reach it the codebase already complies.
+All six phases are now landed. H1–H4 were pure additions; H5 rewrote
+runtime callsites against the helpers introduced in H3 and validated
+by H4's smokes; H6 then closed the loop by removing baseline tolerance
+and adding a meta-test so the rules cannot rot silently. The lint
+suite is now zero-violation on `dev` and is wired into both
+`rake lint:anti_patterns` and `.github/workflows/lint.yml`.
 
 ## 5. Open questions / non-goals
 

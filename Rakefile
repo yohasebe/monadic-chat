@@ -373,8 +373,16 @@ namespace :lint do
     end
   end
 
-  desc "Run every anti-pattern lint rule"
-  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals]
+  desc "Verify each anti-pattern lint still detects its target via temp fixture"
+  task :self_check do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('ruby scripts/lint/spec/check_self_test.rb') ||
+        abort('Lint self-check failed: at least one rule no longer detects its target. See scripts/lint/spec/check_self_test.rb')
+    end
+  end
+
+  desc "Run every anti-pattern lint rule plus the self-check meta-test"
+  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :self_check]
 end
 
 # Define the list of files that should have consistent version numbers

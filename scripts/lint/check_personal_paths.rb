@@ -61,12 +61,10 @@ ALLOWLIST_PATHS = %w[
 # Each entry is a [pathname, regex-or-substring] pair; a violation
 # matches the allowlist when both file path AND content match. This is
 # the seam for the deprecate-then-fix workflow — known historical
-# violations live here while migrations land.
-ACCEPTED_VIOLATIONS = [
-  # Comment example only; not runtime-affecting.
-  ['docker/services/ruby/lib/monadic/shared_tools/file_operations.rb',
-   '/Users/yohasebe/monadic/data/'],
-].freeze
+# violations live here while migrations land. Empty after H6: every
+# known occurrence has either been migrated or is owned by this script
+# itself.
+ACCEPTED_VIOLATIONS = [].freeze
 
 PERSONAL_PATH_PATTERNS = [
   %r{/Users/[A-Za-z0-9_.-]+/},

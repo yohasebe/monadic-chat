@@ -38,3 +38,6 @@ jobs:
 
       - name: /monadic/data literals outside Environment helper
         run: ruby scripts/lint/check_data_path_literals.rb
+
+      - name: Lint self-check (rules still detect their target patterns)
+        run: ruby scripts/lint/spec/check_self_test.rb

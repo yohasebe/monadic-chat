@@ -63,8 +63,6 @@ ACCEPTED_FILES = %w[
   docker/services/ruby/lib/monadic/adapters/selenium_helper.rb
   docker/services/ruby/lib/monadic/adapters/vendors/gemini_helper.rb
   docker/services/ruby/lib/monadic/routes/static_routes.rb
-  docker/services/ruby/lib/monadic/utils/pdf_text_extractor.rb
-  docker/services/ruby/lib/monadic/utils/setup.rb
   docker/services/ruby/scripts/cli_tools/tts_query.rb
   docker/services/ruby/scripts/generators/image_generator_grok.rb
   docker/services/ruby/scripts/generators/video_generator_gemini.rb

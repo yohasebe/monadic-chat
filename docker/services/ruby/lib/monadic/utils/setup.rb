@@ -6,17 +6,13 @@ module Paths
 
   retries = 0
 
-  if Monadic::Utils::Environment.in_container?
-    ENV_PATH = "/monadic/config/env"
-    SCRIPTS_PATH = "/monadic/data/scripts"
-    APPS_PATH = "/monadic/data/apps"
-    HELPERS_PATH = "/monadic/data/helpers"
-  else
-    ENV_PATH = File.join(Dir.home, "monadic", "config", "env")
-    SCRIPTS_PATH = File.join(Dir.home, "monadic", "data", "scripts")
-    APPS_PATH = File.join(Dir.home, "monadic", "data", "apps")
-    HELPERS_PATH = File.join(Dir.home, "monadic", "data", "helpers")
-  end
+  # Resolve the canonical paths once via Environment so the in_container
+  # vs dev-mode branch is owned by a single helper (data_path /
+  # scripts_path / apps_path / helpers_path / env_path).
+  ENV_PATH = Monadic::Utils::Environment.env_path
+  SCRIPTS_PATH = Monadic::Utils::Environment.scripts_path
+  APPS_PATH = Monadic::Utils::Environment.apps_path
+  HELPERS_PATH = Monadic::Utils::Environment.helpers_path
 
   unless File.exist?(File.dirname(ENV_PATH))
     FileUtils.mkdir_p(File.dirname(ENV_PATH))

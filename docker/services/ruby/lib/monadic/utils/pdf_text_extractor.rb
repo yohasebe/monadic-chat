@@ -32,15 +32,15 @@ class PDF2Text
     new_file_path = File.expand_path(File.join(data_path, new_file_name))
 
     FileUtils.cp(file_path, new_file_path)
-    shared_volume = "/monadic/data/"
-    container = "monadic-chat-python-container"
-    command = <<~CMD
-      bash -c 'pdf2txt.py "#{new_file_name}" --format md --json'
-    CMD
-    docker_command = <<~DOCKER
-      docker exec -w #{shared_volume} #{container} #{command.strip}
-    DOCKER
-    stdout, stderr, status = Open3.capture3(docker_command)
+
+    # Route through Monadic::Shell so the container name and the
+    # shared-volume workdir share the same source of truth as every
+    # other docker invocation. Shellwords.escape on new_file_name
+    # protects against any shell metacharacters in the timestamped
+    # filename (paranoia — Time.now.to_i is digits only).
+    require_relative '../shell'
+    body = "pdf2txt.py #{Monadic::Shell.escape(new_file_name)} --format md --json"
+    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
     if status.success?
       begin
         # Filter out any non-JSON content before the opening brace.

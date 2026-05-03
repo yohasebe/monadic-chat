@@ -503,12 +503,18 @@ function attachEventListeners(card) {
       const originalContent = cardTextEl.innerHTML;
       cardTextEl._originalContent = originalContent;
 
-      // Extract text content only (without images)
-      const textContent = cardTextEl.querySelector('p');
-
-      // Replace only the text part with the textarea
-      if (textContent) {
-        textContent.replaceWith(editArea);
+      // Replace the rendered Markdown blocks with the textarea. Strip every
+      // top-level text-rendering element so multi-paragraph / list / header
+      // / table responses do not leave leftover HTML below the textarea.
+      // Non-text elements (images, audio players, etc.) are preserved so
+      // edits keep their visual context.
+      const renderedSelector = ':scope > p, :scope > ul, :scope > ol, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > blockquote, :scope > pre, :scope > hr, :scope > table, :scope > div.markdown-block';
+      const renderedBlocks = cardTextEl.querySelectorAll(renderedSelector);
+      if (renderedBlocks.length > 0) {
+        renderedBlocks[0].replaceWith(editArea);
+        for (let i = 1; i < renderedBlocks.length; i++) {
+          renderedBlocks[i].remove();
+        }
       } else {
         cardTextEl.prepend(editArea);
       }

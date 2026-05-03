@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'shellwords'
+
 # VideoAnalyzeAgent provides provider-independent video analysis
 # by extracting frames and sending them to each provider's native Vision API.
 #
@@ -31,9 +33,17 @@ module VideoAnalyzeAgent
   def analyze_video(file:, fps: 1, query: nil, session: nil)
     return "Error: file is required." if file.to_s.empty?
 
+    # Defense in depth against shell injection: the `file` value comes
+    # from an LLM tool call (model-controlled) and the `fps` value comes
+    # from the same tool schema. We escape the filename and cast fps to
+    # an integer so neither can break out of the bash -c quoting.
+    safe_file = Shellwords.escape(file.to_s)
+    safe_fps = fps.to_i
+    safe_fps = 1 if safe_fps <= 0
+
     # Step 1: Extract frames using Python container (provider-independent)
     split_command = <<~CMD
-      bash -c 'extract_frames.py "#{file}" ./ --fps #{fps} --format png --json --audio'
+      bash -c "extract_frames.py #{safe_file} ./ --fps #{safe_fps} --format png --json --audio"
     CMD
 
     split_res = send_command(command: split_command, container: "python")

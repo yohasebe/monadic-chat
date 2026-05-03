@@ -1036,6 +1036,16 @@
 
   function openSaveModal() {
     if (typeof document === 'undefined') return;
+    // Defense in depth: the Save button is disabled when no messages exist,
+    // but this function is also exposed via window.libraryPanel — refuse
+    // programmatic opens against an empty session too.
+    if (!hasSessionMessages()) {
+      flashAlert(
+        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libNoMessages', 'There are no messages to save yet.')),
+        'warning'
+      );
+      return;
+    }
     var modalEl = document.getElementById('librarySaveModal');
     if (!modalEl) return;
 
@@ -1439,11 +1449,44 @@
 
   // ─── DOM bootstrap ───────────────────────────────────────────────────
 
+  // True when there is at least one user/assistant message in the current
+  // session. The Library Save flow gates on this so empty sessions cannot
+  // produce empty Knowledge Base entries.
+  function hasSessionMessages() {
+    return Array.isArray(window.messages)
+      && window.messages.some(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); });
+  }
+
+  // Sync the Save button's enabled state with hasSessionMessages(). Driven
+  // both by initial page load and by SessionState events so the button
+  // unlocks the moment the first message arrives without polling.
+  function updateSaveButtonAvailability() {
+    if (typeof document === 'undefined') return;
+    var btn = document.getElementById('library-save');
+    if (!btn) return;
+    var saveable = hasSessionMessages();
+    btn.disabled = !saveable;
+    if (!saveable) {
+      btn.setAttribute('title', t('ui.libNoMessages', 'There are no messages to save yet.'));
+    } else {
+      btn.removeAttribute('title');
+    }
+  }
+
   function init() {
     if (typeof document === 'undefined') return;
 
     var saveBtn = document.getElementById('library-save');
     if (saveBtn) saveBtn.onclick = openSaveModal;
+    updateSaveButtonAvailability();
+
+    // Re-evaluate availability whenever the conversation set changes.
+    // SessionState fires these events from addMessage/clearMessages/etc.;
+    // we cover the same set the rest of the app subscribes to.
+    if (window.SessionState && typeof window.SessionState.on === 'function') {
+      ['message:added', 'messages:cleared', 'message:deleted', 'session:reset', 'session:new']
+        .forEach(function (ev) { window.SessionState.on(ev, updateSaveButtonAvailability); });
+    }
 
     var browseBtn = document.getElementById('library-browse');
     if (browseBtn) browseBtn.onclick = openBrowseModal;

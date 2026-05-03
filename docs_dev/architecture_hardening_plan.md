@@ -84,16 +84,17 @@ first commit.
 
 Rules to land in this phase, with concrete grep / AST patterns:
 
-| Rule ID | Detects | Baseline today (estimated) |
+| Rule ID | Detects | Baseline (post-audit) |
 |---|---|---|
-| `lint/personal_path` | string literals matching `/Users/[a-z][a-z0-9_-]*/` inside `lib/` (excluding tests, examples, and explicit fixture paths). | 1 (file_operations.rb comment, fixed elsewhere; jupyter_helper.rb fixed). Expected baseline = 1. |
-| `lint/shell_escape` | `docker exec ... #{...}` or `system(... #{...} ...)` where the interpolated identifier has no nearby `Shellwords.escape` (heuristic: 5-line window in source). | ~3 callsites (run_code path, pdf_text_extractor, possibly more). |
-| `lint/xhr_pair_check` | every `request.xhr?` in `lib/monadic/routes/**` must have a corresponding `X-Requested-With` in every `fetch()` call to that path in `public/js/**`. Bidirectional. | 0 (post-audit). Lock it in. |
-| `lint/data_path_literal` | `"/monadic/data"` outside the Environment helper, the SHARED_VOL constant definition, and the public docs. | a handful (latex_helper default arg, etc.). Treat as deprecate-then-fix. |
-| `lint/multiblock_edit` (frontend, jest) | when a card-text fixture renders to >1 top-level block, the edit handler must remove all blocks. New jest fixture covers the case fixed by `cards.js` audit fix. | 0 (post-audit). |
+| `lint/personal_paths` | string literals matching `/Users/<name>/`, `/home/<name>/`, or `C:\Users\<name>\` inside `app/`, `docker/services/**`. Tests excluded. | 0. Locked in. |
+| `lint/shell_escape` | shell-string indicators (`docker exec`, `bash -c`, `system("...")`) with `#{...}` interpolation where the interpolated identifier is not in the safe list (`SHARED_VOL`, `escaped_*`, `safe_*`, server-generated names). | 0. Found `video_analyze_agent.rb` filename injection during audit; fixed and locked in. |
+| `lint/xhr_pair` | every `request.xhr?` in `lib/monadic/routes/**` must be paired with `X-Requested-With` in every `fetch()` call to that path in `public/js/**`. Bidirectional. | 0. 6 callers verified. |
+| `lint/data_path_literals` | `"/monadic/data"` outside the Environment helper or its constant definition. | 17 in baseline (allowlisted; mostly dual-mode fallback in scripts and Sinatra HTTP route). New violations fail the build; existing ones are tracked for migration to `Environment.data_path`. |
+| `lint/multiblock_edit` (frontend) | jest fixture for `cards.js` inline edit of multi-block markdown. | Tracked separately under H4; not part of the rake task. |
 
-The `personal_path` rule is the lowest-cost / highest-signal one. It is
-already a complete grep; we just have to make it run.
+Each rule script accepts `--baseline N` so it can be relaxed on a
+per-rule basis if a refactor needs to land first. The CI workflow runs
+the strict (no `--baseline`) form so any new violation fails the PR.
 
 ### 3.2. Axis 2: centralised safe operations (remove the temptation)
 
@@ -177,10 +178,10 @@ under both modes catches them all.
 
 ## 4. Phased roadmap
 
-| Phase | Scope | Risk | Deliverable | Approx commits |
+| Phase | Scope | Risk | Deliverable | Status |
 |---|---|---|---|---|
-| H1 | This document. | none | `docs_dev/architecture_hardening_plan.md` | 1 |
-| H2 | Anti-pattern lint (Axis 1). Five rules, warn-only initially, baseline counted, CI hooked up. | low | `rake lint:anti_patterns`, GitHub Actions step | 5–6 |
+| H1 | This document. | none | `docs_dev/architecture_hardening_plan.md` | ✅ landed |
+| H2 | Anti-pattern lint (Axis 1). Four rules + CI hookup. Each rule fails the build when a new violation is introduced. Existing violations are baselined via per-file allowlists so the rules can land without rewriting history. | low | `rake lint:anti_patterns` (Rakefile), `scripts/lint/check_*.rb` (4 scripts), `.github/workflows/lint.yml` | ✅ landed |
 | H3 | Centralised helpers (Axis 2). Three helpers added, one POC migration each. Existing callers untouched. | medium | `Monadic::Shell`, `monadicFetch`, `Monadic::JsonRoute` + POC migrations | 4–6 |
 | H4 | Integration test infrastructure (Axis 3). Opt-in real-Docker smokes for the six flows above. | medium | `spec/integration/smoke/**`, dev-mode parity matrix | 8–12 |
 | H5 | Sweep migration. Every existing `docker exec`, `fetch()` to xhr-route, `request.xhr?` route migrated to its helper. One callsite per commit. | low (but high in volume) | n × small commits | 20–40 |

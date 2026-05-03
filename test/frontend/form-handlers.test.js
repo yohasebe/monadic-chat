@@ -433,12 +433,16 @@ describe('Form Handlers', () => {
       }
       global.FormData = MockFormData;
 
-      // Mock fetch and capture the signal option
+      // Mock fetch and capture the signal option. Shape mirrors what
+      // monadicFetch reads from the response.
       global.fetch = jest.fn().mockImplementation((url, options) => {
-        // Verify that an AbortController signal was passed
         expect(options.signal).toBeDefined();
         return Promise.resolve({
           ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: (n) => n.toLowerCase() === 'content-type' ? 'application/json' : null },
+          text: () => Promise.resolve(JSON.stringify({ success: true, filename: 'test.wav' })),
           json: () => Promise.resolve({ success: true, filename: 'test.wav' })
         });
       });

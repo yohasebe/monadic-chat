@@ -37,13 +37,11 @@ async function uploadPdf(file, fileTitle) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 120000);
   try {
-    const res = await fetch('/pdf', { method: "POST", body: formData, signal: controller.signal });
+    return await window.monadicFetch.postJson('/pdf', formData, {
+      signal: controller.signal
+    });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
 }
 
@@ -139,21 +137,14 @@ async function importSession(file) {
 async function postLoadWithPassphraseRetry(formData, file, lastError) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
-  let res;
+  let data;
   try {
-    res = await fetch("/load", {
-      method: "POST",
-      body: formData,
-      signal: controller.signal,
-      headers: { "X-Requested-With": "XMLHttpRequest" }
+    data = await window.monadicFetch.postJson("/load", formData, {
+      signal: controller.signal
     });
+  } finally {
     clearTimeout(timer);
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
-  if (!res.ok) throw new Error(`Import failed: ${res.status}`);
-  const data = await res.json();
   if (data && data.needs_passphrase) {
     // Hide the Load File modal + spinner so the passphrase prompt is the
     // sole foreground UI (avoids stacked modals + spinning indicator).
@@ -381,13 +372,11 @@ async function uploadAudioFile(file) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    const res = await fetch("/upload_audio", { method: "POST", body: formData, signal: controller.signal });
+    return await window.monadicFetch.postJson("/upload_audio", formData, {
+      signal: controller.signal
+    });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Audio upload failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
 }
 

@@ -336,6 +336,45 @@ namespace :lint do
       system('npm run lint:model-consistency') || abort('Model consistency check failed')
     end
   end
+
+  # Anti-pattern lint rules (see docs_dev/architecture_hardening_plan.md).
+  # Each rule fails the build when its baseline is exceeded; the suite is
+  # intentionally split so a partial green/red is still actionable.
+
+  desc "Check that no personal home-directory paths leak into source"
+  task :personal_paths do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('ruby scripts/lint/check_personal_paths.rb') ||
+        abort('Personal path lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+    end
+  end
+
+  desc "Check that shell-form interpolations escape user-controlled values"
+  task :shell_escape do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('ruby scripts/lint/check_shell_escape.rb') ||
+        abort('Shell escape lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+    end
+  end
+
+  desc "Check that fetch() calls to xhr-dependent routes set X-Requested-With"
+  task :xhr_pair do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('ruby scripts/lint/check_xhr_pair.rb') ||
+        abort('XHR pair lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+    end
+  end
+
+  desc 'Check that "/monadic/data" string literals stay inside the Environment helper'
+  task :data_path_literals do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('ruby scripts/lint/check_data_path_literals.rb') ||
+        abort('Data path literal lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+    end
+  end
+
+  desc "Run every anti-pattern lint rule"
+  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals]
 end
 
 # Define the list of files that should have consistent version numbers

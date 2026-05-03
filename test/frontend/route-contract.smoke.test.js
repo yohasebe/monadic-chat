@@ -22,6 +22,9 @@
  * the bug class extinct.
  */
 
+// monadic-fetch must load first so window.monadicFetch is available
+// when form-handlers calls it.
+require('../../docker/services/ruby/public/js/monadic/monadic-fetch.js');
 const formHandlers = require('../../docker/services/ruby/public/js/monadic/form-handlers.js');
 
 describe('route-contract smoke (frontend fetch callers)', () => {
@@ -30,13 +33,25 @@ describe('route-contract smoke (frontend fetch callers)', () => {
   beforeEach(() => {
     if (typeof global.fetch !== 'function') global.fetch = jest.fn();
     fetchSpy = jest.spyOn(global, 'fetch');
-    fetchSpy.mockResolvedValue({
-      ok: true,
-      status: 200,
-      statusText: 'OK',
-      json: () => Promise.resolve({ success: true, content: 'stub' })
-    });
+    fetchSpy.mockResolvedValue(makeJsonResponse({ success: true, content: 'stub' }));
   });
+
+  // Minimal Response shim that matches the surface monadicFetch reads
+  // (headers.get + text(); ok and status come from the spec object).
+  function makeJsonResponse(body, { status = 200, statusText = 'OK' } = {}) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText,
+      headers: {
+        get(name) {
+          return name.toLowerCase() === 'content-type' ? 'application/json' : null;
+        }
+      },
+      text: () => Promise.resolve(JSON.stringify(body)),
+      json: () => Promise.resolve(body)
+    };
+  }
 
   afterEach(() => {
     fetchSpy.mockRestore();
@@ -102,19 +117,20 @@ describe('route-contract smoke (frontend fetch callers)', () => {
 
   describe('regression: JSON-parse failure surfaces a structured error', () => {
     it('does not silently swallow a non-JSON body when /document misbehaves', async () => {
-      // The exact pre-fix failure: server returns markdown with a
-      // leading "\n---\n" instead of JSON, await res.json() throws
-      // "No number after minus sign". The wrapper turns this into a
-      // structured error so the UI can show a useful message.
+      // The exact pre-fix failure: server claims JSON but body is
+      // plain markdown. monadicFetch turns this into a structured
+      // error rather than letting JSON.parse blow up downstream.
       fetchSpy.mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        json: () => Promise.reject(new SyntaxError('No number after minus sign in JSON at position 2'))
+        ok: true, status: 200, statusText: 'OK',
+        headers: { get: (n) => n.toLowerCase() === 'content-type' ? 'application/json' : null },
+        text: () => Promise.resolve("\n---\nplain markdown"),
+        json: () => Promise.reject(new SyntaxError('No number after minus sign'))
       });
 
       const file = new File(['%PDF-1.4'], 'sample.pdf', { type: 'application/pdf' });
-      await expect(formHandlers.convertDocument(file, '')).rejects.toThrow(/JSON|number/i);
+      await expect(formHandlers.convertDocument(file, '')).rejects.toMatchObject({
+        status: 200
+      });
     });
   });
 });

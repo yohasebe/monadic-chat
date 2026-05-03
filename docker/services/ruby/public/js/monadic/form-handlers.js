@@ -57,13 +57,12 @@ async function convertDocument(doc, docLabel) {
   if (!doc) {
     throw new Error("Please select a document file to convert");
   }
-  
+
   // Check if the file is a valid document type
   if (doc.type === "application/octet-stream") {
     throw new Error("Unsupported file type");
   }
-  
-  // Prepare form data
+
   const formData = new FormData();
   formData.append("docFile", doc);
   formData.append("docLabel", docLabel || "");
@@ -71,22 +70,11 @@ async function convertDocument(doc, docLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    // Sinatra's request.xhr? gate on the server depends on the
-    // X-Requested-With header, which fetch() does not send by default.
-    // Without it the route falls through to its non-JSON form-submit
-    // branch and returns raw markdown, breaking await res.json().
-    const res = await fetch("/document", {
-      method: "POST",
-      body: formData,
-      signal: controller.signal,
-      headers: { "X-Requested-With": "XMLHttpRequest" }
+    return await window.monadicFetch.postJson("/document", formData, {
+      signal: controller.signal
     });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Document conversion failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
 }
 
@@ -100,13 +88,11 @@ async function fetchWebpage(url, urlLabel) {
   if (!url) {
     throw new Error("Please specify the URL of the page to fetch");
   }
-  
-  // Validate URL format
+
   if (!url.match(/^(http|https):\/\/[^ "]+$/)) {
     throw new Error("Please enter a valid URL");
   }
-  
-  // Prepare form data
+
   const formData = new FormData();
   formData.append("pageURL", url);
   formData.append("urlLabel", urlLabel || "");
@@ -114,21 +100,11 @@ async function fetchWebpage(url, urlLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
-    // See convertDocument: fetch() omits X-Requested-With, so we set it
-    // explicitly to keep Sinatra's request.xhr? branch (which returns JSON)
-    // active.
-    const res = await fetch("/fetch_webpage", {
-      method: "POST",
-      body: formData,
-      signal: controller.signal,
-      headers: { "X-Requested-With": "XMLHttpRequest" }
+    return await window.monadicFetch.postJson("/fetch_webpage", formData, {
+      signal: controller.signal
     });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Webpage fetch failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
 }
 

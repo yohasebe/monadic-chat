@@ -2,6 +2,10 @@
  * @jest-environment jsdom
  */
 
+// monadic-fetch is a dependency of form-handlers since H5-1 migration;
+// load it before form-handlers so window.monadicFetch is wired up.
+require('../../docker/services/ruby/public/js/monadic/monadic-fetch.js');
+
 // Mock DOM APIs
 // Create a proper FormData mock with better tracking
 const mockAppend = jest.fn();
@@ -58,10 +62,21 @@ document.getElementById = jest.fn();
 // Import the module under test
 const formHandlers = require('../../docker/services/ruby/public/js/monadic/form-handlers');
 
-// Helper: create a mock fetch that returns a JSON success response
+// Helper: create a mock fetch that returns a JSON success response.
+// Shape matches what monadicFetch reads: ok / status / headers.get /
+// text(). The text() body must be a JSON string so monadicFetch's
+// internal JSON.parse succeeds.
 function createFetchMock(responseData = { success: true }) {
   return jest.fn().mockImplementation(() => Promise.resolve({
     ok: true,
+    status: 200,
+    statusText: 'OK',
+    headers: {
+      get(name) {
+        return name.toLowerCase() === 'content-type' ? 'application/json' : null;
+      }
+    },
+    text: () => Promise.resolve(JSON.stringify(responseData)),
     json: () => Promise.resolve(responseData)
   }));
 }

@@ -71,7 +71,16 @@ async function convertDocument(doc, docLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    const res = await fetch("/document", { method: "POST", body: formData, signal: controller.signal });
+    // Sinatra's request.xhr? gate on the server depends on the
+    // X-Requested-With header, which fetch() does not send by default.
+    // Without it the route falls through to its non-JSON form-submit
+    // branch and returns raw markdown, breaking await res.json().
+    const res = await fetch("/document", {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    });
     clearTimeout(timer);
     if (!res.ok) throw new Error(`Document conversion failed: ${res.status}`);
     return await res.json();
@@ -105,7 +114,15 @@ async function fetchWebpage(url, urlLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
-    const res = await fetch("/fetch_webpage", { method: "POST", body: formData, signal: controller.signal });
+    // See convertDocument: fetch() omits X-Requested-With, so we set it
+    // explicitly to keep Sinatra's request.xhr? branch (which returns JSON)
+    // active.
+    const res = await fetch("/fetch_webpage", {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    });
     clearTimeout(timer);
     if (!res.ok) throw new Error(`Webpage fetch failed: ${res.status}`);
     return await res.json();

@@ -311,7 +311,12 @@ window.shims.formHandlers = {
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 60000);
-      fetch("/document", { method: "POST", body: formData, signal: controller.signal })
+      fetch("/document", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
         .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Conversion failed: ${res.status}`)); })
         .then(resolve)
         .catch(e => { clearTimeout(timer); reject(e); });
@@ -337,7 +342,12 @@ window.shims.formHandlers = {
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30000);
-      fetch("/fetch_webpage", { method: "POST", body: formData, signal: controller.signal })
+      fetch("/fetch_webpage", {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
         .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Fetch failed: ${res.status}`)); })
         .then(resolve)
         .catch(e => { clearTimeout(timer); reject(e); });

@@ -122,13 +122,41 @@ module Monadic
       end
     end
 
+    # Mirror capture_command's command-log entry format so operators
+    # can still grep /monadic/log/command.log when debugging Shell-routed
+    # invocations. Failures during logging are intentionally swallowed —
+    # logging is a diagnostic aid, never a correctness gate.
+    def log_invocation(argv, stdout, stderr)
+      log_path = command_log_file
+      return unless log_path
+      File.open(log_path, 'a') do |f|
+        f.puts "Time: #{Time.now}"
+        f.puts "Command: #{argv.join(' ')}"
+        f.puts "Error: #{stderr}" if stderr.to_s.strip.length.positive?
+        f.puts "Output: #{stdout}"
+        f.puts '-----------------------------------'
+      end
+    rescue StandardError
+      # best-effort
+    end
+
+    def command_log_file
+      return @command_log_file if defined?(@command_log_file)
+      @command_log_file = if defined?(Monadic::Utils::Environment) &&
+                            Monadic::Utils::Environment.respond_to?(:command_log_file)
+                            Monadic::Utils::Environment.command_log_file
+                          end
+    end
+
     # @!visibility private
     def capture(argv, timeout: nil)
-      if timeout
-        Open3.capture3(*argv, timeout: timeout)
-      else
-        Open3.capture3(*argv)
-      end
+      stdout, stderr, status = if timeout
+                                  Open3.capture3(*argv, timeout: timeout)
+                                else
+                                  Open3.capture3(*argv)
+                                end
+      log_invocation(argv, stdout, stderr)
+      [stdout, stderr, status]
     end
   end
 end

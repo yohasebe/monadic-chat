@@ -685,29 +685,25 @@ class MonadicApp
 
   def self.doc2markdown(filename)
     basename = File.basename(filename)
-    # get the file extension
     extension = File.extname(basename).downcase
-    container = "monadic-chat-python-container"
-    
-    # Safely escape the filename to prevent command injection
-    escaped_basename = Shellwords.escape(basename)
-    
-    case extension
-    when ".pdf"
-      docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c "pdf2txt.py #{escaped_basename} --format md"
-      DOCKER
-    when ".docx", ".xlsx", ".pptx"
-      docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c "office2txt.py #{escaped_basename}"
-      DOCKER
-    else
-      docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c "content_fetcher.py #{escaped_basename}"
-      DOCKER
-    end
+    require_relative 'shell'
 
-    stdout, stderr, status = self.capture_command(docker_command)
+    # Safely escape the filename to prevent command injection. The
+    # escape lives at the boundary so the bash body inside the
+    # container reads the filename as a single argv element regardless
+    # of spaces / quotes / shell metacharacters.
+    escaped_basename = Monadic::Shell.escape(basename)
+
+    body = case extension
+           when ".pdf"
+             "pdf2txt.py #{escaped_basename} --format md"
+           when ".docx", ".xlsx", ".pptx"
+             "office2txt.py #{escaped_basename}"
+           else
+             "content_fetcher.py #{escaped_basename}"
+           end
+
+    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
 
     # Wait briefly for filesystem synchronization
     sleep COMMAND_DELAY
@@ -760,7 +756,6 @@ class MonadicApp
 
   def self.fetch_webpage(url)
     max_retrials = 5
-    container = "monadic-chat-python-container"
 
     # Defense in depth: reject URLs that do not look like plain http(s)
     # before they reach the shell. The Web UI applies the same regex
@@ -771,16 +766,9 @@ class MonadicApp
       return "Invalid URL: webpage URL must be a plain http(s) address."
     end
 
-    # Pass the URL via Shellwords.escape so quoting is robust regardless
-    # of bash-c quoting rules. The escape produces a single-token argv
-    # value whether the URL contains '?', '&', or any other shell-active
-    # character.
-    safe_url = Shellwords.escape(url)
-    docker_command = <<~DOCKER
-      docker exec -w #{SHARED_VOL} #{container} bash -c "webpage_fetcher.py --url #{safe_url} --mode md --keep-unknown --output stdout"
-    DOCKER
-
-    stdout, stderr, status = self.capture_command(docker_command)
+    require_relative 'shell'
+    body = "webpage_fetcher.py --url #{Monadic::Shell.escape(url)} --mode md --keep-unknown --output stdout"
+    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
 
     # Wait briefly for filesystem synchronization
     sleep 1

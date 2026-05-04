@@ -22,6 +22,7 @@ global.createCard = function(role, badge, msg) {
 global.detachEventListeners = jest.fn();
 global.getTranslation = function(key, fallback) { return fallback; };
 global.ws = { send: jest.fn() };
+global.window.safeWsSend = jest.fn(() => ({ sent: true, state: 'OPEN' }));
 global.mids = new Set();
 global.messages = [];
 global.window.SessionState = { removeMessage: jest.fn() };
@@ -124,7 +125,7 @@ describe('alert-manager', () => {
       deleteMessage('msg-123');
 
       expect(document.getElementById('msg-123')).toBeNull();
-      expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('msg-123'));
+      expect(window.safeWsSend).toHaveBeenCalledWith({ message: 'DELETE', mid: 'msg-123' });
       expect(mids.has('msg-123')).toBe(false);
     });
   });

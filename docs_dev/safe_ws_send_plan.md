@@ -210,7 +210,7 @@ revertable in isolation.
 | H7.6 | Migrate `ws-*` handlers (PING × 2, PRIVACY_REGISTRY, PRIVACY_EXPORT, HTML — 5 sites across 4 files) | low | 4 files | pending |
 | H7.7 | Migrate `monadic.js` (12 sites; includes the only **non-idempotent** sends — CHAT/AI_USER_QUERY/SYSTEM_PROMPT/SAMPLE/initiate-from-assistant) | medium | 1 file | pending |
 | H7.8 | Migrate `recording.js` (AUDIO), `tts.js` (TTS), `websocket.js` (CHECK_TOKEN, internal LOAD) | low | 3 files | pending |
-| H7.9 | Add lint rule `check_bare_ws_send.rb` to catch new bare `ws.send` outside the helper file. Self-check entry. | low | 2 files | pending |
+| H7.9 | Add lint rule `check_bare_ws_send.rb` (5th anti-pattern rule, 0-baseline) + self-check fixture + Rakefile wiring | low | 4 files | pending |
 
 After H7.9 the lint suite has 5 enforcement rules + self-check, baselines all 0.
 

@@ -179,6 +179,28 @@ ensure
 end
 
 # ---------------------------------------------------------------------------
+# 5. check_bare_ws_send.rb — must flag a bare ws.send() callsite that
+#    lives outside the monadic-ws.js helper.
+# ---------------------------------------------------------------------------
+section 'check_bare_ws_send.rb'
+ws_fixture = FIXTURES[:js]
+ws_body = <<~JS
+  // Lint fixture: deliberately calls bare ws.send instead of safeWsSend.
+  function _selfCheckWs() {
+    ws.send(JSON.stringify({ message: 'PING' }));
+    window.ws.send(JSON.stringify({ message: 'LOAD' }));
+  }
+JS
+with_temp_file(ws_fixture, ws_body) do
+  stdout, _stderr, status = run_lint('check_bare_ws_send.rb')
+  assert(
+    'detects bare ws.send() outside the monadic-ws.js helper',
+    !status.success? && stdout.include?(ws_fixture.relative_path_from(ROOT).to_s),
+    "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+end
+
+# ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------
 puts ''

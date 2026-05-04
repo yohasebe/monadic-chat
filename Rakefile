@@ -373,6 +373,14 @@ namespace :lint do
     end
   end
 
+  desc 'Check that bare ws.send(...) callsites stay inside the monadic-ws.js helper'
+  task :bare_ws_send do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('ruby scripts/lint/check_bare_ws_send.rb') ||
+        abort('Bare ws.send lint failed (see docs_dev/safe_ws_send_plan.md §3)')
+    end
+  end
+
   desc "Verify each anti-pattern lint still detects its target via temp fixture"
   task :self_check do
     Dir.chdir(File.expand_path(__dir__)) do
@@ -382,7 +390,7 @@ namespace :lint do
   end
 
   desc "Run every anti-pattern lint rule plus the self-check meta-test"
-  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :self_check]
+  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :self_check]
 end
 
 # Define the list of files that should have consistent version numbers

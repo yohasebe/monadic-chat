@@ -185,8 +185,11 @@
             break;
 
           case WebSocket.OPEN:
-            // Connection is already open, verify it's still active
-            ws.send(JSON.stringify({ message: "PING" }));
+            // Connection is already open, verify it's still active.
+            // silentDrop because this PING is fired implicitly on tab
+            // visibility — not a user-clicked action, so a reconnect
+            // toast would be more confusing than reassuring.
+            window.safeWsSend({ message: "PING" }, { silentDrop: true });
             const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
             break;

@@ -61,9 +61,12 @@ function handleMessage(data) {
         WorkflowViewer.setStage('done');
       }
     }
-    if (window.ws && typeof window.ws.send === 'function') {
-      window.ws.send(JSON.stringify({ "message": "HTML" }));
-    }
+    // Background HTML refresh after a tool flow completes — the user
+    // did not click anything, so silentDrop avoids surfacing a
+    // "Connection lost" alert when the WS happens to be reconnecting.
+    // Replaces the prior manual `window.ws &&` null guard (the audit's
+    // last hand-rolled guard inside ws-* handlers).
+    window.safeWsSend({ message: "HTML" }, { silentDrop: true });
   } else if (data["content"] === "CLEAR") {
     const chatEl = $id("chat");
     if (chatEl) chatEl.innerHTML = "";

@@ -74,7 +74,11 @@
     if (window.bootstrap && window.bootstrap.Modal) {
       window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
-    window.ws.send(JSON.stringify({ message: 'PRIVACY_REGISTRY' }));
+    // PRIVACY_REGISTRY is a pure read (idempotent, in default set);
+    // user just clicked to open the registry modal so default failure
+    // behavior — show "Reconnecting..." toast and queue, or alert on
+    // hard failure — matches their intent to see the data.
+    window.safeWsSend({ message: 'PRIVACY_REGISTRY' });
   }
 
   function escapeHtml(s) {
@@ -241,7 +245,6 @@
   }
 
   function sendExport() {
-    if (typeof window.ws === 'undefined' || !window.ws) return;
     const encrypt = isEncryptChecked();
     const content = currentContent();
     const payload = {
@@ -253,7 +256,13 @@
       payload.passphrase = (document.getElementById('privacy-export-passphrase') || {}).value || '';
     }
     setExportStatus('Preparing export...', 'text-muted');
-    window.ws.send(JSON.stringify(payload));
+    // PRIVACY_EXPORT is non-idempotent (server re-runs encryption +
+    // streams a base64 blob; replay would re-do that work and emit a
+    // second response the UI wouldn't expect). Default safeWsSend
+    // behavior (fail-fast alert when WS is not OPEN) is the honest
+    // outcome — strictly better than the prior silent `return` that
+    // left "Preparing export..." stuck in the dialog.
+    window.safeWsSend(payload);
   }
 
   function handleExportData(data) {

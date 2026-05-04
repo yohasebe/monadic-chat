@@ -42,6 +42,9 @@ beforeEach(() => {
   window.currentToolName = '';
   window.callingFunction = false;
   window.ws = { send: jest.fn() };
+  // ws-tool-handler now routes its background HTML refresh through
+  // the H7 wrapper instead of bare window.ws.send.
+  window.safeWsSend = jest.fn(() => ({ sent: true, state: 'OPEN' }));
 });
 
 afterEach(() => {
@@ -97,9 +100,9 @@ describe('ws-tool-handler', () => {
         expect(spinner.style.display).not.toBe('none');
       });
 
-      it('sends HTML message via WebSocket', () => {
+      it('sends HTML message via safeWsSend with silentDrop', () => {
         handlers.handleMessage({ content: 'DONE', finish_reason: 'tool_calls' });
-        expect(window.ws.send).toHaveBeenCalledWith(JSON.stringify({ message: 'HTML' }));
+        expect(window.safeWsSend).toHaveBeenCalledWith({ message: 'HTML' }, { silentDrop: true });
       });
     });
 
@@ -115,9 +118,9 @@ describe('ws-tool-handler', () => {
         expect(global.WorkflowViewer.setStage).toHaveBeenCalledWith('done');
       });
 
-      it('sends HTML message via WebSocket', () => {
+      it('sends HTML message via safeWsSend with silentDrop', () => {
         handlers.handleMessage({ content: 'DONE', finish_reason: 'stop' });
-        expect(window.ws.send).toHaveBeenCalledWith(JSON.stringify({ message: 'HTML' }));
+        expect(window.safeWsSend).toHaveBeenCalledWith({ message: 'HTML' }, { silentDrop: true });
       });
     });
 
@@ -143,7 +146,7 @@ describe('ws-tool-handler', () => {
 
     it('does nothing for unknown content', () => {
       handlers.handleMessage({ content: 'UNKNOWN' });
-      expect(window.ws.send).not.toHaveBeenCalled();
+      expect(window.safeWsSend).not.toHaveBeenCalled();
     });
   });
 

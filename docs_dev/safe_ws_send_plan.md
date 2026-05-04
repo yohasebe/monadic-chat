@@ -137,10 +137,17 @@ message type is audited.
 | `LIBRARY_RENAME` | yes | Writes new title for `conversation_id`. Same value twice → same end state. |
 | `LIBRARY_SET_SCOPE` | yes | Writes `scope_app` for `conversation_id`. Same value twice → same end state. |
 | `EDIT` | yes | `handle_edit_message` overwrites `messages[idx]['text']` with `obj['content']`. Replay produces same end state. |
+| `UPDATE_PARAMS` | yes | Server overwrites `session[:parameters]` with the supplied params hash. Same payload twice → same end state. |
+| `UPDATE_LANGUAGE` | yes | Server overwrites the conversation language slot. Idempotent for same language. |
+| `PDF_TITLES` | yes | Pure read of the per-app PDF document list. |
+| `DELETE_PDF` | yes | Removes a named PDF document; second call is a no-op. |
+| `DELETE_ALL_PDFS` | yes | Wipes the per-app store; second call is a no-op. |
 | `LIBRARY_SUGGEST_TITLE` | **NO** | Triggers an LLM call via `TitleSuggester.suggest`; replay would burn another LLM call (cache is per-fingerprint, not per-replay). |
 | `PRIVACY_EXPORT` | **NO** | Server re-runs encryption (with a fresh IV when encrypted) and streams a base64 download; replay would emit a second blob the UI would not be prepared to consume. |
-| `CHAT` (user message) | **NO** | Sending the same chat twice creates two messages. |
-| `AI_USER` | **NO** | Same as CHAT. |
+| `SYSTEM_PROMPT` | **NO** | Server appends a new system message with a fresh `mid` to `session[:messages]`. Replay would push a duplicate. |
+| `SAMPLE` | **NO** | Server appends a new turn with a fresh `mid` to `session[:messages]`. Replay would push a duplicate. |
+| `AI_USER_QUERY` | **NO** | Triggers an LLM call to synthesize a user-side reply. Replay would burn a second call. |
+| `CHAT` (user message — falls through to `handle_ws_streaming` with no `message` field set) | **NO** | Sending the same chat twice creates two messages and two LLM calls. |
 | `PLAY_TTS` | **NO** | Triggers audio synthesis; replay would synthesize twice. |
 
 Anything not in the table defaults to non-idempotent (safer to fail
@@ -199,7 +206,7 @@ revertable in isolation.
 | H7.4 | Migrate `alert-manager.js` (DELETE × 3) | low | 1 file | pending |
 | H7.5 | Migrate `library-panel.js` `send()` helper (covers all LIBRARY_* messages) | low | 1 file | pending |
 | H7.6 | Migrate `ws-*` handlers (PING × 2, PRIVACY_REGISTRY, PRIVACY_EXPORT, HTML — 5 sites across 4 files) | low | 4 files | pending |
-| H7.7 | Migrate `monadic.js` (12 sites; includes the only **non-idempotent** sends — CHAT/AI_USER) | medium | 1 file | pending |
+| H7.7 | Migrate `monadic.js` (12 sites; includes the only **non-idempotent** sends — CHAT/AI_USER_QUERY/SYSTEM_PROMPT/SAMPLE/initiate-from-assistant) | medium | 1 file | pending |
 | H7.8 | Migrate `recording.js`, `tts.js`, `websocket.js` itself (CHECK_TOKEN, internal LOAD) | low | 3 files | pending |
 | H7.9 | Add lint rule `check_bare_ws_send.rb` to catch new bare `ws.send` outside the helper file. Self-check entry. | low | 2 files | pending |
 

@@ -225,9 +225,19 @@ describe('safeWsSend', () => {
     expect(MonadicWs.isIdempotent('LIBRARY_RENAME')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_GET_CONVERSATION')).toBe(true);
     expect(MonadicWs.isIdempotent('EDIT')).toBe(true);
+    expect(MonadicWs.isIdempotent('UPDATE_PARAMS')).toBe(true);
+    expect(MonadicWs.isIdempotent('UPDATE_LANGUAGE')).toBe(true);
+    expect(MonadicWs.isIdempotent('PDF_TITLES')).toBe(true);
+    expect(MonadicWs.isIdempotent('DELETE_PDF')).toBe(true);
+    expect(MonadicWs.isIdempotent('DELETE_ALL_PDFS')).toBe(true);
     expect(MonadicWs.isIdempotent('CHAT')).toBe(false);
     expect(MonadicWs.isIdempotent('PLAY_TTS')).toBe(false);
     expect(MonadicWs.isIdempotent('LIBRARY_SUGGEST_TITLE')).toBe(false);
+    // SYSTEM_PROMPT and SAMPLE both append fresh-mid messages to
+    // session[:messages] server-side, so replay would push duplicates.
+    expect(MonadicWs.isIdempotent('SYSTEM_PROMPT')).toBe(false);
+    expect(MonadicWs.isIdempotent('SAMPLE')).toBe(false);
+    expect(MonadicWs.isIdempotent('AI_USER_QUERY')).toBe(false);
     // LIBRARY_RAG_STATE was a stale entry — the actual server message
     // is LIBRARY_RAG_QUERY. Lock the rename so it cannot regress.
     expect(MonadicWs.isIdempotent('LIBRARY_RAG_STATE')).toBe(false);

@@ -118,11 +118,13 @@ function broadcastParamsUpdate(reason = null) {
     payload.reason = reason;
   }
 
-  try {
-    window.ws.send(JSON.stringify(payload));
-  } catch (error) {
-    console.warn('[Params Sync] Failed to broadcast params update:', error);
-  }
+  // Background param-sync broadcast — auto-fired by various UI
+  // listeners (model change, toggle flips, etc.). UPDATE_PARAMS is
+  // idempotent (server overwrites session[:parameters]), so it is in
+  // the wrapper's default set; silentDrop because the user did not
+  // explicitly trigger this and a "Connection lost" alert would be
+  // disorienting on a passive sync.
+  window.safeWsSend(payload, { silentDrop: true });
 }
 
 window.broadcastParamsUpdate = broadcastParamsUpdate;
@@ -131,7 +133,6 @@ window.broadcastParamsUpdate = broadcastParamsUpdate;
 // currently-selected app name so the server can resolve the namespace
 // even when the session has not been hydrated yet (UPDATE_PARAMS race).
 function sendPdfWsMessage(payload) {
-  if (typeof window.ws === 'undefined' || !window.ws) return;
   let appName = '';
   try {
     const apps = document.getElementById('apps');
@@ -139,11 +140,11 @@ function sendPdfWsMessage(payload) {
   } catch (_) { /* no-op */ }
   const merged = Object.assign({}, payload || {});
   if (appName && !merged.app_name) merged.app_name = appName;
-  try {
-    window.ws.send(JSON.stringify(merged));
-  } catch (e) {
-    console.warn('[PDF WS] send failed:', e);
-  }
+  // PDF_TITLES / DELETE_PDF / DELETE_ALL_PDFS are all idempotent
+  // (added to the wrapper's default set in H7.7) so safeWsSend
+  // auto-classifies them. We delegate alert/queue policy to the
+  // wrapper instead of swallowing the error here.
+  window.safeWsSend(merged);
 }
 window.sendPdfWsMessage = sendPdfWsMessage;
 
@@ -1047,8 +1048,12 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         };
 
-        // Send the request via WebSocket
-        ws.send(JSON.stringify(ai_user_query));
+        // Send the request via WebSocket. AI_USER_QUERY triggers an
+        // LLM call to synthesize a user-side reply, so it is
+        // explicitly non-idempotent — the wrapper will fail-fast with
+        // an alert if the WS is not OPEN, which is the right outcome
+        // for a button click that visibly disables the trigger.
+        window.safeWsSend(ai_user_query);
 
         // Ensure the button stays visible
         $show(this);
@@ -1964,7 +1969,7 @@ document.addEventListener("DOMContentLoaded", function () {
       { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
       // Send server-side RESET to clear session
-      ws.send(JSON.stringify({ "message": "RESET" }));
+      window.safeWsSend({ message: "RESET" });
     }
 
     proceedWithAppChange(selectedAppValue);
@@ -2026,7 +2031,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
     // Send server-side RESET to clear session
-    ws.send(JSON.stringify({ "message": "RESET" }));
+    window.safeWsSend({ message: "RESET" });
 
     // Reset to settings panel
     enterSettingsMode();
@@ -2903,8 +2908,14 @@ document.addEventListener("DOMContentLoaded", function () {
       setInputFocus();
       ensureControlsEnabled();
     } else {
-      // create secure random 4-digit number
-      ws.send(JSON.stringify({
+      // SYSTEM_PROMPT is non-idempotent — the server appends a new
+      // system message with a fresh `mid` to session[:messages] each
+      // time, so a queued replay would produce a duplicate prompt
+      // turn. Default safeWsSend behavior (fail-fast alert when WS
+      // is not OPEN) is correct here: this fires on Start Session,
+      // a deliberate user click that should fail loudly if the
+      // connection is gone.
+      window.safeWsSend({
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
         math: ($id("math") || {}).checked,
@@ -2912,7 +2923,7 @@ document.addEventListener("DOMContentLoaded", function () {
         websearch: params["websearch"],
         jupyter: params["jupyter"],
         conversation_language: params["conversation_language"] || "auto",
-      }));
+      });
 
       // Initialize audio before showing the UI
       audioInit();
@@ -2928,11 +2939,16 @@ document.addEventListener("DOMContentLoaded", function () {
         $show($id("monadic-spinner")); // Show spinner for initial assistant message
         setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.generatingResponse') : 'Generating response from assistant...'}`, "info");
         $id('cancel_query').style.setProperty('display', 'flex', 'important');
-        reconnect_websocket(ws, function (ws) {
+        reconnect_websocket(ws, function (_ws) {
           // Ensure critical parameters are correctly set based on checkboxes
           params["auto_speech"] = ($id("check-auto-speech") || {}).checked;
           params["initiate_from_assistant"] = true;
-              ws.send(JSON.stringify(params));
+          // params has no `message` field, so the server falls
+          // through to `handle_ws_streaming` and triggers a fresh
+          // LLM call. Non-idempotent — fail-fast is the right
+          // posture even though reconnect_websocket has already
+          // re-established the socket above.
+          window.safeWsSend(params);
         });
       } else {
         $show($id("user-panel"));
@@ -2974,7 +2990,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("select-role"); if (el) el.disabled = false; }
 
     // Send cancel message to server
-    ws.send(JSON.stringify({ message: "CANCEL" }));
+    window.safeWsSend({ message: "CANCEL" });
     
     // Reset UI completely
     { const el = $id("chat"); if (el) el.innerHTML = ""; }
@@ -3051,17 +3067,20 @@ document.addEventListener("DOMContentLoaded", function () {
       // Store timeout ID in window object so it can be cleared in the websocket listener
       window.currentSampleTimeout = sampleTimeoutId;
       
-      reconnect_websocket(ws, function (ws) {
+      reconnect_websocket(ws, function (_ws) {
         const role = ($id("select-role") || {}).value.split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
-        ws.send(JSON.stringify(msg_object));
+        // SAMPLE appends a fresh-mid turn to session[:messages] so a
+        // queued replay would create a duplicate sample message.
+        // Non-idempotent → default fail-fast.
+        window.safeWsSend(msg_object);
         
         // Clear input field and reset role selector immediately
         { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
         { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
       });
     } else {
-      reconnect_websocket(ws, function (ws) {
+      reconnect_websocket(ws, function (_ws) {
         // Create a copy of the current images array to preserve the state
         let currentImages = [...images];
 
@@ -3072,7 +3091,15 @@ document.addEventListener("DOMContentLoaded", function () {
           params.images = [];
         }
 
-        ws.send(JSON.stringify(params));
+        // The user-chat send. params carries no explicit `message`
+        // field, so the server case-statement falls through to
+        // `handle_ws_streaming` — this is THE non-idempotent send of
+        // the application: replay would push a duplicate user turn
+        // AND trigger a duplicate LLM call. Default fail-fast (no
+        // queue, alert) is the only safe behavior; the user will see
+        // their input still sitting in the message box and can retry
+        // once the connection comes back.
+        window.safeWsSend(params);
         // Lock the Privacy Filter toggle once the first message of the
         // session has been sent. The locked state is also enforced by the
         // backend (Pipeline is cached in session[:_privacy_pipeline]).
@@ -4010,16 +4037,15 @@ document.addEventListener("DOMContentLoaded", function () {
       window.checkAndUpdateImageButtonVisibility();
     }
 
-    // If WebSocket is open, send UPDATE_LANGUAGE message to server
-    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-      const message = {
-        message: "UPDATE_LANGUAGE",
-        new_language: params["conversation_language"]
-      };
-      window.ws.send(JSON.stringify(message));
-    } else {
-      console.warn("Cannot send UPDATE_LANGUAGE - WebSocket not open");
-    }
+    // UPDATE_LANGUAGE is idempotent (added to the wrapper's default
+    // set in H7.7) — auto-queue on a transient WS outage and replay
+    // on reconnect produces the same end state. silentDrop because
+    // this fires on a passive language-dropdown change, not a
+    // deliberate "send" click.
+    window.safeWsSend({
+      message: "UPDATE_LANGUAGE",
+      new_language: params["conversation_language"]
+    }, { silentDrop: true });
 
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('conversation_language_change');

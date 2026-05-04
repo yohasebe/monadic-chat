@@ -220,7 +220,9 @@ describe('safeWsSend', () => {
   test('isIdempotent surface for callers', () => {
     expect(MonadicWs.isIdempotent('RESET')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_SAVE')).toBe(true);
+    expect(MonadicWs.isIdempotent('EDIT')).toBe(true);
     expect(MonadicWs.isIdempotent('CHAT')).toBe(false);
+    expect(MonadicWs.isIdempotent('PLAY_TTS')).toBe(false);
     expect(MonadicWs.isIdempotent('UNKNOWN_FUTURE_MSG')).toBe(false);
   });
 });

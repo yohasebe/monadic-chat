@@ -132,9 +132,10 @@ message type is audited.
 | `LIBRARY_DELETE` | yes | Idempotent same as DELETE. |
 | `LIBRARY_STATS` | yes | Pure read. |
 | `LIBRARY_RAG_*` | yes | Toggle + read of session-scoped flag. |
+| `EDIT` | yes | `handle_edit_message` overwrites `messages[idx]['text']` with `obj['content']`. Replay produces same end state. |
 | `CHAT` (user message) | **NO** | Sending the same chat twice creates two messages. |
 | `AI_USER` | **NO** | Same as CHAT. |
-| `TTS` | **NO** | Triggers audio synthesis; replay would synthesize twice. |
+| `PLAY_TTS` | **NO** | Triggers audio synthesis; replay would synthesize twice. |
 
 Anything not in the table defaults to non-idempotent (safer to fail
 fast than to risk a silent double-send).
@@ -188,7 +189,7 @@ revertable in isolation.
 |---|---|---|---|---|
 | H7.1 | Add `monadic-ws.js` + unit tests + register in bundle order | low | 3 files | pending |
 | H7.2 | Migrate the 3 `utilities.js` sites (the user-reported bug) | low (covered by H7.1 unit tests + manual reset/save smoke) | 1 file | pending |
-| H7.3 | Migrate `cards.js` (DELETE × 8, TTS × 2) — UI-driven, idempotent set | low | 1 file | pending |
+| H7.3 | Migrate `cards.js` (DELETE × 8, STOP_TTS, PLAY_TTS, EDIT, REFRESH — 12 sites) | low | 1 file | pending |
 | H7.4 | Migrate `alert-manager.js` (DELETE × 3) | low | 1 file | pending |
 | H7.5 | Migrate `library-panel.js` (Save/List/Stats/RAG) | low | 1 file | pending |
 | H7.6 | Migrate `ws-*` handlers (PING × 2, PRIVACY × 2, HTML × 1) | low (the 1 existing guarded site reduces to a one-liner) | 5 files | pending |

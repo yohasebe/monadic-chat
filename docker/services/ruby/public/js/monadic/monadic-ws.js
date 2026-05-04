@@ -44,6 +44,7 @@
     'CHECK_TOKEN',
     'CANCEL',
     'DELETE',
+    'EDIT',
     'STOP_TTS',
     'PRIVACY_REGISTRY',
     'LIBRARY_SAVE',

@@ -267,6 +267,13 @@ window.loadedApp = "Chat";
       window.UIState.set('wsConnected', true);
       window.UIState.set('wsReconnecting', false);
     }
+    // Drain any messages that safeWsSend queued while we were
+    // disconnected. Done first so an idempotent RESET/LOAD/DELETE
+    // queued by the user lands before the standard CHECK_TOKEN flow.
+    // See docs_dev/safe_ws_send_plan.md §3.5.
+    if (window.MonadicWs && typeof window.MonadicWs.drainQueue === 'function') {
+      try { window.MonadicWs.drainQueue(); } catch (e) { console.warn('[WebSocket] drainQueue failed:', e); }
+    }
     const verifyingText = typeof webUIi18n !== 'undefined' ?
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");

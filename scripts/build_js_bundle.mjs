@@ -50,6 +50,7 @@ const FILES = [
   "js/monadic/utilities.js",
   "js/monadic/badge-renderer.js",
   "js/monadic/monadic-fetch.js",
+  "js/monadic/monadic-ws.js",
   "js/monadic/shims.js",
   "js/monadic/ui-config.js",
   "js/monadic/ui-state.js",

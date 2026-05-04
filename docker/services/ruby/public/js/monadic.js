@@ -50,10 +50,9 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
-  // Privacy Filter session-level toggle. Default OFF; only honored by the
-  // backend when the app's MDSL declares `privacy do; enabled true; end`.
-  const privacySessionEl = $id("check-privacy-session");
-  clone.privacy_session_enabled = (privacySessionEl && privacySessionEl.checked) || false;
+  // Privacy Filter session toggle is now negotiated via PRIVACY_TOGGLE
+  // (Phase 4 SSOT). Including it in broadcasts would let stale param
+  // values override the health-checked backend state.
   const mathEl = $id("math");
   clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
@@ -2270,7 +2269,14 @@ document.addEventListener("DOMContentLoaded", function () {
           privacyLabel.setAttribute("title", tooltip);
         }
       }
-      params["privacy_session_enabled"] = initialChecked;
+      // Privacy state lives on the backend (SSOT). If the remembered
+      // preference says "on", emit a PRIVACY_TOGGLE so the backend can
+      // health-check the container and confirm. The reply (privacy_toggle_ack)
+      // is what actually flips the visual checkbox into a confirmed state;
+      // ws-privacy-handler reverts it on container failure.
+      if (initialChecked && typeof window.safeWsSend === 'function') {
+        window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: true });
+      }
     }
 
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
@@ -2518,7 +2524,16 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("check-privacy-session"), "change", function() {
     // Once locked (first message sent), the disabled attribute prevents
     // further changes. This handler only fires while the toggle is editable.
-    params["privacy_session_enabled"] = !!this.checked;
+    const newState = !!this.checked;
+
+    // Backend is the source of truth for the toggle. PRIVACY_TOGGLE
+    // round-trips through a container health probe; the privacy_toggle_ack
+    // reply is what actually confirms the new state. ws-privacy-handler
+    // reverts the visual checkbox on backend rejection.
+    if (typeof window.safeWsSend === 'function') {
+      window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: newState });
+    }
+
     // Persist the choice per app so re-selecting the same app restores it.
     // Uninstalling the privacy container or app changes that drop support
     // are handled at restore time (initialChecked = usable && remembered).

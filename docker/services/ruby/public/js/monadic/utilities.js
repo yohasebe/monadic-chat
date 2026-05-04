@@ -1032,6 +1032,11 @@ function setParams() {
   const mathEl = $id("math");
   params["math"] = mathEl ? mathEl.checked : false;
 
+  // Privacy Filter session toggle is no longer carried in params.
+  // The backend tracks it via PRIVACY_TOGGLE round-trip (Phase 4 SSOT)
+  // — see ws-privacy-handler.js. Putting it in params would shadow the
+  // health-checked authoritative state on the next submit.
+
   const websearchEl = $id("websearch");
   const modelEl = $id("model");
   params["model"] = modelEl ? modelEl.value : null;

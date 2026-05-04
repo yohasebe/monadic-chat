@@ -246,6 +246,10 @@ post "/load" do
           # Drop any previously-instantiated pipeline so the next vendor call
           # rebuilds it from session state (re-reads the imported registry).
           session.delete(:_privacy_pipeline)
+          # Importing a registry implies the user wanted privacy on for this
+          # conversation; mirror that in the backend SSOT toggle so vendor
+          # helpers honor it without requiring the user to re-toggle.
+          session[:_privacy_session_enabled] = true
           # Push fresh privacy_state to the client so the indicator updates.
           ws_for_state = params[:tab_id] || session[:websocket_session_id]
           if ws_for_state

@@ -188,9 +188,13 @@ module BaseVendorHelper
   def privacy_enabled_for?(app_settings, session = nil)
     return false unless app_settings && app_settings.dig(:privacy, :enabled) == true
     return false unless session.is_a?(Hash)
-    params = session[:parameters] || session["parameters"]
-    return false unless params.is_a?(Hash)
-    params["privacy_session_enabled"] == true
+
+    # Backend-authoritative session state (Phase 4 SSOT). The frontend
+    # negotiates the toggle exclusively via PRIVACY_TOGGLE — params no
+    # longer carry the privacy bit. The handler stores the result here
+    # only after a container health check, so a missing key means
+    # "user has not opted in this session" and we must not mask.
+    session[:_privacy_session_enabled] == true
   end
 
   def privacy_pipeline_for(session, app_settings)

@@ -90,6 +90,39 @@
       .replace(/'/g, '&#39;');
   }
 
+  // Dedicated reply for PRIVACY_TOGGLE round-trips. Carries the
+  // backend-confirmed enabled state plus an error code on rejection
+  // (e.g., privacy_container_unreachable). A separate event from
+  // privacy_state means we never confuse a toggle reply with an
+  // unrelated indicator update from app-change / reset / import.
+  function handleToggleAck(data) {
+    const toggleEl = document.getElementById('check-privacy-session');
+    const desired = !!(data && data.enabled);
+
+    if (data && data.error) {
+      // Backend rejected — sync visual state to "off" and surface the
+      // reason so the user understands why their toggle bounced back.
+      if (toggleEl) toggleEl.checked = false;
+
+      const msg = data.error === 'privacy_container_unreachable'
+        ? 'Privacy container is not running. Open Settings → Install Options to start it.'
+        : ('Privacy Filter error: ' + String(data.error).substring(0, 200));
+      if (typeof window.setAlert === 'function') {
+        window.setAlert(
+          "<i class='fas fa-triangle-exclamation'></i> " + msg,
+          'error'
+        );
+      } else {
+        console.warn('[Privacy]', msg);
+      }
+      return;
+    }
+
+    if (toggleEl && toggleEl.checked !== desired) {
+      toggleEl.checked = desired;
+    }
+  }
+
   function handleRegistry(data) {
     const tbody = document.querySelector('#privacy-registry-table tbody');
     const wrapper = document.getElementById('privacy-registry-table-wrapper');
@@ -335,6 +368,7 @@
 
   window.WsPrivacyHandler = {
     handleState: handleState,
+    handleToggleAck: handleToggleAck,
     handleRegistry: handleRegistry,
     openRegistryModal: openRegistryModal,
     isActive: isActive,

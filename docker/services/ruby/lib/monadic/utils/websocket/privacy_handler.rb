@@ -24,6 +24,54 @@ module WebSocketHelper
   PRIVACY_EXPORT_MODES = %w[encrypted masked_only restored].freeze
   PRIVACY_EXPORT_CONTENT = %w[restored masked].freeze
 
+  # PRIVACY_TOGGLE: backend-authoritative toggle handler.
+  #
+  # The frontend treats the backend's privacy_toggle_ack reply as the
+  # source of truth for the toggle's checkbox state. On enable, we probe
+  # the privacy container's health (~2s) and only flip session state to
+  # true on success. On failure, we surface the reason in the ack and
+  # the frontend reverts the visual checkbox.
+  #
+  # The ack is a separate message type from privacy_state (which handles
+  # registry-count indicator updates triggered by app-change / reset /
+  # import) so the two concerns do not race: an unrelated privacy_state
+  # event firing during an in-flight toggle would otherwise be mistaken
+  # for the toggle response.
+  private def handle_ws_privacy_toggle(connection, session, obj)
+    requested_enabled = obj["enabled"] == true || obj["enabled"] == "true"
+
+    if requested_enabled
+      require_relative '../privacy/presidio_backend'
+      backend = Monadic::Utils::Privacy::PresidioBackend.new
+      if backend.health
+        session[:_privacy_session_enabled] = true
+        send_to_client(connection, {
+          "type" => "privacy_toggle_ack",
+          "enabled" => true,
+          "error" => nil
+        })
+      else
+        # Health probe failed. Keep state OFF so subsequent vendor calls
+        # cannot mistake the toggle as active.
+        session[:_privacy_session_enabled] = false
+        session.delete(:_privacy_pipeline)
+        send_to_client(connection, {
+          "type" => "privacy_toggle_ack",
+          "enabled" => false,
+          "error" => "privacy_container_unreachable"
+        })
+      end
+    else
+      session[:_privacy_session_enabled] = false
+      session.delete(:_privacy_pipeline)
+      send_to_client(connection, {
+        "type" => "privacy_toggle_ack",
+        "enabled" => false,
+        "error" => nil
+      })
+    end
+  end
+
   # Respond to "PRIVACY_REGISTRY" requests with the current placeholder map.
   # The payload is intentionally compact (one row per placeholder) and never
   # cached or persisted client-side.

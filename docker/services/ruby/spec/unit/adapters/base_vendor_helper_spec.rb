@@ -268,17 +268,17 @@ RSpec.describe BaseVendorHelper do
     let(:disabled_settings) { { privacy: { enabled: false } } }
 
     it 'returns false when app_settings is nil' do
-      session = { parameters: { 'privacy_session_enabled' => true } }
+      session = { _privacy_session_enabled: true }
       expect(helper.privacy_enabled_for?(nil, session)).to be false
     end
 
     it 'returns false when MDSL privacy is disabled, even if session opts in' do
-      session = { parameters: { 'privacy_session_enabled' => true } }
+      session = { _privacy_session_enabled: true }
       expect(helper.privacy_enabled_for?(disabled_settings, session)).to be false
     end
 
     it 'returns false when MDSL enables but session does not opt in' do
-      session = { parameters: { 'privacy_session_enabled' => false } }
+      session = { _privacy_session_enabled: false }
       expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
     end
 
@@ -286,20 +286,21 @@ RSpec.describe BaseVendorHelper do
       expect(helper.privacy_enabled_for?(enabled_settings, nil)).to be false
     end
 
-    it 'returns false when session has no parameters key' do
+    it 'returns false when session SSOT key is absent (user never opted in)' do
       expect(helper.privacy_enabled_for?(enabled_settings, {})).to be false
     end
 
     it 'returns true only when both MDSL and session opt in' do
-      session = { parameters: { 'privacy_session_enabled' => true } }
+      session = { _privacy_session_enabled: true }
       expect(helper.privacy_enabled_for?(enabled_settings, session)).to be true
     end
 
-    it 'accepts session[:parameters] (symbol) and session["parameters"] (string) keys' do
-      sym_session = { parameters: { 'privacy_session_enabled' => true } }
-      str_session = { 'parameters' => { 'privacy_session_enabled' => true } }
-      expect(helper.privacy_enabled_for?(enabled_settings, sym_session)).to be true
-      expect(helper.privacy_enabled_for?(enabled_settings, str_session)).to be true
+    it 'ignores any leftover privacy_session_enabled in params (Phase 4: params no longer authoritative)' do
+      # Pre-Phase-4 sessions or stale clients could still write the legacy
+      # field. The new contract is "PRIVACY_TOGGLE is the only path",
+      # so a params-only declaration must NOT activate masking.
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
     end
   end
 
@@ -363,6 +364,57 @@ RSpec.describe BaseVendorHelper do
       messages = [{ "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] }]
       result = helper.apply_privacy_to_messages(messages, {}, nil)
       expect(result).to eq(messages)
+    end
+  end
+
+  # End-to-end gating regression: a real-world dogfood leak (2026-05-04)
+  # showed that the frontend was not propagating privacy_session_enabled
+  # through setParams() at submit time, so backend received the field as
+  # absent (= false) even when the user had toggled the UI on. This block
+  # locks in the contract that privacy_pipeline_for honors both gates and
+  # masking only kicks in when both are true.
+  describe '#privacy_pipeline_for end-to-end gating' do
+    subject(:helper) do
+      Class.new { include BaseVendorHelper }.new
+    end
+
+    let(:enabled_settings) { { privacy: { enabled: true, languages: ["en"], score_threshold: 0.4, honorific_trim: true } } }
+
+    before do
+      require_relative '../../../lib/monadic/utils/privacy/presidio_backend'
+      require_relative '../../../lib/monadic/utils/privacy/pipeline'
+      # Stub the network-bound backend so the test does not require the
+      # privacy container to be running.
+      fake_backend = instance_double(Monadic::Utils::Privacy::PresidioBackend)
+      allow(Monadic::Utils::Privacy::PresidioBackend).to receive(:new).and_return(fake_backend)
+      allow(fake_backend).to receive(:anonymize) do |args|
+        masked = args[:text].gsub(/Alice/, '<<PERSON_1>>')
+        { masked_text: masked, registry: { '<<PERSON_1>>' => 'Alice' }, entities: [], stats: {} }
+      end
+    end
+
+    it 'creates a real Pipeline that masks input text when both gates pass' do
+      session = { _privacy_session_enabled: true }
+      messages = [{ "role" => "user", "content" => "Email Alice today" }]
+
+      result = helper.apply_privacy_to_messages(messages, session, enabled_settings)
+      expect(result[0]["content"]).to eq("Email <<PERSON_1>> today")
+    end
+
+    it 'returns no pipeline when session SSOT key is missing' do
+      # Simulates the pre-fix dogfood scenario: backend never received a
+      # PRIVACY_TOGGLE so the SSOT key is absent.
+      session = { parameters: { 'message' => 'Hi Alice' } }
+      messages = [{ "role" => "user", "content" => "Email Alice today" }]
+
+      expect(helper.privacy_pipeline_for(session, enabled_settings)).to be_nil
+      result = helper.apply_privacy_to_messages(messages, session, enabled_settings)
+      expect(result[0]["content"]).to eq("Email Alice today")
+    end
+
+    it 'returns no pipeline when MDSL declares privacy but session opts out' do
+      session = { _privacy_session_enabled: false }
+      expect(helper.privacy_pipeline_for(session, enabled_settings)).to be_nil
     end
   end
 end

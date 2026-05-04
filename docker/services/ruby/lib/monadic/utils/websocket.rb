@@ -248,6 +248,8 @@ module WebSocketHelper
           handle_ws_privacy_registry(connection, session)
         when "PRIVACY_EXPORT"
           handle_ws_privacy_export(connection, session, obj)
+        when "PRIVACY_TOGGLE"
+          handle_ws_privacy_toggle(connection, session, obj)
         else # fragment
           thread = handle_ws_streaming(connection, obj, session, queue)
         end

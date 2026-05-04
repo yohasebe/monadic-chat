@@ -125,6 +125,10 @@ module WebSocketHelper
         session[:monadic_state].delete("privacy")
       end
       session.delete(:_privacy_pipeline)
+      # Clear backend-authoritative session toggle so the next app's
+      # toggle does not start in an inherited "on" state. The frontend
+      # will re-negotiate via PRIVACY_TOGGLE when the user opts in.
+      session.delete(:_privacy_session_enabled)
       # Push a privacy_state event so the frontend indicator reflects the
       # cleared registry immediately, instead of staying at the previous
       # app's count until the user sends the first message.
@@ -338,6 +342,8 @@ module WebSocketHelper
     # session-level toggle. Without this, the locked-once-set Pipeline
     # would survive Reset and ignore the user's new toggle choice.
     session.delete(:_privacy_pipeline)
+    # Reset state-of-truth toggle as well; user re-negotiates via UI.
+    session.delete(:_privacy_session_enabled)
     # Clear provider-specific media references to prevent cross-session leakage
     session.keys
       .select { |k| k.is_a?(Symbol) && (k.to_s.match?(/last_image|last_video/) || k == :tool_html_fragments) }

@@ -149,6 +149,8 @@ message type is audited.
 | `AI_USER_QUERY` | **NO** | Triggers an LLM call to synthesize a user-side reply. Replay would burn a second call. |
 | `CHAT` (user message — falls through to `handle_ws_streaming` with no `message` field set) | **NO** | Sending the same chat twice creates two messages and two LLM calls. |
 | `PLAY_TTS` | **NO** | Triggers audio synthesis; replay would synthesize twice. |
+| `TTS` | **NO** | Triggers cloud TTS synthesis (provider-billed); replay would emit a second audio stream the playback layer is not prepared to handle. |
+| `AUDIO` | **NO** | Triggers STT transcription (provider-billed); replay would re-transcribe and double-insert into the input box. |
 
 Anything not in the table defaults to non-idempotent (safer to fail
 fast than to risk a silent double-send).
@@ -207,7 +209,7 @@ revertable in isolation.
 | H7.5 | Migrate `library-panel.js` `send()` helper (covers all LIBRARY_* messages) | low | 1 file | pending |
 | H7.6 | Migrate `ws-*` handlers (PING × 2, PRIVACY_REGISTRY, PRIVACY_EXPORT, HTML — 5 sites across 4 files) | low | 4 files | pending |
 | H7.7 | Migrate `monadic.js` (12 sites; includes the only **non-idempotent** sends — CHAT/AI_USER_QUERY/SYSTEM_PROMPT/SAMPLE/initiate-from-assistant) | medium | 1 file | pending |
-| H7.8 | Migrate `recording.js`, `tts.js`, `websocket.js` itself (CHECK_TOKEN, internal LOAD) | low | 3 files | pending |
+| H7.8 | Migrate `recording.js` (AUDIO), `tts.js` (TTS), `websocket.js` (CHECK_TOKEN, internal LOAD) | low | 3 files | pending |
 | H7.9 | Add lint rule `check_bare_ws_send.rb` to catch new bare `ws.send` outside the helper file. Self-check entry. | low | 2 files | pending |
 
 After H7.9 the lint suite has 5 enforcement rules + self-check, baselines all 0.

@@ -283,12 +283,18 @@ window.loadedApp = "Chat";
     }
     // Get UI language from cookie or default to 'en'
     const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-    ws.send(JSON.stringify({
+    // CHECK_TOKEN fires immediately after onopen — ws is OPEN by
+    // construction, so the wrapper's OPEN branch is the only path
+    // taken in practice. silentDrop because this is internal
+    // infrastructure (the verify cycle below handles the failure
+    // surface for the user) and a redundant alert here would race
+    // with the "Verifying token" warning toast we just set above.
+    window.safeWsSend({
       message: "CHECK_TOKEN",
       initial: true,
       contents: ($id("token") || {}).value || '',
       ui_language: uiLanguage
-    }));
+    }, { silentDrop: true });
 
     // Library (Knowledge Base) panel: fetch initial inventory + counts
     // once the connection is up. The panel is mounted globally and
@@ -474,7 +480,10 @@ window.loadedApp = "Chat";
         if (!window.initialLoadComplete) {  // Only send LOAD on initial connection
           // Get UI language from cookie or default to 'en'
           const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-          ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
+          // LOAD is idempotent (in the wrapper's default set) and
+          // fires from the verify-poll interval, not a user click.
+          // silentDrop avoids alerting on internal infrastructure.
+          window.safeWsSend({ message: "LOAD", ui_language: uiLanguage }, { silentDrop: true });
           window.initialLoadComplete = true; // Set the flag after the initial load
         }
         startPing();

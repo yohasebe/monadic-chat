@@ -1268,15 +1268,16 @@ function resetEvent(_event, resetToDefaultApp = false) {
         // they actually want to discard the session.
         if (!window.libraryPanel || typeof window.libraryPanel.buildSavePayload !== 'function') return;
         const payload = window.libraryPanel.buildSavePayload({});
-        try {
-          ws.send(JSON.stringify({ message: 'LIBRARY_SAVE', contents: payload }));
-        } catch (err) {
-          alert('Could not send save request: ' + (err && err.message ? err.message : err));
+        const result = window.safeWsSend({ message: 'LIBRARY_SAVE', contents: payload });
+        if (!result.sent && !result.queued) {
+          // safeWsSend has already alerted the user. Leave the reset
+          // dialog open so they can retry without re-navigating.
           return;
         }
-        // Close the reset dialog so the success toast from the save
-        // is visible and the user is not left staring at a dialog
-        // that no longer matches their intent.
+        // Close the reset dialog. A "queued" result means the message
+        // will be delivered when the WebSocket reconnects (LIBRARY_SAVE
+        // is idempotent — sticky conversation_id + delete-then-ingest),
+        // so closing the modal matches user expectations either way.
         const m = $id("resetConfirmation");
         if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
           const inst = bootstrap.Modal.getInstance(m);
@@ -1296,10 +1297,14 @@ function doResetActions(resetToDefaultApp = false) {
   const drMessage = $id("message");
   if (drMessage) { drMessage.style.height = "96px"; drMessage.value = ""; }
 
-  ws.send(JSON.stringify({ "message": "RESET" }));
+  // RESET and LOAD are both idempotent and queued FIFO when the
+  // WebSocket is not OPEN; the LOAD reply is what populates the new
+  // session, so the submission order matters and is preserved by
+  // safeWsSend's drain (see docs_dev/safe_ws_send_plan.md §3.4).
+  window.safeWsSend({ "message": "RESET" });
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-  ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
+  window.safeWsSend({ "message": "LOAD", "ui_language": uiLanguage });
 
   // Reset Context Panel for monadic apps
   if (typeof ContextPanel !== "undefined" && ContextPanel.resetContext) {

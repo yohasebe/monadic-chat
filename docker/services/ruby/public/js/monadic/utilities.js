@@ -1258,31 +1258,24 @@ function resetEvent(_event, resetToDefaultApp = false) {
     if (saveAndResetBtn) {
       saveAndResetBtn.onclick = function (event) {
         event.preventDefault();
-        // Save the conversation but do NOT reset afterwards. The
-        // combined "Save & Reset" action put too much cognitive load
-        // on the user — they would hesitate, fail to choose, and end
-        // up just clicking Cancel. Splitting it into two independent
-        // actions ("Save", then optionally Reset → Confirm again) is
-        // clearer: the Save success notification confirms what
-        // happened, and the user can issue Reset deliberately if
-        // they actually want to discard the session.
-        if (!window.libraryPanel || typeof window.libraryPanel.buildSavePayload !== 'function') return;
-        const payload = window.libraryPanel.buildSavePayload({});
-        const result = window.safeWsSend({ message: 'LIBRARY_SAVE', contents: payload });
-        if (!result.sent && !result.queued) {
-          // safeWsSend has already alerted the user. Leave the reset
-          // dialog open so they can retry without re-navigating.
-          return;
-        }
-        // Close the reset dialog. A "queued" result means the message
-        // will be delivered when the WebSocket reconnects (LIBRARY_SAVE
-        // is idempotent — sticky conversation_id + delete-then-ingest),
-        // so closing the modal matches user expectations either way.
+        // Defer to the same modal the sidebar Save button opens so the
+        // user can edit the title, pick a scope, and see the LLM-suggested
+        // title — the previous direct-LIBRARY_SAVE path skipped all three.
+        if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
         const m = $id("resetConfirmation");
+        const open = function () { window.libraryPanel.openSaveModal(); };
         if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
           const inst = bootstrap.Modal.getInstance(m);
-          if (inst) inst.hide();
+          if (inst) {
+            // Wait for the reset modal to fully hide before showing the
+            // save modal — overlapping shows produce stacked backdrops
+            // that block both dialogs in Bootstrap 5.
+            m.addEventListener('hidden.bs.modal', open, { once: true });
+            inst.hide();
+            return;
+          }
         }
+        open();
       };
     }
   }

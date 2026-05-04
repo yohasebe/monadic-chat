@@ -207,6 +207,22 @@
     // Dedup: identical payload queued in the last DEDUP_WINDOW_MS is
     // coalesced (keeps rage-click Reset from flooding the queue).
     const key = payloadKey(payload);
+    // payloadKey returns null when JSON.stringify throws (circular
+    // references, BigInt, etc.). Queueing such a payload would put
+    // drainQueue into a re-throw / re-queue loop that only exits via
+    // the 30s TTL. Fail fast so the caller sees the error
+    // immediately instead of waiting half a minute for a phantom
+    // recovery that never comes.
+    if (key === null) {
+      try { console.warn('[safeWsSend] payload not serializable; refusing to queue.'); } catch (_) {}
+      if (alertOnFail && !silentDrop) notifyFailed();
+      return {
+        sent: false,
+        queued: false,
+        state: state,
+        error: new Error('payload not JSON-serializable')
+      };
+    }
     if (key) {
       const recent = queue.find(function (entry) {
         return entry.key === key && (now - entry.queuedAt) < DEDUP_WINDOW_MS;

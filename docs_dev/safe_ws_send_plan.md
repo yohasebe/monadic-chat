@@ -259,8 +259,39 @@ Self-check meta-test verifies the rule fires on a deliberate fixture.
 | R6 | `connect_websocket` callback timing: `onopen` may fire before queue is drained, or after another close. | Drain inside `onopen` synchronously; on subsequent close, retain queue and re-drain on next open. |
 | R7 | Lint false positive on the helper file itself. | `ACCEPTED_FILES` in lint script matching H2 pattern. |
 | R8 | User keeps clicking Reset while reconnect is pending → multiple RESETs queued. | Coalesce duplicate payloads (§3.4). |
+| R9 | Unserializable payload (circular ref / BigInt) poisons drain loop for 30s. | `safeWsSend` calls `payloadKey` once before queueing; if `JSON.stringify` returns null it fails fast with the same alert as a hard non-OPEN failure (added 2026-05-04 post-concerns review). |
 
-## 7. Cost / benefit
+## 7. Known limitations / follow-ups (post-H7)
+
+These are deliberate non-goals for the H7 sweep that are documented
+here so future passes have a clear starting point:
+
+1. **`reconnect_websocket(ws, callback)` redundancy.** Three call sites
+   in `monadic.js` (CHAT, SAMPLE, initiate-from-assistant) wrap the
+   send in `reconnect_websocket(...)` *and* route through `safeWsSend`.
+   Both paths converge on `window.connect_websocket()` for non-OPEN
+   states, so the wrapper layer is now redundant. Removing it requires
+   verifying that no `reconnect_websocket` call sites depend on its
+   callback ordering side-effects (e.g., audio init must run between
+   reconnect and send for `initiate_from_assistant`). Defer to a
+   dedicated H8 cleanup phase.
+2. **Queue contents memory residency.** Idempotent payloads sit in
+   `window._wsSendQueue` (in-process JS heap) for up to 30s. For
+   `UPDATE_PARAMS` and `LOAD` this can include session parameters; for
+   `LIBRARY_SAVE` it includes the full conversation snapshot. The data
+   is never transmitted off-device until reconnect, but a heap snapshot
+   taken during an outage would expose it. No action planned —
+   in-process residency is the same trust boundary as the original
+   browser tab, and clearing the queue on tab focus would defeat the
+   recovery mechanism. Documented for future privacy review.
+3. **`tts.test.js` decoupled from implementation.** Discovered during
+   H7.8 — the test defines an inline stub of `ttsSpeak` and asserts on
+   that stub instead of importing the real one. The H7 migration
+   passed without touching the test, which is the wrong kind of
+   "green." See `feedback_test_implementation_decoupling.md` in the
+   memory store.
+
+## 8. Cost / benefit
 
 **Cost:**
 - 9 phases ≈ 9 small commits over 2-3 sessions.
@@ -275,7 +306,7 @@ Self-check meta-test verifies the rule fires on a deliberate fixture.
 - Documents idempotency contract per message — useful artifact for future server changes.
 - The user's specific Reset/Save bug is fixed in H7.2 (small, isolated commit) without waiting for full sweep.
 
-## 8. Decision
+## 9. Decision
 
 Proceed if the user agrees this is worth a multi-session H7 phase.
 Land H7.1 + H7.2 in one session as the minimum viable fix (covers the

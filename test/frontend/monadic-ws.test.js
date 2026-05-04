@@ -217,6 +217,21 @@ describe('safeWsSend', () => {
     expect(alertSpy).not.toHaveBeenCalled();
   });
 
+  test('refuses to queue an unserializable payload (circular reference)', () => {
+    window.ws = makeMockWs(WebSocket.CLOSED);
+    const a = { message: 'LOAD' };
+    a.self = a; // JSON.stringify will throw
+
+    const result = safeWsSend(a);
+
+    expect(result.sent).toBe(false);
+    expect(result.queued).toBe(false);
+    // Even though LOAD is idempotent (would normally queue when CLOSED),
+    // the unserializable payload short-circuits to fail-fast so the
+    // drain loop is not poisoned for the next 30s of TTL.
+    expect(alertSpy).toHaveBeenCalled();
+  });
+
   test('isIdempotent surface for callers', () => {
     expect(MonadicWs.isIdempotent('RESET')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_SAVE')).toBe(true);

@@ -22,8 +22,17 @@ const PUBLIC_DIR = join(__dirname, "..", "docker", "services", "ruby", "public")
 const OUT_FILE = join(PUBLIC_DIR, "js", "monadic.bundle.min.js");
 
 // File order must match index.erb script tags exactly.
+//
+// Ordering invariant: monadic-fetch.js and monadic-ws.js are placed
+// immediately after debug-config.js so any later file can safely
+// reference window.monadicFetch / window.safeWsSend at load time
+// (not only lazily inside event handlers). Enforced by
+// test/frontend/bundle-order.test.js — keep both helpers above any
+// file that calls them.
 const FILES = [
   "js/debug-config.js",
+  "js/monadic/monadic-fetch.js",
+  "js/monadic/monadic-ws.js",
   "js/monadic/lazy-loader.js",
   "js/monadic/syntax-highlight.js",
   "js/monadic/tts-tag-sanitizer.js",
@@ -49,8 +58,6 @@ const FILES = [
   "js/monadic/alert-manager.js",
   "js/monadic/utilities.js",
   "js/monadic/badge-renderer.js",
-  "js/monadic/monadic-fetch.js",
-  "js/monadic/monadic-ws.js",
   "js/monadic/shims.js",
   "js/monadic/ui-config.js",
   "js/monadic/ui-state.js",

@@ -972,18 +972,21 @@ function cancelEditMode(cardTextEl, editButton) {
       if (storedContent) {
         cardTextEl.innerHTML = storedContent;
       } else {
-        // If original content not available, request refresh from server
-        const parentCard = cardTextEl.closest('.card');
-        const mid = parentCard ? parentCard.id : null;
-        if (mid) {
-          // REFRESH is not in the global IDEMPOTENT_MESSAGE_TYPES set
-          // because no server-side handler exists for it today (it
-          // falls through the websocket case-statement to the
-          // streaming-fragment branch). Marking idempotent here is
-          // safe — the request is a pure read, and queueing it for
-          // replay never produces a duplicate side effect.
-          window.safeWsSend({ message: "REFRESH", mid: mid }, { idempotent: true });
-        }
+        // _originalContent is normally set by the edit-mode entry
+        // path; the only way it can be missing is if the card was
+        // rebuilt between edit-start and cancel (e.g., a streaming
+        // update overwrote the DOM). The previous code attempted a
+        // server-side REFRESH here, but no `when "REFRESH"` case
+        // exists in websocket.rb and the message would fall through
+        // to handle_ws_streaming, which calls
+        // `session[:parameters].merge!(obj)` and pushes the literal
+        // string "REFRESH" into session[:messages] as a user turn —
+        // visibly polluting the conversation. Logging-and-leaving
+        // is strictly safer; the user can reload if the cell really
+        // is stale.
+        try {
+          console.warn('[cancelEditMode] _originalContent unavailable; leaving cell content unchanged.');
+        } catch (_) { /* console may be absent in some test envs */ }
       }
 
       // Clean up data attribute

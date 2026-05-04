@@ -94,8 +94,8 @@ RSpec.describe GrokHelper do
     end
   end
 
-  # Regression: multi-turn tool context accumulation (2026-04).
-  # Mirrors the Claude / OpenAI Phase 1 fix. Grok stores tool state in
+  # Regression: multi-turn tool context accumulation.
+  # Mirrors the Claude / OpenAI fix. Grok stores tool state in
   # `obj["function_returns"]` and `obj["assistant_function_calls"]`, and
   # these used to be overwritten on each new tool round, causing the model
   # to lose prior rounds' tool history between recursive api_request calls.

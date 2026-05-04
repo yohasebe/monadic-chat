@@ -135,10 +135,10 @@ RSpec.describe Monadic::Library::TitleSuggester do
       expect(described_class.suggest(messages: messages, app_name: 'ChatOpenAI')).to be_nil
     end
 
-    # Phase 5: title-suggestion LLM call must not see raw PII when the
-    # user has Privacy Filter on. The pipeline is passed by library_handler;
-    # if absent (privacy off), behavior is unchanged from above.
-    context 'with a privacy pipeline (Phase 5)' do
+    # The title-suggestion LLM call must not see raw PII when the user
+    # has Privacy Filter on. library_handler passes session[:_privacy_pipeline]
+    # when active; when absent (privacy off) behavior is unchanged.
+    context 'with a privacy pipeline' do
       let(:fake_pipeline) do
         double('Pipeline').tap do |p|
           allow(p).to receive(:before_send_to_llm) do |raw|

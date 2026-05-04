@@ -187,19 +187,16 @@ module BaseVendorHelper
   # Controls). Default OFF means privacy filter is fully opt-in per session.
   def privacy_enabled_for?(app_settings, session = nil)
     return false unless app_settings && app_settings.dig(:privacy, :enabled) == true
-    # Duck-typed gate: production Rack sessions are
-    # Rack::Session::Abstract::PersistedSecure::SecureSessionHash, which
-    # supports `[]` but is NOT a Hash subclass. The previous `is_a?(Hash)`
-    # check here silently returned false in production and disabled
-    # masking for every app — unit tests passed because they passed plain
-    # Hash fixtures. Guard for nil and `[]` support instead.
+    # Duck-typed gate: production Rack sessions
+    # (Rack::Session::Abstract::PersistedSecure::SecureSessionHash) are not
+    # Hash subclasses but do support `[]`. Tightening to `is_a?(Hash)` would
+    # disable masking entirely in production while passing plain-Hash unit
+    # fixtures.
     return false unless session && session.respond_to?(:[])
 
-    # Backend-authoritative session state (Phase 4 SSOT). The frontend
-    # negotiates the toggle exclusively via PRIVACY_TOGGLE — params no
-    # longer carry the privacy bit. The handler stores the result here
-    # only after a container health check, so a missing key means
-    # "user has not opted in this session" and we must not mask.
+    # Backend-authoritative session state. PRIVACY_TOGGLE is the only path
+    # that sets this key, and only after a container health check, so a
+    # missing key means "user has not opted in" and we must not mask.
     session[:_privacy_session_enabled] == true
   end
 
@@ -216,8 +213,9 @@ module BaseVendorHelper
   end
 
   # Replace user-message text with masked text in-place. Returns a new array
-  # so callers can keep the original messages untouched. system_prompt is
-  # never masked (Phase 1 RD-3 decision).
+  # so callers can keep the original messages untouched. The system_prompt
+  # is never masked — privacy filtering applies to user-authored content
+  # only.
   #
   # Handles two payload shapes:
   #   1. Chat Completions: content is a String

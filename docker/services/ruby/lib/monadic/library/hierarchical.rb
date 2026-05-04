@@ -66,10 +66,10 @@ module Monadic
         end
       end
 
-      # Phase 1a placeholder summary: concatenate the first ~1500 chars of
-      # the conversation. Phase 1b will replace this with a real
-      # LLM-generated summary, but the vector + metadata flow stays the
-      # same so the swap is internal.
+      # Placeholder summary: concatenate the first ~1500 chars of the
+      # first two turns. A future revision will swap this for an
+      # LLM-generated summary; the vector + metadata flow is intentionally
+      # the same so the swap stays internal.
       def build_placeholder_summary_text(conversation, turns)
         if turns.any?
           (turns.first(2).map { |t| t[:text] }.join("\n\n"))[0, 1500].strip

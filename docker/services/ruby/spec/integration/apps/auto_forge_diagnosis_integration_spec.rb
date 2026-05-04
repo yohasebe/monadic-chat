@@ -397,7 +397,7 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
       # debug_timing.duration is the Ruby-side wall-clock from start to end of
       # debug_html, which includes send_command overhead, Python startup,
       # Selenium connect/page-load, JS evaluation and cleanup. Under a fully
-      # loaded `rake test:all[full]` host (Phase 2 ~26 min, ~600 specs)
+      # loaded `rake test:all[full]` host (~26 min, ~600 specs) the
       # observed wall-clock was 157s vs 3s on an idle host; the threshold
       # below is sized for the loaded case while still catching real perf
       # regressions (e.g. >3 min would indicate a true degradation).

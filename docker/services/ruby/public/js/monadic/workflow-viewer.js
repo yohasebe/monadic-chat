@@ -233,8 +233,8 @@ const WorkflowViewer = (function () {
   // ── Overlap resolution ──────────────────────────────────────
 
   /**
-   * After Phase 3 positioning, detect and resolve node overlaps.
-   * Only side nodes are moved; flow nodes stay fixed.
+   * After side nodes have been positioned, detect and resolve node
+   * overlaps. Only side nodes are moved; flow nodes stay fixed.
    */
   function resolveOverlaps(cellMap, graphData) {
     var flowSet = {};
@@ -501,7 +501,7 @@ const WorkflowViewer = (function () {
     var cellMap = {};
     var sideNodes = [];
 
-    // Phase 1: insert all nodes + flow edges
+    // Step 1: insert all nodes + flow edges.
     graph.batchUpdate(function () {
       graphData.nodes.forEach(function (n) {
         var bodyCount = n.body ? n.body.length : 0;
@@ -563,8 +563,8 @@ const WorkflowViewer = (function () {
       });
     });
 
-    // Phase 2: hierarchical layout on flow nodes only
-    // Hide side nodes so layout ignores them
+    // Step 2: hierarchical layout on flow nodes only.
+    // Hide side nodes so the layout engine ignores them.
     sideNodes.forEach(function (sn) {
       var c = cellMap[sn.id];
       if (c) c.setVisible(false);
@@ -578,7 +578,7 @@ const WorkflowViewer = (function () {
     layout.disableEdgeStyle = false;
     layout.execute(parent);
 
-    // Phase 3: position side nodes on left/right, center-aligned with parent
+    // Step 3: position side nodes on left/right, center-aligned with parent.
     graph.batchUpdate(function () {
       var leftSide = [], rightSide = [];
       sideNodes.forEach(function (sn) {

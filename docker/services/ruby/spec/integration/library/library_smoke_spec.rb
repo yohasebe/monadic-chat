@@ -38,8 +38,8 @@ RSpec.describe 'Library subsystem integration smoke', :integration do
   # Build a minimal-but-valid `monadic-conversation` v1 hash. Each
   # ingestion gets its own UUID so the after(:all) cleanup can target
   # exactly the points this spec wrote (no risk of touching the
-  # production library_summaries / library_turns rows that an
-  # interactive dogfood session might have left behind).
+  # production library_summaries / library_turns rows from interactive
+  # use of the same database).
   def ingest(scope_app:, body:)
     conv_id = SecureRandom.uuid
     @cleanup_ids << conv_id

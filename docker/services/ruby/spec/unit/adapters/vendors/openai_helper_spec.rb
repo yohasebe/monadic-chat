@@ -168,8 +168,8 @@ RSpec.describe OpenAIHelper do
     end
   end
 
-  # Regression: multi-turn tool context inheritance (2026-04).
-  # Mirrors the Claude Phase 1 fix in claude_helper_spec.rb. Without this,
+  # Regression: multi-turn tool context inheritance.
+  # Mirrors the Claude fix in claude_helper_spec.rb. Without this,
   # assemble_openai_chat_tool_results and assemble_openai_tool_results_from_responses
   # rebuilt context from an empty array each tool turn, so after N rounds
   # the next request only carried the Nth turn's tool_use/tool_result pair

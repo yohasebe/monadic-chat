@@ -295,10 +295,10 @@ RSpec.describe BaseVendorHelper do
       expect(helper.privacy_enabled_for?(enabled_settings, session)).to be true
     end
 
-    it 'ignores any leftover privacy_session_enabled in params (Phase 4: params no longer authoritative)' do
-      # Pre-Phase-4 sessions or stale clients could still write the legacy
-      # field. The new contract is "PRIVACY_TOGGLE is the only path",
-      # so a params-only declaration must NOT activate masking.
+    it 'ignores any leftover privacy_session_enabled in params (params is not authoritative)' do
+      # Stale clients could still write the legacy field. The contract is
+      # "PRIVACY_TOGGLE is the only path", so a params-only declaration
+      # must NOT activate masking.
       session = { parameters: { 'privacy_session_enabled' => true } }
       expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
     end
@@ -306,10 +306,9 @@ RSpec.describe BaseVendorHelper do
     it 'works with non-Hash session-like objects (e.g., Rack SecureSessionHash)' do
       # Production Rack sessions are
       # Rack::Session::Abstract::PersistedSecure::SecureSessionHash, which
-      # supports `[]` but is NOT a Hash subclass. A 2026-05-04 dogfood leak
-      # showed every production turn was bypassing the gate (and therefore
-      # masking) because the prior `is_a?(Hash)` guard returned false here.
-      # Cover the duck-typed contract so the regression cannot recur.
+      # supports `[]` but is NOT a Hash subclass. Tightening the gate to
+      # `is_a?(Hash)` would silently disable masking in production while
+      # passing plain-Hash unit fixtures.
       rack_session = Class.new do
         def initialize(data); @data = data; end
         def [](key); @data[key] || @data[key.to_s]; end
@@ -383,12 +382,9 @@ RSpec.describe BaseVendorHelper do
     end
   end
 
-  # End-to-end gating regression: a real-world dogfood leak (2026-05-04)
-  # showed that the frontend was not propagating privacy_session_enabled
-  # through setParams() at submit time, so backend received the field as
-  # absent (= false) even when the user had toggled the UI on. This block
-  # locks in the contract that privacy_pipeline_for honors both gates and
-  # masking only kicks in when both are true.
+  # End-to-end gating: privacy_pipeline_for must honor both gates
+  # (MDSL `privacy.enabled` + session opt-in via PRIVACY_TOGGLE) and
+  # only build a Pipeline when both are true.
   describe '#privacy_pipeline_for end-to-end gating' do
     subject(:helper) do
       Class.new { include BaseVendorHelper }.new
@@ -418,8 +414,8 @@ RSpec.describe BaseVendorHelper do
     end
 
     it 'returns no pipeline when session SSOT key is missing' do
-      # Simulates the pre-fix dogfood scenario: backend never received a
-      # PRIVACY_TOGGLE so the SSOT key is absent.
+      # No PRIVACY_TOGGLE was sent, so the toggle key is absent and the
+      # gate must refuse to build a pipeline.
       session = { parameters: { 'message' => 'Hi Alice' } }
       messages = [{ "role" => "user", "content" => "Email Alice today" }]
 

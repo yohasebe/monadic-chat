@@ -24,9 +24,9 @@ module Monadic
       #   :license (default 'private'), :title, :external_id, :topics,
       #   :speaker_id ('document'), :speaker_role ('narrator')
       #
-      # tree-sitter-based exact parsing is deferred to Phase 2; the regex
-      # boundary heuristics here are deliberately conservative and only
-      # match top-level (column-0) declarations.
+      # The regex boundary heuristics here are deliberately conservative
+      # and only match top-level (column-0) declarations. A future revision
+      # may switch to tree-sitter-based exact parsing.
       module Code
         module_function
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# PRIVACY_TOGGLE handler (Phase 3): backend-authoritative session toggle.
+# PRIVACY_TOGGLE handler: backend-authoritative session toggle.
 #
 # The frontend sends PRIVACY_TOGGLE { enabled: bool } and trusts the
 # backend's privacy_toggle_ack reply as the source of truth. The handler
@@ -13,7 +13,7 @@
 require_relative '../../../../lib/monadic/utils/websocket/privacy_handler'
 require_relative '../../../../lib/monadic/utils/privacy/presidio_backend'
 
-RSpec.describe 'WebSocketHelper PRIVACY_TOGGLE (Phase 3)' do
+RSpec.describe 'WebSocketHelper PRIVACY_TOGGLE' do
   let(:harness_class) do
     Class.new do
       include WebSocketHelper

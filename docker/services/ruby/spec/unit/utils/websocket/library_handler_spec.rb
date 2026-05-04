@@ -190,7 +190,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     it 'forwards LIBRARY_SUGGEST_TITLE to the suggester and reports success' do
       session = { parameters: { 'app_name' => 'ChatOpenAI' } }
       messages = [{ 'role' => 'user', 'text' => 'Hi' }, { 'role' => 'assistant', 'text' => 'Hello!' }]
-      # Phase 5: handler also passes session[:_privacy_pipeline] (nil here
+      # The handler also forwards session[:_privacy_pipeline] (nil here
       # because no pipeline is set up in this fixture).
       allow(Monadic::Library::TitleSuggester).to receive(:suggest)
         .with(messages: messages, app_name: 'ChatOpenAI', pipeline: nil)

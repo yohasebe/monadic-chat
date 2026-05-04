@@ -198,9 +198,8 @@
     updateStrengthMeter('');
   }
 
-  // Inline strength scoring (Phase 2.1 minimum viable; replace with
-  // zxcvbn in Phase 2.2 if richer scoring is needed).
-  // Score 0-4 based on length and character class diversity.
+  // Inline passphrase strength scoring: 0-4 based on length and the
+  // diversity of character classes (lower / upper / digit / symbol).
   function scorePassphrase(pw) {
     if (!pw) return { score: 0, label: 'Enter a passphrase' };
     if (pw.length < 8) return { score: 0, label: 'Too short (need ≥ 8 chars)' };

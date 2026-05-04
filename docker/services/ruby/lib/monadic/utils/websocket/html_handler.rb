@@ -115,9 +115,9 @@ module WebSocketHelper
 
         params = get_session_params
 
-        # Phase 2: Server-side HTML generation disabled
-        # Client-side MarkdownRenderer handles all rendering
-        # Keep text in original form with ABC blocks and citations intact
+        # Server-side HTML generation is disabled — the client's
+        # MarkdownRenderer handles all rendering. Keep the text in its
+        # original form so ABC blocks and citations stay intact.
 
         # For ABC notation, keep the HTML blocks in the text
         # MarkdownRenderer will handle them properly

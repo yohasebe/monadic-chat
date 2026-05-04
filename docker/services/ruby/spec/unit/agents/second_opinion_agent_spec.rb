@@ -286,11 +286,11 @@ RSpec.describe SecondOpinionAgent do
     end
   end
 
-  # Phase 5: when the parent session has an active privacy pipeline,
-  # the inline query/response sent to other providers must be masked.
-  # Without this, picking Second Opinion in a privacy-on session would
-  # quietly fan out raw PII to providers the user did not expect.
-  describe "#mask_for_second_opinion (Phase 5)" do
+  # When the parent session has an active privacy pipeline, the inline
+  # query/response sent to other providers must be masked. Without this,
+  # picking Second Opinion in a privacy-on session would quietly fan out
+  # raw PII to providers the user did not expect.
+  describe "#mask_for_second_opinion" do
     let(:fake_pipeline) do
       double('Pipeline').tap do |p|
         allow(p).to receive(:before_send_to_llm) do |raw|

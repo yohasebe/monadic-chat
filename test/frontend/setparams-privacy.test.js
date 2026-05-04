@@ -1,16 +1,14 @@
 /**
- * Phase 4 SSOT lint: privacy_session_enabled must NOT travel through
- * params. The backend tracks the toggle via PRIVACY_TOGGLE round-trip;
- * leaving a stale params write would shadow the health-checked
- * authoritative state on the next submit.
+ * Privacy session toggle must round-trip through PRIVACY_TOGGLE only —
+ * never piggyback on params. setParams() rebuilds params from scratch on
+ * every submit; if it wrote privacy_session_enabled there, a stale UI
+ * value could shadow the backend's health-checked authoritative state.
  *
- * Background: a 2026-05-04 dogfood leak revealed that setParams()
- * was missing the privacy field entirely (so the backend never received
- * the user's toggle intent). The interim fix added it; Phase 4 removed
- * the params field altogether and moved authority to the backend via
- * an explicit PRIVACY_TOGGLE WebSocket message. This test locks in the
- * Phase 4 contract — no privacy_session_enabled writes anywhere in
- * setParams(), and the toggle change handler must use safeWsSend.
+ * Locks in three contracts:
+ *   1. setParams() does not write params["privacy_session_enabled"].
+ *   2. The broadcast clone in monadic.js does not include it either.
+ *   3. The toggle change handler explicitly sends PRIVACY_TOGGLE via
+ *      safeWsSend.
  */
 
 const fs = require('fs');
@@ -38,7 +36,7 @@ function extractFunctionBody(source, name) {
   return source.slice(openBrace + 1, i - 1);
 }
 
-describe('Phase 4 SSOT: privacy_session_enabled must not piggyback on params', () => {
+describe('Privacy: privacy_session_enabled must not piggyback on params', () => {
   let utilitiesSource;
   let monadicSource;
 
@@ -57,7 +55,7 @@ describe('Phase 4 SSOT: privacy_session_enabled must not piggyback on params', (
 
   test('monadic.js param broadcast clone does not include privacy_session_enabled', () => {
     // The setParamsForBroadcast() helper near the top of monadic.js builds
-    // a sanitized copy of params for broadcast. After Phase 4 it must
+    // a sanitized copy of params for broadcast. It must
     // not write the privacy field — the backend does not look at it.
     const lines = monadicSource.split('\n').filter(l => !l.trim().startsWith('//'));
     const noCommentSource = lines.join('\n');

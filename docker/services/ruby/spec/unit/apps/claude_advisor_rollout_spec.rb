@@ -4,10 +4,10 @@ require 'spec_helper'
 require_relative '../../../lib/monadic/dsl'
 require_relative '../../../lib/monadic/dsl/loader'
 
-# Integration check for the Phase 2 Advisor Tool rollout to additional
-# Claude apps beyond AutoForge. Each app should load cleanly with
-# Sonnet 4.6 as executor and Opus 4.6 as advisor (canonical pairing),
-# and carry the advisor_tool settings through to the generated class.
+# Integration check for the Advisor Tool rollout to additional Claude
+# apps beyond AutoForge. Each app should load cleanly with Sonnet 4.6
+# as executor and Opus 4.6 as advisor (canonical pairing), and carry
+# the advisor_tool settings through to the generated class.
 RSpec.describe 'Claude Advisor Tool rollout — integration' do
   before(:all) do
     Object.const_set(:APPS, {}) unless Object.const_defined?(:APPS)

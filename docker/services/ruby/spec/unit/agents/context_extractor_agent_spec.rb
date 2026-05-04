@@ -467,11 +467,11 @@ RSpec.describe ContextExtractorAgent do
     end
   end
 
-  # Phase 5: when the session has an active privacy pipeline, the
-  # extraction LLM call must operate on masked text. Otherwise the
-  # extracted "people"/"places"/"notes" fields would re-acquire the
-  # PII the user has chosen to mask in the chat path.
-  describe "#mask_for_extraction (Phase 5)" do
+  # When the session has an active privacy pipeline, the extraction LLM
+  # call must operate on masked text. Otherwise the extracted
+  # "people"/"places"/"notes" fields would re-acquire the PII the user
+  # has chosen to mask in the chat path.
+  describe "#mask_for_extraction" do
     let(:fake_pipeline) do
       double('Pipeline').tap do |p|
         allow(p).to receive(:before_send_to_llm) do |raw|

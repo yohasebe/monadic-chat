@@ -214,12 +214,11 @@
   }
 
   // Map a content_type token to a FontAwesome icon class plus a colour
-  // tone. The Library currently stores "conversation" plus the
-  // file-import content_types (markdown / code / pdf / document) added
-  // in Phase 1c. The Browse modal renders a single icon per row using
-  // this mapping plus a tooltip carrying the readable type name.
-  // Sub-formats of "document" (docx / xlsx / pptx) are detected via
-  // the `topics` array.
+  // tone. The Library stores "conversation" plus file-import content
+  // types (markdown / code / pdf / document). The Browse modal renders a
+  // single icon per row using this mapping plus a tooltip carrying the
+  // readable type name. Sub-formats of "document" (docx / xlsx / pptx)
+  // are detected via the `topics` array.
   //
   // Colour palette: Material Design 300/400 tones — light enough that
   // the icons read as soft type indicators rather than dominating the

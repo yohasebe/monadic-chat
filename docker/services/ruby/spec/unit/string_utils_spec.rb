@@ -304,7 +304,8 @@ RSpec.describe StringUtils do
     it "handles code blocks with syntax highlighting" do
       text = "```ruby\nputs 'Hello'\n```"
       result = StringUtils.markdown_to_html(text)
-      # Phase 3: Client-side rendering - HTML structure is simpler, highlighting added by client
+      # Client-side rendering keeps the server HTML structure simple;
+      # syntax highlighting is added by the client.
       expect(result).to include("<pre><code class=\"language-ruby\">")
       # Single quotes are HTML-encoded for security
       expect(result).to include("puts &#39;Hello&#39;")
@@ -348,7 +349,8 @@ RSpec.describe StringUtils do
       text = "Some text\n    ```ruby\n    puts 'Hello'\n    ```\nMore text"
       result = StringUtils.markdown_to_html(text)
 
-      # Phase 3: Client-side rendering - HTML structure is simpler, highlighting added by client
+      # Client-side rendering keeps the server HTML structure simple;
+      # syntax highlighting is added by the client.
       expect(result).to include("<pre><code class=\"language-ruby\">")
       # Single quotes are HTML-encoded for security
       expect(result).to include("puts &#39;Hello&#39;")
@@ -409,7 +411,7 @@ RSpec.describe StringUtils do
       it "preserves math code in code blocks" do
         text = "```python\nx = 1 + 2 # Compute $E = mc^2$ result\n```"
         result = StringUtils.markdown_to_html(text, math: true)
-        # Phase 3: Client-side rendering - syntax highlighting added by client
+        # Syntax highlighting is added by the client at render time.
         expect(result).to include("<code class=\"language-python\">")
         expect(result).to include("x = 1 + 2")
         expect(result).to include("$E = mc^2$")
@@ -418,7 +420,7 @@ RSpec.describe StringUtils do
       it "does not convert LaTeX notation inside code blocks" do
         text = "```python\nExample: \\[E = mc^2\\] or \\(a + b = c\\)\n```"
         result = StringUtils.markdown_to_html(text, math: true)
-        # Phase 3: Client-side rendering - syntax highlighting added by client
+        # Syntax highlighting is added by the client at render time.
         expect(result).to include("<code class=\"language-python\">")
         expect(result).to include("Example")
         # The LaTeX notation should be preserved in the code block

@@ -243,8 +243,8 @@ module WebSocketHelper
       session[:messages] << new_data
       sync_session_state!
 
-      # Phase 2: Send text content, client handles rendering
-      # The display_sample message includes both text and role info
+      # Send text content; the client handles rendering. The display_sample
+      # message carries both text and role info.
       if obj["role"] == "user"
         badge = "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>"
       elsif obj["role"] == "assistant"

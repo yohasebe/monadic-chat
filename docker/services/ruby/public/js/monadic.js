@@ -50,9 +50,9 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
-  // Privacy Filter session toggle is now negotiated via PRIVACY_TOGGLE
-  // (Phase 4 SSOT). Including it in broadcasts would let stale param
-  // values override the health-checked backend state.
+  // Privacy Filter session toggle is negotiated via the PRIVACY_TOGGLE
+  // round-trip; broadcasting it here would let stale param values
+  // override the health-checked backend state.
   const mathEl = $id("math");
   clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
@@ -1107,7 +1107,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (mutation.addedNodes.length) {
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === 1 && node.classList.contains('card')) {
-              // Phase 1: Deduplicate images with the same src (URL) within this card
+              // Drop images sharing the same src (URL) within this card.
               const seenSrcs = new Set();
               node.querySelectorAll(".generated_image img").forEach(function(imgNode) {
                 const src = imgNode.getAttribute("src");
@@ -1119,7 +1119,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (src) seenSrcs.add(src);
               });
 
-              // Phase 2: Set up load handlers for visual dedup, DPR sizing, errors, click
+              // Per-image load handlers: visual dedup, DPR sizing, errors, click.
               const cardHashes = [];
               node.querySelectorAll(".generated_image img").forEach(function(imgEl) {
 

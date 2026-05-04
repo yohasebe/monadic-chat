@@ -74,7 +74,7 @@ function handleHtml(data) {
     // Fallback to inline handling
     // Note: SessionState.addMessage already called above
 
-    // Phase 2: Use MarkdownRenderer if html field is missing
+    // Use MarkdownRenderer when the html field is missing.
     let html;
     if (data["content"]["html"]) {
       html = data["content"]["html"];

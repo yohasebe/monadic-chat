@@ -4,10 +4,10 @@ require 'spec_helper'
 require_relative '../../../lib/monadic/dsl'
 require_relative '../../../lib/monadic/dsl/loader'
 
-# Integration check for the Phase 3 OpenAI Responses API server-side
-# compaction rollout. Each listed app should load cleanly with its compaction
-# settings carried through to the generated class so that openai_helper can
-# attach `context_management: [{ type: "compaction", compact_threshold: N }]`
+# Integration check for the OpenAI Responses API server-side compaction
+# rollout. Each listed app should load cleanly with its compaction
+# settings carried through to the generated class so that openai_helper
+# can attach `context_management: [{ type: "compaction", compact_threshold: N }]`
 # to /v1/responses requests.
 RSpec.describe 'OpenAI Compaction rollout — integration' do
   before(:all) do

@@ -145,7 +145,7 @@ RSpec.describe Monadic::Library::Schema do
     end
 
     context "with annotations" do
-      it "accepts an empty annotations array (Phase 1a baseline)" do
+      it "accepts an empty annotations array" do
         data = base_conversation("annotations" => [])
         expect(described_class.valid?(data)).to be true
       end

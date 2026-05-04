@@ -404,7 +404,7 @@ function handleDisplaySample(data) {
     return;
   }
 
-  // Phase 2: Render text client-side using MarkdownRenderer
+  // Render text client-side using MarkdownRenderer.
   let renderedHtml;
   if (content.role === "user") {
     // User messages: simple HTML escaping and line breaks

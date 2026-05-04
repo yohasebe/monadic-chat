@@ -53,13 +53,20 @@ module Monadic
       #   role/text fields (system entries are ignored).
       # @param app_name [String, nil] the currently active app's class
       #   name (e.g. "ChatOpenAI"); resolves the provider via APPS.
+      # @param pipeline [Privacy::Pipeline, nil] when present, mask each
+      #   message text before sending to the LLM and keep any returned
+      #   placeholders in human-readable form ("PERSON 1") instead of
+      #   restoring them. This stops the title-suggestion call from
+      #   re-introducing PII that the user has chosen to mask in the
+      #   primary chat path.
       # @return [String, nil] a normalised title, or nil on any failure.
-      def suggest(messages:, app_name:)
+      def suggest(messages:, app_name:, pipeline: nil)
         provider = derive_provider(app_name)
         return nil unless provider
         return nil unless api_key_present?(provider)
 
-        prompt = build_prompt(messages)
+        prep_messages = pipeline ? mask_messages(messages, pipeline) : messages
+        prompt = build_prompt(prep_messages)
         return nil unless prompt
 
         chat_pair = find_chat_app(provider)
@@ -71,10 +78,38 @@ module Monadic
 
         body = build_request_body(prompt, model, provider)
         raw = app_instance.send_query(body, model: model)
-        normalize(raw)
+        title = normalize(raw)
+        pipeline ? humanize_placeholders(title, pipeline) : title
       rescue StandardError => e
         warn "[TitleSuggester] #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
         nil
+      end
+
+      # Internal: pre-mask each message so the title-suggestion LLM call
+      # never sees raw PII. Errors are intentionally not rescued here —
+      # the outer suggest() rescue turns them into a nil return so the
+      # UI falls back to its placeholder rather than silently echoing
+      # raw PII when masking is unavailable.
+      def mask_messages(messages, pipeline)
+        return messages unless messages.is_a?(Array)
+        require_relative '../utils/privacy/types'
+        messages.map do |m|
+          next m unless m.is_a?(Hash)
+          text = (m['text'] || m[:text]).to_s
+          next m if text.empty?
+          raw = Monadic::Utils::Privacy::RawMessage.new(text, (m['role'] || m[:role]).to_s, {})
+          masked = pipeline.before_send_to_llm(raw)
+          m.merge('text' => masked.text)
+        end
+      end
+
+      # Replace remaining placeholders ("<<PERSON_1>>") with their
+      # readable form ("PERSON 1"). Mirrors the pattern Pipeline uses
+      # for TTS — same goal: human-facing string with no raw PII.
+      def humanize_placeholders(title, pipeline)
+        return title if title.nil? || title.to_s.empty?
+        return title unless pipeline.respond_to?(:sanitize_for_tts)
+        pipeline.sanitize_for_tts(title)
       end
 
       # Resolve the active app's class name to a canonical provider key.

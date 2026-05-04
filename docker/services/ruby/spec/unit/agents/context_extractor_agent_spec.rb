@@ -466,4 +466,37 @@ RSpec.describe ContextExtractorAgent do
       expect(result["_turn_count"]).to eq(0)
     end
   end
+
+  # Phase 5: when the session has an active privacy pipeline, the
+  # extraction LLM call must operate on masked text. Otherwise the
+  # extracted "people"/"places"/"notes" fields would re-acquire the
+  # PII the user has chosen to mask in the chat path.
+  describe "#mask_for_extraction (Phase 5)" do
+    let(:fake_pipeline) do
+      double('Pipeline').tap do |p|
+        allow(p).to receive(:before_send_to_llm) do |raw|
+          masked = raw.text.gsub(/Alice/, '<<PERSON_1>>')
+          double('MaskedMessage', text: masked)
+        end
+      end
+    end
+
+    it "masks the text via the pipeline" do
+      result = agent.send(:mask_for_extraction, "Email Alice today.", fake_pipeline, "user")
+      expect(result).to eq("Email <<PERSON_1>> today.")
+    end
+
+    it "propagates the error so the extractor fails fail-closed" do
+      broken = double('Pipeline')
+      allow(broken).to receive(:before_send_to_llm).and_raise('boom')
+      expect {
+        agent.send(:mask_for_extraction, "Email Alice today.", broken, "user")
+      }.to raise_error('boom')
+    end
+
+    it "passes nil/empty inputs through unchanged" do
+      expect(agent.send(:mask_for_extraction, nil, fake_pipeline, "user")).to be_nil
+      expect(agent.send(:mask_for_extraction, "", fake_pipeline, "user")).to eq("")
+    end
+  end
 end

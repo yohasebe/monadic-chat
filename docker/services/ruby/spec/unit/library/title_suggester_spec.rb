@@ -134,5 +134,77 @@ RSpec.describe Monadic::Library::TitleSuggester do
       messages = [{ 'role' => 'system', 'text' => 'You are a helper.' }]
       expect(described_class.suggest(messages: messages, app_name: 'ChatOpenAI')).to be_nil
     end
+
+    # Phase 5: title-suggestion LLM call must not see raw PII when the
+    # user has Privacy Filter on. The pipeline is passed by library_handler;
+    # if absent (privacy off), behavior is unchanged from above.
+    context 'with a privacy pipeline (Phase 5)' do
+      let(:fake_pipeline) do
+        double('Pipeline').tap do |p|
+          allow(p).to receive(:before_send_to_llm) do |raw|
+            masked = raw.text.gsub(/Alice/, '<<PERSON_1>>')
+            double('MaskedMessage', text: masked)
+          end
+          allow(p).to receive(:sanitize_for_tts) do |text|
+            text.gsub(/<<([A-Z_]+)_(\d+)>>/) { "#{Regexp.last_match(1).tr('_', ' ')} #{Regexp.last_match(2)}" }
+          end
+        end
+      end
+
+      it 'pre-masks message text before building the prompt' do
+        sent = nil
+        instance = Class.new do
+          define_method(:settings) { { 'group' => 'OpenAI', 'display_name' => 'Chat' } }
+          define_method(:send_query) { |body, model:| sent = body; 'Discussing PERSON 1' }
+        end.new
+        stub_const('APPS', { 'ChatOpenAI' => instance })
+
+        messages = [{ 'role' => 'user', 'text' => 'Email Alice today.' }]
+        described_class.suggest(
+          messages: messages,
+          app_name: 'ChatOpenAI',
+          pipeline: fake_pipeline
+        )
+
+        prompt_text = sent['messages'].last['content'].to_s
+        expect(prompt_text).to include('<<PERSON_1>>')
+        expect(prompt_text).not_to include('Alice')
+      end
+
+      it 'humanises any placeholders the LLM echoes back' do
+        instance = Class.new do
+          define_method(:settings) { { 'group' => 'OpenAI', 'display_name' => 'Chat' } }
+          define_method(:send_query) { |_body, model:| 'Discussion with <<PERSON_1>>' }
+        end.new
+        stub_const('APPS', { 'ChatOpenAI' => instance })
+
+        messages = [{ 'role' => 'user', 'text' => 'Hi Alice.' }]
+        title = described_class.suggest(
+          messages: messages,
+          app_name: 'ChatOpenAI',
+          pipeline: fake_pipeline
+        )
+        expect(title).to eq('Discussion with PERSON 1')
+      end
+
+      it 'returns nil and skips the LLM call when masking raises (fail-closed)' do
+        broken_pipeline = double('Pipeline')
+        allow(broken_pipeline).to receive(:before_send_to_llm).and_raise('boom')
+
+        instance = Class.new do
+          define_method(:settings) { { 'group' => 'OpenAI', 'display_name' => 'Chat' } }
+          define_method(:send_query) { |_body, model:| raise 'should not be called when masking failed' }
+        end.new
+        stub_const('APPS', { 'ChatOpenAI' => instance })
+
+        messages = [{ 'role' => 'user', 'text' => 'Email Alice.' }]
+        result = described_class.suggest(
+          messages: messages,
+          app_name: 'ChatOpenAI',
+          pipeline: broken_pipeline
+        )
+        expect(result).to be_nil
+      end
+    end
   end
 end

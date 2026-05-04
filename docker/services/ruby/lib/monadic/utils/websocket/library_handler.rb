@@ -307,7 +307,16 @@ module WebSocketHelper
 
     params = (session && (session[:parameters] || session['parameters'])) || {}
     app_name = (params['app_name'] || params[:app_name]).to_s
-    title = Monadic::Library::TitleSuggester.suggest(messages: messages, app_name: app_name)
+    # Hand the privacy pipeline to TitleSuggester so the suggestion LLM
+    # call mirrors the user's chosen masking — otherwise it would happily
+    # echo back PII into the proposed title (the original 2026-05-04
+    # dogfood leak, observed even after the chat path was masked).
+    pipeline = session && session[:_privacy_pipeline]
+    title = Monadic::Library::TitleSuggester.suggest(
+      messages: messages,
+      app_name: app_name,
+      pipeline: pipeline
+    )
 
     send_to_client(connection, {
       'type' => 'library_title_suggested',

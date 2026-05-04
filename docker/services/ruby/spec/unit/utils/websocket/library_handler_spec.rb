@@ -190,8 +190,10 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     it 'forwards LIBRARY_SUGGEST_TITLE to the suggester and reports success' do
       session = { parameters: { 'app_name' => 'ChatOpenAI' } }
       messages = [{ 'role' => 'user', 'text' => 'Hi' }, { 'role' => 'assistant', 'text' => 'Hello!' }]
+      # Phase 5: handler also passes session[:_privacy_pipeline] (nil here
+      # because no pipeline is set up in this fixture).
       allow(Monadic::Library::TitleSuggester).to receive(:suggest)
-        .with(messages: messages, app_name: 'ChatOpenAI')
+        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: nil)
         .and_return('Friendly hello')
 
       host.send(:handle_ws_library_suggest_title, connection,
@@ -201,6 +203,21 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['type']).to eq('library_title_suggested')
       expect(msg['res']).to eq('success')
       expect(msg['title']).to eq('Friendly hello')
+    end
+
+    it 'passes the privacy pipeline to the suggester when one is active' do
+      pipeline = double('Pipeline')
+      session = {
+        parameters: { 'app_name' => 'ChatOpenAI' },
+        _privacy_pipeline: pipeline
+      }
+      messages = [{ 'role' => 'user', 'text' => 'Hi' }]
+      expect(Monadic::Library::TitleSuggester).to receive(:suggest)
+        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: pipeline)
+        .and_return('Masked title')
+
+      host.send(:handle_ws_library_suggest_title, connection,
+                { 'contents' => { 'messages' => messages } }, session)
     end
 
     it 'reports failure when the suggester returns nil (key missing / LLM error)' do

@@ -285,4 +285,37 @@ RSpec.describe SecondOpinionAgent do
       expect { agent.send(:get_provider_helper, "unknown") }.to raise_error("Unknown provider: unknown")
     end
   end
+
+  # Phase 5: when the parent session has an active privacy pipeline,
+  # the inline query/response sent to other providers must be masked.
+  # Without this, picking Second Opinion in a privacy-on session would
+  # quietly fan out raw PII to providers the user did not expect.
+  describe "#mask_for_second_opinion (Phase 5)" do
+    let(:fake_pipeline) do
+      double('Pipeline').tap do |p|
+        allow(p).to receive(:before_send_to_llm) do |raw|
+          masked = raw.text.gsub(/Alice/, '<<PERSON_1>>')
+          double('MaskedMessage', text: masked)
+        end
+      end
+    end
+
+    it "masks the text via the pipeline" do
+      result = agent.send(:mask_for_second_opinion, "Email Alice today.", fake_pipeline, "user")
+      expect(result).to eq("Email <<PERSON_1>> today.")
+    end
+
+    it "propagates the error so the second opinion fails fail-closed" do
+      broken = double('Pipeline')
+      allow(broken).to receive(:before_send_to_llm).and_raise('boom')
+      expect {
+        agent.send(:mask_for_second_opinion, "Email Alice.", broken, "user")
+      }.to raise_error('boom')
+    end
+
+    it "passes nil/empty inputs through unchanged" do
+      expect(agent.send(:mask_for_second_opinion, nil, fake_pipeline, "user")).to be_nil
+      expect(agent.send(:mask_for_second_opinion, "", fake_pipeline, "user")).to eq("")
+    end
+  end
 end

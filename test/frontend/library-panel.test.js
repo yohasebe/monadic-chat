@@ -6,19 +6,26 @@ describe('library-panel module', () => {
   let lib;
   let sentMessages;
 
+  let safeWsSendCalls;
+
   beforeEach(() => {
     jest.resetModules();
     sentMessages = [];
-    // Stub WebSocket so send() does not throw.
-    global.window.ws = {
-      send: (payload) => sentMessages.push(JSON.parse(payload))
+    safeWsSendCalls = [];
+    // The library panel routes every LIBRARY_* message through
+    // window.safeWsSend (the H7 wrapper). Capture both the body and
+    // the opts each call site uses so tests can assert on either.
+    global.window.safeWsSend = (body, opts) => {
+      sentMessages.push(body);
+      safeWsSendCalls.push({ body: body, opts: opts || {} });
+      return { sent: true, state: 'OPEN' };
     };
     require('../../docker/services/ruby/public/js/monadic/library-panel.js');
     lib = global.window.libraryPanel;
   });
 
   afterEach(() => {
-    delete global.window.ws;
+    delete global.window.safeWsSend;
     delete global.window.libraryPanel;
   });
 
@@ -68,7 +75,7 @@ describe('library-panel module', () => {
   });
 
   describe('send', () => {
-    it('writes a JSON message to window.ws when present', () => {
+    it('routes LIBRARY_LIST through window.safeWsSend and reports success', () => {
       const ok = lib.send('LIBRARY_LIST');
       expect(ok).toBe(true);
       expect(sentMessages).toEqual([{ message: 'LIBRARY_LIST' }]);
@@ -79,9 +86,24 @@ describe('library-panel module', () => {
       expect(sentMessages[0]).toEqual({ message: 'LIBRARY_DELETE', contents: 'conv-x' });
     });
 
-    it('returns false when window.ws is missing', () => {
-      delete global.window.ws;
+    it('returns false when window.safeWsSend is missing', () => {
+      delete global.window.safeWsSend;
       expect(lib.send('LIBRARY_LIST')).toBe(false);
+    });
+
+    it('returns false when safeWsSend reports the message neither sent nor queued', () => {
+      global.window.safeWsSend = () => ({ sent: false, queued: false, state: 'CLOSED' });
+      expect(lib.send('LIBRARY_LIST')).toBe(false);
+    });
+
+    it('returns true when safeWsSend reports the message was queued for replay', () => {
+      global.window.safeWsSend = () => ({ sent: false, queued: true, state: 'CONNECTING' });
+      expect(lib.send('LIBRARY_LIST')).toBe(true);
+    });
+
+    it('forwards opts (e.g. silentDrop) so non-idempotent background sends do not alert', () => {
+      lib.send('LIBRARY_SUGGEST_TITLE', { contents: { messages: [] } }, { silentDrop: true });
+      expect(safeWsSendCalls[0].opts).toEqual({ silentDrop: true });
     });
   });
 

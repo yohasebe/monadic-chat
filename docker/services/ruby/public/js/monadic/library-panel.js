@@ -72,15 +72,19 @@
 
   // ─── Sending ─────────────────────────────────────────────────────────
 
-  function send(message, payload) {
-    if (typeof window.ws === 'undefined' || !window.ws) return false;
+  function send(message, payload, opts) {
+    // All LIBRARY_* messages route through the central safeWsSend
+    // wrapper so we inherit the null/CONNECTING/CLOSED handling, the
+    // reconnect-and-replay queue, and the idempotency classification.
+    // Most LIBRARY_* messages are idempotent and are listed in the
+    // wrapper's default set; non-idempotent ones (e.g. SUGGEST_TITLE)
+    // pass `silentDrop: true` at the call site so a transient WS
+    // outage does not surface a fail-fast alert for a background
+    // request the user did not explicitly trigger.
+    if (typeof window.safeWsSend !== 'function') return false;
     var body = Object.assign({ message: message }, payload || {});
-    try {
-      window.ws.send(JSON.stringify(body));
-      return true;
-    } catch (e) {
-      return false;
-    }
+    var result = window.safeWsSend(body, opts || {});
+    return !!(result && (result.sent || result.queued));
   }
 
   function requestList() { return send('LIBRARY_LIST'); }
@@ -93,7 +97,11 @@
     var msgs = (Array.isArray(window.messages) ? window.messages : []).map(function (m) {
       return { role: m.role, text: m.text };
     });
-    return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } });
+    // SUGGEST_TITLE is non-idempotent (LLM call) AND background
+    // (auto-fired when the Save modal opens, not user-clicked).
+    // silentDrop avoids alerting the user about a "nice to have"
+    // pre-fill if the WS happens to be reconnecting.
+    return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } }, { silentDrop: true });
   }
 
   // Persist the user's preferred default for the RAG toggle across

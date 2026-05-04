@@ -51,8 +51,11 @@
     'LIBRARY_LIST',
     'LIBRARY_DELETE',
     'LIBRARY_STATS',
-    'LIBRARY_RAG_STATE',
-    'LIBRARY_RAG_TOGGLE'
+    'LIBRARY_GET_CONVERSATION',
+    'LIBRARY_RAG_QUERY',
+    'LIBRARY_RAG_TOGGLE',
+    'LIBRARY_RENAME',
+    'LIBRARY_SET_SCOPE'
   ]);
 
   // Queue caps: 20 entries total, 30s TTL per entry, 500ms dedup

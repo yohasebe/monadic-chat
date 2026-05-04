@@ -131,8 +131,13 @@ message type is audited.
 | `LIBRARY_LIST` | yes | Pure read. |
 | `LIBRARY_DELETE` | yes | Idempotent same as DELETE. |
 | `LIBRARY_STATS` | yes | Pure read. |
-| `LIBRARY_RAG_*` | yes | Toggle + read of session-scoped flag. |
+| `LIBRARY_GET_CONVERSATION` | yes | Pure read by `conversation_id`. |
+| `LIBRARY_RAG_QUERY` | yes | Pure read of session-scoped RAG flag. |
+| `LIBRARY_RAG_TOGGLE` | yes | Toggle of session-scoped RAG flag; idempotent for same `enabled` value. |
+| `LIBRARY_RENAME` | yes | Writes new title for `conversation_id`. Same value twice → same end state. |
+| `LIBRARY_SET_SCOPE` | yes | Writes `scope_app` for `conversation_id`. Same value twice → same end state. |
 | `EDIT` | yes | `handle_edit_message` overwrites `messages[idx]['text']` with `obj['content']`. Replay produces same end state. |
+| `LIBRARY_SUGGEST_TITLE` | **NO** | Triggers an LLM call via `TitleSuggester.suggest`; replay would burn another LLM call (cache is per-fingerprint, not per-replay). |
 | `CHAT` (user message) | **NO** | Sending the same chat twice creates two messages. |
 | `AI_USER` | **NO** | Same as CHAT. |
 | `PLAY_TTS` | **NO** | Triggers audio synthesis; replay would synthesize twice. |
@@ -191,7 +196,7 @@ revertable in isolation.
 | H7.2 | Migrate the 3 `utilities.js` sites (the user-reported bug) | low (covered by H7.1 unit tests + manual reset/save smoke) | 1 file | pending |
 | H7.3 | Migrate `cards.js` (DELETE × 8, STOP_TTS, PLAY_TTS, EDIT, REFRESH — 12 sites) | low | 1 file | pending |
 | H7.4 | Migrate `alert-manager.js` (DELETE × 3) | low | 1 file | pending |
-| H7.5 | Migrate `library-panel.js` (Save/List/Stats/RAG) | low | 1 file | pending |
+| H7.5 | Migrate `library-panel.js` `send()` helper (covers all LIBRARY_* messages) | low | 1 file | pending |
 | H7.6 | Migrate `ws-*` handlers (PING × 2, PRIVACY × 2, HTML × 1) | low (the 1 existing guarded site reduces to a one-liner) | 5 files | pending |
 | H7.7 | Migrate `monadic.js` (12 sites; includes the only **non-idempotent** sends — CHAT/AI_USER) | medium | 1 file | pending |
 | H7.8 | Migrate `recording.js`, `tts.js`, `websocket.js` itself (CHECK_TOKEN, internal LOAD) | low | 3 files | pending |

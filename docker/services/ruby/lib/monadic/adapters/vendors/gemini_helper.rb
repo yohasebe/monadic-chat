@@ -15,6 +15,7 @@ require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/ssl_configuration"
 require_relative "../../utils/extra_logger"
+require_relative "../../utils/progress_broadcaster"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -235,16 +236,21 @@ module GeminiHelper
     ]
     response = nil
 
-    endpoints.each do |endpoint|
-      uri = URI(endpoint)
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-      request.body = body.to_json
+    Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "ImageGeneratorGemini3Preview",
+      label: "Generating image with #{model_id}"
+    ) do
+      endpoints.each do |endpoint|
+        uri = URI(endpoint)
+        request = Net::HTTP::Post.new(uri)
+        request['Content-Type'] = 'application/json'
+        request.body = body.to_json
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        http.request(request)
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+          http.request(request)
+        end
+        break if response.code == '200'
       end
-      break if response.code == '200'
     end
 
     if response.code == '200'
@@ -3733,8 +3739,13 @@ module GeminiHelper
     
     begin
       # Send command and get raw output
-      result_json = send_command(command: cmd, container: "ruby")
-      
+      result_json = Monadic::Utils::ProgressBroadcaster.with_progress(
+        source: "VideoGeneratorVeo",
+        label: "Generating video with #{veo_model || 'Veo'}"
+      ) do
+        send_command(command: cmd, container: "ruby")
+      end
+
       # Store video filename in session if successful
       if session && result_json.is_a?(String)
         begin
@@ -3956,10 +3967,15 @@ module GeminiHelper
       request['Content-Type'] = 'application/json'
       request.body = request_body.to_json
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        http.request(request)
+      response = Monadic::Utils::ProgressBroadcaster.with_progress(
+        source: "ImageGeneratorGemini",
+        label: "Generating image with #{model_name}"
+      ) do
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+          http.request(request)
+        end
       end
-      
+
       if response.code == '200'
         result = JSON.parse(response.body)
         
@@ -4098,8 +4114,13 @@ module GeminiHelper
       request['Content-Type'] = 'application/json'
       request.body = request_body.to_json
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        http.request(request)
+      response = Monadic::Utils::ProgressBroadcaster.with_progress(
+        source: "ImageGeneratorImagen",
+        label: "Generating image with #{image_model}"
+      ) do
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+          http.request(request)
+        end
       end
       
       if response.code == '200'

@@ -3083,7 +3083,8 @@ function computePendingContainerBuilds() {
     }
   }
 
-  // Privacy: only if master is on. Master flag itself does not affect build.
+  // Privacy: only if master is on. Privacy Filter is English-only by design,
+  // so the only rebuild-needed signal is "never built before".
   if (truthy(env.PRIVACY_FILTER)) {
     const prev = snapshots.privacy_service;
     if (!prev) {
@@ -3091,14 +3092,6 @@ function computePendingContainerBuilds() {
         container: 'privacy_service',
         label: 'Privacy Filter',
         reason: 'not yet built',
-        buildCommand: 'build_privacy_container',
-        estimate: '3–5 min'
-      });
-    } else if (prev.PRIVACY_LANGS !== undefined && prev.PRIVACY_LANGS !== (env.PRIVACY_LANGS ?? '')) {
-      result.push({
-        container: 'privacy_service',
-        label: 'Privacy Filter',
-        reason: `language selection changed (${prev.PRIVACY_LANGS} → ${env.PRIVACY_LANGS || ''})`,
         buildCommand: 'build_privacy_container',
         estimate: '3–5 min'
       });
@@ -3521,12 +3514,12 @@ function saveSettings(data) {
         installOptionKeys.forEach(k => {
             if (k in data) data[k] = data[k] ? 'true' : 'false';
         });
-        // PRIVACY_LANGS is a comma-separated string (e.g. "en,ja"); normalize
-        // to ensure "en" baseline is always present so the build never fails.
+        // Privacy Filter is English-only by design — pin PRIVACY_LANGS to 'en'
+        // regardless of what the renderer sent. The UI does not expose a
+        // language selector anymore; this guard prevents stale state from
+        // earlier versions from surfacing back.
         if ('PRIVACY_LANGS' in data) {
-            const tokens = String(data.PRIVACY_LANGS || '').split(',').map(s => s.trim()).filter(Boolean);
-            if (!tokens.includes('en')) tokens.unshift('en');
-            data.PRIVACY_LANGS = tokens.join(',');
+            data.PRIVACY_LANGS = 'en';
         }
         // EXTRACTOR_LANGS follows the same pattern; English baseline always present.
         if ('EXTRACTOR_LANGS' in data) {

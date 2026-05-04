@@ -302,6 +302,22 @@ RSpec.describe BaseVendorHelper do
       session = { parameters: { 'privacy_session_enabled' => true } }
       expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
     end
+
+    it 'works with non-Hash session-like objects (e.g., Rack SecureSessionHash)' do
+      # Production Rack sessions are
+      # Rack::Session::Abstract::PersistedSecure::SecureSessionHash, which
+      # supports `[]` but is NOT a Hash subclass. A 2026-05-04 dogfood leak
+      # showed every production turn was bypassing the gate (and therefore
+      # masking) because the prior `is_a?(Hash)` guard returned false here.
+      # Cover the duck-typed contract so the regression cannot recur.
+      rack_session = Class.new do
+        def initialize(data); @data = data; end
+        def [](key); @data[key] || @data[key.to_s]; end
+      end.new(_privacy_session_enabled: true)
+
+      expect(rack_session.is_a?(Hash)).to be false
+      expect(helper.privacy_enabled_for?(enabled_settings, rack_session)).to be true
+    end
   end
 
   describe '#apply_privacy_to_messages with Claude-shape content' do

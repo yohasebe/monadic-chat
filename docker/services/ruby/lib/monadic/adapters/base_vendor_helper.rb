@@ -187,7 +187,13 @@ module BaseVendorHelper
   # Controls). Default OFF means privacy filter is fully opt-in per session.
   def privacy_enabled_for?(app_settings, session = nil)
     return false unless app_settings && app_settings.dig(:privacy, :enabled) == true
-    return false unless session.is_a?(Hash)
+    # Duck-typed gate: production Rack sessions are
+    # Rack::Session::Abstract::PersistedSecure::SecureSessionHash, which
+    # supports `[]` but is NOT a Hash subclass. The previous `is_a?(Hash)`
+    # check here silently returned false in production and disabled
+    # masking for every app — unit tests passed because they passed plain
+    # Hash fixtures. Guard for nil and `[]` support instead.
+    return false unless session && session.respond_to?(:[])
 
     # Backend-authoritative session state (Phase 4 SSOT). The frontend
     # negotiates the toggle exclusively via PRIVACY_TOGGLE — params no

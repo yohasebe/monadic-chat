@@ -2018,7 +2018,7 @@ function updateApplicationMenu() {
   // Read PRIVACY_FILTER / EXTRACTOR_SERVICE from env so the Build menus
   // reflect the user's opt-in choice, not just the Docker container status.
   const envCfg = loadSettings() || {};
-  const privacyFilterOn = String(envCfg.PRIVACY_FILTER || '').toLowerCase() === 'true';
+  const privacyFilterOn = String(envCfg.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
   const extractorServiceOn = String(envCfg.EXTRACTOR_SERVICE || '').toLowerCase() === 'true';
 
   // Create standard menu
@@ -3057,6 +3057,8 @@ function computePendingContainerBuilds() {
   const env = readEnvFile(getEnvPath());
   const snapshots = readBuildOptionsSnapshots();
   const truthy = (v) => String(v ?? '').toLowerCase() === 'true';
+  // PRIVACY_FILTER defaults to ON when unset (Privacy Filter is part of the default build set).
+  const privacyEnabled = String(env.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
   const result = [];
 
   // Python: always relevant (no master flag); never-built also counts.
@@ -3083,9 +3085,9 @@ function computePendingContainerBuilds() {
     }
   }
 
-  // Privacy: only if master is on. Privacy Filter is English-only by design,
+  // Privacy: default-on. Privacy Filter is English-only by design,
   // so the only rebuild-needed signal is "never built before".
-  if (truthy(env.PRIVACY_FILTER)) {
+  if (privacyEnabled) {
     const prev = snapshots.privacy_service;
     if (!prev) {
       result.push({
@@ -3510,7 +3512,7 @@ function saveSettings(data) {
         }
         
         // Normalize install option booleans to string 'true'/'false'
-        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','PRIVACY_FILTER','EXTRACTOR_SERVICE'];
+        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','EXTRACTOR_SERVICE'];
         installOptionKeys.forEach(k => {
             if (k in data) data[k] = data[k] ? 'true' : 'false';
         });

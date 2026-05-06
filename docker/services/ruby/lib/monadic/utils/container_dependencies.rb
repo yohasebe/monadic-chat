@@ -77,9 +77,9 @@ module Monadic
         end
 
         # Privacy: required when an app declares privacy.enabled in MDSL.
-        # The privacy container itself is only built when the user opts in
-        # via PRIVACY_FILTER=true; ensure-service privacy returns
-        # PRIVACY_DISABLED in that case so the caller can show a setup dialog.
+        # The privacy container is part of the default build set;
+        # ensure-service privacy returns PRIVACY_DISABLED only when the user
+        # has explicitly opted out via PRIVACY_FILTER=false.
         if get.call(:privacy_enabled)
           services << :privacy
         end

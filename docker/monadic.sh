@@ -40,6 +40,9 @@ REPORTING=
 # All Docker Compose profiles used by profiled services (see profiles: keys in compose.yml files).
 # Used for full build/stop operations that must include every service regardless of on-demand startup.
 ALL_PROFILES="--profile python --profile selenium"
+if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
+  ALL_PROFILES="${ALL_PROFILES} --profile privacy"
+fi
 
 # Define the path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -288,7 +291,7 @@ EOF
   if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
     COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/qdrant/compose.dev.yml\""
     COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/embeddings/compose.dev.yml\""
-    if [[ "${PRIVACY_FILTER:-false}" == "true" ]]; then
+    if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
       COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.dev.yml\""
     fi
     if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
@@ -1400,8 +1403,8 @@ start_docker_compose() {
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
-  
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
+
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
 
   # Informational flow for smoother UX
   # Keep health check noise out of user-facing messages; log to output only
@@ -1427,7 +1430,7 @@ start_docker_compose() {
       echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
       echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
       build_ruby_container
-      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
+      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
       if wait_for_ruby_ready; then
         echo "Orchestration refreshed. Continuing startup . . ."
       fi
@@ -1989,10 +1992,9 @@ ensure-service)
       fi
       ;;
     privacy)
-      # Privacy requires explicit user opt-in via PRIVACY_FILTER=true (build-time choice).
-      # If the image was never built, this returns PRIVACY_DISABLED so the caller can
-      # show the "open Settings to enable" dialog.
-      if [[ "${PRIVACY_FILTER:-false}" != "true" ]]; then
+      # Privacy filter is part of the default build set. PRIVACY_FILTER=false
+      # opts out at runtime (and excludes the image from build via ALL_PROFILES).
+      if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
         echo "PRIVACY_DISABLED"
       elif ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
         echo "PRIVACY_NOT_BUILT"
@@ -2025,8 +2027,8 @@ ensure-service)
   ;;
 build_privacy_container)
   # Build the privacy container based on PRIVACY_FILTER + PRIVACY_LANGS env.
-  # Triggered from the Settings → Actions panel (Block C).
-  if [[ "${PRIVACY_FILTER:-false}" != "true" ]]; then
+  # Triggered from the Settings → Actions panel (Electron menu).
+  if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
     echo "[INFO] Privacy Filter is disabled (PRIVACY_FILTER=false). Skipping build."
     exit 0
   fi

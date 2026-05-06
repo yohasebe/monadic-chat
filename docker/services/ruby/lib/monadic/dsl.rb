@@ -345,7 +345,8 @@ module MonadicDSL
     #     languages ["ja", "en"]
     #   end
     # Setting privacy_enabled=true triggers container_dependencies to require
-    # the :privacy service. Container must be built (PRIVACY_FILTER=true env).
+    # the :privacy service. The privacy container is part of the default build
+    # set; PRIVACY_FILTER=false in env opts out at runtime.
     def privacy(&block)
       config = PrivacyFilterConfiguration.new
       config.instance_eval(&block) if block_given?

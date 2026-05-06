@@ -47,9 +47,9 @@
       }
     </style>
 
-    <!-- Privacy Filter availability flag from server env (PRIVACY_FILTER) -->
+    <!-- Privacy Filter availability flag from server env (PRIVACY_FILTER, default on) -->
     <script type="text/javascript">
-      window.MONADIC_PRIVACY_AVAILABLE = <%= ENV['PRIVACY_FILTER'].to_s.downcase == 'true' ? 'true' : 'false' %>;
+      window.MONADIC_PRIVACY_AVAILABLE = <%= ENV['PRIVACY_FILTER'].to_s.downcase != 'false' ? 'true' : 'false' %>;
     </script>
 
     <!-- Theme initialization script - runs immediately to prevent flash -->

@@ -47,9 +47,17 @@
       }
     </style>
 
-    <!-- Privacy Filter availability flag from server env (PRIVACY_FILTER, default on) -->
+    <!-- Privacy Filter availability flag from server env (PRIVACY_FILTER, default on)
+         and the list of language codes the privacy container was built with
+         (PRIVACY_LANGS). Toggle gate reads both to decide whether the toggle is
+         enabled for the current sidebar conversation_language. -->
     <script type="text/javascript">
       window.MONADIC_PRIVACY_AVAILABLE = <%= ENV['PRIVACY_FILTER'].to_s.downcase != 'false' ? 'true' : 'false' %>;
+      window.MONADIC_PRIVACY_INSTALLED_LANGS = <%=
+        codes = (ENV['PRIVACY_LANGS'] || 'en').split(',').map(&:strip).reject(&:empty?)
+        codes = ['en'] if codes.empty?
+        codes.uniq.to_json
+      %>;
     </script>
 
     <!-- Theme initialization script - runs immediately to prevent flash -->

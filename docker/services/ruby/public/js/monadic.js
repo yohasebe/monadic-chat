@@ -2225,7 +2225,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Privacy Filter session toggle: enable only when both gates are met:
     //   1. App MDSL declares `privacy do; enabled true; end`
-    //   2. Privacy container is installed (PRIVACY_FILTER=true on server)
+    //   2. Privacy Filter is enabled on the server (PRIVACY_FILTER != "false")
     // The user's last choice per app is restored from localStorage so
     // switching between apps does not silently discard preferences. The
     // lock-on-first-message state lives in window.privacyToggleLocked and
@@ -2250,7 +2250,7 @@ document.addEventListener("DOMContentLoaded", function () {
         : "ui.privacyFilterNotInstalled";
       const fallback = !appSupportsPrivacy
         ? "This app does not support Privacy Filter."
-        : "Privacy Filter is not installed. Open Settings → Install Options to enable it.";
+        : "Privacy Filter is disabled.";
       const tooltip = (typeof webUIi18n !== "undefined") ? webUIi18n.t(disabledKey) : fallback;
       window.privacyToggleLocked = false;
       if (privacyEl) {

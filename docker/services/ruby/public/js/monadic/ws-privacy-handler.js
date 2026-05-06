@@ -105,7 +105,7 @@
       if (toggleEl) toggleEl.checked = false;
 
       const msg = data.error === 'privacy_container_unreachable'
-        ? 'Privacy container is not running. Open Settings → Install Options to start it.'
+        ? 'Privacy container is not running. Try restarting the application.'
         : ('Privacy Filter error: ' + String(data.error).substring(0, 200));
       if (typeof window.setAlert === 'function') {
         window.setAlert(

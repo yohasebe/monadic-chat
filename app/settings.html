@@ -811,15 +811,6 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.installPrivacyTitle" data-container="privacy_service">Privacy Filter (PII Masking)</label>
-              <small class="text-muted" data-i18n="settings.labels.installPrivacyDesc">Mask names, emails, and other personal information before sending to AI providers. Adds a separate ~1 GB container per language.</small>
-              <div class="checkbox-row" style="margin-top: 8px;">
-                <input type="checkbox" id="install-privacy-filter">
-                <label for="install-privacy-filter" data-i18n="settings.labels.installPrivacyEnable">Install Privacy Filter (English baseline)</label>
-              </div>
-            </div>
-
-            <div class="setting-group">
               <label data-i18n="settings.labels.installExtractorTitle" data-container="extractor_service">Knowledge Base Quality Pack (Docling)</label>
               <small class="text-muted" data-i18n="settings.labels.installExtractorDesc">Layout-aware PDF extraction with OCR, table structure, and multilingual support. Adds a separate ~3 GB container; Library imports use it when installed.</small>
               <div class="checkbox-row" style="margin-top: 8px;">
@@ -1013,17 +1004,8 @@
         }
       }
 
-      // ─── Privacy Filter helpers ───
-      // Privacy Filter is English-only. Other languages are not exposed
-      // in the UI because no built-in app declares them in MDSL — adding
-      // them at install time would download spaCy models that nothing
-      // exercises.
-
-      // Toggle Build Privacy availability when the master flips.
+      // ─── Extractor master toggle handler ───
       document.addEventListener('change', (ev) => {
-        if (ev.target && ev.target.id === 'install-privacy-filter') {
-          updateActionButtons();
-        }
         if (ev.target && ev.target.id === 'install-extractor-service') {
           syncExtractorLangsEnabled();
           updateActionButtons();
@@ -1074,7 +1056,7 @@
       //   in-sync         — image matches the saved options
       //   rebuild-needed  — image exists but Build now would differ
       //   not-built       — image has not been built yet
-      //   disabled        — master toggle off (Privacy / Extractor only)
+      //   disabled        — master toggle off (Extractor only)
       // Master toggles do NOT affect the build itself (they are runtime
       // flags), so toggling them leaves the in-sync/rebuild-needed verdict
       // unchanged unless the master is off (then the section is disabled).
@@ -1104,15 +1086,6 @@
           return diff ? 'rebuild-needed' : 'in-sync';
         })();
 
-        const privacyState = (() => {
-          if (!$val('install-privacy-filter')?.checked) return 'disabled';
-          const prev = buildOptionsSnapshots.privacy_service;
-          if (!prev) return 'not-built';
-          // Privacy Filter is English-only; once built, no rebuild is needed
-          // unless the install toggle changes (handled by the disabled branch).
-          return 'in-sync';
-        })();
-
         const extractorState = (() => {
           if (!$val('install-extractor-service')?.checked) return 'disabled';
           const prev = buildOptionsSnapshots.extractor_service;
@@ -1127,7 +1100,6 @@
 
         const states = {
           python_service: pythonState,
-          privacy_service: privacyState,
           extractor_service: extractorState
         };
         document.querySelectorAll('label[data-container]').forEach(el => {
@@ -1141,7 +1113,6 @@
         const s = actionDockerStatus;
         const met = actionMetRequirements;
         const buildable = s === 'Stopped' || s === 'Uninstalled';
-        const privacyOn = !!(document.getElementById('install-privacy-filter') || {}).checked;
         const extractorOn = !!(document.getElementById('install-extractor-service') || {}).checked;
         const rules = {
           'action-start': s === 'Stopped',
@@ -1151,7 +1122,7 @@
           'action-build-ruby': buildable,
           'action-build-python': buildable,
           'action-build-user': buildable,
-          'action-build-privacy': buildable && privacyOn,
+          'action-build-privacy': buildable,
           'action-build-extractor': buildable && extractorOn,
           'action-start-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-stop-jupyter': (s === 'Running' || s === 'Ready') && met,
@@ -1280,8 +1251,6 @@
           PYOPT_MEDIAPIPE: document.getElementById('pyopt-mediapipe').checked,
           PYOPT_TRANSFORMERS: document.getElementById('pyopt-transformers').checked,
           IMGOPT_IMAGEMAGICK: document.getElementById('imgopt-imagemagick').checked,
-          PRIVACY_FILTER: document.getElementById('install-privacy-filter').checked,
-          PRIVACY_LANGS: 'en',
           EXTRACTOR_SERVICE: document.getElementById('install-extractor-service').checked,
           EXTRACTOR_LANGS: collectExtractorLangs()
         };
@@ -1421,9 +1390,6 @@
         document.getElementById('pyopt-mediapipe').checked = data.PYOPT_MEDIAPIPE == "true" || false;
         document.getElementById('pyopt-transformers').checked = data.PYOPT_TRANSFORMERS == "true" || false;
         document.getElementById('imgopt-imagemagick').checked = data.IMGOPT_IMAGEMAGICK == "true" || false;
-        // Privacy Filter: master flag only. Privacy is English-only by design;
-        // the underlying PRIVACY_LANGS env defaults to 'en' and isn't user-tunable.
-        document.getElementById('install-privacy-filter').checked = data.PRIVACY_FILTER == "true" || false;
         // Extractor Service: master flag + OCR-language extras (default en,ja,zh,ko)
         document.getElementById('install-extractor-service').checked = data.EXTRACTOR_SERVICE == "true" || false;
         applyExtractorLangs(data.EXTRACTOR_LANGS || 'en,ja,zh,ko');

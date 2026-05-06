@@ -10,6 +10,11 @@ services:
     container_name: monadic-chat-ruby-container
     environment:
       HOST_OS: ${HOST_OS}
+      PRIVACY_FILTER: ${PRIVACY_FILTER:-true}
+      PRIVACY_LANGS: ${PRIVACY_LANGS:-en}
+      EXTRACTOR_SERVICE: ${EXTRACTOR_SERVICE:-}
+      EXTRACTOR_LANGS: ${EXTRACTOR_LANGS:-}
+      EXTRA_LOGGING: ${EXTRA_LOGGING:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - data:/monadic/data

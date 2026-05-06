@@ -4,7 +4,7 @@
 
 The Privacy Filter masks personally identifiable information (PII) in user messages before they are sent to AI providers, then restores the original values in the AI's response on the way back. Detection runs locally in a separate Docker container (Microsoft Presidio + spaCy) so PII never leaves your machine on its way to or from the LLM.
 
-The feature is opt-in and disabled by default. It does not affect existing apps or sessions until you both install the container and turn the per-session toggle on.
+The Privacy container is part of Monadic Chat's default container set, so the feature is ready to use the first time you start the app. Each app's per-session toggle starts off and must be turned on to enable masking for that conversation.
 
 ## When to Use It
 
@@ -14,18 +14,20 @@ The feature is opt-in and disabled by default. It does not affect existing apps 
 
 ## Installation
 
-The Privacy Filter requires a separate Docker container. The image is around 1 GB and ships only the English NER model.
+The Privacy container is built and started automatically with the rest of Monadic Chat. English is mandatory and always installed; the base image is around 1 GB.
+
+To enable masking for non-English content, add additional spaCy NER models:
 
 1. Open **Settings → Install Options**.
-2. Locate the **Privacy Filter (PII Masking)** section.
-3. Check **Install Privacy Filter (English baseline)**.
-4. Click **Save**.
-5. Switch to **Settings → Actions** and click **Build Privacy** (or use the menu: **Actions → Build Privacy Container**). The button is enabled only when the master checkbox is on and Docker is in the Stopped state.
-6. Wait for the build to finish. The console panel shows progress and a final "Build of Privacy container has finished" message.
+2. Locate the **Privacy Filter — Additional Languages** section.
+3. Check the languages you want from German (de), Spanish (es), French (fr), Italian (it), Japanese (ja), Dutch (nl), Portuguese (pt), Chinese (zh). English is always present and cannot be unchecked.
+4. Click **Save**. The Privacy section's status badge changes to **rebuild-needed**.
+5. Switch to **Settings → Actions** and click **Build Privacy** (or use the menu: **Actions → Build Privacy Container**). The button is enabled when Docker is in the Stopped state.
+6. Wait for the build to finish. Each additional language downloads a spaCy model (~50 MB each) and is baked into the container image.
 
-Privacy Filter is English-only by design. Built-in apps declare `languages ["en"]` in their MDSL, so installing additional spaCy models would add image weight without changing detection behavior.
+Languages stay installed until you uncheck them and rebuild. Removing a language frees up space in the container image at the next build.
 
-To uninstall, uncheck the master checkbox and Save. The feature is disabled at runtime; the image can be removed manually with `docker rmi yohasebe/monadic-privacy`.
+Runtime opt-out: set `PRIVACY_FILTER=false` in `~/monadic/config/env` to skip the Privacy container entirely. The toggle becomes disabled with the tooltip "Privacy Filter is disabled." until the env value is restored.
 
 ## Per-Session Toggle
 
@@ -38,7 +40,23 @@ Once the container is installed, apps that support privacy filtering show a **Pr
 When the toggle is disabled, hovering over it shows the reason:
 
 - *This app does not support Privacy Filter.* — The app's MDSL does not declare a `privacy` block.
-- *Privacy Filter is not installed. Open Settings → Install Options to enable it.* — `PRIVACY_FILTER=true` is not set in the environment, or the container has not been built yet.
+- *Privacy Filter is disabled.* — `PRIVACY_FILTER=false` is set in the environment, so the Privacy container was not started.
+- *Privacy Filter is not installed for this language. Install via Settings → Install Options.* — The sidebar's conversation_language is not among the Presidio languages currently baked into the container. Install the language and rebuild, or change the conversation_language to one that is installed.
+
+## Language Selection
+
+The session toggle's enabled state and the masking language follow the sidebar **conversation_language**:
+
+| Sidebar conversation_language | Masking language | Toggle |
+|---|---|---|
+| Automatic | English | enabled |
+| English (en) | English | enabled |
+| An installed non-English language (e.g. ja, de, fr) | That language (matching spaCy NER model) | enabled |
+| An uninstalled language (e.g. Korean) | — | disabled with tooltip |
+
+**Recommendation**: when masking non-English content, set the conversation_language explicitly in the sidebar. The "Automatic" option always masks as English regardless of the actual content, which can miss culture-specific entities (e.g. Japanese names + honorific trimming).
+
+Japanese has additional dedicated handling: when `lang_used` is `ja`, the Privacy container trims trailing honorifics (`さん`, `様`, `先生`, `君`, etc.) from PERSON spans so that placeholders capture only the actual name.
 
 ## Indicator and Registry
 
@@ -107,7 +125,7 @@ Other apps do not declare `privacy do` and the toggle stays disabled. Apps that 
 - Assistant-side history is not re-masked. The pipeline applies to the user role on each turn; if the assistant repeats a name in a later turn, that occurrence passes through unchanged.
 - Custom recognizers live in the privacy container source (`docker/services/privacy/recognizers/`). Adding new recognizers requires rebuilding the container.
 - Masking adds a small per-message latency, typically 50-200 ms depending on text length.
-- English is the only supported language for production use. Other languages would require both adding a spaCy NER model to the privacy container and declaring those languages in each app's MDSL `privacy do; languages [...]` block.
+- Supported masking languages are limited to the nine spaCy NER models bundled with Presidio: English, German, Spanish, French, Italian, Japanese, Dutch, Portuguese, Chinese. Languages outside this set (e.g. Korean, Arabic) cannot use the Privacy Filter — the session toggle is disabled when the sidebar conversation_language is one of them.
 
 ## Configuration Reference
 
@@ -115,8 +133,8 @@ Settings stored in `~/monadic/config/env`:
 
 | Variable | Values | Default | Description |
 |---|---|---|---|
-| `PRIVACY_FILTER` | `true` / `false` | `false` | Master gate. Must be `true` to build and use the privacy container. |
-| `PRIVACY_LANGS` | comma-separated language codes | `en` | spaCy language models to install. The Settings UI pins this to `en`; advanced users who maintain custom MDSL apps with non-English `languages` blocks can edit the env file directly. |
+| `PRIVACY_FILTER` | `true` / `false` | `true` | Runtime gate. Set to `false` to skip starting the privacy container at startup; the toggle becomes disabled until restored to `true`. |
+| `PRIVACY_LANGS` | comma-separated language codes | `en` | spaCy NER models baked into the privacy container at build time. English is mandatory and prepended automatically. The preferred edit path is Settings → Install Options → "Privacy Filter — Additional Languages"; advanced users can edit the env file directly. Supported codes: `en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`. |
 | `PRIVACY_DEV_PORT` | port number | `8001` | Used in development mode only to expose the privacy container's HTTP port to the host. |
 
-After changing `PRIVACY_FILTER`, rebuild the container (Settings → Actions → Build Privacy) and restart Monadic Chat so the new environment values take effect.
+After changing `PRIVACY_LANGS`, rebuild the container (Settings → Actions → Build Privacy) and restart Monadic Chat so the new language models take effect. After changing `PRIVACY_FILTER`, restart Monadic Chat (no rebuild required).

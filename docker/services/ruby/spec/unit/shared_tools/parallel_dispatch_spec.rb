@@ -697,7 +697,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
 
     it "routes Grok to responses_api_sub_call when websearch: true" do
       expect(app).to receive(:responses_api_sub_call).and_return("result")
-      app.sub_agent_api_call("grok-4-1-fast-non-reasoning", "test", grok_cfg, 120, websearch: true)
+      app.sub_agent_api_call("grok-4.20-0309-non-reasoning", "test", grok_cfg, 120, websearch: true)
     end
 
     it "routes Gemini to gemini_websearch_sub_call when websearch: true" do

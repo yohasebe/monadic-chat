@@ -30,7 +30,7 @@ RSpec.describe AIUserAgent do
       "OPENAI_DEFAULT_MODEL" => "gpt-4.1",
       "ANTHROPIC_DEFAULT_MODEL" => "claude-sonnet-4-6",
       "COHERE_DEFAULT_MODEL" => "command-a-reasoning-08-2025",
-      "GROK_DEFAULT_MODEL" => "grok-4-fast-reasoning",
+      "GROK_DEFAULT_MODEL" => "grok-4.3",
       "PERPLEXITY_DEFAULT_MODEL" => "sonar-reasoning-pro"
     })
     
@@ -360,7 +360,7 @@ RSpec.describe AIUserAgent do
       providers_and_defaults = {
         "gemini" => "gemini-3-flash-preview",
         "mistral" => "mistral-large-latest",
-        "grok" => "grok-4-1-fast-non-reasoning",
+        "grok" => "grok-4.20-0309-non-reasoning",
         "perplexity" => "sonar",
         "deepseek" => "deepseek-v4-flash",
         "cohere" => "command-a-03-2025"

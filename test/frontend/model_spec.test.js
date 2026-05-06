@@ -30,7 +30,7 @@ describe('Model Specification', () => {
     expect(modelSpec['gemini-2.5-flash']).toBeDefined();
     expect(modelSpec['command-a-vision-07-2025']).toBeDefined();
     expect(modelSpec['command-a-reasoning-08-2025']).toBeDefined();
-    expect(modelSpec['grok-4-1-fast-reasoning']).toBeDefined();
+    expect(modelSpec['grok-4.3']).toBeDefined();
   });
 
   describe('OpenAI Models', () => {

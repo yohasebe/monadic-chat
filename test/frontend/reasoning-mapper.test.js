@@ -26,10 +26,10 @@ global.modelSpec = {
       can_disable: true
     }
   },
-  'grok-4-fast-reasoning': {
+  'grok-4.3': {
     reasoning_effort: [['minimal', 'low', 'medium', 'high'], 'medium']
   },
-  'grok-code-fast-1': {
+  'grok-4.20-0309-reasoning': {
     reasoning_effort: [['low', 'high'], 'low']
   },
   'deepseek-reasoner': {
@@ -67,7 +67,7 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok is supported', () => {
-      expect(ReasoningMapper.isSupported('xAI', 'grok-4-fast-reasoning')).toBe(true);
+      expect(ReasoningMapper.isSupported('xAI', 'grok-4.3')).toBe(true);
     });
 
     test('DeepSeek is supported', () => {
@@ -100,7 +100,7 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok returns low and high options', () => {
-      const options = ReasoningMapper.getAvailableOptions('xAI', 'grok-code-fast-1');
+      const options = ReasoningMapper.getAvailableOptions('xAI', 'grok-4.20-0309-reasoning');
       expect(options).toEqual(['low', 'high']);
     });
 
@@ -127,7 +127,7 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok maps reasoning_effort directly', () => {
-      const result = ReasoningMapper.mapToProviderParameter('xAI', 'grok-code-fast-1', 'low');
+      const result = ReasoningMapper.mapToProviderParameter('xAI', 'grok-4.20-0309-reasoning', 'low');
       expect(result).toEqual({ reasoning_effort: 'low' });
     });
 
@@ -157,7 +157,7 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok returns spec default', () => {
-      const result = ReasoningMapper.getDefaultValue('xAI', 'grok-4-fast-reasoning');
+      const result = ReasoningMapper.getDefaultValue('xAI', 'grok-4.3');
       expect(result).toBe('medium');
     });
 

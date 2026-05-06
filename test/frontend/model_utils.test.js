@@ -43,7 +43,7 @@ describe('Model Utils - Deprecated Model Filtering', () => {
       expect(modelUtils.isModelDeprecated('gpt-5.4')).toBe(false);
       expect(modelUtils.isModelDeprecated('claude-sonnet-4-6')).toBe(false);
       expect(modelUtils.isModelDeprecated('gemini-3-flash-preview')).toBe(false);
-      expect(modelUtils.isModelDeprecated('grok-4-0709')).toBe(false);
+      expect(modelUtils.isModelDeprecated('grok-4.20-0309-non-reasoning')).toBe(false);
     });
 
     it('returns false for unknown models', () => {

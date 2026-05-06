@@ -14,7 +14,7 @@ global.modelSpec = {
   'gemini-2.5-flash': {
     thinking_budget: { min: 128, max: 20000, can_disable: true }
   },
-  'grok-4-fast-reasoning': {
+  'grok-4.3': {
     reasoning_effort: [['minimal', 'low', 'medium', 'high'], 'medium']
   },
   'deepseek-reasoner': {
@@ -45,7 +45,7 @@ describe('ReasoningLabels', () => {
     });
 
     test('returns appropriate label for Grok', () => {
-      expect(ReasoningLabels.getLabel('xAI', 'grok-4-fast-reasoning')).toBe('Reasoning Effort');
+      expect(ReasoningLabels.getLabel('xAI', 'grok-4.3')).toBe('Reasoning Effort');
     });
 
     test('returns appropriate label for DeepSeek', () => {

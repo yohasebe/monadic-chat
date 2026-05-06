@@ -289,8 +289,8 @@ RSpec.describe "Grok Reasoning Content Extraction" do
   end
 
   describe "Model compatibility" do
-    it "supports Grok 3 reasoning models" do
-      model_name = "grok-4-1-fast-reasoning"
+    it "identifies reasoning-named Grok models by name pattern" do
+      model_name = "grok-4.20-0309-reasoning"
 
       is_reasoning = model_name.include?("reasoning")
 

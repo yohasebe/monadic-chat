@@ -421,7 +421,7 @@ module GrokHelper
           candidates = spec.keys.select do |m|
             m.start_with?("grok-") && Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") == true
           end
-          vision_model = candidates.include?("grok-4-1-fast-non-reasoning") ? "grok-4-1-fast-non-reasoning" : candidates.first
+          vision_model = candidates.include?("grok-4.3") ? "grok-4.3" : candidates.first
         rescue StandardError
           vision_model = nil
         end

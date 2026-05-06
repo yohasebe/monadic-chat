@@ -811,6 +811,22 @@
             </div>
 
             <div class="setting-group">
+              <label data-i18n="settings.labels.installPrivacyTitle" data-container="privacy_service">Privacy Filter — Additional Languages</label>
+              <small class="text-muted" data-i18n="settings.labels.installPrivacyDesc">English is always installed. Enable additional languages to mask PII in non-English content. Each language adds ~50 MB to the Privacy container; rebuild required after changes.</small>
+              <div id="privacy-langs-extra" style="margin-top: 8px; padding-left: 20px;">
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-en" checked disabled><label for="privacy-lang-en">English (en) — always installed</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-de"><label for="privacy-lang-de">German (de)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-es"><label for="privacy-lang-es">Spanish (es)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-fr"><label for="privacy-lang-fr">French (fr)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-it"><label for="privacy-lang-it">Italian (it)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-ja"><label for="privacy-lang-ja">Japanese (ja)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-nl"><label for="privacy-lang-nl">Dutch (nl)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-pt"><label for="privacy-lang-pt">Portuguese (pt)</label></div>
+                <div class="checkbox-row"><input type="checkbox" id="privacy-lang-zh"><label for="privacy-lang-zh">Chinese (zh)</label></div>
+              </div>
+            </div>
+
+            <div class="setting-group">
               <label data-i18n="settings.labels.installExtractorTitle" data-container="extractor_service">Knowledge Base Quality Pack (Docling)</label>
               <small class="text-muted" data-i18n="settings.labels.installExtractorDesc">Layout-aware PDF extraction with OCR, table structure, and multilingual support. Adds a separate ~3 GB container; Library imports use it when installed.</small>
               <div class="checkbox-row" style="margin-top: 8px;">
@@ -1004,13 +1020,40 @@
         }
       }
 
-      // ─── Extractor master toggle handler ───
+      // ─── Extractor master toggle + Privacy language checkbox handlers ───
       document.addEventListener('change', (ev) => {
         if (ev.target && ev.target.id === 'install-extractor-service') {
           syncExtractorLangsEnabled();
           updateActionButtons();
         }
+        if (ev.target && ev.target.id && ev.target.id.startsWith('privacy-lang-')) {
+          recomputeRebuildBadges();
+        }
       });
+
+      // ─── Privacy Filter language helpers ───
+      // Privesidio-supported languages exposed in the UI. English is required
+      // and always included (the checkbox is checked + disabled in markup).
+      // Other languages are opt-in; selecting any of them makes the Privacy
+      // section a "rebuild-needed" candidate.
+      const PRIVACY_OPT_LANGS = ['de', 'es', 'fr', 'it', 'ja', 'nl', 'pt', 'zh'];
+
+      function collectPrivacyLangs() {
+        const langs = ['en'];  // English is mandatory
+        PRIVACY_OPT_LANGS.forEach(code => {
+          const el = document.getElementById('privacy-lang-' + code);
+          if (el && el.checked) langs.push(code);
+        });
+        return langs.join(',');
+      }
+
+      function applyPrivacyLangs(value) {
+        const tokens = String(value || 'en').split(',').map(s => s.trim()).filter(Boolean);
+        PRIVACY_OPT_LANGS.forEach(code => {
+          const el = document.getElementById('privacy-lang-' + code);
+          if (el) el.checked = tokens.includes(code);
+        });
+      }
 
       // ─── Extractor Service (Knowledge Base Quality Pack) helpers ───
       // RapidOCR-supported languages exposed in the UI. English is included
@@ -1056,7 +1099,8 @@
       //   in-sync         — image matches the saved options
       //   rebuild-needed  — image exists but Build now would differ
       //   not-built       — image has not been built yet
-      //   disabled        — master toggle off (Extractor only)
+      //   disabled        — master toggle off (Extractor only; Privacy has no
+      //                     master toggle since English is always installed)
       // Master toggles do NOT affect the build itself (they are runtime
       // flags), so toggling them leaves the in-sync/rebuild-needed verdict
       // unchanged unless the master is off (then the section is disabled).
@@ -1086,6 +1130,17 @@
           return diff ? 'rebuild-needed' : 'in-sync';
         })();
 
+        const privacyState = (() => {
+          const prev = buildOptionsSnapshots.privacy_service;
+          if (!prev) return 'not-built';
+          // PRIVACY_LANGS is the only build-relevant input. Any change in the
+          // language set requires rebuilding (each language's spaCy model is
+          // baked into the image).
+          const curLangs = collectPrivacyLangs();
+          return prev.PRIVACY_LANGS !== undefined && prev.PRIVACY_LANGS !== curLangs
+            ? 'rebuild-needed' : 'in-sync';
+        })();
+
         const extractorState = (() => {
           if (!$val('install-extractor-service')?.checked) return 'disabled';
           const prev = buildOptionsSnapshots.extractor_service;
@@ -1100,6 +1155,7 @@
 
         const states = {
           python_service: pythonState,
+          privacy_service: privacyState,
           extractor_service: extractorState
         };
         document.querySelectorAll('label[data-container]').forEach(el => {
@@ -1252,7 +1308,8 @@
           PYOPT_TRANSFORMERS: document.getElementById('pyopt-transformers').checked,
           IMGOPT_IMAGEMAGICK: document.getElementById('imgopt-imagemagick').checked,
           EXTRACTOR_SERVICE: document.getElementById('install-extractor-service').checked,
-          EXTRACTOR_LANGS: collectExtractorLangs()
+          EXTRACTOR_LANGS: collectExtractorLangs(),
+          PRIVACY_LANGS: collectPrivacyLangs()
         };
 
         window.electronAPI.saveSettings(data);
@@ -1393,6 +1450,7 @@
         // Extractor Service: master flag + OCR-language extras (default en,ja,zh,ko)
         document.getElementById('install-extractor-service').checked = data.EXTRACTOR_SERVICE == "true" || false;
         applyExtractorLangs(data.EXTRACTOR_LANGS || 'en,ja,zh,ko');
+        applyPrivacyLangs(data.PRIVACY_LANGS || 'en');
         syncExtractorLangsEnabled();
 
         // Pending-rebuild badges. Compare live form values against the build

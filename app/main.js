@@ -3516,12 +3516,12 @@ function saveSettings(data) {
         installOptionKeys.forEach(k => {
             if (k in data) data[k] = data[k] ? 'true' : 'false';
         });
-        // Privacy Filter is English-only by design — pin PRIVACY_LANGS to 'en'
-        // regardless of what the renderer sent. The UI does not expose a
-        // language selector anymore; this guard prevents stale state from
-        // earlier versions from surfacing back.
+        // PRIVACY_LANGS: English is mandatory; ensure it's always first in
+        // the comma-separated list even if the renderer somehow omits it.
         if ('PRIVACY_LANGS' in data) {
-            data.PRIVACY_LANGS = 'en';
+            const tokens = String(data.PRIVACY_LANGS || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (!tokens.includes('en')) tokens.unshift('en');
+            data.PRIVACY_LANGS = tokens.join(',');
         }
         // EXTRACTOR_LANGS follows the same pattern; English baseline always present.
         if ('EXTRACTOR_LANGS' in data) {

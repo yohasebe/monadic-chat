@@ -80,4 +80,49 @@ RSpec.describe Monadic::Utils::Privacy::Pipeline do
         "Symbols allowed in DSL but not mapped to Presidio canonical: #{missing}"
     end
   end
+
+  describe 'language resolution from session conversation_language' do
+    def build_with_session(session_hash)
+      described_class.new(backend: fake_backend, config: { enabled: true }, session: session_hash)
+    end
+
+    let(:raw) { Monadic::Utils::Privacy::RawMessage.new('hi', 'user', {}) }
+
+    it 'defaults to ["en"] when session has no parameters' do
+      build({ enabled: true }).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['en']))
+    end
+
+    it 'maps "auto" to ["en"]' do
+      build_with_session(parameters: { 'conversation_language' => 'auto' }).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['en']))
+    end
+
+    it 'passes through Japanese (ja) when sidebar selects it' do
+      build_with_session(parameters: { 'conversation_language' => 'ja' }).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['ja']))
+    end
+
+    it 'passes through every language Presidio supports' do
+      %w[en de es fr it ja nl pt zh].each do |code|
+        backend = double('Backend').tap do |b|
+          allow(b).to receive(:anonymize).and_return(masked_text: 'x', registry: {}, entities: [], stats: {})
+        end
+        described_class.new(backend: backend, config: { enabled: true },
+                            session: { parameters: { 'conversation_language' => code } })
+                       .before_send_to_llm(raw)
+        expect(backend).to have_received(:anonymize).with(hash_including(languages: [code]))
+      end
+    end
+
+    it 'falls back to ["en"] when sidebar language is outside Presidio support (e.g. Korean)' do
+      build_with_session(parameters: { 'conversation_language' => 'ko' }).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['en']))
+    end
+
+    it 'reads symbol-keyed parameters as well (Rack::Session quirk)' do
+      build_with_session(parameters: { conversation_language: 'de' }).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['de']))
+    end
+  end
 end

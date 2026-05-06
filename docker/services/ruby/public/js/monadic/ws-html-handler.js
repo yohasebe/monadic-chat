@@ -151,6 +151,27 @@ function handleHtml(data) {
       setInputFocus();
     }
   }
+
+  // Privacy Filter: after the assistant card lands in the DOM (regardless of
+  // whether wsHandlers.handleHtmlMessage or the inline fallback rendered it),
+  // wrap each restored value in a marker span so the user can see which PII
+  // travelled to the LLM as a placeholder. We schedule the walk via
+  // setTimeout(0) so it queues behind appendCard's MarkdownRenderer pass.
+  // Limit to assistant cards because user/system messages do not carry the
+  // restored_spans payload.
+  const restoredSpans = data && data["content"] && data["content"]["privacy_restored_spans"];
+  const isAssistant = data && data["content"] && data["content"]["role"] === 'assistant';
+  if (isAssistant && restoredSpans && restoredSpans.length &&
+      window.WsPrivacyHandler &&
+      typeof window.WsPrivacyHandler.highlightUnmaskedSpans === 'function') {
+    setTimeout(function () {
+      const cardEl = $id(data["content"]["mid"]);
+      const cardBody = cardEl ? cardEl.querySelector('.card-body') : null;
+      if (cardBody) {
+        window.WsPrivacyHandler.highlightUnmaskedSpans(cardBody, restoredSpans);
+      }
+    }, 0);
+  }
 }
 
 /**
@@ -167,23 +188,6 @@ function _handleAssistantRole(data, html, moreComing) {
   const discourseEl = $id('discourse');
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
-
-  // Privacy Filter: after the card lands in the DOM, wrap each restored
-  // value (PII that left the machine as a placeholder) in a marker span.
-  // appendCard schedules MarkdownRenderer.applyRenderers via setTimeout(0);
-  // we queue our highlight pass behind it so KaTeX / mermaid have already
-  // taken their slots before we walk text nodes.
-  const restoredSpans = data["content"] && data["content"]["privacy_restored_spans"];
-  if (restoredSpans && restoredSpans.length && window.WsPrivacyHandler &&
-      typeof window.WsPrivacyHandler.highlightUnmaskedSpans === 'function') {
-    setTimeout(function () {
-      const cardEl = $id(data["content"]["mid"]);
-      const cardBody = cardEl ? cardEl.querySelector('.card-body') : null;
-      if (cardBody) {
-        window.WsPrivacyHandler.highlightUnmaskedSpans(cardBody, restoredSpans);
-      }
-    }, 0);
-  }
 
   if (moreComing) {
     // Keep input disabled and streaming state active

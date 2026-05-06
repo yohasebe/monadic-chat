@@ -276,6 +276,37 @@ describe('ws-html-handler', () => {
       jest.runOnlyPendingTimers();
       expect(highlightSpy).not.toHaveBeenCalled();
     });
+
+    it('runs highlight even when wsHandlers.handleHtmlMessage handles the rendering', () => {
+      // The production path delegates to websocket-handlers.js; the hook
+      // must therefore live outside the inline fallback so it fires in
+      // both branches.
+      const highlightSpy = jest.fn();
+      window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
+      window.wsHandlers = { handleHtmlMessage: jest.fn().mockReturnValue(true) };
+
+      const card = document.createElement('div');
+      card.id = 'msg-priv-prod';
+      const body = document.createElement('div');
+      body.className = 'card-body role-assistant';
+      body.innerHTML = '<p>Hello Bob.</p>';
+      card.appendChild(body);
+      document.getElementById('discourse').appendChild(card);
+
+      handlers.handleHtml({
+        content: {
+          role: 'assistant',
+          mid: 'msg-priv-prod',
+          privacy_restored_spans: [
+            { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Bob' }
+          ]
+        }
+      });
+      jest.runOnlyPendingTimers();
+
+      expect(highlightSpy).toHaveBeenCalledTimes(1);
+      expect(highlightSpy.mock.calls[0][0]).toBe(body);
+    });
   });
 
   describe('handleHtml - assistant moreComing', () => {

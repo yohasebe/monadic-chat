@@ -44,10 +44,14 @@ RSpec.describe 'WebSocketHelper PRIVACY_TOGGLE' do
       expect(session[:_privacy_session_enabled]).to be true
     end
 
-    it 'sends privacy_toggle_ack{ enabled: true, error: nil }' do
+    it 'sends privacy_toggle_ack{ enabled: true, error: nil } followed by privacy_state' do
       harness.send(:handle_ws_privacy_toggle, connection, session, { 'enabled' => true })
-      expect(harness.sent.size).to eq(1)
-      expect(harness.sent.first).to include('type' => 'privacy_toggle_ack', 'enabled' => true, 'error' => nil)
+      # The handler emits the ack first (frontend confirms toggle state),
+      # then a privacy_state push so the indicator becomes visible without
+      # waiting for the next assistant turn.
+      expect(harness.sent.size).to eq(2)
+      expect(harness.sent[0]).to include('type' => 'privacy_toggle_ack', 'enabled' => true, 'error' => nil)
+      expect(harness.sent[1]).to include('type' => 'privacy_state', 'enabled' => true, 'registry_count' => 0)
     end
   end
 
@@ -97,6 +101,12 @@ RSpec.describe 'WebSocketHelper PRIVACY_TOGGLE' do
     it 'sends privacy_toggle_ack{ enabled: false, error: nil }' do
       harness.send(:handle_ws_privacy_toggle, connection, session, { 'enabled' => false })
       expect(harness.sent.first).to include('type' => 'privacy_toggle_ack', 'enabled' => false, 'error' => nil)
+    end
+
+    it 'follows the ack with a privacy_state{ enabled: false } so the indicator hides immediately' do
+      harness.send(:handle_ws_privacy_toggle, connection, session, { 'enabled' => false })
+      expect(harness.sent.size).to eq(2)
+      expect(harness.sent[1]).to include('type' => 'privacy_state', 'enabled' => false)
     end
   end
 

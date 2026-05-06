@@ -50,6 +50,12 @@ module WebSocketHelper
           "enabled" => true,
           "error" => nil
         })
+        # Push a fresh privacy_state so the indicator becomes visible right
+        # away. Without this the indicator only shows up after the first
+        # assistant response (when streaming_handler emits its own
+        # privacy_state on restoration). The registry is empty at this
+        # point — count == 0 renders the "Privacy ready" gray state.
+        send_privacy_state(connection, session, registry_count: 0)
       else
         # Health probe failed. Keep state OFF so subsequent vendor calls
         # cannot mistake the toggle as active.
@@ -69,7 +75,34 @@ module WebSocketHelper
         "enabled" => false,
         "error" => nil
       })
+      # Mirror the toggle to the indicator so the badge disappears
+      # immediately when the user opts out, instead of staying visible
+      # until the next message turn.
+      send_privacy_state(connection, session, enabled: false, registry_count: 0)
     end
+  end
+
+  # Build and emit a privacy_state payload mirroring the shape used by
+  # streaming_handler / misc_handlers. Centralized so all sites stay in
+  # sync when the schema evolves (currently: type, enabled, registry_count,
+  # detection?, error).
+  private def send_privacy_state(connection, session, enabled: true, registry_count: 0)
+    payload = {
+      "type" => "privacy_state",
+      "enabled" => enabled,
+      "registry_count" => registry_count,
+      "error" => nil
+    }
+    if enabled
+      begin
+        require_relative '../privacy/language_detector'
+        detection = Monadic::Utils::Privacy::LanguageDetector.peek_detection_state(session)
+        payload["detection"] = detection if detection.is_a?(Hash)
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Privacy] detection state unavailable in toggle: #{e.message}" }
+      end
+    end
+    send_to_client(connection, payload)
   end
 
   # Respond to "PRIVACY_REGISTRY" requests with the current placeholder map.

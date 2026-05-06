@@ -5955,6 +5955,51 @@ i.fas.fa-bolt,
   margin-right: 4px;
 }
 
+/* Privacy Filter auto-detected language badge — appears next to the
+   indicator label when LanguageDetector has locked the session to a
+   reliable detection (auto mode only). The badge inherits the host
+   indicator's color so it reads as a sub-element rather than competing
+   with the main "Privacy ON (N)" label. */
+.privacy-lang-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 500;
+  background-color: rgba(255, 255, 255, 0.55);
+}
+.privacy-lang-badge i {
+  margin-right: 2px;
+  font-size: 0.85em;
+}
+.dark-theme .privacy-lang-badge {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+/* Privacy Filter unmask highlight: applied to assistant-card text spans
+   that were sent to the LLM as `<<TYPE_N>>` placeholders and restored on
+   return. Subtle by design — the goal is "you can see what travelled as
+   a placeholder when you look", not "the page glows". Hover reveals the
+   originating placeholder via the title attribute. */
+.privacy-unmasked {
+  background-color: rgba(25, 135, 84, 0.10);
+  border-bottom: 1px dotted rgba(25, 135, 84, 0.65);
+  padding: 0 1px;
+  border-radius: 2px;
+  cursor: help;
+}
+.privacy-unmasked:hover {
+  background-color: rgba(25, 135, 84, 0.20);
+}
+.dark-theme .privacy-unmasked {
+  background-color: rgba(72, 199, 142, 0.15);
+  border-bottom-color: rgba(72, 199, 142, 0.7);
+}
+.dark-theme .privacy-unmasked:hover {
+  background-color: rgba(72, 199, 142, 0.25);
+}
+
 /* Privacy Filter export dialog (Block D.3) — strength meter bar */
 .privacy-strength-bar {
   width: 100%;

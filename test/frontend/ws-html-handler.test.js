@@ -231,6 +231,51 @@ describe('ws-html-handler', () => {
       handlers.handleHtml(assistantData);
       expect(document.getElementById('cancel_query').style.display).toBe('none');
     });
+
+    it('forwards privacy_restored_spans to WsPrivacyHandler.highlightUnmaskedSpans', () => {
+      const highlightSpy = jest.fn();
+      window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
+
+      // Inject a card matching the assistant message id so the highlight
+      // pass has a real DOM element to walk.
+      const card = document.createElement('div');
+      card.id = 'msg-priv';
+      const body = document.createElement('div');
+      body.className = 'card-body role-assistant';
+      body.innerHTML = '<p>Hello Alice.</p>';
+      card.appendChild(body);
+      document.getElementById('discourse').appendChild(card);
+
+      const restoredSpans = [
+        { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' }
+      ];
+      handlers.handleHtml({
+        content: {
+          role: 'assistant',
+          text: 'Hello Alice.',
+          html: '<p>Hello Alice.</p>',
+          mid: 'msg-priv',
+          lang: 'en',
+          privacy_restored_spans: restoredSpans
+        }
+      });
+
+      // highlightUnmaskedSpans is queued via setTimeout(0); flush timers.
+      jest.runOnlyPendingTimers();
+
+      expect(highlightSpy).toHaveBeenCalledTimes(1);
+      const args = highlightSpy.mock.calls[0];
+      expect(args[0]).toBe(body);
+      expect(args[1]).toEqual(restoredSpans);
+    });
+
+    it('does not call highlight when privacy_restored_spans is absent', () => {
+      const highlightSpy = jest.fn();
+      window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
+      handlers.handleHtml(assistantData);
+      jest.runOnlyPendingTimers();
+      expect(highlightSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('handleHtml - assistant moreComing', () => {

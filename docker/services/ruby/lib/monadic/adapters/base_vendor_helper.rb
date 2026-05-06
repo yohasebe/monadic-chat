@@ -225,6 +225,10 @@ module BaseVendorHelper
     return messages unless pipeline
 
     require_relative '../utils/privacy/types'
+    # Note: language detection for "auto" mode happens upstream in
+    # handle_ws_streaming on the raw user-typed text, not here. Hooking it
+    # here would see vendor-adapter-injected placeholders (e.g. OpenAI
+    # Responses API's "Let's start" filler) and lock to the wrong language.
     messages.map do |msg|
       role = msg[:role] || msg["role"]
       next msg unless role.to_s == "user"

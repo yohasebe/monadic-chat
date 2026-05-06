@@ -22,6 +22,21 @@
     }
   }
 
+  // When the server has auto-detected a conversation language and locked
+  // the session to it, surface the language code so the user can see what
+  // the privacy backend is actually using. We only render the badge when
+  // a lock is in effect — for sidebar-selected languages the value is
+  // already explicit in the dropdown and adding it here would be noise.
+  function detectionBadge(detection) {
+    if (!detection || detection.locked !== true) return '';
+    var code = detection.language;
+    if (!code) return '';
+    var safe = escapeHtml(String(code));
+    return ' <span class="privacy-lang-badge" title="Auto-detected language">'
+      + '<i class="fas fa-language"></i> ' + safe
+      + '</span>';
+  }
+
   function handleState(data) {
     const el = findIndicator();
     if (!el) return;
@@ -44,19 +59,20 @@
       return;
     }
 
+    const langBadge = detectionBadge(data.detection);
     const count = Number(data.registry_count) || 0;
     if (count === 0) {
       setVisualState(
         el,
         'ready',
-        '<i class="fas fa-unlock"></i> Privacy ready',
+        '<i class="fas fa-unlock"></i> Privacy ready' + langBadge,
         'Privacy Filter is enabled. Click to view registry (currently empty).'
       );
     } else {
       setVisualState(
         el,
         'active',
-        '<i class="fas fa-lock"></i> Privacy ON (' + count + ')',
+        '<i class="fas fa-lock"></i> Privacy ON (' + count + ')' + langBadge,
         'Click to view ' + count + ' masked placeholder' + (count === 1 ? '' : 's')
       );
     }
@@ -365,6 +381,110 @@
     }
   });
 
+  // ---- Unmask highlight ------------------------------------------------
+  //
+  // After the assistant card is in the DOM the server tells us which values
+  // were restored from `<<TYPE_N>>` placeholders (see Pipeline#after_receive
+  // _from_llm). We walk the text nodes inside the card body and wrap each
+  // occurrence of every restored value in a marker span so the user can see
+  // exactly which information left their machine as a placeholder. This is
+  // the transparency layer of the Privacy Filter UX.
+  //
+  // We deliberately match by text content rather than by character offsets:
+  // markdown rendering shifts offsets and computing them on the rendered
+  // HTML is brittle. Substring search is robust because the LLM cannot
+  // organically produce the original PII (it only ever saw the placeholder),
+  // so any occurrence in the restored text MUST be a restoration.
+  //
+  // Skipped subtrees: <code>, <pre>, <a> — placeholders inside those would
+  // either be syntax noise or mangle hyperlink text. <script> and <style>
+  // are skipped for sanity.
+
+  function isInsideSkippedAncestor(node, root) {
+    var p = node.parentNode;
+    while (p && p !== root) {
+      if (p.classList && p.classList.contains('privacy-unmasked')) return true;
+      var tag = p.nodeName;
+      if (tag === 'CODE' || tag === 'PRE' || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'A') return true;
+      p = p.parentNode;
+    }
+    return false;
+  }
+
+  function splitAndWrap(textNode, needle, entityType, placeholder) {
+    var text = textNode.nodeValue;
+    var parent = textNode.parentNode;
+    if (!parent) return;
+
+    var doc = textNode.ownerDocument || document;
+    var fragment = doc.createDocumentFragment();
+    var pos = 0;
+    var idx;
+
+    while ((idx = text.indexOf(needle, pos)) !== -1) {
+      if (idx > pos) {
+        fragment.appendChild(doc.createTextNode(text.substring(pos, idx)));
+      }
+      var span = doc.createElement('span');
+      span.className = 'privacy-unmasked';
+      if (entityType) span.setAttribute('data-entity-type', entityType);
+      if (placeholder) {
+        // Title doubles as the native browser tooltip; the visible row is
+        // styled via CSS (subtle background + dotted underline).
+        span.setAttribute('title', 'Restored from ' + placeholder);
+      }
+      span.textContent = needle;
+      fragment.appendChild(span);
+      pos = idx + needle.length;
+    }
+
+    if (pos === 0) return; // Nothing matched — leave the original node intact.
+    if (pos < text.length) {
+      fragment.appendChild(doc.createTextNode(text.substring(pos)));
+    }
+    parent.replaceChild(fragment, textNode);
+  }
+
+  function wrapAllOccurrences(root, needle, entityType, placeholder) {
+    if (!needle) return;
+    var doc = root.ownerDocument || document;
+    var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        if (!node.nodeValue || node.nodeValue.indexOf(needle) === -1) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        if (isInsideSkippedAncestor(node, root)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    // Collect first; we mutate during the wrap step which would invalidate
+    // the walker mid-iteration.
+    var nodes = [];
+    var n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    nodes.forEach(function (textNode) {
+      splitAndWrap(textNode, needle, entityType, placeholder);
+    });
+  }
+
+  function highlightUnmaskedSpans(root, spans) {
+    if (!root || !spans || !spans.length) return;
+    // Sort by length descending so multi-word originals ("Alice Smith")
+    // are wrapped before any shorter substring ("Alice") that would
+    // otherwise consume their text first and prevent the longer match.
+    var sorted = spans.slice().sort(function (a, b) {
+      var la = (a && a.original) ? a.original.length : 0;
+      var lb = (b && b.original) ? b.original.length : 0;
+      return lb - la;
+    });
+    sorted.forEach(function (span) {
+      if (!span || !span.original) return;
+      wrapAllOccurrences(root, span.original, span.entity_type, span.placeholder);
+    });
+  }
+
   window.WsPrivacyHandler = {
     handleState: handleState,
     handleToggleAck: handleToggleAck,
@@ -373,6 +493,7 @@
     isActive: isActive,
     openExportDialog: openExportDialog,
     handleExportData: handleExportData,
-    handleExportError: handleExportError
+    handleExportError: handleExportError,
+    highlightUnmaskedSpans: highlightUnmaskedSpans
   };
 })();

@@ -216,6 +216,12 @@ module WebSocketHelper
       }
       session[:messages] << user_message_data
       sync_session_state!
+
+      # Privacy Filter auto-detect: lock the session language from the
+      # user's actual typed text (pre-vendor, no placeholder contamination).
+      # No-op when conversation_language != "auto" or already locked.
+      require_relative '../privacy/language_detector'
+      Monadic::Utils::Privacy::LanguageDetector.detect_and_lock!(message_text, session)
     end
 
     # Extract TTS parameters if auto_speech is enabled
@@ -541,17 +547,31 @@ module WebSocketHelper
           # Privacy Filter: restore <<TYPE_N>> placeholders before the message
           # is finalized. Buffer remains masked so the post-completion TTS path
           # above can still apply sanitize_for_tts independently.
+          restored_spans = nil
           if session[:_privacy_pipeline]
             pipeline = session[:_privacy_pipeline]
-            raw_content = pipeline.after_receive_from_llm(raw_content).text
+            restored_response = pipeline.after_receive_from_llm(raw_content)
+            raw_content = restored_response.text
+            restored_spans = restored_response.meta && restored_response.meta[:restored_spans]
             # Notify frontend of current privacy state so the indicator updates.
-            state_msg = {
+            # Detection state lets the UI surface the locked auto-detected
+            # language as a small "ja" / "en" badge alongside the count;
+            # the frontend ignores the field when locked is false.
+            detection_state = nil
+            begin
+              require_relative '../privacy/language_detector'
+              detection_state = Monadic::Utils::Privacy::LanguageDetector.peek_detection_state(session)
+            rescue StandardError => det_err
+              Monadic::Utils::ExtraLogger.log { "[Privacy] detection state unavailable: #{det_err.message}" }
+            end
+            state_payload = {
               "type" => "privacy_state",
               "enabled" => true,
               "registry_count" => pipeline.registry_count,
               "error" => nil
-            }.to_json
-            send_or_broadcast(state_msg, ws_session_id)
+            }
+            state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
+            send_or_broadcast(state_payload.to_json, ws_session_id)
           end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
@@ -559,6 +579,12 @@ module WebSocketHelper
           content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
 
           response.dig("choices", 0, "message")["content"] = content
+          # Attach restored spans alongside the message so html_handler can
+          # forward them to the UI for the unmask-highlight layer. Skip when
+          # there are no substitutions (typical for non-privacy turns).
+          if restored_spans && !restored_spans.empty?
+            response["choices"][0]["message"]["privacy_restored_spans"] = restored_spans
+          end
 
           # Note: TTS for Session State apps is handled via tts_target feature
           # which extracts text from tool parameters (e.g., save_response message)

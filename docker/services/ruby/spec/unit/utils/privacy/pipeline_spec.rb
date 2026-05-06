@@ -124,5 +124,116 @@ RSpec.describe Monadic::Utils::Privacy::Pipeline do
       build_with_session(parameters: { conversation_language: 'de' }).before_send_to_llm(raw)
       expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['de']))
     end
+
+    it 'uses LanguageDetector lock when conversation_language is "auto"' do
+      session_hash = {
+        parameters: { 'conversation_language' => 'auto' },
+        monadic_state: {
+          privacy: {
+            registry: {},
+            audit: [],
+            detection: { language: 'ja', reliable: true, locked: true, attempts: 1 }
+          }
+        }
+      }
+      build_with_session(session_hash).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['ja']))
+    end
+
+    it 'falls back to ["en"] under "auto" when no detection lock exists yet' do
+      session_hash = {
+        parameters: { 'conversation_language' => 'auto' },
+        monadic_state: {
+          privacy: {
+            registry: {},
+            audit: [],
+            detection: { language: nil, reliable: nil, locked: false, attempts: 0 }
+          }
+        }
+      }
+      build_with_session(session_hash).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['en']))
+    end
+
+    it 'ignores a locked language that is not in PRESIDIO_LANGS (defensive)' do
+      session_hash = {
+        parameters: { 'conversation_language' => 'auto' },
+        monadic_state: {
+          privacy: {
+            registry: {},
+            audit: [],
+            detection: { language: 'ko', reliable: true, locked: true, attempts: 1 }
+          }
+        }
+      }
+      build_with_session(session_hash).before_send_to_llm(raw)
+      expect(fake_backend).to have_received(:anonymize).with(hash_including(languages: ['en']))
+    end
+  end
+
+  describe '#after_receive_from_llm' do
+    let(:session_with_registry) do
+      {
+        monadic_state: {
+          privacy: {
+            registry: {
+              '<<PERSON_1>>' => 'Alice',
+              '<<EMAIL_ADDRESS_1>>' => 'alice@example.com'
+            },
+            audit: []
+          }
+        }
+      }
+    end
+
+    def pipeline_for(session_hash, enabled: true)
+      described_class.new(backend: fake_backend, config: { enabled: enabled }, session: session_hash)
+    end
+
+    it 'restores placeholders to their registry values' do
+      pipeline = pipeline_for(session_with_registry)
+      result = pipeline.after_receive_from_llm('Hello <<PERSON_1>> at <<EMAIL_ADDRESS_1>>.')
+      expect(result.text).to eq('Hello Alice at alice@example.com.')
+    end
+
+    it 'attaches restored_spans metadata listing each unique substitution' do
+      pipeline = pipeline_for(session_with_registry)
+      result = pipeline.after_receive_from_llm('Hello <<PERSON_1>>, contact <<EMAIL_ADDRESS_1>>.')
+      spans = result.meta[:restored_spans]
+      expect(spans).to contain_exactly(
+        { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' },
+        { placeholder: '<<EMAIL_ADDRESS_1>>', entity_type: 'EMAIL_ADDRESS', original: 'alice@example.com' }
+      )
+    end
+
+    it 'deduplicates spans when the same placeholder appears multiple times' do
+      pipeline = pipeline_for(session_with_registry)
+      result = pipeline.after_receive_from_llm('<<PERSON_1>> said hi. Then <<PERSON_1>> left.')
+      spans = result.meta[:restored_spans]
+      expect(spans.length).to eq(1)
+      expect(spans.first[:placeholder]).to eq('<<PERSON_1>>')
+    end
+
+    it 'records placeholders missing from the registry without halting restoration' do
+      pipeline = pipeline_for(session_with_registry)
+      result = pipeline.after_receive_from_llm('Hi <<PERSON_1>> and <<UNKNOWN_99>>.')
+      expect(result.text).to eq('Hi Alice and <<UNKNOWN_99>>.')
+      expect(result.meta[:missing_placeholders]).to eq(['<<UNKNOWN_99>>'])
+    end
+
+    it 'is a no-op when the pipeline is disabled' do
+      pipeline = pipeline_for(session_with_registry, enabled: false)
+      text = 'Hi <<PERSON_1>>.'
+      result = pipeline.after_receive_from_llm(text)
+      expect(result.text).to eq(text)
+      expect(result.meta).to eq({})
+    end
+
+    it 'returns an empty restored_spans array when no placeholders are present' do
+      pipeline = pipeline_for(session_with_registry)
+      result = pipeline.after_receive_from_llm('Plain text without any placeholder tokens.')
+      expect(result.meta[:restored_spans]).to eq([])
+      expect(result.meta[:missing_placeholders]).to eq([])
+    end
   end
 end

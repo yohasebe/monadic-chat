@@ -50,14 +50,19 @@
     <!-- Privacy Filter availability flag from server env (PRIVACY_FILTER, default on)
          and the list of language codes the privacy container was built with
          (PRIVACY_LANGS). Toggle gate reads both to decide whether the toggle is
-         enabled for the current sidebar conversation_language. -->
+         enabled for the current sidebar conversation_language.
+         CONFIG is checked first so dev mode (`rake server:debug`, where the
+         dotenv file is loaded into CONFIG but not exported to ENV) sees the
+         user's installed-language set; ENV is the production fallback. -->
     <script type="text/javascript">
-      window.MONADIC_PRIVACY_AVAILABLE = <%= ENV['PRIVACY_FILTER'].to_s.downcase != 'false' ? 'true' : 'false' %>;
-      window.MONADIC_PRIVACY_INSTALLED_LANGS = <%=
-        codes = (ENV['PRIVACY_LANGS'] || 'en').split(',').map(&:strip).reject(&:empty?)
+      <%
+        privacy_filter_raw = (defined?(CONFIG) && CONFIG.is_a?(Hash) ? CONFIG['PRIVACY_FILTER'] : nil) || ENV['PRIVACY_FILTER']
+        privacy_langs_raw  = (defined?(CONFIG) && CONFIG.is_a?(Hash) ? CONFIG['PRIVACY_LANGS']  : nil) || ENV['PRIVACY_LANGS']  || 'en'
+        codes = privacy_langs_raw.to_s.split(',').map(&:strip).reject(&:empty?)
         codes = ['en'] if codes.empty?
-        codes.uniq.to_json
-      %>;
+      %>
+      window.MONADIC_PRIVACY_AVAILABLE = <%= privacy_filter_raw.to_s.downcase != 'false' ? 'true' : 'false' %>;
+      window.MONADIC_PRIVACY_INSTALLED_LANGS = <%= codes.uniq.to_json %>;
     </script>
 
     <!-- Theme initialization script - runs immediately to prevent flash -->

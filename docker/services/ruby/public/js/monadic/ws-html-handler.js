@@ -168,6 +168,23 @@ function _handleAssistantRole(data, html, moreComing) {
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
+  // Privacy Filter: after the card lands in the DOM, wrap each restored
+  // value (PII that left the machine as a placeholder) in a marker span.
+  // appendCard schedules MarkdownRenderer.applyRenderers via setTimeout(0);
+  // we queue our highlight pass behind it so KaTeX / mermaid have already
+  // taken their slots before we walk text nodes.
+  const restoredSpans = data["content"] && data["content"]["privacy_restored_spans"];
+  if (restoredSpans && restoredSpans.length && window.WsPrivacyHandler &&
+      typeof window.WsPrivacyHandler.highlightUnmaskedSpans === 'function') {
+    setTimeout(function () {
+      const cardEl = $id(data["content"]["mid"]);
+      const cardBody = cardEl ? cardEl.querySelector('.card-body') : null;
+      if (cardBody) {
+        window.WsPrivacyHandler.highlightUnmaskedSpans(cardBody, restoredSpans);
+      }
+    }, 0);
+  }
+
   if (moreComing) {
     // Keep input disabled and streaming state active
     window.callingFunction = true;

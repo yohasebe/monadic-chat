@@ -107,6 +107,26 @@ module StringUtils
     CLD.detect_language(text)[:code]
   end
 
+  # Language detection that exposes CLD's reliability flag. Used by Privacy
+  # Filter's auto-detection path, which only locks to a detected language
+  # when CLD reports `reliable: true`.
+  #
+  # CLD 0.13 (the version vendored in this project) returns only
+  # {name:, code:, reliable:} — there is no numeric confidence score
+  # available, so consumers should treat the binary `:reliable` flag as the
+  # confidence signal. We also defensively reject CLD's "un" (Unknown) code
+  # which it can return as `reliable: true` for empty-ish input.
+  #
+  # Returns nil for empty/nil input.
+  def detect_language_with_confidence(text)
+    return nil if text.nil? || text.to_s.strip.empty?
+    raw = CLD.detect_language(text)
+    return nil unless raw.is_a?(Hash)
+    code = raw[:code]
+    reliable = raw[:reliable] == true && code.is_a?(String) && code != "un"
+    { code: code, reliable: reliable }
+  end
+
   # Strip Markdown markers and HTML tags for TTS
   # This removes formatting markers that shouldn't be spoken
   def self.strip_markdown_for_tts(text)

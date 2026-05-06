@@ -162,6 +162,17 @@ module WebSocketHelper
                     "monadic" => params["monadic"],
                     "active" => true } # detect_language is called only once here
 
+        # Privacy Filter: forward restored span metadata so the assistant
+        # card can highlight values that were sent to the LLM as
+        # placeholders. The frontend wraps each occurrence of `original`
+        # in <span class="privacy-unmasked"> via TreeWalker — character
+        # offsets are intentionally omitted because markdown rendering
+        # would invalidate them.
+        privacy_restored_spans = content["message"] && content["message"]["privacy_restored_spans"]
+        if privacy_restored_spans && !privacy_restored_spans.empty?
+          new_data["privacy_restored_spans"] = privacy_restored_spans
+        end
+
         # Respect the user's "Show Thinking" toggle: when disabled, skip
         # attaching thinking to the final assistant card so the collapsed
         # "Thinking Process" panel doesn't render. Some providers (e.g. most

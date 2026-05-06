@@ -198,11 +198,14 @@ function refreshPrivacyToggleGate(opts) {
   const privacyLabel = document.getElementById("check-privacy-session-label");
   if (!privacyEl) return;
 
-  // Once locked (first message sent), only the initial path may touch the
-  // toggle (app change / Reset). Mid-session conversation_language changes
-  // must not flip the privacy state because the masking pipeline is already
-  // bound to the original language.
-  if (window.privacyToggleLocked && !opts.initial) return;
+  // Lock semantics: once a message has been sent in this session,
+  // `window.privacyToggleLocked` is true. The lock prevents the user's
+  // privacy choice from flipping mid-conversation, but it does not
+  // prevent us from updating the disabled state and tooltip — those are
+  // observational hints that should still reflect the current
+  // conversation_language. Only the `checked` state and backend sync
+  // are guarded by the lock below.
+  const isLocked = !!window.privacyToggleLocked && !opts.initial;
 
   const appSupportsPrivacy = String(apps[appValue]["privacy_enabled"] || "").toLowerCase() === "true";
   const containerAvailable = (typeof window.MONADIC_PRIVACY_AVAILABLE !== "undefined")
@@ -252,12 +255,15 @@ function refreshPrivacyToggleGate(opts) {
     nextChecked = usable ? privacyEl.checked : false;
   }
 
-  privacyEl.checked = nextChecked;
-  privacyEl.disabled = !usable;
-  if (usable) privacyEl.removeAttribute("title");
+  // disabled state & tooltip always reflect the current gate, even when
+  // locked — locked just means "user cannot toggle right now", but the
+  // reason should still be visible. checked is preserved through lock.
+  if (!isLocked) privacyEl.checked = nextChecked;
+  privacyEl.disabled = !usable || isLocked;
+  if (usable && !isLocked) privacyEl.removeAttribute("title");
   else privacyEl.setAttribute("title", tooltip);
   if (privacyLabel) {
-    if (usable) privacyLabel.removeAttribute("title");
+    if (usable && !isLocked) privacyLabel.removeAttribute("title");
     else privacyLabel.setAttribute("title", tooltip);
   }
 
@@ -265,8 +271,10 @@ function refreshPrivacyToggleGate(opts) {
   // backend health-checks and confirms via privacy_toggle_ack. On a
   // mid-session language change that just dropped support, explicitly emit
   // PRIVACY_TOGGLE:false to clear backend state (the masking pipeline must
-  // not stay armed when the language is unsupported).
-  if (typeof window.safeWsSend === "function") {
+  // not stay armed when the language is unsupported). Skip backend sync
+  // entirely when locked — the backend pipeline is already bound to the
+  // pre-lock language and must not be retargeted mid-conversation.
+  if (typeof window.safeWsSend === "function" && !isLocked) {
     if (opts.initial && nextChecked) {
       window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: true });
     } else if (!opts.initial && !usable) {

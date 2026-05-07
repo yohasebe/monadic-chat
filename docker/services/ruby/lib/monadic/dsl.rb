@@ -135,66 +135,99 @@ module MonadicDSL
   
   class ConfigurationError < StandardError; end
   
-  # Apps that should NOT receive the auto-injected library_search tool.
-  # These apps either have their own retrieval surface (knowledge_base,
-  # monadic_help, web_insight), are output focused (image / video /
-  # diagram generators), or have an already heavy tool list where adding
-  # RAG would be noise (code_interpreter, jupyter_notebook, auto_forge).
-  # Match is on the provider-stripped base class name (e.g. "ChatOpenAI"
-  # → "Chat").
-  RAG_EXCLUDED_APP_BASE_NAMES = %w[
-    KnowledgeBase MonadicHelp WebInsight
-    ImageGenerator VideoDescriber VideoGenerator DrawioGrapher MermaidGrapher
-    MusicLab ConceptVisualizer DocumentGenerator SyntaxTree
-    CodeInterpreter JupyterNotebook AutoForge
-    VoiceInterpreter
-    ChatPlus MailComposer Translate SecondOpinion
-  ].freeze
-
-  # Apps that should NOT show the Knowledge Base "Save" button. Two
-  # reasons drive exclusion:
-  #   1. Privacy-aware apps where saving plaintext PII to disk would
-  #      violate the app's intent (Chat Plus, Mail Composer, Translate,
-  #      Second Opinion). Privacy Filter and KB save are mutually
-  #      exclusive at the app level — see docs/advanced-topics/
-  #      privacy-filter.md and docs/basic-usage/basic-apps.md.
-  #   2. Artifact-centric apps where the value is the generated output
-  #      (image / video / diagram / document / score / tree). The
-  #      surrounding chat is iteration-log noise that pollutes KB
-  #      search.
-  # Match is on the provider-stripped base class name.
-  KB_SAVE_EXCLUDED_APP_BASE_NAMES = %w[
-    ChatPlus MailComposer Translate SecondOpinion
-    AutoForge ConceptVisualizer DocumentGenerator DrawioGrapher
-    ImageGenerator MermaidGrapher MusicLab SyntaxTree VideoGenerator
-  ].freeze
+  # Per-app capability defaults. Apps that omit a flag inherit these
+  # values; MDSL `features do; library_save false; ...; end` overrides
+  # explicitly. Defaults bias toward KB-only conversational apps because
+  # that is the dominant pattern; PF and artifact-centric apps are the
+  # explicit exceptions and must opt out via MDSL.
+  CAPABILITY_DEFAULTS = {
+    library_save: true,
+    library_search: true
+  }.freeze
 
   # Providers without (or with limited) function-calling support that
-  # cannot host the library_search tool.
+  # cannot host the library_search tool. Provider-level exclusion is
+  # orthogonal to per-app capability declarations — even an app that
+  # declares library_search=true ends up without the tool when paired
+  # with a non-tool-calling provider.
   RAG_EXCLUDED_PROVIDERS = %w[perplexity].freeze
 
-  # Strip the provider suffix to recover the app's base class name.
-  # Used by both library_search_eligible? and library_save_eligible?.
-  def self.app_base_name(state)
-    state.name.sub(
-      /(OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama)\z/, ''
-    )
+  # Apply MDSL-declared capabilities + defaults + privacy-derived
+  # overrides + invariant validation. Run AFTER the MDSL block has
+  # populated state.features and state.settings, BEFORE library_search
+  # auto-injection.
+  #
+  # Decision order:
+  #   1. If `privacy do; enabled true; end` was declared, force
+  #      library_save=false and library_search=false. MDSL is not
+  #      allowed to contradict (raises on `library_save true` mixed
+  #      with privacy-on).
+  #   2. Otherwise, read MDSL-declared library_save / library_search
+  #      from features, falling back to CAPABILITY_DEFAULTS.
+  #   3. Validate the cross-flag invariant: library_search=true
+  #      implies library_save=true (search without save is a no-op
+  #      since results would have nowhere to come from).
+  def self.finalize_capabilities!(state)
+    privacy_on = state.settings[:privacy_enabled] == true
+    # MDSL may write to either state.features (preferred — `features do`
+    # block) or state.settings directly; we read both for backward
+    # compat. nil indicates "not declared".
+    declared_save   = first_nonnil(state.features[:library_save],   state.settings[:library_save])
+    declared_search = first_nonnil(state.features[:library_search], state.settings[:library_search])
+
+    if privacy_on
+      if declared_save == true
+        raise ConfigurationError,
+              "App '#{state.name}': library_save=true conflicts with privacy.enabled=true. " \
+              "Privacy Filter apps cannot save to the Knowledge Base. " \
+              "Remove `library_save true` from the features block, or remove the privacy block."
+      end
+      if declared_search == true
+        raise ConfigurationError,
+              "App '#{state.name}': library_search=true conflicts with privacy.enabled=true. " \
+              "Privacy Filter apps cannot retrieve from the Knowledge Base. " \
+              "Remove `library_search true` from the features block, or remove the privacy block."
+      end
+      state.settings[:library_save] = false
+      state.settings[:library_search] = false
+      return
+    end
+
+    save_value   = declared_save.nil?   ? CAPABILITY_DEFAULTS[:library_save]   : !!declared_save
+    search_value = declared_search.nil? ? CAPABILITY_DEFAULTS[:library_search] : !!declared_search
+
+    if search_value && !save_value
+      raise ConfigurationError,
+            "App '#{state.name}': library_search=true requires library_save=true. " \
+            "Retrieving from a Knowledge Base entries this app cannot save to is " \
+            "self-contradictory. Either set library_save true or set library_search false."
+    end
+
+    state.settings[:library_save] = save_value
+    state.settings[:library_search] = search_value
   end
 
-  # True when the app should auto-import library_search.
+  # Helper: pick the first non-nil value from the args. Used to merge
+  # MDSL declarations that may live in either state.features (modern
+  # `features do` block) or state.settings (legacy direct write).
+  def self.first_nonnil(*values)
+    values.find { |v| !v.nil? }
+  end
+
+  # True when the app should auto-import library_search. Reads the
+  # capability flag set by finalize_capabilities! and additionally
+  # excludes providers without tool-calling support.
   def self.library_search_eligible?(state)
-    base = app_base_name(state)
-    return false if RAG_EXCLUDED_APP_BASE_NAMES.include?(base)
+    return false unless state.settings[:library_search] == true
     provider = state.settings[:provider].to_s.downcase
     return false if RAG_EXCLUDED_PROVIDERS.include?(provider)
     true
   end
 
   # True when the app should expose the Knowledge Base "Save" button.
-  # See KB_SAVE_EXCLUDED_APP_BASE_NAMES for the rationale per app.
+  # Thin wrapper over the capability flag for symmetry.
   def self.library_save_eligible?(state)
-    base = app_base_name(state)
-    !KB_SAVE_EXCLUDED_APP_BASE_NAMES.include?(base)
+    state.settings[:library_save] == true
   end
 
   def self.library_search_already_imported?(state)
@@ -251,9 +284,15 @@ module MonadicDSL
     app_def = SimplifiedAppDefinition.new(state)
     app_def.instance_eval(&block)
 
+    # Resolve per-app capability flags from MDSL declarations + defaults
+    # + privacy-derived overrides. This must run BEFORE library_search
+    # auto-injection because the injection eligibility now reads the
+    # resolved state.settings[:library_search] flag.
+    finalize_capabilities!(state)
+
     # Auto-inject library_search for eligible conversational apps that
-    # did not opt in themselves. See library_search_eligible? for the
-    # exclusion policy.
+    # did not opt in themselves. Eligibility is the AND of (per-app
+    # capability flag from MDSL) and (provider supports tool calling).
     if library_search_eligible?(state) && !library_search_already_imported?(state)
       begin
         inject_library_search!(state)
@@ -261,18 +300,6 @@ module MonadicDSL
         puts "[DSL] library_search auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       end
     end
-
-    # Stamp the per-app Knowledge Base save eligibility so the frontend
-    # can hide the Save button on artifact-centric and privacy-aware
-    # apps. The flag is read by app_data.rb when serialising APPS for
-    # the WebSocket bootstrap.
-    state.settings[:library_save] = library_save_eligible?(state)
-    # Mirror flag for the "Use KB for retrieval" toggle. When false the
-    # frontend hides the toggle so PF-only and artifact-centric apps do
-    # not expose a control that has no underlying tool to drive (the
-    # library_search auto-injection is also skipped — see the
-    # RAG_EXCLUDED check above for the canonical gate).
-    state.settings[:library_search] = library_search_eligible?(state)
 
     # Debug the state
     puts "After DSL eval: #{state.name}, display_name: #{state.settings[:display_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]

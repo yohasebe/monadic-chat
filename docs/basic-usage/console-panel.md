@@ -69,10 +69,10 @@ Stop JupyterLab.
 Disable the Selenium container from starting automatically on next launch of Monadic Chat. When Selenium is disabled, the system will use Tavily API as a fallback for web scraping features (if Tavily API key is configured). Note: This setting only takes effect after restarting Monadic Chat. Users attempting Selenium-backed tools while the container is disabled will see guidance indicating that the Selenium container is stopped and the feature cannot run until it is re-enabled.
 
 **Import Document DB** <br />
-Import PDF document data previously exported by Monadic Chat. When importing, place a file named `monadic.gz` in the shared folder.
+Import the entire Document DB (saved conversations, PDFs, and Knowledge Base entries) from a previously exported tarball in the shared folder. A confirmation dialog warns that importing OVERWRITES the current database. The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time).
 
 **Export Document DB** <br />
-Export PDF document data stored in Monadic Chat's vector database. The exported file will be saved as `monadic.gz` in the shared folder.
+Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase, writes `monadic-qdrant.tar.gz.enc` with AES-256-GCM streaming encryption) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every saved conversation and PDF travels in cleartext). Use the encrypted form for any export that may leave your machine.
 
 ### Open Menu
 

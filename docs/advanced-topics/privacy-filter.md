@@ -66,7 +66,17 @@ When the filter is active, the chat header shows an indicator:
 - **Privacy ON (N)** (green lock icon with count): N placeholders are currently registered for restoration.
 - **Privacy error** (red): the privacy container could not be reached. Check that Docker is running and the container is healthy.
 
+When the conversation_language is set to **Automatic**, a small language badge appears next to the indicator (for example, **🌐 ja**) once the first reliably-detectable user message has locked the session to a specific language. The badge does not appear until a lock is in place; sidebar-selected languages are already explicit in the dropdown so the badge is omitted.
+
 Clicking the indicator opens the **Registry Viewer**, which lists each placeholder, the original value, and the entity type (PERSON, EMAIL_ADDRESS, and so on). The registry is held in session memory only; it is never written to the conversation log on disk.
+
+## Unmask Highlight
+
+Conversation cards (both user input and assistant replies) underline every value that the Privacy Filter is currently tracking. The same placeholder always uses the same color — for example, every occurrence of the same person's name draws the same blue underline across every card, while a different name uses a different color. The background stays gray; only the underline color changes, so the layout is not visually busy.
+
+Hover any underlined value to see the placeholder it travelled through (for example, *Tracked as <<PERSON_1>>*). The wrap is applied after markdown rendering and skips `<code>`, `<pre>`, and `<a>` subtrees so syntax-highlighted blocks and link text are never modified.
+
+The highlight is purely visual; it never changes the LLM payload. The same value passes through the registry-aware masking pipeline whether or not it is highlighted.
 
 ## What Gets Masked
 
@@ -85,28 +95,80 @@ privacy do
 end
 ```
 
-## Knowledge Base Retrieval (`library_search`)
+## Text-to-Speech (TTS) Sanitization
 
-The Knowledge Base stores conversations and imported documents **unmasked** — the Save dialog warns you about this. When the Privacy Filter is active in a session that calls `library_search`, the retrieved snippets pass through the same Privacy Pipeline before they reach the LLM. Any PII present in the Knowledge Base is masked into placeholders for the request, and the LLM's reply is restored on the way back via the existing streaming-handler pass.
+When the Privacy Filter is active, TTS playback (the per-card **Play** button, the Auto-Speech path, and the system **TTS** test) replaces tracked PII with the same short labels the streaming buffer uses (for example, "PERSON 1", "EMAIL ADDRESS 1"). This applies to every TTS provider — cloud TTS APIs (OpenAI, Gemini, ElevenLabs, etc.) never receive original names, addresses, or phone numbers, and listeners do not have to sit through long email addresses character-by-character.
+
+The Web Speech API path (browser-native synthesis) goes through the same sanitizer. Even though the audio is produced locally, the text passed to the synth is identical to what a cloud provider would receive, keeping the UX consistent.
+
+## Knowledge Base Save and Search
+
+### Save dialog: anonymize option
+
+When the Privacy Filter is active and the **Save** button opens the Knowledge Base save dialog, an **Anonymize before saving** checkbox appears in the warning section. With the box checked (the default when Privacy is on), each user/assistant message is masked through the active Privacy Pipeline — original values are replaced with `<<TYPE_N>>` placeholders before the entry lands in qdrant.
+
+Two consequences to keep in mind:
+
+- Anonymized entries cannot be unmasked later: the registry is per-session and is never persisted, so the saved entry stays in placeholder form across reloads.
+- Library search results from anonymized entries are pre-masked at the data layer, so the back-channel from retrieval to the LLM is closed even before the runtime pipeline pass below.
+
+Unchecking the box stores the restored conversation text on local disk. The dialog warns explicitly about this configuration; see the badges below for how the choice is surfaced in the Browse modal afterwards.
+
+### Browse modal: privacy badges
+
+The Browse modal shows a small badge in front of each entry's title that reflects the entry's privacy posture:
+
+| Badge | Meaning |
+|---|---|
+| 🛡️ green shield | Saved with the *Anonymize* option on — placeholders only on disk |
+| ⚠️ yellow triangle | Saved while Privacy was active but *not* anonymized — restored PII is on disk |
+| ⚠️ gray triangle | Legacy entry (no recorded privacy status) where the title or source contains a recognisable email or phone-number pattern |
+| (none) | Saved while Privacy was off, or no PII heuristic match in the summary fields |
+
+The 🛡️ / yellow triangle badges come from a `pii_status` field stamped at save time. The gray triangle is a frontend regex heuristic that scans only the title and source fields of the summary point, so it costs O(rows) per render and works for entries saved before the badge was added.
+
+### `library_search` retrieval
+
+When the Privacy Filter is active in a session that calls `library_search`, the retrieved snippets pass through the same Privacy Pipeline before they reach the LLM. Any PII present in the Knowledge Base is masked into placeholders for the request, and the LLM's reply is restored on the way back via the existing streaming-handler pass.
 
 This closes a back-channel that would otherwise let saved PII reach the LLM via retrieval, even though the user enabled the Privacy Filter for the current session. The masking is best-effort — if the pipeline raises, the tool falls back to the raw snippet rather than failing the search.
 
+### Global vs App-only scope
+
+Saving a conversation as **Global** (rather than the default **App-only**) makes the entry retrievable from every app in this Monadic Chat install via `library_search`. The save dialog now shows an inline warning when Global is selected, reminding you that future apps you have not yet picked can also retrieve the content. Prefer App-only unless the conversation is intentionally meant to be shared across apps.
+
 ## Encrypted Export
 
-When the Privacy Filter has masked at least one entity in the current session, the **Save** button opens a unified export dialog with two orthogonal axes:
+When the Privacy Filter has masked at least one entity in the current session, the **Export** button opens a unified export dialog with two orthogonal axes:
 
 - **Encryption**: encrypt the file with AES-256-GCM (Argon2id key derivation) using a passphrase you provide.
 - **Content**: export the conversation either with original values restored or with placeholders kept in place.
 
-Three combinations are commonly useful:
+When Privacy is active in the session, the dialog defaults to **Masked** content so an accidental click does not write plaintext PII to disk. You can still pick **Restored** explicitly; that combination — Restored content with no encryption — triggers a red warning banner explaining what is about to land in the file. Files that end up containing plaintext PII are tagged with a `-PRIVATE` suffix in the filename so they are easy to spot in a downloads folder.
+
+Common combinations:
 
 1. **Encrypted + Restored** — a personal archive that can only be opened by you.
 2. **Encrypted + Masked** — share analysis logs without exposing PII even after decryption.
 3. **Plain + Masked** — quick sharable example with no real names.
+4. **Plain + Restored** — flagged with `-PRIVATE` and the strongest warning; intended for trusted, local-only workflows.
 
 Passphrase requirements: minimum 8 characters and the confirmation field must match. The strength meter is informational only and does not block submission.
 
-To re-open an encrypted export, use the **Load** button and enter the passphrase when prompted. The registry is restored alongside the conversation so subsequent messages continue to mask consistently.
+To re-open an encrypted export, use the **Import** button and enter the passphrase when prompted. The registry is restored alongside the conversation so subsequent messages continue to mask consistently.
+
+## Document DB Export and Import (Actions menu)
+
+The **Actions → Export Document DB** and **Actions → Import Document DB** menu items operate on the entire qdrant volume — every saved conversation, PDF, and Knowledge Base entry. Both items now show a confirmation dialog before proceeding.
+
+For export, you can choose between:
+
+- **Encrypt and Export** (default): prompts for a passphrase, encrypts the tarball with AES-256-GCM (PBKDF2-SHA256, 600 000 iterations) over a per-export salt, and writes `monadic-qdrant.tar.gz.enc` to the shared folder. The plaintext tarball is removed after a successful encryption pass.
+- **Export Plain**: writes the unencrypted tarball directly. The dialog warns that the file contains every saved conversation and PDF in plaintext regardless of whether the Privacy Filter was active when each item was saved.
+
+Import detects the file extension automatically: `.tar.gz` is unpacked as before; `.tar.gz.enc` prompts for the passphrase, decrypts to a temporary plaintext file, runs the qdrant volume import, and removes the temporary file. A wrong passphrase or tampered ciphertext fails decryption (the tarball is never partially unpacked) and the qdrant volume is left untouched.
+
+Encryption format: `[magic 'MQDB'] [version 0x01] [salt 16] [iv 12] [ciphertext] [authTag 16]`, streaming-friendly so multi-GB volumes do not need to fit in memory.
 
 ## Supported Apps
 
@@ -122,9 +184,8 @@ Other apps do not declare `privacy do` and the toggle stays disabled. Apps that 
 
 ## Limitations
 
-- Assistant-side history is not re-masked. The pipeline applies to the user role on each turn; if the assistant repeats a name in a later turn, that occurrence passes through unchanged.
 - Custom recognizers live in the privacy container source (`docker/services/privacy/recognizers/`). Adding new recognizers requires rebuilding the container.
-- Masking adds a small per-message latency, typically 50-200 ms depending on text length.
+- Masking adds a small per-message latency, typically 50-200 ms depending on text length. Each turn re-masks the entire context (user and past assistant messages alike) so the registry stays consistent across turns.
 - Supported masking languages are limited to the nine spaCy NER models bundled with Presidio: English, German, Spanish, French, Italian, Japanese, Dutch, Portuguese, Chinese. Languages outside this set (e.g. Korean, Arabic) cannot use the Privacy Filter — the session toggle is disabled when the sidebar conversation_language is one of them.
 
 ## Configuration Reference

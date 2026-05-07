@@ -108,6 +108,28 @@ RSpec.describe Monadic::Library::Hierarchical do
       expect(payload['messages']).to eq(single['messages'])
       _ = empty
     end
+
+    it 'forwards pii_status from conversation_metadata into the summary payload' do
+      # The Save handler injects pii_status='anonymized' or 'plain_with_privacy'
+      # at save time so the Browse modal can show a Privacy badge per row.
+      tagged = two_party_chat.deep_dup rescue Marshal.load(Marshal.dump(two_party_chat))
+      tagged['conversation_metadata']['pii_status'] = 'anonymized'
+      captured = nil
+      allow(vector_store).to receive(:upsert_points) do |args|
+        captured = args if args[:collection] == 'library_summaries'
+      end
+      described_class.ingest(tagged, store: store, levels: %i[summary])
+      expect(captured[:points].first[:payload]['pii_status']).to eq('anonymized')
+    end
+
+    it 'leaves pii_status nil when the metadata does not set it (legacy entries)' do
+      captured = nil
+      allow(vector_store).to receive(:upsert_points) do |args|
+        captured = args if args[:collection] == 'library_summaries'
+      end
+      described_class.ingest(two_party_chat, store: store, levels: %i[summary])
+      expect(captured[:points].first[:payload]['pii_status']).to be_nil
+    end
   end
 
   describe 'turn payload' do

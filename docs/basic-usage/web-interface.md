@@ -31,6 +31,8 @@ Runs locally on a single device for personal use.
 **Server Mode**<br />
 Allows multiple devices on the local network to connect to the same Monadic Chat instance. The interface adapts to different screen sizes. Jupyter Notebook functionality is disabled by default for security reasons.
 
+Server Mode requires authentication for non-loopback (LAN) clients. When the mode is first enabled, Monadic Chat generates a random 256-bit token in `~/monadic/config/env` (`MONADIC_AUTH_TOKEN`) and the host console displays the full shareable URL — e.g. `http://192.168.1.50:4567/?monadic_auth=<token>`. Anyone using that URL on the LAN authenticates on the first request, the token is set as a cookie, and subsequent navigations work without echoing it in the URL. Loopback (127.0.0.1) requests from the host machine bypass authentication so the local Electron webview always works. To rotate the token, delete `MONADIC_AUTH_TOKEN` from the env file and restart Monadic Chat.
+
 Configure the application mode in the Console Settings panel.
 
 ## Language Settings :id=language-settings

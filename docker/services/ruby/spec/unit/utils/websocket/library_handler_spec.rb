@@ -321,6 +321,44 @@ RSpec.describe 'WebSocketHelper Library handlers' do
         expect(msg['res']).to eq('failure')
         expect(msg['content']).to match(/anonymize failed/)
       end
+
+      it 'stamps pii_status="anonymized" in the importer options when anonymize is on' do
+        captured_options = nil
+        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
+          captured_options = args[:options]
+          { conversation_id: 'conv-tag', counts: { summary: 1, turns: 1 } }
+        end
+
+        payload = valid_payload.merge('anonymize' => true)
+        host.send(:handle_ws_library_save, connection, { 'contents' => payload }, { _privacy_pipeline: fake_pipeline })
+
+        expect(captured_options[:pii_status]).to eq('anonymized')
+      end
+
+      it 'stamps pii_status="plain_with_privacy" when Privacy is on but anonymize is off' do
+        captured_options = nil
+        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
+          captured_options = args[:options]
+          { conversation_id: 'conv-tag', counts: { summary: 1, turns: 1 } }
+        end
+
+        # No anonymize key — privacy was on but the user opted out.
+        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, { _privacy_pipeline: fake_pipeline })
+
+        expect(captured_options[:pii_status]).to eq('plain_with_privacy')
+      end
+
+      it 'omits pii_status entirely when the session has no privacy pipeline' do
+        captured_options = nil
+        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
+          captured_options = args[:options]
+          { conversation_id: 'conv-tag', counts: { summary: 1, turns: 1 } }
+        end
+
+        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
+
+        expect(captured_options).not_to have_key(:pii_status)
+      end
     end
   end
 

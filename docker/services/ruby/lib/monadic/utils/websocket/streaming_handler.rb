@@ -547,12 +547,16 @@ module WebSocketHelper
           # Privacy Filter: restore <<TYPE_N>> placeholders before the message
           # is finalized. Buffer remains masked so the post-completion TTS path
           # above can still apply sanitize_for_tts independently.
-          restored_spans = nil
+          known_entities = nil
           if session[:_privacy_pipeline]
             pipeline = session[:_privacy_pipeline]
             restored_response = pipeline.after_receive_from_llm(raw_content)
             raw_content = restored_response.text
-            restored_spans = restored_response.meta && restored_response.meta[:restored_spans]
+            # Ship the FULL registry rather than just spans substituted in
+            # this turn. The frontend walks every card in #discourse so a
+            # name registered in turn 1 still highlights in user input on
+            # turn 5. The walker is idempotent (re-wrap is rejected).
+            known_entities = pipeline.registry_entries
             # Notify frontend of current privacy state so the indicator updates.
             # Detection state lets the UI surface the locked auto-detected
             # language as a small "ja" / "en" badge alongside the count;
@@ -579,11 +583,10 @@ module WebSocketHelper
           content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
 
           response.dig("choices", 0, "message")["content"] = content
-          # Attach restored spans alongside the message so html_handler can
-          # forward them to the UI for the unmask-highlight layer. Skip when
-          # there are no substitutions (typical for non-privacy turns).
-          if restored_spans && !restored_spans.empty?
-            response["choices"][0]["message"]["privacy_restored_spans"] = restored_spans
+          # Forward the known-entities list with the message so html_handler
+          # can broadcast it to the UI for the unmask-highlight layer.
+          if known_entities && !known_entities.empty?
+            response["choices"][0]["message"]["privacy_known_entities"] = known_entities
           end
 
           # Note: TTS for Session State apps is handled via tts_target feature

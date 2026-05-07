@@ -5977,28 +5977,52 @@ i.fas.fa-bolt,
   background-color: rgba(0, 0, 0, 0.25);
 }
 
-/* Privacy Filter unmask highlight: applied to assistant-card text spans
-   that were sent to the LLM as `<<TYPE_N>>` placeholders and restored on
-   return. Subtle by design — the goal is "you can see what travelled as
-   a placeholder when you look", not "the page glows". Hover reveals the
-   originating placeholder via the title attribute. */
+/* Privacy Filter unmask highlight: applied to user / assistant card text
+   spans whose value is tracked in the per-session privacy registry.
+   Subtle by design — gray background carries the "this is a tracked
+   value" affordance, while the underline color encodes entity identity:
+   the SAME placeholder hashes to the SAME color slot (data-color="N"),
+   so the same name reads as the same color in every card.
+   Hover reveals the originating placeholder via the title attribute. */
 .privacy-unmasked {
-  background-color: rgba(25, 135, 84, 0.10);
-  border-bottom: 1px dotted rgba(25, 135, 84, 0.65);
+  background-color: rgba(0, 0, 0, 0.06);
+  border-bottom: 2px solid rgba(108, 117, 125, 0.7);
   padding: 0 1px;
   border-radius: 2px;
   cursor: help;
 }
 .privacy-unmasked:hover {
-  background-color: rgba(25, 135, 84, 0.20);
+  background-color: rgba(0, 0, 0, 0.10);
 }
 .dark-theme .privacy-unmasked {
-  background-color: rgba(72, 199, 142, 0.15);
-  border-bottom-color: rgba(72, 199, 142, 0.7);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(173, 181, 189, 0.7);
 }
 .dark-theme .privacy-unmasked:hover {
-  background-color: rgba(72, 199, 142, 0.25);
+  background-color: rgba(255, 255, 255, 0.14);
 }
+
+/* Per-entity color palette (8 slots). Slot is computed in JS as
+   hash(placeholder) % 8 so the same placeholder lands in the same slot
+   across every card. Light-theme values aim for ~600-shade Tailwind
+   tones (visible on white but not garish); dark-theme values shift to
+   ~400-shade so they read against the dark surface. */
+.privacy-unmasked[data-color="0"] { border-bottom-color: #2563eb; }  /* blue */
+.privacy-unmasked[data-color="1"] { border-bottom-color: #059669; }  /* green */
+.privacy-unmasked[data-color="2"] { border-bottom-color: #7c3aed; }  /* purple */
+.privacy-unmasked[data-color="3"] { border-bottom-color: #ea580c; }  /* orange */
+.privacy-unmasked[data-color="4"] { border-bottom-color: #db2777; }  /* pink */
+.privacy-unmasked[data-color="5"] { border-bottom-color: #0891b2; }  /* teal */
+.privacy-unmasked[data-color="6"] { border-bottom-color: #4f46e5; }  /* indigo */
+.privacy-unmasked[data-color="7"] { border-bottom-color: #ca8a04; }  /* amber */
+.dark-theme .privacy-unmasked[data-color="0"] { border-bottom-color: #60a5fa; }
+.dark-theme .privacy-unmasked[data-color="1"] { border-bottom-color: #34d399; }
+.dark-theme .privacy-unmasked[data-color="2"] { border-bottom-color: #a78bfa; }
+.dark-theme .privacy-unmasked[data-color="3"] { border-bottom-color: #fb923c; }
+.dark-theme .privacy-unmasked[data-color="4"] { border-bottom-color: #f472b6; }
+.dark-theme .privacy-unmasked[data-color="5"] { border-bottom-color: #22d3ee; }
+.dark-theme .privacy-unmasked[data-color="6"] { border-bottom-color: #818cf8; }
+.dark-theme .privacy-unmasked[data-color="7"] { border-bottom-color: #facc15; }
 
 /* Privacy Filter export dialog (Block D.3) — strength meter bar */
 .privacy-strength-bar {

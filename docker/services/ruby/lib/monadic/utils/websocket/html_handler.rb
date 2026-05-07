@@ -162,15 +162,17 @@ module WebSocketHelper
                     "monadic" => params["monadic"],
                     "active" => true } # detect_language is called only once here
 
-        # Privacy Filter: forward restored span metadata so the assistant
-        # card can highlight values that were sent to the LLM as
-        # placeholders. The frontend wraps each occurrence of `original`
-        # in <span class="privacy-unmasked"> via TreeWalker — character
-        # offsets are intentionally omitted because markdown rendering
-        # would invalidate them.
-        privacy_restored_spans = content["message"] && content["message"]["privacy_restored_spans"]
-        if privacy_restored_spans && !privacy_restored_spans.empty?
-          new_data["privacy_restored_spans"] = privacy_restored_spans
+        # Privacy Filter: forward the full registry as a list of known
+        # entities so the assistant **and** user cards can highlight
+        # tracked PII. The frontend walks every card in #discourse via
+        # TreeWalker; character offsets are intentionally omitted because
+        # markdown rendering would invalidate them, and matching by
+        # `original` is unambiguous (the LLM only ever saw placeholders,
+        # so any organic occurrence in restored text must be a
+        # restoration).
+        privacy_known_entities = content["message"] && content["message"]["privacy_known_entities"]
+        if privacy_known_entities && !privacy_known_entities.empty?
+          new_data["privacy_known_entities"] = privacy_known_entities
         end
 
         # Respect the user's "Show Thinking" toggle: when disabled, skip

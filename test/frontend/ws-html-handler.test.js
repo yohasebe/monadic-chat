@@ -232,21 +232,15 @@ describe('ws-html-handler', () => {
       expect(document.getElementById('cancel_query').style.display).toBe('none');
     });
 
-    it('forwards privacy_restored_spans to WsPrivacyHandler.highlightUnmaskedSpans', () => {
+    it('walks the whole discourse with privacy_known_entities', () => {
+      // The hook now passes the **full registry** (privacy_known_entities)
+      // to highlightUnmaskedSpans rooted at #discourse, so user and
+      // assistant cards get the same treatment. The walker is idempotent
+      // so passing the full list every turn is safe.
       const highlightSpy = jest.fn();
       window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
 
-      // Inject a card matching the assistant message id so the highlight
-      // pass has a real DOM element to walk.
-      const card = document.createElement('div');
-      card.id = 'msg-priv';
-      const body = document.createElement('div');
-      body.className = 'card-body role-assistant';
-      body.innerHTML = '<p>Hello Alice.</p>';
-      card.appendChild(body);
-      document.getElementById('discourse').appendChild(card);
-
-      const restoredSpans = [
+      const knownEntities = [
         { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' }
       ];
       handlers.handleHtml({
@@ -256,20 +250,18 @@ describe('ws-html-handler', () => {
           html: '<p>Hello Alice.</p>',
           mid: 'msg-priv',
           lang: 'en',
-          privacy_restored_spans: restoredSpans
+          privacy_known_entities: knownEntities
         }
       });
-
-      // highlightUnmaskedSpans is queued via setTimeout(0); flush timers.
       jest.runOnlyPendingTimers();
 
       expect(highlightSpy).toHaveBeenCalledTimes(1);
       const args = highlightSpy.mock.calls[0];
-      expect(args[0]).toBe(body);
-      expect(args[1]).toEqual(restoredSpans);
+      expect(args[0]).toBe(document.getElementById('discourse'));
+      expect(args[1]).toEqual(knownEntities);
     });
 
-    it('does not call highlight when privacy_restored_spans is absent', () => {
+    it('does not call highlight when privacy_known_entities is absent', () => {
       const highlightSpy = jest.fn();
       window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
       handlers.handleHtml(assistantData);
@@ -285,19 +277,11 @@ describe('ws-html-handler', () => {
       window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
       window.wsHandlers = { handleHtmlMessage: jest.fn().mockReturnValue(true) };
 
-      const card = document.createElement('div');
-      card.id = 'msg-priv-prod';
-      const body = document.createElement('div');
-      body.className = 'card-body role-assistant';
-      body.innerHTML = '<p>Hello Bob.</p>';
-      card.appendChild(body);
-      document.getElementById('discourse').appendChild(card);
-
       handlers.handleHtml({
         content: {
           role: 'assistant',
           mid: 'msg-priv-prod',
-          privacy_restored_spans: [
+          privacy_known_entities: [
             { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Bob' }
           ]
         }
@@ -305,7 +289,8 @@ describe('ws-html-handler', () => {
       jest.runOnlyPendingTimers();
 
       expect(highlightSpy).toHaveBeenCalledTimes(1);
-      expect(highlightSpy.mock.calls[0][0]).toBe(body);
+      // Highlight roots at #discourse so user cards are picked up too.
+      expect(highlightSpy.mock.calls[0][0]).toBe(document.getElementById('discourse'));
     });
   });
 

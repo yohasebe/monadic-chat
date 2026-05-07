@@ -152,23 +152,23 @@ function handleHtml(data) {
     }
   }
 
-  // Privacy Filter: after the assistant card lands in the DOM (regardless of
-  // whether wsHandlers.handleHtmlMessage or the inline fallback rendered it),
-  // wrap each restored value in a marker span so the user can see which PII
-  // travelled to the LLM as a placeholder. We schedule the walk via
-  // setTimeout(0) so it queues behind appendCard's MarkdownRenderer pass.
-  // Limit to assistant cards because user/system messages do not carry the
-  // restored_spans payload.
-  const restoredSpans = data && data["content"] && data["content"]["privacy_restored_spans"];
-  const isAssistant = data && data["content"] && data["content"]["role"] === 'assistant';
-  if (isAssistant && restoredSpans && restoredSpans.length &&
+  // Privacy Filter: after the latest card lands in the DOM, walk **every**
+  // card in #discourse and wrap each known PII value in a marker span.
+  // Walking the whole discourse (instead of only the current card) lets
+  // user-input cards pick up matches once their string appears in the
+  // registry, and keeps the visual treatment consistent across cards
+  // when the same name appears multiple turns later. The walker is
+  // idempotent — already-wrapped spans are skipped.
+  // Scheduled via setTimeout(0) so it queues behind appendCard's
+  // MarkdownRenderer pass (KaTeX / mermaid take their slots first).
+  const knownEntities = data && data["content"] && data["content"]["privacy_known_entities"];
+  if (knownEntities && knownEntities.length &&
       window.WsPrivacyHandler &&
       typeof window.WsPrivacyHandler.highlightUnmaskedSpans === 'function') {
     setTimeout(function () {
-      const cardEl = $id(data["content"]["mid"]);
-      const cardBody = cardEl ? cardEl.querySelector('.card-body') : null;
-      if (cardBody) {
-        window.WsPrivacyHandler.highlightUnmaskedSpans(cardBody, restoredSpans);
+      const discourseEl = $id('discourse');
+      if (discourseEl) {
+        window.WsPrivacyHandler.highlightUnmaskedSpans(discourseEl, knownEntities);
       }
     }, 0);
   }

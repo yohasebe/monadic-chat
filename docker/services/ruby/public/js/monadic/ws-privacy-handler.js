@@ -392,22 +392,43 @@
 
   // ---- Unmask highlight ------------------------------------------------
   //
-  // After the assistant card is in the DOM the server tells us which values
-  // were restored from `<<TYPE_N>>` placeholders (see Pipeline#after_receive
-  // _from_llm). We walk the text nodes inside the card body and wrap each
-  // occurrence of every restored value in a marker span so the user can see
-  // exactly which information left their machine as a placeholder. This is
-  // the transparency layer of the Privacy Filter UX.
+  // After each turn the server ships the full registry as
+  // `privacy_known_entities`. We walk every card in #discourse (user and
+  // assistant alike) and wrap each occurrence of a tracked PII value in
+  // a marker span. The walker is idempotent so passing the whole list on
+  // every turn does not pile up wrappers — already-wrapped subtrees are
+  // skipped.
   //
-  // We deliberately match by text content rather than by character offsets:
+  // Matching is done by text content rather than by character offsets:
   // markdown rendering shifts offsets and computing them on the rendered
-  // HTML is brittle. Substring search is robust because the LLM cannot
-  // organically produce the original PII (it only ever saw the placeholder),
-  // so any occurrence in the restored text MUST be a restoration.
+  // HTML is brittle. Substring search is unambiguous because the LLM
+  // never saw the original — any occurrence in the rendered text traces
+  // back to user input or to a placeholder restoration.
   //
-  // Skipped subtrees: <code>, <pre>, <a> — placeholders inside those would
-  // either be syntax noise or mangle hyperlink text. <script> and <style>
-  // are skipped for sanity.
+  // Skipped subtrees: <code>, <pre>, <a> — placeholders inside those
+  // would either be syntax noise or mangle hyperlink text. <script> and
+  // <style> are skipped for sanity.
+  //
+  // Color assignment: each placeholder hashes to one of UNMASK_PALETTE_SIZE
+  // slots (data-color="0..N-1"). The mapping is deterministic so the
+  // **same name keeps the same color across every card**, and the same
+  // hash also flows through any future references to the same placeholder.
+  // The actual color values live in CSS so dark theme can re-skin without
+  // rebuilding the bundle.
+
+  var UNMASK_PALETTE_SIZE = 8;
+
+  // djb2-style hash → palette slot. Tiny and deterministic; enough to
+  // distribute the small number of placeholders we typically see.
+  function unmaskColorIndex(placeholder) {
+    if (!placeholder) return 0;
+    var hash = 0;
+    for (var i = 0; i < placeholder.length; i++) {
+      hash = ((hash << 5) - hash) + placeholder.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash) % UNMASK_PALETTE_SIZE;
+  }
 
   function isInsideSkippedAncestor(node, root) {
     var p = node.parentNode;
@@ -429,6 +450,7 @@
     var fragment = doc.createDocumentFragment();
     var pos = 0;
     var idx;
+    var colorIdx = unmaskColorIndex(placeholder);
 
     while ((idx = text.indexOf(needle, pos)) !== -1) {
       if (idx > pos) {
@@ -436,11 +458,15 @@
       }
       var span = doc.createElement('span');
       span.className = 'privacy-unmasked';
+      // data-color drives the underline color via CSS palette rules so the
+      // SAME placeholder produces the SAME visual treatment in every card.
+      span.setAttribute('data-color', String(colorIdx));
       if (entityType) span.setAttribute('data-entity-type', entityType);
       if (placeholder) {
+        span.setAttribute('data-placeholder', placeholder);
         // Title doubles as the native browser tooltip; the visible row is
-        // styled via CSS (subtle background + dotted underline).
-        span.setAttribute('title', 'Restored from ' + placeholder);
+        // styled via CSS (gray background + colored underline).
+        span.setAttribute('title', 'Tracked as ' + placeholder);
       }
       span.textContent = needle;
       fragment.appendChild(span);

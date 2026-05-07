@@ -36,7 +36,37 @@ describe('WsPrivacyHandler.highlightUnmaskedSpans', () => {
     expect(span).not.toBeNull();
     expect(span.textContent).toBe('Alice');
     expect(span.getAttribute('data-entity-type')).toBe('PERSON');
+    expect(span.getAttribute('data-placeholder')).toBe('<<PERSON_1>>');
+    expect(span.getAttribute('data-color')).toMatch(/^[0-7]$/);
     expect(span.getAttribute('title')).toContain('<<PERSON_1>>');
+  });
+
+  it('assigns the same data-color to every occurrence of the same placeholder', () => {
+    // Same placeholder must produce the same color slot in every card —
+    // hash(placeholder) % palette_size is deterministic.
+    root.innerHTML = '<div class="card"><p>Hi Alice.</p></div>'
+      + '<div class="card"><p>Hello Alice, again Alice.</p></div>';
+    highlight([{ placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' }]);
+
+    const colors = Array.from(root.querySelectorAll('span.privacy-unmasked'))
+      .map(s => s.getAttribute('data-color'));
+    expect(colors.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(colors).size).toBe(1); // all the same
+  });
+
+  it('assigns different data-color slots to different placeholders (when hashes differ)', () => {
+    root.innerHTML = '<p>Alice met Bob.</p>';
+    highlight([
+      { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' },
+      { placeholder: '<<PERSON_2>>', entity_type: 'PERSON', original: 'Bob' }
+    ]);
+    const aliceSpan = Array.from(root.querySelectorAll('span.privacy-unmasked'))
+      .find(s => s.textContent === 'Alice');
+    const bobSpan = Array.from(root.querySelectorAll('span.privacy-unmasked'))
+      .find(s => s.textContent === 'Bob');
+    expect(aliceSpan).not.toBeNull();
+    expect(bobSpan).not.toBeNull();
+    expect(aliceSpan.getAttribute('data-color')).not.toBe(bobSpan.getAttribute('data-color'));
   });
 
   it('wraps every occurrence inside a single text node', () => {

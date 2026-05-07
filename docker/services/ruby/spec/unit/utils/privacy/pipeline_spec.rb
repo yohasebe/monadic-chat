@@ -287,4 +287,48 @@ RSpec.describe Monadic::Utils::Privacy::Pipeline do
       expect(pipeline.sanitize_restored_for_tts('')).to eq('')
     end
   end
+
+  describe '#registry_entries' do
+    let(:registry_session) do
+      {
+        monadic_state: {
+          privacy: {
+            registry: {
+              '<<PERSON_1>>' => 'Alice',
+              '<<EMAIL_ADDRESS_1>>' => 'alice@example.com'
+            },
+            audit: []
+          }
+        }
+      }
+    end
+
+    def pipeline_for(session_hash)
+      described_class.new(backend: fake_backend, config: { enabled: true }, session: session_hash)
+    end
+
+    it 'returns one entry per registered placeholder with parsed entity_type' do
+      pipeline = pipeline_for(registry_session)
+      entries = pipeline.registry_entries
+      expect(entries).to contain_exactly(
+        { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' },
+        { placeholder: '<<EMAIL_ADDRESS_1>>', entity_type: 'EMAIL_ADDRESS', original: 'alice@example.com' }
+      )
+    end
+
+    it 'returns an empty array when the registry is empty' do
+      pipeline = pipeline_for({ monadic_state: { privacy: { registry: {}, audit: [] } } })
+      expect(pipeline.registry_entries).to eq([])
+    end
+
+    it 'falls back to UNKNOWN entity_type for malformed placeholders (defensive)' do
+      session_hash = {
+        monadic_state: {
+          privacy: { registry: { 'BAD_PLACEHOLDER' => 'x' }, audit: [] }
+        }
+      }
+      pipeline = pipeline_for(session_hash)
+      expect(pipeline.registry_entries.first[:entity_type]).to eq('UNKNOWN')
+    end
+  end
 end

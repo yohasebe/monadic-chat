@@ -143,6 +143,23 @@ module Monadic
           @registry.state
         end
 
+        # Flatten the registry into the shape the frontend's unmask-highlight
+        # walker consumes: one entry per registered (placeholder, original)
+        # pair. Used to wrap matching values in **every** card on the page —
+        # both user input and assistant responses — so the same name keeps
+        # the same visual treatment across the whole conversation.
+        def registry_entries
+          reg = @registry.registry
+          reg.map do |placeholder, original|
+            m = placeholder.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
+            {
+              placeholder: placeholder,
+              entity_type: m ? m[1] : 'UNKNOWN',
+              original: original
+            }
+          end
+        end
+
         private
 
         # Walk masked_text replacing each `<<TYPE_N>>` with its registry

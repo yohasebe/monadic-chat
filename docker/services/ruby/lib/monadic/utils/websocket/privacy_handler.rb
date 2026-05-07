@@ -327,6 +327,12 @@ module WebSocketHelper
     ts = Time.now.strftime("%Y%m%d-%H%M%S")
     legacy = privacy_export_legacy_mode(encrypt, content_kind)
     ext = PRIVACY_EXPORT_EXTENSION[legacy] || ".plain.json"
-    "#{safe_app}-#{ts}#{ext}"
+    # Plain + restored is the only combination that actually deposits raw
+    # PII on disk (encrypted-restored is sealed; masked never had it).
+    # Tag the filename so the file is recognisable in mixed downloads
+    # before anyone opens it — saves a step in the "did I just attach the
+    # wrong export?" UX.
+    suffix = (!encrypt && content_kind == "restored") ? "-PRIVATE" : ""
+    "#{safe_app}-#{ts}#{suffix}#{ext}"
   end
 end

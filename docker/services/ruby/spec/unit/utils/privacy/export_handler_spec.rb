@@ -73,6 +73,17 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
       expect(f).to end_with('.plain.json')
     end
 
+    it 'tags plain-restored exports with -PRIVATE so the PII-on-disk variant is visible at a glance' do
+      f = harness.send(:privacy_export_filename, session, false, 'restored')
+      expect(f).to match(/-\d{6}-PRIVATE\.plain\.json\z/)
+    end
+
+    it 'does not add the -PRIVATE suffix to other variants' do
+      expect(harness.send(:privacy_export_filename, session, true, 'restored')).not_to include('-PRIVATE')
+      expect(harness.send(:privacy_export_filename, session, true, 'masked')).not_to include('-PRIVATE')
+      expect(harness.send(:privacy_export_filename, session, false, 'masked')).not_to include('-PRIVATE')
+    end
+
     it 'falls back to "monadic" when app_name is missing' do
       bare_session = { parameters: {} }
       f = harness.send(:privacy_export_filename, bare_session, true, 'restored')

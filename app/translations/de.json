@@ -234,6 +234,24 @@
     "deleteAll": "Alles löschen",
     "quit": "Beenden",
     "seleniumWillStartOnNextLaunch": "Selenium-Container wird beim nächsten Start von Monadic Chat gestartet.",
-    "seleniumWillNotStartOnNextLaunch": "Selenium-Container wird beim nächsten Start von Monadic Chat NICHT gestartet."
+    "seleniumWillNotStartOnNextLaunch": "Selenium-Container wird beim nächsten Start von Monadic Chat NICHT gestartet.",
+    "exportDbConfirmTitle": "Dokument-Datenbank exportieren",
+    "exportDbConfirmMessage": "Gesamte Dokument-Datenbank exportieren?",
+    "exportDbConfirmDetail": "Der Export enthält alle gespeicherten Unterhaltungen und PDF-Dokumente. Verschlüsselung der Ausgabe wird dringend empfohlen — ohne Verschlüsselung werden alle in der Datenbank gespeicherten persönlichen Informationen im Klartext in die Datei geschrieben.",
+    "exportDbEncrypted": "Verschlüsseln und exportieren",
+    "exportDbPlain": "Im Klartext exportieren",
+    "exportDbPassphraseTitle": "Passphrase für verschlüsselten Export festlegen",
+    "exportDbPassphraseHint": "Diese Passphrase ist die einzige Möglichkeit, die Datei zu entschlüsseln. Monadic Chat kann sie nicht wiederherstellen. Mindestens 8 Zeichen.",
+    "exportDbEncryptingMessage": "Dokument-Datenbank wird verschlüsselt...",
+    "exportDbEncryptedSuccess": "Verschlüsselte Dokument-Datenbank wurde nach monadic-qdrant.tar.gz.enc geschrieben. Bewahren Sie die Passphrase sicher auf — sie kann nicht wiederhergestellt werden.",
+    "exportDbEncryptedFailed": "Verschlüsselung fehlgeschlagen. Das Klartext-Tarball (monadic-qdrant.tar.gz) bleibt erhalten.",
+    "importDbConfirmTitle": "Dokument-Datenbank importieren",
+    "importDbConfirmMessage": "Aktuelle Dokument-Datenbank durch importierte Datei ersetzen?",
+    "importDbConfirmDetail": "Der Import ÜBERSCHREIBT alle aktuell gespeicherten Unterhaltungen, PDFs und Knowledge-Base-Einträge. Die aktuellen Daten können nach dem Import nicht wiederhergestellt werden. Stellen Sie sicher, dass die Datei (~/monadic/data/monadic-qdrant.tar.gz oder monadic-qdrant.tar.gz.enc) aus einer vertrauenswürdigen Quelle stammt.",
+    "importDbContinue": "Ersetzen und importieren",
+    "importDbPassphraseTitle": "Dokument-Datenbank entschlüsseln",
+    "importDbPassphraseHint": "Geben Sie die beim Export verwendete Passphrase ein.",
+    "importDbDecryptingMessage": "Dokument-Datenbank wird entschlüsselt...",
+    "importDbDecryptFailed": "Entschlüsselung fehlgeschlagen. Falsche Passphrase oder Datei wurde verändert."
   }
 }

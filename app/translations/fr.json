@@ -234,6 +234,24 @@
     "deleteAll": "Tout supprimer",
     "quit": "Quitter",
     "seleniumWillStartOnNextLaunch": "Le conteneur Selenium démarrera au prochain lancement de Monadic Chat.",
-    "seleniumWillNotStartOnNextLaunch": "Le conteneur Selenium NE démarrera PAS au prochain lancement de Monadic Chat."
+    "seleniumWillNotStartOnNextLaunch": "Le conteneur Selenium NE démarrera PAS au prochain lancement de Monadic Chat.",
+    "exportDbConfirmTitle": "Exporter la base de données de documents",
+    "exportDbConfirmMessage": "Exporter toute la base de données de documents ?",
+    "exportDbConfirmDetail": "L'export contient toutes les conversations enregistrées et les documents PDF. Le chiffrement de la sortie est fortement recommandé — sans chiffrement, toutes les informations personnelles stockées sont écrites en texte clair dans le fichier.",
+    "exportDbEncrypted": "Chiffrer et exporter",
+    "exportDbPlain": "Exporter en clair",
+    "exportDbPassphraseTitle": "Définir la phrase de passe pour l'export chiffré",
+    "exportDbPassphraseHint": "Cette phrase de passe est le seul moyen de déchiffrer le fichier. Monadic Chat ne peut pas la récupérer. Minimum 8 caractères.",
+    "exportDbEncryptingMessage": "Chiffrement de la base de données de documents...",
+    "exportDbEncryptedSuccess": "Base de données chiffrée écrite dans monadic-qdrant.tar.gz.enc. Conservez la phrase de passe en lieu sûr — elle ne peut pas être récupérée.",
+    "exportDbEncryptedFailed": "Échec du chiffrement. Le tarball en clair (monadic-qdrant.tar.gz) reste en place.",
+    "importDbConfirmTitle": "Importer la base de données de documents",
+    "importDbConfirmMessage": "Remplacer la base de données actuelle par le fichier importé ?",
+    "importDbConfirmDetail": "L'importation ÉCRASE toutes les conversations, PDF et entrées Knowledge Base actuellement enregistrés. Les données actuelles ne peuvent pas être récupérées après l'importation. Assurez-vous que le fichier (~/monadic/data/monadic-qdrant.tar.gz ou monadic-qdrant.tar.gz.enc) provient d'une source de confiance.",
+    "importDbContinue": "Remplacer et importer",
+    "importDbPassphraseTitle": "Déchiffrer la base de données de documents",
+    "importDbPassphraseHint": "Entrez la phrase de passe utilisée lors de l'export.",
+    "importDbDecryptingMessage": "Déchiffrement de la base de données de documents...",
+    "importDbDecryptFailed": "Échec du déchiffrement. Phrase de passe incorrecte ou fichier modifié."
   }
 }

@@ -44,6 +44,47 @@
 | Document Generator | | ✅ | | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
+## アプリ別の Privacy Filter / Knowledge Base 対応 :id=privacy-kb-by-app
+
+Privacy Filter (PF) と Knowledge Base への保存 (KB) はアプリ単位で**相互排他**です。意図的に PII を扱うアプリは「PF を有効にした一過性の会話」として位置づけ、会話そのものに長期的な参照価値があるアプリは「PF オフで KB に保存できる」スコープに配置されます。第三のグループ (画像 / 動画 / 図 / 文書ジェネレーターなどの artifact 中心アプリ) はどちらの機能も持ちません — artifact 自体は `~/monadic/data/` に保存され、周囲の会話はイテレーションのログに過ぎないため、KB に入れても検索ノイズになるだけです。
+
+PF で保護された会話を残したい場合は **Privacy Export** (暗号化、必要に応じて placeholder のみの masked) を使ってください。KB エントリの閲覧 / 共有は右サイドバーの **Browse** モーダルから行います。
+
+| アプリ | Privacy Filter | Knowledge Base 保存 |
+|-----|:--:|:--:|
+| Chat | | ✅ |
+| Chat Plus | ✅ | |
+| Voice Chat | | ✅ |
+| Wikipedia | | ✅ |
+| Math Tutor | | ✅ |
+| Second Opinion | ✅ | |
+| Research Assistant | | ✅ |
+| Language Practice | | ✅ |
+| Language Practice Plus | | ✅ |
+| Translate | ✅ | |
+| Voice Interpreter | | ✅ |
+| Novel Writer | | ✅ |
+| Image Generator | | |
+| Video Generator | | |
+| Mail Composer | ✅ | |
+| Mermaid Grapher | | |
+| DrawIO Grapher | | |
+| Syntax Tree | | |
+| Concept Visualizer | | |
+| Speech Draft Helper | | ✅ |
+| Web Insight | | ✅ |
+| Video Describer | | ✅ |
+| Knowledge Base | | ✅ |
+| Code Interpreter | | ✅ |
+| Coding Assistant | | ✅ |
+| Jupyter Notebook | | ✅ |
+| Auto Forge | | |
+| Music Lab | | |
+| Document Generator | | |
+| Monadic Chat Help | | ✅ |
+
+両列とも空欄になっているアプリは artifact 中心の生成系で、生成された出力 (画像・動画・図・文書など) 自体に価値があり会話本文ではありません。artifact を保管するにはカードの **Copy** / **Download** ボタンや共有フォルダを使ってください。周囲のチャットには retrieval 価値がないため KB 保存はあえて提供していません。
+
 ## プロバイダー機能概要
 
 | プロバイダー | ビジョンサポート | ツール/関数呼び出し | Web検索 |

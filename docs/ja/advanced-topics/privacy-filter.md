@@ -103,6 +103,10 @@ Web Speech API（ブラウザ内蔵合成）も同じサニタイザーを通り
 
 ## Knowledge Base への保存と検索
 
+Privacy Filter と Knowledge Base 保存は**アプリ単位で相互排他**です。Privacy 用のアプリ (Chat Plus / Mail Composer / Translate / Second Opinion) では Knowledge Base に保存できず、retrieval 価値のある会話アプリ (Chat / Research Assistant など) では Privacy Filter を有効化できません。完全な対応表は [アプリ別 Privacy / KB 対応表](../basic-usage/basic-apps.md#privacy-kb-by-app) を参照してください。
+
+Privacy Filter で保護した会話を残したい場合は **Privacy Export**（暗号化 + 必要に応じた masked モード）を使ってください — 後述の節を参照。Save → Knowledge Base ダイアログは PF 対象アプリでは非表示になっています。
+
 ### 保存ダイアログ: 匿名化オプション
 
 Privacy Filter が有効な状態で **Save** ボタンから Knowledge Base 保存ダイアログを開くと、警告セクション内に **Anonymize before saving** チェックボックスが表示されます。チェックが入っている状態（Privacy ON 時のデフォルト）では、各 user/assistant メッセージはアクティブな Privacy Pipeline でマスクされ、原文を `<<TYPE_N>>` プレースホルダーに置換した状態で qdrant に保存されます。

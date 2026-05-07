@@ -103,6 +103,10 @@ The Web Speech API path (browser-native synthesis) goes through the same sanitiz
 
 ## Knowledge Base Save and Search
 
+Privacy Filter and Knowledge Base save are **mutually exclusive at the app level**. Privacy-aware apps (Chat Plus, Mail Composer, Translate, Second Opinion) cannot save to the Knowledge Base; conversational apps with retrieval value (Chat, Research Assistant, etc.) cannot enable Privacy Filter. See the [App Allocation table](../basic-usage/basic-apps.md#privacy-kb-by-app) for the complete list.
+
+To preserve a Privacy-Filter-protected conversation, use **Privacy Export** (encryption + optional masked-only mode) — see the section below. The Save→Knowledge Base dialog is hidden for PF-eligible apps.
+
 ### Save dialog: anonymize option
 
 When the Privacy Filter is active and the **Save** button opens the Knowledge Base save dialog, an **Anonymize before saving** checkbox appears in the warning section. With the box checked (the default when Privacy is on), each user/assistant message is masked through the active Privacy Pipeline — original values are replaced with `<<TYPE_N>>` placeholders before the entry lands in qdrant.

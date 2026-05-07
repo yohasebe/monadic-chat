@@ -44,6 +44,47 @@ The table below shows which apps are available for which AI model providers.
 | Document Generator | | ✅ | | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
+## Privacy Filter and Knowledge Base by App :id=privacy-kb-by-app
+
+Privacy Filter (PF) and Knowledge Base save (KB) are **mutually exclusive** at the app level. Apps that handle PII intentionally are scoped as "ephemeral with PF on"; apps whose conversations have long-term retrieval value are scoped to KB save with PF off. A third group (artifact-centric apps such as image / video / diagram / document generators) supports neither — the artifact lives in `~/monadic/data/`, and the surrounding conversation is iteration-log noise that would only pollute KB search.
+
+To preserve a PF-protected conversation, use **Privacy Export** (encrypted, optionally masked-only). To browse or share a KB entry, use the **Browse** modal in the right sidebar.
+
+| App | Privacy Filter | Knowledge Base Save |
+|-----|:--:|:--:|
+| Chat | | ✅ |
+| Chat Plus | ✅ | |
+| Voice Chat | | ✅ |
+| Wikipedia | | ✅ |
+| Math Tutor | | ✅ |
+| Second Opinion | ✅ | |
+| Research Assistant | | ✅ |
+| Language Practice | | ✅ |
+| Language Practice Plus | | ✅ |
+| Translate | ✅ | |
+| Voice Interpreter | | ✅ |
+| Novel Writer | | ✅ |
+| Image Generator | | |
+| Video Generator | | |
+| Mail Composer | ✅ | |
+| Mermaid Grapher | | |
+| DrawIO Grapher | | |
+| Syntax Tree | | |
+| Concept Visualizer | | |
+| Speech Draft Helper | | ✅ |
+| Web Insight | | ✅ |
+| Video Describer | | ✅ |
+| Knowledge Base | | ✅ |
+| Code Interpreter | | ✅ |
+| Coding Assistant | | ✅ |
+| Jupyter Notebook | | ✅ |
+| Auto Forge | | |
+| Music Lab | | |
+| Document Generator | | |
+| Monadic Chat Help | | ✅ |
+
+A blank cell in **both** columns indicates an artifact-centric app where the generated output (image, video, diagram, document, etc.) is the value, not the conversation. Use the per-card **Copy** / **Download** controls or the shared folder to retain artifacts; KB save is intentionally not available because the surrounding chat does not carry retrieval value.
+
 ## Provider Capabilities Overview
 
 | Provider | Vision Support | Tool/Function Calling | Web Search |

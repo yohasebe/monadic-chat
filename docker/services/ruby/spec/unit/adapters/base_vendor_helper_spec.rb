@@ -364,14 +364,29 @@ RSpec.describe BaseVendorHelper do
       expect(result[0]["content"][2]["type"]).to eq("document")
     end
 
-    it 'does not mask assistant-role messages' do
+    it 'masks assistant-role messages too (multi-turn context replay)' do
+      # session[:messages] stores the restored text for past assistant
+      # turns; on the next round-trip it must be re-masked using the same
+      # registry so PII does not leak back to the LLM via context history.
       messages = [
         { "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] },
         { "role" => "assistant", "content" => [{ "type" => "text", "text" => "Hello Alice" }] }
       ]
       result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
       expect(result[0]["content"][0]["text"]).to eq("Hi <<PERSON_1>>")
-      expect(result[1]["content"][0]["text"]).to eq("Hello Alice")
+      expect(result[1]["content"][0]["text"]).to eq("Hello <<PERSON_1>>")
+    end
+
+    it 'leaves system / tool / developer roles untouched' do
+      messages = [
+        { "role" => "system", "content" => "You are a helpful assistant about Alice." },
+        { "role" => "tool", "content" => [{ "type" => "text", "text" => "tool output mentioning Alice" }] },
+        { "role" => "user", "content" => "Hi Alice" }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"]).to eq("You are a helpful assistant about Alice.")
+      expect(result[1]["content"][0]["text"]).to eq("tool output mentioning Alice")
+      expect(result[2]["content"]).to eq("Hi <<PERSON_1>>")
     end
 
     it 'returns messages unchanged when pipeline is nil (privacy disabled)' do

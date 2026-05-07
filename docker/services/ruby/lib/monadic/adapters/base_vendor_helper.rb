@@ -212,10 +212,19 @@ module BaseVendorHelper
     end
   end
 
-  # Replace user-message text with masked text in-place. Returns a new array
-  # so callers can keep the original messages untouched. The system_prompt
-  # is never masked — privacy filtering applies to user-authored content
-  # only.
+  # Replace masked text in user/assistant messages with placeholders.
+  # Returns a new array so callers can keep the original messages
+  # untouched. The system_prompt is never masked — privacy filtering
+  # applies to conversational turns only.
+  #
+  # Why both user and assistant: session[:messages] stores the **restored**
+  # text for past assistant responses (the user-visible form with real
+  # values restored from `<<TYPE_N>>` placeholders). When that history is
+  # replayed as context on the next turn, those past assistant entries
+  # would otherwise leak the original PII to the LLM API. Re-masking is
+  # safe because the privacy backend's `_build_masked` reuses any
+  # (type, original) pair already in the registry — placeholder numbering
+  # stays stable across turns.
   #
   # Handles two payload shapes:
   #   1. Chat Completions: content is a String
@@ -231,7 +240,9 @@ module BaseVendorHelper
     # Responses API's "Let's start" filler) and lock to the wrong language.
     messages.map do |msg|
       role = msg[:role] || msg["role"]
-      next msg unless role.to_s == "user"
+      # System / developer / tool roles are app-defined (system prompts,
+      # tool plumbing) and must not be re-masked.
+      next msg unless %w[user assistant].include?(role.to_s)
       text_key = msg.key?(:content) ? :content : "content"
       content = msg[text_key]
 

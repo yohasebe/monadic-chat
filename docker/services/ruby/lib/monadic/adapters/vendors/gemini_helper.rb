@@ -1946,10 +1946,12 @@ module GeminiHelper
     app_tools
   end
 
-  # Mask user-message text within Gemini's contents array. The body shape is
-  # contents = [{ role, parts: [{ text }, { inline_data }, ...] }]; only "user"
-  # role parts with a String "text" key are masked. Inline data, file data, and
-  # function_call/response parts pass through untouched.
+  # Mask conversational text within Gemini's contents array. The body shape
+  # is contents = [{ role, parts: [{ text }, { inline_data }, ...] }]. Both
+  # "user" and "model" (assistant) parts with a String "text" key are
+  # masked. Inline data, file data, and function_call/response parts pass
+  # through untouched. See apply_privacy_to_messages for the rationale on
+  # masking past assistant turns.
   private def apply_privacy_to_gemini_contents(contents, session, app_settings)
     pipeline = privacy_pipeline_for(session, app_settings)
     return contents unless pipeline
@@ -1957,7 +1959,9 @@ module GeminiHelper
     require_relative '../../utils/privacy/types'
     contents.map do |item|
       role = item[:role] || item["role"]
-      next item unless role.to_s == "user"
+      # Gemini uses "model" for assistant turns; mask both directions so
+      # restored values from past turns do not leak as context.
+      next item unless %w[user model].include?(role.to_s)
       parts_key = item.key?(:parts) ? :parts : "parts"
       parts = item[parts_key]
       next item unless parts.is_a?(Array)

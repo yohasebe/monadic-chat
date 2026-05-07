@@ -45,14 +45,17 @@ RSpec.describe GeminiHelper, '#apply_privacy_to_gemini_contents' do
     expect(result[0]["parts"][2]["file_data"]["file_uri"]).to eq("files/abc")
   end
 
-  it 'does not mask model-role messages' do
+  it 'masks model-role messages too (multi-turn context replay)' do
+    # Past assistant turns are stored with restored text; on the next call
+    # they must be re-masked with the same registry to keep PII out of
+    # the LLM context history.
     contents = [
       { "role" => "user", "parts" => [{ "text" => "Hi Alice" }] },
       { "role" => "model", "parts" => [{ "text" => "Hello Alice" }] }
     ]
     result = helper.send(:apply_privacy_to_gemini_contents, contents, {}, { privacy: { enabled: true } })
     expect(result[0]["parts"][0]["text"]).to eq("Hi <<PERSON_1>>")
-    expect(result[1]["parts"][0]["text"]).to eq("Hello Alice")
+    expect(result[1]["parts"][0]["text"]).to eq("Hello <<PERSON_1>>")
   end
 
   it 'returns contents unchanged when pipeline is nil (privacy disabled)' do

@@ -105,6 +105,56 @@ describe('WsPrivacyHandler.highlightUnmaskedSpans', () => {
   });
 });
 
+describe('WsPrivacyHandler.resetExportDialog — content default', () => {
+  function buildDialog() {
+    document.body.innerHTML = `
+      <div id="privacy-indicator" class="privacy-indicator privacy-active" style="display:">
+        <i class="fas fa-lock"></i> Privacy ON (3)
+      </div>
+      <input type="checkbox" id="export-encrypt-toggle" />
+      <input type="radio" name="privacyExportContent" id="privacyExportContentRestored" value="restored" checked />
+      <input type="radio" name="privacyExportContent" id="privacyExportContentMasked" value="masked" />
+      <input type="text" id="privacy-export-passphrase" />
+      <input type="text" id="privacy-export-passphrase-confirm" />
+      <div id="privacy-export-content-section" style="display:none;"></div>
+      <div id="privacy-export-status"></div>
+      <div id="privacy-export-pass-section"></div>
+      <div id="privacy-export-restored-warning"></div>
+      <button id="privacy-export-continue"></button>
+      <div class="privacy-strength-bar"></div>
+      <div id="privacy-strength-label"></div>
+    `;
+  }
+
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('defaults to "masked" when Privacy is active in the session', () => {
+    buildDialog();
+    // Indicator already shows "Privacy ON (3)" so isActive() returns true.
+    window.WsPrivacyHandler.resetExportDialog();
+    expect(document.getElementById('privacyExportContentMasked').checked).toBe(true);
+    expect(document.getElementById('privacyExportContentRestored').checked).toBe(false);
+  });
+
+  it('defaults to "restored" when Privacy is not active', () => {
+    buildDialog();
+    // Hide the indicator so isActive() returns false (mirrors privacy OFF state).
+    const ind = document.getElementById('privacy-indicator');
+    ind.style.display = 'none';
+    window.WsPrivacyHandler.resetExportDialog();
+    expect(document.getElementById('privacyExportContentRestored').checked).toBe(true);
+    expect(document.getElementById('privacyExportContentMasked').checked).toBe(false);
+  });
+
+  it('hides the content section when Privacy is not active', () => {
+    buildDialog();
+    const ind = document.getElementById('privacy-indicator');
+    ind.style.display = 'none';
+    window.WsPrivacyHandler.resetExportDialog();
+    expect(document.getElementById('privacy-export-content-section').style.display).toBe('none');
+  });
+});
+
 describe('WsPrivacyHandler.handleState — auto-detected language badge', () => {
   beforeEach(() => {
     const indicator = document.createElement('div');

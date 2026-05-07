@@ -200,7 +200,16 @@
     const encryptToggle = document.getElementById('export-encrypt-toggle');
     if (encryptToggle) encryptToggle.checked = false;
     const restored = document.getElementById('privacyExportContentRestored');
-    if (restored) restored.checked = true;
+    const masked = document.getElementById('privacyExportContentMasked');
+    // When the Privacy Filter is active in this session, default to
+    // "masked" so the user does not accidentally write plaintext PII to
+    // disk. The "restored" radio is still available for users who do
+    // need the original values (e.g. backing up a personal notebook).
+    // When Privacy is OFF, default to "restored" — there are no
+    // placeholders to substitute anyway.
+    const privacyOn = isActive();
+    if (restored) restored.checked = !privacyOn;
+    if (masked) masked.checked = privacyOn;
     const pass = document.getElementById('privacy-export-passphrase');
     const conf = document.getElementById('privacy-export-passphrase-confirm');
     if (pass) pass.value = '';
@@ -208,7 +217,7 @@
     // Show the content axis only when the privacy filter produced placeholders
     // in this session. Without entries, there is nothing meaningful to mask.
     const contentSection = document.getElementById('privacy-export-content-section');
-    if (contentSection) contentSection.style.display = isActive() ? '' : 'none';
+    if (contentSection) contentSection.style.display = privacyOn ? '' : 'none';
     setExportStatus('');
     updateExportModeUI();
     updateStrengthMeter('');
@@ -492,6 +501,7 @@
     openRegistryModal: openRegistryModal,
     isActive: isActive,
     openExportDialog: openExportDialog,
+    resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,
     handleExportError: handleExportError,
     highlightUnmaskedSpans: highlightUnmaskedSpans

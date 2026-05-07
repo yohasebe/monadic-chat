@@ -690,11 +690,23 @@ document.addEventListener('DOMContentLoaded', () => {
   window.electronAPI.onDisplayNetworkUrl((_event, data) => {
     if (!networkUrlDisplayed && data && data.localIP) {
       // Don't hide startup animation here - let it complete naturally
-      
+
       const networkUrl = `http://${data.localIP}:4567`;
       const mode = window.electronAPI.getDistributedMode();
-      const urlMessage = mode === 'server' 
-        ? `<p><i class="fa-solid fa-network-wired" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${networkUrl}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${networkUrl}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff;">${networkUrl}</span></p>`
+      // Server mode: append the auth token so the displayed URL is
+      // shareable. Phone/tablet browsers paste the URL with the token
+      // and authenticate via the AuthMiddleware (cookie set on the
+      // first successful match → bookmarkable for subsequent loads).
+      // The URL is rendered as plain text so users notice the token
+      // BEFORE they paste it into a chat or screenshot it.
+      const shareableUrl = (mode === 'server' && data.authToken)
+        ? `${networkUrl}/?monadic_auth=${encodeURIComponent(data.authToken)}`
+        : networkUrl;
+      const escapedShareUrl = shareableUrl
+        .replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+      const escapedJsLiteral = shareableUrl.replace(/'/g, "\\'");
+      const urlMessage = mode === 'server'
+        ? `<p><i class="fa-solid fa-network-wired" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${escapedJsLiteral}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${escapedShareUrl.replace(/"/g, '&quot;')}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff; word-break: break-all;">${escapedShareUrl}</span><br><small style="color:#999;">Server mode requires authentication. Share this full URL with anyone you want to grant access.</small></p>`
         : `<p><i class="fa-solid fa-laptop" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${networkUrl}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${networkUrl}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff;">${networkUrl}</span></p>`;
       
       // Write directly to HTML output instead of going through writeToScreen

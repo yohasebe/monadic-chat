@@ -452,9 +452,21 @@ class DockerManager {
     if (envPath) {
       const envConfig = readEnvFile(envPath);
       this.serverMode = envConfig.DISTRIBUTED_MODE === 'server';
-      
+
       // Set host binding based on mode - 0.0.0.0 for server mode, 127.0.0.1 for standalone
       envConfig.HOST_BINDING = this.serverMode ? '0.0.0.0' : '127.0.0.1';
+
+      // In server mode, every non-loopback request must carry an auth
+      // token. Generate one on first switch so the user never runs the
+      // app wide-open by accident; subsequent loads keep the existing
+      // token so bookmarks survive.
+      if (this.serverMode) {
+        const existing = (envConfig.MONADIC_AUTH_TOKEN || '').toString().trim();
+        if (existing.length === 0) {
+          envConfig.MONADIC_AUTH_TOKEN = crypto.randomBytes(32).toString('hex');
+        }
+      }
+
       writeEnvFile(envPath, envConfig);
       
       // Get local IP address for server mode
@@ -812,10 +824,21 @@ class DockerManager {
                             console.error('Error getting network interfaces:', err);
                           }
                           
+                          // Pull the per-instance auth token out of the
+                          // env file so the displayed URL is shareable —
+                          // copying it into a phone or tablet browser is
+                          // enough to authenticate.
+                          let authToken = '';
+                          try {
+                            const cfg = readEnvFile(getEnvPath());
+                            authToken = (cfg.MONADIC_AUTH_TOKEN || '').toString().trim();
+                          } catch (_) { /* ignore — UI will degrade gracefully */ }
+
                           // Send a custom command to show network URL exactly once
                           if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('display-network-url', {
-                              localIP: localIPAddress
+                              localIP: localIPAddress,
+                              authToken: authToken
                             });
                           }
                         } else {

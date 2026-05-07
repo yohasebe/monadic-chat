@@ -6,6 +6,7 @@ require "async/websocket/adapters/rack"
 
 require_relative "lib/monadic"
 require_relative "lib/monadic/utils/unlimited_session_store"
+require_relative "lib/monadic/utils/auth_middleware"
 
 set :logging, true
 set :bind, "0.0.0.0"
@@ -41,5 +42,11 @@ class MCPServerStarter
   end
 end
 
+# In server (distributed) mode the WebSocket port is bound to 0.0.0.0 so
+# anyone on the LAN can reach the app. The auth middleware gates non-
+# loopback traffic against MONADIC_AUTH_TOKEN; standalone-mode and
+# loopback (host) requests pass through untouched. See
+# lib/monadic/utils/auth_middleware.rb for the token sources.
+use Monadic::Utils::AuthMiddleware
 use MCPServerStarter
 run Sinatra::Application

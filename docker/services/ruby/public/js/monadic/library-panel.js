@@ -1191,6 +1191,11 @@
     if (opts.monadicState && typeof opts.monadicState === 'object') {
       payload.monadic_state = opts.monadicState;
     }
+    // Forward the anonymize flag so the backend can re-mask user/assistant
+    // text against the active Privacy registry before persisting to qdrant.
+    if (opts.anonymize === true) {
+      payload.anonymize = true;
+    }
     // Carry the existing conversation_id forward when the current
     // session has already been saved once. The server reads this and
     // performs delete-then-insert, replacing the prior version in place.
@@ -1208,7 +1213,13 @@
     var title = (titleEl && titleEl.value) ? titleEl.value : '';
     var scopeEl = document.querySelector('input[name="librarySaveScope"]:checked');
     var scope = (scopeEl && scopeEl.value) ? scopeEl.value : 'app';
-    return { title: title, scopeApp: scope };
+    // Anonymize is a meaningful choice only when the Privacy Filter is
+    // active in this session; otherwise the registry is empty and the
+    // backend would have nothing to substitute. We send the flag as-is
+    // and let the server gate it on `pipeline.enabled?`.
+    var anonEl = document.getElementById('library-save-anonymize');
+    var anonymize = !!(anonEl && anonEl.checked && privacyOn());
+    return { title: title, scopeApp: scope, anonymize: anonymize };
   }
 
   function submitSave() {
@@ -1230,7 +1241,8 @@
 
     var afterState = function (state2) {
       var payload = buildSavePayload({
-        title: sel.title, scopeApp: sel.scopeApp, monadicState: state2
+        title: sel.title, scopeApp: sel.scopeApp, monadicState: state2,
+        anonymize: sel.anonymize
       });
       var ok = send('LIBRARY_SAVE', { contents: payload });
       if (!ok) {

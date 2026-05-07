@@ -1147,6 +1147,13 @@
             <div id="library-save-privacy-note" class="alert alert-warning py-2 px-3 small mt-2" style="display:none;">
               <i class="fas fa-shield-halved"></i>
               <span data-i18n="ui.libPrivacyNote">Privacy Filter is active. Saving stores the restored (unmasked) conversation text on local disk. The Knowledge Base is unencrypted; treat the saved entry as sensitive and avoid Document DB exports unless the recipient is trusted.</span>
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="library-save-anonymize" checked>
+                <label class="form-check-label fw-bold" for="library-save-anonymize">
+                  <span data-i18n="ui.libAnonymizeLabel">Anonymize before saving</span>
+                </label>
+                <div class="text-secondary small" data-i18n="ui.libAnonymizeDesc">Replace tracked PII (names, emails, phone numbers, etc.) with placeholders before storing. Recommended when Privacy Filter is on. Note: anonymized entries cannot be restored later — the registry is per-session and is not saved.</div>
+              </div>
             </div>
           </div>
           <div class="modal-footer">

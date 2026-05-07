@@ -207,7 +207,7 @@ module WebSocketHelper
     })
   end
 
-  private def handle_ws_library_save(connection, obj, _session)
+  private def handle_ws_library_save(connection, obj, session)
     payload = obj['contents']
     payload = {} unless payload.is_a?(Hash)
 
@@ -216,6 +216,18 @@ module WebSocketHelper
     title = payload['title']
     license = payload['license']
     monadic_state = payload['monadic_state']
+    anonymize_requested = payload['anonymize'] == true || payload['anonymize'] == 'true'
+
+    # Anonymize before persisting: walk every user/assistant message and
+    # replace tracked PII with the registry's `<<TYPE_N>>` placeholders.
+    # We do this here (server side) rather than in the browser because the
+    # privacy pipeline is the canonical masker for this session — reusing
+    # it means the saved entry uses the same placeholders the LLM saw and
+    # avoids divergence with the ws-side rules. No-op when the user did
+    # not opt in or when the active session has no privacy pipeline.
+    if anonymize_requested && messages.is_a?(Array) && session.is_a?(Hash) && session[:_privacy_pipeline]
+      messages = anonymize_messages_for_library_save(messages, session[:_privacy_pipeline])
+    end
     # The UI sends the requested scope_app literally — either the
     # currently active app's class name (default for "save my session
     # privately to this app") or "Global" (default for shareable
@@ -287,6 +299,30 @@ module WebSocketHelper
     send_to_client(connection, {
       'type' => 'library_saved', 'res' => 'failure', 'content' => e.message
     })
+  end
+
+  # Walk an array of message hashes and replace tracked PII with the
+  # registry's placeholders. Roles other than user / assistant are left
+  # alone (system prompts and tool plumbing are app-defined). Returns a
+  # new array; the original messages are not mutated so a save failure
+  # does not corrupt the in-flight session.
+  private def anonymize_messages_for_library_save(messages, pipeline)
+    require_relative '../privacy/types'
+    messages.map do |msg|
+      next msg unless msg.is_a?(Hash)
+      role = msg['role'] || msg[:role]
+      next msg unless %w[user assistant].include?(role.to_s)
+      text = msg['text'] || msg[:text]
+      next msg unless text.is_a?(String) && !text.empty?
+      raw = Monadic::Utils::Privacy::RawMessage.new(text, role.to_s, {})
+      masked = pipeline.before_send_to_llm(raw)
+      key = msg.key?('text') ? 'text' : :text
+      msg.merge(key => masked.text)
+    end
+  rescue StandardError => e
+    # Mask failure must not silently leak unmasked text to disk. Re-raise
+    # so the outer rescue surfaces a save failure to the user.
+    raise StandardError, "[Library] anonymize failed: #{e.message}"
   end
 
   # Best-effort: ask the user's currently active provider for a concise

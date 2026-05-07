@@ -63,6 +63,7 @@ const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const net = require('net');
+const crypto = require('crypto');
 
 // Add debug mode for troubleshooting statusIndicator issues
 const debugStatusIndicator = false;
@@ -1792,6 +1793,215 @@ function toUnixPath(p) {
   return p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
 }
 
+// ─── Document DB encryption ────────────────────────────────────────────
+//
+// AES-256-GCM with PBKDF2 (SHA-256, 600 000 iterations) over a per-export
+// random salt. File layout (all big-endian):
+//
+//   magic    : 4 bytes  ("MQDB")
+//   version  : 1 byte   (0x01)
+//   salt     : 16 bytes
+//   iv       : 12 bytes
+//   ciphertext (variable)
+//   authTag  : 16 bytes (last 16 bytes of the file)
+//
+// Streaming friendly (file size can be GB-scale): we pre-write the header,
+// stream cipher.update(chunk) for each disk read chunk, then append the
+// auth tag once cipher.final() resolves. Decrypt mirrors this — read
+// header from the front, read auth tag from the tail (via stat()), stream
+// the middle through the decipher.
+//
+// File format constants
+const DB_ENC_MAGIC = Buffer.from([0x4d, 0x51, 0x44, 0x42]); // 'MQDB'
+const DB_ENC_VERSION = 0x01;
+const DB_ENC_SALT_BYTES = 16;
+const DB_ENC_IV_BYTES = 12;
+const DB_ENC_TAG_BYTES = 16;
+const DB_ENC_HEADER_BYTES = 4 + 1 + DB_ENC_SALT_BYTES + DB_ENC_IV_BYTES;
+const DB_ENC_KDF_ITERATIONS = 600000; // OWASP 2023 recommendation for PBKDF2-HMAC-SHA256
+
+function encryptDbExport(plainPath, encPath, passphrase) {
+  return new Promise((resolve, reject) => {
+    const salt = crypto.randomBytes(DB_ENC_SALT_BYTES);
+    const iv = crypto.randomBytes(DB_ENC_IV_BYTES);
+    let key;
+    try {
+      key = crypto.pbkdf2Sync(passphrase, salt, DB_ENC_KDF_ITERATIONS, 32, 'sha256');
+    } catch (err) {
+      return reject(err);
+    }
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+    const fout = fs.createWriteStream(encPath);
+    fout.on('error', reject);
+
+    // Header
+    fout.write(DB_ENC_MAGIC);
+    fout.write(Buffer.from([DB_ENC_VERSION]));
+    fout.write(salt);
+    fout.write(iv);
+
+    const fin = fs.createReadStream(plainPath);
+    fin.on('error', (err) => {
+      fout.destroy();
+      reject(err);
+    });
+
+    fin.on('data', (chunk) => {
+      const enc = cipher.update(chunk);
+      if (enc.length > 0) fout.write(enc);
+    });
+    fin.on('end', () => {
+      try {
+        const tail = cipher.final();
+        if (tail.length > 0) fout.write(tail);
+        fout.write(cipher.getAuthTag());
+        fout.end(() => resolve());
+      } catch (err) {
+        fout.destroy();
+        reject(err);
+      }
+    });
+  });
+}
+
+function decryptDbImport(encPath, plainPath, passphrase) {
+  return new Promise((resolve, reject) => {
+    let stat;
+    try {
+      stat = fs.statSync(encPath);
+    } catch (err) {
+      return reject(err);
+    }
+    const totalSize = stat.size;
+    if (totalSize < DB_ENC_HEADER_BYTES + DB_ENC_TAG_BYTES) {
+      return reject(new Error('Encrypted DB file is truncated.'));
+    }
+
+    let fd;
+    try {
+      fd = fs.openSync(encPath, 'r');
+    } catch (err) {
+      return reject(err);
+    }
+
+    try {
+      const headerBuf = Buffer.alloc(DB_ENC_HEADER_BYTES);
+      fs.readSync(fd, headerBuf, 0, DB_ENC_HEADER_BYTES, 0);
+      if (!headerBuf.subarray(0, 4).equals(DB_ENC_MAGIC)) {
+        fs.closeSync(fd);
+        return reject(new Error('Not an encrypted Monadic Chat DB export (magic mismatch).'));
+      }
+      if (headerBuf[4] !== DB_ENC_VERSION) {
+        fs.closeSync(fd);
+        return reject(new Error('Unsupported encrypted DB format version: ' + headerBuf[4]));
+      }
+      const salt = headerBuf.subarray(5, 5 + DB_ENC_SALT_BYTES);
+      const iv = headerBuf.subarray(5 + DB_ENC_SALT_BYTES, 5 + DB_ENC_SALT_BYTES + DB_ENC_IV_BYTES);
+
+      const tagBuf = Buffer.alloc(DB_ENC_TAG_BYTES);
+      fs.readSync(fd, tagBuf, 0, DB_ENC_TAG_BYTES, totalSize - DB_ENC_TAG_BYTES);
+      fs.closeSync(fd);
+
+      const key = crypto.pbkdf2Sync(passphrase, salt, DB_ENC_KDF_ITERATIONS, 32, 'sha256');
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+      decipher.setAuthTag(tagBuf);
+
+      const fout = fs.createWriteStream(plainPath);
+      fout.on('error', reject);
+
+      const fin = fs.createReadStream(encPath, {
+        start: DB_ENC_HEADER_BYTES,
+        end: totalSize - DB_ENC_TAG_BYTES - 1
+      });
+      fin.on('error', (err) => {
+        fout.destroy();
+        reject(err);
+      });
+
+      fin.on('data', (chunk) => {
+        const dec = decipher.update(chunk);
+        if (dec.length > 0) fout.write(dec);
+      });
+      fin.on('end', () => {
+        try {
+          const tail = decipher.final();
+          if (tail.length > 0) fout.write(tail);
+          fout.end(() => resolve());
+        } catch (err) {
+          fout.destroy();
+          // Clean up partial decrypt; an authentication failure
+          // produces an unusable file.
+          try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+          reject(new Error('Decryption failed (wrong passphrase or tampered file).'));
+        }
+      });
+    } catch (err) {
+      try { fs.closeSync(fd); } catch (_) { /* ignore */ }
+      reject(err);
+    }
+  });
+}
+
+// Open a small modal BrowserWindow that prompts for a passphrase. Returns
+// a Promise that resolves to a string on submit, or null on cancel.
+//
+// `opts.confirmRequired` (default true) shows a "confirm" field; for
+// decrypt-time prompts pass false to allow a single-field prompt.
+function promptPassphrase(parent, opts) {
+  const options = Object.assign({
+    title: 'Enter Passphrase',
+    hint: 'Used to encrypt the export file. Minimum 8 characters.',
+    confirmRequired: true
+  }, opts || {});
+
+  return new Promise((resolve) => {
+    const win = new BrowserWindow({
+      parent: parent || undefined,
+      modal: !!parent,
+      width: 400,
+      height: options.confirmRequired ? 280 : 220,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      title: 'Passphrase',
+      show: false,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload-passphrase.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
+      }
+    });
+
+    let resolved = false;
+    function settle(value) {
+      if (resolved) return;
+      resolved = true;
+      ipcMain.removeListener('passphrase-prompt:result', onResult);
+      if (!win.isDestroyed()) win.close();
+      resolve(value);
+    }
+
+    function onResult(_event, payload) {
+      if (payload && payload.ok && typeof payload.passphrase === 'string') {
+        settle(payload.passphrase);
+      } else {
+        settle(null);
+      }
+    }
+    ipcMain.on('passphrase-prompt:result', onResult);
+
+    win.on('closed', () => settle(null));
+    win.webContents.once('did-finish-load', () => {
+      win.webContents.send('passphrase-prompt:init', options);
+      win.show();
+    });
+    win.loadFile(path.join(__dirname, 'passphrase-prompt.html'));
+  });
+}
+
 // Fetch a URL with retries and a delay between attempts
 function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout = 20000) {
   const attemptFetch = async (attempt) => {
@@ -2295,31 +2505,110 @@ function updateApplicationMenu() {
                 icon: path.join(iconDir, 'app-icon.png')
               });
               if (result.response !== 0) return;
+
+              // Detect which file is present. Prefer the encrypted form
+              // when it exists so users do not accidentally import an
+              // older plaintext copy left behind from a previous export.
+              const dataDir = path.join(os.homedir(), 'monadic', 'data');
+              const plainPath = path.join(dataDir, 'monadic-qdrant.tar.gz');
+              const encPath = plainPath + '.enc';
+              const hasEnc = fs.existsSync(encPath);
+              const hasPlain = fs.existsSync(plainPath);
+              if (!hasEnc && !hasPlain) {
+                dialog.showErrorBox(i18n.t('dialogs.error'),
+                  'Document DB file not found. Place monadic-qdrant.tar.gz or monadic-qdrant.tar.gz.enc in ~/monadic/data/.');
+                return;
+              }
+
+              let createdTempPlain = false;
+              if (hasEnc) {
+                const passphrase = await promptPassphrase(mainWindow, {
+                  title: i18n.t('dialogs.importDbPassphraseTitle'),
+                  hint: i18n.t('dialogs.importDbPassphraseHint'),
+                  confirmRequired: false
+                });
+                if (passphrase === null) return;
+                openMainWindow();
+                writeToScreen(formatMessage(null, 'dialogs.importDbDecryptingMessage'));
+                try {
+                  await decryptDbImport(encPath, plainPath, passphrase);
+                  createdTempPlain = true;
+                } catch (err) {
+                  writeToScreen('[ERROR]: ' + (err && err.message ? err.message : i18n.t('dialogs.importDbDecryptFailed')));
+                  return;
+                }
+              }
+
               openMainWindow();
-              dockerManager.runCommand('import-db', formatMessage(null, 'messages.importingDocumentDB'), 'Importing', 'Stopped');
+              try {
+                await dockerManager.runCommand('import-db', formatMessage(null, 'messages.importingDocumentDB'), 'Importing', 'Stopped');
+              } finally {
+                // Remove the temporary decrypted tarball regardless of
+                // whether the import succeeded — the qdrant volume has
+                // already been wiped by monadic.sh, so leaving the
+                // plaintext on disk only widens the leak surface.
+                if (createdTempPlain) {
+                  try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+                }
+              }
             },
             enabled: currentStatus === 'Stopped' && metRequirements
           },
           {
             label: i18n.t('menu.exportDocumentDB'),
             click: async () => {
-              // The exported tarball contains every saved conversation
-              // and PDF in plaintext, regardless of whether Privacy Filter
-              // was active when each item was saved. Warn the user so the
-              // file is not casually shared with cloud services or
-              // colleagues.
+              // The plain export contains every saved conversation and
+              // PDF in plaintext, regardless of whether Privacy Filter
+              // was active when each item was saved. Strongly steer the
+              // user toward the encrypted variant; "Export Plain" is
+              // still available but explicit.
               const result = await dialog.showMessageBox(mainWindow, {
                 type: 'warning',
-                buttons: [i18n.t('dialogs.exportDbContinue'), i18n.t('dialogs.cancel')],
-                defaultId: 1,
-                cancelId: 1,
+                buttons: [
+                  i18n.t('dialogs.exportDbEncrypted'),
+                  i18n.t('dialogs.exportDbPlain'),
+                  i18n.t('dialogs.cancel')
+                ],
+                defaultId: 0,
+                cancelId: 2,
                 title: i18n.t('dialogs.exportDbConfirmTitle'),
                 message: i18n.t('dialogs.exportDbConfirmMessage'),
                 detail: i18n.t('dialogs.exportDbConfirmDetail'),
                 icon: path.join(iconDir, 'app-icon.png')
               });
-              if (result.response !== 0) return;
-              dockerManager.runCommand('export-db', formatMessage(null, 'messages.exportingDocumentDB'), 'Exporting', 'Stopped');
+              if (result.response === 2) return;
+
+              const encrypt = (result.response === 0);
+              let passphrase = null;
+              if (encrypt) {
+                passphrase = await promptPassphrase(mainWindow, {
+                  title: i18n.t('dialogs.exportDbPassphraseTitle'),
+                  hint: i18n.t('dialogs.exportDbPassphraseHint'),
+                  confirmRequired: true
+                });
+                if (passphrase === null) return;
+              }
+
+              // Run the plain export first; encrypt as a post-process.
+              await dockerManager.runCommand('export-db', formatMessage(null, 'messages.exportingDocumentDB'), 'Exporting', 'Stopped');
+
+              if (encrypt) {
+                const dataDir = path.join(os.homedir(), 'monadic', 'data');
+                const plainPath = path.join(dataDir, 'monadic-qdrant.tar.gz');
+                const encPath = plainPath + '.enc';
+                if (!fs.existsSync(plainPath)) return; // export already failed; success message logic in monadic.sh
+                writeToScreen(formatMessage(null, 'dialogs.exportDbEncryptingMessage'));
+                try {
+                  await encryptDbExport(plainPath, encPath, passphrase);
+                  // Remove the plaintext tarball so the encrypted file
+                  // is the only artifact left on disk.
+                  try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+                  writeToScreen('[HTML]: <p>' + i18n.t('dialogs.exportDbEncryptedSuccess') + '</p><hr />');
+                } catch (err) {
+                  writeToScreen('[HTML]: <p>' + i18n.t('dialogs.exportDbEncryptedFailed')
+                    + ' (' + (err && err.message ? err.message : 'unknown') + ')</p><hr />');
+                }
+              }
             },
             enabled: currentStatus === 'Stopped' && metRequirements
           }

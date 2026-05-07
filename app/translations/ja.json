@@ -246,11 +246,21 @@
     "seleniumWillNotStartOnNextLaunch": "次回のMonadic Chat起動時にSeleniumコンテナは起動しません。",
     "exportDbConfirmTitle": "ドキュメントDBをエクスポート",
     "exportDbConfirmMessage": "ドキュメントDB全体をエクスポートしますか?",
-    "exportDbConfirmDetail": "エクスポートには、保存されたすべての会話とPDFドキュメントが平文で含まれます (個人情報を含む。Privacy Filter の利用状態によらず保存時のままの内容です)。出力ファイル (~/monadic/data/monadic-qdrant.tar.gz) は暗号化されません。機微情報として取り扱い、信頼できる相手のみと共有してください。",
-    "exportDbContinue": "エクスポート",
+    "exportDbConfirmDetail": "エクスポートには、保存されたすべての会話とPDFドキュメントが含まれます。出力ファイルの暗号化を強く推奨します — 暗号化しない場合、保存されている個人情報を含むすべての内容が平文ファイルに書き出されます。",
+    "exportDbEncrypted": "暗号化してエクスポート",
+    "exportDbPlain": "平文でエクスポート",
+    "exportDbPassphraseTitle": "エクスポート用パスフレーズの設定",
+    "exportDbPassphraseHint": "このパスフレーズはファイルを復号する唯一の手段です。Monadic Chat 側で復元はできません。8 文字以上を指定してください。",
+    "exportDbEncryptingMessage": "ドキュメントDBを暗号化しています...",
+    "exportDbEncryptedSuccess": "暗号化されたドキュメントDBを monadic-qdrant.tar.gz.enc として書き出しました。パスフレーズは大切に保管してください — 復元できません。",
+    "exportDbEncryptedFailed": "暗号化に失敗しました。平文の tarball (monadic-qdrant.tar.gz) はそのまま残っています。",
     "importDbConfirmTitle": "ドキュメントDBをインポート",
     "importDbConfirmMessage": "現在のドキュメントDBをインポートファイルで置き換えますか?",
-    "importDbConfirmDetail": "インポートを実行すると、現在保存されているすべての会話・PDF・Knowledge Base エントリが上書きされます。現在のデータはインポート後に復元できません。ファイル (~/monadic/data/monadic-qdrant.tar.gz) は信頼できる入手元のものであることを確認してください。",
-    "importDbContinue": "置き換えてインポート"
+    "importDbConfirmDetail": "インポートを実行すると、現在保存されているすべての会話・PDF・Knowledge Base エントリが上書きされます。現在のデータはインポート後に復元できません。ファイル (~/monadic/data/monadic-qdrant.tar.gz または monadic-qdrant.tar.gz.enc) は信頼できる入手元のものであることを確認してください。",
+    "importDbContinue": "置き換えてインポート",
+    "importDbPassphraseTitle": "ドキュメントDBを復号",
+    "importDbPassphraseHint": "エクスポート時に設定したパスフレーズを入力してください。",
+    "importDbDecryptingMessage": "ドキュメントDBを復号しています...",
+    "importDbDecryptFailed": "復号に失敗しました。パスフレーズが違うか、ファイルが改ざんされています。"
   }
 }

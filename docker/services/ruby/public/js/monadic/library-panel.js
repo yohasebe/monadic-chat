@@ -1169,6 +1169,26 @@
     var note = document.getElementById('library-save-privacy-note');
     if (note) note.style.display = privacyOn() ? '' : 'none';
 
+    // Live-update the Global-scope warning. The default radio is
+    // "App-only" so the warning is hidden initially; flipping the radio
+    // to Global makes it visible. Listener is attached once per modal
+    // open via a data flag so reopen doesn't accumulate handlers.
+    var globalWarn = document.getElementById('library-scope-global-warning');
+    var scopeRadios = document.querySelectorAll('input[name="librarySaveScope"]');
+    function syncGlobalWarning() {
+      if (!globalWarn) return;
+      var checked = document.querySelector('input[name="librarySaveScope"]:checked');
+      var isGlobal = checked && checked.value === 'Global';
+      globalWarn.style.display = isGlobal ? '' : 'none';
+    }
+    scopeRadios.forEach(function (r) {
+      if (!r.dataset.scopeWarningWired) {
+        r.addEventListener('change', syncGlobalWarning);
+        r.dataset.scopeWarningWired = '1';
+      }
+    });
+    syncGlobalWarning();
+
     // Update mode: when this session has already been saved, swap the
     // dialog's title + confirm button + show a warning banner so the
     // user understands the next click will replace, not duplicate.

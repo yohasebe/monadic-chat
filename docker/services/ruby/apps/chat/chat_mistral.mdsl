@@ -57,14 +57,6 @@ app "ChatMistralAI" do
     group "Mistral"
   end
 
-  privacy do
-    enabled true
-    languages ["en"]
-    score_threshold 0.4
-    honorific_trim true
-    on_failure :block
-  end
-
   tools do
   end
 end

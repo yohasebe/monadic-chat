@@ -148,21 +148,53 @@ module MonadicDSL
     MusicLab ConceptVisualizer DocumentGenerator SyntaxTree
     CodeInterpreter JupyterNotebook AutoForge
     VoiceInterpreter
+    ChatPlus MailComposer Translate SecondOpinion
+  ].freeze
+
+  # Apps that should NOT show the Knowledge Base "Save" button. Two
+  # reasons drive exclusion:
+  #   1. Privacy-aware apps where saving plaintext PII to disk would
+  #      violate the app's intent (Chat Plus, Mail Composer, Translate,
+  #      Second Opinion). Privacy Filter and KB save are mutually
+  #      exclusive at the app level — see docs/advanced-topics/
+  #      privacy-filter.md and docs/basic-usage/basic-apps.md.
+  #   2. Artifact-centric apps where the value is the generated output
+  #      (image / video / diagram / document / score / tree). The
+  #      surrounding chat is iteration-log noise that pollutes KB
+  #      search.
+  # Match is on the provider-stripped base class name.
+  KB_SAVE_EXCLUDED_APP_BASE_NAMES = %w[
+    ChatPlus MailComposer Translate SecondOpinion
+    AutoForge ConceptVisualizer DocumentGenerator DrawioGrapher
+    ImageGenerator MermaidGrapher MusicLab SyntaxTree VideoGenerator
   ].freeze
 
   # Providers without (or with limited) function-calling support that
   # cannot host the library_search tool.
   RAG_EXCLUDED_PROVIDERS = %w[perplexity].freeze
 
+  # Strip the provider suffix to recover the app's base class name.
+  # Used by both library_search_eligible? and library_save_eligible?.
+  def self.app_base_name(state)
+    state.name.sub(
+      /(OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama)\z/, ''
+    )
+  end
+
   # True when the app should auto-import library_search.
   def self.library_search_eligible?(state)
-    base = state.name.sub(
-      /OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama\z/, ''
-    )
+    base = app_base_name(state)
     return false if RAG_EXCLUDED_APP_BASE_NAMES.include?(base)
     provider = state.settings[:provider].to_s.downcase
     return false if RAG_EXCLUDED_PROVIDERS.include?(provider)
     true
+  end
+
+  # True when the app should expose the Knowledge Base "Save" button.
+  # See KB_SAVE_EXCLUDED_APP_BASE_NAMES for the rationale per app.
+  def self.library_save_eligible?(state)
+    base = app_base_name(state)
+    !KB_SAVE_EXCLUDED_APP_BASE_NAMES.include?(base)
   end
 
   def self.library_search_already_imported?(state)
@@ -229,6 +261,12 @@ module MonadicDSL
         puts "[DSL] library_search auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       end
     end
+
+    # Stamp the per-app Knowledge Base save eligibility so the frontend
+    # can hide the Save button on artifact-centric and privacy-aware
+    # apps. The flag is read by app_data.rb when serialising APPS for
+    # the WebSocket bootstrap.
+    state.settings[:library_save] = library_save_eligible?(state)
 
     # Debug the state
     puts "After DSL eval: #{state.name}, display_name: #{state.settings[:display_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]

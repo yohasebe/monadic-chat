@@ -103,33 +103,11 @@ The Web Speech API path (browser-native synthesis) goes through the same sanitiz
 
 ## Knowledge Base Save and Search
 
-Privacy Filter and Knowledge Base save are **mutually exclusive at the app level**. Privacy-aware apps (Chat Plus, Mail Composer, Translate, Second Opinion) cannot save to the Knowledge Base; conversational apps with retrieval value (Chat, Research Assistant, etc.) cannot enable Privacy Filter. See the [App Allocation table](../basic-usage/basic-apps.md#privacy-kb-by-app) for the complete list.
+Privacy Filter and Knowledge Base save are **mutually exclusive at the app level**. Privacy-aware apps (Chat Plus, Mail Composer, Translate, Second Opinion) cannot save to the Knowledge Base — the Save button is hidden for these apps. Conversational apps with retrieval value (Chat, Research Assistant, etc.) cannot enable the Privacy Filter. Artifact-centric apps (image / video / diagram / document generators) support neither feature; the artifact lives in `~/monadic/data/`. See the [App Allocation table](../basic-usage/basic-apps.md#privacy-kb-by-app) for the complete list.
 
-To preserve a Privacy-Filter-protected conversation, use **Privacy Export** (encryption + optional masked-only mode) — see the section below. The Save→Knowledge Base dialog is hidden for PF-eligible apps.
+To preserve a conversation handled in a privacy-aware app, use **Privacy Export** (encryption + optional masked-only mode) — see the section below.
 
-### Save dialog: anonymize option
-
-When the Privacy Filter is active and the **Save** button opens the Knowledge Base save dialog, an **Anonymize before saving** checkbox appears in the warning section. With the box checked (the default when Privacy is on), each user/assistant message is masked through the active Privacy Pipeline — original values are replaced with `<<TYPE_N>>` placeholders before the entry lands in qdrant.
-
-Two consequences to keep in mind:
-
-- Anonymized entries cannot be unmasked later: the registry is per-session and is never persisted, so the saved entry stays in placeholder form across reloads.
-- Library search results from anonymized entries are pre-masked at the data layer, so the back-channel from retrieval to the LLM is closed even before the runtime pipeline pass below.
-
-Unchecking the box stores the restored conversation text on local disk. The dialog warns explicitly about this configuration; see the badges below for how the choice is surfaced in the Browse modal afterwards.
-
-### Browse modal: privacy badges
-
-The Browse modal shows a small badge in front of each entry's title that reflects the entry's privacy posture:
-
-| Badge | Meaning |
-|---|---|
-| 🛡️ green shield | Saved with the *Anonymize* option on — placeholders only on disk |
-| ⚠️ yellow triangle | Saved while Privacy was active but *not* anonymized — restored PII is on disk |
-| ⚠️ gray triangle | Legacy entry (no recorded privacy status) where the title or source contains a recognisable email or phone-number pattern |
-| (none) | Saved while Privacy was off, or no PII heuristic match in the summary fields |
-
-The 🛡️ / yellow triangle badges come from a `pii_status` field stamped at save time. The gray triangle is a frontend regex heuristic that scans only the title and source fields of the summary point, so it costs O(rows) per render and works for entries saved before the badge was added.
+The Browse modal shows a muted ⚠️ icon in front of an entry's title when the title or source contains an obvious email or phone-number pattern. This is a lightweight regex heuristic that costs O(rows) per render and helps spot legacy entries that may carry PII even though the current app allocation rule prevents new ones from being saved that way.
 
 ### `library_search` retrieval
 

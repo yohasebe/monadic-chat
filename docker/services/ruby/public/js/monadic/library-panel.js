@@ -349,26 +349,17 @@
     return PII_EMAIL_RE.test(corpus) || PII_PHONE_RE.test(corpus);
   }
 
-  // Render the Privacy badge column. Three precedence levels:
-  //  1. row.pii_status === 'anonymized'         → green shield (safest)
-  //  2. row.pii_status === 'plain_with_privacy' → yellow triangle (PII on disk)
-  //  3. status absent + heuristic match         → yellow triangle (legacy entry)
-  //  4. otherwise                               → empty cell
+  // Render the Privacy badge column. Privacy Filter and Knowledge Base
+  // save are mutually exclusive at the app level (see dsl.rb#
+  // KB_SAVE_EXCLUDED_APP_BASE_NAMES), so saved KB entries never go
+  // through the Privacy registry — there is no `pii_status` field to
+  // surface. The remaining heuristic catches legacy or imported entries
+  // whose title / source obviously looks like PII (email or phone
+  // patterns), giving the user a glance-level warning before clicking in.
   function privacyBadgeHtml(row) {
-    var status = row.pii_status;
-    if (status === 'anonymized') {
-      var t1 = t('ui.libBadgeAnonymized', 'Anonymized — placeholders only, no original PII on disk');
-      return '<span title="' + escapeHtml(t1) + '" aria-label="' + escapeHtml(t1) + '">'
-        + '<i class="fa-solid fa-shield-halved text-success"></i></span>';
-    }
-    if (status === 'plain_with_privacy') {
-      var t2 = t('ui.libBadgePlainWithPrivacy', 'Privacy was on but this entry is stored with original PII');
-      return '<span title="' + escapeHtml(t2) + '" aria-label="' + escapeHtml(t2) + '">'
-        + '<i class="fa-solid fa-triangle-exclamation text-warning"></i></span>';
-    }
-    if (!status && rowLikelyHasPii(row)) {
-      var t3 = t('ui.libBadgePiiHeuristic', 'May contain PII (email or phone pattern detected in title/source)');
-      return '<span title="' + escapeHtml(t3) + '" aria-label="' + escapeHtml(t3) + '">'
+    if (rowLikelyHasPii(row)) {
+      var label = t('ui.libBadgePiiHeuristic', 'May contain PII (email or phone pattern detected in title/source)');
+      return '<span title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">'
         + '<i class="fa-solid fa-triangle-exclamation text-secondary"></i></span>';
     }
     return '';
@@ -1166,9 +1157,6 @@
       appNameEl.textContent = appName ? ': ' + formatScopeApp(appName) : '';
     }
 
-    var note = document.getElementById('library-save-privacy-note');
-    if (note) note.style.display = privacyOn() ? '' : 'none';
-
     // Live-update the Global-scope warning. The default radio is
     // "App-only" so the warning is hidden initially; flipping the radio
     // to Global makes it visible. Listener is attached once per modal
@@ -1257,11 +1245,6 @@
     if (opts.monadicState && typeof opts.monadicState === 'object') {
       payload.monadic_state = opts.monadicState;
     }
-    // Forward the anonymize flag so the backend can re-mask user/assistant
-    // text against the active Privacy registry before persisting to qdrant.
-    if (opts.anonymize === true) {
-      payload.anonymize = true;
-    }
     // Carry the existing conversation_id forward when the current
     // session has already been saved once. The server reads this and
     // performs delete-then-insert, replacing the prior version in place.
@@ -1279,13 +1262,7 @@
     var title = (titleEl && titleEl.value) ? titleEl.value : '';
     var scopeEl = document.querySelector('input[name="librarySaveScope"]:checked');
     var scope = (scopeEl && scopeEl.value) ? scopeEl.value : 'app';
-    // Anonymize is a meaningful choice only when the Privacy Filter is
-    // active in this session; otherwise the registry is empty and the
-    // backend would have nothing to substitute. We send the flag as-is
-    // and let the server gate it on `pipeline.enabled?`.
-    var anonEl = document.getElementById('library-save-anonymize');
-    var anonymize = !!(anonEl && anonEl.checked && privacyOn());
-    return { title: title, scopeApp: scope, anonymize: anonymize };
+    return { title: title, scopeApp: scope };
   }
 
   function submitSave() {
@@ -1307,8 +1284,7 @@
 
     var afterState = function (state2) {
       var payload = buildSavePayload({
-        title: sel.title, scopeApp: sel.scopeApp, monadicState: state2,
-        anonymize: sel.anonymize
+        title: sel.title, scopeApp: sel.scopeApp, monadicState: state2
       });
       var ok = send('LIBRARY_SAVE', { contents: payload });
       if (!ok) {
@@ -1542,6 +1518,27 @@
       && window.messages.some(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); });
   }
 
+  // Privacy Filter and Knowledge Base save are mutually exclusive at the
+  // app level — see docs/basic-usage/basic-apps.md#privacy-kb-by-app.
+  // The Save button is hidden in two cases:
+  //   1. The current app is in the KB-save excluded list (artifact-centric
+  //      apps and PF-only apps; flag set by DSL post-processing in
+  //      lib/monadic/dsl.rb#library_save_eligible?).
+  //   2. The Privacy Filter is active in this session — defense in depth
+  //      so a misconfigured app cannot leak PII to disk.
+  function isCurrentAppKbSaveEligible() {
+    try {
+      var apps = window.apps;
+      var name = (window.params && window.params.app_name) || null;
+      if (!apps || !name) return true; // assume eligible until app metadata loads
+      var settings = apps[name];
+      if (!settings) return true;
+      // Boolean false hides the button; absent (legacy) defaults to eligible
+      // so existing user-defined custom apps don't suddenly lose Save.
+      return settings.library_save !== false && settings.library_save !== 'false';
+    } catch (_) { return true; }
+  }
+
   // Sync the Save button's enabled state with hasSessionMessages(). Driven
   // both by initial page load and by SessionState events so the button
   // unlocks the moment the first message arrives without polling.
@@ -1549,6 +1546,15 @@
     if (typeof document === 'undefined') return;
     var btn = document.getElementById('library-save');
     if (!btn) return;
+
+    // Hide the button entirely (display:none) when the app excludes KB
+    // save or when Privacy is active. Disabled+visible would invite the
+    // user to wonder why they cannot click; hiding makes the absence
+    // intentional.
+    var hidden = !isCurrentAppKbSaveEligible() || privacyOn();
+    btn.style.display = hidden ? 'none' : '';
+    if (hidden) return;
+
     var saveable = hasSessionMessages();
     btn.disabled = !saveable;
     if (!saveable) {
@@ -1567,11 +1573,18 @@
 
     // Re-evaluate availability whenever the conversation set changes.
     // SessionState fires these events from addMessage/clearMessages/etc.;
-    // we cover the same set the rest of the app subscribes to.
+    // we cover the same set the rest of the app subscribes to. We also
+    // listen for app:changed because the per-app eligibility flag
+    // (library_save) drives whether the Save button is hidden.
     if (window.SessionState && typeof window.SessionState.on === 'function') {
-      ['message:added', 'messages:cleared', 'message:deleted', 'session:reset', 'session:new']
+      ['message:added', 'messages:cleared', 'message:deleted', 'session:reset', 'session:new', 'app:changed']
         .forEach(function (ev) { window.SessionState.on(ev, updateSaveButtonAvailability); });
     }
+    // Also listen for the Privacy state push so the button hides as soon
+    // as the user toggles Privacy on / off — without waiting for a
+    // session event. ws-privacy-handler.js dispatches this whenever
+    // handleState runs (HTTP html message and PRIVACY_TOGGLE ack).
+    document.addEventListener('privacy:state-changed', updateSaveButtonAvailability);
 
     var browseBtn = document.getElementById('library-browse');
     if (browseBtn) browseBtn.onclick = openBrowseModal;

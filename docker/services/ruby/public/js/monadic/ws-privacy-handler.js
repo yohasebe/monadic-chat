@@ -37,15 +37,28 @@
       + '</span>';
   }
 
+  // Notify document-level listeners when the privacy state flips. Other
+  // panels (e.g. library-panel.js) hide their controls when Privacy is
+  // active, so they need a hook independent of SessionState events.
+  function emitStateChanged() {
+    try {
+      document.dispatchEvent(new CustomEvent('privacy:state-changed'));
+    } catch (_) { /* CustomEvent unavailable in some test envs */ }
+  }
+
   function handleState(data) {
     const el = findIndicator();
-    if (!el) return;
+    if (!el) {
+      emitStateChanged();
+      return;
+    }
 
     if (!data || !data.enabled) {
       el.style.display = 'none';
       el.removeAttribute('title');
       el.innerHTML = '';
       el.style.cursor = 'default';
+      emitStateChanged();
       return;
     }
 
@@ -77,6 +90,7 @@
       );
     }
     el.style.cursor = 'pointer';
+    emitStateChanged();
   }
 
   function openRegistryModal() {

@@ -103,33 +103,11 @@ Web Speech API（ブラウザ内蔵合成）も同じサニタイザーを通り
 
 ## Knowledge Base への保存と検索
 
-Privacy Filter と Knowledge Base 保存は**アプリ単位で相互排他**です。Privacy 用のアプリ (Chat Plus / Mail Composer / Translate / Second Opinion) では Knowledge Base に保存できず、retrieval 価値のある会話アプリ (Chat / Research Assistant など) では Privacy Filter を有効化できません。完全な対応表は [アプリ別 Privacy / KB 対応表](../basic-usage/basic-apps.md#privacy-kb-by-app) を参照してください。
+Privacy Filter と Knowledge Base 保存は**アプリ単位で相互排他**です。Privacy 用のアプリ (Chat Plus / Mail Composer / Translate / Second Opinion) では Knowledge Base に保存できません — これらのアプリでは Save ボタン自体が非表示になります。retrieval 価値のある会話アプリ (Chat / Research Assistant など) では Privacy Filter を有効化できません。Artifact 中心のアプリ (画像 / 動画 / 図 / 文書ジェネレーター) はどちらの機能も持たず、生成された artifact は `~/monadic/data/` に保存されます。完全な対応表は [アプリ別 Privacy / KB 対応表](../basic-usage/basic-apps.md#privacy-kb-by-app) を参照してください。
 
-Privacy Filter で保護した会話を残したい場合は **Privacy Export**（暗号化 + 必要に応じた masked モード）を使ってください — 後述の節を参照。Save → Knowledge Base ダイアログは PF 対象アプリでは非表示になっています。
+Privacy 用のアプリで扱った会話を残したい場合は **Privacy Export**（暗号化 + 必要に応じた masked モード）を使ってください — 後述の節を参照。
 
-### 保存ダイアログ: 匿名化オプション
-
-Privacy Filter が有効な状態で **Save** ボタンから Knowledge Base 保存ダイアログを開くと、警告セクション内に **Anonymize before saving** チェックボックスが表示されます。チェックが入っている状態（Privacy ON 時のデフォルト）では、各 user/assistant メッセージはアクティブな Privacy Pipeline でマスクされ、原文を `<<TYPE_N>>` プレースホルダーに置換した状態で qdrant に保存されます。
-
-注意点が 2 つあります:
-
-- 匿名化されたエントリは後から復元できません。registry はセッション単位で保存対象外なので、リロード後も placeholder のまま残ります。
-- 匿名化エントリの library_search 結果はデータ層で既にマスクされているため、retrieval → LLM の back-channel は実行時パイプラインを通すまでもなく塞がれています。
-
-チェックを外すと、画面に表示されている復元済みの会話本文がそのままディスクに保存されます。この設定では明示的な警告がダイアログに表示され、後述の Browse バッジでも視覚的に区別されます。
-
-### Browse モーダル: Privacy バッジ
-
-Browse モーダルでは、各エントリのタイトル前に小さなバッジが表示されてプライバシー状態を示します:
-
-| バッジ | 意味 |
-|---|---|
-| 🛡️ 緑の盾 | *Anonymize* オプション ON で保存 — ディスクには placeholder のみ |
-| ⚠️ 黄色三角 | Privacy が有効なまま *Anonymize* なしで保存 — 復元済み PII がディスクに残っている |
-| ⚠️ 灰色三角 | Privacy 状態の記録がない既存エントリで、タイトルや source に email / 電話番号らしきパターンが検出された |
-| (なし) | Privacy が無効な状態で保存、または summary 欄に PII らしき文字列が見当たらない |
-
-🛡️ / 黄色三角は保存時に書き込まれた `pii_status` フィールドに基づきます。灰色三角はフロントエンドの正規表現ヒューリスティックで、summary point の title / source 欄のみを対象にしているため O(rows) で済み、バッジ機能追加前に保存されたエントリにも適用できます。
+Browse モーダルでは、エントリのタイトルや source に email / 電話番号らしきパターンが含まれているとき、タイトル前に控えめな ⚠️ アイコンが表示されます。フロントエンドの正規表現ヒューリスティックで O(rows) の軽量チェックですが、現在のアプリ割り当てルールが施行される前に保存された PII を含む可能性のあるエントリを一目で識別できるようにする目的があります。
 
 ### `library_search` 検索
 

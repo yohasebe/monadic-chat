@@ -256,108 +256,18 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['content']).to match(/No messages/)
     end
 
-    context 'with anonymize: true' do
-      let(:fake_pipeline) do
-        # Stub returning a MaskedMessage-shaped object (only #text is read).
-        masked_struct = Struct.new(:text)
-        double('Pipeline').tap do |p|
-          allow(p).to receive(:before_send_to_llm) do |raw|
-            t = raw.text.to_s
-            t = t.gsub('Alice', '<<PERSON_1>>').gsub('alice@example.com', '<<EMAIL_ADDRESS_1>>')
-            masked_struct.new(t)
-          end
-        end
-      end
-
-      it 'rewrites user/assistant text via the pipeline before passing it to the importer' do
-        captured = nil
-        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-          captured = args[:input]
-          { conversation_id: 'conv-anon', counts: { summary: 1, turns: 1 } }
-        end
-
-        payload = valid_payload.merge(
-          'messages' => [
-            { 'role' => 'system', 'text' => 'Help Alice with email alice@example.com.', 'mid' => 1 },
-            { 'role' => 'user', 'text' => 'Hi I am Alice', 'mid' => 2 },
-            { 'role' => 'assistant', 'text' => 'Hello Alice (alice@example.com)', 'mid' => 3 }
-          ],
-          'anonymize' => true
-        )
-
-        host.send(:handle_ws_library_save, connection, { 'contents' => payload }, { _privacy_pipeline: fake_pipeline })
-
-        expect(replies.first['res']).to eq('success')
-        # System text is left alone (app-defined; not subject to masking).
-        expect(captured['messages'][0]['text']).to eq('Help Alice with email alice@example.com.')
-        expect(captured['messages'][1]['text']).to eq('Hi I am <<PERSON_1>>')
-        expect(captured['messages'][2]['text']).to eq('Hello <<PERSON_1>> (<<EMAIL_ADDRESS_1>>)')
-      end
-
-      it 'is a no-op when the session has no privacy pipeline (e.g. Privacy was off)' do
-        captured = nil
-        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-          captured = args[:input]
-          { conversation_id: 'conv-x', counts: { summary: 1, turns: 1 } }
-        end
-
-        payload = valid_payload.merge('anonymize' => true)
-        host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-
-        expect(replies.first['res']).to eq('success')
-        # Original text passes through untouched.
-        expect(captured['messages'][1]['text']).to eq('Hi')
-      end
-
-      it 'reports a failure when the pipeline raises mid-mask (no partial save)' do
-        allow(fake_pipeline).to receive(:before_send_to_llm).and_raise('privacy backend down')
-        # Importer must not be called when masking blew up.
+    context 'when Privacy Filter is active in the session' do
+      it 'rejects the save with a clear failure message (defense in depth for the PF×KB exclusion)' do
+        # The frontend hides the Save button on PF apps, but a stale tab
+        # or programmatic client could still hit this path. Reject before
+        # any storage side-effect to keep restored PII off disk.
         expect(Monadic::Library::Manager).not_to receive(:import_from_text)
 
-        payload = valid_payload.merge('anonymize' => true)
-        host.send(:handle_ws_library_save, connection, { 'contents' => payload }, { _privacy_pipeline: fake_pipeline })
+        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, { _privacy_pipeline: double('Pipeline') })
 
         msg = replies.first
         expect(msg['res']).to eq('failure')
-        expect(msg['content']).to match(/anonymize failed/)
-      end
-
-      it 'stamps pii_status="anonymized" in the importer options when anonymize is on' do
-        captured_options = nil
-        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-          captured_options = args[:options]
-          { conversation_id: 'conv-tag', counts: { summary: 1, turns: 1 } }
-        end
-
-        payload = valid_payload.merge('anonymize' => true)
-        host.send(:handle_ws_library_save, connection, { 'contents' => payload }, { _privacy_pipeline: fake_pipeline })
-
-        expect(captured_options[:pii_status]).to eq('anonymized')
-      end
-
-      it 'stamps pii_status="plain_with_privacy" when Privacy is on but anonymize is off' do
-        captured_options = nil
-        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-          captured_options = args[:options]
-          { conversation_id: 'conv-tag', counts: { summary: 1, turns: 1 } }
-        end
-
-        # No anonymize key — privacy was on but the user opted out.
-        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, { _privacy_pipeline: fake_pipeline })
-
-        expect(captured_options[:pii_status]).to eq('plain_with_privacy')
-      end
-
-      it 'omits pii_status entirely when the session has no privacy pipeline' do
-        captured_options = nil
-        allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-          captured_options = args[:options]
-          { conversation_id: 'conv-tag', counts: { summary: 1, turns: 1 } }
-        end
-
-        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
-
-        expect(captured_options).not_to have_key(:pii_status)
+        expect(msg['content']).to match(/Privacy Filter is active/)
       end
     end
   end

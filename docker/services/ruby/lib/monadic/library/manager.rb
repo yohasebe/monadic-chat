@@ -193,7 +193,6 @@ module Monadic
           turns_count: payload['turns_count'],
           duration_seconds: payload['duration_seconds'],
           topics: payload['topics'],
-          pii_status: payload['pii_status'],
           created_at: payload['created_at']
         }.compact
       end

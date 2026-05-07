@@ -449,41 +449,15 @@ describe('library-panel module', () => {
         <input type="radio" name="librarySaveScope" value="app">
         <input type="radio" name="librarySaveScope" value="Global" checked>
       `;
-      // anonymize is false when neither the checkbox nor Privacy is on.
-      expect(lib.readModalSelections()).toEqual({ title: 'My Conversation', scopeApp: 'Global', anonymize: false });
+      // Privacy Filter and KB save are mutually exclusive at the app
+      // level; the Save button is hidden in PF apps so anonymize / pf
+      // gating no longer flows through readModalSelections.
+      expect(lib.readModalSelections()).toEqual({ title: 'My Conversation', scopeApp: 'Global' });
     });
 
     it('defaults to "app" when no radio is checked', () => {
       document.body.innerHTML = '<input id="library-save-title" value="">';
-      expect(lib.readModalSelections()).toEqual({ title: '', scopeApp: 'app', anonymize: false });
-    });
-
-    it('returns anonymize: true only when the checkbox is checked AND Privacy is active', () => {
-      document.body.innerHTML = `
-        <input id="library-save-title" value="">
-        <input type="checkbox" id="library-save-anonymize" checked>
-      `;
-      // privacyOn() falls through to window.privacyEnabled when
-      // WsPrivacyHandler.isEnabled is unavailable.
-      window.privacyEnabled = true;
-      try {
-        expect(lib.readModalSelections().anonymize).toBe(true);
-      } finally {
-        delete window.privacyEnabled;
-      }
-    });
-
-    it('returns anonymize: false when Privacy is off, even if the checkbox is checked', () => {
-      document.body.innerHTML = `
-        <input id="library-save-title" value="">
-        <input type="checkbox" id="library-save-anonymize" checked>
-      `;
-      window.privacyEnabled = false;
-      try {
-        expect(lib.readModalSelections().anonymize).toBe(false);
-      } finally {
-        delete window.privacyEnabled;
-      }
+      expect(lib.readModalSelections()).toEqual({ title: '', scopeApp: 'app' });
     });
   });
 
@@ -1160,19 +1134,12 @@ describe('library-panel module', () => {
   });
 
   describe('privacyBadgeHtml', () => {
-    it('emits a green shield for entries with pii_status="anonymized"', () => {
-      const html = lib.privacyBadgeHtml({ pii_status: 'anonymized', title: 'Demo' });
-      expect(html).toMatch(/text-success/);
-      expect(html).toMatch(/fa-shield-halved/);
-    });
+    // Privacy Filter and KB save are mutually exclusive at the app
+    // level, so saved KB entries never carry a `pii_status` flag. The
+    // remaining badge is a heuristic for legacy entries whose title /
+    // source obviously matches an email or phone-number pattern.
 
-    it('emits a yellow warning for entries with pii_status="plain_with_privacy"', () => {
-      const html = lib.privacyBadgeHtml({ pii_status: 'plain_with_privacy', title: 'Demo' });
-      expect(html).toMatch(/text-warning/);
-      expect(html).toMatch(/fa-triangle-exclamation/);
-    });
-
-    it('emits a muted warning for legacy entries (no status) when title looks like PII', () => {
+    it('emits a muted warning when title looks like PII (email pattern)', () => {
       const html = lib.privacyBadgeHtml({ title: 'Email alice@example.com about the project' });
       expect(html).toMatch(/text-secondary/);
       expect(html).toMatch(/fa-triangle-exclamation/);
@@ -1186,14 +1153,6 @@ describe('library-panel module', () => {
     it('detects phone-number patterns in title', () => {
       const html = lib.privacyBadgeHtml({ title: 'Call 03-1234-5678 tomorrow' });
       expect(html).toMatch(/fa-triangle-exclamation/);
-    });
-
-    it('does not emit a heuristic badge when an explicit pii_status is set', () => {
-      // pii_status takes precedence; even if the title looks like PII, we
-      // trust the server-side flag and show the explicit anonymized badge.
-      const html = lib.privacyBadgeHtml({ pii_status: 'anonymized', title: 'a@b.com' });
-      expect(html).toMatch(/fa-shield-halved/);
-      expect(html).not.toMatch(/fa-triangle-exclamation/);
     });
   });
 });

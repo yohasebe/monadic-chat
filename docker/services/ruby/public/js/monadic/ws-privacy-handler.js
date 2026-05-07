@@ -261,9 +261,44 @@
 
     const encrypt = isEncryptChecked();
     passSection.style.display = encrypt ? '' : 'none';
-    // Show the plaintext warning only when encryption is OFF — that is the
-    // configuration where the file leaves the application in cleartext form.
-    restoredWarn.style.display = encrypt ? 'none' : '';
+
+    // Three-tier warning depending on what actually leaves disk:
+    //   encrypt ON                        → no warning (file is sealed)
+    //   encrypt OFF + masked content      → no warning (no original PII present)
+    //   encrypt OFF + restored content    → WARNING:
+    //     - Privacy active:  red `alert-danger` ("PII export") because the
+    //       user is overriding the safer default; the file will contain
+    //       names, emails, phone numbers in plaintext.
+    //     - Privacy inactive: yellow `alert-warning` (no registry entries
+    //       so no tracked PII is being un-masked, but the file is still
+    //       cleartext content).
+    if (encrypt) {
+      restoredWarn.style.display = 'none';
+      restoredWarn.classList.remove('alert-danger');
+      restoredWarn.classList.add('alert-warning');
+      return checkContinueEnabled();
+    }
+    const isRestoredContent = (currentContent() === 'restored');
+    if (!isRestoredContent) {
+      restoredWarn.style.display = 'none';
+      return checkContinueEnabled();
+    }
+    restoredWarn.style.display = '';
+    const defaultBlock = document.getElementById('privacy-export-restored-warning-default');
+    const strongBlock = document.getElementById('privacy-export-restored-warning-strong');
+    if (isActive()) {
+      // Strong warning: user picked the high-risk combination explicitly
+      // (Privacy active + Restored + unencrypted).
+      restoredWarn.classList.remove('alert-warning');
+      restoredWarn.classList.add('alert-danger');
+      if (defaultBlock) defaultBlock.style.display = 'none';
+      if (strongBlock) strongBlock.style.display = '';
+    } else {
+      restoredWarn.classList.remove('alert-danger');
+      restoredWarn.classList.add('alert-warning');
+      if (defaultBlock) defaultBlock.style.display = '';
+      if (strongBlock) strongBlock.style.display = 'none';
+    }
     checkContinueEnabled();
   }
 
@@ -362,10 +397,11 @@
     if (ev.target.id === 'export-encrypt-toggle') {
       updateExportModeUI();
     }
-    // Content radio (only present when privacy active) — no UI side-effect,
-    // but checkContinueEnabled is cheap and keeps button state in sync.
+    // Content radio drives both the warning style/text (Restored escalates
+    // to a red "PII export" alert when Privacy is active) and the
+    // continue-button enable state.
     if (ev.target.name === 'privacyExportContent') {
-      checkContinueEnabled();
+      updateExportModeUI();
     }
   });
   document.addEventListener('input', function (ev) {

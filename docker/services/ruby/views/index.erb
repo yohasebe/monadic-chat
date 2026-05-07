@@ -1040,8 +1040,14 @@
             </div>
 
             <div id="privacy-export-restored-warning" class="alert alert-warning small mt-3" style="display:none;">
-              <strong>⚠ <span data-i18n="ui.exportPlainWarningTitle">Plain export selected.</span></strong>
-              <span data-i18n="ui.exportPlainWarningBody">The exported file will contain unencrypted contents. Use only for trusted, local-only workflows.</span>
+              <div id="privacy-export-restored-warning-default">
+                <strong>⚠ <span data-i18n="ui.exportPlainWarningTitle">Plain export selected.</span></strong>
+                <span data-i18n="ui.exportPlainWarningBody">The exported file will contain unencrypted contents. Use only for trusted, local-only workflows.</span>
+              </div>
+              <div id="privacy-export-restored-warning-strong" style="display:none;">
+                <strong>🚨 <span data-i18n="ui.exportRestoredStrongTitle">PII will be written to disk in plaintext.</span></strong>
+                <span data-i18n="ui.exportRestoredStrongBody">Privacy Filter is active in this session, but you are overriding the safer default by choosing "Restored" without encryption. The exported file will contain every name, email, address, and phone number visible in the conversation. Pick "Encrypt and Export" or switch the content radio back to "Masked" if you do not need plaintext PII to leave this machine.</span>
+              </div>
             </div>
 
             <div id="privacy-export-status" class="small mt-2"></div>

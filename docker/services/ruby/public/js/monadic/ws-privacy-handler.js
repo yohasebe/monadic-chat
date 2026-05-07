@@ -7,6 +7,12 @@
 //   error      — backend reachable failure (red triangle)
 
 (function () {
+  // Last enabled state observed from a server-pushed `privacy_state` message.
+  // Tracks the *toggle* state (Privacy ON regardless of registry count), not
+  // the *active* state (registry has entries). Save-button hiding (CSS rule
+  // `body.app-privacy-on #library-save`) needs the toggle, not the activity.
+  var _lastEnabled = false;
+
   function findIndicator() {
     return document.getElementById('privacy-indicator');
   }
@@ -39,14 +45,19 @@
 
   // Notify document-level listeners when the privacy state flips. Other
   // panels (e.g. library-panel.js) hide their controls when Privacy is
-  // active, so they need a hook independent of SessionState events.
+  // active, so they need a hook independent of SessionState events. The
+  // current toggle state is carried in `event.detail.enabled` so listeners
+  // can react without a second WsPrivacyHandler.isEnabled() call.
   function emitStateChanged() {
     try {
-      document.dispatchEvent(new CustomEvent('privacy:state-changed'));
+      document.dispatchEvent(new CustomEvent('privacy:state-changed', {
+        detail: { enabled: _lastEnabled }
+      }));
     } catch (_) { /* CustomEvent unavailable in some test envs */ }
   }
 
   function handleState(data) {
+    _lastEnabled = !!(data && data.enabled);
     const el = findIndicator();
     if (!el) {
       emitStateChanged();
@@ -576,6 +587,7 @@
     handleRegistry: handleRegistry,
     openRegistryModal: openRegistryModal,
     isActive: isActive,
+    isEnabled: function () { return _lastEnabled; },
     openExportDialog: openExportDialog,
     resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,

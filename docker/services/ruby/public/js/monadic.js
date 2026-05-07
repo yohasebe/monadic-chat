@@ -187,12 +187,68 @@ window.getProviderFromGroup = getProviderFromGroup;
 // disabled state — the privacy choice for the current conversation is final
 // per design. App change / Reset clears the lock by re-running with
 // `{initial:true}`.
+// Reflect per-app capabilities onto body classes for CSS-driven visibility
+// (MDSL SSOT, Phase 4). The CSS rules in `monadic.css` (search for
+// "App-capability declarative visibility gate") consume these classes:
+//   app-cap-pf       — app's `privacy_enabled` MDSL flag is true
+//   app-cap-kb-save  — app allows saving conversations to the Knowledge Base
+//   app-cap-kb-search — app allows the LLM to call library_search
+// Defaults: KB save / KB search ON, PF OFF — preserving legacy behavior for
+// custom or older apps that haven't declared the flags. Only an explicit
+// false / "false" disables, matching `CAPABILITY_DEFAULTS` on the Ruby side.
+//
+// This function is the single visibility SSOT — it's called from every
+// path where the active app might change (initial load, dropdown change,
+// WS app params update, app:changed event, reset). The previous JS-driven
+// `style.display = "none"` per-event approach was vulnerable to listener
+// order bugs and missed code paths; converging on a single body-class
+// snapshot eliminates that class of issue.
+function applyAppCapabilityClasses(appName) {
+  if (typeof document === "undefined") return;
+  const apps = window.apps || {};
+  const settings = (appName && apps[appName]) || null;
+  // No app data yet (or unknown app) → leave existing body classes alone.
+  // Resetting to defaults here would flicker visibility during page load
+  // and risks clobbering classes set by a later, valid call. Callers fire
+  // this function from many entry points (initial setup, dropdown change,
+  // WS update-params, app:changed); skipping the unknown case keeps each
+  // entry point safe to call without coordination.
+  if (!settings) return;
+
+  const isPf       = String(settings.privacy_enabled || "").toLowerCase() === "true";
+  const isKbSave   = settings.library_save !== false && settings.library_save !== "false";
+  const isKbSearch = settings.library_search !== false && settings.library_search !== "false";
+
+  const cl = document.body.classList;
+  cl.toggle("app-cap-pf", isPf);
+  cl.toggle("app-cap-kb-save", isKbSave);
+  cl.toggle("app-cap-kb-search", isKbSearch);
+}
+window.applyAppCapabilityClasses = applyAppCapabilityClasses;
+
+// Privacy-on body class — session-scoped (not per-app). Toggled in
+// response to backend `privacy_state` pushes via the `privacy:state-changed`
+// CustomEvent (see ws-privacy-handler.js). The CSS rule
+// `body.app-privacy-on #library-save { display: none !important; }` hides
+// the Save button as soon as Privacy is enabled mid-session, since saving
+// would write masked placeholders to the Knowledge Base.
+function applyPrivacyOnClass(on) {
+  if (typeof document === "undefined") return;
+  document.body.classList.toggle("app-privacy-on", !!on);
+}
+window.applyPrivacyOnClass = applyPrivacyOnClass;
+
 function refreshPrivacyToggleGate(opts) {
   opts = opts || {};
   const apps = window.apps || {};
   const appsEl = document.getElementById("apps");
   const appValue = opts.appValue || (appsEl && appsEl.value);
   if (!appValue || !apps[appValue]) return;
+
+  // Body-class capability gate — must run before any early-return below so
+  // visibility stays in sync even when the privacy toggle element itself
+  // isn't in the DOM (e.g., partial views in tests).
+  applyAppCapabilityClasses(appValue);
 
   const privacyEl = document.getElementById("check-privacy-session");
   const privacyLabel = document.getElementById("check-privacy-session-label");
@@ -304,6 +360,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   } catch (e) {
     console.error('[DOMContentLoaded] Failed to initialize tab state:', e);
   }
+
+  // Mirror Privacy ON state onto the <body> as a CSS hook (Phase 4).
+  // ws-privacy-handler.js dispatches `privacy:state-changed` with
+  // `detail.enabled` whenever the backend pushes a privacy_state update;
+  // the CSS rule `body.app-privacy-on #library-save { display: none }`
+  // then hides the Knowledge Base Save button without per-handler JS.
+  document.addEventListener("privacy:state-changed", function (ev) {
+    const enabled = !!(ev && ev.detail && ev.detail.enabled);
+    applyPrivacyOnClass(enabled);
+  });
 
   // Restore menu visibility state from localStorage on page load
   // This ensures the menu state persists across zoom operations and page reloads

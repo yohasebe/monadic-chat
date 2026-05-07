@@ -1166,25 +1166,41 @@ describe('library-panel module', () => {
       expect(lib.isCurrentAppKbRetrievalEligible()).toBe(true);
     });
 
-    it('updateRagToggleVisibility hides the row when library_search: false', () => {
-      document.body.innerHTML = '<div id="library-rag-toggle-row"></div>';
-      setApp('ChatPlusOpenAI', { library_search: false });
-      lib.updateRagToggleVisibility();
-      expect(document.getElementById('library-rag-toggle-row').style.display).toBe('none');
+    it('updateRagToggleVisibility delegates to applyAppCapabilityClasses with the current app name', () => {
+      // Phase 4: visibility moved from JS-driven `style.display` to a body
+      // class + CSS gate. updateRagToggleVisibility now exists only to fan
+      // the SessionState `app:changed` path into the SSOT entry point in
+      // monadic.js (applyAppCapabilityClasses), which toggles the body
+      // class. The CSS rule `body:not(.app-cap-kb-search) #library-rag-toggle-row`
+      // does the actual hiding.
+      const spy = jest.fn();
+      window.applyAppCapabilityClasses = spy;
+      try {
+        setApp('ChatPlusOpenAI', { library_search: false });
+        lib.updateRagToggleVisibility();
+        expect(spy).toHaveBeenLastCalledWith('ChatPlusOpenAI');
+
+        setApp('ChatOpenAI', { library_search: true });
+        lib.updateRagToggleVisibility();
+        expect(spy).toHaveBeenLastCalledWith('ChatOpenAI');
+      } finally {
+        delete window.applyAppCapabilityClasses;
+      }
     });
 
-    it('updateRagToggleVisibility shows the row when library_search: true', () => {
-      document.body.innerHTML = '<div id="library-rag-toggle-row" style="display:none;"></div>';
-      setApp('ChatOpenAI', { library_search: true });
-      lib.updateRagToggleVisibility();
-      expect(document.getElementById('library-rag-toggle-row').style.display).toBe('');
-    });
-
-    it('updateSaveButtonAvailability hides the button when library_save: false', () => {
-      document.body.innerHTML = '<button id="library-save"></button>';
+    it('updateSaveButtonAvailability early-returns when the app is ineligible (no mutation of disabled or title)', () => {
+      // Phase 4: when the app's library_save flag is false (or Privacy is
+      // ON), the Save button is hidden by CSS via the body class. Re-running
+      // the JS bookkeeping (disabled / title) on a hidden button is wasted
+      // work — the function early-returns. This test pins the no-mutation
+      // contract by seeding sentinel values and asserting they survive.
+      document.body.innerHTML = '<button id="library-save" disabled title="sentinel"></button>';
+      const btn = document.getElementById('library-save');
+      btn.disabled = false; // explicit non-default starting state
       setApp('ChatPlusOpenAI', { library_save: false });
       lib.updateSaveButtonAvailability();
-      expect(document.getElementById('library-save').style.display).toBe('none');
+      expect(btn.disabled).toBe(false);
+      expect(btn.getAttribute('title')).toBe('sentinel');
     });
 
     it('absent flag defaults to eligible (legacy / user-defined custom apps)', () => {

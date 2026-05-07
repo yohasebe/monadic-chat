@@ -1556,18 +1556,18 @@
   // Sync the Save button's enabled state with hasSessionMessages(). Driven
   // both by initial page load and by SessionState events so the button
   // unlocks the moment the first message arrives without polling.
+  //
+  // Visibility (display:none) is now driven declaratively by body class +
+  // CSS in monadic.css ("App-capability declarative visibility gate"). When
+  // the button would be hidden by either the per-app `library_save` flag
+  // or session-scoped Privacy ON, the disabled/title bookkeeping below is
+  // wasted work — early-return so we don't fight the CSS.
   function updateSaveButtonAvailability() {
     if (typeof document === 'undefined') return;
     var btn = document.getElementById('library-save');
     if (!btn) return;
 
-    // Hide the button entirely (display:none) when the app excludes KB
-    // save or when Privacy is active. Disabled+visible would invite the
-    // user to wonder why they cannot click; hiding makes the absence
-    // intentional.
-    var hidden = !isCurrentAppKbSaveEligible() || privacyOn();
-    btn.style.display = hidden ? 'none' : '';
-    if (hidden) return;
+    if (!isCurrentAppKbSaveEligible() || privacyOn()) return;
 
     var saveable = hasSessionMessages();
     btn.disabled = !saveable;
@@ -1578,16 +1578,15 @@
     }
   }
 
-  // Hide the entire "Use Knowledge Base for retrieval" row (toggle +
-  // label + help icon) when the current app excludes library_search
-  // auto-injection. Otherwise the toggle would be a no-op control —
-  // toggling it ON in a PF-only or artifact-centric app would not give
-  // the LLM a library_search tool to actually use.
+  // Drive the body capability classes from the SessionState `app:changed`
+  // path. The CSS rule `body:not(.app-cap-kb-search) #library-rag-toggle-row`
+  // then handles row visibility — this function exists only to fan out the
+  // single SSOT entry point (applyAppCapabilityClasses) to one more caller.
   function updateRagToggleVisibility() {
-    if (typeof document === 'undefined') return;
-    var row = document.getElementById('library-rag-toggle-row');
-    if (!row) return;
-    row.style.display = isCurrentAppKbRetrievalEligible() ? '' : 'none';
+    if (typeof window === 'undefined') return;
+    if (typeof window.applyAppCapabilityClasses === 'function') {
+      window.applyAppCapabilityClasses(currentAppName());
+    }
   }
 
   function init() {

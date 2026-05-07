@@ -6042,3 +6042,15 @@ i.fas.fa-bolt,
 .privacy-strength-bar.score-2 #privacy-strength-fill { width: 50%; background-color: #ffc107; }
 .privacy-strength-bar.score-3 #privacy-strength-fill { width: 75%; background-color: #20c997; }
 .privacy-strength-bar.score-4 #privacy-strength-fill { width: 100%; background-color: #198754; }
+
+/* App-capability declarative visibility gate (MDSL SSOT, Phase 4).
+   Body classes are set by applyAppCapabilityClasses() in monadic.js based
+   on per-app MDSL flags (privacy_enabled, library_save, library_search).
+   The Privacy-on class is set independently in response to live privacy
+   state pushes from the backend. CSS is the SSOT for visibility — JS code
+   only owns disabled state and tooltips. */
+body:not(.app-cap-pf)        #privacy-toggle-form    { display: none !important; }
+body:not(.app-cap-kb-save)   #library-save           { display: none !important; }
+body:not(.app-cap-kb-search) #library-rag-toggle-row { display: none !important; }
+body:not(.app-cap-kb-save):not(.app-cap-kb-search) #library-panel { display: none !important; }
+body.app-privacy-on          #library-save           { display: none !important; }

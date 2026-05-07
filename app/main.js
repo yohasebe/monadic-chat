@@ -2279,15 +2279,46 @@ function updateApplicationMenu() {
           },
           {
             label: i18n.t('menu.importDocumentDB'),
-            click: () => {
+            click: async () => {
+              // Importing wipes the qdrant volume and replaces it with the
+              // contents of the tarball — irreversible. Confirm before
+              // proceeding so an accidental click does not destroy the
+              // user's saved conversations and PDFs.
+              const result = await dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                buttons: [i18n.t('dialogs.importDbContinue'), i18n.t('dialogs.cancel')],
+                defaultId: 1,
+                cancelId: 1,
+                title: i18n.t('dialogs.importDbConfirmTitle'),
+                message: i18n.t('dialogs.importDbConfirmMessage'),
+                detail: i18n.t('dialogs.importDbConfirmDetail'),
+                icon: path.join(iconDir, 'app-icon.png')
+              });
+              if (result.response !== 0) return;
               openMainWindow();
-              dockerManager.runCommand('import-db', formatMessage(null, 'messages.importingDocumentDB'), 'Importing', 'Stopped')
+              dockerManager.runCommand('import-db', formatMessage(null, 'messages.importingDocumentDB'), 'Importing', 'Stopped');
             },
             enabled: currentStatus === 'Stopped' && metRequirements
           },
           {
             label: i18n.t('menu.exportDocumentDB'),
-            click: () => {
+            click: async () => {
+              // The exported tarball contains every saved conversation
+              // and PDF in plaintext, regardless of whether Privacy Filter
+              // was active when each item was saved. Warn the user so the
+              // file is not casually shared with cloud services or
+              // colleagues.
+              const result = await dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                buttons: [i18n.t('dialogs.exportDbContinue'), i18n.t('dialogs.cancel')],
+                defaultId: 1,
+                cancelId: 1,
+                title: i18n.t('dialogs.exportDbConfirmTitle'),
+                message: i18n.t('dialogs.exportDbConfirmMessage'),
+                detail: i18n.t('dialogs.exportDbConfirmDetail'),
+                icon: path.join(iconDir, 'app-icon.png')
+              });
+              if (result.response !== 0) return;
               dockerManager.runCommand('export-db', formatMessage(null, 'messages.exportingDocumentDB'), 'Exporting', 'Stopped');
             },
             enabled: currentStatus === 'Stopped' && metRequirements

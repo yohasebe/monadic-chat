@@ -243,6 +243,14 @@
     "unsavedChangesMessage": "保存していない変更があります。閉じる前に保存しますか？",
     "saveAndClose": "保存して閉じる",
     "seleniumWillStartOnNextLaunch": "次回のMonadic Chat起動時にSeleniumコンテナが起動します。",
-    "seleniumWillNotStartOnNextLaunch": "次回のMonadic Chat起動時にSeleniumコンテナは起動しません。"
+    "seleniumWillNotStartOnNextLaunch": "次回のMonadic Chat起動時にSeleniumコンテナは起動しません。",
+    "exportDbConfirmTitle": "ドキュメントDBをエクスポート",
+    "exportDbConfirmMessage": "ドキュメントDB全体をエクスポートしますか?",
+    "exportDbConfirmDetail": "エクスポートには、保存されたすべての会話とPDFドキュメントが平文で含まれます (個人情報を含む。Privacy Filter の利用状態によらず保存時のままの内容です)。出力ファイル (~/monadic/data/monadic-qdrant.tar.gz) は暗号化されません。機微情報として取り扱い、信頼できる相手のみと共有してください。",
+    "exportDbContinue": "エクスポート",
+    "importDbConfirmTitle": "ドキュメントDBをインポート",
+    "importDbConfirmMessage": "現在のドキュメントDBをインポートファイルで置き換えますか?",
+    "importDbConfirmDetail": "インポートを実行すると、現在保存されているすべての会話・PDF・Knowledge Base エントリが上書きされます。現在のデータはインポート後に復元できません。ファイル (~/monadic/data/monadic-qdrant.tar.gz) は信頼できる入手元のものであることを確認してください。",
+    "importDbContinue": "置き換えてインポート"
   }
 }

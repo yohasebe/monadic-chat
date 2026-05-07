@@ -243,6 +243,14 @@
     "unsavedChangesMessage": "You have unsaved changes. Save before closing?",
     "saveAndClose": "Save and Close",
     "seleniumWillStartOnNextLaunch": "Selenium container will start on next launch of Monadic Chat.",
-    "seleniumWillNotStartOnNextLaunch": "Selenium container will NOT start on next launch of Monadic Chat."
+    "seleniumWillNotStartOnNextLaunch": "Selenium container will NOT start on next launch of Monadic Chat.",
+    "exportDbConfirmTitle": "Export Document DB",
+    "exportDbConfirmMessage": "Export the entire Document DB?",
+    "exportDbConfirmDetail": "The export contains every saved conversation and PDF document in plaintext, including any personal information (names, emails, addresses, etc.) regardless of whether the Privacy Filter was active when each item was saved. The output file (~/monadic/data/monadic-qdrant.tar.gz) is NOT encrypted. Treat it as sensitive and share only with trusted recipients.",
+    "exportDbContinue": "Export",
+    "importDbConfirmTitle": "Import Document DB",
+    "importDbConfirmMessage": "Replace the current Document DB with the imported file?",
+    "importDbConfirmDetail": "Importing OVERWRITES all currently saved conversations, PDFs, and Knowledge Base entries. The current data cannot be recovered after import. Make sure the file (~/monadic/data/monadic-qdrant.tar.gz) is from a trusted source.",
+    "importDbContinue": "Replace and Import"
   }
 }

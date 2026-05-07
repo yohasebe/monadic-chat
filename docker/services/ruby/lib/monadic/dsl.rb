@@ -267,6 +267,12 @@ module MonadicDSL
     # apps. The flag is read by app_data.rb when serialising APPS for
     # the WebSocket bootstrap.
     state.settings[:library_save] = library_save_eligible?(state)
+    # Mirror flag for the "Use KB for retrieval" toggle. When false the
+    # frontend hides the toggle so PF-only and artifact-centric apps do
+    # not expose a control that has no underlying tool to drive (the
+    # library_search auto-injection is also skipped — see the
+    # RAG_EXCLUDED check above for the canonical gate).
+    state.settings[:library_search] = library_search_eligible?(state)
 
     # Debug the state
     puts "After DSL eval: #{state.name}, display_name: #{state.settings[:display_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]

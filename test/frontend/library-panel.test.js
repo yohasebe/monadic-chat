@@ -1133,6 +1133,67 @@ describe('library-panel module', () => {
     });
   });
 
+  describe('per-app KB feature gates', () => {
+    afterEach(() => {
+      document.body.innerHTML = '';
+      delete window.apps;
+      delete window.params;
+    });
+
+    function setApp(name, settings) {
+      window.apps = {};
+      window.apps[name] = settings || {};
+      window.params = { app_name: name };
+    }
+
+    it('isCurrentAppKbSaveEligible returns false for apps with library_save: false', () => {
+      setApp('ChatPlusOpenAI', { library_save: false, library_search: false, privacy_enabled: true });
+      expect(lib.isCurrentAppKbSaveEligible()).toBe(false);
+    });
+
+    it('isCurrentAppKbSaveEligible returns true for apps with library_save: true', () => {
+      setApp('ChatOpenAI', { library_save: true, library_search: true });
+      expect(lib.isCurrentAppKbSaveEligible()).toBe(true);
+    });
+
+    it('isCurrentAppKbRetrievalEligible returns false when library_search is false (PF-only and artifact apps)', () => {
+      setApp('ChatPlusOpenAI', { library_save: false, library_search: false, privacy_enabled: true });
+      expect(lib.isCurrentAppKbRetrievalEligible()).toBe(false);
+    });
+
+    it('isCurrentAppKbRetrievalEligible returns true when library_search is true (KB-only apps)', () => {
+      setApp('ChatOpenAI', { library_save: true, library_search: true });
+      expect(lib.isCurrentAppKbRetrievalEligible()).toBe(true);
+    });
+
+    it('updateRagToggleVisibility hides the row when library_search: false', () => {
+      document.body.innerHTML = '<div id="library-rag-toggle-row"></div>';
+      setApp('ChatPlusOpenAI', { library_search: false });
+      lib.updateRagToggleVisibility();
+      expect(document.getElementById('library-rag-toggle-row').style.display).toBe('none');
+    });
+
+    it('updateRagToggleVisibility shows the row when library_search: true', () => {
+      document.body.innerHTML = '<div id="library-rag-toggle-row" style="display:none;"></div>';
+      setApp('ChatOpenAI', { library_search: true });
+      lib.updateRagToggleVisibility();
+      expect(document.getElementById('library-rag-toggle-row').style.display).toBe('');
+    });
+
+    it('updateSaveButtonAvailability hides the button when library_save: false', () => {
+      document.body.innerHTML = '<button id="library-save"></button>';
+      setApp('ChatPlusOpenAI', { library_save: false });
+      lib.updateSaveButtonAvailability();
+      expect(document.getElementById('library-save').style.display).toBe('none');
+    });
+
+    it('absent flag defaults to eligible (legacy / user-defined custom apps)', () => {
+      setApp('CustomLegacyApp', {}); // no library_save / library_search
+      expect(lib.isCurrentAppKbSaveEligible()).toBe(true);
+      expect(lib.isCurrentAppKbRetrievalEligible()).toBe(true);
+    });
+  });
+
   describe('privacyBadgeHtml', () => {
     // Privacy Filter and KB save are mutually exclusive at the app
     // level, so saved KB entries never carry a `pii_status` flag. The

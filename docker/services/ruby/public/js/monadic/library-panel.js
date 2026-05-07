@@ -1527,15 +1527,29 @@
   //   2. The Privacy Filter is active in this session — defense in depth
   //      so a misconfigured app cannot leak PII to disk.
   function isCurrentAppKbSaveEligible() {
+    return readAppFeatureFlag('library_save');
+  }
+
+  // The "Use Knowledge Base for retrieval" toggle is gated on the same
+  // app metadata as the library_search auto-injection. PF-only apps and
+  // artifact-centric apps do not have library_search in their tool list,
+  // so the toggle would be a no-op there — hiding it keeps the UI honest.
+  function isCurrentAppKbRetrievalEligible() {
+    return readAppFeatureFlag('library_search');
+  }
+
+  // Generic reader for boolean per-app feature flags. Treats absent
+  // (legacy / user-defined custom apps without the flag) as ELIGIBLE so
+  // an unknown app does not lose features it had before this gate
+  // existed; only an explicit false / "false" disables.
+  function readAppFeatureFlag(key) {
     try {
       var apps = window.apps;
       var name = (window.params && window.params.app_name) || null;
-      if (!apps || !name) return true; // assume eligible until app metadata loads
+      if (!apps || !name) return true;
       var settings = apps[name];
       if (!settings) return true;
-      // Boolean false hides the button; absent (legacy) defaults to eligible
-      // so existing user-defined custom apps don't suddenly lose Save.
-      return settings.library_save !== false && settings.library_save !== 'false';
+      return settings[key] !== false && settings[key] !== 'false';
     } catch (_) { return true; }
   }
 
@@ -1564,26 +1578,35 @@
     }
   }
 
+  // Hide the entire "Use Knowledge Base for retrieval" row (toggle +
+  // label + help icon) when the current app excludes library_search
+  // auto-injection. Otherwise the toggle would be a no-op control —
+  // toggling it ON in a PF-only or artifact-centric app would not give
+  // the LLM a library_search tool to actually use.
+  function updateRagToggleVisibility() {
+    if (typeof document === 'undefined') return;
+    var row = document.getElementById('library-rag-toggle-row');
+    if (!row) return;
+    row.style.display = isCurrentAppKbRetrievalEligible() ? '' : 'none';
+  }
+
   function init() {
     if (typeof document === 'undefined') return;
 
     var saveBtn = document.getElementById('library-save');
     if (saveBtn) saveBtn.onclick = openSaveModal;
     updateSaveButtonAvailability();
+    updateRagToggleVisibility();
 
-    // Re-evaluate availability whenever the conversation set changes.
-    // SessionState fires these events from addMessage/clearMessages/etc.;
-    // we cover the same set the rest of the app subscribes to. We also
-    // listen for app:changed because the per-app eligibility flag
-    // (library_save) drives whether the Save button is hidden.
+    // Re-evaluate visibility whenever the conversation set or current
+    // app changes. The Save button further reacts to Privacy state pushes
+    // (PF mutually exclusive with KB save), while the RAG toggle row only
+    // depends on the per-app library_search flag.
     if (window.SessionState && typeof window.SessionState.on === 'function') {
       ['message:added', 'messages:cleared', 'message:deleted', 'session:reset', 'session:new', 'app:changed']
         .forEach(function (ev) { window.SessionState.on(ev, updateSaveButtonAvailability); });
+      window.SessionState.on('app:changed', updateRagToggleVisibility);
     }
-    // Also listen for the Privacy state push so the button hides as soon
-    // as the user toggles Privacy on / off — without waiting for a
-    // session event. ws-privacy-handler.js dispatches this whenever
-    // handleState runs (HTTP html message and PRIVACY_TOGGLE ack).
     document.addEventListener('privacy:state-changed', updateSaveButtonAvailability);
 
     var browseBtn = document.getElementById('library-browse');
@@ -1798,6 +1821,10 @@
     browseRowMarkup: browseRowMarkup,
     privacyBadgeHtml: privacyBadgeHtml,
     rowLikelyHasPii: rowLikelyHasPii,
+    isCurrentAppKbSaveEligible: isCurrentAppKbSaveEligible,
+    isCurrentAppKbRetrievalEligible: isCurrentAppKbRetrievalEligible,
+    updateSaveButtonAvailability: updateSaveButtonAvailability,
+    updateRagToggleVisibility: updateRagToggleVisibility,
     relativeTime: relativeTime,
     truncate: truncate,
     formatStats: formatStats,

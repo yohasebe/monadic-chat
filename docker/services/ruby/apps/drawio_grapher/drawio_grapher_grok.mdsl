@@ -156,6 +156,8 @@ app "DrawIOGrapherGrok" do
   end
 
   features do
+    library_save false
+    library_search false
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false

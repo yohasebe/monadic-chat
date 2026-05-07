@@ -106,6 +106,8 @@ app "ImageGeneratorOpenAI" do
   TEXT
 
   features do
+    library_save false
+    library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false

@@ -97,6 +97,8 @@ app "ImageGeneratorGemini3Preview" do
   end
 
   features do
+    library_save false
+    library_search false
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false
     auto_speech false

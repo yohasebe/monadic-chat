@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
+    <!-- In Distributed Mode the auth token may briefly appear in the URL via
+         ?monadic_auth=... before the AuthMiddleware redirects to a clean URL.
+         Suppressing the Referer header on every outbound navigation prevents
+         that token from leaking to external sites a user may click through. -->
+    <meta name="referrer" content="no-referrer">
     <meta name="rouge-theme" content="<%= CONFIG["ROUGE_THEME"] || "pastie:light" %>">
     <title>Monadic Chat</title>
 

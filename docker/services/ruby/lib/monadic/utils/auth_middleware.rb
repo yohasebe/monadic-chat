@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'rack'
+require 'uri'
 
 module Monadic
   module Utils
@@ -48,6 +49,17 @@ module Monadic
         request = Rack::Request.new(env)
         provided = extract_token(request)
         return reject(STATUS_UNAUTHORIZED, 'Authentication required') unless secure_match?(provided, configured)
+
+        # If the token came in via the query parameter, redirect to a clean
+        # URL so the token does not linger in the browser's history /
+        # bookmarks / Referer headers on outbound clicks. The cookie is
+        # set on the redirect response so the follow-up request still
+        # authenticates without the URL parameter.
+        if scrub_query_token?(env, request)
+          redirect_headers = { 'Location' => clean_url_for(request), 'Content-Type' => 'text/html; charset=utf-8' }
+          attach_auth_cookie(redirect_headers, configured)
+          return [302, redirect_headers, ['<html><body>Redirecting...</body></html>']]
+        end
 
         status, headers, body = @app.call(env)
         attach_auth_cookie(headers, configured) unless cookie_already_set?(request, configured)
@@ -124,6 +136,34 @@ module Monadic
           'Content-Type' => 'text/plain',
           'WWW-Authenticate' => 'Bearer realm="Monadic Chat"'
         }, [message]]
+      end
+
+      # Decide whether to 302 the request to a clean URL after a successful
+      # query-param auth. We deliberately skip:
+      #   - non-GET methods (would discard the body)
+      #   - WebSocket upgrades (would break the upgrade handshake)
+      #   - requests that did NOT carry the query param (nothing to scrub)
+      def scrub_query_token?(env, request)
+        return false unless env['REQUEST_METHOD'] == 'GET'
+        return false if env['HTTP_UPGRADE'].to_s.downcase == 'websocket'
+        !request.params[QUERY_PARAM].to_s.empty?
+      end
+
+      # Build the same URL with the monadic_auth parameter dropped. Other
+      # query parameters are preserved so deep-links continue to work.
+      def clean_url_for(request)
+        params = request.params.reject { |k, _| k == QUERY_PARAM }
+        suffix = params.empty? ? '' : ('?' + URI.encode_www_form(params))
+        scheme = request.scheme
+        host = request.host
+        port = request.port
+        port_part =
+          if (scheme == 'http' && port == 80) || (scheme == 'https' && port == 443)
+            ''
+          else
+            ":#{port}"
+          end
+        "#{scheme}://#{host}#{port_part}#{request.path}#{suffix}"
       end
     end
   end

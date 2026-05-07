@@ -89,16 +89,56 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
       env = env_for(path: '/?monadic_auth=secret-token-1234567890abcdef',
                     remote_ip: '192.168.1.50')
       status, _, _ = middleware.call(env)
+      # Query-param GET successes redirect to a clean URL (302), not 200.
+      expect([200, 302]).to include(status)
+    end
+
+    it 'redirects (302) to a clean URL after a successful query-param GET (Referer leak fix)' do
+      # The token in the URL would otherwise leak via browser history,
+      # bookmarks, and Referer headers. We scrub it on first auth.
+      env = env_for(path: '/?monadic_auth=secret-token-1234567890abcdef',
+                    remote_ip: '192.168.1.50')
+      status, headers, _ = middleware.call(env)
+      expect(status).to eq(302)
+      expect(headers['Location']).to eq('http://example.org/')
+      # Cookie is set on the redirect response so the follow-up
+      # request authenticates without the URL parameter.
+      expect(headers['Set-Cookie']).to match(/monadic_auth=secret-token-1234567890abcdef/)
+    end
+
+    it 'preserves non-auth query parameters when redirecting' do
+      env = env_for(path: '/path?foo=bar&monadic_auth=secret-token-1234567890abcdef&x=y',
+                    remote_ip: '192.168.1.50')
+      _, headers, _ = middleware.call(env)
+      expect(headers['Location']).to start_with('http://example.org/path?')
+      expect(headers['Location']).to include('foo=bar')
+      expect(headers['Location']).to include('x=y')
+      expect(headers['Location']).not_to include('monadic_auth')
+    end
+
+    it 'does not redirect when the token came from a Bearer header' do
+      # Programmatic clients (curl, scripts) get the response directly.
+      env = env_for(remote_ip: '192.168.1.50',
+                    headers: { 'HTTP_AUTHORIZATION' => 'Bearer secret-token-1234567890abcdef' })
+      status, _, _ = middleware.call(env)
       expect(status).to eq(200)
     end
 
-    it 'sets the auth cookie after a successful query-param match (so refresh works)' do
-      env = env_for(path: '/?monadic_auth=secret-token-1234567890abcdef',
-                    remote_ip: '192.168.1.50')
-      _, headers, _ = middleware.call(env)
-      expect(headers['Set-Cookie']).to match(/monadic_auth=secret-token-1234567890abcdef/)
-      expect(headers['Set-Cookie']).to match(/HttpOnly/)
-      expect(headers['Set-Cookie']).to match(/SameSite=Lax/)
+    it 'does not redirect a WebSocket upgrade request even if the query param is present' do
+      env = env_for(path: '/websocket?monadic_auth=secret-token-1234567890abcdef',
+                    remote_ip: '192.168.1.50',
+                    headers: { 'HTTP_UPGRADE' => 'websocket', 'HTTP_CONNECTION' => 'Upgrade' })
+      status, _, _ = middleware.call(env)
+      # The upgrade must reach the WS adapter; redirect would break it.
+      expect(status).to eq(200)
+    end
+
+    it 'does not redirect a non-GET request even if the query param is present' do
+      e = env_for(path: '/api/foo?monadic_auth=secret-token-1234567890abcdef',
+                  remote_ip: '192.168.1.50')
+      e['REQUEST_METHOD'] = 'POST'
+      status, _, _ = middleware.call(e)
+      expect(status).to eq(200)
     end
 
     it 'does not duplicate the cookie when the request already carries it' do

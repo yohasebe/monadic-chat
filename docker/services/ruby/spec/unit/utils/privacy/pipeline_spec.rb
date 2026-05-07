@@ -236,4 +236,55 @@ RSpec.describe Monadic::Utils::Privacy::Pipeline do
       expect(result.meta[:missing_placeholders]).to eq([])
     end
   end
+
+  describe '#sanitize_restored_for_tts' do
+    let(:registry_session) do
+      {
+        monadic_state: {
+          privacy: {
+            registry: {
+              '<<PERSON_1>>' => 'Alice',
+              '<<EMAIL_ADDRESS_1>>' => 'alice@example.com',
+              '<<PERSON_2>>' => 'Alice Smith'
+            },
+            audit: []
+          }
+        }
+      }
+    end
+
+    def pipeline_for(session_hash, enabled: true)
+      described_class.new(backend: fake_backend, config: { enabled: enabled }, session: session_hash)
+    end
+
+    it 'replaces each registered original with the short spoken label' do
+      pipeline = pipeline_for(registry_session)
+      out = pipeline.sanitize_restored_for_tts('Hello Alice, mail to alice@example.com.')
+      expect(out).to eq('Hello PERSON 1, mail to EMAIL ADDRESS 1.')
+    end
+
+    it 'processes longer originals first to keep "Alice Smith" intact' do
+      pipeline = pipeline_for(registry_session)
+      out = pipeline.sanitize_restored_for_tts('Alice Smith met Alice today.')
+      expect(out).to eq('PERSON 2 met PERSON 1 today.')
+    end
+
+    it 'returns text unchanged when the registry is empty' do
+      pipeline = pipeline_for({ monadic_state: { privacy: { registry: {}, audit: [] } } })
+      out = pipeline.sanitize_restored_for_tts('Hello there.')
+      expect(out).to eq('Hello there.')
+    end
+
+    it 'is a no-op when the pipeline is disabled' do
+      pipeline = pipeline_for(registry_session, enabled: false)
+      out = pipeline.sanitize_restored_for_tts('Hello Alice.')
+      expect(out).to eq('Hello Alice.')
+    end
+
+    it 'returns the input unchanged when given nil or an empty string' do
+      pipeline = pipeline_for(registry_session)
+      expect(pipeline.sanitize_restored_for_tts(nil)).to be_nil
+      expect(pipeline.sanitize_restored_for_tts('')).to eq('')
+    end
+  end
 end

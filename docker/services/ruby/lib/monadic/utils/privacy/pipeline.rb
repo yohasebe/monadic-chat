@@ -102,6 +102,39 @@ module Monadic
           masked_text.gsub(TTS_PLACEHOLDER_RE) { "#{Regexp.last_match(1).tr('_', ' ')} #{Regexp.last_match(2)}" }
         end
 
+        # Counterpart to sanitize_for_tts for the **restored** path: the
+        # text the user sees in the assistant card has the original PII
+        # values back in place. When TTS replays that text we must:
+        #   1. avoid sending PII to the cloud TTS provider, and
+        #   2. avoid forcing the listener through long phone numbers /
+        #      email addresses character-by-character.
+        # Solution: walk the registry and replace each original value with
+        # the same short label sanitize_for_tts produces ("PERSON 1",
+        # "EMAIL ADDRESS 1", ...). This is a pure-Ruby reverse lookup; no
+        # privacy backend round-trip is required.
+        #
+        # The PLAY_TTS / TTS WebSocket handlers call this just before
+        # invoking the TTS API. Web Speech (browser-native) gets the same
+        # treatment so the rendered card text never carries placeholder
+        # markup but the spoken audio still abstracts PII.
+        def sanitize_restored_for_tts(restored_text)
+          return restored_text unless enabled?
+          return restored_text unless restored_text.is_a?(String) && !restored_text.empty?
+          reg = @registry.registry
+          return restored_text if reg.empty?
+
+          # Sort by original length descending so longer entities are
+          # replaced before any shorter substring of theirs.
+          ordered = reg.sort_by { |_, original| -original.to_s.length }
+          ordered.each_with_object(restored_text.dup) do |(placeholder, original), out|
+            next if original.to_s.empty?
+            m = placeholder.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
+            next unless m
+            label = "#{m[1].tr('_', ' ')} #{m[2]}"
+            out.gsub!(original.to_s, label)
+          end
+        end
+
         def registry_count
           @registry.count
         end

@@ -373,6 +373,14 @@ module WebSocketHelper
       voice = obj["voice"]
     end
     text = obj["text"]
+    # Privacy Filter: card text comes back from the frontend with original
+    # PII restored (display form). Replace those values with the short
+    # spoken-placeholder form ("PERSON 1", "EMAIL ADDRESS 1", ...) so:
+    #   - cloud TTS providers never see real PII
+    #   - the listener does not have to hear long emails / phone numbers
+    #   - Web Speech (browser-native) gets the same treatment for UX
+    #     parity even though the audio synthesis is local
+    text = privacy_sanitize_tts_text(text, session)
     elevenlabs_voice = obj["elevenlabs_voice"]
     speed = obj["speed"]
     response_format = obj["response_format"]
@@ -464,6 +472,10 @@ module WebSocketHelper
       voice = obj["tts_voice"]
     end
     text = obj["text"]
+    # Privacy Filter: see handle_ws_tts for the rationale. Apply the same
+    # sanitize so the Play button does not leak restored PII to the cloud
+    # TTS provider.
+    text = privacy_sanitize_tts_text(text, session)
     speed = obj["tts_speed"]
     response_format = "aac"
     language = obj["conversation_language"] || "auto"
@@ -479,6 +491,23 @@ module WebSocketHelper
       manual_play: true,
       ws_session_id: ws_session_id
     )
+  end
+
+  # Replace original PII values in restored TTS text with the same short
+  # placeholders that sanitize_for_tts produces for streamed (still
+  # masked) text. Returns the original text unchanged when Privacy is
+  # not active in this session.
+  #
+  # Why on the server (not the client): the registry lives server-side
+  # by design (RD-1: never persisted, never shipped); doing the rewrite
+  # here keeps the registry inside the trust boundary. The frontend
+  # sends the rendered card text as-is; this method abstracts the
+  # values out before any cloud TTS API or browser-native synth call.
+  private def privacy_sanitize_tts_text(text, session)
+    return text unless text.is_a?(String) && !text.empty?
+    pipeline = session && (session[:_privacy_pipeline] || session['_privacy_pipeline'])
+    return text unless pipeline.respond_to?(:sanitize_restored_for_tts)
+    pipeline.sanitize_restored_for_tts(text)
   end
 
 end

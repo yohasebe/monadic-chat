@@ -314,6 +314,7 @@ app "CodeInterpreterDeepSeek" do
   TEXT
 
   features do
+    library_search false
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     easy_submit false
     auto_speech false

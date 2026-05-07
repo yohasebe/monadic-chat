@@ -20,6 +20,7 @@ app "KnowledgeBaseCohere" do
   system_prompt KnowledgeBaseConstants::SYSTEM_PROMPT
 
   features do
+    library_search false
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false

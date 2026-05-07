@@ -294,6 +294,7 @@ app "CodeInterpreterMistral" do
   TEXT
 
   features do
+    library_search false
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false

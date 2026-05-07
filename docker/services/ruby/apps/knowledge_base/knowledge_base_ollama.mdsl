@@ -20,6 +20,7 @@ app "KnowledgeBaseOllama" do
   system_prompt KnowledgeBaseConstants::SYSTEM_PROMPT
 
   features do
+    library_search false
     easy_submit false
     auto_speech false
     initiate_from_assistant true

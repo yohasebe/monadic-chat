@@ -52,7 +52,7 @@ module Monadic
             'language' => options[:language] || options['language'] || 'en',
             'license' => options[:license] || options['license'] || 'private'
           }
-          %w[external_id title publication_date duration_seconds cite_as content_type].each do |k|
+          %w[external_id title publication_date duration_seconds cite_as content_type pii_status].each do |k|
             v = options[k.to_sym] || options[k]
             meta[k] = v unless v.nil?
           end

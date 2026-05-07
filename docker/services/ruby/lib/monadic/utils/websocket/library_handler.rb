@@ -261,6 +261,16 @@ module WebSocketHelper
     options[:title] = title.to_s unless title.to_s.empty?
     options[:license] = license.to_s unless license.to_s.empty?
 
+    # Privacy posture for this entry — surfaced as a badge in the Browse
+    # modal so the user can spot conversations that landed on disk with
+    # PII intact. Three states map cleanly onto the save flow:
+    #   pipeline missing               → not set (Privacy was off; status unknown)
+    #   pipeline present + anonymized  → "anonymized" (placeholders only on disk)
+    #   pipeline present, not anon     → "plain_with_privacy" (restored PII on disk)
+    if session.is_a?(Hash) && session[:_privacy_pipeline]
+      options[:pii_status] = anonymize_requested ? 'anonymized' : 'plain_with_privacy'
+    end
+
     # When the UI is re-saving a conversation it keeps a hold of the
     # original conversation_id and sends it back on subsequent saves so
     # we update-in-place instead of duplicating the entry. Without this

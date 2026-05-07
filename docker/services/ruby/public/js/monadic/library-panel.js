@@ -332,11 +332,54 @@
   // on the right (details / toggle scope / delete). Shows the scope badge
   // ("Chat (OpenAI)" / "Global" / etc.) so the user can see at a glance
   // which app the entry belongs to.
+  // Cheap heuristics for "this row likely contains PII" — used for legacy
+  // entries that were saved before pii_status was tracked at save time.
+  // Both regexes are deliberately permissive: a false positive (warning
+  // shown for an entry that does not actually carry PII) costs the user
+  // a glance, while a false negative (no warning for an entry that does)
+  // would defeat the point of the badge. Restricted to title + source so
+  // the cost stays O(rows) per render.
+  var PII_EMAIL_RE = /[\w._%+-]+@[\w.-]+\.[A-Za-z]{2,}/;
+  var PII_PHONE_RE = /(?:\+?\d{1,3}[\s-]?)?\(?\d{2,4}\)?[\s-]\d{2,4}[\s-]?\d{3,4}/;
+
+  function rowLikelyHasPii(row) {
+    var corpus = '';
+    if (row.title) corpus += row.title + ' ';
+    if (row.source) corpus += row.source + ' ';
+    return PII_EMAIL_RE.test(corpus) || PII_PHONE_RE.test(corpus);
+  }
+
+  // Render the Privacy badge column. Three precedence levels:
+  //  1. row.pii_status === 'anonymized'         → green shield (safest)
+  //  2. row.pii_status === 'plain_with_privacy' → yellow triangle (PII on disk)
+  //  3. status absent + heuristic match         → yellow triangle (legacy entry)
+  //  4. otherwise                               → empty cell
+  function privacyBadgeHtml(row) {
+    var status = row.pii_status;
+    if (status === 'anonymized') {
+      var t1 = t('ui.libBadgeAnonymized', 'Anonymized — placeholders only, no original PII on disk');
+      return '<span title="' + escapeHtml(t1) + '" aria-label="' + escapeHtml(t1) + '">'
+        + '<i class="fa-solid fa-shield-halved text-success"></i></span>';
+    }
+    if (status === 'plain_with_privacy') {
+      var t2 = t('ui.libBadgePlainWithPrivacy', 'Privacy was on but this entry is stored with original PII');
+      return '<span title="' + escapeHtml(t2) + '" aria-label="' + escapeHtml(t2) + '">'
+        + '<i class="fa-solid fa-triangle-exclamation text-warning"></i></span>';
+    }
+    if (!status && rowLikelyHasPii(row)) {
+      var t3 = t('ui.libBadgePiiHeuristic', 'May contain PII (email or phone pattern detected in title/source)');
+      return '<span title="' + escapeHtml(t3) + '" aria-label="' + escapeHtml(t3) + '">'
+        + '<i class="fa-solid fa-triangle-exclamation text-secondary"></i></span>';
+    }
+    return '';
+  }
+
   function browseRowMarkup(row, idx) {
     var convId = escapeHtml(row.conversation_id || '');
     var title = row.title && row.title.length > 0 ? row.title : '(untitled)';
     var turns = (typeof row.turns_count === 'number') ? row.turns_count : '?';
     var rel = relativeTime(row.created_at);
+    var privacyBadge = privacyBadgeHtml(row);
     // Toggle flips between Global and the app's literal class name. We
     // need the app's class name (whatever the entry was last scoped to,
     // or whatever app is currently active). Falling back via the row
@@ -363,7 +406,10 @@
       '<tr data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
       +   '<td class="text-center">' + typeIconHtml(row.content_type, row.topics) + '</td>'
       +   '<td>'
-      +     '<div class="fw-medium text-truncate" style="max-width: 380px; color: #374151;">' + escapeHtml(truncate(title, 80)) + '</div>'
+      +     '<div class="fw-medium text-truncate" style="max-width: 380px; color: #374151;">'
+      +       (privacyBadge ? privacyBadge + ' ' : '')
+      +       escapeHtml(truncate(title, 80))
+      +     '</div>'
       +     '<div class="text-secondary small text-truncate" style="max-width: 380px;">' + escapeHtml(row.source || '') + (row.language ? ' · ' + escapeHtml(row.language) : '') + '</div>'
       +   '</td>'
       +   '<td>' + scopeBadge(row.scope_app) + '</td>'
@@ -1717,6 +1763,8 @@
     render: render,
     compactRowMarkup: compactRowMarkup,
     browseRowMarkup: browseRowMarkup,
+    privacyBadgeHtml: privacyBadgeHtml,
+    rowLikelyHasPii: rowLikelyHasPii,
     relativeTime: relativeTime,
     truncate: truncate,
     formatStats: formatStats,

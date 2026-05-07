@@ -104,6 +104,16 @@ module Monadic
           'license' => meta['license'],
           'topics' => meta['topics'],
           'duration_seconds' => meta['duration_seconds'],
+          # pii_status is set at save time when the user enabled the
+          # Privacy Filter:
+          #   "anonymized"          - text was rewritten with `<<TYPE_N>>`
+          #                           placeholders before persistence
+          #   "plain_with_privacy"  - Privacy was on but the user opted
+          #                           out of anonymization, so restored
+          #                           PII is on disk
+          # Absent when Privacy was off when this entry was saved (the
+          # Browse modal then falls back to a frontend heuristic).
+          'pii_status' => meta['pii_status'],
           'participants_count' => participants.size,
           'messages_count' => messages.size,
           'turns_count' => turns.size,

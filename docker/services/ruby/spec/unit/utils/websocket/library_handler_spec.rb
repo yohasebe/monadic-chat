@@ -160,6 +160,36 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['content']).to eq('embeddings down')
     end
 
+    it 'rejects save when the active app declares library_save: false (artifact apps)' do
+      # Defense in depth: artifact apps like AutoForge / Drawio Grapher /
+      # Image Generator declare `library_save false` in MDSL because their
+      # output is not conversation-shaped. The frontend hides the Save
+      # button (and the entire library panel) for these apps, but a stale
+      # tab or programmatic client could still hit this path. Backend
+      # must reject before any storage side-effect.
+      app_double = double('AppInstance', settings: { library_save: false })
+      allow(MonadicApp).to receive(:app_settings).with('AutoForgeOpenAI').and_return(app_double)
+      payload = valid_payload.merge('parameters' => valid_payload['parameters'].merge('app_name' => 'AutoForgeOpenAI'))
+
+      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
+
+      msg = replies.first
+      expect(msg['type']).to eq('library_saved')
+      expect(msg['res']).to eq('failure')
+      expect(msg['content']).to match(/not supported for AutoForgeOpenAI/)
+    end
+
+    it 'allows save when the active app declares library_save: true (conversational apps)' do
+      app_double = double('AppInstance', settings: { library_save: true })
+      allow(MonadicApp).to receive(:app_settings).with('ChatOpenAI').and_return(app_double)
+      expect(Monadic::Library::Manager).to receive(:import_from_text)
+        .and_return(conversation_id: 'conv-ok', counts: { summary: 1, turns: 2 })
+
+      host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
+
+      expect(replies.first['res']).to eq('success')
+    end
+
     it 'updates in place when conversation_id is provided (delete-then-ingest)' do
       payload = valid_payload.merge('conversation_id' => 'conv-9')
       expect(store).to receive(:delete_conversation).with('conv-9').ordered

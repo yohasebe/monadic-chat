@@ -156,10 +156,21 @@ function filterCapabilityBadges(capabilityBadges) {
  * @param {Object} badge - Badge object with icon, label, description
  * @returns {string} HTML string
  */
+// Tools whose availability is gated by a per-session UI toggle elsewhere
+// in the sidebar — appending the location to the tooltip removes the
+// "where do I turn this on?" guesswork when multiple Conditional badges
+// (e.g. `library_search` and `web_search_tools`) share the row.
+var TOGGLE_LOCATION_HINTS = {
+  library_search: 'Controlled by the "Use Knowledge Base for retrieval" toggle in the Knowledge Base panel.',
+  web_search_tools: 'Controlled by the "Web Search" toggle in the Monadic Chat Info panel.'
+};
+
 function renderBadge(badge) {
   var colorClass = getBadgeColorClass(badge);
   var icon = '<i class="fas ' + badge.icon + '"></i>';
-  return '<span class="tool-group-badge ' + colorClass + '" title="' + badge.description + '">' +
+  var hint = TOGGLE_LOCATION_HINTS[badge.id];
+  var tooltip = hint ? badge.description + ' — ' + hint : badge.description;
+  return '<span class="tool-group-badge ' + colorClass + '" title="' + tooltip + '">' +
     icon + ' ' + badge.label + '</span>';
 }
 

@@ -421,6 +421,11 @@
             <div id="library-panel-body" class="collapse show px-3 pb-3">
               <div class="d-flex gap-2 mt-2">
                 <button id="library-save" type="button" class="btn btn-sm btn-warning text-nowrap" title="Save current conversation to Knowledge Base" data-i18n-title="ui.libSaveCurrent"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveShort">Save</span></button>
+                <!-- Browse is intentionally always enabled — it opens the global
+                     Knowledge Base browser which is read-only and not bound to
+                     the current app. Even on artifact apps and Privacy-Filter
+                     apps where Save is disabled, the user can still consult
+                     entries previously saved from other apps. -->
                 <button id="library-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="Browse all saved conversations" data-i18n-title="ui.libBrowseAll"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.libBrowseAllShort">Browse</span></button>
               </div>
               <div class="form-check form-switch mt-2 mb-1 d-flex align-items-center" id="library-rag-toggle-row">

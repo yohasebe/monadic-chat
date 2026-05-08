@@ -250,6 +250,25 @@ module WebSocketHelper
       })
       return
     end
+    # Defense in depth #2: artifact apps (e.g. AutoForge, Drawio Grapher,
+    # Image Generator) declare `library_save false` in their MDSL features
+    # block because their output is not conversation-shaped. The frontend
+    # hides the Save button (and the entire Library panel) for these apps,
+    # but a stale tab or programmatic client could still hit this path.
+    # Reject the save before any storage side-effect.
+    candidate_app_name = parameters.is_a?(Hash) ? parameters['app_name'].to_s.strip : ''
+    if !candidate_app_name.empty? && defined?(MonadicApp)
+      app_obj = MonadicApp.app_settings(candidate_app_name)
+      if app_obj.respond_to?(:settings) && app_obj.settings[:library_save] == false
+        Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: app '#{candidate_app_name}' has library_save=false" }
+        send_to_client(connection, {
+          'type' => 'library_saved', 'res' => 'failure',
+          'content' => "Knowledge Base save is not supported for #{candidate_app_name}. Switch to a conversational app to save."
+        })
+        return
+      end
+    end
+
     unless parameters.is_a?(Hash)
       send_to_client(connection, {
         'type' => 'library_saved', 'res' => 'failure',

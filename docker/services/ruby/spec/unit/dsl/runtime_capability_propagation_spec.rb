@@ -42,6 +42,13 @@ Dir["#{APPS_DIR_RT}/**/*.rb"].sort.each do |f|
 end
 
 RSpec.describe "Runtime capability propagation (class generation)" do
+  # IMPORTANT — extend this list whenever a new finalize-style method is
+  # added to MonadicDSL (i.e., something that writes to `state.settings[:foo]`
+  # *after* the user's MDSL block has run, instead of through `state.features`).
+  # The class-generation template's generic `state.features.each` loop will
+  # silently skip such keys, so they need an explicit injection in
+  # `convert_to_class` AND a corresponding entry here so this spec catches
+  # any future regression of the same shape.
   CAPABILITY_KEYS = %i[library_save library_search privacy_enabled].freeze
 
   it "every state.settings capability flag is injected into the generated class definition" do

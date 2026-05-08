@@ -231,7 +231,13 @@ module MonadicDSL
   def self.inject_library_search!(state)
     provider = state.settings[:provider].to_s.downcase.to_sym
     tool_config = ToolConfiguration.new(state, provider)
-    tool_config.import_shared_tools(:library_search, visibility: "always")
+    # `conditional` reflects reality: the tool is exposed to the LLM only
+    # when the per-session "Use Knowledge Base for retrieval" toggle in
+    # the Knowledge Base panel is ON. The `web_search_tools` group uses
+    # the same `conditional` visibility for the parallel reason. The
+    # visibility tag affects only badge categorization (Tools (Always) vs
+    # Tools (Conditional)) — actual API gating is independent.
+    tool_config.import_shared_tools(:library_search, visibility: "conditional")
     new_tools = tool_config.to_h
 
     # Merge with any existing tools the user already configured. The
@@ -455,7 +461,9 @@ module MonadicDSL
         if MonadicDSL.library_search_eligible?(@state) &&
            !MonadicDSL.library_search_already_imported?(@state)
           begin
-            tool_config.import_shared_tools(:library_search, visibility: "always")
+            # See `inject_library_search!` for why `conditional`: the tool
+            # is gated by the per-session Knowledge Base retrieval toggle.
+            tool_config.import_shared_tools(:library_search, visibility: "conditional")
           rescue StandardError => e
             puts "[DSL] library_search inline-inject skipped for #{@state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
           end

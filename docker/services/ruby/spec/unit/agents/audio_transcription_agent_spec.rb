@@ -24,8 +24,10 @@ RSpec.describe AudioTranscriptionAgent do
       "GEMINI_API_KEY" => "test-gemini-key",
       "EXTRA_LOGGING" => nil
     })
-    stub_const("SHARED_VOL", "/monadic/data")
-    stub_const("LOCAL_SHARED_VOL", File.expand_path(File.join(Dir.home, "monadic", "data")))
+    # Pin the shared volume to the container path so the resolve_audio_path
+    # specs below stay deterministic across host machines. The agent uses
+    # `Monadic::Utils::Environment.shared_volume` for path resolution.
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return("/monadic/data")
   end
 
   describe '#audio_transcription_agent' do

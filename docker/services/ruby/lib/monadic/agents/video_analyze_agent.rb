@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require_relative '../utils/environment'
 
 # VideoAnalyzeAgent provides provider-independent video analysis
 # by extracting frames and sending them to each provider's native Vision API.
@@ -118,19 +119,25 @@ module VideoAnalyzeAgent
 
   private
 
-  # Read the frames JSON file from the shared volume
+  # Read the frames JSON file from the shared volume.
+  #
+  # `extract_frames.py` writes the JSON file to the shared volume and reports
+  # the path as `./frames_<timestamp>.json` (relative to the script's CWD,
+  # which is the shared volume itself). This method resolves that filename
+  # against the shared volume returned by `Monadic::Utils::Environment`
+  # (`/monadic/data` inside the Ruby container, `~/monadic/data` on the host
+  # in dev mode).
   def read_frames_json(json_path)
     return "ERROR: Invalid file path (path traversal not allowed)" if json_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
-    # Strip leading ./ and resolve to shared volume
+    # Strip leading ./ and resolve to the active shared volume.
     clean_path = json_path.sub(%r{\A\./}, "")
+    shared_path = File.join(Monadic::Utils::Environment.shared_volume, clean_path)
 
     path = if File.exist?(json_path)
              json_path
-           elsif defined?(SHARED_VOL) && File.exist?(File.join(SHARED_VOL, clean_path))
-             File.join(SHARED_VOL, clean_path)
-           elsif defined?(LOCAL_SHARED_VOL) && File.exist?(File.join(LOCAL_SHARED_VOL, clean_path))
-             File.join(LOCAL_SHARED_VOL, clean_path)
+           elsif File.exist?(shared_path)
+             shared_path
            end
 
     return "ERROR: Frames JSON file not found: #{json_path}" unless path && File.exist?(path)

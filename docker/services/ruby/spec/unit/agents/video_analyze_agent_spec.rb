@@ -44,10 +44,12 @@ RSpec.describe VideoAnalyzeAgent do
   end
 
   before do
-    # Define SHARED_VOL and LOCAL_SHARED_VOL on MonadicApp if not already defined,
-    # so the agent module can resolve paths
-    stub_const("SHARED_VOL", "/monadic/data") unless defined?(SHARED_VOL)
-    stub_const("LOCAL_SHARED_VOL", File.expand_path(File.join(Dir.home, "monadic", "data"))) unless defined?(LOCAL_SHARED_VOL)
+    # Pin the shared volume to the container path so File.exist? stubs below
+    # remain stable regardless of host machine. The agent resolves paths
+    # through `Monadic::Utils::Environment.shared_volume`; the legacy
+    # `defined?(SHARED_VOL)` lookup never resolved from the agent module's
+    # lexical scope and was masking the real path behavior in production.
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return("/monadic/data")
   end
 
   let(:agent) { test_class.new }

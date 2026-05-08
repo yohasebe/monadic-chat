@@ -2,6 +2,7 @@
 
 require "base64"
 require "http"
+require_relative "../utils/environment"
 
 # ImageAnalysisAgent provides provider-independent image analysis
 # using each provider's native Vision API.
@@ -82,13 +83,13 @@ module ImageAnalysisAgent
   def prepare_image_for_analysis(image_path)
     return "ERROR: Invalid file path (path traversal not allowed)" if image_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
-    # Resolve path — check absolute, then shared volume locations
+    # Resolve path — check absolute, then the active shared volume
+    # (`/monadic/data` in container, `~/monadic/data` on host in dev mode).
+    shared_path = File.join(Monadic::Utils::Environment.shared_volume, image_path)
     path = if File.exist?(image_path)
              image_path
-           elsif defined?(SHARED_VOL) && File.exist?(File.join(SHARED_VOL, image_path))
-             File.join(SHARED_VOL, image_path)
-           elsif defined?(LOCAL_SHARED_VOL) && File.exist?(File.join(LOCAL_SHARED_VOL, image_path))
-             File.join(LOCAL_SHARED_VOL, image_path)
+           elsif File.exist?(shared_path)
+             shared_path
            end
 
     return "ERROR: Image file not found: #{image_path}" unless path && File.exist?(path)

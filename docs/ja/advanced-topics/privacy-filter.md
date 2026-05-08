@@ -103,7 +103,7 @@ Web Speech API（ブラウザ内蔵合成）も同じサニタイザーを通り
 
 ## Knowledge Base への保存と検索
 
-Privacy Filter と Knowledge Base 保存は**アプリ単位で相互排他**です。Privacy 用のアプリ (Chat Plus / Mail Composer / Translate / Second Opinion) では Knowledge Base に保存できません — これらのアプリでは Save ボタン自体が非表示になります。retrieval 価値のある会話アプリ (Chat / Research Assistant など) では Privacy Filter を有効化できません。Artifact 中心のアプリ (画像 / 動画 / 図 / 文書ジェネレーター) はどちらの機能も持たず、生成された artifact は `~/monadic/data/` に保存されます。完全な対応表は [アプリ別 Privacy / KB 対応表](../basic-usage/basic-apps.md#privacy-kb-by-app) を参照してください。
+Privacy Filter と Knowledge Base 保存は**アプリ単位で相互排他**です。Privacy 用のアプリ (Chat Plus / Mail Composer / Translate / Second Opinion) では Knowledge Base に保存できません — これらのアプリでは Save ボタンは表示されたままで disabled (グレーアウト) になり、tooltip で理由を表示します。Privacy Filter session toggle が PF 非対応アプリで「表示されるが disabled」になるのと同じパターンです。retrieval 価値のある会話アプリ (Chat / Research Assistant など) では Privacy Filter を有効化できません。Artifact 中心のアプリ (画像 / 動画 / 図 / 文書ジェネレーター) はどちらの機能も持たず、生成された artifact は `~/monadic/data/` に保存され、これらのアプリでは Knowledge Base パネル自体が非表示になります。完全な対応表は [アプリ別 Privacy / KB 対応表](../basic-usage/basic-apps.md#privacy-kb-by-app) を参照してください。
 
 Privacy 用のアプリで扱った会話を残したい場合は **Privacy Export**（暗号化 + 必要に応じた masked モード）を使ってください — 後述の節を参照。
 

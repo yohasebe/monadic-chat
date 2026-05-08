@@ -179,6 +179,37 @@ registry, so when the LLM later references them in its reply (via the
 expected `<<TYPE_N>>` placeholder), the streaming-handler restoration
 pass swaps them back to the original values for display.
 
+## Save: defense-in-depth gates
+
+The frontend hides or disables the Save button via CSS / JS when the
+active app cannot legally save (Privacy Filter active, app declares
+`library_save: false`, etc.). A stale browser tab or a programmatic
+WebSocket client could still send `LIBRARY_SAVE`, so `library_handler.rb`
+also enforces these gates server-side **before any storage side-effect**.
+Two parallel checks run at the top of `handle_ws_library_save`:
+
+1. **Privacy Filter active in this session** — when
+   `session[:_privacy_pipeline]` is present (set by the Privacy Filter
+   middleware on the LLM request path), the save is rejected with
+   `"Knowledge Base save is disabled while the Privacy Filter is
+   active. Use Privacy Export to retain this conversation."`. This
+   guards against masked PII being inadvertently restored and persisted
+   to the KB.
+2. **App declares `library_save: false`** — when
+   `MonadicApp.app_settings(app_name).settings[:library_save]` is
+   `false` (artifact apps like AutoForge / Drawio Grapher / Image
+   Generator that explicitly opt out via MDSL, *and* Privacy-Filter
+   apps where `finalize_capabilities!` derives the same value), the
+   save is rejected with
+   `"Knowledge Base save is not supported for #{app_name}. Switch to
+   a conversational app to save."`. This catches programmatic clients
+   that bypass the frontend entirely.
+
+Either rejection sends `library_saved` with `res: 'failure'` and a
+human-readable `content` field, and `return`s before any storage
+operation. Both paths are pinned by specs in
+`spec/unit/utils/websocket/library_handler_spec.rb`.
+
 ## Save flow (chat session → KB)
 
 The `LIBRARY_SAVE` WS message handler (`library_handler.rb`) is where

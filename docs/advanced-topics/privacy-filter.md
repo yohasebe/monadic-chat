@@ -103,7 +103,7 @@ The Web Speech API path (browser-native synthesis) goes through the same sanitiz
 
 ## Knowledge Base Save and Search
 
-Privacy Filter and Knowledge Base save are **mutually exclusive at the app level**. Privacy-aware apps (Chat Plus, Mail Composer, Translate, Second Opinion) cannot save to the Knowledge Base — the Save button is hidden for these apps. Conversational apps with retrieval value (Chat, Research Assistant, etc.) cannot enable the Privacy Filter. Artifact-centric apps (image / video / diagram / document generators) support neither feature; the artifact lives in `~/monadic/data/`. See the [App Allocation table](../basic-usage/basic-apps.md#privacy-kb-by-app) for the complete list.
+Privacy Filter and Knowledge Base save are **mutually exclusive at the app level**. Privacy-aware apps (Chat Plus, Mail Composer, Translate, Second Opinion) cannot save to the Knowledge Base — the Save button stays visible but is disabled with a tooltip explaining why, mirroring how the Privacy Filter session toggle is shown disabled on apps that don't support it. Conversational apps with retrieval value (Chat, Research Assistant, etc.) cannot enable the Privacy Filter. Artifact-centric apps (image / video / diagram / document generators) support neither feature; the artifact lives in `~/monadic/data/` and the Knowledge Base panel is hidden entirely for these apps. See the [App Allocation table](../basic-usage/basic-apps.md#privacy-kb-by-app) for the complete list.
 
 To preserve a conversation handled in a privacy-aware app, use **Privacy Export** (encryption + optional masked-only mode) — see the section below.
 

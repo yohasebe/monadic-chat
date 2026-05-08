@@ -176,10 +176,11 @@ module ImageAnalysisAgent
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
+    # Use max_completion_tokens (GPT-5.x requires it; older models accept it).
+    # Omit temperature: GPT-5.x rejects it.
     body = {
       model: model,
-      temperature: 0.0,
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
       messages: [
         {
           role: "user",

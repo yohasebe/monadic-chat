@@ -236,10 +236,12 @@ module VideoAnalyzeAgent
       }
     end
 
+    # Use max_completion_tokens (GPT-5.x requires it; older models accept it).
+    # Omit temperature: GPT-5.x rejects it, and a deterministic value isn't
+    # critical for a single-shot vision query.
     body = {
       model: model,
-      temperature: 0.0,
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
       messages: [{ role: "user", content: content }]
     }
 

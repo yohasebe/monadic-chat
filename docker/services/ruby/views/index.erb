@@ -344,6 +344,22 @@
               <div class="mt-2 textbox-caption" data-i18n="ui.uiLanguageNote">UI language can be changed in system settings.</div>
             </div>
 
+            <!-- Session-level feature toggles. Web Search and Math Rendering
+                 belong here (rather than in the model-config area) because
+                 they are app/session toggles, not model-specific reasoning
+                 controls. The Privacy-Filter / Knowledge-Base panels follow
+                 the same "feature on/off lives in the meta panel" pattern. -->
+            <div class="mb-3">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="websearch">
+                <label class="form-check-label" for="websearch" data-i18n="ui.webSearch">Web Search</label>
+              </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="math">
+                <label class="form-check-label" for="math" data-i18n="ui.mathRendering">Math Rendering</label>
+              </div>
+            </div>
+
             <h5 data-i18n="ui.currentBaseApp"><span class="text"><i class="fas fa-bolt"></i></span> Current Base App</h5>
             <div class="flex-container">
               <div class="icon-container">
@@ -502,9 +518,16 @@
               <input class="form-check-input" type="checkbox" id="check-easy-submit">
               <label class="form-check-label" for="check-easy-submit"><span data-i18n="ui.easySubmit">Easy submit</span> <small data-i18n="ui.easySubmitHint">(with Enter key or Stop button)</small></label>
             </div>
-            <div class="form-check form-switch" id="config-auto-scroll">
+            <div class="form-check form-switch mb-2" id="config-auto-scroll">
               <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
               <label class="form-check-label" for="auto-scroll-toggle" data-i18n="ui.autoScroll">Auto scroll while streaming</label>
+            </div>
+            <!-- Conversation initiation mode — sibling of the other interaction
+                 toggles since "who speaks first" is an interaction behavior, not
+                 a model parameter. -->
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
+              <label class="form-check-label" for="initiate-from-assistant" data-i18n="ui.startFromAssistant">Start from assistant</label>
             </div>
             </div><!-- end #interaction-panel-body -->
           </div>
@@ -744,6 +767,19 @@
                   <option value="high">high</option>
                 </select>
               </div>
+
+              <!-- Show Thinking lives next to Reasoning Effort because they form
+                   a couple: both control the model's reasoning behavior and both
+                   are model-dependent (only meaningful when the active model has
+                   `supports_thinking`). The container is hidden by JS when the
+                   model lacks that capability so unrelated apps don't see an
+                   orphaned toggle. -->
+              <div class="col-auto ms-3 d-flex align-items-end" id="thinking-display-container" style="display: none;">
+                <div class="form-check form-switch mb-1">
+                  <input class="form-check-input" type="checkbox" id="show-thinking" checked>
+                  <label class="form-check-label text-nowrap" for="show-thinking" data-i18n="ui.showThinking">Show Thinking</label>
+                </div>
+              </div>
             </form>
 
             <!-- OpenAI PDF manager: visible only when OpenAI + supports_pdf_upload -->
@@ -782,28 +818,6 @@
                 <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt" style="display: none;"></textarea>
               </div>
             </div>
-
-            <div class="row my-3">
-              <div class="d-flex align-items-center flex-wrap gap-3">
-                <div class="form-check form-switch form-switch-inline">
-                  <label class="form-check-label" for="websearch" data-i18n="ui.webSearch">Web Search</label>
-                  <input class="form-check-input" type="checkbox" id="websearch">
-                </div>
-                <div class="form-check form-switch form-switch-inline" id="thinking-display-container" style="display: none;">
-                  <label class="form-check-label" for="show-thinking" data-i18n="ui.showThinking">Show Thinking</label>
-                  <input class="form-check-input" type="checkbox" id="show-thinking" checked>
-                </div>
-                <div class="form-check form-switch form-switch-inline">
-                  <label class="form-check-label" for="initiate-from-assistant" data-i18n="ui.startFromAssistant">Start from assistant</label>
-                  <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
-                </div>
-                <div class="form-check form-switch form-switch-inline">
-                  <label class="form-check-label" for="math" data-i18n="ui.mathRendering">Math Rendering</label>
-                  <input class="form-check-input" type="checkbox" id="math">
-                </div>
-              </div>
-            </div>
-
 
           </div>
           </div><!-- end #config-body -->

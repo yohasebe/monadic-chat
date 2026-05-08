@@ -74,7 +74,6 @@ RSpec.describe "Chat Apps Web Search Update", type: :system do
         "gemini" => "GEMINI_API_KEY", 
         "mistral" => "MISTRAL_API_KEY",
         "cohere" => "COHERE_API_KEY",
-        "perplexity" => "PERPLEXITY_API_KEY",
         "grok" => "XAI_API_KEY",
         "deepseek" => "DEEPSEEK_API_KEY",
         "ollama" => nil
@@ -99,7 +98,6 @@ RSpec.describe "Chat Apps Web Search Update", type: :system do
     when "gemini" then "gemini-1.5-flash"
     when "mistral" then "mistral-large-latest"
     when "cohere" then "command-a-reasoning-08-2025"
-    when "perplexity" then "llama-3.3-sonar-large"
     when "grok" then "grok-4-fast-reasoning"
     when "deepseek" then "deepseek-chat"
     when "ollama" then "llama3.3"

@@ -427,49 +427,6 @@ RSpec.describe "Streaming Fragment Ordering (All Providers)" do
     end
   end
 
-  describe "Perplexity" do
-    it "uses sequence numbers for fragment ordering" do
-      fragment_sequence = 0
-      texts = {}
-      fragments_received = []
-
-      # Simulate Perplexity streaming (OpenAI-compatible format)
-      streaming_chunks = [
-        { "choices" => [{ "delta" => { "content" => "Answer" }, "message" => { "content" => "" } }] },
-        { "choices" => [{ "delta" => { "content" => " is" }, "message" => { "content" => "Answer" } }] },
-        { "choices" => [{ "delta" => { "content" => " 42" }, "message" => { "content" => "Answer is" } }] }
-      ]
-
-      id = "default"
-      texts[id] = { "choices" => [{ "message" => { "content" => String.new } }] }
-
-      streaming_chunks.each do |json|
-        delta = json.dig("choices", 0, "delta")
-        fragment = delta["content"].to_s if delta
-        next if !fragment || fragment.empty?
-
-        choice = texts[id]["choices"][0]
-        choice["message"]["content"] << fragment
-
-        res = {
-          "type" => "fragment",
-          "content" => fragment,
-          "sequence" => fragment_sequence,
-          "timestamp" => Time.now.to_f
-        }
-
-        fragments_received << res
-        fragment_sequence += 1
-      end
-
-      expect(fragments_received.length).to eq 3
-      expect(fragments_received[0]["sequence"]).to eq 0
-      expect(fragments_received[1]["sequence"]).to eq 1
-      expect(fragments_received[2]["sequence"]).to eq 2
-      expect(texts[id]["choices"][0]["message"]["content"]).to eq "Answer is 42"
-    end
-  end
-
   describe "Deepseek" do
     it "uses sequence numbers for fragment ordering" do
       fragment_sequence = 0

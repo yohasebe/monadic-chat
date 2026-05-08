@@ -11,7 +11,6 @@ $MODELS = {
   cohere: ["command"],
   ollama: ["llama2"],
   deepseek: ["deepseek-chat"],
-  perplexity: ["pplx-70b"],
   grok: ["grok-1"]
 }
 
@@ -103,7 +102,7 @@ RSpec.describe "Monadic Behavior System Tests" do
   # The mutual exclusivity test is no longer needed
 
   describe "Provider-Specific Monadic Behavior" do
-    %w[openai deepseek perplexity grok].each do |provider|
+    %w[openai deepseek grok].each do |provider|
       context "with #{provider} provider" do
         let(:app_def) do
           <<~RUBY

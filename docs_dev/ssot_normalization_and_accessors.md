@@ -53,7 +53,7 @@ This document describes the server-side normalization layer and canonical access
 - Add unit tests for:
   - Normalization mapping (aliases → canonical)
   - Accessor defaults (nil → expected default)
-  - URL‑only PDFs (Perplexity) vs file uploads (Claude/Gemini/OpenAI) behaviors
+  - URL‑only PDFs (`supports_pdf_upload: false`) vs file uploads (Claude/Gemini/OpenAI) behaviors
 - In system tests, validate button labels/accept attributes reflect SSOT flags.
 
 ---
@@ -217,11 +217,6 @@ use_adaptive = supports_thinking &&
 #### DeepSeek
 - **Context Windows**: Large context windows (up to 64k tokens)
 - **Cost Efficiency**: Focus on cost-effective long-context processing
-
-#### Perplexity
-- **Native Web Search**: Built-in web search without external tools
-- **URL-Only PDFs**: Supports PDF URLs but not file uploads
-- **Citations**: Automatic citation generation for search results
 
 #### xAI/Grok
 - **Real-Time Data**: Access to X (Twitter) data stream

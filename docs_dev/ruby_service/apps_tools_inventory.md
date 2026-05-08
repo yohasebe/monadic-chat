@@ -259,7 +259,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Chat (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI, Perplexity)
+### Chat (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -269,7 +269,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Chat Plus (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI, Perplexity)
+### Chat Plus (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -297,7 +297,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Coding Assistant (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI, Perplexity)
+### Coding Assistant (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -364,7 +364,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Language Practice (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI, Perplexity)
+### Language Practice (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -382,7 +382,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Mail Composer (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI, Perplexity)
+### Mail Composer (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -448,7 +448,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Second Opinion (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI, Perplexity)
+### Second Opinion (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -511,7 +511,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Voice Chat (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI, Perplexity)
+### Voice Chat (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
 
 | Field | Details |
 |-------|---------|

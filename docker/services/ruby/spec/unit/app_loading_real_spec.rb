@@ -261,7 +261,6 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
                              when "google", "gemini" then ["Gemini"]
                              when "mistral" then ["Mistral", "MistralAI"]
                              when "cohere" then ["Cohere"]
-                             when "perplexity" then ["Perplexity"]
                              when "x", "xai", "grok" then ["Grok"]
                              when "deepseek" then ["DeepSeek"]
                              else [provider.capitalize]
@@ -279,7 +278,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         
         # Check that display_name doesn't include provider info
         if display_name && provider
-          provider_names = ["OpenAI", "Claude", "Anthropic", "Gemini", "Google", "Mistral", "Cohere", "Perplexity", "Grok", "xAI", "DeepSeek"]
+          provider_names = ["OpenAI", "Claude", "Anthropic", "Gemini", "Google", "Mistral", "Cohere", "Grok", "xAI", "DeepSeek"]
           if provider_names.any? { |pname| display_name.include?(pname) }
             issues << "#{file}: Display name '#{display_name}' should not include provider information"
           end
@@ -293,7 +292,6 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
                            when "google", "gemini" then ["Google", "Gemini"]
                            when "mistral" then ["Mistral"]
                            when "cohere" then ["Cohere"]
-                           when "perplexity" then ["Perplexity"]
                            when "x", "xai", "grok" then ["xAI"]
                            when "deepseek" then ["DeepSeek"]
                            else [provider.capitalize]

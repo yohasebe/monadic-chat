@@ -117,7 +117,7 @@ module ProviderMatrixReporter
 
     def extract_base_app(app_name)
       # Remove provider suffix (OpenAI, Claude, Gemini, etc.)
-      app_name.sub(/(OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Perplexity|Ollama)$/, '')
+      app_name.sub(/(OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Ollama)$/, '')
     end
 
     def write_json_report(summary)
@@ -288,7 +288,7 @@ module ProviderMatrixReporter
 
     def extract_app(description, metadata)
       # Match patterns like "ChatOpenAI returns" or app names
-      if description =~ /(\w+(?:OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Perplexity|Ollama))/
+      if description =~ /(\w+(?:OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Ollama))/
         $1
       elsif metadata[:app]
         metadata[:app]

@@ -249,7 +249,7 @@ with:
 The implementation derives the provider from the session's `app_name` →
 the `APPS` global → `app.settings['group']`, mapped to a canonical
 provider key (`openai`, `anthropic`, `gemini`, `xai`, `cohere`,
-`mistral`, `perplexity`, `deepseek`, `ollama`). It then locates a
+`mistral`, `deepseek`, `ollama`). It then locates a
 "Chat" app instance for that provider (mirroring the pattern used by
 `AIUserAgent#find_chat_app_for_provider`) and calls `send_query` with
 a small prompt asking for "a concise descriptive title".

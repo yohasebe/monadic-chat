@@ -119,7 +119,7 @@ You can override specific parameters without redefining the entire model:
 
 #### Other Providers
 - **supports_reasoning_content**: `boolean` - DeepSeek reasoner support
-- **is_reasoning_model**: `boolean` - Perplexity reasoning model flag
+- **is_reasoning_model**: `boolean` - Reasoning model flag for providers exposing a dedicated reasoning class
 - **supports_thinking**: `boolean` - Mistral/Cohere thinking support
 
 ## How It Works

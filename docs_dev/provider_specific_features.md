@@ -152,13 +152,12 @@ parallel beta-header handling.**
 | Tool calling (OpenAI-compatible) | api_feature | Capability-detected | `ollama_helper.rb:~401` | — |
 | Dynamic capability detection | client_side | Automatic | `ollama_helper.rb:209-228` | See `ollama_dynamic_capabilities.md` |
 
-### Mistral, Cohere, Perplexity
+### Mistral, Cohere
 
 | Provider | Feature | Notes |
 |---|---|---|
 | Mistral | Tavily web search | Shared adapter |
 | Cohere | Tavily web search, reasoning-model detection | Name-based detection |
-| Perplexity | `sonar-reasoning-*`, `<think>` tag stripping | Client-side cleanup |
 
 ## Semantic pairs across providers
 

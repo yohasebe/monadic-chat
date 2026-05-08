@@ -677,13 +677,6 @@
               </div>
             </div>
             <div class="setting-group">
-              <label for="perplexity-api-key">PERPLEXITY_API_KEY</label>
-              <div class="api-key-field">
-                <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false">
-                <button type="button" class="toggle-api-key-visibility" data-target="perplexity-api-key"><i class="fas fa-eye"></i></button>
-              </div>
-            </div>
-            <div class="setting-group">
               <label for="deepseek-api-key">DEEPSEEK_API_KEY</label>
               <div class="api-key-field">
                 <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false">
@@ -1282,7 +1275,6 @@
           GEMINI_API_KEY: document.getElementById('gemini-api-key').value,
           MISTRAL_API_KEY: document.getElementById('mistral-api-key').value,
           XAI_API_KEY: document.getElementById('xai-api-key').value,
-          PERPLEXITY_API_KEY: document.getElementById('perplexity-api-key').value,
           DEEPSEEK_API_KEY: document.getElementById('deepseek-api-key').value,
           ELEVENLABS_API_KEY: document.getElementById('elevenlabs-api-key').value,
           TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
@@ -1425,7 +1417,6 @@
         document.getElementById('gemini-api-key').value = data.GEMINI_API_KEY || '';
         document.getElementById('mistral-api-key').value = data.MISTRAL_API_KEY || '';
         document.getElementById('xai-api-key').value = data.XAI_API_KEY || '';
-        document.getElementById('perplexity-api-key').value = data.PERPLEXITY_API_KEY || '';
         document.getElementById('deepseek-api-key').value = data.DEEPSEEK_API_KEY || '';
         document.getElementById('elevenlabs-api-key').value = data.ELEVENLABS_API_KEY || '';
         document.getElementById('tavily-api-key').value = data.TAVILY_API_KEY || '';

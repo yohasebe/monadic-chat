@@ -48,7 +48,6 @@
    - `gemini_helper_spec.rb` - Google Gemini API統合のテスト
    - `openai_helper_spec.rb` - OpenAI API統合のテスト
    - `mistral_helper_spec.rb` - Mistral API統合のテスト
-   - `perplexity_helper_spec.rb` - Perplexity API統合のテスト
 
 5. **思考/推論プロセス表示**
    - `openai_reasoning_spec.rb` - OpenAI o1/o3推論コンテンツ抽出のテスト
@@ -58,7 +57,6 @@
    - `grok_reasoning_spec.rb` - Grok推論コンテンツ抽出のテスト
    - `mistral_reasoning_spec.rb` - Mistral推論コンテンツ抽出のテスト
    - `cohere_thinking_spec.rb` - Cohere思考コンテンツ（JSON形式）のテスト
-   - `perplexity_thinking_spec.rb` - Perplexityデュアル形式思考（JSON + タグ）のテスト
 
 ## テスト設計原則
 

@@ -153,58 +153,6 @@ RSpec.describe "Provider Language Injection" do
     end
   end
 
-  describe "Perplexity language injection" do
-    it "adds language prompt to system message content array" do
-      context = session[:messages]
-      system_message_modified = false
-      
-      messages = context.compact.map do |msg|
-        if msg["role"] == "system" && !system_message_modified
-          system_message_modified = true
-          content_parts = [{ "type" => "text", "text" => msg["text"] }]
-          
-          if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-            language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-            content_parts << { "type" => "text", "text" => "\n\n---\n\n" + language_prompt } if !language_prompt.empty?
-          end
-          
-          { "role" => msg["role"], "content" => content_parts }
-        else
-          { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-        end
-      end
-      
-      expect(messages.first["content"]).to be_an(Array)
-      expect(messages.first["content"].last["text"]).to include("You MUST respond in Japanese")
-    end
-    
-    it "uses natural initial message for Voice Chat apps" do
-      session[:parameters]["app_name"] = "VoiceChatPerplexity"
-      app = session[:parameters]["app_name"]
-      
-      initial_message = if app && app.include?("VoiceChat")
-                         "Hi there! How are you today?"
-                       else
-                         "Hello! Please introduce yourself."
-                       end
-      
-      expect(initial_message).to eq("Hi there! How are you today?")
-    end
-    
-    it "uses generic initial message for non-Voice Chat apps" do
-      session[:parameters]["app_name"] = "ChatPerplexity"
-      app = session[:parameters]["app_name"]
-      
-      initial_message = if app && app.include?("VoiceChat")
-                         "Hi there! How are you today?"
-                       else
-                         "Hello! Please introduce yourself."
-                       end
-      
-      expect(initial_message).to eq("Hello! Please introduce yourself.")
-    end
-  end
-
   describe "Cohere language injection" do
     it "adds language prompt to initial prompt parts" do
       initial_prompt = "You are a helpful assistant."

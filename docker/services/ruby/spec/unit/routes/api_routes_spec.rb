@@ -248,8 +248,7 @@ RSpec.describe "API Routes helpers" do
         'cohere' => 'COHERE_API_KEY',
         'mistral' => 'MISTRAL_API_KEY',
         'deepseek' => 'DEEPSEEK_API_KEY',
-        'grok' => 'XAI_API_KEY',
-        'perplexity' => 'PERPLEXITY_API_KEY'
+        'grok' => 'XAI_API_KEY'
       }
     end
 

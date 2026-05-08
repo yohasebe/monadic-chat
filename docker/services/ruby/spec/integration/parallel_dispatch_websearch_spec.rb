@@ -135,30 +135,6 @@ RSpec.describe "ParallelDispatch Web Search Integration", :integration do
     end
   end
 
-  # --- Perplexity (native search, uses openai_compat_sub_call) ---
-  describe "Perplexity openai_compat_sub_call" do
-    before do
-      skip "RUN_API not set" if @skip_api
-      skip "PERPLEXITY_API_KEY not configured" unless CONFIG["PERPLEXITY_API_KEY"] && !CONFIG["PERPLEXITY_API_KEY"].empty?
-    end
-
-    it "returns search-augmented text from Perplexity" do
-      with_api_retry(max_attempts: 2, wait: 3, backoff: :exponential) do
-        result = app.openai_compat_sub_call(
-          "https://api.perplexity.ai/chat/completions",
-          CONFIG["PERPLEXITY_API_KEY"],
-          "sonar",
-          query,
-          timeout
-        )
-
-        expect(result).to be_a(String)
-        expect(result).not_to be_empty
-        expect(result.downcase).to match(/paris/)
-      end
-    end
-  end
-
   # --- Tavily prefetch ---
   describe "Tavily tavily_prefetch_and_inject" do
     before do

@@ -6,7 +6,7 @@ RSpec.describe 'Websearch Tavily Configuration' do
     let(:tavily_required_providers) { ['deepseek', 'mistral', 'cohere', 'ollama'] }
     
     # These providers have native web search capabilities
-    let(:native_websearch_providers) { ['openai', 'perplexity', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic'] }
+    let(:native_websearch_providers) { ['openai', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic'] }
 
     it 'correctly identifies providers that require Tavily API' do
       # Verify the lists are comprehensive and mutually exclusive

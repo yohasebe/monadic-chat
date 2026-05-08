@@ -27,7 +27,7 @@ RUN_API=true bundle exec rspec spec/integration/provider_matrix/all_providers_al
 ```
 
 **Features:**
-- Tests all provider × app combinations (OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, DeepSeek, Perplexity)
+- Tests all provider × app combinations (OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, DeepSeek)
 - Uses ResponseEvaluator for AI-based response validation
 - Validates both text responses and tool calls
 - Detects runtime errors in responses

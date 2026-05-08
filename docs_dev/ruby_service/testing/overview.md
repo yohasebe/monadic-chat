@@ -48,7 +48,6 @@ We've implemented several shared testing utilities to improve code reuse and con
    - `gemini_helper_spec.rb` - Tests for Google Gemini API integration
    - `openai_helper_spec.rb` - Tests for OpenAI API integration
    - `mistral_helper_spec.rb` - Tests for Mistral API integration
-   - `perplexity_helper_spec.rb` - Tests for Perplexity API integration
 
 5. **Thinking/Reasoning Process Display**
    - `openai_reasoning_spec.rb` - Tests for OpenAI o1/o3 reasoning content extraction
@@ -58,7 +57,6 @@ We've implemented several shared testing utilities to improve code reuse and con
    - `grok_reasoning_spec.rb` - Tests for Grok reasoning content extraction
    - `mistral_reasoning_spec.rb` - Tests for Mistral reasoning content extraction
    - `cohere_thinking_spec.rb` - Tests for Cohere thinking content (JSON format)
-   - `perplexity_thinking_spec.rb` - Tests for Perplexity dual-format thinking (JSON + tags)
 
 ## Test Design Principles
 

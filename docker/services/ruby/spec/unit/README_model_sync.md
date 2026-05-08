@@ -15,7 +15,6 @@ bundle exec rspec spec/unit/model_spec_validation_spec.rb:321 --format documenta
 
 # 特定のプロバイダのみテスト
 bundle exec rspec spec/unit/model_spec_validation_spec.rb -e "OpenAI"
-bundle exec rspec spec/unit/model_spec_validation_spec.rb -e "Perplexity"
 ```
 
 ### 2. 便利スクリプトの使用
@@ -36,7 +35,6 @@ bundle exec rspec spec/unit/model_spec_validation_spec.rb -e "Perplexity"
 - `MISTRAL_API_KEY` - Mistralモデルの検証用
 - `XAI_API_KEY` - Grokモデルの検証用
 - `DEEPSEEK_API_KEY` - DeepSeekモデルの検証用
-- `PERPLEXITY_API_KEY` - 不要（ハードコードされたリスト）
 
 **注意**: APIキーが設定されていないプロバイダのテストは自動的にスキップされます。
 
@@ -67,11 +65,6 @@ OpenAI:
   ✓ Models in spec: 21       # model_spec.js内のモデル数
   ⚠️  Missing in spec: ...    # 追加が必要なモデル
   ⚠️  Potentially deprecated: ... # 削除を検討すべきモデル
-
-Perplexity:
-  ✓ Models in API: 6
-  ✓ Models in spec: 6
-  ✅ All models are in sync!  # 完全に同期している
 ```
 
 ## 定期実行の推奨
@@ -146,10 +139,6 @@ bundle exec rspec spec/unit/model_spec_validation_spec.rb:321 -fd
 - model_spec.jsの構文エラーをチェック
 
 ## プロバイダ別の特記事項
-
-### Perplexity
-- モデルリストはハードコード（APIキー不要）
-- `perplexity_helper.rb`の`list_models`メソッドを手動更新
 
 ### xAI (Grok)
 - `/language-models`エンドポイントから動的取得

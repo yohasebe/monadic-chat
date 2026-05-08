@@ -46,7 +46,7 @@ RSpec.describe 'Comprehensive Tool Validation' do
     'drawio_grapher' => {
       tools: %w[write_drawio_file],
       agents: [],
-      providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek Perplexity]
+      providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek]
     },
     'image_generator' => {
       tools: %w[generate_image_with_openai generate_image_with_grok generate_image_with_gemini3_preview],
@@ -71,7 +71,7 @@ RSpec.describe 'Comprehensive Tool Validation' do
     'mermaid_grapher' => {
       tools: %w[preview_mermaid],
       agents: [],
-      providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek Perplexity]
+      providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek]
     },
     'novel_writer' => {
       tools: %w[add_character count_num_of_chars count_num_of_words load_novel_context save_novel_context update_progress update_summary],
@@ -86,7 +86,6 @@ RSpec.describe 'Comprehensive Tool Validation' do
     'second_opinion' => {
       tools: %w[second_opinion_agent parallel_second_opinions],
       agents: [],
-      # Note: Perplexity excluded - does not support tool calling
       # Note: Ollama removed - unreliable multi-step tool calling with 8B models
       providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek]
     },
@@ -409,8 +408,6 @@ RSpec.describe 'Comprehensive Tool Validation' do
               [/provider\s+["']cohere["']/i, /include\s+CohereHelper/]
             when 'deepseek'
               [/provider\s+["']deepseek["']/i, /include\s+DeepSeekHelper/]
-            when 'perplexity'
-              [/provider\s+["']perplexity["']/i, /include\s+PerplexityHelper/]
             when 'ollama'
               [/provider\s+["']ollama["']/i, /include\s+OllamaHelper/]
             else
@@ -544,7 +541,6 @@ RSpec.describe 'Comprehensive Tool Validation' do
     when 'Mistral' then 'MistralHelper'
     when 'Cohere' then 'CohereHelper'
     when 'DeepSeek' then 'DeepSeekHelper'
-    when 'Perplexity' then 'PerplexityHelper'
     when 'Ollama' then 'OllamaHelper'
     else "#{provider}Helper"
     end

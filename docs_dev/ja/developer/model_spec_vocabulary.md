@@ -20,7 +20,7 @@
   - モデルが一般的にPDFをサポートするかどうか。UIはファイルピッカーの状態を決定するために`supports_pdf_upload`が必要な場合があります。
 
 - supports_pdf_upload: boolean
-  - モデルがPDFファイルのアップロードを受け付けるかどうか。falseで`supports_pdf`がtrueの場合、URLのみを使用（例：Perplexityでは`pdf_url`経由）。
+  - モデルがPDFファイルのアップロードを受け付けるかどうか。falseで`supports_pdf`がtrueの場合、URLのみを使用。
 
 - supports_web_search: boolean
   - モデルがネイティブなウェブ検索機能を持つかどうか。
@@ -63,7 +63,7 @@
 - is_slow_model -> latency_tier: "slow"
 - responses_api (true) -> api_type: "responses"
 
-注意：動作変更を避けるため、`supports_pdf_upload`は自動入力されません。必要に応じてモデルごとに明示的に設定してください（例：Perplexity: `supports_pdf: true`, `supports_pdf_upload: false`）。
+注意：動作変更を避けるため、`supports_pdf_upload`は自動入力されません。必要に応じてモデルごとに明示的に設定してください。
 
 ## アクセサー（サーバー）
 
@@ -87,7 +87,7 @@
   - アプリが画像をサポートし、`vision_capability`がtrueの場合にボタンを表示。
   - `supports_pdf_upload`がtrueの場合、「画像/PDF」としてラベル付けし、ファイル入力で`.pdf`を許可。
   - それ以外の場合、「画像」としてラベル付けし、`.pdf`を許可しない。
-  - URLのみのPDF（例：Perplexity）の場合、`supports_pdf_upload: false`を保持し、メッセージにPDF URLを含めるようユーザーに指示。
+  - URLのみのPDFモデルの場合、`supports_pdf_upload: false`を保持し、メッセージにPDF URLを含めるようユーザーに指示。
 
 ## モデルの追加
 

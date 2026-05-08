@@ -27,30 +27,6 @@ process_json_data(res: res.body.to_s)  # ❌ Entire response buffered
 
 ## Provider-Specific Patterns
 
-### Perplexity: Citations in First Chunk
-
-**Critical**: Perplexity sends all citations in the **first response chunk**, not incrementally or in the last chunk.
-
-```ruby
-# Store citations from first chunk
-stored_citations = nil
-
-res.each do |chunk|
-  # ...parse JSON...
-
-  # Capture citations from FIRST chunk only
-  if !stored_citations && json["citations"]
-    stored_citations = json["citations"]
-  end
-end
-
-# Use stored_citations for final response, NOT json["citations"] from last chunk
-citations = stored_citations  # ✓ Correct
-citations = json["citations"]  # ❌ May be nil/empty
-```
-
-**Why**: The API design sends metadata upfront. Accessing `json["citations"]` in the last chunk will return nil or empty array.
-
 ### Claude: Content Block Events and Web Search
 
 **Critical**: Claude's web search returns multiple content blocks (one per search result/citation). Each `content_block_stop` event should NOT add line breaks.
@@ -116,7 +92,7 @@ res.each_line do |chunk|  # ❌ NoMethodError: undefined method 'each_line'
 end
 ```
 
-**Why**: `HTTP::Response::Body` doesn't implement `each_line`. All other providers (DeepSeek, Perplexity, Claude) use `.each` successfully.
+**Why**: `HTTP::Response::Body` doesn't implement `each_line`. All other providers (DeepSeek, Claude) use `.each` successfully.
 
 ## Fragment Sequencing
 
@@ -155,7 +131,6 @@ When debugging streaming problems:
 
 Common symptoms:
 - **No streaming, but final result correct**: Fragments blocked (DeepSeek pattern)
-- **Streaming works, final result wrong**: Data loss during accumulation (Perplexity citations)
 - **Excessive line breaks during streaming**: Extra content in fragments (Claude content blocks)
 - **NoMethodError on response body**: Wrong iteration method (Gemini each_line)
 

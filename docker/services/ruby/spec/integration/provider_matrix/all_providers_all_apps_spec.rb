@@ -31,7 +31,6 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     'mistral' => { suffix: 'Mistral', file_suffix: 'mistral', timeout: 90 },
     'cohere' => { suffix: 'Cohere', file_suffix: 'cohere', timeout: 90 },
     'deepseek' => { suffix: 'DeepSeek', file_suffix: 'deepseek', timeout: 90 },
-    'perplexity' => { suffix: 'Perplexity', file_suffix: 'perplexity', timeout: 90 },
     'ollama' => { suffix: 'Ollama', file_suffix: 'ollama', timeout: 120 }
   }.freeze
 
@@ -226,7 +225,7 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     list = (ENV['PROVIDERS'] || '').split(',').map(&:strip).reject(&:empty?)
     if list.empty?
       # Default providers when PROVIDERS is not set
-      defaults = %w[openai anthropic gemini mistral cohere perplexity deepseek xai]
+      defaults = %w[openai anthropic gemini mistral cohere deepseek xai]
       defaults << 'ollama' if ENV['INCLUDE_OLLAMA'] == 'true'
       defaults
     else

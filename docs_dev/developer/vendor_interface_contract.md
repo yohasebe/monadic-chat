@@ -39,7 +39,6 @@ end
 | Mistral | ✓ | class method (in `self.` block) |
 | DeepSeek | ✓ | class method (in `self.` block) |
 | Grok | ✓ | class method (in `self.` block) |
-| Perplexity | ✓ | `def self.vendor_name` |
 | Ollama | ✓ | instance method |
 | Tavily | ✗ | N/A (search-only provider) |
 
@@ -70,7 +69,6 @@ end
 | Mistral | ✓ | `:mistral` |
 | DeepSeek | ✓ | `:deepseek` |
 | Grok | ✓ | `:xai` |
-| Perplexity | ✓ | `:perplexity` |
 | Ollama | ✓ | `:ollama` (via `module_function`) |
 | Tavily | ✗ | N/A |
 
@@ -97,7 +95,6 @@ end
 | Mistral | ✓ | Yes |
 | DeepSeek | ✓ | Yes |
 | Grok | ✓ | Yes |
-| Perplexity | ✓ | Yes |
 | Ollama | ✓ | Yes |
 | Tavily | ✗ | N/A |
 
@@ -128,7 +125,6 @@ end
 | Mistral | ✓ | `model: nil` |
 | DeepSeek | ✓ | `model: "deepseek-chat"` |
 | Grok | ✓ | `model: nil` |
-| Perplexity | ✓ | `model: nil` |
 | Ollama | ✓ | `model: nil` |
 | Tavily | ✗ | N/A (has `tavily_search` instead) |
 
@@ -161,7 +157,6 @@ end
 | Mistral | ✓ | — |
 | DeepSeek | ✓ | — |
 | Grok | ✓ | `disable_streaming: false` |
-| Perplexity | ✓ | — |
 | Ollama | ✓ | — |
 | Tavily | ✗ | N/A |
 
@@ -198,7 +193,6 @@ end
 | Mistral | ✗ | **Inline in api_request** | — |
 | DeepSeek | ✓ | `tools` | ✓ |
 | Grok | ✓ | `tools` | ✓ |
-| Perplexity | ✓ | `tools` | ✓ |
 | Ollama | ✓ | `tool_calls` | ✓ |
 | Tavily | ✗ | N/A | — |
 
@@ -223,7 +217,7 @@ end
 ## Parameter Naming Inconsistency
 
 The 3rd parameter of `process_functions` uses two naming conventions:
-- **`tools`**: OpenAI, Claude, DeepSeek, Grok, Perplexity (5 providers)
+- **`tools`**: OpenAI, Claude, DeepSeek, Grok (5 providers)
 - **`tool_calls`**: Gemini, Cohere, Ollama (3 providers)
 
 This does not affect functionality (positional parameter), but creates inconsistency when reading code.

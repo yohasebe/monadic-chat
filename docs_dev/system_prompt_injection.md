@@ -303,8 +303,7 @@ All 9 vendor helpers were refactored:
 5. DeepSeek Helper
 6. Cohere Helper
 7. Grok Helper
-8. Perplexity Helper
-9. Ollama Helper
+8. Ollama Helper
 
 Each now uses:
 ```ruby

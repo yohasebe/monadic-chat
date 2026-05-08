@@ -151,7 +151,6 @@ session[:monadic_state] = {
 | xAI (Grok) | ✅ Full | ✅ Supported |
 | Cohere | ✅ Full | ✅ Supported |
 | Mistral | ✅ Full | ✅ Supported |
-| Perplexity | ❌ None | ❌ Not available |
 | Ollama | ⚠️ Model-dependent | ⚠️ Model-dependent |
 | DeepSeek | ✅ Full | ✅ Supported |
 

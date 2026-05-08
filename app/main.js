@@ -3697,7 +3697,6 @@ function checkAndUpdateEnvFile() {
             'GEMINI_DEFAULT_MODEL': 'gemini',
             'MISTRAL_DEFAULT_MODEL': 'mistral',
             'GROK_DEFAULT_MODEL': 'xai',
-            'PERPLEXITY_DEFAULT_MODEL': 'perplexity',
             'DEEPSEEK_DEFAULT_MODEL': 'deepseek'
         };
 
@@ -3737,7 +3736,6 @@ function checkAndUpdateEnvFile() {
         'COHERE_API_KEY',
         'GEMINI_API_KEY',
         'XAI_API_KEY',
-        'PERPLEXITY_API_KEY',
         'DEEPSEEK_API_KEY',
         'ELEVENLABS_API_KEY',
         'TAVILY_API_KEY'

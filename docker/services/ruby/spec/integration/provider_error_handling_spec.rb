@@ -129,7 +129,7 @@ RSpec.describe "Provider Error Handling" do
   end
   
   describe "Cross-Provider Error Consistency" do
-    let(:providers) { %w[gemini openai claude grok cohere deepseek mistral perplexity] }
+    let(:providers) { %w[gemini openai claude grok cohere deepseek mistral] }
     
     it "all providers use consistent error format" do
       providers.each do |provider|

@@ -9,7 +9,7 @@
 - 履歴は最後の10エントリに制限されます。仕様は停止条件を検証するために合成エラーを注入できます。
 
 ## FunctionCallErrorHandler
-- ベンダーヘルパー（OpenAI、Claude、Gemini、Grok、Mistral、Cohere、DeepSeek、Perplexity、Ollama）によって消費され、ツールレスポンスを検出器に接続するMixin。
+- ベンダーヘルパー（OpenAI、Claude、Gemini、Grok、Mistral、Cohere、DeepSeek、Ollama）によって消費され、ツールレスポンスを検出器に接続するMixin。
 - `function_return_is_error?` は以下の3形式でエラーを検出:
   - **文字列プレフィックス**: `"ERROR:"`、`"Error:"`、`"Error executing code"`、`"Error occurred"`、`"❌"`
   - **Hash**: `{ success: false }` または `{ "success" => false }`

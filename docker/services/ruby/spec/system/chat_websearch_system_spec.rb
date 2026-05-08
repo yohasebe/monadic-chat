@@ -4,8 +4,8 @@ require_relative "../spec_helper"
 
 RSpec.describe "Chat Apps Web Search Configuration", type: :system do
   let(:chat_apps) do
-    ["ChatOpenAI", "ChatClaude", "ChatGemini", "ChatMistral", 
-     "ChatCohere", "ChatPerplexity", "ChatGrok", "ChatDeepSeek", "ChatOllama"]
+    ["ChatOpenAI", "ChatClaude", "ChatGemini", "ChatMistral",
+     "ChatCohere", "ChatGrok", "ChatDeepSeek", "ChatOllama"]
   end
 
   describe "Web search enablement" do
@@ -34,9 +34,9 @@ RSpec.describe "Chat Apps Web Search Configuration", type: :system do
         if features_content.match(/websearch\s+(true|false)/)
           websearch_enabled = features_content.match(/websearch\s+(true|false)/)[1] == "true"
 
-          # Native providers: openai, perplexity, grok, xai, gemini, google, claude, anthropic
+          # Native providers: openai, grok, xai, gemini, google, claude, anthropic
           provider_normalized = provider.downcase
-          has_native_support = ['openai', 'perplexity', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic'].include?(provider_normalized)
+          has_native_support = ['openai', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic'].include?(provider_normalized)
 
           expected_value = has_native_support
 
@@ -84,17 +84,10 @@ RSpec.describe "Chat Apps Web Search Configuration", type: :system do
   end
 
   describe "Tools configuration" do
-    # Providers that don't support tool/function calling
-    # Perplexity has built-in web search in API, doesn't use function calling
-    let(:providers_without_tool_support) { ["perplexity"] }
-
     it "ensures Chat apps with websearch have proper tools block" do
       chat_apps.each do |app_name|
         provider = app_name.gsub("Chat", "").downcase
         next unless provider_configured?(provider)
-
-        # Skip providers that don't support tool calling
-        next if providers_without_tool_support.include?(provider)
 
         app_file = find_app_file(app_name, provider)
         next unless app_file
@@ -119,7 +112,6 @@ RSpec.describe "Chat Apps Web Search Configuration", type: :system do
       "gemini" => "GEMINI_API_KEY",
       "mistral" => "MISTRAL_API_KEY",
       "cohere" => "COHERE_API_KEY",
-      "perplexity" => "PERPLEXITY_API_KEY",
       "grok" => "XAI_API_KEY",
       "deepseek" => "DEEPSEEK_API_KEY",
       "ollama" => nil  # No API key needed

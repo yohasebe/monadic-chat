@@ -269,9 +269,8 @@ end
 4. Mistral
 5. Cohere (Command)
 6. DeepSeek
-7. Perplexity
-8. xAI (Grok)
-9. Ollama (local)
+7. xAI (Grok)
+8. Ollama (local)
 
 **App Types**:
 1. Simple chat (text generation)
@@ -436,7 +435,6 @@ The `ProviderMatrixHelper` applies conservative heuristics so that a single deve
 | gemini        | 60          | 3           | 0.4                              |
 | mistral       | 60          | 3           | 0.4                              |
 | cohere        | 90          | 4           | 0.3                              |
-| perplexity    | 90          | 4           | 0.3                              |
 | deepseek      | 75          | 4           | 0.35                             |
 | xai (Grok)    | 75          | 3           | 0.35                             |
 | ollama        | 90          | 2           | 1.0                              |

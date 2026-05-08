@@ -2930,11 +2930,6 @@ h1 {
   font-weight: 700;
 }
 
-.custom-dropdown-group[data-group="Perplexity"] span:first-child {
-  color: #20b8cd;
-  font-weight: 700;
-}
-
 .custom-dropdown-group[data-group="DeepSeek"] span:first-child {
   color: #0066cc;
   font-weight: 700;

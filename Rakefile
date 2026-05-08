@@ -154,7 +154,6 @@ namespace :server do
       'GEMINI_API_KEY' => 'Google Gemini',
       'MISTRAL_API_KEY' => 'Mistral AI',
       'COHERE_API_KEY' => 'Cohere',
-      'PERPLEXITY_API_KEY' => 'Perplexity',
       'DEEPSEEK_API_KEY' => 'DeepSeek',
       'XAI_API_KEY' => 'xAI (Grok)',
       'ELEVENLABS_API_KEY' => 'ElevenLabs (TTS)'
@@ -1114,7 +1113,7 @@ def generate_matrix_report(json_file, run_id)
       provider = $1.downcase
     end
 
-    if desc =~ /(\w+(?:OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Perplexity|Ollama))/
+    if desc =~ /(\w+(?:OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Ollama))/
       app = $1
     end
 
@@ -1135,7 +1134,7 @@ def generate_matrix_report(json_file, run_id)
     end
 
     # Track app stats
-    base_app = app.sub(/(OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Perplexity|Ollama)$/, '')
+    base_app = app.sub(/(OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Ollama)$/, '')
     apps[base_app] ||= { providers: Set.new, passed: 0, failed: 0 }
     apps[base_app][:providers].add(provider)
     apps[base_app][:passed] += 1 if ex['status'] == 'passed'

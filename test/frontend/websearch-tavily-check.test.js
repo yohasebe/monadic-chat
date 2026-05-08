@@ -24,7 +24,6 @@ describe('WebSearch Tavily Check Module', () => {
 
     it('returns false for native web search providers', () => {
       expect(requiresTavilyAPI()('openai')).toBe(false);
-      expect(requiresTavilyAPI()('perplexity')).toBe(false);
       expect(requiresTavilyAPI()('grok')).toBe(false);
       expect(requiresTavilyAPI()('xai')).toBe(false);
       expect(requiresTavilyAPI()('gemini')).toBe(false);

@@ -160,28 +160,6 @@ describe('WebSocket Handlers', () => {
       expect(document.getElementById('discourse').innerHTML).toContain('card');
     });
 
-    it('should specifically handle AI User error from Perplexity', () => {
-      const data = {
-        type: 'error',
-        content: 'AI User error with provider perplexity: Last message must have role `user`'
-      };
-
-      const result = handlers.handleErrorMessage(data);
-
-      expect(result).toBe(true);
-      expect(document.getElementById('ai_user').disabled).toBe(false);
-
-      expect(global.createCard).toHaveBeenCalledWith(
-        "system",
-        expect.stringContaining('System'),
-        expect.stringContaining('AI User error with provider perplexity'),
-        "en",
-        null,
-        true,
-        []
-      );
-    });
-
     it('should return false for non-error messages', () => {
       const result = handlers.handleErrorMessage({ type: 'something-else' });
       expect(result).toBe(false);

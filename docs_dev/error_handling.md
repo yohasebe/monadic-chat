@@ -9,7 +9,7 @@ This note summarizes the runtime safeguards that keep long-running agent session
 - History is capped at the last 10 entries; specs can inject synthetic errors to validate the stop condition.
 
 ## FunctionCallErrorHandler
-- Mixin consumed by vendor helpers (OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Perplexity, Ollama) to connect tool responses to the detector.
+- Mixin consumed by vendor helpers (OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama) to connect tool responses to the detector.
 - `function_return_is_error?` detects errors in three formats:
   - **String prefixes**: `"ERROR:"`, `"Error:"`, `"Error executing code"`, `"Error occurred"`, `"❌"`
   - **Hash**: `{ success: false }` or `{ "success" => false }`

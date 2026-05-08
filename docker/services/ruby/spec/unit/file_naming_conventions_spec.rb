@@ -64,7 +64,7 @@ RSpec.describe "File Naming Conventions" do
         basename = File.basename(file, ".mdsl")
         
         # Check for valid provider suffixes (case-insensitive at end of name)
-        valid_suffixes = %w[openai claude gemini mistral cohere perplexity grok deepseek ollama]
+        valid_suffixes = %w[openai claude gemini mistral cohere grok deepseek ollama]
         has_valid_suffix = valid_suffixes.any? { |suffix| basename.downcase.end_with?(suffix) }
         
         # Some apps may not follow this pattern (e.g., wikipedia.mdsl, mermaid_grapher.mdsl)
@@ -87,7 +87,6 @@ RSpec.describe "File Naming Conventions" do
         "google" => { suffix: "Gemini", group: "Google" },
         "mistral" => { suffix: "Mistral", group: "Mistral" },
         "cohere" => { suffix: "Cohere", group: "Cohere" },
-        "perplexity" => { suffix: "Perplexity", group: "Perplexity" },
         "xai" => { suffix: "Grok", group: "xAI" },
         "deepseek" => { suffix: "DeepSeek", group: "DeepSeek" },
         "ollama" => { suffix: "Ollama", group: "Ollama" }
@@ -137,7 +136,7 @@ RSpec.describe "File Naming Conventions" do
         display_name = display_match[1]
         
         # Check that display_name doesn't contain provider names
-        provider_names = %w[OpenAI Anthropic Claude Google Gemini Mistral Cohere Perplexity xAI Grok DeepSeek Ollama]
+        provider_names = %w[OpenAI Anthropic Claude Google Gemini Mistral Cohere xAI Grok DeepSeek Ollama]
         
         provider_names.each do |provider|
           expect(display_name).not_to include("(#{provider})"),

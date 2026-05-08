@@ -15,7 +15,6 @@ Each provider in `PROVIDER_CONFIG` has a `websearch_strategy` that determines ho
 | `:responses_api` | OpenAI, Grok | Responses API (`/v1/responses`) with `web_search` tool |
 | `:grounding` | Gemini | `google_search` grounding tool in GenerateContent |
 | `:native_tool` | Claude | `web_search_20250305` server-side tool in Messages API |
-| `:native` | Perplexity | Built-in search (no changes needed) |
 | `:tavily` | Mistral, Cohere, DeepSeek | Tavily API prefetch + prompt injection |
 
 ### Activation Flow

@@ -120,7 +120,6 @@ RSpec.describe 'Tool Method Invocation Validation' do
         'MistralHelper' => [:send_query, :api_request],
         'CohereHelper' => [:send_query, :api_request],
         'DeepSeekHelper' => [:send_query, :api_request],
-        'PerplexityHelper' => [:send_query, :api_request],
       }
 
       errors = []

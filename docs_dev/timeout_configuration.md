@@ -16,7 +16,6 @@ All providers are configured with the following default timeouts:
 | Cohere | 10 seconds | 600 seconds (10 min) | 120 seconds |
 | DeepSeek | 10 seconds | 600 seconds (10 min) | 120 seconds |
 | Mistral | 5 seconds | 600 seconds (10 min) | 120 seconds |
-| Perplexity | 5 seconds | 600 seconds (10 min) | 120 seconds |
 | Grok (XAI) | 20 seconds | 600 seconds (10 min) | 120 seconds |
 
 ## Environment Variables
@@ -62,13 +61,6 @@ DEEPSEEK_WRITE_TIMEOUT=120
 MISTRAL_OPEN_TIMEOUT=5
 MISTRAL_READ_TIMEOUT=600
 MISTRAL_WRITE_TIMEOUT=120
-```
-
-### Perplexity
-```bash
-PERPLEXITY_OPEN_TIMEOUT=5
-PERPLEXITY_READ_TIMEOUT=600
-PERPLEXITY_WRITE_TIMEOUT=120
 ```
 
 ### Grok (XAI)
@@ -163,9 +155,6 @@ OPENAI_READ_TIMEOUT=900
 
 # Reduce timeout for Gemini (if experiencing hanging)
 GEMINI_READ_TIMEOUT=300
-
-# Increase timeout for Perplexity web search
-PERPLEXITY_READ_TIMEOUT=900
 ```
 
 ## Implementation Details

@@ -19,7 +19,6 @@ Several AI providers now offer models that expose their internal reasoning or th
 | **Grok** | All models | Field-based (`reasoning_content`) | Reasoning |
 | **Mistral** | All models | Field-based (`reasoning_content`) | Reasoning |
 | **Cohere** | All models | JSON format (`content["thinking"]`) | Thinking |
-| **Perplexity** | sonar-reasoning-pro | Dual format (JSON + tags) | Thinking |
 
 ## Implementation Patterns
 
@@ -121,53 +120,6 @@ if thinking_content && !thinking_content.empty?
 end
 ```
 
-### Dual Format Pattern (Perplexity)
-
-Perplexity supports both JSON format and XML-style tags:
-
-```ruby
-# Track state for tag-based format
-inside_think_tag = false
-
-# JSON format detection
-if content && content.is_a?(Hash)
-  if thinking_text = content["thinking"]
-    # Handle like Cohere
-  end
-elsif content
-  # Tag format: <think>...</think>
-  fragment = content.to_s
-
-  # Track tag boundaries
-  if !inside_think_tag && fragment.include?('<think>')
-    inside_think_tag = true
-  end
-
-  if inside_think_tag && fragment.include?('</think>')
-    inside_think_tag = false
-  end
-
-  # Suppress fragments while inside thinking tags
-  if inside_think_tag || fragment.include?('<think>') || fragment.include?('</think>')
-    fragment = ""
-  end
-
-  # Extract complete thinking blocks
-  fragment.scan(/<think>(.*?)<\/think>/m) do |match|
-    thinking_text = match[0].strip
-    unless thinking_text.empty?
-      thinking << thinking_text
-
-      res = {
-        "type" => "thinking",
-        "content" => thinking_text
-      }
-      block&.call res
-    end
-  end
-end
-```
-
 ## Frontend Display
 
 ### Streaming Display (Temporary Card)
@@ -221,7 +173,7 @@ let thinkingHtml = `
 Providers that send complete sentences or paragraphs use `join("\n\n")` to preserve readability:
 
 ```ruby
-reasoning_content.join("\n\n")  # OpenAI, DeepSeek, Grok, Mistral, Gemini, Perplexity
+reasoning_content.join("\n\n")  # OpenAI, DeepSeek, Grok, Mistral, Gemini
 ```
 
 ### Word-Level Fragments (Cohere)
@@ -231,19 +183,6 @@ Cohere sends individual words/tokens, requiring direct concatenation:
 ```ruby
 thinking_content.join("")  # Cohere
 ```
-
-### Fragment Suppression (Perplexity Tag Format)
-
-When using tag format, fragments inside `<think>` tags must be suppressed to prevent duplicate display:
-
-```ruby
-# Suppress all fragments while inside thinking tags
-if inside_think_tag || fragment.include?('<think>') || fragment.include?('</think>')
-  fragment = ""
-end
-```
-
-This prevents thinking content from appearing in the normal temp card during streaming.
 
 ## User Display Control (Show Thinking Toggle)
 
@@ -338,7 +277,6 @@ Test files verify the extraction, aggregation, and display logic for each provid
 - `spec/unit/grok_reasoning_spec.rb` (12 examples)
 - `spec/unit/mistral_reasoning_spec.rb` (12 examples)
 - `spec/unit/cohere_thinking_spec.rb` (12 examples)
-- `spec/unit/perplexity_thinking_spec.rb` (15 examples)
 
 Run tests with:
 

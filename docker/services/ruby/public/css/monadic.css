@@ -6045,7 +6045,18 @@ i.fas.fa-bolt,
    state pushes from the backend. CSS is the SSOT for visibility — JS code
    only owns disabled state and tooltips. */
 body:not(.app-cap-pf)        #privacy-toggle-form    { display: none !important; }
-body:not(.app-cap-kb-save)   #library-save           { display: none !important; }
 body:not(.app-cap-kb-search) #library-rag-toggle-row { display: none !important; }
-body:not(.app-cap-kb-save):not(.app-cap-kb-search) #library-panel { display: none !important; }
-body.app-privacy-on          #library-save           { display: none !important; }
+/* The Save button itself stays in the DOM at all times — JS toggles its
+   `disabled` attribute and tooltip based on three reasons (app does not
+   support save / Privacy Filter is active in this session / no messages
+   yet). This mirrors the Privacy Filter session toggle, which is also
+   "visible but disabled" on apps that don't support it, and avoids the
+   confusion of buttons that appear and disappear depending on state. */
+/* Hide the entire library panel only when the app has *no* relationship
+   to the Knowledge Base subsystem at all — i.e. it does not support
+   saving, does not support searching, and does not have a Privacy Filter
+   declaration that would otherwise make the panel meaningful as a
+   visible-but-disabled surface. PF-active apps keep the panel visible
+   so the disabled Save button continues to communicate "this app is on
+   the privacy-protected side; KB save is intentionally off-limits". */
+body:not(.app-cap-kb-save):not(.app-cap-kb-search):not(.app-cap-pf) #library-panel { display: none !important; }

@@ -1555,29 +1555,55 @@
     } catch (_) { return true; }
   }
 
-  // Sync the Save button's enabled state with hasSessionMessages(). Driven
-  // both by initial page load and by SessionState events so the button
-  // unlocks the moment the first message arrives without polling.
+  // The Save button is always present in the DOM (per CSS — see monadic.css
+  // "App-capability declarative visibility gate"). This function owns its
+  // `disabled` attribute and tooltip, picking the most informative reason
+  // when more than one disable condition is in effect:
   //
-  // Visibility (display:none) is now driven declaratively by body class +
-  // CSS in monadic.css ("App-capability declarative visibility gate"). When
-  // the button would be hidden by either the per-app `library_save` flag
-  // or session-scoped Privacy ON, the disabled/title bookkeeping below is
-  // wasted work — early-return so we don't fight the CSS.
+  //   1. The current app does not support saving to the Knowledge Base
+  //      (e.g. apps that declare `privacy do; enabled true; end` or
+  //      `library_save false` in MDSL). Reported first because telling the
+  //      user "no messages yet" is misleading when saving will never
+  //      be allowed regardless of how many messages they have.
+  //   2. Privacy Filter is currently ON in this session. Mutually
+  //      exclusive with KB save by design — we refuse to ingest content
+  //      that the user is actively asking us to mask before the LLM sees
+  //      it. (Defense-in-depth on the backend side too.)
+  //   3. There are simply no user/assistant messages to save yet.
+  //
+  // Driven by initial page load, SessionState events (message added /
+  // cleared / app changed), and live `privacy:state-changed` pushes from
+  // the backend so the button reflects backend-authoritative privacy
+  // state without polling.
   function updateSaveButtonAvailability() {
     if (typeof document === 'undefined') return;
     var btn = document.getElementById('library-save');
     if (!btn) return;
 
-    if (!isCurrentAppKbSaveEligible() || privacyOn()) return;
-
+    var appEligible = isCurrentAppKbSaveEligible();
+    var privacyActive = privacyOn();
     var saveable = hasSessionMessages();
-    btn.disabled = !saveable;
-    if (!saveable) {
-      btn.setAttribute('title', t('ui.libNoMessages', 'There are no messages to save yet.'));
-    } else {
-      btn.removeAttribute('title');
+
+    var disabled = false;
+    var titleKey = 'ui.libSaveCurrent';
+    var titleFallback = 'Save current conversation to Knowledge Base';
+
+    if (!appEligible) {
+      disabled = true;
+      titleKey = 'ui.libSaveAppUnsupported';
+      titleFallback = 'This app does not support saving to the Knowledge Base.';
+    } else if (privacyActive) {
+      disabled = true;
+      titleKey = 'ui.libSavePrivacyActive';
+      titleFallback = 'Saving is disabled while the Privacy Filter is active in this session.';
+    } else if (!saveable) {
+      disabled = true;
+      titleKey = 'ui.libNoMessages';
+      titleFallback = 'There are no messages to save yet.';
     }
+
+    btn.disabled = disabled;
+    btn.setAttribute('title', t(titleKey, titleFallback));
   }
 
   // Drive the body capability classes from the SessionState `app:changed`

@@ -1188,19 +1188,39 @@ describe('library-panel module', () => {
       }
     });
 
-    it('updateSaveButtonAvailability early-returns when the app is ineligible (no mutation of disabled or title)', () => {
-      // Phase 4: when the app's library_save flag is false (or Privacy is
-      // ON), the Save button is hidden by CSS via the body class. Re-running
-      // the JS bookkeeping (disabled / title) on a hidden button is wasted
-      // work — the function early-returns. This test pins the no-mutation
-      // contract by seeding sentinel values and asserting they survive.
-      document.body.innerHTML = '<button id="library-save" disabled title="sentinel"></button>';
+    it('updateSaveButtonAvailability disables and explains when the app is ineligible', () => {
+      // Save button is always present in the DOM (no display:none gate).
+      // When the app does not support library_save (e.g. Chat Plus, which
+      // declares `privacy do; enabled true; end`), the button stays
+      // visible but disabled with a tooltip explaining why. This mirrors
+      // the Privacy Filter session toggle's "visible but disabled"
+      // pattern on apps that don't support PF.
+      document.body.innerHTML = '<button id="library-save"></button>';
       const btn = document.getElementById('library-save');
-      btn.disabled = false; // explicit non-default starting state
       setApp('ChatPlusOpenAI', { library_save: false });
       lib.updateSaveButtonAvailability();
-      expect(btn.disabled).toBe(false);
-      expect(btn.getAttribute('title')).toBe('sentinel');
+      expect(btn.disabled).toBe(true);
+      // Tooltip should reference the "app does not support saving" reason,
+      // not the no-messages or privacy-active reasons.
+      expect(btn.getAttribute('title')).toMatch(/does not support|サポート/i);
+    });
+
+    it('updateSaveButtonAvailability disables with privacy-active tooltip when Privacy Filter is ON', () => {
+      document.body.innerHTML = '<button id="library-save"></button>';
+      const btn = document.getElementById('library-save');
+      // Eligible app (library_save: true) so the privacy-active branch is reachable.
+      setApp('ChatOpenAI', { library_save: true });
+      // Force privacyOn() to return true via the window.privacyEnabled
+      // fallback that the module reads when WsPrivacyHandler isn't loaded.
+      const prev = window.privacyEnabled;
+      window.privacyEnabled = true;
+      try {
+        lib.updateSaveButtonAvailability();
+        expect(btn.disabled).toBe(true);
+        expect(btn.getAttribute('title')).toMatch(/Privacy/i);
+      } finally {
+        window.privacyEnabled = prev;
+      }
     });
 
     it('absent flag defaults to eligible (legacy / user-defined custom apps)', () => {

@@ -68,7 +68,7 @@ module MDSLSchema
     provider: {
       type: :string,
       description: "LLM provider name",
-      enum: %w[openai anthropic gemini mistral cohere perplexity grok deepseek ollama]
+      enum: %w[openai anthropic gemini mistral cohere grok deepseek ollama]
     },
     model: {
       type: :string,

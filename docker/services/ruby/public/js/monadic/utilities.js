@@ -401,8 +401,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
         provider = "Cohere";
       } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
         provider = "Mistral";
-      } else if (group.includes("perplexity")) {
-        provider = "Perplexity";
       } else if (group.includes("deepseek")) {
         provider = "DeepSeek";
       } else if (group.includes("grok") || group.includes("xai")) {
@@ -458,8 +456,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
           providerGroup = "Cohere";
         } else if (/^(mistral-|pixtral-|magistral-|ministral-)/.test(modelToSet)) {
           providerGroup = "Mistral";
-        } else if (/^(sonar|llama-)/.test(modelToSet)) {
-          providerGroup = "Perplexity";
         } else if (/^deepseek-/.test(modelToSet)) {
           providerGroup = "DeepSeek";
         } else if (/^grok-/.test(modelToSet)) {
@@ -476,7 +472,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
           
           // Try to find a matching app for this provider
           // Extract the base app type from the original app_name (e.g., "MailComposer" from "MailComposerGemini")
-          let baseAppType = app_name.replace(/(?:OpenAI|Claude|Anthropic|Gemini|Google|Cohere|Mistral|Perplexity|DeepSeek|Grok|xAI|Ollama)$/i, '');
+          let baseAppType = app_name.replace(/(?:OpenAI|Claude|Anthropic|Gemini|Google|Cohere|Mistral|DeepSeek|Grok|xAI|Ollama)$/i, '');
           
           // Find an app that matches this provider and base type
           for (const [key, value] of Object.entries(apps)) {
@@ -1062,12 +1058,10 @@ function setParams() {
       const looksClaude = m.includes('claude');
       const looksGrok = m.includes('grok');
       const looksDeepseek = m.includes('deepseek');
-      const looksPerplexity = m.includes('pplx') || m.includes('perplexity') || m.includes('sonar');
       if (looksGemini) provider = 'Google';
       else if (looksClaude) provider = 'Anthropic';
       else if (looksGrok) provider = 'xAI';
       else if (looksDeepseek) provider = 'DeepSeek';
-      else if (looksPerplexity) provider = 'Perplexity';
       // Otherwise keep provider as-is (OpenAI or app group-derived)
     } catch (_) { console.warn("[ReasoningProvider] Provider detection failed:", _); }
     
@@ -1385,8 +1379,6 @@ function doResetActions(resetToDefaultApp = false) {
       provider = "Cohere";
     } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
       provider = "Mistral";
-    } else if (group.includes("perplexity")) {
-      provider = "Perplexity";
     } else if (group.includes("deepseek")) {
       provider = "DeepSeek";
     } else if (group.includes("grok") || group.includes("xai")) {

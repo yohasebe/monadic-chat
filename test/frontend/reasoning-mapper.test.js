@@ -74,10 +74,6 @@ describe('ReasoningMapper', () => {
       expect(ReasoningMapper.isSupported('DeepSeek', 'deepseek-reasoner')).toBe(true);
     });
 
-    test('Perplexity is supported', () => {
-      expect(ReasoningMapper.isSupported('Perplexity', 'sonar-reasoning')).toBe(true);
-    });
-
     test('Unsupported provider returns false', () => {
       expect(ReasoningMapper.isSupported('Unsupported', 'model')).toBe(false);
     });
@@ -166,9 +162,5 @@ describe('ReasoningMapper', () => {
       expect(result).toBe('medium');
     });
 
-    test('Perplexity returns spec default', () => {
-      const result = ReasoningMapper.getDefaultValue('Perplexity', 'sonar-reasoning');
-      expect(result).toBe('medium');
-    });
   });
 });

@@ -25,8 +25,6 @@ module Monadic
             validate_grok_reasoning(app_config, model_spec, errors, warnings)
           when 'DeepSeek'
             validate_deepseek_reasoning(app_config, model_spec, errors, warnings)
-          when 'Perplexity'
-            validate_perplexity_reasoning(app_config, model_spec, errors, warnings)
           when 'Mistral', 'Cohere'
             validate_no_reasoning(app_config, provider, errors, warnings)
           end
@@ -102,21 +100,6 @@ module Monadic
           end
           if config[:reasoning_content]
             warnings << "reasoning_content is automatically managed for DeepSeek models"
-          end
-        end
-        
-        def validate_perplexity_reasoning(config, spec, errors, warnings)
-          if config[:reasoning_effort]
-            # Use string key since spec is loaded from JSON
-            spec_reasoning = spec["reasoning_effort"] || spec[:reasoning_effort]
-            if spec_reasoning
-              valid_values = spec_reasoning.first if spec_reasoning.is_a?(Array)
-              unless valid_values&.include?(config[:reasoning_effort])
-                errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for Perplexity model. Valid values: #{valid_values&.join(', ')}"
-              end
-            else
-              warnings << "Model doesn't support reasoning_effort parameter, it will be ignored"
-            end
           end
         end
         

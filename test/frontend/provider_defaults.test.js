@@ -34,7 +34,7 @@ describe('providerDefaults', () => {
   describe('provider coverage', () => {
     const expectedProviders = [
       'openai', 'anthropic', 'gemini', 'cohere',
-      'mistral', 'xai', 'perplexity', 'deepseek', 'ollama'
+      'mistral', 'xai', 'deepseek', 'ollama'
     ];
 
     expectedProviders.forEach(provider => {

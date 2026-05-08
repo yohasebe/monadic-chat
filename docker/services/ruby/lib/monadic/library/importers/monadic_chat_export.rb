@@ -91,7 +91,6 @@ module Monadic
           when /Mistral\z/i then 'mistral'
           when /Cohere\z/   then 'cohere'
           when /DeepSeek\z/i then 'deepseek'
-          when /Perplexity\z/ then 'perplexity'
           when /Ollama\z/   then 'ollama'
           end
         end

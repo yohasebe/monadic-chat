@@ -366,7 +366,6 @@ The following helper modules are available for use in your apps:
 - `MistralHelper` - Mistral AI API integration
 - `GeminiHelper` - Google Gemini API integration
 - `DeepSeekHelper` - DeepSeek API integration
-- `PerplexityHelper` - Perplexity API integration
 - `GrokHelper` - xAI Grok API integration
 - `OllamaHelper` - Ollama local model integration
 

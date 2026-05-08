@@ -13,7 +13,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
 
     it 'contains all expected providers' do
       result = described_class.load_provider_defaults
-      %w[openai anthropic gemini cohere mistral xai perplexity deepseek ollama].each do |provider|
+      %w[openai anthropic gemini cohere mistral xai deepseek ollama].each do |provider|
         expect(result).to have_key(provider), "Expected providerDefaults to include #{provider}"
       end
     end

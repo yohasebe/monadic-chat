@@ -52,9 +52,6 @@ describe('ReasoningLabels', () => {
       expect(ReasoningLabels.getLabel('DeepSeek', 'deepseek-reasoner')).toBe('Reasoning Mode');
     });
 
-    test('returns appropriate label for Perplexity', () => {
-      expect(ReasoningLabels.getLabel('Perplexity', 'sonar-reasoning')).toBe('Research Depth');
-    });
   });
 
   describe('getDescription', () => {
@@ -84,11 +81,6 @@ describe('ReasoningLabels', () => {
     test('returns custom labels for DeepSeek options', () => {
       expect(ReasoningLabels.getOptionLabel('DeepSeek', 'minimal')).toBe('Off');
       expect(ReasoningLabels.getOptionLabel('DeepSeek', 'medium')).toBe('On');
-    });
-
-    test('returns custom labels for Perplexity options', () => {
-      expect(ReasoningLabels.getOptionLabel('Perplexity', 'minimal')).toBe('Quick Search');
-      expect(ReasoningLabels.getOptionLabel('Perplexity', 'high')).toBe('Comprehensive Analysis');
     });
 
     test('returns default label for unknown provider', () => {

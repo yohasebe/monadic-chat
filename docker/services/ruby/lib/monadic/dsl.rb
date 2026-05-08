@@ -145,13 +145,6 @@ module MonadicDSL
     library_search: true
   }.freeze
 
-  # Providers without (or with limited) function-calling support that
-  # cannot host the library_search tool. Provider-level exclusion is
-  # orthogonal to per-app capability declarations — even an app that
-  # declares library_search=true ends up without the tool when paired
-  # with a non-tool-calling provider.
-  RAG_EXCLUDED_PROVIDERS = %w[perplexity].freeze
-
   # Apply MDSL-declared capabilities + defaults + privacy-derived
   # overrides + invariant validation. Run AFTER the MDSL block has
   # populated state.features and state.settings, BEFORE library_search
@@ -215,13 +208,9 @@ module MonadicDSL
   end
 
   # True when the app should auto-import library_search. Reads the
-  # capability flag set by finalize_capabilities! and additionally
-  # excludes providers without tool-calling support.
+  # capability flag set by finalize_capabilities!.
   def self.library_search_eligible?(state)
-    return false unless state.settings[:library_search] == true
-    provider = state.settings[:provider].to_s.downcase
-    return false if RAG_EXCLUDED_PROVIDERS.include?(provider)
-    true
+    state.settings[:library_search] == true
   end
 
   # True when the app should expose the Knowledge Base "Save" button.
@@ -600,7 +589,7 @@ module MonadicDSL
 
     # Automatically include tool module if it exists
     # Remove provider suffix to get base app name
-    app_base_name = state.name.sub(/OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama$/, '')
+    app_base_name = state.name.sub(/OpenAI|Claude|Gemini|Mistral|Cohere|Grok|DeepSeek|Ollama$/, '')
     tool_module_name = "#{app_base_name}Tools"
     include_statements << tool_module_name
 

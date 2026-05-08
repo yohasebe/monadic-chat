@@ -522,7 +522,7 @@ module Monadic
             end
 
             # For UI clarity: if supports_pdf is true but supports_pdf_upload is explicitly false for some providers,
-            # keep as-is (Perplexity). Do not auto-populate supports_pdf_upload to avoid changing behavior.
+            # keep as-is. Do not auto-populate supports_pdf_upload to avoid changing behavior.
           end
 
           spec

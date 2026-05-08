@@ -160,8 +160,6 @@ function getProviderFromGroup(group) {
     return "Cohere";
   } else if (groupLower.includes("mistral")) {
     return "Mistral";
-  } else if (groupLower.includes("perplexity")) {
-    return "Perplexity";
   } else if (groupLower.includes("deepseek")) {
     return "DeepSeek";
   } else if (groupLower.includes("grok") || groupLower.includes("xai")) {
@@ -988,8 +986,6 @@ document.addEventListener("DOMContentLoaded", function () {
           optVal = 'deepseek';
         } else if (group.includes("grok") || group.includes("xai")) {
           optVal = 'grok';
-        } else if (group.includes("perplexity")) {
-          optVal = 'perplexity';
         }
         if (optVal) {
           var opt = providerSelect.querySelector("option[value='" + optVal + "']");
@@ -999,7 +995,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Additionally filter by SSOT has_key if available
       if (aiUserDefaults) {
         const map = {
-          'openai':'openai','anthropic':'anthropic','gemini':'gemini','cohere':'cohere','mistral':'mistral','deepseek':'deepseek','grok':'grok','perplexity':'perplexity'
+          'openai':'openai','anthropic':'anthropic','gemini':'gemini','cohere':'cohere','mistral':'mistral','deepseek':'deepseek','grok':'grok'
         };
         Object.keys(map).forEach(val => {
           const ent = aiUserDefaults[val];
@@ -1167,8 +1163,6 @@ document.addEventListener("DOMContentLoaded", function () {
             provider = "Cohere";
           } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
             provider = "Mistral";
-          } else if (group.includes("perplexity")) {
-            provider = "Perplexity";
           } else if (group.includes("deepseek")) {
             provider = "DeepSeek";
           } else if (group.includes("grok") || group.includes("xai")) {

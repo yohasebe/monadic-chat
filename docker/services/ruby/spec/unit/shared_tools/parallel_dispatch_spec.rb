@@ -17,7 +17,6 @@ unless defined?(CONFIG)
     "DEEPSEEK_API_KEY" => "test-key-deepseek",
     "XAI_API_KEY" => "test-key-xai",
     "MISTRAL_API_KEY" => "test-key-mistral",
-    "PERPLEXITY_API_KEY" => "test-key-perplexity",
     "TAVILY_API_KEY" => "test-key-tavily"
   }
 end
@@ -429,7 +428,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       expect(config.keys).to include(
         "OpenAIHelper", "ClaudeHelper", "GeminiHelper",
         "CohereHelper", "DeepSeekHelper", "GrokHelper",
-        "MistralHelper", "PerplexityHelper"
+        "MistralHelper"
       )
     end
   end
@@ -450,10 +449,6 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         expect(config[name][:websearch_strategy]).to eq(:responses_api)
         expect(config[name][:responses_endpoint]).to be_a(String)
       end
-    end
-
-    it "maps Perplexity to :native" do
-      expect(config["PerplexityHelper"][:websearch_strategy]).to eq(:native)
     end
 
     it "maps Gemini to :grounding" do
@@ -685,7 +680,6 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
     let(:grok_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["GrokHelper"] }
     let(:gemini_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["GeminiHelper"] }
     let(:claude_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["ClaudeHelper"] }
-    let(:perplexity_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["PerplexityHelper"] }
     let(:mistral_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["MistralHelper"] }
     let(:deepseek_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["DeepSeekHelper"] }
     let(:cohere_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["CohereHelper"] }
@@ -708,11 +702,6 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
     it "routes Claude to anthropic_websearch_sub_call when websearch: true" do
       expect(app).to receive(:anthropic_websearch_sub_call).and_return("result")
       app.sub_agent_api_call("claude-sonnet-4-6", "test", claude_cfg, 120, websearch: true)
-    end
-
-    it "routes Perplexity to openai_compat_sub_call (native search) when websearch: true" do
-      expect(app).to receive(:openai_compat_sub_call).and_return("result")
-      app.sub_agent_api_call("sonar-pro", "test", perplexity_cfg, 120, websearch: true)
     end
 
     it "routes Mistral to tavily_prefetch + openai_compat when websearch: true" do

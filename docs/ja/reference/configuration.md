@@ -50,7 +50,6 @@ OpenAIのデフォルトモデルの場合：
 | `MISTRAL_API_KEY` | Mistral AI APIキー | はい（Mistralアプリ使用時） | `...` |
 | `COHERE_API_KEY` | Cohere APIキー | はい（Cohereアプリ使用時） | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek APIキー | はい（DeepSeekアプリ使用時） | `...` |
-| `PERPLEXITY_API_KEY` | Perplexity APIキー | はい（Perplexityアプリ使用時） | `pplx-...` |
 | `XAI_API_KEY` | Grokモデル用のxAI APIキー | はい（Grokアプリ使用時） | `xai-...` |
 | `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー（Mistral、Cohere、DeepSeek、Ollamaのウェブ検索に必要） | いいえ | `tvly-...` |
 
@@ -66,7 +65,6 @@ OpenAIのデフォルトモデルの場合：
 | `MISTRAL_DEFAULT_MODEL` | Mistralアプリのデフォルトモデル | `MISTRAL_DEFAULT_MODEL=<model-id>` |
 | `COHERE_DEFAULT_MODEL` | Cohereアプリのデフォルトモデル | `COHERE_DEFAULT_MODEL=<model-id>` |
 | `DEEPSEEK_DEFAULT_MODEL` | DeepSeekアプリのデフォルトモデル | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
-| `PERPLEXITY_DEFAULT_MODEL` | Perplexityアプリのデフォルトモデル | `PERPLEXITY_DEFAULT_MODEL=<model-id>` |
 | `GROK_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `GROK_DEFAULT_MODEL=<model-id>` |
 
 ### UIでのモデル選択

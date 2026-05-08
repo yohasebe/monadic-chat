@@ -65,7 +65,6 @@ PF_ONLY_MDSLS = %w[
   mail_composer/mail_composer_mistral.mdsl
   mail_composer/mail_composer_ollama.mdsl
   mail_composer/mail_composer_openai.mdsl
-  mail_composer/mail_composer_perplexity.mdsl
   second_opinion/second_opinion_claude.mdsl
   second_opinion/second_opinion_cohere.mdsl
   second_opinion/second_opinion_deepseek.mdsl
@@ -86,7 +85,6 @@ KB_SEARCH_MDSLS = %w[
   chat/chat_mistral.mdsl
   chat/chat_ollama.mdsl
   chat/chat_openai.mdsl
-  chat/chat_perplexity.mdsl
   coding_assistant/coding_assistant_claude.mdsl
   coding_assistant/coding_assistant_cohere.mdsl
   coding_assistant/coding_assistant_deepseek.mdsl
@@ -95,7 +93,6 @@ KB_SEARCH_MDSLS = %w[
   coding_assistant/coding_assistant_mistral.mdsl
   coding_assistant/coding_assistant_ollama.mdsl
   coding_assistant/coding_assistant_openai.mdsl
-  coding_assistant/coding_assistant_perplexity.mdsl
   language_practice/language_practice_claude.mdsl
   language_practice/language_practice_cohere.mdsl
   language_practice/language_practice_deepseek.mdsl
@@ -104,7 +101,6 @@ KB_SEARCH_MDSLS = %w[
   language_practice/language_practice_mistral.mdsl
   language_practice/language_practice_ollama.mdsl
   language_practice/language_practice_openai.mdsl
-  language_practice/language_practice_perplexity.mdsl
   language_practice_plus/language_practice_plus_claude.mdsl
   language_practice_plus/language_practice_plus_openai.mdsl
   math_tutor/math_tutor_claude.mdsl
@@ -132,7 +128,6 @@ KB_SEARCH_MDSLS = %w[
   voice_chat/voice_chat_mistral.mdsl
   voice_chat/voice_chat_ollama.mdsl
   voice_chat/voice_chat_openai.mdsl
-  voice_chat/voice_chat_perplexity.mdsl
   wikipedia/wikipedia.mdsl
 ].freeze
 
@@ -303,8 +298,8 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     # situation we want to surface in code review. Update these when
     # consciously moving an app between groups.
     {
-      'PF only'      => [PF_ONLY_MDSLS, 25],
-      'KB search'    => [KB_SEARCH_MDSLS, 56],
+      'PF only'      => [PF_ONLY_MDSLS, 24],
+      'KB search'    => [KB_SEARCH_MDSLS, 52],
       'KB save only' => [KB_SAVE_ONLY_MDSLS, 27],
       'Neither'      => [NEITHER_MDSLS, 26]
     }.each do |label, (list, expected_size)|
@@ -315,7 +310,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
       end
     end
 
-    it 'allocation totals 134 (matches all *.mdsl on disk)' do
+    it 'allocation totals 129 (matches all *.mdsl on disk)' do
       expect(ALL_EXPECTED_MDSLS.size).to eq(ALL_MDSL_FILES.size)
     end
   end

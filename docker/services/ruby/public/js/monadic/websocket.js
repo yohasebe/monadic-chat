@@ -565,7 +565,7 @@ window.loadedApp = "Chat";
     // This will be cleared for normal responses but will run if something goes wrong
     // Use longer timeout for providers known to have slower initial responses
     const currentProvider = window.currentLLMProvider || '';
-    const isSlowProvider = ['deepseek', 'perplexity'].includes(currentProvider.toLowerCase());
+    const isSlowProvider = ['deepseek'].includes(currentProvider.toLowerCase());
     const timeoutDuration = isSlowProvider ? RESPONSE_TIMEOUT_SLOW_MS : RESPONSE_TIMEOUT_MS;
 
     const messageTimeout = setTimeout(function() {

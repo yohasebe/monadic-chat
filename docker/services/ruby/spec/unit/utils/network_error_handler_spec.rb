@@ -267,30 +267,20 @@ RSpec.describe NetworkErrorHandler do
       })
     end
     
-    it 'returns perplexity-specific timeouts' do
-      config = handler.timeout_config_for('perplexity')
-      
-      expect(config).to eq({
-        open: 5,
-        read: 600,
-        write: 600
-      })
-    end
-    
     it 'handles symbol provider names' do
       config = handler.timeout_config_for(:claude)
-      
+
       expect(config[:read]).to eq(300)
     end
-    
+
     it 'merges provider overrides with defaults' do
-      config = handler.timeout_config_for(:perplexity)
-      
-      # Open timeout is overridden
-      expect(config[:open]).to eq(5)
-      # Read/write are overridden
-      expect(config[:read]).to eq(600)
-      expect(config[:write]).to eq(600)
+      config = handler.timeout_config_for(:deepseek)
+
+      # Open timeout overridden by DeepSeek-specific entry (15s)
+      expect(config[:open]).to eq(15)
+      # Read/write overridden as well
+      expect(config[:read]).to eq(180)
+      expect(config[:write]).to eq(180)
     end
   end
   

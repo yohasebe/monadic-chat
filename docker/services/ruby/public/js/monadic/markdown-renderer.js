@@ -202,7 +202,6 @@
         'chat_plus_mistral',
         'chat_plus_deepseek',
         'chat_plus_cohere',
-        'chat_plus_perplexity',
         'chat_plus_ollama',
         'language_practice_plus_claude'
       ];

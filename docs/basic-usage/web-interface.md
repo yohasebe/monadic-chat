@@ -52,7 +52,7 @@ Select one of the basic apps. Each app has different default parameters and init
 Select the AI model to use. Available models depend on the selected app. Deprecated models are automatically excluded from the list.
 
 **Reasoning/Thinking Control** <br />
-Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode, Perplexity: Research Depth).
+Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
 
 **Max Output Tokens** <br />
 Limit the maximum number of tokens in the API response.
@@ -186,7 +186,6 @@ Select which AI provider generates the simulated user responses. This can be dif
 - Gemini (Google)
 - Mistral
 - Cohere
-- Perplexity
 - Grok (xAI)
 - DeepSeek
 

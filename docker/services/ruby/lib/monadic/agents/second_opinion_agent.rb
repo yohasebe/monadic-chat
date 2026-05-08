@@ -13,8 +13,7 @@ module SecondOpinionAgent
     "cohere" => "COHERE_API_KEY",
     "mistral" => "MISTRAL_API_KEY",
     "grok" => "XAI_API_KEY",
-    "deepseek" => "DEEPSEEK_API_KEY",
-    "perplexity" => "PERPLEXITY_API_KEY"
+    "deepseek" => "DEEPSEEK_API_KEY"
   }.freeze
 
   def parallel_second_opinions(user_query: "", agent_response: "", providers: [], session: {})
@@ -412,8 +411,6 @@ module SecondOpinionAgent
               Class.new { include OllamaHelper }
             when "cohere"
               Class.new { include CohereHelper }
-            when "perplexity"
-              Class.new { include PerplexityHelper }
             when "grok"
               Class.new { include GrokHelper }
             when "deepseek"
@@ -451,8 +448,6 @@ module SecondOpinionAgent
       SystemDefaults.get_default_model('mistral')
     when "cohere"
       SystemDefaults.get_default_model('cohere')
-    when "perplexity"
-      SystemDefaults.get_default_model('perplexity')
     when "grok", "xai"
       SystemDefaults.get_default_model('xai')
     when "deepseek"

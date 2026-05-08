@@ -44,14 +44,6 @@ module MonadicDSL
         display_group: 'DeepSeek',
         aliases: ['deep seek']
       },
-      # Perplexity
-      "perplexity" => {
-        helper_module: 'PerplexityHelper',
-        api_key: 'PERPLEXITY_API_KEY',
-        default_model_env: 'PERPLEXITY_DEFAULT_MODEL',
-        display_group: 'Perplexity',
-        aliases: []
-      },
       # XAI/Grok
       "xai" => {
         helper_module: 'GrokHelper',

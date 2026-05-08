@@ -9,7 +9,6 @@ require_relative "../../lib/monadic/adapters/vendors/cohere_helper"
 require_relative "../../lib/monadic/adapters/vendors/mistral_helper"
 require_relative "../../lib/monadic/adapters/vendors/grok_helper"
 require_relative "../../lib/monadic/adapters/vendors/deepseek_helper"
-require_relative "../../lib/monadic/adapters/vendors/perplexity_helper"
 
 # Define PROJECT_ROOT if not already defined
 PROJECT_ROOT ||= File.expand_path("../..", __dir__)
@@ -98,12 +97,10 @@ RSpec.describe "Model Specification Validation" do
         "Cohere" => { helper: CohereHelper, key: "COHERE_API_KEY", pattern: /^(command|embed|rerank|c4ai)/ },
         "Mistral" => { helper: MistralHelper, key: "MISTRAL_API_KEY", pattern: /^(mistral|open-|codestral|pixtral|ministral|magistral|devstral|voxtral)/ },
         "Grok (xAI)" => { helper: GrokHelper, key: "XAI_API_KEY", pattern: /^grok/ },
-        "DeepSeek" => { helper: DeepSeekHelper, key: "DEEPSEEK_API_KEY", pattern: /^deepseek/ },
-        "Perplexity" => { helper: PerplexityHelper, key: nil, pattern: /^(sonar|r1)/ }  # No API key needed for hardcoded list
+        "DeepSeek" => { helper: DeepSeekHelper, key: "DEEPSEEK_API_KEY", pattern: /^deepseek/ }
       }
-      
+
       providers.each do |provider_name, config|
-        # Perplexity doesn't need an API key (hardcoded list)
         if config[:key].nil? || ENV[config[:key]] || CONFIG[config[:key]]
           begin
             available_models = config[:helper].list_models

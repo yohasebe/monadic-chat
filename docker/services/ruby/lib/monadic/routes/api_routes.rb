@@ -7,7 +7,7 @@
 get "/api/ai_user_defaults" do
   content_type :json
   begin
-    providers = %w[openai anthropic gemini cohere mistral deepseek grok perplexity]
+    providers = %w[openai anthropic gemini cohere mistral deepseek grok]
     result = {}
     providers.each do |p|
       has_key = case p
@@ -18,7 +18,6 @@ get "/api/ai_user_defaults" do
         when 'mistral' then !!(CONFIG['MISTRAL_API_KEY'] && !CONFIG['MISTRAL_API_KEY'].to_s.strip.empty?)
         when 'deepseek' then !!(CONFIG['DEEPSEEK_API_KEY'] && !CONFIG['DEEPSEEK_API_KEY'].to_s.strip.empty?)
         when 'grok' then !!(CONFIG['XAI_API_KEY'] && !CONFIG['XAI_API_KEY'].to_s.strip.empty?)
-        when 'perplexity' then !!(CONFIG['PERPLEXITY_API_KEY'] && !CONFIG['PERPLEXITY_API_KEY'].to_s.strip.empty?)
         else false
       end
       default_model = SystemDefaults.get_default_model(p)

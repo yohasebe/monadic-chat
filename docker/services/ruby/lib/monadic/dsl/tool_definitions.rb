@@ -96,8 +96,6 @@ module MonadicDSL
         validate_mistral_requirements
       when :deepseek
         validate_deepseek_requirements
-      when :perplexity
-        validate_perplexity_requirements
       when :xai
         validate_grok_requirements
       end
@@ -129,17 +127,12 @@ module MonadicDSL
       raise ValidationError, "Invalid tool format for DeepSeek" unless valid_for_deepseek?
     end
 
-    def validate_perplexity_requirements
-      raise ValidationError, "Invalid tool format for Perplexity" unless valid_for_perplexity?
-    end
-
     def validate_grok_requirements
       raise ValidationError, "Invalid tool format for Grok" unless valid_for_grok?
     end
 
     def valid_for_openai? = true
     def valid_for_grok? = true
-    def valid_for_perplexity? = true
     def valid_for_gemini? = true
     def valid_for_anthropic? = true
     def valid_for_cohere? = true
@@ -158,7 +151,6 @@ module MonadicDSL
       gemini: ToolFormatters::GeminiFormatter,
       mistral: ToolFormatters::MistralFormatter,
       deepseek: ToolFormatters::DeepSeekFormatter,
-      perplexity: ToolFormatters::PerplexityFormatter,
       xai: ToolFormatters::GrokFormatter,
       grok: ToolFormatters::GrokFormatter,
       ollama: ToolFormatters::OpenAIFormatter
@@ -242,8 +234,6 @@ module MonadicDSL
         @state.settings[:mistral_specific] = {}
       when :deepseek
         @state.settings[:deepseek_specific] = {}
-      when :perplexity
-        @state.settings[:perplexity_specific] = {}
       when :xai
         @state.settings[:xai_specific] = {}
       end

@@ -15,15 +15,6 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(opts).not_to be_nil
     end
 
-    it "recognizes Perplexity PDF=URL-only via supports_pdf_upload=false" do
-      model = "sonar-pro"
-      expect(Monadic::Utils::ModelSpec.supports_pdf?(model)).to be true
-      expect(Monadic::Utils::ModelSpec.supports_pdf_upload?(model)).to be false
-      expect(Monadic::Utils::ModelSpec.supports_web_search?(model)).to be true
-      # vision capability present for image URL support
-      expect(Monadic::Utils::ModelSpec.vision_capability?(model)).to be true
-    end
-
     it "marks Cohere models as not supporting PDFs" do
       model = "command-a-reasoning-08-2025"
       expect(Monadic::Utils::ModelSpec.supports_pdf?(model)).to be false

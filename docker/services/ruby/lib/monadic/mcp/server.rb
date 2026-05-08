@@ -248,7 +248,7 @@ module Monadic
       def format_tool_for_mcp(app_name, tool, display_name)
         # Convert tool format based on provider
         if tool.is_a?(Hash) && tool['function']
-          # OpenAI/Mistral/Perplexity format
+          # OpenAI/Mistral format
           tool_def = tool['function']
           {
             name: "#{app_name}__#{tool_def['name']}",

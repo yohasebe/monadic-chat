@@ -398,7 +398,6 @@ end
 - `MistralHelper` - Mistral AI API統合
 - `GeminiHelper` - Google Gemini API統合
 - `DeepSeekHelper` - DeepSeek API統合
-- `PerplexityHelper` - Perplexity API統合
 - `GrokHelper` - xAI Grok API統合
 - `OllamaHelper` - Ollamaローカルモデル統合
 

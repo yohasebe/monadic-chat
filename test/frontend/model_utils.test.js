@@ -273,30 +273,8 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
     });
   });
 
-  describe('filterModelsForAllMode - Perplexity exception', () => {
-    it('keeps Perplexity models even with tool_capability: false', () => {
-      window.modelSpec['sonar-test'] = {
-        tool_capability: false,
-        context_window: 8192,
-        max_output_tokens: 4096
-      };
-      const result = modelUtils.filterModelsForAllMode(['sonar-test'], 'perplexity');
-      expect(result).toContain('sonar-test');
-      delete window.modelSpec['sonar-test'];
-    });
-
-    it('still excludes requires_confirmation from Perplexity', () => {
-      window.modelSpec['sonar-expensive'] = {
-        requires_confirmation: true,
-        context_window: 8192,
-        max_output_tokens: 4096
-      };
-      const result = modelUtils.filterModelsForAllMode(['sonar-expensive'], 'perplexity');
-      expect(result).not.toContain('sonar-expensive');
-      delete window.modelSpec['sonar-expensive'];
-    });
-
-    it('excludes tool_capability: false for non-Perplexity providers', () => {
+  describe('filterModelsForAllMode - tool_capability gating', () => {
+    it('excludes tool_capability: false for any provider', () => {
       window.modelSpec['gpt-no-tools'] = {
         tool_capability: false,
         context_window: 8192,
@@ -305,6 +283,17 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
       const result = modelUtils.filterModelsForAllMode(['gpt-no-tools'], 'openai');
       expect(result).not.toContain('gpt-no-tools');
       delete window.modelSpec['gpt-no-tools'];
+    });
+
+    it('excludes requires_confirmation models', () => {
+      window.modelSpec['expensive-model'] = {
+        requires_confirmation: true,
+        context_window: 8192,
+        max_output_tokens: 4096
+      };
+      const result = modelUtils.filterModelsForAllMode(['expensive-model'], 'openai');
+      expect(result).not.toContain('expensive-model');
+      delete window.modelSpec['expensive-model'];
     });
 
     it('keeps unknown models (not in modelSpec)', () => {

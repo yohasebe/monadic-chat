@@ -7,7 +7,7 @@ require "http"
 # using each provider's native Vision API.
 #
 # Supported providers: OpenAI, Claude (Anthropic), Gemini (Google), Grok (xAI)
-# Non-vision providers (Cohere, DeepSeek, Mistral, Perplexity, Ollama) fall back
+# Non-vision providers (Cohere, DeepSeek, Mistral, Ollama) fall back
 # to the first available vision provider (preference: OpenAI).
 
 module ImageAnalysisAgent

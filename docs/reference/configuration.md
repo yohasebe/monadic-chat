@@ -50,7 +50,6 @@ For the OpenAI default model:
 | `MISTRAL_API_KEY` | Mistral AI API key | Yes (for Mistral apps) | `...` |
 | `COHERE_API_KEY` | Cohere API key | Yes (for Cohere apps) | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek API key | Yes (for DeepSeek apps) | `...` |
-| `PERPLEXITY_API_KEY` | Perplexity API key | Yes (for Perplexity apps) | `pplx-...` |
 | `XAI_API_KEY` | xAI API key for Grok models | Yes (for Grok apps) | `xai-...` |
 | `TAVILY_API_KEY` | Tavily API key for web search (required for Mistral, Cohere, DeepSeek, Ollama web search) | No | `tvly-...` |
 
@@ -67,7 +66,6 @@ For the OpenAI default model:
 | `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `MISTRAL_DEFAULT_MODEL=<model-id>` |
 | `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `COHERE_DEFAULT_MODEL=<model-id>` |
 | `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
-| `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `PERPLEXITY_DEFAULT_MODEL=<model-id>` |
 | `GROK_DEFAULT_MODEL` | Default model for Grok apps | `GROK_DEFAULT_MODEL=<model-id>` |
 
 ### Model Selection in the UI

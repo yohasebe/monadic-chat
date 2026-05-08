@@ -153,10 +153,6 @@ class ReasoningUIManager {
       case 'xAI':
         // Standard UI for Grok
         break;
-        
-      case 'Perplexity':
-        // Standard UI for Perplexity
-        break;
 
       default:
         // Use default UI for all other providers

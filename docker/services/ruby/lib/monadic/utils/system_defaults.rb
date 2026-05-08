@@ -21,7 +21,6 @@ module SystemDefaults
       'mistral' => 'MISTRAL_DEFAULT_MODEL',
       'xai' => 'GROK_DEFAULT_MODEL',
       'grok' => 'GROK_DEFAULT_MODEL',
-      'perplexity' => 'PERPLEXITY_DEFAULT_MODEL',
       'deepseek' => 'DEEPSEEK_DEFAULT_MODEL',
       'ollama' => 'OLLAMA_DEFAULT_MODEL'
     }

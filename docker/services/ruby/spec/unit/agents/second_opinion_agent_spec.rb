@@ -50,7 +50,6 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.20-0309-non-reasoning")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-03-2025")
-        expect(agent.send(:determine_provider_and_model, "perplexity", nil)[1]).to eq("sonar")
         expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
       end
     end
@@ -276,7 +275,6 @@ RSpec.describe SecondOpinionAgent do
       expect(agent.send(:get_provider_helper, "gemini")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "mistral")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "cohere")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "perplexity")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "grok")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "deepseek")).to respond_to(:send_query)
     end

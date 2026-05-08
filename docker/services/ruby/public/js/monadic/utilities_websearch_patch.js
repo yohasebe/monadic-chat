@@ -21,8 +21,6 @@ if (typeof getProviderFromGroupLocal === 'undefined') {
       return "Cohere";
     } else if (groupLower.includes("mistral")) {
       return "Mistral";
-    } else if (groupLower.includes("perplexity")) {
-      return "Perplexity";
     } else if (groupLower.includes("deepseek")) {
       return "DeepSeek";
     } else if (groupLower.includes("grok") || groupLower.includes("xai")) {

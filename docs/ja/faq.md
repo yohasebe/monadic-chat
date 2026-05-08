@@ -82,7 +82,7 @@
 **A**: プロバイダーによってウェブ検索は異なります：
 
 **ネイティブ検索**:
-- ネイティブ検索機能を提供するプロバイダー（例：OpenAI Responses API、Anthropicのweb検索、Google Gemini、Perplexity Sonar、xAI Grok Live Searchなど）が自動的に対応します。最新情報は各プロバイダーのドキュメントを参照してください。
+- ネイティブ検索機能を提供するプロバイダー（例：OpenAI Responses API、Anthropicのweb検索、Google Gemini、xAI Grok Live Searchなど）が自動的に対応します。最新情報は各プロバイダーのドキュメントを参照してください。
 
 **Tavily API経由**:
 - Mistral、Cohere、DeepSeek

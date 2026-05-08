@@ -83,7 +83,6 @@ Supported providers:
 - `mistral` (Mistral models)
 - `gemini` (Google Gemini models)
 - `deepseek` (DeepSeek models)
-- `perplexity` (Perplexity models)
 - `xai` (Grok models)
 - `ollama` (Local models via Ollama)
 
@@ -157,7 +156,6 @@ Each provider has a corresponding environment variable:
 | Mistral | `MISTRAL_DEFAULT_MODEL` |
 | Cohere | `COHERE_DEFAULT_MODEL` |
 | DeepSeek | `DEEPSEEK_DEFAULT_MODEL` |
-| Perplexity | `PERPLEXITY_DEFAULT_MODEL` |
 | xAI/Grok | `GROK_DEFAULT_MODEL` |
 | Ollama | `OLLAMA_DEFAULT_MODEL` |
 
@@ -652,7 +650,6 @@ The DSL automatically formats function definitions appropriately for different A
 - Mistral: Formats for Mistral's function calling API
 - Gemini: Structures for Google Gemini models with `function_declarations` wrapper
 - DeepSeek: Converts to DeepSeek's function calling format
-- Perplexity: Adapts to Perplexity's function format
 - Grok (xAI): Maps to Grok's function format with strict validation
 
 This automatic conversion means you can write your tool definitions once in the DSL, and they will work across different providers without manual conversion.

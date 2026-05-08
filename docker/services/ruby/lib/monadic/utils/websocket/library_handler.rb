@@ -209,11 +209,12 @@ module WebSocketHelper
 
   private def handle_ws_library_save(connection, obj, session)
     # Defense in depth: Privacy Filter and Knowledge Base save are
-    # mutually exclusive at the app level (see lib/monadic/dsl.rb#
-    # KB_SAVE_EXCLUDED_APP_BASE_NAMES). The frontend hides the Save
-    # button when Privacy is active, but a stale tab or programmatic
-    # client could still hit this path. Reject the save before any
-    # storage side-effect to keep restored PII off disk.
+    # mutually exclusive at the app level. Apps that declare
+    # `privacy do; enabled true; end` in their MDSL have library_save
+    # forced to false by lib/monadic/dsl.rb#finalize_capabilities!, and
+    # the frontend hides the Save button accordingly. A stale tab or
+    # programmatic client could still hit this path, so reject the save
+    # before any storage side-effect to keep restored PII off disk.
     if session.is_a?(Hash) && session[:_privacy_pipeline]
       Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: Privacy Filter is active in this session" }
       send_to_client(connection, {

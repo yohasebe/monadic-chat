@@ -22,7 +22,7 @@
 
 **A**: はい、Monadic Chatの多くのアプリはウェブ検索機能をサポートしています：
 
-- **ネイティブWeb検索**: OpenAI、Claude、Gemini、Grok、Perplexityは組み込みのウェブ検索機能を使用（対応アプリでデフォルト有効）
+- **ネイティブWeb検索**: OpenAI、Claude、Gemini、Grokは組み込みのウェブ検索機能を使用（対応アプリでデフォルト有効）
 - **Tavily検索**: Mistral、Cohere、DeepSeek、Ollamaは`~/monadic/config/env`に`TAVILY_API_KEY`を設定することでTavily APIを使用
 - **URLコンテンツ抽出**: 全プロバイダーでメッセージ入力エリアの「URLから読込」ボタンを使用し、Seleniumベースのスクレイピングで任意のURLからコンテンツを抽出可能
 

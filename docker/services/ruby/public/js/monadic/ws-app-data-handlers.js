@@ -427,10 +427,10 @@ function handleAppsMessage(data) {
     }
 
     // sort specialApps by group name in the order:
-    // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"
+    // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "DeepSeek", "Ollama", "Extra"
     // and set it to the specialApps object
     specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => {
-      const order = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
+      const order = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "DeepSeek", "Ollama", "Extra"];
       return order.indexOf(a[0]) - order.indexOf(b[0]);
     }));
 
@@ -1007,8 +1007,6 @@ function handleParametersMessage(data) {
         provider = "Cohere";
       } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
         provider = "Mistral";
-      } else if (group.includes("perplexity")) {
-        provider = "Perplexity";
       } else if (group.includes("deepseek")) {
         provider = "DeepSeek";
       } else if (group.includes("grok") || group.includes("xai")) {

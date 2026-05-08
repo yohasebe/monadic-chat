@@ -14,7 +14,6 @@ const PROVIDER_MODEL_BEHAVIOR = {
   google:     { modelPattern: /^(gemini-|gemma-)/ },                 // alias for gemini
   cohere:     { modelPattern: /^command-/ },
   mistral:    { modelPattern: /^(mistral-|pixtral-|magistral-|ministral-)/ },
-  perplexity: { modelPattern: /^(sonar|llama-)/ },
   deepseek:   { modelPattern: /^deepseek-/ },
   xai:        { modelPattern: /^grok-/ },
   grok:       { modelPattern: /^grok-/ },                            // alias for xai
@@ -37,7 +36,6 @@ function getProviderKey(group) {
   if (groupLower.includes('gemini') || groupLower.includes('google')) return 'gemini';
   if (groupLower.includes('cohere')) return 'cohere';
   if (groupLower.includes('mistral')) return 'mistral';
-  if (groupLower.includes('perplexity')) return 'perplexity';
   if (groupLower.includes('deepseek')) return 'deepseek';
   if (groupLower.includes('grok') || groupLower.includes('xai')) return 'xai';
   if (groupLower.includes('ollama')) return 'ollama';
@@ -356,18 +354,16 @@ function filterToLatestVersions(models) {
  *
  * Policy (documented in docs_dev/developer/model_spec_vocabulary.md):
  *  1. requires_confirmation: true  → always excluded (expensive / special models)
- *  2. tool_capability: false       → excluded, EXCEPT for Perplexity whose models
- *     have no tool support at all (excluding them would leave an empty list)
+ *  2. tool_capability: false       → excluded
  *  3. Non-chat modality (TTS / embedding) → excluded from chat dropdowns
  *
  * @param {Array}  models      - Array of model name strings
- * @param {String} providerKey - Normalized provider key (e.g. "openai", "perplexity")
+ * @param {String} providerKey - Normalized provider key (e.g. "openai", "anthropic")
  * @returns {Array} Filtered model names
  */
 function filterModelsForAllMode(models, providerKey) {
   if (!models || models.length === 0) return models;
   const spec = window.modelSpec || {};
-  const skipToolFilter = (providerKey === 'perplexity');
 
   return models.filter(model => {
     const ms = spec[model];
@@ -380,8 +376,8 @@ function filterModelsForAllMode(models, providerKey) {
     if (ms.tts_capability === true) return false;
     if (ms.embedding_dimensions != null) return false;
 
-    // Exclude models without tool capability (Perplexity exempted)
-    if (!skipToolFilter && ms.tool_capability === false) return false;
+    // Exclude models without tool capability
+    if (ms.tool_capability === false) return false;
 
     return true;
   });

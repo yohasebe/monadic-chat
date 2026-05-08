@@ -158,7 +158,7 @@
   // pretty "Base (Provider)" pair. Order is irrelevant since the suffix
   // set is disjoint.
   var SCOPE_PROVIDERS = ['OpenAI', 'Claude', 'Gemini', 'Grok', 'Cohere',
-                          'Mistral', 'DeepSeek', 'Perplexity', 'Ollama'];
+                          'Mistral', 'DeepSeek', 'Ollama'];
 
   // Convert a scope_app payload value into the human-friendly label used
   // by every UI surface. "Global" stays as-is. "ChatOpenAI" splits into
@@ -350,12 +350,14 @@
   }
 
   // Render the Privacy badge column. Privacy Filter and Knowledge Base
-  // save are mutually exclusive at the app level (see dsl.rb#
-  // KB_SAVE_EXCLUDED_APP_BASE_NAMES), so saved KB entries never go
-  // through the Privacy registry — there is no `pii_status` field to
-  // surface. The remaining heuristic catches legacy or imported entries
-  // whose title / source obviously looks like PII (email or phone
-  // patterns), giving the user a glance-level warning before clicking in.
+  // save are mutually exclusive at the app level: apps that declare
+  // `privacy do; enabled true; end` in their MDSL have library_save
+  // forced to false by dsl.rb#finalize_capabilities!, so saved KB
+  // entries never go through the Privacy registry — there is no
+  // `pii_status` field to surface. The remaining heuristic catches
+  // legacy or imported entries whose title / source obviously looks
+  // like PII (email or phone patterns), giving the user a glance-level
+  // warning before clicking in.
   function privacyBadgeHtml(row) {
     if (rowLikelyHasPii(row)) {
       var label = t('ui.libBadgePiiHeuristic', 'May contain PII (email or phone pattern detected in title/source)');

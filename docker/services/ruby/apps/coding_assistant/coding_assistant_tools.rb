@@ -85,12 +85,6 @@ class CodingAssistantCohere < MonadicApp
   include MonadicSharedTools::FileOperations
 end
 
-class CodingAssistantPerplexity < MonadicApp
-  include PerplexityHelper if defined?(PerplexityHelper)
-  include MonadicHelper
-  include MonadicSharedTools::FileOperations
-end
-
 class CodingAssistantOllama < MonadicApp
   include OllamaHelper if defined?(OllamaHelper)
   include MonadicHelper

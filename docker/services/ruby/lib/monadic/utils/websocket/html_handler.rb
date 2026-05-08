@@ -64,7 +64,6 @@ module WebSocketHelper
           # sent to the UI) ties its lifetime to a single user turn.
           session.delete(:_jupyter_seen_image_hashes)
         end
-        Monadic::Utils::ExtraLogger.log { "[WebSocket] text extraction: content keys=#{content.keys}, text=#{text.class}:#{text.to_s[0..100]}..." } if CONFIG["EXTRA_LOGGING"] && session["parameters"]["app_name"]&.include?("Perplexity")
         # Extract thinking content uniformly from message
         thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
 

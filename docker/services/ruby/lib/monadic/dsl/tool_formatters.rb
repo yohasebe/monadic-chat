@@ -225,41 +225,6 @@ module MonadicDSL
       end
     end
 
-    class PerplexityFormatter
-      def format(tool)
-        {
-          type: "function",
-          function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: {
-              type: "object",
-              properties: format_properties(tool),
-              required: tool.required
-            }
-          }
-        }
-      end
-
-      private
-
-      def format_properties(tool)
-        props = {}
-        tool.parameters.each do |name, param|
-          props[name] = {
-            type: param[:type],
-            description: param[:description]
-          }
-          # Add items specification for array types
-          if param[:type] == "array" && param[:items]
-            props[name][:items] = param[:items]
-          end
-          props[name][:enum] = tool.enum_values[name] if tool.enum_values[name]
-        end
-        props
-      end
-    end
-
     class GrokFormatter
       def format(tool)
         {

@@ -139,7 +139,7 @@ Exits the application.
 
 Settings configured in the settings panel are automatically saved. The settings panel is organized into several sections accessible via tabs.
 
-<!-- SCREENSHOT: Settings panel showing API Keys tab with input fields for OPENAI_API_KEY, ANTHROPIC_API_KEY, COHERE_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, XAI_API_KEY, PERPLEXITY_API_KEY, DEEPSEEK_API_KEY, ELEVENLABS_API_KEY, and TAVILY_API_KEY -->
+<!-- SCREENSHOT: Settings panel showing API Keys tab with input fields for OPENAI_API_KEY, ANTHROPIC_API_KEY, COHERE_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, XAI_API_KEY, DEEPSEEK_API_KEY, ELEVENLABS_API_KEY, and TAVILY_API_KEY -->
 
 ### API Keys
 
@@ -161,9 +161,6 @@ Enter your Mistral API key. This key is required to use the Mistral AI models. I
 
 **XAI_API_KEY** <br />
 Enter your xAI API key. This key is required to use the xAI Grok models. It can be obtained from [https://x.ai/api](https://x.ai/api).
-
-**PERPLEXITY_API_KEY** <br />
-Enter your Perplexity API key. This key is required to use the Perplexity models. It can be obtained from [https://www.perplexity.ai/settings/api](https://www.perplexity.ai/settings/api).
 
 **DEEPSEEK_API_KEY** <br />
 Enter your DeepSeek API key. This key is required to use the DeepSeek models. It can be obtained from [https://platform.deepseek.com/](https://platform.deepseek.com/).

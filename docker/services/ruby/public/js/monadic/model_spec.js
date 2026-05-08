@@ -854,64 +854,6 @@ const modelSpec = {
     "supports_parallel_function_calling": true,
     "structured_output": true
   },
-  // Perplexity models
-  "sonar-deep-research": {
-    "context_window" : [1, 128000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_pdf_upload": false
-  },
-  "sonar-reasoning": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 8000],
-    "temperature": [[0.0, 1.99], 0.9],
-    "top_p": [[0.0, 1.0], 0.9],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0],
-    "is_reasoning_model": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_pdf_upload": false
-  },
-  "sonar-reasoning-pro": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 8000],
-    "temperature": [[0.0, 1.99], 0.9],
-    "top_p": [[0.0, 1.0], 0.9],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0],
-    "vision_capability": true,
-    "is_reasoning_model": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_pdf_upload": false
-  },
-  "sonar-pro": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [1, 8000],
-    "temperature": [[0.0, 1.99], 0.9],
-    "top_p": [[0.0, 1.0], 0.9],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0],
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_pdf_upload": false
-  },
-  "sonar": {
-    "context_window" : [1, 128000],
-    "temperature": [[0.0, 1.99], 0.9],
-    "top_p": [[0.0, 1.0], 0.9],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0],
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_pdf_upload": false
-  },
   // DeepSeek models
   // V4 series: unified models with thinking/non-thinking mode toggle
   "deepseek-v4-flash": {
@@ -1118,9 +1060,6 @@ const providerDefaults = {
     "video": ["grok-imagine-video"],
     "tts": ["grok-tts"],
     "audio_transcription": ["xai-stt"]
-  },
-  "perplexity": {
-    "chat": ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]
   },
   "deepseek": {
     "chat": ["deepseek-v4-flash", "deepseek-v4-pro"]

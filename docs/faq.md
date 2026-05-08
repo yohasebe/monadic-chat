@@ -82,7 +82,7 @@ For deeper customization, basic MDSL knowledge helps but isn't required for simp
 **A**: Web search varies by provider:
 
 **Native Search**:
-- Providers that ship native search integrations (e.g., OpenAI Responses API search, Anthropic web search, Google Gemini, Perplexity Sonar, xAI Grok Live Search). Refer to each provider's documentation for the latest capabilities.
+- Providers that ship native search integrations (e.g., OpenAI Responses API search, Anthropic web search, Google Gemini, xAI Grok Live Search). Refer to each provider's documentation for the latest capabilities.
 
 **Via Tavily API**:
 - Mistral, Cohere, DeepSeek

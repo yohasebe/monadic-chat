@@ -9,7 +9,7 @@ require "http"
 #   - OpenAI: Dedicated /v1/audio/transcriptions endpoint (Whisper, gpt-4o-transcribe models)
 #   - Gemini: Multimodal generateContent with audio inline_data
 #
-# Non-STT providers (Claude, Grok, Cohere, DeepSeek, Mistral, Perplexity, Ollama)
+# Non-STT providers (Claude, Grok, Cohere, DeepSeek, Mistral, Ollama)
 # fall back to the first available audio provider (preference: OpenAI -> Gemini).
 
 module AudioTranscriptionAgent

@@ -356,7 +356,7 @@ function handleErrorMessage(data) {
       $hide(spinnerEl);
     }
 
-    // Special handling for AI User errors (critical for Perplexity)
+    // Special handling for AI User errors
     const isAIUserError = data.content && data.content.toString().includes("AI User error");
     if (isAIUserError) {
       // Explicitly re-enable the AI User button

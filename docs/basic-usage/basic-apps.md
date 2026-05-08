@@ -11,38 +11,38 @@ For information on how to develop your own apps, refer to the [App Development](
 The table below shows which apps are available for which AI model providers.
 
 
-| App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
-|-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
-| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | ✅ | | | | | | | |
-| Translate | ✅ | | ✅ | | | | | | |
-| Voice Interpreter | ✅ | | ✅ | | | | | | |
-| Novel Writer | ✅ | | | | | | ✅ | | |
-| Image Generator | ✅ | | | | ✅ | ✅ | | | |
-| Video Generator | | | | | ✅ | ✅ | | | |
-| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mermaid Grapher | ✅ | ✅ | | | ✅ | ✅ | | | |
-| DrawIO Grapher | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Syntax Tree | ✅ | ✅ | | | | | | | |
-| Concept Visualizer | ✅ | ✅ | | | | | | | |
-| Speech Draft Helper | ✅ | | | | | | | | |
-| Web Insight | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Video Describer | ✅ | | | | | | | | |
-| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Auto Forge | ✅ | ✅ | | | | ✅ | | | |
-| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Document Generator | | ✅ | | | | | | | |
-| Monadic Chat Help | ✅ | | | | | | | | |
+| App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Ollama |
+|-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:------:|
+| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Wikipedia | ✅ | | | | | | | |
+| Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Language Practice Plus | ✅ | ✅ | | | | | | |
+| Translate | ✅ | | ✅ | | | | | |
+| Voice Interpreter | ✅ | | ✅ | | | | | |
+| Novel Writer | ✅ | | | | | | ✅ | |
+| Image Generator | ✅ | | | | ✅ | ✅ | | |
+| Video Generator | | | | | ✅ | ✅ | | |
+| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Mermaid Grapher | ✅ | ✅ | | | ✅ | ✅ | | |
+| DrawIO Grapher | ✅ | ✅ | | | ✅ | ✅ | | |
+| Syntax Tree | ✅ | ✅ | | | | | | |
+| Concept Visualizer | ✅ | ✅ | | | | | | |
+| Speech Draft Helper | ✅ | | | | | | | |
+| Web Insight | ✅ | ✅ | | | ✅ | ✅ | | |
+| Video Describer | ✅ | | | | | | | |
+| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
+| Auto Forge | ✅ | ✅ | | | | ✅ | | |
+| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | |
+| Document Generator | | ✅ | | | | | | |
+| Monadic Chat Help | ✅ | | | | | | | |
 
 ## Privacy Filter and Knowledge Base by App :id=privacy-kb-by-app
 
@@ -95,7 +95,6 @@ A blank cell in **both** columns indicates an artifact-centric app where the gen
 | Mistral | ✅ | ✅ | ✅ Tavily |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ Native |
-| Perplexity | ✅ | ❌ | ✅ Native |
 | DeepSeek | ❌ | ✅ | ✅ Tavily |
 | Ollama | Model-dependent | Model-dependent | ✅ Tavily |
 
@@ -106,7 +105,7 @@ A blank cell in **both** columns indicates an artifact-centric app where the gen
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
 Start a standard conversation with the AI, which will respond to your text with appropriate emojis. For complex questions, web search is available for models that support tool/function calling:
-- **Native Search**: OpenAI, Claude, Gemini, Grok, and Perplexity use their built-in web search capabilities (enabled by default).
+- **Native Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search capabilities (enabled by default).
 - **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when configured (requires a `TAVILY_API_KEY`).
 
 You can also use the `From URL` feature to extract content from any website using Selenium-based web scraping, regardless of the provider.
@@ -183,7 +182,7 @@ Second Opinion is available wherever the provider table lists support.
 Accelerate your academic and scientific research with an intelligent assistant. This app uses powerful web search capabilities to retrieve and analyze information from online sources. Use it to find current information, verify facts, and research topics comprehensively, receiving reliable insights, summaries, and explanations to advance your work.
 
 Research Assistant availability matches the provider table above. Web search capabilities:
-- **Native Search**: OpenAI, Claude, Gemini, Grok, Perplexity (always available)
+- **Native Search**: OpenAI, Claude, Gemini, Grok (always available)
 - **Tavily Search**: Mistral, Cohere, DeepSeek, Ollama (requires `TAVILY_API_KEY`)
 - **URL Content Extraction**: Selenium-based web scraping for fetching content from any URL (available for all providers)
 

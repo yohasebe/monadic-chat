@@ -32,7 +32,6 @@ module Monadic
         'cohere' => 'cohere',
         'mistral' => 'mistral',
         'grok' => 'xai', 'xai' => 'xai',
-        'perplexity' => 'perplexity',
         'deepseek' => 'deepseek',
         'ollama' => 'ollama'
       }.freeze
@@ -44,7 +43,6 @@ module Monadic
         'cohere' => 'COHERE_API_KEY',
         'mistral' => 'MISTRAL_API_KEY',
         'xai' => 'XAI_API_KEY',
-        'perplexity' => 'PERPLEXITY_API_KEY',
         'deepseek' => 'DEEPSEEK_API_KEY'
         # Ollama runs locally and does not need an API key.
       }.freeze

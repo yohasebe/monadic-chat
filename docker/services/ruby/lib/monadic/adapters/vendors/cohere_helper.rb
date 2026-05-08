@@ -893,7 +893,7 @@ module CohereHelper
       if img["type"] == "application/pdf"
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
           provider: "Cohere",
-          message: "Cohere does not support PDF input. Please paste relevant text or use a provider that supports PDFs (e.g., Perplexity via URL, Gemini, Claude).",
+          message: "Cohere does not support PDF input. Please paste relevant text or use a provider that supports PDFs (e.g., Gemini, Claude, OpenAI).",
           code: 400
         )
         res = { "type" => "error", "content" => formatted_error }

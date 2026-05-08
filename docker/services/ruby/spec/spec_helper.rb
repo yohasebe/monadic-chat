@@ -53,7 +53,6 @@ require_relative '../lib/monadic/adapters/vendors/gemini_helper'
 require_relative '../lib/monadic/adapters/vendors/grok_helper'
 require_relative '../lib/monadic/adapters/vendors/mistral_helper'
 require_relative '../lib/monadic/adapters/vendors/cohere_helper'
-require_relative '../lib/monadic/adapters/vendors/perplexity_helper'
 require_relative '../lib/monadic/adapters/vendors/deepseek_helper'
 require_relative '../lib/monadic/adapters/vendors/ollama_helper'
 

@@ -28,7 +28,7 @@ module MonadicSharedTools
 
     # Check if web search tools are available
     # Returns true if either:
-    # 1. Provider has native web search (OpenAI, Claude, Gemini, Grok, Perplexity)
+    # 1. Provider has native web search (OpenAI, Claude, Gemini, Grok)
     # 2. Tavily API key is configured
     def self.available?
       # Check for Tavily API key
@@ -46,7 +46,6 @@ module MonadicSharedTools
     # - Claude: Native web search
     # - Gemini: URL Context feature
     # - Grok: Grok Live Search
-    # - Perplexity: Native search (always enabled)
     # - Mistral/Cohere/DeepSeek: Tavily API (requires TAVILY_API_KEY)
     #
     # @param query [String] The search query
@@ -86,8 +85,6 @@ module MonadicSharedTools
         return "Web search is handled through Gemini's native URL Context feature. Processing query: #{query}"
       elsif provider.include?("grok")
         return "Web search is handled through Grok's native Live Search. Processing query: #{query}"
-      elsif provider.include?("perplexity")
-        return "Web search is handled through Perplexity's native search. Processing query: #{query}"
       end
 
       # For providers that use Tavily (Mistral, Cohere, DeepSeek, Ollama)

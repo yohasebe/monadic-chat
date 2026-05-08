@@ -215,7 +215,6 @@ const webUITranslations = {
       aiAssistant: "AI Assistant",
       aiUser: "AI User",
       generateAIUserResponse: "Generate AI user response based on conversation",
-      generateAIUserResponsePerplexity: "Generate AI user response (Perplexity requires alternating user/assistant messages)",
       role: "Role",
       roleOptions: {
         user: "User",
@@ -661,7 +660,6 @@ const webUITranslations = {
       aiAssistant: "AIアシスタント",
       aiUser: "AIユーザー",
       generateAIUserResponse: "会話に基づいてAIユーザー応答を生成",
-      generateAIUserResponsePerplexity: "AIユーザー応答を生成（Perplexityはユーザー/アシスタントの交互メッセージが必要）",
       role: "役割",
       roleOptions: {
         user: "ユーザー",
@@ -940,7 +938,6 @@ const webUITranslations = {
       aiAssistant: "AI助手",
       aiUser: "AI用户",
       generateAIUserResponse: "基于对话生成AI用户响应",
-      generateAIUserResponsePerplexity: "生成AI用户响应（Perplexity需要交替的用户/助手消息）",
       role: "角色",
       roleOptions: {
         user: "用户",
@@ -1409,7 +1406,6 @@ const webUITranslations = {
       aiAssistant: "AI 어시스턴트",
       aiUser: "AI 사용자",
       generateAIUserResponse: "대화를 기반으로 AI 사용자 응답 생성",
-      generateAIUserResponsePerplexity: "AI 사용자 응답 생성 (Perplexity는 사용자/어시스턴트 교대 메시지 필요)",
       role: "역할",
       roleOptions: {
         user: "사용자",
@@ -1855,7 +1851,6 @@ const webUITranslations = {
       aiAssistant: "Asistente IA",
       aiUser: "Usuario IA",
       generateAIUserResponse: "Generar respuesta de usuario IA basada en la conversación",
-      generateAIUserResponsePerplexity: "Generar respuesta de usuario IA (Perplexity requiere mensajes alternos usuario/asistente)",
       role: "Rol",
       roleOptions: {
         user: "Usuario",
@@ -2301,7 +2296,6 @@ const webUITranslations = {
       aiAssistant: "Assistant IA",
       aiUser: "Utilisateur IA",
       generateAIUserResponse: "Générer une réponse d'utilisateur IA basée sur la conversation",
-      generateAIUserResponsePerplexity: "Générer une réponse d'utilisateur IA (Perplexity nécessite des messages alternés utilisateur/assistant)",
       role: "Rôle",
       roleOptions: {
         user: "Utilisateur",
@@ -2747,7 +2741,6 @@ const webUITranslations = {
       aiAssistant: "KI-Assistent",
       aiUser: "KI-Benutzer",
       generateAIUserResponse: "KI-Benutzerantwort basierend auf Konversation generieren",
-      generateAIUserResponsePerplexity: "KI-Benutzerantwort generieren (Perplexity benötigt abwechselnde Benutzer/Assistent-Nachrichten)",
       role: "Rolle",
       roleOptions: {
         user: "Benutzer",

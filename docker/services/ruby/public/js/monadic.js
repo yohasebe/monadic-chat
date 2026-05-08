@@ -2615,10 +2615,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
-    // Update toggle button text
-    if (typeof window.updateToggleButtonText === 'function') {
-      window.updateToggleButtonText();
-    }
     if (typeof window.updateExpressiveSpeechIndicator === 'function') {
       window.updateExpressiveSpeechIndicator();
     }
@@ -2640,10 +2636,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const selectedApp = ($id("apps") || {}).value;
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
-    }
-    // Update toggle button text
-    if (typeof window.updateToggleButtonText === 'function') {
-      window.updateToggleButtonText();
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('easy_submit_toggle');
@@ -2950,51 +2942,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return false;
     }
   });
-
-  // Function to update toggle button text based on checkbox states
-  window.updateToggleButtonText = function() {
-    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
-    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
-    const $toggleButton = $id("interaction-toggle-all");
-
-    if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
-      // Show appropriate text based on current state
-      if (autoSpeechChecked && easySubmitChecked) {
-        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.uncheckAll'));
-      } else if (!autoSpeechChecked && !easySubmitChecked) {
-        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.checkAll'));
-      } else {
-        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.toggleAll'));
-      }
-    }
-  };
-  
-  // Toggle all interaction checkboxes - use event delegation for reliability
-  document.addEventListener("click", function(e) { const _delegateTarget = e.target.closest("#interaction-toggle-all"); if (!_delegateTarget) return;
-    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
-    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
-
-    // If any checkbox is unchecked, check all. Otherwise, uncheck all.
-    const shouldCheck = !autoSpeechChecked || !easySubmitChecked;
-
-    // Suppress broadcasts during toggle to prevent state reset from server sync
-    window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
-    try {
-      // Set checkbox values and trigger change events to update params
-      { const el = $id("check-auto-speech"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
-      { const el = $id("check-easy-submit"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
-    } finally {
-      window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 0) - 1);
-    }
-
-    // Update the button text after toggling
-    window.updateToggleButtonText();
-  });
-
-  // Initialize toggle button text on page load
-  (function() {
-    window.updateToggleButtonText();
-  })();
 
   $on($id("start"), "click", function() {
     audioInit();

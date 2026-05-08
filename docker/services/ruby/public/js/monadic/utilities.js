@@ -966,11 +966,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
   window.isLoadingParams = false;
   if (window.logTL) window.logTL('loadParams_exit', { calledFor });
 
-  // Update toggle button text to reflect checkbox states
-  if (typeof window.updateToggleButtonText === 'function') {
-    window.updateToggleButtonText();
-  }
-
   // Final enforcement of import-mode checkbox states
   if (window.isProcessingImport) {
     const autoSpeechFinal = $id("check-auto-speech");

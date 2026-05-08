@@ -752,6 +752,18 @@ module MonadicDSL
       class_def << "        @settings[:privacy_enabled] = #{state.settings[:privacy_enabled].inspect}\n"
     end
 
+    # Capability flags resolved by finalize_capabilities!. These are written
+    # to state.settings (not state.features) so the generic features-loop
+    # above does not pick them up; we have to inject them explicitly so the
+    # runtime app instance carries the same boolean the WS layer ships to
+    # the frontend's body-class gate.
+    unless state.settings[:library_save].nil?
+      class_def << "        @settings[:library_save] = #{state.settings[:library_save].inspect}\n"
+    end
+    unless state.settings[:library_search].nil?
+      class_def << "        @settings[:library_search] = #{state.settings[:library_search].inspect}\n"
+    end
+
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)
     if state.settings[:agents] && !state.settings[:agents].empty?
       class_def << "        @settings[:agents] = #{state.settings[:agents].inspect}\n"

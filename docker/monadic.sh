@@ -499,15 +499,24 @@ build_python_container() {
     echo "$defval"
   }
 
-  local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
-  local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
-  local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
-  local PYOPT_SCIKIT=$(read_cfg_bool "PYOPT_SCIKIT" false)
-  local PYOPT_GENSIM=$(read_cfg_bool "PYOPT_GENSIM" false)
-  local PYOPT_LIBROSA=$(read_cfg_bool "PYOPT_LIBROSA" false)
-  local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
-  local PYOPT_TRANSFORMERS=$(read_cfg_bool "PYOPT_TRANSFORMERS" false)
-  local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
+  # Single source of truth for the Python container build options.
+  # Adding a new PYOPT_*/INSTALL_*/IMGOPT_* requires:
+  #   1. Append to PY_OPTIONS below
+  #   2. Add the matching ARG declaration + RUN conditional in
+  #      docker/services/python/Dockerfile (and the compose.yml ARG
+  #      passthrough)
+  #   3. Add the matching entry in app/install_options.config.js
+  #   4. Add the HTML checkbox row in app/settings.html
+  # See docs_dev/install_options_ssot.md for the full checklist.
+  local PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK)
+
+  # Read current values into separate locals (kept as locals, not an
+  # associative array, so they remain visible to the JSON/options-file
+  # heredocs further down via "${!key}" style expansion).
+  local key
+  for key in "${PY_OPTIONS[@]}"; do
+    local "${key}"="$(read_cfg_bool "$key" false)"
+  done
 
   # Detect if install options have changed since last build
   local prev_options_file="${logs_dir}/python_build_options.txt"
@@ -519,27 +528,14 @@ build_python_container() {
     use_no_cache=true
     echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
   elif [ -f "$prev_options_file" ]; then
-    # Compare each option with previous build
-    local prev_INSTALL_LATEX=$(grep "^INSTALL_LATEX=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_NLTK=$(grep "^PYOPT_NLTK=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_SPACY=$(grep "^PYOPT_SPACY=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_SCIKIT=$(grep "^PYOPT_SCIKIT=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_GENSIM=$(grep "^PYOPT_GENSIM=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_LIBROSA=$(grep "^PYOPT_LIBROSA=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_MEDIAPIPE=$(grep "^PYOPT_MEDIAPIPE=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_TRANSFORMERS=$(grep "^PYOPT_TRANSFORMERS=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_IMGOPT_IMAGEMAGICK=$(grep "^IMGOPT_IMAGEMAGICK=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-
-    # Check for changes
-    [ "$INSTALL_LATEX" != "$prev_INSTALL_LATEX" ] && changed_options+="INSTALL_LATEX($prev_INSTALL_LATEX→$INSTALL_LATEX) "
-    [ "$PYOPT_NLTK" != "$prev_PYOPT_NLTK" ] && changed_options+="PYOPT_NLTK($prev_PYOPT_NLTK→$PYOPT_NLTK) "
-    [ "$PYOPT_SPACY" != "$prev_PYOPT_SPACY" ] && changed_options+="PYOPT_SPACY($prev_PYOPT_SPACY→$PYOPT_SPACY) "
-    [ "$PYOPT_SCIKIT" != "$prev_PYOPT_SCIKIT" ] && changed_options+="PYOPT_SCIKIT($prev_PYOPT_SCIKIT→$PYOPT_SCIKIT) "
-    [ "$PYOPT_GENSIM" != "$prev_PYOPT_GENSIM" ] && changed_options+="PYOPT_GENSIM($prev_PYOPT_GENSIM→$PYOPT_GENSIM) "
-    [ "$PYOPT_LIBROSA" != "$prev_PYOPT_LIBROSA" ] && changed_options+="PYOPT_LIBROSA($prev_PYOPT_LIBROSA→$PYOPT_LIBROSA) "
-    [ "$PYOPT_MEDIAPIPE" != "$prev_PYOPT_MEDIAPIPE" ] && changed_options+="PYOPT_MEDIAPIPE($prev_PYOPT_MEDIAPIPE→$PYOPT_MEDIAPIPE) "
-    [ "$PYOPT_TRANSFORMERS" != "$prev_PYOPT_TRANSFORMERS" ] && changed_options+="PYOPT_TRANSFORMERS($prev_PYOPT_TRANSFORMERS→$PYOPT_TRANSFORMERS) "
-    [ "$IMGOPT_IMAGEMAGICK" != "$prev_IMGOPT_IMAGEMAGICK" ] && changed_options+="IMGOPT_IMAGEMAGICK($prev_IMGOPT_IMAGEMAGICK→$IMGOPT_IMAGEMAGICK) "
+    # Compare each option with previous build via indirect expansion.
+    for key in "${PY_OPTIONS[@]}"; do
+      local prev_val
+      prev_val=$(grep "^${key}=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+      if [ "${!key}" != "$prev_val" ]; then
+        changed_options+="${key}(${prev_val}→${!key}) "
+      fi
+    done
 
     if [ -n "$changed_options" ]; then
       use_no_cache=true
@@ -555,15 +551,9 @@ build_python_container() {
   fi
 
   local build_args=
-  build_args+=" --build-arg INSTALL_LATEX=${INSTALL_LATEX}"
-  build_args+=" --build-arg PYOPT_NLTK=${PYOPT_NLTK}"
-  build_args+=" --build-arg PYOPT_SPACY=${PYOPT_SPACY}"
-  build_args+=" --build-arg PYOPT_SCIKIT=${PYOPT_SCIKIT}"
-  build_args+=" --build-arg PYOPT_GENSIM=${PYOPT_GENSIM}"
-  build_args+=" --build-arg PYOPT_LIBROSA=${PYOPT_LIBROSA}"
-  build_args+=" --build-arg PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE}"
-  build_args+=" --build-arg PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS}"
-  build_args+=" --build-arg IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}"
+  for key in "${PY_OPTIONS[@]}"; do
+    build_args+=" --build-arg ${key}=${!key}"
+  done
 
   # Build Python image into a temporary tag for atomic swap
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
@@ -599,7 +589,7 @@ build_python_container() {
     echo "  \"timestamp\": \"${ts}\"," 
          "\"monadic_version\": \"${MONADIC_VERSION}\"," 
          "\"host_os\": \"${HOST_OS}\"," 
-         "\"options\": {\"INSTALL_LATEX\": ${INSTALL_LATEX}, \"IMGOPT_IMAGEMAGICK\": ${IMGOPT_IMAGEMAGICK}, \"PYOPT_NLTK\": ${PYOPT_NLTK}, \"PYOPT_SPACY\": ${PYOPT_SPACY}, \"PYOPT_SCIKIT\": ${PYOPT_SCIKIT}, \"PYOPT_GENSIM\": ${PYOPT_GENSIM}, \"PYOPT_LIBROSA\": ${PYOPT_LIBROSA}, \"PYOPT_MEDIAPIPE\": ${PYOPT_MEDIAPIPE}, \"PYOPT_TRANSFORMERS\": ${PYOPT_TRANSFORMERS}} ,"
+         "\"options\": {\"INSTALL_LATEX\": ${INSTALL_LATEX}, \"IMGOPT_IMAGEMAGICK\": ${IMGOPT_IMAGEMAGICK}, \"PYOPT_NLTK\": ${PYOPT_NLTK}, \"PYOPT_SPACY\": ${PYOPT_SPACY}, \"PYOPT_GENSIM\": ${PYOPT_GENSIM}, \"PYOPT_LIBROSA\": ${PYOPT_LIBROSA}, \"PYOPT_MEDIAPIPE\": ${PYOPT_MEDIAPIPE}, \"PYOPT_TRANSFORMERS\": ${PYOPT_TRANSFORMERS}} ,"
     # LaTeX
     if [ "${INSTALL_LATEX}" = "true" ]; then
       ${DOCKER} run --rm "${temp_tag}" sh -lc 'pdflatex -version >/dev/null 2>&1'; LATEX_OK=$?
@@ -624,6 +614,19 @@ print(json.dumps(res))
 PY
 " > "${health_json}" 2>/dev/null || echo '{"checks": {}}' > "${health_json}"
 
+  # Build the meta.json "build_args" block from the same PY_OPTIONS
+  # array that drove `--build-arg` so the two cannot drift.
+  local meta_build_args=""
+  local i
+  for ((i = 0; i < ${#PY_OPTIONS[@]}; i++)); do
+    local mk="${PY_OPTIONS[i]}"
+    if [ ${i} -eq 0 ]; then
+      meta_build_args+="    \"${mk}\": ${!mk}"
+    else
+      meta_build_args+=$',\n    "'"${mk}"'": '"${!mk}"
+    fi
+  done
+
   # Write meta.json
   cat > "${meta_json}" <<META
 {
@@ -632,15 +635,7 @@ PY
   "host_os": "${HOST_OS}",
   "image_temp_tag": "${temp_tag}",
   "build_args": {
-    "INSTALL_LATEX": ${INSTALL_LATEX},
-    "PYOPT_NLTK": ${PYOPT_NLTK},
-    "PYOPT_SPACY": ${PYOPT_SPACY},
-    "PYOPT_SCIKIT": ${PYOPT_SCIKIT},
-    "PYOPT_GENSIM": ${PYOPT_GENSIM},
-    "PYOPT_LIBROSA": ${PYOPT_LIBROSA},
-    "PYOPT_MEDIAPIPE": ${PYOPT_MEDIAPIPE},
-    "PYOPT_TRANSFORMERS": ${PYOPT_TRANSFORMERS},
-    "IMGOPT_IMAGEMAGICK": ${IMGOPT_IMAGEMAGICK}
+${meta_build_args}
   }
 }
 META
@@ -653,18 +648,12 @@ META
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
     echo "[HTML]: <p>Python image updated successfully.</p>" | tee -a "${build_log}"
 
-    # Save current install options for future comparison
-    cat > "${prev_options_file}" <<OPTIONS
-INSTALL_LATEX=${INSTALL_LATEX}
-PYOPT_NLTK=${PYOPT_NLTK}
-PYOPT_SPACY=${PYOPT_SPACY}
-PYOPT_SCIKIT=${PYOPT_SCIKIT}
-PYOPT_GENSIM=${PYOPT_GENSIM}
-PYOPT_LIBROSA=${PYOPT_LIBROSA}
-PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE}
-PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS}
-IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}
-OPTIONS
+    # Save current install options for future comparison — driven by
+    # the same PY_OPTIONS array so order and coverage stay in sync.
+    : > "${prev_options_file}"
+    for key in "${PY_OPTIONS[@]}"; do
+      echo "${key}=${!key}" >> "${prev_options_file}"
+    done
     echo "[INFO] Saved build options to ${prev_options_file}" | tee -a "${build_log}"
 
     # Restart Python container if running to use the new image
@@ -962,7 +951,6 @@ build_docker_compose() {
   local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
   local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
   local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
-  local PYOPT_SCIKIT=$(read_cfg_bool "PYOPT_SCIKIT" false)
   local PYOPT_GENSIM=$(read_cfg_bool "PYOPT_GENSIM" false)
   local PYOPT_LIBROSA=$(read_cfg_bool "PYOPT_LIBROSA" false)
   local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
@@ -970,7 +958,7 @@ build_docker_compose() {
   local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
 
   # Export install options and gems fingerprint as environment variables for compose.yml to reference
-  export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_SCIKIT PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK
+  export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK
 
   # Debug: log the actual command being executed
   local build_start_time=$(date '+%Y-%m-%d %H:%M:%S')
@@ -981,7 +969,7 @@ build_docker_compose() {
   echo "[DEBUG] COMPOSE_FILES='${COMPOSE_FILES}'" >> "${log_file}"
   echo "[DEBUG] REPORTING='${REPORTING}'" >> "${log_file}"
   echo "[DEBUG] use_cache='${use_cache}'" >> "${log_file}"
-  echo "[DEBUG] Install options: INSTALL_LATEX=${INSTALL_LATEX} PYOPT_NLTK=${PYOPT_NLTK} PYOPT_SPACY=${PYOPT_SPACY} PYOPT_SCIKIT=${PYOPT_SCIKIT} PYOPT_GENSIM=${PYOPT_GENSIM} PYOPT_LIBROSA=${PYOPT_LIBROSA} PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE} PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS} IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}" >> "${log_file}"
+  echo "[DEBUG] Install options: INSTALL_LATEX=${INSTALL_LATEX} PYOPT_NLTK=${PYOPT_NLTK} PYOPT_SPACY=${PYOPT_SPACY} PYOPT_GENSIM=${PYOPT_GENSIM} PYOPT_LIBROSA=${PYOPT_LIBROSA} PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE} PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS} IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}" >> "${log_file}"
   echo "" >> "${log_file}"
   echo "[DISK USAGE BEFORE BUILD]" >> "${log_file}"
   ${DOCKER} system df >> "${log_file}" 2>&1 || echo "Unable to get disk usage" >> "${log_file}"

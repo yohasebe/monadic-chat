@@ -14,7 +14,6 @@ ENV UV_LINK_MODE=copy
 ARG INSTALL_LATEX=false
 ARG PYOPT_NLTK=false
 ARG PYOPT_SPACY=false
-ARG PYOPT_SCIKIT=false
 ARG PYOPT_GENSIM=false
 ARG PYOPT_LIBROSA=false
 ARG PYOPT_MEDIAPIPE=false
@@ -54,6 +53,7 @@ RUN uv pip install --no-cache \
       setuptools~=80.9 wheel~=0.45 \
       jupyterlab~=4.5 ipywidgets~=8.1 plotly~=6.5 \
       numpy~=1.26 pandas~=2.3 statsmodels~=0.14 \
+      scikit-learn~=1.5 \
       matplotlib~=3.10 seaborn~=0.13 sympy~=1.14 \
       pdfplumber~=0.11 pypdfium2~=5.7 \
       selenium~=4.39 html2text~=2025.4 \
@@ -62,16 +62,19 @@ RUN uv pip install --no-cache \
       lxml~=6.0 pygraphviz~=1.14 graphviz~=0.21 pydotplus~=2.0 networkx~=3.6 pyvis~=0.3 \
       svgwrite~=1.4 cairosvg~=2.8 tinycss~=0.4 cssselect~=1.3 pygal~=3.1 \
       pyecharts~=2.0 pyecharts-snapshot~=0.2 \
-      opencv-python~=4.11 moviepy~=2.0 \
-      midiutil pretty_midi
+      opencv-python~=4.11
+# Note: moviepy removed — extract_frames.py now calls system ffmpeg via
+# subprocess for the single audio-extraction operation that previously
+# required it. The system ffmpeg is already installed via apt above.
+# midiutil + pretty_midi moved to the optional librosa group below since
+# they are only used by the Music Lab pipeline.
 
 # Optional Python libs (each in its own layer for cache efficiency)
 RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
 RUN if [ "$PYOPT_SPACY" = "true" ]; then uv pip install --no-cache spacy~=3.7.5 || true; else echo "skip spacy"; fi
-RUN if [ "$PYOPT_SCIKIT" = "true" ]; then uv pip install --no-cache scikit-learn || true; else echo "skip scikit"; fi
 RUN if [ "$PYOPT_GENSIM" = "true" ]; then uv pip install --no-cache gensim || true; else echo "skip gensim"; fi
 RUN if [ "$PYOPT_LIBROSA" = "true" ]; then \
-      uv pip install --no-cache librosa soundfile && \
+      uv pip install --no-cache librosa soundfile midiutil pretty_midi && \
       uv pip install --no-cache Cython numpy && \
       uv pip install --no-cache --no-build-isolation madmom \
       || echo "madmom build failed; librosa-only mode"; \

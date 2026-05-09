@@ -120,6 +120,52 @@ mounted from the host shared volume, so a `docker rm` on the Python
 container drops them. Release builds rebuild the Python image to pick
 up changes.
 
+### File-import HTTP route is asynchronous (since beta.16)
+
+`POST /library/import` previously ran the entire pipeline (write-to-disk
+→ extract → embed → Qdrant upsert) inside the Falcon worker that
+picked up the request. Image-only PDFs that took the heavy extractor
++ RapidOCR path could occupy a worker for several minutes, queueing
+every other HTTP/WS request behind one upload.
+
+The route now writes the upload to disk, validates size, registers an
+`ImportTracker` entry, and returns **202 Accepted** with `{ import_id,
+status_url }` — then hands the heavy work off to a `Thread.new`. A
+companion endpoint, `GET /library/import/status/:id`, surfaces the
+worker's current stage (`queued` → `extracting` → `embedding_storing`
+→ `done` / `error`).
+
+Rationale for `Thread.new` (not `Async::Task`): the inner pipeline is
+synchronous I/O against the extractor service / embeddings server /
+Qdrant client, so fiber scheduling buys nothing. `Thread.new` releases
+the request handler immediately and the worker block runs in parallel
+with subsequent requests.
+
+The frontend (`library-panel.js#uploadLibraryFile`) polls the status
+endpoint with exponential backoff (800ms → 5s, 30 min hard cap) and
+renders per-stage progress text in the same alert. New i18n keys:
+`libImportStageQueued`, `libImportStageExtracting`,
+`libImportStageEmbedding` (translated across all 7 supported
+languages).
+
+`ImportTracker` is in-process and ephemeral — restart loses status
+entries, but in-flight imports complete in seconds-to-minutes so this
+rarely matters; the import itself is committed to Qdrant regardless of
+whether the tracker entry survives. Entries auto-purge after 1 hour
+once they reach a terminal state, to bound memory under forgotten
+polls.
+
+Specs:
+- `spec/unit/library/import_tracker_spec.rb` — UUID shape, snapshot
+  isolation (callers cannot mutate tracker state), TTL purging
+  semantics, concurrent-write tolerance.
+- `spec/integration/library_import_contract_spec.rb` — POST returns
+  202 with the right envelope, worker dispatches through
+  `FileImporter` + `Manager` exactly once, status endpoint returns
+  the right shape, oversized rejection short-circuits before the
+  worker is set up, error path lands `stage='error'` with the
+  exception message.
+
 ## Retrieval
 
 `Monadic::Library::Retriever#cascade_search` is the only path used by

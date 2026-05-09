@@ -5,23 +5,8 @@ import os
 import argparse
 import base64
 import json
+import subprocess
 from datetime import datetime
-from moviepy import VideoFileClip
-import sys
-import contextlib
-
-@contextlib.contextmanager
-def suppress_output():
-    with open(os.devnull, 'w') as devnull:
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        sys.stdout = devnull
-        sys.stderr = devnull
-        try:
-            yield
-        finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
 
 def extract_frames(video_path, output_dir, output_format, frame_limit, fps, output_json, resize_width):
     # Create the output directory based on the timestamp
@@ -84,17 +69,25 @@ def extract_frames(video_path, output_dir, output_format, frame_limit, fps, outp
         print(f"Base64-encoded frames saved to {json_filename}")
 
 def extract_audio(video_path, output_dir):
-    # Create the output filename based on the timestamp
+    # Extract the audio track to MP3 by invoking system ffmpeg directly.
+    # ffmpeg is provided by the python container's apt layer; calling it
+    # via subprocess removes the need for moviepy + imageio-ffmpeg, which
+    # together added ~50 MB of Python deps for this single operation.
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_filename = os.path.join(output_dir, f"audio_{timestamp}.mp3")
 
-    # Extract audio from the video
-    with suppress_output():
-        video_clip = VideoFileClip(video_path)
-        audio_clip = video_clip.audio
-        audio_clip.write_audiofile(audio_filename)
-        audio_clip.close()
-        video_clip.close()
+    result = subprocess.run(
+        [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-i", video_path,
+            "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+            audio_filename,
+        ],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(f"Error: ffmpeg failed to extract audio: {result.stderr.strip()}")
+        return
 
     print(f"Audio extracted to {audio_filename}")
 

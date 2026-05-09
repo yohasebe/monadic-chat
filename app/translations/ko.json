@@ -79,7 +79,6 @@
         "items": {
           "nltk": "nltk",
           "spacy": "spaCy (3.7.5)",
-          "scikit": "scikit-learn",
           "gensim": "gensim",
           "mediapipe": "mediapipe (CPU 전용)",
           "transformers": "transformers (CPU 전용)"

@@ -10,7 +10,6 @@ services:
         INSTALL_LATEX: ${INSTALL_LATEX:-false}
         PYOPT_NLTK: ${PYOPT_NLTK:-false}
         PYOPT_SPACY: ${PYOPT_SPACY:-false}
-        PYOPT_SCIKIT: ${PYOPT_SCIKIT:-false}
         PYOPT_GENSIM: ${PYOPT_GENSIM:-false}
         PYOPT_LIBROSA: ${PYOPT_LIBROSA:-false}
         PYOPT_MEDIAPIPE: ${PYOPT_MEDIAPIPE:-false}

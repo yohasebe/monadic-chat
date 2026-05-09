@@ -42,7 +42,7 @@ RSpec.describe "OpenAI API parameter consistency" do
   #   max_tokens: 1000    → match
   #   options["max_tokens"] → no match (string-key options read)
   #   max_completion_tokens: 1000 → no match (different key)
-  ANTI_PATTERN = /(?:^|[^_\w])max_tokens:\s*\d/
+  ANTI_PATTERN_OAI = /(?:^|[^_\w])max_tokens:\s*\d/
 
   # A "URI window" is the set of source lines spanning from one
   # `uri = "..."` assignment to the line just before the next one (or
@@ -76,10 +76,10 @@ RSpec.describe "OpenAI API parameter consistency" do
 
       uri_windows.call(content).each do |uri, start_line, body|
         next unless uri.include?("api.openai.com")
-        next unless body =~ ANTI_PATTERN
+        next unless body =~ ANTI_PATTERN_OAI
 
         body.lines.each_with_index do |line, offset|
-          next unless line.match?(ANTI_PATTERN)
+          next unless line.match?(ANTI_PATTERN_OAI)
           acc << "#{relative}:#{start_line + offset}  #{line.strip}"
         end
       end

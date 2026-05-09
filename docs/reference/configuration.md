@@ -148,7 +148,6 @@ These options control which optional packages are installed in the Python contai
 | `INSTALL_LATEX` | LaTeX toolchain (TeX Live, dvisvgm, CJK packages) | Syntax Tree, Concept Visualizer | `false` |
 | `PYOPT_NLTK` | Natural Language Toolkit | NLP applications | `false` |
 | `PYOPT_SPACY` | spaCy NLP library (v3.7.5) | Advanced NLP tasks | `false` |
-| `PYOPT_SCIKIT` | scikit-learn machine learning library | ML applications | `false` |
 | `PYOPT_GENSIM` | Topic modeling library | Text analysis | `false` |
 | `PYOPT_LIBROSA` | Audio analysis library | Audio processing | `false` |
 | `PYOPT_MEDIAPIPE` | Computer vision framework | Vision applications | `false` |

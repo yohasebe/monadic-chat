@@ -65,7 +65,6 @@
         "items": {
           "nltk": "nltk",
           "spacy": "spaCy (3.7.5)",
-          "scikit": "scikit-learn",
           "gensim": "gensim",
           "mediapipe": "mediapipe (CPU uniquement)",
           "transformers": "transformers (CPU uniquement)"

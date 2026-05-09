@@ -236,12 +236,13 @@ module VideoAnalyzeAgent
       }
     end
 
-    # Use max_completion_tokens (GPT-5.x requires it; older models accept it).
+    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY (SSOT).
+    # GPT-5.x requires `max_completion_tokens`; older models accept it.
     # Omit temperature: GPT-5.x rejects it, and a deterministic value isn't
     # critical for a single-shot vision query.
     body = {
       model: model,
-      max_completion_tokens: 1000,
+      OpenAIHelper::OUTPUT_TOKEN_KEY => 1000,
       messages: [{ role: "user", content: content }]
     }
 

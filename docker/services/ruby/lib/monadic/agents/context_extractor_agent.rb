@@ -287,9 +287,10 @@ module ContextExtractorAgent
     # response. Disable thinking explicitly for V4 in this path.
     is_deepseek_v4 = provider == "deepseek" && model.to_s.include?("deepseek-v4")
 
-    # Handle OpenAI-specific parameters based on model
+    # Handle OpenAI-specific parameters based on model.
+    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY_STR (SSOT).
     if provider == "openai"
-      request_body["max_completion_tokens"] = 500
+      request_body[OpenAIHelper::OUTPUT_TOKEN_KEY_STR] = 500
 
       # GPT-5 models don't support temperature, use reasoning_effort instead
       if model.start_with?("gpt-5")

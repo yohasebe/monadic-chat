@@ -30,6 +30,16 @@ module OpenAIHelper
   API_ENDPOINT = "https://api.openai.com/v1"
   REASONING_CONTEXT_MAX = 3
 
+  # Output-token param name for OpenAI's Chat Completions and Responses
+  # APIs. GPT-5.x rejected the legacy `max_tokens` form in 2026-Q1; the
+  # accepted name is `max_completion_tokens`. Centralised here so the
+  # next rename only touches this file. Agent code that builds OpenAI
+  # request bodies should reference this constant rather than the bare
+  # literal — see also the path_resolution / openai_api_param consistency
+  # specs which fail CI on the legacy form.
+  OUTPUT_TOKEN_KEY     = :max_completion_tokens
+  OUTPUT_TOKEN_KEY_STR = "max_completion_tokens"
+
   define_timeouts "OPENAI", open: 20, read: 600, write: 120
 
   MAX_RETRIES = 5

@@ -1027,15 +1027,28 @@ describe('library-panel module', () => {
       document.body.innerHTML = '';
     });
 
-    it('POSTs FormData to /library/import and refreshes on success', async () => {
+    it('POSTs FormData to /library/import (202), polls status, and refreshes on success', async () => {
       let captured = null;
+      // The async contract is: POST returns 202 + { import_id }, then
+      // GET /library/import/status/:id is polled until stage='done'.
       global.fetch = jest.fn((url, opts) => {
+        if (typeof url === 'string' && url.startsWith('/library/import/status/')) {
+          return Promise.resolve({
+            ok: true, status: 200,
+            json: () => Promise.resolve({
+              success: true, import_id: 'imp-1', stage: 'done',
+              filename: 'paper.pdf', conversation_id: 'c1',
+              scope_app: 'ChatOpenAI', counts: { summary: 1, turns: 5, trajectory: 1 }
+            })
+          });
+        }
         captured = { url: url, opts: opts };
         return Promise.resolve({
-          ok: true,
+          ok: true, status: 202,
           json: () => Promise.resolve({
-            success: true, filename: 'paper.pdf', conversation_id: 'c1',
-            scope_app: 'ChatOpenAI', counts: { summary: 1, turns: 5, trajectory: 1 }
+            success: true, import_id: 'imp-1',
+            status_url: '/library/import/status/imp-1',
+            filename: 'paper.pdf', scope_app: 'Global'
           })
         });
       });
@@ -1047,22 +1060,47 @@ describe('library-panel module', () => {
       expect(captured.opts.body.get('libraryFile')).toBe(file);
       expect(captured.opts.body.get('libraryTitle')).toBe('Paper');
       expect(captured.opts.body.get('libraryScopeApp')).toBe('Global');
-      expect(out.success).toBe(true);
+      // The final resolved value is the terminal status payload.
+      expect(out.stage).toBe('done');
+      expect(out.conversation_id).toBe('c1');
       // After success the panel re-pulls the list + stats:
       expect(sentMessages.find(m => m.message === 'LIBRARY_LIST')).toBeDefined();
     });
 
-    it('surfaces server-reported errors instead of throwing', async () => {
-      global.fetch = jest.fn(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: false, message: 'Unsupported file extension: .xyz' })
-      }));
+    it('rejects with the worker error message when the status endpoint reports stage="error"', async () => {
+      global.fetch = jest.fn((url) => {
+        if (typeof url === 'string' && url.startsWith('/library/import/status/')) {
+          return Promise.resolve({
+            ok: true, status: 200,
+            json: () => Promise.resolve({
+              success: true, import_id: 'imp-2', stage: 'error',
+              error: 'Unsupported file extension: .xyz',
+              filename: 'mystery.xyz'
+            })
+          });
+        }
+        return Promise.resolve({
+          ok: true, status: 202,
+          json: () => Promise.resolve({
+            success: true, import_id: 'imp-2',
+            status_url: '/library/import/status/imp-2',
+            filename: 'mystery.xyz', scope_app: 'Global'
+          })
+        });
+      });
       const file = new File(['stub'], 'mystery.xyz', { type: 'application/octet-stream' });
-      const out = await lib.uploadLibraryFile(file);
-      expect(out.success).toBe(false);
-      expect(out.message).toMatch(/Unsupported/);
+      await expect(lib.uploadLibraryFile(file)).rejects.toThrow(/Unsupported/);
       // No refresh on failure:
       expect(sentMessages.find(m => m.message === 'LIBRARY_LIST')).toBeUndefined();
+    });
+
+    it('rejects when POST returns a non-202 envelope (synchronous validation error)', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({
+        ok: true, status: 200,
+        json: () => Promise.resolve({ success: false, error: 'Could not determine upload size; rejected for safety.' })
+      }));
+      const file = new File(['stub'], 'bad.md', { type: 'text/markdown' });
+      await expect(lib.uploadLibraryFile(file)).rejects.toThrow(/upload size/);
     });
 
     it('triggerImportPicker clicks the hidden file input', () => {

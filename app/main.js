@@ -9,6 +9,10 @@ const updater = require('./updater');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
 let extendedContextMenu = null;
 const i18n = require('./i18n');
+// SSOT for Python install options + Privacy/Extractor language lists.
+// See `app/install_options.config.js` for the schema and the contract
+// with `app/settings.html`'s build-state badges.
+const installOptions = require('./install_options.config');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -3405,7 +3409,10 @@ function computePendingContainerBuilds() {
   const result = [];
 
   // Python: always relevant (no master flag); never-built also counts.
-  const pyKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK'];
+  // Sourced from install_options.config.js (SSOT) — adding a new
+  // PYOPT_* / INSTALL_* checkbox only requires editing that file plus
+  // the Dockerfile ARG/RUN, never this rebuild-detection helper.
+  const pyKeys = installOptions.ENV_KEYS_PYTHON;
   const pyPrev = snapshots.python_service;
   if (!pyPrev) {
     result.push({
@@ -3853,7 +3860,11 @@ function saveSettings(data) {
         }
         
         // Normalize install option booleans to string 'true'/'false'
-        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','EXTRACTOR_SERVICE'];
+        // Sourced from install_options.config.js (SSOT) plus
+        // EXTRACTOR_SERVICE which is the master toggle for the Quality
+        // Pack container (its language sub-checkboxes are stored
+        // separately as EXTRACTOR_LANGS).
+        const installOptionKeys = [...installOptions.ENV_KEYS_PYTHON, 'EXTRACTOR_SERVICE'];
         installOptionKeys.forEach(k => {
             if (k in data) data[k] = data[k] ? 'true' : 'false';
         });

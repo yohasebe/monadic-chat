@@ -7,10 +7,12 @@ RSpec.describe "extract_frames.py minimal tests", :integration do
   let(:script_path) { "/monadic/scripts/converters/extract_frames.py" }
 
   before(:all) do
-    # Check if moviepy is available in the container
+    # Audio extraction now goes through system ffmpeg (subprocess) rather
+    # than moviepy. Skip if ffmpeg is missing — the container apt layer
+    # should have it but local dev/CI may not.
     _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container",
-                                        "python", "-c", "from moviepy import VideoFileClip")
-    skip "moviepy is not installed in the Python container" unless status.success?
+                                        "which", "ffmpeg")
+    skip "ffmpeg is not installed in the Python container" unless status.success?
   end
 
   def run_in_container(script_args)

@@ -2,6 +2,7 @@
 
 require 'json'
 require 'fileutils'
+require_relative '../../lib/monadic/utils/environment'
 
 module AutoForge
   class Debugger
@@ -57,9 +58,13 @@ module AutoForge
       # Use send_command from MonadicApp (same as web_insight)
       # This handles Docker execution properly through the established pattern
 
-      # The HTML file is already in ~/monadic/data which is mounted as /monadic/data in containers
-      # Convert host path to container path
-      shared_volume = ENV['SHARED_VOLUME'] || File.expand_path('~/monadic/data')
+      # The HTML file is already in the shared volume (host: ~/monadic/data,
+      # container: /monadic/data). Convert host path to container path.
+      # Use Environment.shared_volume for SSOT — see CLAUDE.md "Dual-Mode
+      # Execution"; the legacy ENV['SHARED_VOLUME'] fallback assumed the env
+      # var was set in production, which is not guaranteed across all entry
+      # paths.
+      shared_volume = Monadic::Utils::Environment.shared_volume
       if html_path.start_with?(shared_volume)
         # Path is already in shared volume, just convert to container path
         container_html_path = html_path.sub(shared_volume, '/monadic/data')

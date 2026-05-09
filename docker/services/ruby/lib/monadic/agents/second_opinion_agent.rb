@@ -175,10 +175,11 @@ module SecondOpinionAgent
       "model" => target_model
     }
 
-    # Use max_completion_tokens for OpenAI (required for newer models like gpt-5.x)
-    # Use max_tokens for other providers
+    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY_STR
+    # (SSOT) for OpenAI (required by GPT-5.x). Other providers still
+    # accept the legacy `max_tokens` form, so we branch by provider.
     if target_provider == "openai"
-      parameters["max_completion_tokens"] = SECOND_OPINION_MAX_TOKENS
+      parameters[OpenAIHelper::OUTPUT_TOKEN_KEY_STR] = SECOND_OPINION_MAX_TOKENS
     else
       parameters["max_tokens"] = SECOND_OPINION_MAX_TOKENS
     end

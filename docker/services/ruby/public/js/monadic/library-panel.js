@@ -1405,9 +1405,96 @@
     }
   }
 
-  // POST a single file to /library/import and refresh the panel on
-  // success. The endpoint dispatches to the right importer based on file
-  // extension (FileImporter.build_conversation on the Ruby side).
+  // Stage labels rendered in the alert while a background import runs.
+  // Backend stage values are documented in import_tracker.rb (STAGES)
+  // and produced by library_import_routes.rb's worker thread.
+  var IMPORT_STAGE_LABELS = {
+    queued: 'libImportStageQueued',
+    extracting: 'libImportStageExtracting',
+    embedding_storing: 'libImportStageEmbedding'
+  };
+
+  function importStageMessage(stage) {
+    var key = IMPORT_STAGE_LABELS[stage];
+    if (!key) {
+      return t('ui.libImportingMessage', 'Importing file into Knowledge Base...');
+    }
+    var fallback = {
+      libImportStageQueued: 'Queued for import…',
+      libImportStageExtracting: 'Extracting text…',
+      libImportStageEmbedding: 'Generating embeddings & saving…'
+    }[key];
+    return t('ui.' + key, fallback);
+  }
+
+  // Poll /library/import/status/:id with exponential backoff until the
+  // import reaches a terminal stage (`done` or `error`) or the hard
+  // timeout fires. Resolves with the final status payload on success;
+  // rejects with an Error on failure or timeout.
+  function pollImportStatus(importId, onProgress) {
+    return new Promise(function (resolve, reject) {
+      var delay = 800;          // initial poll delay (ms)
+      var maxDelay = 5000;      // cap at 5s once warmed up
+      var growth = 1.4;         // multiplicative backoff
+      var hardTimeoutMs = 30 * 60 * 1000;  // 30 min absolute cap
+      var startedAt = Date.now();
+
+      function tick() {
+        if (Date.now() - startedAt > hardTimeoutMs) {
+          return reject(new Error('Import timed out (over 30 minutes)'));
+        }
+
+        fetch('/library/import/status/' + encodeURIComponent(importId), {
+          headers: { 'Accept': 'application/json' }
+        })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              return { ok: res.ok, status: res.status, data: data };
+            }, function () {
+              return { ok: res.ok, status: res.status, data: null };
+            });
+          })
+          .then(function (out) {
+            if (out.status === 404) {
+              return reject(new Error(
+                'Import status not found — the import may have completed before the first poll, or the server restarted. Refresh the panel to verify.'
+              ));
+            }
+            if (!out.ok || !out.data) {
+              return reject(new Error('Status check failed (HTTP ' + out.status + ')'));
+            }
+            var entry = out.data;
+            if (entry.stage === 'done') {
+              return resolve(entry);
+            }
+            if (entry.stage === 'error') {
+              return reject(new Error(entry.error || 'Unknown import error'));
+            }
+            // In-flight stage; surface to caller for UI updates.
+            if (typeof onProgress === 'function') {
+              try { onProgress(entry); } catch (_e) { /* never let UI throw cancel polling */ }
+            }
+            delay = Math.min(maxDelay, Math.round(delay * growth));
+            setTimeout(tick, delay);
+          })
+          .catch(function (err) {
+            // Network blip — retry a few times before giving up.
+            if (Date.now() - startedAt > hardTimeoutMs) {
+              return reject(err);
+            }
+            delay = Math.min(maxDelay, Math.round(delay * growth));
+            setTimeout(tick, delay);
+          });
+      }
+      tick();
+    });
+  }
+
+  // POST a single file to /library/import (which now returns 202 +
+  // import_id immediately) and poll the status endpoint until the
+  // background worker reports `done` or `error`. The endpoint dispatches
+  // to the right importer based on file extension
+  // (FileImporter.build_conversation on the Ruby side).
   function uploadLibraryFile(file, options) {
     if (!file) return Promise.reject(new Error('No file selected'));
     options = options || {};
@@ -1425,40 +1512,54 @@
       'info'
     );
 
-    // Cap upload + extraction at 5 minutes — large PDFs / OCR-heavy
-    // documents can be slow, but a runaway request shouldn't lock the UI.
-    var controller = new AbortController();
-    var timer = setTimeout(function () { controller.abort(); }, 300000);
+    // POST is now lightweight (size check + disk write + tracker
+    // registration); a 60s timeout is plenty. Polling then runs without
+    // its own timeout — the backend tracker enforces the 30-min cap.
+    var postController = new AbortController();
+    var postTimer = setTimeout(function () { postController.abort(); }, 60000);
 
     return fetch('/library/import', {
-      method: 'POST', body: formData, signal: controller.signal
+      method: 'POST', body: formData, signal: postController.signal
     })
       .then(function (res) {
-        clearTimeout(timer);
-        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+        clearTimeout(postTimer);
+        return res.json().then(function (data) {
+          return { ok: res.ok, status: res.status, data: data };
+        });
       })
       .then(function (out) {
-        setImportPending(false);
-        if (!out.ok || !out.data || out.data.success === false) {
-          var err = (out.data && (out.data.message || out.data.error)) || ('HTTP ' + (out.ok ? 'parse' : 'upload') + ' error');
-          flashAlert(
-            "<i class='fa-solid fa-triangle-exclamation'></i> " +
-              escapeHtml(t('ui.libImportFailure', 'Failed to import')) + ': ' + escapeHtml(err),
-            'warning'
-          );
-          return out.data;
+        // 202 = accepted; anything else surfaces as an error (validation
+        // failures still come back as 200 with success=false from the
+        // legacy error_json helper, so we accept that path too).
+        if (out.status !== 202) {
+          var err = (out.data && (out.data.message || out.data.error)) || ('HTTP ' + out.status);
+          throw new Error(err);
         }
+        if (!out.data || !out.data.import_id) {
+          throw new Error('Server did not return an import_id');
+        }
+        return pollImportStatus(out.data.import_id, function (entry) {
+          flashAlert(
+            "<i class='fas fa-spinner fa-spin'></i> " +
+              escapeHtml(importStageMessage(entry.stage)) +
+              ' (' + escapeHtml(entry.filename || file.name) + ')',
+            'info'
+          );
+        });
+      })
+      .then(function (entry) {
+        setImportPending(false);
         flashAlert(
           "<i class='fa-solid fa-circle-check'></i> " +
-            escapeHtml(t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (out.data.filename || file.name)),
+            escapeHtml(t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (entry.filename || file.name)),
           'success'
         );
         requestList();
         requestStats();
-        return out.data;
+        return entry;
       })
       .catch(function (err) {
-        clearTimeout(timer);
+        clearTimeout(postTimer);
         setImportPending(false);
         var msg = (err && err.message) ? err.message : 'Network error';
         flashAlert(

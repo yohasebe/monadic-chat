@@ -176,11 +176,12 @@ module ImageAnalysisAgent
       "Content-Type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
-    # Use max_completion_tokens (GPT-5.x requires it; older models accept it).
+    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY (SSOT).
+    # GPT-5.x requires `max_completion_tokens`; older models accept it.
     # Omit temperature: GPT-5.x rejects it.
     body = {
       model: model,
-      max_completion_tokens: 1000,
+      OpenAIHelper::OUTPUT_TOKEN_KEY => 1000,
       messages: [
         {
           role: "user",

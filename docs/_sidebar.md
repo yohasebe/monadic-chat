@@ -35,6 +35,7 @@
     - [Using Ollama](/advanced-topics/ollama.md)
     - [Help System Configuration](/advanced-topics/help-system.md)
     - [MCP Integration](/advanced-topics/mcp-integration.md)
+    - [Privacy Filter](/advanced-topics/privacy-filter.md)
     
 - **Reference**
 
@@ -50,3 +51,4 @@
     - [Adding New Features](/faq/faq-extra-features.md)
 
 - [Changelog](/changelog.md)
+- [Related blog posts](https://yohasebe.com/tags/monadic-chat/)

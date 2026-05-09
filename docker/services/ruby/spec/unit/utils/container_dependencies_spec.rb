@@ -5,20 +5,24 @@ require_relative "../../../lib/monadic/utils/container_dependencies"
 
 RSpec.describe Monadic::Utils::ContainerDependencies do
   describe ".required_services" do
-    context "apps that need no extra containers" do
-      it "returns empty set for chat app" do
+    context "apps with no app-specific extras" do
+      it "still returns the base services (qdrant + embeddings)" do
+        # Help system depends on these, so they are always required.
         settings = { "app_name" => "Chat", "group" => "OpenAI" }
-        expect(described_class.required_services(settings)).to eq(Set.new)
+        expect(described_class.required_services(settings))
+          .to eq(Set.new([:qdrant, :embeddings]))
       end
 
-      it "returns empty set for translate app" do
+      it "returns base services for translate app" do
         settings = { "app_name" => "Translate", "group" => "Claude" }
-        expect(described_class.required_services(settings)).to eq(Set.new)
+        expect(described_class.required_services(settings))
+          .to include(:qdrant, :embeddings)
       end
 
-      it "returns empty set for image_generator app" do
+      it "returns base services for image_generator app" do
         settings = { "app_name" => "Image Generator", "group" => "OpenAI" }
-        expect(described_class.required_services(settings)).to eq(Set.new)
+        expect(described_class.required_services(settings))
+          .to include(:qdrant, :embeddings)
       end
     end
 
@@ -72,44 +76,26 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       end
     end
 
-    context "apps that need PGVector container" do
-      it "detects pgvector need from pdf_vector_storage flag" do
-        settings = { "app_name" => "PDF Navigator", "pdf_vector_storage" => true }
-        result = described_class.required_services(settings)
-        expect(result).to include(:pgvector)
-      end
-
-      it "does not require pgvector for pdf_upload (cloud-only)" do
-        settings = { "app_name" => "Chat Plus", "pdf_upload" => true }
-        result = described_class.required_services(settings)
-        expect(result).not_to include(:pgvector)
-      end
-    end
-
     context "apps with multiple container needs" do
-      it "returns python + selenium for auto_forge" do
+      it "returns python + selenium + base services for auto_forge" do
         settings = {
           "app_name" => "AutoForge",
           "imported_tool_groups" => [{ "name" => :web_automation, "visibility" => "conditional" }]
         }
         result = described_class.required_services(settings)
-        expect(result).to include(:python)
-        expect(result).to include(:selenium)
+        expect(result).to include(:python, :selenium, :qdrant, :embeddings)
       end
 
-      it "returns python + pgvector for research_assistant with pdf" do
+      it "returns python + selenium + base services for research_assistant" do
         settings = {
           "app_name" => "Research Assistant",
-          "pdf_vector_storage" => true,
           "imported_tool_groups" => [
             { "name" => :python_execution, "visibility" => "always" },
             { "name" => :web_automation, "visibility" => "conditional" }
           ]
         }
         result = described_class.required_services(settings)
-        expect(result).to include(:python)
-        expect(result).to include(:selenium)
-        expect(result).to include(:pgvector)
+        expect(result).to include(:python, :selenium, :qdrant, :embeddings)
       end
     end
 
@@ -129,11 +115,13 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
   end
 
   describe ".ensure_services_for_app" do
-    it "returns immediately when no extra services needed" do
+    it "ensures base services even when no app extras are needed" do
       settings = { "app_name" => "Chat" }
-      # Should not shell out
+      allow(described_class).to receive(:container_running?).and_return(false)
+      allow(described_class).to receive(:start_service).and_return(true)
+
       result = described_class.ensure_services_for_app(settings)
-      expect(result).to eq([])
+      expect(result).to include(:qdrant, :embeddings)
     end
 
     it "returns list of services that were ensured" do
@@ -141,12 +129,11 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
         "app_name" => "Code Interpreter",
         "imported_tool_groups" => [{ "name" => :python_execution, "visibility" => "always" }]
       }
-      # Stub the container check to simulate Python not running
-      allow(described_class).to receive(:container_running?).with(:python).and_return(false)
-      allow(described_class).to receive(:start_service).with(:python).and_return(true)
+      allow(described_class).to receive(:container_running?).and_return(false)
+      allow(described_class).to receive(:start_service).and_return(true)
 
       result = described_class.ensure_services_for_app(settings)
-      expect(result).to eq([:python])
+      expect(result).to include(:python, :qdrant, :embeddings)
     end
 
     it "skips services that are already running" do
@@ -154,8 +141,8 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
         "app_name" => "Code Interpreter",
         "imported_tool_groups" => [{ "name" => :python_execution, "visibility" => "always" }]
       }
-      allow(described_class).to receive(:container_running?).with(:python).and_return(true)
-      allow(described_class).to receive(:start_service) # stub to verify it's not called
+      allow(described_class).to receive(:container_running?).and_return(true)
+      allow(described_class).to receive(:start_service) # stub to verify not called
 
       result = described_class.ensure_services_for_app(settings)
       expect(result).to eq([])
@@ -171,8 +158,7 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       allow(described_class).to receive(:start_service).and_return(true)
 
       result = described_class.ensure_services_for_app(settings)
-      expect(result).to include(:python)
-      expect(result).to include(:selenium)
+      expect(result).to include(:python, :selenium)
     end
   end
 
@@ -193,8 +179,12 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       expect(described_class.service_to_compose_name(:selenium)).to eq("selenium_service")
     end
 
-    it "maps :pgvector to compose service name" do
-      expect(described_class.service_to_compose_name(:pgvector)).to eq("pgvector_service")
+    it "maps :qdrant to compose service name" do
+      expect(described_class.service_to_compose_name(:qdrant)).to eq("qdrant_service")
+    end
+
+    it "maps :embeddings to compose service name" do
+      expect(described_class.service_to_compose_name(:embeddings)).to eq("embeddings_service")
     end
 
     it "returns nil for unknown service" do
@@ -211,8 +201,12 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       expect(described_class.service_to_container_name(:selenium)).to eq("monadic-chat-selenium-container")
     end
 
-    it "maps :pgvector to container name" do
-      expect(described_class.service_to_container_name(:pgvector)).to eq("monadic-chat-pgvector-container")
+    it "maps :qdrant to container name" do
+      expect(described_class.service_to_container_name(:qdrant)).to eq("monadic-chat-qdrant-container")
+    end
+
+    it "maps :embeddings to container name" do
+      expect(described_class.service_to_container_name(:embeddings)).to eq("monadic-chat-embeddings-container")
     end
   end
 

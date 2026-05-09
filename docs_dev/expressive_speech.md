@@ -3,6 +3,14 @@
 Internal architecture notes for the Expressive Speech feature: how the four
 layers connect, how to add a new TTS provider, and known constraints.
 
+> **Companion doc:** This page covers the inline-marker families (xAI Grok /
+> ElevenLabs v3 / Gemini TTS). The out-of-band **instruction-mode** variant
+> used by OpenAI `gpt-4o-mini-tts` is documented separately in
+> [`expressive_speech_instruction_mode.md`](expressive_speech_instruction_mode.md).
+> The two modes share the `:expressive_speech` prompt rule and the display
+> sanitiser, but they ride the directive through different channels (inline
+> markers vs. JSON/sentinel metadata), so each has its own design notes.
+
 ## What it does
 
 Some TTS engines interpret inline markers embedded in the spoken text and
@@ -140,6 +148,72 @@ value directly so state drift is impossible.
 Badge: `#expressive-speech-indicator` in `views/index.erb`, styled with Bootstrap
 5 subtle palette (`bg-secondary-subtle text-secondary-emphasis border…`) to
 match the app's muted aesthetic rather than a vivid status colour.
+
+### Layer 5: Workflow Viewer integration
+
+`docker/services/ruby/public/js/monadic/workflow-viewer.js`
+
+When the Workflow Viewer panel is open, `buildGraphData()` reads runtime
+state from `window.params` and augments the graph on-the-fly:
+
+- Auto Speech on → Speech Input (STT) node before User Input; Speech
+  Output (TTS) node after Response. Both use the `speech` node type
+  (teal palette) with the current STT model / TTS provider + voice in
+  the body.
+- TTS provider is tag-aware (xAI / ElevenLabs v3 / Gemini) or
+  instruction-mode (`openai-tts-4o`) → `expressive_speech` added to the
+  Features side node list.
+
+`WorkflowViewer.refresh()` is exposed publicly and called from the four
+settings-panel change handlers (`check-auto-speech`, `tts-provider`,
+`tts-voice`, `stt-model`) so the graph updates live. No re-fetch of
+`/api/app/:name/graph` — the cached `currentData` is reused.
+
+## Hybrid mode — Gemini
+
+Google's Gemini TTS engines (`gemini-2.5-flash-preview-tts`,
+`gemini-2.5-pro-preview-tts`, `gemini-3.1-flash-tts-preview`) accept BOTH
+inline markers AND a natural-language style prompt, per the official
+"Controlling speech style with prompts" section of
+`ai.google.dev/gemini-api/docs/speech-generation`. Monadic Chat therefore
+treats Gemini as a **hybrid** family:
+
+- `TtsMarkerVocabulary.tag_aware?("gemini-*")` remains `true`
+- `TtsMarkerVocabulary.instruction_capable?("gemini-*")` is also `true`
+- `prompt_addendum_for("gemini-*")` dispatches to
+  `hybrid_addendum_for(...)` which teaches the LLM both shapes and lets
+  it choose per-turn (markers only, directive only, both, or neither).
+
+### Differences from OpenAI instruction mode
+
+OpenAI's `gpt-4o-mini-tts` has a separate `instructions` request
+parameter — the directive rides **out-of-band**. Gemini has no such
+parameter; the directive rides **in-band** as a prefix in the same
+spoken-text channel. The engine's own model interprets the lead-in
+phrasing as stage direction rather than speech.
+
+Concrete pipeline for Gemini:
+
+1. System-prompt addendum teaches the LLM to optionally emit a leading
+   `<<TTS:...>>` block (identical shape to OpenAI's) plus inline tags.
+2. Streaming handler extracts the block via
+   `TtsInstructionExtractor.extract_sentinel` (same extractor used for
+   OpenAI).
+3. `tts_utils.rb` Gemini branch converts the extracted directive into a
+   natural-language prefix — literally:
+   `"Say with this voice and style:\n<directive>\n\n<reply>"` — and
+   sends the concatenated string to `generateContent`.
+4. The display sanitizer (`TtsTextProcessors.sanitize_for_display`
+   and its JS mirror) strips both the `<<TTS:...>>` block and the inline
+   tags so only the spoken reply surfaces in the card.
+
+### Why one extractor for two providers
+
+`TtsInstructionExtractor` is provider-agnostic — it just turns
+`<<TTS:BODY>>\nrest` into `[rest, BODY]`. The consumer decides what to do
+with `BODY`: OpenAI passes it as a separate API field, Gemini prepends
+it as a natural-language prefix. Same extractor, different downstream
+wiring.
 
 ## Adding a new TTS provider
 

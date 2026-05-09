@@ -12,8 +12,7 @@ namespace :test do
         "OpenAI" => ENV["OPENAI_API_KEY"] || CONFIG["OPENAI_API_KEY"],
         "Claude" => ENV["ANTHROPIC_API_KEY"] || CONFIG["ANTHROPIC_API_KEY"],
         "Gemini" => ENV["GEMINI_API_KEY"] || CONFIG["GEMINI_API_KEY"],
-        "xAI" => ENV["XAI_API_KEY"] || CONFIG["XAI_API_KEY"],
-        "Perplexity" => ENV["PERPLEXITY_API_KEY"] || CONFIG["PERPLEXITY_API_KEY"]
+        "xAI" => ENV["XAI_API_KEY"] || CONFIG["XAI_API_KEY"]
       }
       
       puts "\nProvider API Key Status:"
@@ -265,25 +264,23 @@ namespace :test do
       puts "\nProvider Coverage:"
       puts "-" * 40
       
-      providers = ["OpenAI", "Claude", "Gemini", "xAI", "Perplexity"]
+      providers = ["OpenAI", "Claude", "Gemini", "xAI"]
       providers.each do |provider|
         key_var = case provider
                   when "OpenAI" then "OPENAI_API_KEY"
                   when "Claude" then "ANTHROPIC_API_KEY"
                   when "Gemini" then "GEMINI_API_KEY"
                   when "xAI" then "XAI_API_KEY"
-                  when "Perplexity" then "PERPLEXITY_API_KEY"
                   end
-        
+
         configured = CONFIG[key_var] ? "✓" : "✗"
         search_type = case provider
                      when "OpenAI" then "web_search_preview"
                      when "Claude" then "web_search_20250305"
                      when "Gemini" then "url_context"
                      when "xAI" then "live_search"
-                     when "Perplexity" then "built_in"
                      end
-        
+
         puts "#{provider}: #{configured} (#{search_type})"
       end
       

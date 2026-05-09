@@ -43,7 +43,7 @@ describe('Model Utils - Deprecated Model Filtering', () => {
       expect(modelUtils.isModelDeprecated('gpt-5.4')).toBe(false);
       expect(modelUtils.isModelDeprecated('claude-sonnet-4-6')).toBe(false);
       expect(modelUtils.isModelDeprecated('gemini-3-flash-preview')).toBe(false);
-      expect(modelUtils.isModelDeprecated('grok-4-0709')).toBe(false);
+      expect(modelUtils.isModelDeprecated('grok-4.20-0309-non-reasoning')).toBe(false);
     });
 
     it('returns false for unknown models', () => {
@@ -220,13 +220,19 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
       expect(models.length).toBeGreaterThan(curatedModels.length);
     });
 
-    it('excludes requires_confirmation models', () => {
+    it('excludes requires_confirmation models via spec flag', () => {
+      // Synthesize a requires_confirmation model to verify the filter still works
+      // (the long-thinking Pro tier has been removed from the OpenAI catalog per policy,
+      // but the filter itself remains for any future requires_confirmation entries)
+      window.modelSpec['gpt-test-confirm-required'] = {
+        requires_confirmation: true,
+        tool_capability: true,
+        context_window: [1, 100000]
+      };
       const appConfig = { group: 'OpenAI', model: 'gpt-5.4' };
       const models = modelUtils.getModelsForApp(appConfig, true);
-      // These models have requires_confirmation: true in model_spec.js
-      expect(models).not.toContain('gpt-5.4-pro');
-      expect(models).not.toContain('gpt-5.2-pro');
-      expect(models).not.toContain('o1-pro');
+      expect(models).not.toContain('gpt-test-confirm-required');
+      delete window.modelSpec['gpt-test-confirm-required'];
     });
 
     it('excludes tool_capability: false models', () => {
@@ -242,44 +248,33 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
       delete window.modelSpec['gpt-test-no-tools'];
     });
 
+    it('excludes non-chat modalities (TTS / embedding) from chat dropdown', () => {
+      const appConfig = { group: 'OpenAI', model: 'gpt-5.4' };
+      const models = modelUtils.getModelsForApp(appConfig, true);
+      // TTS models should not appear in chat model selection
+      expect(models).not.toContain('gpt-4o-mini-tts-2025-12-15');
+      expect(models).not.toContain('tts-1');
+      expect(models).not.toContain('tts-1-hd');
+      // Embedding models should not appear either
+      expect(models).not.toContain('text-embedding-3-large');
+    });
+
     it('prepends MDSL models when specified', () => {
       const appConfig = {
         group: 'OpenAI',
-        models: '["gpt-5.4", "gpt-4.1"]'
+        models: '["gpt-5.4", "gpt-5.4-mini"]'
       };
       const models = modelUtils.getModelsForApp(appConfig, true);
       // MDSL models should be first
       expect(models[0]).toBe('gpt-5.4');
-      expect(models[1]).toBe('gpt-4.1');
+      expect(models[1]).toBe('gpt-5.4-mini');
       // Should also include other provider models
       expect(models.length).toBeGreaterThan(2);
     });
   });
 
-  describe('filterModelsForAllMode - Perplexity exception', () => {
-    it('keeps Perplexity models even with tool_capability: false', () => {
-      window.modelSpec['sonar-test'] = {
-        tool_capability: false,
-        context_window: 8192,
-        max_output_tokens: 4096
-      };
-      const result = modelUtils.filterModelsForAllMode(['sonar-test'], 'perplexity');
-      expect(result).toContain('sonar-test');
-      delete window.modelSpec['sonar-test'];
-    });
-
-    it('still excludes requires_confirmation from Perplexity', () => {
-      window.modelSpec['sonar-expensive'] = {
-        requires_confirmation: true,
-        context_window: 8192,
-        max_output_tokens: 4096
-      };
-      const result = modelUtils.filterModelsForAllMode(['sonar-expensive'], 'perplexity');
-      expect(result).not.toContain('sonar-expensive');
-      delete window.modelSpec['sonar-expensive'];
-    });
-
-    it('excludes tool_capability: false for non-Perplexity providers', () => {
+  describe('filterModelsForAllMode - tool_capability gating', () => {
+    it('excludes tool_capability: false for any provider', () => {
       window.modelSpec['gpt-no-tools'] = {
         tool_capability: false,
         context_window: 8192,
@@ -288,6 +283,17 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
       const result = modelUtils.filterModelsForAllMode(['gpt-no-tools'], 'openai');
       expect(result).not.toContain('gpt-no-tools');
       delete window.modelSpec['gpt-no-tools'];
+    });
+
+    it('excludes requires_confirmation models', () => {
+      window.modelSpec['expensive-model'] = {
+        requires_confirmation: true,
+        context_window: 8192,
+        max_output_tokens: 4096
+      };
+      const result = modelUtils.filterModelsForAllMode(['expensive-model'], 'openai');
+      expect(result).not.toContain('expensive-model');
+      delete window.modelSpec['expensive-model'];
     });
 
     it('keeps unknown models (not in modelSpec)', () => {

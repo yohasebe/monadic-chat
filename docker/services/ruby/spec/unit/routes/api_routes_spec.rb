@@ -220,9 +220,9 @@ RSpec.describe "API Routes helpers" do
       end
 
       it "maps 'grok' to GROK_DEFAULT_MODEL env var" do
-        CONFIG['GROK_DEFAULT_MODEL'] = 'grok-3'
+        CONFIG['GROK_DEFAULT_MODEL'] = 'grok-4.20-0309-non-reasoning'
 
-        expect(SystemDefaults.get_default_model('grok')).to eq('grok-3')
+        expect(SystemDefaults.get_default_model('grok')).to eq('grok-4.20-0309-non-reasoning')
       end
 
       it "maps 'claude' alias to ANTHROPIC env var" do
@@ -248,8 +248,7 @@ RSpec.describe "API Routes helpers" do
         'cohere' => 'COHERE_API_KEY',
         'mistral' => 'MISTRAL_API_KEY',
         'deepseek' => 'DEEPSEEK_API_KEY',
-        'grok' => 'XAI_API_KEY',
-        'perplexity' => 'PERPLEXITY_API_KEY'
+        'grok' => 'XAI_API_KEY'
       }
     end
 

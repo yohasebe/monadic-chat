@@ -212,6 +212,7 @@ app "JupyterNotebookGemini" do
   TEXT
 
   features do
+    library_search false
     disabled !CONFIG["GEMINI_API_KEY"]
     monadic true
     jupyter true

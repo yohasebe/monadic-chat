@@ -58,13 +58,6 @@ RSpec.describe 'MDSL Web Search Default Settings' do
         "chat_grok.mdsl should have websearch true (native support via Responses API web_search/x_search tools)"
     end
 
-    it 'enables websearch by default for Perplexity Chat' do
-      mdsl_file = File.join(apps_dir, 'chat_perplexity.mdsl')
-      websearch_enabled = parse_mdsl_websearch(mdsl_file)
-
-      expect(websearch_enabled).to eq(true),
-        "chat_perplexity.mdsl should have websearch true (model inherent capability)"
-    end
   end
 
   describe 'Tavily-based web search providers' do
@@ -101,15 +94,6 @@ RSpec.describe 'MDSL Web Search Default Settings' do
   describe 'System prompt verification for web search' do
     let(:apps_dir) { File.join(__dir__, '../../apps/chat') }
 
-    it 'includes web search description in Perplexity system prompt' do
-      mdsl_file = File.join(apps_dir, 'chat_perplexity.mdsl')
-      content = File.read(mdsl_file)
-
-      # Perplexity's system prompt should mention web search capability
-      expect(content).to match(/live web search|web search capabilities|current information from the web/i),
-        "Perplexity system prompt should mention web search capability"
-    end
-
     it 'includes web search description in Gemini system prompt' do
       mdsl_file = File.join(apps_dir, 'chat_gemini.mdsl')
       content = File.read(mdsl_file)
@@ -130,16 +114,14 @@ RSpec.describe 'MDSL Web Search Default Settings' do
   end
 
   describe 'Configuration consistency' do
-    it 'matches commit 248dc9a1 changes (5 apps with websearch true)' do
+    it 'matches native-search apps having websearch true' do
       apps_dir = File.join(__dir__, '../../apps/chat')
 
-      # These 5 apps were changed to websearch true in commit 248dc9a1
       native_search_apps = [
         'chat_openai.mdsl',
         'chat_claude.mdsl',
         'chat_gemini.mdsl',
-        'chat_grok.mdsl',
-        'chat_perplexity.mdsl'
+        'chat_grok.mdsl'
       ]
 
       native_search_apps.each do |app_file|
@@ -147,7 +129,7 @@ RSpec.describe 'MDSL Web Search Default Settings' do
         websearch_enabled = parse_mdsl_websearch(mdsl_file)
 
         expect(websearch_enabled).to eq(true),
-          "#{app_file} should have websearch enabled (commit 248dc9a1)"
+          "#{app_file} should have websearch enabled (native search provider)"
       end
     end
 

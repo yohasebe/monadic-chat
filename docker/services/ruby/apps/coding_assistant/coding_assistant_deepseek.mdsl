@@ -65,8 +65,8 @@ app "CodingAssistantDeepSeek" do
   llm do
     provider "deepseek"
     reasoning_effort "low"
-    # Chat is default for faster responses; reasoner available for complex tasks
-    model ["deepseek-chat", "deepseek-reasoner"]
+    # V4 unified models are the default; thinking mode toggle controls reasoning depth.
+    model ["deepseek-v4-flash", "deepseek-v4-pro"]
   end
   
   display_name "Coding Assistant"

@@ -1,100 +1,89 @@
 # Vector Database
 
-Monadic Chat includes a powerful vector database system that enables semantic search capabilities. This document explains how this system works and how it's used in the application.
+Monadic Chat includes a vector database system that enables semantic search across documentation and user-uploaded PDFs. This document explains how that system works and how it is used inside the application.
 
 ## Overview :id=overview
 
 The vector database functionality in Monadic Chat:
-- Converts text into numerical vector representations (embeddings)
-- Stores these vectors in a PostgreSQL database using pgvector
-- Enables semantic similarity search rather than just keyword matching
-- Used in the PDF Navigator app and the Monadic Help app
+- Converts text into numerical vector representations (embeddings) locally
+- Stores these vectors in a Qdrant container alongside structured metadata
+- Enables semantic similarity search rather than keyword matching
+- Powers the Knowledge Base app and the Monadic Help app
+
+The pipeline is fully local — no external API key is required to embed text or to search the vector database.
 
 ## Technical Implementation :id=technical-implementation
 
-### Database Container
+### Service Containers
 
-The vector database functionality runs on the pgvector container (`monadic-chat-pgvector-container`). This container:
-- Runs PostgreSQL with the pgvector extension
-- Provides high-performance vector storage and similarity search
-- Stores both the document content and its vector representations
+Two cooperating containers handle vector storage and embedding inference:
 
+- **`monadic-chat-qdrant-container`** runs the [Qdrant](https://qdrant.tech) vector database. It stores documents, chunks, and their embeddings, plus payload metadata used for filtering and grouping.
+- **`monadic-chat-embeddings-container`** runs a small FastAPI service wrapping the [`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) sentence-transformer model. It converts text into 768-dimensional vectors on the host CPU.
+
+Both containers start automatically with Monadic Chat and require no configuration.
 
 ### Text Processing Flow
 
 ![Vector Database Flow](../assets/images/rag.png ':size=700')
 
-Here's the processing flow in the PDF Navigator app:
+Here is the processing flow in the Knowledge Base import pipeline:
 
-<!-- > 📸 **Screenshot needed**: PDF Navigator app interface showing PDF upload and query interface -->
-
-1. **Text Extraction**: 
-   - PDFs are processed using PyMuPDF to extract raw text
-   - The text is divided into segments with a configurable token size limit (default: 4000 tokens per segment)
-   - An overlap of configurable lines (default: 4 lines) is set between consecutive segments to maintain context
-   - These values can be configured in the `~/monadic/config/env` file as configuration variables: `PDF_RAG_TOKENS` and `PDF_RAG_OVERLAP_LINES`
+1. **Content Extraction**:
+   - PDFs are processed via [pdfplumber](https://github.com/jsvine/pdfplumber) to extract text and tables, with structure recovered as Markdown
+   - Office files (`.docx`/`.xlsx`/`.pptx`) are extracted via `python-docx` / `openpyxl` / `python-pptx`
+   - Markdown and source-code files are read directly; section boundaries come from headings and top-level definitions respectively
+   - The extracted content is split into per-section chunks (≈200–4000 chars) with importer-specific boundary rules
 
 2. **Embedding Generation**:
-   - Each text segment is converted to an embedding vector using OpenAI's `text-embedding-3-large` model
-   - These embeddings preserve the semantic meaning of the text
-   - The embedding vectors have 3072 dimensions
+   - Each text segment is sent to the embeddings container, which produces a 768-dimensional vector using `multilingual-e5-base`
+   - The model handles English, Japanese, and many other languages with comparable quality
+   - Vectors are L2-normalized so cosine similarity reduces to a dot product
 
 3. **Vector Storage**:
-   - Both the text segments and their vector representations are stored in the PostgreSQL database
-   - The pgvector extension enables efficient vector operations
+   - Each chunk becomes a Qdrant point under the `library_turns` collection, with the embedding as the vector and `{conversation_id, visibility, turn_idx, text, ...}` as payload
+   - A conversation-level point lives in the `library_summaries` collection with title, source, content_type, and a placeholder summary embedding, enabling document-level cascade retrieval
 
 4. **Retrieval Process**:
-   - When a user asks a question, their query is also converted to an embedding vector
-   - The system finds text segments with the most similar embeddings to the query
-   - These relevant segments are provided to the LLM along with the user's query
-   - The LLM generates a response based on these relevant text segments
+   - When a user asks a question, the query is embedded with the same model (with the `query:` prefix)
+   - Qdrant returns the most similar text segments using cosine similarity over an HNSW index
+   - The relevant segments are provided to the LLM along with the user's query
+   - The LLM generates a response grounded in those segments
 
-## Database Schema :id=database-schema
+## Schema :id=database-schema
 
-The database uses the following schema for vector storage:
+Qdrant organises data into named collections. Monadic Chat uses the following:
 
-- **docs**: Stores metadata about uploaded documents
-  - `id`: Unique identifier for the document
-  - `title`: Document title
-  - `items`: Number of text segments in the document
-  - `metadata`: Additional information about the document in JSON format
-  - `embedding`: Combined embedding vector for the entire document
+- **`library_summaries`** — One point per conversation/document. Payload: `{conversation_id, visibility, content_type, source, title, language, license, topics, messages, participants, ...}`. Used as the cascade entry point for retrieval and as the source-of-truth for the Knowledge Base browse list.
+- **`library_turns`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{conversation_id, visibility, turn_idx, speaker_id, text, ...}`. Main RAG retrieval unit consumed by the `library_search` tool.
+- **`help_docs` / `help_items`** — Points for the Monadic Help documentation index. Built into the Ruby image at packaging time and loaded once on first start.
 
-- **items**: Stores text segments and their embeddings
-  - `id`: Unique identifier for the text segment
-  - `doc_id`: Reference to parent document
-  - `text`: The text content of the segment
-  - `position`: Order position within the document
-  - `embedding`: Vector representation of the text (stored using pgvector)
-  - `metadata`: Supplementary information in JSON format
+All collections use 768-dimensional vectors with cosine distance and HNSW indexing for fast filtered search.
 
-The `metadata` field primarily stores the token count for each segment, helping the LLM understand the size of retrieved text segments.
+## Visibility Filtering :id=visibility
 
-## Use in PDF Navigator :id=use-in-pdf-navigator
+Library entries carry a `visibility` payload of either `personal` or `shareable`. The Knowledge Base UI sees both, while the cross-app `library_search` tool only returns `shareable` entries. This replaces the previous per-app PDF isolation model — the Library is project-wide and gates external access through the visibility flag rather than separate physical databases.
 
-The PDF Navigator app leverages this system to provide intelligent document Q&A capabilities:
+## Use in the Knowledge Base :id=use-in-knowledge-base
 
-1. Users upload PDF documents via the UI
-2. The system processes the document as described above
-3. Users can ask questions about the document content
-4. The system retrieves the most relevant segments using vector similarity search
-5. These segments are provided to the LLM to generate informative answers
+The Knowledge Base app uses this system to provide unified content Q&A:
 
-The app displays which document and text segment was used for each answer, clearly communicating the source of information to users.
+1. Users save the current chat session or click **Import file** in the Browse modal
+2. The system extracts, chunks, embeds, and stores the content (PDFs via pdfplumber, Office via python-docx/openpyxl/python-pptx, Markdown/code directly)
+3. Users ask questions about the content; other apps can ask too via `library_search` when the user has flipped the entry to `shareable`
+4. The system retrieves the most relevant chunks using a cascade query (summaries → turns) over the Qdrant collections above
+5. Retrieved chunks are passed to the LLM to ground its answer
 
-?> For information about PDF storage mode options (local vs. cloud), see the [PDF Storage](../basic-usage/pdf_storage.md) documentation.
+Imported files are also persisted under `~/monadic/data/library/imports/` for traceability.
 
 ## Use in Monadic Help :id=use-in-monadic-help
 
-Monadic Chat uses two separate databases for vector storage:
-- `monadic_user_docs` - For user-uploaded PDF documents in the PDF Navigator app
-- `monadic_help` - For the built-in documentation search in the Monadic Help app
+The Monadic Help app uses the same Qdrant + embeddings stack but reads from the `help_docs` and `help_items` collections, which are pre-built at packaging time:
 
-The Monadic Help app uses its vector database system as follows:
+1. During the Monadic Chat build, all documentation files are processed and embedded
+2. The result is shipped inside the Ruby image as a JSON dump (`help_data/help_db.json`)
+3. On first start, Monadic Chat loads the dump into Qdrant once
+4. When users ask questions, the same query/passage embedding workflow finds the relevant documentation snippets
+5. Those snippets are passed to the LLM to generate the answer
 
-1. Documentation files are pre-processed and embedded during the build process
-2. The help database is automatically built when you start Monadic Chat for the first time
-3. When users ask questions about Monadic Chat, the system searches through embedded documentation
-4. Relevant documentation sections are retrieved and provided to the LLM for generating helpful answers
-
-The help system uses the same `text-embedding-3-large` model but maintains its embeddings in a separate database to keep documentation search isolated from user data. Note that while the database is built automatically, you need an OpenAI API key to use the Monadic Help app since it requires the embedding model for search functionality.
+Because both embedding inference and storage are local, the help system works without any provider API key.

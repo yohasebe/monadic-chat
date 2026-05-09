@@ -17,7 +17,6 @@ class ReasoningLabels {
         'Google': "Thinking Mode",
         'xAI': "Reasoning Effort",
         'DeepSeek': "Reasoning Mode",
-        'Perplexity': "Research Depth",
         'default': "Reasoning Effort"
       },
       'ja': {
@@ -26,7 +25,6 @@ class ReasoningLabels {
         'Google': "思考モード",
         'xAI': "推論強度",
         'DeepSeek': "推論モード",
-        'Perplexity': "探索深度",
         'default': "推論強度"
       },
       'zh': {
@@ -35,7 +33,6 @@ class ReasoningLabels {
         'Google': "思考模式",
         'xAI': "推理强度",
         'DeepSeek': "推理模式",
-        'Perplexity': "搜索深度",
         'default': "推理强度"
       },
       'ko': {
@@ -44,7 +41,6 @@ class ReasoningLabels {
         'Google': "사고 모드",
         'xAI': "추론 강도",
         'DeepSeek': "추론 모드",
-        'Perplexity': "탐색 깊이",
         'default': "추론 강도"
       },
       'es': {
@@ -53,7 +49,6 @@ class ReasoningLabels {
         'Google': "Modo de Pensamiento",
         'xAI': "Esfuerzo de Razonamiento",
         'DeepSeek': "Modo de Razonamiento",
-        'Perplexity': "Profundidad de Búsqueda",
         'default': "Esfuerzo de Razonamiento"
       },
       'fr': {
@@ -62,7 +57,6 @@ class ReasoningLabels {
         'Google': "Mode de Réflexion",
         'xAI': "Effort de Raisonnement",
         'DeepSeek': "Mode de Raisonnement",
-        'Perplexity': "Profondeur de Recherche",
         'default': "Effort de Raisonnement"
       },
       'de': {
@@ -71,7 +65,6 @@ class ReasoningLabels {
         'Google': "Denkmodus",
         'xAI': "Denkaufwand",
         'DeepSeek': "Denkmodus",
-        'Perplexity': "Suchtiefe",
         'default': "Denkaufwand"
       }
     };
@@ -86,8 +79,6 @@ class ReasoningLabels {
       labelKey = 'Google';
     } else if (provider === 'DeepSeek' && spec.reasoning_content) {
       labelKey = 'DeepSeek';
-    } else if (provider === 'Perplexity' && spec.reasoning_effort) {
-      labelKey = 'Perplexity';
     } else if (provider === 'xAI' && spec.reasoning_effort) {
       labelKey = 'xAI';
     } else if (provider === 'OpenAI' && spec.reasoning_effort) {
@@ -124,56 +115,49 @@ class ReasoningLabels {
         'Anthropic': "Controls how deeply Claude thinks through problems",
         'Google': "Balances response quality with processing time",
         'xAI': "Adjusts Grok's reasoning depth",
-        'DeepSeek': "Enable or disable step-by-step reasoning",
-        'Perplexity': "Controls search and analysis depth"
+        'DeepSeek': "Enable or disable step-by-step reasoning"
       },
       'ja': {
         'OpenAI': "推論の計算深度を制御",
         'Anthropic': "Claudeの思考深度を制御",
         'Google': "品質と処理時間のバランス",
         'xAI': "Grokの推論深度を調整",
-        'DeepSeek': "段階的推論の有効/無効",
-        'Perplexity': "検索と分析の深度を制御"
+        'DeepSeek': "段階的推論の有効/無効"
       },
       'zh': {
         'OpenAI': "控制推理计算深度",
         'Anthropic': "控制Claude思考深度",
         'Google': "平衡质量与处理时间",
         'xAI': "调整Grok推理深度",
-        'DeepSeek': "启用/禁用分步推理",
-        'Perplexity': "控制搜索和分析深度"
+        'DeepSeek': "启用/禁用分步推理"
       },
       'ko': {
         'OpenAI': "추론 계산 깊이 제어",
         'Anthropic': "Claude 사고 깊이 제어",
         'Google': "품질과 처리 시간 균형",
         'xAI': "Grok 추론 깊이 조정",
-        'DeepSeek': "단계별 추론 활성/비활성",
-        'Perplexity': "검색 및 분석 깊이 제어"
+        'DeepSeek': "단계별 추론 활성/비활성"
       },
       'es': {
         'OpenAI': "Controla la profundidad computacional",
         'Anthropic': "Controla la profundidad de pensamiento",
         'Google': "Equilibra calidad con tiempo",
         'xAI': "Ajusta la profundidad de razonamiento",
-        'DeepSeek': "Habilitar/deshabilitar razonamiento",
-        'Perplexity': "Controla profundidad de búsqueda"
+        'DeepSeek': "Habilitar/deshabilitar razonamiento"
       },
       'fr': {
         'OpenAI': "Contrôle la profondeur de calcul",
         'Anthropic': "Contrôle la profondeur de réflexion",
         'Google': "Équilibre qualité et temps",
         'xAI': "Ajuste la profondeur de raisonnement",
-        'DeepSeek': "Activer/désactiver le raisonnement",
-        'Perplexity': "Contrôle la profondeur de recherche"
+        'DeepSeek': "Activer/désactiver le raisonnement"
       },
       'de': {
         'OpenAI': "Steuert die Rechenleistung",
         'Anthropic': "Steuert Claudes Denktiefe",
         'Google': "Balance zwischen Qualität und Zeit",
         'xAI': "Passt Groks Denktiefe an",
-        'DeepSeek': "Schrittweises Denken ein/aus",
-        'Perplexity': "Steuert Such- und Analysetiefe"
+        'DeepSeek': "Schrittweises Denken ein/aus"
       }
     };
     
@@ -183,8 +167,7 @@ class ReasoningLabels {
       (provider === 'Anthropic' && spec.supports_thinking === true) ||
       (provider === 'Google' && spec.thinking_budget) ||
       (provider === 'xAI' && spec.reasoning_effort) ||
-      (provider === 'DeepSeek' && spec.reasoning_content) ||
-      (provider === 'Perplexity' && spec.reasoning_effort);
+      (provider === 'DeepSeek' && spec.reasoning_content);
     
     if (!hasReasoning) return null;
     
@@ -225,12 +208,6 @@ class ReasoningLabels {
         'DeepSeek': {
           'minimal': 'Off',
           'medium': 'On'
-        },
-        'Perplexity': {
-          'minimal': 'Quick Search',
-          'low': 'Standard Search',
-          'medium': 'Deep Research',
-          'high': 'Comprehensive Analysis'
         }
       },
       'ja': {
@@ -260,12 +237,6 @@ class ReasoningLabels {
         'DeepSeek': {
           'minimal': 'オフ',
           'medium': 'オン'
-        },
-        'Perplexity': {
-          'minimal': 'クイック検索',
-          'low': '標準検索',
-          'medium': '詳細検索',
-          'high': '包括的分析'
         }
       },
       'zh': {
@@ -295,12 +266,6 @@ class ReasoningLabels {
         'DeepSeek': {
           'minimal': '关闭',
           'medium': '开启'
-        },
-        'Perplexity': {
-          'minimal': '快速搜索',
-          'low': '标准搜索',
-          'medium': '深度搜索',
-          'high': '综合分析'
         }
       },
       'ko': {

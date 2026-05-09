@@ -165,14 +165,14 @@ RUN uv pip install --no-cache \
     jupyterlab ipywidgets plotly \
     numpy  pandas statsmodels \
     matplotlib seaborn \
-    pymupdf pymupdf4llm \
+    pdfplumber pypdfium2 \
     selenium html2text \
     openpyxl python-docx python-pptx \
     requests beautifulsoup4 \
     lxml pygraphviz graphviz pydotplus networkx pyvis \
     svgwrite cairosvg tinycss cssselect pygal \
     pyecharts pyecharts-snapshot \
-    opencv-python moviepy==2.0.0.dev2
+    opencv-python
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

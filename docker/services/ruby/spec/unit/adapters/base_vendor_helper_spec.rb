@@ -258,4 +258,190 @@ RSpec.describe BaseVendorHelper do
       expect($MODELS[:test_vendor]).to be_nil
     end
   end
+
+  describe '#privacy_enabled_for? two-gate activation' do
+    subject(:helper) do
+      Class.new { include BaseVendorHelper }.new
+    end
+
+    let(:enabled_settings) { { privacy: { enabled: true } } }
+    let(:disabled_settings) { { privacy: { enabled: false } } }
+
+    it 'returns false when app_settings is nil' do
+      session = { _privacy_session_enabled: true }
+      expect(helper.privacy_enabled_for?(nil, session)).to be false
+    end
+
+    it 'returns false when MDSL privacy is disabled, even if session opts in' do
+      session = { _privacy_session_enabled: true }
+      expect(helper.privacy_enabled_for?(disabled_settings, session)).to be false
+    end
+
+    it 'returns false when MDSL enables but session does not opt in' do
+      session = { _privacy_session_enabled: false }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
+    end
+
+    it 'returns false when session is nil' do
+      expect(helper.privacy_enabled_for?(enabled_settings, nil)).to be false
+    end
+
+    it 'returns false when session SSOT key is absent (user never opted in)' do
+      expect(helper.privacy_enabled_for?(enabled_settings, {})).to be false
+    end
+
+    it 'returns true only when both MDSL and session opt in' do
+      session = { _privacy_session_enabled: true }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be true
+    end
+
+    it 'ignores any leftover privacy_session_enabled in params (params is not authoritative)' do
+      # Stale clients could still write the legacy field. The contract is
+      # "PRIVACY_TOGGLE is the only path", so a params-only declaration
+      # must NOT activate masking.
+      session = { parameters: { 'privacy_session_enabled' => true } }
+      expect(helper.privacy_enabled_for?(enabled_settings, session)).to be false
+    end
+
+    it 'works with non-Hash session-like objects (e.g., Rack SecureSessionHash)' do
+      # Production Rack sessions are
+      # Rack::Session::Abstract::PersistedSecure::SecureSessionHash, which
+      # supports `[]` but is NOT a Hash subclass. Tightening the gate to
+      # `is_a?(Hash)` would silently disable masking in production while
+      # passing plain-Hash unit fixtures.
+      rack_session = Class.new do
+        def initialize(data); @data = data; end
+        def [](key); @data[key] || @data[key.to_s]; end
+      end.new(_privacy_session_enabled: true)
+
+      expect(rack_session.is_a?(Hash)).to be false
+      expect(helper.privacy_enabled_for?(enabled_settings, rack_session)).to be true
+    end
+  end
+
+  describe '#apply_privacy_to_messages with Claude-shape content' do
+    subject(:helper) do
+      Class.new do
+        include BaseVendorHelper
+      end.new
+    end
+
+    let(:fake_pipeline) do
+      double('Pipeline').tap do |p|
+        allow(p).to receive(:before_send_to_llm) do |raw|
+          masked_text = raw.text.gsub(/Alice/, '<<PERSON_1>>')
+          double('MaskedMessage', text: masked_text)
+        end
+      end
+    end
+
+    before do
+      require_relative '../../../lib/monadic/utils/privacy/types'
+      allow(helper).to receive(:privacy_pipeline_for).and_return(fake_pipeline)
+    end
+
+    it 'masks user-message text in Anthropic-style content array' do
+      messages = [
+        { "role" => "user", "content" => [{ "type" => "text", "text" => "Email Alice" }] }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["text"]).to eq("Email <<PERSON_1>>")
+    end
+
+    it 'leaves image and document blocks untouched while masking text blocks' do
+      messages = [{
+        "role" => "user",
+        "content" => [
+          { "type" => "image", "source" => { "type" => "base64", "data" => "abc" } },
+          { "type" => "text", "text" => "What does Alice think?" },
+          { "type" => "document", "source" => { "type" => "base64", "data" => "pdf" } }
+        ]
+      }]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["type"]).to eq("image")
+      expect(result[0]["content"][0]["source"]["data"]).to eq("abc")
+      expect(result[0]["content"][1]["text"]).to eq("What does <<PERSON_1>> think?")
+      expect(result[0]["content"][2]["type"]).to eq("document")
+    end
+
+    it 'masks assistant-role messages too (multi-turn context replay)' do
+      # session[:messages] stores the restored text for past assistant
+      # turns; on the next round-trip it must be re-masked using the same
+      # registry so PII does not leak back to the LLM via context history.
+      messages = [
+        { "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] },
+        { "role" => "assistant", "content" => [{ "type" => "text", "text" => "Hello Alice" }] }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"][0]["text"]).to eq("Hi <<PERSON_1>>")
+      expect(result[1]["content"][0]["text"]).to eq("Hello <<PERSON_1>>")
+    end
+
+    it 'leaves system / tool / developer roles untouched' do
+      messages = [
+        { "role" => "system", "content" => "You are a helpful assistant about Alice." },
+        { "role" => "tool", "content" => [{ "type" => "text", "text" => "tool output mentioning Alice" }] },
+        { "role" => "user", "content" => "Hi Alice" }
+      ]
+      result = helper.apply_privacy_to_messages(messages, {}, { privacy: { enabled: true } })
+      expect(result[0]["content"]).to eq("You are a helpful assistant about Alice.")
+      expect(result[1]["content"][0]["text"]).to eq("tool output mentioning Alice")
+      expect(result[2]["content"]).to eq("Hi <<PERSON_1>>")
+    end
+
+    it 'returns messages unchanged when pipeline is nil (privacy disabled)' do
+      allow(helper).to receive(:privacy_pipeline_for).and_return(nil)
+      messages = [{ "role" => "user", "content" => [{ "type" => "text", "text" => "Hi Alice" }] }]
+      result = helper.apply_privacy_to_messages(messages, {}, nil)
+      expect(result).to eq(messages)
+    end
+  end
+
+  # End-to-end gating: privacy_pipeline_for must honor both gates
+  # (MDSL `privacy.enabled` + session opt-in via PRIVACY_TOGGLE) and
+  # only build a Pipeline when both are true.
+  describe '#privacy_pipeline_for end-to-end gating' do
+    subject(:helper) do
+      Class.new { include BaseVendorHelper }.new
+    end
+
+    let(:enabled_settings) { { privacy: { enabled: true, languages: ["en"], score_threshold: 0.4, honorific_trim: true } } }
+
+    before do
+      require_relative '../../../lib/monadic/utils/privacy/presidio_backend'
+      require_relative '../../../lib/monadic/utils/privacy/pipeline'
+      # Stub the network-bound backend so the test does not require the
+      # privacy container to be running.
+      fake_backend = instance_double(Monadic::Utils::Privacy::PresidioBackend)
+      allow(Monadic::Utils::Privacy::PresidioBackend).to receive(:new).and_return(fake_backend)
+      allow(fake_backend).to receive(:anonymize) do |args|
+        masked = args[:text].gsub(/Alice/, '<<PERSON_1>>')
+        { masked_text: masked, registry: { '<<PERSON_1>>' => 'Alice' }, entities: [], stats: {} }
+      end
+    end
+
+    it 'creates a real Pipeline that masks input text when both gates pass' do
+      session = { _privacy_session_enabled: true }
+      messages = [{ "role" => "user", "content" => "Email Alice today" }]
+
+      result = helper.apply_privacy_to_messages(messages, session, enabled_settings)
+      expect(result[0]["content"]).to eq("Email <<PERSON_1>> today")
+    end
+
+    it 'returns no pipeline when session SSOT key is missing' do
+      # No PRIVACY_TOGGLE was sent, so the toggle key is absent and the
+      # gate must refuse to build a pipeline.
+      session = { parameters: { 'message' => 'Hi Alice' } }
+      messages = [{ "role" => "user", "content" => "Email Alice today" }]
+
+      expect(helper.privacy_pipeline_for(session, enabled_settings)).to be_nil
+      result = helper.apply_privacy_to_messages(messages, session, enabled_settings)
+      expect(result[0]["content"]).to eq("Email Alice today")
+    end
+
+    it 'returns no pipeline when MDSL declares privacy but session opts out' do
+      session = { _privacy_session_enabled: false }
+      expect(helper.privacy_pipeline_for(session, enabled_settings)).to be_nil
+    end
+  end
 end

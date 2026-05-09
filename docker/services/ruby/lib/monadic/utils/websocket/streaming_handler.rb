@@ -7,6 +7,9 @@
 # Also includes token counting and message analysis utilities used
 # during streaming.
 
+require_relative '../tts_marker_vocabulary'
+require_relative '../tts_instruction_extractor'
+
 module WebSocketHelper
   # Inactive messages longer than this threshold (in characters) are truncated
   # to save memory. Original text is preserved for potential reactivation.
@@ -213,6 +216,12 @@ module WebSocketHelper
       }
       session[:messages] << user_message_data
       sync_session_state!
+
+      # Privacy Filter auto-detect: lock the session language from the
+      # user's actual typed text (pre-vendor, no placeholder contamination).
+      # No-op when conversation_language != "auto" or already locked.
+      require_relative '../privacy/language_detector'
+      Monadic::Utils::Privacy::LanguageDetector.detect_and_lock!(message_text, session)
     end
 
     # Extract TTS parameters if auto_speech is enabled
@@ -286,6 +295,20 @@ module WebSocketHelper
         next
       end
 
+      # Expressive Speech instruction-mode streaming hold-back state.
+      # For non-Monadic apps using openai-tts-4o the LLM prefixes the reply
+      # with a `<<TTS:...>>` directive block. We buffer fragments on the
+      # server until either (a) a complete sentinel arrives — then forward
+      # only the remainder, or (b) the accumulated prefix can no longer be
+      # the start of a sentinel — then forward everything accumulated.
+      # Once decided, subsequent fragments pass through unchanged.
+      sentinel_hold_back_active =
+        (original_auto_speech == true || original_auto_speech == "true") &&
+        (original_monadic.nil? || original_monadic.to_s.strip.empty?) &&
+        Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(obj["tts_provider"])
+      sentinel_state = sentinel_hold_back_active ? :scanning : :passthrough
+      sentinel_held = +""
+
       prev_texts_for_tts = []
       responses = app_obj.api_request("user", session) do |fragment|
         # DEBUG: Log all fragment arrivals
@@ -322,13 +345,51 @@ module WebSocketHelper
 
           # Forward fragment to frontend for display. Full-text TTS is
           # synthesized once the stream completes (post-completion mode).
-          send_or_broadcast(fragment.to_json, ws_session_id)
+          #
+          # Instruction-mode (openai-tts-4o, non-Monadic): intercept the
+          # leading `<<TTS:...>>` sentinel so it never flashes in the UI.
+          # See the state machine set up before the streaming loop.
+          if sentinel_state == :scanning
+            sentinel_held << text.to_s
+            consumed = Monadic::Utils::TtsInstructionExtractor.try_consume_sentinel(sentinel_held)
+            if consumed
+              _instructions, remainder = consumed
+              sentinel_state = :passthrough
+              sentinel_held = +""
+              next if remainder.nil? || remainder.empty?
+              forward_fragment = fragment.dup
+              forward_fragment["content"] = remainder
+              send_or_broadcast(forward_fragment.to_json, ws_session_id)
+            elsif Monadic::Utils::TtsInstructionExtractor.possibly_sentinel_start?(sentinel_held)
+              # Still could grow into a sentinel — keep holding back.
+              next
+            else
+              # Definitely not a sentinel — flush what we buffered in one shot.
+              sentinel_state = :passthrough
+              flush_fragment = fragment.dup
+              flush_fragment["content"] = sentinel_held
+              sentinel_held = +""
+              send_or_broadcast(flush_fragment.to_json, ws_session_id)
+            end
+          else
+            send_or_broadcast(fragment.to_json, ws_session_id)
+          end
         else
           # Handle other fragment types (including html, message, etc.)
           Monadic::Utils::ExtraLogger.log { "[WebSocket] Forwarding fragment type='#{fragment["type"]}' to frontend" }
           send_or_broadcast(fragment.to_json, ws_session_id)
         end
         sleep 0.001  # Reduced from 0.01 for faster streaming
+      end
+
+      # Safety valve: if the stream ended while we were still scanning for a
+      # sentinel (e.g., the LLM forgot the wrapper, or the response was very
+      # short), flush the held-back characters so the user sees their text.
+      if sentinel_state == :scanning && !sentinel_held.empty?
+        flush_payload = { "type" => "fragment", "content" => sentinel_held }.to_json
+        send_or_broadcast(flush_payload, ws_session_id)
+        sentinel_held = +""
+        sentinel_state = :passthrough
       end
 
       Thread.exit if !responses || responses.empty?
@@ -373,7 +434,38 @@ module WebSocketHelper
         # Clear session tts_text after use to avoid reusing on next request
         session.delete(:tts_text) if tts_text_from_target
 
+        # Privacy Filter: replace any "<<TYPE_N>>" placeholder with "TYPE N" so
+        # TTS reads a sanitized form instead of speaking the bracket symbols.
+        # Idempotent for non-privacy sessions (no-op when no placeholders).
+        if session[:_privacy_pipeline]
+          text = session[:_privacy_pipeline].sanitize_for_tts(text)
+        end
+
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }
+
+        # Expressive Speech instruction-mode extraction: when the active TTS
+        # provider supports the out-of-band `instructions` parameter
+        # (OpenAI gpt-4o-mini-tts), peel the directive from the LLM output
+        # and pass it through to tts_api_request. The extractor is nil-safe
+        # — when the LLM did not emit a directive (e.g., first-turn
+        # conservative response) it returns [text, nil] and the TTS call
+        # just runs in plain mode.
+        #
+        # For tts_text_from_target path we skip extraction: the target text
+        # is a specific tool parameter (not the assistant's raw response),
+        # so it cannot contain the JSON wrapper or sentinel prefix.
+        tts_instructions = nil
+        if !tts_text_from_target && Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(provider)
+          app_is_monadic = !monadic_disabled
+          extracted_text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(
+            text,
+            app_is_monadic: app_is_monadic
+          )
+          text = extracted_text
+          if CONFIG["EXTRA_LOGGING"] && tts_instructions.nil?
+            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-capable parse returned no directive; falling back to plain TTS (provider=#{provider}, monadic=#{app_is_monadic})" }
+          end
+        end
 
         # Only process if there's actual text
         if text.strip != ""
@@ -384,7 +476,8 @@ module WebSocketHelper
             speed: speed,
             response_format: response_format,
             language: language,
-            ws_session_id: ws_session_id
+            ws_session_id: ws_session_id,
+            instructions: tts_instructions
           )
         end
       end
@@ -451,12 +544,50 @@ module WebSocketHelper
             send_or_broadcast(content_error, ws_session_id)
             break
           end
+          # Privacy Filter: restore <<TYPE_N>> placeholders before the message
+          # is finalized. Buffer remains masked so the post-completion TTS path
+          # above can still apply sanitize_for_tts independently.
+          known_entities = nil
+          if session[:_privacy_pipeline]
+            pipeline = session[:_privacy_pipeline]
+            restored_response = pipeline.after_receive_from_llm(raw_content)
+            raw_content = restored_response.text
+            # Ship the FULL registry rather than just spans substituted in
+            # this turn. The frontend walks every card in #discourse so a
+            # name registered in turn 1 still highlights in user input on
+            # turn 5. The walker is idempotent (re-wrap is rejected).
+            known_entities = pipeline.registry_entries
+            # Notify frontend of current privacy state so the indicator updates.
+            # Detection state lets the UI surface the locked auto-detected
+            # language as a small "ja" / "en" badge alongside the count;
+            # the frontend ignores the field when locked is false.
+            detection_state = nil
+            begin
+              require_relative '../privacy/language_detector'
+              detection_state = Monadic::Utils::Privacy::LanguageDetector.peek_detection_state(session)
+            rescue StandardError => det_err
+              Monadic::Utils::ExtraLogger.log { "[Privacy] detection state unavailable: #{det_err.message}" }
+            end
+            state_payload = {
+              "type" => "privacy_state",
+              "enabled" => true,
+              "registry_count" => pipeline.registry_count,
+              "error" => nil
+            }
+            state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
+            send_or_broadcast(state_payload.to_json, ws_session_id)
+          end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
           # Fix mount paths in the same way
           content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
 
           response.dig("choices", 0, "message")["content"] = content
+          # Forward the known-entities list with the message so html_handler
+          # can broadcast it to the UI for the unmask-highlight layer.
+          if known_entities && !known_entities.empty?
+            response["choices"][0]["message"]["privacy_known_entities"] = known_entities
+          end
 
           # Note: TTS for Session State apps is handled via tts_target feature
           # which extracts text from tool parameters (e.g., save_response message)

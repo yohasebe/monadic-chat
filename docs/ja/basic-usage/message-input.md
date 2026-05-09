@@ -14,7 +14,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## 画像のアップロード :id=uploading-images
 
-画像アップロードは、ビジョン機能を持つモデル（OpenAI、Anthropic Claude、xAI Grok、Google Gemini、Mistral、Perplexity）で利用できます。
+画像アップロードは、ビジョン機能を持つモデル（OpenAI、Anthropic Claude、xAI Grok、Google Gemini、Mistral）で利用できます。
 
 `Image`（PDFもサポートするモデルでは`Image/PDF`）をクリックして画像を選択します。対応形式：JPG、JPEG、PNG、GIF、WebP
 

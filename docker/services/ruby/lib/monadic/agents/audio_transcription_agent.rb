@@ -2,6 +2,7 @@
 
 require "base64"
 require "http"
+require_relative "../utils/environment"
 
 # AudioTranscriptionAgent provides provider-independent audio transcription.
 #
@@ -9,7 +10,7 @@ require "http"
 #   - OpenAI: Dedicated /v1/audio/transcriptions endpoint (Whisper, gpt-4o-transcribe models)
 #   - Gemini: Multimodal generateContent with audio inline_data
 #
-# Non-STT providers (Claude, Grok, Cohere, DeepSeek, Mistral, Perplexity, Ollama)
+# Non-STT providers (Claude, Grok, Cohere, DeepSeek, Mistral, Ollama)
 # fall back to the first available audio provider (preference: OpenAI -> Gemini).
 
 module AudioTranscriptionAgent
@@ -93,18 +94,20 @@ module AudioTranscriptionAgent
 
   private
 
-  # Resolve audio file path from shared volume
+  # Resolve audio file path against the active shared volume
+  # (`/monadic/data` in the Ruby container, `~/monadic/data` on the host
+  # in dev mode). Inputs typically arrive as `./audio_<timestamp>.mp3`
+  # because the producing scripts run with the shared volume as CWD.
   def resolve_audio_path(audio_path)
     return "ERROR: Invalid file path (path traversal not allowed)" if audio_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
     clean_path = audio_path.to_s.sub(%r{\A\./}, "")
+    shared_path = File.join(Monadic::Utils::Environment.shared_volume, clean_path)
 
     path = if File.exist?(audio_path.to_s)
              audio_path.to_s
-           elsif defined?(SHARED_VOL) && File.exist?(File.join(SHARED_VOL, clean_path))
-             File.join(SHARED_VOL, clean_path)
-           elsif defined?(LOCAL_SHARED_VOL) && File.exist?(File.join(LOCAL_SHARED_VOL, clean_path))
-             File.join(LOCAL_SHARED_VOL, clean_path)
+           elsif File.exist?(shared_path)
+             shared_path
            end
 
     return "ERROR: Audio file not found: #{audio_path}" unless path && File.exist?(path)

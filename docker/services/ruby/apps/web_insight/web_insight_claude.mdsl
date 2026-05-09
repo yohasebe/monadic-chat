@@ -109,6 +109,7 @@ app "WebInsightClaude" do
   end
 
   features do
+    library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     monadic false
     websearch true

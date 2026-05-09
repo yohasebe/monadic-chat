@@ -1,85 +1,35 @@
-# PDF Storage Modes
+# PDF Knowledge Base
 
-Monadic Chat offers two ways to store and search through PDF documents: Local PDF (using PGVector) and Cloud PDF (using OpenAI Vector Store). This flexibility allows you to choose between full local control and cloud-hosted convenience.
+Monadic Chat lets you build a local PDF knowledge base that AI agents can search during conversations. Documents are processed entirely on your machine: text is extracted from each PDF, converted to embeddings by a local sentence-transformer container, and stored in a Qdrant vector database. No external API key is required for either step.
 
-## Understanding Storage Modes
+## How It Works
 
-### Local PDF (PGVector)
+- PDFs are converted to embeddings locally using `multilingual-e5-base`
+- Vectors and metadata are persisted in the Qdrant Docker volume
+- Search uses Qdrant's HNSW index over the locally-computed embeddings
+- Works offline — no provider API key is needed for storage or retrieval
 
-The local storage mode processes PDFs on your machine and stores them in a PostgreSQL database with the pgvector extension. This gives you complete control over your data:
+## Managing Your PDF Collection
 
-- PDFs are converted to text embeddings and stored locally
-- All processing happens on your computer
-- Data persists in the PGVector Docker container
-- Recommended when you want full local control of your documents
+The PDF Database panel in the web interface shows imported documents:
 
-### Cloud PDF (OpenAI Vector Store)
-
-The cloud storage mode uploads your PDFs to OpenAI's servers and uses their Vector Store service for searching:
-
-- PDFs are uploaded to OpenAI Files
-- Documents are attached to a shared Vector Store
-- OpenAI handles all indexing and search operations
-- Recommended for zero-setup convenience and when you're already using OpenAI services
-
-## Choosing Your Storage Mode
-
-You can select your preferred storage mode in the Settings panel under "PDF Storage Mode":
-
-- **Local (PGVector)** - Default option, stores everything locally
-- **Cloud (OpenAI Vector Store)** - Uses OpenAI's hosted service
-
-## Managing Your PDF Collections
-
-### PDF Database Panel
-
-The PDF Database panel in the web interface shows your document collections with a consistent interface for both local and cloud storage:
-
+- **Import**: Upload a new PDF; the file is chunked, embedded, and indexed in the background
 - **Refresh**: Update the list to show recently added documents
-- **Delete (per-item)**: Remove individual PDFs with confirmation
-- **Clear All**: Remove all PDFs with confirmation
+- **Delete (per-item)**: Remove a single PDF with confirmation
+- **Clear All**: Remove every PDF in the current app's namespace with confirmation
 
-When you upload a PDF to cloud storage, the list automatically refreshes to show the new document.
+Each app keeps its own namespace inside the Qdrant collection (the per-app `app_key` payload field), so PDFs imported into one app do not leak into another.
 
-## How Searching Works
+## Considerations
 
-The search experience differs slightly between storage modes:
+- **Data persistence**: Documents are stored in the `monadic-chat-qdrant-data` Docker volume
+- **Backup**: Use the Export Document DB feature from the Electron menu to back up your data as a `.tar.gz` snapshot
+- **Container rebuilds**: Export your database before rebuilding containers to prevent data loss
 
-**Local Mode**:
-- Uses PostgreSQL's pgvector extension for similarity search
-- Search happens entirely on your machine
-- No external API calls for searching
+## Upgrading from Earlier Versions
 
-**Cloud Mode**:
-- Automatically integrates OpenAI File Search into API calls
-- Search is handled by OpenAI's Vector Store service
-- Results come from OpenAI's servers
+If you are upgrading from 1.0.0-beta.13 or earlier, the previous storage format is incompatible with the current local stack:
 
-## Important Notes
-
-### Cloud Mode Considerations
-
-When using cloud storage, keep in mind:
-
-- **Data Location**: PDFs are stored in your OpenAI account
-- **Cost**: For OpenAI Vector Store pricing, refer to [OpenAI API Pricing](https://openai.com/api/pricing/)
-
-### Local Mode Considerations
-
-When using local storage:
-
-- **Data Persistence**: Documents are stored in the PGVector Docker volume
-- **Backup**: Use the Export Document DB feature from the Electron menu to back up your data
-- **Container Rebuilds**: Export your database before rebuilding containers to prevent data loss
-
-## Deletion Behavior
-
-### Per-File Deletion
-- **Local**: Removes the document from the PGVector database
-- **Cloud**: Deletes the file from OpenAI Files and removes it from the Vector Store
-
-### Clear All
-- **Local**: Removes all documents from the PGVector database
-- **Cloud**: Removes all attached files from the Vector Store
-
-?> After clearing all files from a Vector Store, searches will return no results because the search corpus is empty.
+- Existing locally-stored PDFs do not migrate automatically — re-import your PDFs after upgrading
+- The legacy `monadic-chat-pgvector-data` Docker volume can be removed once re-import is complete
+- Cloud PDF storage (OpenAI Vector Store) is no longer supported as of 1.0.0-beta.16. PDFs previously uploaded to OpenAI Files / Vector Store are not accessible from Monadic Chat after upgrade. The data still exists in your OpenAI account and can be removed manually from the OpenAI dashboard.

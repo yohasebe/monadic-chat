@@ -106,7 +106,7 @@ if (imageModalEl) {
   });
 }
 
-// URL file add handler (Phase 3: URL reference for Responses API models)
+// URL file add handler — sends a URL reference for Responses API models.
 document.addEventListener("click", function (e) {
   const addUrlBtn = e.target.closest("#addUrlFile");
   if (!addUrlBtn) return;

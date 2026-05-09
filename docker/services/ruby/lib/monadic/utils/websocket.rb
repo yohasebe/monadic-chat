@@ -22,9 +22,11 @@ require_relative 'websocket/tts_handler'
 require_relative 'websocket/message_editor'
 require_relative 'websocket/audio_handler'
 require_relative 'websocket/pdf_handler'
+require_relative 'websocket/library_handler'
 require_relative 'websocket/streaming_handler'
 require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
+require_relative 'websocket/privacy_handler'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
@@ -177,11 +179,31 @@ module WebSocketHelper
             WebSocketHelper.broadcast_to_all(cancel_message)
           end
         when "PDF_TITLES"
-          handle_ws_pdf_titles(connection)
+          handle_ws_pdf_titles(connection, obj, session)
         when "DELETE_PDF"
           handle_ws_delete_pdf(connection, obj, session)
         when "DELETE_ALL_PDFS"
-          handle_ws_delete_all_pdfs(connection, session)
+          handle_ws_delete_all_pdfs(connection, obj, session)
+        when "LIBRARY_LIST"
+          handle_ws_library_list(connection, obj, session)
+        when "LIBRARY_DELETE"
+          handle_ws_library_delete(connection, obj, session)
+        when "LIBRARY_STATS"
+          handle_ws_library_stats(connection, obj, session)
+        when "LIBRARY_SAVE"
+          handle_ws_library_save(connection, obj, session)
+        when "LIBRARY_SET_SCOPE"
+          handle_ws_library_set_scope(connection, obj, session)
+        when "LIBRARY_RENAME"
+          handle_ws_library_rename(connection, obj, session)
+        when "LIBRARY_GET_CONVERSATION"
+          handle_ws_library_get_conversation(connection, obj, session)
+        when "LIBRARY_RAG_TOGGLE"
+          handle_ws_library_rag_toggle(connection, obj, session)
+        when "LIBRARY_RAG_QUERY"
+          handle_ws_library_rag_query(connection, obj, session)
+        when "LIBRARY_SUGGEST_TITLE"
+          handle_ws_library_suggest_title(connection, obj, session)
         when "CHECK_TOKEN"
           handle_ws_check_token(connection, obj, session)
         when "PING"
@@ -222,6 +244,12 @@ module WebSocketHelper
           handle_ws_stop_tts(connection, obj, session)
         when "PLAY_TTS"
           handle_ws_play_tts(connection, obj, session, thread)
+        when "PRIVACY_REGISTRY"
+          handle_ws_privacy_registry(connection, session)
+        when "PRIVACY_EXPORT"
+          handle_ws_privacy_export(connection, session, obj)
+        when "PRIVACY_TOGGLE"
+          handle_ws_privacy_toggle(connection, session, obj)
         else # fragment
           thread = handle_ws_streaming(connection, obj, session, queue)
         end

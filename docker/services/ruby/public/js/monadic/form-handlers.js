@@ -23,31 +23,25 @@ async function uploadPdf(file, fileTitle) {
   const formData = new FormData();
   formData.append("pdfFile", file);
   formData.append("pdfTitle", fileTitle);
-
-  // Resolve endpoint from server default (Settings).
-  const postTo = async (endpoint) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 120000);
-    try {
-      const res = await fetch(endpoint, { method: "POST", body: formData, signal: controller.signal });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      clearTimeout(timer);
-      throw e;
-    }
-  };
-
+  // Tell the server which app this upload belongs to so the per-app store
+  // gets the right namespace. The session-derived fallback may be stale if
+  // UPDATE_PARAMS has not fired yet for this WebSocket session.
   try {
-    const res = await fetch('/api/pdf_storage_defaults');
-    const info = res.ok ? await res.json() : {};
-    const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
-    const endpoint = (mode === 'cloud') ? "/openai/pdf?action=upload" : "/pdf";
-    return await postTo(endpoint);
-  } catch (_) {
-    // Fallback to local storage
-    return await postTo('/pdf');
+    const appsEl = (typeof document !== 'undefined') ? document.getElementById('apps') : null;
+    const appName = appsEl ? appsEl.value : '';
+    if (appName) formData.append("appName", appName);
+  } catch (_) { /* no-op */ }
+
+  // Do not retry on failure: a transient client-side error can leave the
+  // server-side upload completed, so a retry would create duplicates.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
+  try {
+    return await window.monadicFetch.postJson('/pdf', formData, {
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -61,13 +55,12 @@ async function convertDocument(doc, docLabel) {
   if (!doc) {
     throw new Error("Please select a document file to convert");
   }
-  
+
   // Check if the file is a valid document type
   if (doc.type === "application/octet-stream") {
     throw new Error("Unsupported file type");
   }
-  
-  // Prepare form data
+
   const formData = new FormData();
   formData.append("docFile", doc);
   formData.append("docLabel", docLabel || "");
@@ -75,13 +68,11 @@ async function convertDocument(doc, docLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    const res = await fetch("/document", { method: "POST", body: formData, signal: controller.signal });
+    return await window.monadicFetch.postJson("/document", formData, {
+      signal: controller.signal
+    });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Document conversion failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
 }
 
@@ -95,13 +86,11 @@ async function fetchWebpage(url, urlLabel) {
   if (!url) {
     throw new Error("Please specify the URL of the page to fetch");
   }
-  
-  // Validate URL format
+
   if (!url.match(/^(http|https):\/\/[^ "]+$/)) {
     throw new Error("Please enter a valid URL");
   }
-  
-  // Prepare form data
+
   const formData = new FormData();
   formData.append("pageURL", url);
   formData.append("urlLabel", urlLabel || "");
@@ -109,13 +98,11 @@ async function fetchWebpage(url, urlLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
-    const res = await fetch("/fetch_webpage", { method: "POST", body: formData, signal: controller.signal });
+    return await window.monadicFetch.postJson("/fetch_webpage", formData, {
+      signal: controller.signal
+    });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Webpage fetch failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
 }
 
@@ -138,17 +125,158 @@ async function importSession(file) {
     formData.append('tab_id', window.tabId);
   }
 
+  return await postLoadWithPassphraseRetry(formData, file);
+}
+
+/**
+ * POST /load with optional retry when the backend reports a Privacy Filter
+ * encrypted file requires a passphrase. The user is prompted via the
+ * #privacyImportPassphraseModal; on confirm we re-send the same file plus
+ * the passphrase. Wrong passphrase loops back to the prompt with an error.
+ */
+async function postLoadWithPassphraseRetry(formData, file, lastError) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
+  let data;
   try {
-    const res = await fetch("/load", { method: "POST", body: formData, signal: controller.signal });
+    data = await window.monadicFetch.postJson("/load", formData, {
+      signal: controller.signal
+    });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Import failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
+  if (data && data.needs_passphrase) {
+    // Hide the Load File modal + spinner so the passphrase prompt is the
+    // sole foreground UI (avoids stacked modals + spinning indicator).
+    suspendLoadModalForPassphrase();
+    let passphrase;
+    try {
+      passphrase = await promptPrivacyImportPassphrase(data, lastError);
+    } finally {
+      // Re-arm the modal/spinner if we'll continue with the retry POST.
+      resumeLoadModalForRetry();
+    }
+    if (passphrase === null) {
+      // Cancelled — also dismiss the Load modal entirely so the user is back
+      // to a clean state instead of staring at the disabled-buttons modal.
+      hideLoadModalCompletely();
+      throw new Error("Import cancelled by user");
+    }
+    const retryForm = new FormData();
+    retryForm.append('file', file);
+    retryForm.append('passphrase', passphrase);
+    if (typeof window.tabId !== 'undefined' && window.tabId) {
+      retryForm.append('tab_id', window.tabId);
+    }
+    return await postLoadWithPassphraseRetry(retryForm, file, data.error || null);
+  }
+  return data;
+}
+
+function suspendLoadModalForPassphrase() {
+  const loadModalEl = document.getElementById('loadModal');
+  if (loadModalEl && window.bootstrap && window.bootstrap.Modal) {
+    window.bootstrap.Modal.getInstance(loadModalEl)?.hide();
+  }
+  const spinner = document.getElementById('monadic-spinner');
+  if (spinner) spinner.style.display = 'none';
+  const loadSpinner = document.getElementById('load-spinner');
+  if (loadSpinner) loadSpinner.style.display = 'none';
+}
+
+function resumeLoadModalForRetry() {
+  // Re-show the spinner so the user knows the next decrypt attempt is in
+  // flight. We do NOT reopen loadModal — passphrase modal stays primary.
+  const spinner = document.getElementById('monadic-spinner');
+  if (spinner) spinner.style.display = '';
+}
+
+function hideLoadModalCompletely() {
+  const loadModalEl = document.getElementById('loadModal');
+  if (loadModalEl && window.bootstrap && window.bootstrap.Modal) {
+    window.bootstrap.Modal.getInstance(loadModalEl)?.hide();
+  }
+  const spinner = document.getElementById('monadic-spinner');
+  if (spinner) spinner.style.display = 'none';
+  const loadSpinner = document.getElementById('load-spinner');
+  if (loadSpinner) loadSpinner.style.display = 'none';
+  document.querySelectorAll('#loadModal button').forEach(function (b) { b.disabled = false; });
+}
+
+function promptPrivacyImportPassphrase(serverData, lastError) {
+  return new Promise(function (resolve) {
+    const modalEl = document.getElementById('privacyImportPassphraseModal');
+    if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
+      const fallback = window.prompt(
+        (lastError === 'wrong_passphrase' ? 'Wrong passphrase. ' : '') +
+        'Enter passphrase for the encrypted privacy export:'
+      );
+      resolve(fallback === null || fallback === undefined ? null : String(fallback));
+      return;
+    }
+
+    const errEl = document.getElementById('privacy-import-error');
+    const headerEl = document.getElementById('privacy-import-header-info');
+    const passInput = document.getElementById('privacy-import-passphrase');
+    const continueBtn = document.getElementById('privacy-import-continue');
+
+    if (errEl) {
+      if (lastError === 'wrong_passphrase') {
+        errEl.textContent = 'Wrong passphrase. Please try again.';
+        errEl.style.display = '';
+      } else {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+    }
+    if (headerEl) {
+      const h = serverData && serverData.header ? serverData.header : {};
+      const lines = [];
+      if (h.app_name) lines.push('App: ' + h.app_name);
+      if (h.created_at) lines.push('Exported: ' + h.created_at);
+      if (h.message_count !== undefined) lines.push('Messages: ' + h.message_count);
+      headerEl.textContent = lines.join(' · ');
+    }
+    if (passInput) passInput.value = '';
+    if (continueBtn) continueBtn.disabled = true;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    function onInput() {
+      if (continueBtn) continueBtn.disabled = !passInput || passInput.value.length === 0;
+    }
+    function onContinue() {
+      cleanup();
+      const value = passInput ? passInput.value : '';
+      modal.hide();
+      resolve(value);
+    }
+    function onCancel() {
+      cleanup();
+      resolve(null);
+    }
+    function cleanup() {
+      if (passInput) passInput.removeEventListener('input', onInput);
+      if (continueBtn) continueBtn.removeEventListener('click', onContinue);
+      modalEl.removeEventListener('hidden.bs.modal', onHidden);
+      const cancelBtn = document.getElementById('privacy-import-cancel');
+      if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+    }
+    function onHidden() {
+      // Resolve null only if neither continue nor explicit cancel resolved already.
+      cleanup();
+      resolve(null);
+    }
+
+    if (passInput) passInput.addEventListener('input', onInput);
+    if (continueBtn) continueBtn.addEventListener('click', onContinue);
+    const cancelBtn = document.getElementById('privacy-import-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+    modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+
+    modal.show();
+    setTimeout(function () { if (passInput) passInput.focus(); }, 200);
+  });
 }
 
 /**
@@ -244,13 +372,11 @@ async function uploadAudioFile(file) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    const res = await fetch("/upload_audio", { method: "POST", body: formData, signal: controller.signal });
+    return await window.monadicFetch.postJson("/upload_audio", formData, {
+      signal: controller.signal
+    });
+  } finally {
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Audio upload failed: ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
   }
 }
 

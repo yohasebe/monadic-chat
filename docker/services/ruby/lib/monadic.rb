@@ -3,8 +3,6 @@
 # Optimize load path by removing duplicates
 $LOAD_PATH.uniq!
 
-require_relative "monadic/utils/document_store_registry"
-require_relative "monadic/utils/pdf_storage_config"
 require_relative "monadic/utils/ssl_configuration"
 require_relative "monadic/utils/workflow_viewer_helpers"
 require_relative "monadic/utils/container_dependencies"
@@ -66,7 +64,7 @@ require_relative "monadic/utils/websocket"
 helpers WebSocketHelper
 
 require_relative "monadic/utils/pdf_text_extractor"
-require_relative "monadic/utils/text_embeddings"
+require_relative "monadic/pdf"
 require_relative "monadic/utils/debug_helper"
 require_relative "monadic/utils/extra_logger"
 require_relative "monadic/utils/json_repair"
@@ -89,7 +87,6 @@ require_relative "monadic/adapters/vendors/gemini_helper"
 require_relative "monadic/adapters/vendors/cohere_helper"
 require_relative "monadic/adapters/vendors/deepseek_helper"
 require_relative "monadic/adapters/vendors/mistral_helper"
-require_relative "monadic/adapters/vendors/perplexity_helper"
 require_relative "monadic/adapters/vendors/grok_helper"
 require_relative "monadic/adapters/vendors/ollama_helper"
 
@@ -99,11 +96,44 @@ Dotenv.load(envpath)
 # Include TavilyHelper for tavily_fetch method
 include TavilyHelper
 
-# Connect to the database
+# Connect to the PDF store. The Store object is cheap to construct (it just
+# holds clients); first use will lazily bootstrap the Qdrant collections.
 begin
-  EMBEDDINGS_DB = TextEmbeddings.new("monadic_user_docs", recreate_db: false)
-rescue TextEmbeddings::DatabaseError => e
-  puts "[WARNING] Failed to initialize help embeddings database: #{e.message}"
+  EMBEDDINGS_DB = Monadic::Pdf::Store.new(app_key: Monadic::Pdf::Store::DEFAULT_APP_KEY)
+
+  # One-time upgrade hint: surface a clear message to users coming from the
+  # PGVector-based releases (1.0.0-beta.14 and earlier). Their old PDF data
+  # is not migrated automatically; they need to re-import. We detect the
+  # upgrade by the presence of the legacy Docker volume on the host.
+  legacy_volume_marker = File.expand_path("~/monadic/log/pgvector_upgrade_notice_shown")
+  unless File.exist?(legacy_volume_marker)
+    legacy_volume_present = system("docker volume inspect monadic-chat-pgvector-data >/dev/null 2>&1")
+    if legacy_volume_present
+      puts ""
+      puts "============================================================"
+      puts " UPGRADE NOTICE: Local PDF storage backend has changed"
+      puts "============================================================"
+      puts " Monadic Chat 1.0.0-beta.15 replaces the PGVector-based PDF"
+      puts " store with a local Qdrant + multilingual-e5-base stack."
+      puts ""
+      puts " Existing PDFs uploaded under 1.0.0-beta.14 or earlier are"
+      puts " NOT migrated automatically. Please re-upload them so they"
+      puts " are indexed against the new vector backend."
+      puts ""
+      puts " Once you have re-imported, the legacy 'monadic-chat-pgvector-data'"
+      puts " volume can be removed safely:"
+      puts "   docker volume rm monadic-chat-pgvector-data"
+      puts ""
+      puts " See docs/basic-usage/pdf_storage.md for details."
+      puts "============================================================"
+      puts ""
+    end
+    # Don't show again, regardless of whether the volume was present this run.
+    FileUtils.mkdir_p(File.dirname(legacy_volume_marker)) rescue nil
+    File.write(legacy_volume_marker, Time.now.utc.iso8601) rescue nil
+  end
+rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
+  puts "[WARNING] Failed to initialize PDF store: #{e.class}: #{e.message}"
   EMBEDDINGS_DB = nil
 end
 
@@ -227,33 +257,57 @@ def handle_error(message)
   redirect "/"
 end
 
-# List PDF titles in the database with error handling
-def list_pdf_titles
-  begin
-    EMBEDDINGS_DB.list_titles.map { |t| t[:title] }
-  rescue StandardError => e
-    puts "Error listing PDF titles: #{e.message}"
-    []
+# Resolve the PDF store namespace key from the session's current app.
+# Each app gets its own `app_key` so PDFs uploaded under one app do not
+# bleed into another. Falls back to the global default when there is no
+# current app or the lookup fails.
+# Resolve a PDF Store namespace key. Accepts either the Sinatra session
+# hash (HTTP) or any value that responds to dig with :parameters /
+# "app_name". A direct string app name (e.g. passed in form data or a
+# WebSocket message body) takes precedence over the session lookup so
+# clients can always be explicit about which namespace they want, and
+# we never silently fall back to 'global' just because the session has
+# not been hydrated yet.
+def pdf_app_key_for(session_or_app_name)
+  app_name = if session_or_app_name.is_a?(String) || session_or_app_name.is_a?(Symbol)
+               session_or_app_name.to_s
+             elsif session_or_app_name.respond_to?(:[])
+               s = session_or_app_name
+               (s[:parameters] && s[:parameters]["app_name"]) || s["app_name"]
+             else
+               nil
+             end
+
+  return Monadic::Pdf::Store::DEFAULT_APP_KEY if app_name.nil? || app_name.to_s.empty?
+
+  app = APPS[app_name.to_s]
+  if app
+    klass = app.class
+    return klass::APP_KEY if klass.const_defined?(:APP_KEY)
+    klass.name.to_s.downcase
+  else
+    # The frontend may have sent an app name we cannot resolve (e.g. a
+    # different deployment). Fall back to a sanitised form of the raw
+    # name rather than collapsing into 'global'.
+    app_name.to_s.downcase.gsub(/[^a-z0-9]/, '')
   end
 end
 
-# Determine configured PDF storage mode (ENV), with backward compatibility
-def get_pdf_storage_mode
-  begin
-    changed = Monadic::Utils::PdfStorageConfig.refresh_from_env
-    if changed && instance_variable_defined?(:@pdf_storage_mode_cache)
-      remove_instance_variable(:@pdf_storage_mode_cache)
-    end
-  rescue StandardError
-    # Ignore refresh errors; fall back to cached value if present.
-  end
-  return @pdf_storage_mode_cache if instance_variable_defined?(:@pdf_storage_mode_cache)
-  begin
-    mode = (CONFIG["PDF_STORAGE_MODE"] || CONFIG["PDF_DEFAULT_STORAGE"] || 'local').to_s.downcase
-    @pdf_storage_mode_cache = %w[local cloud].include?(mode) ? mode : 'local'
-  rescue StandardError
-    @pdf_storage_mode_cache = 'local'
-  end
+# Build a fresh Store. Accepts the same input shapes as pdf_app_key_for.
+def pdf_store_for(session_or_app_name)
+  return nil unless defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
+  Monadic::Pdf::Store.new(app_key: pdf_app_key_for(session_or_app_name))
+end
+
+# List PDF titles in the database with error handling. Scoped via
+# pdf_store_for (accepts session hash or explicit app name string).
+def list_pdf_titles(session_or_app_name = nil)
+  store = pdf_store_for(session_or_app_name) || EMBEDDINGS_DB
+  return [] unless store
+  store.list_titles.map { |t| t[:title] }
+rescue StandardError => e
+  puts "Error listing PDF titles: #{e.message}"
+  []
 end
 
 # Load app files
@@ -556,23 +610,17 @@ def init_apps
       rescue StandardError
         # non-fatal
       end
-      # Add document search policy hint (no hybrid mode)
-      begin
-        configured_mode = get_pdf_storage_mode
-        storage_desc = (configured_mode == 'cloud') ? 'Cloud File Search (OpenAI Vector Store)' : 'Local PDF Database (functions)'
-        system_prompt_suffix << <<~SYSPSUFFIX
+      # Add document search policy hint (local Qdrant only)
+      system_prompt_suffix << <<~SYSPSUFFIX
 
-          DOCUMENT SEARCH POLICY:
-          - Your document source is: #{storage_desc}.
-          - Use it when the user asks to reference their PDFs or knowledge base.
-          - If no relevant results are found, explain the limitation briefly.
+        DOCUMENT SEARCH POLICY:
+        - Your document source is: Local PDF Database (functions).
+        - Use it when the user asks to reference their PDFs or knowledge base.
+        - If no relevant results are found, explain the limitation briefly.
 
-          When citing results, include a compact metadata footer after an `---` divider with:
-          Doc Title, Snippet tokens, and Snippet position.
-        SYSPSUFFIX
-      rescue StandardError
-        # Non-fatal if mode cannot be determined here
-      end
+        When citing results, include a compact metadata footer after an `---` divider with:
+        Doc Title, Snippet tokens, and Snippet position.
+      SYSPSUFFIX
     end
 
     if app.settings["mermaid"]
@@ -705,6 +753,7 @@ require_relative "monadic/routes/api_routes"
 require_relative "monadic/routes/static_routes"
 require_relative "monadic/routes/upload_routes"
 require_relative "monadic/routes/session_routes"
+require_relative "monadic/routes/library_import_routes"
 
 APPS.each do |k, v|
   # convert `k` from a capitalized multi word title to snake_case
@@ -735,63 +784,6 @@ end
 
 def error_json(message)
   { success: false, error: message }.to_json
-end
-
-def resolve_openai_app_key
-  (session[:parameters] && session[:parameters]["app_name"]) || "default"
-rescue StandardError
-  "default"
-end
-
-def openai_pdf_headers(api_key)
-  headers = { "Authorization" => "Bearer #{api_key}", "OpenAI-Beta" => "assistants=v2" }
-  api_base = "https://api.openai.com/v1"
-  [headers, api_base]
-end
-
-def vs_meta_path
-  File.join(Monadic::Utils::Environment.data_path, "pdf_navigator_openai.json")
-end
-
-def bump_pdf_cache_version
-  session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-rescue StandardError
-  # no-op
-end
-
-def resolve_vector_store_id(app_key)
-  # Priority: session → app-specific ENV → global ENV → registry → fallback meta
-  app_env_vs = begin
-    key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
-    val = CONFIG[key]
-    s = val.to_s.strip
-    s.empty? ? nil : s
-  rescue StandardError
-    nil
-  end
-  reg_vs_id = begin
-    Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-  rescue StandardError
-    nil
-  end
-  env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-  fallback_vs = nil
-  if File.exist?(vs_meta_path)
-    begin
-      meta = JSON.parse(File.read(vs_meta_path))
-      fallback_vs = meta["vector_store_id"]
-    rescue StandardError
-      fallback_vs = nil
-    end
-  end
-  vs_id = session[:openai_vector_store_id]
-  vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-  vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
-  vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
-  vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
-  # Keep session in sync for downstream usage
-  session[:openai_vector_store_id] = vs_id if vs_id
-  vs_id
 end
 
 # Note: Signal handling is managed by Falcon server

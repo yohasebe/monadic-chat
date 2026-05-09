@@ -1,128 +1,121 @@
 # ヘルプシステム
 
-Monadic Chatには、プロジェクトのドキュメントに基づいて文脈に応じた支援を提供するAI駆動のヘルプシステムが含まれています。
+Monadic Chat には、プロジェクトのドキュメントを基にした文脈対応のヘルプを提供する AI 搭載ヘルプシステムが組み込まれています。
 
 ## 概要 :id=overview
 
-ヘルプシステムは、OpenAIのエンベディングを使用してMonadic Chatのドキュメントから検索可能なナレッジベースを作成します。これにより、インテリジェントで文脈に応じた応答が可能になります。
+ヘルプシステムは、ローカルの sentence-transformer モデル（`multilingual-e5-base`）を使って、Monadic Chat ドキュメントから検索可能なナレッジベースを構築します。埋め込みはローカルで計算され、Qdrant に格納されます。テキストの埋め込みにもナレッジベース検索にも、外部 API キーは必要ありません。
 
 ## 機能 :id=features
 
-- **自動言語検出**：英語のドキュメントのみを保存しながら、ユーザーの言語で応答
-- **マルチチャンク検索**：包括的な回答のために複数の関連セクションを返す
-- **増分更新**：MD5ハッシュ追跡を使用して変更されたドキュメントファイルのみを処理
-- **バッチ処理**：より良いパフォーマンスのために効率的にエンベディングをバッチで処理
-- **自動コンテナ再構築**：ヘルプデータが更新されるとPGVectorコンテナが自動的に再構築
+- **完全ローカル検索**：埋め込み推論もベクトル格納もマシン上で完結し、ヘルプ検索のためにプロバイダ API キーは不要
+- **多言語対応**：`multilingual-e5-base` は英語・日本語などを同等品質で扱える
+- **マルチチャンク取得**：1 件の結果あたり複数の関連セクションを返し、包括的な回答を生成しやすくする
+- **ビルド時に事前構築された JSON ダンプ**：ヘルプデータベースはパッケージビルド時に生成され、Ruby イメージに同梱されるため、初回起動から検索可能
+- **内部ドキュメントトグル**：`DEBUG_MODE=true` のとき、`docs_dev/` 以下の内部ドキュメントもインデックス化される
 
 ## 必要条件 :id=requirements
 
-- OpenAI APIキー（エンベディングとチャット機能用）
-- 実行中のpgvectorコンテナ
+- 動作中の `monadic-chat-qdrant-container`（ベクトル格納）
+- 動作中の `monadic-chat-embeddings-container`（multilingual-e5-base 推論）
 
-## 使用方法 :id=usage
+これらは Monadic Chat 起動時に自動で立ち上がります。回答生成に使う chat モデル（Claude / GPT / Gemini など）は引き続き各 API キーを必要としますが、検索ステップ自体には不要です。
+
+## 使い方 :id=usage
 
 ### ヘルプへのアクセス :id=accessing-help
 
-1. Monadic Chatを起動し、すべてのコンテナが実行中であることを確認
-2. アプリメニューから「Monadic Chat Help」を選択
-3. 任意の言語でMonadic Chatについて質問
-
+1. Monadic Chat を起動し、すべてのコンテナが動作していることを確認
+2. アプリメニューから「Monadic Help」を選択
+3. 任意の言語で Monadic Chat について質問
 
 ### よくある質問 :id=common-questions
 
-- 「グラフを生成するには？」→ Math TutorまたはMermaid Grapherアプリを提案
-- 「PDFで作業するには？」→ PDF Navigatorアプリを説明
-- 「どのような音声機能がありますか？」→ Voice Chatと音声合成オプションを説明
+- "How do I generate graphs?" → Math Tutor または Mermaid Grapher アプリを提案
+- "How can I work with PDFs?" → Knowledge Base に PDF をインポートする方法を説明
+- "What voice features are available?" → Voice Chat と音声合成オプションを説明
 
 ## ヘルプデータベースの構築 :id=building-help-database
 
-ヘルプデータベースは開発中にドキュメントから構築されます：
+通常のユーザーが手動で構築する必要はありません — リリースには事前構築済みのものが同梱されています。開発者は以下で再生成できます：
 
 ```bash
-# ヘルプデータベースを構築（増分更新）
+# docs/* および docs_dev/* からヘルプデータベースを構築
 rake help:build
 
-# 最初から再構築
+# ゼロから再構築（既存ダンプを削除してから再生成）
 rake help:rebuild
 
-# 統計を表示
+# 現在のダンプの統計を表示
 rake help:stats
 
-# 配布用にデータベースをエクスポート
+# データベースダンプのパスを表示
 rake help:export
 ```
 
+ビルドパイプラインは、必要に応じて embeddings コンテナを起動し、ドキュメントファイルを処理して `docker/services/ruby/help_data/help_db.json` に JSON ダンプを書き出します。このダンプは Ruby Docker イメージのビルド時に組み込まれます。
 
 ## アーキテクチャ :id=architecture
 
-### データベース構造 :id=database-structure
+### 格納 :id=storage
 
-ヘルプシステムは、pgvector拡張機能を持つ別個のPostgreSQLデータベース（`monadic_help`）を使用します：
+ヘルプシステムは共有の `monadic-chat-qdrant-container` 内に 2 つの Qdrant コレクションを使います：
 
-- `help_docs`：ドキュメントのメタデータとエンベディングを保存
-  - title、file_path、section、language
-  - 初期フィルタリング用のドキュメントレベルのエンベディング
-  - (file_path, language)に対する一意制約
+- **`help_docs`** — ドキュメントファイル 1 件につき 1 ポイント。ベクトルは各アイテム埋め込みの平均で、ドキュメント単位の関連度ランキングが可能。
+  - Payload：`title`、`file_path`、`section`、`language`、`items`（数）、`is_internal`、`metadata`
 
-- `help_items`：エンベディングを持つ個々のテキストチャンクを保存
-  - テキストコンテンツ、位置、見出し情報
-  - 詳細検索用のチャンクレベルのエンベディング
-  - 外部キーを介して親ドキュメントにリンク
+- **`help_items`** — チャンク化された各テキスト片につき 1 ポイント。
+  - Payload：`doc_id`、`text`、`position`、`heading`、`language`、`is_internal`、`metadata`
 
-### エクスポート/インポートプロセス :id=export-import-process
+両コレクションとも、768 次元・コサイン距離・HNSW インデックスを使用します。
 
-1. **開発フェーズ**：
-   - `rake help:build`を使用してドキュメントが処理される
-   - OpenAI APIを介してエンベディングが生成される
-   - ビルド/再構築後にデータベースが自動的にエクスポートされる
+### ビルド時パイプライン :id=build-time-pipeline
 
-2. **配布**：
-   - エクスポートファイルは`docker/services/pgvector/help_data/`に保存
-   - ファイルには以下が含まれる：schema.sql、help_docs.json、help_items.json、metadata.json
-   - エクスポートIDが自動再構築のためのバージョンを追跡
+1. **ドキュメント処理**：
+   - `rake help:build` が `scripts/utilities/process_documentation.rb` を実行
+   - Markdown を既定でチャンクサイズ 3000 文字、オーバーラップ 500 文字で分割
+   - 階層的な見出しパスを payload メタデータに保存
 
-3. **ユーザーインストール**：
-   - PGVectorコンテナが初回実行時にデータをインポート
-   - インポートスクリプトがJSONからPostgreSQLへの変換を処理
-   - エンベディングがエクスポートファイルから復元される
+2. **埋め込み生成**：
+   - 各チャンクは「passage」として embeddings コンテナへ送信
+   - サービス側で e5 の `passage:` プレフィックスを付与し、L2 正規化済みの 768 次元ベクトルを返す
+   - ドキュメントごとに、その項目の埋め込み平均をベクトルとして持つ doc 単位のポイントも作成
 
-### 自動コンテナ再構築 :id=automatic-container-rebuilding
+3. **JSON ダンプの書き出し**：
+   - 処理結果を `docker/services/ruby/help_data/help_db.json` に書き出し
+   - 短いフィンガープリント（`help_data/export_id.txt`）でビルドキャッシュを失効判定
+   - Ruby Docker イメージのビルド時にダンプを焼き込み
 
-システムはエクスポートIDを使用してヘルプデータベースの更新を追跡します：
+### 実行時パイプライン :id=runtime-pipeline
 
-1. ヘルプデータベースが再構築されると、新しいエクスポートIDが生成される
-2. IDは`help_data/export_id.txt`に保存される
-3. 起動時に、monadic.shは保存されたIDとコンテナIDを比較
-4. 異なる場合、PGVectorコンテナが自動的に再構築される
-5. コンテナの初期化中に新しいヘルプデータがインポートされる
+1. **ブートストラップ**：
+   - 初回起動時、Monadic Chat は `help_docs` と `help_items` コレクションが存在することを確認
+   - 空の場合、`Monadic::Help::DumpLoader` が同梱 JSON ダンプを読み込み、一括インポート
+   - コレクションが既に投入済みであれば、以降の起動ではインポートをスキップ
+
+2. **検索**：
+   - ユーザーの質問は同じモデルで `query:` プレフィックス付きに埋め込み
+   - Qdrant が HNSW 検索で最も類似するアイテムを返す
+   - Help アプリはドキュメント単位で結果をグループ化し、最も関連するチャンクを提示
 
 ## 設定変数 :id=configuration-variables
 
-ヘルプシステムは`~/monadic/config/env`の環境変数で設定できます：
+ヘルプシステムは `~/monadic/config/env` の環境変数で設定できます：
 
-### ヘルプシステム設定
+- `HELP_CHUNK_SIZE`：チャンクあたりの文字数（既定：3000）
+  - 大きいほど文脈は豊富だが検索精度が下がる場合がある
 
-- `HELP_CHUNK_SIZE`: チャンクあたりの文字数（デフォルト：3000）
-  - ドキュメントの処理時の分割方法を制御
-  - 大きいチャンクはより多くのコンテキストを提供しますが、検索精度が低下する可能性があります
-  
-- `HELP_OVERLAP_SIZE`: チャンク間でオーバーラップする文字数（デフォルト：500）
-  - 隣接するチャンク間の連続性を提供
-  - チャンク境界でのコンテキスト損失を防ぎます
+- `HELP_OVERLAP_SIZE`：チャンク間でのオーバーラップ文字数（既定：500）
+  - 隣接チャンク間の連続性を提供
 
-- `HELP_EMBEDDINGS_BATCH_SIZE`: API呼び出しのバッチサイズ（デフォルト：50）
-  - 単一のOpenAI API呼び出しで処理されるチャンク数
-  - APIレート制限に基づいて調整
+- `HELP_CHUNKS_PER_RESULT`：検索結果に含めるチャンク数（既定：3）
 
-- `HELP_CHUNKS_PER_RESULT`: 検索結果ごとに返されるチャンク数（デフォルト：3）
-  - 各検索結果に含まれる関連チャンクの数
-  - 高い値はより多くのコンテキストを提供
+- `HELP_DATA_DUMP`：JSON ダンプのパスを上書き（既定：Ruby コンテナ内の `/monadic/help_data/help_db.json`）
 
-設定例：
+例：
 ```
 HELP_CHUNK_SIZE=4000
 HELP_OVERLAP_SIZE=600
-HELP_EMBEDDINGS_BATCH_SIZE=25
 HELP_CHUNKS_PER_RESULT=5
 ```
 
@@ -130,110 +123,54 @@ HELP_CHUNKS_PER_RESULT=5
 
 ### ドキュメントの追加 :id=adding-documentation
 
-1. `docs/`ディレクトリにマークダウンファイルを追加または変更
-2. `rake help:build`を実行してデータベースを更新
-3. システムは変更されたファイルのみを処理
+1. `docs/` ディレクトリ（または内部ドキュメントの場合は `docs_dev/`）にマークダウンファイルを追加・編集
+2. `rake help:build` を実行して JSON ダンプを再生成
+3. 新しいダンプを焼き込むため Ruby コンテナをリビルド
 
 ### 処理の詳細 :id=processing-details
 
-- **増分更新**：MD5ハッシングが変更されたドキュメントを検出
-- **バッチ処理**：設定可能なバッチでエンベディングを処理
-- **多言語**：`/ja/`および他の言語ディレクトリを除外
-- **階層的コンテキスト**：メタデータに見出し構造を保持
+- **セクション解析**：4 段までのマークダウン見出しを追跡し、各チャンクは階層見出しパスを保持
+- **言語フィルタリング**：英語ドキュメント処理時、`/ja/`、`/zh/`、`/ko/` 以下のファイルは除外（言語別に個別構築する前提）
+- **内部ドキュメント**：`docs_dev/*.md` は `--include-internal` オプション付与時のみ含まれる（`rake help:build` の既定）
 
-### テスト :id=testing
+## パフォーマンスメモ :id=performance-notes
 
-ヘルプシステムをテストするには：
+### チャンクサイズの目安 :id=chunk-size-guidelines
 
-```bash
-# クリーン再構築
-rake help:rebuild
-
-# 統計を確認
-rake help:stats
-
-# アプリでテスト
-# 1. サーバーを起動
-# 2. Monadic Chat Helpを開く
-# 3. 異なる言語でクエリをテスト
-```
-
-
-### デバッグ :id=debugging
-
-デバッグ出力を有効にする：
-
-1. `~/monadic/config/env`ファイルに以下を追加：
-```
-EMBEDDINGS_DEBUG=true
-HELP_EMBEDDINGS_DEBUG=1
-```
-
-2. ヘルプデータベースをビルド：
-```bash
-rake help:build
-```
-
-## パフォーマンスの最適化 :id=performance-optimization
-
-### チャンクサイズのガイドライン :id=chunk-size-guidelines
-
-- **技術文書**：コード例を保持するために大きいチャンク（4000-5000）を使用
-- **FAQ/短いコンテンツ**：正確なマッチングのために小さいチャンク（2000-3000）を使用
-- **一般的なコンテンツ**：デフォルト（3000）がほとんどの場合によく機能
-
-### APIパフォーマンス :id=api-performance
-
-- タイムアウトが発生する場合は`HELP_EMBEDDINGS_BATCH_SIZE`を減らす
-- OpenAI APIのレート制限を監視
-- オフピーク時間での処理を検討
+- **技術文書**：コード例を保持するため大きめ（4000-5000）
+- **FAQ・短文**：精緻なマッチには小さめ（2000-3000）
+- **一般文書**：既定（3000）が広く適合
 
 ### 検索品質 :id=search-quality
 
-- 回答が不完全な場合は`HELP_CHUNKS_PER_RESULT`を増やす
-- より多くの結果を得るために検索呼び出しの`top_n`パラメータを調整
-- より良いマッチングのために特定の検索用語を使用
+- 回答が不十分に見える場合は `HELP_CHUNKS_PER_RESULT` を増やす
+- 検索呼び出しの `top_n` を調整して結果数を増やす
+- 具体的な検索語句を使うとマッチが改善
 
 ## 制限事項 :id=limitations
 
-- OpenAI APIキーが必要（他のエンベディングプロバイダーのサポートなし）
-- 英語のドキュメントのみ（応答は機械翻訳）
-- モデルの制約により最大コンテキストが制限
-- エンベディング次元は3072に固定（OpenAI text-embedding-3-large）
+- 回答生成に使う chat モデル（Claude、GPT 等）は引き続き各プロバイダの API キーが必要 — 検索ステップのみがローカル
+- 言語によりカバレッジ・精度は異なる（spaCy / sentence-transformer は言語ごとに異なるコーパスで学習）
 
 ## トラブルシューティング :id=troubleshooting
 
 ### よくある問題 :id=common-issues
 
-1. **「ヘルプデータベースが存在しません」**
-   - `rake help:build`を実行してデータベースを作成
-   - pgvectorコンテナが実行中であることを確認
+1. **ヘルプ検索が結果を返さない**
+   - JSON ダンプの存在を確認：`ls docker/services/ruby/help_data/help_db.json`
+   - 両コンテナの動作を確認：`docker ps | grep -E 'qdrant|embeddings'`
+   - `rake help:rebuild` でダンプを再生成
 
-2. **検索結果が悪い**
-   - より良いコンテキストのためにチャンクサイズを増やす
-   - `rake help:rebuild`でデータベースを再構築
-   - ドキュメントに十分な詳細があるか確認
+2. **検索結果が貧弱**
+   - チャンクサイズを大きくして文脈を増やす
+   - `rake help:rebuild` でデータベースを再構築
+   - ドキュメント自体に十分な記述があるか確認
 
-3. **エクスポートの失敗**
-   - pgvectorコンテナが実行中であることを確認
-   - エクスポートファイル用のディスク容量を確認
-   - データベース接続設定を確認
+3. **ビルドが "embeddings_service did not become ready" で失敗**
+   - embeddings イメージが build されているか確認：`docker images | grep monadic-embeddings`
+   - コンテナログを確認：`docker logs monadic-chat-embeddings-container`
+   - 初回起動時はモデルロードに 30-60 秒かかる場合あり
 
-4. **インポートの失敗**
-   - pgvectorコンテナのログを確認
-   - エクスポートファイルが有効なJSONであることを確認
-   - コンテナにPythonとpsycopg2がインストールされていることを確認
-
-5. **パッケージアプリのパス関連の問題**
-   - ヘルプシステムスクリプトは相対パスを使用します
-   - スクリプトは正しいベースディレクトリを自動的に検出します
-   - インポートが失敗した場合は、`docker/services/pgvector/help_data/`にエクスポートファイルが存在することを確認してください
-
-6. **新しいコンテナでヘルプデータベースが読み込まれない**
-   - 症状: Monadic Helpアプリのfunction callingが停止し、レスポンスが返ってこない
-   - データの存在確認: `docker exec monadic-chat-pgvector-container psql -U postgres -d monadic_help -c "SELECT COUNT(*) FROM help_items"`
-   - 一般的な原因:
-     - コンテナ初期化中にPostgreSQLの初期化スクリプトが失敗
-     - 起動時にPython psycopg2がlocalhostに接続できない
-   - システムはPostgreSQLの準備完了後にインポートを実行するカスタムエントリーポイントスクリプトを使用しています
-   - 自動インポートが失敗してもコンテナは実行を継続し、help:build rakeタスクを使用できます
+4. **アップグレード後にヘルプコレクションが空のまま**
+   - Ruby アプリはコレクションが空のときのみ JSON ダンプをロードする
+   - Qdrant API でコレクションを手動削除して Ruby コンテナを再起動するか、Ruby コンテナを再ビルドして同梱ダンプを再ロード

@@ -58,7 +58,7 @@ app "ChatOpenAI" do
     auto_speech false
     websearch true
   end
-  
+
   tools do
   end
 end

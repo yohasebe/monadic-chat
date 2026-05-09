@@ -21,7 +21,7 @@ The main comprehensive test suite for validating all providers and apps:
 - Detects runtime errors in responses
 
 **Supported Providers:**
-- OpenAI, Anthropic, Gemini, xAI/Grok, Mistral, Cohere, DeepSeek, Perplexity, Ollama
+- OpenAI, Anthropic, Gemini, xAI/Grok, Mistral, Cohere, DeepSeek, Ollama
 
 **Running:**
 ```bash

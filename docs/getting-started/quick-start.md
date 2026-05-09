@@ -87,12 +87,12 @@ The Chat Plus app demonstrates "monadic" context management:
 
 ## Step 4: Working with Files
 
-### 4.1 Try Content Reader
+### 4.1 Try Knowledge Base
 
-1. Select **Content Reader** from the app menu
-2. Prepare a text file or PDF on your computer
-3. Click the attachment icon and upload your file
-4. Ask the AI to summarize or analyze the content
+1. Select **Knowledge Base** from the app menu
+2. Open the Knowledge Base **Browse** modal and click **Import file**
+3. Pick a Markdown / PDF / Office (.docx/.xlsx/.pptx) / source-code file
+4. Once the import completes, ask the AI questions about the content (e.g., "summarise the imported document")
 
 ### 4.2 Generate and Save Content
 

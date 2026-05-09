@@ -20,9 +20,14 @@ When you start Monadic Chat, the availability of each container is displayed in 
   docker exec -it monadic-chat-python-container bash
   ```
 
-- **PostgreSQL/pgvector Container** (`monadic-chat-pgvector-container`): Vector database for RAG
+- **Qdrant Container** (`monadic-chat-qdrant-container`): Vector database for RAG (PDF + help)
   ```shell
-  docker exec -it monadic-chat-pgvector-container bash
+  docker exec -it monadic-chat-qdrant-container sh
+  ```
+
+- **Embeddings Container** (`monadic-chat-embeddings-container`): Local `multilingual-e5-base` inference for RAG queries
+  ```shell
+  docker exec -it monadic-chat-embeddings-container bash
   ```
 
 - **Selenium Container** (`monadic-chat-selenium-container`): Web scraping and browser automation
@@ -47,11 +52,14 @@ By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you ca
 - Access shared data: `cd /monadic/data`
 - Run Python scripts: `python /monadic/data/scripts/my_script.py`
 
-### PostgreSQL Container
-- Access database: `psql -U postgres`
-- List databases: `psql -U postgres -l`
-- Access user documents database: `psql -U postgres -d monadic_user_docs`
-- Access help database: `psql -U postgres -d monadic_help`
+### Qdrant Container
+- List collections: `curl http://localhost:6333/collections` (from host in dev mode)
+- Inspect a collection: `curl http://localhost:6333/collections/help_docs`
+- Open the built-in Web UI in a browser: `http://localhost:6333/dashboard` (dev mode only)
+
+### Embeddings Container
+- Health probe: `curl http://localhost:8002/v1/health` (from host in dev mode)
+- Model info: `curl http://localhost:8002/v1/info`
 
 ### Ruby Container
 - Check Ruby gems: `bundle list`

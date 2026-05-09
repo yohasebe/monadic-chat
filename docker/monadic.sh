@@ -40,6 +40,9 @@ REPORTING=
 # All Docker Compose profiles used by profiled services (see profiles: keys in compose.yml files).
 # Used for full build/stop operations that must include every service regardless of on-demand startup.
 ALL_PROFILES="--profile python --profile selenium"
+if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
+  ALL_PROFILES="${ALL_PROFILES} --profile privacy"
+fi
 
 # Define the path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -257,9 +260,11 @@ set_docker_compose() {
     cat <<EOF >"${HOME_DIR}/monadic/config/compose.yml"
 include:
   - "${ROOT_DIR}/services/ruby/compose.yml"
-  - "${ROOT_DIR}/services/pgvector/compose.yml"
+  - "${ROOT_DIR}/services/qdrant/compose.yml"
+  - "${ROOT_DIR}/services/embeddings/compose.yml"
   - "${ROOT_DIR}/services/python/compose.yml"
   - "${ROOT_DIR}/services/selenium/compose.yml"
+  - "${ROOT_DIR}/services/privacy/compose.yml"
 ${compose_user}
 
 networks:
@@ -271,13 +276,27 @@ volumes:
 EOF
     COMPOSE_MAIN="${HOME_DIR}/monadic/config/compose.yml"
   fi
-  
+
   # Check for compose.override.yml
   COMPOSE_OVERRIDE="${ROOT_DIR}/services/compose.override.yml"
   if [[ -f "${COMPOSE_OVERRIDE}" ]]; then
     COMPOSE_FILES="-f \"${COMPOSE_MAIN}\" -f \"${COMPOSE_OVERRIDE}\""
   else
     COMPOSE_FILES="-f \"${COMPOSE_MAIN}\""
+  fi
+
+  # Dev mode overlays: when Ruby runs on the host (rake server:debug), it
+  # talks to the supporting containers over loopback, so we must expose
+  # their ports. In production these stay internal to the Docker network.
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/qdrant/compose.dev.yml\""
+    COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/embeddings/compose.dev.yml\""
+    if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
+      COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.dev.yml\""
+    fi
+    if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
+      COMPOSE_FILES="${COMPOSE_FILES} -f \"${ROOT_DIR}/services/extractor/compose.dev.yml\""
+    fi
   fi
   
   # Debug: log the compose files being used
@@ -480,15 +499,24 @@ build_python_container() {
     echo "$defval"
   }
 
-  local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
-  local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
-  local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
-  local PYOPT_SCIKIT=$(read_cfg_bool "PYOPT_SCIKIT" false)
-  local PYOPT_GENSIM=$(read_cfg_bool "PYOPT_GENSIM" false)
-  local PYOPT_LIBROSA=$(read_cfg_bool "PYOPT_LIBROSA" false)
-  local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
-  local PYOPT_TRANSFORMERS=$(read_cfg_bool "PYOPT_TRANSFORMERS" false)
-  local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
+  # Single source of truth for the Python container build options.
+  # Adding a new PYOPT_*/INSTALL_*/IMGOPT_* requires:
+  #   1. Append to PY_OPTIONS below
+  #   2. Add the matching ARG declaration + RUN conditional in
+  #      docker/services/python/Dockerfile (and the compose.yml ARG
+  #      passthrough)
+  #   3. Add the matching entry in app/install_options.config.js
+  #   4. Add the HTML checkbox row in app/settings.html
+  # See docs_dev/install_options_ssot.md for the full checklist.
+  local PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK)
+
+  # Read current values into separate locals (kept as locals, not an
+  # associative array, so they remain visible to the JSON/options-file
+  # heredocs further down via "${!key}" style expansion).
+  local key
+  for key in "${PY_OPTIONS[@]}"; do
+    local "${key}"="$(read_cfg_bool "$key" false)"
+  done
 
   # Detect if install options have changed since last build
   local prev_options_file="${logs_dir}/python_build_options.txt"
@@ -500,27 +528,14 @@ build_python_container() {
     use_no_cache=true
     echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
   elif [ -f "$prev_options_file" ]; then
-    # Compare each option with previous build
-    local prev_INSTALL_LATEX=$(grep "^INSTALL_LATEX=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_NLTK=$(grep "^PYOPT_NLTK=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_SPACY=$(grep "^PYOPT_SPACY=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_SCIKIT=$(grep "^PYOPT_SCIKIT=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_GENSIM=$(grep "^PYOPT_GENSIM=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_LIBROSA=$(grep "^PYOPT_LIBROSA=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_MEDIAPIPE=$(grep "^PYOPT_MEDIAPIPE=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_PYOPT_TRANSFORMERS=$(grep "^PYOPT_TRANSFORMERS=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-    local prev_IMGOPT_IMAGEMAGICK=$(grep "^IMGOPT_IMAGEMAGICK=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
-
-    # Check for changes
-    [ "$INSTALL_LATEX" != "$prev_INSTALL_LATEX" ] && changed_options+="INSTALL_LATEX($prev_INSTALL_LATEX→$INSTALL_LATEX) "
-    [ "$PYOPT_NLTK" != "$prev_PYOPT_NLTK" ] && changed_options+="PYOPT_NLTK($prev_PYOPT_NLTK→$PYOPT_NLTK) "
-    [ "$PYOPT_SPACY" != "$prev_PYOPT_SPACY" ] && changed_options+="PYOPT_SPACY($prev_PYOPT_SPACY→$PYOPT_SPACY) "
-    [ "$PYOPT_SCIKIT" != "$prev_PYOPT_SCIKIT" ] && changed_options+="PYOPT_SCIKIT($prev_PYOPT_SCIKIT→$PYOPT_SCIKIT) "
-    [ "$PYOPT_GENSIM" != "$prev_PYOPT_GENSIM" ] && changed_options+="PYOPT_GENSIM($prev_PYOPT_GENSIM→$PYOPT_GENSIM) "
-    [ "$PYOPT_LIBROSA" != "$prev_PYOPT_LIBROSA" ] && changed_options+="PYOPT_LIBROSA($prev_PYOPT_LIBROSA→$PYOPT_LIBROSA) "
-    [ "$PYOPT_MEDIAPIPE" != "$prev_PYOPT_MEDIAPIPE" ] && changed_options+="PYOPT_MEDIAPIPE($prev_PYOPT_MEDIAPIPE→$PYOPT_MEDIAPIPE) "
-    [ "$PYOPT_TRANSFORMERS" != "$prev_PYOPT_TRANSFORMERS" ] && changed_options+="PYOPT_TRANSFORMERS($prev_PYOPT_TRANSFORMERS→$PYOPT_TRANSFORMERS) "
-    [ "$IMGOPT_IMAGEMAGICK" != "$prev_IMGOPT_IMAGEMAGICK" ] && changed_options+="IMGOPT_IMAGEMAGICK($prev_IMGOPT_IMAGEMAGICK→$IMGOPT_IMAGEMAGICK) "
+    # Compare each option with previous build via indirect expansion.
+    for key in "${PY_OPTIONS[@]}"; do
+      local prev_val
+      prev_val=$(grep "^${key}=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+      if [ "${!key}" != "$prev_val" ]; then
+        changed_options+="${key}(${prev_val}→${!key}) "
+      fi
+    done
 
     if [ -n "$changed_options" ]; then
       use_no_cache=true
@@ -536,15 +551,9 @@ build_python_container() {
   fi
 
   local build_args=
-  build_args+=" --build-arg INSTALL_LATEX=${INSTALL_LATEX}"
-  build_args+=" --build-arg PYOPT_NLTK=${PYOPT_NLTK}"
-  build_args+=" --build-arg PYOPT_SPACY=${PYOPT_SPACY}"
-  build_args+=" --build-arg PYOPT_SCIKIT=${PYOPT_SCIKIT}"
-  build_args+=" --build-arg PYOPT_GENSIM=${PYOPT_GENSIM}"
-  build_args+=" --build-arg PYOPT_LIBROSA=${PYOPT_LIBROSA}"
-  build_args+=" --build-arg PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE}"
-  build_args+=" --build-arg PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS}"
-  build_args+=" --build-arg IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}"
+  for key in "${PY_OPTIONS[@]}"; do
+    build_args+=" --build-arg ${key}=${!key}"
+  done
 
   # Build Python image into a temporary tag for atomic swap
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
@@ -580,7 +589,7 @@ build_python_container() {
     echo "  \"timestamp\": \"${ts}\"," 
          "\"monadic_version\": \"${MONADIC_VERSION}\"," 
          "\"host_os\": \"${HOST_OS}\"," 
-         "\"options\": {\"INSTALL_LATEX\": ${INSTALL_LATEX}, \"IMGOPT_IMAGEMAGICK\": ${IMGOPT_IMAGEMAGICK}, \"PYOPT_NLTK\": ${PYOPT_NLTK}, \"PYOPT_SPACY\": ${PYOPT_SPACY}, \"PYOPT_SCIKIT\": ${PYOPT_SCIKIT}, \"PYOPT_GENSIM\": ${PYOPT_GENSIM}, \"PYOPT_LIBROSA\": ${PYOPT_LIBROSA}, \"PYOPT_MEDIAPIPE\": ${PYOPT_MEDIAPIPE}, \"PYOPT_TRANSFORMERS\": ${PYOPT_TRANSFORMERS}} ,"
+         "\"options\": {\"INSTALL_LATEX\": ${INSTALL_LATEX}, \"IMGOPT_IMAGEMAGICK\": ${IMGOPT_IMAGEMAGICK}, \"PYOPT_NLTK\": ${PYOPT_NLTK}, \"PYOPT_SPACY\": ${PYOPT_SPACY}, \"PYOPT_GENSIM\": ${PYOPT_GENSIM}, \"PYOPT_LIBROSA\": ${PYOPT_LIBROSA}, \"PYOPT_MEDIAPIPE\": ${PYOPT_MEDIAPIPE}, \"PYOPT_TRANSFORMERS\": ${PYOPT_TRANSFORMERS}} ,"
     # LaTeX
     if [ "${INSTALL_LATEX}" = "true" ]; then
       ${DOCKER} run --rm "${temp_tag}" sh -lc 'pdflatex -version >/dev/null 2>&1'; LATEX_OK=$?
@@ -605,6 +614,19 @@ print(json.dumps(res))
 PY
 " > "${health_json}" 2>/dev/null || echo '{"checks": {}}' > "${health_json}"
 
+  # Build the meta.json "build_args" block from the same PY_OPTIONS
+  # array that drove `--build-arg` so the two cannot drift.
+  local meta_build_args=""
+  local i
+  for ((i = 0; i < ${#PY_OPTIONS[@]}; i++)); do
+    local mk="${PY_OPTIONS[i]}"
+    if [ ${i} -eq 0 ]; then
+      meta_build_args+="    \"${mk}\": ${!mk}"
+    else
+      meta_build_args+=$',\n    "'"${mk}"'": '"${!mk}"
+    fi
+  done
+
   # Write meta.json
   cat > "${meta_json}" <<META
 {
@@ -613,15 +635,7 @@ PY
   "host_os": "${HOST_OS}",
   "image_temp_tag": "${temp_tag}",
   "build_args": {
-    "INSTALL_LATEX": ${INSTALL_LATEX},
-    "PYOPT_NLTK": ${PYOPT_NLTK},
-    "PYOPT_SPACY": ${PYOPT_SPACY},
-    "PYOPT_SCIKIT": ${PYOPT_SCIKIT},
-    "PYOPT_GENSIM": ${PYOPT_GENSIM},
-    "PYOPT_LIBROSA": ${PYOPT_LIBROSA},
-    "PYOPT_MEDIAPIPE": ${PYOPT_MEDIAPIPE},
-    "PYOPT_TRANSFORMERS": ${PYOPT_TRANSFORMERS},
-    "IMGOPT_IMAGEMAGICK": ${IMGOPT_IMAGEMAGICK}
+${meta_build_args}
   }
 }
 META
@@ -634,18 +648,12 @@ META
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
     echo "[HTML]: <p>Python image updated successfully.</p>" | tee -a "${build_log}"
 
-    # Save current install options for future comparison
-    cat > "${prev_options_file}" <<OPTIONS
-INSTALL_LATEX=${INSTALL_LATEX}
-PYOPT_NLTK=${PYOPT_NLTK}
-PYOPT_SPACY=${PYOPT_SPACY}
-PYOPT_SCIKIT=${PYOPT_SCIKIT}
-PYOPT_GENSIM=${PYOPT_GENSIM}
-PYOPT_LIBROSA=${PYOPT_LIBROSA}
-PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE}
-PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS}
-IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}
-OPTIONS
+    # Save current install options for future comparison — driven by
+    # the same PY_OPTIONS array so order and coverage stay in sync.
+    : > "${prev_options_file}"
+    for key in "${PY_OPTIONS[@]}"; do
+      echo "${key}=${!key}" >> "${prev_options_file}"
+    done
     echo "[INFO] Saved build options to ${prev_options_file}" | tee -a "${build_log}"
 
     # Restart Python container if running to use the new image
@@ -898,9 +906,10 @@ build_docker_compose() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
   
-  # Get help export ID for build arg
+  # Get help export ID for build-arg cache invalidation (Phase 4 build
+  # script writes this when the prebuilt help DB JSON dump changes).
   local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
@@ -942,7 +951,6 @@ build_docker_compose() {
   local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
   local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
   local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
-  local PYOPT_SCIKIT=$(read_cfg_bool "PYOPT_SCIKIT" false)
   local PYOPT_GENSIM=$(read_cfg_bool "PYOPT_GENSIM" false)
   local PYOPT_LIBROSA=$(read_cfg_bool "PYOPT_LIBROSA" false)
   local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
@@ -950,7 +958,7 @@ build_docker_compose() {
   local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
 
   # Export install options and gems fingerprint as environment variables for compose.yml to reference
-  export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_SCIKIT PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK
+  export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK
 
   # Debug: log the actual command being executed
   local build_start_time=$(date '+%Y-%m-%d %H:%M:%S')
@@ -961,7 +969,7 @@ build_docker_compose() {
   echo "[DEBUG] COMPOSE_FILES='${COMPOSE_FILES}'" >> "${log_file}"
   echo "[DEBUG] REPORTING='${REPORTING}'" >> "${log_file}"
   echo "[DEBUG] use_cache='${use_cache}'" >> "${log_file}"
-  echo "[DEBUG] Install options: INSTALL_LATEX=${INSTALL_LATEX} PYOPT_NLTK=${PYOPT_NLTK} PYOPT_SPACY=${PYOPT_SPACY} PYOPT_SCIKIT=${PYOPT_SCIKIT} PYOPT_GENSIM=${PYOPT_GENSIM} PYOPT_LIBROSA=${PYOPT_LIBROSA} PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE} PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS} IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}" >> "${log_file}"
+  echo "[DEBUG] Install options: INSTALL_LATEX=${INSTALL_LATEX} PYOPT_NLTK=${PYOPT_NLTK} PYOPT_SPACY=${PYOPT_SPACY} PYOPT_GENSIM=${PYOPT_GENSIM} PYOPT_LIBROSA=${PYOPT_LIBROSA} PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE} PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS} IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}" >> "${log_file}"
   echo "" >> "${log_file}"
   echo "[DISK USAGE BEFORE BUILD]" >> "${log_file}"
   ${DOCKER} system df >> "${log_file}" 2>&1 || echo "Unable to get disk usage" >> "${log_file}"
@@ -1001,7 +1009,7 @@ build_docker_compose() {
   echo "" >> "${log_file}"
   echo "[IMAGE VERIFICATION]" >> "${log_file}"
   local all_images_exist=true
-  for image in "yohasebe/monadic-chat" "yohasebe/python" "yohasebe/pgvector"; do
+  for image in "yohasebe/monadic-chat" "yohasebe/python" "yohasebe/monadic-embeddings"; do
     if ! ${DOCKER} images | grep -q "${image}"; then
       all_images_exist=false
       echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Required image '${image}' was not created during build.</p>"
@@ -1065,24 +1073,24 @@ save_container_versions() {
   local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
   local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")
   
-  # Calculate hash for PGVector container Dockerfile
-  local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
-  local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
-  
-  # Get help export ID if it exists
+  # Calculate hash for embeddings container Dockerfile
+  local embeddings_dockerfile="${ROOT_DIR}/services/embeddings/Dockerfile"
+  local embeddings_hash=$(calculate_docker_hash "$embeddings_dockerfile")
+
+  # Get help export ID if it exists (Phase 4 build script writes this)
   local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
-  
+
   # Create JSON file with version information and hashes
   cat <<EOF > "$json_file"
 {
   "version": "${MONADIC_VERSION}",
   "python_hash": "${python_hash}",
   "selenium_hash": "${selenium_hash}",
-  "pgvector_hash": "${pgvector_hash}",
+  "embeddings_hash": "${embeddings_hash}",
   "help_export_id": "${help_export_id}"
 }
 EOF
@@ -1094,7 +1102,7 @@ EOF
 
 # Function to check if Dockerfiles have changed since last build
 # Sets global variables for individual container changes:
-#   PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, PGVECTOR_DOCKERFILE_CHANGED
+#   PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, EMBEDDINGS_DOCKERFILE_CHANGED
 # Returns 0 (true) if any changes detected, 1 (false) otherwise
 check_dockerfiles_changed() {
   local config_dir="${HOME_DIR}/monadic/config"
@@ -1103,7 +1111,7 @@ check_dockerfiles_changed() {
   # Initialize change flags (global variables for use in start_docker_compose)
   PYTHON_DOCKERFILE_CHANGED=false
   SELENIUM_DOCKERFILE_CHANGED=false
-  PGVECTOR_DOCKERFILE_CHANGED=false
+  EMBEDDINGS_DOCKERFILE_CHANGED=false
 
   # Calculate current hashes
   local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
@@ -1112,12 +1120,12 @@ check_dockerfiles_changed() {
   local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
   local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")
 
-  local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
-  local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
+  local embeddings_dockerfile="${ROOT_DIR}/services/embeddings/Dockerfile"
+  local embeddings_hash=$(calculate_docker_hash "$embeddings_dockerfile")
 
   # Get current help export ID
   local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
+  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
@@ -1126,14 +1134,14 @@ check_dockerfiles_changed() {
   if [ ! -f "$json_file" ]; then
     PYTHON_DOCKERFILE_CHANGED=true
     SELENIUM_DOCKERFILE_CHANGED=true
-    PGVECTOR_DOCKERFILE_CHANGED=true
+    EMBEDDINGS_DOCKERFILE_CHANGED=true
     return 0 # true - changes detected
   fi
 
   # Read stored hashes from JSON file
   local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
   local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_pgvector_hash=$(grep -o '"pgvector_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_embeddings_hash=$(grep -o '"embeddings_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
   local stored_help_export_id=$(grep -o '"help_export_id": *"[^"]*"' "$json_file" | cut -d'"' -f4)
 
   # Check each container individually
@@ -1143,13 +1151,14 @@ check_dockerfiles_changed() {
   if [[ "$stored_selenium_hash" != "$selenium_hash" ]]; then
     SELENIUM_DOCKERFILE_CHANGED=true
   fi
-  # PGVector changes if either Dockerfile or help export ID changed
-  if [[ "$stored_pgvector_hash" != "$pgvector_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
-    PGVECTOR_DOCKERFILE_CHANGED=true
+  # Embeddings changes if either Dockerfile or help export ID changed
+  # (the help DB JSON dump is baked into the embeddings image at build time)
+  if [[ "$stored_embeddings_hash" != "$embeddings_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
+    EMBEDDINGS_DOCKERFILE_CHANGED=true
   fi
 
   # Return true if any changes detected
-  if [[ "$PYTHON_DOCKERFILE_CHANGED" = true || "$SELENIUM_DOCKERFILE_CHANGED" = true || "$PGVECTOR_DOCKERFILE_CHANGED" = true ]]; then
+  if [[ "$PYTHON_DOCKERFILE_CHANGED" = true || "$SELENIUM_DOCKERFILE_CHANGED" = true || "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]]; then
     return 0 # true - changes detected
   fi
 
@@ -1233,7 +1242,7 @@ start_docker_compose() {
   local needs_user_containers=false
 
   # Define the list of required containers - these names must match container_name in compose.yml files
-  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container" "monadic-chat-selenium-container")
+  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-qdrant-container" "monadic-chat-embeddings-container" "monadic-chat-selenium-container")
   local missing_containers=()
 
   # Check if main image exists or needs update
@@ -1248,7 +1257,7 @@ start_docker_compose() {
       local changed_list=""
       if [ "$PYTHON_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Python "; fi
       if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Selenium "; fi
-      if [ "$PGVECTOR_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}PGVector "; fi
+      if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Embeddings "; fi
       echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Rebuilding: Ruby ${changed_list}</p>"
       needs_selective_rebuild=true
     else
@@ -1333,9 +1342,9 @@ start_docker_compose() {
       echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Rebuilding Selenium container (Dockerfile changed)...</p>"
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" build --no-cache selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
-    if [ "$PGVECTOR_DOCKERFILE_CHANGED" = true ]; then
-      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Rebuilding PGVector container (Dockerfile changed)...</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/pgvector/compose.yml\" build --no-cache pgvector_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+    if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then
+      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Rebuilding Embeddings container (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/embeddings/compose.yml\" build --no-cache embeddings_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
 
     # Save updated container versions after selective rebuild
@@ -1382,8 +1391,8 @@ start_docker_compose() {
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
-  
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
+
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
 
   # Informational flow for smoother UX
   # Keep health check noise out of user-facing messages; log to output only
@@ -1409,7 +1418,7 @@ start_docker_compose() {
       echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
       echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
       build_ruby_container
-      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
+      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
       if wait_for_ruby_ready; then
         echo "Orchestration refreshed. Continuing startup . . ."
       fi
@@ -1549,6 +1558,11 @@ remove_containers() {
   # ↑ remove legacy containers
 
   remove_project_dangling_images
+  remove_volume monadic-chat-qdrant-data
+  remove_volume monadic-chat-embeddings-models
+  # Legacy: remove_volume calls are idempotent and ignore missing volumes,
+  # so this still cleans up after users upgrading from older PGVector-based
+  # installs.
   remove_volume monadic-chat-pgvector-data
 }
 
@@ -1610,50 +1624,85 @@ run_jupyter() {
   fi
 }
 
-# function to export the pgvector database
+# Export the Qdrant data volume to ~/monadic/data/monadic-qdrant.tar.gz.
+# Stops the qdrant container temporarily so the on-disk state is consistent
+# (Qdrant flushes WAL on shutdown), then restarts it.
 export_db() {
-  local container_name="monadic-chat-pgvector-container"
-  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
-    start_docker_compose silent
-  else
-    echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
-    # exit 1
+  local container_name="monadic-chat-qdrant-container"
+  local volume_name="monadic-chat-qdrant-data"
+
+  if ! ${DOCKER} volume inspect "${volume_name}" >/dev/null 2>&1; then
+    echo "[HTML]: <p>Qdrant volume '${volume_name}' not found. Please start Monadic Chat first.</p><hr />"
+    return 1
   fi
 
-  ${DOCKER} exec "${container_name}" sh -c "pg_dump -U postgres monadic | gzip > \"/monadic/data/monadic.gz\""
+  # Stop qdrant for a consistent volume snapshot.
+  local was_running=false
+  if ${DOCKER} ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+    was_running=true
+    ${DOCKER} stop "${container_name}" >/dev/null 2>&1
+  fi
 
-  # if the above command is successful, print the success message
-  if [ $? -eq 0 ]; then
-    stop_docker_compose
-    echo "[HTML]: <p>Document DB has been exported to 'monadic.gz' successfully!</p><hr />"
+  # Use a one-shot alpine container to read from the qdrant volume and write
+  # a gzip tarball into the host shared data directory.
+  ${DOCKER} run --rm \
+    -v "${volume_name}:/source:ro" \
+    -v "${HOME_DIR}/monadic/data:/dest" \
+    alpine:latest \
+    sh -c "cd /source && tar czf /dest/monadic-qdrant.tar.gz ."
+  local exit_code=$?
+
+  if [ "$was_running" = true ]; then
+    ${DOCKER} start "${container_name}" >/dev/null 2>&1
+  fi
+
+  if [ $exit_code -eq 0 ]; then
+    echo "[HTML]: <p>Document DB has been exported to 'monadic-qdrant.tar.gz' successfully!</p><hr />"
   else
     echo "[HTML]: <p>Document DB export failed!</p><hr />"
   fi
 }
 
-# function to import the pgvector database
+# Import a previously exported Qdrant tarball, replacing the current volume.
+# Stops the container, wipes the volume, untars, and restarts.
 import_db() {
-  local container_name="monadic-chat-pgvector-container"
-  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
-    start_docker_compose silent
-  else
-    echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
-    # exit 1
+  local container_name="monadic-chat-qdrant-container"
+  local volume_name="monadic-chat-qdrant-data"
+  local tarball="${HOME_DIR}/monadic/data/monadic-qdrant.tar.gz"
+
+  if [ ! -f "$tarball" ]; then
+    echo "[HTML]: <p>Document DB file 'monadic-qdrant.tar.gz' does not exist. Please place the export file in the shared folder first.</p><hr />"
+    return 1
   fi
 
-  if [ ! -f "${HOME_DIR}/monadic/data/monadic.gz" ]; then
-    echo "[HTML]: <p>Document DB file 'monadic.gz' does not exist. Please set the file in the shared folder first.</p><hr />"
-    # exit 1
+  if ! ${DOCKER} volume inspect "${volume_name}" >/dev/null 2>&1; then
+    echo "[HTML]: <p>Qdrant volume '${volume_name}' not found. Please start Monadic Chat once before importing.</p><hr />"
+    return 1
   fi
 
-  ${DOCKER} exec "${container_name}" sh -c "dropdb -f -U postgres monadic && createdb -U postgres --locale=C --template=template0 monadic && gunzip -t \"/monadic/data/monadic.gz\" && gunzip -c \"/monadic/data/monadic.gz\" | psql -v ON_ERROR_STOP=1 -U postgres monadic || exit 1"
+  # Stop qdrant so the import sees a quiet filesystem.
+  local was_running=false
+  if ${DOCKER} ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+    was_running=true
+    ${DOCKER} stop "${container_name}" >/dev/null 2>&1
+  fi
 
-  # if the above command is successful, print the success message
-  if [ $? -eq 0 ]; then
-    stop_docker_compose
+  # Wipe the volume and untar the export into it.
+  ${DOCKER} run --rm \
+    -v "${volume_name}:/dest" \
+    -v "${HOME_DIR}/monadic/data:/source:ro" \
+    alpine:latest \
+    sh -c "rm -rf /dest/* /dest/.* 2>/dev/null; cd /dest && tar xzf /source/monadic-qdrant.tar.gz"
+  local exit_code=$?
+
+  if [ "$was_running" = true ]; then
+    ${DOCKER} start "${container_name}" >/dev/null 2>&1
+  fi
+
+  if [ $exit_code -eq 0 ]; then
     echo "[HTML]: <p>Document DB has been imported successfully!</p><hr />"
   else
-    echo "[HTML]: <p>Document DB import failed! Please check the database file.</p><hr />"
+    echo "[HTML]: <p>Document DB import failed! Please check the export file.</p><hr />"
   fi
 }
 
@@ -1769,7 +1818,8 @@ build)
       container_list=$(${DOCKER} container ls --all --format "{{.Names}}")
       if echo "$container_list" | grep -q "^monadic-chat-ruby-container$" && \
          echo "$container_list" | grep -q "^monadic-chat-python-container$" && \
-         echo "$container_list" | grep -q "^monadic-chat-pgvector-container$" && \
+         echo "$container_list" | grep -q "^monadic-chat-qdrant-container$" && \
+         echo "$container_list" | grep -q "^monadic-chat-embeddings-container$" && \
          echo "$container_list" | grep -q "^monadic-chat-selenium-container$"; then
         echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
         echo "[SERVER STARTED]"
@@ -1884,8 +1934,8 @@ import-db)
   ;;
 ensure-service)
   # On-demand container startup for profiled services.
-  # Called by Ruby when an app requires Python/Selenium.
-  # Usage: monadic.sh ensure-service python|selenium
+  # Called by Ruby when an app requires extra services.
+  # Usage: monadic.sh ensure-service python|selenium|privacy|qdrant|embeddings
   SERVICE_NAME="${2:-}"
   set_docker_compose
   case "$SERVICE_NAME" in
@@ -1909,10 +1959,113 @@ ensure-service)
         echo "ALREADY_RUNNING"
       fi
       ;;
+    qdrant)
+      # Vector storage for Help / PDF KB. Always available (no opt-in flag).
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-qdrant-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile qdrant up -d qdrant_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    embeddings)
+      # multilingual-e5-base inference. Required by Help / PDF KB.
+      if ! ${DOCKER} images | grep -q "yohasebe/monadic-embeddings"; then
+        echo "EMBEDDINGS_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-embeddings-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile embeddings up -d embeddings_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    privacy)
+      # Privacy filter is part of the default build set. PRIVACY_FILTER=false
+      # opts out at runtime (and excludes the image from build via ALL_PROFILES).
+      if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
+        echo "PRIVACY_DISABLED"
+      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+        echo "PRIVACY_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-privacy-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy up -d privacy_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    extractor)
+      # Extractor (Knowledge Base Quality Pack) is opt-in via EXTRACTOR_SERVICE=true.
+      # Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT so the caller can prompt
+      # the user to install via Settings → Install Options.
+      if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
+        echo "EXTRACTOR_DISABLED"
+      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+        echo "EXTRACTOR_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-extractor-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor up -d extractor_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
     *)
       echo "Unknown service: ${SERVICE_NAME}" >&2
       ;;
   esac
+  ;;
+build_privacy_container)
+  # Build the privacy container based on PRIVACY_FILTER + PRIVACY_LANGS env.
+  # Triggered from the Settings → Actions panel (Electron menu).
+  if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
+    echo "[INFO] Privacy Filter is disabled (PRIVACY_FILTER=false). Skipping build."
+    exit 0
+  fi
+  ensure_data_dir "privacy" 2>/dev/null || true
+  set_docker_compose
+  build_log="${HOME_DIR}/monadic/log/docker_build.log"
+  echo "[INFO] Building privacy container (PRIVACY_LANGS=${PRIVACY_LANGS:-en})..."
+  eval "PRIVACY_LANGS=\"${PRIVACY_LANGS:-en}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
+  if ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+    echo "[INFO] Privacy container build succeeded."
+    # Snapshot the options used for this build so the Settings UI can
+    # detect when env changes diverge from the last successful build.
+    prev_options_file="${HOME_DIR}/monadic/log/privacy_build_options.txt"
+    {
+      echo "PRIVACY_FILTER=${PRIVACY_FILTER:-false}"
+      echo "PRIVACY_LANGS=${PRIVACY_LANGS:-en}"
+    } > "$prev_options_file"
+    echo "[INFO] Saved build options to ${prev_options_file}"
+  else
+    echo "[ERROR] Privacy container build failed. See ${build_log}."
+    exit 1
+  fi
+  ;;
+build_extractor_container)
+  # Build the extractor container (Knowledge Base Quality Pack: Docling + RapidOCR).
+  # Triggered from the Settings → Actions panel after the user opts in via
+  # Install Options. Image is large (~3GB) and download includes ML models.
+  if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
+    echo "[INFO] Extractor service is disabled (EXTRACTOR_SERVICE=false). Skipping build."
+    exit 0
+  fi
+  ensure_data_dir "extractor" 2>/dev/null || true
+  set_docker_compose
+  build_log="${HOME_DIR}/monadic/log/docker_build.log"
+  echo "[INFO] Building extractor container (EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko})..."
+  eval "EXTRACTOR_OCR=\"${EXTRACTOR_OCR:-rapidocr}\" EXTRACTOR_LANGS=\"${EXTRACTOR_LANGS:-en,ja,zh,ko}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
+  if ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+    echo "[INFO] Extractor container build succeeded."
+    prev_options_file="${HOME_DIR}/monadic/log/extractor_build_options.txt"
+    {
+      echo "EXTRACTOR_SERVICE=${EXTRACTOR_SERVICE:-false}"
+      echo "EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko}"
+      echo "EXTRACTOR_OCR=${EXTRACTOR_OCR:-rapidocr}"
+    } > "$prev_options_file"
+    echo "[INFO] Saved build options to ${prev_options_file}"
+  else
+    echo "[ERROR] Extractor container build failed. See ${build_log}."
+    exit 1
+  fi
   ;;
 *)
   echo "Usage: $0 {build|start|stop|restart|update|remove|check}" >&2

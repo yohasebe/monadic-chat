@@ -460,9 +460,16 @@ voiceButton.addEventListener("click", function () {
                 if (format === "x-wav" || format === "wave") format = "wav";
               }
             }
-            const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code, stt_model: stt_model});
+            const audioMsg = { message: "AUDIO", content: base64, format: format, lang_code: lang_code, stt_model: stt_model };
             reconnect_websocket(ws, function () {
-              ws.send(json);
+              // AUDIO is a non-idempotent STT call — replay would
+              // re-transcribe and double-insert into the input box,
+              // so the wrapper's default fail-fast (alert when
+              // non-OPEN) is the right policy. reconnect_websocket
+              // has already re-established the socket above;
+              // safeWsSend additionally guards the rare "closed
+              // again between reconnect and send" race.
+              window.safeWsSend(audioMsg);
             });
           });
         }

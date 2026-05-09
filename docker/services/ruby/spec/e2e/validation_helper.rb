@@ -108,7 +108,7 @@ module ValidationHelper
       /function.*call|calling.*function|using.*tool/i,
       /execute|executing|running/i,
       /unable.*execute.*missing.*parameter/i,  # Common Cohere error
-      /issue.*connecting|error.*find/i  # PDF Navigator errors
+      /issue.*connecting|error.*find/i         # Vector retrieval errors
     ]
     tool_patterns.any? { |pattern| response.match?(pattern) }
   end
@@ -124,10 +124,10 @@ module ValidationHelper
     system_patterns.any? { |pattern| response.match?(pattern) }
   end
   
-  # More flexible validation for PDF Navigator
+  # Flexible validation for vector-search-driven retrieval (Knowledge Base etc.)
   def pdf_search_attempted?(response)
     # Accept if the AI tried to search, even if it failed
-    attempted_tool_use?(response) || 
+    attempted_tool_use?(response) ||
       acknowledges_task?(response, %w[search find look pdf document text])
   end
   

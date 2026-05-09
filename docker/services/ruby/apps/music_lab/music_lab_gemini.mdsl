@@ -166,6 +166,8 @@ app "MusicLabGemini" do
   end
 
   features do
+    library_save false
+    library_search false
     abc true
     audio_upload true
   end

@@ -41,7 +41,7 @@ app "CodeInterpreterGrok" do
     max_tokens 4096  # Ensure enough tokens for tool responses
 
     agents do
-      code_generator model: "grok-code-fast-1"
+      code_generator model: "grok-4.3"
     end
   end
 
@@ -376,6 +376,7 @@ app "CodeInterpreterGrok" do
   TEXT
 
   features do
+    library_search false
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false

@@ -31,6 +31,8 @@ Runs locally on a single device for personal use.
 **Server Mode**<br />
 Allows multiple devices on the local network to connect to the same Monadic Chat instance. The interface adapts to different screen sizes. Jupyter Notebook functionality is disabled by default for security reasons.
 
+Server Mode requires authentication for non-loopback (LAN) clients. When the mode is first enabled, Monadic Chat generates a random 256-bit token in `~/monadic/config/env` (`MONADIC_AUTH_TOKEN`) and the host console displays the full shareable URL — e.g. `http://192.168.1.50:4567/?monadic_auth=<token>`. Anyone using that URL on the LAN authenticates on the first request, the token is set as a cookie, and subsequent navigations work without echoing it in the URL. Loopback (127.0.0.1) requests from the host machine bypass authentication so the local Electron webview always works. To rotate the token, delete `MONADIC_AUTH_TOKEN` from the env file and restart Monadic Chat.
+
 Configure the application mode in the Console Settings panel.
 
 ## Language Settings :id=language-settings
@@ -50,7 +52,7 @@ Select one of the basic apps. Each app has different default parameters and init
 Select the AI model to use. Available models depend on the selected app. Deprecated models are automatically excluded from the list.
 
 **Reasoning/Thinking Control** <br />
-Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode, Perplexity: Research Depth).
+Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
 
 **Max Output Tokens** <br />
 Limit the maximum number of tokens in the API response.
@@ -165,7 +167,7 @@ Adjust the playback speed of synthesized speech (0.7 to 1.2).
 **Uploaded PDF**<br />
 This displays a list of PDFs uploaded by clicking the `Import PDF` button. You can give a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.
 
-!> **Warning:** PDF files are converted to text embeddings and stored according to your selected storage mode. For Local Storage mode (PGVector), the database will be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Use the `Export Document DB` feature to back up and restore your data. For more information about storage modes, see [PDF Storage Modes](./pdf_storage.md).
+!> **Warning:** PDF files are converted to text embeddings and stored according to your selected storage mode. For Local Storage mode (Qdrant + multilingual-e5-base), the database may be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Use the `Export Document DB` feature to back up and restore your data. For more information about storage modes, see [PDF Storage Modes](./pdf_storage.md).
 
 ## AI User Feature :id=ai-user-feature
 
@@ -184,7 +186,6 @@ Select which AI provider generates the simulated user responses. This can be dif
 - Gemini (Google)
 - Mistral
 - Cohere
-- Perplexity
 - Grok (xAI)
 - DeepSeek
 

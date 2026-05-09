@@ -53,7 +53,6 @@ require_relative '../lib/monadic/adapters/vendors/gemini_helper'
 require_relative '../lib/monadic/adapters/vendors/grok_helper'
 require_relative '../lib/monadic/adapters/vendors/mistral_helper'
 require_relative '../lib/monadic/adapters/vendors/cohere_helper'
-require_relative '../lib/monadic/adapters/vendors/perplexity_helper'
 require_relative '../lib/monadic/adapters/vendors/deepseek_helper'
 require_relative '../lib/monadic/adapters/vendors/ollama_helper'
 
@@ -222,21 +221,6 @@ end
 
 # Removed early container startup - handled by before(:suite) hook instead
 
-# Load the unified environment module
-require_relative '../lib/monadic/utils/environment'
-
-# Helper module that delegates to the unified Environment module
-module PostgreSQLConnectionHelper
-  include Monadic::Utils::Environment
-  
-  # Alias for backward compatibility with existing tests
-  def postgres_connection_params(database: 'postgres')
-    postgres_params(database: database)
-  end
-end
-
-# Make the helper available to all specs
 RSpec.configure do |config|
-  config.include PostgreSQLConnectionHelper
   config.include TextResponseAssertions
 end

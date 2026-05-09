@@ -20,7 +20,7 @@ This document defines the canonical property names used across providers in `mod
   - Whether the model supports PDFs in general. UI may still need `supports_pdf_upload` to decide file picker state.
 
 - supports_pdf_upload: boolean
-  - Whether the model accepts PDF file uploads. If false and `supports_pdf` is true, use URL-only (e.g., Perplexity via `pdf_url`).
+  - Whether the model accepts PDF file uploads. If false and `supports_pdf` is true, use URL-only (e.g. via `pdf_url`).
 
 - supports_file_inputs: boolean
   - Whether the model supports the OpenAI File Inputs API for extended document types (XLSX, DOCX, PPTX, CSV, TXT, etc.). When true, the UI shows "File" button with extended accept list, and the backend uses file_id caching for efficiency.
@@ -77,7 +77,7 @@ The server normalizes aliases into canonical properties without removing the ori
 - is_slow_model -> latency_tier: "slow"
 - responses_api (true) -> api_type: "responses"
 
-Note: We do not auto-populate `supports_pdf_upload` to avoid behavior changes. Explicitly set it per model where necessary (e.g., Perplexity: `supports_pdf: true`, `supports_pdf_upload: false`).
+Note: We do not auto-populate `supports_pdf_upload` to avoid behavior changes. Explicitly set it per model where necessary (e.g.: `supports_pdf: true`, `supports_pdf_upload: false`).
 
 ## Accessors (Server)
 
@@ -107,7 +107,7 @@ These accessors apply conservative defaults (e.g., streaming defaults to true wh
   - Else if `supports_pdf_upload` is true, label as "Image/PDF" and allow `.pdf` in file input.
   - Otherwise, label as "Image" and do not allow `.pdf`.
   - URL input section shown only when `api_type === "responses"` and file/PDF is enabled.
-  - For URL-only PDFs (e.g., Perplexity), keep `supports_pdf_upload: false` and instruct users to include PDF URLs in the message.
+  - For URL-only PDFs (e.g.), keep `supports_pdf_upload: false` and instruct users to include PDF URLs in the message.
 
 ## Model Lifecycle Fields
 
@@ -169,14 +169,18 @@ const providerDefaults = {
 | `image` | Image generation (OpenAI, Gemini, xAI) |
 | `video` | Video generation (Sora, Veo, Grok Imagine) |
 | `tts` | Text-to-speech (OpenAI TTS: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1; Gemini TTS: [0]=flash, [1]=pro) |
-| `embedding` | Text embedding (OpenAI: [0]=text-embedding-3-large) |
+
+> Note: there is no `embedding` category. Help search and the local PDF
+> knowledge base run on a self-hosted `multilingual-e5-base` model in the
+> `embeddings_service` container, not on a provider API. Adding an
+> `embedding` category here would suggest provider-level configurability
+> that does not exist.
 
 **Ruby access** (via `Monadic::Utils::ModelSpec`):
 - `get_provider_default(provider, category)` — first model in list
 - `get_provider_models(provider, category)` — full list
 - `default_chat_model(provider)` / `default_code_model(provider)` / `default_vision_model(provider)` / `default_audio_model(provider)` — convenience accessors
 - `default_image_model(provider)` / `default_video_model(provider)` / `default_tts_model(provider)` — media generation accessors
-- `default_embedding_model(provider)` — embedding model accessor
 - Provider key aliases: `"google"→"gemini"`, `"claude"→"anthropic"`, `"grok"→"xai"`
 
 **Electron access** (via `app/main.js`):
@@ -198,13 +202,13 @@ The UI provides an "All" toggle next to the Model dropdown. When OFF (default), 
 | Rule | Property | Excluded when | Exception |
 |---|---|---|---|
 | Expensive/special models | `requires_confirmation: true` | Always | None |
-| Tool-incapable models | `tool_capability: false` | Always | **Perplexity** (no tool-capable models exist for this provider) |
+| Tool-incapable models | `tool_capability: false` | Always | None |
 | Deprecated models | `deprecated: true` | Always (both modes) | None |
 | Agent-only models | `ui_hidden: true` | Always (both modes) | None |
 
 **Rationale:**
-- `requires_confirmation` models (e.g., `gpt-5.4-pro`, `o1-pro`) are high-cost and should only be selected intentionally via MDSL or providerDefaults, not through casual browsing.
-- `tool_capability: false` models cannot work with most apps (which define tools). The Perplexity exception exists because all Perplexity models lack tool support — excluding them would leave an empty list.
+- `requires_confirmation` models are high-cost and should only be selected intentionally via MDSL or providerDefaults, not through casual browsing. OpenAI's long-thinking Pro tier is excluded from the catalog entirely per `docs_dev/model_architecture_policy.md`; this flag remains available for providers whose lineup requires explicit user opt-in.
+- `tool_capability: false` models cannot work with most apps (which define tools), so they are uniformly excluded from the All-mode catalog.
 - The toggle state is persisted via cookie (`show-all-models`) across sessions.
 
 **Implementation:** `filterModelsForAllMode()` in `model_utils.js`.

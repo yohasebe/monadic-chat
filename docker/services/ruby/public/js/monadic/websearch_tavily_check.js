@@ -4,7 +4,7 @@
 const tavilyRequiredProviders = ['deepseek', 'mistral', 'cohere', 'ollama'];
 
 // Providers with native web search (don't need Tavily)
-const nativeWebSearchProviders = ['openai', 'perplexity', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic'];
+const nativeWebSearchProviders = ['openai', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic'];
 
 // Check if current provider requires Tavily API
 function requiresTavilyAPI(provider) {

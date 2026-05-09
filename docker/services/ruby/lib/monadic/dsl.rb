@@ -22,6 +22,7 @@ require_relative 'shared_tools/context_panel_helper'
 require_relative 'shared_tools/planning'
 require_relative 'shared_tools/verification'
 require_relative 'shared_tools/parallel_dispatch'
+require_relative 'shared_tools/library_search'
 require_relative 'dsl/configurations'
 require_relative 'dsl/loader'
 require_relative 'dsl/provider_config'
@@ -134,28 +135,170 @@ module MonadicDSL
   
   class ConfigurationError < StandardError; end
   
+  # Per-app capability defaults. Apps that omit a flag inherit these
+  # values; MDSL `features do; library_save false; ...; end` overrides
+  # explicitly. Defaults bias toward KB-only conversational apps because
+  # that is the dominant pattern; PF and artifact-centric apps are the
+  # explicit exceptions and must opt out via MDSL.
+  CAPABILITY_DEFAULTS = {
+    library_save: true,
+    library_search: true
+  }.freeze
+
+  # Apply MDSL-declared capabilities + defaults + privacy-derived
+  # overrides + invariant validation. Run AFTER the MDSL block has
+  # populated state.features and state.settings, BEFORE library_search
+  # auto-injection.
+  #
+  # Decision order:
+  #   1. If `privacy do; enabled true; end` was declared, force
+  #      library_save=false and library_search=false. MDSL is not
+  #      allowed to contradict (raises on `library_save true` mixed
+  #      with privacy-on).
+  #   2. Otherwise, read MDSL-declared library_save / library_search
+  #      from features, falling back to CAPABILITY_DEFAULTS.
+  #   3. Validate the cross-flag invariant: library_search=true
+  #      implies library_save=true (search without save is a no-op
+  #      since results would have nowhere to come from).
+  def self.finalize_capabilities!(state)
+    privacy_on = state.settings[:privacy_enabled] == true
+    # MDSL may write to either state.features (preferred — `features do`
+    # block) or state.settings directly; we read both for backward
+    # compat. nil indicates "not declared".
+    declared_save   = first_nonnil(state.features[:library_save],   state.settings[:library_save])
+    declared_search = first_nonnil(state.features[:library_search], state.settings[:library_search])
+
+    if privacy_on
+      if declared_save == true
+        raise ConfigurationError,
+              "App '#{state.name}': library_save=true conflicts with privacy.enabled=true. " \
+              "Privacy Filter apps cannot save to the Knowledge Base. " \
+              "Remove `library_save true` from the features block, or remove the privacy block."
+      end
+      if declared_search == true
+        raise ConfigurationError,
+              "App '#{state.name}': library_search=true conflicts with privacy.enabled=true. " \
+              "Privacy Filter apps cannot retrieve from the Knowledge Base. " \
+              "Remove `library_search true` from the features block, or remove the privacy block."
+      end
+      state.settings[:library_save] = false
+      state.settings[:library_search] = false
+      return
+    end
+
+    save_value   = declared_save.nil?   ? CAPABILITY_DEFAULTS[:library_save]   : !!declared_save
+    search_value = declared_search.nil? ? CAPABILITY_DEFAULTS[:library_search] : !!declared_search
+
+    if search_value && !save_value
+      raise ConfigurationError,
+            "App '#{state.name}': library_search=true requires library_save=true. " \
+            "Retrieving from a Knowledge Base entries this app cannot save to is " \
+            "self-contradictory. Either set library_save true or set library_search false."
+    end
+
+    state.settings[:library_save] = save_value
+    state.settings[:library_search] = search_value
+  end
+
+  # Helper: pick the first non-nil value from the args. Used to merge
+  # MDSL declarations that may live in either state.features (modern
+  # `features do` block) or state.settings (legacy direct write).
+  def self.first_nonnil(*values)
+    values.find { |v| !v.nil? }
+  end
+
+  # True when the app should auto-import library_search. Reads the
+  # capability flag set by finalize_capabilities!.
+  def self.library_search_eligible?(state)
+    state.settings[:library_search] == true
+  end
+
+  # True when the app should expose the Knowledge Base "Save" button.
+  # Thin wrapper over the capability flag for symmetry.
+  def self.library_save_eligible?(state)
+    state.settings[:library_save] == true
+  end
+
+  def self.library_search_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :library_search }
+  end
+
+  # After the user's MDSL block runs, ensure library_search is wired into
+  # eligible apps even when they did not declare a `tools do` block at
+  # all. The tool itself is gated by a per-session UI toggle (default
+  # OFF), so this injection just makes RAG *available* — users still
+  # have to enable it explicitly per session in the Knowledge Base panel.
+  def self.inject_library_search!(state)
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    # `conditional` reflects reality: the tool is exposed to the LLM only
+    # when the per-session "Use Knowledge Base for retrieval" toggle in
+    # the Knowledge Base panel is ON. The `web_search_tools` group uses
+    # the same `conditional` visibility for the parallel reason. The
+    # visibility tag affects only badge categorization (Tools (Always) vs
+    # Tools (Conditional)) — actual API gating is independent.
+    tool_config.import_shared_tools(:library_search, visibility: "conditional")
+    new_tools = tool_config.to_h
+
+    # Merge with any existing tools the user already configured. The
+    # provider-specific wrapper differs (Gemini uses a function_declarations
+    # hash, others use plain arrays), so we handle both shapes.
+    existing = state.settings[:tools]
+    state.settings[:tools] = merge_tools_for_provider(provider, existing, new_tools)
+  end
+
+  def self.merge_tools_for_provider(provider, existing, additions)
+    return additions if existing.nil? || (existing.respond_to?(:empty?) && existing.empty?)
+    if provider == :gemini
+      existing_arr = (existing.is_a?(Hash) ? (existing['function_declarations'] || []) : []).dup
+      additions_arr = (additions.is_a?(Hash) ? (additions['function_declarations'] || []) : []).dup
+      { 'function_declarations' => existing_arr + additions_arr }
+    elsif existing.is_a?(Array) && additions.is_a?(Array)
+      existing + additions
+    else
+      existing
+    end
+  end
+
   # Module methods
-  
+
   # App definition method
   def self.app(name, &block)
     state = AppState.new(name.gsub(/\s+/, ''))
     # Always store original name as display_name to ensure consistency
     state.settings[:display_name] = name
-    
+
     # Initialize default values
     state.features = {}
     state.settings[:provider] = "OpenAI"
     # model is NOT pre-set here; convert_to_class resolves it per-provider
     # via providerDefaults (SSOT) or ENV variable
     state.settings[:temperature] = 0.7
-    
+
     # Process the DSL block
     app_def = SimplifiedAppDefinition.new(state)
     app_def.instance_eval(&block)
-    
+
+    # Resolve per-app capability flags from MDSL declarations + defaults
+    # + privacy-derived overrides. This must run BEFORE library_search
+    # auto-injection because the injection eligibility now reads the
+    # resolved state.settings[:library_search] flag.
+    finalize_capabilities!(state)
+
+    # Auto-inject library_search for eligible conversational apps that
+    # did not opt in themselves. Eligibility is the AND of (per-app
+    # capability flag from MDSL) and (provider supports tool calling).
+    if library_search_eligible?(state) && !library_search_already_imported?(state)
+      begin
+        inject_library_search!(state)
+      rescue StandardError => e
+        puts "[DSL] library_search auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
     # Debug the state
     puts "After DSL eval: #{state.name}, display_name: #{state.settings[:display_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-    
+
     convert_to_class(state)
     state
   end
@@ -261,6 +404,23 @@ module MonadicDSL
       end
     end
 
+    # Privacy Filter (PII masking before LLM, restoration on response).
+    # Usage:
+    #   privacy do
+    #     enabled true
+    #     languages ["ja", "en"]
+    #   end
+    # Setting privacy_enabled=true triggers container_dependencies to require
+    # the :privacy service. The privacy container is part of the default build
+    # set; PRIVACY_FILTER=false in env opts out at runtime.
+    def privacy(&block)
+      config = PrivacyFilterConfiguration.new
+      config.instance_eval(&block) if block_given?
+      hash = config.to_hash
+      @state.settings[:privacy] = hash
+      @state.settings[:privacy_enabled] = hash[:enabled]
+    end
+
     # Advisor Tool opt-in (Anthropic Advisor Tool beta).
     # Usage:
     #   advisor_tool  # enable with defaults (claude-opus-4-6)
@@ -293,6 +453,21 @@ module MonadicDSL
 
         tool_config = ToolConfiguration.new(@state, provider)
         tool_config.instance_eval(&block)
+
+        # Auto-inject library_search into the SAME ToolConfiguration so
+        # progressive_tools metadata, formatter wrapping, and tool count
+        # stay coherent with whatever the user declared. The tool runs
+        # inside its own per-session toggle gate, default OFF.
+        if MonadicDSL.library_search_eligible?(@state) &&
+           !MonadicDSL.library_search_already_imported?(@state)
+          begin
+            # See `inject_library_search!` for why `conditional`: the tool
+            # is gated by the per-session Knowledge Base retrieval toggle.
+            tool_config.import_shared_tools(:library_search, visibility: "conditional")
+          rescue StandardError => e
+            puts "[DSL] library_search inline-inject skipped for #{@state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          end
+        end
 
         @state.settings[:tools] = tool_config.to_h
       end
@@ -422,7 +597,7 @@ module MonadicDSL
 
     # Automatically include tool module if it exists
     # Remove provider suffix to get base app name
-    app_base_name = state.name.sub(/OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama$/, '')
+    app_base_name = state.name.sub(/OpenAI|Claude|Gemini|Mistral|Cohere|Grok|DeepSeek|Ollama$/, '')
     tool_module_name = "#{app_base_name}Tools"
     include_statements << tool_module_name
 
@@ -575,6 +750,26 @@ module MonadicDSL
     # the unset default (which defaults to enabled at the default threshold).
     unless state.settings[:compaction].nil?
       class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
+    end
+
+    # Add privacy filter settings if specified.
+    # `:privacy_enabled` is a derived flag used by container_dependencies to
+    # decide whether to require the privacy service.
+    unless state.settings[:privacy].nil?
+      class_def << "        @settings[:privacy] = #{state.settings[:privacy].inspect}\n"
+      class_def << "        @settings[:privacy_enabled] = #{state.settings[:privacy_enabled].inspect}\n"
+    end
+
+    # Capability flags resolved by finalize_capabilities!. These are written
+    # to state.settings (not state.features) so the generic features-loop
+    # above does not pick them up; we have to inject them explicitly so the
+    # runtime app instance carries the same boolean the WS layer ships to
+    # the frontend's body-class gate.
+    unless state.settings[:library_save].nil?
+      class_def << "        @settings[:library_save] = #{state.settings[:library_save].inspect}\n"
+    end
+    unless state.settings[:library_search].nil?
+      class_def << "        @settings[:library_search] = #{state.settings[:library_search].inspect}\n"
     end
 
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)

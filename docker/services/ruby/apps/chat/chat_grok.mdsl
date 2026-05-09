@@ -54,7 +54,7 @@ app "ChatGrok" do
     websearch true
     group "xAI"
   end
-  
+
   tools do
   end
 end

@@ -59,7 +59,7 @@ app "ChatCohere" do
     websearch false
     group "Cohere"
   end
-  
+
   tools do
   end
 end

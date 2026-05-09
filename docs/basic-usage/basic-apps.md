@@ -11,39 +11,79 @@ For information on how to develop your own apps, refer to the [App Development](
 The table below shows which apps are available for which AI model providers.
 
 
-| App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
-|-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
-| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | ✅ | | | | | | | |
-| Translate | ✅ | | ✅ | | | | | | |
-| Voice Interpreter | ✅ | | ✅ | | | | | | |
-| Novel Writer | ✅ | | | | | | ✅ | | |
-| Image Generator | ✅ | | | | ✅ | ✅ | | | |
-| Video Generator | | | | | ✅ | ✅ | | | |
-| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mermaid Grapher | ✅ | ✅ | | | ✅ | ✅ | | | |
-| DrawIO Grapher | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Syntax Tree | ✅ | ✅ | | | | | | | |
-| Concept Visualizer | ✅ | ✅ | | | | | | | |
-| Speech Draft Helper | ✅ | | | | | | | | |
-| Web Insight | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Video Describer | ✅ | | | | | | | | |
-| PDF Navigator | ✅ | | | | | | | | |
-| Content Reader | ✅ | | | | | | | | |
-| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
-| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Auto Forge | ✅ | ✅ | | | | ✅ | | | |
-| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | | |
-| Document Generator | | ✅ | | | | | | | |
-| Monadic Chat Help | ✅ | | | | | | | | |
+| App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Ollama |
+|-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:------:|
+| Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Wikipedia | ✅ | | | | | | | |
+| Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Language Practice Plus | ✅ | ✅ | | | | | | |
+| Translate | ✅ | | ✅ | | | | | |
+| Voice Interpreter | ✅ | | ✅ | | | | | |
+| Novel Writer | ✅ | | | | | | ✅ | |
+| Image Generator | ✅ | | | | ✅ | ✅ | | |
+| Video Generator | | | | | ✅ | ✅ | | |
+| Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Mermaid Grapher | ✅ | ✅ | | | ✅ | ✅ | | |
+| DrawIO Grapher | ✅ | ✅ | | | ✅ | ✅ | | |
+| Syntax Tree | ✅ | ✅ | | | | | | |
+| Concept Visualizer | ✅ | ✅ | | | | | | |
+| Speech Draft Helper | ✅ | | | | | | | |
+| Web Insight | ✅ | ✅ | | | ✅ | ✅ | | |
+| Video Describer | ✅ | | | | | | | |
+| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
+| Auto Forge | ✅ | ✅ | | | | ✅ | | |
+| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | |
+| Document Generator | | ✅ | | | | | | |
+| Monadic Chat Help | ✅ | | | | | | | |
+
+## Privacy Filter and Knowledge Base by App :id=privacy-kb-by-app
+
+Privacy Filter (PF) and Knowledge Base save (KB) are **mutually exclusive** at the app level. Apps that handle PII intentionally are scoped as "ephemeral with PF on"; apps whose conversations have long-term retrieval value are scoped to KB save with PF off. A third group (artifact-centric apps such as image / video / diagram / document generators) supports neither — the artifact lives in `~/monadic/data/`, and the surrounding conversation is iteration-log noise that would only pollute KB search.
+
+To preserve a PF-protected conversation, use **Privacy Export** (encrypted, optionally masked-only). To browse or share a KB entry, use the **Browse** modal in the right sidebar.
+
+| App | Privacy Filter | Knowledge Base Save |
+|-----|:--:|:--:|
+| Chat | | ✅ |
+| Chat Plus | ✅ | |
+| Voice Chat | | ✅ |
+| Wikipedia | | ✅ |
+| Math Tutor | | ✅ |
+| Second Opinion | ✅ | |
+| Research Assistant | | ✅ |
+| Language Practice | | ✅ |
+| Language Practice Plus | | ✅ |
+| Translate | ✅ | |
+| Voice Interpreter | | ✅ |
+| Novel Writer | | ✅ |
+| Image Generator | | |
+| Video Generator | | |
+| Mail Composer | ✅ | |
+| Mermaid Grapher | | |
+| DrawIO Grapher | | |
+| Syntax Tree | | |
+| Concept Visualizer | | |
+| Speech Draft Helper | | ✅ |
+| Web Insight | | ✅ |
+| Video Describer | | ✅ |
+| Knowledge Base | | ✅ |
+| Code Interpreter | | ✅ |
+| Coding Assistant | | ✅ |
+| Jupyter Notebook | | ✅ |
+| Auto Forge | | |
+| Music Lab | | |
+| Document Generator | | |
+| Monadic Chat Help | | ✅ |
+
+A blank cell in **both** columns indicates an artifact-centric app where the generated output (image, video, diagram, document, etc.) is the value, not the conversation. Use the per-card **Copy** / **Download** controls or the shared folder to retain artifacts; KB save is intentionally not available because the surrounding chat does not carry retrieval value.
 
 ## Provider Capabilities Overview
 
@@ -55,7 +95,6 @@ The table below shows which apps are available for which AI model providers.
 | Mistral | ✅ | ✅ | ✅ Tavily |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ Native |
-| Perplexity | ✅ | ❌ | ✅ Native |
 | DeepSeek | ❌ | ✅ | ✅ Tavily |
 | Ollama | Model-dependent | Model-dependent | ✅ Tavily |
 
@@ -66,7 +105,7 @@ The table below shows which apps are available for which AI model providers.
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
 Start a standard conversation with the AI, which will respond to your text with appropriate emojis. For complex questions, web search is available for models that support tool/function calling:
-- **Native Search**: OpenAI, Claude, Gemini, Grok, and Perplexity use their built-in web search capabilities (enabled by default).
+- **Native Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search capabilities (enabled by default).
 - **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when configured (requires a `TAVILY_API_KEY`).
 
 You can also use the `From URL` feature to extract content from any website using Selenium-based web scraping, regardless of the provider.
@@ -96,7 +135,13 @@ While the user is speaking, a waveform is displayed. When the user stops speakin
 
 Voice Chat supports the same providers indicated in the availability table. You can freely mix any chat provider with any available TTS provider — for example, using Claude for the conversation while xAI Grok handles the voice. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
-**Expressive Speech**: When you enable Auto Speech and pick a TTS provider that understands speech markers (currently xAI Grok, ElevenLabs v3, and Gemini TTS), a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown. While the badge is active, the assistant may weave natural expressive cues (brief pauses, laughter, a whispered aside) into its spoken responses. These cues are applied to the audio only and do not appear in the chat transcript. Turning off Auto Speech or switching to a TTS provider without marker support silently disables the feature.
+**Expressive Speech**: When you enable Auto Speech and pick a compatible TTS provider, a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown. Three mechanisms are supported, chosen automatically by the selected provider:
+
+- **Inline markers** (xAI Grok, ElevenLabs v3): the assistant weaves short markers (brief pauses, laughter, a whispered aside) into the text, and the TTS engine interprets them as stage directions. The markers never surface in the chat transcript — only their audio effect does.
+- **Instruction mode** (OpenAI `gpt-4o-mini-tts`): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The OpenAI TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
+- **Hybrid mode** (Gemini TTS): Gemini supports both of the above simultaneously. The assistant may use inline markers, a voice directive, or both, and Google's engine interprets the combination. Everything except the spoken reply is stripped from the transcript.
+
+Hover the badge for a tooltip that describes the active mechanism. Turning off Auto Speech, or switching to a TTS provider without Expressive Speech support, silently disables the feature.
 
 <!-- SCREENSHOT: Voice input interface showing waveform animation while speaking -->
 
@@ -137,7 +182,7 @@ Second Opinion is available wherever the provider table lists support.
 Accelerate your academic and scientific research with an intelligent assistant. This app uses powerful web search capabilities to retrieve and analyze information from online sources. Use it to find current information, verify facts, and research topics comprehensively, receiving reliable insights, summaries, and explanations to advance your work.
 
 Research Assistant availability matches the provider table above. Web search capabilities:
-- **Native Search**: OpenAI, Claude, Gemini, Grok, Perplexity (always available)
+- **Native Search**: OpenAI, Claude, Gemini, Grok (always available)
 - **Tavily Search**: Mistral, Cohere, DeepSeek, Ollama (requires `TAVILY_API_KEY`)
 - **URL Content Extraction**: Selenium-based web scraping for fetching content from any URL (available for all providers)
 
@@ -428,63 +473,41 @@ Get a detailed description of any video's content. The app analyzes a video by e
 To use this app, place a video file in the `Shared Folder`, provide its name, and specify the frames per second (fps) for the analysis.
 
 
-### PDF Navigator
+### Knowledge Base
 
-![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
+A unified, project-wide library of conversations and documents. The Knowledge Base is shared across every Monadic Chat app, so anything you save here can be retrieved later from any chat session.
 
-Ask questions about the content of your PDF files. After you upload a PDF, the app divides the content into smaller segments and creates text embeddings for each. When you ask a question, the app finds the most relevant segment and provides it to the AI to generate a well-informed answer.
+The Knowledge Base replaces the previous PDF Navigator and Content Reader apps. Their functionality is consolidated into a single subsystem that handles conversation transcripts, PDFs, Office files, Markdown, and source code uniformly.
 
-**Key Features:**
-- **Vector database integration**: Properly connects to PGVector database through the `@embeddings_db` instance variable
-- **Multiple search methods**: Can find closest text snippets, documents, or retrieve specific segments
-- **Document management**: List all uploaded PDFs and navigate through different documents
-- **Contextual retrieval**: Finds the most relevant text segments based on semantic similarity
+**Two ways to add content:**
 
-**Available Functions:**
-- `find_closest_text`: Search for text snippets most similar to your query
-- `find_closest_doc`: Find entire documents most relevant to your query
-- `list_titles`: View all PDFs currently in the database
-- `get_text_snippet`: Retrieve a specific text segment by position
-- `get_text_snippets`: Get all text segments from a specific document
+1. **Save the current chat session** — the **Save** button in the sidebar serialises the active conversation (messages + participants + metadata) into the Knowledge Base.
+2. **Import a file** — open the Knowledge Base Browser and click **Import file** to upload one of the supported formats below. The file is extracted, chunked, embedded, and stored as a single conversation entry that you can search, view, and rename.
 
-?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database (database name: `monadic_user_docs`). The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation. For information about storage mode options (local vs. cloud), see [PDF Storage](./pdf_storage.md).
+**Supported import formats:**
 
-**Configuration Options:**
+| Format | Extensions | Notes |
+|---|---|---|
+| Markdown | `.md`, `.markdown`, `.mdx` | YAML frontmatter is promoted into metadata; ATX headings drive section boundaries. |
+| Source code | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql`, and others | Top-level `def`/`class`/`func`/etc. mark chunk boundaries. The programming language is recorded as a topic. |
+| PDF | `.pdf` | Text and tables are extracted via pdfplumber and serialised as Markdown. PDF metadata title becomes the conversation title. |
+| Office | `.docx`, `.xlsx`, `.pptx` | Word paragraphs, Excel sheets, and PowerPoint slides each become a chunk. The Browse modal shows a per-format icon (Word / Excel / PowerPoint). |
 
-PDF Navigator behavior can be customized via environment variables in `~/monadic/config/env`:
+**Scope model:**
 
-- `PDF_RAG_TOKENS`: Number of tokens per chunk
-- `PDF_RAG_OVERLAP_LINES`: Number of lines to overlap between chunks
+Each entry is scoped either to a specific app + provider (e.g. `Chat (OpenAI)`) or to `Global`. App-only entries are retrievable only from the same app + provider combination — `Chat (OpenAI)` cannot see entries saved while `Chat (Claude)` was active, and vice versa. `Global` entries are retrievable from every app via the `library_search` tool. Click the rotate icon in the Browse table or the **Make Global / Make app-only** button in the Conversation Viewer to flip between the two.
 
-<!-- SCREENSHOT: Chat interface showing Import PDF button in the message input area -->
+**Other features:**
 
-When you import a PDF, a dialog allows you to provide a display name for the document. The PDF is then processed and added to the vector database.
+- **Save replaces in place** — saving the same chat session a second time updates the existing entry instead of creating a duplicate. The modal switches to "Update Conversation in Knowledge Base" mode (with an "Update" button and a warning banner) when re-saving. The binding clears on Reset, app switch, or when the entry is deleted from Browse.
+- **AI-suggested titles** — on first save the title field is auto-populated by your current provider's LLM, using the first few turns of the conversation. The suggestion is a default — type freely to override it. Suggestions are cached so canceling and re-opening the dialog does not re-run the model.
+- **Rename** — open the Conversation Viewer, click the pencil icon next to the title, edit, and save. The Browse table updates immediately.
+- **Inventory and stats** — the sidebar shows the most recent saves and total counts. The Browse modal supports search, filtering by scope, and sorting.
+- **Conversation Viewer** — clicking a row opens a verbatim playback of every message, with system prompts collapsed behind a `<details>` block.
+- **RAG opt-in (per session)** — the **Use Knowledge Base for retrieval** toggle in any chat session lets the LLM call `library_search` while answering. The cascade applies the active app's scope filter (`scope_app IN [current_app, "Global"]`). Off by default; locks for the duration of the session once you send the first message. The toggle preference is persisted across sessions so you don't have to flip it every time.
+- **Privacy Filter compatibility** — when Privacy Filter is active, snippets returned by `library_search` are masked through the same Privacy Pipeline before they reach the LLM, so PII stored unmasked in the Knowledge Base does not leak via retrieval.
 
-<!-- SCREENSHOT: PDF import dialog showing file selection and optional display name field -->
-
-The PDF Database panel (visible when using PDF Navigator app) shows all uploaded PDFs with their display names and allows you to delete individual documents.
-
-<!-- SCREENSHOT: PDF database panel listing uploaded PDFs with display names and delete icons -->
-
-
-### Content Reader
-
-![Content Reader app icon](../assets/icons/content-reader.png ':size=40')
-
-Have an AI chatbot explain the content of files or web URLs in a clear, beginner-friendly way. You can upload files (like PDFs, Word documents, or code) or simply mention a URL in your prompt, and the app will automatically retrieve the content for the AI to discuss.
-
-To specify a file for the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file, verify the file name and ensure it's accessible from the current code execution environment.
-
-Supported file formats:
-
-- PDF
-- Microsoft Word (docx)
-- Microsoft PowerPoint (pptx)
-- Microsoft Excel (xlsx)
-- CSV
-- Text (txt)
-
-The app can also recognize and describe image files (PNG, JPEG, etc.). Image recognition uses the vision capability of the currently selected model (automatically falls back to a vision-capable model if needed). Additionally, audio files (MP3, etc.) can be transcribed to text. Speech recognition uses the STT model selected in the Speech Settings Panel of the Web UI.
+?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (pdfplumber / python-docx / openpyxl / python-pptx); imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
 
 ## Code Generation :id=code-generation

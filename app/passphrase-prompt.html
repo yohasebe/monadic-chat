@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <title>Passphrase</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      padding: 18px;
+      margin: 0;
+      background: #f8f9fa;
+      color: #212529;
+      font-size: 13px;
+    }
+    h2 { font-size: 14px; margin: 0 0 6px; }
+    .hint { font-size: 12px; color: #6c757d; margin-bottom: 12px; line-height: 1.4; }
+    label { display: block; font-size: 12px; color: #495057; margin-bottom: 4px; }
+    input[type="password"] {
+      width: 100%;
+      padding: 7px 9px;
+      font-size: 13px;
+      border: 1px solid #ced4da;
+      border-radius: 3px;
+      margin-bottom: 8px;
+      box-sizing: border-box;
+    }
+    input[type="password"]:focus {
+      outline: none;
+      border-color: #86b7fe;
+      box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.2);
+    }
+    .err { color: #dc3545; font-size: 11px; margin-bottom: 8px; min-height: 14px; }
+    .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+    button {
+      padding: 6px 14px;
+      font-size: 13px;
+      border-radius: 3px;
+      border: 1px solid #ced4da;
+      background: #fff;
+      cursor: pointer;
+    }
+    button.primary {
+      background: #0d6efd;
+      color: white;
+      border-color: #0d6efd;
+    }
+    button.primary:disabled {
+      background: #6c757d;
+      border-color: #6c757d;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h2 id="title">Enter Passphrase</h2>
+  <div class="hint" id="hint">Used to encrypt the export file. Minimum 8 characters.</div>
+  <label for="pp" id="label-pp">Passphrase</label>
+  <input type="password" id="pp" autofocus>
+  <div id="confirm-row">
+    <label for="pp2" id="label-pp2">Confirm passphrase</label>
+    <input type="password" id="pp2">
+  </div>
+  <div class="err" id="err"></div>
+  <div class="actions">
+    <button id="cancel" type="button">Cancel</button>
+    <button id="ok" type="button" class="primary" disabled>OK</button>
+  </div>
+  <script src="passphrase-prompt.js"></script>
+</body>
+</html>

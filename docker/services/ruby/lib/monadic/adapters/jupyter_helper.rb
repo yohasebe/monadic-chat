@@ -919,12 +919,9 @@ module MonadicHelper
     # Ensure filename has .ipynb extension
     filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
     
-    # Use proper path based on environment
-    shared_volume = if Monadic::Utils::Environment.in_container?
-                      "/monadic/data"
-                    else
-                      "/Users/yohasebe/monadic/data"
-                    end
+    # Resolve to the per-environment shared volume so users on dev mode
+    # whose home dir is not /Users/yohasebe can still restart kernels.
+    shared_volume = Monadic::Utils::Environment.data_path
     full_path = File.join(shared_volume, filename_with_ext)
     
     # First, try to restart using nbconvert with --clear-output option

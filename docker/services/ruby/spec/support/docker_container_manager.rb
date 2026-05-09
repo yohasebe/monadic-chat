@@ -9,7 +9,8 @@ require_relative '../../lib/monadic/utils/environment'
 class DockerContainerManager
   SERVICES_DIR = File.expand_path("../../..", __dir__)
   REQUIRED_SERVICES = {
-    "pgvector" => "pgvector/compose.yml",
+    "qdrant" => "qdrant/compose.yml",
+    "embeddings" => "embeddings/compose.yml",
     "selenium" => "selenium/compose.yml",
     "python" => "python/compose.yml"
   }.freeze
@@ -87,8 +88,10 @@ class DockerContainerManager
     
     def service_healthy?(service)
       case service
-      when "pgvector"
-        postgres_healthy?
+      when "qdrant"
+        qdrant_healthy?
+      when "embeddings"
+        embeddings_healthy?
       when "selenium"
         selenium_healthy?
       when "python"
@@ -97,29 +100,61 @@ class DockerContainerManager
         true
       end
     end
-    
-    def postgres_healthy?
-      require "pg"
-      
-      # Quick check if container is in healthy state
-      container_name = "monadic-chat-pgvector-container"
-      output, = Open3.capture2("docker inspect --format='{{.State.Health.Status}}' #{container_name} 2>/dev/null")
-      
-      # If Docker reports healthy, trust it
-      return true if output.strip == "healthy"
-      
-      # Otherwise try to connect
-      conn = PG.connect(
-        Monadic::Utils::Environment.postgres_params.merge(connect_timeout: 5)
-      )
-      conn.exec("SELECT 1")
-      conn.close
-      true
-    rescue PG::Error => e
-      # Only print detailed errors in debug mode
-      if ENV['DEBUG_CONTAINERS'] && !e.message.include?("starting up")
-        puts "[DEBUG] PostgreSQL health check failed: #{e.message}"
+
+    # Health check via host port (dev mode, when compose.dev.yml overlays
+    # are active and ports are mapped to localhost).
+    def host_port_healthy?(port, path)
+      uri = URI("http://localhost:#{port}#{path}")
+      response = Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
+        http.get(uri.path)
       end
+      response.is_a?(Net::HTTPSuccess)
+    rescue StandardError
+      false
+    end
+
+    # Health check via docker engine (works regardless of host port mapping).
+    # Used when containers are running in production mode (no dev overlay).
+    def docker_health_status(container_name)
+      output, status = Open3.capture2(
+        "docker", "inspect", "--format={{.State.Health.Status}}", container_name
+      )
+      return nil unless status.success?
+      output.strip
+    rescue StandardError
+      nil
+    end
+
+    # Run a command inside a container and return success/failure.
+    def docker_exec_check(container_name, *cmd)
+      _, status = Open3.capture2e("docker", "exec", container_name, *cmd)
+      status.success?
+    rescue StandardError
+      false
+    end
+
+    def qdrant_healthy?
+      # Prefer host-port check (works in dev mode where compose.dev.yml exposes 6333).
+      return true if host_port_healthy?(6333, "/healthz")
+      # Fallback for production mode: hit qdrant from inside the embeddings
+      # container, which shares the docker network and has python+urllib.
+      docker_exec_check(
+        "monadic-chat-embeddings-container",
+        "python", "-c",
+        "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://qdrant_service:6333/healthz', timeout=2).status==200 else 1)"
+      )
+    rescue StandardError => e
+      puts "[DEBUG] qdrant health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
+      false
+    end
+
+    def embeddings_healthy?
+      # Dev mode: host port 8002 → container 8000.
+      return true if host_port_healthy?(8002, "/v1/health")
+      # Production mode: rely on docker's own HEALTHCHECK.
+      docker_health_status("monadic-chat-embeddings-container") == "healthy"
+    rescue StandardError => e
+      puts "[DEBUG] embeddings health check failed: #{e.message}" if ENV['DEBUG_CONTAINERS']
       false
     end
     
@@ -225,10 +260,10 @@ class DockerContainerManager
           break
         else
           unhealthy_count += 1
-          # If pgvector stays unhealthy for too long, try restarting it
-          if unhealthy_count > 15 && !statuses[0]  # pgvector is first
-            puts "\n⚠️  pgvector is taking too long, attempting restart..."
-            system("docker restart monadic-chat-pgvector-container")
+          # If qdrant stays unhealthy for too long, try restarting it.
+          if unhealthy_count > 15 && !statuses[0]  # qdrant is first in REQUIRED_SERVICES
+            puts "\n⚠️  qdrant is taking too long, attempting restart..."
+            system("docker restart monadic-chat-qdrant-container")
             unhealthy_count = 0
           end
           sleep 2

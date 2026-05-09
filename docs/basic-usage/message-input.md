@@ -12,7 +12,7 @@ Enter a message in the text area and click the `Send` button to send the message
 
 ## Uploading Images :id=uploading-images
 
-Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral, Perplexity).
+Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral).
 
 Click `Image` (or `Image/PDF` for models that support PDF) to select an image. Supported formats: JPG, JPEG, PNG, GIF, WebP.
 

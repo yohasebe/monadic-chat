@@ -56,7 +56,7 @@ app "ChatDeepSeek" do
     websearch false
     group "DeepSeek"
   end
-  
+
   tools do
   end
 end

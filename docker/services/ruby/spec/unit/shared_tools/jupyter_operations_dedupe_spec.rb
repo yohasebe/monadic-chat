@@ -84,7 +84,7 @@ RSpec.describe "Jupyter add_jupyter_cells image deduplication" do
   end
 
   it "does not duplicate images across multiple add_jupyter_cells calls in one turn" do
-    # Phase 1: create a notebook with plot A (first batch)
+    # Step 1: create a notebook with plot A (first batch).
     b64_a = Base64.strict_encode64("plot A data")
     nb_json_1 = build_notebook_json([code_cell_with_image(b64_a)])
     File.write(File.join(data_path, "multi.ipynb"), nb_json_1)
@@ -103,7 +103,7 @@ RSpec.describe "Jupyter add_jupyter_cells image deduplication" do
     expect(session[:tool_html_fragments].size).to eq(1)
     expect(session[:_jupyter_seen_image_hashes].size).to eq(1)
 
-    # Phase 2: simulate batch 2 adding a cell with NO image (print statement).
+    # Step 2: simulate batch 2 adding a cell with NO image (print statement).
     # Plot A is still in the notebook from batch 1.
     nb_json_2 = build_notebook_json([
       code_cell_with_image(b64_a),
@@ -128,7 +128,7 @@ RSpec.describe "Jupyter add_jupyter_cells image deduplication" do
     # Still only 1 gallery fragment — no duplicate
     expect(session[:tool_html_fragments].size).to eq(1)
 
-    # Phase 3: batch 3 adds plot B (a new image)
+    # Step 3: batch 3 adds plot B (a new image).
     b64_b = Base64.strict_encode64("plot B data")
     nb_json_3 = build_notebook_json([
       code_cell_with_image(b64_a),

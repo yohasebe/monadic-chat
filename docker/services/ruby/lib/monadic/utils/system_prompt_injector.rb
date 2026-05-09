@@ -83,6 +83,37 @@ module Monadic
           - `$$\\sin(\\theta) = \\frac{\\text{opposite}}{\\text{hypotenuse}}$$`
       PROMPT
 
+      # Library RAG prompt header — injected when the per-session "Use
+      # Knowledge Base" toggle is on. The user has explicitly opted in, so
+      # the LLM should treat library_search as the primary source of truth
+      # for any topic the user may have stored content about. Without this
+      # rule the model often answers from training knowledge even when the
+      # Knowledge Base contains an authoritative passage, which violates the
+      # user's opt-in expectation. The directive also pins the citation
+      # format so the frontend's mc:conv: link interception keeps
+      # round-tripping back to the source conversation.
+      #
+      # The actual injected text is built dynamically by
+      # build_library_rag_prompt so the LLM also sees a category-aware
+      # inventory ("what's currently in the Knowledge Base") plus the
+      # available filter parameters. This lets the LLM make targeted
+      # `library_search` calls instead of blind cross-corpus queries.
+      LIBRARY_RAG_HEADER = <<~PROMPT.strip
+        Knowledge Base RAG is enabled for this session. The user has stored content in the project-wide Knowledge Base and expects you to use it.
+
+        - BEFORE answering substantive factual questions, call `library_search` first to check whether the Knowledge Base contains relevant prior content. This applies even when you believe you already know the answer from your training data.
+        - When `library_search` returns hits, base your answer on the retrieved passages and preserve the markdown citation links `[Title](mc:conv:<id>)` exactly as they appear so the user can click through to the original conversation.
+        - Only fall back to your general knowledge when `library_search` returns no relevant hits, or when the question is purely conversational (greetings, clarifications, formatting requests, etc.).
+        - You may issue multiple `library_search` calls in a single turn with different queries when the user's question spans several topics.
+      PROMPT
+
+      LIBRARY_RAG_FOOTER = <<~PROMPT.strip
+        You may narrow `library_search` with these optional parameters when you have a strong prior about where the answer lives:
+          - `content_type`: one of "conversation", "pdf", "document", "markdown", "code"
+          - `source`: a specific source key from the inventory above (e.g. matching the user's prior corpus or saved chats)
+        Omit them to search the entire Knowledge Base.
+      PROMPT
+
       # Math formatting prompt for regular mode (standard escaping)
       MATH_REGULAR_PROMPT = <<~'PROMPT'.strip
         Good examples of inline LaTeX expressions:
@@ -145,6 +176,18 @@ module Monadic
           }
         },
         {
+          name: :library_rag,
+          priority: 70,
+          condition: ->(session, _options) {
+            params = session&.[](:parameters) || {}
+            toggle = params['library_rag_enabled'] || params[:library_rag_enabled]
+            toggle == true || toggle.to_s == 'true'
+          },
+          generator: ->(session, _options) {
+            Monadic::Utils::SystemPromptInjector.build_library_rag_prompt(session)
+          }
+        },
+        {
           name: :stt_diarization_warning,
           priority: 60,
           condition: ->(session, _options) {
@@ -201,12 +244,24 @@ module Monadic
             next false unless Monadic::Utils::SystemPromptInjector.__expressive_speech_active?(session)
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
-            Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider)
+            # Active for either inline-marker families (xAI / ElevenLabs v3 /
+            # Gemini) or the out-of-band instruction-meta family (OpenAI
+            # gpt-4o-mini-tts). Both are dispatched through
+            # prompt_addendum_for; the generator picks the right variant.
+            Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider) ||
+              Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(tts_provider)
           },
           generator: ->(session, _options) {
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
-            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(tts_provider)
+            # Instruction-mode's addendum shape depends on whether the active
+            # app is Monadic (JSON sibling field) or not (sentinel prefix).
+            # Marker-mode addendum ignores this flag.
+            app_is_monadic = Monadic::Utils::SystemPromptInjector.__app_is_monadic?(session)
+            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(
+              tts_provider,
+              app_is_monadic: app_is_monadic
+            )
           }
         },
         # Plain-voice enforcement — the mirror of expressive_speech. When Auto
@@ -223,10 +278,16 @@ module Monadic
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
             # Active when auto_speech is on, a provider is selected, AND that
-            # provider has no marker vocabulary. Web Speech API, OpenAI TTS,
-            # Mistral Voxtral, Cohere, ElevenLabs Flash/Multilingual (v2.5, v2).
+            # provider has NO marker vocabulary AND is NOT instruction-mode.
+            # Skipping instruction-mode here is deliberate: the
+            # :expressive_speech rule already instructs the LLM to emit plain
+            # prose within the JSON/sentinel wrapper, so a parallel rule
+            # repeating "plain prose only" would be redundant AND potentially
+            # contradictory with "emit a directive block first". See
+            # docs_dev/expressive_speech_instruction_mode.md §5.7.
             tts_provider && !tts_provider.to_s.empty? &&
-              !Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider)
+              !Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider) &&
+              !Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(tts_provider)
           },
           generator: ->(_session, _options) {
             "Voice output note: the current Text-to-Speech engine reads every " \
@@ -256,6 +317,62 @@ module Monadic
       ].freeze
 
       class << self
+        # Build the library_rag injection. Combines a static directive
+        # (LIBRARY_RAG_HEADER), a data-driven inventory block summarising
+        # what's currently in the Knowledge Base, and a footer describing
+        # the optional filter parameters. The inventory part is best-effort:
+        # if Library can't be reached (Qdrant down, transient error) we
+        # skip the inventory but still emit the directive so the LLM at
+        # least knows to call `library_search`.
+        def build_library_rag_prompt(session)
+          parts = [LIBRARY_RAG_HEADER]
+          # Match exactly what library_search would return: scope to the
+          # requesting app's class plus "Global". Otherwise the LLM is
+          # told about entries it can never retrieve.
+          params = (session && (session[:parameters] || session['parameters'])) || {}
+          app_name = (params['app_name'] || params[:app_name]).to_s.strip
+          app_name = nil if app_name.empty?
+          inventory_block = library_inventory_block(app_name)
+          parts << inventory_block if inventory_block
+          parts << LIBRARY_RAG_FOOTER
+          parts.join("\n\n")
+        end
+
+        # Render the inventory as plain-text bullet lists. Returns nil when
+        # the Library is empty or the lookup fails — the caller still
+        # injects the directive in that case.
+        def library_inventory_block(app_name = nil)
+          return nil unless defined?(Monadic::Library::Store)
+
+          store = Monadic::Library::Store.new
+          inv = Monadic::Library::Inventory.summarize(store: store, app_name: app_name)
+          return nil if inv[:total].to_i.zero?
+
+          lines = ["Knowledge Base inventory (currently stored):"]
+          lines << "Total entries: #{inv[:total]}"
+
+          if inv[:by_source] && !inv[:by_source].empty?
+            lines << ''
+            lines << 'By source:'
+            inv[:by_source].each do |src, count|
+              lines << "  - #{src}: #{count} #{count == 1 ? 'entry' : 'entries'}"
+            end
+          end
+
+          if inv[:by_content_type] && !inv[:by_content_type].empty?
+            lines << ''
+            lines << 'By content type:'
+            inv[:by_content_type].each do |ct, count|
+              lines << "  - #{ct}: #{count} #{count == 1 ? 'entry' : 'entries'}"
+            end
+          end
+
+          lines.join("\n")
+        rescue StandardError => e
+          warn "[SystemPromptInjector] library_inventory_block error: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
+          nil
+        end
+
         # Shared gate for the two Expressive Speech rules. Returns true when
         # Auto Speech is on AND the active app has not opted out via MDSL
         # (`features { expressive_speech false }`). Callers still check the
@@ -275,6 +392,25 @@ module Monadic
           end
 
           true
+        end
+
+        # Decide the instruction-mode addendum variant. Monadic apps receive
+        # the JSON-sibling version; non-Monadic apps receive the sentinel
+        # prefix version. Uses the session's `monadic` parameter first, then
+        # falls back to the MDSL `monadic` setting.
+        def __app_is_monadic?(session)
+          params = session&.[](:parameters) || {}
+
+          session_monadic = params["monadic"] || params[:monadic]
+          return true if session_monadic == true || session_monadic.to_s == "true"
+
+          app_name = params["app_name"] || params[:app_name]
+          if defined?(APPS) && app_name && (app = APPS[app_name])
+            mdsl_monadic = app.settings["monadic"] rescue nil
+            return true if mdsl_monadic == true || mdsl_monadic.to_s == "true"
+          end
+
+          false
         end
 
         # Build injection parts based on session and options

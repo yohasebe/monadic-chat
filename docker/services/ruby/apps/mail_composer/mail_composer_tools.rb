@@ -42,12 +42,6 @@ class MailComposerOpenAI < MonadicApp
   include MonadicSharedTools::FileOperations
 end
 
-class MailComposerPerplexity < MonadicApp
-  include PerplexityHelper if defined?(PerplexityHelper)
-  include MonadicHelper
-  include MonadicSharedTools::FileOperations
-end
-
 class MailComposerOllama < MonadicApp
   include OllamaHelper if defined?(OllamaHelper)
   include MonadicHelper

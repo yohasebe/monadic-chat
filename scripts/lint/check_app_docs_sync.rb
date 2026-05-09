@@ -28,13 +28,12 @@ PROVIDER_SUFFIXES = {
   "gemini3_preview" => "Google Gemini",
   "grok" => "xAI Grok",
   "mistral" => "Mistral",
-  "perplexity" => "Perplexity",
   "ollama" => "Ollama"
 }.freeze
 
 PROVIDER_COLUMNS = [
   "OpenAI", "Claude", "Cohere", "DeepSeek",
-  "Google Gemini", "xAI Grok", "Mistral", "Perplexity", "Ollama"
+  "Google Gemini", "xAI Grok", "Mistral", "Ollama"
 ].freeze
 
 # ---------------------------------------------------------------------------

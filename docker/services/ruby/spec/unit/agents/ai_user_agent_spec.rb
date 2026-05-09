@@ -30,8 +30,7 @@ RSpec.describe AIUserAgent do
       "OPENAI_DEFAULT_MODEL" => "gpt-4.1",
       "ANTHROPIC_DEFAULT_MODEL" => "claude-sonnet-4-6",
       "COHERE_DEFAULT_MODEL" => "command-a-reasoning-08-2025",
-      "GROK_DEFAULT_MODEL" => "grok-4-fast-reasoning",
-      "PERPLEXITY_DEFAULT_MODEL" => "sonar-reasoning-pro"
+      "GROK_DEFAULT_MODEL" => "grok-4.3"
     })
     
     # Mock APPS global
@@ -125,26 +124,6 @@ RSpec.describe AIUserAgent do
         expect(result["content"]).to eq("Anthropic response")
       end
       
-      it 'handles perplexity provider with special formatting' do
-        params = { "ai_user_provider" => "perplexity", "monadic" => false }
-        
-        # Mock perplexity app
-        perplexity_app = double('perplexity_app')
-        allow(perplexity_app).to receive(:settings).and_return({
-          "group" => "Perplexity",
-          "display_name" => "Chat"
-        })
-        allow(perplexity_app).to receive(:send_query).and_return("Perplexity response")
-        
-        stub_const('APPS', {
-          "ChatPerplexity" => perplexity_app
-        })
-        stub_const('CONFIG', CONFIG.merge("PERPLEXITY_API_KEY" => "test-key"))
-        
-        result = agent.process_ai_user(session, params)
-        
-        expect(result["type"]).to eq("ai_user")
-      end
     end
     
     context 'with monadic mode' do
@@ -360,9 +339,8 @@ RSpec.describe AIUserAgent do
       providers_and_defaults = {
         "gemini" => "gemini-3-flash-preview",
         "mistral" => "mistral-large-latest",
-        "grok" => "grok-4-1-fast-non-reasoning",
-        "perplexity" => "sonar",
-        "deepseek" => "deepseek-chat",
+        "grok" => "grok-4.20-0309-non-reasoning",
+        "deepseek" => "deepseek-v4-flash",
         "cohere" => "command-a-03-2025"
       }
 

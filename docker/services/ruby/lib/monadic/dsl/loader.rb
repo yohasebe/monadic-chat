@@ -123,7 +123,6 @@ module MonadicDSL
         when /Google|Gemini/i then 'Google'
         when /xAI|Grok/i then 'xAI'
         when /DeepSeek/i then 'DeepSeek'
-        when /Perplexity/i then 'Perplexity'
         when /Mistral/i then 'Mistral'
         when /Cohere/i then 'Cohere'
         end

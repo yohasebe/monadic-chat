@@ -72,20 +72,26 @@ This container is used to operate a virtual web browser using Selenium for web s
 - **Main features**: Chrome browser automation, web scraping
 - **Apps that use this container**: 
   - `Code Interpreter` - Can use Selenium for web scraping tasks
-  - `Content Reader` - Fetches and extracts content from web pages
   - `Mermaid Grapher` - Validates Mermaid diagrams and creates preview screenshots
   - `Research Assistant` - Uses web scraping for gathering information
   - `Web Insight` - Captures web page screenshots and extracts text content
   - Any app using `fetch_html_content` or `selenium_agent` tools
 
-### pgvector Container (`monadic-chat-pgvector-container`) :id=pgvector-container
-This container is used to store text embedding vector data on PostgreSQL for using pgvector.
-- **Port**: 5433 (host) → 5432 (container)
-- **Main features**: Vector similarity search, PDF content storage, help database
-- **Apps that use this container**: 
-  - `PDF Navigator` - Stores and searches PDF content using embeddings
-  - `Monadic Chat Help` - Searches documentation using vector similarity
-  - Any custom RAG (Retrieval-Augmented Generation) apps using the TextEmbeddings class
+### Qdrant Container (`monadic-chat-qdrant-container`) :id=qdrant-container
+This container runs the Qdrant vector database used for storing PDF chunks and the help system index.
+- **Port**: 6333 (host) → 6333 (REST), 6334 → 6334 (gRPC), exposed only in dev mode
+- **Main features**: Vector similarity search with HNSW indexing, payload filtering, multi-vector storage
+- **Apps that use this container**:
+  - `Knowledge Base` - Stores and searches imported PDFs / Office files / Markdown / code / chat sessions using embeddings
+  - `Monadic Help` - Searches documentation using vector similarity
+  - Any custom RAG (Retrieval-Augmented Generation) apps using `Monadic::VectorStore`
+
+### Embeddings Container (`monadic-chat-embeddings-container`) :id=embeddings-container
+This container hosts a small FastAPI service that wraps the `intfloat/multilingual-e5-base` sentence-transformer model.
+- **Port**: 8002 (host) → 8000 (container), exposed only in dev mode
+- **Main features**: Local 768-dim text embedding for English, Japanese, and many other languages
+- **Apps that use this container**: same set as Qdrant (Knowledge Base, Monadic Help, custom RAG)
+- No external API key is required; embedding inference runs entirely on the host CPU.
 
 
 ## Container Requirements by App Type :id=container-requirements
@@ -110,14 +116,16 @@ The following containers enable additional features:
 - Any app using LaTeX rendering
 
 **Selenium Container**: Required for:
-- Web content fetching (Content Reader, Research Assistant)
+- Web content fetching (Research Assistant, Web Insight)
 - Mermaid diagram validation and preview
 - Web scraping functionality
 
-**pgvector Container**: Required for:
-- PDF content search (PDF Navigator)
-- Help system (Monadic Chat Help)
+**Qdrant + Embeddings Containers**: Required for:
+- Knowledge Base (file imports + saved chat sessions)
+- Help system (Monadic Help)
 - Custom RAG applications
+
+These two containers always start together as base services. They have no opt-in flag.
 
 ?> For more information on adding Docker containers to extend the functionality of Monadic Chat, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
 
@@ -135,12 +143,12 @@ All containers communicate through a shared Docker network:
 - **Inter-container communication**: Enabled using container names as hostnames
 
 ### Container Dependencies and Startup Order :id=container-dependencies
-1. **pgvector** starts first (provides database services)
-2. **Selenium** starts next (provides browser automation)
-3. **Python** starts after Selenium (may use Selenium for certain operations)
-4. **Ruby** starts last (depends on pgvector with health check, and Python)
+1. **Qdrant** and **embeddings** start in parallel as base services
+2. **Selenium** starts on demand for apps that need browser automation
+3. **Python** starts on demand (also brought up alongside Selenium when both are needed)
+4. **Ruby** starts immediately and waits for the vector services via application-level retry
 
-This startup order ensures all required services are available when dependent containers start.
+The Ruby container intentionally has no `depends_on` health-check coupling to qdrant or embeddings: the embeddings container can take 30-60 seconds to load `multilingual-e5-base` on first start, and we want the Ruby web UI reachable before that completes.
 
 ### Shared Data Volumes :id=shared-volumes
 All containers share access to:
@@ -154,7 +162,7 @@ When the application is updated, Monadic Chat intelligently determines which con
 
 1. For new installations, all containers are built from scratch
 2. On version updates:
-   - The system checks if Dockerfiles for Python, Selenium, and PGVector containers have changed
+   - The system checks if Dockerfiles for Python, Selenium, and Embeddings containers have changed
    - If changes are detected, a full rebuild of all containers is performed
    - If no changes are detected, only the Ruby container is rebuilt
 

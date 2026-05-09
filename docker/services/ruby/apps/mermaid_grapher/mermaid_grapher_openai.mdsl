@@ -252,6 +252,8 @@ app "MermaidGrapherOpenAI" do
   end
   
   features do
+    library_save false
+    library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
     mermaid true
     easy_submit false

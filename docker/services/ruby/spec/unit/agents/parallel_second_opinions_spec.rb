@@ -17,7 +17,7 @@ RSpec.describe SecondOpinionAgent, "#parallel_second_opinions" do
       include SecondOpinionAgent
 
       # Override second_opinion_agent for unit testing (no real API calls)
-      def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
+      def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil, session: {})
         target_provider, target_model = send(:determine_provider_and_model, provider, model)
         sleep(0.05) # simulate latency
         {
@@ -144,7 +144,7 @@ RSpec.describe SecondOpinionAgent, "#parallel_second_opinions" do
       Class.new do
         include SecondOpinionAgent
 
-        def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
+        def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil, session: {})
           target_provider, = send(:determine_provider_and_model, provider, model)
           raise "API timeout" if target_provider == "gemini"
 

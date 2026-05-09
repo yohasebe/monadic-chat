@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'shellwords'
+require_relative '../utils/environment'
+
 # VideoAnalyzeAgent provides provider-independent video analysis
 # by extracting frames and sending them to each provider's native Vision API.
 #
@@ -31,9 +34,17 @@ module VideoAnalyzeAgent
   def analyze_video(file:, fps: 1, query: nil, session: nil)
     return "Error: file is required." if file.to_s.empty?
 
+    # Defense in depth against shell injection: the `file` value comes
+    # from an LLM tool call (model-controlled) and the `fps` value comes
+    # from the same tool schema. We escape the filename and cast fps to
+    # an integer so neither can break out of the bash -c quoting.
+    safe_file = Shellwords.escape(file.to_s)
+    safe_fps = fps.to_i
+    safe_fps = 1 if safe_fps <= 0
+
     # Step 1: Extract frames using Python container (provider-independent)
     split_command = <<~CMD
-      bash -c 'extract_frames.py "#{file}" ./ --fps #{fps} --format png --json --audio'
+      bash -c "extract_frames.py #{safe_file} ./ --fps #{safe_fps} --format png --json --audio"
     CMD
 
     split_res = send_command(command: split_command, container: "python")
@@ -108,19 +119,25 @@ module VideoAnalyzeAgent
 
   private
 
-  # Read the frames JSON file from the shared volume
+  # Read the frames JSON file from the shared volume.
+  #
+  # `extract_frames.py` writes the JSON file to the shared volume and reports
+  # the path as `./frames_<timestamp>.json` (relative to the script's CWD,
+  # which is the shared volume itself). This method resolves that filename
+  # against the shared volume returned by `Monadic::Utils::Environment`
+  # (`/monadic/data` inside the Ruby container, `~/monadic/data` on the host
+  # in dev mode).
   def read_frames_json(json_path)
     return "ERROR: Invalid file path (path traversal not allowed)" if json_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
-    # Strip leading ./ and resolve to shared volume
+    # Strip leading ./ and resolve to the active shared volume.
     clean_path = json_path.sub(%r{\A\./}, "")
+    shared_path = File.join(Monadic::Utils::Environment.shared_volume, clean_path)
 
     path = if File.exist?(json_path)
              json_path
-           elsif defined?(SHARED_VOL) && File.exist?(File.join(SHARED_VOL, clean_path))
-             File.join(SHARED_VOL, clean_path)
-           elsif defined?(LOCAL_SHARED_VOL) && File.exist?(File.join(LOCAL_SHARED_VOL, clean_path))
-             File.join(LOCAL_SHARED_VOL, clean_path)
+           elsif File.exist?(shared_path)
+             shared_path
            end
 
     return "ERROR: Frames JSON file not found: #{json_path}" unless path && File.exist?(path)
@@ -219,10 +236,13 @@ module VideoAnalyzeAgent
       }
     end
 
+    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY (SSOT).
+    # GPT-5.x requires `max_completion_tokens`; older models accept it.
+    # Omit temperature: GPT-5.x rejects it, and a deterministic value isn't
+    # critical for a single-shot vision query.
     body = {
       model: model,
-      temperature: 0.0,
-      max_tokens: 1000,
+      OpenAIHelper::OUTPUT_TOKEN_KEY => 1000,
       messages: [{ role: "user", content: content }]
     }
 

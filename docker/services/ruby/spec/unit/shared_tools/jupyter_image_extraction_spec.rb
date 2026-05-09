@@ -244,7 +244,7 @@ RSpec.describe "Jupyter Image Extraction" do
         b64_old = Base64.strict_encode64("plot A")
         b64_new = Base64.strict_encode64("plot B")
 
-        # Phase 1: notebook has plot A only
+        # Step 1: notebook has plot A only.
         nb_json1 = build_notebook_json([code_cell_with_image(b64_old)])
         File.write(File.join(data_path, "growing.ipynb"), nb_json1)
 
@@ -255,7 +255,7 @@ RSpec.describe "Jupyter Image Extraction" do
         expect(first_result.size).to eq(1)
         expect(seen.size).to eq(1)
 
-        # Phase 2: notebook now has plot A + plot B
+        # Step 2: notebook now has plot A + plot B.
         nb_json2 = build_notebook_json([
           code_cell_with_image(b64_old),
           code_cell_with_image(b64_new)

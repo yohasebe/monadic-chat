@@ -1,0 +1,19 @@
+name: JpPhoneRecognizer
+supported_language: ja
+supported_entity: PHONE_NUMBER
+patterns:
+  - name: jp_landline
+    regex: "0\\d{1,4}-\\d{1,4}-\\d{4}"
+    score: 0.7
+  - name: jp_mobile
+    regex: "0[789]0-\\d{4}-\\d{4}"
+    score: 0.85
+  - name: jp_freephone
+    regex: "0120-\\d{2,3}-\\d{2,4}"
+    score: 0.85
+context:
+  - 電話
+  - TEL
+  - Tel
+  - tel
+  - 連絡先

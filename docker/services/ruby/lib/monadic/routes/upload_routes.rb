@@ -29,139 +29,76 @@ post "/upload_audio" do
   end
 end
 
-# Convert a document file to text
+# Convert a document file to text. Always returns JSON; the legacy
+# form-submission fallback was unreachable from the Web UI (every caller
+# is an AJAX fetch) and produced confusing JSON-parse errors when the
+# X-Requested-With contract drifted. Removed for the JsonRoute pattern
+# documented in docs_dev/architecture_hardening_plan.md §3.2.
 post "/document" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
+  content_type :json
 
-    if params["docFile"]
-      begin
-        doc_file_handler = params["docFile"]["tempfile"]
-        # name the file based on datetime if no title is provided
-        doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-        # get filename from the file handler (basename prevents path traversal)
-        filename = File.basename(params["docFile"]["filename"])
+  return error_json("No file selected. Please choose a document file to convert.") unless params["docFile"]
 
-        user_data_dir = Monadic::Utils::Environment.data_path
+  begin
+    doc_file_handler = params["docFile"]["tempfile"]
+    doc_label = params["docLabel"].to_s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    # basename prevents directory-traversal style filenames
+    filename = File.basename(params["docFile"]["filename"])
 
-        # Copy the file to user data directory
-        doc_file_path = File.join(user_data_dir, filename)
-        File.open(doc_file_path, "wb") do |f|
-          f.write(doc_file_handler.read)
-        end
+    user_data_dir = Monadic::Utils::Environment.data_path
+    doc_file_path = File.join(user_data_dir, filename)
+    File.open(doc_file_path, "wb") { |f| f.write(doc_file_handler.read) }
 
-        utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
-        doc_file_handler.close
+    utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
+    doc_file_handler.close
 
-        markdown = MonadicApp.doc2markdown(utf8_filename)
+    markdown = MonadicApp.doc2markdown(utf8_filename)
 
-        # Check if we got any meaningful content
-        if markdown.to_s.strip.empty?
-          return error_json("No content could be extracted from the document")
-        end
-
-        doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
-        result = if doc_label.to_s != ""
-                  "\n---\n" + doc_label + "\n---\n" + doc_text
-                else
-                  "\n---\n" + doc_text
-                end
-
-        { success: true, content: result }.to_json
-      rescue => e
-        error_json("Error processing document: #{e.message}")
-      end
-    else
-      error_json("No file selected. Please choose a document file to convert.")
+    if markdown.to_s.strip.empty?
+      return error_json("No content could be extracted from the document")
     end
-  else
-    # For regular form submissions, maintain original behavior
-    if params["docFile"]
-      doc_file_handler = params["docFile"]["tempfile"]
-      # name the file based on datetime if no title is provided
-      doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-      # get filename from the file handler
-      filename = params["docFile"]["filename"]
 
-      user_data_dir = Monadic::Utils::Environment.data_path
+    doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
+    result = if doc_label.to_s != ""
+              "\n---\n" + doc_label + "\n---\n" + doc_text
+            else
+              "\n---\n" + doc_text
+            end
 
-      # Copy the file to user data directory
-      doc_file_path = File.join(user_data_dir, filename)
-      File.open(doc_file_path, "wb") do |f|
-        f.write(doc_file_handler.read)
-      end
-
-      utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
-      doc_file_handler.close
-
-      markdown = MonadicApp.doc2markdown(utf8_filename)
-
-      doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
-      if doc_label.to_s != ""
-        "\n---\n" + doc_label + "\n---\n" + doc_text
-      else
-        "\n---\n" + doc_text
-      end
-    else
-      session[:error] = "Error: No file selected. Please choose a document file to convert."
-    end
+    { success: true, content: result }.to_json
+  rescue => e
+    error_json("Error processing document: #{e.message}")
   end
 end
 
 # Fetch the webpage content
 post "/fetch_webpage" do
-  # For AJAX requests, respond with JSON
-  if request.xhr?
-    content_type :json
+  content_type :json
 
-    if params["pageURL"]
-      begin
-        url = params["pageURL"]
-        url_decoded = CGI.unescape(url)
-        label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+  return error_json("No URL provided") unless params["pageURL"]
 
-        # Web UI always uses Selenium for URL fetching
-        # (Tavily is only used within Research Assistant apps)
-        markdown = MonadicApp.fetch_webpage(url)
+  begin
+    url = params["pageURL"]
+    url_decoded = CGI.unescape(url)
+    label = params["urlLabel"].to_s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
-        # Check if we got any meaningful content
-        if markdown.to_s.strip.empty?
-          return error_json("No content could be extracted from the webpage")
-        end
+    # Web UI always uses Selenium for URL fetching (Tavily is only
+    # exposed inside Research Assistant apps).
+    markdown = MonadicApp.fetch_webpage(url)
 
-        webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
-        result = if label.to_s != ""
-                  "---\n" + label + "\n---\n" + webpage_text
-                else
-                  "---\n" + webpage_text
-                end
-
-        { success: true, content: result }.to_json
-      rescue => e
-        error_json("Error fetching webpage: #{e.message}")
-      end
-    else
-      error_json("No URL provided")
+    if markdown.to_s.strip.empty?
+      return error_json("No content could be extracted from the webpage")
     end
-  else
-    # For regular form submissions, use Selenium
-    if params["pageURL"]
-      url = params["pageURL"]
-      url_decoded = CGI.unescape(url)
-      label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
-      # Web UI always uses Selenium for URL fetching
-      markdown = MonadicApp.fetch_webpage(url)
+    webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
+    result = if label.to_s != ""
+              "---\n" + label + "\n---\n" + webpage_text
+            else
+              "---\n" + webpage_text
+            end
 
-      webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
-      if label.to_s != ""
-        "---\n" + label + "\n---\n" + webpage_text
-      else
-        "---\n" + webpage_text
-      end
-    else
-      session[:error] = "Error: No URL provided"
-    end
+    { success: true, content: result }.to_json
+  rescue => e
+    error_json("Error fetching webpage: #{e.message}")
   end
 end

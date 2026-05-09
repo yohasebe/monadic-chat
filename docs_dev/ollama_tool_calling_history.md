@@ -35,7 +35,7 @@ So every tool call was silently dropped before reaching Ollama.
 
 ## Why Ollama Only?
 
-Every other vendor helper (Claude, OpenAI, Gemini, Mistral, Grok, Perplexity, DeepSeek, Cohere) had explicit `is_a?(String)` / `JSON.parse` handling before the `case` dispatch. Example from `claude_helper.rb:619-621`:
+Every other vendor helper (Claude, OpenAI, Gemini, Mistral, Grok, DeepSeek, Cohere) had explicit `is_a?(String)` / `JSON.parse` handling before the `case` dispatch. Example from `claude_helper.rb:619-621`:
 
 ```ruby
 tools_param = obj["tools"]
@@ -96,12 +96,11 @@ After fixing Ollama, we audited every vendor helper for the same class of bug:
 | Gemini | `case` with `when String` branch | ✅ handles strings |
 | Grok | used only as boolean flag; tools built from `app_tools` (Ruby objects) | ✅ no parse needed |
 | Cohere | used only as boolean flag; tools built from `app_tools` | ✅ no parse needed |
-| Perplexity | used only as boolean flag; tools built from `app_tools` | ✅ no parse needed |
 | **Ollama** | parsed `String` (Array/Hash only), silently dropped strings | 🔴 broken → fixed |
 
 Two architectural patterns exist:
 1. **String-parsing** (Claude/Mistral/OpenAI/Gemini): reads `obj["tools"]` directly as the tool source, parses JSON when needed
-2. **Flag-only** (Grok/Cohere/Perplexity): uses `obj["tools"]` as a boolean indicator, builds the actual tool list from `app_tools` (the already-parsed `APPS[app].settings["tools"]`)
+2. **Flag-only** (Grok/Cohere): uses `obj["tools"]` as a boolean indicator, builds the actual tool list from `app_tools` (the already-parsed `APPS[app].settings["tools"]`)
 
 Ollama followed pattern (1) but missed the string-parse step. The fix applied the same defensive parse the other pattern-1 providers have.
 

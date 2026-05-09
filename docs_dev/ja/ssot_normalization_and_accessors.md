@@ -53,5 +53,5 @@
 - 以下のユニットテストを追加：
   - 正規化マッピング（エイリアス → 正規）
   - アクセサーデフォルト（nil → 期待されるデフォルト）
-  - URLのみのPDF（Perplexity）vsファイルアップロード（Claude/Gemini/OpenAI）の動作
+  - URLのみのPDF（`supports_pdf_upload: false`）vsファイルアップロード（Claude/Gemini/OpenAI）の動作
 - システムテストでは、ボタンラベル/accept属性がSSOTフラグを反映していることを検証。

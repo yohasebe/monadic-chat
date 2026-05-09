@@ -5,6 +5,9 @@
 # ABC notation blocks, assembles final HTML message, handles context
 # extraction for monadic apps, and broadcasts to client.
 
+require_relative '../tts_instruction_extractor'
+require_relative '../tts_marker_vocabulary'
+
 module WebSocketHelper
   # Maximum number of tool HTML fragments kept per response cycle.
   # Fragments beyond this limit are silently dropped (oldest first).
@@ -61,7 +64,6 @@ module WebSocketHelper
           # sent to the UI) ties its lifetime to a single user turn.
           session.delete(:_jupyter_seen_image_hashes)
         end
-        Monadic::Utils::ExtraLogger.log { "[WebSocket] text extraction: content keys=#{content.keys}, text=#{text.class}:#{text.to_s[0..100]}..." } if CONFIG["EXTRA_LOGGING"] && session["parameters"]["app_name"]&.include?("Perplexity")
         # Extract thinking content uniformly from message
         thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
 
@@ -112,9 +114,9 @@ module WebSocketHelper
 
         params = get_session_params
 
-        # Phase 2: Server-side HTML generation disabled
-        # Client-side MarkdownRenderer handles all rendering
-        # Keep text in original form with ABC blocks and citations intact
+        # Server-side HTML generation is disabled — the client's
+        # MarkdownRenderer handles all rendering. Keep the text in its
+        # original form so ABC blocks and citations stay intact.
 
         # For ABC notation, keep the HTML blocks in the text
         # MarkdownRenderer will handle them properly
@@ -136,6 +138,21 @@ module WebSocketHelper
           end
         end
 
+        # Expressive Speech instruction-mode: strip ephemeral TTS metadata
+        # from the stored message so next-turn LLM context does not carry
+        # per-turn directives. Monadic apps store JSON (remove the
+        # `tts_instructions` key); non-Monadic apps store plain text with
+        # a leading `<<TTS:...>>` sentinel (remove that block). No-op for
+        # providers without instruction-mode.
+        tts_provider_for_history = params["tts_provider"] || session[:parameters]&.dig("tts_provider")
+        if tts_provider_for_history &&
+           Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(tts_provider_for_history)
+          final_text = Monadic::Utils::TtsInstructionExtractor.strip_from_history(
+            final_text,
+            app_is_monadic: !!params["monadic"]
+          )
+        end
+
        new_data = { "mid" => SecureRandom.hex(4),
                     "role" => "assistant",
                     "text" => final_text,
@@ -143,6 +160,19 @@ module WebSocketHelper
                     "app_name" => params["app_name"],
                     "monadic" => params["monadic"],
                     "active" => true } # detect_language is called only once here
+
+        # Privacy Filter: forward the full registry as a list of known
+        # entities so the assistant **and** user cards can highlight
+        # tracked PII. The frontend walks every card in #discourse via
+        # TreeWalker; character offsets are intentionally omitted because
+        # markdown rendering would invalidate them, and matching by
+        # `original` is unambiguous (the LLM only ever saw placeholders,
+        # so any organic occurrence in restored text must be a
+        # restoration).
+        privacy_known_entities = content["message"] && content["message"]["privacy_known_entities"]
+        if privacy_known_entities && !privacy_known_entities.empty?
+          new_data["privacy_known_entities"] = privacy_known_entities
+        end
 
         # Respect the user's "Show Thinking" toggle: when disabled, skip
         # attaching thinking to the final assistant card so the collapsed

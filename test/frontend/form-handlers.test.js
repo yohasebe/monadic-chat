@@ -2,6 +2,10 @@
  * @jest-environment jsdom
  */
 
+// monadic-fetch is a dependency of form-handlers since H5-1 migration;
+// load it before form-handlers so window.monadicFetch is wired up.
+require('../../docker/services/ruby/public/js/monadic/monadic-fetch.js');
+
 // Mock DOM APIs
 // Create a proper FormData mock with better tracking
 const mockAppend = jest.fn();
@@ -58,22 +62,23 @@ document.getElementById = jest.fn();
 // Import the module under test
 const formHandlers = require('../../docker/services/ruby/public/js/monadic/form-handlers');
 
-// Helper: create a mock fetch that returns JSON responses based on URL
+// Helper: create a mock fetch that returns a JSON success response.
+// Shape matches what monadicFetch reads: ok / status / headers.get /
+// text(). The text() body must be a JSON string so monadicFetch's
+// internal JSON.parse succeeds.
 function createFetchMock(responseData = { success: true }) {
-  return jest.fn().mockImplementation((url) => {
-    // For uploadPdf: /api/pdf_storage_defaults returns storage mode
-    if (url === '/api/pdf_storage_defaults') {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ default_storage: 'local' })
-      });
-    }
-    // Default: return success JSON
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(responseData)
-    });
-  });
+  return jest.fn().mockImplementation(() => Promise.resolve({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    headers: {
+      get(name) {
+        return name.toLowerCase() === 'content-type' ? 'application/json' : null;
+      }
+    },
+    text: () => Promise.resolve(JSON.stringify(responseData)),
+    json: () => Promise.resolve(responseData)
+  }));
 }
 
 // Reset mocks before each test
@@ -111,14 +116,10 @@ describe('Form Handlers', () => {
       expect(formAppendMock).toHaveBeenCalledWith('pdfFile', pdfFile);
       expect(formAppendMock).toHaveBeenCalledWith('pdfTitle', 'Test PDF');
 
-      // Verify fetch was called — first for storage defaults, then for /pdf
       expect(global.fetch).toHaveBeenCalled();
       const fetchCalls = global.fetch.mock.calls;
-      // Should have called /api/pdf_storage_defaults first
-      expect(fetchCalls[0][0]).toBe('/api/pdf_storage_defaults');
-      // Then /pdf for the actual upload
-      expect(fetchCalls[1][0]).toBe('/pdf');
-      expect(fetchCalls[1][1].method).toBe('POST');
+      expect(fetchCalls[0][0]).toBe('/pdf');
+      expect(fetchCalls[0][1].method).toBe('POST');
 
       // Restore original FormData
       global.FormData = origFormData;
@@ -432,12 +433,16 @@ describe('Form Handlers', () => {
       }
       global.FormData = MockFormData;
 
-      // Mock fetch and capture the signal option
+      // Mock fetch and capture the signal option. Shape mirrors what
+      // monadicFetch reads from the response.
       global.fetch = jest.fn().mockImplementation((url, options) => {
-        // Verify that an AbortController signal was passed
         expect(options.signal).toBeDefined();
         return Promise.resolve({
           ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: (n) => n.toLowerCase() === 'content-type' ? 'application/json' : null },
+          text: () => Promise.resolve(JSON.stringify({ success: true, filename: 'test.wav' })),
           json: () => Promise.resolve({ success: true, filename: 'test.wav' })
         });
       });

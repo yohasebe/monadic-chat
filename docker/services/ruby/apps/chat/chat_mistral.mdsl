@@ -56,7 +56,7 @@ app "ChatMistralAI" do
     websearch false
     group "Mistral"
   end
-  
+
   tools do
   end
 end

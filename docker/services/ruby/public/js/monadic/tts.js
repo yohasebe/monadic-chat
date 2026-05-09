@@ -656,19 +656,18 @@ function ttsSpeak(text, callback) {
     voiceData.speed = speed;
   }
 
-  // Check if WebSocket is available and connected
-  if (typeof ws === 'undefined' || !ws || ws.readyState !== WebSocket.OPEN) {
-    console.error("WebSocket is not connected");
-    if (typeof setAlert === 'function') {
-      const wsErrorText = getTranslation('ui.messages.webSocketConnectionError', 'WebSocket connection error');
-      setAlert(`<i class="fas fa-exclamation-triangle"></i> ${wsErrorText}`, 'error');
-    }
+  // TTS triggers cloud audio synthesis (provider-billed, latency-
+  // bound). It is non-idempotent — replay would re-synthesize the
+  // same text and emit a second audio stream the playback layer is
+  // not prepared to handle. Default safeWsSend behavior (no queue,
+  // fail-fast alert when non-OPEN) replaces the prior hand-rolled
+  // OPEN guard + custom alert. If the send did not actually go out,
+  // skip the audio queue clear / element setup so the playback
+  // pipeline is not left waiting on chunks that will never arrive.
+  const ttsSendResult = window.safeWsSend(voiceData);
+  if (!ttsSendResult.sent) {
     return false;
   }
-
-  
-  // Send the request to the server
-  ws.send(JSON.stringify(voiceData));
 
   // Clear the global queue for new TTS playback
   // IMPORTANT: Use clearAudioQueue() which properly clears the queue

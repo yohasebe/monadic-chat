@@ -37,8 +37,6 @@ Lint/IneffectiveAccessModifier:
 # Configuration parameters: AllowedParentClasses.
 Lint/MissingSuper:
   Exclude:
-    - 'lib/monadic/document_store/local_pg_vector_store.rb'
-    - 'lib/monadic/document_store/openai_vector_store.rb'
     - 'lib/monadic/utils/help_embeddings.rb'
     - 'scripts/diagnostics/test_web_insight.rb'
     - 'spec/unit/file_analysis_helper_real_spec.rb'

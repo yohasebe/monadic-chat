@@ -19,7 +19,7 @@
 
 ## 概要
 
-各AIプロバイダー（OpenAI、Anthropic、Gemini、Mistral、Cohere、DeepSeek、Perplexity、xAI/Grok、Ollama）には、`docker/services/ruby/lib/monadic/adapters/vendors/`に対応するヘルパークラスがあります。
+各AIプロバイダー（OpenAI、Anthropic、Gemini、Mistral、Cohere、DeepSeek、xAI/Grok、Ollama）には、`docker/services/ruby/lib/monadic/adapters/vendors/`に対応するヘルパークラスがあります。
 
 これらのドキュメントでは以下を説明します：
 - **設計決定**: 特定のパターンが選択された理由（例：ベータ機能フラグ、ストリーミングのデフォルト）

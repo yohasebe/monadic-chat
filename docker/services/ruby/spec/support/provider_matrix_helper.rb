@@ -13,7 +13,6 @@ module ProviderMatrixHelper
     'gemini' => 60,
     'mistral' => 60,
     'cohere' => 90,
-    'perplexity' => 90,
     'deepseek' => 75,
     'xai' => 75,
     'ollama' => 90
@@ -25,7 +24,6 @@ module ProviderMatrixHelper
     'gemini' => 0.4,
     'mistral' => 0.4,
     'cohere' => 0.3,
-    'perplexity' => 0.3,
     'deepseek' => 0.35,
     'xai' => 0.35,
     'ollama' => 1.0
@@ -37,7 +35,6 @@ module ProviderMatrixHelper
     'gemini' => 3,
     'mistral' => 3,
     'cohere' => 4,
-    'perplexity' => 4,
     'deepseek' => 4,
     'xai' => 3,
     'ollama' => 2
@@ -49,7 +46,6 @@ module ProviderMatrixHelper
     'gemini' => 0.6,
     'mistral' => 0.6,
     'cohere' => 1.0,
-    'perplexity' => 1.0,
     'deepseek' => 0.7,
     'xai' => 0.7,
     'ollama' => 0.5
@@ -68,7 +64,7 @@ module ProviderMatrixHelper
     list = (ENV['PROVIDERS'] || '').split(',').map(&:strip).reject(&:empty?)
     return list unless list.empty?
     # Default providers (Ollama is opt-in due to local dependency)
-    defaults = %w[openai anthropic gemini mistral cohere perplexity deepseek xai]
+    defaults = %w[openai anthropic gemini mistral cohere deepseek xai]
     defaults << 'ollama' if ENV['INCLUDE_OLLAMA'] == 'true'
     defaults
   end
@@ -88,7 +84,6 @@ module ProviderMatrixHelper
       'gemini' => 'GEMINI_API_KEY',
       'mistral' => 'MISTRAL_API_KEY',
       'cohere' => 'COHERE_API_KEY',
-      'perplexity' => 'PERPLEXITY_API_KEY',
       'deepseek' => 'DEEPSEEK_API_KEY',
       'xai' => 'XAI_API_KEY',
       'ollama' => 'OLLAMA_HOST'
@@ -120,7 +115,7 @@ module ProviderMatrixHelper
       max_turns = opts.delete(:max_turns) || 1
 
       # Apps that require database/embedding operations need longer timeouts
-      timeout = if ['Vector Search', 'PDF Navigator', 'User Docs'].include?(opts[:app])
+      timeout = if ['Vector Search', 'Knowledge Base', 'User Docs'].include?(opts[:app])
                   @timeout * 2  # Double timeout for vector/database apps
                 else
                   @timeout
@@ -151,7 +146,7 @@ module ProviderMatrixHelper
           options = build_options_from_messages(messages, app_system_prompt)
 
           # Add tool definitions for providers that support tool calling
-          if app_tools && app_tools.any? && %w[openai anthropic gemini xai grok mistral cohere deepseek perplexity].include?(@provider)
+          if app_tools && app_tools.any? && %w[openai anthropic gemini xai grok mistral cohere deepseek].include?(@provider)
             # Deduplicate tools by name
             unique_tools = app_tools.uniq { |t| t['name'] || t[:name] }
             options[:tools] = unique_tools
@@ -259,11 +254,27 @@ module ProviderMatrixHelper
         /clarify/i,
         /specify/i,
         /which.*option/i,
+        /which.*would you/i,
+        /choose.*one/i,
+        /pick.*one/i,
         /何か.*ありますか/,
         /教えて.*ください/,
         /お知らせください/,
         /ご希望/,
-        /詳細.*教えて/
+        /詳細.*教えて/,
+        # DeepSeek/V4 often offers a numbered candidate list and asks to pick.
+        /どれが.*ですか/,
+        /どちらが.*ですか/,
+        /どれを/,
+        /選んでください/,
+        /選んで下さい/,
+        /お選びください/,
+        /候補から/,
+        /テーマを決め/,
+        /テーマ.*ください/,
+        /お任せ/,
+        /おまかせ/,
+        /いかがでしょうか/
       ]
 
       # Check if response is short AND matches clarification patterns
@@ -392,7 +403,7 @@ module ProviderMatrixHelper
         end
 
         # Add tool definitions if available
-        if app_tools && app_tools.any? && %w[openai anthropic gemini xai grok mistral cohere deepseek perplexity].include?(@provider)
+        if app_tools && app_tools.any? && %w[openai anthropic gemini xai grok mistral cohere deepseek].include?(@provider)
           unique_tools = app_tools.uniq { |t| t['name'] || t[:name] }
           options[:tools] = unique_tools
           if ENV['DEBUG']
@@ -669,12 +680,6 @@ module ProviderMatrixHelper
             { "role" => "system", "content" => preface },
             { "role" => "user", "content" => prompt }
           ]
-        when 'perplexity'
-          # Perplexity: use system message
-          opts[:messages] = [
-            { "role" => "system", "content" => preface },
-            { "role" => "user", "content" => prompt }
-          ]
         else
           # Default: include system context in user message
           opts[:messages] = [{ "role" => "user", "content" => "#{preface}\n\n#{prompt}" }]
@@ -733,9 +738,6 @@ module ProviderMatrixHelper
       when 'cohere'
         require_relative '../../lib/monadic/adapters/vendors/cohere_helper'
         Class.new { include CohereHelper }.new
-      when 'perplexity'
-        require_relative '../../lib/monadic/adapters/vendors/perplexity_helper'
-        Class.new { include PerplexityHelper }.new
       when 'deepseek'
         require_relative '../../lib/monadic/adapters/vendors/deepseek_helper'
         Class.new { include DeepSeekHelper }.new
@@ -757,7 +759,7 @@ module ProviderMatrixHelper
     end
 
     def supports_web_search?
-      %w[openai anthropic gemini perplexity xai].include?(@provider)
+      %w[openai anthropic gemini xai].include?(@provider)
     end
   end
 end

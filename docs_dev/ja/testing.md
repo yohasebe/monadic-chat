@@ -45,7 +45,6 @@
 | gemini        | 60                | 3           | 0.4                          |
 | mistral       | 60                | 3           | 0.4                          |
 | cohere        | 90                | 4           | 0.3                          |
-| perplexity    | 90                | 4           | 0.3                          |
 | deepseek      | 75                | 4           | 0.35                         |
 | xai (Grok)    | 75                | 3           | 0.35                         |
 | ollama        | 90                | 2           | 1.0                          |

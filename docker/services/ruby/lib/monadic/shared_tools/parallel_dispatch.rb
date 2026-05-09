@@ -35,9 +35,6 @@ module MonadicSharedTools
       "MistralHelper"    => { type: :openai_compat,   websearch_strategy: :tavily,
                                endpoint: "https://api.mistral.ai/v1/chat/completions",
                                api_key_env: "MISTRAL_API_KEY" },
-      "PerplexityHelper" => { type: :openai_compat,   websearch_strategy: :native,
-                               endpoint: "https://api.perplexity.ai/chat/completions",
-                               api_key_env: "PERPLEXITY_API_KEY" },
       "OpenAIHelper"     => { type: :openai_compat,   websearch_strategy: :responses_api,
                                endpoint: "https://api.openai.com/v1/chat/completions",
                                responses_endpoint: "https://api.openai.com/v1/responses",
@@ -200,7 +197,7 @@ module MonadicSharedTools
         when :tavily
           enriched = tavily_prefetch_and_inject(prompt)
           standard_sub_call(provider_cfg, api_key, model, enriched, timeout_secs)
-        else # :native (Perplexity) — search is built-in
+        else # fallback: provider that has no websearch path — call without enrichment
           standard_sub_call(provider_cfg, api_key, model, prompt, timeout_secs)
         end
       else
@@ -222,7 +219,7 @@ module MonadicSharedTools
       end
     end
 
-    # OpenAI-compatible chat completions (OpenAI, DeepSeek, Grok, Mistral, Perplexity)
+    # OpenAI-compatible chat completions (OpenAI, DeepSeek, Grok, Mistral)
     def openai_compat_sub_call(endpoint, api_key, model, prompt, timeout_secs)
       headers = {
         "Content-Type" => "application/json",

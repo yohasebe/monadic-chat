@@ -176,6 +176,106 @@ module BaseVendorHelper
     end
   end
 
+  # Privacy Filter integration helpers.
+  # Vendor helpers call apply_privacy_to_messages just before http.post and
+  # restore_response_text after the response text is finalized. The work is
+  # delegated to a session-scoped Pipeline so registry state survives across
+  # turns within the same conversation.
+  #
+  # Two-gate activation: the app must declare `privacy do; enabled true; end`
+  # in MDSL AND the user must opt in via the session-level toggle (in Session
+  # Controls). Default OFF means privacy filter is fully opt-in per session.
+  def privacy_enabled_for?(app_settings, session = nil)
+    return false unless app_settings && app_settings.dig(:privacy, :enabled) == true
+    # Duck-typed gate: production Rack sessions
+    # (Rack::Session::Abstract::PersistedSecure::SecureSessionHash) are not
+    # Hash subclasses but do support `[]`. Tightening to `is_a?(Hash)` would
+    # disable masking entirely in production while passing plain-Hash unit
+    # fixtures.
+    return false unless session && session.respond_to?(:[])
+
+    # Backend-authoritative session state. PRIVACY_TOGGLE is the only path
+    # that sets this key, and only after a container health check, so a
+    # missing key means "user has not opted in" and we must not mask.
+    session[:_privacy_session_enabled] == true
+  end
+
+  def privacy_pipeline_for(session, app_settings)
+    return nil unless privacy_enabled_for?(app_settings, session)
+    session[:_privacy_pipeline] ||= begin
+      require_relative '../utils/privacy/pipeline'
+      Monadic::Utils::Privacy::Pipeline.new(
+        backend: Monadic::Utils::Privacy::PresidioBackend.new,
+        config: app_settings[:privacy],
+        session: session
+      )
+    end
+  end
+
+  # Replace masked text in user/assistant messages with placeholders.
+  # Returns a new array so callers can keep the original messages
+  # untouched. The system_prompt is never masked — privacy filtering
+  # applies to conversational turns only.
+  #
+  # Why both user and assistant: session[:messages] stores the **restored**
+  # text for past assistant responses (the user-visible form with real
+  # values restored from `<<TYPE_N>>` placeholders). When that history is
+  # replayed as context on the next turn, those past assistant entries
+  # would otherwise leak the original PII to the LLM API. Re-masking is
+  # safe because the privacy backend's `_build_masked` reuses any
+  # (type, original) pair already in the registry — placeholder numbering
+  # stays stable across turns.
+  #
+  # Handles two payload shapes:
+  #   1. Chat Completions: content is a String
+  #   2. Responses API: content is Array of {type, text} items
+  def apply_privacy_to_messages(messages, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return messages unless pipeline
+
+    require_relative '../utils/privacy/types'
+    # Note: language detection for "auto" mode happens upstream in
+    # handle_ws_streaming on the raw user-typed text, not here. Hooking it
+    # here would see vendor-adapter-injected placeholders (e.g. OpenAI
+    # Responses API's "Let's start" filler) and lock to the wrong language.
+    messages.map do |msg|
+      role = msg[:role] || msg["role"]
+      # System / developer / tool roles are app-defined (system prompts,
+      # tool plumbing) and must not be re-masked.
+      next msg unless %w[user assistant].include?(role.to_s)
+      text_key = msg.key?(:content) ? :content : "content"
+      content = msg[text_key]
+
+      if content.is_a?(String)
+        raw = Monadic::Utils::Privacy::RawMessage.new(content, "user", {})
+        masked = pipeline.before_send_to_llm(raw)
+        msg.merge(text_key => masked.text)
+      elsif content.is_a?(Array)
+        new_content = content.map do |item|
+          next item unless item.is_a?(Hash)
+          item_type = (item[:type] || item["type"]).to_s
+          next item unless %w[input_text text].include?(item_type)
+          item_text_key = item.key?(:text) ? :text : "text"
+          text = item[item_text_key]
+          next item unless text.is_a?(String) && !text.empty?
+          raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
+          masked = pipeline.before_send_to_llm(raw)
+          item.merge(item_text_key => masked.text)
+        end
+        msg.merge(text_key => new_content)
+      else
+        msg
+      end
+    end
+  end
+
+  def restore_response_text(text, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return text unless pipeline
+    return text unless text.is_a?(String) && !text.empty?
+    pipeline.after_receive_from_llm(text).text
+  end
+
   # Generic backoff wrapper. Yields a block and retries on common transient
   # network errors. The caller remains responsible for logging.
   def retry_with_backoff(max_retries: DEFAULT_MAX_RETRIES, delay: DEFAULT_RETRY_DELAY)

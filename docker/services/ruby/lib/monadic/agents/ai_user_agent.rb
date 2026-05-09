@@ -63,7 +63,7 @@ module AIUserAgent
         "content" => "Generate the next user message. Output ONLY the message text itself - no options, no explanations, no analysis. Just the single message the user would type."
       }
     else
-      # For other providers (OpenAI, Perplexity, Cohere, etc.), use standard system role
+      # For other providers (OpenAI, Cohere, etc.), use standard system role
       system_option = {}
       focused_messages << { "role" => "system", "content" => system_message }
     end
@@ -92,17 +92,6 @@ module AIUserAgent
     options.delete("reasoning_content")
     options.delete("thinking_budget")
 
-    # Perplexity: use non-reasoning model for AI User to avoid role-play refusal
-    # Sonar reasoning models are strongly tuned as search assistants and refuse role-playing
-    begin
-      if provider.to_s.downcase.include?("perplexity")
-        # Override to non-reasoning model for AI User
-        model = "sonar-pro"
-        options["model"] = model
-      end
-    rescue StandardError
-    end
-    
     # Call the API
     begin
       # Debug logging for diagnostics
@@ -198,7 +187,6 @@ module AIUserAgent
       when "gemini" then ["gemini", "google"]
       when "mistral" then ["mistral"]
       when "grok" then ["grok", "xai"]
-      when "perplexity" then ["perplexity"]
       when "deepseek" then ["deepseek"]
       else [provider.to_s.downcase]
     end
@@ -211,7 +199,6 @@ module AIUserAgent
       when "gemini" then !(CONFIG["GEMINI_API_KEY"]).nil? && !(CONFIG["GEMINI_API_KEY"]).empty?
       when "mistral" then !(CONFIG["MISTRAL_API_KEY"]).nil? && !(CONFIG["MISTRAL_API_KEY"]).empty?
       when "grok" then !(CONFIG["XAI_API_KEY"]).nil? && !(CONFIG["XAI_API_KEY"]).empty?
-      when "perplexity" then !(CONFIG["PERPLEXITY_API_KEY"]).nil? && !(CONFIG["PERPLEXITY_API_KEY"]).empty?
       when "deepseek" then !(CONFIG["DEEPSEEK_API_KEY"]).nil? && !(CONFIG["DEEPSEEK_API_KEY"]).empty?
       else false
     end
@@ -256,8 +243,6 @@ module AIUserAgent
       SystemDefaults.get_default_model('mistral')
     elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")
       SystemDefaults.get_default_model('xai')
-    elsif provider_downcase.include?("perplexity")
-      SystemDefaults.get_default_model('perplexity')
     elsif provider_downcase.include?("deepseek")
       SystemDefaults.get_default_model('deepseek')
     else

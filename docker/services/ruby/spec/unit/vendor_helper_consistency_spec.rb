@@ -5,8 +5,8 @@ require_relative '../spec_helper'
 RSpec.describe "Vendor Helper Consistency" do
   let(:vendor_helpers) do
     %w[
-      openai claude gemini mistral cohere 
-      deepseek grok perplexity ollama
+      openai claude gemini mistral cohere
+      deepseek grok ollama
     ].map { |vendor| "#{vendor}_helper" }
   end
   

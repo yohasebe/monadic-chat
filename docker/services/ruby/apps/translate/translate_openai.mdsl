@@ -122,6 +122,14 @@ app "TranslateOpenAI" do
     monadic true  # Uses Session State mechanism for translation context
   end
 
+  privacy do
+    enabled true
+    languages ["en"]
+    score_threshold 0.4
+    honorific_trim true
+    on_failure :block
+  end
+
   context_schema do
     field :languages, icon: "fa-language", label: "Languages", description: "Source and target languages"
     field :vocabulary, icon: "fa-book", label: "Vocabulary", description: "Key vocabulary and terms translated"

@@ -127,7 +127,7 @@ function _rebuildAppSelectors(apps) {
       return textA.localeCompare(textB);
     });
 
-    const groupOrder = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
+    const groupOrder = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "DeepSeek", "Ollama", "Extra"];
     specialApps = Object.fromEntries(
       Object.entries(specialApps).sort((a, b) => groupOrder.indexOf(a[0]) - groupOrder.indexOf(b[0]))
     );

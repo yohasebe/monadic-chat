@@ -42,6 +42,9 @@ describe('WsVisibilityHandler', () => {
     window.removeStopButtonHighlight = jest.fn();
     window.setTtsPlaybackStarted = jest.fn();
     window.setTextResponseCompleted = jest.fn();
+    // The visibility handler routes its post-resume PING through the
+    // H7 wrapper (silentDrop, since this is implicit on tab focus).
+    window.safeWsSend = jest.fn(() => ({ sent: true, state: 'OPEN' }));
 
     // i18n
     window.webUIi18n = undefined;
@@ -142,12 +145,11 @@ describe('WsVisibilityHandler', () => {
       expect(window.connect_websocket).not.toHaveBeenCalled();
     });
 
-    it('should send PING when WebSocket is open', () => {
-      const mockSend = jest.fn();
-      window.ws = { readyState: 1, send: mockSend }; // OPEN
+    it('should send PING via safeWsSend (silentDrop) when WebSocket is open', () => {
+      window.ws = { readyState: 1, send: jest.fn() }; // OPEN
       const handler = loadHandler();
       handler.handleVisibilityChange();
-      expect(mockSend).toHaveBeenCalledWith(JSON.stringify({ message: "PING" }));
+      expect(window.safeWsSend).toHaveBeenCalledWith({ message: "PING" }, { silentDrop: true });
     });
 
     it('should show Stopped message in silent mode', () => {

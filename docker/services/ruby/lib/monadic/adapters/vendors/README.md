@@ -12,5 +12,4 @@ This directory contains helper modules that act as adapters for communicating wi
 - `mistral_helper.rb`: For Mistral AI models.
 - `ollama_helper.rb`: For locally running Ollama models.
 - `openai_helper.rb`: For OpenAI models (including GPT-4, GPT-5, etc.).
-- `perplexity_helper.rb`: For Perplexity models.
 - `tavily_helper.rb`: For the Tavily search API.

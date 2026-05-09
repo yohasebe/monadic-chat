@@ -22,10 +22,9 @@
 - Button text and accepted file types:
   - If `supports_pdf_upload: true` → label shows “Image/PDF” and accepts `.pdf`.
   - Otherwise → label shows “Image” only, `.pdf` is not accepted.
-- URL‑only PDFs (e.g., Perplexity): paste a public PDF URL into your message instead of uploading a file.
+- URL‑only PDFs: when a model declares `supports_pdf: true` but `supports_pdf_upload: false`, paste a public PDF URL into your message instead of uploading a file.
 
 **Provider Notes (Examples)**
-- Perplexity: `supports_pdf: true`, `supports_pdf_upload: false` (PDF must be given as URL). Images are supported via URL as well.
 - Cohere: PDF uploads are not supported (use other providers or paste text).
 - Claude/Gemini/OpenAI: Models indicate PDF/image capabilities in the spec; UI/server honor them.
 

@@ -117,7 +117,7 @@ module DeepSeekHelper
     end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "deepseek-chat")
+  def send_query(options, model: "deepseek-v4-flash")
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
@@ -168,6 +168,16 @@ module DeepSeekHelper
       "temperature" => options["temperature"] || 0.7,
       "messages" => messages
     }
+
+    # V4 models default to thinking=enabled on the API side, which can consume
+    # the entire max_tokens budget on chain-of-thought and leave content empty.
+    # send_query is a non-streaming probe (used by SecondOpinion / AI User /
+    # ContextExtractor) that wants the final answer directly, so disable
+    # thinking explicitly. Legacy models (deepseek-chat / deepseek-reasoner)
+    # are unaffected.
+    if model.to_s.include?("deepseek-v4")
+      body["thinking"] = { "type" => "disabled" }
+    end
     
     # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
@@ -199,7 +209,19 @@ module DeepSeekHelper
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
-        return parsed_response.dig("choices", 0, "message", "content") || "Error: No content in response"
+        message = parsed_response.dig("choices", 0, "message") || {}
+        content = message["content"]
+        # Note: in Ruby, `"" || "fallback"` returns "" because empty strings
+        # are truthy. Treat nil and empty string equivalently so callers can
+        # see the no-content signal. As a last resort, fall back to
+        # reasoning_content (V4 thinking trace) so downstream parsers have
+        # something to work with instead of an empty string.
+        if content.nil? || content.to_s.strip.empty?
+          fallback = message["reasoning_content"]
+          return fallback if fallback.is_a?(String) && !fallback.strip.empty?
+          return "Error: No content in response"
+        end
+        return content
       rescue => e
         return "Error: #{e.message}"
       end
@@ -718,9 +740,26 @@ module DeepSeekHelper
   end
 
   def configure_deepseek_reasoning(body, obj, is_json, role)
-    is_reasoning_model = obj["model"].include?("reasoner") || obj["model"].include?("-r1")
+    model = obj["model"].to_s
+    is_v4_model = model.include?("deepseek-v4")
+    is_legacy_reasoner = model.include?("reasoner") || model.include?("-r1")
 
-    if is_reasoning_model
+    if is_v4_model
+      # V4 models use thinking.type parameter (API default: enabled).
+      # Map user's reasoning_content UI setting ("disabled"/"enabled") to thinking.type.
+      reasoning_setting = obj["reasoning_content"].to_s
+      thinking_type = reasoning_setting == "disabled" ? "disabled" : "enabled"
+      body["thinking"] = { "type" => thinking_type }
+
+      if thinking_type == "enabled"
+        effort = obj["reasoning_effort"].to_s
+        body["thinking"]["reasoning_effort"] = effort if %w[high max].include?(effort)
+      end
+
+      if is_json && role != "tool"
+        body["response_format"] ||= { "type" => "json_object" }
+      end
+    elsif is_legacy_reasoner
       body.delete("temperature")
       body.delete("presence_penalty")
       body.delete("frequency_penalty")
@@ -1052,8 +1091,9 @@ module DeepSeekHelper
       }
 
       model_name = obj["model"] || ""
-      is_reasoning_model = model_name.include?("reasoner") || model_name.include?("-r1")
-      if is_reasoning_model
+      is_legacy_reasoner = model_name.include?("reasoner") || model_name.include?("-r1")
+      is_v4_thinking = model_name.include?("deepseek-v4") && obj["reasoning_content"].to_s != "disabled"
+      if is_legacy_reasoner || is_v4_thinking
         reasoning_content = text_result&.dig("choices", 0, "message", "reasoning_content")
         if reasoning_content && !reasoning_content.empty?
           assistant_msg["reasoning_content"] = reasoning_content
@@ -1097,6 +1137,13 @@ module DeepSeekHelper
     block&.call res
 
     http = HTTP.headers(headers)
+
+    # Privacy Filter: mask user-message PII before sending to DeepSeek. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    end
 
     if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
       body.delete("tools")

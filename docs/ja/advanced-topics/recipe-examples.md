@@ -534,7 +534,7 @@ app "SecondOpinionOpenAI" do
       At the beginning of the chat, welcome the user and explain the two-step process:
       1. You'll first provide your answer
       2. They can then request a second opinion from any available provider
-      3. List available providers: Claude, Gemini, Mistral, Cohere, Perplexity, Grok, DeepSeek, Ollama
+      3. List available providers: Claude, Gemini, Mistral, Cohere, Grok, DeepSeek, Ollama
     TEXT
 
   features do

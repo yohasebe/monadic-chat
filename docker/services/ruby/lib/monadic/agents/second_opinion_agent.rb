@@ -13,8 +13,7 @@ module SecondOpinionAgent
     "cohere" => "COHERE_API_KEY",
     "mistral" => "MISTRAL_API_KEY",
     "grok" => "XAI_API_KEY",
-    "deepseek" => "DEEPSEEK_API_KEY",
-    "perplexity" => "PERPLEXITY_API_KEY"
+    "deepseek" => "DEEPSEEK_API_KEY"
   }.freeze
 
   def parallel_second_opinions(user_query: "", agent_response: "", providers: [], session: {})
@@ -73,7 +72,8 @@ module SecondOpinionAgent
           result = second_opinion_agent(
             user_query: user_query,
             agent_response: agent_response,
-            provider: pname
+            provider: pname,
+            session: session
           )
           results_mutex.synchronize { results << { provider: pname, result: result } }
         rescue => e
@@ -104,7 +104,7 @@ module SecondOpinionAgent
     format_parallel_opinions(results, skipped)
   end
 
-  def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
+  def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil, session: {})
     # Determine provider and model
     target_provider, target_model = determine_provider_and_model(provider, model)
 
@@ -125,18 +125,26 @@ module SecondOpinionAgent
       puts "SecondOpinionAgent: Using provider #{target_provider} with model #{target_model}"
     end
 
+    # Privacy: when the parent session has an active privacy pipeline,
+    # mask the inline query/response before sending so the second-opinion
+    # provider (a different LLM, possibly a different vendor) does not
+    # see raw PII the user has chosen to mask.
+    pipeline = session.is_a?(Hash) ? session[:_privacy_pipeline] : nil
+    masked_query = pipeline ? mask_for_second_opinion(user_query, pipeline, "user") : user_query
+    masked_response = pipeline ? mask_for_second_opinion(agent_response, pipeline, "assistant") : agent_response
+
     # Create a single user message containing all context
     user_message_content = <<~TEXT
       Please verify and make comments about the following query and response pair. If the response is correct, you should say 'The response is correct'. But you should be rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
 
       You should point out the errors or possible caveats in the response and suggest corrections where necessary.
-      
+
       ### Query
-      #{user_query}
+      #{masked_query}
 
       ### Response
-      #{agent_response}
-      
+      #{masked_response}
+
       IMPORTANT: Your response MUST be formatted EXACTLY as follows:
 
       ### COMMENTS
@@ -167,10 +175,11 @@ module SecondOpinionAgent
       "model" => target_model
     }
 
-    # Use max_completion_tokens for OpenAI (required for newer models like gpt-5.x)
-    # Use max_tokens for other providers
+    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY_STR
+    # (SSOT) for OpenAI (required by GPT-5.x). Other providers still
+    # accept the legacy `max_tokens` form, so we branch by provider.
     if target_provider == "openai"
-      parameters["max_completion_tokens"] = SECOND_OPINION_MAX_TOKENS
+      parameters[OpenAIHelper::OUTPUT_TOKEN_KEY_STR] = SECOND_OPINION_MAX_TOKENS
     else
       parameters["max_tokens"] = SECOND_OPINION_MAX_TOKENS
     end
@@ -267,6 +276,18 @@ module SecondOpinionAgent
   end
 
   private
+
+  # Pre-mask query/response text via the parent session's privacy
+  # pipeline before fan-out. Errors propagate — fail-closed matches the
+  # chat path's :block contract; the second opinion is auxiliary, so
+  # losing it on a privacy backend outage is preferable to leaking
+  # un-masked PII to a different provider.
+  def mask_for_second_opinion(text, pipeline, role)
+    return text if text.nil? || text.to_s.empty?
+    require_relative '../utils/privacy/types'
+    raw = Monadic::Utils::Privacy::RawMessage.new(text.to_s, role, {})
+    pipeline.before_send_to_llm(raw).text
+  end
 
   def normalize_provider_name(name)
     case name.to_s.downcase
@@ -391,8 +412,6 @@ module SecondOpinionAgent
               Class.new { include OllamaHelper }
             when "cohere"
               Class.new { include CohereHelper }
-            when "perplexity"
-              Class.new { include PerplexityHelper }
             when "grok"
               Class.new { include GrokHelper }
             when "deepseek"
@@ -430,8 +449,6 @@ module SecondOpinionAgent
       SystemDefaults.get_default_model('mistral')
     when "cohere"
       SystemDefaults.get_default_model('cohere')
-    when "perplexity"
-      SystemDefaults.get_default_model('perplexity')
     when "grok", "xai"
       SystemDefaults.get_default_model('xai')
     when "deepseek"

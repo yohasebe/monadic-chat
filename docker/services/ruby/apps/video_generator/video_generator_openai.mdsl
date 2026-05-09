@@ -127,6 +127,8 @@ app "VideoGeneratorOpenAI" do
   TEXT
 
   features do
+    library_save false
+    library_search false
     disabled true  # Sora /v1/videos API shut down; disable until OpenAI offers a replacement
     easy_submit false
     auto_speech false

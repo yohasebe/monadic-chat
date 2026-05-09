@@ -192,16 +192,6 @@ START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
 ```
 
-### PDF Storage
-
-```
-# PDF storage mode (local|cloud)
-PDF_STORAGE_MODE=local
-
-# Fallback for backward compatibility
-PDF_DEFAULT_STORAGE=local
-```
-
 ### Logging
 
 ```

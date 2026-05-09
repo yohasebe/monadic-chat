@@ -137,7 +137,7 @@ module MonadicSharedTools
     #   => {
     #        success: true,
     #        filepath: "プロジェクト/2025年/日本語レポート.md",
-    #        full_path: "/Users/yohasebe/monadic/data/プロジェクト/2025年/日本語レポート.md",
+    #        full_path: "<shared-volume>/プロジェクト/2025年/日本語レポート.md",
     #        action: "created",
     #        metadata: { size: 15, bytes_added: 15 }
     #      }

@@ -1,0 +1,97 @@
+name: Specs
+
+# Unit + route-contract integration specs run under both IN_CONTAINER
+# modes. The dual matrix exists because every path-resolution defect
+# this codebase has shipped (jupyter_helper hard-coded /Users/yohasebe,
+# auto_forge container-vs-host path mix-ups) had the same shape:
+# the production (in_container) branch worked, the dev (host) branch
+# silently broke. Running the smoke suite under both
+# IN_CONTAINER=true and IN_CONTAINER=false catches the asymmetry the
+# moment it lands.
+#
+# Tests that genuinely need Docker live under spec/integration and are
+# not run here. The route-contract specs use Rack::Test against
+# in-process Sinatra::Application + stubbed extractors and complete in
+# under five seconds.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+jobs:
+  rspec-unit:
+    runs-on: ubuntu-latest
+    name: rspec unit
+    defaults:
+      run:
+        working-directory: docker/services/ruby
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+          working-directory: docker/services/ruby
+
+      - name: Install GraphViz (used by some unit specs)
+        run: sudo apt-get update && sudo apt-get install -y graphviz libgraphviz-dev pkg-config
+
+      - name: Run unit specs
+        run: bundle exec rspec spec/unit --format progress
+
+  rspec-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        in_container: ['true', 'false']
+    name: rspec integration (IN_CONTAINER=${{ matrix.in_container }})
+    defaults:
+      run:
+        working-directory: docker/services/ruby
+    env:
+      IN_CONTAINER: ${{ matrix.in_container }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+          working-directory: docker/services/ruby
+
+      - name: Install GraphViz (used by some unit specs)
+        run: sudo apt-get update && sudo apt-get install -y graphviz libgraphviz-dev pkg-config
+
+      - name: Run route-contract integration specs (both IN_CONTAINER modes)
+        run: |
+          bundle exec rspec \
+            spec/integration/json_route_contract_spec.rb \
+            spec/integration/library_import_contract_spec.rb \
+            --format progress
+
+  jest:
+    runs-on: ubuntu-latest
+    name: jest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run jest
+        run: npm test

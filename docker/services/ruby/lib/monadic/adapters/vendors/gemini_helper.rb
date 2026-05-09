@@ -15,6 +15,7 @@ require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/ssl_configuration"
 require_relative "../../utils/extra_logger"
+require_relative "../../utils/progress_broadcaster"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -235,16 +236,21 @@ module GeminiHelper
     ]
     response = nil
 
-    endpoints.each do |endpoint|
-      uri = URI(endpoint)
-      request = Net::HTTP::Post.new(uri)
-      request['Content-Type'] = 'application/json'
-      request.body = body.to_json
+    Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "ImageGeneratorGemini3Preview",
+      label: "Generating image with #{model_id}"
+    ) do
+      endpoints.each do |endpoint|
+        uri = URI(endpoint)
+        request = Net::HTTP::Post.new(uri)
+        request['Content-Type'] = 'application/json'
+        request.body = body.to_json
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        http.request(request)
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+          http.request(request)
+        end
+        break if response.code == '200'
       end
-      break if response.code == '200'
     end
 
     if response.code == '200'
@@ -1940,6 +1946,39 @@ module GeminiHelper
     app_tools
   end
 
+  # Mask conversational text within Gemini's contents array. The body shape
+  # is contents = [{ role, parts: [{ text }, { inline_data }, ...] }]. Both
+  # "user" and "model" (assistant) parts with a String "text" key are
+  # masked. Inline data, file data, and function_call/response parts pass
+  # through untouched. See apply_privacy_to_messages for the rationale on
+  # masking past assistant turns.
+  private def apply_privacy_to_gemini_contents(contents, session, app_settings)
+    pipeline = privacy_pipeline_for(session, app_settings)
+    return contents unless pipeline
+
+    require_relative '../../utils/privacy/types'
+    contents.map do |item|
+      role = item[:role] || item["role"]
+      # Gemini uses "model" for assistant turns; mask both directions so
+      # restored values from past turns do not leak as context.
+      next item unless %w[user model].include?(role.to_s)
+      parts_key = item.key?(:parts) ? :parts : "parts"
+      parts = item[parts_key]
+      next item unless parts.is_a?(Array)
+
+      new_parts = parts.map do |part|
+        next part unless part.is_a?(Hash)
+        text_key = part.key?(:text) ? :text : "text"
+        text = part[text_key]
+        next part unless text.is_a?(String) && !text.empty?
+        raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
+        masked = pipeline.before_send_to_llm(raw)
+        part.merge(text_key => masked.text)
+      end
+      item.merge(parts_key => new_parts)
+    end
+  end
+
   # Execute the Gemini API call: endpoint selection, HTTP request with retries, error handling
   def execute_gemini_api_call(headers:, body:, obj:, api_key:, is_thinking_model:, has_pdf_part:,
                               app:, session:, call_depth:, &block)
@@ -1948,6 +1987,13 @@ module GeminiHelper
     target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
 
     http = HTTP.headers(headers)
+
+    # Privacy Filter: mask user-message PII before sending to Gemini. No-op
+    # when the app does not declare `privacy do; enabled true; end` in MDSL.
+    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+    if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
+      body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
+    end
 
     # Final safety check: Remove toolConfig if no function_declarations exist
     has_any_function_declarations = body["tools"]&.any? { |tool|
@@ -3697,8 +3743,13 @@ module GeminiHelper
     
     begin
       # Send command and get raw output
-      result_json = send_command(command: cmd, container: "ruby")
-      
+      result_json = Monadic::Utils::ProgressBroadcaster.with_progress(
+        source: "VideoGeneratorVeo",
+        label: "Generating video with #{veo_model || 'Veo'}"
+      ) do
+        send_command(command: cmd, container: "ruby")
+      end
+
       # Store video filename in session if successful
       if session && result_json.is_a?(String)
         begin
@@ -3920,10 +3971,15 @@ module GeminiHelper
       request['Content-Type'] = 'application/json'
       request.body = request_body.to_json
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        http.request(request)
+      response = Monadic::Utils::ProgressBroadcaster.with_progress(
+        source: "ImageGeneratorGemini",
+        label: "Generating image with #{model_name}"
+      ) do
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+          http.request(request)
+        end
       end
-      
+
       if response.code == '200'
         result = JSON.parse(response.body)
         
@@ -4062,8 +4118,13 @@ module GeminiHelper
       request['Content-Type'] = 'application/json'
       request.body = request_body.to_json
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        http.request(request)
+      response = Monadic::Utils::ProgressBroadcaster.with_progress(
+        source: "ImageGeneratorImagen",
+        label: "Generating image with #{image_model}"
+      ) do
+        Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+          http.request(request)
+        end
       end
       
       if response.code == '200'

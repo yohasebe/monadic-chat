@@ -82,7 +82,7 @@ For deeper customization, basic MDSL knowledge helps but isn't required for simp
 **A**: Web search varies by provider:
 
 **Native Search**:
-- Providers that ship native search integrations (e.g., OpenAI Responses API search, Anthropic web search, Google Gemini, Perplexity Sonar, xAI Grok Live Search). Refer to each provider's documentation for the latest capabilities.
+- Providers that ship native search integrations (e.g., OpenAI Responses API search, Anthropic web search, Google Gemini, xAI Grok Live Search). Refer to each provider's documentation for the latest capabilities.
 
 **Via Tavily API**:
 - Mistral, Cohere, DeepSeek
@@ -102,10 +102,12 @@ For deeper customization, basic MDSL knowledge helps but isn't required for simp
 - Audio files
 - Video files
 
-**Via Content Reader App**:
-- Office documents (Word, Excel, PowerPoint)
-- Text files
-- URLs for web content
+**Via the Knowledge Base** (`Import file`):
+- Office documents (.docx / .xlsx / .pptx)
+- PDFs
+- Markdown
+- Source code files
+- Chat sessions (saved with the **Save** button)
 
 **Processing Methods**:
 - Direct analysis (vision models)
@@ -121,10 +123,10 @@ For deeper customization, basic MDSL knowledge helps but isn't required for simp
    - Works with vision-capable models
    - Best for single PDFs
 
-2. **PDF Navigator App**
-   - Imports PDFs into vector database
-   - Enables semantic search
-   - Best for large document collections
+2. **Knowledge Base**
+   - Open the Browse modal and click **Import file** to ingest the PDF
+   - Imports it into the project-wide vector database for semantic search
+   - Best for large document collections; other apps can also retrieve from the same Library when the entry is `shareable`
 
 3. **Code Interpreter**
    - Programmatic PDF analysis

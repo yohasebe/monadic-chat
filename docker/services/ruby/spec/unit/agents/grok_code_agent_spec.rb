@@ -129,7 +129,7 @@ RSpec.describe Monadic::Agents::GrokCodeAgent do
 
     context "when API returns error" do
       before do
-        app.set_models(["grok-code-fast-1"])
+        app.set_models(["grok-4.3"])
         stub_const("CONFIG", { "XAI_API_KEY" => "xai-test123" })
         allow(app).to receive(:api_request).and_return([{"error" => "Rate limit exceeded"}])
       end
@@ -144,7 +144,7 @@ RSpec.describe Monadic::Agents::GrokCodeAgent do
 
     context "when API returns empty response" do
       before do
-        app.set_models(["grok-code-fast-1"])
+        app.set_models(["grok-4.3"])
         stub_const("CONFIG", { "XAI_API_KEY" => "xai-test123" })
         allow(app).to receive(:api_request).and_return([{"content" => ""}])
       end
@@ -227,7 +227,7 @@ RSpec.describe Monadic::Agents::GrokCodeAgent do
 
   describe "#build_session" do
     it "creates session with text field" do
-      session = app.send(:build_session, prompt: "Test prompt", model: "grok-code-fast-1")
+      session = app.send(:build_session, prompt: "Test prompt", model: "grok-4.3")
 
       message = session[:messages].first
       expect(message["text"]).to eq("Test prompt")
@@ -236,9 +236,9 @@ RSpec.describe Monadic::Agents::GrokCodeAgent do
     end
 
     it "sets model parameters" do
-      session = app.send(:build_session, prompt: "Test", model: "grok-code-fast-1")
+      session = app.send(:build_session, prompt: "Test", model: "grok-4.3")
 
-      expect(session[:parameters]["model"]).to eq("grok-code-fast-1")
+      expect(session[:parameters]["model"]).to eq("grok-4.3")
       expect(session[:parameters]["max_tokens"]).to eq(32768)
       expect(session[:parameters]["temperature"]).to eq(0.0)
     end
@@ -246,11 +246,11 @@ RSpec.describe Monadic::Agents::GrokCodeAgent do
     it "handles invalid message structure gracefully" do
       allow(app).to receive(:message_content_field).and_raise(StandardError)
 
-      session = app.send(:build_session, prompt: "Test", model: "grok-code-fast-1")
+      session = app.send(:build_session, prompt: "Test", model: "grok-4.3")
 
       # Falls back to basic structure
       expect(session[:messages].first["text"]).to eq("Test")
-      expect(session[:parameters]["model"]).to eq("grok-code-fast-1")
+      expect(session[:parameters]["model"]).to eq("grok-4.3")
     end
   end
 

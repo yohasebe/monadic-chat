@@ -19,7 +19,7 @@ This directory contains documentation for AI provider integrations in Monadic Ch
 
 ## Overview
 
-Each AI provider (OpenAI, Anthropic, Gemini, Mistral, Cohere, DeepSeek, Perplexity, xAI/Grok, Ollama) has a corresponding helper class in `docker/services/ruby/lib/monadic/adapters/vendors/`.
+Each AI provider (OpenAI, Anthropic, Gemini, Mistral, Cohere, DeepSeek, xAI/Grok, Ollama) has a corresponding helper class in `docker/services/ruby/lib/monadic/adapters/vendors/`.
 
 These documents explain:
 - **Design Decisions**: Why certain patterns were chosen (e.g., beta feature flags, streaming defaults)

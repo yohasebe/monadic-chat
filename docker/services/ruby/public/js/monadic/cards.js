@@ -54,7 +54,7 @@ function attachEventListeners(card) {
         }
 
         // Notify the server
-        ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+        window.safeWsSend({ message: "DELETE", mid: mid });
         mids.delete(mid);
 
         // Add explicit visual feedback for the user
@@ -101,7 +101,7 @@ function attachEventListeners(card) {
         // If no message found, just delete the card
         detachEventListeners(card);
         card.remove();
-        ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+        window.safeWsSend({ message: "DELETE", mid: mid });
         mids.delete(mid);
 
         const messageDeletedText = getTranslation('ui.messages.messageDeleted', 'Message deleted');
@@ -218,7 +218,12 @@ function attachEventListeners(card) {
       };
 
       setTimeout(() => {
-        ws.send(JSON.stringify(ttsMessage));
+        // PLAY_TTS is non-idempotent (replay would re-synthesize the
+        // audio at the provider). safeWsSend defaults non-listed types
+        // to non-idempotent → fails fast with the "Connection lost"
+        // alert when ws is not OPEN, which matches user intent: a
+        // failed play button should be visible, not silently queued.
+        window.safeWsSend(ttsMessage);
       }, 50);
       return;
     }
@@ -253,9 +258,11 @@ function attachEventListeners(card) {
         removeStopButtonHighlight();
       }
 
-      if (typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ message: "STOP_TTS" }));
-      }
+      // STOP_TTS is the canonical "background side-effect cancel". If
+      // the WS is down, the upstream stream isn't running anyway, so
+      // silentDrop avoids alerting the user about something that
+      // already isn't happening. Replaces the prior manual null-guard.
+      window.safeWsSend({ message: "STOP_TTS" }, { silentDrop: true });
 
       if (typeof window.responseStarted !== 'undefined') {
         window.responseStarted = false;
@@ -503,12 +510,18 @@ function attachEventListeners(card) {
       const originalContent = cardTextEl.innerHTML;
       cardTextEl._originalContent = originalContent;
 
-      // Extract text content only (without images)
-      const textContent = cardTextEl.querySelector('p');
-
-      // Replace only the text part with the textarea
-      if (textContent) {
-        textContent.replaceWith(editArea);
+      // Replace the rendered Markdown blocks with the textarea. Strip every
+      // top-level text-rendering element so multi-paragraph / list / header
+      // / table responses do not leave leftover HTML below the textarea.
+      // Non-text elements (images, audio players, etc.) are preserved so
+      // edits keep their visual context.
+      const renderedSelector = ':scope > p, :scope > ul, :scope > ol, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6, :scope > blockquote, :scope > pre, :scope > hr, :scope > table, :scope > div.markdown-block';
+      const renderedBlocks = cardTextEl.querySelectorAll(renderedSelector);
+      if (renderedBlocks.length > 0) {
+        renderedBlocks[0].replaceWith(editArea);
+        for (let i = 1; i < renderedBlocks.length; i++) {
+          renderedBlocks[i].remove();
+        }
       } else {
         cardTextEl.prepend(editArea);
       }
@@ -629,7 +642,7 @@ function attachEventListeners(card) {
             editMessage.images = [...currentMessage.images];
           }
 
-          ws.send(JSON.stringify(editMessage));
+          window.safeWsSend(editMessage);
 
           const editIcon = editBtn.querySelector("i");
           if (editIcon) {
@@ -698,7 +711,7 @@ window.deleteSystemMessage = function(mid, messageIndex) {
   }
 
   // Notify server
-  ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+  window.safeWsSend({ message: "DELETE", mid: mid });
   mids.delete(mid);
 
   // Success feedback
@@ -784,7 +797,7 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
   if (!Number.isFinite(messageIndex) || messageIndex < 0) {
     const el = $id(mid);
     if (el) el.remove();
-    ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+    window.safeWsSend({ message: "DELETE", mid: mid });
     mids.delete(mid);
     return;
   }
@@ -824,14 +837,14 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
       detachEventListeners(subsequentCard);
       subsequentCard.remove();
     }
-    ws.send(JSON.stringify({ "message": "DELETE", "mid": m.mid }));
+    window.safeWsSend({ message: "DELETE", mid: m.mid });
     mids.delete(m.mid);
   });
 
   // Delete current message
   messages.splice(messageIndex);
   if (cardEl) cardEl.remove();
-  ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+  window.safeWsSend({ message: "DELETE", mid: mid });
   mids.delete(mid);
 };
 
@@ -880,7 +893,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   // Check if message exists in the array
   if (messageIndex === -1 || !messages[messageIndex]) {
     cardEl.remove();
-    ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+    window.safeWsSend({ message: "DELETE", mid: mid });
     mids.delete(mid);
     if (deletedTurn) {
       updateCardTurnNumbers(deletedTurn);
@@ -891,7 +904,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   // Remove just this message, preserving subsequent messages
   messages.splice(messageIndex, 1);
   cardEl.remove();
-  ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+  window.safeWsSend({ message: "DELETE", mid: mid });
   mids.delete(mid);
 
   // Update turn numbers on remaining cards
@@ -959,15 +972,21 @@ function cancelEditMode(cardTextEl, editButton) {
       if (storedContent) {
         cardTextEl.innerHTML = storedContent;
       } else {
-        // If original content not available, request refresh from server
-        const parentCard = cardTextEl.closest('.card');
-        const mid = parentCard ? parentCard.id : null;
-        if (mid) {
-          ws.send(JSON.stringify({
-            "message": "REFRESH",
-            "mid": mid
-          }));
-        }
+        // _originalContent is normally set by the edit-mode entry
+        // path; the only way it can be missing is if the card was
+        // rebuilt between edit-start and cancel (e.g., a streaming
+        // update overwrote the DOM). The previous code attempted a
+        // server-side REFRESH here, but no `when "REFRESH"` case
+        // exists in websocket.rb and the message would fall through
+        // to handle_ws_streaming, which calls
+        // `session[:parameters].merge!(obj)` and pushes the literal
+        // string "REFRESH" into session[:messages] as a user turn —
+        // visibly polluting the conversation. Logging-and-leaving
+        // is strictly safer; the user can reload if the cell really
+        // is stale.
+        try {
+          console.warn('[cancelEditMode] _originalContent unavailable; leaving cell content unchanged.');
+        } catch (_) { /* console may be absent in some test envs */ }
       }
 
       // Clean up data attribute

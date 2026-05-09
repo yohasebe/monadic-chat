@@ -119,19 +119,21 @@ max_output = Monadic::Utils::ModelSpec.get_model_property(model, "max_output_tok
 
 ### 6. Vision Capability Detection
 
-**Pattern**: Detect vision support based on model name
+**Pattern**: All currently-supported Claude models support vision.
 
 ```ruby
-def supports_vision?(model)
-  !model.to_s.downcase.include?('haiku-3.0')  # All except old Haiku
+def supports_vision?(_model)
+  true  # All currently-supported Claude models are vision-capable
 end
 ```
 
 **Rationale**:
-- Vision support is architectural model feature
-- Haiku 3.0 is text-only, all other Claude models support images
-- Required for proper image handling in requests
-- Affects tool availability (image analysis tools)
+- Claude Haiku 3 (the only text-only Claude) was retired by Anthropic on
+  2026-04-20; no supported Claude model lacks vision anymore.
+- If Anthropic reintroduces a text-only variant, add a name-based guard
+  here (e.g. `!model.to_s.downcase.include?('some-text-only-id')`).
+- Vision capability is consumed by image-handling code paths and by tool
+  availability checks.
 
 **SSOT Migration Path**:
 - Maps to `vision_capability` in `model_spec.js`

@@ -50,6 +50,9 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
+  // Privacy Filter session toggle is negotiated via the PRIVACY_TOGGLE
+  // round-trip; broadcasting it here would let stale param values
+  // override the health-checked backend state.
   const mathEl = $id("math");
   clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
@@ -114,14 +117,35 @@ function broadcastParamsUpdate(reason = null) {
     payload.reason = reason;
   }
 
-  try {
-    window.ws.send(JSON.stringify(payload));
-  } catch (error) {
-    console.warn('[Params Sync] Failed to broadcast params update:', error);
-  }
+  // Background param-sync broadcast — auto-fired by various UI
+  // listeners (model change, toggle flips, etc.). UPDATE_PARAMS is
+  // idempotent (server overwrites session[:parameters]), so it is in
+  // the wrapper's default set; silentDrop because the user did not
+  // explicitly trigger this and a "Connection lost" alert would be
+  // disorienting on a passive sync.
+  window.safeWsSend(payload, { silentDrop: true });
 }
 
 window.broadcastParamsUpdate = broadcastParamsUpdate;
+
+// Helper for WS messages that target the per-app PDF store. Injects the
+// currently-selected app name so the server can resolve the namespace
+// even when the session has not been hydrated yet (UPDATE_PARAMS race).
+function sendPdfWsMessage(payload) {
+  let appName = '';
+  try {
+    const apps = document.getElementById('apps');
+    if (apps && apps.value) appName = apps.value;
+  } catch (_) { /* no-op */ }
+  const merged = Object.assign({}, payload || {});
+  if (appName && !merged.app_name) merged.app_name = appName;
+  // PDF_TITLES / DELETE_PDF / DELETE_ALL_PDFS are all idempotent
+  // (added to the wrapper's default set in H7.7) so safeWsSend
+  // auto-classifies them. We delegate alert/queue policy to the
+  // wrapper instead of swallowing the error here.
+  window.safeWsSend(merged);
+}
+window.sendPdfWsMessage = sendPdfWsMessage;
 
 // Helper function to get formatted provider name from group
 function getProviderFromGroup(group) {
@@ -136,8 +160,6 @@ function getProviderFromGroup(group) {
     return "Cohere";
   } else if (groupLower.includes("mistral")) {
     return "Mistral";
-  } else if (groupLower.includes("perplexity")) {
-    return "Perplexity";
   } else if (groupLower.includes("deepseek")) {
     return "DeepSeek";
   } else if (groupLower.includes("grok") || groupLower.includes("xai")) {
@@ -151,6 +173,171 @@ function getProviderFromGroup(group) {
 
 // Make the function available globally
 window.getProviderFromGroup = getProviderFromGroup;
+
+// Refresh the Privacy Filter session toggle's enabled / disabled state and
+// tooltip based on the active app + container availability + sidebar
+// conversation_language. Called at app-setup time (`{initial:true}`, with
+// localStorage preference restoration and backend PRIVACY_TOGGLE sync) and
+// from the conversation_language change handler (no args, gate-only refresh).
+//
+// "lock" semantics: once a message has been sent in this session,
+// `window.privacyToggleLocked` is true and we do not touch the toggle's
+// disabled state — the privacy choice for the current conversation is final
+// per design. App change / Reset clears the lock by re-running with
+// `{initial:true}`.
+// Reflect per-app capabilities onto body classes for CSS-driven visibility
+// (MDSL SSOT, Phase 4). The CSS rules in `monadic.css` (search for
+// "App-capability declarative visibility gate") consume these classes:
+//   app-cap-pf       — app's `privacy_enabled` MDSL flag is true
+//   app-cap-kb-save  — app allows saving conversations to the Knowledge Base
+//   app-cap-kb-search — app allows the LLM to call library_search
+// Defaults: KB save / KB search ON, PF OFF — preserving legacy behavior for
+// custom or older apps that haven't declared the flags. Only an explicit
+// false / "false" disables, matching `CAPABILITY_DEFAULTS` on the Ruby side.
+//
+// This function is the single visibility SSOT — it's called from every
+// path where the active app might change (initial load, dropdown change,
+// WS app params update, app:changed event, reset). The previous JS-driven
+// `style.display = "none"` per-event approach was vulnerable to listener
+// order bugs and missed code paths; converging on a single body-class
+// snapshot eliminates that class of issue.
+function applyAppCapabilityClasses(appName) {
+  if (typeof document === "undefined") return;
+  const apps = window.apps || {};
+  const settings = (appName && apps[appName]) || null;
+  // No app data yet (or unknown app) → leave existing body classes alone.
+  // Resetting to defaults here would flicker visibility during page load
+  // and risks clobbering classes set by a later, valid call. Callers fire
+  // this function from many entry points (initial setup, dropdown change,
+  // WS update-params, app:changed); skipping the unknown case keeps each
+  // entry point safe to call without coordination.
+  if (!settings) return;
+
+  const isPf       = String(settings.privacy_enabled || "").toLowerCase() === "true";
+  const isKbSave   = settings.library_save !== false && settings.library_save !== "false";
+  const isKbSearch = settings.library_search !== false && settings.library_search !== "false";
+
+  const cl = document.body.classList;
+  cl.toggle("app-cap-pf", isPf);
+  cl.toggle("app-cap-kb-save", isKbSave);
+  cl.toggle("app-cap-kb-search", isKbSearch);
+}
+window.applyAppCapabilityClasses = applyAppCapabilityClasses;
+
+// Privacy-on body class — session-scoped (not per-app). Toggled in
+// response to backend `privacy_state` pushes via the `privacy:state-changed`
+// CustomEvent (see ws-privacy-handler.js). The CSS rule
+// `body.app-privacy-on #library-save { display: none !important; }` hides
+// the Save button as soon as Privacy is enabled mid-session, since saving
+// would write masked placeholders to the Knowledge Base.
+function applyPrivacyOnClass(on) {
+  if (typeof document === "undefined") return;
+  document.body.classList.toggle("app-privacy-on", !!on);
+}
+window.applyPrivacyOnClass = applyPrivacyOnClass;
+
+function refreshPrivacyToggleGate(opts) {
+  opts = opts || {};
+  const apps = window.apps || {};
+  const appsEl = document.getElementById("apps");
+  const appValue = opts.appValue || (appsEl && appsEl.value);
+  if (!appValue || !apps[appValue]) return;
+
+  // Body-class capability gate — must run before any early-return below so
+  // visibility stays in sync even when the privacy toggle element itself
+  // isn't in the DOM (e.g., partial views in tests).
+  applyAppCapabilityClasses(appValue);
+
+  const privacyEl = document.getElementById("check-privacy-session");
+  const privacyLabel = document.getElementById("check-privacy-session-label");
+  if (!privacyEl) return;
+
+  // Lock semantics: once a message has been sent in this session,
+  // `window.privacyToggleLocked` is true. The lock prevents the user's
+  // privacy choice from flipping mid-conversation, but it does not
+  // prevent us from updating the disabled state and tooltip — those are
+  // observational hints that should still reflect the current
+  // conversation_language. Only the `checked` state and backend sync
+  // are guarded by the lock below.
+  const isLocked = !!window.privacyToggleLocked && !opts.initial;
+
+  const appSupportsPrivacy = String(apps[appValue]["privacy_enabled"] || "").toLowerCase() === "true";
+  const containerAvailable = (typeof window.MONADIC_PRIVACY_AVAILABLE !== "undefined")
+    ? !!window.MONADIC_PRIVACY_AVAILABLE
+    : true;
+  const convLangEl = document.getElementById("conversation-language");
+  const convLang = (convLangEl && convLangEl.value) || "auto";
+  const installedLangs = Array.isArray(window.MONADIC_PRIVACY_INSTALLED_LANGS)
+    ? window.MONADIC_PRIVACY_INSTALLED_LANGS : ["en"];
+  // "auto" and "en" always pass — backend maps "auto" to "en", and "en" is
+  // a required Privacy build language.
+  const languageSupported = (convLang === "auto" || convLang === "en")
+    ? true
+    : installedLangs.includes(convLang);
+  const usable = appSupportsPrivacy && containerAvailable && languageSupported;
+
+  // Pick the most informative tooltip in priority order. App-level lack of
+  // support is reported first because install instructions are misleading
+  // when the app cannot use Privacy at all.
+  let disabledKey = null;
+  let fallback = "";
+  if (!appSupportsPrivacy) {
+    disabledKey = "ui.privacyFilterUnsupported";
+    fallback = "This app does not support Privacy Filter.";
+  } else if (!containerAvailable) {
+    disabledKey = "ui.privacyFilterNotInstalled";
+    fallback = "Privacy Filter is disabled.";
+  } else if (!languageSupported) {
+    disabledKey = "ui.privacyFilterLanguageNotInstalled";
+    fallback = "Privacy Filter is not installed for this language. Install via Settings → Install Options.";
+  }
+  const tooltip = (typeof webUIi18n !== "undefined" && disabledKey)
+    ? webUIi18n.t(disabledKey)
+    : fallback;
+
+  let nextChecked;
+  if (opts.initial) {
+    let remembered = false;
+    try {
+      remembered = localStorage.getItem("privacy_pref_" + appValue) === "on";
+    } catch (_) { /* localStorage unavailable; default false */ }
+    nextChecked = usable && remembered;
+  } else {
+    // Mid-session refresh (e.g. conversation_language change). Preserve
+    // current visual state when still usable; force OFF when the new
+    // language drops out of the supported set.
+    nextChecked = usable ? privacyEl.checked : false;
+  }
+
+  // disabled state & tooltip always reflect the current gate, even when
+  // locked — locked just means "user cannot toggle right now", but the
+  // reason should still be visible. checked is preserved through lock.
+  if (!isLocked) privacyEl.checked = nextChecked;
+  privacyEl.disabled = !usable || isLocked;
+  if (usable && !isLocked) privacyEl.removeAttribute("title");
+  else privacyEl.setAttribute("title", tooltip);
+  if (privacyLabel) {
+    if (usable && !isLocked) privacyLabel.removeAttribute("title");
+    else privacyLabel.setAttribute("title", tooltip);
+  }
+
+  // Backend sync: at initial setup, mirror the remembered preference so the
+  // backend health-checks and confirms via privacy_toggle_ack. On a
+  // mid-session language change that just dropped support, explicitly emit
+  // PRIVACY_TOGGLE:false to clear backend state (the masking pipeline must
+  // not stay armed when the language is unsupported). Skip backend sync
+  // entirely when locked — the backend pipeline is already bound to the
+  // pre-lock language and must not be retargeted mid-conversation.
+  if (typeof window.safeWsSend === "function" && !isLocked) {
+    if (opts.initial && nextChecked) {
+      window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: true });
+    } else if (!opts.initial && !usable) {
+      window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: false });
+    }
+  }
+}
+
+window.refreshPrivacyToggleGate = refreshPrivacyToggleGate;
 
 document.addEventListener("DOMContentLoaded", async function () {
   // CRITICAL: Forcefully hide spinner and reset Auto Speech flags on page load
@@ -171,6 +358,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   } catch (e) {
     console.error('[DOMContentLoaded] Failed to initialize tab state:', e);
   }
+
+  // Mirror Privacy ON state onto the <body> as a CSS hook (Phase 4).
+  // ws-privacy-handler.js dispatches `privacy:state-changed` with
+  // `detail.enabled` whenever the backend pushes a privacy_state update;
+  // the CSS rule `body.app-privacy-on #library-save { display: none }`
+  // then hides the Knowledge Base Save button without per-handler JS.
+  document.addEventListener("privacy:state-changed", function (ev) {
+    const enabled = !!(ev && ev.detail && ev.detail.enabled);
+    applyPrivacyOnClass(enabled);
+  });
 
   // Restore menu visibility state from localStorage on page load
   // This ensures the menu state persists across zoom operations and page reloads
@@ -533,6 +730,11 @@ function hashSimilarity(h1, h2) {
 
 document.addEventListener("DOMContentLoaded", function () {
 
+  // Wire the Library (Knowledge Base) sidebar panel — Save / Refresh
+  // buttons + Save modal confirm. Initial inventory fetch is triggered
+  // from ws.onopen since the panel state mirrors the server.
+  try { if (window.libraryPanel && typeof window.libraryPanel.init === 'function') window.libraryPanel.init(); } catch (e) { console.warn('[Library] init failed:', e); }
+
   // ── Collapsible Settings Header helpers ─────────────────
 
   // Update the summary bar content with current settings
@@ -784,8 +986,6 @@ document.addEventListener("DOMContentLoaded", function () {
           optVal = 'deepseek';
         } else if (group.includes("grok") || group.includes("xai")) {
           optVal = 'grok';
-        } else if (group.includes("perplexity")) {
-          optVal = 'perplexity';
         }
         if (optVal) {
           var opt = providerSelect.querySelector("option[value='" + optVal + "']");
@@ -795,7 +995,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Additionally filter by SSOT has_key if available
       if (aiUserDefaults) {
         const map = {
-          'openai':'openai','anthropic':'anthropic','gemini':'gemini','cohere':'cohere','mistral':'mistral','deepseek':'deepseek','grok':'grok','perplexity':'perplexity'
+          'openai':'openai','anthropic':'anthropic','gemini':'gemini','cohere':'cohere','mistral':'mistral','deepseek':'deepseek','grok':'grok'
         };
         Object.keys(map).forEach(val => {
           const ent = aiUserDefaults[val];
@@ -963,8 +1163,6 @@ document.addEventListener("DOMContentLoaded", function () {
             provider = "Cohere";
           } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
             provider = "Mistral";
-          } else if (group.includes("perplexity")) {
-            provider = "Perplexity";
           } else if (group.includes("deepseek")) {
             provider = "DeepSeek";
           } else if (group.includes("grok") || group.includes("xai")) {
@@ -1018,8 +1216,12 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         };
 
-        // Send the request via WebSocket
-        ws.send(JSON.stringify(ai_user_query));
+        // Send the request via WebSocket. AI_USER_QUERY triggers an
+        // LLM call to synthesize a user-side reply, so it is
+        // explicitly non-idempotent — the wrapper will fail-fast with
+        // an alert if the WS is not OPEN, which is the right outcome
+        // for a button click that visibly disables the trigger.
+        window.safeWsSend(ai_user_query);
 
         // Ensure the button stays visible
         $show(this);
@@ -1074,7 +1276,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (mutation.addedNodes.length) {
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === 1 && node.classList.contains('card')) {
-              // Phase 1: Deduplicate images with the same src (URL) within this card
+              // Drop images sharing the same src (URL) within this card.
               const seenSrcs = new Set();
               node.querySelectorAll(".generated_image img").forEach(function(imgNode) {
                 const src = imgNode.getAttribute("src");
@@ -1086,7 +1288,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (src) seenSrcs.add(src);
               });
 
-              // Phase 2: Set up load handlers for visual dedup, DPR sizing, errors, click
+              // Per-image load handlers: visual dedup, DPR sizing, errors, click.
               const cardHashes = [];
               node.querySelectorAll(".generated_image img").forEach(function(imgEl) {
 
@@ -1935,7 +2137,7 @@ document.addEventListener("DOMContentLoaded", function () {
       { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
       // Send server-side RESET to clear session
-      ws.send(JSON.stringify({ "message": "RESET" }));
+      window.safeWsSend({ message: "RESET" });
     }
 
     proceedWithAppChange(selectedAppValue);
@@ -1997,7 +2199,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
     // Send server-side RESET to clear session
-    ws.send(JSON.stringify({ "message": "RESET" }));
+    window.safeWsSend({ message: "RESET" });
 
     // Reset to settings panel
     enterSettingsMode();
@@ -2179,7 +2381,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (toBool(apps[appValue]["pdf_vector_storage"])) {
       $show($id("pdf-panel"));
-      ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+      sendPdfWsMessage({ message: "PDF_TITLES" });
     } else {
       $hide($id("pdf-panel"));
     }
@@ -2188,6 +2390,22 @@ document.addEventListener("DOMContentLoaded", function () {
       $show($id("audio-upload"));
     } else {
       $hide($id("audio-upload"));
+    }
+
+    // Privacy Filter session toggle: refresh the gate (3 conditions must
+    // all be true for the toggle to be editable):
+    //   1. App MDSL declares `privacy do; enabled true; end`
+    //   2. PRIVACY_FILTER env is not "false" on the server
+    //   3. Sidebar conversation_language is "auto"/"en" or one of the
+    //      languages the privacy container was built with (PRIVACY_LANGS)
+    // Initial setup: clears lock + restores remembered preference + emits
+    // PRIVACY_TOGGLE if the remembered state is "on". `setupPrivacyToggleGate`
+    // (defined at module scope) is the same function reused by the
+    // conversation_language change handler so language switches re-evaluate
+    // the gate without a full app re-setup.
+    window.privacyToggleLocked = false;
+    if (typeof window.refreshPrivacyToggleGate === "function") {
+      window.refreshPrivacyToggleGate({ initial: true, appValue: appValue });
     }
 
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
@@ -2397,12 +2615,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
-    // Update toggle button text
-    if (typeof window.updateToggleButtonText === 'function') {
-      window.updateToggleButtonText();
-    }
     if (typeof window.updateExpressiveSpeechIndicator === 'function') {
       window.updateExpressiveSpeechIndicator();
+    }
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('auto_speech_toggle');
@@ -2420,12 +2637,35 @@ document.addEventListener("DOMContentLoaded", function () {
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
-    // Update toggle button text
-    if (typeof window.updateToggleButtonText === 'function') {
-      window.updateToggleButtonText();
-    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('easy_submit_toggle');
+    }
+  })
+
+  $on($id("check-privacy-session"), "change", function() {
+    // Once locked (first message sent), the disabled attribute prevents
+    // further changes. This handler only fires while the toggle is editable.
+    const newState = !!this.checked;
+
+    // Backend is the source of truth for the toggle. PRIVACY_TOGGLE
+    // round-trips through a container health probe; the privacy_toggle_ack
+    // reply is what actually confirms the new state. ws-privacy-handler
+    // reverts the visual checkbox on backend rejection.
+    if (typeof window.safeWsSend === 'function') {
+      window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: newState });
+    }
+
+    // Persist the choice per app so re-selecting the same app restores it.
+    // Uninstalling the privacy container or app changes that drop support
+    // are handled at restore time (initialChecked = usable && remembered).
+    try {
+      const appEl = $id("apps");
+      if (appEl && appEl.value) {
+        localStorage.setItem("privacy_pref_" + appEl.value, this.checked ? "on" : "off");
+      }
+    } catch (_) { /* localStorage unavailable in private mode */ }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('privacy_session_toggle');
     }
   })
 
@@ -2703,51 +2943,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Function to update toggle button text based on checkbox states
-  window.updateToggleButtonText = function() {
-    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
-    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
-    const $toggleButton = $id("interaction-toggle-all");
-
-    if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
-      // Show appropriate text based on current state
-      if (autoSpeechChecked && easySubmitChecked) {
-        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.uncheckAll'));
-      } else if (!autoSpeechChecked && !easySubmitChecked) {
-        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.checkAll'));
-      } else {
-        if ($toggleButton) $toggleButton.textContent = (webUIi18n.t('ui.toggleAll'));
-      }
-    }
-  };
-  
-  // Toggle all interaction checkboxes - use event delegation for reliability
-  document.addEventListener("click", function(e) { const _delegateTarget = e.target.closest("#interaction-toggle-all"); if (!_delegateTarget) return;
-    const autoSpeechChecked = ($id("check-auto-speech") || {}).checked;
-    const easySubmitChecked = ($id("check-easy-submit") || {}).checked;
-
-    // If any checkbox is unchecked, check all. Otherwise, uncheck all.
-    const shouldCheck = !autoSpeechChecked || !easySubmitChecked;
-
-    // Suppress broadcasts during toggle to prevent state reset from server sync
-    window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
-    try {
-      // Set checkbox values and trigger change events to update params
-      { const el = $id("check-auto-speech"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
-      { const el = $id("check-easy-submit"); if (el) { el.checked = shouldCheck; $dispatch(el, "change"); } }
-    } finally {
-      window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 0) - 1);
-    }
-
-    // Update the button text after toggling
-    window.updateToggleButtonText();
-  });
-
-  // Initialize toggle button text on page load
-  (function() {
-    window.updateToggleButtonText();
-  })();
-
   $on($id("start"), "click", function() {
     audioInit();
     { const el = $id("asr-p-value"); if (el) { el.textContent = ""; $hide(el); } }
@@ -2804,8 +2999,14 @@ document.addEventListener("DOMContentLoaded", function () {
       setInputFocus();
       ensureControlsEnabled();
     } else {
-      // create secure random 4-digit number
-      ws.send(JSON.stringify({
+      // SYSTEM_PROMPT is non-idempotent — the server appends a new
+      // system message with a fresh `mid` to session[:messages] each
+      // time, so a queued replay would produce a duplicate prompt
+      // turn. Default safeWsSend behavior (fail-fast alert when WS
+      // is not OPEN) is correct here: this fires on Start Session,
+      // a deliberate user click that should fail loudly if the
+      // connection is gone.
+      window.safeWsSend({
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
         math: ($id("math") || {}).checked,
@@ -2813,7 +3014,7 @@ document.addEventListener("DOMContentLoaded", function () {
         websearch: params["websearch"],
         jupyter: params["jupyter"],
         conversation_language: params["conversation_language"] || "auto",
-      }));
+      });
 
       // Initialize audio before showing the UI
       audioInit();
@@ -2829,11 +3030,16 @@ document.addEventListener("DOMContentLoaded", function () {
         $show($id("monadic-spinner")); // Show spinner for initial assistant message
         setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.generatingResponse') : 'Generating response from assistant...'}`, "info");
         $id('cancel_query').style.setProperty('display', 'flex', 'important');
-        reconnect_websocket(ws, function (ws) {
+        reconnect_websocket(ws, function (_ws) {
           // Ensure critical parameters are correctly set based on checkboxes
           params["auto_speech"] = ($id("check-auto-speech") || {}).checked;
           params["initiate_from_assistant"] = true;
-              ws.send(JSON.stringify(params));
+          // params has no `message` field, so the server falls
+          // through to `handle_ws_streaming` and triggers a fresh
+          // LLM call. Non-idempotent — fail-fast is the right
+          // posture even though reconnect_websocket has already
+          // re-established the socket above.
+          window.safeWsSend(params);
         });
       } else {
         $show($id("user-panel"));
@@ -2875,7 +3081,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("select-role"); if (el) el.disabled = false; }
 
     // Send cancel message to server
-    ws.send(JSON.stringify({ message: "CANCEL" }));
+    window.safeWsSend({ message: "CANCEL" });
     
     // Reset UI completely
     { const el = $id("chat"); if (el) el.innerHTML = ""; }
@@ -2952,17 +3158,20 @@ document.addEventListener("DOMContentLoaded", function () {
       // Store timeout ID in window object so it can be cleared in the websocket listener
       window.currentSampleTimeout = sampleTimeoutId;
       
-      reconnect_websocket(ws, function (ws) {
+      reconnect_websocket(ws, function (_ws) {
         const role = ($id("select-role") || {}).value.split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
-        ws.send(JSON.stringify(msg_object));
+        // SAMPLE appends a fresh-mid turn to session[:messages] so a
+        // queued replay would create a duplicate sample message.
+        // Non-idempotent → default fail-fast.
+        window.safeWsSend(msg_object);
         
         // Clear input field and reset role selector immediately
         { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
         { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
       });
     } else {
-      reconnect_websocket(ws, function (ws) {
+      reconnect_websocket(ws, function (_ws) {
         // Create a copy of the current images array to preserve the state
         let currentImages = [...images];
 
@@ -2973,7 +3182,26 @@ document.addEventListener("DOMContentLoaded", function () {
           params.images = [];
         }
 
-        ws.send(JSON.stringify(params));
+        // The user-chat send. params carries no explicit `message`
+        // field, so the server case-statement falls through to
+        // `handle_ws_streaming` — this is THE non-idempotent send of
+        // the application: replay would push a duplicate user turn
+        // AND trigger a duplicate LLM call. Default fail-fast (no
+        // queue, alert) is the only safe behavior; the user will see
+        // their input still sitting in the message box and can retry
+        // once the connection comes back.
+        window.safeWsSend(params);
+        // Lock the Privacy Filter toggle once the first message of the
+        // session has been sent. The locked state is also enforced by the
+        // backend (Pipeline is cached in session[:_privacy_pipeline]).
+        // Reset / app change / new conversation re-enables editing.
+        {
+          const privacyEl = $id("check-privacy-session");
+          if (privacyEl && !privacyEl.disabled) {
+            privacyEl.disabled = true;
+            window.privacyToggleLocked = true;
+          }
+        }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
         }
@@ -3040,6 +3268,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }); });
 
   $on($id("save"), "click", async function () {
+    // Always route through the unified Export dialog. The dialog offers
+    // optional encryption (regardless of Privacy Filter state) plus a
+    // restored/masked content choice when the Privacy Filter is active.
+    if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.openExportDialog === 'function') {
+      window.WsPrivacyHandler.openExportDialog();
+      return;
+    }
+
     const allMessages = [];
     const initial_prompt = ($id("initial-prompt") || {}).value;
     const sysid = Math.floor(1000 + Math.random() * 9000);
@@ -3190,45 +3426,6 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("fileFile"); if (el) el.value = ""; }
     bootstrap.Modal.getOrCreateInstance($id("fileModal")).show();
 
-    // Initialize storage mode radios based on current provider/model
-    try {
-      const appName = ($id("apps") || {}).value;
-      const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : '';
-      const isOpenAI = group.toLowerCase() === 'openai';
-      const model = ($id("model") || {}).value;
-      const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
-
-      // Fetch server defaults and availability
-      fetch('/api/pdf_storage_defaults')
-        .then(function(res) { return res.ok ? res.json() : Promise.reject(res); })
-        .then(function(info) {
-          const pgAvailable = !!info.pgvector_available;
-          const defaultStorage = (info.default_storage || 'local').toLowerCase();
-
-          // Enable/disable by availability
-          { const el = $id("storage-local"); if (el) el.disabled = !pgAvailable; }
-          // Always allow selecting Cloud to experiment; routing will still guard by provider
-          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
-
-          // Decide selection
-          let select = 'local';
-          if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
-          if (select === 'cloud' && ($id("storage-cloud") || {}).disabled) select = 'local';
-          if (select === 'local' && ($id("storage-local") || {}).disabled) select = 'cloud';
-
-          if (select === 'cloud') {
-            { const el = $id("storage-cloud"); if (el) el.checked = true; }
-          } else {
-            { const el = $id("storage-local"); if (el) el.checked = true; }
-          }
-        }).catch(function() {
-          // Fallback: prefer local if enabled, else cloud
-          { const el = $id("storage-local"); if (el) el.disabled = false; }
-          { const el = $id("storage-cloud"); if (el) el.disabled = false; }
-          { const el = $id("storage-local"); if (el) el.checked = true; }
-        });
-    } catch (_) { console.warn("[PDF Modal] Storage option init failed:", _); }
-
     // Set a friendly placeholder for file title
     try {
       const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
@@ -3267,20 +3464,10 @@ document.addEventListener("DOMContentLoaded", function () {
         $hide($id("file-spinner"));
         document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
         bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-        // Decide if this was uploaded to OpenAI or local DB
-        const isOpenAIUpload = !!(response.vector_store_id);
-        // Refresh local PDF DB titles only for local ingestion
-        if (!isOpenAIUpload) {
-          ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-        } else {
-          // Auto-refresh cloud list on successful OpenAI upload
-          if (typeof refreshCloudPdfList === 'function') refreshCloudPdfList();
-        }
+        sendPdfWsMessage({ message: "PDF_TITLES" });
         const uploadedFilename = response.filename || "PDF file";
         const uploadMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadSuccess') : 'uploaded successfully';
-        const providerNote = isOpenAIUpload ? ' (OpenAI)' : '';
-        const dedupNote = (isOpenAIUpload && response.deduplicated) ? ' (deduplicated)' : '';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}${providerNote}${dedupNote}`, "success");
+        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}`, "success");
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";
@@ -3491,131 +3678,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Cloud PDF list handlers
-  async function refreshCloudPdfList() {
-    try {
-      const $list = $id("cloud-pdf-list");
-      if (!$list) return;
-      if ($list) $list.innerHTML = ('<span class="text-secondary">Loading...</span>');
-      const listResp = await fetch('/openai/pdf?action=list');
-      const res = listResp.ok ? await listResp.json() : null;
-      if (!res || !res.success) {
-        if ($list) $list.innerHTML = ('<span class="text-danger">Failed to load</span>');
-        return;
-      }
-      // Update Cloud meta (move Vector Store ID to footer; keep header clean)
-      try {
-        const vs = res.vector_store_id || '';
-        { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
-        // Do not show VS in header to avoid confusion
-        // Leave #cloud-pdf-info handling to status refresher
-      } catch (_) { console.warn("[PDF Listing] Metadata update failed:", _); }
-      const files = res.files || [];
-      if (files.length === 0) {
-        if ($list) $list.innerHTML = (`<span class="text-secondary">${getTranslation('ui.noPdfsCloud', 'No cloud PDFs')}</span>`);
-        return;
-      }
-      const rows = files.map(f => {
-        const name = (f.filename || f.id || '').replace(/</g,'&lt;');
-        const attrName = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-        const status = f.status || '';
-        return `<div class="d-flex align-items-center justify-content-between py-1 border-bottom cloud-pdf-row">
-          <span class="cloud-pdf-name">${name} <span class="text-muted">${status ? '('+status+')' : ''}</span></span>
-          <button class="btn btn-sm btn-outline-secondary" data-action="cloud-delete-file" data-file-id="${f.id}" data-file-name="${attrName}"><i class="fa-regular fa-trash-can text-secondary"></i></button>
-        </div>`;
-      });
-      if ($list) $list.innerHTML = (rows.join(''));
-    } catch (e) {
-      { const el = $id("cloud-pdf-list"); if (el) el.innerHTML = '<span class="text-danger">Failed to load</span>'; }
-    }
-  }
-
-  document.addEventListener('click', function(e) { if (!e.target.closest('#cloud-pdf-refresh')) return;
-    e.preventDefault();
-    refreshCloudPdfList();
-  });
-
-  document.addEventListener('click', async function(e) { if (!e.target.closest('#cloud-pdf-clear')) return;
-    e.preventDefault();
-    try {
-      const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllCloudPdfs') : 'Clear all Cloud PDFs?';
-      if (!confirm(msg)) return;
-      const clearRes = await fetch('/openai/pdf?action=clear', { method: 'DELETE' });
-      if (!clearRes.ok) throw new Error(`Clear failed: ${clearRes.status}`);
-      refreshCloudPdfList();
-      setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDFs cleared', 'success');
-    } catch (err) {
-      setAlert('Failed to clear Cloud PDFs', 'error');
-    }
-  });
-
-  document.addEventListener('click', async function(e) { const _delegateTarget = e.target.closest('button[data-action="cloud-delete-file"]'); if (!_delegateTarget) return;
-    e.preventDefault();
-    const fid = _delegateTarget.dataset.fileId;
-    const fname = _delegateTarget.dataset.fileName || _delegateTarget.closest('.cloud-pdf-row').querySelector('.cloud-pdf-name').textContent.trim();
-    if (!fid) return;
-    // Detect iOS/iPadOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isIOS) {
-      const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
-      if (!confirm(`${base} ${fname}?`)) return;
-      try {
-        const delRes = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
-        if (!delRes.ok) throw new Error(`Delete failed: ${delRes.status}`);
-        refreshCloudPdfList();
-        setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
-      } catch (err) {
-        setAlert('Failed to delete Cloud PDF', 'error');
-      }
-    } else {
-      // Reuse the same Bootstrap modal as local delete
-      bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).show();
-      { const el = $id("pdfToDelete"); if (el) el.textContent = fname; }
-      { const el2 = $id("pdfDeleteConfirmed"); if (el2) el2.onclick = async function (event) {
-        event.preventDefault();
-        try {
-          const delRes2 = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
-          if (!delRes2.ok) throw new Error(`Delete failed: ${delRes2.status}`);
-          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
-          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
-          refreshCloudPdfList();
-          setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
-        } catch (err) {
-          bootstrap.Modal.getOrCreateInstance($id("pdfDeleteConfirmation")).hide();
-          { const el3 = $id("pdfToDelete"); if (el3) el3.textContent = ""; }
-          setAlert('Failed to delete Cloud PDF', 'error');
-        }
-      }; }
-    }
-  });
-
-  // Initial fetch when pdf panel is present
-  setTimeout(refreshCloudPdfList, 500);
-
-  // Fetch and display overall PDF storage status (mode/local/cloud presence)
+  // Fetch and display local PDF storage presence
   async function refreshPdfStorageStatus() {
     try {
       const statusResp = await fetch('/api/pdf_storage_status');
       const res = statusResp.ok ? await statusResp.json() : null;
       if (!res || !res.success) return;
-      const mode = res.mode || 'local';
-      const vs = res.vector_store_id || '';
-      // Footer: full Vector Store ID when available
-      { const el = $id("cloud-pdf-meta"); if (el) el.textContent = vs ? `Vector Store ID: ${vs}` : ''; }
-      // Local header: show ready only; remove redundant (empty)
       { const el = $id("local-pdf-info"); if (el) el.textContent = res.local_present ? '(ready)' : ''; }
-
-      // Toggle sections based on current mode
-      const showCloud = (mode === 'cloud');
-      $toggle($id("cloud-pdf-section"), showCloud);
-      $toggle($id("local-pdf-section"), !showCloud);
-      // Auto-refresh the visible list to keep UI fresh
-      if (showCloud) {
-        refreshCloudPdfList();
-      } else {
-        if (window.ws) ws.send(JSON.stringify({ message: "PDF_TITLES" }));
-      }
+      if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
     } catch (_) { /* ignore */ }
   }
   setTimeout(refreshPdfStorageStatus, 700);
@@ -3623,13 +3693,13 @@ document.addEventListener("DOMContentLoaded", function () {
   // Local PDF controls
   document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-refresh')) return;
     e.preventDefault();
-    if (window.ws) ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+    if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
   });
   document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-clear')) return;
     e.preventDefault();
     const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllLocalPdfs') : 'Clear all Local PDFs?';
     if (!confirm(msg)) return;
-    if (window.ws) ws.send(JSON.stringify({ message: "DELETE_ALL_PDFS" }));
+    if (window.ws) sendPdfWsMessage({ message: "DELETE_ALL_PDFS" });
   });
 
   $on($id("url"), "click", function(event) {
@@ -3824,19 +3894,56 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Expressive Speech indicator: visible when Auto Speech is on AND the
-  // active TTS provider has a registered speech-marker vocabulary (xAI,
-  // ElevenLabs v3, Gemini). Wired into tts-provider change, check-auto-speech
-  // change, app switch, and initial load via updateExpressiveSpeechIndicator().
+  // active TTS provider has a registered Expressive Speech mechanism.
+  //
+  // Two families of engines are supported, with distinct tooltip copy:
+  //   * Inline-marker engines (xAI Grok / ElevenLabs v3 / Gemini) — the LLM
+  //     embeds short markers (e.g. [laugh], <whisper>) directly in the text
+  //     that the engine interprets as stage directions.
+  //   * Instruction-mode engine (OpenAI gpt-4o-mini-tts) — the LLM emits an
+  //     out-of-band directive block describing voice/tone/pacing that the
+  //     engine reads but does not speak aloud.
+  //
+  // Wired into tts-provider change, check-auto-speech change, app switch,
+  // and initial load via updateExpressiveSpeechIndicator().
   function updateExpressiveSpeechIndicator() {
     const badge = $id("expressive-speech-indicator");
     if (!badge) return;
     const autoSpeech = ($id("check-auto-speech") || {}).checked === true;
     const ttsProviderEl = $id("tts-provider");
     const ttsProvider = ttsProviderEl ? ttsProviderEl.value : "";
+    // Keep the voice dropdown's 4o-only voices hidden for non-4o OpenAI
+    // providers. Attached to this indicator function so every call site
+    // that refreshes the Expressive Speech UI also refreshes the gating.
+    if (typeof applyOpenAIVoiceGating === "function") {
+      applyOpenAIVoiceGating(ttsProvider);
+    }
     const tagAware = typeof window !== "undefined" &&
                      window.TtsTagSanitizer &&
                      window.TtsTagSanitizer.tagAware(ttsProvider);
-    badge.style.display = (autoSpeech && tagAware) ? "" : "none";
+    const show = autoSpeech && tagAware;
+    badge.style.display = show ? "" : "none";
+
+    // Swap the tooltip copy + i18n key based on which mechanism the active
+    // TTS family uses. The label itself ("Expressive Speech") is shared.
+    if (!show) return;
+    const family = window.TtsTagSanitizer &&
+                   typeof window.TtsTagSanitizer.familyFor === "function"
+                   ? window.TtsTagSanitizer.familyFor(ttsProvider) : "";
+    const pill = badge.querySelector("[data-i18n-title], [title]");
+    if (!pill) return;
+    const tooltipKey = family === "openai-instruction"
+      ? "ui.expressiveSpeechInstructionsTooltip"
+      : "ui.expressiveSpeechTooltip";
+    pill.setAttribute("data-i18n-title", tooltipKey);
+    // Translate immediately so the tooltip updates without waiting for a
+    // full re-render of the i18n layer.
+    const translate = (typeof window !== "undefined" && window.safeTranslate) ||
+                      ((k) => k);
+    const translated = translate(tooltipKey, "");
+    if (translated && translated !== tooltipKey) {
+      pill.setAttribute("title", translated);
+    }
   }
   window.updateExpressiveSpeechIndicator = updateExpressiveSpeechIndicator;
 
@@ -3865,6 +3972,61 @@ document.addEventListener("DOMContentLoaded", function () {
                                "mistral-voices", "grok-voices", "webspeech-voices"];
   const TTS_DEFAULT_PANEL_ID = "openai-voices";
 
+  // Show/hide the gpt-4o-mini-tts-only voices (ballad / verse / marin / cedar)
+  // inside the OpenAI voice dropdown. tts-1 and tts-1-hd do NOT accept those
+  // voices, so we hide them when the user picks those models. When the
+  // currently selected voice is one of the 4o-only ones and the user
+  // switches to a non-4o provider, we fall back to the model's default voice.
+  //
+  // On selecting openai-tts-4o, the voice default is `coral` rather than
+  // `alloy`. gpt-4o-mini-tts responds to the Expressive Speech directive
+  // block with noticeably more dynamic range on coral / ballad than on alloy
+  // / verse — we confirmed this in A/B testing. The per-4o preference is
+  // persisted separately so users who pick alloy on the plain TTS models
+  // still get coral on 4o (and vice versa).
+  function applyOpenAIVoiceGating(ttsProvider) {
+    const select = $id("tts-voice");
+    if (!select) return;
+    const is4o = (ttsProvider === "openai-tts-4o");
+    let fallbackNeeded = false;
+    Array.from(select.options).forEach(opt => {
+      if (opt.getAttribute("data-tts-4o-only") === "true") {
+        opt.hidden = !is4o;
+        opt.disabled = !is4o;
+        if (!is4o && select.value === opt.value) fallbackNeeded = true;
+      }
+    });
+    if (fallbackNeeded) {
+      select.value = "alloy";
+      params["tts_voice"] = "alloy";
+      setCookie("tts-voice", "alloy", 30);
+    }
+    if (is4o) {
+      const saved4o = getCookie("tts-voice-openai-4o");
+      // Pull the per-model default voice from model_spec.js (SSOT). Chain:
+      // providerDefaults.openai.tts[0] → modelSpec[model].tts_default_voice.
+      // Falls back to "coral" if the lookup fails (e.g., modelSpec not yet
+      // loaded or the default model was renamed without a voice hint).
+      let ssotDefault = null;
+      try {
+        const defaultModel = (window.providerDefaults &&
+          window.providerDefaults.openai &&
+          window.providerDefaults.openai.tts &&
+          window.providerDefaults.openai.tts[0]) || null;
+        ssotDefault = defaultModel && window.modelSpec &&
+          window.modelSpec[defaultModel] &&
+          window.modelSpec[defaultModel].tts_default_voice;
+      } catch (e) { /* fall through to hardcoded fallback */ }
+      const desired = saved4o || ssotDefault || "coral";
+      if (select.value !== desired && Array.from(select.options).some(o => o.value === desired)) {
+        select.value = desired;
+        params["tts_voice"] = desired;
+        setCookie("tts-voice", desired, 30);
+        if (!saved4o) setCookie("tts-voice-openai-4o", desired, 30);
+      }
+    }
+  }
+
   $on($id("tts-provider"), "change", function() {
     const oldProvider = params["tts_provider"];
     params["tts_provider"] = ($id("tts-provider") || {}).value;
@@ -3889,8 +4051,13 @@ document.addEventListener("DOMContentLoaded", function () {
       entry.onShow();
     }
 
+    applyOpenAIVoiceGating(params["tts_provider"]);
+
     setCookie("tts-provider", params["tts_provider"], 30);
     updateExpressiveSpeechIndicator();
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_provider_change');
     }
@@ -3899,6 +4066,14 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("tts-voice"), "change", function() {
     params["tts_voice"] = ($id("tts-voice") || {}).value;
     setCookie("tts-voice", params["tts_voice"], 30);
+    // Persist separately when on the 4o model so the per-model preference
+    // survives round-trips through other OpenAI TTS models.
+    if (params["tts_provider"] === "openai-tts-4o") {
+      setCookie("tts-voice-openai-4o", params["tts_voice"], 30);
+    }
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('tts_voice_change');
     }
@@ -3931,6 +4106,9 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("stt-model"), "change", function() {
     params["stt_model"] = ($id("stt-model") || {}).value;
     setCookie("stt-model", params["stt_model"], 30);
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('stt_model_change');
     }
@@ -3950,19 +4128,26 @@ document.addEventListener("DOMContentLoaded", function () {
       window.checkAndUpdateImageButtonVisibility();
     }
 
-    // If WebSocket is open, send UPDATE_LANGUAGE message to server
-    if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-      const message = {
-        message: "UPDATE_LANGUAGE",
-        new_language: params["conversation_language"]
-      };
-      window.ws.send(JSON.stringify(message));
-    } else {
-      console.warn("Cannot send UPDATE_LANGUAGE - WebSocket not open");
-    }
+    // UPDATE_LANGUAGE is idempotent (added to the wrapper's default
+    // set in H7.7) — auto-queue on a transient WS outage and replay
+    // on reconnect produces the same end state. silentDrop because
+    // this fires on a passive language-dropdown change, not a
+    // deliberate "send" click.
+    window.safeWsSend({
+      message: "UPDATE_LANGUAGE",
+      new_language: params["conversation_language"]
+    }, { silentDrop: true });
 
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('conversation_language_change');
+    }
+
+    // Re-evaluate the Privacy Filter toggle gate now that the conversation
+    // language has changed. If the new language is unsupported by the
+    // installed Privacy build, the toggle is disabled (and forced OFF if it
+    // was previously ON, with a PRIVACY_TOGGLE:false sent to the backend).
+    if (typeof window.refreshPrivacyToggleGate === "function") {
+      window.refreshPrivacyToggleGate();
     }
   });
 
@@ -4078,6 +4263,26 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clean up UI after successful import
         bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
+
+        // Privacy import safety net: the WebSocket 'parameters' handler
+        // schedules proceedWithAppChange via rAF, but if rAF is throttled
+        // (background tab, etc.) the dropdown can stall on the previous
+        // app even though loadedApp is correct. Explicitly resync after a
+        // short delay so the System Settings dropdown matches the imported
+        // app (e.g., MailComposerOpenAI).
+        if (response.app_name) {
+          setTimeout(function () {
+            const appsEl = $id('apps');
+            if (appsEl && appsEl.value !== response.app_name && window.apps && window.apps[response.app_name]) {
+              if (typeof window.proceedWithAppChange === 'function') {
+                window.proceedWithAppChange(response.app_name);
+              } else {
+                appsEl.value = response.app_name;
+                $dispatch(appsEl, 'change');
+              }
+            }
+          }, 600);
+        }
 
         // Don't clear messages here - let WebSocket 'past_messages' handler do it
         // This prevents race condition where user clicks "Continue Session" before messages arrive

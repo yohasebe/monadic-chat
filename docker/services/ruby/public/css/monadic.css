@@ -370,9 +370,31 @@ a:focus-visible {
     transition: background-color 0.01ms, color 0.01ms;
   }
 
-  /* Essential progress spinners must keep animating */
+  /* Essential progress spinners must keep animating — these communicate
+     "system is busy" and would otherwise look like a frozen UI under
+     prefers-reduced-motion: reduce. Includes the Bootstrap spinner-border
+     used by file/PDF/audio/url upload modals. */
   .parallel-task-spinner {
     animation-duration: 0.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .spinner-border {
+    animation-duration: 0.75s !important;
+    animation-iteration-count: infinite !important;
+  }
+  /* Font Awesome's `.fa-spin` is the canonical busy indicator across
+     this app (Saving conversation, Importing file, Loading...). The
+     blanket animation override above pinches it down to 0.01ms with a
+     single iteration, which makes the glyph look frozen and triggers
+     "did the app hang?" reports. Restore real animation here so users
+     get visible motion feedback even with reduce-motion enabled. */
+  .fa-spin,
+  .fa-spin-pulse {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .spinner-grow {
+    animation-duration: 0.75s !important;
     animation-iteration-count: infinite !important;
   }
 }
@@ -2073,18 +2095,99 @@ legend {
 
 .modal-header .btn-close {
   padding: 0.25rem;
-  margin: 0;
+  /* Tuck the close button into the right edge of the header. We were
+     previously absolutely positioned at right: 1rem which pulled the
+     glyph noticeably inward and let any flex content in the title
+     overlap the close target (most visibly the Conversation Viewer's
+     rename form). Use Bootstrap-canonical flex placement with a
+     negative end margin so the X reaches the modal corner. */
+  margin: 0 -0.25rem 0 auto;
   font-size: 0.875rem;
   width: 1.5rem;
   height: 1.5rem;
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
 }
 
 .modal-footer {
   justify-content: space-between
+}
+
+/* ─── Library: Knowledge Base Viewer modal ─────────────────────────── */
+/* The viewer surfaces a saved conversation verbatim, so it should feel
+   like part of the chat surface rather than a stark dialog. We tint the
+   content area with the same panel color used in the sidebar and color
+   each message by speaker role to mirror the live chat cards. */
+
+#libraryViewerModal .modal-content,
+#libraryBrowseModal .modal-content {
+  background-color: var(--bg-panel);
+}
+
+#libraryViewerModal .modal-body {
+  background-color: var(--bg-panel);
+}
+
+/* Lift the bottom of the Library Viewer / Browse modals so they do not
+   crowd the floating action bar that sits in the lower-right of the
+   chat surface (zoom / search / refresh / terminal). The default
+   Bootstrap modal margin (1.75rem top + bottom) puts the Close button
+   roughly under that bar; we add ~3rem of extra clearance below. The
+   scrollable modal's max-height is computed independently from the
+   dialog margin, so we override both. */
+#libraryViewerModal .modal-dialog,
+#libraryBrowseModal .modal-dialog {
+  margin-bottom: 5rem;
+}
+
+#libraryViewerModal .modal-dialog-scrollable,
+#libraryBrowseModal .modal-dialog-scrollable {
+  height: calc(100% - 6.75rem); /* 1.75rem top + 5rem bottom */
+}
+
+/* Per-message backgrounds match the live chat colors (assistant pink,
+   user blue, system off-white). */
+#library-viewer-messages .library-viewer-message {
+  border-radius: 6px;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.5rem;
+  border-bottom: none !important;
+}
+
+#library-viewer-messages .library-viewer-message[data-role="human"] {
+  background-color: var(--bg-card-user);
+}
+
+#library-viewer-messages .library-viewer-message[data-role="assistant"] {
+  background-color: var(--bg-card-assistant);
+}
+
+#library-viewer-messages .library-viewer-message[data-role="system"] {
+  background-color: var(--bg-card-system);
+}
+
+/* Constrain markdown headings inside the viewer so a saved conversation
+   that uses h1/h2 doesn't dwarf the modal layout. The library-viewer-text
+   selector adds enough specificity to beat global Bootstrap heading rules. */
+#libraryViewerModal #library-viewer-messages .library-viewer-text h1 { font-size: 1.2rem !important; margin: 0.4rem 0; }
+#libraryViewerModal #library-viewer-messages .library-viewer-text h2 { font-size: 1.1rem !important; margin: 0.4rem 0; }
+#libraryViewerModal #library-viewer-messages .library-viewer-text h3 { font-size: 1.05rem !important; margin: 0.4rem 0; }
+#libraryViewerModal #library-viewer-messages .library-viewer-text h4,
+#libraryViewerModal #library-viewer-messages .library-viewer-text h5,
+#libraryViewerModal #library-viewer-messages .library-viewer-text h6 { font-size: 1rem !important; margin: 0.4rem 0; }
+
+#library-viewer-messages .library-viewer-text > :first-child { margin-top: 0; }
+#library-viewer-messages .library-viewer-text > :last-child { margin-bottom: 0; }
+
+/* Collapsed-by-default system prompt. <details> renders as a wedge +
+   summary; users opt in to see the full prompt. */
+#library-viewer-messages details.library-viewer-system summary {
+  cursor: pointer;
+  list-style: revert;
+  user-select: none;
+  font-size: 0.875rem;
+}
+#library-viewer-messages details.library-viewer-system[open] summary {
+  margin-bottom: 0.5rem;
 }
 
 /* START: CODE BLOCK STYLE IMPROVEMENTS - ADDED 2025-04-08 */
@@ -2531,10 +2634,9 @@ h1 {
   background: transparent;
 }
 
-/* Harmonize local/Cloud PDF rows */
+/* Local PDF row styling */
 
-.pdf-db-row,
-.cloud-pdf-row {
+.pdf-db-row {
   background: #fff;
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
@@ -2542,13 +2644,11 @@ h1 {
   margin-bottom: 10px;
 }
 
-.pdf-db-row:hover,
-.cloud-pdf-row:hover {
+.pdf-db-row:hover {
   background: #f7f7f7;
 }
 
-.pdf-db-name,
-.cloud-pdf-name {
+.pdf-db-name {
   color: #555;
 }
 
@@ -2827,11 +2927,6 @@ h1 {
 
 .custom-dropdown-group[data-group="Cohere"] span:first-child {
   color: #8b5cf6;
-  font-weight: 700;
-}
-
-.custom-dropdown-group[data-group="Perplexity"] span:first-child {
-  color: #20b8cd;
   font-weight: 700;
 }
 
@@ -5826,3 +5921,142 @@ i.fas.fa-bolt,
   transform: rotate(180deg);
 }
 
+
+/* Privacy Filter indicator (Block C.2). Four states: ready/active/error.
+   OFF state hides the element via inline style="display:none". */
+.privacy-indicator {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78em;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+.privacy-indicator.privacy-ready {
+  background-color: #f1f3f5;
+  color: #6c757d;
+}
+.privacy-indicator.privacy-active {
+  background-color: #d1f4dc;
+  color: #198754;
+}
+.privacy-indicator.privacy-error {
+  background-color: #f8d7da;
+  color: #b02a37;
+}
+.privacy-indicator i {
+  margin-right: 4px;
+}
+
+/* Privacy Filter auto-detected language badge — appears next to the
+   indicator label when LanguageDetector has locked the session to a
+   reliable detection (auto mode only). The badge inherits the host
+   indicator's color so it reads as a sub-element rather than competing
+   with the main "Privacy ON (N)" label. */
+.privacy-lang-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 500;
+  background-color: rgba(255, 255, 255, 0.55);
+}
+.privacy-lang-badge i {
+  margin-right: 2px;
+  font-size: 0.85em;
+}
+.dark-theme .privacy-lang-badge {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+/* Privacy Filter unmask highlight: applied to user / assistant card text
+   spans whose value is tracked in the per-session privacy registry.
+   Subtle by design — gray background carries the "this is a tracked
+   value" affordance, while the underline color encodes entity identity:
+   the SAME placeholder hashes to the SAME color slot (data-color="N"),
+   so the same name reads as the same color in every card.
+   Hover reveals the originating placeholder via the title attribute. */
+.privacy-unmasked {
+  background-color: rgba(0, 0, 0, 0.06);
+  border-bottom: 2px solid rgba(108, 117, 125, 0.7);
+  padding: 0 1px;
+  border-radius: 2px;
+  cursor: help;
+}
+.privacy-unmasked:hover {
+  background-color: rgba(0, 0, 0, 0.10);
+}
+.dark-theme .privacy-unmasked {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(173, 181, 189, 0.7);
+}
+.dark-theme .privacy-unmasked:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Per-entity color palette (8 slots). Slot is computed in JS as
+   hash(placeholder) % 8 so the same placeholder lands in the same slot
+   across every card. Light-theme values aim for ~600-shade Tailwind
+   tones (visible on white but not garish); dark-theme values shift to
+   ~400-shade so they read against the dark surface. */
+.privacy-unmasked[data-color="0"] { border-bottom-color: #2563eb; }  /* blue */
+.privacy-unmasked[data-color="1"] { border-bottom-color: #059669; }  /* green */
+.privacy-unmasked[data-color="2"] { border-bottom-color: #7c3aed; }  /* purple */
+.privacy-unmasked[data-color="3"] { border-bottom-color: #ea580c; }  /* orange */
+.privacy-unmasked[data-color="4"] { border-bottom-color: #db2777; }  /* pink */
+.privacy-unmasked[data-color="5"] { border-bottom-color: #0891b2; }  /* teal */
+.privacy-unmasked[data-color="6"] { border-bottom-color: #4f46e5; }  /* indigo */
+.privacy-unmasked[data-color="7"] { border-bottom-color: #ca8a04; }  /* amber */
+.dark-theme .privacy-unmasked[data-color="0"] { border-bottom-color: #60a5fa; }
+.dark-theme .privacy-unmasked[data-color="1"] { border-bottom-color: #34d399; }
+.dark-theme .privacy-unmasked[data-color="2"] { border-bottom-color: #a78bfa; }
+.dark-theme .privacy-unmasked[data-color="3"] { border-bottom-color: #fb923c; }
+.dark-theme .privacy-unmasked[data-color="4"] { border-bottom-color: #f472b6; }
+.dark-theme .privacy-unmasked[data-color="5"] { border-bottom-color: #22d3ee; }
+.dark-theme .privacy-unmasked[data-color="6"] { border-bottom-color: #818cf8; }
+.dark-theme .privacy-unmasked[data-color="7"] { border-bottom-color: #facc15; }
+
+/* Privacy Filter export dialog (Block D.3) — strength meter bar */
+.privacy-strength-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.privacy-strength-bar #privacy-strength-fill {
+  height: 100%;
+  width: 0%;
+  background-color: #dc3545;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+.privacy-strength-bar.score-1 #privacy-strength-fill { width: 25%; background-color: #fd7e14; }
+.privacy-strength-bar.score-2 #privacy-strength-fill { width: 50%; background-color: #ffc107; }
+.privacy-strength-bar.score-3 #privacy-strength-fill { width: 75%; background-color: #20c997; }
+.privacy-strength-bar.score-4 #privacy-strength-fill { width: 100%; background-color: #198754; }
+
+/* App-capability declarative visibility gate (MDSL SSOT, Phase 4).
+   Body classes are set by applyAppCapabilityClasses() in monadic.js based
+   on per-app MDSL flags (privacy_enabled, library_save, library_search).
+   The Privacy-on class is set independently in response to live privacy
+   state pushes from the backend. CSS is the SSOT for visibility — JS code
+   only owns disabled state and tooltips. */
+body:not(.app-cap-pf)        #privacy-toggle-form    { display: none !important; }
+body:not(.app-cap-kb-search) #library-rag-toggle-row { display: none !important; }
+/* The Save button itself stays in the DOM at all times — JS toggles its
+   `disabled` attribute and tooltip based on three reasons (app does not
+   support save / Privacy Filter is active in this session / no messages
+   yet). This mirrors the Privacy Filter session toggle, which is also
+   "visible but disabled" on apps that don't support it, and avoids the
+   confusion of buttons that appear and disappear depending on state. */
+/* Hide the entire library panel only when the app has *no* relationship
+   to the Knowledge Base subsystem at all — i.e. it does not support
+   saving, does not support searching, and does not have a Privacy Filter
+   declaration that would otherwise make the panel meaningful as a
+   visible-but-disabled surface. PF-active apps keep the panel visible
+   so the disabled Save button continues to communicate "this app is on
+   the privacy-protected side; KB save is intentionally off-limits". */
+body:not(.app-cap-kb-save):not(.app-cap-kb-search):not(.app-cap-pf) #library-panel { display: none !important; }

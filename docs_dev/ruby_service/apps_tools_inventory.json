@@ -269,7 +269,7 @@
       "display_name": "Chat",
       "providers": [
         "claude", "cohere", "deepseek", "gemini", "grok",
-        "mistral", "ollama", "openai", "perplexity"
+        "mistral", "ollama", "openai"
       ],
       "imported_tools": {},
       "custom_tools": []
@@ -278,7 +278,7 @@
       "display_name": "ChatPlus",
       "providers": [
         "claude", "cohere", "deepseek", "gemini", "grok",
-        "mistral", "ollama", "openai", "perplexity"
+        "mistral", "ollama", "openai"
       ],
       "imported_tools": {
         "file_operations": "always"

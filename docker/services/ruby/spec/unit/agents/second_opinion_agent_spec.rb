@@ -47,11 +47,10 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-6")
         expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.4")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3-flash-preview")
-        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4-1-fast-non-reasoning")
+        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.20-0309-non-reasoning")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-03-2025")
-        expect(agent.send(:determine_provider_and_model, "perplexity", nil)[1]).to eq("sonar")
-        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-chat")
+        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
       end
     end
     
@@ -219,7 +218,7 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is water?",
           agent_response: "Water is H2O",
           provider: "xai",  # Should normalize to grok
-          model: "grok-4-fast-reasoning"
+          model: "grok-4.3"
         )
         
         expect(result[:model]).to include("grok")
@@ -276,13 +275,45 @@ RSpec.describe SecondOpinionAgent do
       expect(agent.send(:get_provider_helper, "gemini")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "mistral")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "cohere")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "perplexity")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "grok")).to respond_to(:send_query)
       expect(agent.send(:get_provider_helper, "deepseek")).to respond_to(:send_query)
     end
     
     it "raises an error for unknown providers" do
       expect { agent.send(:get_provider_helper, "unknown") }.to raise_error("Unknown provider: unknown")
+    end
+  end
+
+  # When the parent session has an active privacy pipeline, the inline
+  # query/response sent to other providers must be masked. Without this,
+  # picking Second Opinion in a privacy-on session would quietly fan out
+  # raw PII to providers the user did not expect.
+  describe "#mask_for_second_opinion" do
+    let(:fake_pipeline) do
+      double('Pipeline').tap do |p|
+        allow(p).to receive(:before_send_to_llm) do |raw|
+          masked = raw.text.gsub(/Alice/, '<<PERSON_1>>')
+          double('MaskedMessage', text: masked)
+        end
+      end
+    end
+
+    it "masks the text via the pipeline" do
+      result = agent.send(:mask_for_second_opinion, "Email Alice today.", fake_pipeline, "user")
+      expect(result).to eq("Email <<PERSON_1>> today.")
+    end
+
+    it "propagates the error so the second opinion fails fail-closed" do
+      broken = double('Pipeline')
+      allow(broken).to receive(:before_send_to_llm).and_raise('boom')
+      expect {
+        agent.send(:mask_for_second_opinion, "Email Alice.", broken, "user")
+      }.to raise_error('boom')
+    end
+
+    it "passes nil/empty inputs through unchanged" do
+      expect(agent.send(:mask_for_second_opinion, nil, fake_pipeline, "user")).to be_nil
+      expect(agent.send(:mask_for_second_opinion, "", fake_pipeline, "user")).to eq("")
     end
   end
 end

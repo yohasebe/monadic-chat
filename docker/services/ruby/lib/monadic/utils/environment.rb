@@ -104,25 +104,6 @@ module Monadic
         resolve_path('/monadic/scripts', File.expand_path('../../../scripts', __dir__))
       end
 
-      # Database connection methods
-      def postgres_params(database: 'postgres')
-        {
-          host: postgres_host,
-          port: postgres_port,
-          user: 'postgres',
-          password: 'postgres',
-          dbname: database
-        }
-      end
-
-      def postgres_host
-        in_container? ? 'pgvector_service' : 'localhost'
-      end
-
-      def postgres_port
-        in_container? ? 5432 : 5433
-      end
-
       # Convenience method for backwards compatibility
       def self.included(base)
         base.extend(self)

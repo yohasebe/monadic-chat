@@ -35,6 +35,7 @@
     - [Ollamaの利用](/ja/advanced-topics/ollama.md)
     - [ヘルプシステムの設定](/ja/advanced-topics/help-system.md)
     - [MCP統合](/ja/advanced-topics/mcp-integration.md)
+    - [プライバシーフィルター](/ja/advanced-topics/privacy-filter.md)
     
 - **リファレンス**
 
@@ -49,3 +50,4 @@
     - [機能の追加](/ja/faq/faq-extra-features.md)
 
 - [更新履歴](/ja/changelog.md)
+- [関連ブログ記事](https://yohasebe.com/tags/monadic-chat/)

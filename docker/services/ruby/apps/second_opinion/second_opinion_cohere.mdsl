@@ -100,7 +100,7 @@ app "SecondOpinionCohere" do
       - 'Compare Claude and Gemini's opinions'
       - 'Get opinions from 3 providers'
 
-      Available providers for second opinions: OpenAI, Claude, Gemini, Mistral, Perplexity, Grok, DeepSeek, Ollama
+      Available providers for second opinions: OpenAI, Claude, Gemini, Mistral, Grok, DeepSeek, Ollama
 
       What would you like to know?"
 
@@ -123,11 +123,19 @@ app "SecondOpinionCohere" do
     group "Cohere"
   end
 
+  privacy do
+    enabled true
+    languages ["en"]
+    score_threshold 0.4
+    honorific_trim true
+    on_failure :block
+  end
+
   tools do
     define_tool "second_opinion_agent", "Verify the response before returning it to the user" do
       parameter :user_query, "string", "The query given by the user", required: true
       parameter :agent_response, "string", "Your response to be verified", required: true
-      parameter :provider, "string", "Provider name (e.g., 'openai', 'claude', 'gemini', 'mistral', 'perplexity', 'grok', 'deepseek')", required: false
+      parameter :provider, "string", "Provider name (e.g., 'openai', 'claude', 'gemini', 'mistral', 'grok', 'deepseek')", required: false
       parameter :model, "string", "Specific model to use (optional)", required: false
     end
 

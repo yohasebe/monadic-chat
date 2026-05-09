@@ -105,7 +105,7 @@ app "WebInsightOpenAI" do
 
   llm do
     provider "openai"
-    model ["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-4.1-mini"]
+    model ["gpt-5.4", "gpt-5.4-mini", "gpt-5.2", "gpt-5.1"]
     temperature 0.0
   end
 
@@ -118,6 +118,7 @@ app "WebInsightOpenAI" do
   end
 
   features do
+    library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
     monadic false
     websearch true

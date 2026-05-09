@@ -79,7 +79,6 @@ end
 - `mistral` - [https://mistral.ai](https://mistral.ai)
 - `cohere` - [https://cohere.com](https://cohere.com)
 - `deepseek` - [https://deepseek.com](https://deepseek.com)
-- `perplexity` - [https://perplexity.ai](https://perplexity.ai)
 - `xai` - [https://x.ai](https://x.ai) (Grok)
 - `ollama` - [https://ollama.ai](https://ollama.ai) (ローカルモデル)
 
@@ -153,7 +152,6 @@ end
 | Mistral | `MISTRAL_DEFAULT_MODEL` |
 | Cohere | `COHERE_DEFAULT_MODEL` |
 | DeepSeek | `DEEPSEEK_DEFAULT_MODEL` |
-| Perplexity | `PERPLEXITY_DEFAULT_MODEL` |
 | xAI/Grok | `GROK_DEFAULT_MODEL` |
 | Ollama | `OLLAMA_DEFAULT_MODEL` |
 
@@ -646,7 +644,6 @@ DSLは異なるAIプロバイダーに対して適切な関数定義形式に自
 - Mistral: Mistralの関数呼び出しAPIに対応したフォーマット
 - Gemini: `function_declarations`構造を使用してGoogle Geminiモデル向けに構造化
 - DeepSeek: DeepSeekの関数呼び出し形式に変換
-- Perplexity: Perplexityの関数形式に適応
 - Grok (xAI): 厳格な検証を持つGrokの関数形式にマッピング
 
 この自動変換により、DSLでツール定義を一度記述するだけで、手動変換なしに異なるプロバイダー間で動作させることができます。

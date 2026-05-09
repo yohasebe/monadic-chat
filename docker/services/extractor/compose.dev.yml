@@ -1,0 +1,4 @@
+services:
+  extractor_service:
+    ports:
+      - "127.0.0.1:${EXTRACTOR_DEV_PORT:-8003}:8000"

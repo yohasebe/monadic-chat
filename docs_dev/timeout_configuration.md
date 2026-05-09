@@ -16,7 +16,6 @@ All providers are configured with the following default timeouts:
 | Cohere | 10 seconds | 600 seconds (10 min) | 120 seconds |
 | DeepSeek | 10 seconds | 600 seconds (10 min) | 120 seconds |
 | Mistral | 5 seconds | 600 seconds (10 min) | 120 seconds |
-| Perplexity | 5 seconds | 600 seconds (10 min) | 120 seconds |
 | Grok (XAI) | 20 seconds | 600 seconds (10 min) | 120 seconds |
 
 ## Environment Variables
@@ -64,13 +63,6 @@ MISTRAL_READ_TIMEOUT=600
 MISTRAL_WRITE_TIMEOUT=120
 ```
 
-### Perplexity
-```bash
-PERPLEXITY_OPEN_TIMEOUT=5
-PERPLEXITY_READ_TIMEOUT=600
-PERPLEXITY_WRITE_TIMEOUT=120
-```
-
 ### Grok (XAI)
 ```bash
 GROK_OPEN_TIMEOUT=20
@@ -101,7 +93,7 @@ Time allowed to send request data to the API server.
 ## Special Timeout Handling
 
 ### OpenAI Responses API
-The Responses API (used for GPT-5-Codex and o3-pro) automatically uses extended timeout:
+The Responses API (used for GPT-5-Codex) automatically uses extended timeout:
 - **READ_TIMEOUT**: 1200 seconds (20 minutes)
 - This override is applied programmatically and cannot be changed via env variables
 
@@ -163,9 +155,6 @@ OPENAI_READ_TIMEOUT=900
 
 # Reduce timeout for Gemini (if experiencing hanging)
 GEMINI_READ_TIMEOUT=300
-
-# Increase timeout for Perplexity web search
-PERPLEXITY_READ_TIMEOUT=900
 ```
 
 ## Implementation Details

@@ -143,7 +143,7 @@ module ResponseEvaluator
         return Result.new(:fail, "Empty response", stage: 1)
       end
 
-      # Check for incomplete thinking responses (e.g., Perplexity "<think>" only)
+      # Check for incomplete thinking responses (e.g., a "<think>" tag with no content)
       if response_text.strip =~ /\A<think>\s*\z/i
         return Result.new(:fail, "Incomplete response (thinking tag only)", stage: 1)
       end
@@ -253,17 +253,6 @@ module ResponseEvaluator
 
     # Stage 2: AI-based semantic evaluation
     def ai_evaluate(response_text, app_name, prompt, context)
-      # Special handling for Perplexity initial messages
-      # Perplexity models don't do role-play well - they identify as "Perplexity" regardless of system prompt
-      # For initial messages, just verify meaningful text is returned
-      if context[:provider] == 'perplexity' && context[:is_initial_message]
-        if response_text && response_text.strip.length >= 20
-          return Result.new(:pass, "Perplexity initial message: meaningful text returned", stage: 2)
-        else
-          return Result.new(:fail, "Perplexity initial message: response too short or empty", stage: 2)
-        end
-      end
-
       # Special handling for Cohere initial messages
       # Cohere reasoning models may expose internal thinking or identify as "Command" model
       # For initial messages, just verify meaningful text is returned
@@ -340,7 +329,7 @@ module ResponseEvaluator
 
     def extract_app_base(app_name)
       # Remove provider suffix (e.g., "MathTutorOpenAI" -> "MathTutor")
-      app_name.sub(/(OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Perplexity|Ollama)$/, '')
+      app_name.sub(/(OpenAI|Claude|Gemini|Grok|Mistral|Cohere|DeepSeek|Ollama)$/, '')
     end
 
     def get_rules_for_app(app_name)

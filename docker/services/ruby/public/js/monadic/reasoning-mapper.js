@@ -31,8 +31,6 @@ class ReasoningMapper {
           return this._mapGrok(spec, uiValue);
         case 'DeepSeek':
           return this._mapDeepSeek(spec, uiValue);
-        case 'Perplexity':
-          return this._mapPerplexity(spec, uiValue);
         case 'Cohere':
           return this._mapCohere(spec, uiValue);
         default:
@@ -68,8 +66,6 @@ class ReasoningMapper {
         return spec.hasOwnProperty('reasoning_effort');
       case 'DeepSeek':
         return spec.hasOwnProperty('reasoning_content');
-      case 'Perplexity':
-        return spec.hasOwnProperty('reasoning_effort');
       case 'Cohere':
         return spec.reasoning_model === true || spec.supports_thinking === true;
       default:
@@ -128,12 +124,6 @@ class ReasoningMapper {
         case 'DeepSeek':
           if (spec.reasoning_content) {
             options = ['minimal', 'medium']; // Only these two options
-          }
-          break;
-
-        case 'Perplexity':
-          if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
-            options = spec.reasoning_effort[0]; // ["minimal", "low", "medium", "high"]
           }
           break;
 
@@ -280,14 +270,6 @@ class ReasoningMapper {
     return null;
   }
   
-  static _mapPerplexity(spec, uiValue) {
-    if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) &&
-        spec.reasoning_effort[0].includes(uiValue)) {
-      return { reasoning_effort: uiValue };
-    }
-    return null;
-  }
-
   static _mapCohere(spec, uiValue) {
     // Cohere reasoning models use "disabled" and "enabled"
     if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) &&
@@ -328,12 +310,6 @@ class ReasoningMapper {
         
       case 'DeepSeek':
         return 'medium'; // Maps to "enabled"
-        
-      case 'Perplexity':
-        if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort) && spec.reasoning_effort.length >= 2) {
-          return spec.reasoning_effort[1]; // Default value
-        }
-        return 'medium';
 
       case 'Cohere':
         // Cohere reasoning models default to "enabled"

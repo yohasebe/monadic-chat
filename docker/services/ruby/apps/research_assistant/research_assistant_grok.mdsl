@@ -42,7 +42,7 @@ app "ResearchAssistantGrok" do
 
     Always cite your sources when providing information from web searches.
 
-    Note: I cannot directly access or read local files. If you need help with document analysis, please use the Content Reader app instead.
+    Note: I cannot directly access or read local files. If you need help with document analysis, import the file into the Knowledge Base and ask there instead.
 
     ## Code Execution & Data Visualization
 
@@ -108,7 +108,7 @@ app "ResearchAssistantGrok" do
     context_size 30
 
     agents do
-      code_generator model: "grok-code-fast-1"
+      code_generator model: "grok-4.3"
     end
   end
 

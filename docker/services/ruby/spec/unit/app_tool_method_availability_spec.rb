@@ -125,7 +125,6 @@ RSpec.describe 'App Tool Method Availability' do
         'mistral' => 'MistralHelper',
         'cohere' => 'CohereHelper',
         'deepseek' => 'DeepSeekHelper',
-        'perplexity' => 'PerplexityHelper',
         'ollama' => 'OllamaHelper'
       }
 

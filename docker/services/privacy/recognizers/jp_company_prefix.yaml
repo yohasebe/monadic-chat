@@ -1,0 +1,14 @@
+name: JpCompanyRecognizer
+supported_language: ja
+supported_entity: ORGANIZATION
+patterns:
+  - name: jp_kabushiki_prefix
+    regex: "(株式会社|有限会社|合同会社|一般社団法人|公益財団法人)[^\\s、。]{1,30}"
+    score: 0.8
+  - name: jp_kabushiki_suffix
+    regex: "[^\\s、。]{1,30}(株式会社|株\\)|（株）)"
+    score: 0.8
+context:
+  - 弊社
+  - 御社
+  - 貴社

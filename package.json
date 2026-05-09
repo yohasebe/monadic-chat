@@ -1,15 +1,15 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
-  "version": "1.0.0-beta.11.9",
+  "version": "1.0.0-beta.16",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "app/main.js",
   "scripts": {
     "start": "electron .",
-    "build:mac-arm64": "electron-builder --mac --arm64",
-    "build:win": "electron-builder --win --x64",
-    "build:linux-arm64": "electron-builder --linux --arm64",
-    "build:linux-x64": "electron-builder --linux --x64",
+    "build:mac-arm64": "npm run build:js && electron-builder --mac --arm64",
+    "build:win": "npm run build:js && electron-builder --win --x64",
+    "build:linux-arm64": "npm run build:js && electron-builder --linux --arm64",
+    "build:linux-x64": "npm run build:js && electron-builder --linux --x64",
     "test": "jest --config config/jest/jest.config.js",
     "test:passing": "jest --config config/jest/jest.config.js",
     "test:watch": "jest --config config/jest/jest.config.js --watch",
@@ -168,6 +168,7 @@
     "semver": "^7.5.3",
     "minimatch": "^10.2.1",
     "js-yaml": "^4.1.1",
-    "glob": "^10.5.0"
+    "glob": "^10.5.0",
+    "@xmldom/xmldom": "^0.8.13"
   }
 }

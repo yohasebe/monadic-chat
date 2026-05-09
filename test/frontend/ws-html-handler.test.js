@@ -231,6 +231,67 @@ describe('ws-html-handler', () => {
       handlers.handleHtml(assistantData);
       expect(document.getElementById('cancel_query').style.display).toBe('none');
     });
+
+    it('walks the whole discourse with privacy_known_entities', () => {
+      // The hook now passes the **full registry** (privacy_known_entities)
+      // to highlightUnmaskedSpans rooted at #discourse, so user and
+      // assistant cards get the same treatment. The walker is idempotent
+      // so passing the full list every turn is safe.
+      const highlightSpy = jest.fn();
+      window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
+
+      const knownEntities = [
+        { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' }
+      ];
+      handlers.handleHtml({
+        content: {
+          role: 'assistant',
+          text: 'Hello Alice.',
+          html: '<p>Hello Alice.</p>',
+          mid: 'msg-priv',
+          lang: 'en',
+          privacy_known_entities: knownEntities
+        }
+      });
+      jest.runOnlyPendingTimers();
+
+      expect(highlightSpy).toHaveBeenCalledTimes(1);
+      const args = highlightSpy.mock.calls[0];
+      expect(args[0]).toBe(document.getElementById('discourse'));
+      expect(args[1]).toEqual(knownEntities);
+    });
+
+    it('does not call highlight when privacy_known_entities is absent', () => {
+      const highlightSpy = jest.fn();
+      window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
+      handlers.handleHtml(assistantData);
+      jest.runOnlyPendingTimers();
+      expect(highlightSpy).not.toHaveBeenCalled();
+    });
+
+    it('runs highlight even when wsHandlers.handleHtmlMessage handles the rendering', () => {
+      // The production path delegates to websocket-handlers.js; the hook
+      // must therefore live outside the inline fallback so it fires in
+      // both branches.
+      const highlightSpy = jest.fn();
+      window.WsPrivacyHandler = { highlightUnmaskedSpans: highlightSpy };
+      window.wsHandlers = { handleHtmlMessage: jest.fn().mockReturnValue(true) };
+
+      handlers.handleHtml({
+        content: {
+          role: 'assistant',
+          mid: 'msg-priv-prod',
+          privacy_known_entities: [
+            { placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Bob' }
+          ]
+        }
+      });
+      jest.runOnlyPendingTimers();
+
+      expect(highlightSpy).toHaveBeenCalledTimes(1);
+      // Highlight roots at #discourse so user cards are picked up too.
+      expect(highlightSpy.mock.calls[0][0]).toBe(document.getElementById('discourse'));
+    });
   });
 
   describe('handleHtml - assistant moreComing', () => {

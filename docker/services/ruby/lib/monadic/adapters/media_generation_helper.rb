@@ -1,4 +1,5 @@
 require 'shellwords'
+require_relative '../utils/progress_broadcaster'
 
 module MonadicHelper
   # Adapter for OpenAI function generate_image
@@ -78,7 +79,12 @@ module MonadicHelper
     end
 
     cmd = parts.join(' ')
-    send_command(command: cmd, container: "ruby")
+    Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "ImageGeneratorOpenAI",
+      label: "Generating image with #{model} (#{operation})"
+    ) do
+      send_command(command: cmd, container: "ruby")
+    end
   end
 
 
@@ -98,10 +104,15 @@ module MonadicHelper
     stderr = ""
     status = nil
 
-    send_command(command: command, container: "ruby") do |out, err, stat|
-      stdout = out
-      stderr = err
-      status = stat
+    Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "ImageGeneratorGrok",
+      label: "Generating image with Grok (#{operation})"
+    ) do
+      send_command(command: command, container: "ruby") do |out, err, stat|
+        stdout = out
+        stderr = err
+        status = stat
+      end
     end
 
     # Extract JSON from stdout
@@ -167,10 +178,15 @@ module MonadicHelper
     stderr = ""
     status = nil
 
-    send_command(command: cmd, container: "ruby") do |out, err, stat|
-      stdout = out
-      stderr = err
-      status = stat
+    Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "VideoGeneratorGrok",
+      label: "Generating video with Grok Imagine"
+    ) do
+      send_command(command: cmd, container: "ruby") do |out, err, stat|
+        stdout = out
+        stderr = err
+        status = stat
+      end
     end
 
     begin
@@ -261,10 +277,15 @@ module MonadicHelper
     stderr = ""
     status = nil
 
-    send_command(command: cmd, container: "ruby") do |out, err, stat|
-      stdout = out
-      stderr = err
-      status = stat
+    Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "VideoGeneratorOpenAI",
+      label: "Generating video with #{model}"
+    ) do
+      send_command(command: cmd, container: "ruby") do |out, err, stat|
+        stdout = out
+        stderr = err
+        status = stat
+      end
     end
 
     # Extract JSON from stdout

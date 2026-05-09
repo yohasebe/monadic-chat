@@ -401,8 +401,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
         provider = "Cohere";
       } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
         provider = "Mistral";
-      } else if (group.includes("perplexity")) {
-        provider = "Perplexity";
       } else if (group.includes("deepseek")) {
         provider = "DeepSeek";
       } else if (group.includes("grok") || group.includes("xai")) {
@@ -458,8 +456,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
           providerGroup = "Cohere";
         } else if (/^(mistral-|pixtral-|magistral-|ministral-)/.test(modelToSet)) {
           providerGroup = "Mistral";
-        } else if (/^(sonar|llama-)/.test(modelToSet)) {
-          providerGroup = "Perplexity";
         } else if (/^deepseek-/.test(modelToSet)) {
           providerGroup = "DeepSeek";
         } else if (/^grok-/.test(modelToSet)) {
@@ -476,7 +472,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
           
           // Try to find a matching app for this provider
           // Extract the base app type from the original app_name (e.g., "MailComposer" from "MailComposerGemini")
-          let baseAppType = app_name.replace(/(?:OpenAI|Claude|Anthropic|Gemini|Google|Cohere|Mistral|Perplexity|DeepSeek|Grok|xAI|Ollama)$/i, '');
+          let baseAppType = app_name.replace(/(?:OpenAI|Claude|Anthropic|Gemini|Google|Cohere|Mistral|DeepSeek|Grok|xAI|Ollama)$/i, '');
           
           // Find an app that matches this provider and base type
           for (const [key, value] of Object.entries(apps)) {
@@ -970,11 +966,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
   window.isLoadingParams = false;
   if (window.logTL) window.logTL('loadParams_exit', { calledFor });
 
-  // Update toggle button text to reflect checkbox states
-  if (typeof window.updateToggleButtonText === 'function') {
-    window.updateToggleButtonText();
-  }
-
   // Final enforcement of import-mode checkbox states
   if (window.isProcessingImport) {
     const autoSpeechFinal = $id("check-auto-speech");
@@ -1032,6 +1023,10 @@ function setParams() {
   const mathEl = $id("math");
   params["math"] = mathEl ? mathEl.checked : false;
 
+  // Privacy Filter session toggle lives on the backend only — see
+  // ws-privacy-handler.js. Putting it in params would shadow the
+  // health-checked authoritative state on the next submit.
+
   const websearchEl = $id("websearch");
   const modelEl = $id("model");
   params["model"] = modelEl ? modelEl.value : null;
@@ -1058,12 +1053,10 @@ function setParams() {
       const looksClaude = m.includes('claude');
       const looksGrok = m.includes('grok');
       const looksDeepseek = m.includes('deepseek');
-      const looksPerplexity = m.includes('pplx') || m.includes('perplexity') || m.includes('sonar');
       if (looksGemini) provider = 'Google';
       else if (looksClaude) provider = 'Anthropic';
       else if (looksGrok) provider = 'xAI';
       else if (looksDeepseek) provider = 'DeepSeek';
-      else if (looksPerplexity) provider = 'Perplexity';
       // Otherwise keep provider as-is (OpenAI or app group-derived)
     } catch (_) { console.warn("[ReasoningProvider] Provider detection failed:", _); }
     
@@ -1218,6 +1211,14 @@ function resetEvent(_event, resetToDefaultApp = false) {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+  // True when the current chat has at least one user/assistant turn
+  // worth saving — system-only sessions (no exchange yet) shouldn't
+  // offer "Save & Reset" because there is nothing to preserve.
+  const hasSaveableContent = (() => {
+    if (!Array.isArray(window.messages)) return false;
+    return window.messages.some(m => m && (m.role === 'user' || m.role === 'assistant'));
+  })();
+
   // For iOS devices, bypass the modal and use standard confirm dialog
   if (isIOS) {
     if (confirm("Are you sure you want to reset the chat?")) {
@@ -1226,6 +1227,13 @@ function resetEvent(_event, resetToDefaultApp = false) {
   } else {
     // For other platforms, use the Bootstrap modal
     const resetModal = $id("resetConfirmation");
+    const saveAndResetBtn = $id("resetSaveAndConfirm");
+    if (saveAndResetBtn) {
+      // Only surface the third button when the user has something to
+      // preserve. Otherwise the dialog is the original two-button
+      // Cancel/Reset shape.
+      saveAndResetBtn.style.display = hasSaveableContent ? '' : 'none';
+    }
     if (resetModal) {
       bootstrap.Modal.getOrCreateInstance(resetModal).show();
       resetModal.addEventListener("shown.bs.modal", function () {
@@ -1240,6 +1248,29 @@ function resetEvent(_event, resetToDefaultApp = false) {
         doResetActions(resetToDefaultApp);
       };
     }
+    if (saveAndResetBtn) {
+      saveAndResetBtn.onclick = function (event) {
+        event.preventDefault();
+        // Defer to the same modal the sidebar Save button opens so the
+        // user can edit the title, pick a scope, and see the LLM-suggested
+        // title — the previous direct-LIBRARY_SAVE path skipped all three.
+        if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
+        const m = $id("resetConfirmation");
+        const open = function () { window.libraryPanel.openSaveModal(); };
+        if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const inst = bootstrap.Modal.getInstance(m);
+          if (inst) {
+            // Wait for the reset modal to fully hide before showing the
+            // save modal — overlapping shows produce stacked backdrops
+            // that block both dialogs in Bootstrap 5.
+            m.addEventListener('hidden.bs.modal', open, { once: true });
+            inst.hide();
+            return;
+          }
+        }
+        open();
+      };
+    }
   }
 }
 
@@ -1252,10 +1283,14 @@ function doResetActions(resetToDefaultApp = false) {
   const drMessage = $id("message");
   if (drMessage) { drMessage.style.height = "96px"; drMessage.value = ""; }
 
-  ws.send(JSON.stringify({ "message": "RESET" }));
+  // RESET and LOAD are both idempotent and queued FIFO when the
+  // WebSocket is not OPEN; the LOAD reply is what populates the new
+  // session, so the submission order matters and is preserved by
+  // safeWsSend's drain (see docs_dev/safe_ws_send_plan.md §3.4).
+  window.safeWsSend({ "message": "RESET" });
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-  ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
+  window.safeWsSend({ "message": "LOAD", "ui_language": uiLanguage });
 
   // Reset Context Panel for monadic apps
   if (typeof ContextPanel !== "undefined" && ContextPanel.resetContext) {
@@ -1339,8 +1374,6 @@ function doResetActions(resetToDefaultApp = false) {
       provider = "Cohere";
     } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
       provider = "Mistral";
-    } else if (group.includes("perplexity")) {
-      provider = "Perplexity";
     } else if (group.includes("deepseek")) {
       provider = "DeepSeek";
     } else if (group.includes("grok") || group.includes("xai")) {

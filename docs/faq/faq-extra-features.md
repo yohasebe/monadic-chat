@@ -22,7 +22,7 @@
 
 **A**: Yes, many of the apps in Monadic Chat support web search functionality:
 
-- **Native Web Search**: OpenAI, Claude, Gemini, Grok, and Perplexity use their built-in web search capabilities (enabled by default in supported apps)
+- **Native Web Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search capabilities (enabled by default in supported apps)
 - **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use Tavily API when `TAVILY_API_KEY` is configured in `~/monadic/config/env`
 - **URL Content Extraction**: All providers can extract content from URLs using Selenium-based web scraping via the "From URL" button in the message input area
 

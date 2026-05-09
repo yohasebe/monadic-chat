@@ -58,6 +58,14 @@ app "MailComposerOllama" do
     auto_speech false
   end
 
+  privacy do
+    enabled true
+    languages ["en"]
+    score_threshold 0.4
+    honorific_trim true
+    on_failure :block
+  end
+
   tools do
     import_shared_tools :file_operations, visibility: "always"
   end

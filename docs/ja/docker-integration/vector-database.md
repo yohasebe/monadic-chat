@@ -1,100 +1,89 @@
 # ベクトルデータベース
 
-Monadic Chatには、意味検索機能を実現する強力なベクトルデータベースシステムが組み込まれています。このドキュメントでは、このシステムがどのように動作し、アプリケーションでどのように使用されているかを説明します。
+Monadic Chat には、ドキュメントやユーザーのアップロード PDF に対する意味検索を可能にするベクトルデータベースシステムが組み込まれています。本ドキュメントでは、このシステムの動作とアプリケーション内での使われ方を説明します。
 
 ## 概要 :id=overview
 
-Monadic Chatのベクトルデータベース機能は以下のことを行います：
-- テキストを数値ベクトル表現（エンベディング）に変換
-- これらのベクトルをpgvectorを使用してPostgreSQLデータベースに格納
-- 単なるキーワードマッチングではなく、意味的類似性に基づく検索を可能に
-- PDF NavigatorアプリとMonadic Helpアプリで使用されています
+Monadic Chat のベクトルデータベース機能は次のことを行います：
+- テキストを数値ベクトル表現（エンベディング）にローカル変換
+- これらのベクトルを Qdrant コンテナに、構造化メタデータと共に格納
+- キーワード一致ではなく意味的類似性に基づく検索を実現
+- Knowledge Base アプリと Monadic Help アプリで利用
+
+パイプライン全体がローカルで完結するため、テキスト埋め込みやベクトル検索のために外部 API キーは不要です。
 
 ## 技術的実装 :id=technical-implementation
 
-### データベースコンテナ
+### サービスコンテナ
 
-ベクトルデータベース機能はpgvectorコンテナ（`monadic-chat-pgvector-container`）上で動作します。このコンテナは下記を行います：
-- pgvector拡張機能を搭載したPostgreSQLを実行
-- 高性能なベクトル保存と類似性検索を提供
-- ドキュメントの内容とそのベクトル表現の両方を保存
+ベクトル格納と埋め込み推論は、協調する 2 つのコンテナによって担当されます：
 
+- **`monadic-chat-qdrant-container`** は [Qdrant](https://qdrant.tech) ベクトルデータベースを実行します。ドキュメント、チャンク、それらの埋め込みに加え、フィルタリング/グルーピングに使う payload メタデータを保持します。
+- **`monadic-chat-embeddings-container`** は [`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) sentence-transformer モデルをラップする小さな FastAPI サービスを実行します。テキストを 768 次元のベクトルへ、ホスト CPU 上で変換します。
+
+両コンテナは Monadic Chat 起動時に自動で立ち上がり、設定不要です。
 
 ### テキスト処理フロー
 
 ![ベクトルデータベース利用のフロー](../assets/images/rag.png ':size=700')
 
-PDF Navigatorアプリでの処理フローは以下の通りです：
+Knowledge Base のインポートパイプラインの処理フローは以下の通りです：
 
-<!-- > 📸 **スクリーンショットが必要**: PDFアップロードとクエリインターフェースを表示するPDF Navigatorアプリ -->
-
-1. **テキスト抽出**： 
-   - PDFはPyMuPDFを使用して生テキストを抽出
-   - テキストは設定可能なトークンサイズ制限（デフォルト：セグメントあたり4000トークン）でセグメントに分割
-   - コンテキストを維持するために、設定可能な行数（デフォルト：4行）のオーバーラップを連続するセグメント間に設定
-   - これらの値は`~/monadic/config/env`ファイルで設定変数として設定可能：`PDF_RAG_TOKENS`と`PDF_RAG_OVERLAP_LINES`
+1. **コンテンツ抽出**：
+   - PDF は [pdfplumber](https://github.com/jsvine/pdfplumber) でテキストと表を抽出し、Markdown として構造を復元
+   - Office ファイル（`.docx`/`.xlsx`/`.pptx`）は `python-docx` / `openpyxl` / `python-pptx` で抽出
+   - Markdown とソースコードはそのまま読み込み、それぞれ見出し・トップレベル定義をセクション境界とする
+   - 抽出後のコンテンツはセクション単位（200〜4000 文字程度）でチャンク化（フォーマットごとの境界ルールあり）
 
 2. **エンベディング生成**：
-   - 各テキストセグメントはOpenAIの`text-embedding-3-large`モデルを使用してベクトル表現に変換
-   - これらのエンベディングはテキストの意味的内容を保持
-   - エンベディングベクトルは3072次元
+   - 各セグメントを embeddings コンテナに送り、`multilingual-e5-base` で 768 次元のベクトルを生成
+   - 英語・日本語をはじめ多くの言語を同等の品質で扱える
+   - ベクトルは L2 正規化されているため、コサイン類似度はドット積に簡約される
 
-3. **ベクトル保存**：
-   - テキストセグメントとそのベクトル表現の両方をPostgreSQLデータベースに保存
-   - pgvector拡張機能により効率的なベクトル操作が可能に
+3. **ベクトル格納**：
+   - 各チャンクは Qdrant の `library_turns` コレクションに 1 ポイントとして登録され、ベクトル本体と `{conversation_id, visibility, turn_idx, text, ...}` の payload を持つ
+   - 会話単位のポイントは `library_summaries` コレクションに格納され、title / source / content_type / placeholder summary 埋め込みを保持。ドキュメントレベルのカスケード検索の起点となる
 
 4. **検索プロセス**：
-   - ユーザーが質問すると、その質問もエンベディングベクトルに変換
-   - システムは質問に最も類似したエンベディングを持つテキストセグメントを検索
-   - これらの関連セグメントがユーザーの質問と共にLLMに提供
-   - LLMはこれらの関連テキストセグメントに基づいて回答を生成
+   - ユーザーが質問を入力すると、同じモデル（`query:` プレフィックス付き）でクエリを埋め込み
+   - HNSW インデックス上のコサイン類似度で、最も近いセグメントを Qdrant が返す
+   - 該当セグメントがユーザーのクエリとともに LLM に渡される
+   - LLM はそのセグメントを根拠に回答を生成
 
-## データベーススキーマ :id=database-schema
+## スキーマ :id=database-schema
 
-ベクトル保存のためのデータベーススキーマ：
+Qdrant はデータを名前付きコレクションで管理します。Monadic Chat は次のコレクションを使用します：
 
-- **docs**: アップロードされたドキュメントに関するメタデータを保存
-  - `id`: ドキュメントのユニークな識別子
-  - `title`: ドキュメントのタイトル
-  - `items`: ドキュメント内のテキストセグメント数
-  - `metadata`: JSON形式のドキュメントに関する追加情報
-  - `embedding`: ドキュメント全体の結合エンベディングベクトル
+- **`library_summaries`** — 会話/ドキュメント 1 件につき 1 ポイント。Payload：`{conversation_id, visibility, content_type, source, title, language, license, topics, messages, participants, ...}`。検索カスケードの入口、Knowledge Base ブラウズリストの source-of-truth として使用。
+- **`library_turns`** — チャンク化された各テキストセグメントに 1 ポイント。ベクトル：チャンク埋め込み。Payload：`{conversation_id, visibility, turn_idx, speaker_id, text, ...}`。`library_search` ツールが利用するメインの RAG 検索単位。
+- **`help_docs` / `help_items`** — Monadic Help のドキュメントインデックス。Ruby イメージにパッケージビルド時に同梱され、初回起動時に Qdrant へロードされる。
 
-- **items**: テキストセグメントとそのエンベディングを保存
-  - `id`: テキストセグメントのユニークな識別子
-  - `doc_id`: 親ドキュメントへの参照
-  - `text`: セグメントのテキスト内容
-  - `position`: ドキュメント内での順序位置
-  - `embedding`: テキストのベクトル表現（pgvectorを使用して保存）
-  - `metadata`: JSON形式の補足情報
+すべてのコレクションは 768 次元、コサイン距離、HNSW インデックス（フィルター付き高速検索対応）を使用します。
 
-`metadata`フィールドは主に各セグメントのトークン数を保存し、LLMが取得されたテキストセグメントのサイズを理解するのに役立ちます。
+## 可視性によるフィルタリング :id=visibility
 
-## PDF Navigatorでの使用 :id=use-in-pdf-navigator
+Library エントリは `personal` または `shareable` の `visibility` payload を持ちます。Knowledge Base UI は両方を表示しますが、アプリ横断的に呼ばれる `library_search` ツールは `shareable` のみを返します。これは旧 PDF Navigator 時代の「アプリ単位の物理隔離」モデルを置き換えるもので、プロジェクト全体で 1 つの Library を共有しつつ、外部アクセスを visibility フラグで制御します。
 
-PDF Navigatorアプリはこのシステムを活用して、インテリジェントなドキュメントQ&A機能を提供します：
+## Knowledge Base での使用 :id=use-in-knowledge-base
 
-1. ユーザーはUI経由でPDFドキュメントをアップロード
-2. システムは上記のように文書を処理
-3. ユーザーはドキュメントの内容について質問できる
-4. システムはベクトル類似性検索を使用して最も関連性の高いセグメントを取得
-5. これらのセグメントがLLMに提供され、情報に基づいた回答が生成される
+Knowledge Base アプリはこのシステムを使って統合的なコンテンツ Q&A を提供します：
 
-本アプリでは、各回答に使用されたドキュメントとテキストセグメントも表示し、ユーザーに情報源を明確に伝えます。
+1. ユーザーが現在のチャットセッションを保存、または Browse モーダルの **Import file** をクリック
+2. システムが抽出・チャンク化・埋め込み・格納を実行（PDF は pdfplumber、Office は python-docx/openpyxl/python-pptx、Markdown とコードは直接読み込み）
+3. ユーザーが内容について質問。ユーザーが該当エントリを `shareable` にしておけば、他アプリも `library_search` 経由で同じ Library を参照可能
+4. summaries → turns のカスケード検索で関連チャンクを取得
+5. 取得したチャンクが LLM に渡され、それを根拠に回答が生成される
 
-?> PDFストレージモードオプション（ローカル vs クラウド）については、[PDFストレージ](../basic-usage/pdf_storage.md)のドキュメントを参照してください。
+インポートしたファイルは追跡用に `~/monadic/data/library/imports/` にも保存されます。
 
-## Monadic Helpでの使用 :id=use-in-monadic-help
+## Monadic Help での使用 :id=use-in-monadic-help
 
-Monadic Chatはベクトルストレージ用に2つの別々のデータベースを使用します：
-- `monadic_user_docs` - PDF NavigatorアプリでユーザーがアップロードしたPDFドキュメント用
-- `monadic_help` - Monadic Helpアプリの組み込みドキュメント検索用
+Monadic Help アプリは同じ Qdrant + embeddings スタックを利用しますが、`help_docs` / `help_items` コレクションを参照します。これらはパッケージビルド時に事前構築されます：
 
-Monadic Helpアプリは、次のようにベクトルデータベースシステムを使用します：
+1. Monadic Chat のビルド時に、ドキュメントファイルをすべて処理して埋め込みを計算
+2. 結果は JSON ダンプ（`help_data/help_db.json`）として Ruby イメージに同梱される
+3. 初回起動時、Monadic Chat はそのダンプを Qdrant に 1 度だけロードする
+4. ユーザー質問時には、同じ query/passage 埋め込みフローで関連ドキュメントを検索
+5. ヒットした内容を LLM に渡して回答を生成
 
-1. ドキュメントファイルはビルドプロセス中に事前処理され、埋め込まれます
-2. ヘルプデータベースはMonadic Chatの初回起動時に自動的にビルドされます
-3. ユーザーがMonadic Chatについて質問すると、システムは埋め込まれたドキュメントを検索します
-4. 関連するドキュメントセクションが取得され、LLMに提供されて有用な回答が生成されます
-
-ヘルプシステムは同じ`text-embedding-3-large`モデルを使用しますが、ドキュメント検索をユーザーデータから分離するために、エンベディングを別のデータベースに保持します。なお、データベースは自動的にビルドされますが、検索機能にはエンベディングモデルが必要なため、Monadic Helpアプリを使用するにはOpenAI APIキーが必要です。
+埋め込み推論もストレージもローカルで完結するため、ヘルプシステムは外部プロバイダの API キーがなくても動作します。

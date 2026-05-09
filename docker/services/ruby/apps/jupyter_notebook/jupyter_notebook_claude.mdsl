@@ -420,6 +420,7 @@ app "JupyterNotebookClaude" do
   TEXT
 
   features do
+    library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     monadic true  # Uses Session State for notebook context tracking
     easy_submit false

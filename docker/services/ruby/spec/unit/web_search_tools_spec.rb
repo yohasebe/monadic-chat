@@ -82,20 +82,6 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
       end
     end
 
-    context 'with Perplexity provider' do
-      let(:instance) do
-        test_class.new.tap do |obj|
-          allow(obj.class).to receive(:name).and_return('ChatPerplexity')
-        end
-      end
-
-      it 'routes to native Perplexity search' do
-        result = instance.search_web(query: 'test query')
-        expect(result).to be_a(String)
-        expect(result).to include('native search')
-      end
-    end
-
     context 'with Tavily-dependent provider (DeepSeek)' do
       let(:instance) do
         test_class.new.tap do |obj|
@@ -220,7 +206,7 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
       instance = test_class.new
 
       # Test each provider category
-      native_providers = ['openai', 'claude', 'gemini', 'grok', 'perplexity']
+      native_providers = ['openai', 'claude', 'gemini', 'grok']
       native_providers.each do |provider|
         allow(instance.class).to receive(:name).and_return("Chat#{provider.capitalize}")
         result = instance.search_web(query: 'test')

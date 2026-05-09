@@ -13,7 +13,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
 
     it 'contains all expected providers' do
       result = described_class.load_provider_defaults
-      %w[openai anthropic gemini cohere mistral xai perplexity deepseek ollama].each do |provider|
+      %w[openai anthropic gemini cohere mistral xai deepseek ollama].each do |provider|
         expect(result).to have_key(provider), "Expected providerDefaults to include #{provider}"
       end
     end
@@ -39,7 +39,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'returns the first model for xai code' do
-      expect(described_class.get_provider_default("xai", "code")).to eq("grok-code-fast-1")
+      expect(described_class.get_provider_default("xai", "code")).to eq("grok-4.3")
     end
 
     it 'returns nil for non-existent provider' do
@@ -117,7 +117,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_vision_model returns the vision default' do
-      expect(described_class.default_vision_model("openai")).to eq("gpt-4.1-mini")
+      expect(described_class.default_vision_model("openai")).to eq("gpt-5.4-mini")
     end
 
     it '.default_audio_model returns the audio_transcription default' do
@@ -125,7 +125,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_image_model returns the image default' do
-      expect(described_class.default_image_model("openai")).to eq("gpt-image-1.5")
+      expect(described_class.default_image_model("openai")).to eq("gpt-image-2")
     end
 
     it '.default_video_model returns nil when OpenAI video category removed (Sora API shutdown)' do
@@ -150,14 +150,6 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
 
     it '.default_code_model returns nil when category does not exist' do
       expect(described_class.default_code_model("cohere")).to be_nil
-    end
-
-    it '.default_embedding_model returns the embedding default' do
-      expect(described_class.default_embedding_model("openai")).to eq("text-embedding-3-large")
-    end
-
-    it '.default_embedding_model returns nil for providers without embedding' do
-      expect(described_class.default_embedding_model("anthropic")).to be_nil
     end
   end
 
@@ -188,6 +180,17 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
   end
 
   describe 'error handling' do
+    # Both tests below stub read_model_spec_js so load_provider_defaults
+    # caches an empty `{}` in `@provider_defaults`. RSpec restores the
+    # method stub after each example, but the cached instance variable
+    # is module-level state that persists into the next spec file.
+    # Without this cleanup, downstream tests that rely on the real
+    # providerDefaults (e.g. ai_user_agent_spec asserting "gpt-5.4" as
+    # the OpenAI fallback) intermittently fail when run in random order.
+    after do
+      described_class.reload!
+    end
+
     it 'load_provider_defaults returns empty hash when JS parsing fails' do
       # Force a reload so next call reads fresh
       described_class.reload!

@@ -83,20 +83,63 @@ RSpec.describe StringUtils do
       # CLD should detect this as English
       expect(result).to eq("en")
     end
-    
+
     it "detects different languages" do
       # Test with real language detection for different languages
       # French text
       french_result = StringUtils.detect_language("Bonjour le monde! Ceci est un texte français.")
       expect(["fr", "en"]).to include(french_result) # CLD might detect as either
-      
-      # Japanese text  
+
+      # Japanese text
       japanese_result = StringUtils.detect_language("こんにちは世界！これは日本語のテキストです。")
       expect(japanese_result).to eq("ja")
-      
+
       # Spanish text
       spanish_result = StringUtils.detect_language("¡Hola mundo! Este es un texto en español.")
       expect(["es", "en"]).to include(spanish_result) # CLD might detect as either
+    end
+  end
+
+  describe ".detect_language_with_confidence" do
+    it "returns code and reliable flag for clean English text" do
+      result = StringUtils.detect_language_with_confidence(
+        "This is a sufficiently long English paragraph with several sentences. " \
+        "It is intended to give CLD enough signal to flag the detection as reliable."
+      )
+      expect(result).to be_a(Hash)
+      expect(result.keys).to contain_exactly(:code, :reliable)
+      expect(result[:code]).to eq("en")
+      expect(result[:reliable]).to be(true)
+    end
+
+    it "marks Japanese text as reliable" do
+      result = StringUtils.detect_language_with_confidence(
+        "こんにちは世界。これは日本語のテキストです。意味のある内容を持つようにしています。"
+      )
+      expect(result[:code]).to eq("ja")
+      expect(result[:reliable]).to be(true)
+    end
+
+    it "returns reliable: false for ambiguous short input" do
+      # CLD 0.13 flags this two-letter input as Catalan with reliable: false.
+      result = StringUtils.detect_language_with_confidence("hi")
+      expect(result).to be_a(Hash)
+      expect(result[:reliable]).to be(false)
+    end
+
+    it "treats CLD's 'un' (Unknown) result as unreliable" do
+      # CLD can return code: 'un' with reliable: true for empty-ish input;
+      # the helper rewrites this to reliable: false defensively.
+      allow(CLD).to receive(:detect_language).and_return({ code: "un", reliable: true })
+      result = StringUtils.detect_language_with_confidence("anything")
+      expect(result[:code]).to eq("un")
+      expect(result[:reliable]).to be(false)
+    end
+
+    it "returns nil for nil or empty input" do
+      expect(StringUtils.detect_language_with_confidence(nil)).to be_nil
+      expect(StringUtils.detect_language_with_confidence("")).to be_nil
+      expect(StringUtils.detect_language_with_confidence("   ")).to be_nil
     end
   end
   
@@ -304,7 +347,8 @@ RSpec.describe StringUtils do
     it "handles code blocks with syntax highlighting" do
       text = "```ruby\nputs 'Hello'\n```"
       result = StringUtils.markdown_to_html(text)
-      # Phase 3: Client-side rendering - HTML structure is simpler, highlighting added by client
+      # Client-side rendering keeps the server HTML structure simple;
+      # syntax highlighting is added by the client.
       expect(result).to include("<pre><code class=\"language-ruby\">")
       # Single quotes are HTML-encoded for security
       expect(result).to include("puts &#39;Hello&#39;")
@@ -348,7 +392,8 @@ RSpec.describe StringUtils do
       text = "Some text\n    ```ruby\n    puts 'Hello'\n    ```\nMore text"
       result = StringUtils.markdown_to_html(text)
 
-      # Phase 3: Client-side rendering - HTML structure is simpler, highlighting added by client
+      # Client-side rendering keeps the server HTML structure simple;
+      # syntax highlighting is added by the client.
       expect(result).to include("<pre><code class=\"language-ruby\">")
       # Single quotes are HTML-encoded for security
       expect(result).to include("puts &#39;Hello&#39;")
@@ -409,7 +454,7 @@ RSpec.describe StringUtils do
       it "preserves math code in code blocks" do
         text = "```python\nx = 1 + 2 # Compute $E = mc^2$ result\n```"
         result = StringUtils.markdown_to_html(text, math: true)
-        # Phase 3: Client-side rendering - syntax highlighting added by client
+        # Syntax highlighting is added by the client at render time.
         expect(result).to include("<code class=\"language-python\">")
         expect(result).to include("x = 1 + 2")
         expect(result).to include("$E = mc^2$")
@@ -418,7 +463,7 @@ RSpec.describe StringUtils do
       it "does not convert LaTeX notation inside code blocks" do
         text = "```python\nExample: \\[E = mc^2\\] or \\(a + b = c\\)\n```"
         result = StringUtils.markdown_to_html(text, math: true)
-        # Phase 3: Client-side rendering - syntax highlighting added by client
+        # Syntax highlighting is added by the client at render time.
         expect(result).to include("<code class=\"language-python\">")
         expect(result).to include("Example")
         # The LaTeX notation should be preserved in the code block

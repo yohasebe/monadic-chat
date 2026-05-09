@@ -27,7 +27,7 @@ RUN_API=true bundle exec rspec spec/integration/provider_matrix/all_providers_al
 ```
 
 **Features:**
-- Tests all provider × app combinations (OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, DeepSeek, Perplexity)
+- Tests all provider × app combinations (OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, DeepSeek)
 - Uses ResponseEvaluator for AI-based response validation
 - Validates both text responses and tool calls
 - Detects runtime errors in responses
@@ -42,7 +42,7 @@ RUN_API=true bundle exec rspec spec/integration/provider_matrix/all_providers_al
 - `jupyter_*.rb` - Jupyter Notebook functionality
 - `voice_*.rb` - Voice chat and TTS/STT integration
 - `selenium_*.rb` - Browser automation tests
-- `pgvector_*.rb` - Vector database integration
+- `qdrant_*.rb` - Vector database integration (Qdrant)
 - `websocket_*.rb` - WebSocket communication
 
 ### API Tests (`api_media/`)

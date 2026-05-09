@@ -9,6 +9,10 @@ const updater = require('./updater');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
 let extendedContextMenu = null;
 const i18n = require('./i18n');
+// SSOT for Python install options + Privacy/Extractor language lists.
+// See `app/install_options.config.js` for the schema and the contract
+// with `app/settings.html`'s build-state badges.
+const installOptions = require('./install_options.config');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -63,6 +67,7 @@ const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const net = require('net');
+const crypto = require('crypto');
 
 // Add debug mode for troubleshooting statusIndicator issues
 const debugStatusIndicator = false;
@@ -451,9 +456,21 @@ class DockerManager {
     if (envPath) {
       const envConfig = readEnvFile(envPath);
       this.serverMode = envConfig.DISTRIBUTED_MODE === 'server';
-      
+
       // Set host binding based on mode - 0.0.0.0 for server mode, 127.0.0.1 for standalone
       envConfig.HOST_BINDING = this.serverMode ? '0.0.0.0' : '127.0.0.1';
+
+      // In server mode, every non-loopback request must carry an auth
+      // token. Generate one on first switch so the user never runs the
+      // app wide-open by accident; subsequent loads keep the existing
+      // token so bookmarks survive.
+      if (this.serverMode) {
+        const existing = (envConfig.MONADIC_AUTH_TOKEN || '').toString().trim();
+        if (existing.length === 0) {
+          envConfig.MONADIC_AUTH_TOKEN = crypto.randomBytes(32).toString('hex');
+        }
+      }
+
       writeEnvFile(envPath, envConfig);
       
       // Get local IP address for server mode
@@ -662,7 +679,7 @@ class DockerManager {
             const envConfig = readEnvFile(envPath);
 
             // For build commands, always force rebuild by setting FORCE_REBUILD=true
-            const isBuildCommand = ['build', 'build_ruby_container', 'build_python_container', 'build_user_containers'].includes(command);
+            const isBuildCommand = ['build', 'build_ruby_container', 'build_python_container', 'build_user_containers', 'build_privacy_container', 'build_extractor_container'].includes(command);
             const buildEnv = isBuildCommand ? { FORCE_REBUILD: 'true' } : {};
 
             let subprocess = spawn(cmd, [], {
@@ -693,6 +710,10 @@ class DockerManager {
                 translatedOutput = formatMessage('success', 'messages.buildRubyFinished');
               } else if (output.includes('Build of Python container has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildPythonFinished');
+              } else if (output.includes('Privacy container build succeeded')) {
+                translatedOutput = formatMessage('success', 'messages.buildPrivacyFinished');
+              } else if (output.includes('Privacy container build failed')) {
+                translatedOutput = formatMessage('error', 'messages.buildPrivacyFailed');
               } else if (output.includes('Build of user containers has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildUserFinished');
               } else if (output.includes('Build of Monadic Chat has finished')) {
@@ -807,10 +828,21 @@ class DockerManager {
                             console.error('Error getting network interfaces:', err);
                           }
                           
+                          // Pull the per-instance auth token out of the
+                          // env file so the displayed URL is shareable —
+                          // copying it into a phone or tablet browser is
+                          // enough to authenticate.
+                          let authToken = '';
+                          try {
+                            const cfg = readEnvFile(getEnvPath());
+                            authToken = (cfg.MONADIC_AUTH_TOKEN || '').toString().trim();
+                          } catch (_) { /* ignore — UI will degrade gracefully */ }
+
                           // Send a custom command to show network URL exactly once
                           if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('display-network-url', {
-                              localIP: localIPAddress
+                              localIP: localIPAddress,
+                              authToken: authToken
                             });
                           }
                         } else {
@@ -1239,143 +1271,6 @@ function openMainWindow() {
   }
 }
 
-// Clean up OpenAI Files and Vector Stores created by Monadic Chat
-async function cleanupOpenAIStorage() {
-  try {
-    const envPath = getEnvPath();
-    const envConfig = envPath ? readEnvFile(envPath) : {};
-    const apiKey = envConfig.OPENAI_API_KEY;
-    if (!apiKey) {
-      dialog.showErrorBox(i18n.t('dialogs.error'), 'OPENAI_API_KEY is not configured.');
-      return;
-    }
-
-    const res = await dialog.showMessageBox(mainWindow, {
-      type: 'warning',
-      buttons: [i18n.t('dialogs.cancel'), i18n.t('dialogs.yes')],
-      defaultId: 1,
-      title: i18n.t('dialogs.cleanupCloudConfirmTitle') || 'Cleanup Cloud Storage',
-      message: i18n.t('dialogs.cleanupCloudConfirmTitle') || 'Cleanup Cloud Storage',
-      detail: i18n.t('dialogs.cleanupCloudConfirmMessage') || "This will delete all Vector Stores whose names start with 'monadic-' and any files attached to them.",
-      icon: path.join(iconDir, 'app-icon.png')
-    });
-    if (res.response !== 1) return;
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('command-output', formatMessage('info', 'messages.cleaningCloudStorage'));
-    }
-
-    const https = require('https');
-    const base = 'api.openai.com';
-    function request(method, path, body) {
-      const opts = {
-        hostname: base,
-        port: 443,
-        path: `/v1${path}`,
-        method,
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      };
-      return new Promise((resolve, reject) => {
-        const req = https.request(opts, (resp) => {
-          let data = '';
-          resp.on('data', (chunk) => data += chunk);
-          resp.on('end', () => {
-            try {
-              const json = data ? JSON.parse(data) : {};
-              resolve({ status: resp.statusCode, json });
-            } catch (e) {
-              resolve({ status: resp.statusCode, json: {} });
-            }
-          });
-        });
-        req.on('error', reject);
-        if (body) req.write(JSON.stringify(body));
-        req.end();
-      });
-    }
-
-    // List vector stores (first 100)
-    const vsList = await request('GET', '/vector_stores?limit=100');
-    const stores = (vsList.json && vsList.json.data) ? vsList.json.data : [];
-    const monadicStores = stores.filter(s => (s.name || '').toLowerCase().startsWith('monadic-'));
-
-    // Build a set of file IDs that are attached to non-monadic stores (protect them from deletion)
-    const nonMonadicFileIds = new Set();
-    for (const st of stores) {
-      const isMonadic = (st.name || '').toLowerCase().startsWith('monadic-');
-      if (isMonadic) continue;
-      try {
-        const fr = await request('GET', `/vector_stores/${st.id}/files?limit=200`);
-        const arr = (fr.json && fr.json.data) ? fr.json.data : [];
-        arr.forEach(f => nonMonadicFileIds.add(f.id));
-      } catch {}
-    }
-
-    // Build an allowlist of file IDs that were uploaded by Monadic Chat (from local meta files, best-effort)
-    const allowedFileIds = new Set();
-    try {
-      const dataDir = path.join(os.homedir(), 'monadic', 'data');
-      const metaPath = path.join(dataDir, 'pdf_navigator_openai.json');
-      if (fs.existsSync(metaPath)) {
-        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        (meta.files || []).forEach(item => { if (item.file_id) allowedFileIds.add(item.file_id); });
-      }
-      const registryPath = path.join(dataDir, 'document_store_registry.json');
-      if (fs.existsSync(registryPath)) {
-        const reg = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-        Object.values(reg || {}).forEach(appEntry => {
-          if (appEntry && appEntry.files && Array.isArray(appEntry.files)) {
-            appEntry.files.forEach(fid => allowedFileIds.add(fid));
-          }
-        });
-      }
-    } catch {}
-    let deletedStores = 0;
-    let deletedFiles = 0;
-    for (const store of monadicStores) {
-      const vsId = store.id;
-      // List files in store
-      try {
-        const filesRes = await request('GET', `/vector_stores/${vsId}/files?limit=200`);
-        const files = (filesRes.json && filesRes.json.data) ? filesRes.json.data : [];
-        for (const f of files) {
-          const fid = f.id;
-          // Always detach from the monadic store
-          try { await request('DELETE', `/vector_stores/${vsId}/files/${fid}`); } catch {}
-          // Delete the File object only if:
-          // - it is NOT attached to any non-monadic store
-          // - AND it's in our allowlist (uploaded by Monadic Chat) if allowlist exists
-          const allowlistPresent = allowedFileIds.size > 0;
-          const allowed = allowlistPresent ? allowedFileIds.has(fid) : true;
-          if (!nonMonadicFileIds.has(fid) && allowed) {
-            try { await request('DELETE', `/files/${fid}`); deletedFiles++; } catch {}
-          }
-        }
-      } catch {}
-      // Delete store itself
-      try { await request('DELETE', `/vector_stores/${vsId}`); deletedStores++; } catch {}
-    }
-
-    // Remove local meta/registry files (best-effort)
-    try {
-      const dataDir = path.join(os.homedir(), 'monadic', 'data');
-      const metaPath = path.join(dataDir, 'pdf_navigator_openai.json');
-      if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
-      const registryPath = path.join(dataDir, 'document_store_registry.json');
-      if (fs.existsSync(registryPath)) fs.unlinkSync(registryPath);
-    } catch {}
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('command-output', formatMessage('success', 'messages.cloudCleanupFinished', { files: deletedFiles, stores: deletedStores }));
-    }
-  } catch (err) {
-    dialog.showErrorBox(i18n.t('dialogs.error'), `Cloud cleanup failed: ${err.message}`);
-  }
-}
-
 let statusMenuItem = {
   label: `${i18n.t('menu.status')}: ${i18n.t('status.stopped')}`,
   enabled: false
@@ -1624,7 +1519,9 @@ function initializeApp() {
           case 'start':
             // Check requirements first
             dockerManager.checkRequirements()
-              .then(() => {
+              .then(() => promptForPendingRebuilds())
+              .then((proceed) => {
+                if (!proceed) return;
                 dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
               })
               .catch((error) => {
@@ -1721,6 +1618,18 @@ function initializeApp() {
             openMainWindow();
             dockerManager.runCommand('build_user_containers',
               formatMessage(null, 'messages.buildingUserContainers'),
+              'Building', 'Stopped', false);
+            break;
+          case 'build_privacy_container':
+            openMainWindow();
+            dockerManager.runCommand('build_privacy_container',
+              formatMessage(null, 'messages.buildingPrivacyContainer'),
+              'Building', 'Stopped', false);
+            break;
+          case 'build_extractor_container':
+            openMainWindow();
+            dockerManager.runCommand('build_extractor_container',
+              formatMessage(null, 'messages.buildingExtractorContainer'),
               'Building', 'Stopped', false);
             break;
           // JupyterLab commands
@@ -1909,6 +1818,215 @@ function initializeApp() {
 // Convert Windows path to Unix path format
 function toUnixPath(p) {
   return p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
+}
+
+// ─── Document DB encryption ────────────────────────────────────────────
+//
+// AES-256-GCM with PBKDF2 (SHA-256, 600 000 iterations) over a per-export
+// random salt. File layout (all big-endian):
+//
+//   magic    : 4 bytes  ("MQDB")
+//   version  : 1 byte   (0x01)
+//   salt     : 16 bytes
+//   iv       : 12 bytes
+//   ciphertext (variable)
+//   authTag  : 16 bytes (last 16 bytes of the file)
+//
+// Streaming friendly (file size can be GB-scale): we pre-write the header,
+// stream cipher.update(chunk) for each disk read chunk, then append the
+// auth tag once cipher.final() resolves. Decrypt mirrors this — read
+// header from the front, read auth tag from the tail (via stat()), stream
+// the middle through the decipher.
+//
+// File format constants
+const DB_ENC_MAGIC = Buffer.from([0x4d, 0x51, 0x44, 0x42]); // 'MQDB'
+const DB_ENC_VERSION = 0x01;
+const DB_ENC_SALT_BYTES = 16;
+const DB_ENC_IV_BYTES = 12;
+const DB_ENC_TAG_BYTES = 16;
+const DB_ENC_HEADER_BYTES = 4 + 1 + DB_ENC_SALT_BYTES + DB_ENC_IV_BYTES;
+const DB_ENC_KDF_ITERATIONS = 600000; // OWASP 2023 recommendation for PBKDF2-HMAC-SHA256
+
+function encryptDbExport(plainPath, encPath, passphrase) {
+  return new Promise((resolve, reject) => {
+    const salt = crypto.randomBytes(DB_ENC_SALT_BYTES);
+    const iv = crypto.randomBytes(DB_ENC_IV_BYTES);
+    let key;
+    try {
+      key = crypto.pbkdf2Sync(passphrase, salt, DB_ENC_KDF_ITERATIONS, 32, 'sha256');
+    } catch (err) {
+      return reject(err);
+    }
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+    const fout = fs.createWriteStream(encPath);
+    fout.on('error', reject);
+
+    // Header
+    fout.write(DB_ENC_MAGIC);
+    fout.write(Buffer.from([DB_ENC_VERSION]));
+    fout.write(salt);
+    fout.write(iv);
+
+    const fin = fs.createReadStream(plainPath);
+    fin.on('error', (err) => {
+      fout.destroy();
+      reject(err);
+    });
+
+    fin.on('data', (chunk) => {
+      const enc = cipher.update(chunk);
+      if (enc.length > 0) fout.write(enc);
+    });
+    fin.on('end', () => {
+      try {
+        const tail = cipher.final();
+        if (tail.length > 0) fout.write(tail);
+        fout.write(cipher.getAuthTag());
+        fout.end(() => resolve());
+      } catch (err) {
+        fout.destroy();
+        reject(err);
+      }
+    });
+  });
+}
+
+function decryptDbImport(encPath, plainPath, passphrase) {
+  return new Promise((resolve, reject) => {
+    let stat;
+    try {
+      stat = fs.statSync(encPath);
+    } catch (err) {
+      return reject(err);
+    }
+    const totalSize = stat.size;
+    if (totalSize < DB_ENC_HEADER_BYTES + DB_ENC_TAG_BYTES) {
+      return reject(new Error('Encrypted DB file is truncated.'));
+    }
+
+    let fd;
+    try {
+      fd = fs.openSync(encPath, 'r');
+    } catch (err) {
+      return reject(err);
+    }
+
+    try {
+      const headerBuf = Buffer.alloc(DB_ENC_HEADER_BYTES);
+      fs.readSync(fd, headerBuf, 0, DB_ENC_HEADER_BYTES, 0);
+      if (!headerBuf.subarray(0, 4).equals(DB_ENC_MAGIC)) {
+        fs.closeSync(fd);
+        return reject(new Error('Not an encrypted Monadic Chat DB export (magic mismatch).'));
+      }
+      if (headerBuf[4] !== DB_ENC_VERSION) {
+        fs.closeSync(fd);
+        return reject(new Error('Unsupported encrypted DB format version: ' + headerBuf[4]));
+      }
+      const salt = headerBuf.subarray(5, 5 + DB_ENC_SALT_BYTES);
+      const iv = headerBuf.subarray(5 + DB_ENC_SALT_BYTES, 5 + DB_ENC_SALT_BYTES + DB_ENC_IV_BYTES);
+
+      const tagBuf = Buffer.alloc(DB_ENC_TAG_BYTES);
+      fs.readSync(fd, tagBuf, 0, DB_ENC_TAG_BYTES, totalSize - DB_ENC_TAG_BYTES);
+      fs.closeSync(fd);
+
+      const key = crypto.pbkdf2Sync(passphrase, salt, DB_ENC_KDF_ITERATIONS, 32, 'sha256');
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+      decipher.setAuthTag(tagBuf);
+
+      const fout = fs.createWriteStream(plainPath);
+      fout.on('error', reject);
+
+      const fin = fs.createReadStream(encPath, {
+        start: DB_ENC_HEADER_BYTES,
+        end: totalSize - DB_ENC_TAG_BYTES - 1
+      });
+      fin.on('error', (err) => {
+        fout.destroy();
+        reject(err);
+      });
+
+      fin.on('data', (chunk) => {
+        const dec = decipher.update(chunk);
+        if (dec.length > 0) fout.write(dec);
+      });
+      fin.on('end', () => {
+        try {
+          const tail = decipher.final();
+          if (tail.length > 0) fout.write(tail);
+          fout.end(() => resolve());
+        } catch (err) {
+          fout.destroy();
+          // Clean up partial decrypt; an authentication failure
+          // produces an unusable file.
+          try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+          reject(new Error('Decryption failed (wrong passphrase or tampered file).'));
+        }
+      });
+    } catch (err) {
+      try { fs.closeSync(fd); } catch (_) { /* ignore */ }
+      reject(err);
+    }
+  });
+}
+
+// Open a small modal BrowserWindow that prompts for a passphrase. Returns
+// a Promise that resolves to a string on submit, or null on cancel.
+//
+// `opts.confirmRequired` (default true) shows a "confirm" field; for
+// decrypt-time prompts pass false to allow a single-field prompt.
+function promptPassphrase(parent, opts) {
+  const options = Object.assign({
+    title: 'Enter Passphrase',
+    hint: 'Used to encrypt the export file. Minimum 8 characters.',
+    confirmRequired: true
+  }, opts || {});
+
+  return new Promise((resolve) => {
+    const win = new BrowserWindow({
+      parent: parent || undefined,
+      modal: !!parent,
+      width: 400,
+      height: options.confirmRequired ? 280 : 220,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      title: 'Passphrase',
+      show: false,
+      autoHideMenuBar: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload-passphrase.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
+      }
+    });
+
+    let resolved = false;
+    function settle(value) {
+      if (resolved) return;
+      resolved = true;
+      ipcMain.removeListener('passphrase-prompt:result', onResult);
+      if (!win.isDestroyed()) win.close();
+      resolve(value);
+    }
+
+    function onResult(_event, payload) {
+      if (payload && payload.ok && typeof payload.passphrase === 'string') {
+        settle(payload.passphrase);
+      } else {
+        settle(null);
+      }
+    }
+    ipcMain.on('passphrase-prompt:result', onResult);
+
+    win.on('closed', () => settle(null));
+    win.webContents.once('did-finish-load', () => {
+      win.webContents.send('passphrase-prompt:init', options);
+      win.show();
+    });
+    win.loadFile(path.join(__dirname, 'passphrase-prompt.html'));
+  });
 }
 
 // Fetch a URL with retries and a delay between attempts
@@ -2134,7 +2252,12 @@ function updateContextMenu(disableControls = false) {
 
 function updateApplicationMenu() {
   // Make sure to update menu structure to reflect the current status
-  
+  // Read PRIVACY_FILTER / EXTRACTOR_SERVICE from env so the Build menus
+  // reflect the user's opt-in choice, not just the Docker container status.
+  const envCfg = loadSettings() || {};
+  const privacyFilterOn = String(envCfg.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
+  const extractorServiceOn = String(envCfg.EXTRACTOR_SERVICE || '').toLowerCase() === 'true';
+
   // Create standard menu
   const menu = Menu.buildFromTemplate([
     {
@@ -2325,6 +2448,30 @@ function updateApplicationMenu() {
             enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
           {
+            label: i18n.t('menu.buildPrivacyContainer'),
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_privacy_container',
+                formatMessage(null, 'messages.buildingPrivacyContainer'),
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: (currentStatus === 'Stopped' || currentStatus === 'Uninstalled') && privacyFilterOn
+          },
+          {
+            label: i18n.t('menu.buildExtractorContainer'),
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_extractor_container',
+                formatMessage(null, 'messages.buildingExtractorContainer'),
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: (currentStatus === 'Stopped' || currentStatus === 'Uninstalled') && extractorServiceOn
+          },
+          {
             type: 'separator'
           },
           {
@@ -2369,16 +2516,126 @@ function updateApplicationMenu() {
           },
           {
             label: i18n.t('menu.importDocumentDB'),
-            click: () => {
+            click: async () => {
+              // Importing wipes the qdrant volume and replaces it with the
+              // contents of the tarball — irreversible. Confirm before
+              // proceeding so an accidental click does not destroy the
+              // user's saved conversations and PDFs.
+              const result = await dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                buttons: [i18n.t('dialogs.importDbContinue'), i18n.t('dialogs.cancel')],
+                defaultId: 1,
+                cancelId: 1,
+                title: i18n.t('dialogs.importDbConfirmTitle'),
+                message: i18n.t('dialogs.importDbConfirmMessage'),
+                detail: i18n.t('dialogs.importDbConfirmDetail'),
+                icon: path.join(iconDir, 'app-icon.png')
+              });
+              if (result.response !== 0) return;
+
+              // Detect which file is present. Prefer the encrypted form
+              // when it exists so users do not accidentally import an
+              // older plaintext copy left behind from a previous export.
+              const dataDir = path.join(os.homedir(), 'monadic', 'data');
+              const plainPath = path.join(dataDir, 'monadic-qdrant.tar.gz');
+              const encPath = plainPath + '.enc';
+              const hasEnc = fs.existsSync(encPath);
+              const hasPlain = fs.existsSync(plainPath);
+              if (!hasEnc && !hasPlain) {
+                dialog.showErrorBox(i18n.t('dialogs.error'),
+                  'Document DB file not found. Place monadic-qdrant.tar.gz or monadic-qdrant.tar.gz.enc in ~/monadic/data/.');
+                return;
+              }
+
+              let createdTempPlain = false;
+              if (hasEnc) {
+                const passphrase = await promptPassphrase(mainWindow, {
+                  title: i18n.t('dialogs.importDbPassphraseTitle'),
+                  hint: i18n.t('dialogs.importDbPassphraseHint'),
+                  confirmRequired: false
+                });
+                if (passphrase === null) return;
+                openMainWindow();
+                writeToScreen(formatMessage(null, 'dialogs.importDbDecryptingMessage'));
+                try {
+                  await decryptDbImport(encPath, plainPath, passphrase);
+                  createdTempPlain = true;
+                } catch (err) {
+                  writeToScreen('[ERROR]: ' + (err && err.message ? err.message : i18n.t('dialogs.importDbDecryptFailed')));
+                  return;
+                }
+              }
+
               openMainWindow();
-              dockerManager.runCommand('import-db', formatMessage(null, 'messages.importingDocumentDB'), 'Importing', 'Stopped')
+              try {
+                await dockerManager.runCommand('import-db', formatMessage(null, 'messages.importingDocumentDB'), 'Importing', 'Stopped');
+              } finally {
+                // Remove the temporary decrypted tarball regardless of
+                // whether the import succeeded — the qdrant volume has
+                // already been wiped by monadic.sh, so leaving the
+                // plaintext on disk only widens the leak surface.
+                if (createdTempPlain) {
+                  try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+                }
+              }
             },
             enabled: currentStatus === 'Stopped' && metRequirements
           },
           {
             label: i18n.t('menu.exportDocumentDB'),
-            click: () => {
-              dockerManager.runCommand('export-db', formatMessage(null, 'messages.exportingDocumentDB'), 'Exporting', 'Stopped');
+            click: async () => {
+              // The plain export contains every saved conversation and
+              // PDF in plaintext, regardless of whether Privacy Filter
+              // was active when each item was saved. Strongly steer the
+              // user toward the encrypted variant; "Export Plain" is
+              // still available but explicit.
+              const result = await dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                buttons: [
+                  i18n.t('dialogs.exportDbEncrypted'),
+                  i18n.t('dialogs.exportDbPlain'),
+                  i18n.t('dialogs.cancel')
+                ],
+                defaultId: 0,
+                cancelId: 2,
+                title: i18n.t('dialogs.exportDbConfirmTitle'),
+                message: i18n.t('dialogs.exportDbConfirmMessage'),
+                detail: i18n.t('dialogs.exportDbConfirmDetail'),
+                icon: path.join(iconDir, 'app-icon.png')
+              });
+              if (result.response === 2) return;
+
+              const encrypt = (result.response === 0);
+              let passphrase = null;
+              if (encrypt) {
+                passphrase = await promptPassphrase(mainWindow, {
+                  title: i18n.t('dialogs.exportDbPassphraseTitle'),
+                  hint: i18n.t('dialogs.exportDbPassphraseHint'),
+                  confirmRequired: true
+                });
+                if (passphrase === null) return;
+              }
+
+              // Run the plain export first; encrypt as a post-process.
+              await dockerManager.runCommand('export-db', formatMessage(null, 'messages.exportingDocumentDB'), 'Exporting', 'Stopped');
+
+              if (encrypt) {
+                const dataDir = path.join(os.homedir(), 'monadic', 'data');
+                const plainPath = path.join(dataDir, 'monadic-qdrant.tar.gz');
+                const encPath = plainPath + '.enc';
+                if (!fs.existsSync(plainPath)) return; // export already failed; success message logic in monadic.sh
+                writeToScreen(formatMessage(null, 'dialogs.exportDbEncryptingMessage'));
+                try {
+                  await encryptDbExport(plainPath, encPath, passphrase);
+                  // Remove the plaintext tarball so the encrypted file
+                  // is the only artifact left on disk.
+                  try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+                  writeToScreen('[HTML]: <p>' + i18n.t('dialogs.exportDbEncryptedSuccess') + '</p><hr />');
+                } catch (err) {
+                  writeToScreen('[HTML]: <p>' + i18n.t('dialogs.exportDbEncryptedFailed')
+                    + ' (' + (err && err.message ? err.message : 'unknown') + ')</p><hr />');
+                }
+              }
             },
             enabled: currentStatus === 'Stopped' && metRequirements
           }
@@ -3112,7 +3369,157 @@ function sendSettingsToRenderer(webContents) {
   settings.APP_VERSION = app.getVersion();
   settings.DOCKER_STATUS = currentStatus || 'Stopped';
   settings.MET_REQUIREMENTS = metRequirements ? 'true' : 'false';
+  settings._BUILD_OPTIONS_SNAPSHOTS = readBuildOptionsSnapshots();
   webContents.send('load-settings', settings);
+}
+
+// Snapshot of the options each container was last built with, recorded by
+// docker/monadic.sh after every successful build. The Settings UI compares
+// the live form values against these snapshots in real time to render a
+// "rebuild needed" badge on the affected sections, without round-tripping
+// through the main process on every checkbox toggle.
+function readBuildOptionsSnapshots() {
+  const logDir = path.join(os.homedir(), 'monadic', 'log');
+  const read = (name) => {
+    try {
+      const text = fs.readFileSync(path.join(logDir, name), 'utf8').replace(/\r\n/g, '\n');
+      return dotenv.parse(text);
+    } catch {
+      return null;
+    }
+  };
+  return {
+    python_service: read('python_build_options.txt'),
+    privacy_service: read('privacy_build_options.txt'),
+    extractor_service: read('extractor_build_options.txt')
+  };
+}
+
+// Compute the set of containers that would produce a different image if the
+// user clicked Build now, given the saved env and the build-options
+// snapshots. Returns an empty array when everything is in sync. The Start
+// button uses this to prompt for an optional rebuild before launching the
+// app so users do not silently keep running with stale containers.
+function computePendingContainerBuilds() {
+  const env = readEnvFile(getEnvPath());
+  const snapshots = readBuildOptionsSnapshots();
+  const truthy = (v) => String(v ?? '').toLowerCase() === 'true';
+  // PRIVACY_FILTER defaults to ON when unset (Privacy Filter is part of the default build set).
+  const privacyEnabled = String(env.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
+  const result = [];
+
+  // Python: always relevant (no master flag); never-built also counts.
+  // Sourced from install_options.config.js (SSOT) — adding a new
+  // PYOPT_* / INSTALL_* checkbox only requires editing that file plus
+  // the Dockerfile ARG/RUN, never this rebuild-detection helper.
+  const pyKeys = installOptions.ENV_KEYS_PYTHON;
+  const pyPrev = snapshots.python_service;
+  if (!pyPrev) {
+    result.push({
+      container: 'python_service',
+      label: 'Python container',
+      reason: 'not yet built',
+      buildCommand: 'build_python_container',
+      estimate: '15–30 min'
+    });
+  } else {
+    const changed = pyKeys.filter(k => pyPrev[k] !== undefined && String(pyPrev[k]) !== String(env[k] ?? 'false'));
+    if (changed.length) {
+      result.push({
+        container: 'python_service',
+        label: 'Python container',
+        reason: `options changed (${changed.join(', ')})`,
+        buildCommand: 'build_python_container',
+        estimate: '15–30 min'
+      });
+    }
+  }
+
+  // Privacy: default-on. Privacy Filter is English-only by design,
+  // so the only rebuild-needed signal is "never built before".
+  if (privacyEnabled) {
+    const prev = snapshots.privacy_service;
+    if (!prev) {
+      result.push({
+        container: 'privacy_service',
+        label: 'Privacy Filter',
+        reason: 'not yet built',
+        buildCommand: 'build_privacy_container',
+        estimate: '3–5 min'
+      });
+    }
+  }
+
+  // Extractor: only if master is on. Build depends on LANGS + OCR backend.
+  if (truthy(env.EXTRACTOR_SERVICE)) {
+    const prev = snapshots.extractor_service;
+    if (!prev) {
+      result.push({
+        container: 'extractor_service',
+        label: 'Knowledge Base Quality Pack',
+        reason: 'not yet built',
+        buildCommand: 'build_extractor_container',
+        estimate: '5–10 min'
+      });
+    } else {
+      const langDiff = prev.EXTRACTOR_LANGS !== undefined && prev.EXTRACTOR_LANGS !== (env.EXTRACTOR_LANGS ?? '');
+      const ocrDiff = prev.EXTRACTOR_OCR !== undefined && prev.EXTRACTOR_OCR !== (env.EXTRACTOR_OCR ?? prev.EXTRACTOR_OCR);
+      if (langDiff || ocrDiff) {
+        const reasons = [];
+        if (langDiff) reasons.push(`languages: ${prev.EXTRACTOR_LANGS} → ${env.EXTRACTOR_LANGS || ''}`);
+        if (ocrDiff) reasons.push(`OCR backend changed`);
+        result.push({
+          container: 'extractor_service',
+          label: 'Knowledge Base Quality Pack',
+          reason: reasons.join('; '),
+          buildCommand: 'build_extractor_container',
+          estimate: '5–10 min'
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+// Start-time gate: if any container needs rebuilding to reflect the saved
+// settings, prompt the user with three choices — rebuild then start, start
+// anyway with the existing images, or cancel. Returns a Promise<boolean>:
+// true means proceed with the Start sequence, false means abort it. When
+// the user opts to rebuild, we run each pending build sequentially through
+// the same dockerManager.runCommand path the Settings → Actions buttons
+// already use, so log/progress display works without extra plumbing.
+async function promptForPendingRebuilds() {
+  const pending = computePendingContainerBuilds();
+  if (pending.length === 0) return true;
+
+  const lines = pending.map(p => `• ${p.label} — ${p.reason} (${p.estimate})`).join('\n');
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    title: 'Container rebuild recommended',
+    message: 'Some containers need to be rebuilt to apply your saved settings.',
+    detail: `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
+    buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true
+  });
+
+  if (choice.response === 2) return false;
+  if (choice.response === 1) return true;
+
+  // Rebuild and Start: walk through pending builds in order. Each await
+  // resolves only when runCommand finishes, so the user sees them progress
+  // sequentially in the main window log.
+  for (const p of pending) {
+    await dockerManager.runCommand(
+      p.buildCommand,
+      formatMessage(null, 'messages.monadicChatPreparing'),
+      'Building',
+      'Stopped'
+    );
+  }
+  return true;
 }
 
 function getEnvPath() {
@@ -3297,7 +3704,6 @@ function checkAndUpdateEnvFile() {
             'GEMINI_DEFAULT_MODEL': 'gemini',
             'MISTRAL_DEFAULT_MODEL': 'mistral',
             'GROK_DEFAULT_MODEL': 'xai',
-            'PERPLEXITY_DEFAULT_MODEL': 'perplexity',
             'DEEPSEEK_DEFAULT_MODEL': 'deepseek'
         };
 
@@ -3337,7 +3743,6 @@ function checkAndUpdateEnvFile() {
         'COHERE_API_KEY',
         'GEMINI_API_KEY',
         'XAI_API_KEY',
-        'PERPLEXITY_API_KEY',
         'DEEPSEEK_API_KEY',
         'ELEVENLABS_API_KEY',
         'TAVILY_API_KEY'
@@ -3455,10 +3860,27 @@ function saveSettings(data) {
         }
         
         // Normalize install option booleans to string 'true'/'false'
-        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK'];
+        // Sourced from install_options.config.js (SSOT) plus
+        // EXTRACTOR_SERVICE which is the master toggle for the Quality
+        // Pack container (its language sub-checkboxes are stored
+        // separately as EXTRACTOR_LANGS).
+        const installOptionKeys = [...installOptions.ENV_KEYS_PYTHON, 'EXTRACTOR_SERVICE'];
         installOptionKeys.forEach(k => {
             if (k in data) data[k] = data[k] ? 'true' : 'false';
         });
+        // PRIVACY_LANGS: English is mandatory; ensure it's always first in
+        // the comma-separated list even if the renderer somehow omits it.
+        if ('PRIVACY_LANGS' in data) {
+            const tokens = String(data.PRIVACY_LANGS || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (!tokens.includes('en')) tokens.unshift('en');
+            data.PRIVACY_LANGS = tokens.join(',');
+        }
+        // EXTRACTOR_LANGS follows the same pattern; English baseline always present.
+        if ('EXTRACTOR_LANGS' in data) {
+            const tokens = String(data.EXTRACTOR_LANGS || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (!tokens.includes('en')) tokens.unshift('en');
+            data.EXTRACTOR_LANGS = tokens.join(',');
+        }
 
         // Override existing settings with new data (empty string values are included)
         Object.assign(envConfig, data);
@@ -3521,6 +3943,10 @@ ipcMain.on('save-settings', (_event, data) => {
   const languageChanged = uiLanguage && uiLanguage !== oldUiLanguage;
   
   saveSettings(data);
+
+  // Rebuild the menu so settings-driven enable rules (e.g. PRIVACY_FILTER)
+  // pick up the new env values without requiring a UI language change.
+  updateApplicationMenu();
 
   // Apply login item setting (macOS/Windows only)
   if (process.platform !== 'linux') {

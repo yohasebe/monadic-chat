@@ -356,7 +356,7 @@ function handleErrorMessage(data) {
       $hide(spinnerEl);
     }
 
-    // Special handling for AI User errors (critical for Perplexity)
+    // Special handling for AI User errors
     const isAIUserError = data.content && data.content.toString().includes("AI User error");
     if (isAIUserError) {
       // Explicitly re-enable the AI User button
@@ -522,7 +522,7 @@ function handleHtmlMessage(data, createCardFunc) {
     // Note: Message is already added to window.messages via SessionState.addMessage
     // in websocket.js before this handler is called - no need to push here
 
-    // Phase 2: Use MarkdownRenderer if html field is missing
+    // Use MarkdownRenderer when the html field is missing.
     let html;
     if (data.content.html) {
       html = data.content.html;

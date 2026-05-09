@@ -38,6 +38,13 @@ module Monadic
         return "elevenlabs" if key.start_with?("elevenlabs") || key.start_with?("eleven_")
         return "gemini"     if key.start_with?("gemini")
         return "mistral"    if key.start_with?("mistral") || key.include?("voxtral")
+        # gpt-4o-mini-tts (selected as "openai-tts-4o" in the dropdown) is the
+        # only OpenAI TTS model that accepts an `instructions` parameter. The
+        # other OpenAI TTS variants (tts-1, tts-1-hd) read the instructions
+        # field as nothing, so they must NOT share this family identifier.
+        # Branch before the generic `openai` fallback so Expressive Speech
+        # instruction mode only activates for the right model.
+        return "openai-instruction" if key == "openai-tts-4o"
         return "openai"     if key.start_with?("openai") || key.start_with?("tts-")
         key
       end
@@ -208,6 +215,13 @@ module Monadic
         "gemini"        => ->(text) { Monadic::Utils::TtsTextProcessors.translate_markers(text, "gemini") }
       }.freeze
 
+      # Strip the `<<TTS:...>>` sentinel block (non-Monadic instruction
+      # mode). The sentinel always sits at the start of the response (leading
+      # whitespace allowed) with a non-greedy body — the first `>>` closes
+      # it. A single trailing newline after `>>` is also consumed so the
+      # visible message does not lead with a blank line.
+      INSTRUCTION_SENTINEL_DISPLAY_RE = /\A\s*<<TTS:.*?>>\n?/m
+
       DISPLAY_SANITIZE = {
         "xai" => ->(text) {
           text.to_s
@@ -224,11 +238,25 @@ module Monadic
               .gsub(/[ \t]{2,}/, " ")
               .gsub(/\s+([,.!?;:])/, '\1')
         },
+        # Gemini supports BOTH inline tags AND a leading `<<TTS:...>>`
+        # directive block (hybrid mode — see
+        # docs_dev/expressive_speech.md §Layer 5). Strip both shapes here
+        # so the transcript shows only the spoken content. The final
+        # `strip` removes whitespace left by tags that sat right after
+        # the directive newline or at the end of the reply.
         "gemini" => ->(text) {
           text.to_s
+              .sub(INSTRUCTION_SENTINEL_DISPLAY_RE, "")
               .gsub(GEMINI_INLINE_RE, "")
               .gsub(/[ \t]{2,}/, " ")
               .gsub(/\s+([,.!?;:])/, '\1')
+              .strip
+        },
+        # Expressive Speech instruction mode (OpenAI gpt-4o-mini-tts):
+        # strip the leading `<<TTS:...>>` directive block from display.
+        # The directive is metadata for the TTS engine, not user-facing text.
+        "openai-instruction" => ->(text) {
+          text.to_s.sub(INSTRUCTION_SENTINEL_DISPLAY_RE, "")
         }
       }.freeze
 
@@ -259,6 +287,15 @@ module Monadic
         result = result.gsub(XAI_MALFORMED_SQUARE_WRAP_RE, "") unless fam == "xai"
         result = result.gsub(ELEVENLABS_INLINE_STRICT_RE, "") unless fam == "elevenlabs-v3"
         result = result.gsub(GEMINI_INLINE_STRICT_RE, "") unless fam == "gemini"
+        # Cross-family cleanup for the instruction-mode sentinel: if the
+        # user previously had an instruction-capable family (openai-tts-4o
+        # or gemini-*) selected and is now on another family, strip any
+        # residual `<<TTS:...>>` from stored messages so it does not
+        # surface in the transcript. Both families' own sanitizers already
+        # remove it, so this sweep only runs for the others.
+        unless fam == "openai-instruction" || fam == "gemini"
+          result = result.sub(INSTRUCTION_SENTINEL_DISPLAY_RE, "")
+        end
         result.gsub(/[ \t]{2,}/, " ").gsub(/\s+([,.!?;:])/, '\1')
       end
 

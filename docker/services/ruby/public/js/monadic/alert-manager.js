@@ -123,7 +123,7 @@ function setAlert(text, alertType) {
         if (card) card.remove();
 
         if (mid) {
-          ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+          window.safeWsSend({ message: "DELETE", mid: mid });
           mids.delete(mid);
         }
 
@@ -234,7 +234,7 @@ function clearErrorCards() {
       detachEventListeners(card);
     }
     if (mid) {
-      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+      window.safeWsSend({ message: "DELETE", mid: mid });
       mids.delete(mid);
     }
     card.remove();
@@ -255,7 +255,7 @@ function deleteMessage(mid) {
 
   if (index !== -1) {
     window.SessionState.removeMessage(index);
-    ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+    window.safeWsSend({ message: "DELETE", mid: mid });
     mids.delete(mid);
   }
 }

@@ -1,0 +1,14 @@
+name: JpPostalCodeRecognizer
+supported_language: ja
+supported_entity: POSTAL_CODE
+patterns:
+  - name: jp_postal_with_marker
+    regex: "〒\\s?\\d{3}-?\\d{4}"
+    score: 0.9
+  - name: jp_postal_bare
+    regex: "(?<![\\d-])\\d{3}-\\d{4}(?!\\d)"
+    score: 0.5
+context:
+  - 郵便番号
+  - 〒
+  - 住所

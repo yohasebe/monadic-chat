@@ -13,7 +13,7 @@ describe('SessionState Management', () => {
     window.justReset = false;
   });
 
-  describe('Phase 1: Backward Compatibility', () => {
+  describe('Backward Compatibility', () => {
     it('should maintain global variable access for forceNewSession', () => {
       // Test setting via global variable
       window.forceNewSession = true;
@@ -59,7 +59,7 @@ describe('SessionState Management', () => {
     });
   });
 
-  describe('Phase 2: Enhanced State Management', () => {
+  describe('Enhanced State Management', () => {
     beforeEach(() => {
       // Ensure enhanced SessionState is available
       if (!window.SessionState.conversation) {
@@ -112,7 +112,7 @@ describe('SessionState Management', () => {
     });
   });
 
-  describe('Phase 3: Event System', () => {
+  describe('Event System', () => {
     it('should handle event listeners', (done) => {
       if (window.SessionState.on && window.SessionState.notifyListeners) {
         const testData = { test: 'data' };
@@ -145,7 +145,7 @@ describe('SessionState Management', () => {
     });
   });
 
-  describe('Phase 4: State Persistence', () => {
+  describe('State Persistence', () => {
     it('should save state to localStorage', () => {
       if (window.SessionState.save) {
         // Set some state

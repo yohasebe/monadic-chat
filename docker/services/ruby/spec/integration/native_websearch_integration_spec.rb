@@ -14,7 +14,6 @@ RSpec.describe "Native Web Search Integration", :integration do
     @skip_claude = !CONFIG["ANTHROPIC_API_KEY"]
     @skip_gemini = !CONFIG["GEMINI_API_KEY"]
     @skip_xai = !CONFIG["XAI_API_KEY"]
-    @skip_perplexity = !CONFIG["PERPLEXITY_API_KEY"]
   end
 
   describe "OpenAI Native Web Search" do
@@ -22,7 +21,7 @@ RSpec.describe "Native Web Search Integration", :integration do
       skip "OpenAI API key not configured" if @skip_openai
     end
 
-    it "performs web search with gpt-4.1-mini model" do
+    it "performs web search with gpt-5.4-mini model" do
       with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
         require_relative "../../lib/monadic/adapters/vendors/openai_helper"
         require_relative "../../lib/monadic/utils/string_utils"
@@ -51,7 +50,7 @@ RSpec.describe "Native Web Search Integration", :integration do
         session = {
           messages: [],
           parameters: {
-            "model" => "gpt-4.1-mini",
+            "model" => "gpt-5.4-mini",
             "websearch" => true,
             "temperature" => 0.0,
             "max_tokens" => 1000,
@@ -357,74 +356,6 @@ RSpec.describe "Native Web Search Integration", :integration do
     end
   end
 
-  describe "Perplexity Built-in Search" do
-    before(:each) do
-      skip "Perplexity API key not configured" if @skip_perplexity
-      skip "Set RUN_WEBSEARCH_TESTS=true to run Perplexity websearch tests" if @skip_websearch
-    end
-
-    it "uses built-in web search capabilities" do
-      with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
-        require_relative "../../lib/monadic/adapters/vendors/perplexity_helper"
-        require_relative "../../lib/monadic/utils/string_utils"
-
-        class TestPerplexity
-          include PerplexityHelper
-          include StringUtils
-
-          def self.name
-            "Perplexity"
-          end
-
-          # Add missing helper methods
-          def markdown_to_html(text, math: false)
-            text # Simple passthrough for testing
-          end
-
-          def detect_language(text)
-            "en" # Simple stub for testing
-          end
-        end
-
-        helper = TestPerplexity.new
-
-        # Create a test session
-        session = {
-          messages: [],
-          parameters: {
-            "model" => "sonar",  # Use a valid Perplexity model
-            "temperature" => 0.0,
-            "max_tokens" => 1000,
-            "context_size" => 5,
-            "app_name" => "test"
-          }
-        }
-
-        # Test message - Perplexity always searches
-        session[:parameters]["message"] = "What are the current stock market trends?"
-
-        responses = []
-        helper.api_request("user", session) do |response|
-          responses << response
-        end
-
-        # Verify we got responses
-        expect(responses).not_to be_empty
-
-        # Perplexity always searches
-
-        # Check for financial content - handle both fragment and assistant response types
-        fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
-        assistant_response = responses.find { |r| r["type"] == "assistant" }
-
-        content = fragments.empty? && assistant_response ? assistant_response["content"]["text"] : fragments
-
-        expect(content).not_to be_empty
-        expect(content.downcase).to match(/market|stock|trading|finance/)
-      end
-    end
-  end
-
   describe "Provider Comparison" do
     it "compares search capabilities across providers" do
       results = {}
@@ -454,13 +385,7 @@ RSpec.describe "Native Web Search Integration", :integration do
         # Add Gemini test
         results["Gemini"] = { available: true, search_type: "url_context" }
       end
-      
-      unless @skip_perplexity
-        puts "Testing Perplexity..."
-        # Add Perplexity test
-        results["Perplexity"] = { available: true, search_type: "built_in" }
-      end
-      
+
       # Output summary
       puts "\n=== Native Web Search Capabilities ==="
       results.each do |provider, info|

@@ -235,7 +235,7 @@ function handlePDFTitles(data) {
         if (isIOS) {
           const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
           if (confirm(`${base} ${title}?`)) {
-            window.ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
+            window.sendPdfWsMessage({ message: "DELETE_PDF", contents: title });
           }
         } else {
           var modalEl = $id('pdfDeleteConfirmation');
@@ -246,7 +246,7 @@ function handlePDFTitles(data) {
           if (confirmBtn) {
             confirmBtn.onclick = function(event) {
               event.preventDefault();
-              window.ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
+              window.sendPdfWsMessage({ message: "DELETE_PDF", contents: title });
               if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
               if (pdfToDeleteEl) pdfToDeleteEl.textContent = "";
             };
@@ -268,7 +268,7 @@ function handlePDFDeleted(data) {
   } else {
     setAlert(data["content"], "error");
   }
-  window.ws.send(JSON.stringify({ "message": "PDF_TITLES" }));
+  window.sendPdfWsMessage({ message: "PDF_TITLES" });
 }
 
 /**

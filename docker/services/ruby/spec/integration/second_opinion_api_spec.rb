@@ -71,11 +71,6 @@ RSpec.describe 'SecondOpinionAgent API Integration', :api, :integration do
       api_key_env: 'DEEPSEEK_API_KEY',
       model: 'deepseek-chat',
       description: 'DeepSeek'
-    },
-    'perplexity' => {
-      api_key_env: 'PERPLEXITY_API_KEY',
-      model: 'sonar',
-      description: 'Perplexity Sonar'
     }
   }.freeze
 

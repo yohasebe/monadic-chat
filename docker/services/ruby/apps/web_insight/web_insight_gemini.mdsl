@@ -110,6 +110,7 @@ app "WebInsightGemini" do
   end
 
   features do
+    library_search false
     disabled !CONFIG["GEMINI_API_KEY"]
     monadic false
     websearch true

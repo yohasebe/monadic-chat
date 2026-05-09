@@ -65,7 +65,7 @@ app "ChatClaude" do
     websearch true
     group "Anthropic"
   end
-  
+
   tools do
   end
 end

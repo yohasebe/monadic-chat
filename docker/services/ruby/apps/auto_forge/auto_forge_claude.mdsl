@@ -33,6 +33,8 @@ app "AutoForgeClaude" do
   end
 
   features do
+    library_save false
+    library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false

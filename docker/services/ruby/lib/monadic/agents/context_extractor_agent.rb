@@ -118,6 +118,17 @@ module ContextExtractorAgent
     "en"  # Default to English on error
   end
 
+  # Pre-mask text via the session's privacy pipeline before sending it
+  # to the extraction LLM. Errors propagate — fail-closed matches the
+  # chat path's :block contract; a degraded extraction that re-leaks
+  # PII would defeat the purpose of the user enabling the filter.
+  def mask_for_extraction(text, pipeline, role)
+    return text if text.nil? || text.to_s.empty?
+    require_relative '../utils/privacy/types'
+    raw = Monadic::Utils::Privacy::RawMessage.new(text.to_s, role, {})
+    pipeline.before_send_to_llm(raw).text
+  end
+
   # Extract context from a conversation exchange using direct HTTP API calls
   # @param session [Hash] The session information
   # @param user_message [String] The user's message
@@ -161,10 +172,34 @@ module ContextExtractorAgent
     # Use provided schema or default
     effective_schema = schema || DEFAULT_SCHEMA
 
-    # Detect language from conversation if language is "auto" or nil
+    # Privacy mask: when the session has an active privacy pipeline,
+    # extract context from masked text so the extractor's LLM call does
+    # not see raw PII. The resulting context will contain placeholders
+    # (e.g., "<<PERSON_1>>") which the frontend can render as-is — that
+    # makes it visually obvious to the user that masking is active.
+    # Fail-closed: if masking raises (privacy backend unreachable), the
+    # whole extraction is skipped — a degraded extraction that re-leaks
+    # PII would defeat the purpose of the user enabling the filter.
+    pipeline = session.is_a?(Hash) ? session[:_privacy_pipeline] : nil
+    begin
+      extractable_user, extractable_assistant = if pipeline
+                                                  [
+                                                    mask_for_extraction(user_message, pipeline, "user"),
+                                                    mask_for_extraction(assistant_response, pipeline, "assistant")
+                                                  ]
+                                                else
+                                                  [user_message, assistant_response]
+                                                end
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Privacy mask failed (skipping extraction fail-closed): #{e.class}: #{e.message}" }
+      return nil
+    end
+
+    # Detect language from conversation if language is "auto" or nil.
+    # Use the pre-mask text for detection so masking does not skew the
+    # detected language toward English (placeholders are ASCII-only).
     detected_language = nil
     if language.nil? || language == "auto"
-      # Detect language from the combined conversation text
       conversation_for_detection = "#{user_message}\n#{assistant_response}"
       detected_language = detect_conversation_language(conversation_for_detection)
       Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Detected language: #{detected_language}" }
@@ -174,9 +209,9 @@ module ContextExtractorAgent
     extraction_prompt = build_extraction_prompt(effective_schema, language, detected_language)
 
     conversation_text = <<~TEXT
-      User: #{user_message}
+      User: #{extractable_user}
 
-      Assistant: #{assistant_response}
+      Assistant: #{extractable_assistant}
     TEXT
 
     system_message = "#{extraction_prompt}\n\nConversation to analyze:\n#{conversation_text}"
@@ -245,10 +280,17 @@ module ContextExtractorAgent
 
     # Check for reasoning/thinking models
     is_deepseek_reasoner = provider == "deepseek" && model.to_s.include?("reasoner")
+    # V4 series (deepseek-v4-flash / deepseek-v4-pro) defaults to thinking
+    # enabled on the API side. Context extraction is a simple JSON task that
+    # does not benefit from chain-of-thought, and a 500-token budget would be
+    # consumed by reasoning before content is emitted, returning an empty
+    # response. Disable thinking explicitly for V4 in this path.
+    is_deepseek_v4 = provider == "deepseek" && model.to_s.include?("deepseek-v4")
 
-    # Handle OpenAI-specific parameters based on model
+    # Handle OpenAI-specific parameters based on model.
+    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY_STR (SSOT).
     if provider == "openai"
-      request_body["max_completion_tokens"] = 500
+      request_body[OpenAIHelper::OUTPUT_TOKEN_KEY_STR] = 500
 
       # GPT-5 models don't support temperature, use reasoning_effort instead
       if model.start_with?("gpt-5")
@@ -262,6 +304,12 @@ module ContextExtractorAgent
       # DeepSeek reasoner needs more tokens for reasoning + response
       request_body["max_tokens"] = 2000
       # Don't set temperature for reasoner models
+    elsif is_deepseek_v4
+      # V4 models: turn off thinking so 500 tokens are spent on the JSON
+      # output, not on chain-of-thought. Temperature is supported.
+      request_body["thinking"] = { "type" => "disabled" }
+      request_body["max_tokens"] = 500
+      request_body["temperature"] = 0.3
     else
       # Other providers (xAI, Mistral, regular DeepSeek) use max_tokens and temperature
       request_body["max_tokens"] = 500

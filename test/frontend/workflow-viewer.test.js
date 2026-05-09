@@ -118,6 +118,7 @@ function setupDOM() {
     <button id="wv-zoom-in"></button>
     <button id="wv-zoom-out"></button>
     <button id="wv-zoom-fit"></button>
+    <button id="wv-save-svg"></button>
     <select id="apps"><option value="TestApp" selected>TestApp</option></select>
   `;
 }
@@ -203,6 +204,8 @@ describe('WorkflowViewer', () => {
       expect(typeof window.WorkflowViewer.open).toBe('function');
       expect(typeof window.WorkflowViewer.close).toBe('function');
       expect(typeof window.WorkflowViewer.destroy).toBe('function');
+      expect(typeof window.WorkflowViewer.exportSvg).toBe('function');
+      expect(typeof window.WorkflowViewer.downloadSvg).toBe('function');
     });
 
     test('should not crash when init is called twice', () => {
@@ -212,7 +215,8 @@ describe('WorkflowViewer', () => {
     test('should build legend on init', () => {
       const legend = document.querySelector('.workflow-viewer-legend');
       const items = legend.querySelectorAll('.wv-legend-item');
-      expect(items.length).toBe(7); // Input/Response, Prompt, Model, Tool, Agent, Feature, Context
+      // Input/Response, Speech (STT/TTS), Prompt, Model, Tool, Agent, Feature, Context
+      expect(items.length).toBe(8);
     });
   });
 
@@ -624,6 +628,116 @@ describe('WorkflowViewer graph structure', () => {
       await new Promise(r => setTimeout(r, 0));
       const container = document.getElementById('workflow-viewer-container');
       expect(container.innerHTML).toContain('App not found');
+    });
+  });
+
+  // Runtime-aware features: the Workflow Viewer reads window.params at
+  // render time, so STT/TTS nodes and the Expressive Speech entry reflect
+  // the user's live settings, not just the MDSL-declared defaults.
+  describe('Runtime-aware STT/TTS + Expressive Speech', () => {
+    // Provide a minimal TtsTagSanitizer mock matching the real API shape.
+    // familyFor returns the canonical family key; tagAware is true for
+    // the inline-marker families; openai-instruction is a separate family.
+    function installSanitizerMock() {
+      window.TtsTagSanitizer = {
+        familyFor: function (provider) {
+          const key = String(provider || '').toLowerCase();
+          if (key === 'grok' || key.startsWith('xai')) return 'xai';
+          if (key === 'elevenlabs-v3' || key === 'eleven_v3') return 'elevenlabs-v3';
+          if (key.startsWith('elevenlabs')) return 'elevenlabs';
+          if (key.startsWith('gemini')) return 'gemini';
+          if (key === 'openai-tts-4o') return 'openai-instruction';
+          if (key.startsWith('openai') || key.startsWith('tts-')) return 'openai';
+          return key;
+        },
+        tagAware: function (provider) {
+          const fam = this.familyFor(provider);
+          return ['xai', 'elevenlabs-v3', 'gemini'].indexOf(fam) >= 0;
+        }
+      };
+    }
+
+    afterEach(() => {
+      delete window.params;
+      delete window.TtsTagSanitizer;
+    });
+
+    test('auto_speech off → no STT or TTS nodes', async () => {
+      window.params = { auto_speech: false };
+      installSanitizerMock();
+      await loadAppWithData(SAMPLE_MINIMAL);
+      const stt = insertedVertices.find(v => v.value.includes('Speech Input'));
+      const tts = insertedVertices.find(v => v.value.includes('Speech Output'));
+      expect(stt).toBeUndefined();
+      expect(tts).toBeUndefined();
+    });
+
+    test('auto_speech on → STT node before User Input', async () => {
+      window.params = { auto_speech: true, stt_model: 'whisper-1' };
+      installSanitizerMock();
+      await loadAppWithData(SAMPLE_MINIMAL);
+      const sttIdx = insertedVertices.findIndex(v => v.value.includes('Speech Input'));
+      const inputIdx = insertedVertices.findIndex(v => v.value.includes('User Input'));
+      expect(sttIdx).toBeGreaterThanOrEqual(0);
+      expect(sttIdx).toBeLessThan(inputIdx);
+      // STT body shows the current stt_model label
+      expect(insertedVertices[sttIdx].value).toContain('whisper-1');
+    });
+
+    test('auto_speech on → TTS node after Response with provider + voice', async () => {
+      window.params = {
+        auto_speech: true,
+        tts_provider: 'openai-tts-4o',
+        tts_voice: 'coral'
+      };
+      installSanitizerMock();
+      await loadAppWithData(SAMPLE_MINIMAL);
+      const ttsIdx = insertedVertices.findIndex(v => v.value.includes('Speech Output'));
+      const respIdx = insertedVertices.findIndex(v => v.value.includes('Response'));
+      expect(ttsIdx).toBeGreaterThanOrEqual(0);
+      expect(ttsIdx).toBeGreaterThan(respIdx);
+      expect(insertedVertices[ttsIdx].value).toContain('openai-tts-4o');
+      expect(insertedVertices[ttsIdx].value).toContain('coral');
+    });
+
+    test('auto_speech on + openai-tts-4o → Features includes Expressive Speech', async () => {
+      window.params = { auto_speech: true, tts_provider: 'openai-tts-4o' };
+      installSanitizerMock();
+      await loadAppWithData(SAMPLE_FULL);
+      const featNode = insertedVertices.find(v => v.value.includes('Features'));
+      expect(featNode).toBeDefined();
+      expect(featNode.value).toContain('Expressive Speech');
+    });
+
+    test('auto_speech on + xAI Grok → Features includes Expressive Speech (tag-aware family)', async () => {
+      window.params = { auto_speech: true, tts_provider: 'grok' };
+      installSanitizerMock();
+      await loadAppWithData(SAMPLE_FULL);
+      const featNode = insertedVertices.find(v => v.value.includes('Features'));
+      expect(featNode.value).toContain('Expressive Speech');
+    });
+
+    test('auto_speech on + webspeech → Features does NOT include Expressive Speech', async () => {
+      window.params = { auto_speech: true, tts_provider: 'webspeech' };
+      installSanitizerMock();
+      await loadAppWithData(SAMPLE_FULL);
+      const featNode = insertedVertices.find(v => v.value.includes('Features'));
+      expect(featNode).toBeDefined();
+      expect(featNode.value).not.toContain('Expressive Speech');
+    });
+
+    test('auto_speech off + openai-tts-4o → no Expressive Speech (auto_speech gates everything)', async () => {
+      window.params = { auto_speech: false, tts_provider: 'openai-tts-4o' };
+      installSanitizerMock();
+      await loadAppWithData(SAMPLE_FULL);
+      const featNode = insertedVertices.find(v => v.value.includes('Features'));
+      if (featNode) expect(featNode.value).not.toContain('Expressive Speech');
+    });
+
+    test('refresh() is exposed and safely no-ops when viewer closed', () => {
+      expect(typeof window.WorkflowViewer.refresh).toBe('function');
+      // When closed / no data, refresh must not throw.
+      expect(() => window.WorkflowViewer.refresh()).not.toThrow();
     });
   });
 });

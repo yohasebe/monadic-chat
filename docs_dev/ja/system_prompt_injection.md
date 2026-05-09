@@ -300,8 +300,7 @@ PROMPT
 5. DeepSeek Helper
 6. Cohere Helper
 7. Grok Helper
-8. Perplexity Helper
-9. Ollama Helper
+8. Ollama Helper
 
 各ヘルパーは現在以下を使用します：
 ```ruby

@@ -11,6 +11,12 @@ if [ "$1" == "start" ]; then
   echo "Run 'monadic_server.sh stop' to stop the server"
 elif [ "$1" == "debug" ]; then
   echo "Starting Monadic server in debug mode 🛑"
+  # Export MONADIC_DEV so the docker compose overlay (compose.dev.yml)
+  # publishes Qdrant + embeddings host ports. Host-side scripts and
+  # specs need them to talk to those containers directly; without this
+  # the dev mode pipeline silently keeps containers without published
+  # ports and host connections fail.
+  export MONADIC_DEV=true
   ./bin/monadic_dev start
 elif [ "$1" == "stop" ]; then
   ./bin/monadic_dev stop

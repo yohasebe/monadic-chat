@@ -158,44 +158,39 @@ class MonadicApp
   end
 
   # --- Generic Local PDF tool handlers (available to all apps) ---
+  # The Store is scoped to an app_key so PDFs uploaded against one app are
+  # not visible from another (preserves the privacy guarantee that the
+  # previous per-database design provided).
   def ensure_embeddings_db
-    if @embeddings_db.nil? && defined?(TextEmbeddings)
-      # Use per-app database name to avoid cross-app mixing
+    @embeddings_db ||= begin
       app_key = begin
         self.class.name.to_s.strip.downcase.gsub(/[^a-z0-9_\-]/, '_')
       rescue StandardError
         'default'
       end
-      base = "monadic_user_docs"
-      db_name = "#{base}_#{app_key}"
-      @embeddings_db = TextEmbeddings.new(db_name, recreate_db: false)
+      Monadic::Pdf::Store.new(app_key: app_key)
     end
-    @embeddings_db
   end
 
   def find_closest_text(text:, top_n:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
-    api_key = @api_key || (defined?(CONFIG) ? CONFIG["OPENAI_API_KEY"] : nil)
-    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.empty?
-    db.find_closest_text(text, top_n: top_n, api_key: api_key) || { error: "Failed to find text" }
+    return { error: "PDF store not available" } unless db
+    db.find_closest_text(text, top_n: top_n)
   rescue => e
     { error: "Error finding text: #{e.class.name} - #{e.message}" }
   end
 
   def find_closest_doc(text:, top_n:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
-    api_key = @api_key || (defined?(CONFIG) ? CONFIG["OPENAI_API_KEY"] : nil)
-    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.empty?
-    db.find_closest_doc(text, top_n: top_n, api_key: api_key) || { error: "Failed to find document" }
+    return { error: "PDF store not available" } unless db
+    db.find_closest_doc(text, top_n: top_n)
   rescue => e
     { error: "Error finding document: #{e.message}" }
   end
 
   def list_titles
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
+    return { error: "PDF store not available" } unless db
     db.list_titles
   rescue => e
     { error: "Error listing titles: #{e.message}" }
@@ -203,7 +198,7 @@ class MonadicApp
 
   def get_text_snippet(doc_id:, position:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
+    return { error: "PDF store not available" } unless db
     db.get_text_snippet(doc_id, position)
   rescue => e
     { error: "Error getting snippet: #{e.message}" }
@@ -211,7 +206,7 @@ class MonadicApp
 
   def get_text_snippets(doc_id:)
     db = ensure_embeddings_db
-    return { error: "Database not initialized" } unless db
+    return { error: "PDF store not available" } unless db
     db.get_text_snippets(doc_id)
   rescue => e
     { error: "Error getting snippets: #{e.message}" }
@@ -690,29 +685,25 @@ class MonadicApp
 
   def self.doc2markdown(filename)
     basename = File.basename(filename)
-    # get the file extension
     extension = File.extname(basename).downcase
-    container = "monadic-chat-python-container"
-    
-    # Safely escape the filename to prevent command injection
-    escaped_basename = Shellwords.escape(basename)
-    
-    case extension
-    when ".pdf"
-      docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c "pdf2txt.py #{escaped_basename} --format md"
-      DOCKER
-    when ".docx", ".xlsx", ".pptx"
-      docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c "office2txt.py #{escaped_basename}"
-      DOCKER
-    else
-      docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} bash -c "content_fetcher.py #{escaped_basename}"
-      DOCKER
-    end
+    require_relative 'shell'
 
-    stdout, stderr, status = self.capture_command(docker_command)
+    # Safely escape the filename to prevent command injection. The
+    # escape lives at the boundary so the bash body inside the
+    # container reads the filename as a single argv element regardless
+    # of spaces / quotes / shell metacharacters.
+    escaped_basename = Monadic::Shell.escape(basename)
+
+    body = case extension
+           when ".pdf"
+             "pdf2txt.py #{escaped_basename} --format md"
+           when ".docx", ".xlsx", ".pptx"
+             "office2txt.py #{escaped_basename}"
+           else
+             "content_fetcher.py #{escaped_basename}"
+           end
+
+    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
 
     # Wait briefly for filesystem synchronization
     sleep COMMAND_DELAY
@@ -765,12 +756,19 @@ class MonadicApp
 
   def self.fetch_webpage(url)
     max_retrials = 5
-    container = "monadic-chat-python-container"
-    docker_command = <<~DOCKER
-      docker exec -w #{SHARED_VOL} #{container} bash -c 'webpage_fetcher.py --url \"#{url}\" --mode md --keep-unknown --output stdout'
-    DOCKER
 
-    stdout, stderr, status = self.capture_command(docker_command)
+    # Defense in depth: reject URLs that do not look like plain http(s)
+    # before they reach the shell. The Web UI applies the same regex
+    # client-side, but a direct POST or alternative caller (Ruby tool,
+    # WebSocket relay) could otherwise inject shell metacharacters via
+    # the URL.
+    unless url.is_a?(String) && url.match?(/\Ahttps?:\/\/[^\s"'`$\\]+\z/)
+      return "Invalid URL: webpage URL must be a plain http(s) address."
+    end
+
+    require_relative 'shell'
+    body = "webpage_fetcher.py --url #{Monadic::Shell.escape(url)} --mode md --keep-unknown --output stdout"
+    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
 
     # Wait briefly for filesystem synchronization
     sleep 1

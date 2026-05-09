@@ -122,7 +122,7 @@ parser = OptionParser.new do |opts|
 end.parse!
 
 
-# Both gpt-image-1.5 and chatgpt-image-latest use the same quality options
+# gpt-image-2, gpt-image-1.5, and chatgpt-image-latest share the same quality options
 unless %w[low medium high auto].include?(options[:quality])
   puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
   options[:quality] = "auto"

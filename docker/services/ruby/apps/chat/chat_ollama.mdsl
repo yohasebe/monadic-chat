@@ -59,7 +59,7 @@ app "ChatOllama" do
     context_size 100
     websearch false
   end
-  
+
   tools do
   end
 end

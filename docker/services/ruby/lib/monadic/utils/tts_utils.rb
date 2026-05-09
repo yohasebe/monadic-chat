@@ -217,7 +217,20 @@ module InteractionUtils
         ""  # Default speed - no instruction needed for faster response
       end
 
-      prompt_text = speed_instruction + text_converted
+      # Gemini TTS accepts natural-language style directives as an in-band
+      # prefix in the spoken-text channel (no separate `instructions`
+      # parameter exists). When the upstream extractor surfaced a
+      # `<<TTS:...>>` directive block from the LLM response, prepend it
+      # here as a director's note. Gemini's own docs demonstrate this
+      # pattern (see ai.google.dev/gemini-api/docs/speech-generation —
+      # "Controlling speech style with prompts"). The engine reads the
+      # lead-in as direction rather than speech.
+      style_prefix = if instructions && !instructions.to_s.empty?
+        "Say with this voice and style:\n#{instructions.to_s.strip}\n\n"
+      else
+        ""
+      end
+      prompt_text = style_prefix + speed_instruction + text_converted
 
       body = {
         "contents" => [{

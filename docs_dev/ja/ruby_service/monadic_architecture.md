@@ -151,7 +151,6 @@ session[:monadic_state] = {
 | xAI (Grok) | ✅ 完全 | ✅ 対応 |
 | Cohere | ✅ 完全 | ✅ 対応 |
 | Mistral | ✅ 完全 | ✅ 対応 |
-| Perplexity | ❌ なし | ❌ 利用不可 |
 | Ollama | ⚠️ モデル依存 | ⚠️ モデル依存 |
 | DeepSeek | ✅ 完全 | ✅ 対応 |
 

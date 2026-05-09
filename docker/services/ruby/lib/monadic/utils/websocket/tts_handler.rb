@@ -142,7 +142,9 @@ module WebSocketHelper
   # @param response_format [String] Audio format
   # @param language [String] Language code
   # @param ws_session_id [String] WebSocket session ID for targeted broadcasting
-  def start_single_tts_request(text:, provider:, voice:, speed:, response_format:, language:, ws_session_id:)
+  # @param instructions [String, nil] Natural-language "how to speak" directive
+  #   forwarded to OpenAI TTS (`gpt-4o-mini-tts`) only; nil for other providers
+  def start_single_tts_request(text:, provider:, voice:, speed:, response_format:, language:, ws_session_id:, instructions: nil)
     # Special handling for Web Speech API - no API call needed
     if provider == "webspeech" || provider == "web-speech"
       res_hash = { "type" => "web_speech", "content" => text }
@@ -165,7 +167,8 @@ module WebSocketHelper
                                    voice: voice,
                                    speed: speed,
                                    response_format: response_format,
-                                   language: language)
+                                   language: language,
+                                   instructions: instructions)
 
         if res_hash && res_hash["type"] == "audio"
           res_hash["segment_index"] = 0
@@ -219,7 +222,7 @@ module WebSocketHelper
   # @param language [String] Language code
   # @param manual_play [Boolean] If true, this is a manual Play button click - no byte limit applied
   # @param ws_session_id [String, nil] WebSocket session ID for targeted audio delivery
-  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, manual_play: false, ws_session_id: nil)
+  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, manual_play: false, ws_session_id: nil, instructions: nil)
     # Use passed ws_session_id or fall back to thread-local variable
     ws_session_id ||= Thread.current[:websocket_session_id]
 
@@ -248,7 +251,8 @@ module WebSocketHelper
         speed: speed,
         response_format: response_format,
         language: language,
-        ws_session_id: ws_session_id
+        ws_session_id: ws_session_id,
+        instructions: instructions
       )
     end
 
@@ -268,7 +272,8 @@ module WebSocketHelper
         speed: speed,
         response_format: response_format,
         language: language,
-        ws_session_id: ws_session_id
+        ws_session_id: ws_session_id,
+        instructions: instructions
       )
     end
 
@@ -345,7 +350,8 @@ module WebSocketHelper
       speed: speed,
       response_format: response_format,
       language: language,
-      ws_session_id: ws_session_id
+      ws_session_id: ws_session_id,
+      instructions: instructions
     )
   end
 
@@ -367,6 +373,14 @@ module WebSocketHelper
       voice = obj["voice"]
     end
     text = obj["text"]
+    # Privacy Filter: card text comes back from the frontend with original
+    # PII restored (display form). Replace those values with the short
+    # spoken-placeholder form ("PERSON 1", "EMAIL ADDRESS 1", ...) so:
+    #   - cloud TTS providers never see real PII
+    #   - the listener does not have to hear long emails / phone numbers
+    #   - Web Speech (browser-native) gets the same treatment for UX
+    #     parity even though the audio synthesis is local
+    text = privacy_sanitize_tts_text(text, session)
     elevenlabs_voice = obj["elevenlabs_voice"]
     speed = obj["speed"]
     response_format = obj["response_format"]
@@ -458,6 +472,10 @@ module WebSocketHelper
       voice = obj["tts_voice"]
     end
     text = obj["text"]
+    # Privacy Filter: see handle_ws_tts for the rationale. Apply the same
+    # sanitize so the Play button does not leak restored PII to the cloud
+    # TTS provider.
+    text = privacy_sanitize_tts_text(text, session)
     speed = obj["tts_speed"]
     response_format = "aac"
     language = obj["conversation_language"] || "auto"
@@ -473,6 +491,23 @@ module WebSocketHelper
       manual_play: true,
       ws_session_id: ws_session_id
     )
+  end
+
+  # Replace original PII values in restored TTS text with the same short
+  # placeholders that sanitize_for_tts produces for streamed (still
+  # masked) text. Returns the original text unchanged when Privacy is
+  # not active in this session.
+  #
+  # Why on the server (not the client): the registry lives server-side
+  # by design (RD-1: never persisted, never shipped); doing the rewrite
+  # here keeps the registry inside the trust boundary. The frontend
+  # sends the rendered card text as-is; this method abstracts the
+  # values out before any cloud TTS API or browser-native synth call.
+  private def privacy_sanitize_tts_text(text, session)
+    return text unless text.is_a?(String) && !text.empty?
+    pipeline = session && (session[:_privacy_pipeline] || session['_privacy_pipeline'])
+    return text unless pipeline.respond_to?(:sanitize_restored_for_tts)
+    pipeline.sanitize_restored_for_tts(text)
   end
 
 end

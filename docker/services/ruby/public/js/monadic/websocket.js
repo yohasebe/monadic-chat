@@ -267,6 +267,13 @@ window.loadedApp = "Chat";
       window.UIState.set('wsConnected', true);
       window.UIState.set('wsReconnecting', false);
     }
+    // Drain any messages that safeWsSend queued while we were
+    // disconnected. Done first so an idempotent RESET/LOAD/DELETE
+    // queued by the user lands before the standard CHECK_TOKEN flow.
+    // See docs_dev/safe_ws_send_plan.md §3.5.
+    if (window.MonadicWs && typeof window.MonadicWs.drainQueue === 'function') {
+      try { window.MonadicWs.drainQueue(); } catch (e) { console.warn('[WebSocket] drainQueue failed:', e); }
+    }
     const verifyingText = typeof webUIi18n !== 'undefined' ?
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
@@ -276,12 +283,27 @@ window.loadedApp = "Chat";
     }
     // Get UI language from cookie or default to 'en'
     const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-    ws.send(JSON.stringify({
+    // CHECK_TOKEN fires immediately after onopen — ws is OPEN by
+    // construction, so the wrapper's OPEN branch is the only path
+    // taken in practice. silentDrop because this is internal
+    // infrastructure (the verify cycle below handles the failure
+    // surface for the user) and a redundant alert here would race
+    // with the "Verifying token" warning toast we just set above.
+    window.safeWsSend({
       message: "CHECK_TOKEN",
       initial: true,
       contents: ($id("token") || {}).value || '',
       ui_language: uiLanguage
-    }));
+    }, { silentDrop: true });
+
+    // Library (Knowledge Base) panel: fetch initial inventory + counts
+    // once the connection is up. The panel is mounted globally and
+    // visible across all apps, so we fire this for every session.
+    if (window.libraryPanel) {
+      try { window.libraryPanel.requestList(); } catch (_) {}
+      try { window.libraryPanel.requestStats(); } catch (_) {}
+      try { window.libraryPanel.requestRagState(); } catch (_) {}
+    }
 
     // Detect browser/device capabilities for audio handling
     const runningOnFirefox = navigator.userAgent.indexOf('Firefox') !== -1;
@@ -458,7 +480,10 @@ window.loadedApp = "Chat";
         if (!window.initialLoadComplete) {  // Only send LOAD on initial connection
           // Get UI language from cookie or default to 'en'
           const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-          ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
+          // LOAD is idempotent (in the wrapper's default set) and
+          // fires from the verify-poll interval, not a user click.
+          // silentDrop avoids alerting on internal infrastructure.
+          window.safeWsSend({ message: "LOAD", ui_language: uiLanguage }, { silentDrop: true });
           window.initialLoadComplete = true; // Set the flag after the initial load
         }
         startPing();
@@ -540,7 +565,7 @@ window.loadedApp = "Chat";
     // This will be cleared for normal responses but will run if something goes wrong
     // Use longer timeout for providers known to have slower initial responses
     const currentProvider = window.currentLLMProvider || '';
-    const isSlowProvider = ['deepseek', 'perplexity'].includes(currentProvider.toLowerCase());
+    const isSlowProvider = ['deepseek'].includes(currentProvider.toLowerCase());
     const timeoutDuration = isSlowProvider ? RESPONSE_TIMEOUT_SLOW_MS : RESPONSE_TIMEOUT_MS;
 
     const messageTimeout = setTimeout(function() {
@@ -616,6 +641,46 @@ window.loadedApp = "Chat";
         const wth = window.WsThinkingHandler;
         if (wth && typeof wth.handleClearFragments === 'function') {
           wth.handleClearFragments(data);
+        }
+        break;
+      }
+
+      case "privacy_state": {
+        const wph = window.WsPrivacyHandler;
+        if (wph && typeof wph.handleState === 'function') {
+          wph.handleState(data);
+        }
+        break;
+      }
+
+      case "privacy_toggle_ack": {
+        const wph_ack = window.WsPrivacyHandler;
+        if (wph_ack && typeof wph_ack.handleToggleAck === 'function') {
+          wph_ack.handleToggleAck(data);
+        }
+        break;
+      }
+
+      case "privacy_registry": {
+        const wph2 = window.WsPrivacyHandler;
+        if (wph2 && typeof wph2.handleRegistry === 'function') {
+          wph2.handleRegistry(data);
+        }
+        break;
+      }
+
+      case "privacy_export_data": {
+        const wph3 = window.WsPrivacyHandler;
+        if (wph3 && typeof wph3.handleExportData === 'function') {
+          wph3.handleExportData(data);
+        }
+        break;
+      }
+
+      case "privacy_export_error": {
+        const wph4 = window.WsPrivacyHandler;
+        if (wph4 && typeof wph4.handleExportError === 'function') {
+          wph4.handleExportError(data);
         }
         break;
       }
@@ -819,6 +884,60 @@ window.loadedApp = "Chat";
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handlePDFDeleted === 'function') {
           wsh.handlePDFDeleted(data);
+        }
+        break;
+      }
+      case "library_conversations": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleConversations === 'function') {
+          window.libraryPanel.handleConversations(data);
+        }
+        break;
+      }
+      case "library_stats": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleStats === 'function') {
+          window.libraryPanel.handleStats(data);
+        }
+        break;
+      }
+      case "library_deleted": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleDeletedMessage === 'function') {
+          window.libraryPanel.handleDeletedMessage(data);
+        }
+        break;
+      }
+      case "library_saved": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleSavedMessage === 'function') {
+          window.libraryPanel.handleSavedMessage(data);
+        }
+        break;
+      }
+      case "library_rag_state": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleRagState === 'function') {
+          window.libraryPanel.handleRagState(data);
+        }
+        break;
+      }
+      case "library_title_suggested": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleTitleSuggested === 'function') {
+          window.libraryPanel.handleTitleSuggested(data);
+        }
+        break;
+      }
+      case "library_scope_updated": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleScopeUpdated === 'function') {
+          window.libraryPanel.handleScopeUpdated(data);
+        }
+        break;
+      }
+      case "library_renamed": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleRenamedMessage === 'function') {
+          window.libraryPanel.handleRenamedMessage(data);
+        }
+        break;
+      }
+      case "library_conversation_data": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleConversationData === 'function') {
+          window.libraryPanel.handleConversationData(data);
         }
         break;
       }

@@ -361,11 +361,13 @@ module Monadic
           end
         end
 
-        # Build session with both legacy and new fields for compatibility
+        # Build session with both legacy and new fields for compatibility.
+        # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY_STR
+        # (SSOT) — see openai_helper.rb for the rationale.
         {
           parameters: {
             "model" => model,
-            "max_completion_tokens" => 128000,
+            OpenAIHelper::OUTPUT_TOKEN_KEY_STR => 128000,
             "temperature" => 0.0
           },
           messages: messages

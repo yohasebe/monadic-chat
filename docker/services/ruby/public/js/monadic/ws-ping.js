@@ -18,7 +18,12 @@
     pingInterval = setInterval(function() {
       var ws = typeof getWs === 'function' ? getWs() : null;
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ message: 'PING' }));
+        // The OPEN guard above owns the "stop the interval if the
+        // socket is no longer alive" semantics; safeWsSend is invoked
+        // here strictly for the central sending discipline. silentDrop
+        // is belt-and-suspenders — even if the guard regresses, a
+        // background heartbeat must never alert the user.
+        window.safeWsSend({ message: 'PING' }, { silentDrop: true });
       } else {
         stop();
       }

@@ -65,9 +65,6 @@
     if (!aiUserBtn) return;
 
     var hasConversation = Array.isArray(messages) && messages.length >= 2;
-    var aiUserProviderEl = $id("ai-user-provider");
-    var currentProvider = aiUserProviderEl ? aiUserProviderEl.value : "";
-    var isPerplexity = currentProvider.toLowerCase() === "perplexity";
 
     if (hasConversation) {
       aiUserBtn.disabled = false;
@@ -80,18 +77,6 @@
         aiUserBtn.setAttribute("title", "Generate AI user response based on conversation");
       }
       aiUserBtn.classList.remove("disabled");
-
-      if (isPerplexity) {
-        if (window.i18nReady) {
-          window.i18nReady.then(function() {
-            var perplexityTitle = webUIi18n.t('ui.generateAIUserResponsePerplexity') ||
-              "Generate AI user response (Perplexity requires alternating user/assistant messages)";
-            aiUserBtn.setAttribute("title", perplexityTitle);
-          });
-        } else {
-          aiUserBtn.setAttribute("title", "Generate AI user response (Perplexity requires alternating user/assistant messages)");
-        }
-      }
     } else {
       aiUserBtn.disabled = true;
       aiUserBtn.setAttribute("title", "Start a conversation first to enable AI User");

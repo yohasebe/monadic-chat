@@ -50,7 +50,6 @@ For the OpenAI default model:
 | `MISTRAL_API_KEY` | Mistral AI API key | Yes (for Mistral apps) | `...` |
 | `COHERE_API_KEY` | Cohere API key | Yes (for Cohere apps) | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek API key | Yes (for DeepSeek apps) | `...` |
-| `PERPLEXITY_API_KEY` | Perplexity API key | Yes (for Perplexity apps) | `pplx-...` |
 | `XAI_API_KEY` | xAI API key for Grok models | Yes (for Grok apps) | `xai-...` |
 | `TAVILY_API_KEY` | Tavily API key for web search (required for Mistral, Cohere, DeepSeek, Ollama web search) | No | `tvly-...` |
 
@@ -67,7 +66,6 @@ For the OpenAI default model:
 | `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `MISTRAL_DEFAULT_MODEL=<model-id>` |
 | `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `COHERE_DEFAULT_MODEL=<model-id>` |
 | `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
-| `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `PERPLEXITY_DEFAULT_MODEL=<model-id>` |
 | `GROK_DEFAULT_MODEL` | Default model for Grok apps | `GROK_DEFAULT_MODEL=<model-id>` |
 
 ### Model Selection in the UI
@@ -102,9 +100,8 @@ To see all available models from the provider, toggle the **All** switch next to
 
 | Variable | Description | Default | Range |
 |----------|-------------|---------|-------|
-| `HELP_CHUNK_SIZE` | Characters per documentation chunk | `3000` | 1000-8000 |
-| `HELP_OVERLAP_SIZE` | Character overlap between chunks | `500` | 100-2000 |
-| `HELP_EMBEDDINGS_BATCH_SIZE` | Batch size for embedding API calls | `50` | 1-100 |
+| `HELP_CHUNK_SIZE` | Characters per documentation chunk (build time) | `3000` | 1000-8000 |
+| `HELP_OVERLAP_SIZE` | Character overlap between chunks (build time) | `500` | 100-2000 |
 | `HELP_CHUNKS_PER_RESULT` | Number of chunks returned per search | `3` | 1-10 |
 
 ## Development Settings
@@ -137,10 +134,10 @@ Monadic Chat supports two application modes that control network accessibility:
 
 | Variable | Description | Default | Note |
 |----------|-------------|---------|------|
-| `POSTGRES_HOST` | PostgreSQL host | `monadic-chat-pgvector-container` | For Docker networking |
-| `POSTGRES_PORT` | PostgreSQL port | `5432` | Standard PostgreSQL port |
-| `POSTGRES_USER` | PostgreSQL user | `postgres` | Database user |
-| `POSTGRES_PASSWORD` | PostgreSQL password | `postgres` | Database password |
+| `QDRANT_URL` | Full URL of the Qdrant service | `http://qdrant_service:6333` (in-container) / `http://localhost:6333` (dev) | Override only when relocating |
+| `EMBEDDINGS_URL` | Full URL of the embeddings service | `http://embeddings_service:8000` (in-container) / `http://localhost:8002` (dev) | Override only when relocating |
+| `EMBEDDINGS_DEV_PORT` | Embeddings host port in dev mode | `8002` | Exposed via `compose.dev.yml` |
+| `QDRANT_DEV_PORT` | Qdrant host port in dev mode | `6333` | Exposed via `compose.dev.yml` |
 
 ## Install Options
 
@@ -151,7 +148,6 @@ These options control which optional packages are installed in the Python contai
 | `INSTALL_LATEX` | LaTeX toolchain (TeX Live, dvisvgm, CJK packages) | Syntax Tree, Concept Visualizer | `false` |
 | `PYOPT_NLTK` | Natural Language Toolkit | NLP applications | `false` |
 | `PYOPT_SPACY` | spaCy NLP library (v3.7.5) | Advanced NLP tasks | `false` |
-| `PYOPT_SCIKIT` | scikit-learn machine learning library | ML applications | `false` |
 | `PYOPT_GENSIM` | Topic modeling library | Text analysis | `false` |
 | `PYOPT_LIBROSA` | Audio analysis library | Audio processing | `false` |
 | `PYOPT_MEDIAPIPE` | Computer vision framework | Vision applications | `false` |

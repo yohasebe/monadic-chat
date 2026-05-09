@@ -21,10 +21,19 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
       end
     end
 
-    it 'maps OpenAI TTS variants to the openai family' do
-      %w[openai-tts openai-tts-4o openai-tts-hd tts-1 tts-1-hd].each do |p|
+    it 'maps plain OpenAI TTS variants to the openai family' do
+      # gpt-4o-mini-tts (dropdown value "openai-tts-4o") is handled
+      # separately — see the next example.
+      %w[openai-tts openai-tts-hd tts-1 tts-1-hd].each do |p|
         expect(described_class.family_for(p)).to eq('openai')
       end
+    end
+
+    it 'maps openai-tts-4o to the instruction-meta family' do
+      # Only gpt-4o-mini-tts accepts the `instructions` parameter on the
+      # `/v1/audio/speech` endpoint. Keep it in its own family so that
+      # Expressive Speech instruction-mode activates only for this model.
+      expect(described_class.family_for('openai-tts-4o')).to eq('openai-instruction')
     end
 
     it 'maps Gemini TTS variants to the gemini family' do
@@ -313,12 +322,57 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
         expect(described_class.sanitize_for_display('gemini-pro', input))
           .to eq('Saying this is the point.')
       end
+
+      # Gemini hybrid — the LLM may emit a leading `<<TTS:...>>` directive
+      # block (in addition to / instead of inline tags). That block is a
+      # director's note for the engine, not user-facing text.
+      it 'strips a leading <<TTS:...>> directive block' do
+        input = "<<TTS:Voice: warm.\nTone: gentle.>>\n[whispers] Hello, friend."
+        expect(described_class.sanitize_for_display('gemini-flash', input))
+          .to eq('Hello, friend.')
+      end
+
+      it 'strips both the directive block and inline tags in one pass' do
+        input = "<<TTS:Voice: excited.>>\n[excited] Look at this! [laughs]"
+        expect(described_class.sanitize_for_display('gemini-pro', input))
+          .to eq('Look at this!')
+      end
     end
 
     it 'is the identity function for providers without a registered sanitizer' do
+      # openai-tts-4o has its own sanitizer now (strips <<TTS:...>>), so
+      # it is no longer identity — see the instruction-mode specs below.
       input = '<whisper>kept as-is</whisper>'
-      expect(described_class.sanitize_for_display('openai-tts-4o', input)).to eq(input)
+      expect(described_class.sanitize_for_display('openai-tts', input)).to eq(input)
       expect(described_class.sanitize_for_display('mistral', input)).to eq(input)
+    end
+
+    context 'for instruction mode (openai-tts-4o)' do
+      it 'strips a leading <<TTS:...>> sentinel from display' do
+        input = "<<TTS:Voice: warm.\nTone: sincere.>>\nHello, how can I help?"
+        expect(described_class.sanitize_for_display('openai-tts-4o', input))
+          .to eq('Hello, how can I help?')
+      end
+
+      it 'leaves a sentinel in the middle of the text untouched' do
+        input = "Hello! <<TTS:...>> is not a leading directive here."
+        # The sentinel is not at the start, so the display regex does not match.
+        # Cross-family cleanup also only strips start-anchored sentinels.
+        expect(described_class.sanitize_for_display('openai-tts-4o', input)).to eq(input)
+      end
+
+      it 'is identity when no sentinel is present' do
+        input = 'Hello, how can I help?'
+        expect(described_class.sanitize_for_display('openai-tts-4o', input)).to eq(input)
+      end
+    end
+
+    context 'cross-family residue' do
+      it 'strips a leftover <<TTS:...>> sentinel when active family is xAI' do
+        input = "<<TTS:Voice: warm.>>\nThis was an instruction-mode turn."
+        expect(described_class.sanitize_for_display('grok', input))
+          .to eq('This was an instruction-mode turn.')
+      end
     end
 
     it 'is nil-safe' do
@@ -344,9 +398,15 @@ RSpec.describe Monadic::Utils::TtsTextProcessors do
     end
 
     it 'reports false for providers without one' do
-      expect(described_class.tag_aware?('openai-tts-4o')).to be false
+      # openai-tts-4o now has its own display sanitizer for the
+      # instruction-mode sentinel — see separate spec below.
+      expect(described_class.tag_aware?('openai-tts')).to be false
       expect(described_class.tag_aware?('mistral')).to be false
       expect(described_class.tag_aware?('webspeech')).to be false
+    end
+
+    it 'reports true for openai-tts-4o (instruction-mode display sanitizer)' do
+      expect(described_class.tag_aware?('openai-tts-4o')).to be true
     end
   end
 end

@@ -1,0 +1,64 @@
+app "KnowledgeBaseDeepSeek" do
+  description do
+    en <<~TEXT
+    Project-wide Knowledge Base. Manage conversations and documents stored in the Library, control sharing across apps, and import external content.
+    TEXT
+    ja <<~TEXT
+    プロジェクト全体の Knowledge Base。Library に保存された会話・文書の管理、アプリ間での共有設定、外部コンテンツの取り込みを行います。
+    TEXT
+  end
+
+  icon "fa-solid fa-book"
+  display_name "Knowledge Base"
+
+  include_modules "KnowledgeBaseTools"
+
+  llm do
+    provider "deepseek"
+  end
+
+  system_prompt KnowledgeBaseConstants::SYSTEM_PROMPT
+
+  features do
+    library_search false
+    disabled !CONFIG["DEEPSEEK_API_KEY"]
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+    group "DeepSeek"
+  end
+
+  tools do
+    define_tool "list_conversations", "List conversations registered in the Knowledge Base, most recently created first" do
+      parameter :limit, "integer", "Maximum number of rows (1-500, default 100)", required: false
+    end
+
+    define_tool "search_library", "Search the Knowledge Base across both personal and shareable conversations" do
+      parameter :query, "string", "Search query", required: true
+      parameter :top_n, "integer", "Number of passages to return (1-10, default 3)", required: false
+    end
+
+    define_tool "get_conversation_details", "Show full metadata for one conversation" do
+      parameter :conversation_id, "string", "Conversation ID", required: true
+    end
+
+    define_tool "library_stats", "Counts of personal vs shareable vs total conversations"
+
+    define_tool "update_conversation_visibility", "Change a conversation's visibility (personal or shareable)" do
+      parameter :conversation_id, "string", "Conversation ID", required: true
+      parameter :visibility, "string", "personal | shareable", required: true
+    end
+
+    define_tool "delete_conversation_from_library", "Permanently remove a conversation. Always confirm with the user first." do
+      parameter :conversation_id, "string", "Conversation ID", required: true
+    end
+
+    define_tool "import_conversation_from_text",
+                "Import raw text or JSON into the Library. Auto-detects ChatML, Anthropic Messages, Gemini Contents, Monadic Chat exports, TED Talk transcripts, or speaker-labeled text." do
+      parameter :input, "string", "Conversation data (text, JSON string, or Python-repr transcript)", required: true
+      parameter :title, "string", "Title to assign", required: false
+      parameter :license, "string", "License (default 'private')", required: false
+      parameter :visibility, "string", "personal (default) | shareable", required: false
+    end
+  end
+end

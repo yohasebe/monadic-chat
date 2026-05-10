@@ -694,16 +694,17 @@
 
         <div id="main" class="col-md-8 order-md-1 scrollable">
           <div id="config-wrapper">
-          <!-- Config Summary Bar (visible when collapsed, hidden initially) -->
-          <div id="config-summary" class="rounded p-2 px-3 shaded-panel mb-2" style="display:none; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#config-body" aria-expanded="false" aria-controls="config-body">
+          <!-- Config Summary Bar: persistent header that mirrors current settings.
+               Click to toggle Box A (#config-body) collapse. aria-expanded must
+               match #config-body's initial .show state for the chevron rotation
+               CSS to render correctly on first paint. -->
+          <div id="config-summary" class="rounded p-2 px-3 shaded-panel mb-2" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
             <div class="d-flex align-items-center">
               <span id="summary-app-icon" class="me-2"></span>
               <span id="summary-app-name" class="fw-semibold me-2"></span>
-              <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
-            </div>
-            <div class="d-flex align-items-center mt-1">
               <span id="summary-model-name" class="text-secondary me-2"></span>
               <span id="summary-indicators"></span>
+              <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
             </div>
           </div>
 

@@ -102,6 +102,14 @@ function sanitizeParamsForSync(source) {
 }
 
 function broadcastParamsUpdate(reason = null) {
+  // Refresh the persistent header summary on every UI param change. This must
+  // run before the early-return guards: the header is a local UI mirror, not a
+  // server-confirmed value, so it should reflect the latest state regardless
+  // of WebSocket readiness or broadcast suppression.
+  if (typeof window.updateConfigSummary === 'function') {
+    try { window.updateConfigSummary(); } catch (_) { /* never let UI sync break param flow */ }
+  }
+
   if (isParamBroadcastSuppressed()) return;
   if (typeof window.ws === 'undefined' || !window.ws || window.ws.readyState !== WebSocket.OPEN) return;
   if (typeof params === 'undefined' || !params) return;
@@ -792,25 +800,27 @@ document.addEventListener("DOMContentLoaded", function () {
     if (initiateEl) initiateEl.disabled = false;
   }
 
-  // Collapse settings and show conversation (used when starting/continuing session)
+  // Collapse settings and show conversation (used when starting/continuing session).
+  // #config-summary is always visible (it acts as the persistent toggle header
+  // for #config-body), so it is not part of this state machine.
   function enterConversationMode() {
     var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.hide();
-    var configSummary = $id("config-summary");
-    $show(configSummary); var configActions = $id("config-actions");
-    $hide(configActions); var mainPanelEl = $id("main-panel");
+    var configActions = $id("config-actions");
+    $hide(configActions);
+    var mainPanelEl = $id("main-panel");
     if (mainPanelEl) { mainPanelEl.classList.remove("d-none"); $show(mainPanelEl); }
     lockSessionSettings();
     updateConfigSummary();
   }
 
-  // Expand settings and hide conversation (used when resetting)
+  // Expand settings and hide conversation (used when resetting).
   function enterSettingsMode() {
     var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.show();
-    var configSummary = $id("config-summary");
-    $hide(configSummary); var configActions = $id("config-actions");
-    $show(configActions); var mainPanelEl = $id("main-panel");
+    var configActions = $id("config-actions");
+    $show(configActions);
+    var mainPanelEl = $id("main-panel");
     if (mainPanelEl) { mainPanelEl.classList.add("d-none"); $hide(mainPanelEl); }
     unlockSessionSettings();
   }

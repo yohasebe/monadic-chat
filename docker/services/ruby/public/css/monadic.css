@@ -5865,8 +5865,17 @@ i.fas.fa-bolt,
 
 /* ── Collapsible Settings Header ─────────────────────────── */
 
+/* Toggle header is darker than the .shaded-panel body so its role as an
+   interactive control reads at a glance. The shade is derived by mixing panel
+   with page body color (darker than panel in both themes), keeping the
+   relative offset consistent across themes without a new variable. The first
+   declaration is a fallback for browsers without color-mix(). Blend ratios
+   are tuned so the resting state is clearly distinct (~17 RGB units darker
+   in light theme) without losing the "card" feel; hover deepens further
+   (~24 units). */
 #config-summary {
-  background: var(--bg-panel, #f8f9fa);
+  background: var(--bg-hover, #e9ecef);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
   border: 1px solid var(--border-light, #dee2e6);
   transition: background-color 0.15s ease;
   user-select: none;
@@ -5874,6 +5883,7 @@ i.fas.fa-bolt,
 
 #config-summary:hover {
   background: var(--bg-hover, #e9ecef);
+  background: color-mix(in srgb, var(--bg-panel) 20%, var(--bg-body));
 }
 
 .config-collapse-icon {

@@ -85,12 +85,15 @@ module InteractionUtils
         body["speed"] = speed.to_f
       end
 
-      # Include language parameter unless set to "auto"
-      # When language is "auto", omit the parameter to let OpenAI auto-detect
-      # When language is explicitly set (e.g., "ja", "en"), include it in the request
-      unless language == "auto"
-        body["language"] = language
-      end
+      # NOTE: `language` is intentionally NOT forwarded to OpenAI's
+      # /v1/audio/speech endpoint. The current API reference (May 2026)
+      # does not list a `language` parameter on this endpoint — only
+      # `model`, `input`, `voice`, `instructions`, `response_format`, and
+      # `speed`. Sending an undocumented field is at best ignored and at
+      # worst could affect how the model interprets the structured
+      # `instructions` block (e.g., reading it back as part of the
+      # transcript). Multilingual handling is already covered implicitly
+      # by `input` text plus `instructions` style notes.
 
       if instructions
         body["instructions"] = instructions

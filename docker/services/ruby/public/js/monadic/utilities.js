@@ -38,9 +38,12 @@ if (typeof window.stop_apps_trigger === 'undefined') {
 function getTranslation(key, fallback) {
   // Check if webUIi18n is available and initialized
   if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
-    return webUIi18n.t(key);
+    const translated = webUIi18n.t(key);
+    // webUIi18n.t returns the key itself when no translation is registered
+    // for the current locale; in that case prefer the caller's fallback so
+    // users never see raw "ui.foo.bar" strings in the UI.
+    if (translated && translated !== key) return translated;
   }
-  // Return fallback if translation system is not ready
   return fallback;
 }
 

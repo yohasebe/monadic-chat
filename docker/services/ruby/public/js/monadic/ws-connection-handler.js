@@ -44,7 +44,7 @@ function handleTokenVerified(data) {
     });
 
     // Enable OpenAI STT models when token is verified
-    ["openai-stt-4o-mini", "openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-whisper"].forEach(function(id) {
+    ["openai-stt-4o-mini", "openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-whisper", "openai-stt-realtime-whisper"].forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });
@@ -112,7 +112,7 @@ function handleOpenAIAPIError(_data) {
   });
 
   // Disable OpenAI STT models
-  ["openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-4o-mini", "openai-stt-whisper"].forEach(function(id) {
+  ["openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-4o-mini", "openai-stt-whisper", "openai-stt-realtime-whisper"].forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = true;
   });
@@ -144,7 +144,7 @@ function handleTokenNotVerified(_data) {
   });
 
   // Disable OpenAI STT models
-  ["openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-4o-mini", "openai-stt-whisper"].forEach(function(id) {
+  ["openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-4o-mini", "openai-stt-whisper", "openai-stt-realtime-whisper"].forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = true;
   });

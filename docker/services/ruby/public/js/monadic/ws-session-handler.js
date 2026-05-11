@@ -156,11 +156,55 @@ function handleSystemInfo(data) {
 }
 
 /**
+ * Handle "stt_partial" WebSocket message (Realtime streaming STT).
+ * Replaces the provisional range in #message with the latest cumulative
+ * transcript. The range is stored on the textarea's dataset so the final
+ * "stt" message can replace it once, atomically.
+ * @param {Object} data - { content: "<accumulated partial transcript>" }
+ */
+function handleSTTPartial(data) {
+  const messageEl = $id('message');
+  if (!messageEl) return;
+  const partial = (data && typeof data.content === 'string') ? data.content : '';
+
+  const rangeStart = messageEl.dataset.sttPartialStart;
+  let start;
+  if (rangeStart === undefined || rangeStart === '') {
+    start = messageEl.value.length;
+    if (start > 0 && !/\s$/.test(messageEl.value)) {
+      messageEl.value += ' ';
+      start += 1;
+    }
+    messageEl.dataset.sttPartialStart = String(start);
+  } else {
+    start = parseInt(rangeStart, 10);
+    if (!Number.isFinite(start)) start = messageEl.value.length;
+  }
+
+  messageEl.value = messageEl.value.substring(0, start) + partial;
+}
+
+/**
  * Handle "stt" WebSocket message.
  * Processes speech-to-text completion with optional auto-submit.
  * @param {Object} data - Message data with content string and logprob
  */
 function handleSTT(data) {
+  // Realtime streaming committed: replace the provisional range with the
+  // final transcript so we don't double-insert. handleSTTPartial set
+  // dataset.sttPartialStart when the first delta arrived.
+  let partialConsumed = false;
+  const messageElRT = $id('message');
+  if (messageElRT && messageElRT.dataset.sttPartialStart !== undefined && messageElRT.dataset.sttPartialStart !== '') {
+    const start = parseInt(messageElRT.dataset.sttPartialStart, 10);
+    if (Number.isFinite(start)) {
+      const finalText = (data && typeof data.content === 'string') ? data.content : '';
+      messageElRT.value = messageElRT.value.substring(0, start) + finalText;
+      partialConsumed = true;
+    }
+    delete messageElRT.dataset.sttPartialStart;
+  }
+
   // Use the handler if available, otherwise use inline code
   let handled = false;
   if (typeof wsHandlers !== 'undefined' && wsHandlers && typeof wsHandlers.handleSTTMessage === 'function') {
@@ -169,7 +213,7 @@ function handleSTT(data) {
 
   if (!handled) {
     var messageEl = $id('message');
-    if (messageEl) messageEl.value = messageEl.value + " " + data["content"];
+    if (messageEl && !partialConsumed) messageEl.value = messageEl.value + " " + data["content"];
 
     var asrEl = $id('asr-p-value');
     if (data["logprob"] != null) {
@@ -336,6 +380,7 @@ window.WsSessionHandler = {
   handleProcessingStatus,
   handleSystemInfo,
   handleSTT,
+  handleSTTPartial,
   handlePDFTitles,
   handlePDFDeleted,
   handleChangeStatus,

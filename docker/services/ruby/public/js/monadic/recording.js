@@ -242,24 +242,44 @@ async function startAudioStream() {
   workletNode.connect(silentGain);
   silentGain.connect(audioCtx.destination);
 
+  const convLangEl = $id('conversation-language');
+  const sttModelEl = $id('stt-model');
+  const langCode = convLangEl ? convLangEl.value : '';
+  // Honor the user's STT model selection. The streaming path works with any
+  // OpenAI transcription model — but only `gpt-realtime-whisper` emits
+  // `.delta` events during the open buffer (marked with ⚡ in the dropdown).
+  // Other models return a single `.completed` after `AUDIO_COMMIT`.
+  const sttModel = (sttModelEl ? sttModelEl.value : '')
+    || (window.providerDefaults && window.providerDefaults.openai
+        && window.providerDefaults.openai.audio_transcription
+        && window.providerDefaults.openai.audio_transcription[0])
+    || 'gpt-realtime-whisper';
+
   workletNode.port.onmessage = function (event) {
     const buf = event.data;
     if (!buf || !buf.byteLength) return;
     const base64 = arrayBufferToBase64(buf);
     try {
-      window.safeWsSend({ message: 'AUDIO_CHUNK', content: base64 });
+      // Carry config on every chunk; the server caches the first values it sees
+      // for this session, so subsequent chunks pay only a handful of bytes.
+      window.safeWsSend({
+        message: 'AUDIO_CHUNK',
+        content: base64,
+        stt_model: sttModel,
+        lang_code: langCode
+      });
     } catch (err) {
       console.warn('[STT realtime] AUDIO_CHUNK send failed:', err);
     }
   };
 
-  const silenceDuration = 5000;
-  const closeSilence = detectSilence(stream, function () {
-    if (isListening) {
-      silenceDetected = true;
-      voiceButton.click();
-    }
-  }, silenceDuration);
+  // Streaming STT is fully user-controlled: stop only when the user clicks
+  // the Stop button. We still drive the #amplitude waveform via detectSilence,
+  // but the callback is a no-op so long pauses do NOT auto-terminate the
+  // session. Server-side turn_detection is disabled in audio_stream_handler.rb
+  // for the same reason. A very long ceiling (24h) keeps the visualization
+  // alive without ever firing.
+  const closeSilence = detectSilence(stream, function () { /* no auto-stop */ }, 24 * 60 * 60 * 1000);
 
   streamingSession = { audioCtx, source, workletNode, silentGain, stream, closeSilence };
   // Mirror the batch path: closeAudioContext on localStream so any external
@@ -740,3 +760,17 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 });
+
+// Streaming STT keeps writing partial transcripts into #message during the
+// recording, so a plain Enter (with focus on the textarea) would either
+// insert a newline or — with easy_submit on — fire send mid-recording.
+// Intercept Enter globally while a streaming session is active and route it
+// to the voice button click handler instead. Capture phase beats the
+// textarea's bubble-phase keydown so the default never runs.
+document.addEventListener('keydown', function (e) {
+  if (!streamingSession || !isListening) return;
+  if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+  e.preventDefault();
+  e.stopPropagation();
+  voiceButton.click();
+}, true);

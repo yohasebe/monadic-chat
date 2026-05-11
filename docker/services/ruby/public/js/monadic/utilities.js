@@ -1546,8 +1546,11 @@ document.addEventListener("DOMContentLoaded", function() {
         updateAppBadges(selectedApp);
       }, 100); // Small delay to ensure DOM is ready
 
-      // Reload Workflow Viewer if open
-      if (typeof WorkflowViewer !== "undefined" && WorkflowViewer.isOpen()) {
+      // Notify Workflow Viewer of the app change. loadApp internally handles
+      // queueing when the viewer is hidden or init hasn't finished yet, so
+      // we no longer gate on isOpen(): doing so created a timing window where
+      // apps populated before init finished would never reach the viewer.
+      if (typeof WorkflowViewer !== "undefined" && WorkflowViewer.loadApp) {
         WorkflowViewer.loadApp(selectedApp);
       }
 

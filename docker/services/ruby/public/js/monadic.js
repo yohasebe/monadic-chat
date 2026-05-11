@@ -2596,6 +2596,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     { const el = $id("apps"); if (el) el.focus(); }
+
+    // Notify the Workflow Viewer of the active app. proceedWithAppChange is
+    // the canonical "app change applied" hook called by both the #apps
+    // change handler (manual selection) and ws-app-data-handlers (initial
+    // reload + session restore), so this single line covers all paths
+    // including the one where #apps 'change' is never dispatched. loadApp
+    // dedups by currentApp, so the manual-change path won't double-fetch
+    // even though utilities.js also calls loadApp on the same change event.
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.loadApp) {
+      window.WorkflowViewer.loadApp(appValue);
+    }
   }
 
   $on($id("websearch"), "change", function() {

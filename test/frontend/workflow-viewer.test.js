@@ -114,7 +114,12 @@ function setupDOM() {
         <span class="wv-resize-grip"></span>
       </div>
     </div>
-    <button id="toggle-workflow-viewer"></button>
+    <div id="wv-mode-segment">
+      <button id="wv-mode-hidden"></button>
+      <button id="wv-mode-inline" class="active"></button>
+      <button id="wv-mode-floating"></button>
+    </div>
+    <div id="workflow-viewer-inline-host"></div>
     <button id="wv-zoom-in"></button>
     <button id="wv-zoom-out"></button>
     <button id="wv-zoom-fit"></button>
@@ -173,6 +178,13 @@ const SAMPLE_FULL = {
 };
 
 // ── Tests ─────────────────────────────────────────────────────
+
+// Force hidden display mode at test start so init() does not auto-trigger
+// setDisplayMode('inline') → fetch on each describe's beforeEach. Tests that
+// need to verify other modes call setDisplayMode explicitly.
+beforeEach(() => {
+  try { localStorage.setItem('wv-display-mode', 'hidden'); } catch (_) {}
+});
 
 describe('WorkflowViewer', () => {
   beforeEach(() => {
@@ -245,12 +257,17 @@ describe('WorkflowViewer', () => {
   });
 
   describe('isOpen', () => {
-    test('should return false when panel is collapsed', () => {
+    test('should return false in hidden mode', () => {
       expect(window.WorkflowViewer.isOpen()).toBe(false);
     });
 
-    test('should return true when panel is not collapsed', () => {
-      document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
+    test('should return true after setDisplayMode("floating")', () => {
+      window.WorkflowViewer.setDisplayMode('floating');
+      expect(window.WorkflowViewer.isOpen()).toBe(true);
+    });
+
+    test('should return true after setDisplayMode("inline")', () => {
+      window.WorkflowViewer.setDisplayMode('inline');
       expect(window.WorkflowViewer.isOpen()).toBe(true);
     });
   });
@@ -267,15 +284,17 @@ describe('WorkflowViewer', () => {
       expect(document.getElementById('workflow-viewer-panel').classList.contains('wv-panel-collapsed')).toBe(true);
     });
 
-    test('open should set toggle button active', () => {
+    test('open should mark floating segment button as active', () => {
       window.WorkflowViewer.open();
-      expect(document.getElementById('toggle-workflow-viewer').classList.contains('wv-active')).toBe(true);
+      expect(document.getElementById('wv-mode-floating').classList.contains('active')).toBe(true);
+      expect(document.getElementById('wv-mode-hidden').classList.contains('active')).toBe(false);
     });
 
-    test('close should remove toggle button active', () => {
+    test('close should mark hidden segment button as active', () => {
       window.WorkflowViewer.open();
       window.WorkflowViewer.close();
-      expect(document.getElementById('toggle-workflow-viewer').classList.contains('wv-active')).toBe(false);
+      expect(document.getElementById('wv-mode-hidden').classList.contains('active')).toBe(true);
+      expect(document.getElementById('wv-mode-floating').classList.contains('active')).toBe(false);
     });
   });
 

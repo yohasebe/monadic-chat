@@ -3140,6 +3140,69 @@ img.base64-image,
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
+/* Initial-Prompt toggle buttons in #config-prompts share the same three-
+   state visual language as #wv-mode-segment: transparent → subtle hover
+   → distinct active fill with inset shadow. The .active class is added
+   by JS when the corresponding textarea is expanded. */
+#prompt-toggle-assistant,
+#prompt-toggle-aiuser {
+  border-color: rgba(128, 128, 128, 0.3);
+  color: var(--text-secondary, #6c757d);
+  background-color: transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease,
+              color 0.12s ease, box-shadow 0.12s ease;
+}
+
+#prompt-toggle-assistant:hover:not(.active),
+#prompt-toggle-aiuser:hover:not(.active) {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-color: rgba(128, 128, 128, 0.5);
+  color: var(--text-primary, #333);
+}
+
+#prompt-toggle-assistant.active,
+#prompt-toggle-aiuser.active {
+  background-color: rgba(0, 0, 0, 0.12);
+  border-color: rgba(128, 128, 128, 0.55);
+  color: var(--text-primary, #333);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+#prompt-toggle-assistant:focus,
+#prompt-toggle-aiuser:focus,
+#prompt-toggle-assistant:focus-visible,
+#prompt-toggle-aiuser:focus-visible {
+  box-shadow: 0 0 0 0.15rem rgba(128, 128, 128, 0.25);
+  outline: none;
+}
+
+#prompt-toggle-assistant.active:focus,
+#prompt-toggle-aiuser.active:focus,
+#prompt-toggle-assistant.active:focus-visible,
+#prompt-toggle-aiuser.active:focus-visible {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08),
+              0 0 0 0.15rem rgba(128, 128, 128, 0.25);
+}
+
+.dark-theme #prompt-toggle-assistant:hover:not(.active),
+.dark-theme #prompt-toggle-aiuser:hover:not(.active),
+[data-theme="dark"] #prompt-toggle-assistant:hover:not(.active),
+[data-theme="dark"] #prompt-toggle-aiuser:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--text-primary, #f5f5f5);
+}
+
+.dark-theme #prompt-toggle-assistant.active,
+.dark-theme #prompt-toggle-aiuser.active,
+[data-theme="dark"] #prompt-toggle-assistant.active,
+[data-theme="dark"] #prompt-toggle-aiuser.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary, #f5f5f5);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 /* Theme Selection Indicator - Yellow dot in top-right corner */
 
 .theme-selected {

@@ -297,9 +297,6 @@
           </button>
           <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
           <span id="privacy-indicator" class="me-2" style="display:none;"></span>
-          <button id="toggle-workflow-viewer" class="btn btn-light me-1" aria-label="Workflow Viewer" title="Workflow Viewer" data-i18n-title="ui.workflowViewer">
-            <i class="fas fa-project-diagram"></i>
-          </button>
           <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
             <i class="fas fa-bars"></i>
           </button>
@@ -820,6 +817,32 @@
                 </div>
                 <textarea class="form-control form-control-sm textarea-resizable" id="initial-prompt" style="display: none;"></textarea>
                 <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt" style="display: none;"></textarea>
+              </div>
+            </div>
+
+            <!-- Workflow Viewer display mode selector + inline host.
+                 The viewer panel itself lives at #workflow-viewer-panel (further
+                 down) and is reparented into #workflow-viewer-inline-host when
+                 the user picks "In Panel", or to <body> for "Floating". -->
+            <div class="row my-3" id="config-workflow-viewer">
+              <div class="col-12">
+                <div class="d-flex align-items-center mb-2">
+                  <label class="form-label mb-0 me-3">
+                    <i class="fas fa-project-diagram"></i> <span data-i18n="ui.workflowViewer">Workflow Viewer</span>
+                  </label>
+                  <div class="btn-group btn-group-sm" role="group" id="wv-mode-segment" aria-label="Workflow Viewer display mode">
+                    <button type="button" class="btn btn-outline-secondary" id="wv-mode-hidden" data-mode="hidden" data-i18n-title="ui.workflowViewerHidden" title="Hidden">
+                      <i class="fas fa-eye-slash"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary active" id="wv-mode-inline" data-mode="inline" data-i18n-title="ui.workflowViewerInline" title="In Panel">
+                      <i class="fas fa-window-maximize"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="wv-mode-floating" data-mode="floating" data-i18n-title="ui.workflowViewerFloating" title="Floating">
+                      <i class="fas fa-arrow-up-right-from-square"></i>
+                    </button>
+                  </div>
+                </div>
+                <div id="workflow-viewer-inline-host"></div>
               </div>
             </div>
 

@@ -72,6 +72,25 @@ After voice input, a `p-value` indicating the confidence of the voice input is d
 
 Select the Speech-to-Text model in the console settings. Available models include OpenAI and Gemini options.
 
+## Realtime Streaming Transcription :id=realtime-streaming-transcription
+
+A streaming mode is available for the `GPT Realtime Whisper ⚡` entry in the Speech-to-Text Model dropdown. The ⚡ glyph indicates models that emit live partial transcripts during recording. When this model is selected, Speech Input behaves differently from the standard batch path:
+
+- As you speak, a live preview of the accumulated transcript appears in the message text area as **grey italic ghost text**. The preview updates every few hundred milliseconds.
+- You can keep typing in the text area while recording. The grey italic preview follows your typed cursor — your typed text is never overwritten by partials.
+- When you click `Stop`, the final transcript is appended to whatever you had in the text area, and the grey preview clears.
+- The `Auto Submit` (Easy Submit) flow fires once, on the final transcript only — not on intermediate partials.
+
+<!-- SCREENSHOT: Message input area during realtime streaming — grey italic partial text visible inside the textarea while the user is speaking -->
+
+**When to use streaming vs batch.** Streaming mode gives immediate visual feedback during long utterances and is well-suited for live note-taking or dictation flows. The standard batch path is more cost-efficient for short utterances and is what other STT models (Whisper-1, GPT-4o Transcribe, Gemini Flash, ElevenLabs Scribe, Cohere Transcribe, Mistral Voxtral, xAI STT) use.
+
+**Cost note.** Realtime transcription is billed per audio minute by OpenAI. Refer to OpenAI's pricing page for current rates. The non-streaming STT models on the dropdown use OpenAI's batch transcription pricing, which is typically lower per minute.
+
+**Provider support.** Realtime streaming transcription is currently available only via OpenAI, which is the only supported provider with a transcription-only realtime API. Other STT models on the dropdown continue to use the batch path.
+
+!> **Privacy Filter interaction.** Audio captured by Speech Input is transmitted to OpenAI for transcription before any Privacy Filter masking applies. Privacy Filter operates on the **text** sent to the LLM after transcription completes — it does not mask the audio itself. If your audio contains personally identifiable information that you do not want to send to OpenAI, type the message instead of dictating it.
+
 ## Text-to-Speech Playback
 
 **Play Button**<br />

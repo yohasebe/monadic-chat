@@ -153,14 +153,25 @@ let localStream;
 let isListening = false;
 let silenceDetected = true;
 
-// Streaming STT path (Phase 1 tracer bullet). When non-null, the active
-// recording is using AudioWorklet PCM capture instead of MediaRecorder.
-// Cleared by the stop / silence / abort paths in the voiceButton click
-// handler. Streaming is gated by `localStorage.stt_realtime === "1"` until
-// the Phase 4 UI toggle lands.
+// Streaming STT path. When non-null, the active recording is using
+// AudioWorklet PCM capture instead of MediaRecorder. Cleared by the
+// stop / silence / abort paths in the voiceButton click handler.
+//
+// The streaming path activates automatically when the user selects an
+// STT model whose model_spec entry declares
+// `supports_realtime_streaming: true` (today: `gpt-realtime-whisper`).
+// The legacy `localStorage.stt_realtime` flag remains as a debug
+// override for development.
 let streamingSession = null;
 
 function isRealtimeSttEnabled() {
+  const sttModelEl = $id('stt-model');
+  const model = sttModelEl ? sttModelEl.value : '';
+  if (model && typeof window !== 'undefined' && window.modelSpec
+      && window.modelSpec[model]
+      && window.modelSpec[model].supports_realtime_streaming) {
+    return true;
+  }
   try { return localStorage.getItem('stt_realtime') === '1'; }
   catch (_) { return false; }
 }
@@ -185,6 +196,24 @@ function teardownStreamingSession() {
   try { if (s.silentGain) s.silentGain.disconnect(); } catch (_) {}
   try { if (s.audioCtx && s.audioCtx.state !== 'closed') s.audioCtx.close(); } catch (_) {}
   try { if (s.closeSilence) s.closeSilence(); } catch (_) {}
+}
+
+// Clear the realtime STT partial-text overlay. Uses the handler module
+// when present, falls back to direct DOM manipulation. Called from
+// recording lifecycle paths that won't see a `.completed` event
+// (start defense, silence-abort, fallback-on-failure).
+function clearPartialOverlay() {
+  try {
+    if (window.WsSessionHandler && typeof window.WsSessionHandler.clearSTTPartialOverlay === 'function') {
+      window.WsSessionHandler.clearSTTPartialOverlay();
+      return;
+    }
+  } catch (_) {}
+  const overlay = $id('message-partial-overlay');
+  if (overlay) {
+    overlay.replaceChildren();
+    overlay.classList.remove('is-active');
+  }
 }
 
 let workerOptions = {};
@@ -218,6 +247,7 @@ async function startAudioStream() {
   if (typeof window === 'undefined' || typeof window.AudioWorkletNode !== 'function') {
     throw new Error('AudioWorklet not available in this runtime');
   }
+  clearPartialOverlay();
 
   const constraints = {
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, deviceId: 'default' }
@@ -437,6 +467,7 @@ voiceButton.addEventListener("click", function () {
           const fallbackText = getTranslation('ui.messages.sttRealtimeFallback', 'Realtime STT unavailable; falling back to standard mode');
           setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${fallbackText}`, 'warning');
           teardownStreamingSession();
+          clearPartialOverlay();
           startAudioCapture();
         });
       } else {
@@ -691,6 +722,7 @@ voiceButton.addEventListener("click", function () {
       try { window.safeWsSend({ message: 'AUDIO_ABORT' }); }
       catch (err) { console.warn('[STT realtime] AUDIO_ABORT send failed:', err); }
       teardownStreamingSession();
+      clearPartialOverlay();
       try { if (localStream) localStream.getTracks().forEach(track => track.stop()); } catch (_) {}
       localStream = null;
       const ampElSilenceDone = $id("amplitude");
@@ -761,12 +793,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Streaming STT keeps writing partial transcripts into #message during the
-// recording, so a plain Enter (with focus on the textarea) would either
-// insert a newline or — with easy_submit on — fire send mid-recording.
-// Intercept Enter globally while a streaming session is active and route it
-// to the voice button click handler instead. Capture phase beats the
-// textarea's bubble-phase keydown so the default never runs.
+// While a streaming STT session is active, a plain Enter (with focus on
+// the textarea) would either insert a newline into the in-progress message
+// or — with easy_submit on — fire send before the final transcript lands.
+// Intercept Enter globally while a streaming session is active and route
+// it to the voice button click handler (which commits the audio). Capture
+// phase beats the textarea's bubble-phase keydown so the default never runs.
 document.addEventListener('keydown', function (e) {
   if (!streamingSession || !isListening) return;
   if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;

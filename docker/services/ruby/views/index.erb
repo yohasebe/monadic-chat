@@ -880,7 +880,10 @@
             <div id="user-panel" class="mt-1">
               <div class="row">
                 <div class="col-12 h-25 mt-3">
-                  <textarea id="message" class="form-control form-control-sm textarea-resizable" style="margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." data-i18n-placeholder="ui.messagePlaceholder"></textarea>
+                  <div class="message-input-wrapper">
+                    <textarea id="message" class="form-control form-control-sm textarea-resizable" style="margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." data-i18n-placeholder="ui.messagePlaceholder"></textarea>
+                    <div id="message-partial-overlay" class="form-control form-control-sm message-partial-overlay" aria-hidden="true"></div>
+                  </div>
                   <div class="textbox-caption" id="image-used"></div>
                   <div id="image-base64"></div>
                 </div>

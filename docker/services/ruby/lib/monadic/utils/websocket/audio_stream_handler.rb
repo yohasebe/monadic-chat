@@ -47,7 +47,14 @@ module WebSocketHelper
 
   def handle_audio_commit(_connection, _obj)
     state = session[:_realtime_stt]
-    return unless state && state[:cmd_queue]
+    unless state && state[:cmd_queue]
+      # Commit arrived without any prior AUDIO_CHUNK — the bridge was
+      # never opened, so no `stt` or `error` event will reach the client
+      # via the normal path. Surface a no-audio error so the client UI
+      # can reset (spinner / disabled buttons would otherwise persist).
+      forward_stt_error("No audio captured", Thread.current[:websocket_session_id])
+      return
+    end
 
     state[:cmd_queue].enqueue([:commit])
   end

@@ -998,6 +998,20 @@ const modelSpec = {
     "tts_capability": true,
     "tts_family": "elevenlabs",
     "tts_instructions_capability": false
+  },
+
+  // -------------------------------------------------------------------------
+  // STT model metadata (Speech-to-Text capability SSOT)
+  //
+  // Entries only exist for models that need a capability flag beyond
+  // "appears in providerDefaults.audio_transcription". Today that means
+  // streaming-capable models — gated by `supports_realtime_streaming`.
+  // The frontend gate (`recording.js`) and the Ruby accessor
+  // (`ModelSpec.supports_realtime_streaming?`) both read this flag.
+  // -------------------------------------------------------------------------
+  "gpt-realtime-whisper": {
+    "stt_capability": true,
+    "supports_realtime_streaming": true
   }
 }
 

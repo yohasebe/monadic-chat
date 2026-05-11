@@ -21,7 +21,10 @@ beforeEach(() => {
     <div id="discourse"></div>
     <div id="monadic-spinner" style="display: none;"></div>
     <select id="conversation-language"><option value="en">English</option><option value="ja">Japanese</option><option value="ar">Arabic</option></select>
-    <textarea id="message" placeholder="Type..."></textarea>
+    <div class="message-input-wrapper">
+      <textarea id="message" placeholder="Type..."></textarea>
+      <div id="message-partial-overlay" aria-hidden="true"></div>
+    </div>
     <div id="asr-p-value" style="display: none;"></div>
     <button id="send"></button>
     <button id="clear"></button>
@@ -187,6 +190,136 @@ describe('ws-session-handler', () => {
       expect(messageEl.value).toBe('existing hello');
     });
 
+    it('leaves messageEl.value untouched when overlay is not active (legacy batch path)', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = 'kept';
+      // Overlay element present but not .is-active — must NOT consume.
+      overlay.classList.remove('is-active');
+
+      handlers.handleSTT({ content: 'final', logprob: 0.9 });
+
+      // Legacy path appends with a single space separator.
+      expect(messageEl.value).toBe('kept final');
+    });
+  });
+
+  describe('handleSTTPartial (overlay)', () => {
+    it('renders mirror prefix + grey-italic partial spans', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = '';
+
+      handlers.handleSTTPartial({ content: 'hello world' });
+
+      expect(overlay.classList.contains('is-active')).toBe(true);
+      expect(overlay.querySelector('.stt-mirror')).not.toBeNull();
+      expect(overlay.querySelector('.stt-partial')).not.toBeNull();
+      expect(overlay.querySelector('.stt-partial').textContent).toBe('hello world');
+      // Empty start → mirror is empty (no separator inserted).
+      expect(overlay.querySelector('.stt-mirror').textContent).toBe('');
+      // Crucially, the textarea value must stay untouched.
+      expect(messageEl.value).toBe('');
+    });
+
+    it('mirror prefix includes a separator space when textarea has content without trailing whitespace', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = 'typed before';
+
+      handlers.handleSTTPartial({ content: 'spoken' });
+
+      expect(overlay.querySelector('.stt-mirror').textContent).toBe('typed before ');
+      expect(overlay.querySelector('.stt-partial').textContent).toBe('spoken');
+      expect(messageEl.value).toBe('typed before');
+    });
+
+    it('skips separator when textarea already ends with whitespace', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = 'typed before\n';
+
+      handlers.handleSTTPartial({ content: 'spoken' });
+
+      expect(overlay.querySelector('.stt-mirror').textContent).toBe('typed before\n');
+      expect(messageEl.value).toBe('typed before\n');
+    });
+
+    it('overwrites previous partial on subsequent delta (no append, no leak)', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+
+      handlers.handleSTTPartial({ content: 'one' });
+      handlers.handleSTTPartial({ content: 'one two' });
+      handlers.handleSTTPartial({ content: 'one two three' });
+
+      // Exactly one partial span in the overlay — not three concatenated.
+      expect(overlay.querySelectorAll('.stt-partial').length).toBe(1);
+      expect(overlay.querySelector('.stt-partial').textContent).toBe('one two three');
+    });
+
+    it('re-reads mirror prefix from textarea on each delta (user typed during stream)', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = '';
+
+      handlers.handleSTTPartial({ content: 'live' });
+      expect(overlay.querySelector('.stt-mirror').textContent).toBe('');
+
+      // User types into the textarea mid-stream.
+      messageEl.value = 'user typed: ';
+      handlers.handleSTTPartial({ content: 'live partial' });
+
+      // Mirror prefix reflects the latest textarea value at delta time.
+      expect(overlay.querySelector('.stt-mirror').textContent).toBe('user typed: ');
+      expect(overlay.querySelector('.stt-partial').textContent).toBe('live partial');
+      // Textarea content is preserved verbatim.
+      expect(messageEl.value).toBe('user typed: ');
+    });
+
+    it('handleSTT commits final, appends to textarea, clears overlay (active path)', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = 'prefix';
+
+      handlers.handleSTTPartial({ content: 'live partial' });
+      expect(overlay.classList.contains('is-active')).toBe(true);
+
+      handlers.handleSTT({ content: 'final transcript', logprob: 0.9 });
+
+      // Final transcript appended to whatever the textarea had at commit time.
+      expect(messageEl.value).toBe('prefix final transcript');
+      // Overlay torn down.
+      expect(overlay.classList.contains('is-active')).toBe(false);
+      expect(overlay.children.length).toBe(0);
+    });
+
+    it('handleSTT preserves text the user typed during streaming', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = '';
+
+      handlers.handleSTTPartial({ content: 'hello' });
+      // User types while partial is on screen — must survive commit.
+      messageEl.value = 'note: ';
+      handlers.handleSTT({ content: 'hello world', logprob: 0.92 });
+
+      expect(messageEl.value).toBe('note: hello world');
+      expect(overlay.classList.contains('is-active')).toBe(false);
+    });
+
+    it('clearSTTPartialOverlay tears down without touching textarea', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = 'kept';
+
+      handlers.handleSTTPartial({ content: 'in flight' });
+      handlers.clearSTTPartialOverlay();
+
+      expect(overlay.classList.contains('is-active')).toBe(false);
+      expect(overlay.children.length).toBe(0);
+      expect(messageEl.value).toBe('kept');
+    });
+
     it('shows voice recognition finished alert', () => {
       handlers.handleSTT({ content: 'text', logprob: 0.9 });
 
@@ -317,7 +450,8 @@ describe('ws-session-handler', () => {
       const expectedHandlers = [
         'handleContextExtractionStarted', 'handleContextUpdate',
         'handleLanguageUpdated', 'handleProcessingStatus', 'handleSystemInfo',
-        'handleSTT', 'handlePDFTitles', 'handlePDFDeleted',
+        'handleSTT', 'handleSTTPartial', 'clearSTTPartialOverlay',
+        'handlePDFTitles', 'handlePDFDeleted',
         'handleChangeStatus', 'handleSuccess', 'handleSampleSuccess'
       ];
       expectedHandlers.forEach(name => {

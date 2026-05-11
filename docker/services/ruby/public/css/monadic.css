@@ -1496,6 +1496,48 @@ div.sourcecode-toggle:hover {
   font-size: 1em;
 }
 
+/* Realtime STT partial-text overlay (Phase 3): a ghost-text layer behind
+   #message that shows the provisional transcript in grey italic while the
+   textarea's value remains user-controlled. The .stt-mirror span carries
+   the textarea's current value with `color: transparent` so the styled
+   partial after it aligns to where the next character would be typed. */
+.message-input-wrapper {
+  position: relative;
+}
+.message-partial-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  pointer-events: none;
+  background: transparent;
+  border-color: transparent;
+  overflow: hidden;
+  resize: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 1em;
+  min-height: 100px;
+  color: transparent;
+  display: none;
+}
+.message-partial-overlay.is-active {
+  display: block;
+}
+.message-partial-overlay .stt-mirror {
+  color: transparent;
+  white-space: pre-wrap;
+}
+.message-partial-overlay .stt-partial {
+  color: #888;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+.dark-theme .message-partial-overlay .stt-partial {
+  color: #aaa;
+}
+
 /* Role-specific styling for inline edit textarea */
 
 .role-user .inline-edit-textarea {

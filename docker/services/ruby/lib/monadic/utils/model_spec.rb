@@ -180,6 +180,14 @@ module Monadic
           prop.nil? ? true : !!prop
         end
 
+        # True when the STT model emits delta events over the OpenAI Realtime
+        # WS endpoint (`?intent=transcription`). Drives the client-side gate
+        # that picks the AudioWorklet PCM capture path over the batch
+        # MediaRecorder path. Today only `gpt-realtime-whisper`.
+        def supports_realtime_streaming?(model_name)
+          get_model_property(model_name, "supports_realtime_streaming") == true
+        end
+
         def vision_capability?(model_name)
           prop = get_model_property(model_name, "vision_capability")
           prop.nil? ? true : !!prop

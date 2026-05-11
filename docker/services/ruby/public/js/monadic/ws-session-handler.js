@@ -157,31 +157,43 @@ function handleSystemInfo(data) {
 
 /**
  * Handle "stt_partial" WebSocket message (Realtime streaming STT).
- * Replaces the provisional range in #message with the latest cumulative
- * transcript. The range is stored on the textarea's dataset so the final
- * "stt" message can replace it once, atomically.
+ * Renders the cumulative provisional transcript into the ghost-text
+ * overlay sibling of #message — does NOT touch messageEl.value, so the
+ * user can keep typing in the textarea while partials stream in.
  * @param {Object} data - { content: "<accumulated partial transcript>" }
  */
 function handleSTTPartial(data) {
   const messageEl = $id('message');
-  if (!messageEl) return;
+  const overlay = $id('message-partial-overlay');
+  if (!messageEl || !overlay) return;
   const partial = (data && typeof data.content === 'string') ? data.content : '';
 
-  const rangeStart = messageEl.dataset.sttPartialStart;
-  let start;
-  if (rangeStart === undefined || rangeStart === '') {
-    start = messageEl.value.length;
-    if (start > 0 && !/\s$/.test(messageEl.value)) {
-      messageEl.value += ' ';
-      start += 1;
-    }
-    messageEl.dataset.sttPartialStart = String(start);
-  } else {
-    start = parseInt(rangeStart, 10);
-    if (!Number.isFinite(start)) start = messageEl.value.length;
-  }
+  const existing = messageEl.value;
+  const sep = (existing.length > 0 && !/\s$/.test(existing)) ? ' ' : '';
 
-  messageEl.value = messageEl.value.substring(0, start) + partial;
+  overlay.replaceChildren();
+  const mirror = document.createElement('span');
+  mirror.className = 'stt-mirror';
+  mirror.textContent = existing + sep;
+  const partialSpan = document.createElement('span');
+  partialSpan.className = 'stt-partial';
+  partialSpan.textContent = partial;
+  overlay.appendChild(mirror);
+  overlay.appendChild(partialSpan);
+  overlay.classList.add('is-active');
+  overlay.scrollTop = messageEl.scrollTop;
+}
+
+/**
+ * Clear the realtime STT overlay. Called from the recording lifecycle
+ * (start / commit / abort / silence). Exposed via window for use by
+ * non-bundled callers.
+ */
+function clearSTTPartialOverlay() {
+  const overlay = $id('message-partial-overlay');
+  if (!overlay) return;
+  overlay.replaceChildren();
+  overlay.classList.remove('is-active');
 }
 
 /**
@@ -190,19 +202,20 @@ function handleSTTPartial(data) {
  * @param {Object} data - Message data with content string and logprob
  */
 function handleSTT(data) {
-  // Realtime streaming committed: replace the provisional range with the
-  // final transcript so we don't double-insert. handleSTTPartial set
-  // dataset.sttPartialStart when the first delta arrived.
+  // Realtime streaming committed: append the final transcript to
+  // messageEl.value (preserving any text the user typed during the
+  // partial stream) and tear down the overlay. The overlay being
+  // active is what tells us streaming was in progress.
   let partialConsumed = false;
   const messageElRT = $id('message');
-  if (messageElRT && messageElRT.dataset.sttPartialStart !== undefined && messageElRT.dataset.sttPartialStart !== '') {
-    const start = parseInt(messageElRT.dataset.sttPartialStart, 10);
-    if (Number.isFinite(start)) {
-      const finalText = (data && typeof data.content === 'string') ? data.content : '';
-      messageElRT.value = messageElRT.value.substring(0, start) + finalText;
-      partialConsumed = true;
-    }
-    delete messageElRT.dataset.sttPartialStart;
+  const overlayRT = $id('message-partial-overlay');
+  if (messageElRT && overlayRT && overlayRT.classList.contains('is-active')) {
+    const finalText = (data && typeof data.content === 'string') ? data.content : '';
+    const existing = messageElRT.value;
+    const sep = (existing.length > 0 && !/\s$/.test(existing)) ? ' ' : '';
+    messageElRT.value = existing + sep + finalText;
+    partialConsumed = true;
+    clearSTTPartialOverlay();
   }
 
   // Use the handler if available, otherwise use inline code
@@ -381,6 +394,7 @@ window.WsSessionHandler = {
   handleSystemInfo,
   handleSTT,
   handleSTTPartial,
+  clearSTTPartialOverlay,
   handlePDFTitles,
   handlePDFDeleted,
   handleChangeStatus,

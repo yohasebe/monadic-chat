@@ -153,6 +153,40 @@ let localStream;
 let isListening = false;
 let silenceDetected = true;
 
+// Streaming STT path (Phase 1 tracer bullet). When non-null, the active
+// recording is using AudioWorklet PCM capture instead of MediaRecorder.
+// Cleared by the stop / silence / abort paths in the voiceButton click
+// handler. Streaming is gated by `localStorage.stt_realtime === "1"` until
+// the Phase 4 UI toggle lands.
+let streamingSession = null;
+
+function isRealtimeSttEnabled() {
+  try { return localStorage.getItem('stt_realtime') === '1'; }
+  catch (_) { return false; }
+}
+
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  const CHUNK = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+function teardownStreamingSession() {
+  if (!streamingSession) return;
+  const s = streamingSession;
+  streamingSession = null;
+  try { if (s.workletNode) s.workletNode.port.onmessage = null; } catch (_) {}
+  try { if (s.source) s.source.disconnect(); } catch (_) {}
+  try { if (s.workletNode) s.workletNode.disconnect(); } catch (_) {}
+  try { if (s.silentGain) s.silentGain.disconnect(); } catch (_) {}
+  try { if (s.audioCtx && s.audioCtx.state !== 'closed') s.audioCtx.close(); } catch (_) {}
+  try { if (s.closeSilence) s.closeSilence(); } catch (_) {}
+}
+
 let workerOptions = {};
 
 // Build complete URL to properly load WASM file inside Worker
@@ -171,6 +205,67 @@ const NativeMediaRecorder = window.MediaRecorder;
 if (!(NativeMediaRecorder && typeof NativeMediaRecorder.isTypeSupported === 'function' &&
       NativeMediaRecorder.isTypeSupported('audio/webm;codecs=opus'))) {
   window.MediaRecorder = OpusMediaRecorder;
+}
+
+// Realtime streaming variant: AudioWorklet captures PCM16 mono 24 kHz and
+// posts ~100 ms chunks as `AUDIO_CHUNK` WebSocket messages. The legacy
+// `startAudioCapture()` (MediaRecorder + one-shot AUDIO at stop) is kept
+// intact for all non-streaming providers and as a fallback.
+async function startAudioStream() {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    throw new Error('Media devices API not available');
+  }
+  if (typeof window === 'undefined' || typeof window.AudioWorkletNode !== 'function') {
+    throw new Error('AudioWorklet not available in this runtime');
+  }
+
+  const constraints = {
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, deviceId: 'default' }
+  };
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
+  localStream = stream;
+
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioCtor();
+  await audioCtx.audioWorklet.addModule('/js/monadic/audio-pcm-encoder-worklet.js');
+
+  const source = audioCtx.createMediaStreamSource(stream);
+  const workletNode = new AudioWorkletNode(audioCtx, 'pcm-encoder', {
+    processorOptions: { targetRate: 24000, frameMs: 100 }
+  });
+  // Keep the worklet alive in the graph without producing audible output:
+  // route through a muted GainNode to destination. Not connecting at all is
+  // implementation-dependent for whether process() is scheduled.
+  const silentGain = audioCtx.createGain();
+  silentGain.gain.value = 0;
+  source.connect(workletNode);
+  workletNode.connect(silentGain);
+  silentGain.connect(audioCtx.destination);
+
+  workletNode.port.onmessage = function (event) {
+    const buf = event.data;
+    if (!buf || !buf.byteLength) return;
+    const base64 = arrayBufferToBase64(buf);
+    try {
+      window.safeWsSend({ message: 'AUDIO_CHUNK', content: base64 });
+    } catch (err) {
+      console.warn('[STT realtime] AUDIO_CHUNK send failed:', err);
+    }
+  };
+
+  const silenceDuration = 5000;
+  const closeSilence = detectSilence(stream, function () {
+    if (isListening) {
+      silenceDetected = true;
+      voiceButton.click();
+    }
+  }, silenceDuration);
+
+  streamingSession = { audioCtx, source, workletNode, silentGain, stream, closeSilence };
+  // Mirror the batch path: closeAudioContext on localStream so any external
+  // observer that calls it cleans the silence detector. teardownStreamingSession
+  // is the canonical path for streaming-mode cleanup.
+  localStream.closeAudioContext = closeSilence;
 }
 
 // Function to start audio capture
@@ -311,6 +406,24 @@ voiceButton.addEventListener("click", function () {
     if (spinnerSpan) spinnerSpan.innerHTML = `<i class="fas fa-microphone fa-pulse"></i> ${listeningSpinnerText}`;
     isListening = true;
 
+    // Branch chooser: gates the realtime STT path uniformly across the
+    // Electron and standard-browser entrypoints. Must be applied AFTER
+    // microphone permission is settled in the Electron branch — same
+    // semantics as the legacy `startAudioCapture()` it replaces.
+    const beginCapture = function () {
+      if (isRealtimeSttEnabled()) {
+        startAudioStream().catch(function (err) {
+          console.warn('[STT realtime] startAudioStream failed, falling back to batch:', err);
+          const fallbackText = getTranslation('ui.messages.sttRealtimeFallback', 'Realtime STT unavailable; falling back to standard mode');
+          setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${fallbackText}`, 'warning');
+          teardownStreamingSession();
+          startAudioCapture();
+        });
+      } else {
+        startAudioCapture();
+      }
+    };
+
     // For Electron environment, try to explicitly request permissions via bridge API
     if (window.electronAPI && window.electronAPI.requestMediaPermissions) {
       // Check if navigator.mediaDevices is available
@@ -326,12 +439,12 @@ voiceButton.addEventListener("click", function () {
               console.error("Failed to get media permissions via Electron bridge");
             }
             // Continue with getUserMedia regardless of bridge result
-            startAudioCapture();
+            beginCapture();
           })
           .catch(err => {
             console.error("Error in requestMediaPermissions:", err);
             // Fall back to direct getUserMedia
-            startAudioCapture();
+            beginCapture();
           });
       } else {
         console.warn("navigator.mediaDevices is not available, requesting permissions via bridge only");
@@ -342,17 +455,17 @@ voiceButton.addEventListener("click", function () {
               console.error("Failed to get media permissions via Electron bridge");
             }
             // Continue with getUserMedia regardless of bridge result
-            startAudioCapture();
+            beginCapture();
           })
           .catch(err => {
             console.error("Error in requestMediaPermissions:", err);
             // Fall back to direct getUserMedia
-            startAudioCapture();
+            beginCapture();
           });
       }
     } else {
       // Standard browser environment
-      startAudioCapture();
+      beginCapture();
     }
 
   // "Stop" button is pressed
@@ -380,7 +493,23 @@ voiceButton.addEventListener("click", function () {
     $show(cancelQueryEl);
     isListening = false;
 
-    if(mediaRecorder){
+    if (streamingSession) {
+      // Realtime streaming stop: signal commit, tear down audio graph, and
+      // wait for the backend to emit the `stt` event (handled by existing
+      // handleSTT in ws-session-handler.js). No blob is read here.
+      try {
+        window.safeWsSend({ message: 'AUDIO_COMMIT' });
+      } catch (err) {
+        console.warn('[STT realtime] AUDIO_COMMIT send failed:', err);
+      }
+      teardownStreamingSession();
+      try { if (localStream) localStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+      localStream = null;
+      const asrPValueEl = $id("asr-p-value");
+      $show(asrPValueEl);
+      const ampElDone = $id("amplitude");
+      $hide(ampElDone);
+    } else if(mediaRecorder){
       try {
         // Set the event listener before stopping the mediaRecorder
         mediaRecorder.ondataavailable = function (event) {
@@ -533,6 +662,21 @@ voiceButton.addEventListener("click", function () {
     $hide(spinElSilence);
     const ampElSilence = $id("amplitude");
     $hide(ampElSilence);
+
+    if (streamingSession) {
+      // Streaming silence-abort: discard any pending chunks server-side.
+      // When server-side VAD lands in Phase 2 this branch becomes
+      // ceremonial — OpenAI commits on its own EoS. For Phase 1 we keep
+      // semantics conservative (no auto-commit on silence).
+      try { window.safeWsSend({ message: 'AUDIO_ABORT' }); }
+      catch (err) { console.warn('[STT realtime] AUDIO_ABORT send failed:', err); }
+      teardownStreamingSession();
+      try { if (localStream) localStream.getTracks().forEach(track => track.stop()); } catch (_) {}
+      localStream = null;
+      const ampElSilenceDone = $id("amplitude");
+      $hide(ampElSilenceDone);
+      return;
+    }
 
     mediaRecorder.stop();
     localStream.getTracks().forEach(track => track.stop());

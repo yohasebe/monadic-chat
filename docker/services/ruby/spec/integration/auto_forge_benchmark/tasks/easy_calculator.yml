@@ -1,0 +1,76 @@
+# Easy task: single-file calculator web app
+#
+# The classic AutoForge baseline. A correct LLM should one-shot this
+# in 1-3 iterations. The intent is to establish a floor: any config
+# that fails this is unusable for AutoForge.
+
+id: easy_calculator
+difficulty: easy
+loc_target: 200
+
+description: |
+  Build a simple calculator web app as a single HTML file. The
+  calculator should have:
+  - Numeric buttons 0-9
+  - The four operations: + - × ÷
+  - An equals button =
+  - A clear button C
+  - A display showing the current expression and result
+  - Keyboard support (digit keys, operators, Enter for =, Escape for C)
+
+  All HTML, CSS, and JavaScript must be in a single file. No external
+  libraries or frameworks. The visual design should be clean and
+  readable; specific styling is at your discretion.
+
+rubric_items:
+  # Each item is a spec coverage criterion. Binary (pass/fail) unless
+  # noted. Total: 10 items, each 1 point.
+  - id: html_single_file
+    description: "Output is a single .html file with embedded CSS and JS"
+    type: binary
+  - id: buttons_0_9
+    description: "All 10 digit buttons (0-9) are present and labeled correctly"
+    type: binary
+  - id: four_operations
+    description: "All 4 operator buttons (+, -, *, /) are present"
+    type: binary
+  - id: equals_button
+    description: "Equals button (=) is present and triggers evaluation"
+    type: binary
+  - id: clear_button
+    description: "Clear button (C) resets the display"
+    type: binary
+  - id: display_present
+    description: "There is a visible display element for the expression / result"
+    type: binary
+  - id: addition_correct
+    description: "1 + 1 = 2 produces correct output"
+    type: binary
+  - id: division_correct
+    description: "10 / 4 = 2.5 produces correct output (not 2)"
+    type: binary
+  - id: keyboard_support
+    description: "At least digit keys and Enter for = work via keyboard"
+    type: binary
+  - id: clean_visual
+    description: "Buttons are arranged in a recognizable grid layout, no overlap"
+    type: binary
+
+smoke_test:
+  # Selenium operations to verify functional correctness. Each step
+  # should succeed for `functional_pass: true`.
+  - action: open
+    target: "{{output_file}}"
+  - action: click_text
+    target: "1"
+  - action: click_text
+    target: "+"
+  - action: click_text
+    target: "1"
+  - action: click_text
+    target: "="
+  - action: assert_display_contains
+    expected: "2"
+  - action: click_text
+    target: "C"
+  - action: assert_display_empty

@@ -134,3 +134,11 @@ docs_dev/external_apis/
 # publication priority and to keep docs_dev/ focused on implementation
 # support (docs_dev/ is for documentation that tracks the implementation).
 research_notes/
+
+# Experimental code — kept local, not committed.
+# Prototype scripts, API probes, benchmark scratchpads, throwaway
+# experiments. Anything valuable that emerges here should be promoted
+# to production code (apps/, lib/, spec/) or to a tracked doc
+# (docs_dev/). Keeping these out of git prevents experimental noise
+# from polluting the production codebase.
+experiments/

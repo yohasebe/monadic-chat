@@ -169,11 +169,21 @@ let silenceDetected = true;
 // file's top-level DOM attachments under jsdom.
 let streamingSession = null;
 
+// One-shot warning so we don't spam the console — but the first time we
+// fall through to `false` because SttGate is missing, we want a clear
+// breadcrumb for whoever is debugging the bundle. Silent `false` would
+// look identical to "user has not opted in," which is the wrong story.
+let _sttGateMissingWarned = false;
 function isRealtimeSttEnabled() {
-  return (typeof window !== 'undefined' && window.SttGate
-          && typeof window.SttGate.isRealtimeSttEnabled === 'function')
-    ? window.SttGate.isRealtimeSttEnabled()
-    : false;
+  if (typeof window === 'undefined') return false;
+  if (window.SttGate && typeof window.SttGate.isRealtimeSttEnabled === 'function') {
+    return window.SttGate.isRealtimeSttEnabled();
+  }
+  if (!_sttGateMissingWarned) {
+    _sttGateMissingWarned = true;
+    console.warn('[recording.js] window.SttGate is undefined — stt-gate.js missing from bundle? Realtime STT will be disabled.');
+  }
+  return false;
 }
 
 function arrayBufferToBase64(buf) {

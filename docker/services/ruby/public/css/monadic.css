@@ -1537,7 +1537,8 @@ div.sourcecode-toggle:hover {
    visually collide with the ghost-text. Driven entirely by the
    .is-active class on overlay, no JS coupling. Chromium 105+ /
    Electron 39 all support :has() in CSS. */
-.message-input-wrapper:has(.message-partial-overlay.is-active) #message::placeholder {
+.message-input-wrapper:has(.message-partial-overlay.is-active) #message::placeholder,
+.message-input-wrapper.has-partial-overlay #message::placeholder {
   color: transparent;
 }
 /* Belt-and-braces: overlay carries .form-control for typography parity,

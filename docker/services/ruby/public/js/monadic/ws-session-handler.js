@@ -214,6 +214,11 @@ function handleSTTPartial(data) {
   overlay.appendChild(mirror);
   overlay.appendChild(partialSpan);
   overlay.classList.add('is-active');
+  // Mirror to wrapper for browsers without :has() support — the CSS rule
+  // that hides the placeholder is :has()-based for modern engines and
+  // .has-partial-overlay-class-based for fallback. See monadic.css.
+  const wrapper = overlay.closest('.message-input-wrapper');
+  if (wrapper) wrapper.classList.add('has-partial-overlay');
   overlay.scrollTop = messageEl.scrollTop;
   attachSTTScrollSync();
 }
@@ -229,6 +234,8 @@ function clearSTTPartialOverlay() {
   if (!overlay) return;
   overlay.replaceChildren();
   overlay.classList.remove('is-active');
+  const wrapper = overlay.closest('.message-input-wrapper');
+  if (wrapper) wrapper.classList.remove('has-partial-overlay');
 }
 
 /**

@@ -50,6 +50,12 @@ module WebSocketHelper
   # via REALTIME_STT_MAX_CONCURRENT in env for shared installations.
   REALTIME_STT_MAX_CONCURRENT = (ENV["REALTIME_STT_MAX_CONCURRENT"] || "8").to_i
 
+  # NOTE on scope: Async::Semaphore is per-process. Falcon currently runs
+  # a single worker, so REALTIME_STT_MAX_CONCURRENT is the effective cap.
+  # If Falcon ever moves to multi-worker (configure: count > 1), the
+  # cluster-wide cap becomes N × REALTIME_STT_MAX_CONCURRENT — the
+  # configured value must be divided down accordingly, or an out-of-
+  # process limiter (e.g. shared file lock, Redis) added here.
   def self.realtime_stt_semaphore
     @realtime_stt_semaphore ||= Async::Semaphore.new(REALTIME_STT_MAX_CONCURRENT)
   end

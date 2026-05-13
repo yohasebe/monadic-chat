@@ -1,4 +1,4 @@
-# Library / Knowledge Base subsystem
+# Library subsystem
 
 This is an internal-developer document describing the architecture and
 design decisions behind the Library subsystem. It complements
@@ -6,10 +6,41 @@ design decisions behind the Library subsystem. It complements
 the Qdrant + multilingual-e5-base storage layer) and the user-facing
 description in `docs/basic-usage/basic-apps.md` (Knowledge Base section).
 
+## Terminology
+
+Three related concepts are easy to confuse in surrounding documentation
+and code. This document distinguishes them consistently.
+
+- **Library subsystem (backend)** — The store + retriever + importers
+  living in `lib/monadic/library/`. Owns the Qdrant collections, the
+  ingestion pipeline, the cascade search, and the on-disk schema. This
+  document describes this layer.
+- **Knowledge Base (app)** — The 8 provider variants in
+  `apps/knowledge_base/` that give end users a UI to browse, save,
+  rename, scope, delete, and import files. Sits on top of the Library
+  subsystem.
+- **`library_search` (shared tool)** — A tool defined in
+  `lib/monadic/shared_tools/library_search.rb` that other apps (Chat,
+  Research Assistant, etc.) can `import :library_search` to query the
+  Library subsystem from inside a turn. Another front-end onto the same
+  backend, parallel to the Knowledge Base app.
+
+```
+       [ Knowledge Base app ]      [ library_search shared tool ]
+                ↓                              ↓
+       ─────────────────────────────────────────────
+                Library subsystem (this document)
+       ─────────────────────────────────────────────
+                ↓
+       Qdrant ( library_summaries / library_turns )
+       multilingual-e5-base embeddings
+```
+
 ## What it is
 
-The Library is the project-wide knowledge base: every Monadic Chat app
-shares the same store. Conversation transcripts (saved chat sessions),
+The Library subsystem is the project-wide knowledge backend: every
+Monadic Chat app shares the same store through one of the two
+front-ends listed above. Conversation transcripts (saved chat sessions),
 imported PDFs / Office documents / Markdown / source code all flow
 through one ingestion pipeline and end up in two Qdrant collections:
 

@@ -590,7 +590,7 @@
             </div>
 
             <div id="elevenlabs-voices" class="my-1" style="display: none;">
-              <label for="tts-voice" class="div-label my-2" data-i18n="ui.elevenLabsVoice">Elevenlabs Text-to-Speech Voice</label>
+              <label for="elevenlabs-tts-voice" class="div-label my-2" data-i18n="ui.elevenLabsVoice">Elevenlabs Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="elevenlabs-tts-voice">
               </select>
             </div>
@@ -621,7 +621,7 @@
             </div>
             
             <div id="gemini-voices" class="my-1" style="display: none;">
-              <label for="gemini-voice" class="div-label my-2" data-i18n="ui.geminiVoice">Gemini Text-to-Speech Voice</label>
+              <label for="gemini-tts-voice" class="div-label my-2" data-i18n="ui.geminiVoice">Gemini Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="gemini-tts-voice">
                 <!-- Voices will be populated by JavaScript from websocket gemini_voices message -->
                 <option value="zephyr">Zephyr</option>
@@ -732,7 +732,7 @@
                 <label class="form-label text-nowrap" for="context-size-toggle" data-i18n="ui.maxContextSize">Max Context Size</label>
                 <div class="d-flex align-items-center gap-2">
                   <input class="form-check-input mt-0" type="checkbox" id="context-size-toggle" checked="">
-                  <input type="number" id="context-size" min="1" max="9999" step="1" value="100" class="form-control form-control-sm" />
+                  <input type="number" id="context-size" min="1" max="9999" step="1" value="100" class="form-control form-control-sm" aria-label="Max context size value" data-i18n-aria-label="ui.contextSizeAriaLabel" />
                 </div>
               </div>
               
@@ -740,7 +740,7 @@
                 <label class="form-label text-nowrap" for="max-tokens-toggle" data-i18n="ui.maxOutputTokens">Max Output Tokens</label>
                 <div class="d-flex align-items-center gap-2">
                   <input class="form-check-input mt-0" type="checkbox" id="max-tokens-toggle" checked="checked">
-                  <input type="number" id="max-tokens" step="1" min="100" max="999999" value="4000" class="form-control form-control-sm" />
+                  <input type="number" id="max-tokens" step="1" min="100" max="999999" value="4000" class="form-control form-control-sm" aria-label="Max output tokens value" data-i18n-aria-label="ui.maxTokensAriaLabel" />
                 </div>
               </div>
             </form>
@@ -827,9 +827,9 @@
             <div class="row my-3" id="config-workflow-viewer">
               <div class="col-12">
                 <div class="d-flex align-items-center mb-2">
-                  <label class="form-label mb-0 me-3">
+                  <span class="form-label mb-0 me-3">
                     <i class="fas fa-project-diagram"></i> <span data-i18n="ui.workflowViewer">Workflow Viewer</span>
-                  </label>
+                  </span>
                   <div class="btn-group btn-group-sm" role="group" id="wv-mode-segment" aria-label="Workflow Viewer display mode">
                     <button type="button" class="btn btn-outline-secondary" id="wv-mode-hidden" data-mode="hidden" data-i18n-title="ui.workflowViewerHidden" title="Hidden">
                       <i class="fas fa-eye-slash"></i>
@@ -904,7 +904,7 @@
               <div class="row">
                 <div class="col-12 h-25 mt-3">
                   <div class="message-input-wrapper">
-                    <textarea id="message" class="form-control form-control-sm textarea-resizable" style="margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." data-i18n-placeholder="ui.messagePlaceholder"></textarea>
+                    <textarea id="message" class="form-control form-control-sm textarea-resizable" style="margin-bottom: var(--message-textarea-margin-bottom);" rows="4" placeholder="Type your message . . ." aria-label="Message input" data-i18n-aria-label="ui.messageAriaLabel" data-i18n-placeholder="ui.messagePlaceholder"></textarea>
                     <div id="message-partial-overlay" class="form-control form-control-sm message-partial-overlay" aria-hidden="true"></div>
                   </div>
                   <div class="textbox-caption" id="image-used"></div>
@@ -962,7 +962,7 @@
                 </span>&nbsp;
                 <span class="user-color fw-bold" data-i18n="ui.aiUser">AI User</span>
                 &nbsp;&nbsp;
-                <select id="ai_user_provider" class="form-select form-select-sm me-1">
+                <select id="ai_user_provider" class="form-select form-select-sm me-1" aria-label="AI User provider" data-i18n-aria-label="ui.aiUserProviderAriaLabel">
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
                   <option value="gemini">Gemini</option>
@@ -1052,7 +1052,7 @@
             </div>
             <div class="textbox-caption mb-3" data-i18n="ui.exportEncryptHint">Protect the exported file at rest using AES-256-GCM + Argon2id. Recommended for files you intend to share, archive, or sync.</div>
 
-            <div id="privacy-export-pass-section" style="display:none;">
+            <form id="privacy-export-pass-section" style="display:none;" onsubmit="event.preventDefault(); return false;" autocomplete="off">
               <label for="privacy-export-passphrase" class="form-label small" data-i18n="ui.exportPassphrase">Passphrase</label>
               <input type="password" class="form-control form-control-sm" id="privacy-export-passphrase" autocomplete="new-password">
               <label for="privacy-export-passphrase-confirm" class="form-label small mt-2" data-i18n="ui.exportPassphraseConfirm">Confirm</label>
@@ -1067,7 +1067,7 @@
                 <i class="fas fa-exclamation-circle"></i>
                 <span data-i18n="ui.exportPassphraseWarning">This passphrase is the ONLY way to recover your data. Monadic Chat cannot reset it.</span>
               </div>
-            </div>
+            </form>
 
             <!-- Content axis: shown only when Privacy Filter was used (registry has entries) -->
             <div id="privacy-export-content-section" style="display:none;">
@@ -1118,8 +1118,10 @@
           <div class="modal-body">
             <p class="small text-muted">This file is an encrypted Privacy Filter export. Enter the passphrase used during export.</p>
             <div id="privacy-import-header-info" class="small text-muted mb-2"></div>
-            <label for="privacy-import-passphrase" class="form-label small">Passphrase</label>
-            <input type="password" class="form-control form-control-sm" id="privacy-import-passphrase" autocomplete="current-password">
+            <form onsubmit="event.preventDefault(); return false;" autocomplete="off">
+              <label for="privacy-import-passphrase" class="form-label small">Passphrase</label>
+              <input type="password" class="form-control form-control-sm" id="privacy-import-passphrase" autocomplete="current-password">
+            </form>
             <div id="privacy-import-error" class="alert alert-danger small mt-2" style="display:none;"></div>
           </div>
           <div class="modal-footer">
@@ -1225,20 +1227,20 @@
                 <i class="fa-solid fa-file-arrow-up"></i> <span data-i18n="ui.libImportFile">Import file</span>
               </button>
               <input type="file" id="library-import-input" hidden accept=".md,.markdown,.mdx,.pdf,.docx,.xlsx,.pptx,.rb,.py,.js,.mjs,.cjs,.jsx,.ts,.tsx,.go,.java,.kt,.kts,.swift,.rs,.c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.cs,.php,.sh,.bash,.zsh,.sql,.pl,.pm,.lua,.ex,.exs,.scala,.clj,.cljs,.hs,.ml,.mli,.r,.jl">
-              <input type="search" class="form-control form-control-sm" id="library-browse-search" style="max-width: 320px;" placeholder="Search title, source, language..." data-i18n-placeholder="ui.libBrowsePlaceholder">
-              <select class="form-select form-select-sm" id="library-browse-scope" style="max-width: 200px;">
+              <input type="search" class="form-control form-control-sm" id="library-browse-search" style="max-width: 320px;" placeholder="Search title, source, language..." aria-label="Library search" data-i18n-aria-label="ui.librarySearchAriaLabel" data-i18n-placeholder="ui.libBrowsePlaceholder">
+              <select class="form-select form-select-sm" id="library-browse-scope" style="max-width: 200px;" aria-label="Library scope filter" data-i18n-aria-label="ui.libraryScopeAriaLabel">
                 <option value="all" data-i18n="ui.libBrowseAllScopes">All scopes</option>
                 <!-- Additional <option> entries are populated dynamically
                      from the current row set so the user can filter by
                      any specific app scope or "Global". -->
               </select>
-              <select class="form-select form-select-sm" id="library-browse-sort" style="max-width: 180px;">
+              <select class="form-select form-select-sm" id="library-browse-sort" style="max-width: 180px;" aria-label="Library sort order" data-i18n-aria-label="ui.librarySortAriaLabel">
                 <option value="created_desc" data-i18n="ui.libSortNewest">Newest first</option>
                 <option value="created_asc" data-i18n="ui.libSortOldest">Oldest first</option>
                 <option value="title_asc" data-i18n="ui.libSortTitleAsc">Title A→Z</option>
                 <option value="turns_desc" data-i18n="ui.libSortTurnsDesc">Most turns</option>
               </select>
-              <select class="form-select form-select-sm" id="library-browse-pagesize" style="max-width: 100px;">
+              <select class="form-select form-select-sm" id="library-browse-pagesize" style="max-width: 100px;" aria-label="Library page size" data-i18n-aria-label="ui.libraryPageSizeAriaLabel">
                 <option value="20">20</option>
                 <option value="50" selected>50</option>
                 <option value="100">100</option>
@@ -1286,7 +1288,7 @@
                 <i class="fa-regular fa-pen-to-square"></i>
               </button>
               <span id="library-viewer-rename-form" class="d-none flex-grow-1 d-flex align-items-center gap-2" style="min-width: 0;">
-                <input type="text" class="form-control form-control-sm flex-grow-1" id="library-viewer-rename-input" maxlength="200" data-i18n-placeholder="ui.libRenamePlaceholder" placeholder="Conversation title" style="min-width: 0;">
+                <input type="text" class="form-control form-control-sm flex-grow-1" id="library-viewer-rename-input" maxlength="200" data-i18n-placeholder="ui.libRenamePlaceholder" placeholder="Conversation title" aria-label="Library item rename" data-i18n-aria-label="ui.libraryRenameAriaLabel" style="min-width: 0;">
                 <button type="button" class="btn btn-sm btn-primary text-nowrap flex-shrink-0" id="library-viewer-rename-save" data-i18n="ui.libRenameSave">Save</button>
                 <button type="button" class="btn btn-sm btn-secondary text-nowrap flex-shrink-0" id="library-viewer-rename-cancel" data-i18n="ui.libRenameCancel">Cancel</button>
               </span>

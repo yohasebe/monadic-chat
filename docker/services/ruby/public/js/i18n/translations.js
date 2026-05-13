@@ -229,6 +229,15 @@ const webUITranslations = {
       },
       messagePlaceholder: "Type your message or click Speech Input button to use voice . . .",
       listeningPlaceholder: "Listening to your voice input...",
+      messageAriaLabel: "Message input",
+      contextSizeAriaLabel: "Max context size value",
+      maxTokensAriaLabel: "Max output tokens value",
+      aiUserProviderAriaLabel: "AI User provider",
+      librarySearchAriaLabel: "Library search",
+      libraryScopeAriaLabel: "Library scope filter",
+      librarySortAriaLabel: "Library sort order",
+      libraryPageSizeAriaLabel: "Library page size",
+      libraryRenameAriaLabel: "Library item rename",
       pressToSend: "Press Send button to send your message.",
       resetDescription: "Press \"Reset\" to clear conversation and reset parameters to defaults while keeping current app selection.",
       privacyFilter: "Privacy Filter",
@@ -679,6 +688,15 @@ const webUITranslations = {
       },
       messagePlaceholder: "メッセージを入力するか、音声入力ボタンをクリックして音声を使用してください...",
       listeningPlaceholder: "音声入力を聞いています...",
+      messageAriaLabel: "メッセージ入力",
+      contextSizeAriaLabel: "最大コンテキストサイズ",
+      maxTokensAriaLabel: "最大出力トークン数",
+      aiUserProviderAriaLabel: "AIユーザーのプロバイダー",
+      librarySearchAriaLabel: "ライブラリ検索",
+      libraryScopeAriaLabel: "ライブラリスコープ",
+      librarySortAriaLabel: "ライブラリの並び替え",
+      libraryPageSizeAriaLabel: "ライブラリのページサイズ",
+      libraryRenameAriaLabel: "ライブラリのリネーム入力",
       pressToSend: "送信ボタンを押してメッセージを送信してください。",
       resetDescription: "「リセット」を押すと、現在のアプリ選択を維持したまま会話をクリアし、パラメーターをデフォルトに戻します。",
       privacyFilter: "プライバシーフィルター",
@@ -957,6 +975,15 @@ const webUITranslations = {
       },
       messagePlaceholder: "输入消息或点击语音输入按钮使用语音...",
       listeningPlaceholder: "正在听您的语音输入...",
+      messageAriaLabel: "消息输入",
+      contextSizeAriaLabel: "最大上下文大小值",
+      maxTokensAriaLabel: "最大输出令牌值",
+      aiUserProviderAriaLabel: "AI 用户提供商",
+      librarySearchAriaLabel: "库搜索",
+      libraryScopeAriaLabel: "库范围筛选",
+      librarySortAriaLabel: "库排序",
+      libraryPageSizeAriaLabel: "库分页大小",
+      libraryRenameAriaLabel: "库项目重命名",
       pressToSend: "按发送按钮发送消息。",
       resetDescription: "按\"重置\"清除对话并将参数重置为默认值，同时保持当前的应用程序选择。",
       privacyFilter: "隐私过滤器",
@@ -1430,6 +1457,15 @@ const webUITranslations = {
       },
       messagePlaceholder: "메시지를 입력하거나 음성 입력 버튼을 클릭하여 음성을 사용하세요...",
       listeningPlaceholder: "음성 입력을 듣고 있습니다...",
+      messageAriaLabel: "메시지 입력",
+      contextSizeAriaLabel: "최대 컨텍스트 크기",
+      maxTokensAriaLabel: "최대 출력 토큰 수",
+      aiUserProviderAriaLabel: "AI 사용자 공급자",
+      librarySearchAriaLabel: "라이브러리 검색",
+      libraryScopeAriaLabel: "라이브러리 범위",
+      librarySortAriaLabel: "라이브러리 정렬",
+      libraryPageSizeAriaLabel: "라이브러리 페이지 크기",
+      libraryRenameAriaLabel: "라이브러리 이름 변경",
       pressToSend: "전송 버튼을 눌러 메시지를 보냅니다.",
       resetDescription: "\"재설정\"을 누르면 현재 앱 선택을 유지하면서 대화를 지우고 매개변수를 기본값으로 재설정합니다.",
       privacyFilter: "개인정보 필터",
@@ -1880,6 +1916,15 @@ const webUITranslations = {
       },
       messagePlaceholder: "Ingrese un mensaje o haga clic en el botón de entrada de voz para usar voz...",
       listeningPlaceholder: "Escuchando su entrada de voz...",
+      messageAriaLabel: "Entrada de mensaje",
+      contextSizeAriaLabel: "Tamaño máximo de contexto",
+      maxTokensAriaLabel: "Tokens máximos de salida",
+      aiUserProviderAriaLabel: "Proveedor de Usuario IA",
+      librarySearchAriaLabel: "Búsqueda en biblioteca",
+      libraryScopeAriaLabel: "Filtro de alcance de biblioteca",
+      librarySortAriaLabel: "Orden de biblioteca",
+      libraryPageSizeAriaLabel: "Tamaño de página de biblioteca",
+      libraryRenameAriaLabel: "Renombrar elemento de biblioteca",
       pressToSend: "Presione el botón Enviar para enviar el mensaje.",
       resetDescription: "Presione \"Reiniciar\" para limpiar la conversación y restablecer los parámetros a los valores predeterminados mientras mantiene la selección actual de la aplicación.",
       privacyFilter: "Filtro de privacidad",
@@ -2330,6 +2375,15 @@ const webUITranslations = {
       },
       messagePlaceholder: "Tapez votre message ou cliquez sur le bouton d'entrée vocale pour utiliser la voix...",
       listeningPlaceholder: "Écoute de votre entrée vocale...",
+      messageAriaLabel: "Saisie de message",
+      contextSizeAriaLabel: "Taille maximale du contexte",
+      maxTokensAriaLabel: "Tokens maximum de sortie",
+      aiUserProviderAriaLabel: "Fournisseur d'Utilisateur IA",
+      librarySearchAriaLabel: "Recherche dans la bibliothèque",
+      libraryScopeAriaLabel: "Filtre de portée de bibliothèque",
+      librarySortAriaLabel: "Ordre de la bibliothèque",
+      libraryPageSizeAriaLabel: "Taille de page de bibliothèque",
+      libraryRenameAriaLabel: "Renommer l'élément de bibliothèque",
       pressToSend: "Appuyez sur le bouton Envoyer pour envoyer votre message.",
       resetDescription: "Appuyez sur \"Réinitialiser\" pour effacer la conversation et réinitialiser les paramètres aux valeurs par défaut tout en conservant la sélection actuelle de l'application.",
       privacyFilter: "Filtre de confidentialité",
@@ -2780,6 +2834,15 @@ const webUITranslations = {
       },
       messagePlaceholder: "Geben Sie Ihre Nachricht ein oder klicken Sie auf die Spracheingabetaste...",
       listeningPlaceholder: "Höre Ihre Spracheingabe...",
+      messageAriaLabel: "Nachrichteneingabe",
+      contextSizeAriaLabel: "Maximale Kontextgröße",
+      maxTokensAriaLabel: "Maximale Ausgabe-Tokens",
+      aiUserProviderAriaLabel: "KI-Benutzer Anbieter",
+      librarySearchAriaLabel: "Bibliothekssuche",
+      libraryScopeAriaLabel: "Bibliotheksbereich-Filter",
+      librarySortAriaLabel: "Bibliotheks-Sortierung",
+      libraryPageSizeAriaLabel: "Bibliotheks-Seitengröße",
+      libraryRenameAriaLabel: "Bibliothekselement umbenennen",
       pressToSend: "Drücken Sie die Senden-Taste, um Ihre Nachricht zu senden.",
       resetDescription: "Drücken Sie \"Zurücksetzen\", um die Konversation zu löschen und die Parameter auf die Standardwerte zurückzusetzen, während die aktuelle App-Auswahl beibehalten wird.",
       privacyFilter: "Privatsphäre-Filter",
@@ -3325,7 +3388,18 @@ class WebUIi18n {
       const translation = this.t(key);
       element.setAttribute('placeholder', translation);
     });
-    
+
+    // Update aria-label attributes with data-i18n-aria-label.
+    // Targets form fields whose visible label cannot be associated via
+    // <label for=...> (e.g. paired with a checkbox toggle, sitting
+    // inside a flex row, or in a modal that opens dynamically). Without
+    // this loop those fields stay English even after locale switch.
+    document.querySelectorAll('[data-i18n-aria-label]').forEach(element => {
+      const key = element.getAttribute('data-i18n-aria-label');
+      const translation = this.t(key);
+      element.setAttribute('aria-label', translation);
+    });
+
     // Update specific UI elements that need special handling
     this.updateSpecificElements();
   }

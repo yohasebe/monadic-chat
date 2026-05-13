@@ -127,3 +127,10 @@ docs_dev/memos/
 docs_dev/external_apis/
 .mcp.json
 /docker/services/ruby/tmp/
+
+# Research and theoretical notes — kept local, not committed.
+# Drafts of papers, philosophical essays, and design speculations that
+# may later become external publications. Kept out of git to preserve
+# publication priority and to keep docs_dev/ focused on implementation
+# support (docs_dev/ is for documentation that tracks the implementation).
+research_notes/

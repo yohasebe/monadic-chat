@@ -320,6 +320,36 @@ describe('ws-session-handler', () => {
       expect(messageEl.value).toBe('kept');
     });
 
+    // Belt-and-braces fallback for browsers without :has() — the wrapper
+    // gets a mirror class so the placeholder-hiding CSS rule can target
+    // it directly. Pins the contract that the JS class toggle stays in
+    // lockstep with overlay.is-active.
+    it('mirrors has-partial-overlay class on the wrapper while overlay is active', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var wrapper = overlay.closest('.message-input-wrapper');
+      expect(wrapper).not.toBeNull();
+      expect(wrapper.classList.contains('has-partial-overlay')).toBe(false);
+
+      handlers.handleSTTPartial({ content: 'live' });
+      expect(wrapper.classList.contains('has-partial-overlay')).toBe(true);
+
+      handlers.clearSTTPartialOverlay();
+      expect(wrapper.classList.contains('has-partial-overlay')).toBe(false);
+    });
+
+    it('removes has-partial-overlay class on final STT commit (via handleSTT)', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var wrapper = overlay.closest('.message-input-wrapper');
+      var messageEl = document.getElementById('message');
+      messageEl.value = '';
+
+      handlers.handleSTTPartial({ content: 'streaming' });
+      expect(wrapper.classList.contains('has-partial-overlay')).toBe(true);
+
+      handlers.handleSTT({ content: 'streaming done', logprob: 0.9 });
+      expect(wrapper.classList.contains('has-partial-overlay')).toBe(false);
+    });
+
     it('mirrors textarea scrollTop to overlay on scroll while overlay is active', () => {
       // Continuous sync (not just per-delta): if the user scrolls the
       // textarea between partial deltas, the overlay must follow without

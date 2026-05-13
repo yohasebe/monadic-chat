@@ -391,6 +391,20 @@ RSpec.describe OllamaHelper do
       allow(OllamaHelper).to receive(:list_models).and_return([])
       expect(OllamaHelper.list_models_with_capabilities).to eq({})
     end
+
+    # Pins the contract that frontend #model-no-tools hint relies on:
+    # when /api/show reports no "tools" capability, tool_capability must be
+    # false (NOT missing). The frontend only shows the warning when the flag
+    # is explicitly false, so a missing flag would silently hide the hint.
+    it 'sets tool_capability:false (not absent) when /api/show omits "tools"' do
+      allow(OllamaHelper).to receive(:list_models).and_return(["no-tools-model"])
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).with("no-tools-model")
+        .and_return({ capabilities: ["completion"], context_length: 8192, fetched_at: Time.now })
+
+      result = OllamaHelper.list_models_with_capabilities
+      expect(result["no-tools-model"]).to have_key("tool_capability")
+      expect(result["no-tools-model"]["tool_capability"]).to be false
+    end
   end
 
   describe 'Ollama streaming response format' do

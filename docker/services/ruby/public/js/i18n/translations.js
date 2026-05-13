@@ -174,6 +174,7 @@ const webUITranslations = {
       showThinking: "Show Thinking",
       webSearchNeedsTavily: "Web Search requires a Tavily API key",
       webSearchModelDisabled: "This model does not support Web Search",
+      modelLacksTools: '<i class="fas fa-triangle-exclamation"></i> No tool calling (Web Search, agentic features disabled)',
       initialPromptAIUser: "Initial Prompt for AI User",
 
       showInitialPromptAIUser: "Show Initial Prompt for AI-User",
@@ -639,6 +640,7 @@ const webUITranslations = {
       showThinking: "思考過程を表示",
       webSearchNeedsTavily: "ウェブ検索にはTavily APIキーが必要です",
       webSearchModelDisabled: "このモデルはウェブ検索に対応していません",
+      modelLacksTools: '<i class="fas fa-triangle-exclamation"></i> ツール呼び出し非対応（ウェブ検索やエージェント機能は無効）',
       initialPromptAIUser: "AIユーザーの初期プロンプト",
 
       showInitialPromptAIUser: "AIユーザーの初期プロンプトを表示",
@@ -1031,6 +1033,7 @@ const webUITranslations = {
       showThinking: "显示思考过程",
       webSearchNeedsTavily: "网络搜索需要 Tavily API 密钥",
       webSearchModelDisabled: "该模型不支持网络搜索",
+      modelLacksTools: '<i class="fas fa-triangle-exclamation"></i> 不支持工具调用（网络搜索和代理功能已禁用）',
       initialPromptAIUser: "AI用户的初始提示",
 
       showInitialPromptAIUser: "显示AI用户初始提示",
@@ -1513,6 +1516,7 @@ const webUITranslations = {
       showThinking: "사고 과정 표시",
       webSearchNeedsTavily: "웹 검색에는 Tavily API 키가 필요합니다",
       webSearchModelDisabled: "이 모델은 웹 검색을 지원하지 않습니다",
+      modelLacksTools: '<i class="fas fa-triangle-exclamation"></i> 도구 호출 미지원 (웹 검색 및 에이전트 기능 비활성화)',
       initialPromptAIUser: "AI 사용자 초기 프롬프트",
 
       showInitialPromptAIUser: "AI 사용자 초기 프롬프트 표시",
@@ -1972,6 +1976,7 @@ const webUITranslations = {
       showThinking: "Mostrar pensamiento",
       webSearchNeedsTavily: "La búsqueda web requiere una clave de API de Tavily",
       webSearchModelDisabled: "Este modelo no admite la búsqueda web",
+      modelLacksTools: '<i class="fas fa-triangle-exclamation"></i> Sin invocación de herramientas (búsqueda web y funciones de agente deshabilitadas)',
       initialPromptAIUser: "Prompt Inicial para el Usuario de IA",
 
       showInitialPromptAIUser: "Mostrar prompt inicial del usuario IA",
@@ -2431,6 +2436,7 @@ const webUITranslations = {
       showThinking: "Afficher la réflexion",
       webSearchNeedsTavily: "La recherche web nécessite une clé API Tavily",
       webSearchModelDisabled: "Ce modèle ne prend pas en charge la recherche Web",
+      modelLacksTools: '<i class="fas fa-triangle-exclamation"></i> Pas d\'appel d\'outils (recherche web et fonctions agentiques désactivées)',
       initialPromptAIUser: "Invite Initiale pour l'Utilisateur IA",
 
       showInitialPromptAIUser: "Afficher le prompt initial de l'utilisateur IA",
@@ -2890,6 +2896,7 @@ const webUITranslations = {
       showThinking: "Denkprozess anzeigen",
       webSearchNeedsTavily: "Für die Websuche ist ein Tavily-API-Schlüssel erforderlich",
       webSearchModelDisabled: "Dieses Modell unterstützt keine Websuche",
+      modelLacksTools: '<i class="fas fa-triangle-exclamation"></i> Kein Tool-Aufruf (Websuche und Agent-Funktionen deaktiviert)',
       initialPromptAIUser: "Initiale Eingabe für den KI-Benutzer",
 
       showInitialPromptAIUser: "Anfangsprompt des KI-Benutzers anzeigen",

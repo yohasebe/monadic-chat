@@ -1912,6 +1912,22 @@ document.addEventListener("DOMContentLoaded", function () {
     // Handle reasoning effort dropdown with ReasoningMapper
     const currentApp = appsEl ? appsEl.value : "";
     const provider = getProviderFromGroup(apps[currentApp]["group"]);
+
+    // Ollama capability hint: surface "no tool calling" when /api/show reports
+    // the model lacks the "tools" capability. modelSpec entries are populated
+    // dynamically by OllamaHelper.list_models_with_capabilities; absent flag
+    // is treated as unknown (no warning shown).
+    const modelNoTools = $id("model-no-tools");
+    if (modelNoTools) {
+      const isOllama = (provider || "").toLowerCase() === "ollama";
+      const spec = window.modelSpec && window.modelSpec[selectedModel];
+      const hasFlag = spec && Object.prototype.hasOwnProperty.call(spec, "tool_capability");
+      if (isOllama && hasFlag && spec.tool_capability !== true) {
+        $show(modelNoTools);
+      } else {
+        $hide(modelNoTools);
+      }
+    }
     
     // Update UI with provider-specific components and labels
     if (window.reasoningUIManager) {

@@ -85,6 +85,23 @@ If Ollama is temporarily unavailable when Monadic Chat starts, the system falls 
 
 > **Note on `-thinking` model variants**: Models with `-thinking` in the name (e.g. `qwen3-vl:8b-thinking`) always generate reasoning tokens internally, even when the Show Thinking toggle is off. This results in slower responses that cannot be avoided. For faster responses, use non-thinking variants such as `gemma4:e4b`, which can fully disable thinking when the toggle is off.
 
+## Recommended Models for Tool Calling
+
+Most Monadic Chat features (web search, file operations, agentic workflows, structured tool dispatch) require a model with the `tools` capability. When you select an Ollama model whose `/api/show` capabilities list omits `tools`, the sidebar shows a yellow **No tool calling** indicator and Coding Assistant / Mail Composer / Chat Plus / Second Opinion / Voice Chat tool features will not work.
+
+The following families ship with tool calling and fit comfortably in 16 GB unified memory at Q4 quantization. Sizes are approximate VRAM footprint after quantization; consult `ollama show <model>` for authoritative numbers.
+
+| Family | Tag | Approx. size (Q4) | Notes |
+|--------|-----|-------------------|-------|
+| Qwen3-VL | `qwen3-vl:4b` / `qwen3-vl:8b` | 3 GB / 6 GB | Vision + tools + thinking. Strong CJK coverage. |
+| Qwen3 | `qwen3:4b` / `qwen3:8b` | 2.5 GB / 5 GB | Text-only, tools + thinking. |
+| Llama 3.1 | `llama3.1:8b` | 5 GB | Tools, no vision. |
+| Llama 3.2 | `llama3.2:3b` | 2 GB | Tools, no vision. Small footprint. |
+| Mistral | `mistral:7b-instruct` (and tool-calling variants) | 4 GB | Tools, no vision. Check the tag for `-instruct` or `-tool-use`. |
+| Phi-3.5 Mini | `phi3.5:3.8b` | 2.5 GB | Tools, no vision. Microsoft-released. |
+
+For text-only chat without agentic features, smaller non-tool models such as `gemma3:4b` or `gemma4:e4b` are perfectly suitable — the sidebar warning is informational, not blocking.
+
 ## Available Apps
 
 The following apps are available in the Ollama group:

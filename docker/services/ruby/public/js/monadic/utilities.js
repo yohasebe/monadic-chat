@@ -376,6 +376,7 @@ window.setBaseAppDescription = setBaseAppDescription;
 window.loadParams = function(params, calledFor = "loadParams") {
   const modelNonDefault = $id("model-non-default");
   $hide(modelNonDefault);
+  $hide($id("model-no-tools"));
   // check if params is not empty
   if (Object.keys(params).length === 0) {
     return;

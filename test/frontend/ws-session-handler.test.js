@@ -320,6 +320,107 @@ describe('ws-session-handler', () => {
       expect(messageEl.value).toBe('kept');
     });
 
+    it('mirrors textarea scrollTop to overlay on scroll while overlay is active', () => {
+      // Continuous sync (not just per-delta): if the user scrolls the
+      // textarea between partial deltas, the overlay must follow without
+      // waiting for the next delta. Reproduce by firing a synthetic
+      // 'scroll' event after the overlay is active.
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+
+      handlers.handleSTTPartial({ content: 'partial' });
+      expect(overlay.classList.contains('is-active')).toBe(true);
+
+      // jsdom does not run real layout, so we drive scrollTop manually
+      // and dispatch the event the listener is registered for.
+      messageEl.scrollTop = 42;
+      messageEl.dispatchEvent(new Event('scroll'));
+      expect(overlay.scrollTop).toBe(42);
+
+      messageEl.scrollTop = 99;
+      messageEl.dispatchEvent(new Event('scroll'));
+      expect(overlay.scrollTop).toBe(99);
+    });
+
+    it('detaches the scroll listener when overlay is cleared', () => {
+      // After clearSTTPartialOverlay, subsequent scrolls must NOT touch
+      // overlay.scrollTop — otherwise stale listeners pile up across
+      // recording sessions and keep firing even when the overlay is
+      // hidden.
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+
+      handlers.handleSTTPartial({ content: 'partial' });
+      handlers.clearSTTPartialOverlay();
+
+      overlay.scrollTop = 0;
+      messageEl.scrollTop = 77;
+      messageEl.dispatchEvent(new Event('scroll'));
+      expect(overlay.scrollTop).toBe(0); // unchanged
+    });
+
+    it('passes _alreadyAppended: true to wsHandlers.handleSTTMessage when overlay was active', () => {
+      // Production has window.wsHandlers.handleSTTMessage defined.
+      // Without the flag, that delegate ALSO appends data.content to
+      // messageEl.value, producing the doubled-message bug observed
+      // in dogfood. handleSTT must signal "we already wrote it" so
+      // the delegate can skip its append.
+      var messageEl = document.getElementById('message');
+      messageEl.value = '';
+
+      var sttHandlerSpy = jest.fn(function(_data) { return true; });
+      window.wsHandlers = { handleSTTMessage: sttHandlerSpy };
+
+      handlers.handleSTTPartial({ content: 'hello' });
+      handlers.handleSTT({ content: 'hello world', logprob: 0.9 });
+
+      expect(sttHandlerSpy).toHaveBeenCalledTimes(1);
+      var arg = sttHandlerSpy.mock.calls[0][0];
+      expect(arg._alreadyAppended).toBe(true);
+      expect(arg.content).toBe('hello world');
+
+      delete window.wsHandlers;
+    });
+
+    it('does NOT pass _alreadyAppended when overlay was inactive (legacy path)', () => {
+      // If no partial preceded handleSTT (overlay never activated),
+      // the delegate is the only writer — must NOT receive the flag,
+      // otherwise the legacy batch path produces an empty textarea.
+      var sttHandlerSpy = jest.fn(function(_data) { return true; });
+      window.wsHandlers = { handleSTTMessage: sttHandlerSpy };
+
+      handlers.handleSTT({ content: 'fresh batch', logprob: 0.9 });
+
+      expect(sttHandlerSpy).toHaveBeenCalledTimes(1);
+      var arg = sttHandlerSpy.mock.calls[0][0];
+      expect(arg._alreadyAppended).toBeUndefined();
+      expect(arg.content).toBe('fresh batch');
+
+      delete window.wsHandlers;
+    });
+
+    it('does not double-attach the scroll listener across multiple partials', () => {
+      // handleSTTPartial is called many times during one recording. The
+      // attach guard must be idempotent so we end up with exactly one
+      // listener, not N.
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+
+      var spy = jest.spyOn(messageEl, 'addEventListener');
+      handlers.handleSTTPartial({ content: 'a' });
+      handlers.handleSTTPartial({ content: 'a b' });
+      handlers.handleSTTPartial({ content: 'a b c' });
+
+      var scrollAttaches = spy.mock.calls.filter(function(c) { return c[0] === 'scroll'; });
+      expect(scrollAttaches.length).toBe(1);
+      spy.mockRestore();
+
+      // Sanity: one sync still works after the duplicates were suppressed.
+      messageEl.scrollTop = 12;
+      messageEl.dispatchEvent(new Event('scroll'));
+      expect(overlay.scrollTop).toBe(12);
+    });
+
     it('shows voice recognition finished alert', () => {
       handlers.handleSTT({ content: 'text', logprob: 0.9 });
 

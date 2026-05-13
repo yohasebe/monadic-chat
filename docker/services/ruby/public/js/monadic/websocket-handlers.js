@@ -729,9 +729,16 @@ function handleSampleSuccess(data) {
  */
 function handleSTTMessage(data) {
   if (data && data.type === 'stt') {
-    // Update message input with transcribed text
-    const msgEl = $id('message');
-    if (msgEl) msgEl.value = (msgEl.value || '') + ' ' + data.content;
+    // Update message input with transcribed text.
+    // Skip the append when the caller (Realtime STT path in
+    // ws-session-handler.js#handleSTT) has already written the final
+    // transcript into the textarea — without this guard the value
+    // would receive the same content twice. The flag is opt-in so the
+    // legacy batch path is unaffected.
+    if (!data._alreadyAppended) {
+      const msgEl = $id('message');
+      if (msgEl) msgEl.value = (msgEl.value || '') + ' ' + data.content;
+    }
 
     // Update p-value display if logprob is available
     if (data.logprob !== undefined) {

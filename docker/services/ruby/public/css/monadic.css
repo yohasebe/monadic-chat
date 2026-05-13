@@ -1503,13 +1503,18 @@ div.sourcecode-toggle:hover {
    partial after it aligns to where the next character would be typed. */
 .message-input-wrapper {
   position: relative;
+  /* Single source for the textarea's bottom spacing. The overlay aligns
+     its bottom edge to this value so the two surfaces share the same
+     visible region. Update here only — both .message-partial-overlay's
+     bottom and #message's margin-bottom resolve via var(). */
+  --message-textarea-margin-bottom: 14px;
 }
 .message-partial-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 14px;
+  bottom: var(--message-textarea-margin-bottom);
   pointer-events: none;
   background: transparent;
   border-color: transparent;
@@ -1525,13 +1530,40 @@ div.sourcecode-toggle:hover {
 .message-partial-overlay.is-active {
   display: block;
 }
+/* While the partial overlay is active, the textarea is still empty
+   (we never write to #message.value during the partial stream so the
+   user can keep typing) — so its placeholder ("Listening to your
+   voice input...") would otherwise show *underneath* the overlay and
+   visually collide with the ghost-text. Driven entirely by the
+   .is-active class on overlay, no JS coupling. Chromium 105+ /
+   Electron 39 all support :has() in CSS. */
+.message-input-wrapper:has(.message-partial-overlay.is-active) #message::placeholder {
+  color: transparent;
+}
+/* Belt-and-braces: overlay carries .form-control for typography parity,
+   which means Bootstrap's :focus rule (blue box-shadow + outline)
+   would apply if the overlay ever became focusable. Today it has
+   aria-hidden + pointer-events: none so this is unreachable, but
+   suppress the ring explicitly so a future change that adds tabindex
+   or removes aria-hidden does not visually steal the textarea's
+   focus indicator. */
+.message-partial-overlay:focus,
+.message-partial-overlay:focus-visible {
+  box-shadow: none;
+  outline: none;
+  border-color: transparent;
+}
 .message-partial-overlay .stt-mirror {
   color: transparent;
   white-space: pre-wrap;
 }
 .message-partial-overlay .stt-partial {
   color: #888;
-  font-style: italic;
+  /* Italic was originally chosen to mark the text as provisional, but
+     CJK (and most non-Latin scripts) renders italics as a slanted
+     transform of the original glyphs rather than a distinct cursive
+     form — the result is harder to read than upright text. The grey
+     colour already conveys the provisional state. */
   white-space: pre-wrap;
 }
 .dark-theme .message-partial-overlay .stt-partial {

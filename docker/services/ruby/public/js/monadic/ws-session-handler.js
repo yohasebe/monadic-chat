@@ -155,6 +155,39 @@ function handleSystemInfo(data) {
   }
 }
 
+// Scroll sync between #message and the partial overlay.
+//
+// Partial-update sync alone (the `overlay.scrollTop = messageEl.scrollTop`
+// line at the end of handleSTTPartial) only catches deltas — if the user
+// manually scrolls the textarea between deltas (or during a long pause),
+// the overlay falls out of sync until the next partial arrives. With
+// resize handles enlarging #message to a scrollable height the symptom
+// becomes visible. Attaching a 'scroll' listener while the overlay is
+// active keeps them in lockstep. Detached when the overlay clears so we
+// don't pay listener overhead during normal typing.
+let sttScrollSyncAttached = false;
+
+function syncOverlayScrollTopFromMessage() {
+  const messageEl = $id('message');
+  const overlay = $id('message-partial-overlay');
+  if (messageEl && overlay) overlay.scrollTop = messageEl.scrollTop;
+}
+
+function attachSTTScrollSync() {
+  if (sttScrollSyncAttached) return;
+  const messageEl = $id('message');
+  if (!messageEl) return;
+  messageEl.addEventListener('scroll', syncOverlayScrollTopFromMessage);
+  sttScrollSyncAttached = true;
+}
+
+function detachSTTScrollSync() {
+  if (!sttScrollSyncAttached) return;
+  const messageEl = $id('message');
+  if (messageEl) messageEl.removeEventListener('scroll', syncOverlayScrollTopFromMessage);
+  sttScrollSyncAttached = false;
+}
+
 /**
  * Handle "stt_partial" WebSocket message (Realtime streaming STT).
  * Renders the cumulative provisional transcript into the ghost-text
@@ -182,6 +215,7 @@ function handleSTTPartial(data) {
   overlay.appendChild(partialSpan);
   overlay.classList.add('is-active');
   overlay.scrollTop = messageEl.scrollTop;
+  attachSTTScrollSync();
 }
 
 /**
@@ -190,6 +224,7 @@ function handleSTTPartial(data) {
  * non-bundled callers.
  */
 function clearSTTPartialOverlay() {
+  detachSTTScrollSync();
   const overlay = $id('message-partial-overlay');
   if (!overlay) return;
   overlay.replaceChildren();
@@ -218,10 +253,18 @@ function handleSTT(data) {
     clearSTTPartialOverlay();
   }
 
-  // Use the handler if available, otherwise use inline code
+  // Use the handler if available, otherwise use inline code.
+  // When the realtime path already appended the final transcript to
+  // the textarea above, signal that via `_alreadyAppended` so the
+  // delegate skips its own append (otherwise the message ends up in
+  // the value twice). The delegate still does the rest of its work
+  // — re-enable buttons, hide spinner, easy-submit, etc.
   let handled = false;
   if (typeof wsHandlers !== 'undefined' && wsHandlers && typeof wsHandlers.handleSTTMessage === 'function') {
-    handled = wsHandlers.handleSTTMessage(data);
+    const dataForHandler = partialConsumed
+      ? Object.assign({}, data, { _alreadyAppended: true })
+      : data;
+    handled = wsHandlers.handleSTTMessage(dataForHandler);
   }
 
   if (!handled) {

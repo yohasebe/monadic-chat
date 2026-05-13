@@ -162,18 +162,18 @@ let silenceDetected = true;
 // `supports_realtime_streaming: true` (today: `gpt-realtime-whisper`).
 // The legacy `localStorage.stt_realtime` flag remains as a debug
 // override for development.
+//
+// The capability gate itself lives in monadic/stt-gate.js (loaded
+// earlier in the bundle, exposed as window.SttGate) so the same
+// function can be unit-tested directly without dragging in this
+// file's top-level DOM attachments under jsdom.
 let streamingSession = null;
 
 function isRealtimeSttEnabled() {
-  const sttModelEl = $id('stt-model');
-  const model = sttModelEl ? sttModelEl.value : '';
-  if (model && typeof window !== 'undefined' && window.modelSpec
-      && window.modelSpec[model]
-      && window.modelSpec[model].supports_realtime_streaming) {
-    return true;
-  }
-  try { return localStorage.getItem('stt_realtime') === '1'; }
-  catch (_) { return false; }
+  return (typeof window !== 'undefined' && window.SttGate
+          && typeof window.SttGate.isRealtimeSttEnabled === 'function')
+    ? window.SttGate.isRealtimeSttEnabled()
+    : false;
 }
 
 function arrayBufferToBase64(buf) {

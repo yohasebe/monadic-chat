@@ -100,6 +100,7 @@ const FILES = [
   "js/monadic/websocket.js",
   "js/monadic/websearch_tavily_check.js",
   "js/monadic/tts.js",
+  "js/monadic/stt-gate.js",
   "js/monadic/recording.js",
   "js/monadic/select_image.js",
   "js/monadic/mask_editor.js",

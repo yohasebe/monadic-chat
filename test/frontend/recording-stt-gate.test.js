@@ -3,45 +3,28 @@
  */
 
 /**
- * Realtime STT capability-gate (`isRealtimeSttEnabled`) tests.
+ * Realtime STT capability-gate tests.
  *
- * The function under test lives in
- *   docker/services/ruby/public/js/monadic/recording.js
- * but recording.js cannot be required directly in jsdom because it
- * attaches DOM listeners at top level (voiceButton.click, document
- * keydown capture). To avoid that side-effect, we mirror the function
- * verbatim here. KEEP IN SYNC with the source.
+ * Source of truth: docker/services/ruby/public/js/monadic/stt-gate.js
+ * — a standalone module so this test can `require()` it directly
+ * without dragging in recording.js (which attaches DOM listeners at
+ * top level and would explode under jsdom).
  *
- * Source body (as of Phase 4):
- *
- *   function isRealtimeSttEnabled() {
- *     const sttModelEl = $id('stt-model');
- *     const model = sttModelEl ? sttModelEl.value : '';
- *     if (model && typeof window !== 'undefined' && window.modelSpec
- *         && window.modelSpec[model]
- *         && window.modelSpec[model].supports_realtime_streaming) {
- *       return true;
- *     }
- *     try { return localStorage.getItem('stt_realtime') === '1'; }
- *     catch (_) { return false; }
- *   }
+ * Until 2026-05-12 this file mirrored the function body verbatim
+ * with a "KEEP IN SYNC" docstring. That drift risk is now gone: the
+ * module is loaded the same way the browser loads it (assigning to
+ * window.SttGate) and the test exercises the exact code that ships.
  */
 
-function $id(id) { return document.getElementById(id); }
-
-function isRealtimeSttEnabled() {
-  const sttModelEl = $id('stt-model');
-  const model = sttModelEl ? sttModelEl.value : '';
-  if (model && typeof window !== 'undefined' && window.modelSpec
-      && window.modelSpec[model]
-      && window.modelSpec[model].supports_realtime_streaming) {
-    return true;
-  }
-  try { return localStorage.getItem('stt_realtime') === '1'; }
-  catch (_) { return false; }
-}
+const path = require('path');
+const STT_GATE_PATH = path.resolve(
+  __dirname,
+  '../../docker/services/ruby/public/js/monadic/stt-gate.js'
+);
 
 describe('isRealtimeSttEnabled (capability gate)', () => {
+  let SttGate;
+
   beforeEach(() => {
     document.body.innerHTML = `
       <select id="stt-model">
@@ -60,49 +43,68 @@ describe('isRealtimeSttEnabled (capability gate)', () => {
       }
     };
     try { localStorage.clear(); } catch (_) {}
+
+    // Fresh module instance per test so the IIFE re-runs against the
+    // current DOM / window state. Without resetModules the cached
+    // export would be reused (still correct since the module reads the
+    // DOM on each call, but the reset keeps the assignment to
+    // window.SttGate consistent with a real page load).
+    jest.resetModules();
+    delete window.SttGate;
+    SttGate = require(STT_GATE_PATH);
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
     delete window.modelSpec;
+    delete window.SttGate;
     try { localStorage.clear(); } catch (_) {}
   });
 
   it('returns true when the selected model declares supports_realtime_streaming', () => {
-    $id('stt-model').value = 'gpt-realtime-whisper';
-    expect(isRealtimeSttEnabled()).toBe(true);
+    document.getElementById('stt-model').value = 'gpt-realtime-whisper';
+    expect(SttGate.isRealtimeSttEnabled()).toBe(true);
   });
 
   it('returns false when the selected model lacks the flag and localStorage is unset', () => {
-    $id('stt-model').value = 'gpt-4o-mini-transcribe-2025-12-15';
-    expect(isRealtimeSttEnabled()).toBe(false);
+    document.getElementById('stt-model').value = 'gpt-4o-mini-transcribe-2025-12-15';
+    expect(SttGate.isRealtimeSttEnabled()).toBe(false);
   });
 
   it('returns false when the selected model is unknown to modelSpec', () => {
-    $id('stt-model').value = 'whisper-1';
-    expect(isRealtimeSttEnabled()).toBe(false);
+    document.getElementById('stt-model').value = 'whisper-1';
+    expect(SttGate.isRealtimeSttEnabled()).toBe(false);
   });
 
   it('falls back to localStorage debug back door when no capability match', () => {
-    $id('stt-model').value = 'whisper-1';
+    document.getElementById('stt-model').value = 'whisper-1';
     localStorage.setItem('stt_realtime', '1');
-    expect(isRealtimeSttEnabled()).toBe(true);
+    expect(SttGate.isRealtimeSttEnabled()).toBe(true);
   });
 
   it('capability flag takes precedence over localStorage', () => {
-    $id('stt-model').value = 'gpt-realtime-whisper';
+    document.getElementById('stt-model').value = 'gpt-realtime-whisper';
     localStorage.setItem('stt_realtime', '0');
-    expect(isRealtimeSttEnabled()).toBe(true);
+    expect(SttGate.isRealtimeSttEnabled()).toBe(true);
   });
 
   it('returns false when stt-model element is missing entirely and localStorage is unset', () => {
     document.body.innerHTML = '';
-    expect(isRealtimeSttEnabled()).toBe(false);
+    expect(SttGate.isRealtimeSttEnabled()).toBe(false);
   });
 
   it('handles modelSpec being undefined (e.g. before bundle loaded)', () => {
     delete window.modelSpec;
-    $id('stt-model').value = 'gpt-realtime-whisper';
-    expect(isRealtimeSttEnabled()).toBe(false);
+    document.getElementById('stt-model').value = 'gpt-realtime-whisper';
+    expect(SttGate.isRealtimeSttEnabled()).toBe(false);
+  });
+
+  it('exposes itself as window.SttGate when the module evaluates', () => {
+    // Mirrors the browser-side contract: recording.js calls
+    // window.SttGate.isRealtimeSttEnabled() rather than holding a
+    // local copy of the function.
+    expect(window.SttGate).toBeDefined();
+    expect(typeof window.SttGate.isRealtimeSttEnabled).toBe('function');
+    expect(window.SttGate.isRealtimeSttEnabled).toBe(SttGate.isRealtimeSttEnabled);
   });
 });

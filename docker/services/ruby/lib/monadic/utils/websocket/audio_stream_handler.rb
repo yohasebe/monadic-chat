@@ -23,7 +23,8 @@
 
 require 'async'
 require 'async/queue'
-require 'async/notification'
+require 'async/condition'
+require 'async/semaphore'
 require 'async/http/endpoint'
 require 'async/websocket/client'
 require 'json'
@@ -36,6 +37,22 @@ module WebSocketHelper
   # realtime-partials UX the streaming path is meant to deliver.
   REALTIME_STT_DEFAULT_MODEL = "gpt-realtime-whisper"
   REALTIME_STT_COMMIT_TIMEOUT = 15 # seconds — bound the wait for `.completed`
+
+  # Cap on concurrent upstream WebSocket connections to OpenAI's
+  # Realtime transcription endpoint. Each user tab that engages
+  # streaming STT opens its own upstream socket; without a cap, N tabs
+  # → N sockets, and any per-key concurrent-WS limit OpenAI imposes
+  # bites unpredictably. The semaphore queues excess bridges
+  # transparently — the existing 15s commit timeout in #wait_for_ready
+  # catches the pathological case where the queue stays long.
+  #
+  # The default of 8 covers single-host / few-user deployments; raise
+  # via REALTIME_STT_MAX_CONCURRENT in env for shared installations.
+  REALTIME_STT_MAX_CONCURRENT = (ENV["REALTIME_STT_MAX_CONCURRENT"] || "8").to_i
+
+  def self.realtime_stt_semaphore
+    @realtime_stt_semaphore ||= Async::Semaphore.new(REALTIME_STT_MAX_CONCURRENT)
+  end
 
   def handle_audio_chunk(_connection, obj)
     state = ensure_realtime_stt_state!(obj)
@@ -63,6 +80,16 @@ module WebSocketHelper
     state = session[:_realtime_stt]
     return unless state && state[:cmd_queue]
 
+    # Wake any wait points before enqueueing :abort. The writer fiber
+    # can be blocked inside wait_for_ready (session.updated not yet
+    # received) or wait_for_completion (commit sent, .completed not yet
+    # received); without these signals the abort would only land after
+    # the 15s timeout. The :aborted flag guards the signal-before-wait
+    # race — Async::Condition#signal is a no-op when no fiber is
+    # waiting yet, so the flag is checked on both sides of #wait.
+    state[:aborted] = true
+    state[:ready].signal
+    state[:done].signal
     state[:cmd_queue].enqueue([:abort])
   end
 
@@ -80,8 +107,9 @@ module WebSocketHelper
       cmd_queue: Async::Queue.new,
       partial: +"",
       session_ready: false,
-      ready: Async::Notification.new,
-      done: Async::Notification.new,
+      aborted: false,
+      ready: Async::Condition.new,
+      done: Async::Condition.new,
       model: model,
       lang: lang
     }
@@ -101,22 +129,35 @@ module WebSocketHelper
       return
     end
 
-    Monadic::Utils::ExtraLogger.log do
-      "[AudioStream session=#{ws_session_id}] bridge open model=#{state[:model]} lang=#{state[:lang] || 'auto'}"
+    # Acquire a slot from the concurrent-upstream-WS cap before opening
+    # the socket. Under the cap, this returns immediately; over it, the
+    # fiber waits for a slot to free. Release happens automatically on
+    # block exit so abort / error paths also free the slot.
+    semaphore = WebSocketHelper.realtime_stt_semaphore
+    if semaphore.blocking?
+      Monadic::Utils::ExtraLogger.log do
+        "[AudioStream session=#{ws_session_id}] waiting for upstream WS slot (cap=#{REALTIME_STT_MAX_CONCURRENT})"
+      end
     end
 
-    endpoint = Async::HTTP::Endpoint.parse(REALTIME_STT_URL, alpn_protocols: ["http/1.1"])
-    headers = { "Authorization" => "Bearer #{api_key}" }
-
-    Async::WebSocket::Client.connect(endpoint, headers: headers) do |conn|
-      send_realtime_session_update(conn, state)
-
-      reader = Async do
-        realtime_reader_loop(conn, state, ws_session_id)
+    semaphore.acquire do
+      Monadic::Utils::ExtraLogger.log do
+        "[AudioStream session=#{ws_session_id}] bridge open model=#{state[:model]} lang=#{state[:lang] || 'auto'}"
       end
 
-      realtime_writer_loop(conn, state, ws_session_id)
-      reader.stop
+      endpoint = Async::HTTP::Endpoint.parse(REALTIME_STT_URL, alpn_protocols: ["http/1.1"])
+      headers = { "Authorization" => "Bearer #{api_key}" }
+
+      Async::WebSocket::Client.connect(endpoint, headers: headers) do |conn|
+        send_realtime_session_update(conn, state)
+
+        reader = Async do
+          realtime_reader_loop(conn, state, ws_session_id)
+        end
+
+        realtime_writer_loop(conn, state, ws_session_id)
+        reader.stop
+      end
     end
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log do
@@ -260,11 +301,20 @@ module WebSocketHelper
 
   def wait_for_ready(state, ws_session_id)
     return true if state[:session_ready]
+    return false if state[:aborted]
     Async::Task.current.with_timeout(REALTIME_STT_COMMIT_TIMEOUT) do
       state[:ready].wait
     end
+    return false if state[:aborted]
     true
   rescue Async::TimeoutError
+    # If abort raced with the timeout — i.e. the user clicked Stop at
+    # almost the same moment session.updated would have timed out —
+    # suppress the timeout-error broadcast. The abort handler already
+    # tore the bridge down silently; surfacing a "session setup
+    # timeout" toast on top of an intentional user abort would be
+    # misleading UX.
+    return false if state[:aborted]
     Monadic::Utils::ExtraLogger.log do
       "[AudioStream session=#{ws_session_id}] session.updated never arrived; aborting commit"
     end
@@ -273,10 +323,12 @@ module WebSocketHelper
   end
 
   def wait_for_completion(state, ws_session_id)
+    return if state[:aborted]
     Async::Task.current.with_timeout(REALTIME_STT_COMMIT_TIMEOUT) do
       state[:done].wait
     end
   rescue Async::TimeoutError
+    return if state[:aborted]
     Monadic::Utils::ExtraLogger.log do
       "[AudioStream session=#{ws_session_id}] commit completion timed out after #{REALTIME_STT_COMMIT_TIMEOUT}s"
     end

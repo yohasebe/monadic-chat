@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'async'
+require 'async/queue'
+require 'async/condition'
+require 'async/semaphore'
 require 'json'
 require 'monadic/utils/extra_logger'
 require 'monadic/utils/websocket/audio_stream_handler'
@@ -154,6 +158,149 @@ RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do
     end
   end
 
+  describe "#handle_audio_abort fast-abort race" do
+    # Regression for the 15s freeze observed when the user clicks Stop
+    # before OpenAI's session.updated arrives. Before the fix, the
+    # writer fiber was blocked inside wait_for_ready on
+    # state[:ready].wait, and :abort enqueued on cmd_queue could not be
+    # dequeued until the wait timed out. The fix:
+    #   1. handle_audio_abort signals state[:ready] / state[:done] and
+    #      sets state[:aborted] = true before enqueueing :abort, so
+    #      any wait point wakes up immediately.
+    #   2. wait_for_ready / wait_for_completion check :aborted on both
+    #      sides of #wait to cover the signal-before-wait race
+    #      (Async::Condition#signal is a no-op when no fiber waits).
+    let(:host_with_session) do
+      Class.new do
+        include WebSocketHelper
+
+        def initialize
+          @session = {}
+          @broadcasts = []
+        end
+        attr_reader :session, :broadcasts
+
+        def send_or_broadcast(payload, _ws_session_id)
+          @broadcasts << payload
+        end
+      end.new
+    end
+
+    def fresh_state
+      {
+        cmd_queue: Async::Queue.new,
+        partial: +"",
+        session_ready: false,
+        aborted: false,
+        ready: Async::Condition.new,
+        done: Async::Condition.new
+      }
+    end
+
+    it "sets :aborted, signals :ready / :done, and enqueues :abort" do
+      state = fresh_state
+      host_with_session.session[:_realtime_stt] = state
+
+      host_with_session.handle_audio_abort(nil, {})
+
+      expect(state[:aborted]).to be(true)
+      expect(state[:cmd_queue].dequeue).to eq([:abort])
+    end
+
+    it "wakes a fiber blocked in #wait_for_ready when abort arrives" do
+      state = fresh_state
+      host_with_session.session[:_realtime_stt] = state
+
+      result = nil
+      elapsed = nil
+
+      Async do |task|
+        # Writer fiber: enters wait_for_ready before any signal arrives.
+        # Without the abort fix, this would block for 15s (the commit
+        # timeout). With the fix, handle_audio_abort signals :ready and
+        # the call returns false within milliseconds.
+        waiter = task.async do
+          start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          result = host_with_session.send(:wait_for_ready, state, "ws-test")
+          elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
+        end
+
+        # Yield once so the waiter actually parks on state[:ready].wait
+        # before we fire the abort signal. Without this, signal happens
+        # while @waiting is still empty and the :aborted flag is what
+        # rescues us — both paths are exercised across the two specs
+        # in this group.
+        task.sleep(0.005)
+
+        host_with_session.handle_audio_abort(nil, {})
+
+        waiter.wait
+      end
+
+      expect(result).to be(false)
+      expect(elapsed).to be < 1.0 # was 15s before the fix
+    end
+
+    it "returns false from #wait_for_ready when :aborted was set before #wait" do
+      # Covers the signal-before-wait race: the abort handler fires its
+      # signal while no fiber is parked on state[:ready], so the signal
+      # is dropped. The :aborted flag check on the front of the method
+      # is what makes this safe.
+      state = fresh_state
+      state[:aborted] = true
+
+      Async do
+        result = host_with_session.send(:wait_for_ready, state, "ws-test")
+        expect(result).to be(false)
+      end
+    end
+
+    it "returns from #wait_for_completion silently when :aborted is set" do
+      # commit was sent but the user aborted before .completed arrived.
+      # The previous code path would have waited the full 15s and then
+      # broadcast a "timed out waiting for transcript" error to the
+      # client; with the fix the call returns immediately and no
+      # spurious error reaches the UI.
+      state = fresh_state
+      state[:aborted] = true
+
+      Async do
+        host_with_session.send(:wait_for_completion, state, "ws-test")
+      end
+
+      expect(host_with_session.broadcasts).to be_empty
+    end
+
+    it "no-ops cleanly when no bridge state exists" do
+      # abort can arrive on a stale page reload before any AUDIO_CHUNK.
+      # The handler must tolerate session[:_realtime_stt] = nil.
+      expect { host_with_session.handle_audio_abort(nil, {}) }.not_to raise_error
+    end
+
+    it "does NOT broadcast a session-setup-timeout error when abort races the timeout" do
+      # Edge case: user clicks Stop just as the 15s wait_for_ready
+      # timeout fires. Without this guard the user sees
+      # "Realtime STT session setup timeout" on top of an intentional
+      # abort, which is confusing UX. The aborted-flag check inside
+      # the timeout rescue branch suppresses that broadcast.
+      state = fresh_state
+      state[:aborted] = true
+      host_with_session.session[:_realtime_stt] = state
+
+      stub_const(
+        "WebSocketHelper::REALTIME_STT_COMMIT_TIMEOUT",
+        0.01
+      )
+
+      Async do
+        result = host_with_session.send(:wait_for_ready, state, "ws-test")
+        expect(result).to be(false)
+      end
+
+      expect(host_with_session.broadcasts).to be_empty
+    end
+  end
+
   describe "constants" do
     it "uses the documented OpenAI Realtime transcription endpoint" do
       expect(WebSocketHelper::REALTIME_STT_URL).to eq(
@@ -167,6 +314,61 @@ RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do
 
     it "bounds the commit-completion wait to 15 seconds" do
       expect(WebSocketHelper::REALTIME_STT_COMMIT_TIMEOUT).to eq(15)
+    end
+
+    it "caps concurrent upstream WS connections at 8 by default" do
+      expect(WebSocketHelper::REALTIME_STT_MAX_CONCURRENT).to eq(8)
+    end
+  end
+
+  describe "upstream concurrency cap" do
+    # The shared singleton across the process; we exercise it directly
+    # instead of going through #run_realtime_stt_bridge! (which would
+    # require a live OpenAI socket). This pins the wiring: the helper
+    # returns a real Async::Semaphore with the documented limit.
+    it "exposes a singleton Async::Semaphore with the configured limit" do
+      sem = WebSocketHelper.realtime_stt_semaphore
+      expect(sem).to be_an(Async::Semaphore)
+      expect(sem.limit).to eq(WebSocketHelper::REALTIME_STT_MAX_CONCURRENT)
+      # Singleton: every call returns the same object.
+      expect(WebSocketHelper.realtime_stt_semaphore).to equal(sem)
+    end
+
+    it "queues acquires past the limit and releases them in order" do
+      # End-to-end check that the cap actually serialises beyond limit.
+      # Uses a local semaphore (limit=2) so the test does not interfere
+      # with the production singleton and stays deterministic.
+      sem = Async::Semaphore.new(2)
+      events = []
+
+      Async do |task|
+        bridges = Array.new(4) do |i|
+          task.async do
+            sem.acquire do
+              events << "start:#{i}"
+              task.sleep(0.01)
+              events << "end:#{i}"
+            end
+          end
+        end
+        bridges.each(&:wait)
+      end
+
+      # First two bridges enter together (cap=2). Bridges 2 and 3 only
+      # see their "start" event after one of the earlier ones emits
+      # its "end" — i.e. never more than two in-flight at once.
+      in_flight = 0
+      max_in_flight = 0
+      events.each do |e|
+        if e.start_with?("start:")
+          in_flight += 1
+          max_in_flight = in_flight if in_flight > max_in_flight
+        else
+          in_flight -= 1
+        end
+      end
+      expect(max_in_flight).to eq(2)
+      expect(events.length).to eq(8) # 4 starts + 4 ends
     end
   end
 end

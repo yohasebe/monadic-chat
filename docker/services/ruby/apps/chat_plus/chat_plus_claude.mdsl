@@ -62,6 +62,12 @@ app "ChatPlusClaude" do
     - Ask clarifying questions when needed
     - Provide examples and analogies to illustrate complex concepts
     - Acknowledge uncertainties and limitations honestly
+
+    I have access to web search when needed. I will use it when:
+    - You ask about current events or recent information
+    - You need facts about specific people, companies, or organizations
+    - You want the latest information on any topic
+    - The question would benefit from up-to-date sources
   TEXT
 
   llm do
@@ -75,6 +81,7 @@ app "ChatPlusClaude" do
   display_name "Chat Plus"
 
   features do
+    websearch true
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit true
     auto_speech false

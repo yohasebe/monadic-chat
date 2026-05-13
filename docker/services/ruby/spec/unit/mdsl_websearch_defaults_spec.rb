@@ -154,4 +154,56 @@ RSpec.describe 'MDSL Web Search Default Settings' do
       end
     end
   end
+
+  # Apps that follow the same "native → true, Tavily fallback → false"
+  # convention as the Chat app. Added 2026-05-13 when these apps were
+  # promoted to default-on web search where the provider supports it.
+  #
+  # The convention is *not* universal — purpose-specific apps (Image
+  # Generator, Translate, Math Tutor, etc.) keep websearch absent /
+  # false even on native providers because their core task does not
+  # benefit from web search and the toggle would just add noise. The
+  # parameterised group below pins which apps consciously opted into
+  # the chat-style default; adding a new app here means: "for this
+  # app, the conversational use case dominates and current-events
+  # context is worth the extra latency on native providers."
+  CHAT_STYLE_APPS_AND_PROVIDERS = {
+    'voice_chat' => %w[claude cohere deepseek gemini grok mistral ollama openai],
+    'chat_plus' => %w[claude cohere deepseek gemini grok mistral openai],
+    'second_opinion' => %w[claude cohere deepseek gemini grok mistral openai],
+    'mail_composer' => %w[claude cohere deepseek gemini grok mistral ollama openai]
+  }.freeze
+
+  CHAT_NATIVE_PROVIDERS = %w[openai claude gemini grok].freeze
+
+  CHAT_STYLE_APPS_AND_PROVIDERS.each do |app_name, providers|
+    describe "Chat-style default convention for #{app_name}" do
+      providers.each do |provider|
+        expected = CHAT_NATIVE_PROVIDERS.include?(provider)
+
+        it "sets websearch #{expected} for #{app_name}_#{provider}" do
+          mdsl_file = File.join(__dir__, "../../apps/#{app_name}/#{app_name}_#{provider}.mdsl")
+          actual = parse_mdsl_websearch(mdsl_file)
+
+          expect(actual).to eq(expected),
+            "#{app_name}_#{provider}.mdsl should have websearch #{expected} " \
+            "(#{CHAT_NATIVE_PROVIDERS.include?(provider) ? 'native search provider' : 'Tavily fallback — toggle stays opt-in'})"
+        end
+
+        # The MDSL `websearch <bool>` directive controls UI default
+        # and tool registration, but without a system prompt nudge
+        # the LLM (especially native-search providers like Claude /
+        # Gemini) often won't actually USE the tool. Each chat-style
+        # app must therefore advertise web search in its prompt the
+        # same way the Chat app does.
+        it "mentions web search in the system prompt of #{app_name}_#{provider}" do
+          mdsl_file = File.join(__dir__, "../../apps/#{app_name}/#{app_name}_#{provider}.mdsl")
+          content = File.read(mdsl_file)
+          expect(content).to match(/web search|search the web/i),
+            "#{app_name}_#{provider}.mdsl should mention web search in system_prompt " \
+            "so the model knows the tool is available"
+        end
+      end
+    end
+  end
 end

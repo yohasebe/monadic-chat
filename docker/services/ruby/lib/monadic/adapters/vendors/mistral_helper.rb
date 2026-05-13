@@ -11,6 +11,7 @@ require_relative "../../utils/model_spec"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
+require_relative "../../shared_tools/tavily_definitions"
 
 module MistralHelper
   include BaseVendorHelper
@@ -33,63 +34,11 @@ module MistralHelper
     "mistral-tiny"
   ]
 
-  WEBSEARCH_TOOLS = [
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_fetch",
-        description: "fetch the content of the web page of the given url and return its content.",
-        parameters: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "url of the web page."
-            }
-          },
-          required: ["url"]
-        }
-      }
-    },
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_search",
-        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "query to search for."
-            },
-            n: {
-              type: "integer",
-              description: "number of results to return (default: 3)."
-            }
-          },
-          required: ["query"]
-        }
-      }
-    }
-  ]
-
-  WEBSEARCH_PROMPT = <<~TEXT
-
-    IMPORTANT: You MUST use the tavily_search function to search for information about any topic, person, or subject that you don't have reliable information about. DO NOT make up or hallucinate information.
-
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
-
-    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
-    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
-
-    When asked about specific people, companies, or any factual information, ALWAYS use tavily_search first before responding.
-
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from the web search results as possible to provide the user with the most up-to-date and relevant information.
-  TEXT
+  # Tavily-backed web search tools. SSOT is
+  # `Monadic::SharedTools::TavilyDefinitions` (consolidated 2026-05-13);
+  # local constants are aliases for backwards compat.
+  WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
+  WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
 
   class << self
     attr_reader :cached_models
@@ -356,8 +305,16 @@ module MistralHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    # Handle both string and boolean values for websearch parameter
-    websearch = obj["websearch"] == "true" || obj["websearch"] == true
+    # Handle both string and boolean values for websearch parameter.
+    # Proactively gate on TAVILY_API_KEY (mirrors Cohere / DeepSeek): if
+    # the key is not configured, the UI websearch toggle is silently
+    # treated as off so the LLM never registers tavily_* tools and the
+    # user never sees a "Bearer token not found" tool error mid-session.
+    # The reactive `tavily_disabled` flag below remains as defense in
+    # depth (catches the case where the key is set at boot but Tavily
+    # rejects it at request time — e.g. revoked / rate-limited).
+    websearch = !CONFIG["TAVILY_API_KEY"].to_s.strip.empty? &&
+                (obj["websearch"] == "true" || obj["websearch"] == true)
     if session[:parameters]["tavily_disabled"]
       websearch = false
     end

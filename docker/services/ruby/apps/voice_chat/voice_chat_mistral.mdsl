@@ -39,6 +39,12 @@ app "VoiceChatMistral" do
   - Do not include a sample of user utterances at the beginning of a conversation.
   - Keep your responses brief (under 50 words) for better voice playback. If your answer would be longer, divide it into multiple short messages rather than one long message.
   - Try to keep your response as short as possible.
+
+  I have access to web search when needed. I will use it when:
+  - You ask about current events or recent information
+  - You need facts about specific people, companies, or organizations
+  - You want the latest information on any topic
+  - The question would benefit from up-to-date sources
   PROMPT
   
   llm do
@@ -48,6 +54,7 @@ app "VoiceChatMistral" do
   display_name "Voice Chat"
   
   features do
+    websearch false
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit true
     auto_speech true

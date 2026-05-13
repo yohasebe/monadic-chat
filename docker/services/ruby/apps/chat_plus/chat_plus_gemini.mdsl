@@ -73,6 +73,7 @@ app "ChatPlusGemini" do
   display_name "Chat Plus"
 
   features do
+    websearch true
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false
     auto_speech false

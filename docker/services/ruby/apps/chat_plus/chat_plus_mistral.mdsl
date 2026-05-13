@@ -73,6 +73,7 @@ app "ChatPlusMistral" do
   display_name "Chat Plus"
 
   features do
+    websearch false
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false

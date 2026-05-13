@@ -9,6 +9,7 @@ require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
+require_relative "../../shared_tools/tavily_definitions"
 
 module CohereHelper
   include BaseVendorHelper
@@ -26,57 +27,14 @@ module CohereHelper
   # ENV key for emergency override
   COHERE_LEGACY_MODE_ENV = "COHERE_LEGACY_MODE"
 
-  # websearch tools
-  WEBSEARCH_TOOLS = [
-    {
-      type: "function",
-      function: {
-        name: "tavily_fetch",
-        description: "fetch the content of the web page of the given url and return its content.",
-        parameters: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "url of the web page."
-            }
-          },
-          required: ["url"]
-        }
-      }
-    },
-    {
-      type: "function",
-      function: {
-        name: "tavily_search",
-        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "query to search for."
-            },
-            n: {
-              type: "integer",
-              description: "number of results to return (default: 3)."
-            }
-          },
-          required: ["query", "n"]
-        }
-      }
-    }
-  ]
-
-  WEBSEARCH_PROMPT = <<~TEXT
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of tavily API for web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses. To fulfill your tasks, you can use the following functions:
-
-    - **tavily_search**: Use this function to perform a web search. It takes a query (`query`) and the number of results (`n`) as input and returns results containing answers, source URLs, and web page content. Please remember to use English in the queries for better search results even if the user's query is in another language. You can translate what you find into the user's language if needed.
-    - **tavily_fetch**: Use this function to fetch the full content of a provided web page URL. Analyze the fetched content to find relevant research data, details, summaries, and explanations.
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from the web search results as possible to provide the user with the most up-to-date and relevant information.
-
-  TEXT
+  # Tavily-backed web search tools. SSOT is
+  # `Monadic::SharedTools::TavilyDefinitions` (consolidated 2026-05-13);
+  # local constants are aliases for backwards compat. Note: before
+  # consolidation Cohere had `required: ["query", "n"]` here, forcing
+  # the model to always pass a count; the canonical definition only
+  # requires `query` (matching the other 3 helpers).
+  WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
+  WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
 
   # Helper method to check if a model is a thinking/reasoning model
   def self.is_thinking_model?(model_name)

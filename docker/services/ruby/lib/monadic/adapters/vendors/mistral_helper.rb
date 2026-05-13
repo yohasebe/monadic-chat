@@ -1124,6 +1124,13 @@ module MistralHelper
 
     send_verification_notification(session, &block) if function_name == "report_verification"
 
+    # Reactive Tavily gate (defense in depth — pairs with the proactive
+    # gate at the top of api_request). The proactive gate handles "key
+    # missing at session start"; this reactive branch handles the rarer
+    # "key valid at boot but rejected mid-session" cases: revoked key,
+    # rate-limit ban, billing lapse. Setting the session flag short-
+    # circuits subsequent tool emissions for this session so the model
+    # does not retry tavily_* on every turn.
     if function_name.to_s.start_with?("tavily_") && function_return.to_s.downcase.include?("bearer token not found")
       function_return = {
         error: "tavily_api_key_missing",

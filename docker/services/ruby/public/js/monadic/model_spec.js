@@ -523,6 +523,29 @@ const modelSpec = {
     "reasoning_model": true
   },
   // Gemini models
+  // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
+  // Stable alias of the gemini-3-flash-preview line.
+  "gemini-3.5-flash": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "default_disabled": true,
+      "presets": {
+        "none": 0,
+        "low": 512,
+        "medium": 8000,
+        "high": 20000
+      }
+    },
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
   "gemini-3-flash-preview": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
@@ -605,7 +628,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "sunset_date": "2026-05-25",
+    "successor": "gemini-3.5-flash"
   },
   "gemini-3.1-flash-image-preview": {
     "context_window": [131072],
@@ -713,6 +739,30 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true
+  },
+  // Mistral Medium 3.5: frontier-class multimodal, agentic + coding,
+  // 256k context, function calling, structured outputs.
+  "mistral-medium-3-5": {
+    "max_output_tokens" : [1, 262000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true
+  },
+  // Mistral Small 4 (mistral-small-2603): hybrid instruct+reasoning+coding,
+  // 256k context, 119B params with 6.5B active, cost-efficient.
+  "mistral-small-2603": {
+    "max_output_tokens" : [1, 262000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true
   },
   "mistral-ocr-latest": {
     "max_output_tokens" : [1, 32768],
@@ -1049,9 +1099,9 @@ const providerDefaults = {
     "vision": ["claude-haiku-4-5-20251001"]
   },
   "gemini": {
-    "chat": ["gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview"],
-    "vision": ["gemini-3.1-flash-lite-preview"],
-    "audio_transcription": ["gemini-3.1-flash-lite-preview"],
+    "chat": ["gemini-3.5-flash", "gemini-3.1-pro-preview"],
+    "vision": ["gemini-3.5-flash"],
+    "audio_transcription": ["gemini-3.5-flash"],
     "image": ["gemini-3.1-flash-image-preview", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
@@ -1061,8 +1111,9 @@ const providerDefaults = {
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
-    "chat": ["mistral-large-latest"],
-    "code": ["devstral-latest"],
+    "chat": ["mistral-medium-3-5", "mistral-large-latest"],
+    "code": ["devstral-latest", "mistral-small-2603"],
+    "vision": ["mistral-small-2603"],
     "tts": ["voxtral-mini-tts-2603"],
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },

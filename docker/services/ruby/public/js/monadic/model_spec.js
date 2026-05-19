@@ -741,7 +741,9 @@ const modelSpec = {
     "vision_capability": true
   },
   // Mistral Medium 3.5: frontier-class multimodal, agentic + coding,
-  // 256k context, function calling, structured outputs.
+  // 256k context, function calling, structured outputs, adjustable
+  // reasoning_effort. supports_thinking gates mistral_helper's
+  // reasoning_effort routing — see lib/monadic/adapters/vendors/mistral_helper.rb.
   "mistral-medium-3-5": {
     "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -750,7 +752,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_structured_output": true
+    "supports_structured_output": true,
+    "supports_thinking": true
   },
   // Mistral Small 4 (mistral-small-2603): hybrid instruct+reasoning+coding,
   // 256k context, 119B params with 6.5B active, cost-efficient.
@@ -762,7 +765,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_structured_output": true
+    "supports_structured_output": true,
+    "supports_thinking": true
   },
   "mistral-ocr-latest": {
     "max_output_tokens" : [1, 32768],

@@ -522,6 +522,22 @@ const modelSpec = {
     "reasoning_effort": [["disabled", "enabled"], "enabled"],
     "reasoning_model": true
   },
+  // Command A+ (Cohere flagship, MoE 25B active / 218B total).
+  // Unifies vision + reasoning + tool use; 128k context but 64k output.
+  // Older command-a-* entries remain for long-context (256k) workloads.
+  "command-a-plus-05-2026": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 64000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_structured_output": true,
+    "reasoning_effort": [["disabled", "enabled"], "enabled"]
+  },
   // Gemini models
   // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
   // Stable alias of the gemini-3-flash-preview line.
@@ -1111,7 +1127,8 @@ const providerDefaults = {
     "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
-    "chat": ["command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
+    "chat": ["command-a-plus-05-2026", "command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
+    "vision": ["command-a-plus-05-2026"],
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {

@@ -37,9 +37,16 @@ module CohereHelper
   WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
   WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
 
-  # Helper method to check if a model is a thinking/reasoning model
+  # Helper method to check if a model is a thinking/reasoning model.
+  # Prefer the SSOT (model_spec `supports_thinking` flag) so that new
+  # Cohere thinking models whose name does not contain "thinking" or
+  # "reasoning" (e.g. command-a-plus-05-2026) are still recognised.
+  # Falls back to the legacy name heuristic when the SSOT has no entry.
   def self.is_thinking_model?(model_name)
     return false unless model_name
+    if defined?(Monadic::Utils::ModelSpec) && Monadic::Utils::ModelSpec.respond_to?(:supports_thinking?)
+      return true if Monadic::Utils::ModelSpec.supports_thinking?(model_name)
+    end
     model_name.include?("thinking") || model_name.include?("reasoning")
   end
 

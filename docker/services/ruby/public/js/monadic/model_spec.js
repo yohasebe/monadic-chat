@@ -757,9 +757,10 @@ const modelSpec = {
     "vision_capability": true
   },
   // Mistral Medium 3.5: frontier-class multimodal, agentic + coding,
-  // 256k context, function calling, structured outputs, adjustable
-  // reasoning_effort. supports_thinking gates mistral_helper's
-  // reasoning_effort routing — see lib/monadic/adapters/vendors/mistral_helper.rb.
+  // 256k context, function calling, structured outputs. The Mistral API
+  // accepts only "none" or "high" for reasoning_effort on this family —
+  // "low"/"medium" return 400 — so pin the enum here so the UI never
+  // offers an unsupported value.
   "mistral-medium-3-5": {
     "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -769,10 +770,12 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_structured_output": true,
-    "supports_thinking": true
+    "supports_thinking": true,
+    "reasoning_effort": [["none", "high"], "none"]
   },
   // Mistral Small 4 (mistral-small-2603): hybrid instruct+reasoning+coding,
   // 256k context, 119B params with 6.5B active, cost-efficient.
+  // Same reasoning_effort enum constraint as Medium 3.5.
   "mistral-small-2603": {
     "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -782,7 +785,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_structured_output": true,
-    "supports_thinking": true
+    "supports_thinking": true,
+    "reasoning_effort": [["none", "high"], "none"]
   },
   "mistral-ocr-latest": {
     "max_output_tokens" : [1, 32768],

@@ -1,8 +1,0 @@
-# All benchmark run artifacts are ignored.
-# The directory itself is tracked via this .gitignore so the runner
-# has a stable target path. Individual runs go under
-# results/<timestamp>/ and are never committed (they contain real LLM
-# outputs whose IP is the user's, not the project's).
-
-*
-!.gitignore

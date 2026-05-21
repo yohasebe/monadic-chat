@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'cgi'
+
 # Shared Python Execution Tools for Monadic Chat
 # Provides code execution, bash commands, and environment inspection
 #
@@ -228,7 +230,7 @@ module MonadicSharedTools
       # are appended to the response regardless of what the LLM writes.
       if session
         gallery_html = valid_images.map { |img|
-          "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"
+          "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(img.to_s)}\" /></div>"
         }.join("\n")
         session[:tool_html_fragments] ||= []
         session[:tool_html_fragments] << gallery_html

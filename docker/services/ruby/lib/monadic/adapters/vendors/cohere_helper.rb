@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'cgi'
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
@@ -1620,7 +1621,7 @@ module CohereHelper
 
       if image_files.any?
         processed_return += "\n\nIMPORTANT: Display the generated image(s) using the following HTML:\n"
-        image_files.each { |img_path| processed_return += "<div class=\"generated_image\"><img src=\"#{img_path}\" /></div>\n" }
+        image_files.each { |img_path| processed_return += "<div class=\"generated_image\"><img src=\"#{CGI.escapeHTML(img_path.to_s)}\" /></div>\n" }
         processed_return += "\nPlease include the above HTML in your response to show the image(s) to the user."
       end
     end

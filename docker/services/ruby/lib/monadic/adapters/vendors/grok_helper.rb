@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'cgi'
+
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
@@ -712,7 +714,7 @@ module GrokHelper
         filename = $1
         unless content.include?("<div class=\"generated_image\">")
           if content =~ /(Output:.*?```[^`]*```)/m
-            image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{filename}\" />\n</div>"
+            image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{CGI.escapeHTML(filename.to_s)}\" />\n</div>"
             content = content.sub($1, $1 + image_html)
           end
         end
@@ -1562,7 +1564,7 @@ module GrokHelper
         if output_content =~ /File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
           filename = $1
           # Add HTML for displaying the image
-          response_parts << "<div class=\"generated_image\">\n  <img src=\"/data/#{filename}\" />\n</div>"
+          response_parts << "<div class=\"generated_image\">\n  <img src=\"/data/#{CGI.escapeHTML(filename.to_s)}\" />\n</div>"
 
           Monadic::Utils::ExtraLogger.log { "Grok auto-injected image HTML for: /data/#{filename}" }
         end
@@ -1578,7 +1580,7 @@ module GrokHelper
               response_parts << "  <b>Revised Prompt</b>: #{content_json["revised_prompt"]}"
               response_parts << "</div>"
               response_parts << "<div class=\"generated_image\">"
-              response_parts << "  <img src=\"/data/#{content_json["filename"]}\">"
+              response_parts << "  <img src=\"/data/#{CGI.escapeHTML(content_json["filename"].to_s)}\">"
               response_parts << "</div>"
             else
               # Generation failed or success: false

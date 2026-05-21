@@ -2,6 +2,7 @@
 # Provides clear interfaces for image generation functionality
 
 require 'base64'
+require 'cgi'
 require 'fileutils'
 require_relative "../../lib/monadic/utils/extra_logger"
 require_relative "../../lib/monadic/shared_tools/monadic_session_state"
@@ -401,7 +402,8 @@ class ImageGeneratorOpenAI < MonadicApp
           session[:tool_html_fragments] ||= []
           filenames.each do |fname|
             next if fname.to_s.empty?
-            session[:tool_html_fragments] << "<div class=\"generated_image\"><img src=\"/data/#{File.basename(fname)}\" /></div>"
+            safe_name = CGI.escapeHTML(File.basename(fname).to_s)
+            session[:tool_html_fragments] << "<div class=\"generated_image\"><img src=\"/data/#{safe_name}\" /></div>"
           end
         end
       rescue JSON::ParserError

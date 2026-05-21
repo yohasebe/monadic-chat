@@ -265,7 +265,7 @@ module ConceptVisualizerTools
         # Store gallery HTML for server-side injection (bypasses LLM filename hallucination).
         # No _image vision injection — avoids tool-call loops.
         if session
-          gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{base_filename}.png\" /></div>"
+          gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(base_filename.to_s)}.png\" /></div>"
           session[:tool_html_fragments] ||= []
           session[:tool_html_fragments] << gallery_html
         end

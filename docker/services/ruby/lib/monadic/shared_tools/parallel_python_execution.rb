@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'cgi'
 require 'json'
 require 'timeout'
 
@@ -129,7 +130,7 @@ module MonadicSharedTools
       # Store gallery HTML for server-side injection (bypasses LLM filename hallucination)
       if all_images.any? && session
         gallery_html = all_images.map { |img|
-          "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"
+          "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(img.to_s)}\" /></div>"
         }.join("\n")
         session[:tool_html_fragments] ||= []
         session[:tool_html_fragments] << gallery_html

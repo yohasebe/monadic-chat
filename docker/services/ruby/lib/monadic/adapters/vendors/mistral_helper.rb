@@ -601,13 +601,20 @@ module MistralHelper
               end
               content = content.to_s unless content.is_a?(String)
 
-              # Check if this is a reasoning model and process thinking blocks
-              if is_reasoning_model
+              # Buffer the response only when reasoning is actively engaged
+              # (Magistral emits `<think>...</think>` blocks that may be split
+              # across chunks, so we must reassemble before sending to the
+              # client). When reasoning_effort is "none" (or unset), the model
+              # behaves like a normal chat model — stream as usual, including
+              # for new reasoning-capable models like mistral-medium-3-5 and
+              # mistral-small-2603 whose default we pin to "none".
+              if is_reasoning_model && mistral_effort && mistral_effort != "none"
                 # Debug logging for reasoning model detection
                 if CONFIG["EXTRA_LOGGING"]
                   DebugHelper.debug("Mistral: Processing content for reasoning model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
                 end
-                # For reasoning models, collect all content and process thinking blocks later
+                # For reasoning models with reasoning active, collect all
+                # content and process thinking blocks later.
                 content_buffer += content
 
                 # Don't send content to client yet - we'll process it after streaming is complete

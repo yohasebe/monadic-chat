@@ -2886,7 +2886,9 @@ h1 {
   background-color: #f8f8f8;
 }
 
-/* Syntax Tree SVG styling */
+/* Generated images: shared frame styling + click affordance.
+   The actual click listener is attached dynamically in monadic.js;
+   cursor: pointer signals that the image opens in the lightbox. */
 
 .generated_image img {
   background-color: white;
@@ -2897,7 +2899,7 @@ h1 {
   max-width: 100%;
   height: auto;
   display: inline-block;
-  cursor: default;
+  cursor: pointer;
 }
 
 /* Screenshot Lightbox */

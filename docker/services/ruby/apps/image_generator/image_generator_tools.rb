@@ -392,6 +392,17 @@ class ImageGeneratorOpenAI < MonadicApp
 
           # Legacy compatibility for other code paths
           session[:openai_last_image_generation] = { images: filenames }
+
+          # Inject .generated_image wrappers into the message so the
+          # frontend lightbox handler attaches regardless of how the LLM
+          # phrases the result. html_handler dedupes against the model's
+          # own text, so this is safe whether or not the LLM also emits
+          # the HTML template from the MDSL system prompt.
+          session[:tool_html_fragments] ||= []
+          filenames.each do |fname|
+            next if fname.to_s.empty?
+            session[:tool_html_fragments] << "<div class=\"generated_image\"><img src=\"/data/#{File.basename(fname)}\" /></div>"
+          end
         end
       rescue JSON::ParserError
         # Ignore JSON parsing errors, just return original result

@@ -8,7 +8,7 @@ app "MathTutorMistral" do
   llm do
     provider "mistral"
     temperature 0.0
-    reasoning_effort "low"
+    reasoning_effort "none"
     context_size 25
   end
 

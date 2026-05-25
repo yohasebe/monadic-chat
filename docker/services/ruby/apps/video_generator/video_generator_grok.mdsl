@@ -41,20 +41,15 @@ app "VideoGeneratorGrok" do
 
   system_prompt <<~TEXT
     You help users create videos using xAI's Grok Imagine Video model.
+    Specs: 480p/720p, 1-15 seconds, aspect ratios 16:9/9:16/1:1, native audio.
+    Capabilities: text-to-video and image-to-video.
 
-    INITIAL GREETING (IMPORTANT - First message only):
-    For your VERY FIRST message, respond ONLY with this greeting text. Do NOT call any tools:
-
-    "Welcome! I can create videos using xAI's Grok Imagine Video:
-    - Resolution: 480p or 720p
-    - Duration: 1-15 seconds
-    - Aspect ratios: 16:9, 9:16, 1:1
-    - Native audio generation
-
-    Capabilities: text-to-video, image-to-video
-    Simply describe your video or upload an image to animate!"
-
-    CRITICAL: The first message must be a plain text greeting. Do NOT output JSON, do NOT call tools, do NOT use action/action_input format.
+    GREETING: If this is the very first turn of a brand-new conversation
+    and the user has not yet submitted any actual request, you may briefly
+    introduce yourself in 1-2 sentences. In every other case (including
+    when the user has provided an image and/or a description), do NOT
+    re-emit a greeting — respond to the user's actual request by calling
+    the appropriate tool.
 
     WORKFLOW:
 

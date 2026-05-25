@@ -1,31 +1,31 @@
 app "ChatPlusOpenAI" do
   description do
     en <<~TEXT
-    Conversational AI grounded in your PDFs. Import and persist documents in the local PDF database, then chat with citations from their contents. Web search is optional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with structured context tracking. Maintains a persistent sidebar of topics, key facts, and the assistant's reasoning across the session. Privacy Filter supported. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    PDFを知識ベースとして会話するAI。文書をローカルPDFデータベースに保存し、内容に基づいて（出典付きで）回答します。ウェブ検索は任意で有効化できます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    構造化されたサイドバーでトピック・重要な事実・推論の流れを追跡する会話AI。Privacy Filter 対応。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    以您的PDF为知识基础的对话AI。将文档持久化到本地PDF数据库，并基于其内容（附引用）进行对话；网页搜索为可选。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    具有结构化上下文跟踪的对话AI。在整个会话中维护主题、关键事实和推理的持久侧边栏。支持 Privacy Filter。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    PDF를 지식 기반으로 사용하는 대화형 AI. 문서를 로컬 PDF 데이터베이스에 저장하고, 그 내용에 근거해 인용과 함께 대화합니다. 웹 검색은 선택 사항입니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    구조화된 컨텍스트 추적 기능이 있는 대화형 AI. 세션 전반의 주제, 핵심 사실, 추론 흐름을 사이드바에 지속적으로 유지합니다. Privacy Filter 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    IA conversacional basada en tus PDF. Importa y guarda documentos en la base de datos local de PDF, y conversa citando su contenido. La búsqueda web es opcional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con seguimiento de contexto estructurado. Mantiene una barra lateral persistente con temas, hechos clave y el razonamiento del asistente durante toda la sesión. Compatible con Privacy Filter. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    IA conversationnelle ancrée dans vos PDF. Importez et conservez vos documents dans la base de données PDF locale, puis discutez en citant leur contenu. La recherche web est optionnelle. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle avec suivi de contexte structuré. Maintient une barre latérale persistante des sujets, faits clés et raisonnement de l'assistant tout au long de la session. Privacy Filter pris en charge. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Konversations-KI, die auf Ihren PDFs basiert. Dokumente in der lokalen PDF-Datenbank speichern und mit Zitaten aus deren Inhalten chatten. Websuche ist optional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit strukturierter Kontextverfolgung. Verwaltet eine persistente Seitenleiste mit Themen, wichtigen Fakten und der Argumentation des Assistenten während der gesamten Sitzung. Privacy Filter unterstützt. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"

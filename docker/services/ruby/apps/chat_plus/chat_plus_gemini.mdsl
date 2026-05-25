@@ -1,31 +1,31 @@
 app "ChatPlusGemini" do
   description do
     en <<~TEXT
-    Conversational AI with integrated web search capabilities. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with structured context tracking. Maintains a persistent sidebar of topics, key facts, and the assistant's reasoning across the session. Privacy Filter supported. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    ウェブ検索機能を統合した会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    構造化されたサイドバーでトピック・重要な事実・推論の流れを追跡する会話AI。Privacy Filter 対応。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    集成网络搜索功能的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    具有结构化上下文跟踪的对话AI。在整个会话中维护主题、关键事实和推理的持久侧边栏。支持 Privacy Filter。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    웹 검색 기능이 통합된 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    구조화된 컨텍스트 추적 기능이 있는 대화형 AI. 세션 전반의 주제, 핵심 사실, 추론 흐름을 사이드바에 지속적으로 유지합니다. Privacy Filter 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    IA conversacional con capacidades de búsqueda web integradas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con seguimiento de contexto estructurado. Mantiene una barra lateral persistente con temas, hechos clave y el razonamiento del asistente durante toda la sesión. Compatible con Privacy Filter. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    IA conversationnelle avec recherche web intégrée. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle avec suivi de contexte structuré. Maintient une barre latérale persistante des sujets, faits clés et raisonnement de l'assistant tout au long de la session. Privacy Filter pris en charge. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Konversations-KI mit integrierten Websuchfunktionen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit strukturierter Kontextverfolgung. Verwaltet eine persistente Seitenleiste mit Themen, wichtigen Fakten und der Argumentation des Assistenten während der gesamten Sitzung. Privacy Filter unterstützt. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"

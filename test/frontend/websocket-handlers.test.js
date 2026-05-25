@@ -592,6 +592,61 @@ describe('WebSocket Handlers', () => {
       expect(result).toBe(true);
       expect(msgEl.value).toContain('Voice transcription');
     });
+
+    it('does not append content when _alreadyAppended is true (Realtime STT path)', () => {
+      // Realtime STT in ws-session-handler.js#handleSTT writes the
+      // final transcript to the textarea itself, then delegates to
+      // this handler for UI cleanup. Without the flag the value gets
+      // the transcript twice — observed in dogfood as
+      // "こんにちは。 こんにちは。" doubled messages.
+      const msgEl = document.getElementById('message');
+      msgEl.value = 'caller already wrote this';
+
+      const data = {
+        type: 'stt',
+        content: 'should NOT be appended',
+        logprob: 0.9,
+        _alreadyAppended: true
+      };
+
+      const result = handlers.handleSTTMessage(data);
+
+      expect(result).toBe(true);
+      // The value is whatever the caller left it as — handler did not
+      // mutate it.
+      expect(msgEl.value).toBe('caller already wrote this');
+    });
+
+    it('still runs the UI cleanup when _alreadyAppended is true', () => {
+      // The flag suppresses ONLY the append. Re-enable, spinner,
+      // easy-submit, focus must all still fire so the recording
+      // session can complete normally.
+      const easySubmitEl = document.getElementById('check-easy-submit');
+      easySubmitEl.checked = true;
+      const sendEl = document.getElementById('send');
+      const clickSpy = jest.spyOn(sendEl, 'click');
+
+      ['send', 'clear', 'voice'].forEach(id => {
+        document.getElementById(id).disabled = true;
+      });
+
+      const data = {
+        type: 'stt',
+        content: 'irrelevant',
+        logprob: 0.9,
+        _alreadyAppended: true
+      };
+
+      const result = handlers.handleSTTMessage(data);
+
+      expect(result).toBe(true);
+      ['send', 'clear', 'voice'].forEach(id => {
+        expect(document.getElementById(id).disabled).toBe(false);
+      });
+      expect(clickSpy).toHaveBeenCalled();
+      expect(global.setInputFocus).toHaveBeenCalled();
+      clickSpy.mockRestore();
+    });
   });
 
   // Test the cancel message handler

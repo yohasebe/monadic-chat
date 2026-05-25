@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'cgi'
+
 module MonadicSharedTools
   module WebAutomation
     include MonadicHelper
@@ -892,10 +894,11 @@ module MonadicSharedTools
       html = ""
       screenshots.each_with_index do |filename, index|
         @gallery_screenshot_counter += 1
+        safe_filename = CGI.escapeHTML(filename.to_s)
         html += <<~HTML
           <div class="generated_image">
-            <p><strong>Screenshot #{@gallery_screenshot_counter}:</strong> #{filename}</p>
-            <img src="/data/#{filename}" alt="Screenshot #{@gallery_screenshot_counter}" data-gallery-index="#{index}" data-gallery-total="#{total}" data-screenshot-dpr="2" />
+            <p><strong>Screenshot #{@gallery_screenshot_counter}:</strong> #{safe_filename}</p>
+            <img src="/data/#{safe_filename}" alt="Screenshot #{@gallery_screenshot_counter}" data-gallery-index="#{index}" data-gallery-total="#{total}" data-screenshot-dpr="2" />
           </div>
         HTML
       end

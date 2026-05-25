@@ -109,7 +109,7 @@ module DrawIOGrapher
     }
     # Store gallery HTML for server-side display (no _image vision injection)
     if session && File.exist?(File.join(shared_volume, screenshot_filename))
-      gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{screenshot_filename}\" /></div>"
+      gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(screenshot_filename.to_s)}\" /></div>"
       session[:tool_html_fragments] ||= []
       session[:tool_html_fragments] << gallery_html
     end

@@ -42,6 +42,12 @@ app "MailComposerGemini" do
     When suggesting text in English, basically use ASCII characters to represent punctuation marks. 
     For example, use "..." instead of "…", "--" instead of "—", and so on. The same goes for 
     quotation marks, apostrophes, and other symbols.
+
+    I have access to web search when needed. I will use it when:
+    - You ask about current events or recent information
+    - You need facts about specific people, companies, or organizations
+    - You want the latest information on any topic
+    - The question would benefit from up-to-date sources
   TEXT
 
   display_name "Mail Composer"
@@ -53,6 +59,7 @@ app "MailComposerGemini" do
   end
   
   features do
+    websearch true
     disabled !CONFIG["GEMINI_API_KEY"]
     initiate_from_assistant true
     easy_submit false

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'cgi'
 require 'fileutils'
 require 'base64'
 require 'securerandom'
@@ -2073,7 +2074,7 @@ module OpenAIHelper
                 <b>generate</b>: #{prompt}
               </div>
               <div class="generated_image">
-                <img src="#{image_url}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                <img src="#{CGI.escapeHTML(image_url.to_s)}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
               </div>
             HTML
 
@@ -2083,6 +2084,7 @@ module OpenAIHelper
           elsif parsed["success"] && parsed["filename"]
             filename = parsed["filename"]
             prompt = parsed["prompt"] || "Media generation"
+            safe_filename = CGI.escapeHTML(filename.to_s)
 
             if filename.to_s.end_with?(".mp4")
               media_html = <<~HTML
@@ -2091,7 +2093,7 @@ module OpenAIHelper
                 </div>
                 <div class="generated_video">
                   <video controls width="600">
-                    <source src="/data/#{filename}" type="video/mp4" />
+                    <source src="/data/#{safe_filename}" type="video/mp4" />
                   </video>
                 </div>
               HTML
@@ -2101,7 +2103,7 @@ module OpenAIHelper
                   <b>generate</b>: #{prompt}
                 </div>
                 <div class="generated_image">
-                  <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                  <img src="/data/#{safe_filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
                 </div>
               HTML
             end
@@ -2127,7 +2129,7 @@ module OpenAIHelper
             </div>
             <div class="generated_video">
               <video controls width="600">
-                <source src="/data/#{video_filename}" type="video/mp4" />
+                <source src="/data/#{CGI.escapeHTML(video_filename.to_s)}" type="video/mp4" />
               </video>
             </div>
           HTML

@@ -80,7 +80,12 @@ app "ImageGeneratorOpenAI" do
     - background: auto (default), transparent, opaque
 
     RESULT DISPLAY:
-    After successful generation: ![Generated Image](/data/filename.png)
+    After successful generation, display the image using this exact HTML
+    (the .generated_image wrapper is required so the UI can attach the
+    click-to-enlarge lightbox handler):
+    <div class="generated_image">
+      <img src="/data/filename.png">
+    </div>
 
     RULES:
     - Always call tools for image operations

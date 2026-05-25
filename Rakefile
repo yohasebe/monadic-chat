@@ -884,7 +884,8 @@ namespace :build do
     # the arch-specific file first, so its absence (or, worse, a stale
     # copy from a multi-arch run) breaks auto-update. Mirror the freshly
     # written manifest as the arm64 channel file when only the canonical
-    # one was generated.
+    # one was generated. Done BEFORE the patch step so the patcher
+    # treats both files uniformly.
     dist_dir = File.join(File.dirname(__FILE__), "dist")
     canonical = File.join(dist_dir, "latest-mac.yml")
     arm64_yml = File.join(dist_dir, "latest-mac-arm64.yml")
@@ -893,12 +894,36 @@ namespace :build do
       puts "[build:mac_arm64] Mirrored latest-mac.yml -> latest-mac-arm64.yml"
     end
 
-    # Verify the post-staple manifest matches the shipped DMG bytes.
-    # notarize-dmg.js patches latest-mac*.yml after stapling; this is
-    # the defense-in-depth check that catches any future regression
-    # where the patch silently fails (e.g. because a future Apple
-    # notary CLI change makes the regex in notarize-dmg.js miss).
-    sh "ruby scripts/verify_release_manifests.rb"
+    # Patch every latest-mac*.yml so its `sha512` / `size` fields match
+    # the actually-shipped (post-staple) DMG bytes. notarize-dmg.js
+    # does this inside the afterAllArtifactBuild hook, but on some
+    # electron-builder versions the yml is not yet populated with the
+    # dmg entry at the moment that hook fires — the hook emits its
+    # "no entry matched" warning and the yml is finalised later with
+    # stale hashes. Running the patcher here, after `npm run` exits,
+    # sidesteps the timing race because every artifact and every yml
+    # are now on disk in their final form. Idempotent: if
+    # notarize-dmg.js succeeded earlier, this is a no-op.
+    #
+    # 2026-05-12 regression note: a full 4-platform release build hit
+    # the drift again even though this patch step was present, so the
+    # block below adds an automatic retry: verify, and if it fails,
+    # run patch + verify a second time. Patching is idempotent and
+    # cheap, so the retry is free in the happy path.
+    puts "[build:mac_arm64] Patching release manifests against shipped DMG bytes..."
+    sh "ruby scripts/patch_release_manifests.rb"
+
+    # Verify the post-staple manifest matches the shipped DMG bytes,
+    # with one automatic patch+retry on failure as a safety net.
+    puts "[build:mac_arm64] Verifying release manifests..."
+    begin
+      sh "ruby scripts/verify_release_manifests.rb"
+    rescue RuntimeError => e
+      warn "[build:mac_arm64] Initial verify failed (#{e.message.lines.first&.chomp})"
+      warn "[build:mac_arm64] Re-running patch + verify before aborting..."
+      sh "ruby scripts/patch_release_manifests.rb"
+      sh "ruby scripts/verify_release_manifests.rb"
+    end
   end
 
   desc "Build Linux x64 package only"
@@ -1040,12 +1065,30 @@ task :build do
     # FileUtils.mv(filepath, "docs/assets/download/") if necessary_files.include?(filepath)
   end
 
+  # Patch every latest-mac*.yml so its `sha512` / `size` fields match
+  # the actually-shipped (post-staple) DMG bytes. Without this, the
+  # macOS DMG entry stays on the *pre-staple* hash written by
+  # electron-builder, and the verify step below fails. `build:mac_arm64`
+  # has the same step; this top-level all-platform task needs it too
+  # because user invocations (`rake build` vs `rake build:mac_arm64`)
+  # take different code paths through this file.
+  puts "\n=== Patching release manifests against shipped DMG bytes ==="
+  sh "ruby scripts/patch_release_manifests.rb"
+
   # Final defense: verify every kept manifest matches its referenced
   # artifact byte-for-byte. Catches any future regression where a build
   # path bypasses notarize-dmg.js's post-staple manifest patch (or any
-  # other source of drift between yml hashes and shipped bytes).
+  # other source of drift between yml hashes and shipped bytes). One
+  # automatic retry: idempotent patch + re-verify on first failure.
   puts "\n=== Verifying release manifests ==="
-  sh "ruby scripts/verify_release_manifests.rb"
+  begin
+    sh "ruby scripts/verify_release_manifests.rb"
+  rescue RuntimeError => e
+    warn "[build] Initial verify failed (#{e.message.lines.first&.chomp})"
+    warn "[build] Re-running patch + verify before aborting..."
+    sh "ruby scripts/patch_release_manifests.rb"
+    sh "ruby scripts/verify_release_manifests.rb"
+  end
 end
 
 # =============================================================================

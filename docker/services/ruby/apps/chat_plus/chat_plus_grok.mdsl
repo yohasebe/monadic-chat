@@ -74,6 +74,7 @@ app "ChatPlusGrok" do
   display_name "Chat Plus"
 
   features do
+    websearch true
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false

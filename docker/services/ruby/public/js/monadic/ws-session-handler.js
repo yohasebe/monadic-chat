@@ -155,21 +155,128 @@ function handleSystemInfo(data) {
   }
 }
 
+// Scroll sync between #message and the partial overlay.
+//
+// Partial-update sync alone (the `overlay.scrollTop = messageEl.scrollTop`
+// line at the end of handleSTTPartial) only catches deltas — if the user
+// manually scrolls the textarea between deltas (or during a long pause),
+// the overlay falls out of sync until the next partial arrives. With
+// resize handles enlarging #message to a scrollable height the symptom
+// becomes visible. Attaching a 'scroll' listener while the overlay is
+// active keeps them in lockstep. Detached when the overlay clears so we
+// don't pay listener overhead during normal typing.
+let sttScrollSyncAttached = false;
+
+function syncOverlayScrollTopFromMessage() {
+  const messageEl = $id('message');
+  const overlay = $id('message-partial-overlay');
+  if (messageEl && overlay) overlay.scrollTop = messageEl.scrollTop;
+}
+
+function attachSTTScrollSync() {
+  if (sttScrollSyncAttached) return;
+  const messageEl = $id('message');
+  if (!messageEl) return;
+  messageEl.addEventListener('scroll', syncOverlayScrollTopFromMessage);
+  sttScrollSyncAttached = true;
+}
+
+function detachSTTScrollSync() {
+  if (!sttScrollSyncAttached) return;
+  const messageEl = $id('message');
+  if (messageEl) messageEl.removeEventListener('scroll', syncOverlayScrollTopFromMessage);
+  sttScrollSyncAttached = false;
+}
+
+/**
+ * Handle "stt_partial" WebSocket message (Realtime streaming STT).
+ * Renders the cumulative provisional transcript into the ghost-text
+ * overlay sibling of #message — does NOT touch messageEl.value, so the
+ * user can keep typing in the textarea while partials stream in.
+ * @param {Object} data - { content: "<accumulated partial transcript>" }
+ */
+function handleSTTPartial(data) {
+  const messageEl = $id('message');
+  const overlay = $id('message-partial-overlay');
+  if (!messageEl || !overlay) return;
+  const partial = (data && typeof data.content === 'string') ? data.content : '';
+
+  const existing = messageEl.value;
+  const sep = (existing.length > 0 && !/\s$/.test(existing)) ? ' ' : '';
+
+  overlay.replaceChildren();
+  const mirror = document.createElement('span');
+  mirror.className = 'stt-mirror';
+  mirror.textContent = existing + sep;
+  const partialSpan = document.createElement('span');
+  partialSpan.className = 'stt-partial';
+  partialSpan.textContent = partial;
+  overlay.appendChild(mirror);
+  overlay.appendChild(partialSpan);
+  overlay.classList.add('is-active');
+  // Mirror to wrapper for browsers without :has() support — the CSS rule
+  // that hides the placeholder is :has()-based for modern engines and
+  // .has-partial-overlay-class-based for fallback. See monadic.css.
+  const wrapper = overlay.closest('.message-input-wrapper');
+  if (wrapper) wrapper.classList.add('has-partial-overlay');
+  overlay.scrollTop = messageEl.scrollTop;
+  attachSTTScrollSync();
+}
+
+/**
+ * Clear the realtime STT overlay. Called from the recording lifecycle
+ * (start / commit / abort / silence). Exposed via window for use by
+ * non-bundled callers.
+ */
+function clearSTTPartialOverlay() {
+  detachSTTScrollSync();
+  const overlay = $id('message-partial-overlay');
+  if (!overlay) return;
+  overlay.replaceChildren();
+  overlay.classList.remove('is-active');
+  const wrapper = overlay.closest('.message-input-wrapper');
+  if (wrapper) wrapper.classList.remove('has-partial-overlay');
+}
+
 /**
  * Handle "stt" WebSocket message.
  * Processes speech-to-text completion with optional auto-submit.
  * @param {Object} data - Message data with content string and logprob
  */
 function handleSTT(data) {
-  // Use the handler if available, otherwise use inline code
+  // Realtime streaming committed: append the final transcript to
+  // messageEl.value (preserving any text the user typed during the
+  // partial stream) and tear down the overlay. The overlay being
+  // active is what tells us streaming was in progress.
+  let partialConsumed = false;
+  const messageElRT = $id('message');
+  const overlayRT = $id('message-partial-overlay');
+  if (messageElRT && overlayRT && overlayRT.classList.contains('is-active')) {
+    const finalText = (data && typeof data.content === 'string') ? data.content : '';
+    const existing = messageElRT.value;
+    const sep = (existing.length > 0 && !/\s$/.test(existing)) ? ' ' : '';
+    messageElRT.value = existing + sep + finalText;
+    partialConsumed = true;
+    clearSTTPartialOverlay();
+  }
+
+  // Use the handler if available, otherwise use inline code.
+  // When the realtime path already appended the final transcript to
+  // the textarea above, signal that via `_alreadyAppended` so the
+  // delegate skips its own append (otherwise the message ends up in
+  // the value twice). The delegate still does the rest of its work
+  // — re-enable buttons, hide spinner, easy-submit, etc.
   let handled = false;
   if (typeof wsHandlers !== 'undefined' && wsHandlers && typeof wsHandlers.handleSTTMessage === 'function') {
-    handled = wsHandlers.handleSTTMessage(data);
+    const dataForHandler = partialConsumed
+      ? Object.assign({}, data, { _alreadyAppended: true })
+      : data;
+    handled = wsHandlers.handleSTTMessage(dataForHandler);
   }
 
   if (!handled) {
     var messageEl = $id('message');
-    if (messageEl) messageEl.value = messageEl.value + " " + data["content"];
+    if (messageEl && !partialConsumed) messageEl.value = messageEl.value + " " + data["content"];
 
     var asrEl = $id('asr-p-value');
     if (data["logprob"] != null) {
@@ -336,6 +443,8 @@ window.WsSessionHandler = {
   handleProcessingStatus,
   handleSystemInfo,
   handleSTT,
+  handleSTTPartial,
+  clearSTTPartialOverlay,
   handlePDFTitles,
   handlePDFDeleted,
   handleChangeStatus,

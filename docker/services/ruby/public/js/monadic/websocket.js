@@ -866,6 +866,13 @@ window.loadedApp = "Chat";
         }
         break;
       }
+      case "stt_partial": {
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSTTPartial === 'function') {
+          wsh.handleSTTPartial(data);
+        }
+        break;
+      }
       case "info": {
         const wih = window.WsInfoHandler;
         if (wih && typeof wih.handleInfo === 'function') {

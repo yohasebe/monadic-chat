@@ -871,8 +871,12 @@ const WorkflowViewer = (function () {
   var DEFAULT_H = 380;
   var RESIZE_ZONE = 6;
   var STORAGE_KEY = 'wv-panel-rect';
+  var MODE_STORAGE_KEY = 'wv-display-mode';
+  var BEFORE_FLOATING_KEY = 'wv-mode-before-floating';
 
   var panelRect = null;          // { left, top, width, height }
+  var currentMode = 'hidden';    // 'hidden' | 'inline' | 'floating'
+  var modeBeforeFloating = null; // 'hidden' | 'inline' — what to restore on X close from floating
   var isDragging = false;
   var isResizing = false;
   var resizeDir = '';             // 'n','s','e','w','ne','nw','se','sw'
@@ -895,6 +899,95 @@ const WorkflowViewer = (function () {
       if (s) return JSON.parse(s);
     } catch (e) { /* ignore */ }
     return null;
+  }
+
+  function loadDisplayMode() {
+    try {
+      var m = localStorage.getItem(MODE_STORAGE_KEY);
+      if (m === 'hidden' || m === 'inline' || m === 'floating') return m;
+    } catch (e) { /* ignore */ }
+    return 'inline';
+  }
+
+  function saveDisplayMode(mode) {
+    try { localStorage.setItem(MODE_STORAGE_KEY, mode); } catch (e) { /* ignore */ }
+  }
+
+  function loadModeBeforeFloating() {
+    try {
+      var m = localStorage.getItem(BEFORE_FLOATING_KEY);
+      if (m === 'hidden' || m === 'inline') return m;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function saveModeBeforeFloating(mode) {
+    try {
+      if (mode) localStorage.setItem(BEFORE_FLOATING_KEY, mode);
+      else localStorage.removeItem(BEFORE_FLOATING_KEY);
+    } catch (e) { /* ignore */ }
+  }
+
+  function updateSegmentControl(mode) {
+    ['hidden', 'inline', 'floating'].forEach(function (m) {
+      var btn = $id('wv-mode-' + m);
+      if (btn) btn.classList.toggle('active', m === mode);
+    });
+  }
+
+  // ── Inline-mode height helpers ───────────────────────────────
+  // Inline mode targets the maximum viewport height that still leaves the
+  // Start Session button visible with breathing room. The user can override
+  // with a vertical drag on the corner grip; that override is persisted.
+
+  var INLINE_HEIGHT_KEY = 'wv-inline-height';
+
+  function loadInlineHeight() {
+    try {
+      var s = localStorage.getItem(INLINE_HEIGHT_KEY);
+      if (s) {
+        var n = parseInt(s, 10);
+        if (!isNaN(n) && n > 0) return n;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function saveInlineHeight(h) {
+    try { localStorage.setItem(INLINE_HEIGHT_KEY, String(Math.round(h))); } catch (e) { /* ignore */ }
+  }
+
+  function computeInlineHeight() {
+    var host = $id('workflow-viewer-inline-host');
+    if (!host) return DEFAULT_H;
+    var hostRect = host.getBoundingClientRect();
+    // Reserve space below the panel for the Start Session button + margins.
+    // We use the button's own offsetHeight (constant) plus fixed gaps —
+    // NOT its current top position — to avoid a circular dependency where
+    // the panel's height pushes Start down, which we'd then read as more
+    // available space, growing the panel on every recompute.
+    var startActions = $id('config-actions');
+    var startHeight = (startActions && startActions.offsetHeight > 0)
+      ? startActions.offsetHeight
+      : 48;
+    var reservedBelow = startHeight + 32; // ~16px gap above + ~16px below
+    var available = window.innerHeight - hostRect.top - reservedBelow;
+    return Math.max(MIN_PANEL_H, available);
+  }
+
+  function applyInlineHeight() {
+    if (currentMode !== 'inline' || !panelEl) return;
+    var available = computeInlineHeight();
+    var saved = loadInlineHeight();
+    var h = (saved && saved > 0) ? Math.min(saved, available) : available;
+    panelEl.style.height = h + 'px';
+    panelEl.style.maxHeight = 'none';
+    if (graph) {
+      requestAnimationFrame(function () {
+        graph.sizeDidChange();
+        fitGraphToContainer();
+      });
+    }
   }
 
   function defaultRect() {
@@ -955,6 +1048,7 @@ const WorkflowViewer = (function () {
     if (!headerEl) return;
 
     headerEl.addEventListener('pointerdown', function (e) {
+      if (currentMode !== 'floating') return;
       // Don't drag when clicking buttons in the header
       if (e.target.closest && e.target.closest('.wv-panel-controls')) return;
       if (e.button !== 0) return;
@@ -992,14 +1086,16 @@ const WorkflowViewer = (function () {
   function setupResize() {
     if (!panelEl) return;
 
-    // Update cursor on hover near edges
+    // Update cursor on hover near edges (floating mode only)
     panelEl.addEventListener('pointermove', function (e) {
+      if (currentMode !== 'floating') return;
       if (isDragging || isResizing) return;
       var dir = detectResizeDir(e);
       panelEl.style.cursor = dir ? CURSOR_MAP[dir] : '';
     });
 
     panelEl.addEventListener('pointerdown', function (e) {
+      if (currentMode !== 'floating') return;
       if (isDragging) return;
       var dir = detectResizeDir(e);
       if (!dir) return;
@@ -1018,6 +1114,7 @@ const WorkflowViewer = (function () {
     var grip = panelEl.querySelector('.wv-resize-grip');
     if (grip) {
       grip.addEventListener('pointerdown', function (e) {
+        if (currentMode !== 'floating') return;
         if (e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
@@ -1070,13 +1167,64 @@ const WorkflowViewer = (function () {
     panelEl.addEventListener('lostpointercapture', stopResize);
   }
 
-  // ── Toggle button active state ─────────────────────────────
+  // Initialise Bootstrap tooltips on Workflow Viewer control buttons so
+  // their `title` attributes appear with a short delay (~150ms) instead of
+  // the browser's native ~1.5s. Includes both the panel-header buttons
+  // (zoom / save / close) and the segment-control buttons in #config.
+  function initButtonTooltips() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+    var selectors = ['.wv-panel-controls [title]', '#wv-mode-segment [title]'];
+    selectors.forEach(function (sel) {
+      document.querySelectorAll(sel).forEach(function (el) {
+        if (bootstrap.Tooltip.getInstance(el)) return;
+        new bootstrap.Tooltip(el, {
+          delay: { show: 150, hide: 50 },
+          container: 'body',
+          placement: 'bottom',
+          trigger: 'hover focus'
+        });
+      });
+    });
+  }
 
-  function setToggleActive(active) {
-    var btn = $id('toggle-workflow-viewer');
-    if (!btn) return;
-    if (active) btn.classList.add('wv-active');
-    else btn.classList.remove('wv-active');
+  // In inline mode the same corner grip is repurposed as a vertical-only
+  // height handle. Both this and setupResize attach a pointerdown to the
+  // grip; each is mode-gated and only acts in its own mode.
+  function setupInlineResize() {
+    if (!panelEl) return;
+    var grip = panelEl.querySelector('.wv-resize-grip');
+    if (!grip) return;
+    var inlineResizing = false;
+    var startY = 0, startHeight = 0;
+
+    grip.addEventListener('pointerdown', function (e) {
+      if (currentMode !== 'inline') return;
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      grip.setPointerCapture(e.pointerId);
+      inlineResizing = true;
+      startY = e.clientY;
+      startHeight = panelEl.getBoundingClientRect().height;
+    });
+
+    grip.addEventListener('pointermove', function (e) {
+      if (!inlineResizing) return;
+      var newH = Math.max(MIN_PANEL_H, startHeight + (e.clientY - startY));
+      panelEl.style.height = newH + 'px';
+      panelEl.style.maxHeight = 'none';
+      if (graph) graph.sizeDidChange();
+    });
+
+    function stop() {
+      if (!inlineResizing) return;
+      inlineResizing = false;
+      saveInlineHeight(panelEl.getBoundingClientRect().height);
+      if (graph) fitGraphToContainer();
+    }
+    grip.addEventListener('pointerup', stop);
+    grip.addEventListener('pointercancel', stop);
+    grip.addEventListener('lostpointercapture', stop);
   }
 
   // ── SVG export ──────────────────────────────────────────────
@@ -1302,10 +1450,24 @@ const WorkflowViewer = (function () {
         document.body.appendChild(panelEl);
       }
       var self = this;
-      var btn = $id('toggle-workflow-viewer');
-      $on(btn, 'click', function () { self.toggle(); });
+      // 3-state segment control in #config replaces the old toolbar toggle.
+      // setDisplayMode itself handles queueing the current app on first
+      // transition out of 'hidden', so no extra logic is needed here.
+      ['hidden', 'inline', 'floating'].forEach(function (mode) {
+        var b = $id('wv-mode-' + mode);
+        $on(b, 'click', function () { self.setDisplayMode(mode); });
+      });
       var closeBtn = $id('wv-close');
-      $on(closeBtn, 'click', function () { self.close(); });
+      $on(closeBtn, 'click', function () {
+        // X close on the floating panel restores the mode that was active
+        // before the user popped out into floating. Falls back to hidden
+        // if no such mode is remembered (e.g., close from non-floating).
+        if (currentMode === 'floating' && modeBeforeFloating) {
+          self.setDisplayMode(modeBeforeFloating);
+        } else {
+          self.setDisplayMode('hidden');
+        }
+      });
       var zi = $id('wv-zoom-in'), zo = $id('wv-zoom-out'), zf = $id('wv-zoom-fit');
       $on(zi, 'click', function () { if (graph) graph.zoomIn(); });
       $on(zo, 'click', function () { if (graph) graph.zoomOut(); });
@@ -1313,7 +1475,8 @@ const WorkflowViewer = (function () {
       var saveBtn = $id('wv-save-svg');
       $on(saveBtn, 'click', function () { self.downloadSvg(); });
       setupTooltips(); setupClickHandler(); buildLegend();
-      setupDrag(); setupResize();
+      setupDrag(); setupResize(); setupInlineResize();
+      initButtonTooltips();
       // Load persisted panel rect (applied when panel opens)
       panelRect = loadPanelRect() || defaultRect();
       // Refresh graph colours when theme changes
@@ -1328,10 +1491,16 @@ const WorkflowViewer = (function () {
         buildLegend();
       };
       window.addEventListener('theme-applied', themeHandler);
-      // Re-clamp panel position when viewport resizes
+      // Viewport resize: floating mode re-clamps the saved rect; inline mode
+      // recomputes the dynamic height so the panel keeps fitting the space
+      // above the Start Session button.
       window.addEventListener('resize', function () {
-        if (panelRect && panelEl && !panelEl.classList.contains('wv-panel-collapsed')) {
-          applyPanelRect(panelRect);
+        if (currentMode === 'floating') {
+          if (panelRect && panelEl && !panelEl.classList.contains('wv-panel-collapsed')) {
+            applyPanelRect(panelRect);
+          }
+        } else if (currentMode === 'inline') {
+          applyInlineHeight();
         }
       });
       // ResizeObserver: detect container becoming visible (e.g. session start with panel open)
@@ -1346,53 +1515,160 @@ const WorkflowViewer = (function () {
         }).observe(container);
       }
       initialised = true;
+      // Self-subscribe to #apps change so the viewer reacts regardless of
+      // when other listeners are registered. utilities.js also calls
+      // loadApp on change; the dedup in _doLoadApp call sites + currentApp
+      // check below prevents double-fetch.
+      var appsForSubscribe = $id('apps');
+      if (appsForSubscribe) {
+        appsForSubscribe.addEventListener('change', function () {
+          if (!initialised) return;
+          var v = this.value;
+          if (!v) return;
+          if (v === currentApp && currentData) return; // already showing this app
+          self.loadApp(v);
+        });
+        // Snap the current #apps value if WS populated it before our
+        // listener was registered. The change event already fired and we
+        // missed it, so capture the value into pendingApp now.
+        if (appsForSubscribe.value && !pendingApp && !currentApp) {
+          pendingApp = appsForSubscribe.value;
+        }
+      }
+      // Restore the "mode before floating" preference so X close after a
+      // reload-during-floating still returns to inline (or whatever the
+      // user had before popping out).
+      modeBeforeFloating = loadModeBeforeFloating();
+      // Restore previously chosen display mode. Default is 'inline' so
+      // first-time users see the workflow graph immediately.
+      var savedMode = loadDisplayMode();
+      if (savedMode !== 'hidden') {
+        requestAnimationFrame(function () { self.setDisplayMode(savedMode); });
+      } else {
+        updateSegmentControl('hidden');
+      }
     },
-    open: function () {
+    // Switch display mode: 'hidden' | 'inline' | 'floating'. Hidden parks the
+    // panel with display:none. Inline reparents to #workflow-viewer-inline-host
+    // (inside #config) and applies .wv-panel-inline for static positioning +
+    // max-height scroll. Floating reparents to <body> for position:fixed and
+    // restores the saved drag/resize rect. Mode is persisted in localStorage.
+    setDisplayMode: function (mode) {
+      // Bail if the instance was destroyed (esp. in tests where a pending
+      // rAF from a previous WorkflowViewer instance may still be in flight).
+      if (!initialised) return;
+      if (mode !== 'hidden' && mode !== 'inline' && mode !== 'floating') return;
       if (!panelEl) return;
-      // Apply saved or default rect before showing
-      applyPanelRect(panelRect || defaultRect());
+      if (mode === currentMode) { updateSegmentControl(mode); return; }
+      var previousMode = currentMode;
+      // Entering floating: remember where we came from so the X close button
+      // can return to that mode instead of always falling back to hidden.
+      if (mode === 'floating' && previousMode !== 'floating') {
+        modeBeforeFloating = previousMode;
+        saveModeBeforeFloating(previousMode);
+      }
+      // Note: we intentionally do NOT saveViewState here. Cross-mode
+      // transitions change the container size, so any saved scale/translate
+      // would mis-fit when later restored. Per-app view state is still
+      // captured by _doLoadApp when the user switches apps. We also drop
+      // any cached state for the current app so the ResizeObserver fired
+      // by the reparent falls through to fitGraphToContainer.
+      if (currentApp && viewStates[currentApp]) delete viewStates[currentApp];
+      // When making the viewer visible, ensure the current app dropdown
+      // selection is queued for load. Covers (a) first-time mode restore at
+      // init where currentApp is null, and (b) switching display modes
+      // after the user changed apps while the viewer was hidden.
+      if (mode !== 'hidden') {
+        var appsSel = $id('apps');
+        var n = appsSel ? appsSel.value : null;
+        if (n && n !== currentApp && !pendingApp) pendingApp = n;
+      }
+      currentMode = mode;
+      saveDisplayMode(mode);
+      updateSegmentControl(mode);
+
+      if (mode === 'hidden') {
+        if (previousMode === 'floating') {
+          panelRect = getCurrentRect();
+          savePanelRect();
+        }
+        panelEl.classList.add('wv-panel-collapsed');
+        hideTooltip();
+        return;
+      }
+
+      // mode is 'inline' or 'floating'
       panelEl.classList.remove('wv-panel-collapsed');
-      setToggleActive(true);
+
+      if (mode === 'inline') {
+        var host = $id('workflow-viewer-inline-host');
+        if (host && panelEl.parentNode !== host) host.appendChild(panelEl);
+        panelEl.classList.add('wv-panel-inline');
+        // Clear inline positioning styles left over from floating mode so the
+        // .wv-panel-inline CSS rules can govern layout.
+        panelEl.style.left = '';
+        panelEl.style.top = '';
+        panelEl.style.right = '';
+        panelEl.style.bottom = '';
+        panelEl.style.width = '';
+        panelEl.style.height = '';
+        // applyInlineHeight reads getBoundingClientRect, so defer until the
+        // reparent + class change have produced a settled layout.
+        requestAnimationFrame(applyInlineHeight);
+      } else {
+        // floating
+        if (panelEl.parentNode !== document.body) document.body.appendChild(panelEl);
+        panelEl.classList.remove('wv-panel-inline');
+        applyPanelRect(panelRect || defaultRect());
+      }
+
       var self = this;
-      requestAnimationFrame(function () {
+      // Double rAF lets the browser settle layout (reparent + class change)
+      // before we measure container dimensions for fitting.
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        if (!initialised) return;
+        // Defensive: WS-driven #apps population can land between the early
+        // pendingApp pickup above and this rAF. Re-read #apps now so first
+        // paint after a hard reload still loads the graph automatically.
+        if (!pendingApp && !currentApp && currentMode !== 'hidden') {
+          var sel = $id('apps');
+          if (sel && sel.value) pendingApp = sel.value;
+        }
         if (pendingApp) { self._doLoadApp(pendingApp); pendingApp = null; }
         else if (needsRefreshOnOpen && currentData) {
-          // Theme or other deferred change while panel was hidden → full rebuild
           needsRefreshOnOpen = false;
           refreshGraph();
         } else if (graph) {
-          // Revalidate view states after display:none → display:flex transition.
-          // While hidden, the container has 0 dimensions, so view states may
-          // have been computed with invalid bounds.
+          // Cross-mode transitions change container dimensions, so saved
+          // view state (scale/translate computed in another container size)
+          // would mis-fit. Always re-fit instead of restoring.
           graph.sizeDidChange();
-          if (restoreViewState()) {
-            skipNextResize = true;
-            setTimeout(function () { skipNextResize = false; }, 200);
-          } else {
-            fitGraphToContainer();
-          }
+          fitGraphToContainer();
         }
-      });
+      }); });
     },
-    close: function () {
-      if (!panelEl) return;
-      saveViewState();
-      panelRect = getCurrentRect();
-      savePanelRect();
-      panelEl.classList.add('wv-panel-collapsed');
-      hideTooltip();
-      setToggleActive(false);
-    },
+    // Backwards-compatible shims around setDisplayMode for external callers.
+    open: function () { this.setDisplayMode('floating'); },
+    close: function () { this.setDisplayMode('hidden'); },
     toggle: function () {
-      if (this.isOpen()) { this.close(); return; }
-      var sel = $id('apps'), n = sel ? sel.value : null;
-      if (n && n !== currentApp) pendingApp = n;
-      this.open();
+      this.setDisplayMode(currentMode === 'hidden' ? 'floating' : 'hidden');
     },
-    isOpen: function () { return panelEl ? !panelEl.classList.contains('wv-panel-collapsed') : false; },
+    isOpen: function () { return currentMode !== 'hidden'; },
     loadApp: function (name) {
-      if (!container || !Graph || !name) return;
+      if (!name) return;
+      // Dedup: the same app is already loading or loaded. _doLoadApp sets
+      // currentApp synchronously before the fetch starts, so a second
+      // loadApp call for the same app during the in-flight fetch is also
+      // caught here. This guards against the manual-change path firing
+      // both utilities.js's listener AND monadic.js's listener (which
+      // calls proceedWithAppChange → loadApp).
+      if (name === currentApp) return;
+      // If the module isn't fully initialised yet (maxgraph still loading,
+      // or DOM nodes not resolved), queue the app for setDisplayMode's rAF
+      // to pick up once init completes.
+      if (!container || !Graph) { pendingApp = name; return; }
       if (this.isOpen()) { this._doLoadApp(name); return; }
+      // Visible mode not entered yet — queue for the next setDisplayMode.
       pendingApp = name;
     },
     // Trigger a re-render without re-fetching. Useful when runtime state
@@ -1414,13 +1690,10 @@ const WorkflowViewer = (function () {
           if (data.error) throw new Error(data.error);
           currentData = data;
           updateTitle(data.display_name || data.app_name || name);
+          // Start with all shared tool groups collapsed so the initial graph
+          // stays compact; the user expands individual groups as needed.
           if (!expandedGroups[currentApp]) {
             expandedGroups[currentApp] = new Set();
-            (data.shared_tool_groups || []).forEach(function (g) {
-              if ((g.tool_names || []).length > 0) {
-                expandedGroups[currentApp].add('tg:' + g.name);
-              }
-            });
           }
           container.innerHTML = '';
           createGraph();
@@ -1436,6 +1709,18 @@ const WorkflowViewer = (function () {
       hideTooltip();
       if (tooltip && tooltip.parentNode) { tooltip.parentNode.removeChild(tooltip); tooltip = null; }
       if (themeHandler) { window.removeEventListener('theme-applied', themeHandler); themeHandler = null; }
+      // Dispose Bootstrap Tooltip instances we attached in initButtonTooltips
+      // so they don't leak when the module is recreated (e.g. in tests).
+      if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        ['.wv-panel-controls [title]', '.wv-panel-controls [data-bs-original-title]',
+         '#wv-mode-segment [title]', '#wv-mode-segment [data-bs-original-title]']
+          .forEach(function (sel) {
+            document.querySelectorAll(sel).forEach(function (el) {
+              var tip = bootstrap.Tooltip.getInstance(el);
+              if (tip) tip.dispose();
+            });
+          });
+      }
       currentApp = null; currentData = null; pendingApp = null;
       viewStates = {}; expandedGroups = {}; initialised = false;
       stopAllNodePulses();

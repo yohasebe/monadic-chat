@@ -17,7 +17,10 @@ class SecondOpinionMistral < MonadicApp
   # @return [Hash] Updated parameters with reasoning configuration
   def configure_reasoning_params(parameters, model)
     if self.class.is_reasoning_model?(model)
-      parameters["reasoning_effort"] = "low"
+      # Mistral reasoning models accept only "none" or "high" for
+      # reasoning_effort (see mistral-medium-3-5 / mistral-small-2603
+      # model_spec); "low"/"medium" return 400.
+      parameters["reasoning_effort"] = "none"
       # Don't include temperature for thinking models
       parameters.delete("temperature")
     else

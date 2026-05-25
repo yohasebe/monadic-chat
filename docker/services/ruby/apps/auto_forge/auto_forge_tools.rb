@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'cgi'
 require 'fileutils'
 require 'securerandom'
 require 'set'
@@ -471,7 +472,7 @@ module AutoForgeTools
 
     # Return gallery_html for server-side display (vendor helpers auto-inject into session)
     if result[:screenshot]
-      gallery = "<div class=\"generated_image\"><img src=\"/data/#{result[:screenshot]}\" /></div>"
+      gallery = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(result[:screenshot].to_s)}\" /></div>"
       { text: report_text, gallery_html: gallery }
     else
       report_text

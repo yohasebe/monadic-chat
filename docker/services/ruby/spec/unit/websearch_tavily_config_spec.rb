@@ -95,4 +95,73 @@ RSpec.describe 'Websearch Tavily Configuration' do
       expect(content).to include('CONFIG["TAVILY_API_KEY"]')
     end
   end
+
+  describe 'Provider-level proactive Tavily gate' do
+    # Each Tavily-fallback provider's helper must AND-gate the
+    # `websearch` decision on CONFIG["TAVILY_API_KEY"] before
+    # registering tavily_* tools or augmenting the system prompt.
+    # Without the gate, a user without the API key but with the UI
+    # websearch toggle on gets a "Bearer token not found" tool error
+    # mid-conversation instead of a silent fall-through (Cohere /
+    # DeepSeek's behaviour). Structural spec — catches accidental
+    # removal of the gate during future refactors.
+    let(:vendors_dir) do
+      File.join(File.dirname(__FILE__), '../../lib/monadic/adapters/vendors')
+    end
+
+    {
+      'cohere_helper.rb' => 'CohereHelper',
+      'deepseek_helper.rb' => 'DeepSeekHelper',
+      'mistral_helper.rb' => 'MistralHelper',
+      'ollama_helper.rb' => 'OllamaHelper'
+    }.each do |filename, label|
+      it "#{label} gates websearch on TAVILY_API_KEY presence" do
+        path = File.join(vendors_dir, filename)
+        expect(File.exist?(path)).to be(true), "#{filename}: helper file missing"
+        content = File.read(path)
+
+        # Locate the assignment(s) that set the `websearch` boolean used
+        # to decide tavily_* tool registration. The pattern of
+        # interest is "this assignment derives websearch from
+        # obj['websearch'] AND from a TAVILY_API_KEY check". The check
+        # can take two shapes:
+        #   (a) inlined: `websearch = CONFIG["TAVILY_API_KEY"] &&
+        #       (obj["websearch"] == "true" || ...)`
+        #   (b) via helper variable: `has_tavily = !!CONFIG[...]; ... ;
+        #       websearch = has_tavily && requested_web` where
+        #       `requested_web` is derived from `obj["websearch"]`.
+        #
+        # Both are acceptable. Verify by scanning a window of ~5 lines
+        # ending at each `websearch = ...obj["websearch"]...` site
+        # (or, for the helper-variable shape, the line that mentions
+        # `has_tavily`). Either pattern must include TAVILY_API_KEY in
+        # the same window.
+        # Use obj["websearch"] sites as the anchor (every gate must
+        # ultimately consume the UI toggle from `obj`). For each
+        # occurrence, scan a window of ~5 lines before AND after for
+        # both a `websearch =` assignment and the TAVILY_API_KEY
+        # check (direct or via `has_tavily`). Multi-line tolerant:
+        # the Mistral assignment intentionally wraps across two lines
+        # so the gate predicate is visually separated from the source
+        # of truth.
+        obj_websearch_sites = content.lines.each_with_index.select do |line, _|
+          line.include?('obj["websearch"]')
+        end
+
+        expect(obj_websearch_sites).not_to be_empty,
+          "#{filename}: no obj[\"websearch\"] references found"
+
+        gating_site_found = obj_websearch_sites.any? do |_line, idx|
+          window_start = [idx - 5, 0].max
+          window_end = [idx + 5, content.lines.size - 1].min
+          window = content.lines[window_start..window_end].join
+          window.match?(/\bwebsearch\s*=/) &&
+            window.match?(/TAVILY_API_KEY|\bhas_tavily\b/)
+        end
+
+        expect(gating_site_found).to be(true),
+          "#{filename}: at least one obj[\"websearch\"] site must sit within 5 lines of both `websearch =` and TAVILY_API_KEY (or `has_tavily` helper)"
+      end
+    end
+  end
 end

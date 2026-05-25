@@ -38,6 +38,19 @@ Object.assign(modelSpec, ollama_models)
 
 During initialization, the result is merged on top of the static `modelSpec` using `Object.assign`. Dynamic entries override static ones so the UI reflects the user's actual installed models.
 
+### 4. UI capability hint (`#model-no-tools`)
+
+When the user selects an Ollama model whose `modelSpec[model].tool_capability` is **explicitly `false`**, the sidebar shows a yellow `No tool calling` indicator next to the model name (HTML element `#model-no-tools` in `views/index.erb`). This communicates that Web Search, file operations, agentic tool dispatch, and other tool-dependent features will not work with the selected model.
+
+Gate logic lives in the `#model` change handler in `public/js/monadic.js`:
+
+- `provider === "ollama"` AND `tool_capability` flag is **present** (own-property) AND value is not `true` → show
+- Any other case → hide
+
+The "flag must be present" condition is critical: when `/api/show` is unreachable, the name-based fallback in `list_models_with_capabilities` writes `tool_capability: true` optimistically. The corresponding spec (`ollama_helper_spec.rb`) pins that explicit `tool_capability: false` is set whenever `/api/show` returns a capabilities array that omits `"tools"`, so a missing flag genuinely means "unknown" rather than "no tools".
+
+The hint does **not** disable the model selection — non-tool Ollama models remain perfectly usable for plain chat. Documentation in `docs/advanced-topics/ollama.md` lists recommended tool-calling families (Qwen3-VL / Qwen3 / Llama 3.1 / Llama 3.2 / Mistral / Phi-3.5 Mini).
+
 ## Capability Detection
 
 The `/api/show` endpoint returns a `capabilities` array like `["completion", "vision", "tools", "thinking"]`. These map directly to modelSpec flags:

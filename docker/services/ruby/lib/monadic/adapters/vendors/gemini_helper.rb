@@ -3129,7 +3129,7 @@ module GeminiHelper
                   </div>
                   <div class="generated_video">
                     <video controls width="600">
-                      <source src="/data/#{filename}" type="video/mp4" />
+                      <source src="/data/#{CGI.escapeHTML(filename.to_s)}" type="video/mp4" />
                     </video>
                   </div>
                 HTML
@@ -3152,7 +3152,7 @@ module GeminiHelper
                     <b>generate</b>: #{prompt}
                   </div>
                   <div class="generated_image">
-                    <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                    <img src="/data/#{CGI.escapeHTML(filename.to_s)}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
                   </div>
                 HTML
 
@@ -3188,7 +3188,7 @@ module GeminiHelper
               </div>
               <div class="generated_video">
                 <video controls width="600">
-                  <source src="/data/#{video_filename}" type="video/mp4" />
+                  <source src="/data/#{CGI.escapeHTML(video_filename.to_s)}" type="video/mp4" />
                 </video>
               </div>
             HTML

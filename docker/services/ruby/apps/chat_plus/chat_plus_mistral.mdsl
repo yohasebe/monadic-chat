@@ -66,13 +66,14 @@ app "ChatPlusMistral" do
 
   llm do
     provider "mistral"
-    reasoning_effort "low"
+    reasoning_effort "none"
     context_size 20
   end
 
   display_name "Chat Plus"
 
   features do
+    websearch false
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false

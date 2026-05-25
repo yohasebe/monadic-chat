@@ -1496,6 +1496,81 @@ div.sourcecode-toggle:hover {
   font-size: 1em;
 }
 
+/* Realtime STT partial-text overlay (Phase 3): a ghost-text layer behind
+   #message that shows the provisional transcript in grey italic while the
+   textarea's value remains user-controlled. The .stt-mirror span carries
+   the textarea's current value with `color: transparent` so the styled
+   partial after it aligns to where the next character would be typed. */
+.message-input-wrapper {
+  position: relative;
+  /* Single source for the textarea's bottom spacing. The overlay aligns
+     its bottom edge to this value so the two surfaces share the same
+     visible region. Update here only — both .message-partial-overlay's
+     bottom and #message's margin-bottom resolve via var(). */
+  --message-textarea-margin-bottom: 14px;
+}
+.message-partial-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--message-textarea-margin-bottom);
+  pointer-events: none;
+  background: transparent;
+  border-color: transparent;
+  overflow: hidden;
+  resize: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 1em;
+  min-height: 100px;
+  color: transparent;
+  display: none;
+}
+.message-partial-overlay.is-active {
+  display: block;
+}
+/* While the partial overlay is active, the textarea is still empty
+   (we never write to #message.value during the partial stream so the
+   user can keep typing) — so its placeholder ("Listening to your
+   voice input...") would otherwise show *underneath* the overlay and
+   visually collide with the ghost-text. Driven entirely by the
+   .is-active class on overlay, no JS coupling. Chromium 105+ /
+   Electron 39 all support :has() in CSS. */
+.message-input-wrapper:has(.message-partial-overlay.is-active) #message::placeholder,
+.message-input-wrapper.has-partial-overlay #message::placeholder {
+  color: transparent;
+}
+/* Belt-and-braces: overlay carries .form-control for typography parity,
+   which means Bootstrap's :focus rule (blue box-shadow + outline)
+   would apply if the overlay ever became focusable. Today it has
+   aria-hidden + pointer-events: none so this is unreachable, but
+   suppress the ring explicitly so a future change that adds tabindex
+   or removes aria-hidden does not visually steal the textarea's
+   focus indicator. */
+.message-partial-overlay:focus,
+.message-partial-overlay:focus-visible {
+  box-shadow: none;
+  outline: none;
+  border-color: transparent;
+}
+.message-partial-overlay .stt-mirror {
+  color: transparent;
+  white-space: pre-wrap;
+}
+.message-partial-overlay .stt-partial {
+  color: #888;
+  /* Italic was originally chosen to mark the text as provisional, but
+     CJK (and most non-Latin scripts) renders italics as a slanted
+     transform of the original glyphs rather than a distinct cursive
+     form — the result is harder to read than upright text. The grey
+     colour already conveys the provisional state. */
+  white-space: pre-wrap;
+}
+.dark-theme .message-partial-overlay .stt-partial {
+  color: #aaa;
+}
+
 /* Role-specific styling for inline edit textarea */
 
 .role-user .inline-edit-textarea {
@@ -2811,7 +2886,9 @@ h1 {
   background-color: #f8f8f8;
 }
 
-/* Syntax Tree SVG styling */
+/* Generated images: shared frame styling + click affordance.
+   The actual click listener is attached dynamically in monadic.js;
+   cursor: pointer signals that the image opens in the lightbox. */
 
 .generated_image img {
   background-color: white;
@@ -2822,7 +2899,7 @@ h1 {
   max-width: 100%;
   height: auto;
   display: inline-block;
-  cursor: default;
+  cursor: pointer;
 }
 
 /* Screenshot Lightbox */
@@ -3096,6 +3173,69 @@ img.base64-image,
 #theme-light,
 #theme-dark {
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+/* Initial-Prompt toggle buttons in #config-prompts share the same three-
+   state visual language as #wv-mode-segment: transparent → subtle hover
+   → distinct active fill with inset shadow. The .active class is added
+   by JS when the corresponding textarea is expanded. */
+#prompt-toggle-assistant,
+#prompt-toggle-aiuser {
+  border-color: rgba(128, 128, 128, 0.3);
+  color: var(--text-secondary, #6c757d);
+  background-color: transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease,
+              color 0.12s ease, box-shadow 0.12s ease;
+}
+
+#prompt-toggle-assistant:hover:not(.active),
+#prompt-toggle-aiuser:hover:not(.active) {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-color: rgba(128, 128, 128, 0.5);
+  color: var(--text-primary, #333);
+}
+
+#prompt-toggle-assistant.active,
+#prompt-toggle-aiuser.active {
+  background-color: rgba(0, 0, 0, 0.12);
+  border-color: rgba(128, 128, 128, 0.55);
+  color: var(--text-primary, #333);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+#prompt-toggle-assistant:focus,
+#prompt-toggle-aiuser:focus,
+#prompt-toggle-assistant:focus-visible,
+#prompt-toggle-aiuser:focus-visible {
+  box-shadow: 0 0 0 0.15rem rgba(128, 128, 128, 0.25);
+  outline: none;
+}
+
+#prompt-toggle-assistant.active:focus,
+#prompt-toggle-aiuser.active:focus,
+#prompt-toggle-assistant.active:focus-visible,
+#prompt-toggle-aiuser.active:focus-visible {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08),
+              0 0 0 0.15rem rgba(128, 128, 128, 0.25);
+}
+
+.dark-theme #prompt-toggle-assistant:hover:not(.active),
+.dark-theme #prompt-toggle-aiuser:hover:not(.active),
+[data-theme="dark"] #prompt-toggle-assistant:hover:not(.active),
+[data-theme="dark"] #prompt-toggle-aiuser:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--text-primary, #f5f5f5);
+}
+
+.dark-theme #prompt-toggle-assistant.active,
+.dark-theme #prompt-toggle-aiuser.active,
+[data-theme="dark"] #prompt-toggle-assistant.active,
+[data-theme="dark"] #prompt-toggle-aiuser.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary, #f5f5f5);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Theme Selection Indicator - Yellow dot in top-right corner */
@@ -5865,8 +6005,17 @@ i.fas.fa-bolt,
 
 /* ── Collapsible Settings Header ─────────────────────────── */
 
+/* Toggle header is darker than the .shaded-panel body so its role as an
+   interactive control reads at a glance. The shade is derived by mixing panel
+   with page body color (darker than panel in both themes), keeping the
+   relative offset consistent across themes without a new variable. The first
+   declaration is a fallback for browsers without color-mix(). Blend ratios
+   are tuned so the resting state is clearly distinct (~17 RGB units darker
+   in light theme) without losing the "card" feel; hover deepens further
+   (~24 units). */
 #config-summary {
-  background: var(--bg-panel, #f8f9fa);
+  background: var(--bg-hover, #e9ecef);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
   border: 1px solid var(--border-light, #dee2e6);
   transition: background-color 0.15s ease;
   user-select: none;
@@ -5874,6 +6023,7 @@ i.fas.fa-bolt,
 
 #config-summary:hover {
   background: var(--bg-hover, #e9ecef);
+  background: color-mix(in srgb, var(--bg-panel) 20%, var(--bg-body));
 }
 
 .config-collapse-icon {

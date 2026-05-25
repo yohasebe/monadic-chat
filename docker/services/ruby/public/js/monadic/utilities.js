@@ -38,9 +38,12 @@ if (typeof window.stop_apps_trigger === 'undefined') {
 function getTranslation(key, fallback) {
   // Check if webUIi18n is available and initialized
   if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
-    return webUIi18n.t(key);
+    const translated = webUIi18n.t(key);
+    // webUIi18n.t returns the key itself when no translation is registered
+    // for the current locale; in that case prefer the caller's fallback so
+    // users never see raw "ui.foo.bar" strings in the UI.
+    if (translated && translated !== key) return translated;
   }
-  // Return fallback if translation system is not ready
   return fallback;
 }
 
@@ -373,6 +376,7 @@ window.setBaseAppDescription = setBaseAppDescription;
 window.loadParams = function(params, calledFor = "loadParams") {
   const modelNonDefault = $id("model-non-default");
   $hide(modelNonDefault);
+  $hide($id("model-no-tools"));
   // check if params is not empty
   if (Object.keys(params).length === 0) {
     return;
@@ -1543,8 +1547,11 @@ document.addEventListener("DOMContentLoaded", function() {
         updateAppBadges(selectedApp);
       }, 100); // Small delay to ensure DOM is ready
 
-      // Reload Workflow Viewer if open
-      if (typeof WorkflowViewer !== "undefined" && WorkflowViewer.isOpen()) {
+      // Notify Workflow Viewer of the app change. loadApp internally handles
+      // queueing when the viewer is hidden or init hasn't finished yet, so
+      // we no longer gate on isOpen(): doing so created a timing window where
+      // apps populated before init finished would never reach the viewer.
+      if (typeof WorkflowViewer !== "undefined" && WorkflowViewer.loadApp) {
         WorkflowViewer.loadApp(selectedApp);
       }
 

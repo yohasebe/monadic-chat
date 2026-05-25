@@ -43,7 +43,7 @@ app "ChatMistralAI" do
   
   llm do
     provider "mistral"
-    reasoning_effort "low"
+    reasoning_effort "none"
   end
   
   display_name "Chat"

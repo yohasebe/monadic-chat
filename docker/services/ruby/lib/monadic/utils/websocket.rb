@@ -21,6 +21,7 @@ require_relative 'websocket/app_data'
 require_relative 'websocket/tts_handler'
 require_relative 'websocket/message_editor'
 require_relative 'websocket/audio_handler'
+require_relative 'websocket/audio_stream_handler'
 require_relative 'websocket/pdf_handler'
 require_relative 'websocket/library_handler'
 require_relative 'websocket/streaming_handler'
@@ -238,6 +239,12 @@ module WebSocketHelper
           handle_ws_sample(connection, obj, session)
         when "AUDIO"
           handle_audio_message(connection, obj)
+        when "AUDIO_CHUNK"
+          handle_audio_chunk(connection, obj)
+        when "AUDIO_COMMIT"
+          handle_audio_commit(connection, obj)
+        when "AUDIO_ABORT"
+          handle_audio_abort(connection, obj)
         when "UPDATE_LANGUAGE"
           handle_ws_update_language(connection, obj, session)
         when "STOP_TTS"

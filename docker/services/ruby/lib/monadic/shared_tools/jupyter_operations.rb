@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'cgi'
 require 'set'
 
 # JupyterOperations Shared Tools
@@ -118,7 +119,7 @@ module MonadicSharedTools
         image_files = extract_notebook_images(filename: filename, seen_hashes: seen_hashes)
         if image_files.any? && session
           gallery_html = image_files.map { |img|
-            "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"
+            "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(img.to_s)}\" /></div>"
           }.join("\n")
           session[:tool_html_fragments] ||= []
           session[:tool_html_fragments] << gallery_html

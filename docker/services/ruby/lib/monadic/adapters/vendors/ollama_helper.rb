@@ -4,6 +4,7 @@ require_relative "../../utils/function_call_error_handler"
 require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/extra_logger"
+require_relative "../../shared_tools/tavily_definitions"
 
 module OllamaHelper
   include BaseVendorHelper
@@ -13,6 +14,22 @@ module OllamaHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 2
   MAX_FUNC_CALLS = 20
+
+  # Tavily-backed web search tools. Single source of truth is
+  # `Monadic::SharedTools::TavilyDefinitions` so all four Tavily-fallback
+  # helpers (Cohere / DeepSeek / Mistral / Ollama) stay structurally
+  # identical. Local constants are kept for backwards compat with the
+  # rest of this file that references them by short name.
+  #
+  # Registration policy: tools are added to body["tools"] only when
+  # TAVILY_API_KEY is configured AND the user has toggled web search
+  # on for this app instance. Tool calling is a hard requirement for
+  # Monadic Chat's Ollama support (see memory
+  # `feedback_ollama_tool_calling_required.md`) — if the model can't
+  # tool call, the user is running an unsupported Ollama model and
+  # many other features would already be broken anyway.
+  WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
+  WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
 
   # Default model resolved via SystemDefaults (env var > providerDefaults)
   DEFAULT_MODEL = (defined?(SystemDefaults) &&
@@ -325,6 +342,18 @@ module OllamaHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
+    # Proactive Tavily gate (mirrors Cohere / DeepSeek / Mistral). If
+    # TAVILY_API_KEY is absent the UI toggle is silently treated as
+    # off — the tools are never registered, the system prompt does
+    # not advertise them, and the LLM cannot try to call them. The
+    # gate is required because Ollama models that can tool-call (the
+    # only supported Ollama models — see
+    # feedback_ollama_tool_calling_required.md) will otherwise dispatch
+    # tavily_search and surface "Tavily API key is not configured"
+    # mid-conversation.
+    websearch = !CONFIG["TAVILY_API_KEY"].to_s.strip.empty? &&
+                (obj["websearch"] == "true" || obj["websearch"] == true)
+
     message = obj["message"].to_s
 
     if message != ""
@@ -402,6 +431,15 @@ module OllamaHelper
       body["tools"] = formatted_tools unless formatted_tools.empty?
     end
 
+    # Append Tavily tools when web search is enabled, regardless of
+    # whether the app declares any tools of its own. The call-depth
+    # cap above still applies — once the limit is reached, neither
+    # app tools nor websearch tools are sent (the model must wrap up).
+    if websearch && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
+      body["tools"] ||= []
+      body["tools"].concat(WEBSEARCH_TOOLS)
+    end
+
     # Structured Output: map Monadic Chat's OpenAI-compatible `response_format`
     # to Ollama's `format` parameter (Ollama 0.5+ supports constrained decoding).
     #   { "type": "json_object" } → "json"
@@ -423,9 +461,9 @@ module OllamaHelper
           base_prompt: msg["text"],
           session: session,
           options: {
-            websearch_enabled: false,
+            websearch_enabled: websearch,
             reasoning_model: false,
-            websearch_prompt: nil,
+            websearch_prompt: websearch ? WEBSEARCH_PROMPT : nil,
             system_prompt_suffix: obj["system_prompt_suffix"]
           },
           separator: "\n\n---\n\n"

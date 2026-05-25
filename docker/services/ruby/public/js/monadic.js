@@ -102,6 +102,14 @@ function sanitizeParamsForSync(source) {
 }
 
 function broadcastParamsUpdate(reason = null) {
+  // Refresh the persistent header summary on every UI param change. This must
+  // run before the early-return guards: the header is a local UI mirror, not a
+  // server-confirmed value, so it should reflect the latest state regardless
+  // of WebSocket readiness or broadcast suppression.
+  if (typeof window.updateConfigSummary === 'function') {
+    try { window.updateConfigSummary(); } catch (_) { /* never let UI sync break param flow */ }
+  }
+
   if (isParamBroadcastSuppressed()) return;
   if (typeof window.ws === 'undefined' || !window.ws || window.ws.readyState !== WebSocket.OPEN) return;
   if (typeof params === 'undefined' || !params) return;
@@ -792,25 +800,27 @@ document.addEventListener("DOMContentLoaded", function () {
     if (initiateEl) initiateEl.disabled = false;
   }
 
-  // Collapse settings and show conversation (used when starting/continuing session)
+  // Collapse settings and show conversation (used when starting/continuing session).
+  // #config-summary is always visible (it acts as the persistent toggle header
+  // for #config-body), so it is not part of this state machine.
   function enterConversationMode() {
     var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.hide();
-    var configSummary = $id("config-summary");
-    $show(configSummary); var configActions = $id("config-actions");
-    $hide(configActions); var mainPanelEl = $id("main-panel");
+    var configActions = $id("config-actions");
+    $hide(configActions);
+    var mainPanelEl = $id("main-panel");
     if (mainPanelEl) { mainPanelEl.classList.remove("d-none"); $show(mainPanelEl); }
     lockSessionSettings();
     updateConfigSummary();
   }
 
-  // Expand settings and hide conversation (used when resetting)
+  // Expand settings and hide conversation (used when resetting).
   function enterSettingsMode() {
     var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.show();
-    var configSummary = $id("config-summary");
-    $hide(configSummary); var configActions = $id("config-actions");
-    $show(configActions); var mainPanelEl = $id("main-panel");
+    var configActions = $id("config-actions");
+    $show(configActions);
+    var mainPanelEl = $id("main-panel");
     if (mainPanelEl) { mainPanelEl.classList.add("d-none"); $hide(mainPanelEl); }
     unlockSessionSettings();
   }
@@ -1902,6 +1912,22 @@ document.addEventListener("DOMContentLoaded", function () {
     // Handle reasoning effort dropdown with ReasoningMapper
     const currentApp = appsEl ? appsEl.value : "";
     const provider = getProviderFromGroup(apps[currentApp]["group"]);
+
+    // Ollama capability hint: surface "no tool calling" when /api/show reports
+    // the model lacks the "tools" capability. modelSpec entries are populated
+    // dynamically by OllamaHelper.list_models_with_capabilities; absent flag
+    // is treated as unknown (no warning shown).
+    const modelNoTools = $id("model-no-tools");
+    if (modelNoTools) {
+      const isOllama = (provider || "").toLowerCase() === "ollama";
+      const spec = window.modelSpec && window.modelSpec[selectedModel];
+      const hasFlag = spec && Object.prototype.hasOwnProperty.call(spec, "tool_capability");
+      if (isOllama && hasFlag && spec.tool_capability !== true) {
+        $show(modelNoTools);
+      } else {
+        $hide(modelNoTools);
+      }
+    }
     
     // Update UI with provider-specific components and labels
     if (window.reasoningUIManager) {
@@ -2586,6 +2612,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     { const el = $id("apps"); if (el) el.focus(); }
+
+    // Notify the Workflow Viewer of the active app. proceedWithAppChange is
+    // the canonical "app change applied" hook called by both the #apps
+    // change handler (manual selection) and ws-app-data-handlers (initial
+    // reload + session restore), so this single line covers all paths
+    // including the one where #apps 'change' is never dispatched. loadApp
+    // dedups by currentApp, so the manual-change path won't double-fetch
+    // even though utilities.js also calls loadApp on the same change event.
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.loadApp) {
+      window.WorkflowViewer.loadApp(appValue);
+    }
   }
 
   $on($id("websearch"), "change", function() {

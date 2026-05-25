@@ -522,7 +522,46 @@ const modelSpec = {
     "reasoning_effort": [["disabled", "enabled"], "enabled"],
     "reasoning_model": true
   },
+  // Command A+ (Cohere flagship, MoE 25B active / 218B total).
+  // Unifies vision + reasoning + tool use; 128k context but 64k output.
+  // Older command-a-* entries remain for long-context (256k) workloads.
+  "command-a-plus-05-2026": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 64000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_structured_output": true,
+    "reasoning_effort": [["disabled", "enabled"], "enabled"]
+  },
   // Gemini models
+  // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
+  // Stable alias of the gemini-3-flash-preview line.
+  "gemini-3.5-flash": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "default_disabled": true,
+      "presets": {
+        "none": 0,
+        "low": 512,
+        "medium": 8000,
+        "high": 20000
+      }
+    },
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
   "gemini-3-flash-preview": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
@@ -605,7 +644,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "sunset_date": "2026-05-25",
+    "successor": "gemini-3.5-flash"
   },
   "gemini-3.1-flash-image-preview": {
     "context_window": [131072],
@@ -713,6 +755,38 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true
+  },
+  // Mistral Medium 3.5: frontier-class multimodal, agentic + coding,
+  // 256k context, function calling, structured outputs. The Mistral API
+  // accepts only "none" or "high" for reasoning_effort on this family —
+  // "low"/"medium" return 400 — so pin the enum here so the UI never
+  // offers an unsupported value.
+  "mistral-medium-3-5": {
+    "max_output_tokens" : [1, 262000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true,
+    "supports_thinking": true,
+    "reasoning_effort": [["none", "high"], "none"]
+  },
+  // Mistral Small 4 (mistral-small-2603): hybrid instruct+reasoning+coding,
+  // 256k context, 119B params with 6.5B active, cost-efficient.
+  // Same reasoning_effort enum constraint as Medium 3.5.
+  "mistral-small-2603": {
+    "max_output_tokens" : [1, 262000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true,
+    "supports_thinking": true,
+    "reasoning_effort": [["none", "high"], "none"]
   },
   "mistral-ocr-latest": {
     "max_output_tokens" : [1, 32768],
@@ -998,6 +1072,20 @@ const modelSpec = {
     "tts_capability": true,
     "tts_family": "elevenlabs",
     "tts_instructions_capability": false
+  },
+
+  // -------------------------------------------------------------------------
+  // STT model metadata (Speech-to-Text capability SSOT)
+  //
+  // Entries only exist for models that need a capability flag beyond
+  // "appears in providerDefaults.audio_transcription". Today that means
+  // streaming-capable models — gated by `supports_realtime_streaming`.
+  // The frontend gate (`recording.js`) and the Ruby accessor
+  // (`ModelSpec.supports_realtime_streaming?`) both read this flag.
+  // -------------------------------------------------------------------------
+  "gpt-realtime-whisper": {
+    "stt_capability": true,
+    "supports_realtime_streaming": true
   }
 }
 
@@ -1035,20 +1123,22 @@ const providerDefaults = {
     "vision": ["claude-haiku-4-5-20251001"]
   },
   "gemini": {
-    "chat": ["gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview"],
-    "vision": ["gemini-3.1-flash-lite-preview"],
-    "audio_transcription": ["gemini-3.1-flash-lite-preview"],
+    "chat": ["gemini-3.5-flash", "gemini-3.1-pro-preview"],
+    "vision": ["gemini-3.5-flash"],
+    "audio_transcription": ["gemini-3.5-flash"],
     "image": ["gemini-3.1-flash-image-preview", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
-    "chat": ["command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
+    "chat": ["command-a-plus-05-2026", "command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
+    "vision": ["command-a-plus-05-2026"],
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
-    "chat": ["mistral-large-latest"],
-    "code": ["devstral-latest"],
+    "chat": ["mistral-medium-3-5", "mistral-large-latest"],
+    "code": ["devstral-latest", "mistral-small-2603"],
+    "vision": ["mistral-small-2603"],
     "tts": ["voxtral-mini-tts-2603"],
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },

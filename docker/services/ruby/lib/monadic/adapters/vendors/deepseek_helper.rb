@@ -3,6 +3,7 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
+require_relative "../../shared_tools/tavily_definitions"
 require 'strscan'
 require 'securerandom'
 
@@ -18,49 +19,11 @@ module DeepSeekHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-  # websearch tools
-  WEBSEARCH_TOOLS = [
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_fetch",
-        description: "fetch the content of the web page of the given url and return its content.",
-        parameters: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "url of the web page."
-            }
-          },
-          required: ["url"]
-        }
-      }
-    },
-    {
-      type: "function",
-      function:
-      {
-        name: "tavily_search",
-        description: "search the web for the given query and return the result. the result contains the answer to the query, the source url, and the content of the web page.",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "query to search for."
-            },
-            n: {
-              type: "integer",
-              description: "number of results to return (default: 3)."
-            }
-          },
-          required: ["query"]
-        }
-      }
-    }
-  ]
+  # Tavily-backed web search tools. SSOT is
+  # `Monadic::SharedTools::TavilyDefinitions` (consolidated 2026-05-13);
+  # local constants are aliases for backwards compat with the rest of
+  # this file.
+  WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
 
   # JSON format instruction for monadic mode (required by DeepSeek API)
   JSON_FORMAT_PROMPT = <<~TEXT
@@ -68,36 +31,7 @@ module DeepSeekHelper
     IMPORTANT: You must respond in valid JSON format. Your response should be a properly formatted JSON object.
   TEXT
 
-  WEBSEARCH_PROMPT = <<~TEXT
-
-    IMPORTANT: You have access to web search functions. You MUST use these functions when users ask questions requiring current information or web research.
-
-    Available functions:
-    1. **tavily_search** - Search the web for information
-       - Parameters: query (string), n (integer, default 3)
-       - Example call: {"name": "tavily_search", "arguments": {"query": "latest AI developments 2025", "n": 5}}
-       
-    2. **tavily_fetch** - Fetch full content from a specific URL
-       - Parameters: url (string)
-       - Example call: {"name": "tavily_fetch", "arguments": {"url": "https://example.com/article"}}
-
-    When to use these functions:
-    - User asks about current events, news, or recent information
-    - User asks about specific people, companies, or organizations  
-    - User asks questions requiring factual, up-to-date information
-    - You need to verify or update information
-
-    Example function calling pattern:
-    User: "What are the latest developments in quantum computing?"
-    Assistant: I'll search for the latest information about quantum computing developments.
-    [Call tavily_search with query "latest quantum computing developments 2025"]
-
-    Always:
-    - Use English in search queries for better results
-    - Translate results back to user's language if needed
-    - Cite sources using HTML links: <a href="URL" target="_blank" rel="noopener noreferrer">Source</a>
-    - Use search results to provide accurate, well-supported responses
-  TEXT
+  WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
 
   class << self
     attr_reader :cached_models

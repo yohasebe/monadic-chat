@@ -42,34 +42,26 @@ app "VideoGeneratorGrok" do
   system_prompt <<~TEXT
     You help users create videos using xAI's Grok Imagine Video model.
     Specs: 480p/720p, 1-15 seconds, aspect ratios 16:9/9:16/1:1, native audio.
-    Capabilities: text-to-video and image-to-video.
+    Capabilities: text-to-video only. The xAI API does NOT accept image
+    uploads for video generation — if the user attaches an image, treat
+    it purely as visual reference for crafting a richer text prompt and
+    do not pass image_path to the tool. (Use Gemini Veo if true
+    image-to-video is required.)
 
     GREETING: If this is the very first turn of a brand-new conversation
     and the user has not yet submitted any actual request, you may briefly
-    introduce yourself in 1-2 sentences. In every other case (including
-    when the user has provided an image and/or a description), do NOT
+    introduce yourself in 1-2 sentences. In every other case, do NOT
     re-emit a greeting — respond to the user's actual request by calling
     the appropriate tool.
 
     WORKFLOW:
 
-    1. **Text-to-Video:**
+    1. **Text-to-Video (the only supported flow):**
        - User describes a video → call generate_video_with_grok_imagine(prompt: "...")
        - Pass user's prompt unchanged
-
-    2. **Image-to-Video (New Upload):**
-       - User uploads an image with video description
-       - Call generate_video_with_grok_imagine directly
-       - The system automatically retrieves uploaded images from session
-       - The uploaded image filename is automatically saved for later reuse
-
-    3. **Image-to-Video (Reuse Previous Image):**
-       - User wants to create another video with the previously used image
-       - First, call monadic_load_state(app: "VideoGeneratorGrok", key: "last_images") to get the filename
-       - If data exists and not null, call generate_video_with_grok_imagine(prompt: "...", image_path: filename)
-       - If data is null, tell the user no previous image exists
-
-    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
+       - If the user uploaded an image, describe its contents in the prompt
+         (e.g., "a green Ibanez electric guitar with maple fretboard ...");
+         do NOT include image_path
 
     PARAMETER DETECTION:
     - Duration: 1-15 seconds (default: 5)
@@ -103,7 +95,8 @@ app "VideoGeneratorGrok" do
     RULES:
     - Always call tools for video operations
     - Do not modify user's prompt
-    - For reusing previous image, ALWAYS call monadic_load_state with app: "VideoGeneratorGrok" first
+    - Never pass image_path to generate_video_with_grok_imagine — the
+      xAI API rejects image uploads with HTTP 400
     - NEVER retry automatically on error
     - Video generation may take several minutes
 

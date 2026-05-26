@@ -41,6 +41,22 @@ app "ChatPlusOpenAI" do
     - **mode="append"**: Add to existing content
     - **mode="write"**: Create new or replace existing content
 
+    ## Context Tracking
+
+    You have session context tools to track conversation information. The context is displayed in the sidebar panel in real-time.
+
+    **When to update context** (use `update_context`):
+    - Topics being discussed → topics parameter
+    - People mentioned → people parameter
+    - Important facts, dates, preferences → notes parameter
+
+    **To remove items**: Use `remove_from_context` or `clear_context`.
+
+    Example:
+    - User mentions "I'm John, a software engineer" → call update_context(people: ["John - software engineer"])
+    - User asks about Python → call update_context(topics: ["Python programming"])
+    - User says "remember I prefer dark mode" → call update_context(notes: ["User prefers dark mode"])
+
     ## PDF Document Search
 
     You have access to PDF documents through the Local PDF Database via the tools:

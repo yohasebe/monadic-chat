@@ -82,7 +82,7 @@
   <g id="g-root-tx_rubysina_hz0l691c1exac-fill" data-item-order="0" data-item-id="tx_rubysina_hz0l691c1exac" data-item-class="Label Stroke ColorFillBlack ColorStrokeBlack" data-item-index="none" data-renderer-id="0" transform="matrix(1, 0, 0, 1, 46.773956, 222)" style="mix-blend-mode: multiply; isolation: isolate;">
     <g id="tx_rubysina_hz0l691c1exac-fill" stroke="none" fill="#484848">
       <g>
-        <text style="font: 15px Roboto, sans-serif; white-space: pre;"><tspan x="12" y="27.5" dominant-baseline="ideographic">Docker</tspan><tspan x="12" y="45.5" dominant-baseline="ideographic">Linux containers</tspan><tspan x="12" y="63.5" dominant-baseline="ideographic">---------------</tspan><tspan x="12" y="81.5" dominant-baseline="ideographic">Ruby</tspan><tspan x="12" y="99.5" dominant-baseline="ideographic">Python</tspan><tspan x="12" y="117.5" dominant-baseline="ideographic">JupyterLab</tspan><tspan x="12" y="135.5" dominant-baseline="ideographic">PGVector</tspan><tspan x="12" y="153.5" dominant-baseline="ideographic">Selenium</tspan></text>
+        <text style="font: 15px Roboto, sans-serif; white-space: pre;"><tspan x="12" y="27.5" dominant-baseline="ideographic">Docker</tspan><tspan x="12" y="45.5" dominant-baseline="ideographic">Linux containers</tspan><tspan x="12" y="63.5" dominant-baseline="ideographic">---------------</tspan><tspan x="12" y="81.5" dominant-baseline="ideographic">Ruby</tspan><tspan x="12" y="99.5" dominant-baseline="ideographic">Python</tspan><tspan x="12" y="117.5" dominant-baseline="ideographic">JupyterLab</tspan><tspan x="12" y="135.5" dominant-baseline="ideographic">Qdrant</tspan><tspan x="12" y="153.5" dominant-baseline="ideographic">Selenium</tspan></text>
       </g>
     </g>
   </g>

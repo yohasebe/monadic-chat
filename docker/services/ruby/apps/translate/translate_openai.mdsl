@@ -2,31 +2,31 @@ app "TranslateOpenAI" do
   display_name "Translate"
   description do
     en <<~TEXT
-    Translation between multiple languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Translation between multiple languages. Privacy Filter supported. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    複数言語間の翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    複数言語間の翻訳。Privacy Filter 対応。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    多语言之间的翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    多语言之间的翻译。支持 Privacy Filter。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    다국어 간 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    다국어 간 번역. Privacy Filter 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Traducción entre múltiples idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Traducción entre múltiples idiomas. Compatible con Privacy Filter. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Traduction entre plusieurs langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Traduction entre plusieurs langues. Privacy Filter pris en charge. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Übersetzung zwischen mehreren Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Übersetzung zwischen mehreren Sprachen. Privacy Filter unterstützt. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "language"

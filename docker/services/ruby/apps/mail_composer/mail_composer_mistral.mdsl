@@ -1,31 +1,31 @@
 app "MailComposerMistral" do
   description do
     en <<~TEXT
-    Email drafting assistance with tone customization. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Email drafting assistance with tone customization. Privacy Filter supported. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    トーン調整可能なメール作成支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    トーン調整可能なメール作成支援。Privacy Filter 対応。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    可调整语气的电子邮件起草协助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    可调整语气的电子邮件起草协助。支持 Privacy Filter。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    톤 맞춤이 가능한 이메일 작성 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    톤 맞춤이 가능한 이메일 작성 지원. Privacy Filter 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Asistencia para redactar correos con personalización de tono. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Asistencia para redactar correos con personalización de tono. Compatible con Privacy Filter. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Aide à la rédaction d'emails avec personnalisation du ton. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Aide à la rédaction d'emails avec personnalisation du ton. Privacy Filter pris en charge. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    E-Mail-Entwurfshilfe mit Tonanpassung. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    E-Mail-Entwurfshilfe mit Tonanpassung. Privacy Filter unterstützt. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 

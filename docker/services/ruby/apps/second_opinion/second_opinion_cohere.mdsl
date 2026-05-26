@@ -1,31 +1,31 @@
 app "SecondOpinionCohere" do
   description do
     en <<~TEXT
-    Alternative perspectives and suggestions for decision-making. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Alternative perspectives and suggestions for decision-making. Privacy Filter supported. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    意思決定のための代替視点と提案。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    意思決定のための代替視点と提案。Privacy Filter 対応。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    为决策提供替代观点和建议。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    为决策提供替代观点和建议。支持 Privacy Filter。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    의사 결정을 위한 대안적 관점과 제안. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    의사 결정을 위한 대안적 관점과 제안. Privacy Filter 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Perspectivas alternativas y sugerencias para la toma de decisiones. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Perspectivas alternativas y sugerencias para la toma de decisiones. Compatible con Privacy Filter. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Perspectives alternatives et suggestions pour la prise de décision. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Perspectives alternatives et suggestions pour la prise de décision. Privacy Filter pris en charge. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Alternative Perspektiven und Vorschläge zur Entscheidungsfindung. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Alternative Perspektiven und Vorschläge zur Entscheidungsfindung. Privacy Filter unterstützt. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   

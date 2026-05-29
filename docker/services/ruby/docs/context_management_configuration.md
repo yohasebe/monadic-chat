@@ -6,10 +6,7 @@ Context management automatically clears old tool results when conversations grow
 
 ## Supported Models
 
-- Claude Opus 4.1 (`claude-opus-4-1-20250805`)
-- Claude Opus 4 (`claude-opus-4-20250514`)
-- Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
-- Claude Sonnet 4 (`claude-sonnet-4-20250514`)
+All Anthropic models that declare `supports_context_management: true` in `model_spec.js` (SSOT). Current entries include Claude Opus 4.8 / 4.7, Claude Sonnet 4.6 / 4.5, and Claude Haiku 4.5.
 
 ## Default Configuration
 

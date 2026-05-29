@@ -173,7 +173,7 @@ use_adaptive = supports_thinking &&
 
 **SSOT Definition** (`model_spec.js`):
 ```javascript
-"claude-opus-4-6": {
+"claude-opus-4-8": {
   "supports_thinking": true,
   "supports_adaptive_thinking": true,  // Opus 4.6+ only
   "thinking_budget": { "min": 1024, "default": 10000, "max": null },

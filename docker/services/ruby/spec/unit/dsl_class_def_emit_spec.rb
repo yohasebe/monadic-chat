@@ -112,7 +112,7 @@ RSpec.describe 'MonadicDSL class_def emit coverage' do
     it 'emits advisor_tool settings when set via `advisor_tool do ... end`' do
       body = <<~DSL
         advisor_tool do
-          model    "claude-opus-4-6"
+          model    "claude-opus-4-8"
           max_uses 2
           caching  true
         end
@@ -120,7 +120,7 @@ RSpec.describe 'MonadicDSL class_def emit coverage' do
       settings = load_mdsl_body('EmitAdvisorTool', body)
       value = settings[:advisor_tool] || settings['advisor_tool']
       expect(value).not_to be_nil
-      expect(value[:model] || value['model']).to eq('claude-opus-4-6')
+      expect(value[:model] || value['model']).to eq('claude-opus-4-8')
       expect(value[:max_uses] || value['max_uses']).to eq(2)
     end
   end

@@ -224,7 +224,7 @@ POST https://api.anthropic.com/v1/messages
 
 ```ruby
 {
-  "model": "claude-opus-4-6",
+  "model": "claude-opus-4-8",
   "max_tokens": 4096,
   "thinking": {
     "type": "adaptive"
@@ -369,7 +369,7 @@ RSpec.describe Monadic::Utils::ModelSpec do
 
   describe '.supports_adaptive_thinking?' do
     it 'returns true for Opus 4.6' do
-      expect(described_class.supports_adaptive_thinking?('claude-opus-4-6')).to be true
+      expect(described_class.supports_adaptive_thinking?('claude-opus-4-8')).to be true
     end
 
     it 'returns false for older models' do
@@ -387,7 +387,7 @@ Test actual API behavior with real models:
 RSpec.describe 'Claude API Integration', type: :integration do
   it 'successfully uses adaptive thinking with Opus 4.6' do
     response = helper.chat(
-      model: 'claude-opus-4-6',
+      model: 'claude-opus-4-8',
       messages: [...],
       thinking: { type: 'adaptive' },
       output_config: { effort: 'high' }

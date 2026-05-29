@@ -293,7 +293,7 @@ const modelSpec = {
     "supports_pdf_upload": false
   },
   // Anthropic models
-  "claude-opus-4-7": {
+  "claude-opus-4-8": {
     "context_window" : [1, 1000000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 128000], 128000],
@@ -317,10 +317,11 @@ const modelSpec = {
     "structured_output_mode": "json_schema",
     "beta_flags": []
   },
-  "claude-opus-4-6": {
+  "claude-opus-4-7": {
     "context_window" : [1, 1000000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": true,
@@ -330,6 +331,8 @@ const modelSpec = {
       "default": 10000,
       "max": null
     },
+    "rejects_sampling_params": true,
+    "thinking_display_default_omitted": true,
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_streaming": true,
@@ -382,52 +385,7 @@ const modelSpec = {
       "interleaved-thinking-2025-05-14"
     ],
     "sunset_date": "2026-06-15",
-    "successor": "claude-opus-4-7"
-  },
-  "claude-opus-4-5-20251101": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 64000], 64000],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "thinking_budget": {
-      "min": 1024,
-      "default": 10000,
-      "max": null
-    },
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_streaming": true,
-    "supports_context_management": true,
-    "structured_output": true,
-    "structured_output_mode": "json_schema",
-    "beta_flags": [
-      "interleaved-thinking-2025-05-14"
-    ]
-  },
-  "claude-opus-4-1-20250805": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 32000], 32000],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "thinking_budget": {
-      "min": 1024,
-      "default": 10000,
-      "max": null
-    },
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_streaming": true,
-    "supports_context_management": true,
-    "structured_output": true,
-    "structured_output_mode": "json_schema",
-
-    "beta_flags": [
-      "interleaved-thinking-2025-05-14"
-    ]
+    "successor": "claude-opus-4-8"
   },
   "claude-sonnet-4-20250514": {
     "context_window" : [1, 200000],

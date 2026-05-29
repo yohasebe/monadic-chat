@@ -40,7 +40,7 @@ RSpec.describe Monadic::Utils::ModelSpec do
     end
 
     it "detects adaptive thinking support for Opus 4.6" do
-      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-6")).to be true
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-8")).to be true
     end
 
     it "detects adaptive thinking support for Opus 4.7" do

@@ -19,17 +19,17 @@ RSpec.describe "ImageGeneratorTools" do
     end
   end
 
-  describe "ImageGeneratorGemini3Preview" do
+  describe "ImageGeneratorGemini" do
     it "is defined as a class" do
-      expect(defined?(ImageGeneratorGemini3Preview)).to eq("constant")
+      expect(defined?(ImageGeneratorGemini)).to eq("constant")
     end
 
     it "includes required modules" do
-      expect(ImageGeneratorGemini3Preview.included_modules).to include(GeminiHelper)
+      expect(ImageGeneratorGemini.included_modules).to include(GeminiHelper)
     end
 
     it "responds to generate_image_with_gemini method" do
-      app = ImageGeneratorGemini3Preview.new
+      app = ImageGeneratorGemini.new
       expect(app).to respond_to(:generate_image_with_gemini)
     end
   end
@@ -96,10 +96,10 @@ RSpec.describe "ImageGeneratorTools" do
       expect(result).to include("Image generation failed")
     end
 
-    it "ImageGeneratorGemini3Preview returns error string with ❌ prefix on error" do
-      app = ImageGeneratorGemini3Preview.new
+    it "ImageGeneratorGemini returns error string with ❌ prefix on error" do
+      app = ImageGeneratorGemini.new
       # Trigger ArgumentError via empty prompt
-      result = app.generate_image_with_gemini3_preview(prompt: "")
+      result = app.generate_image_with_gemini(prompt: "")
       expect(result).to be_a(String)
       expect(result).to start_with("❌")
       expect(result).to include("Image generation failed")
@@ -114,7 +114,7 @@ RSpec.describe "ImageGeneratorTools" do
       skip "Requires RUN_API=true for API integration tests" unless ENV["RUN_API"]
     end
 
-    it "ImageGeneratorGemini3Preview session handling" do
+    it "ImageGeneratorGemini session handling" do
       skip "Requires RUN_API=true for API integration tests" unless ENV["RUN_API"]
     end
 

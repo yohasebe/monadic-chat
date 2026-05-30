@@ -230,17 +230,14 @@ const modelSpec = {
     "supports_web_search": true,
     "skip_in_progress_events": true
   },
-  // Gemini 3 image preview (image generation only) — deprecated
-  "gemini-3-pro-image-preview": {
+  // Gemini 3 Pro Image (Nano Banana Pro) — image generation only, GA 2026-05-28
+  "gemini-3-pro-image": {
     "context_window": [1, 32000],
     "max_output_tokens": [1, 8192],
     "vision_capability": true,
     "image_generation": true,
     "supports_web_search": false,
-    "skip_in_progress_events": true,
-    "deprecated": true,
-    "sunset_date": "2026-06-30",
-    "successor": "gemini-3.1-flash-image-preview"
+    "skip_in_progress_events": true
   },
   // gpt-4o models
   "gpt-4o": {
@@ -583,7 +580,7 @@ const modelSpec = {
     "supports_pdf": true,
     "ui_hidden": true
   },
-  "gemini-3.1-flash-lite-preview": {
+  "gemini-3.1-flash-lite": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "thinking_budget": {
@@ -602,16 +599,15 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true,
-    "deprecated": true,
-    "sunset_date": "2026-05-25",
-    "successor": "gemini-3.5-flash"
+    "supports_pdf": true
   },
-  "gemini-3.1-flash-image-preview": {
+  // Gemini 3.1 Flash Image (Nano Banana 2) — image generation + video-to-image, GA 2026-05-28
+  "gemini-3.1-flash-image": {
     "context_window": [131072],
     "max_output_tokens": [1, 32768],
     "vision_capability": true,
     "image_generation": true,
+    "supports_video_to_image": true,
     "supports_web_search": true,
     "skip_in_progress_events": true
   },
@@ -637,7 +633,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-07-22",
-    "successor": "gemini-3.1-flash-lite-preview"
+    "successor": "gemini-3.1-flash-lite"
   },
   "gemini-2.5-flash": {
     "context_window" : [1048576],
@@ -1084,7 +1080,7 @@ const providerDefaults = {
     "chat": ["gemini-3.5-flash", "gemini-3.1-pro-preview"],
     "vision": ["gemini-3.5-flash"],
     "audio_transcription": ["gemini-3.5-flash"],
-    "image": ["gemini-3.1-flash-image-preview", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
+    "image": ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },

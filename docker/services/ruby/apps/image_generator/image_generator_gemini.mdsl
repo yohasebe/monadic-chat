@@ -1,11 +1,11 @@
-app "ImageGeneratorGemini3Preview" do
+app "ImageGeneratorGemini" do
   description do
     en <<~TEXT
-    Generate images with Gemini 3.1 Flash Image Preview (gemini-3.1-flash-image-preview).
+    Generate images with Gemini 3.1 Flash Image (Nano Banana 2). Supports text-to-image, image editing, and video-to-image (thumbnails / posters from a video file).
     TEXT
 
     ja <<~TEXT
-    Gemini 3.1 Flash Image Preview (gemini-3.1-flash-image-preview) を使って画像生成します。
+    Gemini 3.1 Flash Image (Nano Banana 2) で画像生成。テキストから画像、画像編集、動画から画像 (サムネイル / ポスター生成) に対応。
     TEXT
   end
 
@@ -13,41 +13,46 @@ app "ImageGeneratorGemini3Preview" do
   display_name "Image Generator"
 
   system_prompt <<~TEXT
-    You are an image generator/editor using Gemini 3.1 Flash Image Preview.
+    You are an image generator/editor using Gemini 3.1 Flash Image (Nano Banana 2).
 
     INITIAL GREETING (IMPORTANT - First message only):
     For your VERY FIRST message, respond ONLY with this greeting text. Do NOT call any tools:
 
-    "Welcome! I can generate and edit images using Gemini 3.1 Flash Image Preview.
+    "Welcome! I can generate and edit images using Gemini 3.1 Flash Image (Nano Banana 2).
 
     **Features:**
     - Generate new images from text descriptions
     - Edit uploaded images or previously generated images
+    - Generate cinematic thumbnails / posters / infographics from an uploaded video file (video-to-image)
     - Support up to 14 images for editing/conditioning
     - Aspect ratio: 16:9, 1:1, 4:5
     - Resolution: 1K, 2K, 4K
 
-    Describe the image you want, or upload an image to edit it!"
+    Describe the image you want, or upload an image or video to work with!"
 
     CRITICAL: The first message must be a plain text greeting. Do NOT output JSON, do NOT call tools, do NOT use action/action_input format.
 
     WORKFLOW:
 
     1. **New Image Generation:**
-       - User describes an image → call generate_image_with_gemini3_preview(prompt: "...")
+       - User describes an image → call generate_image_with_gemini(prompt: "...")
        - Pass user's prompt unchanged
        - The generated image filename is automatically saved for later editing
 
     2. **Edit Previous Image:**
        - User wants to modify the last generated image (e.g., "make it brighter", "add X")
-       - First, call monadic_load_state(app: "ImageGeneratorGemini3Preview", key: "last_images") to get the filename
-       - If data exists and not null, mention the reference and call generate_image_with_gemini3_preview with editing instructions
+       - First, call monadic_load_state(app: "ImageGeneratorGemini", key: "last_images") to get the filename
+       - If data exists and not null, mention the reference and call generate_image_with_gemini with editing instructions
        - If data is null, tell the user no previous image exists
 
     3. **Edit Uploaded Image:**
        - User uploads an image with editing instructions
-       - Call generate_image_with_gemini3_preview directly
+       - Call generate_image_with_gemini directly
        - The system automatically retrieves uploaded images from session
+
+    4. **Video-to-Image (Nano Banana 2 exclusive):**
+       - User uploads a video file and asks for a thumbnail / poster / summary infographic
+       - Call generate_image_with_gemini and provide the user's prompt; the uploaded video is retrieved from session automatically
 
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
@@ -59,7 +64,7 @@ app "ImageGeneratorGemini3Preview" do
     IMAGE DISPLAY:
     After successful generation, return HTML (not markdown):
     <div class="prompt" style="margin-bottom: 15px;">
-      <b>generate</b> (gemini-3.1-flash-image-preview): [user_prompt]
+      <b>generate</b> (gemini-3.1-flash-image): [user_prompt]
     </div>
     <div class="generated_image">
       <img src="/data/[filename]" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
@@ -67,7 +72,7 @@ app "ImageGeneratorGemini3Preview" do
 
     RULES:
     - Always call tools for image operations
-    - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorGemini3Preview" first
+    - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorGemini" first
     - Call tool exactly ONCE per request
     - Do NOT call again if you see JSON result {"success":true,...} in history
 
@@ -92,7 +97,7 @@ app "ImageGeneratorGemini3Preview" do
 
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview"]
+    model ["gemini-3.5-flash"]
     context_size 10
   end
 
@@ -118,11 +123,11 @@ app "ImageGeneratorGemini3Preview" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_image_with_gemini3_preview", "Generate or edit images with Gemini 3.1 Flash Image Preview. For editing, uploaded images are automatically retrieved from session." do
+    define_tool "generate_image_with_gemini", "Generate or edit images with Gemini 3.1 Flash Image (Nano Banana 2). Supports text-to-image, image editing, and video-to-image. Uploaded images and videos are automatically retrieved from session." do
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: true
       parameter :aspect_ratio, "string", "Optional aspect ratio (e.g., 16:9, 1:1, 4:5)", required: false
       parameter :image_size, "string", "Optional resolution (1K, 2K, 4K)", required: false
-      parameter :session, "object", "Session object (automatically provided, contains uploaded images)", required: false
+      parameter :session, "object", "Session object (automatically provided, contains uploaded images and videos)", required: false
     end
 
     define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last generated image filename for editing." do
@@ -131,7 +136,7 @@ app "ImageGeneratorGemini3Preview" do
       parameter :default, "object", "Default value if state is missing", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
-    # Note: monadic_save_state is called automatically by generate_image_with_gemini3_preview
+    # Note: monadic_save_state is called automatically by generate_image_with_gemini
     # Do NOT define it as a tool - LLM should not call it directly
   end
 end

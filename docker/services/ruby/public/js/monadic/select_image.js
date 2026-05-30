@@ -188,7 +188,7 @@ if (selectFileButton) {
     const appsSelect = $id("apps");
     const currentApp = appsSelect ? appsSelect.value : '';
     const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
-    const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
+    const allowPdfInImageApp = currentApp === "ImageGeneratorGemini";
 
     const imageModalLabel = $id("imageModalLabel");
     const imageFileEl = $id("imageFile");
@@ -248,7 +248,7 @@ if (uploadImageBtn) {
     const appsSelect = $id("apps");
     const currentApp = appsSelect ? appsSelect.value : '';
     const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
-    const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
+    const allowPdfInImageApp = currentApp === "ImageGeneratorGemini";
 
     const imageModal = $id("imageModal");
     const selectImageError = $id("select_image_error");

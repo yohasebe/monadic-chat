@@ -555,7 +555,7 @@ class ImageGeneratorGrok < MonadicApp
   end
 end
 
-class ImageGeneratorGemini3Preview < MonadicApp
+class ImageGeneratorGemini < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include GeminiHelper if defined?(GeminiHelper)
 
@@ -571,7 +571,7 @@ class ImageGeneratorGemini3Preview < MonadicApp
   # @param image_size [String] Optional resolution (1K, 2K, 4K)
   # @param session [Object] Session object (automatically provided, contains uploaded images)
   # @return [String] JSON response with success status and filename
-  def generate_image_with_gemini3_preview(prompt:, aspect_ratio: nil, image_size: nil, session: nil)
+  def generate_image_with_gemini(prompt:, aspect_ratio: nil, image_size: nil, session: nil)
     # Input validation
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
 
@@ -608,7 +608,7 @@ class ImageGeneratorGemini3Preview < MonadicApp
           Monadic::Utils::ExtraLogger.log { "Gemini3Preview Image: Saved last generated image to session: #{filenames.first}" }
 
           # Save to monadic state for follow-up edits (same pattern as OpenAI)
-          app_key = session.dig(:parameters, "app_name") || "ImageGeneratorGemini3Preview"
+          app_key = session.dig(:parameters, "app_name") || "ImageGeneratorGemini"
 
           if respond_to?(:monadic_save_state)
             monadic_save_state(app: app_key, key: "last_images", payload: filenames, session: session)

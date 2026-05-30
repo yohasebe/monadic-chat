@@ -58,7 +58,7 @@ module GeminiHelper
   # Supports optional image inputs (up to 14) for editing/conditioning:
   # images: array of { mime_type: "image/png", data: "<base64>" }
   # If images is nil, will fall back to images attached to the latest user message in session (if provided)
-  def generate_image_with_gemini3_preview(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil)
+  def generate_image_with_gemini(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil)
     model ||= if defined?(Monadic::Utils::ModelSpec)
                 Monadic::Utils::ModelSpec.default_image_model("gemini")
               end
@@ -90,7 +90,7 @@ module GeminiHelper
         msg["role"] == "user" && msg["images"] && msg["images"].any?
       }
 
-      Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Checking for user-uploaded images\n  has_uploaded_images: #{has_uploaded_images}" }
+      Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Checking for user-uploaded images\n  has_uploaded_images: #{has_uploaded_images}" }
     end
 
     # Auto-attach last generated image (for iterative editing)
@@ -119,13 +119,13 @@ module GeminiHelper
           "name" => session[:gemini3_last_image]
         }
 
-        Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Auto-attached last generated image: #{session[:gemini3_last_image]}\n  This makes iterative editing work like 'editing uploaded image'" }
+        Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Auto-attached last generated image: #{session[:gemini3_last_image]}\n  This makes iterative editing work like 'editing uploaded image'" }
 
         # Clear after attaching (one-time use)
         session[:gemini3_last_image] = nil
         # Don't clear duplicate flag here - it's managed by process_functions
       else
-        Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Last generated image file not found: #{image_path}" }
+        Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Last generated image file not found: #{image_path}" }
         # Clear the reference since file doesn't exist
         session[:gemini3_last_image] = nil
       end
@@ -135,7 +135,7 @@ module GeminiHelper
     inline_images = []
     if images && images.is_a?(Array)
       inline_images = images
-      Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Using explicit images param (#{inline_images.size} image(s))" }
+      Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Using explicit images param (#{inline_images.size} image(s))" }
     elsif session && session[:messages]
       # Select user messages that have non-empty images array
       user_messages_with_images = session[:messages].select { |msg|
@@ -143,7 +143,7 @@ module GeminiHelper
       }
 
       Monadic::Utils::ExtraLogger.log {
-        lines = ["Gemini3Preview: Session check",
+        lines = ["ImageGeneratorGemini: Session check",
                  "  Total messages: #{session[:messages].size}",
                  "  User messages with NON-EMPTY images: #{user_messages_with_images.size}"]
         session[:messages].each_with_index do |msg, idx|
@@ -218,7 +218,7 @@ module GeminiHelper
 
     # Debug: Log request details
     Monadic::Utils::ExtraLogger.log {
-      lines = ["Gemini3Preview API Request:",
+      lines = ["ImageGeneratorGemini API Request:",
                "  Model: #{model_id}",
                "  Parts count: #{parts.size}"]
       parts.each_with_index do |part, idx|
@@ -237,7 +237,7 @@ module GeminiHelper
     response = nil
 
     Monadic::Utils::ProgressBroadcaster.with_progress(
-      source: "ImageGeneratorGemini3Preview",
+      source: "ImageGeneratorGemini",
       label: "Generating image with #{model_id}"
     ) do
       endpoints.each do |endpoint|
@@ -289,7 +289,7 @@ module GeminiHelper
             "images" => [image_data]
           }
 
-          Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Added generated image to session\n  Filename: #{filename}\n  Session now has #{session[:messages].size} messages" }
+          Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Added generated image to session\n  Filename: #{filename}\n  Session now has #{session[:messages].size} messages" }
         end
 
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
@@ -304,7 +304,7 @@ module GeminiHelper
   rescue StandardError => e
     return { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
       provider: "Gemini",
-      tool_name: "generate_image_with_gemini3_preview",
+      tool_name: "generate_image_with_gemini",
       message: e.message
     ) }.to_json
   end
@@ -316,9 +316,12 @@ module GeminiHelper
     "imagen4" => "imagen-4.0-generate-001",
     "imagen4-ultra" => "imagen-4.0-ultra-generate-001",
     "imagen4-fast" => "imagen-4.0-fast-generate-001",
-    # Gemini 3.1 Flash Image Preview (v1beta generateContent)
-    "gemini-3.1-flash-image-preview" => "gemini-3.1-flash-image-preview",
-    "gemini-3-pro-image-preview" => "gemini-3.1-flash-image-preview"  # backward compat
+    # Gemini 3 Image (GA, v1beta generateContent) — Nano Banana 2 / Pro
+    "gemini-3.1-flash-image" => "gemini-3.1-flash-image",
+    "gemini-3-pro-image" => "gemini-3-pro-image",
+    # Backward-compat aliases (preview models sunset 2026-06-25)
+    "gemini-3.1-flash-image-preview" => "gemini-3.1-flash-image",
+    "gemini-3-pro-image-preview" => "gemini-3-pro-image"
   }.freeze
   IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODELS["imagen4-fast"]  # Default to fast model
   MAX_RETRIES = 5
@@ -3030,7 +3033,7 @@ module GeminiHelper
     session_params["tool_results"] ||= []
 
     # Note: Duplicate prevention is now handled by clearing orchestration history
-    # The @clear_orchestration_history flag in ImageGeneratorGemini3Preview
+    # The @clear_orchestration_history flag in ImageGeneratorGemini
     # ensures the orchestration model doesn't see previous tool calls
 
     # Log tool calls for debugging
@@ -3362,7 +3365,7 @@ module GeminiHelper
       else
         function_return.is_a?(String) ? function_return : function_return.to_json
       end
-    elsif function_name == "generate_image_with_gemini3_preview"
+    elsif function_name == "generate_image_with_gemini"
       image_success = false
       error_message = nil
       generated_filename = nil
@@ -3378,7 +3381,7 @@ module GeminiHelper
             session[:gemini3_last_image] = generated_filename
             session[:gemini3_duplicate_check] = true
 
-            Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Saved last generated image: #{generated_filename}\n  Set duplicate check flag" }
+            Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Saved last generated image: #{generated_filename}\n  Set duplicate check flag" }
           else
             error_message = parsed_json["error"]
             image_success = false
@@ -3856,9 +3859,9 @@ module GeminiHelper
       end
 
       # Gemini 3.1 Flash Image Preview uses generateContent on v1beta endpoint
-      if model == "gemini-3.1-flash-image-preview" || model == "gemini-3-pro-image-preview"
+      if ["gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"].include?(model)
         # Pass session to support image editing
-        return generate_image_with_gemini3_preview(prompt: prompt, model: model, session: session)
+        return generate_image_with_gemini(prompt: prompt, model: model, session: session)
       end
       
       # Set up shared folder path
@@ -3887,8 +3890,8 @@ module GeminiHelper
 
         if user_messages_with_images.empty?
           # Check for last generated image if no uploaded image found
-          if session[:gemini_last_image]
-             filename = session[:gemini_last_image]
+          if session[:gemini3_last_image]
+             filename = session[:gemini3_last_image]
              filepath = File.join(shared_folder, filename)
              
              if File.exist?(filepath)
@@ -3910,7 +3913,7 @@ module GeminiHelper
                }]
              else
                # Clear stale reference
-               session[:gemini_last_image] = nil
+               session[:gemini3_last_image] = nil
                return { success: false, error: "Previous generated image file not found: #{filename}" }.to_json
              end
           else
@@ -3962,9 +3965,8 @@ module GeminiHelper
         }
       end
       
-      # Make API request
-      # Use the new image generation model (stable version)
-      model_name = "gemini-3.1-flash-image-preview"
+      # Make API request — Nano Banana 2 (GA 2026-05-28)
+      model_name = "gemini-3.1-flash-image"
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}")
 
       request = Net::HTTP::Post.new(uri)

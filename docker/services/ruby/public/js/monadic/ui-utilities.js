@@ -195,7 +195,7 @@ function adjustImageUploadButton(selectedModel) {
 
   // Check if current app is an image generation app using the common function
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
-  const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
+  const allowPdfInImageApp = currentApp === "ImageGeneratorGemini";
 
   // Show button if model has vision capability OR if it's an image generation app
   if ((modelData && modelData.vision_capability) || isImageGenerationApp) {

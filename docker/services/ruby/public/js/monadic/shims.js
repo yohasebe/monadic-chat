@@ -208,7 +208,7 @@ window.shims.uiUtils = {
 
     // Check if current app is an image generation app
     var isImageGenerationApp = apps[currentApp] && toBool(apps[currentApp].image_generation);
-    var allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
+    var allowPdfInImageApp = currentApp === "ImageGeneratorGemini";
 
     // Show button if model has vision capability OR if it's an image generation app
     if ((modelData && modelData.vision_capability) || isImageGenerationApp) {

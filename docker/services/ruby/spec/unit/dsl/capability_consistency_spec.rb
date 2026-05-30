@@ -172,7 +172,7 @@ NEITHER_MDSLS = %w[
   drawio_grapher/drawio_grapher_gemini.mdsl
   drawio_grapher/drawio_grapher_grok.mdsl
   drawio_grapher/drawio_grapher_openai.mdsl
-  image_generator/image_generator_gemini3_preview.mdsl
+  image_generator/image_generator_gemini.mdsl
   image_generator/image_generator_grok.mdsl
   image_generator/image_generator_openai.mdsl
   mermaid_grapher/mermaid_grapher_claude.mdsl

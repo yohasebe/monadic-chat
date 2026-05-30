@@ -69,7 +69,7 @@ RSpec.describe "File Naming Conventions" do
         
         # Some apps may not follow this pattern (e.g., wikipedia.mdsl, mermaid_grapher.mdsl)
         # gemini3_preview is a special case for Gemini 3 Pro Preview model-specific app
-        exceptions = %w[wikipedia mermaid_grapher video_describer_app gemini3_preview]
+        exceptions = %w[wikipedia mermaid_grapher video_describer_app]
         is_exception = exceptions.any? { |ex| basename.include?(ex) }
         
         unless has_valid_suffix || is_exception

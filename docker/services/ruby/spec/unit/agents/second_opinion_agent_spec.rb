@@ -46,10 +46,10 @@ RSpec.describe SecondOpinionAgent do
       it "uses correct default models for each provider" do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-6")
         expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.4")
-        expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3-flash-preview")
+        expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3.5-flash")
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.20-0309-non-reasoning")
-        expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
-        expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-03-2025")
+        expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-medium-3-5")
+        expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-plus-05-2026")
         expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
       end
     end
@@ -88,7 +88,7 @@ RSpec.describe SecondOpinionAgent do
       
       it "identifies Gemini 3.x models as reasoning-based" do
         expect(SecondOpinionGemini.is_reasoning_model?("gemini-3.1-pro-preview")).to be true
-        expect(SecondOpinionGemini.is_reasoning_model?("gemini-3.1-flash-lite-preview")).to be true
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-3.1-flash-lite")).to be true
       end
       
       it "does not identify older models as reasoning-based" do

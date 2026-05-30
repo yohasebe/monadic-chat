@@ -58,7 +58,7 @@ module GeminiHelper
   # Supports optional image inputs (up to 14) for editing/conditioning:
   # images: array of { mime_type: "image/png", data: "<base64>" }
   # If images is nil, will fall back to images attached to the latest user message in session (if provided)
-  def generate_image_with_gemini(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil)
+  def generate_image_with_gemini_native(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil)
     model ||= if defined?(Monadic::Utils::ModelSpec)
                 Monadic::Utils::ModelSpec.default_image_model("gemini")
               end
@@ -3340,34 +3340,6 @@ module GeminiHelper
     elsif function_name == "generate_image_with_gemini"
       image_success = false
       error_message = nil
-
-      begin
-        if function_return.is_a?(String)
-          parsed_json = JSON.parse(function_return)
-
-          if parsed_json["success"]
-            image_success = true
-          else
-            error_message = parsed_json["error"]
-            image_success = false
-          end
-        end
-      rescue JSON::ParserError => e
-        if function_return.to_s.include?("success") && function_return.to_s.include?("filename")
-          image_success = true
-        end
-      end
-
-      if image_success
-        function_return.is_a?(String) ? function_return : function_return.to_json
-      elsif error_message
-        "Image generation failed: #{error_message}"
-      else
-        function_return.is_a?(String) ? function_return : function_return.to_json
-      end
-    elsif function_name == "generate_image_with_gemini"
-      image_success = false
-      error_message = nil
       generated_filename = nil
 
       begin
@@ -3837,7 +3809,7 @@ module GeminiHelper
     INSTRUCTIONS
   end
 
-  def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", session: nil)
+  def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", aspect_ratio: nil, image_size: nil, session: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -3852,16 +3824,18 @@ module GeminiHelper
         model = "gemini"
       end
       
+      # Gemini 3 Image (Nano Banana 2 / Pro) uses generateContent on v1beta endpoint.
+      # Route to native handler BEFORE the Imagen check below, because these model IDs
+      # are also present in IMAGE_GENERATION_MODELS as backward-compat aliases.
+      if ["gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"].include?(model)
+        # Pass session to support image editing
+        return generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size, session: session)
+      end
+
       # If Imagen model is selected for generation, use direct API implementation
       # Supports: imagen3, imagen4, imagen4-ultra, imagen4-fast
       if IMAGE_GENERATION_MODELS.key?(model) && operation == "generate"
         return generate_image_with_imagen_direct(prompt: prompt, model: model)
-      end
-
-      # Gemini 3.1 Flash Image Preview uses generateContent on v1beta endpoint
-      if ["gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"].include?(model)
-        # Pass session to support image editing
-        return generate_image_with_gemini(prompt: prompt, model: model, session: session)
       end
       
       # Set up shared folder path

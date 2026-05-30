@@ -565,13 +565,14 @@ class ImageGeneratorGemini < MonadicApp
     @orchestration_keep_rounds = 3
   end
 
-  # Generate or edit images using Gemini 3 Pro Image Preview
+  # Generate or edit images using Gemini 3 Image (Nano Banana Flash / Pro)
   # @param prompt [String] Text description of the desired image or editing instructions
+  # @param model [String] Image model id: "gemini-3.1-flash-image" or "gemini-3-pro-image"
   # @param aspect_ratio [String] Optional aspect ratio (e.g., 16:9, 1:1, 4:5)
   # @param image_size [String] Optional resolution (1K, 2K, 4K)
   # @param session [Object] Session object (automatically provided, contains uploaded images)
   # @return [String] JSON response with success status and filename
-  def generate_image_with_gemini(prompt:, aspect_ratio: nil, image_size: nil, session: nil)
+  def generate_image_with_gemini(prompt:, model: nil, aspect_ratio: nil, image_size: nil, session: nil)
     # Input validation
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
 

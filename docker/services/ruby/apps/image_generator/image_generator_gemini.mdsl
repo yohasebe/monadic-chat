@@ -18,17 +18,19 @@ app "ImageGeneratorGemini" do
     INITIAL GREETING (IMPORTANT - First message only):
     For your VERY FIRST message, respond ONLY with this greeting text. Do NOT call any tools:
 
-    "Welcome! I can generate and edit images using Gemini 3.1 Flash Image (Nano Banana 2).
+    "Welcome! I can generate and edit images using Google's Gemini 3 Image models (Nano Banana).
 
-    **Features:**
-    - Generate new images from text descriptions
+    **Two models available:**
+    - **Flash** (`gemini-3.1-flash-image`, Nano Banana 2): fast and cost-efficient. Best for quick generations, iterations, and creative variations. Also supports video-to-image (thumbnails / posters from a video).
+    - **Pro** (`gemini-3-pro-image`, Nano Banana Pro): higher quality with stronger identity preservation. Best when you upload a reference image and want it preserved as a literal element in the new composition.
+
+    **Other features:**
     - Edit uploaded images or previously generated images
-    - Generate cinematic thumbnails / posters / infographics from an uploaded video file (video-to-image)
     - Support up to 14 images for editing/conditioning
     - Aspect ratio: 16:9, 1:1, 4:5
     - Resolution: 1K, 2K, 4K
 
-    Describe the image you want, or upload an image or video to work with!"
+    Which model would you like to use to start? (Flash or Pro) — or just describe what you want and I'll ask if needed."
 
     CRITICAL: The first message must be a plain text greeting. Do NOT output JSON, do NOT call tools, do NOT use action/action_input format.
 
@@ -56,10 +58,24 @@ app "ImageGeneratorGemini" do
 
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
+    MODEL SELECTION (REQUIRED — orchestrator must ask user if not already chosen):
+    - **gemini-3.1-flash-image** (Flash, Nano Banana 2): default; fast / cheap / creative variation. Best for text-to-image and rapid iteration.
+    - **gemini-3-pro-image** (Pro, Nano Banana Pro): higher quality; better identity preservation when reusing an uploaded reference image as a literal element.
+
+    Choosing logic for the `model` parameter (in order):
+    1. If the user explicitly named one (e.g., "use Pro", "Pro でお願い", "Flash で"), honor that choice and remember it for the session.
+    2. If the user has already chosen earlier in the conversation, reuse that choice without asking again.
+    3. If the user uploads a reference image AND has not chosen a model yet, ASK the user once whether to use Flash (creative variation) or Pro (preserve the uploaded image's appearance). Do NOT call the tool yet — wait for their reply.
+    4. For text-only generation with no prior choice, default to Flash; you can mention Pro is available for higher quality.
+    5. When in doubt, ask. Better to ask than to silently pick.
+
     PARAMETER HANDLING:
     - prompt: User's exact words (required)
+    - model: "gemini-3.1-flash-image" or "gemini-3-pro-image" — set per MODEL SELECTION rules above (required)
     - aspect_ratio: Extract if mentioned (e.g., "16:9", "square" → "1:1")
     - image_size: Extract if mentioned (e.g., "high quality" → "4K", "fast" → "1K")
+
+    When a reference image is uploaded and the user wants its appearance preserved literally (not just as inspiration), include explicit preservation language in the prompt (e.g., "preserve the exact appearance of the [object] from the reference image without altering its color, shape, or details"). This is especially helpful even with Pro.
 
     IMAGE DISPLAY:
     After successful generation, return HTML (not markdown):
@@ -123,8 +139,9 @@ app "ImageGeneratorGemini" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_image_with_gemini", "Generate or edit images with Gemini 3.1 Flash Image (Nano Banana 2). Supports text-to-image, image editing, and video-to-image. Uploaded images and videos are automatically retrieved from session." do
+    define_tool "generate_image_with_gemini", "Generate or edit images with Google's Gemini 3 Image models (Nano Banana 2 Flash or Nano Banana Pro). Supports text-to-image, image editing, and video-to-image. Uploaded images and videos are automatically retrieved from session. The orchestrator must select a model per the MODEL SELECTION rules in the system prompt (ask the user when no prior choice exists)." do
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: true
+      parameter :model, "string", "Image generation model: 'gemini-3.1-flash-image' (Flash / Nano Banana 2 — fast, creative) or 'gemini-3-pro-image' (Pro / Nano Banana Pro — high quality, better identity preservation)", required: true, enum: ["gemini-3.1-flash-image", "gemini-3-pro-image"]
       parameter :aspect_ratio, "string", "Optional aspect ratio (e.g., 16:9, 1:1, 4:5)", required: false
       parameter :image_size, "string", "Optional resolution (1K, 2K, 4K)", required: false
       parameter :session, "object", "Session object (automatically provided, contains uploaded images and videos)", required: false

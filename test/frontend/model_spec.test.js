@@ -104,8 +104,8 @@ describe('Model Specification', () => {
       expect(model.vision_capability).toBe(true);
     });
 
-    it('should have 1M context for Claude Opus 4.6', () => {
-      const model = modelSpec['claude-opus-4-6'];
+    it('should have 1M context for Claude Opus 4.8', () => {
+      const model = modelSpec['claude-opus-4-8'];
       expect(model.context_window).toEqual([1, 1000000]);
       expect(model.beta_flags).toEqual([]);
     });
@@ -128,7 +128,7 @@ describe('Model Specification', () => {
 
     it('should not have structured_output_beta on GA models', () => {
       // These models have structured outputs GA (Jan 29, 2026)
-      const gaModels = ['claude-sonnet-4-5-20250929', 'claude-opus-4-5-20251101', 'claude-haiku-4-5-20251001'];
+      const gaModels = ['claude-opus-4-8', 'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'];
       gaModels.forEach(modelName => {
         const model = modelSpec[modelName];
         if (model) {
@@ -145,8 +145,8 @@ describe('Model Specification', () => {
       expect(modelSpec['claude-haiku-4-5-20251001'].vision_capability).toBe(true);
     });
 
-    it('should mark Opus 4.6 as supporting adaptive thinking', () => {
-      expect(modelSpec['claude-opus-4-6'].supports_adaptive_thinking).toBe(true);
+    it('should mark Opus 4.8 as supporting adaptive thinking', () => {
+      expect(modelSpec['claude-opus-4-8'].supports_adaptive_thinking).toBe(true);
     });
 
     it('should mark Sonnet 4.6 as supporting adaptive thinking', () => {

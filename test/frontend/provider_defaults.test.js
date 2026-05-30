@@ -116,8 +116,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.openai.tts[0]).toBe('gpt-4o-mini-tts-2025-12-15');
     });
 
-    it('gemini image default is gemini-3.1-flash-image-preview', () => {
-      expect(providerDefaults.gemini.image[0]).toBe('gemini-3.1-flash-image-preview');
+    it('gemini image default is gemini-3.1-flash-image', () => {
+      expect(providerDefaults.gemini.image[0]).toBe('gemini-3.1-flash-image');
     });
 
     it('gemini video default is veo-3.1-fast-generate-preview', () => {

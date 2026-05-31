@@ -421,6 +421,19 @@ module MonadicDSL
       @state.settings[:privacy_enabled] = hash[:enabled]
     end
 
+    # Vocabulary: shared ${TOKEN} variables between the user and the assistant.
+    # Built-in opt-in only (MVP) — `use` references tokens defined in
+    # Monadic::Substitution::Vocabulary::BUILTINS; resolution/display arrive in
+    # a later phase. Usage:
+    #   vocabulary do
+    #     use :shared
+    #   end
+    def vocabulary(&block)
+      config = VocabularyConfiguration.new
+      config.instance_eval(&block) if block_given?
+      @state.settings[:vocabulary] = config.to_hash
+    end
+
     # Advisor Tool opt-in (Anthropic Advisor Tool beta).
     # Usage:
     #   advisor_tool  # enable with defaults (claude-opus-4-8)
@@ -758,6 +771,11 @@ module MonadicDSL
     unless state.settings[:privacy].nil?
       class_def << "        @settings[:privacy] = #{state.settings[:privacy].inspect}\n"
       class_def << "        @settings[:privacy_enabled] = #{state.settings[:privacy_enabled].inspect}\n"
+    end
+
+    # Vocabulary opt-in tokens (plain symbol data; resolution is runtime).
+    unless state.settings[:vocabulary].nil?
+      class_def << "        @settings[:vocabulary] = #{state.settings[:vocabulary].inspect}\n"
     end
 
     # Capability flags resolved by finalize_capabilities!. These are written

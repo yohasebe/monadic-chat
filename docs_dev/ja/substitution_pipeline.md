@@ -173,4 +173,5 @@ MDSL の `vocabulary false` で opt-out する。追加のための per-app opt-
 `read/write/list` ツールを既定付与する（除外なし）。帰結として、orchestration
 モデルは tool-capable が前提 — 非 tool-capable モデルにはそもそもツールが送られない
 （vendor helper が `tool_capability` で gate）ため、既存の「tool calling 前提」方針と
-整合。ユーザー向け公開ドキュメント（`docs/`, `docs/ja/`）が残りのフォローアップ。
+整合。ユーザー向け公開ドキュメントは `docs/docker-integration/shared-folder.md`
+（+ `docs/ja/...`）の「`${SHARED}` 変数」節にある。

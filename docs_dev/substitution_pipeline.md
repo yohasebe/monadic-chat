@@ -176,5 +176,6 @@ to add; `vocabulary do … end` is reserved for future custom tokens.
 `read/write/list` tools by default (no exclusions). Consequence: a tool-capable
 orchestration model is the baseline — non-tool-capable models simply never
 receive the tools (vendor helpers gate on `tool_capability`), consistent with
-the existing "tool calling required" stance. Public end-user docs (`docs/`,
-`docs/ja/`) are the remaining follow-up.
+the existing "tool calling required" stance. End-user docs live in
+`docs/docker-integration/shared-folder.md` (+ `docs/ja/...`), "The `${SHARED}`
+Variable" section.

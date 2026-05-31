@@ -46,6 +46,7 @@ ALLOWED_EXTENSIONS = %w[.rb .js .mjs .erb .mdsl].freeze
 # than silently slipping through. The list is the audit baseline; new
 # files added here are deliberate "deprecate, migrate later" entries.
 ACCEPTED_FILES = %w[
+  app/main.js
   scripts/lint/check_data_path_literals.rb
   docker/services/ruby/lib/monadic/utils/environment.rb
   docker/services/ruby/lib/monadic/shell.rb

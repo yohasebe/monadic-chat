@@ -9,7 +9,21 @@
  * markdown-it and katex so the full placeholder pipeline is exercised.
  */
 
-describe('MarkdownRenderer vocabulary token protection (${TOKEN})', () => {
+// Vendored UMD bundles (markdown-it, katex) are gitignored, so they are
+// absent in CI. Skip these full-render suites when the bundles are missing;
+// they run in full locally where the vendor files exist.
+function vendorBundlesPresent() {
+  try {
+    require.resolve("../../docker/services/ruby/public/vendor/js/markdown-it.min.js");
+    require.resolve("../../docker/services/ruby/public/vendor/js/katex.min.js");
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+const describeFn = vendorBundlesPresent() ? describe : describe.skip;
+
+describeFn('MarkdownRenderer vocabulary token protection (${TOKEN})', () => {
   let MarkdownRenderer;
 
   beforeEach(() => {
@@ -107,7 +121,7 @@ describe('MarkdownRenderer vocabulary token protection (${TOKEN})', () => {
   });
 });
 
-describe('WsContentRenderer.renderKatexInHTML vocabulary token protection', () => {
+describeFn('WsContentRenderer.renderKatexInHTML vocabulary token protection', () => {
   let renderKatexInHTML;
 
   beforeEach(() => {

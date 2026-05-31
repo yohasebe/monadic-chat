@@ -426,15 +426,17 @@ module Monadic
           false
         end
 
-        # Resolve the active app's opted-in vocabulary token symbols (e.g.
-        # [:shared]) from APPS[app_name].settings. Empty array when none.
+        # Resolve the active app's effective vocabulary token symbols. Delegates
+        # to Vocabulary.tokens_for (the single source of truth, shared with the
+        # pipeline builder), which defaults ${SHARED} on unless the app opts out.
         def vocabulary_tokens_for(session)
           params = session&.[](:parameters) || {}
           app_name = params["app_name"] || params[:app_name]
           return [] unless defined?(APPS) && app_name && (app = APPS[app_name])
-          vocab = (app.settings[:vocabulary] || app.settings["vocabulary"]) rescue nil
-          tokens = vocab && (vocab[:tokens] || vocab["tokens"])
-          Array(tokens)
+          require_relative '../substitution/vocabulary'
+          Monadic::Substitution::Vocabulary.tokens_for(app.settings)
+        rescue StandardError
+          []
         end
 
         # Build the "## Shared variables" system-prompt section for the active

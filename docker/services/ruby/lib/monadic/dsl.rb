@@ -422,14 +422,14 @@ module MonadicDSL
     end
 
     # Vocabulary: shared ${TOKEN} variables between the user and the assistant.
-    # Built-in opt-in only (MVP) — `use` references tokens defined in
-    # Monadic::Substitution::Vocabulary::BUILTINS; resolution/display arrive in
-    # a later phase. Usage:
-    #   vocabulary do
-    #     use :shared
-    #   end
-    def vocabulary(&block)
+    # `${SHARED}` is ON by default for every app (Monadic Chat's shared-folder
+    # integration is universal) — no declaration is needed to get it. An app
+    # only declares this block to:
+    #   * opt out entirely:        vocabulary false
+    #   * (future) add other tokens: vocabulary do; use :other; end
+    def vocabulary(arg = nil, &block)
       config = VocabularyConfiguration.new
+      config.disable! if arg == false
       config.instance_eval(&block) if block_given?
       @state.settings[:vocabulary] = config.to_hash
     end

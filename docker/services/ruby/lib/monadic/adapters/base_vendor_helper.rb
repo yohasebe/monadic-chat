@@ -229,8 +229,12 @@ module BaseVendorHelper
   #   vocabulary tokens (the common case).
   def substitution_pipeline_for(session, app_settings)
     return nil unless session && session.respond_to?(:[])
-    tokens = app_settings && app_settings.dig(:vocabulary, :tokens)
-    return nil if tokens.nil? || Array(tokens).empty?
+    require_relative '../substitution/vocabulary'
+    # Default-on policy: ${SHARED} is available to every app unless it opts out
+    # with `vocabulary false`. Vocabulary.tokens_for is the single source of
+    # truth shared with the system-prompt injector.
+    tokens = Monadic::Substitution::Vocabulary.tokens_for(app_settings)
+    return nil if tokens.empty?
 
     session[:_substitution_pipeline] ||= begin
       require_relative '../substitution/pipeline'

@@ -456,12 +456,15 @@ RSpec.describe BaseVendorHelper do
     end
 
     describe '#substitution_pipeline_for' do
-      it 'returns nil when the app declares no vocabulary' do
-        expect(helper.substitution_pipeline_for({}, {})).to be_nil
-        expect(helper.substitution_pipeline_for({}, { vocabulary: { tokens: [] } })).to be_nil
+      it 'builds a pipeline by default (${SHARED} on) even with no vocabulary block' do
+        expect(helper.substitution_pipeline_for({}, {})).to be_a(Monadic::Substitution::Pipeline)
       end
 
-      it 'builds and caches a Vocabulary-only pipeline when tokens are present' do
+      it 'returns nil only when the app opts out (vocabulary false)' do
+        expect(helper.substitution_pipeline_for({}, { vocabulary: { tokens: [], enabled: false } })).to be_nil
+      end
+
+      it 'builds and caches a Vocabulary-only pipeline' do
         session = {}
         pipeline = helper.substitution_pipeline_for(session, vocab_settings)
         expect(pipeline).to be_a(Monadic::Substitution::Pipeline)
@@ -486,9 +489,10 @@ RSpec.describe BaseVendorHelper do
         expect(out).to eq('path' => '/monadic/data/a.txt', 'nested' => ['/monadic/data/b'])
       end
 
-      it 'returns args unchanged when the app has no vocabulary' do
+      it 'returns args unchanged when the app opted out (vocabulary false)' do
         args = { 'path' => '${SHARED}/a.txt' }
-        expect(helper.expand_tool_args_for_vocabulary(args, {}, {})).to eq(args)
+        opted_out = { vocabulary: { tokens: [], enabled: false } }
+        expect(helper.expand_tool_args_for_vocabulary(args, {}, opted_out)).to eq(args)
       end
 
       it 'leaves a backtick-escaped token literal' do
@@ -503,8 +507,9 @@ RSpec.describe BaseVendorHelper do
         expect(out).to eq('see <code class="vocab-token" title="/monadic/data">${SHARED}</code>')
       end
 
-      it 'returns the text unchanged when the app has no vocabulary' do
-        expect(helper.decorate_response_text('see ${SHARED}', {}, {})).to eq('see ${SHARED}')
+      it 'returns the text unchanged when the app opted out (vocabulary false)' do
+        opted_out = { vocabulary: { tokens: [], enabled: false } }
+        expect(helper.decorate_response_text('see ${SHARED}', {}, opted_out)).to eq('see ${SHARED}')
       end
 
       it 'returns non-string input unchanged' do

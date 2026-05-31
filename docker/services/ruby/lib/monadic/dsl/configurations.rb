@@ -180,6 +180,7 @@ module MonadicDSL
   class VocabularyConfiguration
     def initialize
       @tokens = []
+      @enabled = true
     end
 
     # Expose one or more built-in vocabulary tokens. Unknown names raise so a
@@ -197,8 +198,15 @@ module MonadicDSL
       end
     end
 
+    # Opt out: `${SHARED}` (and any vocabulary) is on by default for every app;
+    # an app with strict output can disable it with `vocabulary false` (which
+    # sets enabled=false via #disable!).
+    def disable!
+      @enabled = false
+    end
+
     def to_hash
-      { tokens: @tokens }
+      { tokens: @tokens, enabled: @enabled }
     end
   end
 

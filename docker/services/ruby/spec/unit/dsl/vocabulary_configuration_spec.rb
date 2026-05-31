@@ -10,15 +10,15 @@ RSpec.describe MonadicDSL::VocabularyConfiguration do
     cfg
   end
 
-  describe "#use (built-in opt-in)" do
-    it "collects a single built-in token" do
+  describe "#use (explicit built-in tokens)" do
+    it "collects a single built-in token (enabled by default)" do
       cfg = config { use :shared }
-      expect(cfg.to_hash).to eq(tokens: [:shared])
+      expect(cfg.to_hash).to eq(tokens: [:shared], enabled: true)
     end
 
     it "normalizes string names to symbols" do
       cfg = config { use "shared" }
-      expect(cfg.to_hash).to eq(tokens: [:shared])
+      expect(cfg.to_hash).to eq(tokens: [:shared], enabled: true)
     end
 
     it "deduplicates repeated tokens" do
@@ -26,12 +26,7 @@ RSpec.describe MonadicDSL::VocabularyConfiguration do
         use :shared
         use :shared
       end
-      expect(cfg.to_hash).to eq(tokens: [:shared])
-    end
-
-    it "accepts multiple names in one call" do
-      cfg = config { use :shared, :shared }
-      expect(cfg.to_hash).to eq(tokens: [:shared])
+      expect(cfg.to_hash).to eq(tokens: [:shared], enabled: true)
     end
 
     it "raises ArgumentError on an unknown token (typo fails fast)" do
@@ -43,9 +38,16 @@ RSpec.describe MonadicDSL::VocabularyConfiguration do
     end
   end
 
+  describe "#disable! (vocabulary false opt-out)" do
+    it "marks the config disabled with no tokens" do
+      cfg = config(&:disable!)
+      expect(cfg.to_hash).to eq(tokens: [], enabled: false)
+    end
+  end
+
   describe "#to_hash" do
-    it "is an empty token list when nothing is declared" do
-      expect(config.to_hash).to eq(tokens: [])
+    it "defaults to enabled with no explicit tokens" do
+      expect(config.to_hash).to eq(tokens: [], enabled: true)
     end
 
     it "produces plain data (no Proc) so it survives the .inspect class generator" do

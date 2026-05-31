@@ -165,6 +165,9 @@ dev-mode paths (already host paths) pass through.
 
 ## Status
 
-The mechanism is complete and dogfooded, but **dormant**: no shipped app declares
-a `vocabulary do` block yet. Adding `${SHARED}` to selected apps (and the public
-end-user docs that follow) is the remaining migration step. Privacy is fully live.
+Live. `${SHARED}` is **on by default for every app** — the policy lives in
+`Monadic::Substitution::Vocabulary.tokens_for(app_settings)`, the single source
+of truth consulted by both the pipeline builder and the system-prompt injector.
+An app opts out with `vocabulary false` in its MDSL. There is no per-app opt-in
+to add; `vocabulary do … end` is reserved for future custom tokens. Public
+end-user docs (`docs/`, `docs/ja/`) are the remaining follow-up.

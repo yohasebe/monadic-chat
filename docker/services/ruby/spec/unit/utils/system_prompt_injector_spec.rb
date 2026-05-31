@@ -539,32 +539,42 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return('/monadic/data')
     end
 
-    it 'resolves the opted-in token symbols from the app settings' do
+    it 'resolves [:shared] for an explicitly-configured app' do
       stub_const('APPS', { 'VocabApp' => vocab_app })
       expect(described_class.vocabulary_tokens_for(session)).to eq([:shared])
     end
 
-    it 'returns [] when the app declares no vocabulary' do
+    it 'defaults ${SHARED} ON for an app with no vocabulary block' do
       stub_const('APPS', { 'PlainApp' => Struct.new(:settings).new({}) })
-      expect(described_class.vocabulary_tokens_for(parameters: { 'app_name' => 'PlainApp' })).to eq([])
+      expect(described_class.vocabulary_tokens_for(parameters: { 'app_name' => 'PlainApp' })).to eq([:shared])
     end
 
-    it 'builds the shared-variables addendum for an opted-in app' do
+    it 'returns [] for an app that opted out with vocabulary false' do
+      stub_const('APPS', { 'OptOut' => Struct.new(:settings).new({ vocabulary: { tokens: [], enabled: false } }) })
+      expect(described_class.vocabulary_tokens_for(parameters: { 'app_name' => 'OptOut' })).to eq([])
+    end
+
+    it 'builds the shared-variables addendum' do
       stub_const('APPS', { 'VocabApp' => vocab_app })
       add = described_class.build_vocabulary_addendum(session)
       expect(add).to include('${SHARED}')
       expect(add).to include('Shared variables')
     end
 
-    it 'fires the :vocabulary_variables rule in build_injections' do
-      stub_const('APPS', { 'VocabApp' => vocab_app })
-      names = described_class.build_injections(session: session, options: {}).map { |r| r[:name] }
+    it 'fires the :vocabulary_variables rule by default' do
+      stub_const('APPS', { 'PlainApp' => Struct.new(:settings).new({}) })
+      names = described_class.build_injections(session: { parameters: { 'app_name' => 'PlainApp' } }, options: {}).map { |r| r[:name] }
       expect(names).to include(:vocabulary_variables)
     end
 
-    it 'does not fire the rule for an app without vocabulary' do
-      stub_const('APPS', { 'PlainApp' => Struct.new(:settings).new({}) })
-      names = described_class.build_injections(session: { parameters: { 'app_name' => 'PlainApp' } }, options: {}).map { |r| r[:name] }
+    it 'does not fire the rule for an opted-out app' do
+      stub_const('APPS', { 'OptOut' => Struct.new(:settings).new({ vocabulary: { tokens: [], enabled: false } }) })
+      names = described_class.build_injections(session: { parameters: { 'app_name' => 'OptOut' } }, options: {}).map { |r| r[:name] }
+      expect(names).not_to include(:vocabulary_variables)
+    end
+
+    it 'does not fire when no app is active (no app_name)' do
+      names = described_class.build_injections(session: { parameters: {} }, options: {}).map { |r| r[:name] }
       expect(names).not_to include(:vocabulary_variables)
     end
   end

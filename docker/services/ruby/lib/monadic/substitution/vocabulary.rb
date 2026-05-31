@@ -48,6 +48,29 @@ module Monadic
         BUILTINS.keys
       end
 
+      # Effective vocabulary token symbols for an app — the single source of
+      # truth consulted by every read point (the pipeline builder and the
+      # system-prompt injector), so MDSL apps and Ruby-class apps behave
+      # identically with no per-app wiring.
+      #
+      # Policy: `${SHARED}` is ON by default for every app (Monadic Chat's
+      # shared-folder integration is a universal capability), unless the app
+      # opts out with `vocabulary false` (settings[:vocabulary][:enabled] ==
+      # false). An app may also declare extra built-ins via `vocabulary do; use
+      # …; end`; unknown names are filtered out.
+      #
+      # @param app_settings [Hash, nil] symbol- or string-keyed app settings
+      # @return [Array<Symbol>]
+      def tokens_for(app_settings)
+        vocab = app_settings && (app_settings[:vocabulary] || app_settings["vocabulary"])
+        if vocab
+          enabled = vocab.key?(:enabled) ? vocab[:enabled] : vocab["enabled"]
+          return [] if enabled == false
+        end
+        declared = (vocab && (vocab[:tokens] || vocab["tokens"])) || []
+        ([:shared] + declared.map(&:to_sym)).uniq.select { |t| builtin?(t) }
+      end
+
       # Look up a built-in by its `${TOKEN}` name (e.g. "SHARED"). Used by the
       # Vocabulary provider to resolve a token captured from text/args.
       # @param token [String]

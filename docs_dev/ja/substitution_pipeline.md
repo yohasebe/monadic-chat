@@ -162,6 +162,9 @@ map はコンテナ正のまま保つ。dev モードのパス（既にホスト
 
 ## ステータス
 
-仕組みは完成し dogfood 済だが、**dormant**（まだ `vocabulary do` を宣言する出荷
-アプリが無い）。選定アプリへの `${SHARED}` 追加（およびそれに続くユーザー向け
-公開ドキュメント）が残りの移行ステップ。Privacy は完全に live。
+Live。`${SHARED}` は**全アプリで既定 ON**。このポリシーは
+`Monadic::Substitution::Vocabulary.tokens_for(app_settings)`（パイプライン
+ビルダーと system-prompt injector の双方が参照する単一の真実源）にある。アプリは
+MDSL の `vocabulary false` で opt-out する。追加のための per-app opt-in は無く、
+`vocabulary do … end` は将来のカスタムトークン用に予約。ユーザー向け公開
+ドキュメント（`docs/`, `docs/ja/`）が残りのフォローアップ。

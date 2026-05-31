@@ -50,6 +50,30 @@ RSpec.describe Monadic::Substitution::Vocabulary do
     end
   end
 
+  describe ".tokens_for (default-on policy)" do
+    it "defaults to [:shared] when the app has no vocabulary config" do
+      expect(described_class.tokens_for(nil)).to eq([:shared])
+      expect(described_class.tokens_for({})).to eq([:shared])
+    end
+
+    it "defaults to [:shared] for an empty vocabulary block" do
+      expect(described_class.tokens_for(vocabulary: { tokens: [], enabled: true })).to eq([:shared])
+    end
+
+    it "returns [] when the app opts out with enabled:false" do
+      expect(described_class.tokens_for(vocabulary: { tokens: [], enabled: false })).to eq([])
+    end
+
+    it "honors string-keyed settings (Rack/serialization tolerance)" do
+      expect(described_class.tokens_for("vocabulary" => { "enabled" => false })).to eq([])
+      expect(described_class.tokens_for("vocabulary" => { "tokens" => ["shared"] })).to eq([:shared])
+    end
+
+    it "filters unknown declared tokens but keeps the :shared default" do
+      expect(described_class.tokens_for(vocabulary: { tokens: [:bogus] })).to eq([:shared])
+    end
+  end
+
   describe ".builtin?" do
     it "is true for a known token (symbol or string)" do
       expect(described_class.builtin?(:shared)).to be(true)

@@ -65,6 +65,20 @@
     }
 
     if (!data || !data.enabled) {
+      // Reconciliation: the backend resets privacy to OFF on app change /
+      // reset and pushes this privacy_state. If the user's toggle is still
+      // ON (and editable), the intended state is ON — but the toggle was
+      // restored programmatically (no `change` event) so it never re-armed
+      // the backend. Without this the user must manually toggle off/on.
+      // Re-assert ON once here. This fires *after* the backend reset, so it
+      // is immune to the app-setup vs reset ordering race. Health-failure
+      // rejections come back via privacy_toggle_ack (which unchecks the
+      // toggle), so this cannot loop.
+      const toggleEl = document.getElementById('check-privacy-session');
+      if (toggleEl && toggleEl.checked && !toggleEl.disabled &&
+          typeof window.safeWsSend === 'function') {
+        window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: true });
+      }
       el.style.display = 'none';
       el.removeAttribute('title');
       el.innerHTML = '';
@@ -466,9 +480,12 @@
   // never saw the original — any occurrence in the rendered text traces
   // back to user input or to a placeholder restoration.
   //
-  // Skipped subtrees: <code>, <pre>, <a> — placeholders inside those
-  // would either be syntax noise or mangle hyperlink text. <script> and
-  // <style> are skipped for sanity.
+  // Skipped subtrees: <code>, <pre> — restored values inside those are
+  // literal/markup and highlighting them is just syntax noise. <script> and
+  // <style> are skipped for sanity. <a> is NOT skipped: markdown auto-links
+  // restored PII (e.g. an email becomes a mailto: link), and the user still
+  // needs to see that it is tracked. We wrap only the link's text node, so
+  // the href and click behavior stay intact.
   //
   // Color assignment: each placeholder hashes to one of UNMASK_PALETTE_SIZE
   // slots (data-color="0..N-1"). The mapping is deterministic so the
@@ -496,7 +513,7 @@
     while (p && p !== root) {
       if (p.classList && p.classList.contains('privacy-unmasked')) return true;
       var tag = p.nodeName;
-      if (tag === 'CODE' || tag === 'PRE' || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'A') return true;
+      if (tag === 'CODE' || tag === 'PRE' || tag === 'SCRIPT' || tag === 'STYLE') return true;
       p = p.parentNode;
     }
     return false;

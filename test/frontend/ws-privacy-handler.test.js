@@ -86,12 +86,19 @@ describe('WsPrivacyHandler.highlightUnmaskedSpans', () => {
     expect(root.querySelector('code').querySelector('span.privacy-unmasked')).toBeNull();
   });
 
-  it('skips text inside <a> hyperlinks (href text remains intact)', () => {
-    root.innerHTML = '<p><a href="#">Alice</a> Alice</p>';
-    highlight([{ placeholder: '<<PERSON_1>>', entity_type: 'PERSON', original: 'Alice' }]);
+  it('highlights restored PII inside <a> hyperlinks while keeping the href intact', () => {
+    // Markdown auto-links restored emails/URLs into <a>; the tracked value must
+    // still be highlighted. The link itself (href + clickability) is untouched
+    // because only the text node inside the anchor is wrapped.
+    root.innerHTML = '<p><a href="mailto:alice@example.com">alice@example.com</a> and again alice@example.com</p>';
+    highlight([{ placeholder: '<<EMAIL_ADDRESS_1>>', entity_type: 'EMAIL_ADDRESS', original: 'alice@example.com' }]);
 
-    expect(root.querySelectorAll('span.privacy-unmasked').length).toBe(1);
-    expect(root.querySelector('a').querySelector('span.privacy-unmasked')).toBeNull();
+    const anchor = root.querySelector('a');
+    expect(anchor.getAttribute('href')).toBe('mailto:alice@example.com');
+    // Both the linkified occurrence and the plain-text one are wrapped.
+    expect(root.querySelectorAll('span.privacy-unmasked').length).toBe(2);
+    expect(anchor.querySelector('span.privacy-unmasked')).not.toBeNull();
+    expect(anchor.querySelector('span.privacy-unmasked').textContent).toBe('alice@example.com');
   });
 
   it('processes longer originals first so multi-word values are not pre-empted', () => {
@@ -229,5 +236,66 @@ describe('WsPrivacyHandler.handleState — auto-detected language badge', () => 
 
     const indicator = document.getElementById('privacy-indicator');
     expect(indicator.innerHTML).not.toMatch(/privacy-lang-badge/);
+  });
+});
+
+describe('WsPrivacyHandler.handleState — re-arm reconciliation on backend OFF', () => {
+  let toggle;
+
+  beforeEach(() => {
+    const indicator = document.createElement('div');
+    indicator.id = 'privacy-indicator';
+    document.body.appendChild(indicator);
+
+    toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.id = 'check-privacy-session';
+    document.body.appendChild(toggle);
+
+    window.safeWsSend = jest.fn();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    delete window.safeWsSend;
+  });
+
+  it('re-asserts PRIVACY_TOGGLE:true when the toggle is ON but backend reports OFF', () => {
+    // App-change reset path: backend pushes enabled:false while the user's
+    // toggle (restored from localStorage, no change event) is still ON.
+    toggle.checked = true;
+    toggle.disabled = false;
+
+    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0 });
+
+    expect(window.safeWsSend).toHaveBeenCalledWith({ message: 'PRIVACY_TOGGLE', enabled: true });
+  });
+
+  it('does NOT re-arm when the user deliberately turned the toggle OFF', () => {
+    toggle.checked = false;
+    toggle.disabled = false;
+
+    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0 });
+
+    expect(window.safeWsSend).not.toHaveBeenCalled();
+  });
+
+  it('does NOT re-arm when the toggle is locked/unusable (disabled)', () => {
+    // disabled covers both post-send lock and unsupported-language gating.
+    toggle.checked = true;
+    toggle.disabled = true;
+
+    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0 });
+
+    expect(window.safeWsSend).not.toHaveBeenCalled();
+  });
+
+  it('does NOT re-arm when the backend confirms ON (no mismatch)', () => {
+    toggle.checked = true;
+    toggle.disabled = false;
+
+    window.WsPrivacyHandler.handleState({ enabled: true, registry_count: 1 });
+
+    expect(window.safeWsSend).not.toHaveBeenCalled();
   });
 });

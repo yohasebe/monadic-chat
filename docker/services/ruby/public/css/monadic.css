@@ -6171,6 +6171,16 @@ i.fas.fa-bolt,
   background-color: rgba(110, 168, 254, 0.28);
 }
 
+/* Expanded vocabulary value (decision E :expand). Reads as normal inline text;
+   a faint dotted underline hints it is a resolved dynamic value. Not clickable. */
+.vocab-value {
+  border-bottom: 1px dotted currentColor;
+  opacity: 0.75;
+}
+.dark-theme .vocab-value {
+  opacity: 0.7;
+}
+
 /* Per-entity color palette (8 slots). Slot is computed in JS as
    hash(placeholder) % 8 so the same placeholder lands in the same slot
    across every card. Light-theme values aim for ~600-shade Tailwind

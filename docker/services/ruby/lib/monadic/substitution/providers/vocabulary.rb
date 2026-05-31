@@ -76,11 +76,22 @@ module Monadic
           transform_outside_code(text) { |seg| decorate_segment(seg, context) }
         end
 
-        # Map of each enabled token to its resolved value, for the frontend's
-        # decoration/hover/reveal layer. e.g. { "SHARED" => "/monadic/data" }.
+        # Map of each enabled token to its resolved value + display mode, for the
+        # frontend's per-token display layer (decision E). Shape:
+        #   { "SHARED" => { "value" => "/monadic/data", "display" => "decorate" },
+        #     "TODAY"  => { "value" => "2026-05-31",   "display" => "expand" } }
+        # String keys ("value"/"display") because this is JSON-serialized to the
+        # frontend. Tokens whose resolver yields nil are omitted entirely, so the
+        # literal ${TOKEN} is kept (e.g. ${LANG} when only "auto" is known). A
+        # missing :display defaults to :decorate (defensive).
         def resolved_map(context)
           enabled_entries.each_with_object({}) do |entry, acc|
-            acc[entry[:token]] = resolve(entry[:token], context)
+            value = resolve(entry[:token], context)
+            next if value.nil?
+            acc[entry[:token]] = {
+              "value" => value,
+              "display" => (entry[:display] || :decorate).to_s
+            }
           end
         end
 
@@ -95,6 +106,11 @@ module Monadic
             "These variables resolve automatically in file paths and tool calls. " \
             "Use them verbatim — do not substitute absolute paths yourself:\n" +
             lines.join("\n")
+        end
+
+        # @return [Array<String>] enabled `${TOKEN}` names (for Registry collision checks)
+        def token_names
+          enabled_token_names
         end
 
         private

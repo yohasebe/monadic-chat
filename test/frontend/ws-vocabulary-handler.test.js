@@ -1,14 +1,16 @@
 /**
  * @jest-environment jsdom
  *
- * Tests for ws-vocabulary-handler.js — the frontend layer that decorates
- * ${TOKEN} occurrences using the backend-shipped vocabulary_map, and opens the
- * resolved path in the file explorer (Electron) or copies it (browser).
+ * Tests for ws-vocabulary-handler.js — the frontend layer that transforms
+ * ${TOKEN} occurrences using the backend-shipped vocabulary_map. Per-token
+ * display mode (decision E): `decorate` keeps the literal symbol with hover +
+ * click-to-reveal; `expand` replaces it with the resolved value.
  */
 
 require('../../docker/services/ruby/public/js/monadic/ws-vocabulary-handler');
 
-const MAP = { SHARED: '/Users/me/monadic/data' };
+// New map shape: { TOKEN: { value, display } }.
+const MAP = { SHARED: { value: '/Users/me/monadic/data', display: 'decorate' } };
 
 function decorate(html, map = MAP) {
   const root = document.createElement('div');
@@ -22,8 +24,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('WsVocabularyHandler.decorateTokens', () => {
-  it('wraps ${SHARED} in a plain text node with path data + title', () => {
+describe('WsVocabularyHandler.decorateTokens — decorate mode', () => {
+  it('wraps ${SHARED} in a .vocab-token span with path data + title', () => {
     const root = decorate('<p>see ${SHARED}/x.txt now</p>');
     const span = root.querySelector('span.vocab-token');
     expect(span).not.toBeNull();
@@ -64,6 +66,55 @@ describe('WsVocabularyHandler.decorateTokens', () => {
     const root = decorate('<p>${SHARED}/x</p>', {});
     expect(root.querySelector('span.vocab-token')).toBeNull();
   });
+
+  it('treats a legacy plain-string map value as decorate', () => {
+    const root = decorate('<p>${SHARED}/x</p>', { SHARED: '/legacy/path' });
+    const span = root.querySelector('span.vocab-token');
+    expect(span).not.toBeNull();
+    expect(span.textContent).toBe('${SHARED}');
+    expect(span.getAttribute('data-vocab-path')).toBe('/legacy/path');
+    expect(root.querySelector('span.vocab-value')).toBeNull();
+  });
+});
+
+describe('WsVocabularyHandler.decorateTokens — expand mode', () => {
+  const EXPAND_MAP = {
+    TODAY: { value: '2026-05-31', display: 'expand' },
+    MODEL: { value: 'gpt-x', display: 'expand' }
+  };
+
+  it('replaces ${TODAY} with its value in a .vocab-value span titled by the token', () => {
+    const root = decorate('<p>today is ${TODAY} ok</p>', EXPAND_MAP);
+    const span = root.querySelector('span.vocab-value');
+    expect(span).not.toBeNull();
+    expect(span.textContent).toBe('2026-05-31');
+    expect(span.getAttribute('title')).toBe('${TODAY}');
+    // The literal symbol is gone from the text; the value replaces it.
+    expect(root.textContent).toBe('today is 2026-05-31 ok');
+    expect(root.querySelector('span.vocab-token')).toBeNull();
+  });
+
+  it('does not make .vocab-value clickable (no data-vocab-path)', () => {
+    const root = decorate('<p>${MODEL}</p>', EXPAND_MAP);
+    const span = root.querySelector('span.vocab-value');
+    expect(span.getAttribute('data-vocab-path')).toBeNull();
+  });
+
+  it('mixes decorate and expand tokens in one pass', () => {
+    const mixed = {
+      SHARED: { value: '/data', display: 'decorate' },
+      TODAY: { value: '2026-05-31', display: 'expand' }
+    };
+    const root = decorate('<p>${SHARED} on ${TODAY}</p>', mixed);
+    expect(root.querySelector('span.vocab-token').textContent).toBe('${SHARED}');
+    expect(root.querySelector('span.vocab-value').textContent).toBe('2026-05-31');
+  });
+
+  it('is idempotent — re-running does not reprocess a .vocab-value', () => {
+    const root = decorate('<p>${TODAY}</p>', EXPAND_MAP);
+    window.WsVocabularyHandler.decorateTokens(root, EXPAND_MAP);
+    expect(root.querySelectorAll('span.vocab-value').length).toBe(1);
+  });
 });
 
 describe('WsVocabularyHandler click action', () => {
@@ -83,5 +134,14 @@ describe('WsVocabularyHandler click action', () => {
     const root = decorate('<p>${SHARED}/x</p>');
     root.querySelector('span.vocab-token').click();
     expect(writeText).toHaveBeenCalledWith('/Users/me/monadic/data');
+  });
+
+  it('does not trigger reveal/clipboard when an expand .vocab-value is clicked', () => {
+    const revealPath = jest.fn();
+    window.electronAPI = { revealPath };
+    const root = decorate('<p>${TODAY}</p>', { TODAY: { value: '2026-05-31', display: 'expand' } });
+    root.querySelector('span.vocab-value').click();
+    expect(revealPath).not.toHaveBeenCalled();
+    delete window.electronAPI;
   });
 });

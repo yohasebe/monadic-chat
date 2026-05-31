@@ -228,21 +228,12 @@ module BaseVendorHelper
   # @return [Monadic::Substitution::Pipeline, nil] nil when the app exposes no
   #   vocabulary tokens (the common case).
   def substitution_pipeline_for(session, app_settings)
-    return nil unless session && session.respond_to?(:[])
     require_relative '../substitution/vocabulary'
     # Default-on policy: ${SHARED} is available to every app unless it opts out
-    # with `vocabulary false`. Vocabulary.tokens_for is the single source of
-    # truth shared with the system-prompt injector.
-    tokens = Monadic::Substitution::Vocabulary.tokens_for(app_settings)
-    return nil if tokens.empty?
-
-    session[:_substitution_pipeline] ||= begin
-      require_relative '../substitution/pipeline'
-      require_relative '../substitution/providers/vocabulary'
-      pipeline = Monadic::Substitution::Pipeline.new(session: session, app: nil)
-      pipeline.register(Monadic::Substitution::Providers::Vocabulary.new(tokens: tokens))
-      pipeline
-    end
+    # with `vocabulary false`. Vocabulary.build_pipeline is the single source of
+    # truth for both token selection (shared with the system-prompt injector)
+    # and pipeline construction (shared with the streaming handler attach site).
+    Monadic::Substitution::Vocabulary.build_pipeline(session, app_settings)
   end
 
   # Expand owned `${TOKEN}`s in a tool-call argument structure just before the

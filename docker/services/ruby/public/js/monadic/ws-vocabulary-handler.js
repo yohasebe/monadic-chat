@@ -1,17 +1,28 @@
-// Vocabulary token decoration layer.
+// Vocabulary token transformation layer.
 //
-// The backend ships a `vocabulary_map` ({ "SHARED": "/resolved/path", ... })
-// with the assistant message. This walker decorates each `${TOKEN}` occurrence
-// in the rendered discourse so the user sees what the shared symbol points to
-// (hover) and can open it in the OS file explorer (click). Unlike the privacy
-// unmask walker it deliberately decorates inside inline <code> too, because the
-// LLM tends to wrap paths in backticks — doing it post-render (on the DOM)
-// sidesteps the backtick-escape that suppresses backend decoration.
+// The backend ships a `vocabulary_map` with the assistant message, mapping each
+// owned `${TOKEN}` to a { value, display } object, e.g.
+//   { "SHARED": { value: "/resolved/path", display: "decorate" },
+//     "TODAY":  { value: "2026-05-31",     display: "expand" } }
+// This walker transforms each `${TOKEN}` occurrence in the rendered discourse
+// by per-token display mode (decision E):
+//   * decorate — keep the literal ${TOKEN} symbol visible, wrapped in a
+//                .vocab-token span with a hover tooltip + click-to-reveal
+//                (path-like values, e.g. ${SHARED}).
+//   * expand   — replace the token with its resolved VALUE, wrapped in a
+//                .vocab-value span whose title is the source token for
+//                traceability (value-like tokens, e.g. ${TODAY}).
+// A plain-string map value (legacy shape) is treated as decorate.
 //
-// Click: in the Electron app, `window.electronAPI.revealPath` opens the path in
-// Finder/Explorer/file-manager (cross-platform via the main-process `shell`).
-// In a plain browser there is no Electron bridge, so we fall back to copying the
-// resolved path to the clipboard.
+// Unlike the privacy unmask walker it deliberately works inside inline <code>
+// too, because the LLM tends to wrap paths in backticks — doing it post-render
+// (on the DOM) sidesteps the backtick-escape that suppresses backend output.
+//
+// Click (decorate spans only): in the Electron app,
+// `window.electronAPI.revealPath` opens the path in Finder/Explorer/file-manager
+// (cross-platform via the main-process `shell`). In a plain browser there is no
+// Electron bridge, so we fall back to copying the resolved path to the
+// clipboard. Expand (.vocab-value) spans are plain text and not clickable.
 (function () {
   "use strict";
 
@@ -20,11 +31,14 @@
   var TOKEN_RE_G = /\$\{([A-Z][A-Z_]*)\}/g;
 
   // Text inside these is left alone: block code (<pre>), scripts/styles, and
-  // anything already decorated. Inline <code> is intentionally NOT skipped.
+  // anything already transformed (a .vocab-token decorate span or a .vocab-value
+  // expand span). Inline <code> is intentionally NOT skipped.
   function isInsideSkippedAncestor(node, root) {
     var p = node.parentNode;
     while (p && p !== root) {
-      if (p.classList && p.classList.contains("vocab-token")) return true;
+      if (p.classList &&
+          (p.classList.contains("vocab-token") ||
+           p.classList.contains("vocab-value"))) return true;
       var tag = p.nodeName;
       if (tag === "PRE" || tag === "SCRIPT" || tag === "STYLE") return true;
       p = p.parentNode;
@@ -32,6 +46,7 @@
     return false;
   }
 
+  // decorate: keep the literal symbol, hover tooltip + click-to-reveal.
   function makeTokenSpan(doc, name, resolved) {
     var span = doc.createElement("span");
     span.className = "vocab-token";
@@ -44,8 +59,19 @@
     return span;
   }
 
-  // Replace every `${TOKEN}` in a text node (where map[TOKEN] exists) with a
-  // decorated span, splitting the node around each match.
+  // expand: replace the token with its resolved value; title carries the source
+  // token for traceability. Not clickable.
+  function makeValueSpan(doc, name, value) {
+    var span = doc.createElement("span");
+    span.className = "vocab-value";
+    // setAttribute escapes the value; textContent never injects markup.
+    span.setAttribute("title", "${" + name + "}");
+    span.textContent = value;
+    return span;
+  }
+
+  // Replace every owned `${TOKEN}` in a text node with the appropriate span
+  // (decorate symbol or expand value), splitting the node around each match.
   function splitAndWrap(textNode, map) {
     var text = textNode.nodeValue;
     if (!text || text.indexOf("${") === -1) return;
@@ -60,13 +86,21 @@
     TOKEN_RE_G.lastIndex = 0;
     while ((m = TOKEN_RE_G.exec(text)) !== null) {
       var name = m[1];
-      var resolved = map[name];
-      if (resolved === undefined || resolved === null) continue; // unowned token: leave literal
+      var entry = map[name];
+      if (entry === undefined || entry === null) continue; // unowned token: leave literal
+      // Tolerate a legacy plain-string value (treated as decorate).
+      var value = (typeof entry === "object") ? entry.value : entry;
+      var mode = (typeof entry === "object") ? entry.display : "decorate";
+      if (value === undefined || value === null) continue; // no resolved value: leave literal
       matched = true;
       if (m.index > pos) {
         fragment.appendChild(doc.createTextNode(text.substring(pos, m.index)));
       }
-      fragment.appendChild(makeTokenSpan(doc, name, String(resolved)));
+      if (mode === "expand") {
+        fragment.appendChild(makeValueSpan(doc, name, String(value)));
+      } else {
+        fragment.appendChild(makeTokenSpan(doc, name, String(value)));
+      }
       pos = m.index + m[0].length;
     }
     if (!matched) return;

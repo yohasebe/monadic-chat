@@ -591,9 +591,21 @@ module WebSocketHelper
           # Vocabulary: ship the token -> resolved-path map so the frontend can
           # decorate ${TOKEN}s in the rendered card (incl. inside markdown code),
           # show the resolved path on hover, and open it in the file explorer on
-          # click. Independent of privacy; no-op when no app exposes vocabulary.
-          if session[:_substitution_pipeline]
-            vocabulary_map = session[:_substitution_pipeline].vocabulary_map
+          # click. Independent of privacy; no-op when an app opts out of
+          # vocabulary (`vocabulary false`).
+          #
+          # Build-if-absent: the pipeline is otherwise created lazily only in
+          # the tool-call path (substitution_pipeline_for), so pure-text turns
+          # and providers that did not invoke a tool this turn would ship no map
+          # and tokens would render literally. WebSocketHelper does not mix in
+          # BaseVendorHelper, so we call the shared builder module method here.
+          app_name = session.dig(:parameters, "app_name")
+          app_settings = (defined?(APPS) && app_name) ? APPS[app_name]&.settings : nil
+          require_relative '../../substitution/vocabulary'
+          vocab_pipeline = session[:_substitution_pipeline] ||
+                           Monadic::Substitution::Vocabulary.build_pipeline(session, app_settings)
+          if vocab_pipeline
+            vocabulary_map = vocab_pipeline.vocabulary_map
             if vocabulary_map && !vocabulary_map.empty?
               response["choices"][0]["message"]["vocabulary_map"] = vocabulary_map
             end

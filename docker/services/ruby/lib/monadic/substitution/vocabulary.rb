@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../utils/environment'
+require "date"
 
 module Monadic
   module Substitution
@@ -27,14 +28,53 @@ module Monadic
       #                  constant, never `.inspect`-serialized (only the plain
       #                  symbol list in settings[:vocabulary] is), so procs here
       #                  are safe.
+      #   :display     — per-token display behavior (decision E) consumed by the
+      #                  frontend decoration walker:
+      #                    :decorate — keep the literal ${TOKEN} symbol visible
+      #                                with a hover tooltip + click-to-reveal
+      #                                (path-like values, e.g. ${SHARED}).
+      #                    :expand   — replace the token with its resolved VALUE
+      #                                in the rendered output (value-like tokens,
+      #                                e.g. ${TODAY}/${MODEL}/${APP}/${LANG}).
+      #                  A missing :display is treated as :decorate by every read
+      #                  point (defensive default).
       BUILTINS = {
         shared: {
           token: "SHARED",
           description: "The shared data folder synced between you and the user. " \
                        "Refer to files there as ${SHARED}/<name>.",
+          display: :decorate,
           resolve: ->(_session) { Monadic::Utils::Environment.shared_volume }
+        },
+        today: {
+          token: "TODAY",
+          description: "Today's date in ISO 8601 form (YYYY-MM-DD).",
+          display: :expand,
+          resolve: ->(_session) { Date.today.to_s }
+        },
+        model: {
+          token: "MODEL",
+          description: "The AI model currently answering this conversation.",
+          display: :expand,
+          resolve: ->(session) { Monadic::Substitution::Vocabulary.current_model(session) }
+        },
+        app: {
+          token: "APP",
+          description: "The display name of the app currently in use.",
+          display: :expand,
+          resolve: ->(session) { Monadic::Substitution::Vocabulary.current_app_display_name(session) }
+        },
+        lang: {
+          token: "LANG",
+          description: "The language you should reply in for this conversation.",
+          display: :expand,
+          resolve: ->(session) { Monadic::Substitution::Vocabulary.conversation_language(session) }
         }
       }.freeze
+
+      # Tokens that are ON by default for every app (universal interface
+      # variables). Apps opt out entirely with `vocabulary false`.
+      DEFAULT_TOKENS = %i[shared today model app lang].freeze
 
       module_function
 
@@ -68,7 +108,35 @@ module Monadic
           return [] if enabled == false
         end
         declared = (vocab && (vocab[:tokens] || vocab["tokens"])) || []
-        ([:shared] + declared.map(&:to_sym)).uniq.select { |t| builtin?(t) }
+        (DEFAULT_TOKENS + declared.map(&:to_sym)).uniq.select { |t| builtin?(t) }
+      end
+
+      # Build (or reuse) the session-scoped Substitution::Pipeline carrying the
+      # Vocabulary provider. This is the single source of truth for *how* the
+      # pipeline is constructed: both the vendor-helper mixin
+      # (BaseVendorHelper#substitution_pipeline_for, used in tool-call paths)
+      # and the WebSocket streaming handler's display-decoration attach site
+      # call here, so the build logic lives in exactly one place.
+      #
+      # Memoizes into session[:_substitution_pipeline]. Returns nil when the
+      # app exposes no vocabulary tokens (opted out via `vocabulary false`); in
+      # that case the ivar is left untouched so opt-out apps stay fully off.
+      #
+      # @param session [Hash, #[]] session-like store
+      # @param app_settings [Hash, nil] symbol- or string-keyed app settings
+      # @return [Monadic::Substitution::Pipeline, nil]
+      def build_pipeline(session, app_settings = nil)
+        return nil unless session && session.respond_to?(:[])
+        return session[:_substitution_pipeline] if session[:_substitution_pipeline]
+
+        tokens = tokens_for(app_settings)
+        return nil if tokens.empty?
+
+        require_relative "pipeline"
+        require_relative "providers/vocabulary"
+        pipeline = Pipeline.new(session: session, app: nil)
+        pipeline.register(Providers::Vocabulary.new(tokens: tokens))
+        session[:_substitution_pipeline] = pipeline
       end
 
       # Look up a built-in by its `${TOKEN}` name (e.g. "SHARED"). Used by the
@@ -77,6 +145,48 @@ module Monadic
       # @return [Hash, nil] the metadata entry, or nil if no such token
       def entry_for_token(token)
         BUILTINS.each_value.find { |meta| meta[:token] == token }
+      end
+
+      # Helpers backing the stateful built-in resolvers. Defensive: any missing
+      # piece yields nil so the pipeline keeps the literal ${TOKEN} (failure
+      # mode :open).
+
+      # @param session [Hash]
+      # @return [String, nil]
+      def current_model(session)
+        params = session_params(session)
+        params && (params["model"] || params[:model])
+      end
+
+      # @param session [Hash]
+      # @return [String, nil] human-readable display name of the active app
+      def current_app_display_name(session)
+        params = session_params(session)
+        app_name = params && (params["app_name"] || params[:app_name])
+        return nil unless app_name
+        if defined?(APPS) && (app = APPS[app_name]) && app.respond_to?(:settings)
+          app.settings["display_name"] || app.settings[:display_name] || app_name
+        else
+          app_name
+        end
+      end
+
+      # @param session [Hash]
+      # @return [String, nil] conversation language, falling back to UI language;
+      #   nil when only "auto" is known (so the literal ${LANG} is kept)
+      def conversation_language(session)
+        params = session_params(session)
+        return nil unless params
+        lang = params["conversation_language"] || params[:conversation_language]
+        lang = nil if lang == "auto"
+        lang ||= params["ui_language"] || params[:ui_language]
+        lang
+      end
+
+      # @return [Hash, nil]
+      def session_params(session)
+        return nil unless session.respond_to?(:[])
+        session[:parameters] || session["parameters"]
       end
     end
   end

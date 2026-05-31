@@ -175,9 +175,31 @@ RSpec.describe Monadic::Substitution::Providers::Vocabulary do
     end
   end
 
-  describe "#resolved_map (frontend decoration/reveal data)" do
-    it "maps each enabled token to its resolved value" do
-      expect(provider.resolved_map(context)).to eq("SHARED" => "/monadic/data")
+  describe "#resolved_map (frontend per-token display data, decision E)" do
+    it "maps each enabled token to its value + display mode" do
+      expect(provider.resolved_map(context))
+        .to eq("SHARED" => { "value" => "/monadic/data", "display" => "decorate" })
+    end
+
+    it "tags ${SHARED} as decorate (path-like)" do
+      expect(provider.resolved_map(context)["SHARED"]["display"]).to eq("decorate")
+    end
+
+    it "tags value-like tokens (${TODAY}/${MODEL}) as expand" do
+      stateful_session = { parameters: { "model" => "gpt-x" } }
+      stateful_context = Monadic::Substitution::Context.new(session: stateful_session)
+      map = provider(tokens: %i[model today]).resolved_map(stateful_context)
+      expect(map["TODAY"]["display"]).to eq("expand")
+      expect(map["MODEL"]["display"]).to eq("expand")
+    end
+
+    it "omits a token whose resolver yields nil (kept literal)" do
+      # ${LANG} resolves to nil when only "auto" is known.
+      auto_session = { parameters: { "conversation_language" => "auto" } }
+      auto_context = Monadic::Substitution::Context.new(session: auto_session)
+      map = provider(tokens: %i[lang shared]).resolved_map(auto_context)
+      expect(map).not_to have_key("LANG")
+      expect(map).to have_key("SHARED")
     end
 
     it "is empty when the app exposes no tokens" do
@@ -189,12 +211,44 @@ RSpec.describe Monadic::Substitution::Providers::Vocabulary do
     it "merges the Vocabulary provider's resolved map" do
       pipeline = Monadic::Substitution::Pipeline.new(session: session)
       pipeline.register(provider)
-      expect(pipeline.vocabulary_map).to eq("SHARED" => "/monadic/data")
+      expect(pipeline.vocabulary_map)
+        .to eq("SHARED" => { "value" => "/monadic/data", "display" => "decorate" })
     end
 
     it "is empty for a pipeline with no map-providing providers" do
       pipeline = Monadic::Substitution::Pipeline.new(session: session)
       expect(pipeline.vocabulary_map).to eq({})
+    end
+  end
+
+  describe "stateful token resolution" do
+    it "resolves ${MODEL} and ${TODAY} from the session parameters in tool args" do
+      stateful_session = { parameters: { "model" => "gpt-x" } }
+      stateful_context = Monadic::Substitution::Context.new(session: stateful_session)
+      p = provider(tokens: %i[model today])
+      today = Date.today.to_s
+      out = p.on_tool_invoke("t", { "note" => "${MODEL} on ${TODAY}" }, stateful_context)
+      expect(out).to eq("note" => "gpt-x on #{today}")
+    end
+
+    it "resolves ${MODEL} and ${TODAY} in resolved_map" do
+      stateful_session = { parameters: { "model" => "gpt-x" } }
+      stateful_context = Monadic::Substitution::Context.new(session: stateful_session)
+      p = provider(tokens: %i[model today])
+      expect(p.resolved_map(stateful_context)).to eq(
+        "MODEL" => { "value" => "gpt-x", "display" => "expand" },
+        "TODAY" => { "value" => Date.today.to_s, "display" => "expand" }
+      )
+    end
+  end
+
+  describe "#token_names" do
+    it "returns the enabled token names" do
+      expect(provider(tokens: %i[model today]).token_names).to contain_exactly("MODEL", "TODAY")
+    end
+
+    it "is empty when no tokens are enabled" do
+      expect(provider(tokens: []).token_names).to eq([])
     end
   end
 end

@@ -539,14 +539,16 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return('/monadic/data')
     end
 
-    it 'resolves [:shared] for an explicitly-configured app' do
+    it 'resolves the default token set for an explicitly-configured app' do
       stub_const('APPS', { 'VocabApp' => vocab_app })
-      expect(described_class.vocabulary_tokens_for(session)).to eq([:shared])
+      expect(described_class.vocabulary_tokens_for(session))
+        .to eq(Monadic::Substitution::Vocabulary::DEFAULT_TOKENS)
     end
 
-    it 'defaults ${SHARED} ON for an app with no vocabulary block' do
+    it 'defaults the universal tokens ON for an app with no vocabulary block' do
       stub_const('APPS', { 'PlainApp' => Struct.new(:settings).new({}) })
-      expect(described_class.vocabulary_tokens_for(parameters: { 'app_name' => 'PlainApp' })).to eq([:shared])
+      expect(described_class.vocabulary_tokens_for(parameters: { 'app_name' => 'PlainApp' }))
+        .to eq(Monadic::Substitution::Vocabulary::DEFAULT_TOKENS)
     end
 
     it 'returns [] for an app that opted out with vocabulary false' do

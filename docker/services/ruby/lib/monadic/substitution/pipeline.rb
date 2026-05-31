@@ -2,6 +2,7 @@
 
 require_relative "provider"
 require_relative "context"
+require_relative "registry"
 
 module Monadic
   module Substitution
@@ -48,6 +49,7 @@ module Monadic
           raise ArgumentError, "Expected Substitution::Provider, got #{provider.class}"
         end
         raise ArgumentError, "Provider already registered: #{provider.name}" if @providers.include?(provider)
+        Registry.assert_no_collision!(@providers, provider)
         @providers << provider
         self
       end

@@ -3917,14 +3917,27 @@ ipcMain.on('open-external-url', (_event, url) => {
 ipcMain.on('reveal-path', (_event, targetPath) => {
   try {
     if (typeof targetPath !== 'string' || targetPath.trim() === '') return;
+
+    // Dual-mode translation: in production the Ruby backend runs INSIDE the
+    // container, so ${SHARED} resolves to the container path (/monadic/data).
+    // The file manager runs on the HOST, where the same data lives at the
+    // mounted ~/monadic/data. Map the container shared prefix back to the host
+    // mount. Dev-mode paths are already host paths and pass through untouched.
+    let resolved = targetPath;
+    const containerShared = '/monadic/data';
+    if (resolved === containerShared || resolved.startsWith(containerShared + '/')) {
+      const hostShared = path.join(os.homedir(), 'monadic', 'data');
+      resolved = path.join(hostShared, resolved.slice(containerShared.length));
+    }
+
     let stat = null;
-    try { stat = fs.statSync(targetPath); } catch (_) { stat = null; }
+    try { stat = fs.statSync(resolved); } catch (_) { stat = null; }
     if (stat && stat.isDirectory()) {
-      shell.openPath(targetPath);
+      shell.openPath(resolved);
     } else {
       // File (or non-existent): showItemInFolder opens the parent and selects
       // the item when present.
-      shell.showItemInFolder(targetPath);
+      shell.showItemInFolder(resolved);
     }
   } catch (err) {
     console.warn('[reveal-path] failed:', err && err.message);

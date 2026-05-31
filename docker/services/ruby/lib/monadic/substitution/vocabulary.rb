@@ -69,6 +69,23 @@ module Monadic
           description: "The language you should reply in for this conversation.",
           display: :expand,
           resolve: ->(session) { Monadic::Substitution::Vocabulary.conversation_language(session) }
+        },
+        # Session-state tokens (NOT in DEFAULT_TOKENS): an app opts in via
+        # `vocabulary do; use :last_image; end` so the variable only appears
+        # where it is meaningful (image generators, Jupyter). The plumbing that
+        # populates the state already exists (image tools save "last_images",
+        # Jupyter tools save "notebook_filename"); these resolvers only read it.
+        last_image: {
+          token: "LAST_IMAGE",
+          description: "The filename of the most recently generated image in this session.",
+          display: :expand,
+          resolve: ->(session) { Monadic::Substitution::Vocabulary.last_generated_image(session) }
+        },
+        notebook: {
+          token: "NOTEBOOK",
+          description: "The filename of the Jupyter notebook currently in use.",
+          display: :expand,
+          resolve: ->(session) { Monadic::Substitution::Vocabulary.current_notebook(session) }
         }
       }.freeze
 
@@ -216,6 +233,50 @@ module Monadic
         lang = nil if lang == "auto"
         lang ||= params["ui_language"] || params[:ui_language]
         lang
+      end
+
+      # @param session [Hash]
+      # @return [String, nil] basename of the most recently generated image in
+      #   this session, or nil. Reads the unified monadic_state "last_images"
+      #   slot for the active app first (where all image generators save), then
+      #   falls back to the provider-specific legacy single-image keys.
+      def last_generated_image(session)
+        params = session_params(session)
+        app_name = params && (params["app_name"] || params[:app_name])
+        ms = monadic_state(session)
+        if app_name
+          entry = ms[app_name] || ms[app_name.to_s]
+          slot = entry && (entry[:last_images] || entry["last_images"])
+          data = slot && (slot[:data] || slot["data"])
+          first = data.is_a?(Array) ? data.first : nil
+          return File.basename(first.to_s) if first && !first.to_s.empty?
+        end
+        legacy = session[:openai_last_image] || session[:grok_last_image] ||
+                 session[:gemini3_last_image]
+        legacy && !legacy.to_s.empty? ? File.basename(legacy.to_s) : nil
+      end
+
+      # @param session [Hash]
+      # @return [String, nil] filename of the current Jupyter notebook, or nil.
+      #   Reads the active app's monadic_state "context" slot, where the Jupyter
+      #   tools persist "notebook_filename" on create/open.
+      def current_notebook(session)
+        params = session_params(session)
+        app_name = params && (params["app_name"] || params[:app_name])
+        return nil unless app_name
+        ms = monadic_state(session)
+        entry = ms[app_name] || ms[app_name.to_s]
+        slot = entry && (entry[:context] || entry["context"])
+        data = slot && (slot[:data] || slot["data"])
+        return nil unless data
+        name = data["notebook_filename"] || data[:notebook_filename]
+        name && !name.to_s.empty? ? name.to_s : nil
+      end
+
+      # @return [Hash] the monadic_state namespace (symbol/string tolerant), or {}
+      def monadic_state(session)
+        return {} unless session.respond_to?(:[])
+        session[:monadic_state] || session["monadic_state"] || {}
       end
 
       # @return [Hash, nil]

@@ -176,10 +176,41 @@
     });
   }
 
+  // Compute the DOM-derived value tokens (MODEL/APP/LANG) from the current UI
+  // controls and push them into the panel immediately — used on app/model
+  // switch so the panel reflects the new selection before the next message
+  // round-trip. ${TODAY}/${SHARED} are static (set at load); ${LANG}=="auto"
+  // is left to the server (it needs the UI language). updateValues only touches
+  // existing rows, so tokens absent from the panel are silent no-ops.
+  function liveValuesFromDom(doc) {
+    var out = {};
+    var modelEl = doc.getElementById("model");
+    if (modelEl && modelEl.value) out.MODEL = modelEl.value;
+
+    var appsEl = doc.getElementById("apps");
+    var apps = (typeof window !== "undefined" && window.apps) ? window.apps : {};
+    if (appsEl && appsEl.value && apps[appsEl.value]) {
+      var dn = apps[appsEl.value]["display_name"];
+      if (dn) out.APP = dn;
+    }
+
+    var langEl = doc.getElementById("conversation-language");
+    if (langEl && langEl.value && langEl.value !== "auto") out.LANG = langEl.value;
+
+    return out;
+  }
+
+  function updateLiveValues(docArg) {
+    var doc = docArg || (typeof document !== "undefined" ? document : null);
+    if (!doc) return;
+    updateValues(liveValuesFromDom(doc), doc);
+  }
+
   var api = {
     render: render,
     renderForApp: renderForApp,
-    updateValues: updateValues
+    updateValues: updateValues,
+    updateLiveValues: updateLiveValues
   };
 
   if (typeof window !== "undefined") {

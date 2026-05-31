@@ -40,6 +40,17 @@ For example, `${TODAY}` resolves to a date such as `2026-05-31`, and `${MODEL}` 
 
 Like `${SHARED}`, these variables are available by default and can be disabled for a specific app by setting `vocabulary false` in the app definition.
 
+### App-specific variables
+
+A few variables are available only in the apps where they are meaningful, rather than in every conversation:
+
+| Variable | Available in | Resolves to |
+| --- | --- | --- |
+| `${LAST_IMAGE}` | Image Generator | The filename of the most recently generated image in the session. |
+| `${NOTEBOOK}` | Jupyter Notebook | The filename of the notebook currently in use. |
+
+These appear in the Available Variables panel only while you are in the corresponding app. Like the universal variables, they expand to their value in tool calls and displayed text; before anything has been generated they resolve to nothing, so the literal token is kept.
+
 ## How Variables Are Shown
 
 Interface variables fall into two groups, and they are shown differently in the assistant's rendered response:

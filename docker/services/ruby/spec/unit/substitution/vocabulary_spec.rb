@@ -31,6 +31,23 @@ RSpec.describe Monadic::Substitution::Vocabulary do
         expect(meta).to include(:token, :description)
       end
     end
+
+    it "every entry carries a session-taking :resolve proc" do
+      described_class::BUILTINS.each_value do |meta|
+        expect(meta[:resolve]).to respond_to(:call)
+        expect(meta[:resolve].arity).to eq(1) # takes the session hash (decision D)
+      end
+    end
+  end
+
+  describe ".entry_for_token" do
+    it "looks up a built-in by its ${TOKEN} name" do
+      expect(described_class.entry_for_token("SHARED")).to eq(described_class::BUILTINS[:shared])
+    end
+
+    it "returns nil for an unknown token" do
+      expect(described_class.entry_for_token("NOPE")).to be_nil
+    end
   end
 
   describe ".builtin?" do

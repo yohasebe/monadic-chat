@@ -187,6 +187,14 @@ function handleHtml(data) {
       }
     }, 0);
   }
+
+  // Refresh the "Available Variables" panel with the per-turn resolved values
+  // (e.g. ${MODEL}/${APP}/${LANG} are empty at app-load but resolve now).
+  if (vocabularyMap && Object.keys(vocabularyMap).length &&
+      window.VocabularyPanel &&
+      typeof window.VocabularyPanel.updateValues === 'function') {
+    window.VocabularyPanel.updateValues(vocabularyMap);
+  }
 }
 
 /**

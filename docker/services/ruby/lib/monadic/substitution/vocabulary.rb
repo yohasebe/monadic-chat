@@ -147,6 +147,41 @@ module Monadic
         BUILTINS.each_value.find { |meta| meta[:token] == token }
       end
 
+      # Structured description of the vocabulary tokens enabled for an app, for
+      # the Web UI "Available Variables" panel. This is the single source of
+      # truth for that panel: the enabled set comes from #tokens_for, the
+      # descriptions/display modes from BUILTINS, and the resolved values from
+      # the same resolvers used at runtime (session-dependent). A nil value
+      # means "unavailable in this context" — the token is still listed so the
+      # user knows it exists; the value is simply omitted by the frontend.
+      #
+      # Defensive: a resolver that raises yields a nil value rather than
+      # breaking the panel.
+      #
+      # @param session [Hash, #[]] session-like store (resolvers read params)
+      # @param app_settings [Hash, nil] symbol- or string-keyed app settings
+      # @return [Array<Hash>] e.g.
+      #   [{ token: "TODAY", description: "...", display: "expand", value: "2026-05-31" }, ...]
+      def describe_for(session, app_settings)
+        tokens_for(app_settings).filter_map do |name|
+          meta = BUILTINS[name]
+          next nil unless meta
+
+          value = begin
+            meta[:resolve].call(session)
+          rescue StandardError
+            nil
+          end
+
+          {
+            token: meta[:token],
+            description: meta[:description],
+            display: (meta[:display] || :decorate).to_s,
+            value: value
+          }
+        end
+      end
+
       # Helpers backing the stateful built-in resolvers. Defensive: any missing
       # piece yields nil so the pipeline keeps the literal ${TOKEN} (failure
       # mode :open).

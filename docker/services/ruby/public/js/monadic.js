@@ -2585,6 +2585,9 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("math-badge"));
     }
 
+    if (window.VocabularyPanel && typeof window.VocabularyPanel.renderForApp === 'function') {
+      window.VocabularyPanel.renderForApp(appValue);
+    }
     if (typeof window.setBaseAppDescription === 'function') {
       window.setBaseAppDescription(apps[appValue]["description"] || "");
     } else {

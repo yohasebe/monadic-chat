@@ -6147,6 +6147,30 @@ i.fas.fa-bolt,
   background-color: rgba(255, 255, 255, 0.14);
 }
 
+/* Vocabulary ${TOKEN} decoration: clickable, opens the resolved path in the
+   OS file explorer (Electron) or copies it (browser). */
+.vocab-token {
+  font-family: var(--bs-font-monospace, monospace);
+  background-color: rgba(13, 110, 253, 0.10);
+  border-bottom: 1px dashed rgba(13, 110, 253, 0.7);
+  padding: 0 2px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.vocab-token:hover,
+.vocab-token:focus {
+  background-color: rgba(13, 110, 253, 0.20);
+  outline: none;
+}
+.dark-theme .vocab-token {
+  background-color: rgba(110, 168, 254, 0.16);
+  border-bottom-color: rgba(110, 168, 254, 0.8);
+}
+.dark-theme .vocab-token:hover,
+.dark-theme .vocab-token:focus {
+  background-color: rgba(110, 168, 254, 0.28);
+}
+
 /* Per-entity color palette (8 slots). Slot is computed in JS as
    hash(placeholder) % 8 so the same placeholder lands in the same slot
    across every card. Light-theme values aim for ~600-shade Tailwind

@@ -174,6 +174,13 @@ module WebSocketHelper
           new_data["privacy_known_entities"] = privacy_known_entities
         end
 
+        # Forward the vocabulary token -> resolved-path map for the frontend's
+        # decoration / hover / reveal-in-explorer layer.
+        vocabulary_map = content["message"] && content["message"]["vocabulary_map"]
+        if vocabulary_map && !vocabulary_map.empty?
+          new_data["vocabulary_map"] = vocabulary_map
+        end
+
         # Respect the user's "Show Thinking" toggle: when disabled, skip
         # attaching thinking to the final assistant card so the collapsed
         # "Thinking Process" panel doesn't render. Some providers (e.g. most

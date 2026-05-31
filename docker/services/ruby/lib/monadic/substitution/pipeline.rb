@@ -90,6 +90,18 @@ module Monadic
         nil
       end
 
+      # Merged token => resolved-value map across providers that expose one
+      # (currently Vocabulary). Shipped to the frontend for the decoration /
+      # hover / reveal-in-explorer layer. Empty hash when no provider resolves.
+      # @return [Hash{String=>String}]
+      def vocabulary_map
+        @providers.each_with_object({}) do |provider, acc|
+          next unless provider.respond_to?(:resolved_map)
+          map = safely(provider) { provider.resolved_map(context) }
+          acc.merge!(map) if map.is_a?(Hash)
+        end
+      end
+
       # @return [Substitution::Context] memoized per Pipeline instance
       def context
         @context ||= Context.new(session: @session, app: @app)

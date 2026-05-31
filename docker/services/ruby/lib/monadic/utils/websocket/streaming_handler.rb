@@ -577,15 +577,6 @@ module WebSocketHelper
             state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
             send_or_broadcast(state_payload.to_json, ws_session_id)
           end
-          # Vocabulary: decorate ${TOKEN}s (e.g. ${SHARED}) for display — keep
-          # the symbol, wrap it in <code> with a hover of the resolved path.
-          # Own guard (independent of privacy) so it runs when privacy is off.
-          # Display-only: the TTS buffer was built separately above and is not
-          # touched here. Runs after privacy restore; the namespaces are
-          # disjoint so ${SHARED} survives restoration untouched.
-          if session[:_substitution_pipeline]
-            raw_content = session[:_substitution_pipeline].process_output(raw_content)
-          end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
           # Fix mount paths in the same way
@@ -596,6 +587,16 @@ module WebSocketHelper
           # can broadcast it to the UI for the unmask-highlight layer.
           if known_entities && !known_entities.empty?
             response["choices"][0]["message"]["privacy_known_entities"] = known_entities
+          end
+          # Vocabulary: ship the token -> resolved-path map so the frontend can
+          # decorate ${TOKEN}s in the rendered card (incl. inside markdown code),
+          # show the resolved path on hover, and open it in the file explorer on
+          # click. Independent of privacy; no-op when no app exposes vocabulary.
+          if session[:_substitution_pipeline]
+            vocabulary_map = session[:_substitution_pipeline].vocabulary_map
+            if vocabulary_map && !vocabulary_map.empty?
+              response["choices"][0]["message"]["vocabulary_map"] = vocabulary_map
+            end
           end
 
           # Note: TTS for Session State apps is handled via tts_target feature

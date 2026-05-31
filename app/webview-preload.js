@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resetWebUI: () => ipcRenderer.send('reset-web-ui'),
   // Open noVNC viewer window
   openNoVNC: () => ipcRenderer.send('open-novnc'),
+  // Reveal a path (vocabulary ${TOKEN} target) in the OS file explorer.
+  // Cross-platform via the main-process `shell`. No-op for empty input.
+  revealPath: (p) => { if (p) ipcRenderer.send('reveal-path', String(p)); },
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
   // Clipboard access

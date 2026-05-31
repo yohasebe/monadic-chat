@@ -65,9 +65,23 @@ module Monadic
         end
 
         # Decorate owned tokens for display without expanding them.
+        #
+        # NOTE: kept for the provider contract, but no longer on the live path.
+        # Phase 6 ships #resolved_map to the frontend, which decorates the
+        # rendered DOM (so it works inside markdown `<code>` spans, where the
+        # LLM tends to put paths, and supports click-to-reveal). Backend HTML
+        # injection here could not reach tokens inside backtick code.
         def on_output_render(text, context)
           return text unless text.is_a?(String)
           transform_outside_code(text) { |seg| decorate_segment(seg, context) }
+        end
+
+        # Map of each enabled token to its resolved value, for the frontend's
+        # decoration/hover/reveal layer. e.g. { "SHARED" => "/monadic/data" }.
+        def resolved_map(context)
+          enabled_entries.each_with_object({}) do |entry, acc|
+            acc[entry[:token]] = resolve(entry[:token], context)
+          end
         end
 
         # Describe the exposed variables so the model uses them verbatim rather

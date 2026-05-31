@@ -3910,6 +3910,27 @@ ipcMain.on('open-external-url', (_event, url) => {
   }
 });
 
+// Reveal a vocabulary ${TOKEN} target in the OS file explorer (Finder /
+// Explorer / file-manager), cross-platform via Electron `shell`. A directory
+// opens directly; a file is revealed in its containing folder. Best-effort:
+// invalid/missing paths are ignored rather than surfaced as errors.
+ipcMain.on('reveal-path', (_event, targetPath) => {
+  try {
+    if (typeof targetPath !== 'string' || targetPath.trim() === '') return;
+    let stat = null;
+    try { stat = fs.statSync(targetPath); } catch (_) { stat = null; }
+    if (stat && stat.isDirectory()) {
+      shell.openPath(targetPath);
+    } else {
+      // File (or non-existent): showItemInFolder opens the parent and selects
+      // the item when present.
+      shell.showItemInFolder(targetPath);
+    }
+  } catch (err) {
+    console.warn('[reveal-path] failed:', err && err.message);
+  }
+});
+
 
 // Handle immediate UI language change
 ipcMain.on('change-ui-language', (_event, language) => {

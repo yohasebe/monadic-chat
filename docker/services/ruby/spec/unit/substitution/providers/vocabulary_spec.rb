@@ -174,4 +174,27 @@ RSpec.describe Monadic::Substitution::Providers::Vocabulary do
       expect(provider(tokens: []).system_prompt_addendum(context)).to be_nil
     end
   end
+
+  describe "#resolved_map (frontend decoration/reveal data)" do
+    it "maps each enabled token to its resolved value" do
+      expect(provider.resolved_map(context)).to eq("SHARED" => "/monadic/data")
+    end
+
+    it "is empty when the app exposes no tokens" do
+      expect(provider(tokens: []).resolved_map(context)).to eq({})
+    end
+  end
+
+  describe "Pipeline#vocabulary_map integration" do
+    it "merges the Vocabulary provider's resolved map" do
+      pipeline = Monadic::Substitution::Pipeline.new(session: session)
+      pipeline.register(provider)
+      expect(pipeline.vocabulary_map).to eq("SHARED" => "/monadic/data")
+    end
+
+    it "is empty for a pipeline with no map-providing providers" do
+      pipeline = Monadic::Substitution::Pipeline.new(session: session)
+      expect(pipeline.vocabulary_map).to eq({})
+    end
+  end
 end

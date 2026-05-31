@@ -247,6 +247,29 @@ module MonadicDSL
     state.settings[:tools] = merge_tools_for_provider(provider, existing, new_tools)
   end
 
+  def self.file_operations_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :file_operations }
+  end
+
+  # After the user's MDSL block runs, ensure shared-folder read/write is wired
+  # into EVERY app so `${SHARED}` is actionable everywhere (Phase 9) — file
+  # interaction (editing local images, supplying source text, saving
+  # transcripts) is broadly useful and reflects Monadic Chat's Docker shared-
+  # folder integration. Unlike library_search this is unconditional: no
+  # per-app eligibility and no opt-out. Non-tool-capable models simply never
+  # receive the tools (the vendor helpers gate on `tool_capability`), so this
+  # is a no-op for them rather than an error. Visibility "always" matches the
+  # apps that already import :file_operations.
+  def self.inject_file_operations!(state)
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    tool_config.import_shared_tools(:file_operations, visibility: "always")
+    new_tools = tool_config.to_h
+
+    existing = state.settings[:tools]
+    state.settings[:tools] = merge_tools_for_provider(provider, existing, new_tools)
+  end
+
   def self.merge_tools_for_provider(provider, existing, additions)
     return additions if existing.nil? || (existing.respond_to?(:empty?) && existing.empty?)
     if provider == :gemini
@@ -293,6 +316,16 @@ module MonadicDSL
         inject_library_search!(state)
       rescue StandardError => e
         puts "[DSL] library_search auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    # Universal: every app gets shared-folder read/write so ${SHARED} works
+    # everywhere. Dedupe against the apps that already import :file_operations.
+    unless file_operations_already_imported?(state)
+      begin
+        inject_file_operations!(state)
+      rescue StandardError => e
+        puts "[DSL] file_operations auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       end
     end
 

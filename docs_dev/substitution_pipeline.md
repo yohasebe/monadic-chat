@@ -169,5 +169,12 @@ Live. `${SHARED}` is **on by default for every app** — the policy lives in
 `Monadic::Substitution::Vocabulary.tokens_for(app_settings)`, the single source
 of truth consulted by both the pipeline builder and the system-prompt injector.
 An app opts out with `vocabulary false` in its MDSL. There is no per-app opt-in
-to add; `vocabulary do … end` is reserved for future custom tokens. Public
-end-user docs (`docs/`, `docs/ja/`) are the remaining follow-up.
+to add; `vocabulary do … end` is reserved for future custom tokens.
+
+`${SHARED}` is also **actionable** everywhere: `MonadicDSL.inject_file_operations!`
+(dsl.rb, mirrors `inject_library_search!`) gives every app the shared-folder
+`read/write/list` tools by default (no exclusions). Consequence: a tool-capable
+orchestration model is the baseline — non-tool-capable models simply never
+receive the tools (vendor helpers gate on `tool_capability`), consistent with
+the existing "tool calling required" stance. Public end-user docs (`docs/`,
+`docs/ja/`) are the remaining follow-up.

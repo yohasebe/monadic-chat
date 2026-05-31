@@ -166,5 +166,11 @@ Live。`${SHARED}` は**全アプリで既定 ON**。このポリシーは
 `Monadic::Substitution::Vocabulary.tokens_for(app_settings)`（パイプライン
 ビルダーと system-prompt injector の双方が参照する単一の真実源）にある。アプリは
 MDSL の `vocabulary false` で opt-out する。追加のための per-app opt-in は無く、
-`vocabulary do … end` は将来のカスタムトークン用に予約。ユーザー向け公開
-ドキュメント（`docs/`, `docs/ja/`）が残りのフォローアップ。
+`vocabulary do … end` は将来のカスタムトークン用に予約。
+
+`${SHARED}` は全アプリで **actionable** でもある: `MonadicDSL.inject_file_operations!`
+（dsl.rb、`inject_library_search!` を踏襲）が全アプリに共有フォルダの
+`read/write/list` ツールを既定付与する（除外なし）。帰結として、orchestration
+モデルは tool-capable が前提 — 非 tool-capable モデルにはそもそもツールが送られない
+（vendor helper が `tool_capability` で gate）ため、既存の「tool calling 前提」方針と
+整合。ユーザー向け公開ドキュメント（`docs/`, `docs/ja/`）が残りのフォローアップ。

@@ -1670,6 +1670,11 @@ module ClaudeHelper
 
     app_instance = APPS[app]
 
+    # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
+    # :session injection so the session object is never walked. No-op without
+    # a vocabulary block.
+    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, app_instance&.settings)
+
     # Inject session for tools that need it (e.g., monadic state tools)
     method_obj = app_instance.method(tool_name.to_sym) rescue nil
     if method_obj && method_obj.parameters.any? { |type, name| name == :session }

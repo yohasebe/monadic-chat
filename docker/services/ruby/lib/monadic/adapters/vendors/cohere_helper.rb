@@ -1570,6 +1570,10 @@ module CohereHelper
       end
     end
 
+    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
+    # injection so the session object is never walked. No-op without vocabulary.
+    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
+
     # Inject session for tools that need it
     method_obj = APPS[app].method(function_name.to_sym) rescue nil
     if method_obj && method_obj.parameters.any? { |_type, name| name == :session }

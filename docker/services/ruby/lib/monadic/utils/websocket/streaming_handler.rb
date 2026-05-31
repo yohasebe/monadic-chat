@@ -577,6 +577,15 @@ module WebSocketHelper
             state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
             send_or_broadcast(state_payload.to_json, ws_session_id)
           end
+          # Vocabulary: decorate ${TOKEN}s (e.g. ${SHARED}) for display — keep
+          # the symbol, wrap it in <code> with a hover of the resolved path.
+          # Own guard (independent of privacy) so it runs when privacy is off.
+          # Display-only: the TTS buffer was built separately above and is not
+          # touched here. Runs after privacy restore; the namespaces are
+          # disjoint so ${SHARED} survives restoration untouched.
+          if session[:_substitution_pipeline]
+            raw_content = session[:_substitution_pipeline].process_output(raw_content)
+          end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
           # Fix mount paths in the same way

@@ -1954,6 +1954,11 @@ module OpenAIHelper
 
     unless skip_function_execution
       begin
+        # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) to real paths before the
+        # tool runs. Done before :session injection so the session object is
+        # never walked. No-op when the app declares no vocabulary.
+        argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
+
         method_obj = APPS[app].method(function_name.to_sym) rescue nil
         if method_obj && method_obj.parameters.any? { |type, name| name == :session }
           argument_hash[:session] = session

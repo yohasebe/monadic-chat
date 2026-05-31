@@ -444,4 +444,72 @@ RSpec.describe BaseVendorHelper do
       expect(helper.privacy_pipeline_for(session, enabled_settings)).to be_nil
     end
   end
+
+  describe 'Vocabulary substitution helpers' do
+    subject(:helper) { Class.new { include BaseVendorHelper }.new }
+
+    let(:vocab_settings) { { vocabulary: { tokens: [:shared] } } }
+
+    before do
+      require 'monadic/utils/environment'
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return('/monadic/data')
+    end
+
+    describe '#substitution_pipeline_for' do
+      it 'returns nil when the app declares no vocabulary' do
+        expect(helper.substitution_pipeline_for({}, {})).to be_nil
+        expect(helper.substitution_pipeline_for({}, { vocabulary: { tokens: [] } })).to be_nil
+      end
+
+      it 'builds and caches a Vocabulary-only pipeline when tokens are present' do
+        session = {}
+        pipeline = helper.substitution_pipeline_for(session, vocab_settings)
+        expect(pipeline).to be_a(Monadic::Substitution::Pipeline)
+        expect(session[:_substitution_pipeline]).to equal(pipeline)
+        # cached: second call returns the same instance
+        expect(helper.substitution_pipeline_for(session, vocab_settings)).to equal(pipeline)
+      end
+
+      it 'works with a non-Hash session that only duck-types [] (SecureSessionHash)' do
+        store = {}
+        session = Object.new
+        session.define_singleton_method(:[]) { |k| store[k] }
+        session.define_singleton_method(:[]=) { |k, v| store[k] = v }
+        expect(helper.substitution_pipeline_for(session, vocab_settings)).to be_a(Monadic::Substitution::Pipeline)
+      end
+    end
+
+    describe '#expand_tool_args_for_vocabulary' do
+      it 'expands ${SHARED} prefixes deeply across the arg structure' do
+        args = { 'path' => '${SHARED}/a.txt', 'nested' => ['${SHARED}/b'] }
+        out = helper.expand_tool_args_for_vocabulary(args, {}, vocab_settings)
+        expect(out).to eq('path' => '/monadic/data/a.txt', 'nested' => ['/monadic/data/b'])
+      end
+
+      it 'returns args unchanged when the app has no vocabulary' do
+        args = { 'path' => '${SHARED}/a.txt' }
+        expect(helper.expand_tool_args_for_vocabulary(args, {}, {})).to eq(args)
+      end
+
+      it 'leaves a backtick-escaped token literal' do
+        out = helper.expand_tool_args_for_vocabulary({ 'doc' => 'see `${SHARED}`' }, {}, vocab_settings)
+        expect(out).to eq('doc' => 'see `${SHARED}`')
+      end
+    end
+
+    describe '#decorate_response_text' do
+      it 'wraps ${SHARED} in <code> with a resolved-path title' do
+        out = helper.decorate_response_text('see ${SHARED}', {}, vocab_settings)
+        expect(out).to eq('see <code class="vocab-token" title="/monadic/data">${SHARED}</code>')
+      end
+
+      it 'returns the text unchanged when the app has no vocabulary' do
+        expect(helper.decorate_response_text('see ${SHARED}', {}, {})).to eq('see ${SHARED}')
+      end
+
+      it 'returns non-string input unchanged' do
+        expect(helper.decorate_response_text(nil, {}, vocab_settings)).to be_nil
+      end
+    end
+  end
 end

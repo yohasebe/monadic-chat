@@ -1125,6 +1125,10 @@ module DeepSeekHelper
       memo[k.to_sym] = v
     end
 
+    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
+    # injection so the session object is never walked. No-op without vocabulary.
+    converted = expand_tool_args_for_vocabulary(converted, session, APPS[app]&.settings)
+
     method_obj = APPS[app].method(function_name.to_sym) rescue nil
     if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
       converted[:session] = session

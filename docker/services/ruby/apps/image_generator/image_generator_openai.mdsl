@@ -110,6 +110,10 @@ app "ImageGeneratorOpenAI" do
     WHEN TO SKIP: Single image generation, quick edits.
   TEXT
 
+  vocabulary do
+    use :last_image
+  end
+
   features do
     library_save false
     library_search false

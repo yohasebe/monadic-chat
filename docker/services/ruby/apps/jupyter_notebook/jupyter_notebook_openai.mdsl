@@ -415,6 +415,10 @@ app "JupyterNotebookOpenAI" do
     ✅ Response summarizes what was done (cells added, errors fixed, etc.)
   TEXT
 
+  vocabulary do
+    use :notebook
+  end
+
   features do
     library_search false
     disabled !CONFIG["OPENAI_API_KEY"]

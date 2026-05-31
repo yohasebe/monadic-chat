@@ -419,6 +419,10 @@ app "JupyterNotebookClaude" do
     Maximum 3 verification attempts per task.
   TEXT
 
+  vocabulary do
+    use :notebook
+  end
+
   features do
     library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]

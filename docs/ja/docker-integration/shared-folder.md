@@ -46,7 +46,8 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 
 | 変数 | 利用できるアプリ | 解決される値 |
 | --- | --- | --- |
-| `${LAST_IMAGE}` | Image Generator | セッション内で直近に生成された画像のファイル名。 |
+| `${LAST_GENERATED_IMAGE}` | Image Generator | 会話の中でアシスタントが直近に生成した画像のファイル名。 |
+| `${LAST_UPLOADED_IMAGE}` | Image Generator | 会話の中でユーザが直近にアップロードした画像のファイル名。 |
 | `${NOTEBOOK}` | Jupyter Notebook | 現在使用中のノートブックのファイル名。 |
 
 これらは対応するアプリを使用しているときにのみ「Available Variables」パネルに表示されます。ユニバーサルな変数と同様、ツール呼び出しや表示テキストの中では値に展開され、まだ何も生成されていない場合は何にも解決されないため、リテラルのトークンが保持されます。

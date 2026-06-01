@@ -4,7 +4,7 @@ require_relative "../../spec_helper"
 
 # Invariant contract for the session-state vocabulary tokens.
 #
-# The ${LAST_IMAGE}/${NOTEBOOK} resolvers in vocabulary.rb READ specific
+# The ${LAST_GENERATED_IMAGE}/${NOTEBOOK} resolvers in vocabulary.rb READ specific
 # session keys that the image-generator and Jupyter tools WRITE. The two sides
 # live in different files, and a rename on either side would make the resolver
 # silently return nil (failure_mode :open) — the variable would quietly stop

@@ -71,15 +71,21 @@ module Monadic
           resolve: ->(session) { Monadic::Substitution::Vocabulary.conversation_language(session) }
         },
         # Session-state tokens (NOT in DEFAULT_TOKENS): an app opts in via
-        # `vocabulary do; use :last_image; end` so the variable only appears
+        # `vocabulary do; use :last_generated_image; end` so the variable only appears
         # where it is meaningful (image generators, Jupyter). The plumbing that
         # populates the state already exists (image tools save "last_images",
         # Jupyter tools save "notebook_filename"); these resolvers only read it.
-        last_image: {
-          token: "LAST_IMAGE",
-          description: "The filename of the most recently generated image in this session.",
+        last_generated_image: {
+          token: "LAST_GENERATED_IMAGE",
+          description: "The filename of the most recent image YOU generated in this session.",
           display: :expand,
           resolve: ->(session) { Monadic::Substitution::Vocabulary.last_generated_image(session) }
+        },
+        last_uploaded_image: {
+          token: "LAST_UPLOADED_IMAGE",
+          description: "The filename of the most recent image the user uploaded in this conversation.",
+          display: :expand,
+          resolve: ->(session) { Monadic::Substitution::Vocabulary.last_uploaded_image(session) }
         },
         notebook: {
           token: "NOTEBOOK",
@@ -241,7 +247,7 @@ module Monadic
       #   slot for the active app first (where all image generators save), then
       #   falls back to the provider-specific legacy single-image keys.
       #
-      # Scope (decision): `${LAST_IMAGE}` is opted into (MDSL `use :last_image`)
+      # Scope (decision): `${LAST_GENERATED_IMAGE}` is opted into (MDSL `use :last_generated_image`)
       # only by the dedicated Image Generator apps, which have the iterative
       # generate→edit workflow. Other image-producing apps are intentionally
       # excluded: the Video Generator's "last_images" holds an INPUT image (not
@@ -264,6 +270,33 @@ module Monadic
         legacy = session[:openai_last_image] || session[:grok_last_image] ||
                  session[:gemini3_last_image]
         legacy && !legacy.to_s.empty? ? File.basename(legacy.to_s) : nil
+      end
+
+      # @param session [Hash]
+      # @return [String, nil] basename of the most recent image the USER uploaded
+      #   in this conversation, or nil. User uploads attach to the user message's
+      #   "images" array; scan session[:messages] newest-first and return the last
+      #   image of the most recent user message. Tolerant of string entries and of
+      #   "title"/"filename"/"name" keys.
+      def last_uploaded_image(session)
+        msgs = (session.respond_to?(:[]) && (session[:messages] || session["messages"]))
+        return nil unless msgs.is_a?(Array)
+        msgs.reverse_each do |m|
+          next unless m.is_a?(Hash)
+          role = m["role"] || m[:role]
+          next unless role.to_s == "user"
+          imgs = m["images"] || m[:images]
+          next unless imgs.is_a?(Array) && !imgs.empty?
+          img = imgs.last
+          name =
+            if img.is_a?(Hash)
+              img["title"] || img[:title] || img["filename"] || img[:filename] || img["name"] || img[:name]
+            else
+              img
+            end
+          return File.basename(name.to_s) if name && !name.to_s.empty?
+        end
+        nil
       end
 
       # @param session [Hash]

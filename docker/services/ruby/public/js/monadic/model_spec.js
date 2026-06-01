@@ -882,6 +882,23 @@ const modelSpec = {
     "supports_parallel_function_calling": true,
     "structured_output": true
   },
+  // grok-build-0.1 (Grok Build 0.1) — xAI's fast agentic-coding model
+  // (public beta). Rebrand/successor of grok-code-fast-1 (xAI lists
+  // grok-code-fast-1 as an alias). 256k context, text+image in / text out,
+  // tool calling + structured output + reasoning. Same pricing as grok-4.3
+  // ($1/$2/$0.20 cached). presence_penalty / frequency_penalty are omitted
+  // to match the grok-4.3 sampling-restriction posture.
+  "grok-build-0.1": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_parallel_function_calling": true,
+    "structured_output": true
+  },
   // DeepSeek models
   // V4 series: unified models with thinking/non-thinking mode toggle
   "deepseek-v4-flash": {
@@ -1098,7 +1115,7 @@ const providerDefaults = {
   },
   "xai": {
     "chat": ["grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
-    "code": ["grok-4.3"],
+    "code": ["grok-build-0.1", "grok-4.3"],
     "vision": ["grok-4.3"],
     "image": ["grok-imagine-image"],
     "video": ["grok-imagine-video"],

@@ -35,11 +35,11 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'returns the first model for gemini chat' do
-      expect(described_class.get_provider_default("gemini", "chat")).to eq("gemini-3-flash-preview")
+      expect(described_class.get_provider_default("gemini", "chat")).to eq("gemini-3.5-flash")
     end
 
     it 'returns the first model for xai code' do
-      expect(described_class.get_provider_default("xai", "code")).to eq("grok-4.3")
+      expect(described_class.get_provider_default("xai", "code")).to eq("grok-build-0.1")
     end
 
     it 'returns nil for non-existent provider' do
@@ -47,7 +47,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'returns nil for non-existent category' do
-      expect(described_class.get_provider_default("cohere", "vision")).to be_nil
+      expect(described_class.get_provider_default("cohere", "code")).to be_nil
     end
 
     it 'defaults to chat category when category is omitted' do

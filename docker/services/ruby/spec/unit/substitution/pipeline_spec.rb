@@ -68,6 +68,31 @@ RSpec.describe Monadic::Substitution::Pipeline do
         .to raise_error(ArgumentError, /already registered/)
     end
 
+    it "rejects a provider whose token_names collide with an already-registered provider" do
+      owner_class = Class.new(Monadic::Substitution::Provider) do
+        def initialize(names)
+          super()
+          @names = names
+        end
+        def token_names; @names; end
+      end
+      pipeline.register(owner_class.new(%w[SHARED]))
+      expect { pipeline.register(owner_class.new(%w[SHARED MODEL])) }
+        .to raise_error(Monadic::Substitution::TokenCollisionError, /SHARED/)
+    end
+
+    it "allows providers with disjoint token_names" do
+      owner_class = Class.new(Monadic::Substitution::Provider) do
+        def initialize(names)
+          super()
+          @names = names
+        end
+        def token_names; @names; end
+      end
+      pipeline.register(owner_class.new(%w[SHARED]))
+      expect { pipeline.register(owner_class.new(%w[MODEL])) }.not_to raise_error
+    end
+
     it "returns self for chaining" do
       provider = recording_provider_class.new(tag: :a)
       expect(pipeline.register(provider)).to be(pipeline)

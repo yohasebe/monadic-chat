@@ -125,6 +125,9 @@ module WebSocketHelper
         session[:monadic_state].delete("privacy")
       end
       session.delete(:_privacy_pipeline)
+      # Drop the Vocabulary substitution pipeline too: it memoizes the previous
+      # app's ${TOKEN} set, which the new app may not share.
+      session.delete(:_substitution_pipeline)
       # Clear backend-authoritative session toggle so the next app's
       # toggle does not start in an inherited "on" state. The frontend
       # will re-negotiate via PRIVACY_TOGGLE when the user opts in.
@@ -342,6 +345,9 @@ module WebSocketHelper
     # session-level toggle. Without this, the locked-once-set Pipeline
     # would survive Reset and ignore the user's new toggle choice.
     session.delete(:_privacy_pipeline)
+    # Drop the Vocabulary substitution pipeline on Reset so the rebuilt session
+    # re-derives it from the (possibly changed) app settings.
+    session.delete(:_substitution_pipeline)
     # Reset state-of-truth toggle as well; user re-negotiates via UI.
     session.delete(:_privacy_session_enabled)
     # Clear provider-specific media references to prevent cross-session leakage

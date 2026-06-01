@@ -264,6 +264,9 @@ function handleAppsMessage(data) {
     const currentApp = appsSelect ? appsSelect.value : null;
     if (currentApp && apps[currentApp]) {
       const descriptionOnly = apps[currentApp]["description"] || "";
+      if (window.VocabularyPanel && typeof window.VocabularyPanel.renderForApp === 'function') {
+        window.VocabularyPanel.renderForApp(currentApp);
+      }
       if (typeof window.setBaseAppDescription === 'function') {
         window.setBaseAppDescription(descriptionOnly);
       } else {

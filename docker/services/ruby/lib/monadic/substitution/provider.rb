@@ -60,6 +60,14 @@ module Monadic
         false
       end
 
+      # Names of the static `${TOKEN}` tokens this provider owns, for collision
+      # detection by Substitution::Registry. Providers whose namespace is
+      # dynamic/unbounded (e.g. PrivacyFilter's `<<TYPE_N>>`) return [].
+      # @return [Array<String>]
+      def token_names
+        []
+      end
+
       # @param name [String]
       # @param context [Substitution::Context]
       # @return [String, nil] resolved value or nil if unresolvable

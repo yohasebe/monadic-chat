@@ -1,0 +1,1175 @@
+---
+- id: person_en
+  description: Single PERSON, English
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: Please contact Alice Johnson about the renewal.
+  golden:
+    turns:
+    - masked_message: Please contact {{PERSON_1}} about the renewal.
+      tts_masked: Please contact PERSON 1 about the renewal.
+      restored:
+        text: Please contact Alice Johnson about the renewal.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        missing_placeholders: []
+      tts_restored: Please contact PERSON 1 about the renewal.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+  backend:
+  - masked_text: Please contact {{PERSON_1}} about the renewal.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 15
+      end: 28
+      lang_used: en
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: email_en
+  description: Single EMAIL_ADDRESS, English
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - email
+  turns:
+  - input: Send the invoice to alice@example.com please.
+  golden:
+    turns:
+    - masked_message: Send the invoice to {{EMAIL_ADDRESS_1}} please.
+      tts_masked: Send the invoice to EMAIL ADDRESS 1 please.
+      restored:
+        text: Send the invoice to alice@example.com please.
+        restored_spans:
+        - placeholder: "{{EMAIL_ADDRESS_1}}"
+          entity_type: EMAIL_ADDRESS
+          original: alice@example.com
+        missing_placeholders: []
+      tts_restored: Send the invoice to EMAIL ADDRESS 1 please.
+    registry:
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+    registry_entries:
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      entity_type: EMAIL_ADDRESS
+      original: alice@example.com
+  backend:
+  - masked_text: Send the invoice to {{EMAIL_ADDRESS_1}} please.
+    registry:
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+    entities:
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      type: EMAIL_ADDRESS
+      original: alice@example.com
+      score: 1.0
+      start: 20
+      end: 37
+      lang_used: en
+    stats:
+      detected: 2
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: phone_en
+  description: Single PHONE_NUMBER, English
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - phone
+  turns:
+  - input: You can reach the desk at 555-867-5309 after noon.
+  golden:
+    turns:
+    - masked_message: You can reach the desk at {{PHONE_NUMBER_1}} after noon.
+      tts_masked: You can reach the desk at PHONE NUMBER 1 after noon.
+      restored:
+        text: You can reach the desk at 555-867-5309 after noon.
+        restored_spans:
+        - placeholder: "{{PHONE_NUMBER_1}}"
+          entity_type: PHONE_NUMBER
+          original: 555-867-5309
+        missing_placeholders: []
+      tts_restored: You can reach the desk at PHONE NUMBER 1 after noon.
+    registry:
+      "{{PHONE_NUMBER_1}}": 555-867-5309
+    registry_entries:
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      entity_type: PHONE_NUMBER
+      original: 555-867-5309
+  backend:
+  - masked_text: You can reach the desk at {{PHONE_NUMBER_1}} after noon.
+    registry:
+      "{{PHONE_NUMBER_1}}": 555-867-5309
+    entities:
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      type: PHONE_NUMBER
+      original: 555-867-5309
+      score: 0.7
+      start: 26
+      end: 38
+      lang_used: en
+    stats:
+      detected: 2
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: credit_card_en
+  description: Single CREDIT_CARD, English
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - credit_card
+  turns:
+  - input: The card on file is 4111 1111 1111 1111.
+  golden:
+    turns:
+    - masked_message: The card on file is {{CREDIT_CARD_1}}.
+      tts_masked: The card on file is CREDIT CARD 1.
+      restored:
+        text: The card on file is 4111 1111 1111 1111.
+        restored_spans:
+        - placeholder: "{{CREDIT_CARD_1}}"
+          entity_type: CREDIT_CARD
+          original: 4111 1111 1111 1111
+        missing_placeholders: []
+      tts_restored: The card on file is CREDIT CARD 1.
+    registry:
+      "{{CREDIT_CARD_1}}": 4111 1111 1111 1111
+    registry_entries:
+    - placeholder: "{{CREDIT_CARD_1}}"
+      entity_type: CREDIT_CARD
+      original: 4111 1111 1111 1111
+  backend:
+  - masked_text: The card on file is {{CREDIT_CARD_1}}.
+    registry:
+      "{{CREDIT_CARD_1}}": 4111 1111 1111 1111
+    entities:
+    - placeholder: "{{CREDIT_CARD_1}}"
+      type: CREDIT_CARD
+      original: 4111 1111 1111 1111
+      score: 1.0
+      start: 20
+      end: 39
+      lang_used: en
+    stats:
+      detected: 2
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: ip_en
+  description: Single IP_ADDRESS, English
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - ip
+  turns:
+  - input: The gateway at 192.168.1.42 stopped responding.
+  golden:
+    turns:
+    - masked_message: The gateway at {{IP_ADDRESS_1}} stopped responding.
+      tts_masked: The gateway at IP ADDRESS 1 stopped responding.
+      restored:
+        text: The gateway at 192.168.1.42 stopped responding.
+        restored_spans:
+        - placeholder: "{{IP_ADDRESS_1}}"
+          entity_type: IP_ADDRESS
+          original: 192.168.1.42
+        missing_placeholders: []
+      tts_restored: The gateway at IP ADDRESS 1 stopped responding.
+    registry:
+      "{{IP_ADDRESS_1}}": 192.168.1.42
+    registry_entries:
+    - placeholder: "{{IP_ADDRESS_1}}"
+      entity_type: IP_ADDRESS
+      original: 192.168.1.42
+  backend:
+  - masked_text: The gateway at {{IP_ADDRESS_1}} stopped responding.
+    registry:
+      "{{IP_ADDRESS_1}}": 192.168.1.42
+    entities:
+    - placeholder: "{{IP_ADDRESS_1}}"
+      type: IP_ADDRESS
+      original: 192.168.1.42
+      score: 0.6
+      start: 15
+      end: 27
+      lang_used: en
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: iban_en
+  description: Single IBAN_CODE, English
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - iban
+  turns:
+  - input: Transfer to GB82 WEST 1234 5698 7654 32 by Friday.
+  golden:
+    turns:
+    - masked_message: Transfer to {{IBAN_CODE_1}} by Friday.
+      tts_masked: Transfer to IBAN CODE 1 by Friday.
+      restored:
+        text: Transfer to GB82 WEST 1234 5698 7654 32 by Friday.
+        restored_spans:
+        - placeholder: "{{IBAN_CODE_1}}"
+          entity_type: IBAN_CODE
+          original: GB82 WEST 1234 5698 7654 32
+        missing_placeholders: []
+      tts_restored: Transfer to IBAN CODE 1 by Friday.
+    registry:
+      "{{IBAN_CODE_1}}": GB82 WEST 1234 5698 7654 32
+    registry_entries:
+    - placeholder: "{{IBAN_CODE_1}}"
+      entity_type: IBAN_CODE
+      original: GB82 WEST 1234 5698 7654 32
+  backend:
+  - masked_text: Transfer to {{IBAN_CODE_1}} by Friday.
+    registry:
+      "{{IBAN_CODE_1}}": GB82 WEST 1234 5698 7654 32
+    entities:
+    - placeholder: "{{IBAN_CODE_1}}"
+      type: IBAN_CODE
+      original: GB82 WEST 1234 5698 7654 32
+      score: 1.0
+      start: 12
+      end: 39
+      lang_used: en
+    stats:
+      detected: 3
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: us_ssn_en
+  description: Single US_SSN, English (synthetic cassette)
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - us_ssn
+  turns:
+  - input: The applicant SSN is 123-45-6789 on the form.
+  synthetic: true
+  backend:
+  - masked_text: The applicant SSN is {{US_SSN_1}} on the form.
+    registry:
+      "{{US_SSN_1}}": 123-45-6789
+    entities:
+    - placeholder: "{{US_SSN_1}}"
+      type: US_SSN
+      original: 123-45-6789
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+  golden:
+    turns:
+    - masked_message: The applicant SSN is {{US_SSN_1}} on the form.
+      tts_masked: The applicant SSN is US SSN 1 on the form.
+      restored:
+        text: The applicant SSN is 123-45-6789 on the form.
+        restored_spans:
+        - placeholder: "{{US_SSN_1}}"
+          entity_type: US_SSN
+          original: 123-45-6789
+        missing_placeholders: []
+      tts_restored: The applicant SSN is US SSN 1 on the form.
+    registry:
+      "{{US_SSN_1}}": 123-45-6789
+    registry_entries:
+    - placeholder: "{{US_SSN_1}}"
+      entity_type: US_SSN
+      original: 123-45-6789
+- id: postal_code_en
+  description: Single POSTAL_CODE, English (synthetic cassette)
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - postal_code
+  turns:
+  - input: Ship the package to postal code 90210 please.
+  synthetic: true
+  backend:
+  - masked_text: Ship the package to postal code {{POSTAL_CODE_1}} please.
+    registry:
+      "{{POSTAL_CODE_1}}": '90210'
+    entities:
+    - placeholder: "{{POSTAL_CODE_1}}"
+      type: POSTAL_CODE
+      original: '90210'
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+  golden:
+    turns:
+    - masked_message: Ship the package to postal code {{POSTAL_CODE_1}} please.
+      tts_masked: Ship the package to postal code POSTAL CODE 1 please.
+      restored:
+        text: Ship the package to postal code 90210 please.
+        restored_spans:
+        - placeholder: "{{POSTAL_CODE_1}}"
+          entity_type: POSTAL_CODE
+          original: '90210'
+        missing_placeholders: []
+      tts_restored: Ship the package to postal code POSTAL CODE 1 please.
+    registry:
+      "{{POSTAL_CODE_1}}": '90210'
+    registry_entries:
+    - placeholder: "{{POSTAL_CODE_1}}"
+      entity_type: POSTAL_CODE
+      original: '90210'
+- id: multi_pii_en
+  description: PERSON + EMAIL + PHONE in one message
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+    - email
+    - phone
+  turns:
+  - input: Alice Johnson (alice@example.com, 555-123-4567) signed off.
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} ({{EMAIL_ADDRESS_1}}, {{PHONE_NUMBER_1}}) signed
+        off."
+      tts_masked: PERSON 1 (EMAIL ADDRESS 1, PHONE NUMBER 1) signed off.
+      restored:
+        text: Alice Johnson (alice@example.com, 555-123-4567) signed off.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        - placeholder: "{{EMAIL_ADDRESS_1}}"
+          entity_type: EMAIL_ADDRESS
+          original: alice@example.com
+        - placeholder: "{{PHONE_NUMBER_1}}"
+          entity_type: PHONE_NUMBER
+          original: 555-123-4567
+        missing_placeholders: []
+      tts_restored: PERSON 1 (EMAIL ADDRESS 1, PHONE NUMBER 1) signed off.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+      "{{PHONE_NUMBER_1}}": 555-123-4567
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      entity_type: EMAIL_ADDRESS
+      original: alice@example.com
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      entity_type: PHONE_NUMBER
+      original: 555-123-4567
+  backend:
+  - masked_text: "{{PERSON_1}} ({{EMAIL_ADDRESS_1}}, {{PHONE_NUMBER_1}}) signed off."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+      "{{PHONE_NUMBER_1}}": 555-123-4567
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      type: EMAIL_ADDRESS
+      original: alice@example.com
+      score: 1.0
+      start: 15
+      end: 32
+      lang_used: en
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      type: PHONE_NUMBER
+      original: 555-123-4567
+      score: 0.7
+      start: 34
+      end: 46
+      lang_used: en
+    stats:
+      detected: 4
+      kept_after_merge: 3
+      kept_after_trim: 3
+- id: kitchen_sink_en
+  description: Many default PII types together
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+    - email
+    - phone
+    - credit_card
+    - us_ssn
+  turns:
+  - input: Alice Johnson — alice@example.com, 555-123-4567, SSN 123-45-6789, card
+      4111 1111 1111 1111 — is verified.
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} — {{EMAIL_ADDRESS_1}}, {{PHONE_NUMBER_1}}, SSN
+        123-45-6789, card {{CREDIT_CARD_1}} — is verified."
+      tts_masked: PERSON 1 — EMAIL ADDRESS 1, PHONE NUMBER 1, SSN 123-45-6789, card
+        CREDIT CARD 1 — is verified.
+      restored:
+        text: Alice Johnson — alice@example.com, 555-123-4567, SSN 123-45-6789, card
+          4111 1111 1111 1111 — is verified.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        - placeholder: "{{EMAIL_ADDRESS_1}}"
+          entity_type: EMAIL_ADDRESS
+          original: alice@example.com
+        - placeholder: "{{PHONE_NUMBER_1}}"
+          entity_type: PHONE_NUMBER
+          original: 555-123-4567
+        - placeholder: "{{CREDIT_CARD_1}}"
+          entity_type: CREDIT_CARD
+          original: 4111 1111 1111 1111
+        missing_placeholders: []
+      tts_restored: PERSON 1 — EMAIL ADDRESS 1, PHONE NUMBER 1, SSN 123-45-6789, card
+        CREDIT CARD 1 — is verified.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+      "{{PHONE_NUMBER_1}}": 555-123-4567
+      "{{CREDIT_CARD_1}}": 4111 1111 1111 1111
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      entity_type: EMAIL_ADDRESS
+      original: alice@example.com
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      entity_type: PHONE_NUMBER
+      original: 555-123-4567
+    - placeholder: "{{CREDIT_CARD_1}}"
+      entity_type: CREDIT_CARD
+      original: 4111 1111 1111 1111
+  backend:
+  - masked_text: "{{PERSON_1}} — {{EMAIL_ADDRESS_1}}, {{PHONE_NUMBER_1}}, SSN 123-45-6789,
+      card {{CREDIT_CARD_1}} — is verified."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+      "{{PHONE_NUMBER_1}}": 555-123-4567
+      "{{CREDIT_CARD_1}}": 4111 1111 1111 1111
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      type: EMAIL_ADDRESS
+      original: alice@example.com
+      score: 1.0
+      start: 16
+      end: 33
+      lang_used: en
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      type: PHONE_NUMBER
+      original: 555-123-4567
+      score: 0.7
+      start: 35
+      end: 47
+      lang_used: en
+    - placeholder: "{{CREDIT_CARD_1}}"
+      type: CREDIT_CARD
+      original: 4111 1111 1111 1111
+      score: 1.0
+      start: 71
+      end: 90
+      lang_used: en
+    stats:
+      detected: 6
+      kept_after_merge: 4
+      kept_after_trim: 4
+- id: repeated_same_entity_en
+  description: Same PERSON twice reuses one placeholder
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: Alice Johnson asked whether Alice Johnson had approved it.
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} asked whether {{PERSON_1}} had approved it."
+      tts_masked: PERSON 1 asked whether PERSON 1 had approved it.
+      restored:
+        text: Alice Johnson asked whether Alice Johnson had approved it.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        missing_placeholders: []
+      tts_restored: PERSON 1 asked whether PERSON 1 had approved it.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+  backend:
+  - masked_text: "{{PERSON_1}} asked whether {{PERSON_1}} had approved it."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 28
+      end: 41
+      lang_used: en
+    stats:
+      detected: 2
+      kept_after_merge: 2
+      kept_after_trim: 2
+- id: output_reorder_en
+  description: LLM reorders the placeholders
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+    - email
+    - phone
+  turns:
+  - input: Alice Johnson (alice@example.com, 555-123-4567) signed off.
+    llm_output: Reach {{PERSON_1}} on {{PHONE_NUMBER_1}} or {{EMAIL_ADDRESS_1}}.
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} ({{EMAIL_ADDRESS_1}}, {{PHONE_NUMBER_1}}) signed
+        off."
+      tts_masked: PERSON 1 (EMAIL ADDRESS 1, PHONE NUMBER 1) signed off.
+      restored:
+        text: Reach Alice Johnson on 555-123-4567 or alice@example.com.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        - placeholder: "{{PHONE_NUMBER_1}}"
+          entity_type: PHONE_NUMBER
+          original: 555-123-4567
+        - placeholder: "{{EMAIL_ADDRESS_1}}"
+          entity_type: EMAIL_ADDRESS
+          original: alice@example.com
+        missing_placeholders: []
+      tts_restored: Reach PERSON 1 on PHONE NUMBER 1 or EMAIL ADDRESS 1.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+      "{{PHONE_NUMBER_1}}": 555-123-4567
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      entity_type: EMAIL_ADDRESS
+      original: alice@example.com
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      entity_type: PHONE_NUMBER
+      original: 555-123-4567
+  backend:
+  - masked_text: "{{PERSON_1}} ({{EMAIL_ADDRESS_1}}, {{PHONE_NUMBER_1}}) signed off."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{EMAIL_ADDRESS_1}}": alice@example.com
+      "{{PHONE_NUMBER_1}}": 555-123-4567
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      type: EMAIL_ADDRESS
+      original: alice@example.com
+      score: 1.0
+      start: 15
+      end: 32
+      lang_used: en
+    - placeholder: "{{PHONE_NUMBER_1}}"
+      type: PHONE_NUMBER
+      original: 555-123-4567
+      score: 0.7
+      start: 34
+      end: 46
+      lang_used: en
+    stats:
+      detected: 4
+      kept_after_merge: 3
+      kept_after_trim: 3
+- id: output_dedup_en
+  description: LLM repeats one placeholder; spans dedupe
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: Alice Johnson will join the call.
+    llm_output: "{{PERSON_1}} confirmed. I will remind {{PERSON_1}} again."
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} will join the call."
+      tts_masked: PERSON 1 will join the call.
+      restored:
+        text: Alice Johnson confirmed. I will remind Alice Johnson again.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        missing_placeholders: []
+      tts_restored: PERSON 1 confirmed. I will remind PERSON 1 again.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+  backend:
+  - masked_text: "{{PERSON_1}} will join the call."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: output_missing_placeholder_en
+  description: LLM emits an unregistered placeholder
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: Alice Johnson will join the call.
+    llm_output: "{{PERSON_1}} and {{PERSON_9}} will attend."
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} will join the call."
+      tts_masked: PERSON 1 will join the call.
+      restored:
+        text: Alice Johnson and {{PERSON_9}} will attend.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        missing_placeholders:
+        - "{{PERSON_9}}"
+      tts_restored: PERSON 1 and {{PERSON_9}} will attend.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+  backend:
+  - masked_text: "{{PERSON_1}} will join the call."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: output_no_placeholder_en
+  description: LLM reply contains no placeholders
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: Alice Johnson will join the call.
+    llm_output: Understood, I have noted the attendee.
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} will join the call."
+      tts_masked: PERSON 1 will join the call.
+      restored:
+        text: Understood, I have noted the attendee.
+        restored_spans: []
+        missing_placeholders: []
+      tts_restored: Understood, I have noted the attendee.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+  backend:
+  - masked_text: "{{PERSON_1}} will join the call."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: honorific_trim_on_en
+  description: honorific_trim true (default)
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: Dear Mr. Smith, your appointment is confirmed.
+  golden:
+    turns:
+    - masked_message: Dear Mr. {{PERSON_1}}, your appointment is confirmed.
+      tts_masked: Dear Mr. PERSON 1, your appointment is confirmed.
+      restored:
+        text: Dear Mr. Smith, your appointment is confirmed.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Smith
+        missing_placeholders: []
+      tts_restored: Dear Mr. PERSON 1, your appointment is confirmed.
+    registry:
+      "{{PERSON_1}}": Smith
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Smith
+  backend:
+  - masked_text: Dear Mr. {{PERSON_1}}, your appointment is confirmed.
+    registry:
+      "{{PERSON_1}}": Smith
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Smith
+      score: 0.85
+      start: 9
+      end: 14
+      lang_used: en
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: honorific_trim_off_en
+  description: honorific_trim false
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: false
+    mask_types:
+    - person
+  turns:
+  - input: Dear Mr. Smith, your appointment is confirmed.
+  golden:
+    turns:
+    - masked_message: Dear Mr. {{PERSON_1}}, your appointment is confirmed.
+      tts_masked: Dear Mr. PERSON 1, your appointment is confirmed.
+      restored:
+        text: Dear Mr. Smith, your appointment is confirmed.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Smith
+        missing_placeholders: []
+      tts_restored: Dear Mr. PERSON 1, your appointment is confirmed.
+    registry:
+      "{{PERSON_1}}": Smith
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Smith
+  backend:
+  - masked_text: Dear Mr. {{PERSON_1}}, your appointment is confirmed.
+    registry:
+      "{{PERSON_1}}": Smith
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Smith
+      score: 0.85
+      start: 9
+      end: 14
+      lang_used: en
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: score_threshold_high_en
+  description: High threshold suppresses a low-score detection
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.95
+    honorific_trim: true
+    mask_types:
+    - phone
+  turns:
+  - input: You can reach the desk at 555-867-5309 after noon.
+  golden:
+    turns:
+    - masked_message: You can reach the desk at 555-867-5309 after noon.
+      tts_masked: You can reach the desk at 555-867-5309 after noon.
+      restored:
+        text: You can reach the desk at 555-867-5309 after noon.
+        restored_spans: []
+        missing_placeholders: []
+      tts_restored: You can reach the desk at 555-867-5309 after noon.
+    registry: {}
+    registry_entries: []
+  backend:
+  - masked_text: You can reach the desk at 555-867-5309 after noon.
+    registry: {}
+    entities: []
+    stats:
+      detected: 0
+      kept_after_merge: 0
+      kept_after_trim: 0
+- id: person_ja
+  description: PERSON, Japanese (live)
+  language: ja
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: 田中太郎さんに連絡を取ってください。
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}}さんに連絡を取ってください。"
+      tts_masked: PERSON 1さんに連絡を取ってください。
+      restored:
+        text: 田中太郎さんに連絡を取ってください。
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: 田中太郎
+        missing_placeholders: []
+      tts_restored: PERSON 1さんに連絡を取ってください。
+    registry:
+      "{{PERSON_1}}": 田中太郎
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: 田中太郎
+  backend:
+  - masked_text: "{{PERSON_1}}さんに連絡を取ってください。"
+    registry:
+      "{{PERSON_1}}": 田中太郎
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: 田中太郎
+      score: 0.85
+      start: 0
+      end: 4
+      lang_used: ja
+    stats:
+      detected: 1
+      kept_after_merge: 1
+      kept_after_trim: 1
+- id: person_email_fr
+  description: PERSON + EMAIL, French (synthetic cassette)
+  language: fr
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+    - email
+  turns:
+  - input: Veuillez écrire à Marie Dubois à marie.dubois@example.com.
+  synthetic: true
+  backend:
+  - masked_text: Veuillez écrire à {{PERSON_1}} à {{EMAIL_ADDRESS_1}}.
+    registry:
+      "{{PERSON_1}}": Marie Dubois
+      "{{EMAIL_ADDRESS_1}}": marie.dubois@example.com
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Marie Dubois
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      type: EMAIL_ADDRESS
+      original: marie.dubois@example.com
+    stats:
+      detected: 2
+      kept_after_merge: 2
+      kept_after_trim: 2
+  golden:
+    turns:
+    - masked_message: Veuillez écrire à {{PERSON_1}} à {{EMAIL_ADDRESS_1}}.
+      tts_masked: Veuillez écrire à PERSON 1 à EMAIL ADDRESS 1.
+      restored:
+        text: Veuillez écrire à Marie Dubois à marie.dubois@example.com.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Marie Dubois
+        - placeholder: "{{EMAIL_ADDRESS_1}}"
+          entity_type: EMAIL_ADDRESS
+          original: marie.dubois@example.com
+        missing_placeholders: []
+      tts_restored: Veuillez écrire à PERSON 1 à EMAIL ADDRESS 1.
+    registry:
+      "{{PERSON_1}}": Marie Dubois
+      "{{EMAIL_ADDRESS_1}}": marie.dubois@example.com
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Marie Dubois
+    - placeholder: "{{EMAIL_ADDRESS_1}}"
+      entity_type: EMAIL_ADDRESS
+      original: marie.dubois@example.com
+- id: multiturn_accumulate_en
+  description: PERSON reused across turns, new PERSON added
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+  turns:
+  - input: Alice Johnson emailed the quarterly report.
+  - input: Alice Johnson also looped in Robert Chen on the thread.
+  golden:
+    turns:
+    - masked_message: "{{PERSON_1}} emailed the quarterly report."
+      tts_masked: PERSON 1 emailed the quarterly report.
+      restored:
+        text: Alice Johnson emailed the quarterly report.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        missing_placeholders: []
+      tts_restored: PERSON 1 emailed the quarterly report.
+    - masked_message: "{{PERSON_1}} also looped in {{PERSON_2}} on the thread."
+      tts_masked: PERSON 1 also looped in PERSON 2 on the thread.
+      restored:
+        text: Alice Johnson also looped in Robert Chen on the thread.
+        restored_spans:
+        - placeholder: "{{PERSON_1}}"
+          entity_type: PERSON
+          original: Alice Johnson
+        - placeholder: "{{PERSON_2}}"
+          entity_type: PERSON
+          original: Robert Chen
+        missing_placeholders: []
+      tts_restored: PERSON 1 also looped in PERSON 2 on the thread.
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{PERSON_2}}": Robert Chen
+    registry_entries:
+    - placeholder: "{{PERSON_1}}"
+      entity_type: PERSON
+      original: Alice Johnson
+    - placeholder: "{{PERSON_2}}"
+      entity_type: PERSON
+      original: Robert Chen
+  backend:
+  - masked_text: "{{PERSON_1}} emailed the quarterly report."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    stats:
+      detected: 2
+      kept_after_merge: 1
+      kept_after_trim: 1
+  - masked_text: "{{PERSON_1}} also looped in {{PERSON_2}} on the thread."
+    registry:
+      "{{PERSON_1}}": Alice Johnson
+      "{{PERSON_2}}": Robert Chen
+    entities:
+    - placeholder: "{{PERSON_1}}"
+      type: PERSON
+      original: Alice Johnson
+      score: 0.85
+      start: 0
+      end: 13
+      lang_used: en
+    - placeholder: "{{PERSON_2}}"
+      type: PERSON
+      original: Robert Chen
+      score: 0.85
+      start: 29
+      end: 40
+      lang_used: en
+    stats:
+      detected: 2
+      kept_after_merge: 2
+      kept_after_trim: 2
+- id: disabled_passthrough_en
+  description: 'enabled=false: text passes through untouched'
+  language: en
+  config:
+    enabled: false
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+    - email
+  turns:
+  - input: Alice Johnson (alice@example.com) sent the file.
+  golden:
+    turns:
+    - masked_message: Alice Johnson (alice@example.com) sent the file.
+      tts_masked: Alice Johnson (alice@example.com) sent the file.
+      restored:
+        text: Alice Johnson (alice@example.com) sent the file.
+        restored_spans: []
+        missing_placeholders: []
+      tts_restored: Alice Johnson (alice@example.com) sent the file.
+    registry: {}
+    registry_entries: []
+  backend: []
+- id: failure_block
+  description: on_failure=:block re-raises (no leak)
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+    on_failure: block
+  turns:
+  - input: Alice Johnson will join the call.
+  synthetic: true
+  backend:
+  - error: simulated backend outage
+  golden:
+    turns:
+    - error: BackendError
+    registry: {}
+    registry_entries: []
+- id: failure_pass
+  description: on_failure=:pass forwards raw text on backend failure
+  language: en
+  config:
+    enabled: true
+    score_threshold: 0.4
+    honorific_trim: true
+    mask_types:
+    - person
+    on_failure: pass
+  turns:
+  - input: Alice Johnson will join the call.
+  synthetic: true
+  backend:
+  - error: simulated backend outage
+  golden:
+    turns:
+    - masked_message: Alice Johnson will join the call.
+      tts_masked: Alice Johnson will join the call.
+      restored:
+        text: Alice Johnson will join the call.
+        restored_spans: []
+        missing_placeholders: []
+      tts_restored: Alice Johnson will join the call.
+    registry: {}
+    registry_entries: []

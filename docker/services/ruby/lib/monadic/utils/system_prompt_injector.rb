@@ -188,6 +188,19 @@ module Monadic
           }
         },
         {
+          # Vocabulary: tell the model about the `${TOKEN}` variables the active
+          # app exposes (e.g. ${SHARED}) so it uses them verbatim. Opt-in per
+          # app via a `vocabulary do` block; no-op otherwise.
+          name: :vocabulary_variables,
+          priority: 65,
+          condition: ->(session, _options) {
+            !Monadic::Utils::SystemPromptInjector.vocabulary_tokens_for(session).empty?
+          },
+          generator: ->(session, _options) {
+            Monadic::Utils::SystemPromptInjector.build_vocabulary_addendum(session)
+          }
+        },
+        {
           name: :stt_diarization_warning,
           priority: 60,
           condition: ->(session, _options) {
@@ -411,6 +424,31 @@ module Monadic
           end
 
           false
+        end
+
+        # Resolve the active app's effective vocabulary token symbols. Delegates
+        # to Vocabulary.tokens_for (the single source of truth, shared with the
+        # pipeline builder), which defaults ${SHARED} on unless the app opts out.
+        def vocabulary_tokens_for(session)
+          params = session&.[](:parameters) || {}
+          app_name = params["app_name"] || params[:app_name]
+          return [] unless defined?(APPS) && app_name && (app = APPS[app_name])
+          require_relative '../substitution/vocabulary'
+          Monadic::Substitution::Vocabulary.tokens_for(app.settings)
+        rescue StandardError
+          []
+        end
+
+        # Build the "## Shared variables" system-prompt section for the active
+        # app via the Vocabulary provider (single source of the wording). Nil
+        # when the app exposes no tokens.
+        def build_vocabulary_addendum(session)
+          tokens = vocabulary_tokens_for(session)
+          return nil if tokens.empty?
+          require_relative '../substitution/providers/vocabulary'
+          require_relative '../substitution/context'
+          provider = Monadic::Substitution::Providers::Vocabulary.new(tokens: tokens)
+          provider.system_prompt_addendum(Monadic::Substitution::Context.new(session: session, app: nil))
         end
 
         # Build injection parts based on session and options

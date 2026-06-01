@@ -117,6 +117,11 @@ app "ImageGeneratorGemini" do
     context_size 10
   end
 
+  vocabulary do
+    use :last_generated_image
+    use :last_uploaded_image
+  end
+
   features do
     library_save false
     library_search false

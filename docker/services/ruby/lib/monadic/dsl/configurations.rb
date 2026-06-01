@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../substitution/vocabulary'
+
 module MonadicDSL
   # Description builder for multi-language support
   class DescriptionBuilder
@@ -160,6 +162,51 @@ module MonadicDSL
 
     def to_hash
       @config
+    end
+  end
+
+  # Vocabulary Configuration DSL (built-in opt-in, MVP).
+  #
+  # Declares which built-in `${TOKEN}` variables an app exposes. Behaviour
+  # (resolution/display) lives in Ruby (Monadic::Substitution::Vocabulary,
+  # Phase 4), keeping the MDSL purely declarative. The produced hash is plain
+  # data (symbols only) so it serializes through the app-class generator's
+  # `.inspect` path.
+  #
+  # Usage:
+  #   vocabulary do
+  #     use :shared
+  #   end
+  class VocabularyConfiguration
+    def initialize
+      @tokens = []
+      @enabled = true
+    end
+
+    # Expose one or more built-in vocabulary tokens. Unknown names raise so a
+    # typo (`use :shred`) fails fast at app-load time rather than silently
+    # producing a token nothing resolves.
+    def use(*names)
+      names.flatten.each do |name|
+        sym = name.to_sym
+        unless Monadic::Substitution::Vocabulary.builtin?(sym)
+          raise ArgumentError,
+                "Unknown vocabulary token: #{name.inspect}. " \
+                "Known built-ins: #{Monadic::Substitution::Vocabulary.builtin_names}"
+        end
+        @tokens << sym unless @tokens.include?(sym)
+      end
+    end
+
+    # Opt out: `${SHARED}` (and any vocabulary) is on by default for every app;
+    # an app with strict output can disable it with `vocabulary false` (which
+    # sets enabled=false via #disable!).
+    def disable!
+      @enabled = false
+    end
+
+    def to_hash
+      { tokens: @tokens, enabled: @enabled }
     end
   end
 

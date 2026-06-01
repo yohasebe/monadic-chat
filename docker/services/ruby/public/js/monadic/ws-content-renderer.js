@@ -171,6 +171,19 @@
   function renderKatexInHTML(html) {
     if (typeof katex === 'undefined') return html;
 
+    // Protect vocabulary substitution tokens (${TOKEN}, TOKEN = UPPER_CASE) so
+    // their `$` characters are never paired as inline-math delimiters. Restored
+    // to the literal `${TOKEN}` at the end. Mirrors the placeholder strategy in
+    // markdown-renderer.js. This path is a degraded fallback (only reached when
+    // MarkdownRenderer is unavailable), but protecting it keeps token handling
+    // consistent across both renderers. Pattern matches the walker regex exactly.
+    var vocabTokens = [];
+    html = html.replace(/\$\{([A-Z][A-Z_]*)\}/g, function(match) {
+      var index = vocabTokens.length;
+      vocabTokens.push(match);
+      return 'VOCAB_TOKEN_PLACEHOLDER_' + index;
+    });
+
     // Display math: $$...$$ (may span multiple lines)
     html = html.replace(/\$\$([\s\S]+?)\$\$/g, function(match, tex) {
       try {
@@ -197,6 +210,11 @@
       try {
         return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
       } catch (e) { return match; }
+    });
+
+    // Restore vocabulary tokens to their literal `${TOKEN}` form.
+    vocabTokens.forEach(function(original, index) {
+      html = html.replace(new RegExp('VOCAB_TOKEN_PLACEHOLDER_' + index, 'g'), function() { return original; });
     });
 
     return html;

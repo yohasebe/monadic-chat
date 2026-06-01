@@ -77,5 +77,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Fetch renderer vendor assets (markdown-it, katex)
+        continue-on-error: true
+        run: |
+          mkdir -p docker/services/ruby/public/vendor/js
+          curl -fsSL https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js -o docker/services/ruby/public/vendor/js/markdown-it.min.js || echo "markdown-it fetch failed; renderer tests will skip"
+          curl -fsSL https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js -o docker/services/ruby/public/vendor/js/katex.min.js || echo "katex fetch failed; renderer tests will skip"
+
       - name: Run jest
         run: npm test

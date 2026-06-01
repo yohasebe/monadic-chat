@@ -100,8 +100,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.gemini.chat[0]).toBe('gemini-3.5-flash');
     });
 
-    it('xai code default is grok-4.3', () => {
-      expect(providerDefaults.xai.code[0]).toBe('grok-4.3');
+    it('xai code default is grok-build-0.1', () => {
+      expect(providerDefaults.xai.code[0]).toBe('grok-build-0.1');
     });
 
     it('openai image default is gpt-image-2', () => {

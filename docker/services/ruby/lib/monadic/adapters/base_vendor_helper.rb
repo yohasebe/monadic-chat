@@ -212,6 +212,52 @@ module BaseVendorHelper
     end
   end
 
+  # Substitution Pipeline integration (Vocabulary provider only).
+  #
+  # Vocabulary lets the user and assistant share `${TOKEN}` variables (e.g.
+  # ${SHARED} for the synced data folder). It is opt-in per app via a
+  # `vocabulary do; use :shared; end` MDSL block and carries zero overhead for
+  # apps that do not declare it.
+  #
+  # Privacy is deliberately NOT registered here: it stays on its own
+  # `:_privacy_pipeline` hot path. The two providers have opposite failure
+  # contracts (Privacy :closed for PII safety, Vocabulary :open so a miss never
+  # breaks a turn) and independent lifecycles, so they are kept on separate
+  # pipelines.
+  #
+  # @return [Monadic::Substitution::Pipeline, nil] nil when the app exposes no
+  #   vocabulary tokens (the common case).
+  def substitution_pipeline_for(session, app_settings)
+    require_relative '../substitution/vocabulary'
+    # Default-on policy: ${SHARED} is available to every app unless it opts out
+    # with `vocabulary false`. Vocabulary.build_pipeline is the single source of
+    # truth for both token selection (shared with the system-prompt injector)
+    # and pipeline construction (shared with the streaming handler attach site).
+    Monadic::Substitution::Vocabulary.build_pipeline(session, app_settings)
+  end
+
+  # Expand owned `${TOKEN}`s in a tool-call argument structure just before the
+  # tool runs, so tools operate on real (mode-aware) paths. Deep over
+  # Hash/Array/String; non-string values (incl. the injected :session) pass
+  # through. Non-fatal: Vocabulary is :open, so the Pipeline swallows provider
+  # errors and returns the value-so-far. No-op (returns args) when the app has
+  # no vocabulary.
+  def expand_tool_args_for_vocabulary(args, session, app_settings)
+    pipeline = substitution_pipeline_for(session, app_settings)
+    return args unless pipeline
+    pipeline.process_tool_invoke(nil, args)
+  end
+
+  # Decorate owned `${TOKEN}`s in finalized display text (keeps the symbol,
+  # wraps it in <code> with a hover title of the resolved value). Display-only —
+  # never apply to the TTS buffer.
+  def decorate_response_text(text, session, app_settings)
+    return text unless text.is_a?(String) && !text.empty?
+    pipeline = substitution_pipeline_for(session, app_settings)
+    return text unless pipeline
+    pipeline.process_output(text)
+  end
+
   # Replace masked text in user/assistant messages with placeholders.
   # Returns a new array so callers can keep the original messages
   # untouched. The system_prompt is never masked — privacy filtering

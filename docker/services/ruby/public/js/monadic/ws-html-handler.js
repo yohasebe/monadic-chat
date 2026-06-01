@@ -172,6 +172,29 @@ function handleHtml(data) {
       }
     }, 0);
   }
+
+  // Vocabulary: decorate ${TOKEN}s (hover = resolved path, click = open in file
+  // explorer). Same setTimeout(0) ordering as the privacy walker so it runs
+  // after the MarkdownRenderer pass.
+  const vocabularyMap = data && data["content"] && data["content"]["vocabulary_map"];
+  if (vocabularyMap && Object.keys(vocabularyMap).length &&
+      window.WsVocabularyHandler &&
+      typeof window.WsVocabularyHandler.decorateTokens === 'function') {
+    setTimeout(function () {
+      const discourseEl = $id('discourse');
+      if (discourseEl) {
+        window.WsVocabularyHandler.decorateTokens(discourseEl, vocabularyMap);
+      }
+    }, 0);
+  }
+
+  // Refresh the "Available Variables" panel with the per-turn resolved values
+  // (e.g. ${MODEL}/${APP}/${LANG} are empty at app-load but resolve now).
+  if (vocabularyMap && Object.keys(vocabularyMap).length &&
+      window.VocabularyPanel &&
+      typeof window.VocabularyPanel.updateValues === 'function') {
+    window.VocabularyPanel.updateValues(vocabularyMap);
+  }
 }
 
 /**

@@ -530,6 +530,57 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
     end
   end
 
+  describe '.vocabulary_variables injection' do
+    let(:vocab_app) { Struct.new(:settings).new({ vocabulary: { tokens: [:shared] } }) }
+    let(:session) { { parameters: { 'app_name' => 'VocabApp' } } }
+
+    before do
+      require 'monadic/utils/environment'
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return('/monadic/data')
+    end
+
+    it 'resolves the default token set for an explicitly-configured app' do
+      stub_const('APPS', { 'VocabApp' => vocab_app })
+      expect(described_class.vocabulary_tokens_for(session))
+        .to eq(Monadic::Substitution::Vocabulary::DEFAULT_TOKENS)
+    end
+
+    it 'defaults the universal tokens ON for an app with no vocabulary block' do
+      stub_const('APPS', { 'PlainApp' => Struct.new(:settings).new({}) })
+      expect(described_class.vocabulary_tokens_for(parameters: { 'app_name' => 'PlainApp' }))
+        .to eq(Monadic::Substitution::Vocabulary::DEFAULT_TOKENS)
+    end
+
+    it 'returns [] for an app that opted out with vocabulary false' do
+      stub_const('APPS', { 'OptOut' => Struct.new(:settings).new({ vocabulary: { tokens: [], enabled: false } }) })
+      expect(described_class.vocabulary_tokens_for(parameters: { 'app_name' => 'OptOut' })).to eq([])
+    end
+
+    it 'builds the shared-variables addendum' do
+      stub_const('APPS', { 'VocabApp' => vocab_app })
+      add = described_class.build_vocabulary_addendum(session)
+      expect(add).to include('${SHARED}')
+      expect(add).to include('Shared variables')
+    end
+
+    it 'fires the :vocabulary_variables rule by default' do
+      stub_const('APPS', { 'PlainApp' => Struct.new(:settings).new({}) })
+      names = described_class.build_injections(session: { parameters: { 'app_name' => 'PlainApp' } }, options: {}).map { |r| r[:name] }
+      expect(names).to include(:vocabulary_variables)
+    end
+
+    it 'does not fire the rule for an opted-out app' do
+      stub_const('APPS', { 'OptOut' => Struct.new(:settings).new({ vocabulary: { tokens: [], enabled: false } }) })
+      names = described_class.build_injections(session: { parameters: { 'app_name' => 'OptOut' } }, options: {}).map { |r| r[:name] }
+      expect(names).not_to include(:vocabulary_variables)
+    end
+
+    it 'does not fire when no app is active (no app_name)' do
+      names = described_class.build_injections(session: { parameters: {} }, options: {}).map { |r| r[:name] }
+      expect(names).not_to include(:vocabulary_variables)
+    end
+  end
+
   describe '.library_inventory_block' do
     it 'returns nil when the Library is empty' do
       allow(Monadic::Library::Inventory).to receive(:summarize).and_return(

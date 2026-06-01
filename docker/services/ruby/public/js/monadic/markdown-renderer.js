@@ -678,6 +678,18 @@
 
       let text = markdown;
 
+      // 0a. Vocabulary substitution tokens (${TOKEN}, TOKEN = UPPER_CASE) をプレースホルダーに
+      // Must run BEFORE math extraction so the token's `$` is never paired as a
+      // KaTeX inline-math delimiter. Restored to the literal `${TOKEN}` AFTER all
+      // other placeholder restorations so the vocabulary DOM walker can decorate it.
+      // Pattern mirrors the backend/walker regex exactly: /\$\{([A-Z][A-Z_]*)\}/g
+      const vocabTokens = [];
+      text = text.replace(/\$\{([A-Z][A-Z_]*)\}/g, (match) => {
+        const index = vocabTokens.length;
+        vocabTokens.push(match);
+        return `VOCAB_TOKEN_PLACEHOLDER_${index}`;
+      });
+
       // 0. Fix emphasis with CJK punctuation
       // markdown-it has issues with **「 and similar patterns
       // Insert zero-width space (U+200B) to create proper word boundary
@@ -800,6 +812,16 @@
         html = html.replace(
           new RegExp(`DRAWIO_BLOCK_PLACEHOLDER_${index}`, 'g'),
           `<div class="drawio-code"><pre>${escaped}</pre></div>`
+        );
+      });
+
+      // 10. Vocabulary tokens を元の literal `${TOKEN}` に復元
+      // Done LAST so the returned HTML contains the literal text the vocabulary
+      // DOM walker (ws-vocabulary-handler.js) looks for and decorates.
+      vocabTokens.forEach((original, index) => {
+        html = html.replace(
+          new RegExp(`VOCAB_TOKEN_PLACEHOLDER_${index}`, 'g'),
+          () => original
         );
       });
 

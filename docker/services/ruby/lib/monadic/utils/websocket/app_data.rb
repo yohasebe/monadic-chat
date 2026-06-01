@@ -4,6 +4,8 @@
 # Handles initial page load, app settings preparation,
 # message filtering, and status updates.
 
+require_relative '../../substitution/vocabulary'
+
 module WebSocketHelper
   # Handle the LOAD message by preparing and sending relevant data
   # @param connection [Async::WebSocket::Connection] WebSocket connection
@@ -51,9 +53,18 @@ module WebSocketHelper
   end
   
   # Prepare apps data with settings
+  # @param ui_language [String, nil] UI language for multi-language descriptions
+  # @param session [Hash, nil] session-like store; passed to the vocabulary
+  #   resolvers so session-dependent values (${MODEL}, ${LANG}, ...) resolve.
+  #   Defaults to the WebSocket helper's own `session` when not provided.
   # @return [Hash] Apps data with settings
-  def prepare_apps_data(ui_language = nil)
+  def prepare_apps_data(ui_language = nil, session: nil)
     return {} unless defined?(APPS)
+
+    # Use the helper's own session by default; an explicit nil means "no
+    # session context" only when a caller deliberately passes session: nil
+    # AND there is no ambient session.
+    session ||= (self.session if respond_to?(:session))
 
     # Get UI language from session parameters if not provided
     ui_language ||= session[:parameters]&.[]("ui_language") || "en"
@@ -128,6 +139,17 @@ module WebSocketHelper
           apps[k][p] = m ? m.to_s : nil
         end
       end
+
+      # Substitution-Pipeline vocabulary, for the Web UI "Available Variables"
+      # panel. SSOT: the enabled token set + descriptions + display modes +
+      # resolved values all come from Monadic::Substitution::Vocabulary, never
+      # duplicated in the frontend. Session-dependent values (e.g. ${MODEL},
+      # ${LANG}) resolve only when a session is available; otherwise the token
+      # is still listed with a nil value (the frontend omits the value). An app
+      # that opted out (`vocabulary false`) yields an empty array and the
+      # frontend hides the section entirely.
+      apps[k]["vocabulary_info"] =
+        Monadic::Substitution::Vocabulary.describe_for(session, v.settings)
 
       # Track size of this app's data
       if Monadic::Utils::ExtraLogger.enabled?

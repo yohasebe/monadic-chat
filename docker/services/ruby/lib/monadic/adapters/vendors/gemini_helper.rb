@@ -3271,6 +3271,11 @@ module GeminiHelper
       end
     end
 
+    # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
+    # :session injection so the session object is never walked. No-op without
+    # a vocabulary block.
+    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
+
     # Inject session for tools that need it (e.g., monadic state tools, image generators)
     # Check if the method accepts a :session parameter and inject it if so
     method_obj = APPS[app]&.method(function_name.to_sym) rescue nil

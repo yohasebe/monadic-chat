@@ -1902,6 +1902,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update previous value after confirmation
     previousModelValue = selectedModel;
 
+    if (window.VocabularyPanel && typeof window.VocabularyPanel.updateLiveValues === "function") window.VocabularyPanel.updateLiveValues();
+
     const appsEl = $id("apps");
     const defaultModel = apps[appsEl ? appsEl.value : ""]["model"];
     const modelNonDefault = $id("model-non-default");
@@ -2585,6 +2587,10 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("math-badge"));
     }
 
+    if (window.VocabularyPanel && typeof window.VocabularyPanel.renderForApp === 'function') {
+      window.VocabularyPanel.renderForApp(appValue);
+    }
+    if (window.VocabularyPanel && typeof window.VocabularyPanel.updateLiveValues === "function") window.VocabularyPanel.updateLiveValues();
     if (typeof window.setBaseAppDescription === 'function') {
       window.setBaseAppDescription(apps[appValue]["description"] || "");
     } else {

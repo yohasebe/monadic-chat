@@ -118,7 +118,8 @@ app "ImageGeneratorGemini" do
   end
 
   vocabulary do
-    use :last_image
+    use :last_generated_image
+    use :last_uploaded_image
   end
 
   features do

@@ -240,6 +240,16 @@ module Monadic
       #   this session, or nil. Reads the unified monadic_state "last_images"
       #   slot for the active app first (where all image generators save), then
       #   falls back to the provider-specific legacy single-image keys.
+      #
+      # Scope (decision): `${LAST_IMAGE}` is opted into (MDSL `use :last_image`)
+      # only by the dedicated Image Generator apps, which have the iterative
+      # generate→edit workflow. Other image-producing apps are intentionally
+      # excluded: the Video Generator's "last_images" holds an INPUT image (not
+      # a generated output), and apps like Concept Visualizer emit SVG/PNG
+      # without populating this slot, so a token there would always be nil.
+      # Returns the FIRST filename of the most recent generation batch, matching
+      # the semantics of fetch_last_images_from_session used by the edit flow.
+      # The key contract here is locked by state_token_keys_contract_spec.rb.
       def last_generated_image(session)
         params = session_params(session)
         app_name = params && (params["app_name"] || params[:app_name])

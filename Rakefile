@@ -2282,10 +2282,16 @@ namespace :release do
     content = File.read(changelog_file)
     lines = content.lines
     
-    # Find the line containing the target version
-    version_line_index = lines.find_index { |line| line.include?(version) }
+    # Find the version's header line. Anchor on the "- [Month, Year] <version>"
+    # heading shape (not a bare substring match) so a body line that merely
+    # mentions the version string — e.g. a prior release noting it was
+    # "superseded by 1.0.0-beta.18" — cannot be picked up as the section start.
+    # The trailing (?![\w.]) boundary stops "beta.18" from also matching a
+    # future "beta.18.1" heading.
+    header_re = /^\s*-\s*\[[\w\s,]+\]\s*#{Regexp.escape(version)}(?![\w.])/
+    version_line_index = lines.find_index { |line| line.match(header_re) }
     return "" unless version_line_index
-    
+
     # Find the next version entry or the end of the file
     next_version_line_index = lines[version_line_index+1..-1].find_index { |line| line.match(/^\s*-\s*\[\w+,\s*\d+\]/) }
     next_version_line_index = next_version_line_index ? version_line_index + 1 + next_version_line_index : lines.length

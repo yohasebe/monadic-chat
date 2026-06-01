@@ -30,7 +30,7 @@ RSpec.describe Monadic::Substitution::Registry do
     it "is false for vocabulary token names" do
       expect(described_class.privacy_token?("SHARED")).to be false
       expect(described_class.privacy_token?("MODEL")).to be false
-      expect(described_class.privacy_token?("LAST_IMAGE")).to be false
+      expect(described_class.privacy_token?("LAST_GENERATED_IMAGE")).to be false
     end
   end
 

@@ -146,7 +146,11 @@ end
 
 def fetch_file(file_name)
   # Prevent path traversal attacks by sanitizing the filename
-  safe_name = File.basename(file_name)
+  safe_name = File.basename(file_name.to_s)
+  # Decoded path params can arrive tagged ASCII-8BIT; reinterpret as UTF-8 so a
+  # non-ASCII (e.g. Japanese) filename matches the file saved under its UTF-8
+  # name and File.join below does not raise Encoding::CompatibilityError.
+  safe_name = safe_name.dup.force_encoding(Encoding::UTF_8) if safe_name.encoding != Encoding::UTF_8
 
   datadir = Monadic::Utils::Environment.data_path
   file_path = File.join(datadir, safe_name)

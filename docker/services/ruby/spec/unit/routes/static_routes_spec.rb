@@ -72,7 +72,8 @@ RSpec.describe "Static Routes helpers" do
 
     def safe_file_path(file_name, datadir)
       # Replicate the sanitization logic from static_routes.rb fetch_file
-      safe_name = File.basename(file_name)
+      safe_name = File.basename(file_name.to_s)
+      safe_name = safe_name.dup.force_encoding(Encoding::UTF_8) if safe_name.encoding != Encoding::UTF_8
       file_path = File.join(datadir, safe_name)
 
       return nil unless File.exist?(file_path)
@@ -121,6 +122,14 @@ RSpec.describe "Static Routes helpers" do
       File.write(File.join(data_dir, "file with spaces.txt"), "content")
       result = safe_file_path("file with spaces.txt", data_dir)
       expect(result).not_to be_nil
+    end
+
+    it "resolves a non-ASCII (Japanese) filename even when the param is tagged ASCII-8BIT" do
+      File.write(File.join(data_dir, "報告書.pdf"), "content")
+      # Simulate a percent-decoded path param handed back tagged binary.
+      param = "報告書.pdf".b
+      expect { @result = safe_file_path(param, data_dir) }.not_to raise_error
+      expect(@result).not_to be_nil
     end
 
     it "handles filenames with special characters" do

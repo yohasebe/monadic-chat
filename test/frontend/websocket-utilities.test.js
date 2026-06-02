@@ -27,7 +27,7 @@ describe('sanitizeMermaidSource', () => {
       .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-      .replace(/[\u2010-\u2015\u2212\u30FC\uFF0D]/g, '-')
+      .replace(/[\u2010-\u2015\u2212\uFF0D]/g, '-')
       .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
       .replace(/[\u201C\u201D\u2033\uFF02]/g, '"')
       .replace(/[\u300C\u300D]/g, '"');
@@ -55,8 +55,17 @@ describe('sanitizeMermaidSource', () => {
   it('normalizes Unicode dashes to ASCII hyphen', () => {
     // \u2010 hyphen, \u2013 en dash, \u2014 em dash, \u2212 minus sign
     expect(sanitizeMermaidSource('A\u2010B\u2013C\u2014D\u2212E')).toBe('A-B-C-D-E');
-    // \u30FC katakana prolonged, \uFF0D fullwidth hyphen-minus
-    expect(sanitizeMermaidSource('\u30FC\uFF0D')).toBe('--');
+    // \uFF0D fullwidth hyphen-minus is a dash and IS normalized
+    expect(sanitizeMermaidSource('A\uFF0DB')).toBe('A-B');
+  });
+
+  it('preserves the Japanese long-vowel mark (\u30FC), not folding it to a hyphen', () => {
+    // Regression: \u30FC ("\u30FC") is a normal CJK character. Folding it to '-'
+    // corrupted Japanese mindmap node labels (e.g. \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC \u2192
+    // \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3-), which made Mermaid 11.x throw "Syntax error in text"
+    // on the frontend even though server-side validation had passed.
+    expect(sanitizeMermaidSource('\u30FC')).toBe('\u30FC');
+    expect(sanitizeMermaidSource('\u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC')).toBe('\u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC');
   });
 
   it('normalizes Unicode single quotes to ASCII apostrophe', () => {

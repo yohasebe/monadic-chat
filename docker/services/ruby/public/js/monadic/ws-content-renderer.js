@@ -257,7 +257,11 @@
       .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-      .replace(/[\u2010-\u2015\u2212\u30FC\uFF0D]/g, '-')
+      // Normalize dash variants to ASCII '-'. NOTE: \u30FC (Japanese long-vowel
+      // mark "\u30FC") is deliberately NOT in this class \u2014 it is a normal CJK
+      // character (e.g. \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC), and folding it to '-' corrupts
+      // Japanese node labels and breaks the Mermaid mindmap parser.
+      .replace(/[\u2010-\u2015\u2212\uFF0D]/g, '-')
       .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
       .replace(/[\u201C\u201D\u2033\uFF02]/g, '"')
       .replace(/[\u300C\u300D]/g, '"');

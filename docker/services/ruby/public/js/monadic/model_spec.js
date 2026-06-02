@@ -657,7 +657,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-17",
-    "successor": "gemini-3-flash-preview"
+    "successor": "gemini-3.5-flash"
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],

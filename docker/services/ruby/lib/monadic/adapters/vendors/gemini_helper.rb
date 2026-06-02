@@ -29,7 +29,7 @@ end
 #   - Latest model optimized for software engineering and tool usage
 #   - customtools variant prioritizes custom tools over built-in tools
 #
-# Gemini 3 (gemini-3-flash-preview):
+# Gemini 3.5 Flash (gemini-3.5-flash; GA successor of the gemini-3-flash-preview line):
 #   - Full support for monadic mode + function calling simultaneously
 #   - No special workarounds required
 #
@@ -434,7 +434,7 @@ module GeminiHelper
   # combined with function_declarations in a single API call.
   #
   # @param query [String] The search query
-  # @param model [String] The model to use (defaults to gemini-3-flash-preview)
+  # @param model [String] The model to use (defaults to the Gemini chat default)
   # @return [Hash] Search results with sources and content
   def gemini_web_search(query:, n: 5)
     # Instance method wrapper for tool calls

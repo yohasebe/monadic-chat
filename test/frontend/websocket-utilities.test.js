@@ -29,8 +29,7 @@ describe('sanitizeMermaidSource', () => {
       .replace(/&#39;/g, "'")
       .replace(/[\u2010-\u2015\u2212\uFF0D]/g, '-')
       .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
-      .replace(/[\u201C\u201D\u2033\uFF02]/g, '"')
-      .replace(/[\u300C\u300D]/g, '"');
+      .replace(/[\u201C\u201D\u2033\uFF02]/g, '"');
   }
 
   it('returns falsy input unchanged', () => {
@@ -80,9 +79,12 @@ describe('sanitizeMermaidSource', () => {
     expect(sanitizeMermaidSource('\u2033\uFF02')).toBe('""');
   });
 
-  it('normalizes CJK corner brackets to ASCII double quotes', () => {
-    // \u300C left corner bracket, \u300D right corner bracket
-    expect(sanitizeMermaidSource('\u300Cword\u300D')).toBe('"word"');
+  it('preserves CJK corner brackets, not folding them to quotes', () => {
+    // Regression: \u300C/\u300D are normal CJK quotation brackets used as label
+    // text in Japanese mindmaps. Folding them to '"' corrupts labels and can
+    // break the Mermaid parser, so they must pass through untouched.
+    expect(sanitizeMermaidSource('\u300Cword\u300D')).toBe('\u300Cword\u300D');
+    expect(sanitizeMermaidSource('\u300C\u91CD\u8981\u300D')).toBe('\u300C\u91CD\u8981\u300D');
   });
 
   it('handles combined transformations', () => {

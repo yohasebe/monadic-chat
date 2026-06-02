@@ -388,10 +388,18 @@ module MermaidGrapherTools
     sanitized = sanitized.gsub(/[\u2028\u2029]/, "\n")
     sanitized = sanitized.gsub('\\"', '"')
     sanitized = sanitized.gsub('\\n', "\n")
-    sanitized = sanitized.gsub(/[\u2010-\u2015\u2212\u30FC\uFF0D]/, '-')
+    # Fold Western "smart" punctuation back to ASCII so LLM-pasted curly quotes
+    # / typographic dashes don't break the Mermaid parser.
+    #
+    # CJK SAFETY (do NOT add these): the Japanese long-vowel mark U+30FC ("\u30FC",
+    # e.g. \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC) and corner brackets U+300C/U+300D ("\u300C\u300D") are
+    # normal CJK characters, not Western lookalikes. Folding them to '-' / '"'
+    # corrupts Japanese node labels and makes Mermaid throw "Syntax error in
+    # text". Mirrored in the frontend sanitizeMermaidSource (ws-content-renderer.js)
+    # and pinned by the mermaid-sanitize CJK-safety specs on both sides.
+    sanitized = sanitized.gsub(/[\u2010-\u2015\u2212\uFF0D]/, '-')
     sanitized = sanitized.gsub(/[\u2018\u2019\u2032\uFF07]/, "'")
     sanitized = sanitized.gsub(/[\u201C\u201D\u2033\uFF02]/, '"')
-    sanitized = sanitized.gsub(/[\u300C\u300D]/, '"')
     sanitized = sanitized.gsub(/[\uFF0F]/, '/')
     sanitized = sanitized.gsub(/\[(.*?)\]/m) do |match|
       inner = match[1..-2]

@@ -257,14 +257,19 @@
       .replace(/&amp;/g, '&')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-      // Normalize dash variants to ASCII '-'. NOTE: \u30FC (Japanese long-vowel
-      // mark "\u30FC") is deliberately NOT in this class \u2014 it is a normal CJK
-      // character (e.g. \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC), and folding it to '-' corrupts
-      // Japanese node labels and breaks the Mermaid mindmap parser.
+      // Fold Western "smart" punctuation back to ASCII so LLM-pasted curly
+      // quotes / typographic dashes do not break the Mermaid parser.
+      //
+      // CJK SAFETY (do NOT add these to the classes below): the Japanese
+      // long-vowel mark "\u30FC" (U+30FC, as in \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC) and the corner
+      // brackets "\u300C\u300D" (U+300C/U+300D) are normal CJK characters, not Western
+      // punctuation lookalikes. Folding them to '-' / '"' corrupts Japanese
+      // node labels and makes Mermaid throw "Syntax error in text". This rule
+      // is mirrored server-side in sanitize_mermaid_code (mermaid_grapher_tools.rb)
+      // and pinned by the mermaid-sanitize CJK-safety specs on both sides.
       .replace(/[\u2010-\u2015\u2212\uFF0D]/g, '-')
       .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
-      .replace(/[\u201C\u201D\u2033\uFF02]/g, '"')
-      .replace(/[\u300C\u300D]/g, '"');
+      .replace(/[\u201C\u201D\u2033\uFF02]/g, '"');
   }
 
   async function applyMermaid(element) {

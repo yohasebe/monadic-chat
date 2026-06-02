@@ -52,12 +52,33 @@ or corner brackets into a fold rule (or a behavioral regression) fails these:
 - **Frontend (Jest)**: `test/frontend/websocket-utilities.test.js`
   - behavioral: long-vowel and クロマトグラフィー are preserved; dashes/quotes folded.
 
-## Known follow-up (separate task)
+## Render-error gating (the structural fix)
 
-The deeper structural issue — the **preview path validates with a lenient
-static check while rendering happens elsewhere**, so a sanitizer bug can pass
-validation yet fail rendering — is intentionally out of scope here. Making the
-preview path's validation reflect the actual render (subject to the single
-Selenium Grid slot constraint, see `run_full_validation` comments) is tracked
-separately. Until then, the CJK-safety guards above prevent the specific class
-of corruption that triggered the original report.
+The deeper structural issue behind the original report was that the **preview
+path validated with a lenient static check while the real render happened in
+the browser**, so a sanitizer bug (or any other defect) could pass validation
+yet fail rendering — and the screenshot step would happily capture Mermaid's
+error graphic (the "bomb" icon) and report success.
+
+This is now closed. `preview_mermaid` consults a dedicated web_navigator
+action, `check_render_error`, between rendering and screenshotting:
+
+- **`check_render_error`** (`docker/services/python/scripts/cli_tools/web_navigator.py`)
+  runs JS in the live page and reports whether the rendered SVG is Mermaid's
+  error graphic (`svg[aria-roledescription="error"]` / `.error-icon` /
+  `.error-text`), returning `{render_error: bool, error_text}`.
+- **`preview_mermaid`** (`mermaid_grapher_tools.rb`) returns a failure with the
+  error detail when `render_error` is true, instead of capturing and presenting
+  the error screen. The LLM then sees the real Mermaid error and can self-correct.
+
+Pinned by `spec/unit/apps/mermaid_preview_render_error_spec.rb` (render-error →
+failure, clean render → proceeds to screenshot).
+
+### Remaining minor divergence (low priority)
+
+`build_mermaid_html` initializes Mermaid with `securityLevel: 'loose'`, while the
+chat renderer (`ws-content-renderer.js`) uses `'strict'`. The preview therefore
+renders under slightly more permissive settings than the chat surface. The
+render-error gate catches outright parse failures regardless, but a diagram that
+only fails under `strict` could still pass preview. Aligning the two security
+levels is a separate, lower-priority cleanup.

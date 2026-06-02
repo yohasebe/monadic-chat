@@ -71,6 +71,23 @@ module MermaidGrapherTools
     # 4. Wait for Mermaid rendering
     sleep(3)
 
+    # 4b. Verify the browser actually rendered a diagram, not Mermaid's error
+    # graphic. Mermaid emits an <svg> even on a parse failure (the "bomb" icon
+    # with aria-roledescription="error"), so a screenshot alone would happily
+    # capture the error screen and report success. This closes the gap where
+    # the lenient static pre-validation passes but the real render fails.
+    err_output = send_command(command: "web_navigator.py --action check_render_error", container: "python")
+    err_result = parse_mermaid_response(err_output)
+    if err_result[:success] && err_result[:render_error]
+      detail = err_result[:error_text].to_s.strip
+      detail = "Mermaid failed to render the diagram." if detail.empty?
+      return format_tool_response(build_preview_payload(
+        success: false,
+        error: "Diagram render error: #{detail}",
+        validated_code: sanitized_code
+      ))
+    end
+
     # 5. Capture full-page screenshot (resizes viewport or tiles for tall content)
     ss_output = send_command(command: "web_navigator.py --action full_screenshot", container: "python")
     ss_result = parse_mermaid_response(ss_output)

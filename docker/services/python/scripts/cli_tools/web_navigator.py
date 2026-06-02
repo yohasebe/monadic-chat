@@ -560,6 +560,47 @@ def action_full_screenshot(args):
         }
 
 
+def action_check_render_error(args):
+    """Check whether the page rendered a diagram error rather than a real diagram.
+
+    Mermaid (and similar SVG renderers) still emit an <svg> on a parse failure —
+    an error graphic (the "bomb" icon) carrying aria-roledescription="error" and
+    .error-text / .error-icon nodes. A plain "is there an svg?" check therefore
+    treats a failed render as success. This action distinguishes the two so a
+    caller can refuse to present an error graphic as a finished diagram.
+
+    Returns {success: True, render_error: bool, error_text: str|None}. success
+    here means "the check ran", not "the diagram is fine"; inspect render_error.
+    """
+    session_id = _load_session()
+    if not session_id:
+        return {"success": False, "error": "No active browser session. Use --action start first."}
+
+    check_js = """
+    var errSvg = document.querySelector('svg[aria-roledescription="error"]');
+    var errNode = document.querySelector('.error-icon, .error-text');
+    if (!errSvg && !errNode) {
+        return {render_error: false, error_text: null};
+    }
+    var text = '';
+    document.querySelectorAll('.error-text, text.error-text').forEach(function(n) {
+        if (n.textContent) text += n.textContent.trim() + ' ';
+    });
+    if (!text) {
+        var body = document.body ? document.body.textContent : '';
+        text = (body || '').trim().slice(0, 300);
+    }
+    return {render_error: true, error_text: text.trim() || 'Diagram render error'};
+    """
+    result = _execute_js(session_id, check_js)
+    value = result.get("value") or {}
+    return {
+        "success": True,
+        "render_error": bool(value.get("render_error")),
+        "error_text": value.get("error_text"),
+    }
+
+
 def action_extract_svg(args):
     """Extract SVG element from the current page and save to a file."""
     session_id = _load_session()
@@ -1044,6 +1085,7 @@ def main():
                         choices=["start", "navigate", "click", "type",
                                  "screenshot", "full_screenshot",
                                  "diagram_screenshot", "extract_svg",
+                                 "check_render_error",
                                  "get_page_info", "annotate_elements",
                                  "scroll", "press_key", "select",
                                  "back", "forward", "stop"],
@@ -1073,6 +1115,7 @@ def main():
         "full_screenshot": action_full_screenshot,
         "diagram_screenshot": action_diagram_screenshot,
         "extract_svg": action_extract_svg,
+        "check_render_error": action_check_render_error,
         "get_page_info": action_get_page_info,
         "annotate_elements": action_annotate_elements,
         "scroll": action_scroll,

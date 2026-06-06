@@ -179,6 +179,7 @@ NEITHER_MDSLS = %w[
   mermaid_grapher/mermaid_grapher_gemini.mdsl
   mermaid_grapher/mermaid_grapher_grok.mdsl
   mermaid_grapher/mermaid_grapher_openai.mdsl
+  music_analyst/music_analyst_gemini.mdsl
   music_lab/music_lab_claude.mdsl
   music_lab/music_lab_gemini.mdsl
   music_lab/music_lab_grok.mdsl
@@ -301,7 +302,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
       'PF only'      => [PF_ONLY_MDSLS, 24],
       'KB search'    => [KB_SEARCH_MDSLS, 52],
       'KB save only' => [KB_SAVE_ONLY_MDSLS, 27],
-      'Neither'      => [NEITHER_MDSLS, 26]
+      'Neither'      => [NEITHER_MDSLS, 27]
     }.each do |label, (list, expected_size)|
       it "#{label}: list size is #{expected_size}" do
         expect(list.size).to eq(expected_size),

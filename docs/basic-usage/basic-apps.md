@@ -41,6 +41,7 @@ The table below shows which apps are available for which AI model providers.
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | |
 | Music Lab | ✅ | ✅ | | | ✅ | ✅ | | |
+| Music Analyst | | | | | ✅ | | | |
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
@@ -80,6 +81,7 @@ To preserve a PF-protected conversation, use **Privacy Export** (encrypted, opti
 | Jupyter Notebook | | ✅ |
 | Auto Forge | | |
 | Music Lab | | |
+| Music Analyst | | |
 | Document Generator | | |
 | Monadic Chat Help | | ✅ |
 
@@ -602,6 +604,23 @@ An interactive music theory lab with audio/MIDI analysis, chord playback, and ba
 Audio analysis requires the optional **Audio Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
 
 Music Lab is available for OpenAI, Claude, Gemini, and Grok.
+
+### Music Analyst :id=music-analyst
+
+![Music Analyst app icon](../assets/icons/music.png ':size=40')
+
+Analyze an uploaded recording from two complementary angles: objective measured features and an interpretive critique of the music and performance.
+
+**Key Features:**
+- **Objective features**: Extract tempo, key, time signature, chord progression, and song structure from an uploaded audio or MIDI file via signal processing.
+- **Interpretive critique**: Gemini listens to the audio and comments on character and mood, genre and instrumentation, and performance qualities (expression, dynamics, phrasing, timing, energy), with strengths, weaknesses, and an overall evaluation.
+- **Complementary lenses**: Ask for objective facts, an interpretive critique, or both — the two are presented as clearly separated sections.
+
+The interpretive critique analyzes audio in mono at reduced bandwidth, so it does not judge audio fidelity, mix/mastering, or stereo imaging; exact tempo and key come from the objective feature analysis. Critique applies to real audio (mp3, wav, m4a, ogg, flac); MIDI files use objective analysis only.
+
+Objective feature analysis requires the optional **Audio Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
+
+Music Analyst is available for Gemini.
 
 ### Document Generator :id=document-generator
 

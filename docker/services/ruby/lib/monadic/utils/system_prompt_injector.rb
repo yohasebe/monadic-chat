@@ -181,7 +181,16 @@ module Monadic
           condition: ->(session, _options) {
             params = session&.[](:parameters) || {}
             toggle = params['library_rag_enabled'] || params[:library_rag_enabled]
-            toggle == true || toggle.to_s == 'true'
+            next false unless toggle == true || toggle.to_s == 'true'
+            # Gate on app capability: the per-session RAG toggle persists across
+            # app changes, so a stale "on" value must not leak the RAG header
+            # into apps that have no library_search tool (e.g. Music Analyst,
+            # image/video generators). Their toggle row is hidden in the UI, so
+            # it must be inert here too — keeping toggle state and behavior
+            # consistent. Capable apps keep the user's preference untouched.
+            app_name = params['app_name'] || params[:app_name]
+            app = (APPS[app_name] if defined?(APPS) && app_name)
+            !!(app && app.settings && app.settings[:library_search] == true)
           },
           generator: ->(session, _options) {
             Monadic::Utils::SystemPromptInjector.build_library_rag_prompt(session)

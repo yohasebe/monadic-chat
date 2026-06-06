@@ -1234,9 +1234,15 @@ function resetEvent(_event, resetToDefaultApp = false) {
     const saveAndResetBtn = $id("resetSaveAndConfirm");
     if (saveAndResetBtn) {
       // Only surface the third button when the user has something to
-      // preserve. Otherwise the dialog is the original two-button
-      // Cancel/Reset shape.
-      saveAndResetBtn.style.display = hasSaveableContent ? '' : 'none';
+      // preserve AND the current app actually supports saving to the
+      // Knowledge Base. Without the capability check, apps with
+      // `library_save false` (e.g. Music Analyst) leaked a save path here
+      // even though the main Save button is correctly disabled — an
+      // asymmetry between the two save entry points.
+      const kbSaveEligible = !!(window.libraryPanel
+        && typeof window.libraryPanel.isCurrentAppKbSaveEligible === 'function'
+        && window.libraryPanel.isCurrentAppKbSaveEligible());
+      saveAndResetBtn.style.display = (hasSaveableContent && kbSaveEligible) ? '' : 'none';
     }
     if (resetModal) {
       bootstrap.Modal.getOrCreateInstance(resetModal).show();

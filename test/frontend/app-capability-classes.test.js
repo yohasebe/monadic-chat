@@ -144,6 +144,43 @@ describe('applyAppCapabilityClasses / applyPrivacyOnClass (body-class SSOT for P
       expect(document.body.classList.contains('app-cap-kb-search')).toBe(false);
     });
 
+    it('disables the KB retrieval toggle (with tooltip) when library_search is false, leaving checked untouched', () => {
+      document.body.innerHTML =
+        '<input type="checkbox" id="library-rag-toggle">' +
+        '<input type="checkbox" id="check-privacy-session">';
+      const rag = document.getElementById('library-rag-toggle');
+      rag.checked = true; // simulate a persisted "on" preference
+      window.apps = { Music: { library_save: false, library_search: false } };
+      applyAppCapabilityClasses('Music');
+      expect(rag.disabled).toBe(true);
+      expect(rag.getAttribute('title')).toMatch(/not available/i);
+      expect(rag.checked).toBe(true); // preference preserved, not clobbered
+    });
+
+    it('enables the KB retrieval toggle (no tooltip) for a library_search app', () => {
+      document.body.innerHTML = '<input type="checkbox" id="library-rag-toggle">';
+      window.apps = { Chat: { library_save: true, library_search: true } };
+      applyAppCapabilityClasses('Chat');
+      const rag = document.getElementById('library-rag-toggle');
+      expect(rag.disabled).toBe(false);
+      expect(rag.getAttribute('title')).toBeNull();
+    });
+
+    it('disables the Privacy toggle on apps without privacy and enables it where declared', () => {
+      document.body.innerHTML = '<input type="checkbox" id="check-privacy-session">';
+      window.apps = {
+        Music: { privacy_enabled: false },
+        Mail: { privacy_enabled: true }
+      };
+      const pf = document.getElementById('check-privacy-session');
+      applyAppCapabilityClasses('Music');
+      expect(pf.disabled).toBe(true);
+      expect(pf.getAttribute('title')).toMatch(/not available/i);
+      applyAppCapabilityClasses('Mail');
+      expect(pf.disabled).toBe(false);
+      expect(pf.getAttribute('title')).toBeNull();
+    });
+
     it('no-ops safely when appName is null / unknown (does not toggle any class)', () => {
       document.body.classList.add('app-cap-pf'); // pre-existing state we should not touch
       window.apps = {};

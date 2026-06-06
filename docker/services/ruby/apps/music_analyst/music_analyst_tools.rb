@@ -14,9 +14,9 @@ require_relative "../../lib/monadic/agents/audio_analysis_agent"
 # critique is Gemini-specific (see AudioAnalysisAgent), so this module is only
 # included into the Gemini variant — Provider Independence is preserved.
 module MusicAnalystTools
-  # Gemini model for qualitative critique. Must support audio input;
-  # gemini-3.5-flash does and is cost-effective for this task.
-  CRITIQUE_MODEL = "gemini-3.5-flash"
+  # Fallback Gemini model for qualitative critique when the SSOT default is
+  # unavailable. Must support audio input; gemini-3.5-flash does.
+  CRITIQUE_MODEL_FALLBACK = "gemini-3.5-flash"
 
   # critique_audio is for real audio only; MIDI has no waveform to "listen" to.
   CRITIQUE_AUDIO_EXTS = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze
@@ -54,12 +54,25 @@ module MusicAnalystTools
     # The Ruby process reads the file directly, so resolve to the mode-correct
     # shared-volume path (container: /monadic/data, host: ~/monadic/data).
     abs_path = File.join(Monadic::Utils::Environment.data_path, filename)
-    AudioAnalysisAgent.analyze(audio_path: abs_path, prompt: build_critique_prompt(focus), model: CRITIQUE_MODEL)
+    AudioAnalysisAgent.analyze(audio_path: abs_path, prompt: build_critique_prompt(focus), model: critique_model)
   rescue StandardError => e
     "❌ Audio critique failed: #{e.message}"
   end
 
   private
+
+  # Resolve the audio-capable Gemini model from the SSOT (providerDefaults),
+  # falling back to a known-good model — mirrors the agent model strategy in
+  # CLAUDE.md (ModelSpec accessor + hardcoded fallback).
+  def critique_model
+    if defined?(Monadic::Utils::ModelSpec)
+      Monadic::Utils::ModelSpec.default_audio_model("gemini") || CRITIQUE_MODEL_FALLBACK
+    else
+      CRITIQUE_MODEL_FALLBACK
+    end
+  rescue StandardError
+    CRITIQUE_MODEL_FALLBACK
+  end
 
   def build_critique_prompt(focus)
     prompt = <<~PROMPT
@@ -112,6 +125,13 @@ module MusicAnalystTools
     sections = result["sections"]
     if sections.is_a?(Array) && sections.any?
       lines << "- Sections: #{sections.map { |s| s['label'] }.compact.join(', ')}"
+    end
+
+    # MIDI files additionally carry per-track instrument info.
+    tracks = result["tracks"]
+    if tracks.is_a?(Array) && tracks.any?
+      names = tracks.map { |t| t["name"] || t["instrument"] }.compact
+      lines << "- Tracks: #{names.join(', ')}" if names.any?
     end
 
     lines << "- Summary: #{result['description']}" if result["description"]

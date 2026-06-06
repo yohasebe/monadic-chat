@@ -51,6 +51,19 @@ RSpec.describe AudioAnalysisAgent do
         expect(parts[1][:text]).to eq("Critique it.")
       end
     end
+
+    context 'when the file exceeds the inline size limit' do
+      it 'returns a clear error instead of sending an oversized request' do
+        allow(File).to receive(:exist?).and_call_original
+        allow(File).to receive(:exist?).with(audio_path).and_return(true)
+        # Simulate a file that could not be compressed below the limit.
+        allow(described_class).to receive(:prepare_audio).with(audio_path).and_return([audio_path, "audio/mpeg", nil])
+        allow(File).to receive(:size).with(audio_path).and_return(described_class::MAX_INLINE_BYTES + 1)
+
+        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.5-flash")
+        expect(result).to match(/too large to analyze/i)
+      end
+    end
   end
 
   describe '.prepare_audio' do

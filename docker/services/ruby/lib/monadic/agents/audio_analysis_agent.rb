@@ -27,6 +27,12 @@ module AudioAnalysisAgent
   # payload with no loss of information Gemini would have used anyway.
   COMPRESS_THRESHOLD_BYTES = 6 * 1024 * 1024
 
+  # Practical inline_data ceiling for a generateContent request (~20MB total).
+  # If compression couldn't get under this (e.g. ffmpeg unavailable on the host
+  # in dev mode, or an extreme source file), fail with a clear message instead
+  # of letting Gemini reject the oversized request with a generic 400.
+  MAX_INLINE_BYTES = 18 * 1024 * 1024
+
   AUDIO_MIME_TYPES = {
     "mp3"  => "audio/mpeg", "mpeg" => "audio/mpeg",
     "m4a"  => "audio/mp4",  "mp4"  => "audio/mp4",
@@ -47,6 +53,11 @@ module AudioAnalysisAgent
 
     send_path, mime_type, cleanup = prepare_audio(audio_path)
     begin
+      size = File.size(send_path)
+      if size > MAX_INLINE_BYTES
+        return "ERROR: Audio is too large to analyze (#{(size / 1_048_576.0).round(1)}MB after compression; " \
+               "limit ~#{MAX_INLINE_BYTES / (1024 * 1024)}MB). Please upload a shorter clip or a compressed mp3."
+      end
       base64_data = Base64.strict_encode64(File.binread(send_path))
       uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}"
       body = {

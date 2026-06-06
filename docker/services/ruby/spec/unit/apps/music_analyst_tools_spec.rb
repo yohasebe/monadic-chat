@@ -26,7 +26,7 @@ RSpec.describe MusicAnalystTools do
       expect(AudioAnalysisAgent).to receive(:analyze) do |audio_path:, prompt:, model:|
         expect(audio_path).to eq("/monadic/data/perf.mp3")
         expect(prompt).to match(/interpretive, qualitative critique/i)
-        expect(model).to eq(MusicAnalystTools::CRITIQUE_MODEL)
+        expect(model).to match(/\Agemini-/) # resolved from SSOT (default_audio_model)
         "critique text"
       end
       expect(tool.critique_audio(file_path: "perf.mp3")).to eq("critique text")
@@ -62,6 +62,19 @@ RSpec.describe MusicAnalystTools do
       expect(result).to include("Dm - Gm - A7") # consecutive Dm collapsed
       expect(result).to include("Sections: intro, verse")
       expect(result).to include("A melancholic piece.")
+    end
+
+    it 'includes MIDI track names when present' do
+      json = {
+        "success" => true, "file_type" => "midi", "duration_seconds" => 60,
+        "tempo" => { "bpm" => 120 }, "key" => { "key" => "C", "mode" => "major" },
+        "time_signature" => { "beats_per_bar" => 4, "note_value" => 4 },
+        "tracks" => [{ "name" => "Piano", "instrument" => "Acoustic Grand" }, { "instrument" => "Bass" }]
+      }.to_json
+      allow(tool).to receive(:send_command).and_return(json)
+
+      result = tool.analyze_audio_features(file_path: "song.mid")
+      expect(result).to include("Tracks: Piano, Bass")
     end
 
     it 'returns a tool error when the analyzer reports failure' do

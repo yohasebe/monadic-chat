@@ -77,6 +77,25 @@ RSpec.describe MusicAnalystTools do
       expect(result).to include("Tracks: Piano, Bass")
     end
 
+    it 'drops spurious brief No-Chord blips but keeps longer N.C. spans (and survives nil duration)' do
+      json = {
+        "success" => true, "file_type" => "audio", "duration_seconds" => 12,
+        "tempo" => { "bpm" => 120 }, "key" => { "key" => "C", "mode" => "major" },
+        "time_signature" => { "beats_per_bar" => 4, "note_value" => 4 },
+        "chords" => [
+          { "chord" => "N.C.", "duration" => 0.3 }, # brief blip → dropped
+          { "chord" => "C", "duration" => 2.0 },
+          { "chord" => "N.C." },                    # nil duration → treated as brief, dropped (no crash)
+          { "chord" => "C", "duration" => 1.5 },    # adjacent to prior C after drop → collapses
+          { "chord" => "N.C.", "duration" => 3.0 }  # long N.C. → kept
+        ]
+      }.to_json
+      allow(tool).to receive(:send_command).and_return(json)
+
+      result = tool.analyze_audio_features(file_path: "solo.mp3")
+      expect(result).to include("Chords: C - N.C.")
+    end
+
     it 'returns a tool error when the analyzer reports failure' do
       allow(tool).to receive(:send_command).and_return('{"success": false, "error": "bad file"}')
       expect(tool.analyze_audio_features(file_path: "x.mp3")).to match(/❌.*bad file/)

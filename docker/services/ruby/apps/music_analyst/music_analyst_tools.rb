@@ -117,9 +117,16 @@ module MusicAnalystTools
 
     chords = result["chords"]
     if chords.is_a?(Array) && chords.any?
-      seq = chords.map { |c| c["chord"] }.compact.chunk_while { |a, b| a == b }.map(&:first)
-      suffix = seq.length > 24 ? " …" : ""
-      lines << "- Chords: #{seq.first(24).join(' - ')}#{suffix}"
+      # Drop spurious brief No-Chord blips (monophonic solo lines make madmom
+      # emit short "N.C." spans between real chords); keep N.C. spans >= 1s as
+      # genuinely chord-less passages. `.to_f` is nil-safe — chord entries may
+      # carry no duration. Then collapse consecutive duplicates.
+      meaningful = chords.reject { |c| c["chord"] == "N.C." && c["duration"].to_f < 1.0 }
+      seq = meaningful.map { |c| c["chord"] }.compact.chunk_while { |a, b| a == b }.map(&:first)
+      if seq.any?
+        suffix = seq.length > 24 ? " …" : ""
+        lines << "- Chords: #{seq.first(24).join(' - ')}#{suffix}"
+      end
     end
 
     sections = result["sections"]

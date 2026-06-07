@@ -2467,10 +2467,13 @@ module GeminiHelper
       elsif result
         # Don't return error messages if they were generated due to initial empty response
         # that was followed by function calls
-        if result.is_a?(Array) && result.length == 1 && 
+        if result.is_a?(Array) && result.length == 1 &&
            result[0].to_s.include?("No response was received") && tool_calls.any?
-          # Return empty result instead of error message
-          [{ "choices" => [{ "message" => { "content" => "" } }] }]
+          # The model produced no final text after tools ran. Prefer surfacing
+          # the tool output (e.g. Music Analyst's critique/features) over a blank
+          # message; fall back to empty content to keep suppressing the error.
+          surfaced = surfaced_tool_text(session)
+          [{ "choices" => [{ "message" => { "content" => surfaced || "" } }] }]
         else
           [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
         end

@@ -41,6 +41,25 @@ RSpec.describe MusicAnalystTools do
   end
 
   describe '#analyze_audio_features' do
+    # The audio path is gated on the optional Audio Analysis package; treat it
+    # as installed for the formatting/parsing tests below.
+    before { stub_const("CONFIG", { "PYOPT_LIBROSA" => "true" }) }
+
+    it 'points the user to Install Options when the Audio Analysis package is off (audio file)' do
+      stub_const("CONFIG", { "PYOPT_LIBROSA" => "false" })
+      expect(tool).not_to receive(:send_command)
+      result = tool.analyze_audio_features(file_path: "song.mp3")
+      expect(result).to match(/❌.*Audio Analysis package/)
+      expect(result).to match(/Install Options/)
+    end
+
+    it 'still analyzes MIDI when the audio package is off (MIDI uses pretty_midi)' do
+      stub_const("CONFIG", { "PYOPT_LIBROSA" => "false" })
+      allow(tool).to receive(:send_command).and_return('{"success": false, "error": "pretty_midi is not installed."}')
+      # Gate does not short-circuit MIDI; the script self-reports instead.
+      expect(tool.analyze_audio_features(file_path: "song.mid")).to match(/pretty_midi/)
+    end
+
     it 'formats the nested analyzer JSON, collapsing repeated chords' do
       json = {
         "success" => true, "file_type" => "audio", "duration_seconds" => 125,

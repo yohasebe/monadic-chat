@@ -53,7 +53,18 @@ module MusicLabTools
     run_music_action("backing", params, session)
   end
 
+  # Audio (not MIDI) analysis needs the optional Audio Analysis package
+  # (librosa + madmom). MIDI uses pretty_midi and self-reports, so it is not
+  # gated here.
+  AUDIO_EXTS_NEEDING_LIBROSA = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze
+
   def analyze_audio_file(file_path:, session: nil)
+    ext = File.extname(file_path.to_s).delete_prefix(".").downcase
+    if AUDIO_EXTS_NEEDING_LIBROSA.include?(ext) && !audio_analysis_package_enabled?
+      return "❌ Objective audio analysis needs the optional Audio Analysis package " \
+             "(librosa + madmom). Enable it under Actions → Install Options and rebuild " \
+             "the Python container."
+    end
     # Normalize path to /monadic/data/ (the shared folder inside the container)
     container_path = if file_path.start_with?("/monadic/data")
                        file_path
@@ -78,6 +89,14 @@ module MusicLabTools
   end
 
   private
+
+  # The optional "librosa + madmom" install option (Actions → Install Options)
+  # is recorded as PYOPT_LIBROSA in the runtime config; gate on it to give an
+  # actionable message instead of a cryptic analyzer crash.
+  def audio_analysis_package_enabled?
+    defined?(CONFIG) && CONFIG.respond_to?(:[]) &&
+      CONFIG["PYOPT_LIBROSA"].to_s.strip.downcase == "true"
+  end
 
   def run_music_action(action, params, session)
     cmd = build_music_command(action, params)

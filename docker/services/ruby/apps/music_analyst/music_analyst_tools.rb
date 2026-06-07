@@ -24,6 +24,17 @@ module MusicAnalystTools
   # OBJECTIVE lens: deterministic feature extraction via signal processing.
   def analyze_audio_features(file_path:, session: nil)
     filename = File.basename(file_path.to_s)
+    ext = File.extname(filename).delete_prefix(".").downcase
+    # Audio (not MIDI) feature extraction needs the optional Audio Analysis
+    # package (librosa + madmom). If it isn't installed, fail with a clear,
+    # actionable message instead of a cryptic analyzer crash. MIDI uses
+    # pretty_midi and self-reports its own missing dependency, so it falls
+    # through to the script.
+    if CRITIQUE_AUDIO_EXTS.include?(ext) && !audio_analysis_package_enabled?
+      return "❌ Objective audio analysis needs the optional Audio Analysis package " \
+             "(librosa + madmom). Enable it under Actions → Install Options and rebuild " \
+             "the Python container. The interpretive critique (critique_audio) works without it."
+    end
     # send_command targets the python container, where the shared volume is
     # always mounted at /monadic/data regardless of host/container mode.
     container_path = "/monadic/data/#{filename}"
@@ -60,6 +71,14 @@ module MusicAnalystTools
   end
 
   private
+
+  # The optional "librosa + madmom" install option (Actions → Install Options)
+  # is recorded as PYOPT_LIBROSA in the runtime config. Without it the Python
+  # audio path can't run, so we gate on it to give an actionable message.
+  def audio_analysis_package_enabled?
+    defined?(CONFIG) && CONFIG.respond_to?(:[]) &&
+      CONFIG["PYOPT_LIBROSA"].to_s.strip.downcase == "true"
+  end
 
   # Resolve the audio-capable Gemini model from the SSOT (providerDefaults),
   # falling back to a known-good model — mirrors the agent model strategy in

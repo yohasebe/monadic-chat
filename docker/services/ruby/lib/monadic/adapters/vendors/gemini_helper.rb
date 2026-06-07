@@ -2594,6 +2594,24 @@ module GeminiHelper
         end
       end
 
+      # General safety net (non-Jupyter): if the model returned an empty turn
+      # after tools that produced real text output (e.g. Music Analyst's
+      # critique_audio / analyze_audio_features each return a complete,
+      # user-ready block), surface that content instead of erroring — a
+      # successful tool run must not be lost to Gemini's empty post-tool turn.
+      unless is_jupyter_app
+        surfaced = surfaced_tool_text(session)
+        if surfaced
+          res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call res
+          return [{
+            "choices" => [
+              { "finish_reason" => "stop", "message" => { "content" => surfaced } }
+            ]
+          }]
+        end
+      end
+
       # Default: return empty result for truly empty responses
       # Send DONE to complete the response cycle and prevent UI hang
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" }
@@ -2613,6 +2631,22 @@ module GeminiHelper
   # --- Private helper methods extracted from process_json_data ---
 
   private
+
+  # Concatenate non-empty tool-result text so a successful tool run is not lost
+  # when Gemini returns an empty post-tool synthesis turn (e.g. Music Analyst's
+  # critique_audio / analyze_audio_features each return a complete, user-ready
+  # block and the model then has "nothing to add"). Returns the joined text, or
+  # nil when there is nothing to surface.
+  def surfaced_tool_text(session)
+    results = (session && session.dig(:parameters, "tool_results")) || []
+    texts = results.filter_map do |r|
+      content = r.is_a?(Hash) ? r.dig("functionResponse", "response", "content") : nil
+      next unless content.is_a?(String)
+      stripped = content.strip
+      stripped unless stripped.empty?
+    end
+    texts.any? ? texts.join("\n\n") : nil
+  end
 
   # Build HTML for URL context metadata display
   def build_url_context_html(url_context_data)

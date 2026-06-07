@@ -525,28 +525,6 @@ window.loadedApp = "Chat";
     cleanupListCodeBlocks(htmlElement);
 
     setCopyCodeButton(htmlElement);
-
-    // Compact PDF metadata block: group elements after the first <hr> into a .pdf-meta wrapper
-    try {
-      const cardText = htmlElement.querySelector('.card-text');
-      const hr = cardText ? cardText.querySelector('hr') : null;
-      if (hr) {
-        const metaElems = [];
-        let sibling = hr.nextElementSibling;
-        while (sibling) {
-          if (!sibling.classList.contains('pdf-meta')) {
-            metaElems.push(sibling);
-          }
-          sibling = sibling.nextElementSibling;
-        }
-        if (metaElems.length) {
-          const wrap = document.createElement('div');
-          wrap.className = 'pdf-meta';
-          metaElems.forEach(el => wrap.appendChild(el));
-          hr.insertAdjacentElement('afterend', wrap);
-        }
-      }
-    } catch (_) { console.warn("[WebSocket] Reasoning block rendering failed:", _); }
   }
 
   // Expose appendCard for extracted handler modules

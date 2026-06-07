@@ -2727,17 +2727,6 @@ h1 {
   color: #555;
 }
 
-/* Compact meta section rendered under assistant messages */
-
-.card-text .pdf-meta {
-  margin-top: 6px;
-  padding-top: 4px;
-  border-top: 1px solid #eee;
-  line-height: 1.3;
-  font-size: 0.95em;
-  color: #666;
-}
-
 /* Custom dropdown styling */
 
 .custom-dropdown-group {

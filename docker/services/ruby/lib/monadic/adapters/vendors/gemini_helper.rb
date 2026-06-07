@@ -2889,9 +2889,20 @@ module GeminiHelper
         end
       end
     else
-      res = { "type" => "error", "content" => "No response received from model" }
-      block&.call res
-      { result: [], finish_reason: "error" }
+      # General safety net: image/video/jupyter generators above recover their
+      # own empty-after-tools responses; every other app (e.g. Music Analyst)
+      # fell straight through to an error even when its tools produced complete,
+      # user-ready text. Surface that tool output instead of erroring.
+      surfaced = surfaced_tool_text(session)
+      if surfaced
+        res = { "type" => "fragment", "content" => surfaced, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
+        block&.call res
+        { result: [surfaced] }
+      else
+        res = { "type" => "error", "content" => "No response received from model" }
+        block&.call res
+        { result: [], finish_reason: "error" }
+      end
     end
   end
 

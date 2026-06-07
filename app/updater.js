@@ -93,6 +93,9 @@ function init(injected) {
     });
 
     if (result.response !== 0) {
+      // User chose "Later": they keep using the current version, so let the
+      // server controls work again.
+      setUpdateBusy(false);
       return;
     }
 
@@ -107,6 +110,7 @@ function init(injected) {
     // flag and pass quits straight through).
     downloadInProgress = false;
     installInProgress = false;
+    setUpdateBusy(false);
     const mainWindow = deps.getMainWindow();
     const message = err && err.message ? err.message : String(err);
 
@@ -137,17 +141,29 @@ function init(injected) {
 // here before kicking off the download. The call is cheap — a single
 // YAML fetch from the GitHub release — and returns the UpdateCheckResult
 // we then feed into downloadUpdate().
+// Tell the renderer whether an app-update download/staging is in flight so it
+// can keep Start/Restart disabled — starting the server underneath an imminent
+// relaunch would race the update.
+function setUpdateBusy(busy) {
+  const w = deps.getMainWindow();
+  if (w && !w.isDestroyed()) {
+    w.webContents.send('update-busy', busy);
+  }
+}
+
 async function downloadUpdate() {
   if (downloadInProgress) {
     return;
   }
   downloadInProgress = true;
+  setUpdateBusy(true);
   loggedMilestones = new Set();  // Fresh progress log per download attempt
   try {
     await autoUpdater.checkForUpdates();
     await autoUpdater.downloadUpdate();
   } catch (err) {
     downloadInProgress = false;
+    setUpdateBusy(false);
     throw err;
   }
 }

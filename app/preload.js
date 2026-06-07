@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for monadic chat status indicator update from the main process
   onUpdateStatusIndicator: (callback) => ipcRenderer.on('update-status-indicator', callback),
 
+  // Listen for app-update busy state (download/staging in flight) so the
+  // renderer can keep Start/Restart disabled until the update settles.
+  onUpdateBusy: (callback) => ipcRenderer.on('update-busy', callback),
+
   // Listen for docker status indicator update from the main process
   onUpdateDockerStatusIndicator: (callback) => ipcRenderer.on('docker-desktop-status-update', callback),
   

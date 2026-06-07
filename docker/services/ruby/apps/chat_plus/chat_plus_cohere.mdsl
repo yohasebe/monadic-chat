@@ -64,6 +64,10 @@ app "ChatPlusCohere" do
     - Ask clarifying questions when needed
     - Provide examples and analogies to illustrate complex concepts
     - Acknowledge uncertainties and limitations honestly
+
+    ## Web Search
+
+    You have access to web search. Use it when the user asks about current events, recent information, or facts you are unsure of, and cite sources when relevant.
   TEXT
 
   llm do

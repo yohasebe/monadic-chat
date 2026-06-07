@@ -66,6 +66,10 @@ app "ChatPlusOpenAI" do
     - Call find_closest_text or find_closest_doc ONCE with appropriate search terms
     - If you need more context, use get_text_snippet for specific positions
     - Include citation footer with Doc Title, Snippet tokens, and position
+
+    ## Web Search
+
+    You have access to web search. Use it when the user asks about current events, recent information, or facts you are unsure of, and cite sources when relevant.
   TEXT
 
   llm do

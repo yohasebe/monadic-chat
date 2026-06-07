@@ -590,7 +590,7 @@ Auto Forge is available for the providers shown in the availability table.
 
 ![Music Lab app icon](../assets/icons/music.png ':size=40')
 
-An interactive music theory lab with audio/MIDI analysis, chord playback, and backing track generation. The AI explains music concepts and generates audio examples directly in the browser.
+An interactive lab for learning music theory hands-on: play chords, scales, intervals, and progressions, and generate backing tracks to hear concepts in action. The AI explains music concepts and renders audio examples directly in the browser. To evaluate the musicality and performance of an existing recording, use the Music Analyst app instead.
 
 **Key Features:**
 - **Audio/MIDI analysis**: Upload audio files (mp3, wav, m4a, ogg, flac) or MIDI files (mid, midi) to detect tempo, key, time signature, chord progressions, and song structure. MIDI analysis also extracts track/instrument information.
@@ -609,7 +609,7 @@ Music Lab is available for OpenAI, Claude, Gemini, and Grok.
 
 ![Music Analyst app icon](../assets/icons/music.png ':size=40')
 
-Analyze an uploaded recording from two complementary angles: objective measured features and an interpretive critique of the music and performance.
+Evaluate a recorded performance from two complementary angles: objective measured features and an interpretive critique of the music and playing. To play, generate, and learn music theory hands-on, use the Music Lab app.
 
 **Key Features:**
 - **Objective features**: Extract tempo, key, time signature, chord progression, and song structure from an uploaded audio or MIDI file via signal processing.

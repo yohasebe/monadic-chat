@@ -1,7 +1,7 @@
 app "MusicAnalystGemini" do
   description do
-    en "Analyze uploaded recordings two ways: objective features (tempo/key/chords) and Gemini's interpretive critique of the music and performance (Gemini)"
-    ja "アップロードした録音を2つの観点で分析：客観的特徴（テンポ/調/コード）と、Geminiによる楽曲・演奏の解釈的講評 (Gemini)"
+    en "Evaluate a recorded performance: objective features (tempo/key/chords) plus Gemini's interpretive critique of the music and playing (Gemini)"
+    ja "録音された演奏を評価する：客観的特徴（テンポ/調/コード）と、Geminiによる楽曲・演奏の解釈的講評 (Gemini)"
   end
 
   icon "headphones"

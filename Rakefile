@@ -878,6 +878,15 @@ namespace :build do
     puts "Building macOS arm64 package..."
     sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
 
+    # electron-builder's mac `zip` target flattens framework symlinks, which
+    # makes codesign report "bundle format is ambiguous (could be app or
+    # framework)" and breaks Squirrel auto-update (beta.19, 2026-06-08).
+    # Re-zip the intact .app with ditto BEFORE the manifest patch so the
+    # patcher syncs the yml sha512/size to the corrected zip. The script
+    # also codesign-verifies the result and fails the build if still broken.
+    puts "[build:mac_arm64] Re-packaging macOS zip with preserved symlinks..."
+    sh "ruby scripts/repackage_mac_zip.rb"
+
     # Single-arch arm64 builds (no companion x64) make electron-builder
     # emit only `latest-mac.yml`, not the arch-specific
     # `latest-mac-arm64.yml`. electron-updater on Apple Silicon checks

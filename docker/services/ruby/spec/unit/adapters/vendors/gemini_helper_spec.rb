@@ -490,4 +490,37 @@ RSpec.describe GeminiHelper do
       end
     end
   end
+
+  describe '#surfaced_tool_text (empty post-tool response safety net)' do
+    def session_with(tool_results)
+      { parameters: { "tool_results" => tool_results } }
+    end
+
+    def tr(content)
+      { "functionResponse" => { "response" => { "content" => content } } }
+    end
+
+    it 'joins non-empty tool-result text with blank lines' do
+      session = session_with([tr("Objective features: 120 BPM"), tr("This performance is fiery.")])
+      expect(helper.send(:surfaced_tool_text, session))
+        .to eq("Objective features: 120 BPM\n\nThis performance is fiery.")
+    end
+
+    it 'skips empty / whitespace-only tool results' do
+      session = session_with([tr("  "), tr("Real content"), tr("")])
+      expect(helper.send(:surfaced_tool_text, session)).to eq("Real content")
+    end
+
+    it 'returns nil when there is nothing to surface' do
+      expect(helper.send(:surfaced_tool_text, session_with([]))).to be_nil
+      expect(helper.send(:surfaced_tool_text, session_with([tr("")]))).to be_nil
+      expect(helper.send(:surfaced_tool_text, {})).to be_nil
+      expect(helper.send(:surfaced_tool_text, nil)).to be_nil
+    end
+
+    it 'ignores malformed entries without crashing' do
+      session = session_with([tr(nil), "not a hash", { "functionResponse" => {} }, tr("ok")])
+      expect(helper.send(:surfaced_tool_text, session)).to eq("ok")
+    end
+  end
 end

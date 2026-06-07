@@ -71,6 +71,23 @@ module MermaidGrapherTools
     # 4. Wait for Mermaid rendering
     sleep(3)
 
+    # 4b. Verify the browser actually rendered a diagram, not Mermaid's error
+    # graphic. Mermaid emits an <svg> even on a parse failure (the "bomb" icon
+    # with aria-roledescription="error"), so a screenshot alone would happily
+    # capture the error screen and report success. This closes the gap where
+    # the lenient static pre-validation passes but the real render fails.
+    err_output = send_command(command: "web_navigator.py --action check_render_error", container: "python")
+    err_result = parse_mermaid_response(err_output)
+    if err_result[:success] && err_result[:render_error]
+      detail = err_result[:error_text].to_s.strip
+      detail = "Mermaid failed to render the diagram." if detail.empty?
+      return format_tool_response(build_preview_payload(
+        success: false,
+        error: "Diagram render error: #{detail}",
+        validated_code: sanitized_code
+      ))
+    end
+
     # 5. Capture full-page screenshot (resizes viewport or tiles for tall content)
     ss_output = send_command(command: "web_navigator.py --action full_screenshot", container: "python")
     ss_result = parse_mermaid_response(ss_output)
@@ -388,10 +405,18 @@ module MermaidGrapherTools
     sanitized = sanitized.gsub(/[\u2028\u2029]/, "\n")
     sanitized = sanitized.gsub('\\"', '"')
     sanitized = sanitized.gsub('\\n', "\n")
-    sanitized = sanitized.gsub(/[\u2010-\u2015\u2212\u30FC\uFF0D]/, '-')
+    # Fold Western "smart" punctuation back to ASCII so LLM-pasted curly quotes
+    # / typographic dashes don't break the Mermaid parser.
+    #
+    # CJK SAFETY (do NOT add these): the Japanese long-vowel mark U+30FC ("\u30FC",
+    # e.g. \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC) and corner brackets U+300C/U+300D ("\u300C\u300D") are
+    # normal CJK characters, not Western lookalikes. Folding them to '-' / '"'
+    # corrupts Japanese node labels and makes Mermaid throw "Syntax error in
+    # text". Mirrored in the frontend sanitizeMermaidSource (ws-content-renderer.js)
+    # and pinned by the mermaid-sanitize CJK-safety specs on both sides.
+    sanitized = sanitized.gsub(/[\u2010-\u2015\u2212\uFF0D]/, '-')
     sanitized = sanitized.gsub(/[\u2018\u2019\u2032\uFF07]/, "'")
     sanitized = sanitized.gsub(/[\u201C\u201D\u2033\uFF02]/, '"')
-    sanitized = sanitized.gsub(/[\u300C\u300D]/, '"')
     sanitized = sanitized.gsub(/[\uFF0F]/, '/')
     sanitized = sanitized.gsub(/\[(.*?)\]/m) do |match|
       inner = match[1..-2]

@@ -29,7 +29,7 @@ end
 #   - Latest model optimized for software engineering and tool usage
 #   - customtools variant prioritizes custom tools over built-in tools
 #
-# Gemini 3 (gemini-3-flash-preview):
+# Gemini 3.5 Flash (gemini-3.5-flash; GA successor of the gemini-3-flash-preview line):
 #   - Full support for monadic mode + function calling simultaneously
 #   - No special workarounds required
 #
@@ -434,7 +434,7 @@ module GeminiHelper
   # combined with function_declarations in a single API call.
   #
   # @param query [String] The search query
-  # @param model [String] The model to use (defaults to gemini-3-flash-preview)
+  # @param model [String] The model to use (defaults to the Gemini chat default)
   # @return [Hash] Search results with sources and content
   def gemini_web_search(query:, n: 5)
     # Instance method wrapper for tool calls
@@ -2467,10 +2467,13 @@ module GeminiHelper
       elsif result
         # Don't return error messages if they were generated due to initial empty response
         # that was followed by function calls
-        if result.is_a?(Array) && result.length == 1 && 
+        if result.is_a?(Array) && result.length == 1 &&
            result[0].to_s.include?("No response was received") && tool_calls.any?
-          # Return empty result instead of error message
-          [{ "choices" => [{ "message" => { "content" => "" } }] }]
+          # The model produced no final text after tools ran. Prefer surfacing
+          # the tool output (e.g. Music Analyst's critique/features) over a blank
+          # message; fall back to empty content to keep suppressing the error.
+          surfaced = surfaced_tool_text(session)
+          [{ "choices" => [{ "message" => { "content" => surfaced || "" } }] }]
         else
           [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
         end
@@ -2594,6 +2597,24 @@ module GeminiHelper
         end
       end
 
+      # General safety net (non-Jupyter): if the model returned an empty turn
+      # after tools that produced real text output (e.g. Music Analyst's
+      # critique_audio / analyze_audio_features each return a complete,
+      # user-ready block), surface that content instead of erroring — a
+      # successful tool run must not be lost to Gemini's empty post-tool turn.
+      unless is_jupyter_app
+        surfaced = surfaced_tool_text(session)
+        if surfaced
+          res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call res
+          return [{
+            "choices" => [
+              { "finish_reason" => "stop", "message" => { "content" => surfaced } }
+            ]
+          }]
+        end
+      end
+
       # Default: return empty result for truly empty responses
       # Send DONE to complete the response cycle and prevent UI hang
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" }
@@ -2613,6 +2634,22 @@ module GeminiHelper
   # --- Private helper methods extracted from process_json_data ---
 
   private
+
+  # Concatenate non-empty tool-result text so a successful tool run is not lost
+  # when Gemini returns an empty post-tool synthesis turn (e.g. Music Analyst's
+  # critique_audio / analyze_audio_features each return a complete, user-ready
+  # block and the model then has "nothing to add"). Returns the joined text, or
+  # nil when there is nothing to surface.
+  def surfaced_tool_text(session)
+    results = (session && session.dig(:parameters, "tool_results")) || []
+    texts = results.filter_map do |r|
+      content = r.is_a?(Hash) ? r.dig("functionResponse", "response", "content") : nil
+      next unless content.is_a?(String)
+      stripped = content.strip
+      stripped unless stripped.empty?
+    end
+    texts.any? ? texts.join("\n\n") : nil
+  end
 
   # Build HTML for URL context metadata display
   def build_url_context_html(url_context_data)
@@ -2855,9 +2892,20 @@ module GeminiHelper
         end
       end
     else
-      res = { "type" => "error", "content" => "No response received from model" }
-      block&.call res
-      { result: [], finish_reason: "error" }
+      # General safety net: image/video/jupyter generators above recover their
+      # own empty-after-tools responses; every other app (e.g. Music Analyst)
+      # fell straight through to an error even when its tools produced complete,
+      # user-ready text. Surface that tool output instead of erroring.
+      surfaced = surfaced_tool_text(session)
+      if surfaced
+        res = { "type" => "fragment", "content" => surfaced, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
+        block&.call res
+        { result: [surfaced] }
+      else
+        res = { "type" => "error", "content" => "No response received from model" }
+        block&.call res
+        { result: [], finish_reason: "error" }
+      end
     end
   end
 

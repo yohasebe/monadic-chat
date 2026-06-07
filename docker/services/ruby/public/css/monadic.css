@@ -2727,17 +2727,6 @@ h1 {
   color: #555;
 }
 
-/* Compact meta section rendered under assistant messages */
-
-.card-text .pdf-meta {
-  margin-top: 6px;
-  padding-top: 4px;
-  border-top: 1px solid #eee;
-  line-height: 1.3;
-  font-size: 0.95em;
-  color: #666;
-}
-
 /* Custom dropdown styling */
 
 .custom-dropdown-group {
@@ -6242,25 +6231,15 @@ i.fas.fa-bolt,
 .privacy-strength-bar.score-3 #privacy-strength-fill { width: 75%; background-color: #20c997; }
 .privacy-strength-bar.score-4 #privacy-strength-fill { width: 100%; background-color: #198754; }
 
-/* App-capability declarative visibility gate (MDSL SSOT, Phase 4).
-   Body classes are set by applyAppCapabilityClasses() in monadic.js based
-   on per-app MDSL flags (privacy_enabled, library_save, library_search).
-   The Privacy-on class is set independently in response to live privacy
-   state pushes from the backend. CSS is the SSOT for visibility — JS code
-   only owns disabled state and tooltips. */
-body:not(.app-cap-pf)        #privacy-toggle-form    { display: none !important; }
-body:not(.app-cap-kb-search) #library-rag-toggle-row { display: none !important; }
-/* The Save button itself stays in the DOM at all times — JS toggles its
-   `disabled` attribute and tooltip based on three reasons (app does not
-   support save / Privacy Filter is active in this session / no messages
-   yet). This mirrors the Privacy Filter session toggle, which is also
-   "visible but disabled" on apps that don't support it, and avoids the
-   confusion of buttons that appear and disappear depending on state. */
-/* Hide the entire library panel only when the app has *no* relationship
-   to the Knowledge Base subsystem at all — i.e. it does not support
-   saving, does not support searching, and does not have a Privacy Filter
-   declaration that would otherwise make the panel meaningful as a
-   visible-but-disabled surface. PF-active apps keep the panel visible
-   so the disabled Save button continues to communicate "this app is on
-   the privacy-protected side; KB save is intentionally off-limits". */
-body:not(.app-cap-kb-save):not(.app-cap-kb-search):not(.app-cap-pf) #library-panel { display: none !important; }
+/* App-capability gate (MDSL SSOT, Phase 4).
+   Body classes (app-cap-pf / app-cap-kb-save / app-cap-kb-search) are set by
+   applyAppCapabilityClasses() in monadic.js from per-app MDSL flags
+   (privacy_enabled, library_save, library_search); app-privacy-on is set
+   independently from live privacy state pushes.
+
+   The Knowledge Base panel and the Privacy Filter toggle stay VISIBLE on every
+   app. JS owns the disabled state + tooltip (applyAppCapabilityClasses for the
+   KB retrieval and Privacy toggles, updateSaveButtonAvailability for the Save
+   button), so a control a user expects is shown disabled-with-reason rather
+   than vanishing where it isn't supported — consistent across KB and Privacy.
+   The classes remain available for any app-aware styling. */

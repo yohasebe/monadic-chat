@@ -551,7 +551,9 @@ module OpenAIHelper
           ext = ext_for_image.call(img)
 
           raw_title = img["title"].to_s
-          sanitized_title = raw_title.strip.empty? ? nil : raw_title.gsub(/[^a-zA-Z0-9_.-]/, "_")
+          # \p{Word} is Unicode-aware: keeps non-ASCII (e.g. Japanese) titles in
+          # the filename while stripping URL/filesystem-unsafe chars to "_".
+          sanitized_title = raw_title.strip.empty? ? nil : raw_title.gsub(/[^\p{Word}.\-]/, "_")
           base_name = sanitized_title ? "img_#{sanitized_title}" : "img_#{timestamp}_#{random_suffix}"
           base_name += ext unless base_name.downcase.end_with?(ext.downcase)
           new_filename = base_name
@@ -595,7 +597,7 @@ module OpenAIHelper
         base_name = if mapped_original
                       "mask__#{mapped_original}"
                     elsif !associated_title.to_s.strip.empty?
-                      safe_mask_base = associated_title.gsub(/[^a-zA-Z0-9_.-]/, "_")
+                      safe_mask_base = associated_title.gsub(/[^\p{Word}.\-]/, "_")
                       "mask__#{safe_mask_base}"
                     else
                       "mask__#{timestamp}_#{random_suffix}"

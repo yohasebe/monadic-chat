@@ -16,9 +16,54 @@ A model "diverges" when it forces bespoke handling in the helper code or produce
 |---|---|---|
 | OpenAI | `gpt-5.5` | Responses API, no sampling params, `reasoning_effort: [none, low, medium, high, xhigh]`, streaming. `gpt-5.4` family remains in the catalog as an architecturally clean subset (same spec, cheaper tier). |
 | Anthropic | `claude-opus-4-8` / `claude-sonnet-4-6` | Messages API, thinking + adaptive thinking, no sampling params (Opus 4.7 retained in catalog as the prior-generation architecturally-consistent peer) |
-| Google | `gemini-3-flash-preview` (preview is current — special case) | `generate_content`, thinking budget |
+| Google | `gemini-3.5-flash` (GA successor of the `gemini-3-flash-preview` line) | `generate_content`, thinking budget |
 | xAI | `grok-4-1-fast-*` | `/v1/chat/completions`, reasoning toggle via model variant |
 | DeepSeek | `deepseek-v4-flash` | `/v1/chat/completions`, `thinking: { type, reasoning_effort }` object |
+
+## Deprecation Lifecycle
+
+The baseline rule above governs *architecturally divergent* models. A second,
+independent track governs models the provider has scheduled for **sunset**.
+
+> **Mark a model `deprecated: true` with a `successor` as soon as a sunset is
+> announced AND any successor exists — a preview successor is acceptable. Keep
+> the slim entry as a redirect bridge until its `sunset_date` passes, then
+> delete it.**
+
+### `deprecated: true` is an early-migration switch, not just a label
+
+Setting `deprecated: true` takes effect immediately, not at sunset:
+
+- **Hidden from every selection surface.** `isModelDeprecated()` filters the
+  model out of all dropdown-population paths (app config, MDSL `models`,
+  `providerDefaults`) — see `public/js/monadic/model_utils.js`. New sessions
+  cannot select it.
+- **Pinned configs auto-migrate.** When a saved session or config references a
+  deprecated model, it is rewritten to `successor` at load time with a warning
+  ("Model X has been replaced with Y") — see `utilities.js` and
+  `ws-app-data-handlers.js`.
+
+Users are moved to the successor the moment the flag is set, regardless of how
+far away `sunset_date` is. This is why a preview successor is acceptable: the
+goal is to get users off the dying model promptly, and a preview is a better
+destination than a model that stops responding on the sunset date.
+
+### Early migration vs early deletion
+
+These are different actions with opposite risk profiles:
+
+- **Early migration** (set `deprecated: true` + `successor` promptly): desirable,
+  and happens automatically via the mechanism above. Preview successors are
+  fine — e.g. `gemini-2.5-pro → gemini-3.1-pro-preview` while no GA Pro exists.
+- **Early deletion** (remove the entry before `sunset_date`): harmful. The entry
+  *is* the redirect table; deleting it drops the lookup, so a straggler with the
+  old model pinned hits an "unknown model" failure instead of graceful
+  migration. A deprecated entry is never actually called (users are redirected
+  before any API request), so it adds **no** helper-branch cost — there is no
+  maintenance incentive to delete it early.
+
+**Rule of thumb:** migrate aggressively (flag the moment a successor exists),
+delete conservatively (only after `sunset_date` passes).
 
 ## The Concrete OpenAI Rule
 
@@ -28,7 +73,7 @@ An OpenAI model is **eligible** for inclusion if **both** of the following hold:
 2. **Sampling params hygiene**: The model spec declares **no** sampling params (no `temperature` / `top_p` / `presence_penalty` / `frequency_penalty`), **or** it explicitly disables them via `supports_temperature: false`, `supports_top_p: false`, etc. (the Codex family's pattern).
 
 **Exceptions** (always kept until natural sunset):
-- Models with `deprecated: true` are retained until their `sunset_date` passes.
+- Models with `deprecated: true` are retained until their `sunset_date` passes (see [Deprecation Lifecycle](#deprecation-lifecycle) for why the slim redirect entry must not be deleted early).
 
 ### Ineligible characteristics (force removal)
 

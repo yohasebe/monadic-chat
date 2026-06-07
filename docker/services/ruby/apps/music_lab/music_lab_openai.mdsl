@@ -1,7 +1,7 @@
 app "MusicLabOpenAI" do
   description do
-    en "Music theory lab with audio/MIDI analysis, chord playback, and backing track generation (OpenAI)"
-    ja "音声/MIDI分析・コード再生・バッキングトラック生成が可能な音楽理論ラボ (OpenAI)"
+    en "Learn music theory hands-on: play chords, scales, and progressions and generate backing tracks (OpenAI)"
+    ja "コード・スケール・進行を鳴らし、バッキングトラックを生成しながら音楽理論を学ぶラボ (OpenAI)"
   end
 
   icon "music"

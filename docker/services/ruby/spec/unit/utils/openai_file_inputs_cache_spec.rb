@@ -118,5 +118,20 @@ RSpec.describe Monadic::Utils::OpenAIFileInputsCache do
       body = described_class.build_multipart_body("boundary123", "data", "")
       expect(body).to include('filename="document"')
     end
+
+    it "preserves non-ASCII (Japanese) filenames instead of mangling them" do
+      # Body is binary (ASCII-8BIT); compare against the UTF-8 bytes of the name.
+      body = described_class.build_multipart_body("boundary123", "data", "報告書.pdf")
+      expect(body).to include("報告書.pdf".b)
+    end
+
+    it "builds a binary body without raising when filename is non-ASCII and content is binary" do
+      binary_content = [0xff, 0xd8, 0xff, 0xe0].pack("C*") # JPEG header bytes
+      expect {
+        body = described_class.build_multipart_body("boundary123", binary_content, "猫の絵.jpg")
+        expect(body.encoding).to eq(Encoding::ASCII_8BIT)
+        expect(body).to include("猫の絵.jpg".b)
+      }.not_to raise_error
+    end
   end
 end

@@ -657,7 +657,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-17",
-    "successor": "gemini-3-flash-preview"
+    "successor": "gemini-3.5-flash"
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],
@@ -1085,7 +1085,7 @@ const providerDefaults = {
     "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.4-mini"],
     "vision": ["gpt-5.4-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
-    "image": ["gpt-image-2", "gpt-image-1.5", "chatgpt-image-latest"],
+    "image": ["gpt-image-2"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   "anthropic": {

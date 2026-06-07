@@ -63,13 +63,21 @@ describe('Privacy: privacy_session_enabled must not piggyback on params', () => 
   });
 
   test('the toggle change handler sends PRIVACY_TOGGLE via safeWsSend', () => {
-    // Locate the change handler block by anchoring on "check-privacy-session".
-    // The body must include a safeWsSend call with message: "PRIVACY_TOGGLE".
-    const idx = monadicSource.indexOf('"check-privacy-session"');
-    expect(idx).toBeGreaterThan(-1);
-    // Look at the surrounding ~2KB window for the handler body.
-    const window = monadicSource.slice(idx, idx + 4000);
-    expect(window).toMatch(/safeWsSend/);
-    expect(window).toMatch(/PRIVACY_TOGGLE/);
+    // The id "check-privacy-session" appears in more than one place (the change
+    // handler AND the app-capability gate in applyAppCapabilityClasses), so we
+    // can't assume the first occurrence is the handler. Require that *some*
+    // occurrence's surrounding window contains the safeWsSend/PRIVACY_TOGGLE call.
+    const occurrences = [];
+    let idx = monadicSource.indexOf('"check-privacy-session"');
+    while (idx !== -1) {
+      occurrences.push(idx);
+      idx = monadicSource.indexOf('"check-privacy-session"', idx + 1);
+    }
+    expect(occurrences.length).toBeGreaterThan(0);
+    const handlerFound = occurrences.some((at) => {
+      const window = monadicSource.slice(at, at + 4000);
+      return /safeWsSend/.test(window) && /PRIVACY_TOGGLE/.test(window);
+    });
+    expect(handlerFound).toBe(true);
   });
 });

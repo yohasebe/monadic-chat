@@ -1,31 +1,25 @@
 /**
  * PDF Export Module
- * Exports conversation history as a printable PDF using browser print functionality
+ * Exports conversation history as a printable PDF using browser print functionality.
+ *
+ * Message bodies reuse the already-rendered on-screen HTML (the DOM `.card-text`
+ * of each message card), and the live page's own stylesheets (markdown styling,
+ * KaTeX, highlight.js, monadic.css, and print.css) are cloned into the print
+ * iframe. As a result the PDF matches what the user sees on screen instead of
+ * showing raw markdown.
  */
 
 (function() {
   'use strict';
 
   /**
-   * Get role icon and color based on message role
+   * Get role label/color based on message role
    */
   function getRoleStyle(role) {
     const styles = {
-      user: {
-        icon: 'fa-face-smile',
-        color: '#4CACDC',
-        label: 'User'
-      },
-      assistant: {
-        icon: 'fa-robot',
-        color: '#DC4C64',
-        label: 'Assistant'
-      },
-      system: {
-        icon: 'fa-bars',
-        color: '#22ad50',
-        label: 'System'
-      }
+      user: { icon: 'fa-face-smile', color: '#4CACDC', label: 'User' },
+      assistant: { icon: 'fa-robot', color: '#DC4C64', label: 'Assistant' },
+      system: { icon: 'fa-bars', color: '#22ad50', label: 'System' }
     };
     return styles[role] || styles.system;
   }
@@ -40,66 +34,176 @@
   }
 
   /**
-   * Create HTML for a single message
+   * Render markdown the same way the live UI does, with a plain-text fallback.
+   */
+  function renderMarkdownSafe(text) {
+    if (window.MarkdownRenderer && typeof window.MarkdownRenderer.render === 'function') {
+      try {
+        return window.MarkdownRenderer.render(text);
+      } catch (e) {
+        // fall through to escaped plain text
+      }
+    }
+    return `<p>${escapeHtml(text || '').replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
+  }
+
+  /**
+   * Resolve the rendered HTML body for a message.
+   * Prefers the exact HTML on screen (DOM .card-text), then server-sent HTML,
+   * then a client-side markdown render, then escaped plain text.
+   * Returns { html, complete } where complete=true means images/media are
+   * already embedded in the html (so they must not be appended again).
+   */
+  function getRenderedMessage(message) {
+    const mid = message.mid || message.id;
+    if (mid) {
+      const cardEl = document.getElementById(mid);
+      const cardText = cardEl && cardEl.querySelector('.card-text');
+      if (cardText) {
+        return { html: cardText.innerHTML, complete: true };
+      }
+    }
+    if (message.html) {
+      return { html: message.html, complete: true };
+    }
+    if (message.text || message.content) {
+      return { html: renderMarkdownSafe(message.text || message.content), complete: false };
+    }
+    return { html: '', complete: false };
+  }
+
+  /**
+   * A static PDF can't play media; replace <audio>/<video> with a short note.
+   */
+  function neutralizeMedia(html) {
+    if (!html || (html.indexOf('<audio') === -1 && html.indexOf('<video') === -1)) {
+      return html;
+    }
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    tmp.querySelectorAll('audio, video').forEach((el) => {
+      let src = el.getAttribute('src');
+      if (!src) {
+        const source = el.querySelector('source');
+        src = source ? source.getAttribute('src') : '';
+      }
+      let name = 'media';
+      if (src) {
+        const tail = src.split('/').pop();
+        try { name = decodeURIComponent(tail); } catch (e) { name = tail; }
+      }
+      const note = document.createElement('div');
+      note.className = 'pdf-media-note';
+      note.style.cssText = 'margin:0.5em 0; padding:0.4rem 0.6rem; border:1px solid #ddd; border-radius:4px; color:#555;';
+      note.textContent = (el.tagName.toLowerCase() === 'video' ? '🎬 ' : '🔊 ') + name;
+      el.replaceWith(note);
+    });
+    return tmp.innerHTML;
+  }
+
+  /**
+   * Image markup for messages that came from a text-only fallback. The DOM and
+   * server-HTML paths already include their images, so this is only used when
+   * the body was rebuilt from plain text.
+   */
+  function buildImageHTML(message) {
+    const img = message.image || message.images;
+    if (!img) return '';
+    if (Array.isArray(img)) {
+      return img.map((item) => {
+        if (item && item.type === 'application/pdf') {
+          return `<div style="margin:1em 0; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">📄 ${escapeHtml(item.title || 'PDF Document')}</div>`;
+        }
+        const src = (item && (item.data || item.src)) || '';
+        return `<img src="${src}" alt="${escapeHtml((item && item.title) || 'Image')}" style="max-width:100%; height:auto; margin:1em 0;" />`;
+      }).join('');
+    }
+    if (typeof img === 'string') {
+      return `<img src="${img}" alt="Image" style="max-width:100%; height:auto; margin:1em 0;" />`;
+    }
+    return '';
+  }
+
+  /**
+   * Clone the live page's stylesheets so the print iframe renders identically.
+   * Brings in markdown styling (monadic.css), KaTeX, highlight.js, and the
+   * print-tuned rules in print.css (media="print").
+   */
+  function clonePageStyles() {
+    let out = '';
+    document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+      if (!link.href) return;
+      // link.href is already resolved to an absolute URL, so it loads correctly
+      // inside the document.write()'n iframe regardless of its base URL.
+      const media = (link.media && link.media !== 'all') ? ` media="${link.media}"` : '';
+      out += `<link rel="stylesheet" href="${link.href}"${media}>`;
+    });
+    document.querySelectorAll('style').forEach((style) => {
+      out += `<style>${style.textContent}</style>`;
+    });
+    return out;
+  }
+
+  /**
+   * Print-context overrides applied AFTER the cloned page styles to neutralize
+   * the app's screen layout (flex/sidebar) and keep messages flowing across
+   * pages without wasted space.
+   */
+  function getPrintOverrides() {
+    return `
+      <style>
+        html, body {
+          display: block !important;
+          width: auto !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-width: none !important;
+          background: #fff !important;
+          color: #000 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+        }
+        @page { size: A4; margin: 1.5cm; }
+        #pdf-root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; }
+        .pdf-message { margin-bottom: 1.5rem; page-break-inside: auto; }
+        .pdf-message-header { font-weight: bold; margin-bottom: 0.5rem; color: #333; page-break-after: avoid; }
+        .pdf-message-box { background: #fff; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; }
+        .pdf-message-box > .card-text { color: #000; }
+        .pdf-message-box .card-text img { max-width: 100% !important; height: auto !important; }
+        audio, video { display: none !important; }
+      </style>
+    `;
+  }
+
+  /**
+   * Create HTML for a single message using the on-screen rendered body.
    */
   function createMessageHTML(message) {
     const roleStyle = getRoleStyle(message.role);
+    const roleClass = 'role-' + (message.role || 'system');
 
-    // Always use the plain text property to preserve line breaks
-    // Prefer text over html to avoid pre-rendered formatting issues
-    let rawText = message.text || message.content || '';
-
-    // Escape HTML characters
-    let messageText = escapeHtml(rawText);
-
-    // Convert newlines to proper HTML
-    // Replace double newlines with paragraph breaks, single newlines with <br>
-    messageText = messageText.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>');
-
-    // Wrap in paragraph tags if not empty
-    if (messageText.trim()) {
-      messageText = `<p>${messageText}</p>`;
+    const rendered = getRenderedMessage(message);
+    let bodyHTML = neutralizeMedia(rendered.html);
+    if (!rendered.complete) {
+      bodyHTML += buildImageHTML(message);
     }
 
-    // Handle images if present
-    let imageHTML = '';
-    if (message.image) {
-      if (Array.isArray(message.image)) {
-        imageHTML = message.image.map(img => {
-          if (img.type === 'application/pdf') {
-            return `<div style="margin: 1em 0; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
-              📄 ${img.title || 'PDF Document'}
-            </div>`;
-          } else {
-            return `<img src="${img.data}" alt="${img.title || 'Image'}" style="max-width: 100%; height: auto; margin: 1em 0;" />`;
-          }
-        }).join('');
-      } else if (typeof message.image === 'string') {
-        imageHTML = `<img src="${message.image}" alt="Image" style="max-width: 100%; height: auto; margin: 1em 0;" />`;
-      }
-    }
-
-    // Handle thinking block if present
     let thinkingHTML = '';
     if (message.thinking && message.thinking.trim()) {
-      const thinkingText = escapeHtml(message.thinking).replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>');
       thinkingHTML = `
-        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f5f5f5; border-left: 3px solid #999; border-radius: 2px;">
-          <div style="font-weight: bold; margin-bottom: 0.5rem; color: #666;">Thinking Process</div>
-          <div style="color: #555;"><p>${thinkingText}</p></div>
-        </div>
-      `;
+        <div class="thinking-block">
+          <div class="thinking-block-header">Thinking Process</div>
+          <div class="card-text">${neutralizeMedia(renderMarkdownSafe(message.thinking))}</div>
+        </div>`;
     }
 
     return `
-      <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
-        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #333;">
-          ${roleStyle.label}
-        </div>
-        <div style="background: white; padding: 1rem; border: 1px solid #ddd; border-radius: 4px;">
+      <div class="pdf-message">
+        <div class="pdf-message-header">${roleStyle.label}</div>
+        <div class="pdf-message-box ${roleClass}">
           ${thinkingHTML}
-          ${messageText}
-          ${imageHTML}
+          <div class="card-text">${bodyHTML}</div>
         </div>
       </div>
     `;
@@ -145,26 +249,12 @@
       <div style="border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem;">
         <h1 style="margin: 0; font-size: 1.5rem;">${title}</h1>
         <div style="margin-top: 0.5rem; color: #666;">
-          <div><strong>${appLabel}:</strong> ${appInfo.appName}</div>
-          <div><strong>${providerLabel}:</strong> ${appInfo.provider}</div>
-          <div><strong>${modelLabel}:</strong> ${appInfo.model}</div>
-          <div><strong>${exportedLabel}:</strong> ${dateStr}</div>
+          <div><strong>${appLabel}:</strong> ${escapeHtml(appInfo.appName)}</div>
+          <div><strong>${providerLabel}:</strong> ${escapeHtml(appInfo.provider)}</div>
+          <div><strong>${modelLabel}:</strong> ${escapeHtml(appInfo.model)}</div>
+          <div><strong>${exportedLabel}:</strong> ${escapeHtml(dateStr)}</div>
         </div>
       </div>
-    `;
-  }
-
-  /**
-   * Get minimal CSS for printing (no external stylesheets)
-   */
-  function getPrintStyles() {
-    return `
-      <style>
-        /* Font Awesome icons - minimal subset */
-        .fa-face-smile:before { content: "\\1F642"; }
-        .fa-robot:before { content: "\\1F916"; }
-        .fa-bars:before { content: "\\2630"; }
-      </style>
     `;
   }
 
@@ -231,8 +321,8 @@
         .map(msg => createMessageHTML(msg))
         .join('\n');
 
-      // Get minimal print styles (no external CSS)
-      const stylesHTML = getPrintStyles();
+      // Reuse the live page's stylesheets so rendered content looks identical.
+      const stylesHTML = clonePageStyles() + getPrintOverrides();
 
       // Create the complete HTML document
       const printHTML = `
@@ -240,66 +330,14 @@
         <html>
         <head>
           <meta charset="UTF-8">
-          <title>Monadic Chat - ${appInfo.appName} - ${new Date().toLocaleDateString()}</title>
+          <title>Monadic Chat - ${escapeHtml(appInfo.appName)} - ${new Date().toLocaleDateString()}</title>
           ${stylesHTML}
-          <style>
-            /* Simple print-specific styles */
-            * {
-              box-sizing: border-box;
-              margin: 0;
-              padding: 0;
-            }
-
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              background: white !important;
-              padding: 20px;
-            }
-
-            p {
-              margin: 0.5em 0;
-              white-space: pre-wrap;
-              word-wrap: break-word;
-            }
-
-            p:first-of-type {
-              margin-top: 0;
-            }
-
-            p:last-of-type {
-              margin-bottom: 0;
-            }
-
-            img {
-              max-width: 100%;
-              height: auto;
-              display: block;
-              margin: 1em 0;
-            }
-
-            @page {
-              size: A4;
-              margin: 1cm;
-            }
-
-            @media print {
-              body {
-                background: white !important;
-              }
-
-              * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                background: white !important;
-              }
-            }
-          </style>
         </head>
         <body>
-          ${headerHTML}
-          ${messagesHTML}
+          <div id="pdf-root">
+            ${headerHTML}
+            ${messagesHTML}
+          </div>
         </body>
         </html>
       `;
@@ -321,19 +359,15 @@
 
       // Wait for content to load, then print
       iframe.onload = function() {
-        // Wait a bit for styles to load
+        // Give cloned stylesheets (and any KaTeX fonts) a moment to load
         setTimeout(() => {
           try {
-            // KaTeX renders synchronously during page load, so math is already rendered
-            // Just print immediately
-            {
-              iframe.contentWindow.print();
-              setTimeout(() => {
-                if (iframe.parentNode) {
-                  document.body.removeChild(iframe);
-                }
-              }, 100);
-            }
+            iframe.contentWindow.print();
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 100);
           } catch (error) {
             console.error('Error during print:', error);
             // Clean up iframe even on error

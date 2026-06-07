@@ -229,6 +229,27 @@ function applyAppCapabilityClasses(appName) {
   cl.toggle("app-cap-pf", isPf);
   cl.toggle("app-cap-kb-save", isKbSave);
   cl.toggle("app-cap-kb-search", isKbSearch);
+
+  // Knowledge Base / Privacy controls stay visible on every app; JS owns the
+  // disabled state + tooltip so a control a user expects (KB retrieval toggle,
+  // Privacy Filter toggle) is shown disabled-with-reason rather than vanishing
+  // on apps that don't support it. The Save button is disabled independently in
+  // updateSaveButtonAvailability(). `.checked` is intentionally left untouched:
+  // the backend already gates RAG injection on capability, so clobbering it
+  // here would desync the toggle from the preserved preference on capable apps.
+  const setControlAvailability = (el, available, reason) => {
+    if (!el) return;
+    el.disabled = !available;
+    if (available) { el.removeAttribute("title"); } else { el.title = reason; }
+  };
+  setControlAvailability(
+    document.getElementById("library-rag-toggle"), isKbSearch,
+    "Knowledge Base retrieval is not available in this app."
+  );
+  setControlAvailability(
+    document.getElementById("check-privacy-session"), isPf,
+    "Privacy Filter is not available in this app."
+  );
 }
 window.applyAppCapabilityClasses = applyAppCapabilityClasses;
 

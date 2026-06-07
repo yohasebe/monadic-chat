@@ -116,8 +116,18 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
     end
 
     context 'with Knowledge Base RAG toggle' do
-      it 'includes library_rag injection when toggle is true (boolean)' do
-        session = { parameters: { 'library_rag_enabled' => true } }
+      # Gate: the RAG header injects only when the active app actually exposes
+      # library_search. A KB-capable app and a non-KB app exercise both sides so
+      # a persisted "on" toggle cannot leak into apps with no library_search.
+      before do
+        stub_const("APPS", {
+          'KbChat'   => double(settings: { library_search: true }),
+          'MusicApp' => double(settings: { library_search: false })
+        })
+      end
+
+      it 'includes library_rag injection when toggle is true (boolean) and the app supports library_search' do
+        session = { parameters: { 'library_rag_enabled' => true, 'app_name' => 'KbChat' } }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
@@ -130,13 +140,31 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
 
       it 'includes library_rag injection when toggle is the string "true"' do
-        session = { parameters: { 'library_rag_enabled' => 'true' } }
+        session = { parameters: { 'library_rag_enabled' => 'true', 'app_name' => 'KbChat' } }
         options = {}
 
         result = described_class.build_injections(session: session, options: options)
 
         rag = result.find { |r| r[:name] == :library_rag }
         expect(rag).not_to be_nil
+      end
+
+      it 'omits library_rag injection when the toggle is on but the app has no library_search' do
+        session = { parameters: { 'library_rag_enabled' => true, 'app_name' => 'MusicApp' } }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.find { |r| r[:name] == :library_rag }).to be_nil
+      end
+
+      it 'omits library_rag injection when the toggle is on but no app is resolvable' do
+        session = { parameters: { 'library_rag_enabled' => true } }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.find { |r| r[:name] == :library_rag }).to be_nil
       end
 
       it 'omits library_rag injection when toggle is false' do

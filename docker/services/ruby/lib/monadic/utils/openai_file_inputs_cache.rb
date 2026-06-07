@@ -97,8 +97,10 @@ module Monadic
 
       # Build a multipart/form-data body for the Files API.
       def build_multipart_body(boundary, raw_bytes, filename)
-        # Sanitize filename to prevent header injection
-        safe_filename = filename.to_s.gsub(/[\r\n"]/, "_").gsub(/[^\w.\-]/, "_")
+        # Sanitize filename: \p{Word} is Unicode-aware (ASCII \w is not), so this
+        # strips header-injection / control / URL-unsafe chars while preserving
+        # non-ASCII (e.g. Japanese) names instead of mangling them to "_".
+        safe_filename = filename.to_s.gsub(/[^\p{Word}.\-]/, "_")
         safe_filename = "document" if safe_filename.empty?
 
         parts = []
@@ -118,7 +120,9 @@ module Monadic
         # closing boundary
         parts << "--#{boundary}--\r\n"
 
-        parts.join
+        # Join as binary: safe_filename may carry UTF-8 bytes while raw_bytes is
+        # binary, and a plain join would raise Encoding::CompatibilityError.
+        parts.map(&:b).join
       end
     end
   end

@@ -69,6 +69,7 @@ ACCEPTED_FILES = %w[
   docker/services/ruby/scripts/generators/video_generator_gemini.rb
   docker/services/ruby/scripts/generators/video_generator_grok.rb
   docker/services/ruby/scripts/generators/video_generator_openai.rb
+  docker/services/ruby/apps/music_analyst/music_analyst_tools.rb
   docker/services/ruby/apps/music_lab/music_lab_tools.rb
   docker/services/ruby/apps/syntax_tree/syntax_tree_tools.rb
 ].freeze

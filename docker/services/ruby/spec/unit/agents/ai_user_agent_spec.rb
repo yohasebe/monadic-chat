@@ -337,11 +337,11 @@ RSpec.describe AIUserAgent do
     it 'handles various provider names' do
       # These values should match providerDefaults in model_spec.js
       providers_and_defaults = {
-        "gemini" => "gemini-3-flash-preview",
-        "mistral" => "mistral-large-latest",
+        "gemini" => "gemini-3.5-flash",
+        "mistral" => "mistral-medium-3-5",
         "grok" => "grok-4.20-0309-non-reasoning",
         "deepseek" => "deepseek-v4-flash",
-        "cohere" => "command-a-03-2025"
+        "cohere" => "command-a-plus-05-2026"
       }
 
       stub_const('CONFIG', {})

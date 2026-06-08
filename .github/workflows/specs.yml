@@ -102,7 +102,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        # Jest runs frontend JS in jsdom and never launches Electron, so skip
+        # the Electron binary download. It is the one network dependency in
+        # this step that intermittently 504s on the CDN and fails the whole
+        # job even though no test needs the binary.
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
       - name: Fetch renderer vendor assets (markdown-it, katex)
         continue-on-error: true

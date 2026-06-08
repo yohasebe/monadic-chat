@@ -536,7 +536,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "sunset_date": "2026-06-25",
+    "successor": "gemini-3.5-flash"
   },
   "gemini-3.1-pro-preview": {
     "context_window" : [1048576],

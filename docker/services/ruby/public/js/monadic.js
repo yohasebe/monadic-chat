@@ -1219,9 +1219,18 @@ document.addEventListener("DOMContentLoaded", function () {
             modelSelectedEl.textContent = `${provider} (${selectedModel})`;
           }
         }
+
+        // Keep the AI User badge in sync. It is otherwise only set during a
+        // one-shot init window (init + a 3s retry loop); if that window loses
+        // the startup race (ai_user_defaults fetch / WebSocket apps / provider
+        // select / #model population), the badge stays at its HTML default
+        // ("Not configured") with no recovery path. Model change fires on every
+        // app load, by which point the provider select and SSOT defaults are
+        // ready, so this self-heals the badge. No-op on failure.
+        if (typeof setAiUserBadge === 'function') setAiUserBadge();
       });
     }
-    
+
     // Initial availability update will be done when models are loaded
     
     // Setup AI User button

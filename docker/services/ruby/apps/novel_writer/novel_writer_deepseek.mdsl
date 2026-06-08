@@ -1,0 +1,204 @@
+app "NovelWriterDeepSeek" do
+  description do
+    en <<~TEXT
+    Creative writing assistance for stories and narratives. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    物語と創作文章の執筆支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    故事和叙述的创意写作协助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    이야기와 서술을 위한 창의적 글쓰기 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    Asistencia de escritura creativa para historias y narrativas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    Assistance d'écriture créative pour histoires et récits. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    Kreative Schreibhilfe für Geschichten und Erzählungen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+  icon "book"
+
+  system_prompt <<~TEXT
+    You are a skilled and imaginative author tasked with collaboratively writing a novel with the user.
+
+    ## FIRST INTERACTION - ASK USER PREFERENCES
+
+    **CRITICAL:** When starting a NEW conversation (no existing story), you MUST:
+    1. Call `load_novel_context` to check if story exists
+    2. If NO story exists, **ASK the user** about their preferences:
+       - What genre/theme do they want? (fantasy, mystery, romance, sci-fi, etc.)
+       - What language should the story be in?
+       - Approximate target length (short story ~5000 words, novella ~20000, etc.)
+       - Any specific characters or settings they have in mind?
+    3. **DO NOT write any story content until user provides their preferences**
+
+    ## TOOL USAGE (Efficient)
+
+    Use tools sparingly to avoid exceeding call limits:
+
+    - `load_novel_context`: Call ONCE at the start
+    - `save_novel_context`: Call ONCE to save all story info (includes characters)
+    - `update_progress`: Call ONCE after writing
+
+    Each tool must be called AT MOST ONCE per turn. After a tool returns
+    successfully, DO NOT call the same tool again — move on to the next step.
+
+    ## WORKFLOW
+
+    ### First message (new conversation):
+    ```
+    1. CALL load_novel_context
+    2. IF no story exists → ASK user for preferences (DO NOT WRITE YET)
+    3. WAIT for user response
+    ```
+
+    ### After user provides preferences:
+    ```
+    1. CALL save_novel_context with story setup
+    2. Write ONE section (300-500 words / 500-800 chars for CJK)
+    3. CALL update_progress
+    4. Present options and STOP
+    ```
+
+    ### Continuing existing story:
+    ```
+    1. CALL load_novel_context
+    2. Write ONE section based on user direction
+    3. CALL update_progress
+    4. Present options and STOP
+    ```
+
+    ## RESPONSE FORMAT (after writing)
+
+    ---
+    [STORY CONTENT: 300-500 words of prose]
+    ---
+
+    **Progress:** [X]% ([current]/[total])
+
+    **What happens next?**
+    1. [Option A]
+    2. [Option B]
+    3. [Your own idea]
+
+    ## WRITING GUIDELINES
+
+    - Create vivid scenes with sensory details
+    - Write engaging dialogue
+    - Show, don't tell
+    - End sections at natural pause points
+
+    ## KEY RULES
+
+    1. **ALWAYS ask user preferences before starting a new story**
+    2. Call `load_novel_context` first
+    3. Write only one section per response
+    4. Keep tool calls under 5 per turn, and never repeat the same tool call
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-chapter writing sessions, tasks combining character development with plot planning, collaborative story branching.
+    WHEN TO SKIP: Single scene writing, quick character descriptions.
+  TEXT
+
+  llm do
+    provider "deepseek"
+    model ["deepseek-v4-pro", "deepseek-v4-flash"]
+    # Default reasoning OFF: with thinking on, the multi-step monadic JSON +
+    # session-state tool flow degrades over multiple turns. Users can still
+    # turn it on via the On/Off toggle (the 2-state DeepSeek toggle has no
+    # effort level, so thinking then runs at the provider default depth).
+    reasoning_content "disabled"
+    # A generous cap or the prose section gets truncated mid-sentence (thinking,
+    # when on, shares the max_tokens budget with the response).
+    max_tokens 8000
+    temperature 0.7
+    context_size 40
+  end
+
+  display_name "Novel Writer"
+
+  features do
+    disabled !CONFIG["DEEPSEEK_API_KEY"]
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+    group "DeepSeek"
+    monadic true  # Uses Session State mechanism for novel progress tracking
+  end
+
+  context_schema do
+    field :characters, icon: "fa-users", label: "Characters", description: "Main characters in the story"
+    field :plot, icon: "fa-book-open", label: "Plot", description: "Key plot points and events"
+    field :settings, icon: "fa-map", label: "Settings", description: "Locations and time periods"
+  end
+
+  tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
+    # Word/character counting tools
+    define_tool "count_num_of_words", "Count the number of words in text (for space-separated languages)" do
+      parameter :text, "string", "The text content to count words in", required: true
+    end
+
+    define_tool "count_num_of_chars", "Count the number of characters in text (for CJK languages)" do
+      parameter :text, "string", "The text content to count characters in", required: true
+    end
+
+    # Novel context management tools
+    define_tool "load_novel_context", "Load current story context (plot, characters, progress) from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_novel_context", "Save story context to session state" do
+      parameter :grand_plot, "string", "Brief description of the overarching plot", required: false
+      parameter :total_text_amount, "integer", "Target word/character count for the novel", required: false
+      parameter :text_amount_so_far, "integer", "Current word/character count", required: false
+      parameter :language, "string", "Language used in the novel", required: false
+      parameter :summary_so_far, "string", "Summary of the story up to current point", required: false
+      parameter :progress, "string", "Current progress percentage (e.g., '25%')", required: false
+      parameter :characters, "object", "Dictionary of characters with their specifications", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_character", "Add or update a character in the story" do
+      parameter :name, "string", "Character name", required: true
+      parameter :specification, "string", "Character description and traits", required: true
+      parameter :role, "string", "Character's role in the story", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "update_progress", "Update story progress after writing new content" do
+      parameter :new_text, "string", "The newly written text to add to the word/character count", required: true
+      parameter :use_chars, "boolean", "Use character count instead of word count (for CJK languages)", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "update_summary", "Update the story summary after plot developments" do
+      parameter :summary, "string", "Updated summary of the story so far", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+  end
+end

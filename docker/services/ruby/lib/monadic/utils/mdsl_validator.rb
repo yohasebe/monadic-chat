@@ -94,12 +94,33 @@ module Monadic
         end
         
         def validate_deepseek_reasoning(config, spec, errors, warnings)
-          # DeepSeek uses reasoning_content internally but not in MDSL
+          # DeepSeek V4 exposes two independent controls:
+          #   reasoning_content ("disabled"/"enabled") — whether thinking runs at all
+          #   reasoning_effort   ("high"/"max")        — the depth used when thinking is on
+          # Older DeepSeek models expose neither. Validate each against the spec.
+          spec_effort = spec["reasoning_effort"] || spec[:reasoning_effort]
+          spec_content = spec["reasoning_content"] || spec[:reasoning_content]
+
           if config[:reasoning_effort]
-            errors << "DeepSeek models don't use 'reasoning_effort' in MDSL configuration"
+            if spec_effort
+              valid = spec_effort.first.is_a?(Array) ? spec_effort.first : spec_effort
+              unless valid.include?(config[:reasoning_effort])
+                errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for DeepSeek model. Valid values: #{valid.join(', ')}"
+              end
+            else
+              warnings << "Model doesn't support reasoning_effort parameter, it will be ignored"
+            end
           end
+
           if config[:reasoning_content]
-            warnings << "reasoning_content is automatically managed for DeepSeek models"
+            if spec_content
+              valid = spec_content.first.is_a?(Array) ? spec_content.first : spec_content
+              unless valid.include?(config[:reasoning_content])
+                errors << "Invalid reasoning_content '#{config[:reasoning_content]}' for DeepSeek model. Valid values: #{valid.join(', ')}"
+              end
+            else
+              warnings << "Model doesn't support reasoning_content parameter, it will be ignored"
+            end
           end
         end
         

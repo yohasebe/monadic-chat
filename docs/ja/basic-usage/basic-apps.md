@@ -22,9 +22,9 @@
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Language Practice Plus | ✅ | ✅ | | | | | | |
-| Translate | ✅ | | ✅ | | | | | |
+| Translate | ✅ | | ✅ | ✅ | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | |
-| Novel Writer | ✅ | | | | | | ✅ | |
+| Novel Writer | ✅ | | | ✅ | | | ✅ | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | |
 | Video Generator | | | | | ✅ | ✅ | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

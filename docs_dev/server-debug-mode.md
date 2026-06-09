@@ -42,6 +42,20 @@ Extra logging: enabled (forced in debug mode)
 Debug mode: enabled (local documentation available)
 ```
 
+### Frontend JS (no bundle rebuild needed)
+
+In debug mode the server runs on the host (`in_container?` is false), and the page loads the **raw JS source files directly**, in bundle order, instead of the prebuilt `monadic.bundle.min.js`. Editing any `public/js/**` file and reloading the browser reflects the change immediately — **no `npm run build:js` step is required in dev**. (The single minified bundle is a production-only artifact, loaded only when Ruby runs inside the container.)
+
+The file list and order come from the same SSOT the bundler uses (`FILES` in `scripts/build_js_bundle.mjs`), parsed in `static_routes.rb` into `@dev_js_files`; if that parse ever fails the page falls back to the bundle.
+
+### The Ruby container is stopped automatically
+
+`rake server:debug` stops `monadic-chat-ruby-container` so the host Falcon owns port 4567 — you do **not** need to stop it manually. Be aware of one gotcha: if the container is running alongside the host server, its published `127.0.0.1:4567` can shadow the host's `*:4567` for `localhost` connections (macOS prefers the more specific bind), silently serving the container's baked-in code instead of your local edits. The dev start flow re-stops the container (including the case where the `MONADIC_DEV` recreate step brought it back up) before launching Falcon. If you suspect stale code is being served, check for both listeners:
+
+```bash
+lsof -nP -iTCP:4567 -sTCP:LISTEN   # a host `ruby` (*:4567) + a docker proxy (127.0.0.1:4567) means the container is shadowing
+```
+
 ### Local Documentation Access
 
 In debug mode, both internal and external documentation are served locally:

@@ -40,6 +40,84 @@ RSpec.describe MusicAnalystTools do
     end
   end
 
+  # The interpretive lens (Gemini) once fabricated instrumentation — naming
+  # instruments that were not in the recording (e.g. a rhythm guitar in a
+  # lead+bass+drums solo). These pin the dedicated, instrumentation-specific
+  # guardrails so the general "don't invent" line can't quietly regress back
+  # to being the only defense.
+  describe '#build_critique_prompt (instrumentation guardrails)' do
+    let(:prompt) { tool.send(:build_critique_prompt, nil) }
+
+    it 'calls out instrumentation as a high-risk area for confident mistakes' do
+      expect(prompt).to match(/Instrumentation/i)
+      expect(prompt).to match(/clearly and directly hear/i)
+    end
+
+    it 'forbids inferring instruments from genre/style/convention' do
+      expect(prompt).to match(/do not infer instruments from the genre/i)
+      expect(prompt).to match(/convention is not evidence/i)
+    end
+
+    it 'tells the model to describe the sound instead of naming an uncertain instrument' do
+      expect(prompt).to match(/describe the sound/i)
+      expect(prompt).to match(/register, timbre, and role/i)
+    end
+
+    it 'biases toward under-counting rather than inventing parts' do
+      expect(prompt).to match(/under-counting/i)
+      expect(prompt).to match(/than inventing one/i)
+    end
+  end
+
+  # Calibration follow-up: keep the critique inside what 16 kHz mono can defend.
+  # The trigger was a confident genre verdict ("funk-rock and blues-rock") on an
+  # 80s hard-rock solo — not a bandwidth issue but over-confident interpretation.
+  describe '#build_critique_prompt (genre/bandwidth calibration)' do
+    let(:prompt) { tool.send(:build_critique_prompt, nil) }
+
+    it 'forbids production / sound-quality judgements (out of 16 kHz mono range)' do
+      expect(prompt).to match(/production judgement/i)
+      expect(prompt).to match(/16 ?kHz mono/i)
+    end
+
+    it 'requires genre to be hedged, not asserted as a fact' do
+      expect(prompt).to match(/Genre\/style is an INFERENCE/i)
+      expect(prompt).to match(/never state one genre as a fact/i)
+    end
+
+    it 'separates what is heard from what is inferred' do
+      expect(prompt).to match(/Keep what you HEAR separate from what you INFER/i)
+    end
+
+    it 'still preserves vivid description of the playing (no flattening)' do
+      expect(prompt).to match(/do not flatten the prose/i)
+    end
+  end
+
+  # Orchestrator (MDSL) side: the conversational Gemini that synthesizes the
+  # final answer is the second place overreach can creep in, so its system
+  # prompt must relay the critique faithfully and keep the lenses separated.
+  describe 'orchestrator system prompt (music_analyst_gemini.mdsl)' do
+    let(:mdsl) do
+      path = File.expand_path('../../../apps/music_analyst/music_analyst_gemini.mdsl', __dir__)
+      File.read(path)
+    end
+
+    it 'tells the orchestrator to relay the critique without adding overreach' do
+      expect(mdsl).to match(/Relay the critique faithfully/i)
+      expect(mdsl).to match(/do NOT introduce new interpretations/i)
+    end
+
+    it 'requires interpretive claims to be attributed, not stated as measured fact' do
+      expect(mdsl).to match(/Attribute interpretive claims/i)
+    end
+
+    it 'keeps the objective section free of interpretation' do
+      expect(mdsl).to match(/Keep the sections clean/i)
+      expect(mdsl).to match(/ONLY numbers from `analyze_audio_features`/i)
+    end
+  end
+
   describe '#analyze_audio_features' do
     # The audio path is gated on the optional Audio Analysis package; treat it
     # as installed for the formatting/parsing tests below.

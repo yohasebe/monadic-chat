@@ -1602,10 +1602,18 @@
     <!-- Mermaid (~2.5 MB), ABCjs (~472 KB), maxGraph (~608 KB) are lazy-loaded -->
     <!-- on first use via LazyLoader. See js/monadic/lazy-loader.js -->
 
-    <!-- Bundled application scripts (68 modules, minified) -->
-    <!-- Source files in js/monadic/ are kept for development and testing -->
+    <!-- Application scripts.
+         Production (in container): the prebuilt, minified single bundle.
+         Dev (host Falcon): the raw source files in bundle order, so edits show
+         on reload with no rebuild. See static_routes.rb for @dev_js_files. -->
+    <% if @dev_js_files && !@dev_js_files.empty? %>
+    <% @dev_js_files.each do |dev_js| %>
+    <script src="<%= dev_js %>?t=<%= @dev_js_cachebust %>"></script>
+    <% end %>
+    <% else %>
     <!-- Rebuild with: npm run build:js -->
     <script src="js/monadic.bundle.min.js?timestamp=<%= @timestamp %>"></script>
+    <% end %>
     
     <!-- Make sure clipboard operations work in DevTools -->
     <script>

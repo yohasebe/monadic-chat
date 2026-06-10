@@ -1,8 +1,8 @@
 require "spec_helper"
 
 RSpec.describe "Code Interpreter Response Length Configuration" do
-  let(:gemini_mdsl_path) { "apps/code_interpreter/code_interpreter_gemini.mdsl" }
-  let(:grok_mdsl_path) { "apps/code_interpreter/code_interpreter_grok.mdsl" }
+  let(:gemini_mdsl_path) { File.expand_path("../../apps/code_interpreter/code_interpreter_gemini.mdsl", __dir__) }
+  let(:grok_mdsl_path) { File.expand_path("../../apps/code_interpreter/code_interpreter_grok.mdsl", __dir__) }
   
   describe "MDSL Configuration" do
     context "Gemini Code Interpreter" do

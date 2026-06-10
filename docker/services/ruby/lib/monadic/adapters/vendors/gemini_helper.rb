@@ -726,23 +726,9 @@ module GeminiHelper
     http = HTTP.headers(headers)
     
     # Make request
-    response = nil
-    
-    # Simple retry logic
     begin
-      MAX_RETRIES.times do
-        response = http.timeout(
-          connect: open_timeout,
-          write: write_timeout,
-          read: read_timeout
-        ).post(target_uri, json: body)
-
-        # Break if successful
-        break if response && response.status && response.status.success?
-
-        # Wait before retrying
-        sleep RETRY_DELAY
-      end
+      response = post_json_with_retries(http, target_uri, body,
+                                        max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
       # Check for valid response
       if !response || !response.status

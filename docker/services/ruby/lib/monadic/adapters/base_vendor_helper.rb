@@ -322,21 +322,28 @@ module BaseVendorHelper
     pipeline.after_receive_from_llm(text).text
   end
 
-  # Generic backoff wrapper. Yields a block and retries on common transient
-  # network errors. The caller remains responsible for logging.
-  def retry_with_backoff(max_retries: DEFAULT_MAX_RETRIES, delay: DEFAULT_RETRY_DELAY)
-    attempts = 0
-    begin
-      return yield
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      attempts += 1
-      raise e if attempts > max_retries
-      sleep(delay)
-      retry
-    rescue StandardError => e
-      # Non-network errors are re-raised immediately; helpers already have
-      # their own handling and we do not want to change behavior here.
-      raise e
+  # Shared non-streaming POST with retries. Mirrors the inline retry loop
+  # vendor helpers use for plain JSON requests: POST, stop as soon as an
+  # HTTP-success response arrives, otherwise sleep and try again, and hand
+  # the last response (or nil) back to the caller for status handling.
+  #
+  # Timeouts come from the helper's define_timeouts methods. rescue_errors
+  # controls which exceptions count as "retry" (default: none — exceptions
+  # propagate, matching the majority of call sites). Pass e.g.
+  # [HTTP::Error, HTTP::TimeoutError] where the original loop swallowed them.
+  def post_json_with_retries(http, target_uri, body, max_retries:, retry_delay:, rescue_errors: [])
+    response = nil
+    max_retries.times do
+      begin
+        response = http.timeout(connect: open_timeout,
+                                write: write_timeout,
+                                read: read_timeout).post(target_uri, json: body)
+        break if response && response.status && response.status.success?
+      rescue *rescue_errors
+        # Transient request failure — retry after the delay below.
+      end
+      sleep retry_delay
     end
+    response
   end
 end

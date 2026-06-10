@@ -31,10 +31,10 @@ task :spec do
 
   if !qdrant_running || !embeddings_running
     puts "Starting qdrant + embeddings containers for tests..."
-    compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-    qdrant_dev_file = File.expand_path("docker/services/qdrant/compose.dev.yml", __dir__)
-    embeddings_dev_file = File.expand_path("docker/services/embeddings/compose.dev.yml", __dir__)
-    project_dir = File.expand_path("docker/services", __dir__)
+    compose_file = File.expand_path("docker/services/compose.yml", PROJECT_ROOT)
+    qdrant_dev_file = File.expand_path("docker/services/qdrant/compose.dev.yml", PROJECT_ROOT)
+    embeddings_dev_file = File.expand_path("docker/services/embeddings/compose.dev.yml", PROJECT_ROOT)
+    project_dir = File.expand_path("docker/services", PROJECT_ROOT)
 
     overlays = [compose_file]
     overlays << qdrant_dev_file if File.exist?(qdrant_dev_file)
@@ -51,7 +51,7 @@ task :spec do
   end
   
   # Store paths before changing directory
-  root_dir = __dir__
+  root_dir = PROJECT_ROOT
   
   # Run tests with the new structure
   ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
@@ -98,10 +98,10 @@ namespace :spec do
 
     if !qdrant_running || !embeddings_running
       puts "Starting qdrant + embeddings containers for tests..."
-      compose_file = File.expand_path("docker/services/compose.yml", __dir__)
-      qdrant_dev_file = File.expand_path("docker/services/qdrant/compose.dev.yml", __dir__)
-      embeddings_dev_file = File.expand_path("docker/services/embeddings/compose.dev.yml", __dir__)
-      project_dir = File.expand_path("docker/services", __dir__)
+      compose_file = File.expand_path("docker/services/compose.yml", PROJECT_ROOT)
+      qdrant_dev_file = File.expand_path("docker/services/qdrant/compose.dev.yml", PROJECT_ROOT)
+      embeddings_dev_file = File.expand_path("docker/services/embeddings/compose.dev.yml", PROJECT_ROOT)
+      project_dir = File.expand_path("docker/services", PROJECT_ROOT)
 
       overlays = [compose_file]
       overlays << qdrant_dev_file if File.exist?(qdrant_dev_file)
@@ -118,7 +118,7 @@ namespace :spec do
     end
 
     # Store paths before changing directory
-    root_dir = __dir__
+    root_dir = PROJECT_ROOT
 
     # Run only unit and integration tests (exclude system tests)
     ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
@@ -343,7 +343,7 @@ task :jstest, [:save_results, :output_dir] do |_t, args|
     exit 1 unless success
   elsif save
     # Fallback: save to flat file with timestamp
-    results_dir = File.expand_path('tmp/test_results', __dir__)
+    results_dir = File.expand_path('tmp/test_results', PROJECT_ROOT)
     FileUtils.mkdir_p(results_dir)
     run_id = Time.now.strftime('%Y%m%d_%H%M%S')
     json_file = File.join(results_dir, "jest_#{run_id}.json")
@@ -423,7 +423,7 @@ namespace :pytest do
       puts "\n✅ Python test results saved to: #{output_file}"
     elsif save
       # Fallback: save to flat file with timestamp
-      results_dir = File.expand_path('tmp/test_results', __dir__)
+      results_dir = File.expand_path('tmp/test_results', PROJECT_ROOT)
       FileUtils.mkdir_p(results_dir)
       run_id = Time.now.strftime('%Y%m%d_%H%M%S')
       output_file = File.join(results_dir, "pytest_#{run_id}.txt")
@@ -460,7 +460,7 @@ task :test do
   run_id = "test_#{timestamp}"
 
   # Create unified output directory
-  output_dir = File.expand_path("tmp/test_results/#{run_id}", __dir__)
+  output_dir = File.expand_path("tmp/test_results/#{run_id}", PROJECT_ROOT)
   FileUtils.mkdir_p(output_dir)
 
   puts "=" * 60
@@ -500,7 +500,7 @@ task :test do
   File.write(File.join(output_dir, 'summary.json'), JSON.pretty_generate(summary))
 
   # Create symlink to latest
-  latest_link = File.expand_path('tmp/test_results/latest', __dir__)
+  latest_link = File.expand_path('tmp/test_results/latest', PROJECT_ROOT)
   FileUtils.rm_f(latest_link)
   FileUtils.ln_sf(output_dir, latest_link)
 
@@ -529,7 +529,7 @@ namespace :test_summary do
   task :latest do
     require 'json'
     require 'time'
-    base = File.expand_path('tmp/test_runs', __dir__)
+    base = File.expand_path('tmp/test_runs', PROJECT_ROOT)
     unless Dir.exist?(base)
       puts "No test_runs directory found at #{base}"
       next

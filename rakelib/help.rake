@@ -10,11 +10,11 @@ namespace :help do
   # internal docs are requested) using the embeddings_service container.
 
   HELP_BUILD_SCRIPT = File.expand_path(
-    'docker/services/ruby/scripts/utilities/process_documentation.rb', __dir__
+    'docker/services/ruby/scripts/utilities/process_documentation.rb', PROJECT_ROOT
   )
 
   HELP_DATA_DUMP = File.expand_path(
-    'docker/services/ruby/help_data/help_db.json', __dir__
+    'docker/services/ruby/help_data/help_db.json', PROJECT_ROOT
   )
 
   # Ensure the embeddings_service container is up before invoking the script.
@@ -26,9 +26,9 @@ namespace :help do
     end
 
     puts 'Starting embeddings container...'
-    compose_file = File.expand_path('docker/services/compose.yml', __dir__)
-    embeddings_dev = File.expand_path('docker/services/embeddings/compose.dev.yml', __dir__)
-    project_dir = File.expand_path('docker/services', __dir__)
+    compose_file = File.expand_path('docker/services/compose.yml', PROJECT_ROOT)
+    embeddings_dev = File.expand_path('docker/services/embeddings/compose.dev.yml', PROJECT_ROOT)
+    project_dir = File.expand_path('docker/services', PROJECT_ROOT)
     overlays = ["-f '#{compose_file}'"]
     overlays << "-f '#{embeddings_dev}'" if File.exist?(embeddings_dev)
     system("docker compose --project-directory '#{project_dir}' #{overlays.join(' ')} -p 'monadic-chat' up -d embeddings_service")
@@ -57,13 +57,13 @@ namespace :help do
     # where Bundler is not autoloaded (only `bundle exec rake` autoloads it).
     require 'bundler'
     Bundler.with_unbundled_env do
-      Dir.chdir(File.expand_path('docker/services/ruby', __dir__)) do
+      Dir.chdir(File.expand_path('docker/services/ruby', PROJECT_ROOT)) do
         sh "bundle exec ruby '#{HELP_BUILD_SCRIPT}' --include-internal"
       end
     end
     if started && ENV['KEEP_VECTOR_SERVICES'] != 'true'
-      compose_file = File.expand_path('docker/services/compose.yml', __dir__)
-      project_dir = File.expand_path('docker/services', __dir__)
+      compose_file = File.expand_path('docker/services/compose.yml', PROJECT_ROOT)
+      project_dir = File.expand_path('docker/services', PROJECT_ROOT)
       system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop embeddings_service")
     end
   end

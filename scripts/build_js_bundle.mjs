@@ -110,7 +110,6 @@ const FILES = [
   "js/i18n/translations.js",
   "js/monadic/pdf_export.js",
   "js/monadic.js",
-  "js/monadic/utilities_websearch_patch.js",
   "js/monadic-improvements.js",
 ];
 

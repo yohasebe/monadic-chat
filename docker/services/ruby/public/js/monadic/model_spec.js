@@ -290,6 +290,37 @@ const modelSpec = {
     "supports_pdf_upload": false
   },
   // Anthropic models
+  // Fable 5 is Anthropic's top tier (above Opus). Same API contract as Opus
+  // 4.7/4.8 — adaptive thinking only, rejects sampling params, effort
+  // [low..max]. The one Fable-5-specific breaking change (an explicit
+  // thinking {type:"disabled"} returns 400) needs no handling here: the Claude
+  // helper omits the thinking param entirely when reasoning is off rather than
+  // sending "disabled". Premium-priced ($10/$50 per MTok, 2x Opus) so it stays
+  // out of providerDefaults — opt-in via the model dropdown only.
+  "claude-fable-5": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
+  },
   "claude-opus-4-8": {
     "context_window" : [1, 1000000],
     "api_version": "2023-06-01",

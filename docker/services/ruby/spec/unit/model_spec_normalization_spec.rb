@@ -51,6 +51,15 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-sonnet-4-6")).to be true
     end
 
+    # Fable 5 is the top tier (above Opus); it shares the Opus 4.7/4.8 contract,
+    # so the claude_helper's flag-driven thinking/sampling path applies with no
+    # code change. Pin the flags that drive that path.
+    it "detects the Fable 5 thinking/sampling contract" do
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-fable-5")).to be true
+      expect(Monadic::Utils::ModelSpec.rejects_sampling_params?("claude-fable-5")).to be true
+      expect(Monadic::Utils::ModelSpec.thinking_display_default_omitted?("claude-fable-5")).to be true
+    end
+
     it "returns false for adaptive thinking on older Claude models" do
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-haiku-4-5-20251001")).to be false
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-20250514")).to be false

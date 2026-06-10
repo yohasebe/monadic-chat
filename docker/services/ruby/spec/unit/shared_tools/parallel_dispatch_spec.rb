@@ -636,6 +636,16 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
     end
 
     describe "#tavily_prefetch_and_inject" do
+      # HTTP is mocked; only the key-presence check reads CONFIG. Provide a
+      # dummy key so these specs run without ~/monadic/config/env (CI).
+      around(:each) do |example|
+        original = CONFIG["TAVILY_API_KEY"]
+        CONFIG["TAVILY_API_KEY"] ||= "test-key"
+        example.run
+      ensure
+        original.nil? ? CONFIG.delete("TAVILY_API_KEY") : CONFIG["TAVILY_API_KEY"] = original
+      end
+
       it "injects search results into prompt when TAVILY_API_KEY is set" do
         tavily_response = {
           "results" => [

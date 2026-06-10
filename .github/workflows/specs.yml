@@ -106,7 +106,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y graphviz libgraphviz-dev pkg-config
 
       - name: Run unit specs
-        run: bundle exec rspec spec/unit --order random --format progress
+        # ~integration: a few docker-dependent spec files under spec/unit
+        # carry :integration metadata; excluding the tag also keeps the
+        # spec_helper before(:suite) hook from starting containers here.
+        run: bundle exec rspec spec/unit --tag '~integration' --order random --format progress
 
   jest:
     runs-on: ubuntu-latest

@@ -50,6 +50,22 @@ RSpec.describe AudioAnalysisAgent do
         expect(parts[0][:inline_data][:data]).to eq(Base64.strict_encode64("RAWBYTES"))
         expect(parts[1][:text]).to eq("Critique it.")
       end
+
+      # The Gemini 3 Developer Guide strongly recommends the default
+      # temperature (1.0) for all Gemini 3 models and advises removing
+      # explicitly set low values (risk: looping / degraded performance).
+      # A 0.2 experiment degraded critique candor in dogfood (2026-06-10).
+      # Pin that NO sampling config is sent so it can't quietly come back.
+      it 'sends no generationConfig (Gemini 3 guidance: keep default temperature)' do
+        captured = {}
+        allow(described_class).to receive(:post_and_parse) do |_uri, body|
+          captured[:body] = body
+          "ok"
+        end
+
+        described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.5-flash")
+        expect(captured[:body]).not_to have_key(:generationConfig)
+      end
     end
 
     context 'when the file exceeds the inline size limit' do

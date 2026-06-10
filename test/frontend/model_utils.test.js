@@ -42,7 +42,7 @@ describe('Model Utils - Deprecated Model Filtering', () => {
     it('returns false for non-deprecated models', () => {
       expect(modelUtils.isModelDeprecated('gpt-5.4')).toBe(false);
       expect(modelUtils.isModelDeprecated('claude-sonnet-4-6')).toBe(false);
-      expect(modelUtils.isModelDeprecated('gemini-3-flash-preview')).toBe(false);
+      expect(modelUtils.isModelDeprecated('gemini-3.5-flash')).toBe(false);
       expect(modelUtils.isModelDeprecated('grok-4.20-0309-non-reasoning')).toBe(false);
     });
 
@@ -329,13 +329,13 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
     it('excludes ui_hidden models even when listed in MDSL (showAll=true)', () => {
       const appConfig = {
         group: 'Gemini',
-        models: '["gemini-3.1-pro-preview-customtools", "gemini-3-flash-preview"]'
+        models: '["gemini-3.1-pro-preview-customtools", "gemini-3.5-flash"]'
       };
       const models = modelUtils.getModelsForApp(appConfig, true);
       // MDSL models are prepended without ui_hidden filter, but the all-models
       // portion should not include customtools
       // Note: MDSL-listed models pass through even if ui_hidden (explicit override)
-      expect(models).toContain('gemini-3-flash-preview');
+      expect(models).toContain('gemini-3.5-flash');
     });
 
     it('ui_hidden models remain accessible to backend via modelSpec', () => {

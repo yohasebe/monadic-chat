@@ -73,6 +73,7 @@ PF_ONLY_MDSLS = %w[
   second_opinion/second_opinion_mistral.mdsl
   second_opinion/second_opinion_openai.mdsl
   translate/translate_cohere.mdsl
+  translate/translate_deepseek.mdsl
   translate/translate_openai.mdsl
 ].freeze
 
@@ -110,6 +111,7 @@ KB_SEARCH_MDSLS = %w[
   math_tutor/math_tutor_grok.mdsl
   math_tutor/math_tutor_mistral.mdsl
   math_tutor/math_tutor_openai.mdsl
+  novel_writer/novel_writer_deepseek.mdsl
   novel_writer/novel_writer_mistral.mdsl
   novel_writer/novel_writer_openai.mdsl
   research_assistant/research_assistant_claude.mdsl
@@ -299,8 +301,8 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     # situation we want to surface in code review. Update these when
     # consciously moving an app between groups.
     {
-      'PF only'      => [PF_ONLY_MDSLS, 24],
-      'KB search'    => [KB_SEARCH_MDSLS, 52],
+      'PF only'      => [PF_ONLY_MDSLS, 25],
+      'KB search'    => [KB_SEARCH_MDSLS, 53],
       'KB save only' => [KB_SAVE_ONLY_MDSLS, 27],
       'Neither'      => [NEITHER_MDSLS, 27]
     }.each do |label, (list, expected_size)|
@@ -311,7 +313,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
       end
     end
 
-    it 'allocation totals 129 (matches all *.mdsl on disk)' do
+    it 'allocation totals 132 (matches all *.mdsl on disk)' do
       expect(ALL_EXPECTED_MDSLS.size).to eq(ALL_MDSL_FILES.size)
     end
   end

@@ -96,8 +96,24 @@ Helpers should prefer accessors over reading raw properties when possible:
 - ModelSpec.responses_api?(model)
 - ModelSpec.supports_file_inputs?(model)
 - ModelSpec.ui_hidden?(model)
+- ModelSpec.supports_temperature?(model)
 
 These accessors apply conservative defaults (e.g., streaming defaults to true when undefined) in line with existing helper behavior.
+
+### The `temperature` property is the sampling SSOT
+
+A model entry's `"temperature": [[min, max], default]` key means "this model
+accepts a user-adjustable temperature". It drives two things:
+
+- The Web UI enables its temperature slider on exactly this key.
+- Helpers must NOT send a temperature for models without it
+  (`ModelSpec.supports_temperature?`). The Gemini helper enforces this: no
+  Gemini entry carries the key — the Gemini 3 Developer Guide mandates the
+  default temperature (1.0); lower values risk looping or degraded output —
+  so MDSL- or caller-supplied temperatures are dropped for those models.
+
+To let a future model accept user temperature, add the key to its spec entry;
+both the UI slider and the helper gate follow automatically.
 
 ## UI Guidance
 

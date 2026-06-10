@@ -55,7 +55,6 @@ app "MailComposerGemini" do
   llm do
     provider "gemini"
     reasoning_effort "none"
-    temperature 0.3
   end
   
   features do

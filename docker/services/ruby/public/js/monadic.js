@@ -1219,9 +1219,18 @@ document.addEventListener("DOMContentLoaded", function () {
             modelSelectedEl.textContent = `${provider} (${selectedModel})`;
           }
         }
+
+        // Keep the AI User badge in sync. It is otherwise only set during a
+        // one-shot init window (init + a 3s retry loop); if that window loses
+        // the startup race (ai_user_defaults fetch / WebSocket apps / provider
+        // select / #model population), the badge stays at its HTML default
+        // ("Not configured") with no recovery path. Model change fires on every
+        // app load, by which point the provider select and SSOT defaults are
+        // ready, so this self-heals the badge. No-op on failure.
+        if (typeof setAiUserBadge === 'function') setAiUserBadge();
       });
     }
-    
+
     // Initial availability update will be done when models are loaded
     
     // Setup AI User button
@@ -1956,7 +1965,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.reasoningUIManager) {
       window.reasoningUIManager.updateUI(provider, selectedModel);
     }
-    
+
+    // Consume the per-app reasoning default signal exactly once (set on app
+    // change). It lets an app seed the On/Off toggle from its reasoning_content
+    // default, overriding the previous app's carried-over dropdown value below.
+    const pendingAppRc = window.pendingAppReasoningContent;
+    window.pendingAppReasoningContent = null;
+
     if (window.ReasoningMapper && ReasoningMapper.isSupported(provider, selectedModel)) {
       const availableOptions = ReasoningMapper.getAvailableOptions(provider, selectedModel);
       const defaultValue = ReasoningMapper.getDefaultValue(provider, selectedModel);
@@ -1980,8 +1995,18 @@ document.addEventListener("DOMContentLoaded", function () {
         
         // Don't override reasoning_effort if we're loading from params
         if (!window.isLoadingParams) {
-          // Set the value - preserve existing value if present, otherwise use default
-          if (previousValue && availableOptions.includes(previousValue)) {
+          // Map the app's reasoning_content default to a dropdown value. For
+          // DeepSeek the options are ['minimal'(=disabled), 'medium'(=enabled)].
+          let appReasoningDefault = null;
+          if (pendingAppRc && provider === "DeepSeek") {
+            appReasoningDefault = (pendingAppRc === "disabled") ? "minimal" : "medium";
+            if (!availableOptions.includes(appReasoningDefault)) appReasoningDefault = null;
+          }
+          // Set the value - app-change default wins, else preserve existing
+          // value if valid, otherwise use the provider default.
+          if (appReasoningDefault) {
+            { const el = $id("reasoning-effort"); if (el) el.value = appReasoningDefault; }
+          } else if (previousValue && availableOptions.includes(previousValue)) {
             // Keep the previous value if it's valid for this model
             { const el = $id("reasoning-effort"); if (el) el.value = previousValue; }
           } else {
@@ -2461,6 +2486,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let model;
     // Never mutate apps[appValue].group here; app definitions are authoritative.
+
+    // Per-app default for the DeepSeek On/Off reasoning toggle. Signal the
+    // model-change handler (fired below via the "change" dispatch) to seed the
+    // toggle from the app's `reasoning_content` default on app change, instead
+    // of carrying over the previous app's dropdown value. Consumed once.
+    window.pendingAppReasoningContent = apps[appValue]["reasoning_content"] || null;
 
     // Use shared utility function to get models for the app
     const showAll = ($id("show-all-models") || {}).checked;

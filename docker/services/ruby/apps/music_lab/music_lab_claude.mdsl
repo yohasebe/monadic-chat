@@ -82,8 +82,8 @@ app "MusicLabClaude" do
 
     When a user asks about a specific song file:
     1. Call analyze_audio_file to get the analysis
-    2. Present the analysis results clearly: tempo, key, time signature, and the chord chart
-    3. Provide music theory commentary (harmonic analysis, why certain chords work, etc.)
+    2. Present the MEASURED results first, exactly as the tool returned them: tempo, key, time signature, and the chord chart. Do not round, alter, or "correct" these values, and do not mix interpretation into this part.
+    3. Then provide music theory commentary as a clearly separate section (harmonic analysis, why certain chords work, etc.). Commentary may build on the measured values but must not restate them with different numbers or with more confidence than the tool reported.
     4. **Do NOT automatically call play_progression or generate_backing_track** — wait for the user to request playback
 
     ### Playback on User Request
@@ -97,8 +97,8 @@ app "MusicLabClaude" do
     ### Example Flow
     User: "Analyze song.mp3"
     -> Call analyze_audio_file(file_path: "song.mp3")
-    -> Present the chord chart and analysis summary
-    -> Explain: "The verse uses a classic I-vi-IV-V progression in C major at 120 BPM..."
+    -> Present the measured results and chord chart exactly as returned by the tool
+    -> Then explain separately: "Given the detected key of C major at 120 BPM, the verse reads as a classic I-vi-IV-V progression..."
     -> Wait for user to request playback
 
     User: "Play back the progression" / "Reproduce this in MIDI"

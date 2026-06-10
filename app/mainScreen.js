@@ -10,6 +10,7 @@ let htmlMessageCount = 0;
 let currentStatus = 'Stopped';
 let networkUrlDisplayed = false;
 let serverStarted = false; // Flag to track if server has fully started
+let updateInProgress = false; // True while an app update is downloading or staged for install
 let lastMode = null; // Track the last set mode
 
 // Function to add copy functionality to code blocks
@@ -292,6 +293,14 @@ function updateMonadicChatStatusUI(status) {
     Object.values(buttons).forEach(button => button.disabled = true);
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
+  }
+
+  // While an app update is downloading or staged for install, keep Start and
+  // Restart disabled so the user can't spin up the server underneath the
+  // imminent relaunch.
+  if (updateInProgress) {
+    buttons.start.disabled = true;
+    buttons.restart.disabled = true;
   }
 }
 
@@ -610,7 +619,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use translated status if available, otherwise use original
     updateMonadicChatStatusUI(translatedStatus || status);
   });
-  
+
+  // Disable Start/Restart while an app update download/staging is in flight,
+  // and restore the normal controls if the user defers ("Later").
+  window.electronAPI.onUpdateBusy((_event, busy) => {
+    updateInProgress = !!busy;
+    // Re-apply the current status so the guard takes effect immediately.
+    updateMonadicChatStatusUI(currentStatus);
+  });
+
   // Listen for distributed mode updates from the main process
   window.electronAPI.onUpdateDistributedMode((_event, data) => {
     // Support both old format (string) and new format (object)

@@ -722,8 +722,16 @@ module MonadicDSL
     # reasoning_effort "low"/"medium"/"high" in their MDSL llm block.
     effort = state.settings[:reasoning_effort] || "none"
     class_def << "        @settings[:reasoning_effort] = #{effort.inspect}\n"
-    
-    
+
+    # reasoning_content ("disabled"/"enabled") is independent of
+    # reasoning_effort: it sets the per-app default for the On/Off reasoning
+    # toggle (currently DeepSeek V4). Only emit it when an app opts in so the
+    # Web UI can seed the toggle without affecting apps that don't declare it.
+    if state.settings[:reasoning_content]
+      class_def << "        @settings[:reasoning_content] = #{state.settings[:reasoning_content].inspect}\n"
+    end
+
+
     # Add tools if specified
     if state.settings[:tools]
       class_def << "        @settings[:tools] = #{state.settings[:tools].inspect}\n"

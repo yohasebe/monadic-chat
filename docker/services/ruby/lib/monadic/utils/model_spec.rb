@@ -204,6 +204,19 @@ module Monadic
         def supports_web_search?(model_name)
           get_model_property(model_name, "supports_web_search") == true
         end
+
+        # True when the spec advertises a user-adjustable "temperature" range
+        # ([[min, max], default]). This key is the SSOT for sampling control:
+        # the Web UI enables its temperature slider on exactly this key, and
+        # helpers must NOT send a temperature for models without it. No Gemini
+        # entry carries the key — the Gemini 3 Developer Guide mandates the
+        # default temperature (1.0); lower values risk looping / degraded
+        # output — so MDSL- or caller-supplied temperatures are dropped there.
+        def supports_temperature?(model_name)
+          !get_model_property(model_name, "temperature").nil?
+        rescue StandardError
+          false
+        end
         
         def supports_verbosity?(model_name)
           # Support both old format (supports_verbosity: true) and new format (verbosity: [[options], default])

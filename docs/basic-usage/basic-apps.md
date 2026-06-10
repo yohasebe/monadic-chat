@@ -22,9 +22,9 @@ The table below shows which apps are available for which AI model providers.
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Language Practice Plus | ✅ | ✅ | | | | | | |
-| Translate | ✅ | | ✅ | | | | | |
+| Translate | ✅ | | ✅ | ✅ | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | |
-| Novel Writer | ✅ | | | | | | ✅ | |
+| Novel Writer | ✅ | | | ✅ | | | ✅ | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | |
 | Video Generator | | | | | ✅ | ✅ | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

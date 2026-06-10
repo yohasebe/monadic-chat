@@ -478,8 +478,9 @@ module GeminiHelper
         }
       ],
       "tools" => [{ "google_search" => {} }],
+      # No temperature: the model here is the Gemini chat default (a Gemini 3
+      # model), and the Gemini 3 guide mandates the default temperature (1.0).
       "generationConfig" => {
-        "temperature" => 0.0,
         "maxOutputTokens" => 4096
       }
     }
@@ -608,9 +609,11 @@ module GeminiHelper
       }
     }
     
-    # Only add temperature for non-thinking models
-    if !is_thinking_model || thinking_level
-      body["generationConfig"]["temperature"] = options["temperature"] || 0.7
+    # Only send temperature when the model's spec advertises one (SSOT gate —
+    # no Gemini entry does; the Gemini 3 guide mandates the default 1.0). The
+    # old 0.7 fallback default is gone for the same reason.
+    if options["temperature"] && Monadic::Utils::ModelSpec.supports_temperature?(model)
+      body["generationConfig"]["temperature"] = options["temperature"]
     end
 
     # For thinking models, configure appropriate parameter
@@ -1532,6 +1535,14 @@ module GeminiHelper
   def build_gemini_request_body(obj:, model_name:, session:, context:, temperature:, max_tokens:,
                                 is_thinking_model:, thinking_level:, reasoning_effort:, tool_capable:,
                                 system_message:)
+    # SSOT gate: only models whose spec advertises a "temperature" range accept
+    # a user/MDSL temperature. No Gemini entry does — the Gemini 3 guide
+    # mandates the default (1.0); lower values risk looping / degraded output —
+    # yet MDSL-set temperatures were reaching the API here. Drop them.
+    if temperature && !Monadic::Utils::ModelSpec.supports_temperature?(model_name || obj["model"])
+      temperature = nil
+    end
+
     body = {
       safety_settings: SAFETY_SETTINGS
     }
@@ -2646,9 +2657,26 @@ module GeminiHelper
       content = r.is_a?(Hash) ? r.dig("functionResponse", "response", "content") : nil
       next unless content.is_a?(String)
       stripped = content.strip
-      stripped unless stripped.empty?
+      next if stripped.empty?
+      # This salvage surfaces tool output to the USER when the model's final
+      # turn came back empty. Machine-form JSON payloads (file listings,
+      # structured tool envelopes) were never meant for display — dumping them
+      # renders as raw log text in the chat. Keep only prose/markdown results.
+      next if machine_json?(stripped)
+      stripped
     end
     texts.any? ? texts.join("\n\n") : nil
+  end
+
+  # True when the string is a pure JSON object/array (machine-form payload).
+  # Prose and markdown never parse as JSON containers, so this is a safe
+  # display filter; scalars like "42" or "ok" are not containers and survive.
+  def machine_json?(text)
+    return false unless text.start_with?("{", "[")
+    parsed = JSON.parse(text)
+    parsed.is_a?(Hash) || parsed.is_a?(Array)
+  rescue JSON::ParserError
+    false
   end
 
   # Build HTML for URL context metadata display

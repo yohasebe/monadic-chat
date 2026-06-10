@@ -18,6 +18,30 @@ get "/" do
   # In dev mode, Cache-Control: no-cache (above) ensures fresh assets regardless.
   bundle_path = File.join(settings.public_folder, "js/monadic.bundle.min.js")
   @timestamp = File.exist?(bundle_path) ? File.mtime(bundle_path).to_i : Time.now.to_i
+
+  # Dev mode (host Falcon, not the baked-in container image) loads the raw JS
+  # source files instead of the prebuilt bundle, so edits reflect on reload
+  # with no rebuild step to get stale. The list/order SSOT is the FILES array
+  # in scripts/build_js_bundle.mjs (the bundler is a plain concatenation, so
+  # individual <script> tags in that order are equivalent). The same array is
+  # parsed by test/frontend/bundle-order.test.js. Falls back to the bundle if
+  # the list can't be read for any reason.
+  @dev_js_files = nil
+  unless Monadic::Utils::Environment.in_container?
+    begin
+      build_script = File.expand_path("../../../../scripts/build_js_bundle.mjs", settings.public_folder)
+      if File.exist?(build_script)
+        m = File.read(build_script).match(/const FILES = \[(.*?)\]/m)
+        files = m ? m[1].scan(/"([^"]+)"/).flatten : []
+        @dev_js_files = files unless files.empty?
+      end
+    rescue StandardError
+      @dev_js_files = nil
+    end
+  end
+  # Always-fresh cache-buster for the raw dev files (one value per request).
+  @dev_js_cachebust = Time.now.to_i
+
   session[:parameters] ||= {}
   session[:messages] ||= []
   session[:version] = Monadic::VERSION

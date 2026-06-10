@@ -522,5 +522,25 @@ RSpec.describe GeminiHelper do
       session = session_with([tr(nil), "not a hash", { "functionResponse" => {} }, tr("ok")])
       expect(helper.send(:surfaced_tool_text, session)).to eq("ok")
     end
+
+    # Dogfood regression (2026-06-10): a file-listing tool's raw JSON payload
+    # was surfaced verbatim into the chat when Gemini's final turn came back
+    # empty — rendering as log-like text. Machine-form JSON is not for display.
+    it 'filters machine-form JSON results, keeping prose' do
+      listing = '{"success":true,"files":[{"name":"a.png","size":1}]}'
+      session = session_with([tr(listing), tr("Objective features: 120 BPM"), tr('["x","y"]')])
+      expect(helper.send(:surfaced_tool_text, session)).to eq("Objective features: 120 BPM")
+    end
+
+    it 'returns nil when only machine-form JSON results exist' do
+      session = session_with([tr('{"ok":true}')])
+      expect(helper.send(:surfaced_tool_text, session)).to be_nil
+    end
+
+    it 'keeps prose that merely starts with a brace but is not JSON' do
+      session = session_with([tr("{not valid json, just text with a brace")])
+      expect(helper.send(:surfaced_tool_text, session))
+        .to eq("{not valid json, just text with a brace")
+    end
   end
 end

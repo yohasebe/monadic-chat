@@ -360,6 +360,13 @@ module MonadicDSL
       @state.settings[:reasoning_effort] = value
     end
 
+    def reasoning_content(value)
+      # Per-app default for the On/Off reasoning toggle (currently DeepSeek
+      # V4). Independent of reasoning_effort: "disabled" turns thinking off by
+      # default, "enabled" turns it on. The user can still flip it in the UI.
+      @state.settings[:reasoning_content] = value
+    end
+
     def verbosity(value)
       # GPT-5 verbosity setting: "high", "medium", or "low"
       @state.settings[:verbosity] = value

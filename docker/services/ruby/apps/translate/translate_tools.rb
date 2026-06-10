@@ -140,3 +140,9 @@ class TranslateOpenAI < MonadicApp
   include OpenAIHelper if defined?(OpenAIHelper)
   include TranslateTools
 end
+
+# Class definition for Translate app with DeepSeek
+class TranslateDeepSeek < MonadicApp
+  include DeepSeekHelper if defined?(DeepSeekHelper)
+  include TranslateTools
+end

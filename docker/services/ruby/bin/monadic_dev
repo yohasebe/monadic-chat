@@ -197,9 +197,11 @@ def start_server(opts)
   docker_output = ""
   started = false
 
-  # Note: Ruby container is now stopped by shell script (monadic_server.sh) BEFORE this runs.
-  # This prevents Docker Desktop crashes that occur when running Docker commands
-  # while the Ruby container is in certain states.
+  # The Ruby container (if running) is stopped below in STEP 2, after the Docker
+  # daemon readiness check — NOT by monadic_server.sh, which only exports
+  # MONADIC_DEV and calls this. In dev we run Ruby on the host via Falcon, so the
+  # container must not also bind the port. (The MONADIC_DEV recreate in STEP 3a
+  # can bring it back up; STEP 3c re-stops it before Falcon starts.)
 
   # Check if Docker daemon is running, with auto-start capability
   if ENV["SKIP_DOCKER_CHECK"]
@@ -301,6 +303,22 @@ def start_server(opts)
         break if container_running?(name)
         sleep 0.5
       end
+    end
+  end
+
+  # STEP 3c: The MONADIC_DEV recreate in STEP 3a runs `monadic.sh start`, which
+  # brings the WHOLE compose stack up — including the Ruby container STEP 2 just
+  # stopped. If it comes back, its published 127.0.0.1:PORT shadows the host
+  # Falcon for localhost connections (macOS prefers the more specific bind), so
+  # the browser silently hits stale baked-in container code instead of local
+  # source. Re-stop it here so local Falcon is unambiguously the dev server.
+  ruby_container_names.each do |container_name|
+    next unless container_running?(container_name)
+    puts "🛑 Re-stopping Ruby container (#{container_name}) resurrected by dev recreate..."
+    system("#{DOCKER_CMD} container stop #{container_name} > /dev/null 2>&1")
+    15.times do
+      break unless container_running?(container_name)
+      sleep 0.5
     end
   end
 

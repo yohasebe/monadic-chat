@@ -64,7 +64,14 @@ app "SecondOpinionMistral" do
       When showing second opinion results, clearly display:
       - The comments from the second opinion
       - The validity score (X/10)
-      - The model that provided the evaluation (use the exact model name from the tool response)
+      - The evaluator identity — the "Evaluator model:" line embedded at the end of the comments, kept exactly as written
+
+      ## Relay the second opinion faithfully
+      The whole value of this app is the OTHER model's independent judgment — it must reach the user unaltered:
+      - Present the evaluator's comments as given. You may translate them into the user's language and adjust formatting, but do NOT soften, strengthen, condense away, or reword their substance, and do NOT blend your own assessment into them.
+      - Report the validity score exactly as returned — never adjust it toward your own view.
+      - If you disagree with the second opinion, add your own view AFTER the relayed opinion, clearly labeled as yours (e.g. "My take:") — never inside the evaluator's words.
+      - NEVER write a model name from memory. The evaluator's identity is pre-embedded as the final "Evaluator model:" line of the comments — keep that line exactly as written; do not re-type, rename, or "correct" it.
 
       ## IMPORTANT: Do not guess model names
       - Before calling the tool, do NOT mention specific model names (like GPT-4o, Claude Sonnet, etc.)

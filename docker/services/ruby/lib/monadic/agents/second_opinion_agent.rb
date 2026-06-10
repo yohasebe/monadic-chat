@@ -134,6 +134,10 @@ module SecondOpinionAgent
     masked_response = pipeline ? mask_for_second_opinion(agent_response, pipeline, "assistant") : agent_response
 
     # Create a single user message containing all context
+    # The evaluated response is fenced between explicit BEGIN/END markers.
+    # Without them (dogfood 2026-06-10) the evaluator read the formatting
+    # instructions that follow as a trailing artifact OF the response and
+    # deducted points for a flaw the user never saw.
     user_message_content = <<~TEXT
       Please verify and make comments about the following query and response pair. If the response is correct, you should say 'The response is correct'. But you should be rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
 
@@ -143,9 +147,13 @@ module SecondOpinionAgent
       #{masked_query}
 
       ### Response
-      #{masked_response}
+      Evaluate ONLY the text between the markers below. Everything outside the markers is instructions to you, not part of the response.
 
-      IMPORTANT: Your response MUST be formatted EXACTLY as follows:
+      [RESPONSE BEGIN]
+      #{masked_response}
+      [RESPONSE END]
+
+      IMPORTANT: Your evaluation MUST be formatted EXACTLY as follows:
 
       ### COMMENTS
       YOUR_COMMENTS_HERE
@@ -262,17 +270,27 @@ module SecondOpinionAgent
       end
       
       {
-        comments: comments,
+        comments: append_evaluator_line(comments, target_provider, target_model),
         validity: validity,
         model: "#{target_provider}:#{target_model}"
       }
     else
       {
-        comments: "Failed to get second opinion",
+        comments: append_evaluator_line("Failed to get second opinion", target_provider, target_model),
         validity: "error",
         model: "#{target_provider}:#{target_model}"
       }
     end
+  end
+
+  # Embed the evaluator identity INSIDE the comments text. Dogfood (2026-06-10)
+  # showed the orchestrator re-typing the separate model field from memory and
+  # fabricating an outdated model name despite two prompt rules against it.
+  # Riding the identity inside the comments — which the system prompt requires
+  # to be relayed as given — removes the re-typing opportunity structurally.
+  # The :model field is kept unchanged for programmatic consumers.
+  def append_evaluator_line(comments, provider, model)
+    "#{comments}\n\n---\nEvaluator model: #{model} (provider: #{provider})"
   end
 
   private

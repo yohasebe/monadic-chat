@@ -106,7 +106,6 @@ app "WebInsightGemini" do
   llm do
     provider "gemini"
     model ["gemini-3.1-pro-preview", "gemini-3.5-flash"]
-    temperature 0.0
   end
 
   features do

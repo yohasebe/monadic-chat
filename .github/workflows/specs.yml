@@ -56,10 +56,37 @@ jobs:
 
       - name: Run route-contract integration specs (both IN_CONTAINER modes)
         run: |
-          bundle exec rspec \
-            spec/integration/json_route_contract_spec.rb \
-            spec/integration/library_import_contract_spec.rb \
-            --format progress
+          # Retry ONLY transient infrastructure failures (Docker Hub pull
+          # timeouts / container startup), not real spec failures. The
+          # IN_CONTAINER=false job builds peer containers locally, so a flaky
+          # registry pull would otherwise fail the build and email maintainers.
+          attempt=1
+          max_attempts=3
+          while true; do
+            set +e
+            output=$(bundle exec rspec \
+              spec/integration/json_route_contract_spec.rb \
+              spec/integration/library_import_contract_spec.rb \
+              --format progress 2>&1)
+            code=$?
+            set -e
+            echo "$output"
+            if [ "$code" -eq 0 ]; then
+              exit 0
+            fi
+            if echo "$output" | grep -qiE "Container startup timeout|failed to solve|i/o timeout|context deadline exceeded|registry-1\.docker\.io|TLS handshake timeout|temporary failure in name resolution"; then
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::warning::Transient container/registry failure persisted after ${max_attempts} attempts"
+                exit "$code"
+              fi
+              echo "Transient infrastructure failure (attempt ${attempt}/${max_attempts}); retrying in 30s..."
+              attempt=$((attempt + 1))
+              sleep 30
+              continue
+            fi
+            # Real spec failure — fail immediately, do not retry.
+            exit "$code"
+          done
 
   jest:
     runs-on: ubuntu-latest
@@ -75,7 +102,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        # Jest runs frontend JS in jsdom and never launches Electron, so skip
+        # the Electron binary download. It is the one network dependency in
+        # this step that intermittently 504s on the CDN and fails the whole
+        # job even though no test needs the binary.
         run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
       - name: Fetch renderer vendor assets (markdown-it, katex)
         continue-on-error: true

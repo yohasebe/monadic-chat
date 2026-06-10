@@ -188,3 +188,9 @@ class NovelWriterMistral < MonadicApp
   include MistralHelper if defined?(MistralHelper)
   include NovelWriterTools
 end
+
+# Class definition for Novel Writer app with DeepSeek
+class NovelWriterDeepSeek < MonadicApp
+  include DeepSeekHelper if defined?(DeepSeekHelper)
+  include NovelWriterTools
+end

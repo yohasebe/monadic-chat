@@ -111,26 +111,11 @@ namespace :server do
   task :debug do
     puts "Starting Monadic development server (Docker-managed via CLI)..."
 
-    # Auto-rebuild the JS bundle if any frontend source is newer than the
-    # bundled output. This prevents the common "I edited a JS file but my
-    # changes don't show up" trap during development.
-    bundle_path = File.expand_path("docker/services/ruby/public/js/monadic.bundle.min.js")
-    if File.exist?(bundle_path)
-      bundle_mtime = File.mtime(bundle_path)
-      source_globs = [
-        "docker/services/ruby/public/js/monadic/**/*.js",
-        "docker/services/ruby/public/js/i18n/translations.js",
-        "docker/services/ruby/public/js/debug-config.js"
-      ]
-      stale = source_globs.any? do |glob|
-        Dir[File.expand_path(glob)].any? { |f| File.mtime(f) > bundle_mtime }
-      end
-      if stale
-        puts "\n📦 JS sources changed since last bundle build — rebuilding..."
-        sh "npm run build:js"
-        puts
-      end
-    end
+    # No JS bundle step in dev. The dev server (host Falcon) serves the raw JS
+    # source files directly in bundle order (see static_routes.rb @dev_js_files
+    # + index.erb), so edits show on reload with no rebuild and nothing can go
+    # stale. The minified single bundle is a production-only artifact, built by
+    # `npm run build:js` / at packaging time and loaded only inside the container.
 
     # Force EXTRA_LOGGING to true in debug mode
     ENV['EXTRA_LOGGING'] = 'true'
@@ -877,6 +862,15 @@ namespace :build do
     setup_build_environment(skip_help_db: skip_help_db)
     puts "Building macOS arm64 package..."
     sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+
+    # electron-builder's mac `zip` target flattens framework symlinks, which
+    # makes codesign report "bundle format is ambiguous (could be app or
+    # framework)" and breaks Squirrel auto-update (beta.19, 2026-06-08).
+    # Re-zip the intact .app with ditto BEFORE the manifest patch so the
+    # patcher syncs the yml sha512/size to the corrected zip. The script
+    # also codesign-verifies the result and fails the build if still broken.
+    puts "[build:mac_arm64] Re-packaging macOS zip with preserved symlinks..."
+    sh "ruby scripts/repackage_mac_zip.rb"
 
     # Single-arch arm64 builds (no companion x64) make electron-builder
     # emit only `latest-mac.yml`, not the arch-specific

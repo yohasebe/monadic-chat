@@ -2646,9 +2646,26 @@ module GeminiHelper
       content = r.is_a?(Hash) ? r.dig("functionResponse", "response", "content") : nil
       next unless content.is_a?(String)
       stripped = content.strip
-      stripped unless stripped.empty?
+      next if stripped.empty?
+      # This salvage surfaces tool output to the USER when the model's final
+      # turn came back empty. Machine-form JSON payloads (file listings,
+      # structured tool envelopes) were never meant for display — dumping them
+      # renders as raw log text in the chat. Keep only prose/markdown results.
+      next if machine_json?(stripped)
+      stripped
     end
     texts.any? ? texts.join("\n\n") : nil
+  end
+
+  # True when the string is a pure JSON object/array (machine-form payload).
+  # Prose and markdown never parse as JSON containers, so this is a safe
+  # display filter; scalars like "42" or "ok" are not containers and survive.
+  def machine_json?(text)
+    return false unless text.start_with?("{", "[")
+    parsed = JSON.parse(text)
+    parsed.is_a?(Hash) || parsed.is_a?(Array)
+  rescue JSON::ParserError
+    false
   end
 
   # Build HTML for URL context metadata display

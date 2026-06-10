@@ -63,16 +63,7 @@ window.doResetActions = function() {
       })
       .catch(err => {
         console.error('Failed to fetch environment settings:', err);
-        // Fallback to basic check
-        if (typeof updateWebSearchBasic === 'function') {
-          updateWebSearchBasic(model);
-        }
       });
-  } else {
-    // Fallback if websearchTavilyCheck is not available
-    if (typeof updateWebSearchBasic === 'function') {
-      updateWebSearchBasic(model);
-    }
   }
 
   // Update model display with reasoning effort if applicable

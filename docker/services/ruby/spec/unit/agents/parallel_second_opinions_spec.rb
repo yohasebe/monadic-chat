@@ -11,6 +11,23 @@ module WebSocketHelper
 end unless defined?(WebSocketHelper)
 
 RSpec.describe SecondOpinionAgent, "#parallel_second_opinions" do
+  # The API calls are fully stubbed below; only the key-availability
+  # pre-check reads CONFIG. Provide dummy keys so the specs are hermetic
+  # (CI has no ~/monadic/config/env). Keys already present locally win.
+  PROVIDER_KEY_NAMES = %w[OPENAI_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY
+                          MISTRAL_API_KEY COHERE_API_KEY XAI_API_KEY].freeze
+
+  around(:each) do |example|
+    saved = {}
+    PROVIDER_KEY_NAMES.each do |k|
+      saved[k] = CONFIG[k]
+      CONFIG[k] ||= "test-key"
+    end
+    example.run
+  ensure
+    saved.each { |k, v| v.nil? ? CONFIG.delete(k) : CONFIG[k] = v }
+  end
+
   # Create a test class that includes the module with a stubbed second_opinion_agent
   let(:test_class) do
     Class.new do

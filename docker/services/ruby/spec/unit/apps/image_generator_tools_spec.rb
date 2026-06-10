@@ -128,7 +128,8 @@ RSpec.describe "ImageGeneratorTools" do
     let(:shared_folder) { Monadic::Utils::Environment.shared_volume }
 
     it "auto-attaches last image from monadic_state for edit" do
-      # Create a temp image file
+      # Create a temp image file (the shared folder may not exist on CI)
+      FileUtils.mkdir_p(shared_folder)
       test_image = File.join(shared_folder, "test_edit.png")
       File.write(test_image, "fake image data") unless File.exist?(test_image)
 

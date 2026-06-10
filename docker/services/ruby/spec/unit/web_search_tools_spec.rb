@@ -20,8 +20,12 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
   end
 
   describe '.available?' do
-    it 'returns true when module is loaded' do
+    it 'returns true when a Tavily key is configured' do
+      original = CONFIG["TAVILY_API_KEY"]
+      CONFIG["TAVILY_API_KEY"] ||= "test-key"
       expect(described_class.available?).to be true
+    ensure
+      original.nil? ? CONFIG.delete("TAVILY_API_KEY") : CONFIG["TAVILY_API_KEY"] = original
     end
   end
 
@@ -180,7 +184,11 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
     end
 
     it 'has availability check' do
+      original = CONFIG["TAVILY_API_KEY"]
+      CONFIG["TAVILY_API_KEY"] ||= "test-key"
       expect(MonadicSharedTools::Registry.available?(:web_search_tools)).to be true
+    ensure
+      original.nil? ? CONFIG.delete("TAVILY_API_KEY") : CONFIG["TAVILY_API_KEY"] = original
     end
   end
 

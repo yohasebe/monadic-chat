@@ -1,5 +1,14 @@
 # frozen_string_literal: true
 
+# Runs a shell command without the root bundle's environment. The rspec
+# invocations below execute inside docker/services/ruby, whose Gemfile is
+# the correct bundle for the specs (the root Gemfile lacks e.g. the csv
+# gem, so an inherited BUNDLE_GEMFILE from `bundle exec rake` breaks them).
+def sh_unbundled(command)
+  require "bundler"
+  Bundler.with_unbundled_env { sh command }
+end
+
 # =============================================================================
 # API Media Tests (image/video/voice generation)
 # =============================================================================
@@ -13,7 +22,7 @@ namespace :spec_api do
     ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
     Dir.chdir("docker/services/ruby") do
       fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
-      sh "bundle exec rspec spec/integration/api_media #{fmt}"
+      sh_unbundled "bundle exec rspec spec/integration/api_media #{fmt}"
     end
   end
 end
@@ -58,15 +67,15 @@ task :spec do
   Dir.chdir("docker/services/ruby") do
     fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
     puts "Running unit tests..."
-    sh "bundle exec rspec spec/unit #{fmt} --no-fail-fast --no-profile"
+    sh_unbundled "bundle exec rspec spec/unit #{fmt} --no-fail-fast --no-profile"
 
     # Run integration tests if available
     puts "\nRunning integration tests..."
-    sh "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
+    sh_unbundled "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
 
     # Run system tests
     puts "\nRunning system tests..."
-    sh "bundle exec rspec spec/system #{fmt} --no-fail-fast --no-profile" rescue puts "System tests skipped (not available)"
+    sh_unbundled "bundle exec rspec spec/system #{fmt} --no-fail-fast --no-profile" rescue puts "System tests skipped (not available)"
   end
 ensure
   # Only stop qdrant + embeddings if we started them
@@ -125,11 +134,11 @@ namespace :spec do
     Dir.chdir("docker/services/ruby") do
       fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
       puts "Running unit tests..."
-      sh "bundle exec rspec spec/unit #{fmt} --no-fail-fast --no-profile"
+      sh_unbundled "bundle exec rspec spec/unit #{fmt} --no-fail-fast --no-profile"
 
       # Run integration tests if available
       puts "\nRunning integration tests..."
-      sh "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
+      sh_unbundled "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
 
       puts "\n✅ Quick tests completed (system tests excluded)"
     end
@@ -163,7 +172,7 @@ namespace :spec_unit do
   desc "Run web search unit tests"
   task :websearch do
     Dir.chdir("docker/services/ruby") do
-      sh "bundle exec rspec spec/unit/openai_websearch_message_spec.rb spec/unit/websearch_tavily_config_spec.rb spec/unit/mistral_websearch_performance_spec.rb --format documentation"
+      sh_unbundled "bundle exec rspec spec/unit/openai_websearch_message_spec.rb spec/unit/websearch_tavily_config_spec.rb spec/unit/mistral_websearch_performance_spec.rb --format documentation"
     end
   end
 end
@@ -173,7 +182,7 @@ namespace :spec_system do
   desc "Run web search system tests"
   task :websearch do
     Dir.chdir("docker/services/ruby") do
-      sh "bundle exec rspec spec/system/chat_websearch_system_spec.rb spec/system/chat_websearch_update_spec.rb --format documentation"
+      sh_unbundled "bundle exec rspec spec/system/chat_websearch_system_spec.rb spec/system/chat_websearch_update_spec.rb --format documentation"
     end
   end
 end
@@ -519,7 +528,7 @@ end
 desc "Run Jupyter controller integration test"
 task :jupyter_integration do
   Dir.chdir("docker/services/ruby") do
-    sh "bundle exec rspec spec/integration/jupyter_controller_integration_spec.rb --format documentation"
+    sh_unbundled "bundle exec rspec spec/integration/jupyter_controller_integration_spec.rb --format documentation"
   end
 end
 

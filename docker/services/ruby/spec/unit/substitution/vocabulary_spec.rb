@@ -147,6 +147,9 @@ RSpec.describe Monadic::Substitution::Vocabulary do
 
   describe ".current_app_display_name" do
     it "returns the raw app_name when APPS lookup is unavailable" do
+      # Other spec files define APPS globally (e.g. via TestAppLoader);
+      # hide it so this example is order-independent.
+      hide_const("APPS")
       session = { parameters: { "app_name" => "ChatOpenAI" } }
       expect(described_class.current_app_display_name(session)).to eq("ChatOpenAI")
     end

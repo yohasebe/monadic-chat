@@ -66,6 +66,7 @@ RSpec.describe SecondOpinionAgent, "#parallel_second_opinions" do
     it "skips providers without API keys configured" do
       # Temporarily remove a key to test skipping
       original = CONFIG["MISTRAL_API_KEY"]
+      original_env = ENV["MISTRAL_API_KEY"]
       CONFIG.delete("MISTRAL_API_KEY") if CONFIG.is_a?(Hash)
       ENV.delete("MISTRAL_API_KEY")
 
@@ -74,23 +75,22 @@ RSpec.describe SecondOpinionAgent, "#parallel_second_opinions" do
         providers: ["openai", "claude", "mistral"], session: session
       )
 
-      # Restore key
-      if original
-        CONFIG["MISTRAL_API_KEY"] = original if CONFIG.is_a?(Hash)
-        ENV["MISTRAL_API_KEY"] = original
-      end
-
       # Should still succeed with 2 providers (openai + claude)
       expect(result).to include("Multi-Provider Verification Results")
       expect(result).to include("Openai")
       expect(result).to include("Claude")
+    ensure
+      CONFIG["MISTRAL_API_KEY"] = original if original && CONFIG.is_a?(Hash)
+      ENV["MISTRAL_API_KEY"] = original_env if original_env
     end
 
     it "returns error when fewer than 2 providers are available" do
       # Remove all keys except one
       saved = {}
+      saved_env = {}
       %w[ANTHROPIC_API_KEY GEMINI_API_KEY].each do |k|
         saved[k] = CONFIG[k] if CONFIG.is_a?(Hash) && CONFIG[k]
+        saved_env[k] = ENV[k] if ENV[k]
         CONFIG.delete(k) if CONFIG.is_a?(Hash)
         ENV.delete(k)
       end
@@ -100,14 +100,11 @@ RSpec.describe SecondOpinionAgent, "#parallel_second_opinions" do
         providers: ["claude", "gemini"], session: session
       )
 
-      # Restore keys
-      saved.each do |k, v|
-        CONFIG[k] = v if CONFIG.is_a?(Hash)
-        ENV[k] = v
-      end
-
       expect(result).to include("Error")
       expect(result).to include("At least 2 providers must be available")
+    ensure
+      saved.each { |k, v| CONFIG[k] = v if CONFIG.is_a?(Hash) }
+      saved_env.each { |k, v| ENV[k] = v }
     end
   end
 

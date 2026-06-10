@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+# Absolute path of the repository root. rakelib/*.rake files must use this
+# (NOT __dir__, which resolves to rakelib/ there) when building paths to
+# repo files. The Rakefile loads before rakelib, so this is always defined.
+PROJECT_ROOT = File.expand_path(__dir__)
+
 require "fileutils"
 begin
   require "rspec/core/rake_task"

@@ -67,7 +67,7 @@ namespace :test do
     require 'fileutils'
 
     keep_count = (args[:keep_count] || ENV['TEST_KEEP_COUNT'] || '3').to_i
-    results_dir = File.expand_path('tmp/test_results', __dir__)
+    results_dir = File.expand_path('tmp/test_results', PROJECT_ROOT)
 
     unless Dir.exist?(results_dir)
       puts "No test results directory found at #{results_dir}"
@@ -133,7 +133,7 @@ namespace :test do
     run_id = timestamp
 
     # Create unified output directory for all test results
-    output_dir = File.expand_path("tmp/test_results/#{run_id}", __dir__)
+    output_dir = File.expand_path("tmp/test_results/#{run_id}", PROJECT_ROOT)
     FileUtils.mkdir_p(output_dir)
 
     # Set TEST_OUTPUT_DIR so RSpec SummaryFormatter uses this directory
@@ -269,7 +269,7 @@ namespace :test do
     File.write(File.join(output_dir, 'summary.json'), JSON.pretty_generate(summary))
 
     # Create symlink to latest
-    latest_link = File.expand_path('tmp/test_results/latest', __dir__)
+    latest_link = File.expand_path('tmp/test_results/latest', PROJECT_ROOT)
     FileUtils.rm_f(latest_link)
     FileUtils.ln_sf(output_dir, latest_link)
 

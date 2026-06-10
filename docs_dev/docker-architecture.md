@@ -2,18 +2,30 @@
 
 ## Container Structure
 
-Monadic Chat uses multiple Docker containers for different functionalities:
+Monadic Chat uses multiple Docker containers for different functionalities.
+The authoritative service set is the `docker/services/` directory (one
+subdirectory per service, each with its own Dockerfile + compose file,
+included from `docker/services/compose.yml`):
 
 - **Ruby** (`monadic-chat-ruby-container`): Main application server (Falcon/Rack with 2 workers for personal use)
+- **Qdrant** (`monadic-chat-qdrant-container`): Vector database for embeddings (Help system, PDF Library / Knowledge Base)
+- **Embeddings** (`monadic-chat-embeddings-container`): Local embedding service (`multilingual-e5-base`)
 - **Python** (`monadic-chat-python-container`): JupyterLab, Python tools & script execution
-- **PostgreSQL/PGVector** (`monadic-chat-pgvector-container`): Vector database for embeddings
 - **Selenium** (`monadic-chat-selenium-container`): Web automation for capture/search
+- **Privacy** (`monadic-chat-privacy-container`): PII masking service for the Privacy Filter
+- **Extractor** (`monadic-chat-extractor-container`): Document extraction service (Docling + RapidOCR)
+
+Native Ollama is not a container: the Ruby service reaches the host's
+Ollama via `host.docker.internal:11434`.
+
+PostgreSQL/PGVector was removed in beta.16 (replaced by Qdrant + the
+embeddings container). See `docs_dev/qdrant_embeddings_migration.md`.
 
 ## Container Lifecycle
 
 ### Development Mode (`rake server:debug`)
-- Ruby container NOT used (local Ruby environment)
-- Other containers started as needed
+- Ruby container NOT used (local Ruby environment; the Ruby container is stopped)
+- Peer containers (Qdrant, embeddings, Python, etc.) started as needed
 - Useful for Ruby code iteration
 
 ### Production Mode
@@ -22,36 +34,38 @@ Monadic Chat uses multiple Docker containers for different functionalities:
 
 ### On-Demand Container Startup (Compose Profiles)
 
-Python and Selenium containers use Docker Compose **profiles** and are NOT started by default.
-Only Ruby + PGVector start on `docker compose up`.
+Optional containers use Docker Compose **profiles** and are NOT started by
+default. Only the default services (Ruby + the `BASE_SERVICES` defined in
+`lib/monadic/utils/container_dependencies.rb` — currently Qdrant +
+embeddings, so the Help system always works) start on `docker compose up`.
 
 | Container | Profile | Started When |
 |-----------|---------|-------------|
 | Ruby | (none) | Always at startup |
-| PGVector | (none) | Always at startup |
+| Qdrant | (none) | Always at startup (base service) |
+| Embeddings | (none) | Always at startup (base service) |
 | Python | `python` | App requires code execution, Jupyter, or data analysis |
 | Selenium | `selenium` | App requires web automation (Web Insight, AutoForge, etc.) |
+| Privacy | `privacy` | Privacy Filter enabled for the session |
+| Extractor | `extractor` | App requires document extraction |
 
 Container startup is triggered automatically when the user selects an app that requires it.
 The `ContainerDependencies` module (`lib/monadic/utils/container_dependencies.rb`) determines
 which services each app needs based on MDSL settings (tool groups, jupyter flag, pdf_vector_storage).
 
-Manual startup: `monadic.sh ensure-service python|selenium`
+Manual startup: `monadic.sh ensure-service <name>` (e.g. `python`, `selenium`, `privacy`)
 
 **Exception — Full lifecycle operations include all profiles**: `build` (Build All), `update`,
 `down_docker_compose`, `stop_docker_compose`, and `remove_containers` must operate on every
 service regardless of on-demand startup. These commands use `${ALL_PROFILES}` (defined once at
-the top of `monadic.sh`) which expands to `--profile python --profile selenium`, ensuring
+the top of `monadic.sh`; consult that definition for the current profile list), ensuring
 profiled services are built, stopped, or removed together with the default services.
 
 ### Restart Policies
 
-| Container | Policy | Rationale |
-|-----------|--------|-----------|
-| Ruby | default (`no`) | Lifecycle managed by Electron/Compose; avoids blocking Docker Resource Saver |
-| Python | default (`no`) | Started on demand; no independent lifecycle |
-| PGVector | default (`no`) | Monadic-only DB; avoids blocking Docker Resource Saver |
-| Selenium | default (`no`) | Started on demand; no independent lifecycle |
+All containers use the Docker default restart policy (`no`): lifecycle is
+owned by Electron/Compose, which also avoids blocking Docker Resource
+Saver. On-demand containers have no independent lifecycle.
 
 ### Python image build (verified promotion)
 - Rebuild is invoked via `docker/monadic.sh build_python_container`.
@@ -66,13 +80,13 @@ profiled services are built, stopped, or removed together with the default servi
 docker ps | grep monadic
 
 # View container logs
-docker logs monadic_ruby -f
+docker logs monadic-chat-ruby-container -f
 
 # Enter container shell
-docker exec -it monadic_ruby /bin/bash
+docker exec -it monadic-chat-ruby-container /bin/bash
 
 # Restart specific container
-docker restart monadic_python
+docker restart monadic-chat-python-container
 
 # Clean rebuild (compose)
 docker compose --project-directory docker/services -f docker/services/compose.yml down
@@ -89,13 +103,17 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 
 ## Port Mappings (defaults)
 
-- 4567: Ruby web server
-- 8889: JupyterLab
-- 5433: PostgreSQL/PGVector
-- 4444: Selenium Grid
-- 11434: Ollama API (when enabled)
+Host-published ports (see each service's `compose.yml` for the authoritative list):
 
-All ports use the `HOST_BINDING` environment variable to control the bind address:
+- 4567: Ruby web server
+- 8889: JupyterLab (Python container)
+- 4444 / 5900 / 7900: Selenium Grid / VNC
+- 11434: Ollama API (native on host, not a container)
+
+Qdrant, embeddings, Privacy, and Extractor expose no host ports; they are
+reached only over the internal `monadic-chat-network`.
+
+Published ports use the `HOST_BINDING` environment variable to control the bind address:
 - **Default** (`127.0.0.1`): Ports are only accessible from localhost (Standalone mode)
 - **Server mode** (`0.0.0.0`): Ports are accessible from the network (set via `HOST_BINDING=0.0.0.0` in `~/monadic/config/env`)
 
@@ -117,7 +135,7 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 # Find process using port
 lsof -i :4567
 
-# Change port in docker/compose.yml if needed
+# Change port in the service's compose.yml if needed
 ```
 ### Slow rebuilds / cache misses
 - The Python Dockerfile is split into a base pip layer and per-option layers (one RUN per library) to leverage cache.

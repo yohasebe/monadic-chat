@@ -75,7 +75,7 @@ Rakeタスク
   - オフライン実行の場合は、`api_level=none`を優先します。
   - API実行の場合は、`~/monadic/config/env`でキーを設定します（例：`OPENAI_API_KEY=...`）。
 - Dockerが実行されていない（integration/system）
-  - Docker Desktopを起動し、`pgvector`コンテナが利用可能であることを確認します。
+  - Docker Desktopを起動し、`qdrant`と`embeddings`コンテナが利用可能であることを確認します。
   - または、それを必要としないターゲット実行では`docker=off`でバイパスします。
 - 長い実行時間 / タイムアウト
   - タイムアウトを増やす：`rake test:run[integration,"timeout=120"]`。

@@ -116,6 +116,14 @@ RSpec.describe MusicAnalystTools do
       expect(mdsl).to match(/Keep the sections clean/i)
       expect(mdsl).to match(/ONLY numbers from `analyze_audio_features`/i)
     end
+
+    # The orchestrator never hears the audio (only critique_audio's Gemini
+    # call does), so follow-up questions about how the recording sounds must
+    # re-invoke the tool instead of eliciting fresh "listening" impressions.
+    it 'requires re-calling critique_audio for new listening questions' do
+      expect(mdsl).to match(/You cannot hear the audio yourself/i)
+      expect(mdsl).to match(/call `critique_audio` again/i)
+    end
   end
 
   describe '#analyze_audio_features' do

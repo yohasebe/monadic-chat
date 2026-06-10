@@ -77,12 +77,16 @@ module BaseVendorHelper
     #   cache_key        - Symbol for $MODELS cache (e.g. :deepseek)
     #   api_key_config:  - CONFIG key for the API key (e.g. "DEEPSEEK_API_KEY")
     #   endpoint_path:   - Path appended to API_ENDPOINT (e.g. "/models")
+    #   endpoint:        - Alternative to endpoint_path: lambda receiving api_key,
+    #                      returns the path. For providers that put the key in the
+    #                      URL (e.g. Gemini's "/models?key=...") instead of headers.
     #   headers:         - Lambda receiving api_key, returns headers hash.
     #                      Default: Bearer token + Content-Type JSON.
     #   fallback_provider: - Provider name for ModelSpec fallback on failure (e.g. "anthropic").
     #                        nil means return [] on failure (original behavior for most providers).
-    def define_model_lister(cache_key, api_key_config:, endpoint_path:, headers: nil, fallback_provider: nil, &parser)
+    def define_model_lister(cache_key, api_key_config:, endpoint_path: nil, endpoint: nil, headers: nil, fallback_provider: nil, &parser)
       vendor_mod = self
+      path_builder = endpoint || ->(_api_key) { endpoint_path }
 
       default_headers = ->(api_key) {
         { "Content-Type" => "application/json", "Authorization" => "Bearer #{api_key}" }
@@ -111,7 +115,7 @@ module BaseVendorHelper
         api_key = CONFIG[api_key_config]
         return fallback_proc.call if api_key.nil? || api_key.to_s.strip.empty?
 
-        target_uri = "#{vendor_mod.const_get(:API_ENDPOINT)}#{endpoint_path}"
+        target_uri = "#{vendor_mod.const_get(:API_ENDPOINT)}#{path_builder.call(api_key)}"
         http = HTTP.headers(headers_builder.call(api_key))
 
         begin

@@ -60,19 +60,21 @@ module AudioAnalysisAgent
       end
       base64_data = Base64.strict_encode64(File.binread(send_path))
       uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}"
+      # No generationConfig on purpose. The Gemini 3 Developer Guide strongly
+      # recommends keeping temperature at its default 1.0 for ALL Gemini 3
+      # models — lowering it "may lead to unexpected behavior, such as looping
+      # or degraded performance" — and explicitly advises REMOVING explicitly
+      # set low temperatures. A temperature 0.2 experiment here (2026-06-10)
+      # confirmed the warning in dogfood: the critique lost candor (praise
+      # bias, dropped its mention of real timing rush). Fabrication and
+      # praise-bias countermeasures live in the critique PROMPT instead.
       body = {
         contents: [{
           parts: [
             { inline_data: { mime_type: mime_type, data: base64_data } },
             { text: prompt }
           ]
-        }],
-        # Critique is an ANALYSIS task: without this the API default (1.0)
-        # applies, and the run-to-run variance showed up as intermittent
-        # instrument fabrication (1 in 3 dogfood runs invented a rhythm
-        # guitar despite the prompt guardrails). Low temperature shrinks the
-        # outlier tail; expressiveness is carried by the prompt, not sampling.
-        generationConfig: { temperature: 0.2 }
+        }]
       }
       post_and_parse(uri, body)
     ensure

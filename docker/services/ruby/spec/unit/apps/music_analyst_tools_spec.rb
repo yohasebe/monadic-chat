@@ -67,6 +67,16 @@ RSpec.describe MusicAnalystTools do
       expect(prompt).to match(/under-counting/i)
       expect(prompt).to match(/than inventing one/i)
     end
+
+    # Dogfood (2026-06-10): the critique attributed a "wah / envelope filter"
+    # to a lead tone that used only heavy distortion — fluid legato runs can
+    # resemble a filter sweep. Effects attribution is as error-prone as
+    # instrument naming, so pin the dedicated caution.
+    it 'forbids asserting effects/signal processing that may be playing technique' do
+      expect(prompt).to match(/effects and signal processing/i)
+      expect(prompt).to match(/do not assert their use/i)
+      expect(prompt).to match(/closely resemble a filter sweep/i)
+    end
   end
 
   # Calibration follow-up: keep the critique inside what 16 kHz mono can defend.
@@ -91,6 +101,19 @@ RSpec.describe MusicAnalystTools do
 
     it 'still preserves vivid description of the playing (no flattening)' do
       expect(prompt).to match(/do not flatten the prose/i)
+    end
+
+    # Candor countermeasures live in the PROMPT, not in sampling: the Gemini 3
+    # guide mandates default temperature 1.0, and a 0.2 experiment produced
+    # praise bias (dropped a real timing-rush observation) before being reverted.
+    it 'requires both strengths and concrete weaknesses (praise-only is incomplete)' do
+      expect(prompt).to match(/critique that only praises is incomplete/i)
+      expect(prompt).to match(/BOTH notable strengths AND concrete weaknesses/i)
+    end
+
+    it 'requires plainly naming instability like timing rush or pitch drift' do
+      expect(prompt).to match(/timing that rushes or drags/i)
+      expect(prompt).to match(/never soften a real observation into a compliment/i)
     end
   end
 

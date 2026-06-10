@@ -137,22 +137,9 @@ module CohereHelper
       target_uri = "#{API_ENDPOINT}/chat"
       http = HTTP.headers(headers)
 
-      response = nil
-      MAX_RETRIES.times do
-        begin
-          response = http.timeout(
-            connect: open_timeout,
-            write: write_timeout,
-            read: read_timeout
-          ).post(target_uri, json: body)
-
-          break if response && response.status && response.status.success?
-        rescue StandardError
-          # Continue to next retry
-        end
-
-        sleep RETRY_DELAY
-      end
+      response = post_json_with_retries(http, target_uri, body,
+                                        max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                                        rescue_errors: [StandardError])
 
       # Process response
       if response && response.status && response.status.success?
@@ -313,19 +300,8 @@ module CohereHelper
     # Make request
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
-    response = nil
-    
-    # Simple retry logic
-    MAX_RETRIES.times do
-      response = http.timeout(
-        connect: open_timeout,
-        write: write_timeout,
-        read: read_timeout
-      ).post(target_uri, json: body)
-
-      break if response&.status&.success?
-      sleep RETRY_DELAY
-    end
+    response = post_json_with_retries(http, target_uri, body,
+                                      max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     # Process response
     if response&.status&.success?

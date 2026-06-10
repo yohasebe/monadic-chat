@@ -272,14 +272,8 @@ module ClaudeHelper
     # Make the request
     http = HTTP.headers(headers)
     
-    res = nil
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout,
-                       write: write_timeout,
-                       read: read_timeout).post(target_uri, json: body)
-      break if res && res.status && res.status.success?
-      sleep RETRY_DELAY
-    end
+    res = post_json_with_retries(http, target_uri, body,
+                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     # Process response
     if res && res.status && res.status.success?
@@ -937,14 +931,8 @@ module ClaudeHelper
       }
     end
 
-    res = nil
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: body)
-      break if res.status.success?
-      sleep RETRY_DELAY
-    end
+    res = post_json_with_retries(http, target_uri, body,
+                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]

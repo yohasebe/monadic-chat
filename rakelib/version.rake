@@ -1,19 +1,22 @@
 # frozen_string_literal: true
 
 # Define the list of files that should have consistent version numbers
+#
+# Intentionally NOT listed:
+# - docker/monadic.sh reads the version dynamically from version.rb at
+#   runtime (no hardcoded version to check).
+# - docs/getting-started/installation.md (EN/JA) links to
+#   github.com/.../releases/latest and carries no version literals.
 def version_files
   # Static files that always need version updates
   static_files = [
     "./docker/services/ruby/lib/monadic/version.rb",
     "./package.json",
     "./package-lock.json",
-    "./docker/monadic.sh",
     "./docs/_coverpage.md",
-    "./docs/ja/_coverpage.md",
-    "./docs/getting-started/installation.md",
-    "./docs/ja/getting-started/installation.md"
+    "./docs/ja/_coverpage.md"
   ]
-  
+
   # Return the files
   static_files
 end
@@ -115,32 +118,6 @@ def update_version_in_file(file, from_version, to_version)
     # For version.rb, update the VERSION constant
     updated_content = content.gsub(/^(\s*VERSION\s*=\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
   
-  when "installation.md"
-    # For installation.md, update version numbers in download URLs
-    
-    # Escape version strings to handle semantic versioning (e.g., 1.0.0-beta.1)
-    escaped_from = escape_version_for_files(from_version)
-    escaped_to = escape_version_for_files(to_version)
-    
-    # Replace version in the GitHub release path
-    updated_content = content.gsub(/\/v#{Regexp.escape(from_version)}\//, "/v#{to_version}/")
-    
-    # Replace version in file names for all platforms
-    # Mac files
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-arm64\.dmg/, "Monadic.Chat-#{escaped_to}-arm64.dmg")
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-x64\.dmg/, "Monadic.Chat-#{escaped_to}-x64.dmg")
-    # Windows files
-    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(escaped_from)}\.exe/, "Monadic.Chat.Setup.#{escaped_to}.exe")
-    # Linux files
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_amd64\.deb/, "monadic-chat_#{escaped_to}_amd64.deb")
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_arm64\.deb/, "monadic-chat_#{escaped_to}_arm64.deb")
-    # ZIP files for updates (all platforms)
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-arm64\.zip/, "Monadic.Chat-#{escaped_to}-arm64.zip")
-    updated_content = updated_content.gsub(/Monadic\.Chat-#{Regexp.escape(escaped_from)}-x64\.zip/, "Monadic.Chat-#{escaped_to}-x64.zip")
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_arm64\.zip/, "monadic-chat_#{escaped_to}_arm64.zip")
-    updated_content = updated_content.gsub(/monadic-chat_#{Regexp.escape(escaped_from)}_x64\.zip/, "monadic-chat_#{escaped_to}_x64.zip")
-    updated_content = updated_content.gsub(/Monadic\.Chat\.Setup\.#{Regexp.escape(escaped_from)}\.zip/, "Monadic.Chat.Setup.#{escaped_to}.zip")
-  
   when "_coverpage.md"
     # For _coverpage.md, update the version in the header only
     updated_content = content.gsub(/<small><b>#{Regexp.escape(from_version)}<\/b><\/small>/, "<small><b>#{to_version}</b></small>")
@@ -153,10 +130,6 @@ def update_version_in_file(file, from_version, to_version)
     # For package-lock.json, only update the main version field, not any dependency versions
     updated_content = content.gsub(/^(\s*"version":\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
     updated_content = updated_content.gsub(/^(\s*"name":\s*"monadic-chat",\s*"version":\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")
-    
-  when "monadic.sh"
-    # For monadic.sh, only update the MONADIC_VERSION declaration
-    updated_content = content.gsub(/^(export MONADIC_VERSION=)#{Regexp.escape(from_version)}/, "\\1#{to_version}")
   end
   
   # Only write back if something actually changed
@@ -196,22 +169,12 @@ task :check_version do
       case file_basename
       when "version.rb"
         version_found = content =~ /^\s*VERSION\s*=\s*"#{Regexp.escape(official_version)}"/
-      when "installation.md"
-        # Check if the file contains the current version in download URLs
-        escaped_version = escape_version_for_files(official_version)
-        version_found = content.include?("/v#{official_version}/") &&
-                        content.include?("Monadic.Chat-#{escaped_version}-arm64.dmg") &&
-                        content.include?("Monadic.Chat-#{escaped_version}-x64.dmg") &&
-                        content.include?("Monadic.Chat.Setup.#{escaped_version}.exe") &&
-                        content.include?("monadic-chat_#{escaped_version}_amd64.deb")
       when "_coverpage.md"
         version_found = content =~ /<small><b>#{Regexp.escape(official_version)}<\/b><\/small>/
       when "package.json"
         version_found = content =~ /^\s*"version":\s*"#{Regexp.escape(official_version)}"/
       when "package-lock.json"
         version_found = content =~ /^\s*"version":\s*"#{Regexp.escape(official_version)}"/
-      when "monadic.sh"
-        version_found = content =~ /^export MONADIC_VERSION=#{Regexp.escape(official_version)}/
       else
         # Generic check for other files
         version_found = content.include?(official_version)
@@ -312,22 +275,12 @@ task :update_version, [:from_version, :to_version] do |_t, args|
         case file_basename
         when "version.rb"
           version_found = content.include?("VERSION = \"#{from_version}\"")
-        when "installation.md"
-          # Check if the file contains the current version in download URLs
-          escaped_from = escape_version_for_files(from_version)
-          version_found = content.include?("/v#{from_version}/") &&
-                          content.include?("Monadic.Chat-#{escaped_from}-arm64.dmg") &&
-                          content.include?("Monadic.Chat-#{escaped_from}-x64.dmg") &&
-                          content.include?("Monadic.Chat.Setup.#{escaped_from}.exe") &&
-                          content.include?("monadic-chat_#{escaped_from}_amd64.deb")
         when "_coverpage.md"
           version_found = content.include?("<small><b>#{from_version}</b></small>")
         when "package.json"
           version_found = content.include?("\"version\": \"#{from_version}\"")
         when "package-lock.json"
           version_found = content.include?("\"version\": \"#{from_version}\"")
-        when "monadic.sh"
-          version_found = content.include?("MONADIC_VERSION=#{from_version}")
         else
           version_found = content.include?(from_version)
         end

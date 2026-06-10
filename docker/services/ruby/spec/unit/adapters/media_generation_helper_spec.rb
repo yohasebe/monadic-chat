@@ -105,15 +105,4 @@ RSpec.describe "MonadicHelper media generation shell escaping" do
     end
   end
 
-  describe "#generate_video_with_sora" do
-    it "escapes prompt for sora video" do
-      helper.generate_video_with_sora(prompt: 'test "scene"')
-      expect(helper.last_command).to include(Shellwords.shellescape('test "scene"'))
-    end
-
-    it "escapes remix_video_id" do
-      helper.generate_video_with_sora(prompt: "test", remix_video_id: "id-with spaces")
-      expect(helper.last_command).to include(Shellwords.shellescape("id-with spaces"))
-    end
-  end
 end

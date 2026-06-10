@@ -60,7 +60,6 @@ Media generation tests requiring external API calls:
 | File | Description |
 |------|-------------|
 | `image_generation_all_providers_spec.rb` | Image generation across providers |
-| `video_generation_openai_spec.rb` | Video generation (OpenAI Sora) |
 | `voice_pipeline_spec.rb` | Voice synthesis pipeline |
 
 **Note:** Requires `RUN_MEDIA=true` environment variable.

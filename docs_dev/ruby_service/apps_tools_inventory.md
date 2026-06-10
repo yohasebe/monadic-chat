@@ -498,7 +498,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Field | Details |
 |-------|---------|
 | **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `generate_video_with_veo` - Generate videos using Veo 3.1 (Gemini)<br/>• `generate_video_with_sora` - Generate videos using Sora 2 (OpenAI) |
+| **Custom Tools** | • `generate_video_with_veo` - Generate videos using Veo 3.1 (Gemini) |
 
 ---
 

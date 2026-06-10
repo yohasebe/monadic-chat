@@ -190,7 +190,6 @@ NEITHER_MDSLS = %w[
   syntax_tree/syntax_tree_openai.mdsl
   video_generator/video_generator_gemini.mdsl
   video_generator/video_generator_grok.mdsl
-  video_generator/video_generator_openai.mdsl
 ].freeze
 
 ALL_EXPECTED_MDSLS = (
@@ -304,7 +303,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
       'PF only'      => [PF_ONLY_MDSLS, 25],
       'KB search'    => [KB_SEARCH_MDSLS, 53],
       'KB save only' => [KB_SAVE_ONLY_MDSLS, 27],
-      'Neither'      => [NEITHER_MDSLS, 27]
+      'Neither'      => [NEITHER_MDSLS, 26]
     }.each do |label, (list, expected_size)|
       it "#{label}: list size is #{expected_size}" do
         expect(list.size).to eq(expected_size),
@@ -313,7 +312,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
       end
     end
 
-    it 'allocation totals 132 (matches all *.mdsl on disk)' do
+    it 'allocation totals 131 (matches all *.mdsl on disk)' do
       expect(ALL_EXPECTED_MDSLS.size).to eq(ALL_MDSL_FILES.size)
     end
   end

@@ -60,7 +60,6 @@ DEBUG=true PROVIDERS=openai RUN_API=true bundle exec rspec spec/integration/prov
 | ファイル | 説明 |
 |---------|------|
 | `image_generation_all_providers_spec.rb` | 各プロバイダでの画像生成 |
-| `video_generation_openai_spec.rb` | 動画生成（OpenAI Sora） |
 | `voice_pipeline_spec.rb` | 音声合成パイプライン |
 
 **注意:** `RUN_MEDIA=true` 環境変数が必要です。

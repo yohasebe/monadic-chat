@@ -35,7 +35,6 @@ def should_exclude_from_model_spec?(model)
   return true if model.match?(/^dall-e/)
   return true if model.match?(/^gpt-image/)
   return true if model.match?(/^chatgpt-image/)
-  return true if model.match?(/^sora/)
   # Embedding models
   return true if model.match?(/^text-embedding/)
   # Voice models (Mistral voxtral series)

@@ -165,10 +165,9 @@ const providerDefaults = {
   "openai": {
     "chat": ["gpt-5.4", "gpt-5.2", ...],
     "code": ["gpt-5.3-codex", ...],
-    "vision": ["gpt-4.1-mini"],
+    "vision": ["gpt-5.4-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
-    "image": ["gpt-image-1.5", "chatgpt-image-latest"],
-    "video": ["sora-2", "sora-2-pro"],
+    "image": ["gpt-image-2"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   // ... other providers
@@ -183,7 +182,7 @@ const providerDefaults = {
 | `vision` | Image analysis agent |
 | `audio_transcription` | Audio transcription agent |
 | `image` | Image generation (OpenAI, Gemini, xAI) |
-| `video` | Video generation (Sora, Veo, Grok Imagine) |
+| `video` | Video generation (Veo, Grok Imagine) |
 | `tts` | Text-to-speech (OpenAI TTS: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1; Gemini TTS: [0]=flash, [1]=pro) |
 
 > Note: there is no `embedding` category. Help search and the local PDF

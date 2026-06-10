@@ -66,7 +66,13 @@ module AudioAnalysisAgent
             { inline_data: { mime_type: mime_type, data: base64_data } },
             { text: prompt }
           ]
-        }]
+        }],
+        # Critique is an ANALYSIS task: without this the API default (1.0)
+        # applies, and the run-to-run variance showed up as intermittent
+        # instrument fabrication (1 in 3 dogfood runs invented a rhythm
+        # guitar despite the prompt guardrails). Low temperature shrinks the
+        # outlier tail; expressiveness is carried by the prompt, not sampling.
+        generationConfig: { temperature: 0.2 }
       }
       post_and_parse(uri, body)
     ensure

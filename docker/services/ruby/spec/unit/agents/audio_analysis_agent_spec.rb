@@ -50,6 +50,21 @@ RSpec.describe AudioAnalysisAgent do
         expect(parts[0][:inline_data][:data]).to eq(Base64.strict_encode64("RAWBYTES"))
         expect(parts[1][:text]).to eq("Critique it.")
       end
+
+      # Critique is an analysis task. Without an explicit generationConfig the
+      # API default temperature (1.0) applies, and that variance showed up in
+      # dogfood as intermittent instrument fabrication (1 in 3 runs). Pin the
+      # low-temperature setting so it can't silently fall back to the default.
+      it 'sends a low temperature for analysis-grade sampling' do
+        captured = {}
+        allow(described_class).to receive(:post_and_parse) do |_uri, body|
+          captured[:body] = body
+          "ok"
+        end
+
+        described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.5-flash")
+        expect(captured[:body][:generationConfig]).to eq({ temperature: 0.2 })
+      end
     end
 
     context 'when the file exceeds the inline size limit' do

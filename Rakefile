@@ -844,8 +844,12 @@ namespace :build do
     puts "Downloading vendor assets for offline use..."
     Rake::Task["download_vendor_assets"].invoke
 
-    sh "npm update"
-    sh "npm cache clean --force"
+    # Install the exact dependency set recorded in package-lock.json.
+    # `npm ci` never rewrites the lockfile, so release artifacts are
+    # always built from the committed dependency state. Dependency
+    # updates are a deliberate step (npm update + commit), not a
+    # side effect of building.
+    sh "npm ci"
   end
 
   desc "Build Windows x64 package only"

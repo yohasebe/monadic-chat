@@ -52,7 +52,6 @@ app "LanguagePracticeGemini" do
   
   features do
     disabled !CONFIG["GEMINI_API_KEY"]
-    temperature 0.5
     context_size 100
     easy_submit true
     auto_speech true

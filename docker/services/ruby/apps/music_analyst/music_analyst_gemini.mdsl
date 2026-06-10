@@ -57,7 +57,6 @@ app "MusicAnalystGemini" do
     provider "gemini"
     model ["gemini-3.1-pro-preview", "gemini-3.5-flash"]
     reasoning_effort "high"
-    temperature 0.5
     context_size 20
   end
 

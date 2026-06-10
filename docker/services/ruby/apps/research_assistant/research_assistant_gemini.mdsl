@@ -116,7 +116,6 @@ app "ResearchAssistantGemini" do
   features do
     disabled !CONFIG["GEMINI_API_KEY"]
     websearch true
-    temperature 0.0
     reasoning_effort "low"
     easy_submit false
     auto_speech false

@@ -38,7 +38,6 @@ app "SecondOpinionGemini" do
   
   llm do
     provider "gemini"
-    temperature 0.0
     reasoning_effort "low"
   end
 

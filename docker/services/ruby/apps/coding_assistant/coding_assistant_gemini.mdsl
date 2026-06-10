@@ -56,7 +56,6 @@ app "CodingAssistantGemini" do
     provider "gemini"
     model ["gemini-3.1-pro-preview", "gemini-3.5-flash"]
     reasoning_effort "low"
-    temperature 0.0
   end
   
   display_name "Coding Assistant"

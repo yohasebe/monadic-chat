@@ -43,6 +43,14 @@ ALL_PROFILES="--profile python --profile selenium"
 if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
   ALL_PROFILES="${ALL_PROFILES} --profile privacy"
 fi
+# Extractor (Knowledge Base Quality Pack) is opt-in. Including its profile
+# here makes the standard lifecycle cover it: started with `up -d`,
+# stopped/removed with everything else, and pulled during the full build.
+# Without this, nothing started the container after an app restart and the
+# Library import quality path silently fell back to pdfplumber.
+if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
+  ALL_PROFILES="${ALL_PROFILES} --profile extractor"
+fi
 
 # Define the path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -1027,18 +1035,21 @@ build_docker_compose() {
   echo "======================================" >> "${log_file}"
   echo "" >> "${log_file}"
 
-  # Pull the prebuilt service images BEFORE building. embeddings/privacy
-  # have no local build: configuration (consumed directly); the python
-  # default image is pulled best-effort as the --cache-from source for
-  # the compose-driven python build (see cache_from in its compose.yml).
-  # Extractor is opt-in and pulled on demand (ensure-service / Settings →
-  # Actions), not here. The verification step after the build fails when
-  # the embeddings pull did not produce an image.
+  # Pull the prebuilt service images BEFORE building. embeddings, privacy
+  # and extractor (when opted in) have no local build: configuration
+  # (consumed directly); the python default image is pulled best-effort as
+  # the --cache-from source for the compose-driven python build (see
+  # cache_from in its compose.yml). The verification step after the build
+  # fails when the embeddings pull did not produce an image.
   local pull_services="embeddings_service"
   local pull_note="text embeddings (~1.1 GB)"
   if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
     pull_services="${pull_services} privacy_service"
     pull_note="${pull_note}, privacy filter (~0.7 GB)"
+  fi
+  if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
+    pull_services="${pull_services} extractor_service"
+    pull_note="${pull_note}, knowledge base quality pack (~1.3 GB)"
   fi
   # Byte-level progress is not visible in this console (non-TTY pulls only
   # report per-layer milestones), so announce what is being downloaded and
@@ -1488,6 +1499,14 @@ start_docker_compose() {
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
+
+  # When start is reached without a build (images mostly present), a
+  # missing opt-in extractor image would be pulled silently by `up -d`
+  # (its progress goes to stderr, invisible in the app console) — announce
+  # the one-time download first.
+  if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]] && ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB, one time) . . .</p>"
+  fi
 
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
 

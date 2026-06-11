@@ -106,7 +106,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [embeddings, privacy, extractor]
+        # Must list the same services as the build matrix above — a service
+        # present only there gets its digests pushed but never receives a
+        # :latest manifest tag.
+        service: [embeddings, privacy, extractor, python]
     name: publish ${{ matrix.service }} manifest
     runs-on: ubuntu-24.04
     permissions:

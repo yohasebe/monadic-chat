@@ -283,6 +283,7 @@ include:
   - "${ROOT_DIR}/services/python/compose.yml"
   - "${ROOT_DIR}/services/selenium/compose.yml"
   - "${ROOT_DIR}/services/privacy/compose.yml"
+  - "${ROOT_DIR}/services/extractor/compose.yml"
 ${compose_user}
 
 networks:

@@ -48,6 +48,24 @@ fi
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=$(eval echo ~${SUDO_USER})
 
+# Runtime language/OCR selection for the privacy & extractor services.
+# These are plain runtime env vars consumed by compose `environment:`
+# interpolation — NOT build args; all language models are baked into the
+# images. Electron passes them via the process env; for CLI/dev
+# invocations (e.g. `ensure-service` shelled out from a host Ruby
+# process) fall back to ~/monadic/config/env so containers start with
+# the user's selection instead of the defaults.
+for _key in PRIVACY_LANGS EXTRACTOR_LANGS EXTRACTOR_OCR; do
+  if [ -z "$(eval echo "\$${_key}")" ] && [ -f "${HOME_DIR}/monadic/config/env" ]; then
+    _line=$(grep -E "^${_key}=" "${HOME_DIR}/monadic/config/env" | tail -n1 | tr -d '\r' || true)
+    if [ -n "$_line" ]; then
+      _val=${_line#*=}; _val=${_val%\"}; _val=${_val#\"}
+      export ${_key}="${_val}"
+    fi
+  fi
+done
+unset _key _line _val
+
 # Define the full path to docker-compose
 DOCKER=$(command -v docker)
 
@@ -2013,8 +2031,40 @@ ensure-service)
       ;;
   esac
   ;;
+refresh-service)
+  # Re-apply runtime env to a running profiled service. `compose up -d`
+  # recreates the container only when its effective config changed (e.g.
+  # PRIVACY_LANGS/EXTRACTOR_LANGS edited in Settings), so this is cheap to
+  # call after a settings save. When the container is not running this is
+  # a no-op — the next on-demand start picks up the new env anyway.
+  # Usage: monadic.sh refresh-service privacy|extractor
+  SERVICE_NAME="${2:-}"
+  set_docker_compose
+  case "$SERVICE_NAME" in
+    privacy)
+      if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-privacy-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy up -d privacy_service" 2>/dev/null
+        echo "REFRESHED"
+      else
+        echo "NOT_RUNNING"
+      fi
+      ;;
+    extractor)
+      if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-extractor-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor up -d extractor_service" 2>/dev/null
+        echo "REFRESHED"
+      else
+        echo "NOT_RUNNING"
+      fi
+      ;;
+    *)
+      echo "Unknown service: ${SERVICE_NAME}" >&2
+      ;;
+  esac
+  ;;
 build_privacy_container)
-  # Build the privacy container based on PRIVACY_FILTER + PRIVACY_LANGS env.
+  # Build the privacy container (all languages are baked in; PRIVACY_LANGS
+  # is a runtime setting applied via compose `environment:`).
   # Triggered from the Settings → Actions panel (Electron menu).
   if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
     echo "[INFO] Privacy Filter is disabled (PRIVACY_FILTER=false). Skipping build."
@@ -2023,16 +2073,16 @@ build_privacy_container)
   ensure_data_dir "privacy" 2>/dev/null || true
   set_docker_compose
   build_log="${HOME_DIR}/monadic/log/docker_build.log"
-  echo "[INFO] Building privacy container (PRIVACY_LANGS=${PRIVACY_LANGS:-en})..."
-  eval "PRIVACY_LANGS=\"${PRIVACY_LANGS:-en}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
+  echo "[INFO] Building privacy container..."
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
   if ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
     echo "[INFO] Privacy container build succeeded."
-    # Snapshot the options used for this build so the Settings UI can
-    # detect when env changes diverge from the last successful build.
+    # Snapshot marker: the Settings UI uses the existence of this file to
+    # distinguish "not yet built" from "built". Language selection is no
+    # longer build-relevant, so no language line is recorded.
     prev_options_file="${HOME_DIR}/monadic/log/privacy_build_options.txt"
     {
       echo "PRIVACY_FILTER=${PRIVACY_FILTER:-false}"
-      echo "PRIVACY_LANGS=${PRIVACY_LANGS:-en}"
     } > "$prev_options_file"
     echo "[INFO] Saved build options to ${prev_options_file}"
   else
@@ -2051,15 +2101,16 @@ build_extractor_container)
   ensure_data_dir "extractor" 2>/dev/null || true
   set_docker_compose
   build_log="${HOME_DIR}/monadic/log/docker_build.log"
-  echo "[INFO] Building extractor container (EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko})..."
-  eval "EXTRACTOR_OCR=\"${EXTRACTOR_OCR:-rapidocr}\" EXTRACTOR_LANGS=\"${EXTRACTOR_LANGS:-en,ja,zh,ko}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
+  echo "[INFO] Building extractor container..."
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
   if ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
     echo "[INFO] Extractor container build succeeded."
+    # Snapshot marker: existence distinguishes "not yet built" from
+    # "built". OCR languages/backend are runtime settings now, so no
+    # language line is recorded.
     prev_options_file="${HOME_DIR}/monadic/log/extractor_build_options.txt"
     {
       echo "EXTRACTOR_SERVICE=${EXTRACTOR_SERVICE:-false}"
-      echo "EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko}"
-      echo "EXTRACTOR_OCR=${EXTRACTOR_OCR:-rapidocr}"
     } > "$prev_options_file"
     echo "[INFO] Saved build options to ${prev_options_file}"
   else

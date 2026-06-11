@@ -7,8 +7,12 @@ services:
       dockerfile: Dockerfile
       args:
         PROJECT_TAG: "monadic-chat"
-        PRIVACY_LANGS: ${PRIVACY_LANGS:-en}
     container_name: monadic-chat-privacy-container
+    environment:
+      # All spaCy models are baked into the image; this selects which
+      # languages the server loads. Changing PRIVACY_LANGS only needs a
+      # container restart, not a rebuild.
+      PRIVACY_LANGS_RUNTIME: ${PRIVACY_LANGS:-en}
     networks:
       - monadic-chat-network
     healthcheck:

@@ -3435,8 +3435,9 @@ function computePendingContainerBuilds() {
     }
   }
 
-  // Privacy: default-on. Privacy Filter is English-only by design,
-  // so the only rebuild-needed signal is "never built before".
+  // Privacy: default-on. All language models are baked into the image and
+  // PRIVACY_LANGS is applied at runtime, so the only rebuild-needed signal
+  // is "never built before".
   if (privacyEnabled) {
     const prev = snapshots.privacy_service;
     if (!prev) {
@@ -3450,7 +3451,9 @@ function computePendingContainerBuilds() {
     }
   }
 
-  // Extractor: only if master is on. Build depends on LANGS + OCR backend.
+  // Extractor: only if master is on. OCR languages/backend are runtime
+  // settings (EXTRACTOR_LANGS/EXTRACTOR_OCR via compose environment), so
+  // like Privacy the only rebuild-needed signal is "never built before".
   if (truthy(env.EXTRACTOR_SERVICE)) {
     const prev = snapshots.extractor_service;
     if (!prev) {
@@ -3461,25 +3464,35 @@ function computePendingContainerBuilds() {
         buildCommand: 'build_extractor_container',
         estimate: '5–10 min'
       });
-    } else {
-      const langDiff = prev.EXTRACTOR_LANGS !== undefined && prev.EXTRACTOR_LANGS !== (env.EXTRACTOR_LANGS ?? '');
-      const ocrDiff = prev.EXTRACTOR_OCR !== undefined && prev.EXTRACTOR_OCR !== (env.EXTRACTOR_OCR ?? prev.EXTRACTOR_OCR);
-      if (langDiff || ocrDiff) {
-        const reasons = [];
-        if (langDiff) reasons.push(`languages: ${prev.EXTRACTOR_LANGS} → ${env.EXTRACTOR_LANGS || ''}`);
-        if (ocrDiff) reasons.push(`OCR backend changed`);
-        result.push({
-          container: 'extractor_service',
-          label: 'Knowledge Base Quality Pack',
-          reason: reasons.join('; '),
-          buildCommand: 'build_extractor_container',
-          estimate: '5–10 min'
-        });
-      }
     }
   }
 
   return result;
+}
+
+// PRIVACY_LANGS / EXTRACTOR_LANGS are runtime settings: compose injects
+// them into the service containers as environment, so a change only needs
+// the running container recreated — never an image rebuild. monadic.sh
+// `refresh-service` runs `compose up -d`, which recreates the container
+// only when its effective config changed, and is a no-op (NOT_RUNNING)
+// when the container is stopped: the next on-demand start picks up the
+// new values anyway.
+function refreshServiceContainersForLangChange(prevLangs, newEnv) {
+  [['privacy', 'PRIVACY_LANGS'], ['extractor', 'EXTRACTOR_LANGS']].forEach(([service, key]) => {
+    const before = prevLangs[key] ?? '';
+    const after = newEnv[key] ?? '';
+    if (String(before) === String(after)) return;
+    const cmd = monadicCmd(`refresh-service ${service}`);
+    exec(cmd, { env: { ...process.env, ...newEnv } }, (err, stdout) => {
+      if (err) {
+        console.error(`refresh-service ${service} failed:`, err.message);
+        return;
+      }
+      if (String(stdout || '').includes('REFRESHED')) {
+        writeToScreen(`[HTML]: <p><i class='fa-solid fa-rotate' style='color:#61b0ff;'></i> Applied updated language settings to the ${service} container.</p>`);
+      }
+    });
+  });
 }
 
 // Start-time gate: if any container needs rebuilding to reflect the saved
@@ -3882,10 +3895,21 @@ function saveSettings(data) {
             data.EXTRACTOR_LANGS = tokens.join(',');
         }
 
+        // Capture pre-save runtime language values so changed selections can
+        // be pushed to running service containers after the file is written.
+        const prevLangs = {
+            PRIVACY_LANGS: envConfig.PRIVACY_LANGS,
+            EXTRACTOR_LANGS: envConfig.EXTRACTOR_LANGS
+        };
+
         // Override existing settings with new data (empty string values are included)
         Object.assign(envConfig, data);
         // Write the updated configuration back to the file
         writeEnvFile(envPath, envConfig);
+
+        // Apply language changes to running privacy/extractor containers
+        // (runtime env refresh — no rebuild involved).
+        refreshServiceContainersForLangChange(prevLangs, envConfig);
     }
 }
 

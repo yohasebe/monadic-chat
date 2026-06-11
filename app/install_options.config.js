@@ -47,11 +47,14 @@ const PYTHON_OPTIONS = Object.freeze([
   Object.freeze({ id: 'imgopt-imagemagick',   env: 'IMGOPT_IMAGEMAGICK',  label: 'ImageMagick (convert/mogrify)',     group: 'tools' })
 ]);
 
-// Privacy Filter language codes. English is mandatory (always
-// installed) and pinned `checked disabled` in the HTML; the others
-// are opt-in. Adding a new language: append it to PRIVACY_OPTIONAL,
-// add an HTML checkbox row in `app/settings.html`, and add the
-// translation strings to translations.js.
+// Privacy Filter language codes. English is mandatory (always enabled)
+// and pinned `checked disabled` in the HTML; the others are opt-in.
+// PRIVACY_LANGS is a RUNTIME setting: every supported spaCy model is
+// baked into the privacy image, and the selection controls which models
+// the server loads (compose injects it as PRIVACY_LANGS_RUNTIME).
+// Adding a new language: add it to the privacy service's
+// language_map.json (bakes the model), append it here, add an HTML
+// checkbox row in `app/settings.html`, and add the translation strings.
 const PRIVACY_LANG_BASE = Object.freeze(['en']);
 const PRIVACY_LANG_OPTIONAL = Object.freeze(['de', 'es', 'fr', 'it', 'ja', 'nl', 'pt', 'zh']);
 
@@ -59,6 +62,8 @@ const PRIVACY_LANG_OPTIONAL = Object.freeze(['de', 'es', 'fr', 'it', 'ja', 'nl',
 // is the foundational layer (Latin alphabet appears in nearly every
 // document regardless of dominant language) and is pinned `checked
 // disabled`. The others are opt-in once the master toggle is on.
+// EXTRACTOR_LANGS is likewise a runtime setting (compose injects it as
+// EXTRACTOR_LANGS_RUNTIME); the image content does not depend on it.
 const EXTRACTOR_LANG_BASE = Object.freeze(['en']);
 const EXTRACTOR_LANG_OPTIONAL = Object.freeze(['ja', 'zh', 'ko']);
 

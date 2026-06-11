@@ -14,18 +14,16 @@ The Privacy container is part of Monadic Chat's default container set, so the fe
 
 ## Installation
 
-The Privacy container is built and started automatically with the rest of Monadic Chat. English is mandatory and always installed; the base image is around 1 GB.
+The Privacy container is built and started automatically with the rest of Monadic Chat. All supported language models are included in the image; English is mandatory and always enabled.
 
-To enable masking for non-English content, add additional spaCy NER models:
+To enable masking for non-English content, turn on additional languages:
 
 1. Open **Settings → Install Options**.
 2. Locate the **Privacy Filter — Additional Languages** section.
 3. Check the languages you want from German (de), Spanish (es), French (fr), Italian (it), Japanese (ja), Dutch (nl), Portuguese (pt), Chinese (zh). English is always present and cannot be unchecked.
-4. Click **Save**. The Privacy section's status badge changes to **rebuild-needed**.
-5. Switch to **Settings → Actions** and click **Build Privacy** (or use the menu: **Actions → Build Privacy Container**). The button is enabled when Docker is in the Stopped state.
-6. Wait for the build to finish. Each additional language downloads a spaCy model (~50 MB each) and is baked into the container image.
+4. Click **Save**. No rebuild is involved — a running Privacy container is restarted with the new language set automatically. If the Monadic Chat server is currently running, restart it (Stop/Start) so the per-session toggle recognizes the newly enabled languages.
 
-Languages stay installed until you uncheck them and rebuild. Removing a language frees up space in the container image at the next build.
+Language selection is a runtime setting: enabling or disabling a language changes which models the server loads, not the container image.
 
 Runtime opt-out: set `PRIVACY_FILTER=false` in `~/monadic/config/env` to skip the Privacy container entirely. The toggle becomes disabled with the tooltip "Privacy Filter is disabled." until the env value is restored.
 
@@ -41,7 +39,7 @@ When the toggle is disabled, hovering over it shows the reason:
 
 - *This app does not support Privacy Filter.* — The app's MDSL does not declare a `privacy` block.
 - *Privacy Filter is disabled.* — `PRIVACY_FILTER=false` is set in the environment, so the Privacy container was not started.
-- *Privacy Filter is not installed for this language. Install via Settings → Install Options.* — The sidebar's conversation_language is not among the Presidio languages currently baked into the container. Install the language and rebuild, or change the conversation_language to one that is installed.
+- *Privacy Filter is not installed for this language. Install via Settings → Install Options.* — The sidebar's conversation_language is not among the currently enabled Presidio languages. Enable the language in Settings → Install Options (applies on save), or change the conversation_language to one that is enabled.
 
 ## Language Selection
 
@@ -177,7 +175,7 @@ Settings stored in `~/monadic/config/env`:
 | Variable | Values | Default | Description |
 |---|---|---|---|
 | `PRIVACY_FILTER` | `true` / `false` | `true` | Runtime gate. Set to `false` to skip starting the privacy container at startup; the toggle becomes disabled until restored to `true`. |
-| `PRIVACY_LANGS` | comma-separated language codes | `en` | spaCy NER models baked into the privacy container at build time. English is mandatory and prepended automatically. The preferred edit path is Settings → Install Options → "Privacy Filter — Additional Languages"; advanced users can edit the env file directly. Supported codes: `en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`. |
+| `PRIVACY_LANGS` | comma-separated language codes | `en` | Languages the privacy server loads at startup (all models are included in the image). English is mandatory and prepended automatically. The preferred edit path is Settings → Install Options → "Privacy Filter — Additional Languages"; advanced users can edit the env file directly. Supported codes: `en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`. |
 | `PRIVACY_DEV_PORT` | port number | `8001` | Used in development mode only to expose the privacy container's HTTP port to the host. |
 
-After changing `PRIVACY_LANGS`, rebuild the container (Settings → Actions → Build Privacy) and restart Monadic Chat so the new language models take effect. After changing `PRIVACY_FILTER`, restart Monadic Chat (no rebuild required).
+Changes to `PRIVACY_LANGS` made through Settings → Install Options apply on save (a running privacy container is restarted automatically). If you edit the env file directly, restart Monadic Chat so the new value takes effect. After changing `PRIVACY_FILTER`, restart Monadic Chat (no rebuild required).

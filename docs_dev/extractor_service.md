@@ -124,10 +124,9 @@ services:
   extractor_service:
     profiles: ["extractor"]
     image: yohasebe/monadic-extractor
-    build:
-      args:
-        EXTRACTOR_OCR: ${EXTRACTOR_OCR:-rapidocr}
-        EXTRACTOR_LANGS: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
+    environment:
+      EXTRACTOR_OCR_RUNTIME: ${EXTRACTOR_OCR:-rapidocr}
+      EXTRACTOR_LANGS_RUNTIME: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
@@ -140,12 +139,20 @@ Base Quality Pack" sets `EXTRACTOR_SERVICE=true` in
 `~/monadic/config/env`, which `monadic.sh ensure-service extractor`
 checks).
 
-### Build arguments
+### Runtime environment
 
-| Arg | Default | Effect |
+The image content does not depend on user settings (Docling/RapidOCR
+models cover every supported language); OCR backend and language hints
+are plain runtime env injected by compose:
+
+| Env (user setting → container var) | Default | Effect |
 |---|---|---|
-| `EXTRACTOR_OCR` | `rapidocr` | Which OCR backend to bake in. Currently only `rapidocr` is wired; Tesseract is a possible future fallback. |
-| `EXTRACTOR_LANGS` | `en,ja,zh,ko` | Comma-separated ISO 639-1 codes exposed in `/v1/info`. Advisory — RapidOCR auto-detects per page. |
+| `EXTRACTOR_OCR` → `EXTRACTOR_OCR_RUNTIME` | `rapidocr` | OCR backend. Currently only `rapidocr` is wired; Tesseract is a possible future fallback. |
+| `EXTRACTOR_LANGS` → `EXTRACTOR_LANGS_RUNTIME` | `en,ja,zh,ko` | Comma-separated ISO 639-1 codes exposed in `/v1/info`. Advisory — RapidOCR auto-detects per page. |
+
+Changing these only requires recreating the container (`monadic.sh
+refresh-service extractor`, done automatically on settings save), never
+a rebuild.
 
 ### `monadic.sh` integration
 

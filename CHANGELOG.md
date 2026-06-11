@@ -1,4 +1,5 @@
 - [Unreleased] 1.0.0-beta.21
+  - **Privacy Filter / Quality Pack language changes no longer require a rebuild**: all supported spaCy NER models are now baked into the privacy image, and `PRIVACY_LANGS` / `EXTRACTOR_LANGS` / `EXTRACTOR_OCR` became runtime settings injected by Docker Compose. Changing languages in Settings → Install Options applies on save — a running privacy/extractor container is restarted automatically (seconds) instead of prompting a container rebuild (minutes). This also makes the privacy and extractor images user-independent, a prerequisite for prebuilt image distribution.
   - **Video Generator (OpenAI) removed**: the OpenAI variant depended on the Sora-2 API, which OpenAI has shut down, and `model_spec.js` lists no current OpenAI video model — selecting the app could no longer generate videos. The Gemini (Veo) and xAI (Grok Imagine) variants are unchanged.
 
 - [June, 2026] 1.0.0-beta.20

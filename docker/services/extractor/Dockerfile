@@ -1,8 +1,6 @@
 FROM python:3.11.10-slim-bookworm
 
 ARG PROJECT_TAG=monadic-chat
-ARG EXTRACTOR_OCR=rapidocr
-ARG EXTRACTOR_LANGS=en,ja,zh,ko
 
 LABEL project=${PROJECT_TAG}
 
@@ -29,8 +27,6 @@ RUN pip install --no-cache-dir \
 # Pre-download Docling default models so first /v1/extract call does not
 # block on a network fetch. Skipping this would still work but the first
 # request would silently download ~500MB-1.5GB.
-ENV EXTRACTOR_OCR_BUILD=${EXTRACTOR_OCR}
-ENV EXTRACTOR_LANGS_BUILD=${EXTRACTOR_LANGS}
 RUN python - <<'PY'
 import sys
 print("==> Pre-downloading Docling models...", flush=True)
@@ -44,8 +40,8 @@ PY
 
 COPY server.py /app/server.py
 
-ENV EXTRACTOR_OCR_RUNTIME=${EXTRACTOR_OCR}
-ENV EXTRACTOR_LANGS_RUNTIME=${EXTRACTOR_LANGS}
+# EXTRACTOR_OCR_RUNTIME / EXTRACTOR_LANGS_RUNTIME are injected by compose
+# (environment:) from the user's settings — runtime config, not baked in.
 
 EXPOSE 8000
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

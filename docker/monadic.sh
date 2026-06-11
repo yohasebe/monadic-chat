@@ -48,6 +48,10 @@ fi
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=$(eval echo ~${SUDO_USER})
 
+# Exported for the compose.build.yml overlays (explicit local builds of the
+# prebuilt services), whose build contexts are interpolated from this var.
+export MONADIC_ROOT_DIR="${ROOT_DIR}"
+
 # Runtime language/OCR selection for the privacy & extractor services.
 # These are plain runtime env vars consumed by compose `environment:`
 # interpolation — NOT build args; all language models are baked into the
@@ -1024,11 +1028,24 @@ build_docker_compose() {
     return 1
   fi
 
+  # Pull the prebuilt service images (no local build: configuration —
+  # published to ghcr.io by the publish-images workflow). embeddings is a
+  # required base service; privacy is part of the default set unless the
+  # user opted out. Extractor is opt-in and pulled on demand
+  # (ensure-service / Settings → Actions), not here. The verification step
+  # below fails the build if the embeddings pull did not produce an image.
+  local pull_services="embeddings_service"
+  if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
+    pull_services="${pull_services} privacy_service"
+  fi
+  echo "[INFO] Pulling prebuilt service images (${pull_services})..."
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
+
   # Verify all required images were created
   echo "" >> "${log_file}"
   echo "[IMAGE VERIFICATION]" >> "${log_file}"
   local all_images_exist=true
-  for image in "yohasebe/monadic-chat" "yohasebe/python" "yohasebe/monadic-embeddings"; do
+  for image in "yohasebe/monadic-chat" "yohasebe/python" "ghcr.io/yohasebe/monadic-embeddings"; do
     if ! ${DOCKER} images | grep -q "${image}"; then
       all_images_exist=false
       echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Required image '${image}' was not created during build.</p>"
@@ -1362,8 +1379,11 @@ start_docker_compose() {
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" build --no-cache selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
     if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then
-      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Rebuilding Embeddings container (Dockerfile changed)...</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/embeddings/compose.yml\" build --no-cache embeddings_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      # Embeddings is prebuilt: a Dockerfile change ships with an app update
+      # whose CI run already published the matching image — pull it instead
+      # of building locally.
+      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Refreshing Embeddings container image (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/embeddings/compose.yml\" pull embeddings_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
 
     # Save updated container versions after selective rebuild
@@ -1989,6 +2009,11 @@ ensure-service)
       ;;
     embeddings)
       # multilingual-e5-base inference. Required by Help / PDF KB.
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built.
+      if ! ${DOCKER} images | grep -q "yohasebe/monadic-embeddings"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" pull embeddings_service" 2>/dev/null
+      fi
       if ! ${DOCKER} images | grep -q "yohasebe/monadic-embeddings"; then
         echo "EMBEDDINGS_NOT_BUILT"
       elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-embeddings-container$"; then
@@ -1999,8 +2024,12 @@ ensure-service)
       fi
       ;;
     privacy)
-      # Privacy filter is part of the default build set. PRIVACY_FILTER=false
-      # opts out at runtime (and excludes the image from build via ALL_PROFILES).
+      # Privacy filter is part of the default service set. PRIVACY_FILTER=false
+      # opts out at runtime. The image is prebuilt (ghcr.io); when missing,
+      # pull it instead of reporting not-built.
+      if [[ "${PRIVACY_FILTER:-true}" == "true" ]] && ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy pull privacy_service" 2>/dev/null
+      fi
       if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
         echo "PRIVACY_DISABLED"
       elif ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
@@ -2014,8 +2043,12 @@ ensure-service)
       ;;
     extractor)
       # Extractor (Knowledge Base Quality Pack) is opt-in via EXTRACTOR_SERVICE=true.
-      # Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT so the caller can prompt
-      # the user to install via Settings → Install Options.
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built. Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT
+      # so the caller can prompt the user via Settings → Install Options.
+      if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]] && ! ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor pull extractor_service" 2>/dev/null
+      fi
       if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
         echo "EXTRACTOR_DISABLED"
       elif ! ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
@@ -2074,8 +2107,18 @@ build_privacy_container)
   ensure_data_dir "privacy" 2>/dev/null || true
   set_docker_compose
   build_log="${HOME_DIR}/monadic/log/docker_build.log"
-  echo "[INFO] Building privacy container..."
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    # Development: build locally from source via the explicit build overlay.
+    echo "[INFO] Building privacy container..."
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.build.yml\" -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
+  else
+    # Production: the image is prebuilt and user-independent — pull (or
+    # refresh) it from ghcr.io instead of building. Output markers below
+    # ("Privacy container build succeeded/failed") are kept stable because
+    # the Electron UI matches on them.
+    echo "[INFO] Pulling prebuilt privacy container image..."
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy pull privacy_service" 2>&1 | tee -a "${build_log}"
+  fi
   if ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
     echo "[INFO] Privacy container build succeeded."
     # Snapshot marker: the Settings UI uses the existence of this file to
@@ -2102,8 +2145,15 @@ build_extractor_container)
   ensure_data_dir "extractor" 2>/dev/null || true
   set_docker_compose
   build_log="${HOME_DIR}/monadic/log/docker_build.log"
-  echo "[INFO] Building extractor container..."
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    # Development: build locally from source via the explicit build overlay.
+    echo "[INFO] Building extractor container..."
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/extractor/compose.build.yml\" -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
+  else
+    # Production: pull the prebuilt user-independent image from ghcr.io.
+    echo "[INFO] Pulling prebuilt extractor container image..."
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor pull extractor_service" 2>&1 | tee -a "${build_log}"
+  fi
   if ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
     echo "[INFO] Extractor container build succeeded."
     # Snapshot marker: existence distinguishes "not yet built" from

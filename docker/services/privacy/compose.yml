@@ -1,12 +1,12 @@
 services:
   privacy_service:
     profiles: ["privacy"]
-    image: yohasebe/monadic-privacy
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PROJECT_TAG: "monadic-chat"
+    # Prebuilt multi-arch image published by .github/workflows/publish-images.yml.
+    # The image is user-independent (language selection is runtime env), so
+    # production installs pull instead of building. Local builds for
+    # development use the compose.dev.yml overlay (MONADIC_DEV=true), which
+    # restores the build: configuration.
+    image: ghcr.io/yohasebe/monadic-privacy:latest
     container_name: monadic-chat-privacy-container
     environment:
       # All spaCy models are baked into the image; this selects which

@@ -1,14 +1,12 @@
 services:
   embeddings_service:
-    image: yohasebe/monadic-embeddings
     # No profile: this is a base service (always starts with Monadic Chat)
     # because the Help system depends on it for query embedding.
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PROJECT_TAG: "monadic-chat"
-        MODEL_NAME: "intfloat/multilingual-e5-base"
+    # Prebuilt multi-arch image published by .github/workflows/publish-images.yml
+    # (torch + multilingual-e5-base baked in; user-independent content).
+    # Production installs pull instead of building; local builds for
+    # development use the compose.dev.yml overlay (MONADIC_DEV=true).
+    image: ghcr.io/yohasebe/monadic-embeddings:latest
     container_name: monadic-chat-embeddings-container
     networks:
       - monadic-chat-network

@@ -64,6 +64,39 @@ PostgreSQL/PGVectorはbeta.16で削除されました（Qdrant + embeddings
 プロファイルリストはその定義を参照）を使い、プロファイル付きサービスも
 デフォルトサービスと一緒にビルド・停止・削除されることを保証します。
 
+### プリビルトサービスイメージ（ghcr.io）
+
+**embeddings**・**privacy**・**extractor** のイメージはローカルでビルド
+されません。`.github/workflows/publish-images.yml` が multi-arch
+（linux/amd64 + linux/arm64）manifest として ghcr.io に publish し、
+必要時に pull されます。これが可能なのは、イメージ内容がユーザー設定に
+依存しないためです — 言語/OCR の選択は build arg ではなく実行時 env
+（`PRIVACY_LANGS` / `EXTRACTOR_LANGS` / `EXTRACTOR_OCR`、compose の
+`environment:` で注入）になっています。
+
+主な仕組み:
+
+- 各サービスの `compose.yml` は `image: ghcr.io/yohasebe/monadic-<name>:latest`
+  を宣言し、**`build:` セクションを持ちません**。そのため `docker compose up`
+  / `pull` の全経路（production 起動、`ensure-service`、rake の test/help
+  タスク）がビルドでなく pull になります。レイヤー差分 DL により更新は軽量です。
+- `monadic.sh ensure-service embeddings|privacy|extractor` は、イメージ欠落時に
+  `*_NOT_BUILT` を返す前に pull を試みます。
+- `build_privacy_container` / `build_extractor_container` は production では
+  pull、development（`MONADIC_DEV=true`）でのみサービス毎の
+  `compose.build.yml` オーバーレイ経由でローカルビルドします。オーバーレイの
+  build context は `MONADIC_ROOT_DIR`（`monadic.sh` が export）で解決します
+  （`-f` オーバーレイ内の相対パスは先頭 compose ファイルのディレクトリ基準で
+  解決され、呼び出し経路により変わるため）。
+- フルビルド（`build_docker_compose`）はローカルビルド対象のビルド後に
+  embeddings（+ 有効時は privacy）を pull し、embeddings の pull に失敗した
+  場合はイメージ検証ステップがビルドを失敗させます。
+- publish のトリガー: サービスディレクトリに触れる dev/main への push と
+  `workflow_dispatch`（リリース時は `version` を渡してロールバック用の
+  immutable な `:<version>` タグも publish）。
+- 匿名 pull を可能にするため、ghcr.io パッケージは初回 publish 後に一度
+  public 化する必要があります（パッケージ毎の設定）。
+
 ### 再起動ポリシー
 
 すべてのコンテナはDockerデフォルトの再起動ポリシー（`no`）を使います：

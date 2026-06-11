@@ -1,12 +1,11 @@
 services:
   extractor_service:
     profiles: ["extractor"]
-    image: yohasebe/monadic-extractor
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PROJECT_TAG: "monadic-chat"
+    # Prebuilt multi-arch image published by .github/workflows/publish-images.yml.
+    # The image is user-independent (OCR languages/backend are runtime env),
+    # so production installs pull instead of building. Local builds for
+    # development use the compose.dev.yml overlay (MONADIC_DEV=true).
+    image: ghcr.io/yohasebe/monadic-extractor:latest
     container_name: monadic-chat-extractor-container
     environment:
       # OCR backend and language hints are runtime settings; the image

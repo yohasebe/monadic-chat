@@ -61,6 +61,39 @@ service regardless of on-demand startup. These commands use `${ALL_PROFILES}` (d
 the top of `monadic.sh`; consult that definition for the current profile list), ensuring
 profiled services are built, stopped, or removed together with the default services.
 
+### Prebuilt Service Images (ghcr.io)
+
+The **embeddings**, **privacy**, and **extractor** images are NOT built
+locally: they are published as multi-arch (linux/amd64 + linux/arm64)
+manifests to ghcr.io by `.github/workflows/publish-images.yml` and pulled
+on demand. This is possible because their content is user-independent —
+language/OCR selection became runtime env (`PRIVACY_LANGS` /
+`EXTRACTOR_LANGS` / `EXTRACTOR_OCR`, injected via compose `environment:`)
+rather than build args.
+
+Key mechanics:
+
+- The services' `compose.yml` files declare `image: ghcr.io/yohasebe/monadic-<name>:latest`
+  with **no `build:` section**, so every `docker compose up` / `pull` path
+  (production start, `ensure-service`, rake test/help tasks) pulls instead
+  of building. Layer-diff downloads make refreshes cheap.
+- `monadic.sh ensure-service embeddings|privacy|extractor` pulls the image
+  when missing before reporting `*_NOT_BUILT`.
+- `build_privacy_container` / `build_extractor_container` pull in
+  production and build locally only in development (`MONADIC_DEV=true`),
+  via the per-service `compose.build.yml` overlay. The overlay resolves
+  its build context through `MONADIC_ROOT_DIR` (exported by `monadic.sh`)
+  because relative paths in `-f` overlay files resolve against the first
+  compose file's directory, which varies between invocation paths.
+- The full build (`build_docker_compose`) pulls embeddings (+ privacy when
+  enabled) after building the locally-built images, and the image
+  verification step fails the build when the embeddings pull failed.
+- Publishing triggers: pushes to dev/main touching a service directory,
+  and `workflow_dispatch` (pass `version` during a release to also publish
+  an immutable `:<version>` tag for rollback).
+- The ghcr.io packages must be public (one-time setting per package after
+  the first publish) for anonymous pulls to work.
+
 ### Restart Policies
 
 All containers use the Docker default restart policy (`no`): lifecycle is

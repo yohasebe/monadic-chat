@@ -123,7 +123,7 @@ profile `["extractor"]`:
 services:
   extractor_service:
     profiles: ["extractor"]
-    image: yohasebe/monadic-extractor
+    image: ghcr.io/yohasebe/monadic-extractor:latest
     environment:
       EXTRACTOR_OCR_RUNTIME: ${EXTRACTOR_OCR:-rapidocr}
       EXTRACTOR_LANGS_RUNTIME: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
@@ -132,6 +132,12 @@ services:
       - ~/monadic/data:/monadic/data
     healthcheck: ...
 ```
+
+The image is prebuilt and pulled from ghcr.io (published by
+`.github/workflows/publish-images.yml` as a multi-arch manifest); there is
+no `build:` section in `compose.yml`. Local development builds use the
+`compose.build.yml` overlay — see
+`docs_dev/docker-architecture.md` § Prebuilt Service Images.
 
 The profile gate ensures `docker compose up` does not start it unless
 the user explicitly opted in (Settings → Install Options → "Knowledge
@@ -156,11 +162,15 @@ a rebuild.
 
 ### `monadic.sh` integration
 
-- `build_extractor_container` — builds the image when
-  `EXTRACTOR_SERVICE=true`.
-- `ensure-service extractor` — starts the container on demand. Returns
-  `EXTRACTOR_DISABLED` / `EXTRACTOR_NOT_BUILT` / `STARTED` /
-  `ALREADY_RUNNING` so the caller can branch.
+- `build_extractor_container` — when `EXTRACTOR_SERVICE=true`, pulls the
+  prebuilt image (production) or builds locally via the
+  `compose.build.yml` overlay (development, `MONADIC_DEV=true`).
+- `ensure-service extractor` — starts the container on demand, pulling
+  the image first when missing. Returns `EXTRACTOR_DISABLED` /
+  `EXTRACTOR_NOT_BUILT` / `STARTED` / `ALREADY_RUNNING` so the caller can
+  branch.
+- `refresh-service extractor` — recreates a running container after
+  runtime env changes (language settings save).
 
 ### Dev mode port
 

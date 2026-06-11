@@ -1371,8 +1371,10 @@ function initializeApp() {
     browserMode = settings.BROWSER_MODE || 'internal';
     console.log('Browser mode set to:', browserMode);
 
-    // Apply login item setting (macOS and Windows only)
-    if (process.platform !== 'linux') {
+    // Apply login item setting (macOS and Windows only). Skipped in dev
+    // runs: an unpackaged Electron binary cannot register a login item on
+    // macOS and the OS logs "Operation not permitted" on every attempt.
+    if (process.platform !== 'linux' && app.isPackaged) {
       const openAtLogin = settings.OPEN_AT_LOGIN === 'true';
       app.setLoginItemSettings({ openAtLogin });
     }
@@ -3820,8 +3822,11 @@ function saveSettings(data) {
             // Save mode settings as cookies for UI access
             if (data.DISTRIBUTED_MODE) {
                 try {
-                    // Log mode change for troubleshooting
-                    console.log(`Changing distributed mode from ${envConfig.DISTRIBUTED_MODE || 'off'} to ${data.DISTRIBUTED_MODE}`);
+                    // Log mode change for troubleshooting (only when it
+                    // actually changes — every save passes through here)
+                    if ((envConfig.DISTRIBUTED_MODE || 'off') !== data.DISTRIBUTED_MODE) {
+                        console.log(`Changing distributed mode from ${envConfig.DISTRIBUTED_MODE || 'off'} to ${data.DISTRIBUTED_MODE}`);
+                    }
                     
                     // Set cookie for web UI
                     mainWindow.webContents.executeJavaScript(`
@@ -4006,8 +4011,9 @@ ipcMain.on('save-settings', (_event, data) => {
   // pick up the new env values without requiring a UI language change.
   updateApplicationMenu();
 
-  // Apply login item setting (macOS/Windows only)
-  if (process.platform !== 'linux') {
+  // Apply login item setting (macOS/Windows only). Skipped in dev runs —
+  // see the matching guard in initialization.
+  if (process.platform !== 'linux' && app.isPackaged) {
     app.setLoginItemSettings({
       openAtLogin: data.OPEN_AT_LOGIN === true || data.OPEN_AT_LOGIN === 'true'
     });

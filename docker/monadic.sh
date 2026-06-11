@@ -594,7 +594,7 @@ build_python_container() {
     echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
     cache_flags="--no-cache"
   elif [ "$all_defaults" = "true" ]; then
-    echo "[HTML]: <p>No install options selected — fetching the prebuilt Python image . . .</p>" | tee -a "${build_log}"
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> No install options selected — downloading the prebuilt Python image (~0.9 GB, one time) instead of building . . .</p>" | tee -a "${build_log}"
     if ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}"; then
       ${DOCKER} tag "${prebuilt_image}" "${temp_tag}"
       image_ready=true
@@ -603,6 +603,9 @@ build_python_container() {
     fi
   else
     # Best-effort cache source; the build works without it.
+    if ! ${DOCKER} images -q "${prebuilt_image}" | grep -q .; then
+      echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the default Python image (~0.9 GB, one time) to use as a build cache . . .</p>" | tee -a "${build_log}"
+    fi
     ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}" || true
     if ${DOCKER} images -q "${prebuilt_image}" | grep -q .; then
       cache_flags="--cache-from ${prebuilt_image}"
@@ -1032,11 +1035,17 @@ build_docker_compose() {
   # Actions), not here. The verification step after the build fails when
   # the embeddings pull did not produce an image.
   local pull_services="embeddings_service"
+  local pull_note="text embeddings (~1.1 GB)"
   if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
     pull_services="${pull_services} privacy_service"
+    pull_note="${pull_note}, privacy filter (~0.7 GB)"
   fi
-  echo "[INFO] Pulling prebuilt service images (${pull_services})..."
+  # Byte-level progress is not visible in this console (non-TTY pulls only
+  # report per-layer milestones), so announce what is being downloaded and
+  # its rough size up front to avoid a long silent wait.
+  echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading prebuilt service images: ${pull_note}. This happens once; later updates only fetch changed layers.</p>"
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
+  echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the default Python image (~0.9 GB) as a build cache source . . .</p>"
   ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${log_file}" || true
 
   # Execute docker compose build and redirect output to log file with or without cache
@@ -1419,7 +1428,7 @@ start_docker_compose() {
       # published a matching default image — pull it as the cache source
       # so the rebuild only pays for the user's enabled option layers
       # (cache_from in the python compose.yml).
-      echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)...</p>"
+      echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)... Downloading the updated default image as a cache source first.</p>"
       ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${HOME_DIR}/monadic/log/docker_build.log" || true
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
@@ -2171,7 +2180,7 @@ build_privacy_container)
     # refresh) it from ghcr.io instead of building. Output markers below
     # ("Privacy container build succeeded/failed") are kept stable because
     # the Electron UI matches on them.
-    echo "[INFO] Pulling prebuilt privacy container image..."
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Privacy Filter image (~0.7 GB on first download) . . .</p>"
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy pull privacy_service" 2>&1 | tee -a "${build_log}"
   fi
   if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
@@ -2206,7 +2215,7 @@ build_extractor_container)
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/extractor/compose.build.yml\" -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
   else
     # Production: pull the prebuilt user-independent image from ghcr.io.
-    echo "[INFO] Pulling prebuilt extractor container image..."
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB on first download) . . .</p>"
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor pull extractor_service" 2>&1 | tee -a "${build_log}"
   fi
   if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then

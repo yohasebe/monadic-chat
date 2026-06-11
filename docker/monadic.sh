@@ -541,17 +541,13 @@ build_python_container() {
     local "${key}"="$(read_cfg_bool "$key" false)"
   done
 
-  # Detect if install options have changed since last build
+  # Report option changes since the last build (informational — the cache
+  # strategy below no longer depends on it: BuildKit keys conditional RUN
+  # layers on their ARG values, and the prebuilt default image supplies
+  # the heavy common layers via --cache-from).
   local prev_options_file="${logs_dir}/python_build_options.txt"
-  local use_no_cache=false
   local changed_options=""
-
-  # Check if user explicitly requested force rebuild
-  if [ "${FORCE_REBUILD:-false}" = "true" ]; then
-    use_no_cache=true
-    echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
-  elif [ -f "$prev_options_file" ]; then
-    # Compare each option with previous build via indirect expansion.
+  if [ -f "$prev_options_file" ]; then
     for key in "${PY_OPTIONS[@]}"; do
       local prev_val
       prev_val=$(grep "^${key}=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
@@ -559,44 +555,69 @@ build_python_container() {
         changed_options+="${key}(${prev_val}→${!key}) "
       fi
     done
-
     if [ -n "$changed_options" ]; then
-      use_no_cache=true
       echo "[INFO] Install options changed: ${changed_options}" | tee -a "${build_log}"
-      echo "[INFO] Using --no-cache to ensure changes are applied" | tee -a "${build_log}"
-    else
-      echo "[INFO] Install options unchanged, using build cache for faster build" | tee -a "${build_log}"
     fi
-  else
-    # First build or options file missing - use --no-cache to be safe
-    use_no_cache=true
-    echo "[INFO] First build or options file missing, using --no-cache" | tee -a "${build_log}"
   fi
+
+  # All-defaults detection: with every option false, the CI-published
+  # default image IS the desired image — pull it instead of building.
+  local all_defaults=true
+  for key in "${PY_OPTIONS[@]}"; do
+    if [ "${!key}" = "true" ]; then all_defaults=false; break; fi
+  done
 
   local build_args=
   for key in "${PY_OPTIONS[@]}"; do
     build_args+=" --build-arg ${key}=${!key}"
   done
 
-  # Build Python image into a temporary tag for atomic swap
+  # Acquire the image into a temporary tag for atomic swap. Three paths:
+  #   1. FORCE_REBUILD (menu manual build) → local --no-cache build, the
+  #      documented clean-rebuild escape hatch.
+  #   2. All options false → pull the prebuilt default image (seconds to
+  #      minutes instead of a 15-30 min build). Falls back to a local
+  #      build when the pull fails (offline).
+  #   3. Any option true → local build with --cache-from the prebuilt
+  #      default (pulled best-effort): its inline cache supplies the
+  #      heavy apt + pip base layers, so the build only pays for the
+  #      enabled option layers.
+  local prebuilt_image="ghcr.io/yohasebe/monadic-python:latest"
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
   local ts=$(date +%Y%m%d_%H%M%S)
   local temp_tag="yohasebe/monadic-chat:python-build-${ts}"
-  # Determine cache strategy based on option changes
-  local cache_flag=""
-  if [ "$use_no_cache" = true ]; then
-    cache_flag="--no-cache"
+  local image_ready=false
+  local cache_flags=""
+
+  if [ "${FORCE_REBUILD:-false}" = "true" ]; then
+    echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
+    cache_flags="--no-cache"
+  elif [ "$all_defaults" = "true" ]; then
+    echo "[HTML]: <p>No install options selected — fetching the prebuilt Python image . . .</p>" | tee -a "${build_log}"
+    if ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}"; then
+      ${DOCKER} tag "${prebuilt_image}" "${temp_tag}"
+      image_ready=true
+    else
+      echo "[WARN] Prebuilt image pull failed; falling back to local build" | tee -a "${build_log}"
+    fi
+  else
+    # Best-effort cache source; the build works without it.
+    ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}" || true
+    if ${DOCKER} images -q "${prebuilt_image}" | grep -q .; then
+      cache_flags="--cache-from ${prebuilt_image}"
+      echo "[INFO] Using prebuilt default image as build cache source" | tee -a "${build_log}"
+    fi
   fi
 
-  echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
-
-  # Build with appropriate cache strategy
-  # IMPORTANT: cache_flag must not be quoted to allow empty string to work correctly
-  if ! ${DOCKER} build ${cache_flag} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
-    echo "[ERROR] Docker build failed" | tee -a "${build_log}"
-    echo "[BUILD_COMPLETE] failed"
-    release_build_lock
-    return 1
+  if [ "$image_ready" != "true" ]; then
+    echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
+    # IMPORTANT: cache_flags must not be quoted so an empty value expands to nothing
+    if ! ${DOCKER} build ${cache_flags} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
+      echo "[ERROR] Docker build failed" | tee -a "${build_log}"
+      echo "[BUILD_COMPLETE] failed"
+      release_build_lock
+      return 1
+    fi
   fi
 
   # Optional post-setup: execute user's pysetup.sh if present (mounted config)
@@ -1002,6 +1023,21 @@ build_docker_compose() {
   echo "======================================" >> "${log_file}"
   echo "" >> "${log_file}"
 
+  # Pull the prebuilt service images BEFORE building. embeddings/privacy
+  # have no local build: configuration (consumed directly); the python
+  # default image is pulled best-effort as the --cache-from source for
+  # the compose-driven python build (see cache_from in its compose.yml).
+  # Extractor is opt-in and pulled on demand (ensure-service / Settings →
+  # Actions), not here. The verification step after the build fails when
+  # the embeddings pull did not produce an image.
+  local pull_services="embeddings_service"
+  if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
+    pull_services="${pull_services} privacy_service"
+  fi
+  echo "[INFO] Pulling prebuilt service images (${pull_services})..."
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
+  ${DOCKER} pull ghcr.io/yohasebe/monadic-python:latest 2>&1 | tee -a "${log_file}" || true
+
   # Execute docker compose build and redirect output to log file with or without cache
   # Include all profiles so profiled services (python, selenium) are also built
   local build_start_epoch=$(date +%s)
@@ -1027,19 +1063,6 @@ build_docker_compose() {
     trap - INT TERM
     return 1
   fi
-
-  # Pull the prebuilt service images (no local build: configuration —
-  # published to ghcr.io by the publish-images workflow). embeddings is a
-  # required base service; privacy is part of the default set unless the
-  # user opted out. Extractor is opt-in and pulled on demand
-  # (ensure-service / Settings → Actions), not here. The verification step
-  # below fails the build if the embeddings pull did not produce an image.
-  local pull_services="embeddings_service"
-  if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
-    pull_services="${pull_services} privacy_service"
-  fi
-  echo "[INFO] Pulling prebuilt service images (${pull_services})..."
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
 
   # Verify all required images were created
   echo "" >> "${log_file}"
@@ -1371,8 +1394,13 @@ start_docker_compose() {
 
     # Rebuild only the containers whose Dockerfiles have changed
     if [ "$PYTHON_DOCKERFILE_CHANGED" = true ]; then
+      # A Dockerfile change ships with an app update whose CI run already
+      # published a matching default image — pull it as the cache source
+      # so the rebuild only pays for the user's enabled option layers
+      # (cache_from in the python compose.yml).
       echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)...</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build --no-cache python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      ${DOCKER} pull ghcr.io/yohasebe/monadic-python:latest 2>&1 | tee -a "${HOME_DIR}/monadic/log/docker_build.log" || true
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
     if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then
       echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Rebuilding Selenium container (Dockerfile changed)...</p>"
@@ -1769,7 +1797,13 @@ build_ruby_container)
     echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
-build_python_container)
+# `build_python_container` is the explicit menu action (Electron passes
+# FORCE_REBUILD=true → clean --no-cache rebuild). The `_update` alias is
+# used by the start-time pending-build gate and option changes: Electron
+# does NOT force a rebuild there, letting the smart path inside
+# build_python_container pull the prebuilt default image or build with
+# --cache-from.
+build_python_container|build_python_container_update)
   ensure_data_dir "python" &&
 
   while ! "${DOCKER}" info > /dev/null 2>&1; do

@@ -639,7 +639,7 @@ class DockerManager {
   async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
     // Track if this is a restart command
     const isRestart = command === 'restart';
-    const isBuildPython = command === 'build_python_container';
+    const isBuildPython = command === 'build_python_container' || command === 'build_python_container_update';
     let buildTracker = isBuildPython ? { runDir: null, files: {}, status: 'in_progress' } : null;
     
     // Write the initial message to the screen
@@ -3414,6 +3414,12 @@ function computePendingContainerBuilds() {
   // Sourced from install_options.config.js (SSOT) — adding a new
   // PYOPT_* / INSTALL_* checkbox only requires editing that file plus
   // the Dockerfile ARG/RUN, never this rebuild-detection helper.
+  // The `_update` command variant is intentionally NOT in runCommand's
+  // FORCE_REBUILD list: monadic.sh then takes the smart path — pulling
+  // the prebuilt default image when no options are selected, or building
+  // with --cache-from so only the enabled option layers are paid for.
+  // The explicit menu action keeps `build_python_container` (clean
+  // --no-cache rebuild).
   const pyKeys = installOptions.ENV_KEYS_PYTHON;
   const pyPrev = snapshots.python_service;
   if (!pyPrev) {
@@ -3421,8 +3427,8 @@ function computePendingContainerBuilds() {
       container: 'python_service',
       label: 'Python container',
       reason: 'not yet built',
-      buildCommand: 'build_python_container',
-      estimate: '15–30 min'
+      buildCommand: 'build_python_container_update',
+      estimate: '3–15 min'
     });
   } else {
     const changed = pyKeys.filter(k => pyPrev[k] !== undefined && String(pyPrev[k]) !== String(env[k] ?? 'false'));
@@ -3431,8 +3437,8 @@ function computePendingContainerBuilds() {
         container: 'python_service',
         label: 'Python container',
         reason: `options changed (${changed.join(', ')})`,
-        buildCommand: 'build_python_container',
-        estimate: '15–30 min'
+        buildCommand: 'build_python_container_update',
+        estimate: '3–15 min'
       });
     }
   }

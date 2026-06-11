@@ -1,13 +1,21 @@
 name: Publish service images
 
 # Builds and publishes the prebuilt service images (embeddings, privacy,
-# extractor) to ghcr.io as multi-arch manifests (linux/amd64 + linux/arm64).
+# extractor, python) to ghcr.io as multi-arch manifests
+# (linux/amd64 + linux/arm64).
 #
-# Why prebuilt: these images are user-independent (no install options or
-# language selection baked in — language choices are runtime env since the
-# Phase 5-2 refactor), so every user can pull the same CI-built digest
-# instead of paying a local torch-sized build and depending on Docker Hub
-# base-image pulls at install time (the historical CI flake source).
+# Why prebuilt: embeddings/privacy/extractor are user-independent (no
+# install options or language selection baked in — language choices are
+# runtime env since the Phase 5-2 refactor), so every user can pull the
+# same CI-built digest instead of paying a local torch-sized build and
+# depending on Docker Hub base-image pulls at install time (the
+# historical CI flake source). The python image is the DEFAULT build
+# (every install option false): users without options pull it directly,
+# and custom builds use it as a layer-cache source (`--cache-from` +
+# the inline cache embedded below), paying only for their enabled
+# options. The python Dockerfile keeps all unconditional layers before
+# the first conditional one so the default image is a cache prefix of
+# every custom build.
 #
 # Why a native arm64 runner instead of QEMU: torch-class images take hours
 # under emulation; `ubuntu-24.04-arm` runners are free for public repos.
@@ -41,13 +49,14 @@ on:
       - 'docker/services/embeddings/**'
       - 'docker/services/privacy/**'
       - 'docker/services/extractor/**'
+      - 'docker/services/python/**'
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        service: [embeddings, privacy, extractor]
+        service: [embeddings, privacy, extractor, python]
         platform:
           - { arch: amd64, runner: ubuntu-24.04 }
           - { arch: arm64, runner: ubuntu-24.04-arm }
@@ -73,6 +82,10 @@ jobs:
         with:
           context: docker/services/${{ matrix.service }}
           platforms: linux/${{ matrix.platform.arch }}
+          # Inline cache lets user machines run `docker build --cache-from
+          # <this image>` and reuse the published layers (the python custom
+          # option builds rely on this).
+          cache-to: type=inline
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest

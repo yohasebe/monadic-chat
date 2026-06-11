@@ -5,6 +5,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # The CI-published default image (all options false) carries an
+      # inline cache; using it as a cache source means a compose-driven
+      # build only pays for the enabled option layers. No-op when the
+      # image is not present locally / not reachable.
+      cache_from:
+        - ghcr.io/yohasebe/monadic-python:latest
       args:
         PROJECT_TAG: "monadic-chat"
         INSTALL_LATEX: ${INSTALL_LATEX:-false}

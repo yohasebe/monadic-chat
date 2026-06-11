@@ -88,11 +88,16 @@ Key mechanics:
 - The full build (`build_docker_compose`) pulls embeddings (+ privacy when
   enabled) after building the locally-built images, and the image
   verification step fails the build when the embeddings pull failed.
-- Publishing triggers: pushes to dev/main touching a service directory,
-  and `workflow_dispatch` (pass `version` during a release to also publish
-  an immutable `:<version>` tag for rollback).
+- Tag policy: `:latest` (the default consumed by user installs) moves only
+  via main pushes (release path) or `workflow_dispatch`; dev pushes publish
+  `:dev` instead, which dev-branch CI consumes (`MONADIC_IMAGE_TAG=dev` in
+  specs.yml). A release also publishes an immutable `:<version>` tag
+  (`workflow_dispatch` with the `version` input) for rollback. Users can
+  pin or switch tags via `MONADIC_IMAGE_TAG` in `~/monadic/config/env`.
 - The ghcr.io packages must be public (one-time setting per package after
   the first publish) for anonymous pulls to work.
+- Migration: `remove_legacy_prebuilt_images` (called on start) deletes the
+  pre-ghcr locally built `yohasebe/monadic-*` images.
 
 ### Restart Policies
 

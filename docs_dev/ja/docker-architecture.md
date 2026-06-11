@@ -91,11 +91,17 @@ PostgreSQL/PGVectorはbeta.16で削除されました（Qdrant + embeddings
 - フルビルド（`build_docker_compose`）はローカルビルド対象のビルド後に
   embeddings（+ 有効時は privacy）を pull し、embeddings の pull に失敗した
   場合はイメージ検証ステップがビルドを失敗させます。
-- publish のトリガー: サービスディレクトリに触れる dev/main への push と
-  `workflow_dispatch`（リリース時は `version` を渡してロールバック用の
-  immutable な `:<version>` タグも publish）。
+- タグポリシー: ユーザーインストールが既定で消費する `:latest` は main への
+  push（リリース経路）または `workflow_dispatch` でのみ動きます。dev への
+  push は代わりに `:dev` を publish し、dev ブランチの CI がこれを消費します
+  （specs.yml の `MONADIC_IMAGE_TAG=dev`）。リリース時は `version` input 付き
+  `workflow_dispatch` でロールバック用の immutable な `:<version>` タグも
+  publish します。ユーザーは `~/monadic/config/env` の `MONADIC_IMAGE_TAG` で
+  タグの固定・切替が可能です。
 - 匿名 pull を可能にするため、ghcr.io パッケージは初回 publish 後に一度
   public 化する必要があります（パッケージ毎の設定）。
+- マイグレーション: 起動時に `remove_legacy_prebuilt_images` が ghcr 以前の
+  ローカルビルド版 `yohasebe/monadic-*` イメージを削除します。
 
 ### 再起動ポリシー
 

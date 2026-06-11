@@ -1211,9 +1211,13 @@ check_dockerfiles_changed() {
   if [[ "$stored_selenium_hash" != "$selenium_hash" ]]; then
     SELENIUM_DOCKERFILE_CHANGED=true
   fi
-  # Embeddings changes if either Dockerfile or help export ID changed
-  # (the help DB JSON dump is baked into the embeddings image at build time)
-  if [[ "$stored_embeddings_hash" != "$embeddings_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
+  # Embeddings refresh is needed only when its Dockerfile changed. The
+  # help DB JSON dump lives in the RUBY image (help_data/, keyed by
+  # HELP_EXPORT_ID there), NOT in the embeddings image — an earlier
+  # design baked it into embeddings and this condition used to include
+  # the export ID, causing pointless embeddings refreshes on every help
+  # DB update.
+  if [[ "$stored_embeddings_hash" != "$embeddings_hash" ]]; then
     EMBEDDINGS_DOCKERFILE_CHANGED=true
   fi
 
@@ -1227,8 +1231,24 @@ check_dockerfiles_changed() {
 }
 
 # Function to start Docker Compose
+# Migration cleanup: remove the pre-ghcr locally built service images
+# (compose now references ghcr.io/yohasebe/monadic-*, so the old local
+# tags are orphaned ~5GB of disk). `docker rmi` without -f fails
+# harmlessly when a stopped container still references an image; the
+# next start retries after `down` has removed those containers.
+remove_legacy_prebuilt_images() {
+  local img
+  for img in yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor; do
+    if ${DOCKER} images -q "${img}" 2>/dev/null | grep -q .; then
+      echo "[INFO] Removing legacy local image ${img} (replaced by ghcr.io prebuilt)"
+      ${DOCKER} rmi "${img}" >/dev/null 2>&1 || true
+    fi
+  done
+}
+
 start_docker_compose() {
   set_docker_compose
+  remove_legacy_prebuilt_images
 
   # Load environment variables from env file
   local config_dir="${HOME_DIR}/monadic/config"
@@ -2046,10 +2066,10 @@ ensure-service)
       # multilingual-e5-base inference. Required by Help / PDF KB.
       # The image is prebuilt (ghcr.io); when missing, pull it instead of
       # reporting not-built.
-      if ! ${DOCKER} images | grep -q "yohasebe/monadic-embeddings"; then
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-embeddings"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" pull embeddings_service" 2>/dev/null
       fi
-      if ! ${DOCKER} images | grep -q "yohasebe/monadic-embeddings"; then
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-embeddings"; then
         echo "EMBEDDINGS_NOT_BUILT"
       elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-embeddings-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile embeddings up -d embeddings_service" 2>/dev/null
@@ -2062,12 +2082,12 @@ ensure-service)
       # Privacy filter is part of the default service set. PRIVACY_FILTER=false
       # opts out at runtime. The image is prebuilt (ghcr.io); when missing,
       # pull it instead of reporting not-built.
-      if [[ "${PRIVACY_FILTER:-true}" == "true" ]] && ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+      if [[ "${PRIVACY_FILTER:-true}" == "true" ]] && ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy pull privacy_service" 2>/dev/null
       fi
       if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
         echo "PRIVACY_DISABLED"
-      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+      elif ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
         echo "PRIVACY_NOT_BUILT"
       elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-privacy-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy up -d privacy_service" 2>/dev/null
@@ -2081,12 +2101,12 @@ ensure-service)
       # The image is prebuilt (ghcr.io); when missing, pull it instead of
       # reporting not-built. Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT
       # so the caller can prompt the user via Settings → Install Options.
-      if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]] && ! ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+      if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]] && ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor pull extractor_service" 2>/dev/null
       fi
       if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
         echo "EXTRACTOR_DISABLED"
-      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+      elif ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
         echo "EXTRACTOR_NOT_BUILT"
       elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-extractor-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor up -d extractor_service" 2>/dev/null
@@ -2154,7 +2174,7 @@ build_privacy_container)
     echo "[INFO] Pulling prebuilt privacy container image..."
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy pull privacy_service" 2>&1 | tee -a "${build_log}"
   fi
-  if ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
     echo "[INFO] Privacy container build succeeded."
     # Snapshot marker: the Settings UI uses the existence of this file to
     # distinguish "not yet built" from "built". Language selection is no
@@ -2189,7 +2209,7 @@ build_extractor_container)
     echo "[INFO] Pulling prebuilt extractor container image..."
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor pull extractor_service" 2>&1 | tee -a "${build_log}"
   fi
-  if ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
     echo "[INFO] Extractor container build succeeded."
     # Snapshot marker: existence distinguishes "not yet built" from
     # "built". OCR languages/backend are runtime settings now, so no

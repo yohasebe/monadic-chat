@@ -52,14 +52,15 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 # prebuilt services), whose build contexts are interpolated from this var.
 export MONADIC_ROOT_DIR="${ROOT_DIR}"
 
-# Runtime language/OCR selection for the privacy & extractor services.
-# These are plain runtime env vars consumed by compose `environment:`
-# interpolation — NOT build args; all language models are baked into the
-# images. Electron passes them via the process env; for CLI/dev
-# invocations (e.g. `ensure-service` shelled out from a host Ruby
-# process) fall back to ~/monadic/config/env so containers start with
-# the user's selection instead of the defaults.
-for _key in PRIVACY_LANGS EXTRACTOR_LANGS EXTRACTOR_OCR; do
+# Runtime settings consumed by compose interpolation — NOT build args.
+# PRIVACY_LANGS/EXTRACTOR_LANGS/EXTRACTOR_OCR select languages at runtime
+# (all models are baked into the images); MONADIC_IMAGE_TAG selects the
+# prebuilt image tag (default latest; :<version> for pinning, :dev for
+# the dev-branch builds). Electron passes them via the process env; for
+# CLI/dev invocations (e.g. `ensure-service` shelled out from a host
+# Ruby process) fall back to ~/monadic/config/env so containers start
+# with the user's selection instead of the defaults.
+for _key in PRIVACY_LANGS EXTRACTOR_LANGS EXTRACTOR_OCR MONADIC_IMAGE_TAG; do
   if [ -z "$(eval echo "\$${_key}")" ] && [ -f "${HOME_DIR}/monadic/config/env" ]; then
     _line=$(grep -E "^${_key}=" "${HOME_DIR}/monadic/config/env" | tail -n1 | tr -d '\r' || true)
     if [ -n "$_line" ]; then
@@ -582,7 +583,7 @@ build_python_container() {
   #      default (pulled best-effort): its inline cache supplies the
   #      heavy apt + pip base layers, so the build only pays for the
   #      enabled option layers.
-  local prebuilt_image="ghcr.io/yohasebe/monadic-python:latest"
+  local prebuilt_image="ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}"
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
   local ts=$(date +%Y%m%d_%H%M%S)
   local temp_tag="yohasebe/monadic-chat:python-build-${ts}"
@@ -1036,7 +1037,7 @@ build_docker_compose() {
   fi
   echo "[INFO] Pulling prebuilt service images (${pull_services})..."
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
-  ${DOCKER} pull ghcr.io/yohasebe/monadic-python:latest 2>&1 | tee -a "${log_file}" || true
+  ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${log_file}" || true
 
   # Execute docker compose build and redirect output to log file with or without cache
   # Include all profiles so profiled services (python, selenium) are also built
@@ -1399,7 +1400,7 @@ start_docker_compose() {
       # so the rebuild only pays for the user's enabled option layers
       # (cache_from in the python compose.yml).
       echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)...</p>"
-      ${DOCKER} pull ghcr.io/yohasebe/monadic-python:latest 2>&1 | tee -a "${HOME_DIR}/monadic/log/docker_build.log" || true
+      ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${HOME_DIR}/monadic/log/docker_build.log" || true
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
     if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then

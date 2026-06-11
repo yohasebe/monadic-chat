@@ -37,6 +37,11 @@ jobs:
         working-directory: docker/services/ruby
     env:
       IN_CONTAINER: ${{ matrix.in_container }}
+      # Test against the prebuilt images matching this branch: dev pushes
+      # publish :dev (see publish-images.yml tag policy), main/PRs use the
+      # released :latest. Without this, dev CI would pull :latest and test
+      # new code against released service images.
+      MONADIC_IMAGE_TAG: ${{ github.ref_name == 'dev' && 'dev' || 'latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -23,13 +23,17 @@ name: Publish service images
 # the digests into one manifest per service, so compose pulls the right
 # arch automatically on macOS (Apple Silicon), Windows (WSL2) and Linux.
 #
-# Triggers:
-#   - push to dev/main touching a service directory (keeps :latest fresh;
-#     services change rarely so this seldom fires)
-#   - workflow_dispatch for manual/bootstrap runs; pass `version` during a
-#     release to also publish an immutable :<version> tag for rollback
+# Triggers / tag policy:
+#   - push to main touching a service directory → :latest (the release
+#     path; user installs consume :latest by default)
+#   - push to dev touching a service directory → :dev (build validation +
+#     an image for dev-branch CI/testing; never exposed to end users)
+#   - workflow_dispatch → :latest; pass `version` during a release to
+#     also publish an immutable :<version> tag for rollback
 #     (paths-filtered push and tag events do not combine reliably, so
 #     version tagging is an explicit dispatch input instead)
+#   - end users can pin or switch tags via MONADIC_IMAGE_TAG in
+#     ~/monadic/config/env (compose interpolation; default latest)
 #
 # One-time setup: after the first publish, each ghcr.io package must be
 # made PUBLIC once (GitHub → Packages → package settings → visibility),
@@ -131,13 +135,27 @@ jobs:
 
       - name: Create multi-arch manifest
         working-directory: /tmp/digests
+        # Tag policy — :latest is what user installs consume by default, so
+        # it must only move through gated paths:
+        #   - push to main (release flow; the tree has passed the full
+        #     local + CI gates) → :latest
+        #   - workflow_dispatch → :latest (+ :<version> when the input is
+        #     given, for immutable rollback points at release time)
+        #   - push to dev → :dev only. Validates the Dockerfiles build and
+        #     gives CI/developers an image matching the dev branch without
+        #     exposing untested content to end users.
         run: |
           IMAGE="ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }}"
-          TAGS="-t ${IMAGE}:latest"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_NAME}" = "dev" ]; then
+            TAGS="-t ${IMAGE}:dev"
+          else
+            TAGS="-t ${IMAGE}:latest"
+          fi
           VERSION="${{ inputs.version }}"
           if [ -n "${VERSION}" ]; then
             TAGS="${TAGS} -t ${IMAGE}:${VERSION}"
           fi
+          echo "VERIFY_TAG=$(echo "${TAGS}" | awk '{print $2}')" >> "$GITHUB_ENV"
           docker buildx imagetools create ${TAGS} $(printf "${IMAGE}@sha256:%s " *)
 
       - name: Inspect published manifest
@@ -146,13 +164,12 @@ jobs:
         # reported DONE, an inspect 0.6s later got "not found"), so retry
         # before declaring the publish broken.
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }}:latest"
           for i in 1 2 3 4 5; do
-            if docker buildx imagetools inspect "${IMAGE}"; then
+            if docker buildx imagetools inspect "${VERIFY_TAG}"; then
               exit 0
             fi
             echo "inspect attempt ${i} failed; retrying in 10s..."
             sleep 10
           done
-          echo "Manifest for ${IMAGE} not readable after retries."
+          echo "Manifest for ${VERIFY_TAG} not readable after retries."
           exit 1

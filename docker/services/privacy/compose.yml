@@ -6,7 +6,9 @@ services:
     # production installs pull instead of building. Local builds for
     # development use the compose.dev.yml overlay (MONADIC_DEV=true), which
     # restores the build: configuration.
-    image: ghcr.io/yohasebe/monadic-privacy:latest
+    # MONADIC_IMAGE_TAG (default latest) allows pinning a released
+    # :<version> tag or following :dev — see publish-images.yml tag policy.
+    image: ghcr.io/yohasebe/monadic-privacy:${MONADIC_IMAGE_TAG:-latest}
     container_name: monadic-chat-privacy-container
     environment:
       # All spaCy models are baked into the image; this selects which

@@ -118,10 +118,11 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
     it "ensures base services even when no app extras are needed" do
       settings = { "app_name" => "Chat" }
       allow(described_class).to receive(:container_running?).and_return(false)
-      allow(described_class).to receive(:start_service).and_return(true)
+      allow(described_class).to receive(:start_service).and_return(:started)
 
       result = described_class.ensure_services_for_app(settings)
-      expect(result).to include(:qdrant, :embeddings)
+      expect(result[:started]).to include(:qdrant, :embeddings)
+      expect(result[:failed]).to eq([])
     end
 
     it "returns list of services that were ensured" do
@@ -130,10 +131,10 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
         "imported_tool_groups" => [{ "name" => :python_execution, "visibility" => "always" }]
       }
       allow(described_class).to receive(:container_running?).and_return(false)
-      allow(described_class).to receive(:start_service).and_return(true)
+      allow(described_class).to receive(:start_service).and_return(:started)
 
       result = described_class.ensure_services_for_app(settings)
-      expect(result).to include(:python, :qdrant, :embeddings)
+      expect(result[:started]).to include(:python, :qdrant, :embeddings)
     end
 
     it "skips services that are already running" do
@@ -145,7 +146,7 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       allow(described_class).to receive(:start_service) # stub to verify not called
 
       result = described_class.ensure_services_for_app(settings)
-      expect(result).to eq([])
+      expect(result).to eq({ started: [], failed: [] })
       expect(described_class).not_to have_received(:start_service)
     end
 
@@ -155,10 +156,111 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
         "imported_tool_groups" => [{ "name" => :web_automation, "visibility" => "always" }]
       }
       allow(described_class).to receive(:container_running?).and_return(false)
-      allow(described_class).to receive(:start_service).and_return(true)
+      allow(described_class).to receive(:start_service).and_return(:started)
 
       result = described_class.ensure_services_for_app(settings)
-      expect(result).to include(:python, :selenium)
+      expect(result[:started]).to include(:python, :selenium)
+    end
+
+    it "reports failed services in :failed instead of dropping them silently" do
+      settings = {
+        "app_name" => "Code Interpreter",
+        "imported_tool_groups" => [{ "name" => :python_execution, "visibility" => "always" }]
+      }
+      allow(described_class).to receive(:container_running?).and_return(false)
+      allow(described_class).to receive(:start_service) do |service|
+        service == :python ? :not_built : :started
+      end
+
+      result = described_class.ensure_services_for_app(settings)
+      expect(result[:failed]).to eq([:python])
+      expect(result[:started]).to include(:qdrant, :embeddings)
+    end
+
+    it "treats disabled services as neither started nor failed" do
+      settings = { "app_name" => "Chat", "privacy_enabled" => true }
+      allow(described_class).to receive(:container_running?).and_return(false)
+      allow(described_class).to receive(:start_service) do |service|
+        service == :privacy ? :disabled : :started
+      end
+
+      result = described_class.ensure_services_for_app(settings)
+      expect(result[:started]).not_to include(:privacy)
+      expect(result[:failed]).not_to include(:privacy)
+    end
+  end
+
+  # Every ensure-service outcome must be handled explicitly. The original
+  # extractor bug (beta.16) survived because non-matching statuses fell
+  # through to a broken `docker compose` fallback and the result was
+  # discarded — a dependency container could fail to start with zero trace.
+  describe ".start_service status handling" do
+    before do
+      allow(described_class).to receive(:find_monadic_sh).and_return("/fake/monadic.sh")
+      allow(Monadic::Utils::DegradationNotifier).to receive(:report)
+    end
+
+    def stub_ensure_service_output(output)
+      allow(described_class).to receive(:`).and_return(output)
+    end
+
+    it "returns :started when STARTED and the container is verifiably up" do
+      stub_ensure_service_output("STARTED\n")
+      allow(described_class).to receive(:container_running?).with(:python).and_return(true)
+      expect(described_class.start_service(:python)).to eq(:started)
+      expect(Monadic::Utils::DegradationNotifier).not_to have_received(:report)
+    end
+
+    it "returns :failed and reports when STARTED but the container is not up" do
+      stub_ensure_service_output("STARTED\n")
+      allow(described_class).to receive(:container_running?).with(:python).and_return(false)
+      expect(described_class.start_service(:python)).to eq(:failed)
+      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+        .with(hash_including(component: "container:python", severity: :error))
+    end
+
+    it "returns :already_running without reporting" do
+      stub_ensure_service_output("ALREADY_RUNNING")
+      expect(described_class.start_service(:selenium)).to eq(:already_running)
+      expect(Monadic::Utils::DegradationNotifier).not_to have_received(:report)
+    end
+
+    it "returns :disabled for *_DISABLED without reporting (user opt-out is not a failure)" do
+      stub_ensure_service_output("PRIVACY_DISABLED")
+      expect(described_class.start_service(:privacy)).to eq(:disabled)
+      expect(Monadic::Utils::DegradationNotifier).not_to have_received(:report)
+    end
+
+    it "returns :not_built and reports for *_NOT_BUILT" do
+      stub_ensure_service_output("EMBEDDINGS_NOT_BUILT")
+      expect(described_class.start_service(:embeddings)).to eq(:not_built)
+      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+        .with(hash_including(component: "container:embeddings", severity: :error))
+    end
+
+    it "returns :failed and reports for unrecognized output" do
+      stub_ensure_service_output("something unexpected")
+      expect(described_class.start_service(:python)).to eq(:failed)
+      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+        .with(hash_including(component: "container:python"))
+    end
+
+    it "returns :failed and reports for empty output" do
+      stub_ensure_service_output("")
+      expect(described_class.start_service(:python)).to eq(:failed)
+      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+    end
+
+    it "returns :failed and reports when monadic.sh cannot be located (no silent compose fallback)" do
+      allow(described_class).to receive(:find_monadic_sh).and_return(nil)
+      expect(described_class).not_to receive(:`)
+      expect(described_class.start_service(:python)).to eq(:failed)
+      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+        .with(hash_including(component: "container:python", severity: :error))
+    end
+
+    it "returns :failed for unknown services" do
+      expect(described_class.start_service(:bogus)).to eq(:failed)
     end
   end
 
@@ -250,7 +352,8 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
         "CodeInterpreterOpenAI" => Struct.new(:settings).new(code_interpreter_settings)
       })
       # Avoid actually starting containers during the test.
-      allow(described_class).to receive(:ensure_services_for_app).and_return([])
+      allow(described_class).to receive(:ensure_services_for_app)
+        .and_return({ started: [], failed: [] })
       # Run the spawned thread inline so expectations are synchronous.
       allow(Thread).to receive(:new) { |&blk| blk.call; Thread.current }
     end

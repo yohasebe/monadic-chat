@@ -76,6 +76,42 @@ RSpec.describe Monadic::Library::FileImporter do
       expect(described_class).to have_received(:run_python_extractor)
         .with(described_class::PDF_EXTRACTOR, path)
     end
+
+    # The Quality Pack fallback must not be silent: an opted-in user whose
+    # extractor container is down would otherwise get pdfplumber-quality
+    # imports indefinitely with no way to notice (the beta.16 extractor
+    # startup bug stayed invisible for this exact reason).
+    context 'Quality Pack degradation reporting' do
+      before do
+        allow(Monadic::Utils::DegradationNotifier).to receive(:report)
+      end
+
+      it 'reports when the user opted in but the extractor service is down' do
+        allow(described_class).to receive(:extractor_opted_in?).and_return(true)
+        allow(described_class).to receive(:extractor_service_available?).and_return(false)
+        path = write_temp('paper.pdf', "%PDF-1.4 fake\n")
+        described_class.build_conversation(path: path)
+        expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+          .with(hash_including(component: 'extractor'))
+        expect(described_class).to have_received(:run_python_extractor)
+      end
+
+      it 'does not report when the user never opted in (normal fallback)' do
+        allow(described_class).to receive(:extractor_opted_in?).and_return(false)
+        allow(described_class).to receive(:extractor_service_available?).and_return(false)
+        path = write_temp('paper.pdf', "%PDF-1.4 fake\n")
+        described_class.build_conversation(path: path)
+        expect(Monadic::Utils::DegradationNotifier).not_to have_received(:report)
+      end
+
+      it 'does not report when the extractor service is healthy' do
+        allow(described_class).to receive(:extractor_service_available?).and_return(true)
+        allow(described_class).to receive(:extract_via_service).and_return(fake_pdf_json)
+        path = write_temp('paper.pdf', "%PDF-1.4 fake\n")
+        described_class.build_conversation(path: path)
+        expect(Monadic::Utils::DegradationNotifier).not_to have_received(:report)
+      end
+    end
   end
 
   describe '.build_conversation (Office)' do

@@ -133,7 +133,12 @@ begin
     File.write(legacy_volume_marker, Time.now.utc.iso8601) rescue nil
   end
 rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
-  puts "[WARNING] Failed to initialize PDF store: #{e.class}: #{e.message}"
+  require_relative "monadic/utils/degradation_notifier"
+  Monadic::Utils::DegradationNotifier.report(
+    component: "embeddings",
+    message: "failed to initialize PDF store; PDF / Knowledge Base features are unavailable (#{e.class}: #{e.message})",
+    severity: :error
+  )
   EMBEDDINGS_DB = nil
 end
 

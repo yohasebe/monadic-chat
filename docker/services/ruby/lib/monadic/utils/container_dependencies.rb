@@ -135,9 +135,14 @@ module Monadic
         Thread.new do
           ensure_services_for_app(target_settings)
         rescue StandardError => e
-          if defined?(Monadic::Utils::ExtraLogger)
-            Monadic::Utils::ExtraLogger.log { "[ContainerDeps] #{reason}: #{e.message}" }
-          end
+          # Infrastructure degradation must be visible without EXTRA_LOGGING:
+          # if this thread dies, dependency containers were never ensured and
+          # the selected app will misbehave with no other trace.
+          DegradationNotifier.report(
+            component: "container-deps",
+            message: "background container startup failed (#{reason}): #{e.message}",
+            severity: :error
+          )
         end
         true
       end

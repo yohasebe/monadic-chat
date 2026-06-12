@@ -4,6 +4,7 @@ require 'json'
 require 'open3'
 require_relative 'importers'
 require_relative '../utils/environment'
+require_relative '../utils/degradation_notifier'
 require_relative '../extractor/client'
 
 module Monadic
@@ -98,6 +99,17 @@ module Monadic
         json_string = if extractor_service_available?
                         extract_via_service(path)
                       else
+                        # Falling back to pdfplumber is normal when the user
+                        # never installed the Quality Pack, but a degradation
+                        # when they opted in and the service is down — say so
+                        # instead of silently importing at lower quality.
+                        if extractor_opted_in?
+                          Monadic::Utils::DegradationNotifier.report(
+                            component: "extractor",
+                            message: "Knowledge Base Quality Pack is enabled but the extractor service is unreachable; importing #{filename} with the basic pdfplumber path (no OCR, no layout analysis).",
+                            severity: :warning
+                          )
+                        end
                         run_python_extractor(PDF_EXTRACTOR, path)
                       end
         Importers::Pdf.import_extraction_json(json_string, options.merge(filename: filename))
@@ -130,12 +142,19 @@ module Monadic
         path.sub(host_root, '/monadic/data')
       end
 
+      # Has the user opted in to the Quality Pack? Used to distinguish
+      # "fallback because never installed" (normal) from "fallback because
+      # the service is down" (degradation worth reporting).
+      def extractor_opted_in?
+        ENV['EXTRACTOR_SERVICE'].to_s.downcase == 'true'
+      end
+
       # Gate: ENV opt-in + a cheap health probe so we degrade gracefully
       # the moment the container is stopped or uninstalled. The result is
       # NOT cached — health is fast (~ms when up) and stale state would
       # silently route imports to the wrong path.
       def extractor_service_available?
-        return false unless ENV['EXTRACTOR_SERVICE'].to_s.downcase == 'true'
+        return false unless extractor_opted_in?
         Monadic::Extractor::Client.new.health
       rescue StandardError
         false

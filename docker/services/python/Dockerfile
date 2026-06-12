@@ -1,5 +1,7 @@
 FROM python:3.12-slim-bookworm
-ARG PROJECT_TAG
+# Default needed: the CI publish workflow builds without build-args, and
+# the project label drives label-filtered cleanup (remove_project_dangling_images).
+ARG PROJECT_TAG=monadic-chat
 LABEL project=$PROJECT_TAG
 
 # Install uv - fast Python package installer (pinned for reproducibility)

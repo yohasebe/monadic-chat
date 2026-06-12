@@ -16,6 +16,7 @@
 #     turn-level passages with conversation citations.
 
 require 'monadic/library'
+require_relative '../utils/degradation_notifier'
 
 module MonadicSharedTools
   module LibrarySearch
@@ -110,6 +111,17 @@ module MonadicSharedTools
       end
     end
 
+    # Returned to the LLM in place of search results when the user has the
+    # Privacy Filter ON but masking is unavailable. Fail-closed: unmasked
+    # snippets must never reach the provider in that state.
+    WITHHELD_MESSAGE = "❌ Knowledge Base results withheld: privacy masking is " \
+                       "currently unavailable, so unmasked content cannot be " \
+                       "sent to the provider. Tell the user the Privacy Filter " \
+                       "service appears to be down and that they can retry " \
+                       "once it recovers (or search again with the Privacy " \
+                       "Filter toggled off if they accept sending unmasked " \
+                       "content).".freeze
+
     # Mask PII in a tool-result payload before the LLM ever sees it.
     # Knowledge Base entries are stored unmasked (the Save dialog warns
     # the user about this), so retrieval would otherwise re-expose any
@@ -122,6 +134,12 @@ module MonadicSharedTools
     # We register the search snippets there so that any placeholder the
     # LLM echoes back gets restored by streaming_handler against the
     # same registry — round-trip is symmetric without further wiring.
+    #
+    # Failure policy is fail-closed, matching the pipeline's own
+    # `on_failure: :block` default: when masking raises, the snippets are
+    # withheld from the LLM entirely and the degradation is reported. The
+    # previous behavior (return the original text) silently sent unmasked
+    # PII to the provider exactly when the privacy backend was broken.
     def apply_privacy(text, session)
       return text unless text.is_a?(String) && !text.empty?
 
@@ -132,8 +150,12 @@ module MonadicSharedTools
       raw = Monadic::Utils::Privacy::RawMessage.new(text, 'tool', {})
       pipeline.before_send_to_llm(raw).text
     rescue StandardError => e
-      warn "[LibrarySearch] privacy masking failed: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
-      text
+      Monadic::Utils::DegradationNotifier.report(
+        component: 'privacy',
+        message: "masking failed during Knowledge Base search; results were withheld from the LLM (#{e.message})",
+        severity: :error
+      )
+      WITHHELD_MESSAGE
     end
 
     # Compose an optional Qdrant payload filter from the LLM-supplied

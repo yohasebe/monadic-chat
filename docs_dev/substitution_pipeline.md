@@ -98,6 +98,32 @@ format-neutral golden fixtures replayed through a stubbed (recorded) Presidio
 response — deterministic, container-free. See the header of
 `spec/golden/privacy/support.rb`.
 
+### Privacy failure policy (audited 2026-06-12)
+
+Direction decides the failure mode:
+
+- **Toward the provider (masking) — fail-closed.** If masking cannot run,
+  the unmasked text must not leave the machine.
+  - `PrivacyFilter#before_send_to_llm` raises `BackendError` on backend
+    failure (`on_failure: :block` is the default; `:pass` is an explicit
+    per-app opt-out).
+  - `apply_privacy_to_messages` (base_vendor_helper) has no rescue — the
+    error propagates and the request fails. Intentional; do not add a
+    rescue that returns the original messages.
+  - `library_search.apply_privacy` replaces the search results with
+    `WITHHELD_MESSAGE` and reports via `DegradationNotifier` when masking
+    raises. (Until 2026-06-12 it returned the raw text — i.e. it leaked
+    unmasked KB snippets exactly when the privacy backend was broken.)
+- **Toward the user (restoring) — fail-open is acceptable.** Restoration
+  happens locally (find-and-replace from the registry); if it fails the user
+  sees `<<TYPE_N>>` placeholders. Ugly, but no PII leaves the machine, and
+  failing the whole turn would destroy the response. `after_receive_from_llm`
+  and `deanonymize` therefore fall back to the masked text.
+
+Rule of thumb for new call sites: a rescue on the masking path must never
+return the input text; it must withhold (or raise) and report through
+`Monadic::Utils::DegradationNotifier`.
+
 ## Vocabulary: parser → provider → live wiring → UI
 
 1. **Parser** (Phase 3) — `vocabulary do; use :shared; end` in MDSL.

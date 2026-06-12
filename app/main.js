@@ -3397,17 +3397,50 @@ function readBuildOptionsSnapshots() {
   };
 }
 
+// Ask monadic.sh which service images actually exist in the docker image
+// store. Resolves to { python, privacy, extractor } booleans, or null when
+// the daemon is unreachable or the output is unparseable — callers must
+// then fall back to the snapshot-file heuristic instead of inferring
+// "absent" from a failed query.
+function queryContainerImageStatus() {
+  return new Promise((resolve) => {
+    exec(monadicCmd('image-status'), (err, stdout) => {
+      const out = String(stdout || '');
+      if (err || out.includes('DOCKER_NOT_RUNNING')) return resolve(null);
+      const status = {};
+      out.split('\n').forEach(line => {
+        const m = line.trim().match(/^([a-z]+)=(present|absent)$/);
+        if (m) status[m[1]] = m[2] === 'present';
+      });
+      if (!('python' in status) || !('privacy' in status) || !('extractor' in status)) {
+        return resolve(null);
+      }
+      resolve(status);
+    });
+  });
+}
+
 // Compute the set of containers that would produce a different image if the
-// user clicked Build now, given the saved env and the build-options
-// snapshots. Returns an empty array when everything is in sync. The Start
-// button uses this to prompt for an optional rebuild before launching the
-// app so users do not silently keep running with stale containers.
-function computePendingContainerBuilds() {
+// user clicked Build now. Returns an empty array when everything is in sync.
+// The Start button uses this to prompt for an optional rebuild before
+// launching the app so users do not silently keep running with stale
+// containers.
+//
+// "Not yet built" is derived from the actual docker image store
+// (imageStatus from queryContainerImageStatus) — the snapshot files are an
+// option-diff baseline only. Deciding "built" from snapshot existence made
+// the state derive from a side channel that drifted both ways: full builds
+// wrote no snapshots (fresh installs were re-prompted and python was built
+// twice), and pruned images went undetected. When imageStatus is null
+// (daemon down), snapshot existence remains the fallback signal.
+function computePendingContainerBuilds(imageStatus = null) {
   const env = readEnvFile(getEnvPath());
   const snapshots = readBuildOptionsSnapshots();
   const truthy = (v) => String(v ?? '').toLowerCase() === 'true';
   // PRIVACY_FILTER defaults to ON when unset (Privacy Filter is part of the default build set).
   const privacyEnabled = String(env.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
+  const notBuilt = (service, snapshot) =>
+    imageStatus ? !imageStatus[service] : !snapshot;
   const result = [];
 
   // Python: always relevant (no master flag); never-built also counts.
@@ -3422,7 +3455,7 @@ function computePendingContainerBuilds() {
   // --no-cache rebuild).
   const pyKeys = installOptions.ENV_KEYS_PYTHON;
   const pyPrev = snapshots.python_service;
-  if (!pyPrev) {
+  if (notBuilt('python', pyPrev)) {
     result.push({
       container: 'python_service',
       label: 'Python container',
@@ -3430,7 +3463,7 @@ function computePendingContainerBuilds() {
       buildCommand: 'build_python_container_update',
       estimate: '3–15 min'
     });
-  } else {
+  } else if (pyPrev) {
     const changed = pyKeys.filter(k => pyPrev[k] !== undefined && String(pyPrev[k]) !== String(env[k] ?? 'false'));
     if (changed.length) {
       result.push({
@@ -3446,33 +3479,27 @@ function computePendingContainerBuilds() {
   // Privacy: default-on. All language models are baked into the image and
   // PRIVACY_LANGS is applied at runtime, so the only rebuild-needed signal
   // is "never built before".
-  if (privacyEnabled) {
-    const prev = snapshots.privacy_service;
-    if (!prev) {
-      result.push({
-        container: 'privacy_service',
-        label: 'Privacy Filter',
-        reason: 'not yet built',
-        buildCommand: 'build_privacy_container',
-        estimate: '3–5 min'
-      });
-    }
+  if (privacyEnabled && notBuilt('privacy', snapshots.privacy_service)) {
+    result.push({
+      container: 'privacy_service',
+      label: 'Privacy Filter',
+      reason: 'not yet built',
+      buildCommand: 'build_privacy_container',
+      estimate: '3–5 min'
+    });
   }
 
   // Extractor: only if master is on. OCR languages/backend are runtime
   // settings (EXTRACTOR_LANGS/EXTRACTOR_OCR via compose environment), so
   // like Privacy the only rebuild-needed signal is "never built before".
-  if (truthy(env.EXTRACTOR_SERVICE)) {
-    const prev = snapshots.extractor_service;
-    if (!prev) {
-      result.push({
-        container: 'extractor_service',
-        label: 'Knowledge Base Quality Pack',
-        reason: 'not yet built',
-        buildCommand: 'build_extractor_container',
-        estimate: '5–10 min'
-      });
-    }
+  if (truthy(env.EXTRACTOR_SERVICE) && notBuilt('extractor', snapshots.extractor_service)) {
+    result.push({
+      container: 'extractor_service',
+      label: 'Knowledge Base Quality Pack',
+      reason: 'not yet built',
+      buildCommand: 'build_extractor_container',
+      estimate: '5–10 min'
+    });
   }
 
   return result;
@@ -3511,7 +3538,8 @@ function refreshServiceContainersForLangChange(prevLangs, newEnv) {
 // the same dockerManager.runCommand path the Settings → Actions buttons
 // already use, so log/progress display works without extra plumbing.
 async function promptForPendingRebuilds() {
-  const pending = computePendingContainerBuilds();
+  const imageStatus = await queryContainerImageStatus();
+  const pending = computePendingContainerBuilds(imageStatus);
   if (pending.length === 0) return true;
 
   const lines = pending.map(p => `• ${p.label} — ${p.reason} (${p.estimate})`).join('\n');

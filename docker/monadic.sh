@@ -93,6 +93,68 @@ for _key in PRIVACY_LANGS EXTRACTOR_LANGS EXTRACTOR_OCR MONADIC_IMAGE_TAG; do
 done
 unset _key _line _val
 
+# Path to the user's config env file (KEY=VALUE lines, quotes optional).
+CONFIG_ENV_FILE="${HOME_DIR}/monadic/config/env"
+
+# Single source of truth for the Python container build options.
+# Adding a new PYOPT_*/INSTALL_*/IMGOPT_* requires:
+#   1. Append to PY_OPTIONS below
+#   2. Add the matching ARG declaration + RUN conditional in
+#      docker/services/python/Dockerfile (and the compose.yml ARG
+#      passthrough)
+#   3. Add the matching entry in app/install_options.config.js
+#   4. Add the HTML checkbox row in app/settings.html
+# See docs_dev/install_options_ssot.md for the full checklist.
+PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK)
+
+# Read a boolean KEY (quotes trimmed, normalized to "true"/"false").
+# Checks environment variables first (passed by Electron), then falls back
+# to the config file. Falls back to $2 (default "false") when unset.
+read_cfg_bool() {
+  local key="$1"; local defval="${2:-false}"
+  local val=""
+
+  # Using eval for indirect variable reference for better compatibility
+  val=$(eval echo "\$${key}")
+
+  if [ -z "$val" ] && [ -f "$CONFIG_ENV_FILE" ]; then
+    local line=$(grep -E "^${key}=" "$CONFIG_ENV_FILE" | tail -n1 || true)
+    if [ -n "$line" ]; then
+      val=${line#*=}
+      val=${val%\"}; val=${val#\"}
+    fi
+  fi
+
+  if [ -n "$val" ]; then
+    val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+    case "$val" in
+      true|1|yes|on) echo "true";;
+      false|0|no|off|"") echo "false";;
+      *) echo "$defval";;
+    esac
+    return
+  fi
+  echo "$defval"
+}
+
+# Record the build-options snapshots for python/privacy/extractor. Called
+# after every successful build path (per-container builds and the full
+# build) so the Settings UI option-diff always has a baseline. These files
+# are an option-diff baseline ONLY — "built or not" is derived from the
+# docker image store (see the image-status subcommand), never from their
+# existence.
+write_build_options_snapshots() {
+  local log_dir="${HOME_DIR}/monadic/log"
+  mkdir -p "${log_dir}"
+  local key
+  : > "${log_dir}/python_build_options.txt"
+  for key in "${PY_OPTIONS[@]}"; do
+    echo "${key}=$(read_cfg_bool "$key" false)" >> "${log_dir}/python_build_options.txt"
+  done
+  echo "PRIVACY_FILTER=$(read_cfg_bool "PRIVACY_FILTER" true)" > "${log_dir}/privacy_build_options.txt"
+  echo "EXTRACTOR_SERVICE=$(read_cfg_bool "EXTRACTOR_SERVICE" false)" > "${log_dir}/extractor_build_options.txt"
+}
+
 # Define the full path to docker-compose
 DOCKER=$(command -v docker)
 
@@ -511,50 +573,9 @@ build_python_container() {
   # Echo discovery hints for Electron to pick up paths
   echo "[BUILD_RUN_DIR] ${logs_dir}"
 
-  # Resolve install options from user's env (SSOT)
-  local config_env="${HOME_DIR}/monadic/config/env"
-  # Helper to read KEY=VALUE (quotes trimmed). Falls back to 'false' when unset.
-  # Checks environment variables first (passed by Electron), then falls back to config file
-  read_cfg_bool() {
-    local key="$1"; local defval="${2:-false}"
-    local val=""
-
-    # First, check if the key exists as an environment variable (passed by Electron)
-    # Using eval for indirect variable reference for better compatibility
-    val=$(eval echo "\$${key}")
-
-    # If not in environment, read from config file
-    if [ -z "$val" ] && [ -f "$config_env" ]; then
-      local line=$(grep -E "^${key}=" "$config_env" | tail -n1 || true)
-      if [ -n "$line" ]; then
-        val=${line#*=}
-        val=${val%""}; val=${val#""}
-      fi
-    fi
-
-    # Normalize and return the value
-    if [ -n "$val" ]; then
-      val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
-      case "$val" in
-        true|1|yes|on) echo "true";;
-        false|0|no|off|"") echo "false";;
-        *) echo "$defval";;
-      esac
-      return
-    fi
-    echo "$defval"
-  }
-
-  # Single source of truth for the Python container build options.
-  # Adding a new PYOPT_*/INSTALL_*/IMGOPT_* requires:
-  #   1. Append to PY_OPTIONS below
-  #   2. Add the matching ARG declaration + RUN conditional in
-  #      docker/services/python/Dockerfile (and the compose.yml ARG
-  #      passthrough)
-  #   3. Add the matching entry in app/install_options.config.js
-  #   4. Add the HTML checkbox row in app/settings.html
-  # See docs_dev/install_options_ssot.md for the full checklist.
-  local PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK)
+  # Resolve install options from user's env via the global read_cfg_bool;
+  # the option list is the global PY_OPTIONS (SSOT, defined near the top
+  # of this file).
 
   # Read current values into separate locals (kept as locals, not an
   # associative array, so they remain visible to the JSON/options-file
@@ -993,31 +1014,7 @@ build_docker_compose() {
   fi
   export GEMS_FINGERPRINT="$gems_fingerprint"
 
-  # Read install options for Python container build args
-  local config_env="${HOME_DIR}/monadic/config/env"
-  read_cfg_bool() {
-    local key="$1"; local defval="${2:-false}"
-    local val=""
-    val=$(eval echo "\$${key}")
-    if [ -z "$val" ] && [ -f "$config_env" ]; then
-      local line=$(grep -E "^${key}=" "$config_env" | tail -n1 || true)
-      if [ -n "$line" ]; then
-        val=${line#*=}
-        val=${val%""}; val=${val#""}
-      fi
-    fi
-    if [ -n "$val" ]; then
-      val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
-      case "$val" in
-        true|1|yes|on) echo "true";;
-        false|0|no|off|"") echo "false";;
-        *) echo "$defval";;
-      esac
-      return
-    fi
-    echo "$defval"
-  }
-
+  # Read install options for Python container build args (global read_cfg_bool)
   local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
   local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
   local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
@@ -1127,6 +1124,12 @@ build_docker_compose() {
 
   # Save container version information after building
   save_container_versions "silent"
+
+  # The full build covers python/privacy/extractor too, so record the same
+  # option snapshots the per-container builds write. Without this, a fresh
+  # install that went through the full build had no baseline and the
+  # Settings option-diff started from nothing.
+  write_build_options_snapshots
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
@@ -2067,6 +2070,29 @@ export-db)
   ;;
 import-db)
   import_db
+  ;;
+image-status)
+  # Machine-readable presence of the per-user-built / opt-in service images.
+  # Consumed by the Electron start gate (computePendingContainerBuilds) to
+  # decide "not yet built" from the actual docker image store rather than
+  # snapshot files, which can drift from reality (full builds historically
+  # wrote no snapshots; users prune images). Output contract:
+  #   DOCKER_NOT_RUNNING        — daemon unreachable, caller must not infer
+  #   <name>=present|absent     — one line per service below
+  if ! ${DOCKER} info >/dev/null 2>&1; then
+    echo "DOCKER_NOT_RUNNING"
+  else
+    for _pair in "python=yohasebe/python" "privacy=ghcr.io/yohasebe/monadic-privacy" "extractor=ghcr.io/yohasebe/monadic-extractor"; do
+      _name="${_pair%%=*}"
+      _image="${_pair#*=}"
+      if ${DOCKER} images -q "${_image}" 2>/dev/null | grep -q .; then
+        echo "${_name}=present"
+      else
+        echo "${_name}=absent"
+      fi
+    done
+    unset _pair _name _image
+  fi
   ;;
 ensure-service)
   # On-demand container startup for profiled services.

@@ -8,6 +8,17 @@ require 'monadic/library'
 RSpec.describe Monadic::Library::FileImporter do
   let(:schema) { Monadic::Library::Schema }
 
+  before do
+    # On a dev machine with EXTRACTOR_SERVICE=true in ~/monadic/config/env
+    # (loaded into ENV by monadic.rb's Dotenv), import_pdf probes the real
+    # extractor and reports a degradation when it is down — writing to the
+    # real ~/monadic/log/degradation.log and broadcasting to any live
+    # session. Stub the notifier file-wide so specs never leave artifacts
+    # outside the test sandbox; the 'Quality Pack degradation reporting'
+    # context re-stubs it with expectations.
+    allow(Monadic::Utils::DegradationNotifier).to receive(:report)
+  end
+
   around do |example|
     Dir.mktmpdir do |dir|
       @tmp = dir

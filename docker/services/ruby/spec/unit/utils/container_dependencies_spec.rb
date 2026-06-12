@@ -343,6 +343,11 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
   # reintroduce the "wire is there but never fires" class of bug.
   describe ".ensure_services_async" do
     before do
+      # The rescue path reports through DegradationNotifier, which writes to
+      # the real ~/monadic/log/degradation.log and broadcasts to any live
+      # WebSocket — stub it so test-injected failures never leave artifacts
+      # on the developer's machine.
+      allow(Monadic::Utils::DegradationNotifier).to receive(:report)
       # APPS is the global module-level registry of apps. Stub it here so the
       # helper's lookup path is exercised without loading the full app set.
       code_interpreter_settings = {

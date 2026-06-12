@@ -37,11 +37,17 @@ DOCKER_CHECK_INTERVAL=1
 # REPORTING=--verbose
 REPORTING=
 
-# All Docker Compose profiles used by profiled services (see profiles: keys in compose.yml files).
-# Used for full build/stop operations that must include every service regardless of on-demand startup.
-ALL_PROFILES="--profile python --profile selenium"
+# Compose profiles (see profiles: keys in docker/services/*/compose.yml).
+#
+# Two distinct sets, per the principle "feature flags gate startup, never
+# teardown":
+#
+# ALL_PROFILES_UP — flag-gated set for start/build/pull. Opt-in services
+# (privacy, extractor) are included only when their flag is on, so disabled
+# features are never pulled or started.
+ALL_PROFILES_UP="--profile python --profile selenium"
 if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
-  ALL_PROFILES="${ALL_PROFILES} --profile privacy"
+  ALL_PROFILES_UP="${ALL_PROFILES_UP} --profile privacy"
 fi
 # Extractor (Knowledge Base Quality Pack) is opt-in. Including its profile
 # here makes the standard lifecycle cover it: started with `up -d`,
@@ -49,8 +55,16 @@ fi
 # Without this, nothing started the container after an app restart and the
 # Library import quality path silently fell back to pdfplumber.
 if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
-  ALL_PROFILES="${ALL_PROFILES} --profile extractor"
+  ALL_PROFILES_UP="${ALL_PROFILES_UP} --profile extractor"
 fi
+#
+# ALL_PROFILES_DOWN — unconditional set for stop/down/remove. A container
+# started while a flag was on must still be stopped after the flag is turned
+# off, so teardown must never depend on current flag values (otherwise the
+# container is orphaned and keeps running outside the managed lifecycle).
+# Covered by spec/unit/compose_profile_completeness_spec.rb, which checks this
+# line against the profiles: keys in docker/services/*/compose.yml.
+ALL_PROFILES_DOWN="--profile python --profile selenium --profile privacy --profile extractor"
 
 # Define the path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -1055,14 +1069,14 @@ build_docker_compose() {
   # report per-layer milestones), so announce what is being downloaded and
   # its rough size up front to avoid a long silent wait.
   echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading prebuilt service images: ${pull_note}. This happens once; later updates only fetch changed layers.</p>"
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
   echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the default Python image (~0.9 GB) as a build cache source . . .</p>"
   ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${log_file}" || true
 
   # Execute docker compose build and redirect output to log file with or without cache
   # Include all profiles so profiled services (python, selenium) are also built
   local build_start_epoch=$(date +%s)
-  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
   local build_status=${PIPESTATUS[0]}
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))
@@ -1508,7 +1522,7 @@ start_docker_compose() {
     echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB, one time) . . .</p>"
   fi
 
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"
 
   # Informational flow for smoother UX
   # Keep health check noise out of user-facing messages; log to output only
@@ -1534,7 +1548,7 @@ start_docker_compose() {
       echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
       echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
       build_ruby_container
-      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
+      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"
       if wait_for_ruby_ready; then
         echo "Orchestration refreshed. Continuing startup . . ."
       fi
@@ -1606,7 +1620,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose (includes all profiled services)
 down_docker_compose() {
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" down --remove-orphans"
 }
 
 # Define a function to stop Docker Compose (includes all profiled services)
@@ -1620,7 +1634,7 @@ stop_docker_compose() {
   # total Restart-Now-to-relaunch duration predictable and inside the UX
   # threshold for "feels responsive". The value is not zero because we
   # still want databases to flush inflight writes gracefully before kill.
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" stop --timeout 2"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" stop --timeout 2"
 }
 
 # Function to stop a container
@@ -1641,20 +1655,20 @@ export_database() {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop all Docker Compose services (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} down --remove-orphans"
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "${ROOT_DIR}" && git pull origin main
 
   # Build all Docker Compose services (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build --no-cache"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build --no-cache"
 }
 
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
   # Stop all Docker Compose services with project name (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" down --remove-orphans"
 
   local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
@@ -1924,7 +1938,7 @@ build)
   set_docker_compose
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} down"
 
   # Run build_docker_compose and check if it succeeded
   if build_docker_compose "no-cache"; then
@@ -1932,7 +1946,7 @@ build)
     date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
 
     # Start all containers (including profiled services) after full build
-    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"; then
+    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"; then
       # Wait a moment for containers to start
       sleep 3
 

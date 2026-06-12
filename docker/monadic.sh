@@ -1197,6 +1197,19 @@ EOF
   fi
 }
 
+# Extract the string value of KEY from a flat JSON file. Tolerates
+# arbitrary whitespace and key order; prints nothing when the key is
+# missing or the file is malformed — callers compare against a freshly
+# computed value, so a parse failure can only register as "changed"
+# (an extra rebuild), never as "unchanged" (a skipped one). No jq/node
+# dependency: this script runs on end-user hosts where neither is
+# guaranteed. The only writer is save_container_versions above; if it
+# ever emits nested JSON, replace this with a real parser.
+json_string_value() {
+  local file="$1" key="$2"
+  sed -nE 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' "$file" 2>/dev/null | head -n1
+}
+
 # Function to check if Dockerfiles have changed since last build
 # Sets global variables for individual container changes:
 #   PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, EMBEDDINGS_DOCKERFILE_CHANGED
@@ -1235,11 +1248,13 @@ check_dockerfiles_changed() {
     return 0 # true - changes detected
   fi
 
-  # Read stored hashes from JSON file
-  local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_embeddings_hash=$(grep -o '"embeddings_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_help_export_id=$(grep -o '"help_export_id": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  # Read stored hashes from JSON file (see json_string_value: parse
+  # failures yield "" which never equals a real hash, so a malformed or
+  # reshaped file can only cause an extra rebuild, never a skipped one)
+  local stored_python_hash=$(json_string_value "$json_file" "python_hash")
+  local stored_selenium_hash=$(json_string_value "$json_file" "selenium_hash")
+  local stored_embeddings_hash=$(json_string_value "$json_file" "embeddings_hash")
+  local stored_help_export_id=$(json_string_value "$json_file" "help_export_id")
 
   # Check each container individually
   if [[ "$stored_python_hash" != "$python_hash" ]]; then

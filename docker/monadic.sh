@@ -1712,6 +1712,25 @@ remove_containers() {
   remove_volume monadic-chat-pgvector-data
 }
 
+# Uninstall-only deep clean of service images. Deliberately NOT part of
+# remove_containers: that function is shared with the rebuild paths (full
+# build calls it first), where deleting the prebuilt service images would
+# force a multi-GB re-download on every rebuild. Uninstall, however,
+# must leave no images behind — docs/getting-started/uninstallation.md
+# enumerates exactly these. The substring match in remove_image covers
+# both the ghcr.io/yohasebe/monadic-* prebuilt repos and the legacy
+# locally built yohasebe/monadic-* names with one call each.
+remove_service_images() {
+  remove_image "yohasebe/monadic-embeddings"
+  remove_image "yohasebe/monadic-privacy"
+  remove_image "yohasebe/monadic-extractor"
+  remove_image "yohasebe/monadic-python"
+  remove_image "yohasebe/python"
+  remove_image "yohasebe/selenium"
+  remove_image "qdrant/qdrant"
+  remove_image "yohasebe/pgvector"
+}
+
 # Function to remove images containing the string in $1
 remove_image() {
   local images=$(${DOCKER} images --format "{{.Repository}}:{{.Tag}}" | grep "$1")
@@ -2073,6 +2092,7 @@ down)
   ;;
 remove)
   remove_containers &&
+  remove_service_images &&
   echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
   ;;
 export-db)

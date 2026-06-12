@@ -188,6 +188,24 @@ task :build do
   sh "npm run build:win -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
 
+  # macOS post-steps — keep in lockstep with build:mac_arm64 above. Until
+  # 2026-06-13 these ran only in the single-platform task, so an
+  # all-platform `rake build` shipped the electron-builder zip with
+  # flattened framework symlinks (the beta.19 auto-update breaker) and
+  # could miss the arch-specific update manifest. The repackager must run
+  # BEFORE the manifest patch below so yml sha512/size sync to the
+  # corrected zip bytes.
+  puts "[build] Re-packaging macOS zip with preserved symlinks..."
+  sh "ruby scripts/repackage_mac_zip.rb"
+
+  dist_dir = File.join(PROJECT_ROOT, "dist")
+  canonical = File.join(dist_dir, "latest-mac.yml")
+  arm64_yml = File.join(dist_dir, "latest-mac-arm64.yml")
+  if File.exist?(canonical) && !File.exist?(arm64_yml)
+    FileUtils.cp(canonical, arm64_yml)
+    puts "[build] Mirrored latest-mac.yml -> latest-mac-arm64.yml"
+  end
+
   # First, get all files in the dist directory to see what was actually generated
   puts "Listing all files in dist directory before filtering:"
   Dir.glob("dist/*").each do |f|

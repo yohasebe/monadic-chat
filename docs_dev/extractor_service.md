@@ -160,6 +160,17 @@ Changing these only requires recreating the container (`monadic.sh
 refresh-service extractor`, done automatically on settings save), never
 a rebuild.
 
+> **Offline invariant (2026-06-12):** the image sets `HF_HUB_OFFLINE=1`
+> and a Dockerfile warm-up conversion bakes every artifact the pipeline
+> resolves at runtime (Docling's `download_models()` alone misses the
+> pinned-revision tableformer fetch). The container must keep working
+> with zero network access. If `EXTRACTOR_LANGS` / `EXTRACTOR_OCR` are
+> ever wired into actual OCR model selection (today they are advisory —
+> RapidOCR uses its pip-bundled models), revisit the warm-up step and
+> this offline policy together: a model fetched lazily per language
+> would either break offline or silently re-introduce the first-import
+> download this invariant exists to prevent.
+
 ### `monadic.sh` integration
 
 - `build_extractor_container` — when `EXTRACTOR_SERVICE=true`, pulls the

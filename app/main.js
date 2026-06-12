@@ -3408,7 +3408,10 @@ function readBuildOptionsSnapshots() {
 // "absent" from a failed query.
 function queryContainerImageStatus() {
   return new Promise((resolve) => {
-    exec(monadicCmd('image-status'), (err, stdout) => {
+    // timeout: a wedged Docker daemon would otherwise block the Start
+    // sequence indefinitely before the rebuild dialog can appear. On
+    // timeout err is set, so we fall through to the snapshot heuristic.
+    exec(monadicCmd('image-status'), { timeout: 10000 }, (err, stdout) => {
       const out = String(stdout || '');
       if (err || out.includes('DOCKER_NOT_RUNNING')) return resolve(null);
       const status = {};

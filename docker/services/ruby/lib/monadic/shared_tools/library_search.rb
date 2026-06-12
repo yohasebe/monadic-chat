@@ -111,16 +111,22 @@ module MonadicSharedTools
       end
     end
 
-    # Returned to the LLM in place of search results when the user has the
-    # Privacy Filter ON but masking is unavailable. Fail-closed: unmasked
+    # Returned to the LLM in place of search results when the session has a
+    # live Privacy pipeline but masking is unavailable. Fail-closed: unmasked
     # snippets must never reach the provider in that state.
+    #
+    # Recovery wording note: this path is reached via a Privacy pipeline left
+    # in the session (PF and library_search are mutually exclusive at the app
+    # level, so the current app has no Privacy Filter toggle). The accurate
+    # user remedies are therefore "wait for the privacy service to recover"
+    # or "reset the session" — NOT "toggle the filter off".
     WITHHELD_MESSAGE = "❌ Knowledge Base results withheld: privacy masking is " \
                        "currently unavailable, so unmasked content cannot be " \
                        "sent to the provider. Tell the user the Privacy Filter " \
                        "service appears to be down and that they can retry " \
-                       "once it recovers (or search again with the Privacy " \
-                       "Filter toggled off if they accept sending unmasked " \
-                       "content).".freeze
+                       "once it recovers, or start a fresh session (Reset) if " \
+                       "they no longer need the Privacy Filter protection for " \
+                       "this conversation.".freeze
 
     # Mask PII in a tool-result payload before the LLM ever sees it.
     # Knowledge Base entries are stored unmasked (the Save dialog warns

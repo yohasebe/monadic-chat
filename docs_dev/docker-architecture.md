@@ -57,19 +57,31 @@ Manual startup: `monadic.sh ensure-service <name>` (e.g. `python`, `selenium`, `
 
 **Exception — Full lifecycle operations include all profiles**: `build` (Build All), `update`,
 `down_docker_compose`, `stop_docker_compose`, and `remove_containers` must operate on every
-service regardless of on-demand startup. These commands use `${ALL_PROFILES}` (defined once at
-the top of `monadic.sh`; consult that definition for the current profile list), ensuring
-profiled services are built, stopped, or removed together with the default services.
+service regardless of on-demand startup. Two profile sets exist (defined once at the top of
+`monadic.sh`; consult those definitions for the current lists): `ALL_PROFILES_UP` is
+flag-gated and used for start/build/pull, while `ALL_PROFILES_DOWN` is unconditional and used
+for stop/down/remove — feature flags gate startup, never teardown, so a container started
+while a flag was on is still stopped after the flag is turned off.
+`spec/unit/compose_profile_completeness_spec.rb` pins both sets against the `profiles:` keys
+in the compose files.
 
 ### Prebuilt Service Images (ghcr.io)
 
-The **embeddings**, **privacy**, and **extractor** images are NOT built
-locally: they are published as multi-arch (linux/amd64 + linux/arm64)
-manifests to ghcr.io by `.github/workflows/publish-images.yml` and pulled
-on demand. This is possible because their content is user-independent —
-language/OCR selection became runtime env (`PRIVACY_LANGS` /
-`EXTRACTOR_LANGS` / `EXTRACTOR_OCR`, injected via compose `environment:`)
-rather than build args.
+The **embeddings**, **privacy**, **extractor**, **selenium**, and
+**qdrant** images are NOT built locally: they are published as multi-arch
+(linux/amd64 + linux/arm64) manifests to ghcr.io by
+`.github/workflows/publish-images.yml` and pulled on demand. This is
+possible because their content is user-independent — language/OCR
+selection became runtime env (`PRIVACY_LANGS` / `EXTRACTOR_LANGS` /
+`EXTRACTOR_OCR`, injected via compose `environment:`) rather than build
+args. The **python** default image (all install options off) is also
+published and doubles as the `--cache-from` source for option-enabled
+local builds. qdrant is a version-pinned mirror of the upstream image
+(see `docker/services/qdrant/Dockerfile` for the pin and bump procedure)
+so a mutable upstream `:latest` can never reach users outside a release;
+with selenium prebuilt as well, user machines no longer contact Docker
+Hub at runtime at all (Hub remains only as the base-image source for
+local builds of ruby and option-enabled python).
 
 Key mechanics:
 
@@ -77,17 +89,18 @@ Key mechanics:
   with **no `build:` section**, so every `docker compose up` / `pull` path
   (production start, `ensure-service`, rake test/help tasks) pulls instead
   of building. Layer-diff downloads make refreshes cheap.
-- `monadic.sh ensure-service embeddings|privacy|extractor` pulls the image
-  when missing before reporting `*_NOT_BUILT`.
+- `monadic.sh ensure-service embeddings|privacy|extractor|qdrant|selenium`
+  pulls the image when missing before reporting `*_NOT_BUILT`.
 - `build_privacy_container` / `build_extractor_container` pull in
   production and build locally only in development (`MONADIC_DEV=true`),
   via the per-service `compose.build.yml` overlay. The overlay resolves
   its build context through `MONADIC_ROOT_DIR` (exported by `monadic.sh`)
   because relative paths in `-f` overlay files resolve against the first
   compose file's directory, which varies between invocation paths.
-- The full build (`build_docker_compose`) pulls embeddings (+ privacy when
-  enabled) after building the locally-built images, and the image
-  verification step fails the build when the embeddings pull failed.
+- The full build (`build_docker_compose`) pulls embeddings, qdrant and
+  selenium (+ privacy/extractor when enabled) before building the
+  locally-built images, and the image verification step fails the build
+  when a required pull did not produce an image.
 - Tag policy: `:latest` (the default consumed by user installs) moves only
   via main pushes (release path) or `workflow_dispatch`; dev pushes publish
   `:dev` instead, which dev-branch CI consumes (`MONADIC_IMAGE_TAG=dev` in
@@ -97,7 +110,8 @@ Key mechanics:
 - The ghcr.io packages must be public (one-time setting per package after
   the first publish) for anonymous pulls to work.
 - Migration: `remove_legacy_prebuilt_images` (called on start) deletes the
-  pre-ghcr locally built `yohasebe/monadic-*` images.
+  pre-ghcr locally built `yohasebe/monadic-*` images plus the pre-unification
+  `yohasebe/selenium` and upstream `qdrant/qdrant` images.
 
 ### Restart Policies
 

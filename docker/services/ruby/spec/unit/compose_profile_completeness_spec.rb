@@ -61,6 +61,28 @@ RSpec.describe 'Compose profile completeness in monadic.sh' do
     end
   end
 
+  describe 'registry unification invariant' do
+    # Since the ghcr.io unification (2026-06-13) every service image must
+    # come from a registry under project control: ghcr.io/yohasebe/* for
+    # prebuilt pulls, or a bare yohasebe/* name for images built locally on
+    # the user's machine (ruby, python custom builds). A docker.io/upstream
+    # reference here would silently reintroduce Docker Hub rate-limit
+    # dependence and mutable-:latest risk at user install time.
+    it 'compose files reference only project-controlled image names' do
+      offenders = Dir[File.join(docker_dir, 'services', '*', 'compose.yml')].flat_map do |path|
+        yaml = YAML.safe_load(File.read(path), aliases: true)
+        (yaml['services'] || {}).flat_map do |name, svc|
+          image = svc['image'].to_s
+          next [] if image.empty?
+          next [] if image.start_with?('ghcr.io/yohasebe/', 'yohasebe/')
+          ["#{File.basename(File.dirname(path))}/compose.yml: #{name} -> #{image}"]
+        end
+      end
+      expect(offenders).to be_empty,
+        "compose image references outside the unified registries:\n#{offenders.join("\n")}"
+    end
+  end
+
   describe 'profile-set usage' do
     it 'never uses the flag-gated UP set for stop/down' do
       offenders = monadic_sh.each_line.with_index(1).select do |line, _|

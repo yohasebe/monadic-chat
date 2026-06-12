@@ -54,13 +54,15 @@ on:
       - 'docker/services/privacy/**'
       - 'docker/services/extractor/**'
       - 'docker/services/python/**'
+      - 'docker/services/qdrant/**'
+      - 'docker/services/selenium/**'
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        service: [embeddings, privacy, extractor, python]
+        service: [embeddings, privacy, extractor, python, qdrant, selenium]
         platform:
           - { arch: amd64, runner: ubuntu-24.04 }
           - { arch: arm64, runner: ubuntu-24.04-arm }
@@ -113,7 +115,7 @@ jobs:
         # Must list the same services as the build matrix above — a service
         # present only there gets its digests pushed but never receives a
         # :latest manifest tag.
-        service: [embeddings, privacy, extractor, python]
+        service: [embeddings, privacy, extractor, python, qdrant, selenium]
     name: publish ${{ matrix.service }} manifest
     runs-on: ubuntu-24.04
     permissions:

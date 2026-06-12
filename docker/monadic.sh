@@ -806,7 +806,10 @@ ensure_ruby_compat_with_python() {
   fi
 }
 
-# Function to build Selenium container
+# Function to build Selenium container.
+# Production: the image is prebuilt and user-independent — pull (or
+# refresh) it from ghcr.io instead of building. Development
+# (MONADIC_DEV=true): build locally via the explicit build overlay.
 build_selenium_container() {
   local _lock_acquired=false
   if acquire_build_lock; then _lock_acquired=true; fi
@@ -818,14 +821,17 @@ build_selenium_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  # Build Selenium container
-  echo "Building Selenium container..." | tee -a "${log_file}"
+  set_docker_compose
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    echo "Building Selenium container..." | tee -a "${log_file}"
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/selenium/compose.build.yml\" -p monadic-chat --profile selenium build selenium_service" 2>&1 | tee -a "${log_file}"
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt browser automation image (~1.5 GB on first download) . . .</p>"
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile selenium pull selenium_service" 2>&1 | tee -a "${log_file}"
+  fi
 
-  # Use docker compose to build only the Selenium container
-  ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" build selenium_service 2>&1 | tee -a "${log_file}"
-
-  # Check if the build was successful
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  # Check if the image is now present
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "Selenium container built successfully" | tee -a "${log_file}"
 
     # Restart Ruby container if it's running to update SELENIUM_AVAILABLE environment variable
@@ -842,7 +848,6 @@ build_selenium_container() {
     return 1
   fi
 
-  remove_older_images yohasebe/selenium
   remove_project_dangling_images
   release_build_lock
 }
@@ -1046,14 +1051,14 @@ build_docker_compose() {
   echo "======================================" >> "${log_file}"
   echo "" >> "${log_file}"
 
-  # Pull the prebuilt service images BEFORE building. embeddings, privacy
-  # and extractor (when opted in) have no local build: configuration
-  # (consumed directly); the python default image is pulled best-effort as
-  # the --cache-from source for the compose-driven python build (see
-  # cache_from in its compose.yml). The verification step after the build
-  # fails when the embeddings pull did not produce an image.
-  local pull_services="embeddings_service"
-  local pull_note="text embeddings (~1.1 GB)"
+  # Pull the prebuilt service images BEFORE building. embeddings, qdrant,
+  # selenium, privacy and extractor (when opted in) have no local build:
+  # configuration (consumed directly); the python default image is pulled
+  # best-effort as the --cache-from source for the compose-driven python
+  # build (see cache_from in its compose.yml). The verification step after
+  # the build fails when a required pull did not produce an image.
+  local pull_services="embeddings_service qdrant_service selenium_service"
+  local pull_note="text embeddings (~1.1 GB), vector database (~0.3 GB), browser automation (~1.5 GB)"
   if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
     pull_services="${pull_services} privacy_service"
     pull_note="${pull_note}, privacy filter (~0.7 GB)"
@@ -1100,7 +1105,7 @@ build_docker_compose() {
   echo "" >> "${log_file}"
   echo "[IMAGE VERIFICATION]" >> "${log_file}"
   local all_images_exist=true
-  for image in "yohasebe/monadic-chat" "yohasebe/python" "ghcr.io/yohasebe/monadic-embeddings"; do
+  for image in "yohasebe/monadic-chat" "yohasebe/python" "ghcr.io/yohasebe/monadic-embeddings" "ghcr.io/yohasebe/monadic-qdrant" "ghcr.io/yohasebe/monadic-selenium"; do
     if ! ${DOCKER} images | grep -q "${image}"; then
       all_images_exist=false
       echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Required image '${image}' was not created during build.</p>"
@@ -1290,7 +1295,10 @@ check_dockerfiles_changed() {
 # next start retries after `down` has removed those containers.
 remove_legacy_prebuilt_images() {
   local img
-  for img in yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor; do
+  # yohasebe/selenium (locally built) and qdrant/qdrant (upstream pull)
+  # joined this list when both moved to ghcr.io prebuilt images
+  # (monadic-selenium / monadic-qdrant) in beta.21.
+  for img in yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor yohasebe/selenium qdrant/qdrant; do
     if ${DOCKER} images -q "${img}" 2>/dev/null | grep -q .; then
       echo "[INFO] Removing legacy local image ${img} (replaced by ghcr.io prebuilt)"
       ${DOCKER} rmi "${img}" >/dev/null 2>&1 || true
@@ -1597,7 +1605,7 @@ start_docker_compose() {
   }
 
   # Ensure Selenium container is running if the image exists
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
       echo "[HTML]: <p>Starting Selenium container...</p>"
       eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
@@ -1725,7 +1733,11 @@ remove_service_images() {
   remove_image "yohasebe/monadic-privacy"
   remove_image "yohasebe/monadic-extractor"
   remove_image "yohasebe/monadic-python"
+  remove_image "yohasebe/monadic-qdrant"
+  remove_image "yohasebe/monadic-selenium"
   remove_image "yohasebe/python"
+  # Legacy names from before the ghcr.io unification (locally built
+  # selenium, upstream qdrant) — still present on upgraded installs.
   remove_image "yohasebe/selenium"
   remove_image "qdrant/qdrant"
   remove_image "yohasebe/pgvector"
@@ -1953,7 +1965,7 @@ build_selenium_container)
 
   build_selenium_container
 
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
@@ -2042,7 +2054,7 @@ stop-jupyter)
   ;;
 start-selenium)
   # Start Selenium container (build if missing)
-  if ! ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color: #61b0ff;'></i>Selenium container image not found. Building automatically...</p>"
 
     ensure_data_dir "selenium"
@@ -2056,7 +2068,7 @@ start-selenium)
   fi
 
   # Verify image was built successfully before proceeding
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "[HTML]: <p>Starting Selenium container...</p>"
     eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
 
@@ -2140,11 +2152,18 @@ ensure-service)
       fi
       ;;
     selenium)
-      # Selenium requires Python; ensure both are running
+      # Selenium requires Python; ensure both are running.
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built.
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium pull selenium_service" 2>/dev/null
+      fi
       if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-python-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d python_service" 2>/dev/null
       fi
-      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
+        echo "SELENIUM_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service" 2>/dev/null
         echo "STARTED"
       else
@@ -2153,7 +2172,14 @@ ensure-service)
       ;;
     qdrant)
       # Vector storage for Help / PDF KB. Always available (no opt-in flag).
-      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-qdrant-container$"; then
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built.
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-qdrant"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" pull qdrant_service" 2>/dev/null
+      fi
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-qdrant"; then
+        echo "QDRANT_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-qdrant-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile qdrant up -d qdrant_service" 2>/dev/null
         echo "STARTED"
       else

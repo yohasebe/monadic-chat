@@ -1,12 +1,11 @@
 services:
   selenium_service:
     profiles: ["selenium"]
-    image: yohasebe/selenium
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PROJECT_TAG: "monadic-chat"
+    # Prebuilt multi-arch image published by .github/workflows/publish-images.yml.
+    # The image is user-independent (a pinned selenium/standalone-chromium plus
+    # a project label — see Dockerfile), so users pull it instead of building
+    # locally. Local builds for development use compose.build.yml.
+    image: ghcr.io/yohasebe/monadic-selenium:${MONADIC_IMAGE_TAG:-latest}
     container_name: monadic-chat-selenium-container
     shm_size: 2gb
     environment:

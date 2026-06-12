@@ -239,6 +239,8 @@
     "buildUserFinished": "用户容器构建已完成：请检查控制台面板了解详情。",
     "buildPrivacyFinished": "隐私容器构建已完成：请检查控制台面板了解详情。",
     "buildPrivacyFailed": "隐私容器构建失败。请检查构建日志了解详情。",
+    "buildExtractorFinished": "Extractor 容器构建已完成：请检查控制台面板了解详情。",
+    "buildExtractorFailed": "Extractor 容器构建失败。请检查构建日志了解详情。",
     "buildMonadicFinished": "Monadic Chat构建已完成并启动容器。请检查控制台面板了解详情。",
     "containerFailedBuild": "容器构建失败。",
     "noUserContainers": "没有要构建的用户容器。",

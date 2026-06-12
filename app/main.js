@@ -714,6 +714,10 @@ class DockerManager {
                 translatedOutput = formatMessage('success', 'messages.buildPrivacyFinished');
               } else if (output.includes('Privacy container build failed')) {
                 translatedOutput = formatMessage('error', 'messages.buildPrivacyFailed');
+              } else if (output.includes('Extractor container build succeeded')) {
+                translatedOutput = formatMessage('success', 'messages.buildExtractorFinished');
+              } else if (output.includes('Extractor container build failed')) {
+                translatedOutput = formatMessage('error', 'messages.buildExtractorFailed');
               } else if (output.includes('Build of user containers has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildUserFinished');
               } else if (output.includes('Build of Monadic Chat has finished')) {

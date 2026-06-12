@@ -193,6 +193,8 @@
     "buildUserFinished": "La construction des conteneurs utilisateur est terminée : Consultez le panneau console pour plus de détails.",
     "buildPrivacyFinished": "La construction du conteneur Privacy est terminée : Consultez le panneau console pour plus de détails.",
     "buildPrivacyFailed": "La construction du conteneur Privacy a échoué. Consultez le journal de construction pour plus de détails.",
+    "buildExtractorFinished": "La construction du conteneur Extractor est terminée : Consultez le panneau console pour plus de détails.",
+    "buildExtractorFailed": "La construction du conteneur Extractor a échoué. Consultez le journal de construction pour plus de détails.",
     "buildMonadicFinished": "La construction de Monadic Chat est terminée et les conteneurs sont démarrés. Consultez le panneau console pour plus de détails.",
     "containerFailedBuild": "Échec de la construction du conteneur.",
     "noUserContainers": "Aucun conteneur utilisateur à construire.",

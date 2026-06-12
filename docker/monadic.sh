@@ -1455,8 +1455,6 @@ start_docker_compose() {
   # Build containers based on what we need
   if [ "$needs_full_rebuild" = true ]; then
     build_docker_compose "no-cache"
-    # Record timestamp of successful full build to skip gem hash check
-    date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
     if [[ "$1" != "silent" ]]; then
       echo "[HTML]: <p>Starting all Monadic Chat containers...</p>"
     fi
@@ -1960,9 +1958,6 @@ build)
 
   # Run build_docker_compose and check if it succeeded
   if build_docker_compose "no-cache"; then
-    # Record timestamp of successful full build
-    date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
-
     # Start all containers (including profiled services) after full build
     if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"; then
       # Wait a moment for containers to start

@@ -25,6 +25,10 @@ services:
       - "${HOST_BINDING:-127.0.0.1}:8889:8889"
     container_name: monadic-chat-python-container
     volumes:
+      # The named-volume line below is inert cruft: the bind mount that
+      # follows targets the same container path and wins, so no named
+      # volume is ever materialized (verified 2026-06-12). See the note
+      # in services/ruby/compose.yml before "fixing" this.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
     command: ["sleep", "infinity"]

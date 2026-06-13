@@ -382,16 +382,17 @@ def stop_server
     puts "Error stopping server: #{e.message}"
   end
 
-  # Stop all required containers
-  REQUIRED_CONTAINERS.each do |container_name|
-    if container_exists?(container_name)
-      system("#{DOCKER_CMD} container stop #{container_name}")
+  # Stop all required containers (resolve each alias group to the existing name)
+  REQUIRED_CONTAINER_ALIASES.each do |aliases|
+    container_name = aliases.find { |n| container_exists?(n) }
+    next unless container_name
 
-      # Wait for container to stop
-      30.times do  # Try for 15 seconds (30 * 0.5)
-        break unless container_running?(container_name)
-        sleep 0.5
-      end
+    system("#{DOCKER_CMD} container stop #{container_name}")
+
+    # Wait for container to stop
+    30.times do  # Try for 15 seconds (30 * 0.5)
+      break unless container_running?(container_name)
+      sleep 0.5
     end
   end
 end
@@ -409,14 +410,15 @@ def print_status
   server_status = falcon_pids.any? ? "running (PIDs: #{falcon_pids.join(', ')})" : "not running"
   puts "Main server is #{server_status}"
 
-  # Print status of required containers
+  # Print status of required containers (resolve each alias group to the existing name)
   puts "\nContainer Status:"
-  REQUIRED_CONTAINERS.each do |container_name|
-    if container_exists?(container_name)
+  REQUIRED_CONTAINER_ALIASES.each do |aliases|
+    container_name = aliases.find { |n| container_exists?(n) }
+    if container_name
       status = container_running?(container_name) ? "running" : "stopped"
       puts "#{container_name}: #{status}"
     else
-      puts "#{container_name}: does not exist"
+      puts "#{aliases.first}: does not exist"
     end
   end
 end

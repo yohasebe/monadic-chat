@@ -1,0 +1,11 @@
+# Explicit-build overlay. NOT included in the regular compose file set:
+# normal startup pulls the prebuilt ghcr.io image. monadic.sh appends this
+# file for `build_privacy_container` in development mode (MONADIC_DEV=true).
+# MONADIC_ROOT_DIR is exported by monadic.sh (path of the docker/ dir).
+services:
+  privacy_service:
+    build:
+      context: ${MONADIC_ROOT_DIR:?set to the docker/ directory path}/services/privacy
+      dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"

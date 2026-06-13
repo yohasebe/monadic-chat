@@ -65,16 +65,16 @@ RSpec.describe "MonadicHelper media generation shell escaping" do
   describe "#generate_image_with_openai" do
     it "escapes prompt parameter" do
       helper.generate_image_with_openai(
-        operation: "generate", model: "gpt-image-1", prompt: 'a "test" prompt'
+        operation: "generate", model: "gpt-image-2", prompt: 'a "test" prompt'
       )
       expect(helper.last_command).to include(Shellwords.shellescape('a "test" prompt'))
     end
 
     it "escapes model parameter" do
       helper.generate_image_with_openai(
-        operation: "generate", model: "gpt-image-1", prompt: "test"
+        operation: "generate", model: "gpt-image-2", prompt: "test"
       )
-      expect(helper.last_command).to include(Shellwords.shellescape("gpt-image-1"))
+      expect(helper.last_command).to include(Shellwords.shellescape("gpt-image-2"))
     end
 
     it "formats numeric parameters safely" do
@@ -105,15 +105,4 @@ RSpec.describe "MonadicHelper media generation shell escaping" do
     end
   end
 
-  describe "#generate_video_with_sora" do
-    it "escapes prompt for sora video" do
-      helper.generate_video_with_sora(prompt: 'test "scene"')
-      expect(helper.last_command).to include(Shellwords.shellescape('test "scene"'))
-    end
-
-    it "escapes remix_video_id" do
-      helper.generate_video_with_sora(prompt: "test", remix_video_id: "id-with spaces")
-      expect(helper.last_command).to include(Shellwords.shellescape("id-with spaces"))
-    end
-  end
 end

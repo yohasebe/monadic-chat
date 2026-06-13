@@ -441,11 +441,15 @@ module Monadic
           get_provider_default(provider, "tts")
         end
 
+        # Clears all caches; the next accessor call re-reads model_spec.js.
+        # Must stay lazy: specs call this from `after` hooks where RSpec
+        # stubs on read_model_spec_js are still active, so an eager
+        # load_spec here would re-cache the stubbed (poisoned) content.
         def reload!
           @spec = nil
           @provider_defaults = nil
           remove_instance_variable(:@js_content) if defined?(@js_content)
-          load_spec
+          nil
         end
 
         private

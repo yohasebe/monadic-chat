@@ -154,7 +154,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
           list_jupyter_notebooks create_and_populate_jupyter_notebook
           restart_jupyter_kernel interrupt_jupyter_execution move_jupyter_cell insert_jupyter_cells
           websearch_agent list_providers_and_voices text_to_speech
-          generate_video_with_veo generate_image_with_imagen generate_video_with_sora
+          generate_video_with_veo generate_image_with_imagen
           validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
           current_time
           monadic_load_state monadic_save_state
@@ -520,7 +520,6 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         websearch_agent tavily_search generate_video_with_veo
         generate_image_with_openai generate_image_with_gemini generate_image_with_grok
         generate_image_with_gemini
-        generate_video_with_sora
         gpt5_codex_agent grok_code_agent openai_code_agent
         save_context get_context update_context remove_from_context clear_context
         load_context add_topics add_people add_notes

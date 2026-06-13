@@ -9,17 +9,14 @@ name: Specs
 # under both IN_CONTAINER=true and IN_CONTAINER=false catches the
 # asymmetry the moment it lands.
 #
-# The Ruby `unit` suite is intentionally NOT run on CI (since 2026-05-09).
-# 26 of its ~4040 specs depend on either (a) a running Python container
-# whose image matches the current Dockerfile or (b) provider API keys
-# in env (OPENAI_API_KEY, TAVILY_API_KEY, ...). Neither is set up in CI:
-# secrets are not provisioned (avoids fork-PR exfil risk + API billing),
-# and the python container is not rebuilt in CI. The full unit suite
-# runs locally under the developer's full Docker + env setup, where
-# release decisions are actually made; CI's role is reduced to the
-# environment-independent layers (route smoke + frontend tests) so the
-# signal it does emit is genuine. See feedback_release_manifest_drift.md
-# for the related operational philosophy.
+# The Ruby `unit` suite runs on CI since 2026-06 (it was excluded between
+# 2026-05-09 and then because test-order pollution made full runs flaky;
+# that was root-caused and fixed — see the refactoring Phase 0 notes).
+# Environment-dependent specs (running containers, provider API keys)
+# guard themselves with `skip`, so the suite is green without secrets:
+# none are provisioned here (avoids fork-PR exfil risk + API billing).
+# Release decisions still rest on the full local run under the
+# developer's Docker + env setup, where the skipped specs execute too.
 
 on:
   pull_request:
@@ -40,9 +37,14 @@ jobs:
         working-directory: docker/services/ruby
     env:
       IN_CONTAINER: ${{ matrix.in_container }}
+      # Test against the prebuilt images matching this branch: dev pushes
+      # publish :dev (see publish-images.yml tag policy), main/PRs use the
+      # released :latest. Without this, dev CI would pull :latest and test
+      # new code against released service images.
+      MONADIC_IMAGE_TAG: ${{ github.ref_name == 'dev' && 'dev' || 'latest' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -88,15 +90,41 @@ jobs:
             exit "$code"
           done
 
+  rspec-unit:
+    runs-on: ubuntu-latest
+    name: rspec unit
+    defaults:
+      run:
+        working-directory: docker/services/ruby
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+          working-directory: docker/services/ruby
+
+      - name: Install GraphViz (used by some unit specs)
+        run: sudo apt-get update && sudo apt-get install -y graphviz libgraphviz-dev pkg-config
+
+      - name: Run unit specs
+        # ~integration: a few docker-dependent spec files under spec/unit
+        # carry :integration metadata; excluding the tag also keeps the
+        # spec_helper before(:suite) hook from starting containers here.
+        run: bundle exec rspec spec/unit --tag '~integration' --order random --format progress
+
   jest:
     runs-on: ubuntu-latest
     name: jest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm

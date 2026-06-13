@@ -180,23 +180,9 @@ module MistralHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)
     
-    # Simple retry logic
-    response = nil
-    MAX_RETRIES.times do
-      begin
-        response = http.timeout(
-          connect: open_timeout,
-          write: write_timeout,
-          read: read_timeout
-        ).post(target_uri, json: body)
-        
-        break if response && response.status && response.status.success?
-      rescue HTTP::Error, HTTP::TimeoutError
-        # Continue to next retry
-      end
-      
-      sleep RETRY_DELAY
-    end
+    response = post_json_with_retries(http, target_uri, body,
+                                      max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                                      rescue_errors: [HTTP::Error, HTTP::TimeoutError])
     
     # Process response
     if response && response.status && response.status.success?

@@ -193,6 +193,8 @@
     "buildUserFinished": "Erstellung der Benutzer-Container abgeschlossen: Details finden Sie im Konsolenpanel.",
     "buildPrivacyFinished": "Erstellung des Privacy-Containers abgeschlossen: Details finden Sie im Konsolenpanel.",
     "buildPrivacyFailed": "Erstellung des Privacy-Containers fehlgeschlagen. Details finden Sie im Build-Log.",
+    "buildExtractorFinished": "Erstellung des Extractor-Containers abgeschlossen: Details finden Sie im Konsolenpanel.",
+    "buildExtractorFailed": "Erstellung des Extractor-Containers fehlgeschlagen. Details finden Sie im Build-Log.",
     "buildMonadicFinished": "Erstellung von Monadic Chat abgeschlossen und Container wurden gestartet. Details finden Sie im Konsolenpanel.",
     "containerFailedBuild": "Container konnte nicht erstellt werden.",
     "noUserContainers": "Keine Benutzer-Container zum Erstellen.",

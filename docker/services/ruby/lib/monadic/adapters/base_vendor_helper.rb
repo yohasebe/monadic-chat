@@ -77,12 +77,16 @@ module BaseVendorHelper
     #   cache_key        - Symbol for $MODELS cache (e.g. :deepseek)
     #   api_key_config:  - CONFIG key for the API key (e.g. "DEEPSEEK_API_KEY")
     #   endpoint_path:   - Path appended to API_ENDPOINT (e.g. "/models")
+    #   endpoint:        - Alternative to endpoint_path: lambda receiving api_key,
+    #                      returns the path. For providers that put the key in the
+    #                      URL (e.g. Gemini's "/models?key=...") instead of headers.
     #   headers:         - Lambda receiving api_key, returns headers hash.
     #                      Default: Bearer token + Content-Type JSON.
     #   fallback_provider: - Provider name for ModelSpec fallback on failure (e.g. "anthropic").
     #                        nil means return [] on failure (original behavior for most providers).
-    def define_model_lister(cache_key, api_key_config:, endpoint_path:, headers: nil, fallback_provider: nil, &parser)
+    def define_model_lister(cache_key, api_key_config:, endpoint_path: nil, endpoint: nil, headers: nil, fallback_provider: nil, &parser)
       vendor_mod = self
+      path_builder = endpoint || ->(_api_key) { endpoint_path }
 
       default_headers = ->(api_key) {
         { "Content-Type" => "application/json", "Authorization" => "Bearer #{api_key}" }
@@ -111,7 +115,7 @@ module BaseVendorHelper
         api_key = CONFIG[api_key_config]
         return fallback_proc.call if api_key.nil? || api_key.to_s.strip.empty?
 
-        target_uri = "#{vendor_mod.const_get(:API_ENDPOINT)}#{endpoint_path}"
+        target_uri = "#{vendor_mod.const_get(:API_ENDPOINT)}#{path_builder.call(api_key)}"
         http = HTTP.headers(headers_builder.call(api_key))
 
         begin
@@ -322,21 +326,28 @@ module BaseVendorHelper
     pipeline.after_receive_from_llm(text).text
   end
 
-  # Generic backoff wrapper. Yields a block and retries on common transient
-  # network errors. The caller remains responsible for logging.
-  def retry_with_backoff(max_retries: DEFAULT_MAX_RETRIES, delay: DEFAULT_RETRY_DELAY)
-    attempts = 0
-    begin
-      return yield
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      attempts += 1
-      raise e if attempts > max_retries
-      sleep(delay)
-      retry
-    rescue StandardError => e
-      # Non-network errors are re-raised immediately; helpers already have
-      # their own handling and we do not want to change behavior here.
-      raise e
+  # Shared non-streaming POST with retries. Mirrors the inline retry loop
+  # vendor helpers use for plain JSON requests: POST, stop as soon as an
+  # HTTP-success response arrives, otherwise sleep and try again, and hand
+  # the last response (or nil) back to the caller for status handling.
+  #
+  # Timeouts come from the helper's define_timeouts methods. rescue_errors
+  # controls which exceptions count as "retry" (default: none — exceptions
+  # propagate, matching the majority of call sites). Pass e.g.
+  # [HTTP::Error, HTTP::TimeoutError] where the original loop swallowed them.
+  def post_json_with_retries(http, target_uri, body, max_retries:, retry_delay:, rescue_errors: [])
+    response = nil
+    max_retries.times do
+      begin
+        response = http.timeout(connect: open_timeout,
+                                write: write_timeout,
+                                read: read_timeout).post(target_uri, json: body)
+        break if response && response.status && response.status.success?
+      rescue *rescue_errors
+        # Transient request failure — retry after the delay below.
+      end
+      sleep retry_delay
     end
+    response
   end
 end

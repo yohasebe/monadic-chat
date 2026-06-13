@@ -54,33 +54,24 @@ RSpec.describe 'Websearch Tavily Configuration' do
 
   describe 'JavaScript module exports' do
     let(:websearch_check_js) { File.join(File.dirname(__FILE__), '../../public/js/monadic/websearch_tavily_check.js') }
-    let(:utilities_patch_js) { File.join(File.dirname(__FILE__), '../../public/js/monadic/utilities_websearch_patch.js') }
+    let(:utilities_js) { File.join(File.dirname(__FILE__), '../../public/js/monadic/utilities.js') }
 
     it 'websearch_tavily_check.js exports required functions' do
       expect(File.exist?(websearch_check_js)).to be true
       content = File.read(websearch_check_js)
-      
+
       # Check for required exports
       expect(content).to include('window.websearchTavilyCheck')
       expect(content).to include('requiresTavilyAPI')
       expect(content).to include('updateWebSearchState')
     end
 
-    it 'utilities_websearch_patch.js overrides doResetActions' do
-      expect(File.exist?(utilities_patch_js)).to be true
-      content = File.read(utilities_patch_js)
-      
-      # Check for function override
-      expect(content).to include('window.doResetActions')
+    it 'doResetActions checks Tavily availability (merged from former websearch patch)' do
+      expect(File.exist?(utilities_js)).to be true
+      content = File.read(utilities_js)
+
       expect(content).to include('fetch(\'/api/environment\')')
       expect(content).to include('websearchTavilyCheck.updateWebSearchState')
-    end
-
-    it 'patch handles app switching correctly' do
-      content = File.read(utilities_patch_js)
-      
-      # Check that patch calls original function and adds provider detection
-      expect(content).to include('window.originalDoResetActions')
       expect(content).to include('getProviderFromGroup')
     end
   end

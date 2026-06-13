@@ -1,5 +1,7 @@
 FROM python:3.12-slim-bookworm
-ARG PROJECT_TAG
+# Default needed: the CI publish workflow builds without build-args, and
+# the project label drives label-filtered cleanup (remove_project_dangling_images).
+ARG PROJECT_TAG=monadic-chat
 LABEL project=$PROJECT_TAG
 
 # Install uv - fast Python package installer (pinned for reproducibility)
@@ -29,23 +31,13 @@ RUN apt-get update && \
       pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
     && fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Optional: ImageMagick (convert/mogrify)
-RUN if [ "$IMGOPT_IMAGEMAGICK" = "true" ]; then \
-      apt-get update && apt-get install -y --no-install-recommends imagemagick && \
-      apt-get clean && rm -rf /var/lib/apt/lists/*; \
-    fi
-
-# Optional: LaTeX minimal set for Concept Visualizer / Syntax Tree
-RUN if [ "$INSTALL_LATEX" = "true" ]; then \
-      apt-get update && apt-get install -y --no-install-recommends \
-        texlive-xetex texlive-luatex texlive-latex-base texlive-latex-recommended \
-        texlive-latex-extra texlive-pictures \
-        texlive-fonts-recommended texlive-fonts-extra texlive-plain-generic \
-        texlive-lang-cjk latex-cjk-all texlive-lang-japanese \
-        texlive-science texlive-pstricks \
-        latexmk ghostscript dvisvgm pdf2svg && \
-      fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*; \
-    fi
+# Layer-order contract: ALL unconditional (heavy) layers come before the
+# first option-conditional layer, so the prebuilt default image
+# (ghcr.io/yohasebe/monadic-python, built with every option false) is a
+# layer-cache prefix of every custom build — `--cache-from` then reuses
+# the apt + pip base from the pulled image and a custom build only pays
+# for its enabled options. Do not insert conditional RUNs above this
+# point or unconditional heavy RUNs below it.
 
 # Install base Python packages (pinned to compatible versions for reproducibility)
 # Versions captured 2026-02-07; update periodically for security fixes
@@ -68,6 +60,24 @@ RUN uv pip install --no-cache \
 # required it. The system ffmpeg is already installed via apt above.
 # midiutil + pretty_midi moved to the optional librosa group below since
 # they are only used by the Music Lab pipeline.
+
+# Optional: ImageMagick (convert/mogrify)
+RUN if [ "$IMGOPT_IMAGEMAGICK" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends imagemagick && \
+      apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# Optional: LaTeX minimal set for Concept Visualizer / Syntax Tree
+RUN if [ "$INSTALL_LATEX" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends \
+        texlive-xetex texlive-luatex texlive-latex-base texlive-latex-recommended \
+        texlive-latex-extra texlive-pictures \
+        texlive-fonts-recommended texlive-fonts-extra texlive-plain-generic \
+        texlive-lang-cjk latex-cjk-all texlive-lang-japanese \
+        texlive-science texlive-pstricks \
+        latexmk ghostscript dvisvgm pdf2svg && \
+      fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
 
 # Optional Python libs (each in its own layer for cache efficiency)
 RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi

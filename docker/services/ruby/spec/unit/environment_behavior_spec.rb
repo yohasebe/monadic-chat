@@ -121,6 +121,12 @@ RSpec.describe "Environment Variable Behavior" do
   end
   
   describe "Environment Variable Standards" do
+    # The example sets these inline; clean up even if an expectation fails
+    # mid-loop so flags like DEVELOPMENT_MODE never leak into later specs.
+    after(:each) do
+      %w[APP_DEBUG DRAWIO_DEBUG TOOL_DEBUG DEVELOPMENT_MODE].each { |v| ENV.delete(v) }
+    end
+
     it "recognizes standard debug environment variables" do
       standard_vars = %w[APP_DEBUG DRAWIO_DEBUG TOOL_DEBUG DEVELOPMENT_MODE]
       

@@ -202,6 +202,8 @@
     "buildUserFinished": "ユーザーコンテナのビルドが完了しました：詳細はコンソールパネルを確認してください。",
     "buildPrivacyFinished": "プライバシーコンテナのビルドが完了しました：詳細はコンソールパネルを確認してください。",
     "buildPrivacyFailed": "プライバシーコンテナのビルドに失敗しました。ビルドログを確認してください。",
+    "buildExtractorFinished": "Extractor コンテナのビルドが完了しました：詳細はコンソールパネルを確認してください。",
+    "buildExtractorFailed": "Extractor コンテナのビルドに失敗しました。ビルドログを確認してください。",
     "buildMonadicFinished": "Monadic Chatのビルドが完了し、コンテナが開始されました。詳細はコンソールパネルを確認してください。",
     "containerFailedBuild": "コンテナのビルドに失敗しました。",
     "noUserContainers": "ビルドするユーザーコンテナがありません。",

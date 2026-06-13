@@ -1,0 +1,16 @@
+# Explicit-build overlay. NOT included in the regular compose file set:
+# normal startup pulls the prebuilt ghcr.io image. Used only when building
+# the image locally (development), e.g.:
+#   docker compose -f docker/services/compose.yml \
+#     -f docker/services/embeddings/compose.build.yml \
+#     build embeddings_service
+# MONADIC_ROOT_DIR is exported by monadic.sh (path of the docker/ dir);
+# set it manually for direct docker compose invocations.
+services:
+  embeddings_service:
+    build:
+      context: ${MONADIC_ROOT_DIR:?set to the docker/ directory path}/services/embeddings
+      dockerfile: Dockerfile
+      args:
+        PROJECT_TAG: "monadic-chat"
+        MODEL_NAME: "intfloat/multilingual-e5-base"

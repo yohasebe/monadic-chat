@@ -84,7 +84,7 @@ Troubleshooting
   - For offline runs, prefer `api_level=none`.
   - For API runs, set keys in `~/monadic/config/env` (e.g., `OPENAI_API_KEY=...`).
 - Docker not running (integration/system)
-  - Start Docker Desktop and ensure the `pgvector` container is available.
+  - Start Docker Desktop and ensure the `qdrant` and `embeddings` containers are available.
   - Or bypass with `docker=off` for targeted runs that don't require it.
 - Long execution time / timeouts
   - Increase timeout: `rake test:run[integration,"timeout=120"]`.

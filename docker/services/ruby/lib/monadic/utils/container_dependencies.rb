@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require_relative 'degradation_notifier'
 
 # Determines which Docker containers an app requires based on its MDSL settings.
 # Used for on-demand container startup: only start containers that the selected
@@ -88,19 +89,30 @@ module Monadic
       end
 
       # Ensure all required services for an app are running.
-      # Returns an array of service symbols that were newly started.
+      # Returns a Hash with two keys:
+      #   :started — services newly started by this call
+      #   :failed  — services the app needs but which could not be started
+      #              (image missing, start error). Each failure has already
+      #              been reported via DegradationNotifier by start_service,
+      #              so callers only need the list if they want to react.
+      # Services already running or explicitly disabled by the user appear
+      # in neither list.
       def ensure_services_for_app(settings)
         needed = required_services(settings)
-        return [] if needed.empty?
+        result = { started: [], failed: [] }
 
-        started = []
         needed.each do |service|
           next if container_running?(service)
-          if start_service(service)
-            started << service
+
+          case start_service(service)
+          when :started
+            result[:started] << service
+          when :not_built, :failed
+            result[:failed] << service
           end
+          # :already_running and :disabled require no action
         end
-        started
+        result
       end
 
       # Fire-and-forget background trigger to ensure containers for a given
@@ -123,9 +135,14 @@ module Monadic
         Thread.new do
           ensure_services_for_app(target_settings)
         rescue StandardError => e
-          if defined?(Monadic::Utils::ExtraLogger)
-            Monadic::Utils::ExtraLogger.log { "[ContainerDeps] #{reason}: #{e.message}" }
-          end
+          # Infrastructure degradation must be visible without EXTRA_LOGGING:
+          # if this thread dies, dependency containers were never ensured and
+          # the selected app will misbehave with no other trace.
+          DegradationNotifier.report(
+            component: "container-deps",
+            message: "background container startup failed (#{reason}): #{e.message}",
+            severity: :error
+          )
         end
         true
       end
@@ -138,24 +155,68 @@ module Monadic
         output.include?(container_name)
       end
 
-      # Start a service via monadic.sh (development) or docker compose (production).
-      # Returns true if the service was started or is already running.
+      # Start a service via `monadic.sh ensure-service`.
+      #
+      # Returns a status symbol; every ensure-service outcome is handled
+      # explicitly so a failed dependency start can never pass silently
+      # (the original extractor bug pattern). Failures are reported through
+      # DegradationNotifier — always logged, surfaced once in the UI.
+      #
+      #   :started         — container came up (verified via docker ps)
+      #   :already_running — nothing to do
+      #   :disabled        — user opted out via flag (normal skip, no report)
+      #   :not_built       — image missing / pull failed (reported)
+      #   :failed          — anything else (reported)
       def start_service(service)
         service_name = service.to_s
-        compose_name = COMPOSE_SERVICES[service]
-        return false unless compose_name
+        return :failed unless COMPOSE_SERVICES[service]
 
-        # Try monadic.sh first (available on host in dev mode)
         monadic_sh = find_monadic_sh
-        if monadic_sh
-          output = `bash #{Shellwords.escape(monadic_sh)} ensure-service #{service_name} 2>/dev/null`.strip
-          return true if %w[STARTED ALREADY_RUNNING].include?(output)
+        unless monadic_sh
+          DegradationNotifier.report(
+            component: "container:#{service_name}",
+            message: "cannot start dependency container: monadic.sh not found",
+            severity: :error
+          )
+          return :failed
         end
 
-        # Fallback: direct docker compose (inside container with Docker socket)
-        profile = service_name # profile name matches service name
-        output = `docker compose -p monadic-chat --profile #{profile} up -d #{compose_name} 2>/dev/null`.strip
-        $?.success?
+        output = `bash #{Shellwords.escape(monadic_sh)} ensure-service #{service_name} 2>/dev/null`.strip
+
+        case output
+        when "STARTED"
+          # ensure-service echoes STARTED without checking the `up -d` exit
+          # status, so trust it only after the container is actually visible.
+          if container_running?(service)
+            :started
+          else
+            DegradationNotifier.report(
+              component: "container:#{service_name}",
+              message: "container did not come up after start; dependent app features will be unavailable. Check ~/monadic/log/.",
+              severity: :error
+            )
+            :failed
+          end
+        when "ALREADY_RUNNING"
+          :already_running
+        when /\A[A-Z]+_DISABLED\z/
+          # User opted out (e.g. PRIVACY_FILTER=false): expected, not a failure.
+          :disabled
+        when /\A[A-Z]+_NOT_BUILT\z/
+          DegradationNotifier.report(
+            component: "container:#{service_name}",
+            message: "container image is missing and could not be pulled; dependent app features will be unavailable. Check the network or rebuild via Actions menu.",
+            severity: :error
+          )
+          :not_built
+        else
+          DegradationNotifier.report(
+            component: "container:#{service_name}",
+            message: "failed to start (ensure-service returned #{output.empty? ? 'no output' : output.inspect})",
+            severity: :error
+          )
+          :failed
+        end
       end
 
       # Locate monadic.sh in dev or packaged app environments.

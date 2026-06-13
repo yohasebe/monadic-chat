@@ -22,7 +22,8 @@ module Monadic
       module LanguageDetector
         module_function
 
-        # Read the runtime-installed language set from PRIVACY_LANGS. The
+        # Read the enabled language set from PRIVACY_LANGS (a runtime
+        # setting — all spaCy models are baked into the privacy image). The
         # value is set in two paths depending on execution mode:
         #   * production (Ruby in container): docker compose injects ENV
         #     from the host `~/monadic/config/env` (compose.yml line 14).

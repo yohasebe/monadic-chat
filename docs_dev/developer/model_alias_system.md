@@ -35,9 +35,9 @@ The system recognizes and parses seven date formats:
 
 | Format | Example | Provider | Notes |
 |--------|---------|----------|-------|
-| `YYYY-MM-DD` | `gpt-4o-2024-11-20` | OpenAI, xAI | Most common format |
+| `YYYY-MM-DD` | `gpt-5-2025-08-07` | OpenAI, xAI | Most common format |
 | `YYYYMMDD` | `claude-sonnet-4-5-20250929` | Claude | 8-digit date |
-| `MM-YYYY` | `command-r7b-12-2024` | Cohere | Month-year format |
+| `MM-YYYY` | `command-a-03-2025` | Cohere | Month-year format |
 | `YYMM` | `magistral-small-2509` | Mistral | 2-digit year + month (2509 = Sep 2025) |
 | `MM-DD` | `gemini-2.5-flash-lite-06-17` | Gemini | Month-day format |
 | `exp-MMDD` | `gemini-2.0-flash-thinking-exp-1219` | Gemini | Experimental builds |
@@ -131,10 +131,10 @@ Models are sorted by actual date value, not string comparison:
 
 ```javascript
 // Correct sorting using parsed dates
-["command-r-08-2024", "command-r-03-2025", "command-r-12-2024"]
-  => Latest: "command-r-03-2025" (March 2025 is newest)
+["command-a-08-2024", "command-a-03-2025", "command-a-12-2024"]
+  => Latest: "command-a-03-2025" (March 2025 is newest)
 
-// String sorting would incorrectly give: "command-r-12-2024"
+// String sorting would incorrectly give: "command-a-12-2024"
 ```
 
 ## Provider-Specific Behavior
@@ -218,7 +218,7 @@ The system correctly distinguishes:
 ```
 gpt-4.1              => NOT a date (version number)
 gemini-2.0-flash-001 => Date (NNN format)
-command-r7b-12-2024  => 7b is ignored, 12-2024 is date (MM-YYYY)
+command-a7b-12-2024  => 7b is ignored, 12-2024 is date (MM-YYYY)
 ```
 
 ## Testing

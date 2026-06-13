@@ -1,7 +1,8 @@
 """Presidio AnalyzerEngine setup for multi-language detection.
 
 Responsibilities:
-1. Build NlpEngine for the languages enabled at build time (PRIVACY_LANGS).
+1. Build NlpEngine for the languages enabled at runtime (PRIVACY_LANGS,
+   injected by compose; all supported models are baked into the image).
 2. Re-register PatternRecognizers (CC, Phone, Email, etc.) under every
    enabled language so they fire regardless of input language.
 3. Remove noisy country-specific recognizers that hurt global usage.
@@ -78,8 +79,25 @@ LANGUAGE_AGNOSTIC_PATTERN_CLASSES = (
 
 
 def enabled_languages() -> list[str]:
+    """Languages to load, filtered against language_map.json.
+
+    PRIVACY_LANGS is a runtime setting that users may also hand-edit in
+    ~/monadic/config/env, so a typo must degrade gracefully (warn + skip)
+    instead of crash-looping the container — when the value was a build
+    arg, a bad code failed loudly at build time, but at runtime a raise
+    here would just leave the Privacy Filter silently unavailable.
+    """
     raw = os.environ.get("PRIVACY_LANGS_RUNTIME") or os.environ.get("PRIVACY_LANGS") or "en"
     langs = [s.strip() for s in raw.split(",") if s.strip()]
+    mapping = json.loads(LANGUAGE_MAP_PATH.read_text())
+    unknown = [lang for lang in langs if lang not in mapping]
+    if unknown:
+        LOG.warning(
+            "Ignoring unknown PRIVACY_LANGS entries: %s (allowed: %s)",
+            unknown,
+            sorted(mapping),
+        )
+    langs = [lang for lang in langs if lang in mapping]
     return langs or ["en"]
 
 

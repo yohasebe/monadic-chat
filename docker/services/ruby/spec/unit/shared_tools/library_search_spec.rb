@@ -228,15 +228,23 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(out).to include('Found 1 relevant passage')
     end
 
-    it 'falls back to raw output when the privacy pipeline raises' do
+    it 'withholds results (fail-closed) and reports degradation when masking raises' do
+      # The pipeline's own default is on_failure: :block. Falling back to
+      # the raw output here would send unmasked PII to the provider exactly
+      # when the privacy backend is broken — the one state the feature is
+      # supposed to protect against.
       pipeline = double('pipeline', enabled?: true)
       allow(pipeline).to receive(:before_send_to_llm).and_raise(StandardError, 'boom')
+      allow(Monadic::Utils::DegradationNotifier).to receive(:report)
       host.instance_variable_set(:@session, {
         parameters: { 'library_rag_enabled' => true },
         _privacy_pipeline: pipeline
       })
       out = host.library_search(query: 'q')
-      expect(out).to include('Found 1 relevant passage')
+      expect(out).to eq(MonadicSharedTools::LibrarySearch::WITHHELD_MESSAGE)
+      expect(out).not_to include('returned snippet')
+      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+        .with(hash_including(component: 'privacy', severity: :error))
     end
   end
 

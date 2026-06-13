@@ -639,7 +639,7 @@ class DockerManager {
   async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
     // Track if this is a restart command
     const isRestart = command === 'restart';
-    const isBuildPython = command === 'build_python_container';
+    const isBuildPython = command === 'build_python_container' || command === 'build_python_container_update';
     let buildTracker = isBuildPython ? { runDir: null, files: {}, status: 'in_progress' } : null;
     
     // Write the initial message to the screen
@@ -714,6 +714,10 @@ class DockerManager {
                 translatedOutput = formatMessage('success', 'messages.buildPrivacyFinished');
               } else if (output.includes('Privacy container build failed')) {
                 translatedOutput = formatMessage('error', 'messages.buildPrivacyFailed');
+              } else if (output.includes('Extractor container build succeeded')) {
+                translatedOutput = formatMessage('success', 'messages.buildExtractorFinished');
+              } else if (output.includes('Extractor container build failed')) {
+                translatedOutput = formatMessage('error', 'messages.buildExtractorFailed');
               } else if (output.includes('Build of user containers has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildUserFinished');
               } else if (output.includes('Build of Monadic Chat has finished')) {
@@ -1371,8 +1375,10 @@ function initializeApp() {
     browserMode = settings.BROWSER_MODE || 'internal';
     console.log('Browser mode set to:', browserMode);
 
-    // Apply login item setting (macOS and Windows only)
-    if (process.platform !== 'linux') {
+    // Apply login item setting (macOS and Windows only). Skipped in dev
+    // runs: an unpackaged Electron binary cannot register a login item on
+    // macOS and the OS logs "Operation not permitted" on every attempt.
+    if (process.platform !== 'linux' && app.isPackaged) {
       const openAtLogin = settings.OPEN_AT_LOGIN === 'true';
       app.setLoginItemSettings({ openAtLogin });
     }
@@ -3395,91 +3401,140 @@ function readBuildOptionsSnapshots() {
   };
 }
 
+// Ask monadic.sh which service images actually exist in the docker image
+// store. Resolves to { python, privacy, extractor } booleans, or null when
+// the daemon is unreachable or the output is unparseable — callers must
+// then fall back to the snapshot-file heuristic instead of inferring
+// "absent" from a failed query.
+function queryContainerImageStatus() {
+  return new Promise((resolve) => {
+    // timeout: a wedged Docker daemon would otherwise block the Start
+    // sequence indefinitely before the rebuild dialog can appear. On
+    // timeout err is set, so we fall through to the snapshot heuristic.
+    exec(monadicCmd('image-status'), { timeout: 10000 }, (err, stdout) => {
+      const out = String(stdout || '');
+      if (err || out.includes('DOCKER_NOT_RUNNING')) return resolve(null);
+      const status = {};
+      out.split('\n').forEach(line => {
+        const m = line.trim().match(/^([a-z]+)=(present|absent)$/);
+        if (m) status[m[1]] = m[2] === 'present';
+      });
+      if (!('python' in status) || !('privacy' in status) || !('extractor' in status)) {
+        return resolve(null);
+      }
+      resolve(status);
+    });
+  });
+}
+
 // Compute the set of containers that would produce a different image if the
-// user clicked Build now, given the saved env and the build-options
-// snapshots. Returns an empty array when everything is in sync. The Start
-// button uses this to prompt for an optional rebuild before launching the
-// app so users do not silently keep running with stale containers.
-function computePendingContainerBuilds() {
+// user clicked Build now. Returns an empty array when everything is in sync.
+// The Start button uses this to prompt for an optional rebuild before
+// launching the app so users do not silently keep running with stale
+// containers.
+//
+// "Not yet built" is derived from the actual docker image store
+// (imageStatus from queryContainerImageStatus) — the snapshot files are an
+// option-diff baseline only. Deciding "built" from snapshot existence made
+// the state derive from a side channel that drifted both ways: full builds
+// wrote no snapshots (fresh installs were re-prompted and python was built
+// twice), and pruned images went undetected. When imageStatus is null
+// (daemon down), snapshot existence remains the fallback signal.
+function computePendingContainerBuilds(imageStatus = null) {
   const env = readEnvFile(getEnvPath());
   const snapshots = readBuildOptionsSnapshots();
   const truthy = (v) => String(v ?? '').toLowerCase() === 'true';
   // PRIVACY_FILTER defaults to ON when unset (Privacy Filter is part of the default build set).
   const privacyEnabled = String(env.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
+  const notBuilt = (service, snapshot) =>
+    imageStatus ? !imageStatus[service] : !snapshot;
   const result = [];
 
   // Python: always relevant (no master flag); never-built also counts.
   // Sourced from install_options.config.js (SSOT) — adding a new
   // PYOPT_* / INSTALL_* checkbox only requires editing that file plus
   // the Dockerfile ARG/RUN, never this rebuild-detection helper.
+  // The `_update` command variant is intentionally NOT in runCommand's
+  // FORCE_REBUILD list: monadic.sh then takes the smart path — pulling
+  // the prebuilt default image when no options are selected, or building
+  // with --cache-from so only the enabled option layers are paid for.
+  // The explicit menu action keeps `build_python_container` (clean
+  // --no-cache rebuild).
   const pyKeys = installOptions.ENV_KEYS_PYTHON;
   const pyPrev = snapshots.python_service;
-  if (!pyPrev) {
+  if (notBuilt('python', pyPrev)) {
     result.push({
       container: 'python_service',
       label: 'Python container',
       reason: 'not yet built',
-      buildCommand: 'build_python_container',
-      estimate: '15–30 min'
+      buildCommand: 'build_python_container_update',
+      estimate: '3–15 min'
     });
-  } else {
+  } else if (pyPrev) {
     const changed = pyKeys.filter(k => pyPrev[k] !== undefined && String(pyPrev[k]) !== String(env[k] ?? 'false'));
     if (changed.length) {
       result.push({
         container: 'python_service',
         label: 'Python container',
         reason: `options changed (${changed.join(', ')})`,
-        buildCommand: 'build_python_container',
-        estimate: '15–30 min'
+        buildCommand: 'build_python_container_update',
+        estimate: '3–15 min'
       });
     }
   }
 
-  // Privacy: default-on. Privacy Filter is English-only by design,
-  // so the only rebuild-needed signal is "never built before".
-  if (privacyEnabled) {
-    const prev = snapshots.privacy_service;
-    if (!prev) {
-      result.push({
-        container: 'privacy_service',
-        label: 'Privacy Filter',
-        reason: 'not yet built',
-        buildCommand: 'build_privacy_container',
-        estimate: '3–5 min'
-      });
-    }
+  // Privacy: default-on. All language models are baked into the image and
+  // PRIVACY_LANGS is applied at runtime, so the only rebuild-needed signal
+  // is "never built before".
+  if (privacyEnabled && notBuilt('privacy', snapshots.privacy_service)) {
+    result.push({
+      container: 'privacy_service',
+      label: 'Privacy Filter',
+      reason: 'not yet built',
+      buildCommand: 'build_privacy_container',
+      estimate: '3–5 min'
+    });
   }
 
-  // Extractor: only if master is on. Build depends on LANGS + OCR backend.
-  if (truthy(env.EXTRACTOR_SERVICE)) {
-    const prev = snapshots.extractor_service;
-    if (!prev) {
-      result.push({
-        container: 'extractor_service',
-        label: 'Knowledge Base Quality Pack',
-        reason: 'not yet built',
-        buildCommand: 'build_extractor_container',
-        estimate: '5–10 min'
-      });
-    } else {
-      const langDiff = prev.EXTRACTOR_LANGS !== undefined && prev.EXTRACTOR_LANGS !== (env.EXTRACTOR_LANGS ?? '');
-      const ocrDiff = prev.EXTRACTOR_OCR !== undefined && prev.EXTRACTOR_OCR !== (env.EXTRACTOR_OCR ?? prev.EXTRACTOR_OCR);
-      if (langDiff || ocrDiff) {
-        const reasons = [];
-        if (langDiff) reasons.push(`languages: ${prev.EXTRACTOR_LANGS} → ${env.EXTRACTOR_LANGS || ''}`);
-        if (ocrDiff) reasons.push(`OCR backend changed`);
-        result.push({
-          container: 'extractor_service',
-          label: 'Knowledge Base Quality Pack',
-          reason: reasons.join('; '),
-          buildCommand: 'build_extractor_container',
-          estimate: '5–10 min'
-        });
-      }
-    }
+  // Extractor: only if master is on. OCR languages/backend are runtime
+  // settings (EXTRACTOR_LANGS/EXTRACTOR_OCR via compose environment), so
+  // like Privacy the only rebuild-needed signal is "never built before".
+  if (truthy(env.EXTRACTOR_SERVICE) && notBuilt('extractor', snapshots.extractor_service)) {
+    result.push({
+      container: 'extractor_service',
+      label: 'Knowledge Base Quality Pack',
+      reason: 'not yet built',
+      buildCommand: 'build_extractor_container',
+      estimate: '5–10 min'
+    });
   }
 
   return result;
+}
+
+// PRIVACY_LANGS / EXTRACTOR_LANGS are runtime settings: compose injects
+// them into the service containers as environment, so a change only needs
+// the running container recreated — never an image rebuild. monadic.sh
+// `refresh-service` runs `compose up -d`, which recreates the container
+// only when its effective config changed, and is a no-op (NOT_RUNNING)
+// when the container is stopped: the next on-demand start picks up the
+// new values anyway.
+function refreshServiceContainersForLangChange(prevLangs, newEnv) {
+  [['privacy', 'PRIVACY_LANGS'], ['extractor', 'EXTRACTOR_LANGS']].forEach(([service, key]) => {
+    const before = prevLangs[key] ?? '';
+    const after = newEnv[key] ?? '';
+    if (String(before) === String(after)) return;
+    const cmd = monadicCmd(`refresh-service ${service}`);
+    exec(cmd, { env: { ...process.env, ...newEnv } }, (err, stdout) => {
+      if (err) {
+        console.error(`refresh-service ${service} failed:`, err.message);
+        return;
+      }
+      if (String(stdout || '').includes('REFRESHED')) {
+        writeToScreen(`[HTML]: <p><i class='fa-solid fa-rotate' style='color:#61b0ff;'></i> Applied updated language settings to the ${service} container.</p>`);
+      }
+    });
+  });
 }
 
 // Start-time gate: if any container needs rebuilding to reflect the saved
@@ -3490,7 +3545,8 @@ function computePendingContainerBuilds() {
 // the same dockerManager.runCommand path the Settings → Actions buttons
 // already use, so log/progress display works without extra plumbing.
 async function promptForPendingRebuilds() {
-  const pending = computePendingContainerBuilds();
+  const imageStatus = await queryContainerImageStatus();
+  const pending = computePendingContainerBuilds(imageStatus);
   if (pending.length === 0) return true;
 
   const lines = pending.map(p => `• ${p.label} — ${p.reason} (${p.estimate})`).join('\n');
@@ -3807,8 +3863,11 @@ function saveSettings(data) {
             // Save mode settings as cookies for UI access
             if (data.DISTRIBUTED_MODE) {
                 try {
-                    // Log mode change for troubleshooting
-                    console.log(`Changing distributed mode from ${envConfig.DISTRIBUTED_MODE || 'off'} to ${data.DISTRIBUTED_MODE}`);
+                    // Log mode change for troubleshooting (only when it
+                    // actually changes — every save passes through here)
+                    if ((envConfig.DISTRIBUTED_MODE || 'off') !== data.DISTRIBUTED_MODE) {
+                        console.log(`Changing distributed mode from ${envConfig.DISTRIBUTED_MODE || 'off'} to ${data.DISTRIBUTED_MODE}`);
+                    }
                     
                     // Set cookie for web UI
                     mainWindow.webContents.executeJavaScript(`
@@ -3882,10 +3941,21 @@ function saveSettings(data) {
             data.EXTRACTOR_LANGS = tokens.join(',');
         }
 
+        // Capture pre-save runtime language values so changed selections can
+        // be pushed to running service containers after the file is written.
+        const prevLangs = {
+            PRIVACY_LANGS: envConfig.PRIVACY_LANGS,
+            EXTRACTOR_LANGS: envConfig.EXTRACTOR_LANGS
+        };
+
         // Override existing settings with new data (empty string values are included)
         Object.assign(envConfig, data);
         // Write the updated configuration back to the file
         writeEnvFile(envPath, envConfig);
+
+        // Apply language changes to running privacy/extractor containers
+        // (runtime env refresh — no rebuild involved).
+        refreshServiceContainersForLangChange(prevLangs, envConfig);
     }
 }
 
@@ -3982,8 +4052,9 @@ ipcMain.on('save-settings', (_event, data) => {
   // pick up the new env values without requiring a UI language change.
   updateApplicationMenu();
 
-  // Apply login item setting (macOS/Windows only)
-  if (process.platform !== 'linux') {
+  // Apply login item setting (macOS/Windows only). Skipped in dev runs —
+  // see the matching guard in initialization.
+  if (process.platform !== 'linux' && app.isPackaged) {
     app.setLoginItemSettings({
       openAtLogin: data.OPEN_AT_LOGIN === true || data.OPEN_AT_LOGIN === 'true'
     });

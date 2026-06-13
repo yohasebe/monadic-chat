@@ -123,16 +123,21 @@ profile `["extractor"]`:
 services:
   extractor_service:
     profiles: ["extractor"]
-    image: yohasebe/monadic-extractor
-    build:
-      args:
-        EXTRACTOR_OCR: ${EXTRACTOR_OCR:-rapidocr}
-        EXTRACTOR_LANGS: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
+    image: ghcr.io/yohasebe/monadic-extractor:latest
+    environment:
+      EXTRACTOR_OCR_RUNTIME: ${EXTRACTOR_OCR:-rapidocr}
+      EXTRACTOR_LANGS_RUNTIME: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
     healthcheck: ...
 ```
+
+The image is prebuilt and pulled from ghcr.io (published by
+`.github/workflows/publish-images.yml` as a multi-arch manifest); there is
+no `build:` section in `compose.yml`. Local development builds use the
+`compose.build.yml` overlay — see
+`docs_dev/docker-architecture.md` § Prebuilt Service Images.
 
 The profile gate ensures `docker compose up` does not start it unless
 the user explicitly opted in (Settings → Install Options → "Knowledge
@@ -140,20 +145,43 @@ Base Quality Pack" sets `EXTRACTOR_SERVICE=true` in
 `~/monadic/config/env`, which `monadic.sh ensure-service extractor`
 checks).
 
-### Build arguments
+### Runtime environment
 
-| Arg | Default | Effect |
+The image content does not depend on user settings (Docling/RapidOCR
+models cover every supported language); OCR backend and language hints
+are plain runtime env injected by compose:
+
+| Env (user setting → container var) | Default | Effect |
 |---|---|---|
-| `EXTRACTOR_OCR` | `rapidocr` | Which OCR backend to bake in. Currently only `rapidocr` is wired; Tesseract is a possible future fallback. |
-| `EXTRACTOR_LANGS` | `en,ja,zh,ko` | Comma-separated ISO 639-1 codes exposed in `/v1/info`. Advisory — RapidOCR auto-detects per page. |
+| `EXTRACTOR_OCR` → `EXTRACTOR_OCR_RUNTIME` | `rapidocr` | OCR backend. Currently only `rapidocr` is wired; Tesseract is a possible future fallback. |
+| `EXTRACTOR_LANGS` → `EXTRACTOR_LANGS_RUNTIME` | `en,ja,zh,ko` | Comma-separated ISO 639-1 codes exposed in `/v1/info`. Advisory — RapidOCR auto-detects per page. |
+
+Changing these only requires recreating the container (`monadic.sh
+refresh-service extractor`, done automatically on settings save), never
+a rebuild.
+
+> **Offline invariant (2026-06-12):** the image sets `HF_HUB_OFFLINE=1`
+> and a Dockerfile warm-up conversion bakes every artifact the pipeline
+> resolves at runtime (Docling's `download_models()` alone misses the
+> pinned-revision tableformer fetch). The container must keep working
+> with zero network access. If `EXTRACTOR_LANGS` / `EXTRACTOR_OCR` are
+> ever wired into actual OCR model selection (today they are advisory —
+> RapidOCR uses its pip-bundled models), revisit the warm-up step and
+> this offline policy together: a model fetched lazily per language
+> would either break offline or silently re-introduce the first-import
+> download this invariant exists to prevent.
 
 ### `monadic.sh` integration
 
-- `build_extractor_container` — builds the image when
-  `EXTRACTOR_SERVICE=true`.
-- `ensure-service extractor` — starts the container on demand. Returns
-  `EXTRACTOR_DISABLED` / `EXTRACTOR_NOT_BUILT` / `STARTED` /
-  `ALREADY_RUNNING` so the caller can branch.
+- `build_extractor_container` — when `EXTRACTOR_SERVICE=true`, pulls the
+  prebuilt image (production) or builds locally via the
+  `compose.build.yml` overlay (development, `MONADIC_DEV=true`).
+- `ensure-service extractor` — starts the container on demand, pulling
+  the image first when missing. Returns `EXTRACTOR_DISABLED` /
+  `EXTRACTOR_NOT_BUILT` / `STARTED` / `ALREADY_RUNNING` so the caller can
+  branch.
+- `refresh-service extractor` — recreates a running container after
+  runtime env changes (language settings save).
 
 ### Dev mode port
 

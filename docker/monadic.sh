@@ -37,16 +37,123 @@ DOCKER_CHECK_INTERVAL=1
 # REPORTING=--verbose
 REPORTING=
 
-# All Docker Compose profiles used by profiled services (see profiles: keys in compose.yml files).
-# Used for full build/stop operations that must include every service regardless of on-demand startup.
-ALL_PROFILES="--profile python --profile selenium"
+# Compose profiles (see profiles: keys in docker/services/*/compose.yml).
+#
+# Two distinct sets, per the principle "feature flags gate startup, never
+# teardown":
+#
+# ALL_PROFILES_UP — flag-gated set for start/build/pull. Opt-in services
+# (privacy, extractor) are included only when their flag is on, so disabled
+# features are never pulled or started.
+ALL_PROFILES_UP="--profile python --profile selenium"
 if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
-  ALL_PROFILES="${ALL_PROFILES} --profile privacy"
+  ALL_PROFILES_UP="${ALL_PROFILES_UP} --profile privacy"
 fi
+# Extractor (Knowledge Base Quality Pack) is opt-in. Including its profile
+# here makes the standard lifecycle cover it: started with `up -d`,
+# stopped/removed with everything else, and pulled during the full build.
+# Without this, nothing started the container after an app restart and the
+# Library import quality path silently fell back to pdfplumber.
+if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
+  ALL_PROFILES_UP="${ALL_PROFILES_UP} --profile extractor"
+fi
+#
+# ALL_PROFILES_DOWN — unconditional set for stop/down/remove. A container
+# started while a flag was on must still be stopped after the flag is turned
+# off, so teardown must never depend on current flag values (otherwise the
+# container is orphaned and keeps running outside the managed lifecycle).
+# Covered by spec/unit/compose_profile_completeness_spec.rb, which checks this
+# line against the profiles: keys in docker/services/*/compose.yml.
+ALL_PROFILES_DOWN="--profile python --profile selenium --profile privacy --profile extractor"
 
 # Define the path to the root directory
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 HOME_DIR=$(eval echo ~${SUDO_USER})
+
+# Exported for the compose.build.yml overlays (explicit local builds of the
+# prebuilt services), whose build contexts are interpolated from this var.
+export MONADIC_ROOT_DIR="${ROOT_DIR}"
+
+# Runtime settings consumed by compose interpolation — NOT build args.
+# PRIVACY_LANGS/EXTRACTOR_LANGS/EXTRACTOR_OCR select languages at runtime
+# (all models are baked into the images); MONADIC_IMAGE_TAG selects the
+# prebuilt image tag (default latest; :<version> for pinning, :dev for
+# the dev-branch builds). Electron passes them via the process env; for
+# CLI/dev invocations (e.g. `ensure-service` shelled out from a host
+# Ruby process) fall back to ~/monadic/config/env so containers start
+# with the user's selection instead of the defaults.
+for _key in PRIVACY_LANGS EXTRACTOR_LANGS EXTRACTOR_OCR MONADIC_IMAGE_TAG; do
+  if [ -z "$(eval echo "\$${_key}")" ] && [ -f "${HOME_DIR}/monadic/config/env" ]; then
+    _line=$(grep -E "^${_key}=" "${HOME_DIR}/monadic/config/env" | tail -n1 | tr -d '\r' || true)
+    if [ -n "$_line" ]; then
+      _val=${_line#*=}; _val=${_val%\"}; _val=${_val#\"}
+      export ${_key}="${_val}"
+    fi
+  fi
+done
+unset _key _line _val
+
+# Path to the user's config env file (KEY=VALUE lines, quotes optional).
+CONFIG_ENV_FILE="${HOME_DIR}/monadic/config/env"
+
+# Single source of truth for the Python container build options.
+# Adding a new PYOPT_*/INSTALL_*/IMGOPT_* requires:
+#   1. Append to PY_OPTIONS below
+#   2. Add the matching ARG declaration + RUN conditional in
+#      docker/services/python/Dockerfile (and the compose.yml ARG
+#      passthrough)
+#   3. Add the matching entry in app/install_options.config.js
+#   4. Add the HTML checkbox row in app/settings.html
+# See docs_dev/install_options_ssot.md for the full checklist.
+PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK)
+
+# Read a boolean KEY (quotes trimmed, normalized to "true"/"false").
+# Checks environment variables first (passed by Electron), then falls back
+# to the config file. Falls back to $2 (default "false") when unset.
+read_cfg_bool() {
+  local key="$1"; local defval="${2:-false}"
+  local val=""
+
+  # Using eval for indirect variable reference for better compatibility
+  val=$(eval echo "\$${key}")
+
+  if [ -z "$val" ] && [ -f "$CONFIG_ENV_FILE" ]; then
+    local line=$(grep -E "^${key}=" "$CONFIG_ENV_FILE" | tail -n1 || true)
+    if [ -n "$line" ]; then
+      val=${line#*=}
+      val=${val%\"}; val=${val#\"}
+    fi
+  fi
+
+  if [ -n "$val" ]; then
+    val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+    case "$val" in
+      true|1|yes|on) echo "true";;
+      false|0|no|off|"") echo "false";;
+      *) echo "$defval";;
+    esac
+    return
+  fi
+  echo "$defval"
+}
+
+# Record the build-options snapshots for python/privacy/extractor. Called
+# after every successful build path (per-container builds and the full
+# build) so the Settings UI option-diff always has a baseline. These files
+# are an option-diff baseline ONLY — "built or not" is derived from the
+# docker image store (see the image-status subcommand), never from their
+# existence.
+write_build_options_snapshots() {
+  local log_dir="${HOME_DIR}/monadic/log"
+  mkdir -p "${log_dir}"
+  local key
+  : > "${log_dir}/python_build_options.txt"
+  for key in "${PY_OPTIONS[@]}"; do
+    echo "${key}=$(read_cfg_bool "$key" false)" >> "${log_dir}/python_build_options.txt"
+  done
+  echo "PRIVACY_FILTER=$(read_cfg_bool "PRIVACY_FILTER" true)" > "${log_dir}/privacy_build_options.txt"
+  echo "EXTRACTOR_SERVICE=$(read_cfg_bool "EXTRACTOR_SERVICE" false)" > "${log_dir}/extractor_build_options.txt"
+}
 
 # Define the full path to docker-compose
 DOCKER=$(command -v docker)
@@ -265,6 +372,7 @@ include:
   - "${ROOT_DIR}/services/python/compose.yml"
   - "${ROOT_DIR}/services/selenium/compose.yml"
   - "${ROOT_DIR}/services/privacy/compose.yml"
+  - "${ROOT_DIR}/services/extractor/compose.yml"
 ${compose_user}
 
 networks:
@@ -465,50 +573,9 @@ build_python_container() {
   # Echo discovery hints for Electron to pick up paths
   echo "[BUILD_RUN_DIR] ${logs_dir}"
 
-  # Resolve install options from user's env (SSOT)
-  local config_env="${HOME_DIR}/monadic/config/env"
-  # Helper to read KEY=VALUE (quotes trimmed). Falls back to 'false' when unset.
-  # Checks environment variables first (passed by Electron), then falls back to config file
-  read_cfg_bool() {
-    local key="$1"; local defval="${2:-false}"
-    local val=""
-
-    # First, check if the key exists as an environment variable (passed by Electron)
-    # Using eval for indirect variable reference for better compatibility
-    val=$(eval echo "\$${key}")
-
-    # If not in environment, read from config file
-    if [ -z "$val" ] && [ -f "$config_env" ]; then
-      local line=$(grep -E "^${key}=" "$config_env" | tail -n1 || true)
-      if [ -n "$line" ]; then
-        val=${line#*=}
-        val=${val%""}; val=${val#""}
-      fi
-    fi
-
-    # Normalize and return the value
-    if [ -n "$val" ]; then
-      val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
-      case "$val" in
-        true|1|yes|on) echo "true";;
-        false|0|no|off|"") echo "false";;
-        *) echo "$defval";;
-      esac
-      return
-    fi
-    echo "$defval"
-  }
-
-  # Single source of truth for the Python container build options.
-  # Adding a new PYOPT_*/INSTALL_*/IMGOPT_* requires:
-  #   1. Append to PY_OPTIONS below
-  #   2. Add the matching ARG declaration + RUN conditional in
-  #      docker/services/python/Dockerfile (and the compose.yml ARG
-  #      passthrough)
-  #   3. Add the matching entry in app/install_options.config.js
-  #   4. Add the HTML checkbox row in app/settings.html
-  # See docs_dev/install_options_ssot.md for the full checklist.
-  local PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK)
+  # Resolve install options from user's env via the global read_cfg_bool;
+  # the option list is the global PY_OPTIONS (SSOT, defined near the top
+  # of this file).
 
   # Read current values into separate locals (kept as locals, not an
   # associative array, so they remain visible to the JSON/options-file
@@ -518,17 +585,13 @@ build_python_container() {
     local "${key}"="$(read_cfg_bool "$key" false)"
   done
 
-  # Detect if install options have changed since last build
+  # Report option changes since the last build (informational — the cache
+  # strategy below no longer depends on it: BuildKit keys conditional RUN
+  # layers on their ARG values, and the prebuilt default image supplies
+  # the heavy common layers via --cache-from).
   local prev_options_file="${logs_dir}/python_build_options.txt"
-  local use_no_cache=false
   local changed_options=""
-
-  # Check if user explicitly requested force rebuild
-  if [ "${FORCE_REBUILD:-false}" = "true" ]; then
-    use_no_cache=true
-    echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
-  elif [ -f "$prev_options_file" ]; then
-    # Compare each option with previous build via indirect expansion.
+  if [ -f "$prev_options_file" ]; then
     for key in "${PY_OPTIONS[@]}"; do
       local prev_val
       prev_val=$(grep "^${key}=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
@@ -536,44 +599,72 @@ build_python_container() {
         changed_options+="${key}(${prev_val}→${!key}) "
       fi
     done
-
     if [ -n "$changed_options" ]; then
-      use_no_cache=true
       echo "[INFO] Install options changed: ${changed_options}" | tee -a "${build_log}"
-      echo "[INFO] Using --no-cache to ensure changes are applied" | tee -a "${build_log}"
-    else
-      echo "[INFO] Install options unchanged, using build cache for faster build" | tee -a "${build_log}"
     fi
-  else
-    # First build or options file missing - use --no-cache to be safe
-    use_no_cache=true
-    echo "[INFO] First build or options file missing, using --no-cache" | tee -a "${build_log}"
   fi
+
+  # All-defaults detection: with every option false, the CI-published
+  # default image IS the desired image — pull it instead of building.
+  local all_defaults=true
+  for key in "${PY_OPTIONS[@]}"; do
+    if [ "${!key}" = "true" ]; then all_defaults=false; break; fi
+  done
 
   local build_args=
   for key in "${PY_OPTIONS[@]}"; do
     build_args+=" --build-arg ${key}=${!key}"
   done
 
-  # Build Python image into a temporary tag for atomic swap
+  # Acquire the image into a temporary tag for atomic swap. Three paths:
+  #   1. FORCE_REBUILD (menu manual build) → local --no-cache build, the
+  #      documented clean-rebuild escape hatch.
+  #   2. All options false → pull the prebuilt default image (seconds to
+  #      minutes instead of a 15-30 min build). Falls back to a local
+  #      build when the pull fails (offline).
+  #   3. Any option true → local build with --cache-from the prebuilt
+  #      default (pulled best-effort): its inline cache supplies the
+  #      heavy apt + pip base layers, so the build only pays for the
+  #      enabled option layers.
+  local prebuilt_image="ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}"
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
   local ts=$(date +%Y%m%d_%H%M%S)
   local temp_tag="yohasebe/monadic-chat:python-build-${ts}"
-  # Determine cache strategy based on option changes
-  local cache_flag=""
-  if [ "$use_no_cache" = true ]; then
-    cache_flag="--no-cache"
+  local image_ready=false
+  local cache_flags=""
+
+  if [ "${FORCE_REBUILD:-false}" = "true" ]; then
+    echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
+    cache_flags="--no-cache"
+  elif [ "$all_defaults" = "true" ]; then
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> No install options selected — downloading the prebuilt Python image (~0.9 GB, one time) instead of building . . .</p>" | tee -a "${build_log}"
+    if ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}"; then
+      ${DOCKER} tag "${prebuilt_image}" "${temp_tag}"
+      image_ready=true
+    else
+      echo "[WARN] Prebuilt image pull failed; falling back to local build" | tee -a "${build_log}"
+    fi
+  else
+    # Best-effort cache source; the build works without it.
+    if ! ${DOCKER} images -q "${prebuilt_image}" | grep -q .; then
+      echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the default Python image (~0.9 GB, one time) to use as a build cache . . .</p>" | tee -a "${build_log}"
+    fi
+    ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}" || true
+    if ${DOCKER} images -q "${prebuilt_image}" | grep -q .; then
+      cache_flags="--cache-from ${prebuilt_image}"
+      echo "[INFO] Using prebuilt default image as build cache source" | tee -a "${build_log}"
+    fi
   fi
 
-  echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
-
-  # Build with appropriate cache strategy
-  # IMPORTANT: cache_flag must not be quoted to allow empty string to work correctly
-  if ! ${DOCKER} build ${cache_flag} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
-    echo "[ERROR] Docker build failed" | tee -a "${build_log}"
-    echo "[BUILD_COMPLETE] failed"
-    release_build_lock
-    return 1
+  if [ "$image_ready" != "true" ]; then
+    echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
+    # IMPORTANT: cache_flags must not be quoted so an empty value expands to nothing
+    if ! ${DOCKER} build ${cache_flags} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
+      echo "[ERROR] Docker build failed" | tee -a "${build_log}"
+      echo "[BUILD_COMPLETE] failed"
+      release_build_lock
+      return 1
+    fi
   fi
 
   # Optional post-setup: execute user's pysetup.sh if present (mounted config)
@@ -715,7 +806,10 @@ ensure_ruby_compat_with_python() {
   fi
 }
 
-# Function to build Selenium container
+# Function to build Selenium container.
+# Production: the image is prebuilt and user-independent — pull (or
+# refresh) it from ghcr.io instead of building. Development
+# (MONADIC_DEV=true): build locally via the explicit build overlay.
 build_selenium_container() {
   local _lock_acquired=false
   if acquire_build_lock; then _lock_acquired=true; fi
@@ -727,14 +821,17 @@ build_selenium_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  # Build Selenium container
-  echo "Building Selenium container..." | tee -a "${log_file}"
+  set_docker_compose
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    echo "Building Selenium container..." | tee -a "${log_file}"
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/selenium/compose.build.yml\" -p monadic-chat --profile selenium build selenium_service" 2>&1 | tee -a "${log_file}"
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt browser automation image (~1.5 GB on first download) . . .</p>"
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile selenium pull selenium_service" 2>&1 | tee -a "${log_file}"
+  fi
 
-  # Use docker compose to build only the Selenium container
-  ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" build selenium_service 2>&1 | tee -a "${log_file}"
-
-  # Check if the build was successful
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  # Check if the image is now present
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "Selenium container built successfully" | tee -a "${log_file}"
 
     # Restart Ruby container if it's running to update SELENIUM_AVAILABLE environment variable
@@ -751,7 +848,6 @@ build_selenium_container() {
     return 1
   fi
 
-  remove_older_images yohasebe/selenium
   remove_project_dangling_images
   release_build_lock
 }
@@ -923,31 +1019,7 @@ build_docker_compose() {
   fi
   export GEMS_FINGERPRINT="$gems_fingerprint"
 
-  # Read install options for Python container build args
-  local config_env="${HOME_DIR}/monadic/config/env"
-  read_cfg_bool() {
-    local key="$1"; local defval="${2:-false}"
-    local val=""
-    val=$(eval echo "\$${key}")
-    if [ -z "$val" ] && [ -f "$config_env" ]; then
-      local line=$(grep -E "^${key}=" "$config_env" | tail -n1 || true)
-      if [ -n "$line" ]; then
-        val=${line#*=}
-        val=${val%""}; val=${val#""}
-      fi
-    fi
-    if [ -n "$val" ]; then
-      val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
-      case "$val" in
-        true|1|yes|on) echo "true";;
-        false|0|no|off|"") echo "false";;
-        *) echo "$defval";;
-      esac
-      return
-    fi
-    echo "$defval"
-  }
-
+  # Read install options for Python container build args (global read_cfg_bool)
   local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
   local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
   local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
@@ -979,10 +1051,34 @@ build_docker_compose() {
   echo "======================================" >> "${log_file}"
   echo "" >> "${log_file}"
 
+  # Pull the prebuilt service images BEFORE building. embeddings, qdrant,
+  # selenium, privacy and extractor (when opted in) have no local build:
+  # configuration (consumed directly); the python default image is pulled
+  # best-effort as the --cache-from source for the compose-driven python
+  # build (see cache_from in its compose.yml). The verification step after
+  # the build fails when a required pull did not produce an image.
+  local pull_services="embeddings_service qdrant_service selenium_service"
+  local pull_note="text embeddings (~1.1 GB), vector database (~0.3 GB), browser automation (~1.5 GB)"
+  if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
+    pull_services="${pull_services} privacy_service"
+    pull_note="${pull_note}, privacy filter (~0.7 GB)"
+  fi
+  if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
+    pull_services="${pull_services} extractor_service"
+    pull_note="${pull_note}, knowledge base quality pack (~1.3 GB)"
+  fi
+  # Byte-level progress is not visible in this console (non-TTY pulls only
+  # report per-layer milestones), so announce what is being downloaded and
+  # its rough size up front to avoid a long silent wait.
+  echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading prebuilt service images: ${pull_note}. This happens once; later updates only fetch changed layers.</p>"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} pull ${pull_services} 2>&1 | tee -a \"${log_file}\""
+  echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the default Python image (~0.9 GB) as a build cache source . . .</p>"
+  ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${log_file}" || true
+
   # Execute docker compose build and redirect output to log file with or without cache
   # Include all profiles so profiled services (python, selenium) are also built
   local build_start_epoch=$(date +%s)
-  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
   local build_status=${PIPESTATUS[0]}
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))
@@ -1009,7 +1105,7 @@ build_docker_compose() {
   echo "" >> "${log_file}"
   echo "[IMAGE VERIFICATION]" >> "${log_file}"
   local all_images_exist=true
-  for image in "yohasebe/monadic-chat" "yohasebe/python" "yohasebe/monadic-embeddings"; do
+  for image in "yohasebe/monadic-chat" "yohasebe/python" "ghcr.io/yohasebe/monadic-embeddings" "ghcr.io/yohasebe/monadic-qdrant" "ghcr.io/yohasebe/monadic-selenium"; do
     if ! ${DOCKER} images | grep -q "${image}"; then
       all_images_exist=false
       echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Required image '${image}' was not created during build.</p>"
@@ -1033,6 +1129,12 @@ build_docker_compose() {
 
   # Save container version information after building
   save_container_versions "silent"
+
+  # The full build covers python/privacy/extractor too, so record the same
+  # option snapshots the per-container builds write. Without this, a fresh
+  # install that went through the full build had no baseline and the
+  # Settings option-diff started from nothing.
+  write_build_options_snapshots
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
@@ -1100,6 +1202,19 @@ EOF
   fi
 }
 
+# Extract the string value of KEY from a flat JSON file. Tolerates
+# arbitrary whitespace and key order; prints nothing when the key is
+# missing or the file is malformed — callers compare against a freshly
+# computed value, so a parse failure can only register as "changed"
+# (an extra rebuild), never as "unchanged" (a skipped one). No jq/node
+# dependency: this script runs on end-user hosts where neither is
+# guaranteed. The only writer is save_container_versions above; if it
+# ever emits nested JSON, replace this with a real parser.
+json_string_value() {
+  local file="$1" key="$2"
+  sed -nE 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' "$file" 2>/dev/null | head -n1
+}
+
 # Function to check if Dockerfiles have changed since last build
 # Sets global variables for individual container changes:
 #   PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, EMBEDDINGS_DOCKERFILE_CHANGED
@@ -1138,11 +1253,13 @@ check_dockerfiles_changed() {
     return 0 # true - changes detected
   fi
 
-  # Read stored hashes from JSON file
-  local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_embeddings_hash=$(grep -o '"embeddings_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_help_export_id=$(grep -o '"help_export_id": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  # Read stored hashes from JSON file (see json_string_value: parse
+  # failures yield "" which never equals a real hash, so a malformed or
+  # reshaped file can only cause an extra rebuild, never a skipped one)
+  local stored_python_hash=$(json_string_value "$json_file" "python_hash")
+  local stored_selenium_hash=$(json_string_value "$json_file" "selenium_hash")
+  local stored_embeddings_hash=$(json_string_value "$json_file" "embeddings_hash")
+  local stored_help_export_id=$(json_string_value "$json_file" "help_export_id")
 
   # Check each container individually
   if [[ "$stored_python_hash" != "$python_hash" ]]; then
@@ -1151,9 +1268,13 @@ check_dockerfiles_changed() {
   if [[ "$stored_selenium_hash" != "$selenium_hash" ]]; then
     SELENIUM_DOCKERFILE_CHANGED=true
   fi
-  # Embeddings changes if either Dockerfile or help export ID changed
-  # (the help DB JSON dump is baked into the embeddings image at build time)
-  if [[ "$stored_embeddings_hash" != "$embeddings_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
+  # Embeddings refresh is needed only when its Dockerfile changed. The
+  # help DB JSON dump lives in the RUBY image (help_data/, keyed by
+  # HELP_EXPORT_ID there), NOT in the embeddings image — an earlier
+  # design baked it into embeddings and this condition used to include
+  # the export ID, causing pointless embeddings refreshes on every help
+  # DB update.
+  if [[ "$stored_embeddings_hash" != "$embeddings_hash" ]]; then
     EMBEDDINGS_DOCKERFILE_CHANGED=true
   fi
 
@@ -1167,8 +1288,27 @@ check_dockerfiles_changed() {
 }
 
 # Function to start Docker Compose
+# Migration cleanup: remove the pre-ghcr locally built service images
+# (compose now references ghcr.io/yohasebe/monadic-*, so the old local
+# tags are orphaned ~5GB of disk). `docker rmi` without -f fails
+# harmlessly when a stopped container still references an image; the
+# next start retries after `down` has removed those containers.
+remove_legacy_prebuilt_images() {
+  local img
+  # yohasebe/selenium (locally built) and qdrant/qdrant (upstream pull)
+  # joined this list when both moved to ghcr.io prebuilt images
+  # (monadic-selenium / monadic-qdrant) in beta.21.
+  for img in yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor yohasebe/selenium qdrant/qdrant; do
+    if ${DOCKER} images -q "${img}" 2>/dev/null | grep -q .; then
+      echo "[INFO] Removing legacy local image ${img} (replaced by ghcr.io prebuilt)"
+      ${DOCKER} rmi "${img}" >/dev/null 2>&1 || true
+    fi
+  done
+}
+
 start_docker_compose() {
   set_docker_compose
+  remove_legacy_prebuilt_images
 
   # Load environment variables from env file
   local config_dir="${HOME_DIR}/monadic/config"
@@ -1323,8 +1463,6 @@ start_docker_compose() {
   # Build containers based on what we need
   if [ "$needs_full_rebuild" = true ]; then
     build_docker_compose "no-cache"
-    # Record timestamp of successful full build to skip gem hash check
-    date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
     if [[ "$1" != "silent" ]]; then
       echo "[HTML]: <p>Starting all Monadic Chat containers...</p>"
     fi
@@ -1335,16 +1473,24 @@ start_docker_compose() {
 
     # Rebuild only the containers whose Dockerfiles have changed
     if [ "$PYTHON_DOCKERFILE_CHANGED" = true ]; then
-      echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)...</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build --no-cache python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      # A Dockerfile change ships with an app update whose CI run already
+      # published a matching default image — pull it as the cache source
+      # so the rebuild only pays for the user's enabled option layers
+      # (cache_from in the python compose.yml).
+      echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)... Downloading the updated default image as a cache source first.</p>"
+      ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${HOME_DIR}/monadic/log/docker_build.log" || true
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
     if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then
       echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Rebuilding Selenium container (Dockerfile changed)...</p>"
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" build --no-cache selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
     if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then
-      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Rebuilding Embeddings container (Dockerfile changed)...</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/embeddings/compose.yml\" build --no-cache embeddings_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      # Embeddings is prebuilt: a Dockerfile change ships with an app update
+      # whose CI run already published the matching image — pull it instead
+      # of building locally.
+      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Refreshing Embeddings container image (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/embeddings/compose.yml\" pull embeddings_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
     fi
 
     # Save updated container versions after selective rebuild
@@ -1392,7 +1538,15 @@ start_docker_compose() {
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
 
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
+  # When start is reached without a build (images mostly present), a
+  # missing opt-in extractor image would be pulled silently by `up -d`
+  # (its progress goes to stderr, invisible in the app console) — announce
+  # the one-time download first.
+  if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]] && ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB, one time) . . .</p>"
+  fi
+
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"
 
   # Informational flow for smoother UX
   # Keep health check noise out of user-facing messages; log to output only
@@ -1418,7 +1572,7 @@ start_docker_compose() {
       echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
       echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
       build_ruby_container
-      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"
+      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"
       if wait_for_ruby_ready; then
         echo "Orchestration refreshed. Continuing startup . . ."
       fi
@@ -1451,7 +1605,7 @@ start_docker_compose() {
   }
 
   # Ensure Selenium container is running if the image exists
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
       echo "[HTML]: <p>Starting Selenium container...</p>"
       eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
@@ -1490,7 +1644,7 @@ start_docker_compose() {
 
 # Function to stop Docker Compose (includes all profiled services)
 down_docker_compose() {
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" down --remove-orphans"
 }
 
 # Define a function to stop Docker Compose (includes all profiled services)
@@ -1504,7 +1658,7 @@ stop_docker_compose() {
   # total Restart-Now-to-relaunch duration predictable and inside the UX
   # threshold for "feels responsive". The value is not zero because we
   # still want databases to flush inflight writes gracefully before kill.
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" stop --timeout 2"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" stop --timeout 2"
 }
 
 # Function to stop a container
@@ -1525,20 +1679,20 @@ export_database() {
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop all Docker Compose services (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} down --remove-orphans"
 
   # Move to `ROOT_DIR` and download the latest version of Monadic Chat
   cd "${ROOT_DIR}" && git pull origin main
 
   # Build all Docker Compose services (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} build --no-cache"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build --no-cache"
 }
 
 # Remove the Docker image and container
 remove_containers() {
   set_docker_compose
   # Stop all Docker Compose services with project name (including profiled services)
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" down --remove-orphans"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" down --remove-orphans"
 
   local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
@@ -1564,6 +1718,29 @@ remove_containers() {
   # so this still cleans up after users upgrading from older PGVector-based
   # installs.
   remove_volume monadic-chat-pgvector-data
+}
+
+# Uninstall-only deep clean of service images. Deliberately NOT part of
+# remove_containers: that function is shared with the rebuild paths (full
+# build calls it first), where deleting the prebuilt service images would
+# force a multi-GB re-download on every rebuild. Uninstall, however,
+# must leave no images behind — docs/getting-started/uninstallation.md
+# enumerates exactly these. The substring match in remove_image covers
+# both the ghcr.io/yohasebe/monadic-* prebuilt repos and the legacy
+# locally built yohasebe/monadic-* names with one call each.
+remove_service_images() {
+  remove_image "yohasebe/monadic-embeddings"
+  remove_image "yohasebe/monadic-privacy"
+  remove_image "yohasebe/monadic-extractor"
+  remove_image "yohasebe/monadic-python"
+  remove_image "yohasebe/monadic-qdrant"
+  remove_image "yohasebe/monadic-selenium"
+  remove_image "yohasebe/python"
+  # Legacy names from before the ghcr.io unification (locally built
+  # selenium, upstream qdrant) — still present on upgraded installs.
+  remove_image "yohasebe/selenium"
+  remove_image "qdrant/qdrant"
+  remove_image "yohasebe/pgvector"
 }
 
 # Function to remove images containing the string in $1
@@ -1730,7 +1907,13 @@ build_ruby_container)
     echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
-build_python_container)
+# `build_python_container` is the explicit menu action (Electron passes
+# FORCE_REBUILD=true → clean --no-cache rebuild). The `_update` alias is
+# used by the start-time pending-build gate and option changes: Electron
+# does NOT force a rebuild there, letting the smart path inside
+# build_python_container pull the prebuilt default image or build with
+# --cache-from.
+build_python_container|build_python_container_update)
   ensure_data_dir "python" &&
 
   while ! "${DOCKER}" info > /dev/null 2>&1; do
@@ -1782,7 +1965,7 @@ build_selenium_container)
 
   build_selenium_container
 
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
@@ -1802,15 +1985,12 @@ build)
   set_docker_compose
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} down"
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} down"
 
   # Run build_docker_compose and check if it succeeded
   if build_docker_compose "no-cache"; then
-    # Record timestamp of successful full build
-    date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
-
     # Start all containers (including profiled services) after full build
-    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES} -p \"monadic-chat\" up -d"; then
+    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"; then
       # Wait a moment for containers to start
       sleep 3
 
@@ -1874,7 +2054,7 @@ stop-jupyter)
   ;;
 start-selenium)
   # Start Selenium container (build if missing)
-  if ! ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color: #61b0ff;'></i>Selenium container image not found. Building automatically...</p>"
 
     ensure_data_dir "selenium"
@@ -1888,7 +2068,7 @@ start-selenium)
   fi
 
   # Verify image was built successfully before proceeding
-  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
     echo "[HTML]: <p>Starting Selenium container...</p>"
     eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
 
@@ -1924,6 +2104,7 @@ down)
   ;;
 remove)
   remove_containers &&
+  remove_service_images &&
   echo "[HTML]: <p>Containers and images have been removed successfully.</p><p>Now you can quit Monadic Chat and uninstall the app safely.</p>"
   ;;
 export-db)
@@ -1931,6 +2112,29 @@ export-db)
   ;;
 import-db)
   import_db
+  ;;
+image-status)
+  # Machine-readable presence of the per-user-built / opt-in service images.
+  # Consumed by the Electron start gate (computePendingContainerBuilds) to
+  # decide "not yet built" from the actual docker image store rather than
+  # snapshot files, which can drift from reality (full builds historically
+  # wrote no snapshots; users prune images). Output contract:
+  #   DOCKER_NOT_RUNNING        — daemon unreachable, caller must not infer
+  #   <name>=present|absent     — one line per service below
+  if ! ${DOCKER} info >/dev/null 2>&1; then
+    echo "DOCKER_NOT_RUNNING"
+  else
+    for _pair in "python=yohasebe/python" "privacy=ghcr.io/yohasebe/monadic-privacy" "extractor=ghcr.io/yohasebe/monadic-extractor"; do
+      _name="${_pair%%=*}"
+      _image="${_pair#*=}"
+      if ${DOCKER} images -q "${_image}" 2>/dev/null | grep -q .; then
+        echo "${_name}=present"
+      else
+        echo "${_name}=absent"
+      fi
+    done
+    unset _pair _name _image
+  fi
   ;;
 ensure-service)
   # On-demand container startup for profiled services.
@@ -1948,11 +2152,18 @@ ensure-service)
       fi
       ;;
     selenium)
-      # Selenium requires Python; ensure both are running
+      # Selenium requires Python; ensure both are running.
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built.
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium pull selenium_service" 2>/dev/null
+      fi
       if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-python-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d python_service" 2>/dev/null
       fi
-      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
+        echo "SELENIUM_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service" 2>/dev/null
         echo "STARTED"
       else
@@ -1961,7 +2172,14 @@ ensure-service)
       ;;
     qdrant)
       # Vector storage for Help / PDF KB. Always available (no opt-in flag).
-      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-qdrant-container$"; then
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built.
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-qdrant"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" pull qdrant_service" 2>/dev/null
+      fi
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-qdrant"; then
+        echo "QDRANT_NOT_BUILT"
+      elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-qdrant-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile qdrant up -d qdrant_service" 2>/dev/null
         echo "STARTED"
       else
@@ -1970,7 +2188,12 @@ ensure-service)
       ;;
     embeddings)
       # multilingual-e5-base inference. Required by Help / PDF KB.
-      if ! ${DOCKER} images | grep -q "yohasebe/monadic-embeddings"; then
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built.
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-embeddings"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" pull embeddings_service" 2>/dev/null
+      fi
+      if ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-embeddings"; then
         echo "EMBEDDINGS_NOT_BUILT"
       elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-embeddings-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile embeddings up -d embeddings_service" 2>/dev/null
@@ -1980,11 +2203,15 @@ ensure-service)
       fi
       ;;
     privacy)
-      # Privacy filter is part of the default build set. PRIVACY_FILTER=false
-      # opts out at runtime (and excludes the image from build via ALL_PROFILES).
+      # Privacy filter is part of the default service set. PRIVACY_FILTER=false
+      # opts out at runtime. The image is prebuilt (ghcr.io); when missing,
+      # pull it instead of reporting not-built.
+      if [[ "${PRIVACY_FILTER:-true}" == "true" ]] && ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy pull privacy_service" 2>/dev/null
+      fi
       if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
         echo "PRIVACY_DISABLED"
-      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+      elif ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
         echo "PRIVACY_NOT_BUILT"
       elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-privacy-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy up -d privacy_service" 2>/dev/null
@@ -1995,11 +2222,15 @@ ensure-service)
       ;;
     extractor)
       # Extractor (Knowledge Base Quality Pack) is opt-in via EXTRACTOR_SERVICE=true.
-      # Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT so the caller can prompt
-      # the user to install via Settings → Install Options.
+      # The image is prebuilt (ghcr.io); when missing, pull it instead of
+      # reporting not-built. Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT
+      # so the caller can prompt the user via Settings → Install Options.
+      if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]] && ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor pull extractor_service" 2>/dev/null
+      fi
       if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
         echo "EXTRACTOR_DISABLED"
-      elif ! ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+      elif ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
         echo "EXTRACTOR_NOT_BUILT"
       elif ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-extractor-container$"; then
         eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor up -d extractor_service" 2>/dev/null
@@ -2013,8 +2244,40 @@ ensure-service)
       ;;
   esac
   ;;
+refresh-service)
+  # Re-apply runtime env to a running profiled service. `compose up -d`
+  # recreates the container only when its effective config changed (e.g.
+  # PRIVACY_LANGS/EXTRACTOR_LANGS edited in Settings), so this is cheap to
+  # call after a settings save. When the container is not running this is
+  # a no-op — the next on-demand start picks up the new env anyway.
+  # Usage: monadic.sh refresh-service privacy|extractor
+  SERVICE_NAME="${2:-}"
+  set_docker_compose
+  case "$SERVICE_NAME" in
+    privacy)
+      if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-privacy-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile privacy up -d privacy_service" 2>/dev/null
+        echo "REFRESHED"
+      else
+        echo "NOT_RUNNING"
+      fi
+      ;;
+    extractor)
+      if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-extractor-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile extractor up -d extractor_service" 2>/dev/null
+        echo "REFRESHED"
+      else
+        echo "NOT_RUNNING"
+      fi
+      ;;
+    *)
+      echo "Unknown service: ${SERVICE_NAME}" >&2
+      ;;
+  esac
+  ;;
 build_privacy_container)
-  # Build the privacy container based on PRIVACY_FILTER + PRIVACY_LANGS env.
+  # Build the privacy container (all languages are baked in; PRIVACY_LANGS
+  # is a runtime setting applied via compose `environment:`).
   # Triggered from the Settings → Actions panel (Electron menu).
   if [[ "${PRIVACY_FILTER:-true}" != "true" ]]; then
     echo "[INFO] Privacy Filter is disabled (PRIVACY_FILTER=false). Skipping build."
@@ -2023,16 +2286,26 @@ build_privacy_container)
   ensure_data_dir "privacy" 2>/dev/null || true
   set_docker_compose
   build_log="${HOME_DIR}/monadic/log/docker_build.log"
-  echo "[INFO] Building privacy container (PRIVACY_LANGS=${PRIVACY_LANGS:-en})..."
-  eval "PRIVACY_LANGS=\"${PRIVACY_LANGS:-en}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
-  if ${DOCKER} images | grep -q "yohasebe/monadic-privacy"; then
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    # Development: build locally from source via the explicit build overlay.
+    echo "[INFO] Building privacy container..."
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.build.yml\" -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
+  else
+    # Production: the image is prebuilt and user-independent — pull (or
+    # refresh) it from ghcr.io instead of building. Output markers below
+    # ("Privacy container build succeeded/failed") are kept stable because
+    # the Electron UI matches on them.
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Privacy Filter image (~0.7 GB on first download) . . .</p>"
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy pull privacy_service" 2>&1 | tee -a "${build_log}"
+  fi
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
     echo "[INFO] Privacy container build succeeded."
-    # Snapshot the options used for this build so the Settings UI can
-    # detect when env changes diverge from the last successful build.
+    # Snapshot marker: the Settings UI uses the existence of this file to
+    # distinguish "not yet built" from "built". Language selection is no
+    # longer build-relevant, so no language line is recorded.
     prev_options_file="${HOME_DIR}/monadic/log/privacy_build_options.txt"
     {
       echo "PRIVACY_FILTER=${PRIVACY_FILTER:-false}"
-      echo "PRIVACY_LANGS=${PRIVACY_LANGS:-en}"
     } > "$prev_options_file"
     echo "[INFO] Saved build options to ${prev_options_file}"
   else
@@ -2051,15 +2324,23 @@ build_extractor_container)
   ensure_data_dir "extractor" 2>/dev/null || true
   set_docker_compose
   build_log="${HOME_DIR}/monadic/log/docker_build.log"
-  echo "[INFO] Building extractor container (EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko})..."
-  eval "EXTRACTOR_OCR=\"${EXTRACTOR_OCR:-rapidocr}\" EXTRACTOR_LANGS=\"${EXTRACTOR_LANGS:-en,ja,zh,ko}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
-  if ${DOCKER} images | grep -q "yohasebe/monadic-extractor"; then
+  if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
+    # Development: build locally from source via the explicit build overlay.
+    echo "[INFO] Building extractor container..."
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/extractor/compose.build.yml\" -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
+  else
+    # Production: pull the prebuilt user-independent image from ghcr.io.
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB on first download) . . .</p>"
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor pull extractor_service" 2>&1 | tee -a "${build_log}"
+  fi
+  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
     echo "[INFO] Extractor container build succeeded."
+    # Snapshot marker: existence distinguishes "not yet built" from
+    # "built". OCR languages/backend are runtime settings now, so no
+    # language line is recorded.
     prev_options_file="${HOME_DIR}/monadic/log/extractor_build_options.txt"
     {
       echo "EXTRACTOR_SERVICE=${EXTRACTOR_SERVICE:-false}"
-      echo "EXTRACTOR_LANGS=${EXTRACTOR_LANGS:-en,ja,zh,ko}"
-      echo "EXTRACTOR_OCR=${EXTRACTOR_OCR:-rapidocr}"
     } > "$prev_options_file"
     echo "[INFO] Saved build options to ${prev_options_file}"
   else

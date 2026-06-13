@@ -54,12 +54,6 @@ Lint/NonLocalExitFromIterator:
     - 'apps/mermaid_grapher/mermaid_grapher_tools.rb'
     - 'lib/monadic/utils/tts_utils.rb'
 
-# Offense count: 1
-# This cop supports safe autocorrection (--autocorrect).
-Lint/RedundantRequireStatement:
-  Exclude:
-    - 'lib/monadic/utils/file_session_store.rb'
-
 # Offense count: 8
 # This cop supports unsafe autocorrection (--autocorrect-all).
 # Configuration parameters: AllowedMethods, InferNonNilReceiver, AdditionalNilMethods.

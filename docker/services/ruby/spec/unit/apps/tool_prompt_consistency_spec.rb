@@ -72,7 +72,7 @@ RSpec.describe 'Tool-Prompt Consistency Validation' do
     list_providers_and_voices
     generate_image_with_dalle generate_image_with_gpt_image
     generate_image_with_imagen generate_image_with_flux
-    generate_video_with_sora generate_video_with_veo
+    generate_video_with_veo
     lib_installer check_environment
     delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results
     execute_and_fix_jupyter_cells list_jupyter_notebooks

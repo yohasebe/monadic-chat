@@ -39,7 +39,6 @@ module Monadic
     CONTAINERS = {
       ruby:       'monadic-chat-ruby-container',
       python:     'monadic-chat-python-container',
-      pgvector:   'monadic-chat-pgvector-container',
       qdrant:     'monadic-chat-qdrant-container',
       embeddings: 'monadic-chat-embeddings-container',
       extractor:  'monadic-chat-extractor-container',

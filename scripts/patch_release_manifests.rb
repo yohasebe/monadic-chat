@@ -25,7 +25,6 @@
 #   1 — a yml entry's expected pattern could not be located (unsafe to
 #       silently leave a known-broken manifest)
 
-require 'base64'
 require 'digest'
 require 'pathname'
 require 'yaml'
@@ -71,7 +70,7 @@ manifests.each do |yml|
     artifact = dist.join(url)
     next unless artifact.exist?
 
-    actual_sha  = Base64.strict_encode64(Digest::SHA512.digest(artifact.read))
+    actual_sha  = [Digest::SHA512.digest(artifact.read)].pack('m0')
     actual_size = artifact.size
 
     next if entry['sha512'] == actual_sha && entry['size'] == actual_size

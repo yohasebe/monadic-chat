@@ -5,6 +5,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # The CI-published default image (all options false) carries an
+      # inline cache; using it as a cache source means a compose-driven
+      # build only pays for the enabled option layers. No-op when the
+      # image is not present locally / not reachable.
+      cache_from:
+        - ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}
       args:
         PROJECT_TAG: "monadic-chat"
         INSTALL_LATEX: ${INSTALL_LATEX:-false}
@@ -19,6 +25,10 @@ services:
       - "${HOST_BINDING:-127.0.0.1}:8889:8889"
     container_name: monadic-chat-python-container
     volumes:
+      # The named-volume line below is inert cruft: the bind mount that
+      # follows targets the same container path and wins, so no named
+      # volume is ever materialized (verified 2026-06-12). See the note
+      # in services/ruby/compose.yml before "fixing" this.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
     command: ["sleep", "infinity"]

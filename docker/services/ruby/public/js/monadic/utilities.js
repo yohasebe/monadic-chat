@@ -1375,20 +1375,40 @@ function doResetActions(resetToDefaultApp = false) {
   const finalApp = resetToDefaultApp ? (drApps ? drApps.value : null) : currentApp;
   let provider = "OpenAI";
   if (apps[finalApp] && apps[finalApp].group) {
-    const group = apps[finalApp].group.toLowerCase();
-    if (group.includes("anthropic") || group.includes("claude")) {
-      provider = "Anthropic";
-    } else if (group.includes("gemini") || group.includes("google")) {
-      provider = "Google";
-    } else if (group.includes("cohere")) {
-      provider = "Cohere";
-    } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-      provider = "Mistral";
-    } else if (group.includes("deepseek")) {
-      provider = "DeepSeek";
-    } else if (group.includes("grok") || group.includes("xai")) {
-      provider = "xAI";
+    if (typeof window.getProviderFromGroup === 'function') {
+      // Canonical mapper (monadic.js) — handles all providers incl. Ollama
+      provider = window.getProviderFromGroup(apps[finalApp].group);
+    } else {
+      const group = apps[finalApp].group.toLowerCase();
+      if (group.includes("anthropic") || group.includes("claude")) {
+        provider = "Anthropic";
+      } else if (group.includes("gemini") || group.includes("google")) {
+        provider = "Google";
+      } else if (group.includes("cohere")) {
+        provider = "Cohere";
+      } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
+        provider = "Mistral";
+      } else if (group.includes("deepseek")) {
+        provider = "DeepSeek";
+      } else if (group.includes("grok") || group.includes("xai")) {
+        provider = "xAI";
+      } else if (group.includes("ollama")) {
+        provider = "Ollama";
+      }
     }
+  }
+
+  // Check Tavily API availability and update websearch state
+  // (merged from utilities_websearch_patch.js, which formerly wrapped this function)
+  if (window.websearchTavilyCheck) {
+    fetch('/api/environment')
+      .then(response => response.json())
+      .then(data => {
+        window.websearchTavilyCheck.updateWebSearchState(provider, data.has_tavily_key);
+      })
+      .catch(err => {
+        console.error('Failed to fetch environment settings:', err);
+      });
   }
 
   const drModelSelected = $id("model-selected");

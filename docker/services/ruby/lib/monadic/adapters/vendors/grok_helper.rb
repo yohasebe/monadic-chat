@@ -471,14 +471,8 @@ module GrokHelper
       body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
     end
 
-    res = nil
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)
-               .post(target_uri, json: body)
-      break if res.status.success?
-
-      sleep RETRY_DELAY
-    end
+    res = post_json_with_retries(http, target_uri, body,
+                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     unless res.status.success?
       error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
@@ -877,12 +871,8 @@ module GrokHelper
     target_uri = API_ENDPOINT + "/responses"
 
     http = HTTP.headers(headers)
-    res = nil
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
-      break if res && res.status && res.status.success?
-      sleep RETRY_DELAY
-    end
+    res = post_json_with_retries(http, target_uri, body,
+                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     if res && res.status && res.status.success?
       begin

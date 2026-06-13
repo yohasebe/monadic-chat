@@ -17,6 +17,12 @@ services:
       EXTRA_LOGGING: ${EXTRA_LOGGING:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      # The named-volume entries (data:/config:/log:) are inert cruft: the
+      # bind mount that follows each one targets the same container path
+      # and wins, so no named volume is ever materialized (verified
+      # 2026-06-12). Left as-is because removing them touches every
+      # service's mounts; do NOT add a top-level volumes: section to
+      # "fix" them — that would materialize volumes shadowing the binds.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
       - config:/monadic/config

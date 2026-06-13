@@ -1,14 +1,20 @@
 services:
   privacy_service:
     profiles: ["privacy"]
-    image: yohasebe/monadic-privacy
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PROJECT_TAG: "monadic-chat"
-        PRIVACY_LANGS: ${PRIVACY_LANGS:-en}
+    # Prebuilt multi-arch image published by .github/workflows/publish-images.yml.
+    # The image is user-independent (language selection is runtime env), so
+    # production installs pull instead of building. Local builds for
+    # development use the compose.dev.yml overlay (MONADIC_DEV=true), which
+    # restores the build: configuration.
+    # MONADIC_IMAGE_TAG (default latest) allows pinning a released
+    # :<version> tag or following :dev — see publish-images.yml tag policy.
+    image: ghcr.io/yohasebe/monadic-privacy:${MONADIC_IMAGE_TAG:-latest}
     container_name: monadic-chat-privacy-container
+    environment:
+      # All spaCy models are baked into the image; this selects which
+      # languages the server loads. Changing PRIVACY_LANGS only needs a
+      # container restart, not a rebuild.
+      PRIVACY_LANGS_RUNTIME: ${PRIVACY_LANGS:-en}
     networks:
       - monadic-chat-network
     healthcheck:

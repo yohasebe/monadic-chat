@@ -1,16 +1,24 @@
 services:
   extractor_service:
     profiles: ["extractor"]
-    image: yohasebe/monadic-extractor
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PROJECT_TAG: "monadic-chat"
-        EXTRACTOR_OCR: ${EXTRACTOR_OCR:-rapidocr}
-        EXTRACTOR_LANGS: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
+    # Prebuilt multi-arch image published by .github/workflows/publish-images.yml.
+    # The image is user-independent (OCR languages/backend are runtime env),
+    # so production installs pull instead of building. Local builds for
+    # development use the compose.dev.yml overlay (MONADIC_DEV=true).
+    # MONADIC_IMAGE_TAG (default latest) allows pinning a released
+    # :<version> tag or following :dev — see publish-images.yml tag policy.
+    image: ghcr.io/yohasebe/monadic-extractor:${MONADIC_IMAGE_TAG:-latest}
     container_name: monadic-chat-extractor-container
+    environment:
+      # OCR backend and language hints are runtime settings; the image
+      # content does not depend on them (Docling models cover all of them).
+      EXTRACTOR_OCR_RUNTIME: ${EXTRACTOR_OCR:-rapidocr}
+      EXTRACTOR_LANGS_RUNTIME: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
     volumes:
+      # The named-volume line below is inert cruft: the bind mount that
+      # follows targets the same container path and wins, so no named
+      # volume is ever materialized (verified 2026-06-12). See the note
+      # in services/ruby/compose.yml before "fixing" this.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
     networks:

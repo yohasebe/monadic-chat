@@ -44,7 +44,7 @@ mismatch   match
     │         │
     ↓         └─→ Continue startup
 Check: Dockerfile changed?
-(sets PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, PGVECTOR_DOCKERFILE_CHANGED)
+(sets PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, EMBEDDINGS_DOCKERFILE_CHANGED)
     │
 ┌───┴───┐
 │       │
@@ -69,18 +69,21 @@ When a version update is detected and some Dockerfiles have changed, the system 
 1. `check_dockerfiles_changed()` sets individual change flags:
    - `PYTHON_DOCKERFILE_CHANGED`
    - `SELENIUM_DOCKERFILE_CHANGED`
-   - `PGVECTOR_DOCKERFILE_CHANGED`
+   - `EMBEDDINGS_DOCKERFILE_CHANGED`
 
-2. Only containers with changed Dockerfiles are rebuilt with `--no-cache`
+2. Only containers with changed Dockerfiles are refreshed: Python is
+   rebuilt with the prebuilt default image as cache source (`cache_from`
+   in its compose.yml, pulled first), Selenium with `--no-cache`, and
+   Embeddings — a prebuilt image — is simply pulled.
 
 3. Unchanged containers keep their existing images (no rebuild)
 
 4. Ruby container is always rebuilt on version update (with cache)
 
 **Example scenario:**
-- Python Dockerfile changed → Rebuild Python with `--no-cache` (~15-30 min)
+- Python Dockerfile changed → pull prebuilt cache source + cached rebuild (minutes)
 - Selenium Dockerfile unchanged → Skip (use existing image)
-- PGVector Dockerfile unchanged → Skip (use existing image)
+- Embeddings Dockerfile unchanged → Skip (use existing image)
 - Ruby → Rebuild with cache (~1-2 min)
 
 **Benefits:**
@@ -98,63 +101,32 @@ When a version update is detected and some Dockerfiles have changed, the system 
 
 ### Python Container Build Strategy
 
-## How It Works
+The Python image acquisition has three paths, selected inside
+`build_python_container` in `docker/monadic.sh`:
 
-### Complete Build Flow (Python Container)
+1. **Explicit menu build** (Actions → Build Python Container): Electron
+   sets `FORCE_REBUILD=true` → local `--no-cache` build. This is the
+   documented clean-rebuild escape hatch.
+2. **All install options false**: the CI-published default image
+   (`ghcr.io/yohasebe/monadic-python:latest`, built by
+   `.github/workflows/publish-images.yml`) IS the desired image — it is
+   pulled and fed into the same verify/retag pipeline, no build at all.
+   Falls back to a local build when the pull fails (offline).
+3. **Any option true**: local build with `--cache-from` the prebuilt
+   default image (pulled best-effort first). The Dockerfile keeps all
+   unconditional layers before the first option-conditional layer, so
+   the default image is a layer-cache prefix of every custom build and
+   the build only pays for the enabled option layers.
 
-```
-User changes install option in Electron UI
-          ↓
-Electron saves to ~/monadic/config/env
-          ↓
-User triggers "Build Python Container"
-          ↓
-Electron spawns monadic.sh with env vars from config file
-          ↓
-read_cfg_bool() reads env vars (priority 1) or config file (priority 2)
-          ↓
-Compare with ~/monadic/log/python_build_options.txt
-          ↓
-    ┌─────────────────────┬──────────────────────┐
-    │                     │                      │
-Options changed      Options unchanged    First build
-    │                     │                      │
-    ↓                     ↓                      ↓
---no-cache          Use cache            --no-cache
-(15-30 min)         (1-2 min)            (15-30 min)
-    │                     │                      │
-    └─────────────────────┴──────────────────────┘
-                          ↓
-              Docker build creates new image
-                          ↓
-              Tag as yohasebe/python:latest
-                          ↓
-              Health check passes?
-                          ↓
-                    ┌─────┴─────┐
-                    │           │
-                  Yes          No
-                    │           │
-                    ↓           ↓
-          Save options    Keep old image
-          to .txt file    Clean temp image
-                    │           │
-                    ↓           └─→ FAIL
-          Is container running?
-                    │
-              ┌─────┴─────┐
-              │           │
-            Yes          No
-              │           │
-              ↓           ↓
-    Restart container   Skip restart
-    (use new image)    (new image used
-                        on next start)
-              │           │
-              └─────┬─────┘
-                    ↓
-              SUCCESS - New image in use
-```
+Paths 2 and 3 are used by the start-time pending-build gate and
+install-option changes — Electron invokes the
+`build_python_container_update` command alias there, which does NOT set
+`FORCE_REBUILD` (see `computePendingContainerBuilds` in `app/main.js`).
+
+All paths converge on the same verified-promotion tail: build/pull into a
+temp tag → pysetup + health checks → atomic retag to
+`yohasebe/python:<version>` + `:latest` → save options snapshot → restart
+the running container.
 
 ### Install Options Tracking
 
@@ -171,20 +143,22 @@ The build system tracks the following install options:
 
 ### Build Strategy
 
-**When options haven't changed:**
-- Uses Docker build cache for fast rebuilds (~1-2 minutes)
-- Only rebuilds layers that actually changed
-- Logs: `[INFO] Install options unchanged, using build cache for faster build`
+**When all options are false** (the default): the prebuilt default image
+is pulled instead of building — typically a few minutes of download (or
+seconds when layers are already present), versus a 15–30 min local build.
+Logs: `No install options selected — fetching the prebuilt Python image`.
 
-**When options have changed:**
-- Uses `--no-cache` to force complete rebuild (~15-30 minutes)
-- Ensures new packages are properly installed
-- Logs which options changed: `[INFO] Install options changed: INSTALL_LATEX(false→true)`
-- Logs: `[INFO] Using --no-cache to ensure changes are applied`
+**When any option is enabled** (first build or option change): a local
+build runs with `--cache-from ghcr.io/yohasebe/monadic-python:latest`.
+BuildKit keys option-conditional RUN layers on their ARG values, so a
+toggled option naturally invalidates exactly its own layers; the heavy
+apt + pip base comes from the prebuilt image's inline cache. Option
+changes are still logged
+(`[INFO] Install options changed: INSTALL_LATEX(false→true)`) but no
+longer trigger `--no-cache`.
 
-**First build or missing options file:**
-- Uses `--no-cache` to be safe
-- Logs: `[INFO] First build or options file missing, using --no-cache`
+**Explicit menu build**: `FORCE_REBUILD=true` → `--no-cache`, the
+clean-rebuild escape hatch when cache state is suspected to be wrong.
 
 ### Options File Location
 
@@ -248,17 +222,17 @@ The `read_cfg_bool` function in `monadic.sh` checks options in this order:
 6. If Python container is running → restart it to use new image
 ```
 
-### Why This Matters
+### Why This Matters (history)
 
-**Problem it solves:**
-- Docker's build cache can reuse layers even when `ARG` values change
-- Without `--no-cache`, changing `INSTALL_LATEX` from `false` to `true` might still use cached layers built with `false`
-- This results in missing packages despite correct build args
-
-**Solution:**
-- Detect actual option changes at the application level
-- Force `--no-cache` only when truly needed
-- Balance between reliability and build speed
+The original smart-caching design forced `--no-cache` whenever an option
+changed, because the classic (pre-BuildKit) builder could reuse a
+conditional RUN layer even when its ARG value changed, leaving packages
+missing despite correct build args. With BuildKit (the default builder in
+all supported Docker versions), ARG values participate in the cache key
+of the RUN layers that reference them, so a normal cached build applies
+option changes correctly — which is what allows the current
+`--cache-from`-based strategy. `--no-cache` survives only behind the
+explicit menu build (`FORCE_REBUILD`).
 
 ### Container Auto-Restart
 

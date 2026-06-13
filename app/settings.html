@@ -801,7 +801,7 @@
 
             <div class="setting-group">
               <label data-i18n="settings.labels.installPrivacyTitle" data-container="privacy_service">Privacy Filter — Additional Languages</label>
-              <small class="text-muted" data-i18n="settings.labels.installPrivacyDesc">English is always installed. Enable additional languages to mask PII in non-English content. Each language adds ~50 MB to the Privacy container; rebuild required after changes.</small>
+              <small class="text-muted" data-i18n="settings.labels.installPrivacyDesc">English is always enabled. Enable additional languages to mask PII in non-English content. All language models are preinstalled in the Privacy container; changes apply when you save — no rebuild needed.</small>
               <div id="privacy-langs-extra" style="margin-top: 8px; padding-left: 20px;">
                 <div class="checkbox-row"><input type="checkbox" id="privacy-lang-en" checked disabled><label for="privacy-lang-en">English (en) — always installed</label></div>
                 <div class="checkbox-row"><input type="checkbox" id="privacy-lang-de"><label for="privacy-lang-de">German (de)</label></div>
@@ -1009,22 +1009,20 @@
         }
       }
 
-      // ─── Extractor master toggle + Privacy language checkbox handlers ───
+      // ─── Extractor master toggle handler ───
       document.addEventListener('change', (ev) => {
         if (ev.target && ev.target.id === 'install-extractor-service') {
           syncExtractorLangsEnabled();
           updateActionButtons();
         }
-        if (ev.target && ev.target.id && ev.target.id.startsWith('privacy-lang-')) {
-          recomputeRebuildBadges();
-        }
       });
 
       // ─── Privacy Filter language helpers ───
-      // Privesidio-supported languages exposed in the UI. English is required
+      // Presidio-supported languages exposed in the UI. English is required
       // and always included (the checkbox is checked + disabled in markup).
-      // Other languages are opt-in; selecting any of them makes the Privacy
-      // section a "rebuild-needed" candidate.
+      // Other languages are opt-in. All language models are baked into the
+      // container image; the selection here is applied at runtime on Save
+      // (no rebuild involved).
       const PRIVACY_OPT_LANGS = ['de', 'es', 'fr', 'it', 'ja', 'nl', 'pt', 'zh'];
 
       function collectPrivacyLangs() {
@@ -1132,26 +1130,19 @@
         })();
 
         const privacyState = (() => {
+          // All language models are baked into the image and PRIVACY_LANGS
+          // is applied at runtime, so once built the section is always
+          // in sync — language toggles never require a rebuild.
           const prev = buildOptionsSnapshots.privacy_service;
-          if (!prev) return 'not-built';
-          // PRIVACY_LANGS is the only build-relevant input. Any change in the
-          // language set requires rebuilding (each language's spaCy model is
-          // baked into the image).
-          const curLangs = collectPrivacyLangs();
-          return prev.PRIVACY_LANGS !== undefined && prev.PRIVACY_LANGS !== curLangs
-            ? 'rebuild-needed' : 'in-sync';
+          return prev ? 'in-sync' : 'not-built';
         })();
 
         const extractorState = (() => {
           if (!$val('install-extractor-service')?.checked) return 'disabled';
+          // OCR languages/backend are runtime settings; like Privacy, the
+          // only meaningful states are built vs not built.
           const prev = buildOptionsSnapshots.extractor_service;
-          if (!prev) return 'not-built';
-          // EXTRACTOR_SERVICE is a runtime flag; build depends on LANGS + OCR.
-          const curLangs = collectExtractorLangs();
-          const curOcr = prev.EXTRACTOR_OCR || 'rapidocr';  // no UI yet
-          const langsDiff = prev.EXTRACTOR_LANGS !== undefined && prev.EXTRACTOR_LANGS !== curLangs;
-          const ocrDiff = prev.EXTRACTOR_OCR !== undefined && prev.EXTRACTOR_OCR !== curOcr;
-          return (langsDiff || ocrDiff) ? 'rebuild-needed' : 'in-sync';
+          return prev ? 'in-sync' : 'not-built';
         })();
 
         const states = {

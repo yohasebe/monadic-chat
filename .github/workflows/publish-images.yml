@@ -1,0 +1,177 @@
+name: Publish service images
+
+# Builds and publishes the prebuilt service images (embeddings, privacy,
+# extractor, python) to ghcr.io as multi-arch manifests
+# (linux/amd64 + linux/arm64).
+#
+# Why prebuilt: embeddings/privacy/extractor are user-independent (no
+# install options or language selection baked in — language choices are
+# runtime env since the Phase 5-2 refactor), so every user can pull the
+# same CI-built digest instead of paying a local torch-sized build and
+# depending on Docker Hub base-image pulls at install time (the
+# historical CI flake source). The python image is the DEFAULT build
+# (every install option false): users without options pull it directly,
+# and custom builds use it as a layer-cache source (`--cache-from` +
+# the inline cache embedded below), paying only for their enabled
+# options. The python Dockerfile keeps all unconditional layers before
+# the first conditional one so the default image is a cache prefix of
+# every custom build.
+#
+# Why a native arm64 runner instead of QEMU: torch-class images take hours
+# under emulation; `ubuntu-24.04-arm` runners are free for public repos.
+# Each arch builds in parallel and pushes by digest; a merge job stitches
+# the digests into one manifest per service, so compose pulls the right
+# arch automatically on macOS (Apple Silicon), Windows (WSL2) and Linux.
+#
+# Triggers / tag policy:
+#   - push to main touching a service directory → :latest (the release
+#     path; user installs consume :latest by default)
+#   - push to dev touching a service directory → :dev (build validation +
+#     an image for dev-branch CI/testing; never exposed to end users)
+#   - workflow_dispatch → :latest; pass `version` during a release to
+#     also publish an immutable :<version> tag for rollback
+#     (paths-filtered push and tag events do not combine reliably, so
+#     version tagging is an explicit dispatch input instead)
+#   - end users can pin or switch tags via MONADIC_IMAGE_TAG in
+#     ~/monadic/config/env (compose interpolation; default latest)
+#
+# One-time setup: after the first publish, each ghcr.io package must be
+# made PUBLIC once (GitHub → Packages → package settings → visibility),
+# otherwise anonymous `docker compose pull` fails for users and CI.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional version tag to publish in addition to :latest (e.g. 1.0.0-beta.21)'
+        required: false
+        type: string
+  push:
+    branches: [main, dev]
+    paths:
+      - '.github/workflows/publish-images.yml'
+      - 'docker/services/embeddings/**'
+      - 'docker/services/privacy/**'
+      - 'docker/services/extractor/**'
+      - 'docker/services/python/**'
+      - 'docker/services/qdrant/**'
+      - 'docker/services/selenium/**'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [embeddings, privacy, extractor, python, qdrant, selenium]
+        platform:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    name: build ${{ matrix.service }} (${{ matrix.platform.arch }})
+    runs-on: ${{ matrix.platform.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/services/${{ matrix.service }}
+          platforms: linux/${{ matrix.platform.arch }}
+          # Inline cache lets user machines run `docker build --cache-from
+          # <this image>` and reuse the published layers (the python custom
+          # option builds rely on this).
+          cache-to: type=inline
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.service }}-${{ matrix.platform.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        # Must list the same services as the build matrix above — a service
+        # present only there gets its digests pushed but never receives a
+        # :latest manifest tag.
+        service: [embeddings, privacy, extractor, python, qdrant, selenium]
+    name: publish ${{ matrix.service }} manifest
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.service }}-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
+        # Tag policy — :latest is what user installs consume by default, so
+        # it must only move through gated paths:
+        #   - push to main (release flow; the tree has passed the full
+        #     local + CI gates) → :latest
+        #   - workflow_dispatch → :latest (+ :<version> when the input is
+        #     given, for immutable rollback points at release time)
+        #   - push to dev → :dev only. Validates the Dockerfiles build and
+        #     gives CI/developers an image matching the dev branch without
+        #     exposing untested content to end users.
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }}"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_NAME}" = "dev" ]; then
+            TAGS="-t ${IMAGE}:dev"
+          else
+            TAGS="-t ${IMAGE}:latest"
+          fi
+          VERSION="${{ inputs.version }}"
+          if [ -n "${VERSION}" ]; then
+            TAGS="${TAGS} -t ${IMAGE}:${VERSION}"
+          fi
+          echo "VERIFY_TAG=$(echo "${TAGS}" | awk '{print $2}')" >> "$GITHUB_ENV"
+          docker buildx imagetools create ${TAGS} $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Inspect published manifest
+        # ghcr.io can lag a few seconds between accepting a manifest push
+        # and serving reads for it (observed on the first publish: create
+        # reported DONE, an inspect 0.6s later got "not found"), so retry
+        # before declaring the publish broken.
+        run: |
+          for i in 1 2 3 4 5; do
+            if docker buildx imagetools inspect "${VERIFY_TAG}"; then
+              exit 0
+            fi
+            echo "inspect attempt ${i} failed; retrying in 10s..."
+            sleep 10
+          done
+          echo "Manifest for ${VERIFY_TAG} not readable after retries."
+          exit 1

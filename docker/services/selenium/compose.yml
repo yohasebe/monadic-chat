@@ -1,17 +1,20 @@
 services:
   selenium_service:
     profiles: ["selenium"]
-    image: yohasebe/selenium
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PROJECT_TAG: "monadic-chat"
+    # Prebuilt multi-arch image published by .github/workflows/publish-images.yml.
+    # The image is user-independent (a pinned selenium/standalone-chromium plus
+    # a project label — see Dockerfile), so users pull it instead of building
+    # locally. Local builds for development use compose.build.yml.
+    image: ghcr.io/yohasebe/monadic-selenium:${MONADIC_IMAGE_TAG:-latest}
     container_name: monadic-chat-selenium-container
     shm_size: 2gb
     environment:
       - SE_VNC_NO_PASSWORD=true
     volumes:
+      # The named-volume line below is inert cruft: the bind mount that
+      # follows targets the same container path and wins, so no named
+      # volume is ever materialized (verified 2026-06-12). See the note
+      # in services/ruby/compose.yml before "fixing" this.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
     ports:

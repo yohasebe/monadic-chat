@@ -384,48 +384,15 @@ module GeminiHelper
     "Google"
   end
 
-  def self.list_models
-    # Return cached models if they exist
-    return $MODELS[:gemini] if $MODELS[:gemini]
-
-    api_key = CONFIG["GEMINI_API_KEY"]
-    return [] if api_key.nil?
-
-    headers = {
-      "Content-Type": "application/json"
-    }
-
-    target_uri = "#{API_ENDPOINT}/models?key=#{api_key}"
-      http = HTTP.headers(headers)
-
-    begin
-      res = http.get(target_uri)
-
-      if res.status.success?
-        model_data = JSON.parse(res.body)
-        models = []
-        model_data["models"].each do |model|
-          name = model["name"].split("/").last
-          display_name = model["displayName"]
-          models << name if name && /Legacy/ !~ display_name
-        end
-      end
-
-      return [] if !models || models.empty?
-
-      $MODELS[:gemini] = models.filter do |model|
-        /(?:embedding|aqa|vision|imagen|learnlm|gemini-1)/ !~ model
-      end.reverse
-
-    rescue HTTP::Error, HTTP::TimeoutError
-      []
+  define_model_lister :gemini,
+    api_key_config: "GEMINI_API_KEY",
+    endpoint: ->(api_key) { "/models?key=#{api_key}" },
+    headers: ->(_api_key) { { "Content-Type" => "application/json" } } do |json|
+      (json["models"] || []).filter_map do |model|
+        name = model["name"].split("/").last
+        name if name && /Legacy/ !~ model["displayName"]
+      end.reject { |model| /(?:embedding|aqa|vision|imagen|learnlm|gemini-1)/ =~ model }.reverse
     end
-  end
-
-  # Method to manually clear the cache if needed
-  def clear_models_cache
-    $MODELS[:gemini] = nil
-  end
 
   # Internal Web Search Agent for Gemini
   # This method makes a separate Gemini API call with google_search grounding only,
@@ -726,23 +693,9 @@ module GeminiHelper
     http = HTTP.headers(headers)
     
     # Make request
-    response = nil
-    
-    # Simple retry logic
     begin
-      MAX_RETRIES.times do
-        response = http.timeout(
-          connect: open_timeout,
-          write: write_timeout,
-          read: read_timeout
-        ).post(target_uri, json: body)
-
-        # Break if successful
-        break if response && response.status && response.status.success?
-
-        # Wait before retrying
-        sleep RETRY_DELAY
-      end
+      response = post_json_with_retries(http, target_uri, body,
+                                        max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
       # Check for valid response
       if !response || !response.status

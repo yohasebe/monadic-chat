@@ -14,46 +14,79 @@ RSpec.describe BaseVendorHelper do
     end
   end
 
-  describe '#retry_with_backoff' do
+  describe '#post_json_with_retries' do
     subject(:helper) do
-      Class.new do
+      mod = Module.new do
         include BaseVendorHelper
-      end.new
-    end
-
-    it 'returns the block result on success' do
-      result = helper.retry_with_backoff { 42 }
-      expect(result).to eq(42)
-    end
-
-    it 'retries on HTTP::Error up to max_retries' do
-      call_count = 0
-      result = helper.retry_with_backoff(max_retries: 3, delay: 0) do
-        call_count += 1
-        raise HTTP::Error, "timeout" if call_count < 3
-        "success"
+        define_timeouts "RETRYTEST", open: 1, read: 1, write: 1
       end
-      expect(result).to eq("success")
-      expect(call_count).to eq(3)
+      Class.new { include mod }.new
     end
 
-    it 'raises after exceeding max_retries' do
+    let(:success_response) { double('Response', status: double('Status', success?: true)) }
+    let(:failure_response) { double('Response', status: double('Status', success?: false)) }
+
+    # Builds an http double whose post yields the given outcomes in order
+    # (an Exception class is raised; anything else is returned). The last
+    # outcome repeats if the loop asks for more.
+    def http_yielding(*outcomes)
+      http = double('HTTP')
+      chain = double('HTTPWithTimeout')
+      allow(http).to receive(:timeout).and_return(chain)
+      calls = 0
+      allow(chain).to receive(:post) do
+        outcome = outcomes[[calls, outcomes.length - 1].min]
+        calls += 1
+        outcome.is_a?(Class) ? raise(outcome, "boom") : outcome
+      end
+      [http, -> { calls }]
+    end
+
+    it 'returns the first successful response without further attempts' do
+      http, calls = http_yielding(success_response)
+      result = helper.post_json_with_retries(http, "http://x", {}, max_retries: 3, retry_delay: 0)
+      expect(result).to equal(success_response)
+      expect(calls.call).to eq(1)
+    end
+
+    it 'retries on non-success status and returns the successful response' do
+      http, calls = http_yielding(failure_response, success_response)
+      result = helper.post_json_with_retries(http, "http://x", {}, max_retries: 3, retry_delay: 0)
+      expect(result).to equal(success_response)
+      expect(calls.call).to eq(2)
+    end
+
+    it 'returns the last response after exhausting retries on non-success status' do
+      http, calls = http_yielding(failure_response)
+      result = helper.post_json_with_retries(http, "http://x", {}, max_retries: 3, retry_delay: 0)
+      expect(result).to equal(failure_response)
+      expect(calls.call).to eq(3)
+    end
+
+    it 'swallows and retries exceptions listed in rescue_errors' do
+      http, calls = http_yielding(HTTP::Error, success_response)
+      result = helper.post_json_with_retries(http, "http://x", {},
+                                             max_retries: 3, retry_delay: 0,
+                                             rescue_errors: [HTTP::Error, HTTP::TimeoutError])
+      expect(result).to equal(success_response)
+      expect(calls.call).to eq(2)
+    end
+
+    it 'returns nil when every attempt raises a rescued error' do
+      http, calls = http_yielding(HTTP::Error)
+      result = helper.post_json_with_retries(http, "http://x", {},
+                                             max_retries: 2, retry_delay: 0,
+                                             rescue_errors: [HTTP::Error])
+      expect(result).to be_nil
+      expect(calls.call).to eq(2)
+    end
+
+    it 'propagates exceptions by default (no rescue_errors)' do
+      http, calls = http_yielding(HTTP::Error)
       expect {
-        helper.retry_with_backoff(max_retries: 2, delay: 0) do
-          raise HTTP::Error, "always fails"
-        end
+        helper.post_json_with_retries(http, "http://x", {}, max_retries: 3, retry_delay: 0)
       }.to raise_error(HTTP::Error)
-    end
-
-    it 'raises non-network errors immediately without retry' do
-      call_count = 0
-      expect {
-        helper.retry_with_backoff(max_retries: 5, delay: 0) do
-          call_count += 1
-          raise ArgumentError, "bad input"
-        end
-      }.to raise_error(ArgumentError)
-      expect(call_count).to eq(1)
+      expect(calls.call).to eq(1)
     end
   end
 

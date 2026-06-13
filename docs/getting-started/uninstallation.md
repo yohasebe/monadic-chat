@@ -73,10 +73,14 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 
 - `yohasebe/monadic-chat`
 - `yohasebe/python`
-- `yohasebe/selenium`
-- `yohasebe/monadic-embeddings`
-- `qdrant/qdrant`
-- `yohasebe/monadic-privacy` (only if Privacy Filter is installed)
+- `ghcr.io/yohasebe/monadic-embeddings`
+- `ghcr.io/yohasebe/monadic-qdrant`
+- `ghcr.io/yohasebe/monadic-selenium`
+- `ghcr.io/yohasebe/monadic-privacy` (only if Privacy Filter is installed)
+- `ghcr.io/yohasebe/monadic-extractor` (only if Knowledge Base Quality Pack is installed)
+- `ghcr.io/yohasebe/monadic-python` (prebuilt default Python image, present when no install options are selected or as a build cache)
+- `yohasebe/selenium`, `qdrant/qdrant` (images from versions before the ghcr.io unification)
+- `yohasebe/monadic-embeddings`, `yohasebe/monadic-privacy`, `yohasebe/monadic-extractor` (locally built images from versions before the ghcr.io prebuilt distribution)
 - `yohasebe/pgvector` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
 
 #### Volumes

@@ -1,6 +1,10 @@
 services:
   qdrant_service:
-    image: qdrant/qdrant:latest
+    # Prebuilt pinned mirror of upstream qdrant (see Dockerfile in this
+    # directory for the pin and bump procedure). Published by
+    # .github/workflows/publish-images.yml; local builds for development
+    # use compose.build.yml.
+    image: ghcr.io/yohasebe/monadic-qdrant:${MONADIC_IMAGE_TAG:-latest}
     # No profile: this is a base service (always starts with Monadic Chat)
     # because the Help system depends on it. Use ensure-service qdrant from
     # Ruby for startup ordering, not profile activation.

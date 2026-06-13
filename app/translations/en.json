@@ -202,6 +202,8 @@
     "buildUserFinished": "Build of user containers has finished: Check the console panel for details.",
     "buildPrivacyFinished": "Build of Privacy container has finished: Check the console panel for details.",
     "buildPrivacyFailed": "Privacy container build failed. Check the build log for details.",
+    "buildExtractorFinished": "Build of Extractor container has finished: Check the console panel for details.",
+    "buildExtractorFailed": "Extractor container build failed. Check the build log for details.",
     "buildMonadicFinished": "Build of Monadic Chat has finished and containers are started. Check the console panel for details.",
     "containerFailedBuild": "Container failed to build.",
     "noUserContainers": "No user containers to build.",

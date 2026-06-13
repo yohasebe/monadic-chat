@@ -2471,7 +2471,8 @@ document.addEventListener("DOMContentLoaded", function () {
     //   1. App MDSL declares `privacy do; enabled true; end`
     //   2. PRIVACY_FILTER env is not "false" on the server
     //   3. Sidebar conversation_language is "auto"/"en" or one of the
-    //      languages the privacy container was built with (PRIVACY_LANGS)
+    //      languages enabled for the privacy container (PRIVACY_LANGS,
+    //      a runtime setting — all models are baked into the image)
     // Initial setup: clears lock + restores remembered preference + emits
     // PRIVACY_TOGGLE if the remembered state is "on". `setupPrivacyToggleGate`
     // (defined at module scope) is the same function reused by the

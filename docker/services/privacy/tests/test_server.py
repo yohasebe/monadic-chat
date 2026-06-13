@@ -19,6 +19,22 @@ def test_health():
     assert "en" in body["languages"]
 
 
+def test_enabled_languages_skips_unknown_codes(monkeypatch):
+    # PRIVACY_LANGS is user-editable at runtime; a typo must not crash the
+    # server at startup — unknown codes are warned about and skipped.
+    import registry_setup
+
+    monkeypatch.setenv("PRIVACY_LANGS_RUNTIME", "en,xx,ja")
+    assert registry_setup.enabled_languages() == ["en", "ja"]
+
+
+def test_enabled_languages_falls_back_to_english(monkeypatch):
+    import registry_setup
+
+    monkeypatch.setenv("PRIVACY_LANGS_RUNTIME", "zz")
+    assert registry_setup.enabled_languages() == ["en"]
+
+
 def test_info_lists_recognizers():
     r = client.get("/v1/info")
     assert r.status_code == 200

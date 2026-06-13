@@ -402,7 +402,7 @@ class MonadicApp
     end
 
     # Use longer timeout for media generation (videos, images, and TTS can take several minutes)
-    timeout_value = if command.include?("video_generator_gemini") || command.include?("video_generator_openai")
+    timeout_value = if command.include?("video_generator_gemini")
                       # Extract --max-wait value from command if present, add 60s buffer
                       max_wait_match = command.match(/--max-wait\s+(\d+)/)
                       max_wait = max_wait_match ? max_wait_match[1].to_i : 600
@@ -666,18 +666,19 @@ class MonadicApp
       return ["", error_msg, OpenStruct.new(success?: false)]
     end
 
-    # Log command input and output
+    # Log command input and output (best-effort: a missing or read-only
+    # log directory must not turn a successful command into a failure)
     begin
       Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
+      File.open(COMMAND_LOG_FILE, "a") do |f|
+        f.puts "Time: #{Time.now}"
+        f.puts "Command: #{command}"
+        f.puts "Error: #{stderr}" if stderr.strip.length.positive?
+        f.puts "Output: #{stdout}"
+        f.puts "-----------------------------------"
+      end
     rescue StandardError
       # best-effort
-    end
-    File.open(COMMAND_LOG_FILE, "a") do |f|
-      f.puts "Time: #{Time.now}"
-      f.puts "Command: #{command}"
-      f.puts "Error: #{stderr}" if stderr.strip.length.positive?
-      f.puts "Output: #{stdout}"
-      f.puts "-----------------------------------"
     end
 
     [stdout, stderr, status]

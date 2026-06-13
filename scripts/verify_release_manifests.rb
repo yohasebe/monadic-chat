@@ -22,7 +22,6 @@
 #   0  all manifests match their referenced artifacts
 #   1  one or more mismatches found (or no manifests at all)
 
-require 'base64'
 require 'digest'
 require 'pathname'
 require 'yaml'
@@ -57,7 +56,7 @@ manifests.each do |yml|
       next
     end
 
-    actual_sha = Base64.strict_encode64(Digest::SHA512.digest(artifact.read))
+    actual_sha = [Digest::SHA512.digest(artifact.read)].pack('m0')
     actual_size = artifact.size
 
     if actual_sha != declared

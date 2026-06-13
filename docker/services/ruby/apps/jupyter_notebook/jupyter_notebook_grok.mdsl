@@ -46,6 +46,15 @@ app "JupyterNotebookGrok" do
     end
   end
 
+  # xAI Responses API client-driven Context Compaction (grok-4.3, 2026-05).
+  # Notebook sessions accumulate cell outputs across many turns; compaction
+  # folds the older history into an opaque summary blob (superseding the small
+  # context_size window above once the threshold is crossed). Mirrors the OpenAI
+  # variant's threshold.
+  compaction do
+    compact_threshold 150_000
+  end
+
   system_prompt <<~TEXT
     You are a Jupyter Notebook assistant. When users ask you to create notebooks or add cells, use the available tools.
 

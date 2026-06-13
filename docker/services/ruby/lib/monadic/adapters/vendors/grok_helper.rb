@@ -11,12 +11,14 @@ require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
+require_relative "grok_compaction"
 require "json"
 
 module GrokHelper
   include BaseVendorHelper
   include InteractionUtils
   include FunctionCallErrorHandler
+  include GrokCompaction
   # Maximum tool-call round-trips per user turn.
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.x.ai/v1"
@@ -1056,12 +1058,27 @@ module GrokHelper
       end
     end
 
+    # When Context Compaction is enabled for this app, bypass the client-side
+    # sliding window and carry the full history: compaction (applied later, at
+    # the input level) folds the older portion into an opaque summary blob so
+    # nothing is silently dropped. Opt-out / disabled apps keep the window.
+    grok_compaction_on = begin
+      t = grok_compaction_threshold(app)
+      t.is_a?(Integer) && !@clear_orchestration_history
+    rescue StandardError
+      false
+    end
+
     # Old messages in the session are set to inactive
     # and set active messages are added to the context
     session[:messages].each { |msg| msg["active"] = false }
     context = [session[:messages].first]
     if session[:messages].length > 1
-      context += session[:messages][1..].last(context_size)
+      context += if grok_compaction_on
+                   session[:messages][1..]
+                 else
+                   session[:messages][1..].last(context_size)
+                 end
     end
     context.each { |msg| msg["active"] = true }
     strip_inactive_image_data(session)
@@ -1136,6 +1153,15 @@ module GrokHelper
 
     # Convert context_messages to Responses API input format
     body["input"] = convert_messages_to_input(context_messages)
+
+    # Context Compaction: fold older history into an opaque summary blob and
+    # rebuild input as [blob, system, live_tail]. No-op unless the app enables
+    # `compaction` in MDSL; any failure degrades to the full input above.
+    if grok_compaction_on
+      body["input"] = apply_grok_compaction(
+        body["input"], session: session, app: app, model: model, api_key: api_key
+      )
+    end
 
     execute_grok_api_call(headers, body, app, session, call_depth, disable_streaming, original_user_model, &block)
   rescue HTTP::Error, HTTP::TimeoutError

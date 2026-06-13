@@ -350,6 +350,9 @@ module WebSocketHelper
     session.delete(:_substitution_pipeline)
     # Reset state-of-truth toggle as well; user re-negotiates via UI.
     session.delete(:_privacy_session_enabled)
+    # Drop the Grok Context Compaction cache. The blob is a cache derived from
+    # session[:messages]; once the canon is cleared it must not be replayed.
+    session.delete(:grok_compaction)
     # Clear provider-specific media references to prevent cross-session leakage
     session.keys
       .select { |k| k.is_a?(Symbol) && (k.to_s.match?(/last_image|last_video/) || k == :tool_html_fragments) }

@@ -62,6 +62,14 @@ app "CodingAssistantGrok" do
     end
   end
 
+  # xAI Responses API client-driven Context Compaction (grok-4.3, 2026-05).
+  # Long coding sessions accumulate large file/diff context; folding older turns
+  # into an opaque summary blob keeps cost/latency down without dropping context.
+  # Mirrors the OpenAI variant's threshold.
+  compaction do
+    compact_threshold 150_000
+  end
+
   display_name "Coding Assistant"
  
   features do

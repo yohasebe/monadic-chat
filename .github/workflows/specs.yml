@@ -56,6 +56,33 @@ jobs:
       - name: Install GraphViz (used by some unit specs)
         run: sudo apt-get update && sudo apt-get install -y graphviz libgraphviz-dev pkg-config
 
+      - name: Wait for image publish on this commit (if any)
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A push that touches docker/services/** triggers publish-images
+          # in PARALLEL with this workflow, and this job pulls the very tags
+          # that run is busy (re)publishing. Pulling mid-publish 404s on
+          # first-ever packages ("manifest unknown" / "denied") and races
+          # the manifest swap otherwise — the recurring source of false
+          # red Specs runs + failure emails on image-touching pushes.
+          # Wait for any publish-images run on the same SHA to finish
+          # before composing up; pushes that did not trigger one fall
+          # through immediately.
+          for i in $(seq 1 40); do
+            active=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-images.yml/runs?head_sha=${GITHUB_SHA}&per_page=10" \
+              --jq '[.workflow_runs[] | select(.status != "completed")] | length' 2>/dev/null || echo 0)
+            if [ "${active}" = "0" ]; then
+              echo "No in-progress publish-images run for ${GITHUB_SHA}; proceeding."
+              exit 0
+            fi
+            echo "publish-images in progress for this commit (${active} run(s)); waiting 30s... (${i}/40)"
+            sleep 30
+          done
+          echo "::warning::publish-images still running after 20 minutes; proceeding anyway"
+
       - name: Run route-contract integration specs (both IN_CONTAINER modes)
         run: |
           # Retry ONLY transient infrastructure failures (Docker Hub pull
@@ -76,7 +103,11 @@ jobs:
             if [ "$code" -eq 0 ]; then
               exit 0
             fi
-            if echo "$output" | grep -qiE "Container startup timeout|failed to solve|i/o timeout|context deadline exceeded|registry-1\.docker\.io|TLS handshake timeout|temporary failure in name resolution"; then
+            # ghcr markers ("manifest unknown" / "denied") cover the residual
+            # image-publish race the wait step above can miss (e.g. a publish
+            # run created after this job started) and first-publish private
+            # packages awaiting the one-time public toggle.
+            if echo "$output" | grep -qiE "Container startup timeout|failed to solve|i/o timeout|context deadline exceeded|registry-1\.docker\.io|TLS handshake timeout|temporary failure in name resolution|manifest unknown|denied: requested access|ghcr\.io.*denied"; then
               if [ "$attempt" -ge "$max_attempts" ]; then
                 echo "::warning::Transient container/registry failure persisted after ${max_attempts} attempts"
                 exit "$code"

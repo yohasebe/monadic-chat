@@ -63,11 +63,13 @@ app "MusicGeneratorGemini" do
     - **Length** — a full song (default, up to ~2-3 min) or a quick 30-second
       instrumental clip
     - **High-quality WAV** instead of MP3 (full songs only)
+
     What would you like to create?
     --- END EXAMPLE ---
 
-    In every other case, do NOT re-emit a greeting — respond to the user's actual
-    request by calling the tool.
+    Put the closing question on its OWN line, separated from the last bullet by a
+    blank line (do not append it to the final list item). In every other case, do
+    NOT re-emit a greeting — respond to the user's actual request by calling the tool.
 
     WORKFLOW:
     - User describes music → call generate_music_with_lyria(prompt: "...")

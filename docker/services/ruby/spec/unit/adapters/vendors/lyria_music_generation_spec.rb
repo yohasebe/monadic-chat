@@ -97,4 +97,52 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
     expect(result['success']).to be false
     expect(result['error']).to match(/GEMINI_API_KEY/)
   end
+
+  describe 'request body options (B: WAV, A: image-to-music)' do
+    # Capture the JSON request body the method posts.
+    let(:posted) { [] }
+
+    before do
+      allow_any_instance_of(Net::HTTP::Post).to receive(:body=) { |_, b| posted << b }
+      allow(Net::HTTP).to receive(:start).and_return(
+        response('200', audio_body(mime: 'audio/wav', text: '<instrumental>'))
+      )
+    end
+
+    def sent_body
+      JSON.parse(posted.last)
+    end
+
+    it 'requests WAV in generationConfig when output_format is wav on the Pro model' do
+      helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', output_format: 'wav')
+      expect(sent_body.dig('generationConfig', 'responseFormat', 'audio', 'mimeType')).to eq('audio/wav')
+    end
+
+    it 'ignores a WAV request on the Clip model (Clip is MP3-only)' do
+      helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'clip', output_format: 'wav')
+      expect(sent_body['generationConfig']).not_to have_key('responseFormat')
+    end
+
+    it 'appends uploaded session images as inline_data parts (image-to-music)' do
+      session = { messages: [
+        { 'role' => 'user', 'text' => 'make a track from this',
+          'images' => [{ 'name' => 'mood.png', 'data' => 'data:image/png;base64,QUJD' }] }
+      ] }
+      helper.generate_music_with_lyria(prompt: 'x', session: session)
+
+      parts = sent_body.dig('contents', 0, 'parts')
+      img_part = parts.find { |p| p['inline_data'] || p['inlineData'] }
+      inline = img_part && (img_part['inline_data'] || img_part['inlineData'])
+      expect(inline).not_to be_nil
+      expect(inline['mime_type'] || inline['mimeType']).to eq('image/png')
+      expect(inline['data']).to eq('QUJD')
+    end
+
+    it 'sends no image parts when the session has none' do
+      helper.generate_music_with_lyria(prompt: 'x', session: { messages: [] })
+      parts = sent_body.dig('contents', 0, 'parts')
+      expect(parts.size).to eq(1)
+      expect(parts.first).to have_key('text')
+    end
+  end
 end

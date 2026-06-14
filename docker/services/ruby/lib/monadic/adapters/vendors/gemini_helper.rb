@@ -314,9 +314,11 @@ module GeminiHelper
   # generateContent with AUDIO modality — same response shape as Gemini TTS).
   # Returns inline base64 audio (MP3 by default; WAV for Pro) plus a text part
   # carrying lyrics/structure. lyria_model: "pro" (default, full songs with
-  # vocals) or "clip" (30s instrumental, fast). Resolves the actual model id
-  # from providerDefaults.gemini.music (SSOT). Mirrors generate_image_with_gemini_native.
-  def generate_music_with_lyria(prompt:, lyria_model: nil)
+  # vocals) or "clip" (30s instrumental, fast). output_format: "wav" (Pro only;
+  # higher quality, larger file) else MP3. Uploaded images in the session
+  # influence the composition (image-to-music, up to 10). Resolves the actual
+  # model id from providerDefaults.gemini.music (SSOT).
+  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -335,10 +337,18 @@ module GeminiHelper
     model_id = lyria_model.to_s.downcase == "clip" ? clip_model : pro_model
 
     shared_folder = Monadic::Utils::Environment.shared_volume
-    body = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ["AUDIO"] }
-    }
+
+    # Text prompt + any user-uploaded images for image-to-music (max 10).
+    parts = [{ text: prompt }]
+    lyria_image_parts(session).first(10).each { |img_part| parts << img_part }
+
+    generation_config = { responseModalities: ["AUDIO"] }
+    # WAV is Pro-only; the Clip model is MP3-only, so ignore a WAV request there.
+    if output_format.to_s.downcase == "wav" && model_id == pro_model
+      generation_config[:responseFormat] = { audio: { mimeType: "audio/wav" } }
+    end
+
+    body = { contents: [{ parts: parts }], generationConfig: generation_config }
 
     endpoint = "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
     response = nil
@@ -423,6 +433,30 @@ module GeminiHelper
     end
 
     out.join("\n").gsub(/\n{3,}/, "\n\n").strip
+  end
+
+  # Extract user-uploaded images from the current turn as Gemini inline_data
+  # parts, for image-to-music. Reads the latest user message that carries images
+  # (data URL or raw base64). Returns [] when there are none. Mirrors the image
+  # extraction in generate_image_with_gemini_native.
+  def lyria_image_parts(session)
+    return [] unless session && session[:messages].is_a?(Array)
+    with_images = session[:messages].select { |m| m["role"] == "user" && m["images"] && m["images"].any? }
+    return [] if with_images.empty?
+
+    Array(with_images.last["images"]).filter_map do |img|
+      data = img["data"] || img[:data]
+      next unless data
+      if data.start_with?("data:")
+        mime = data.split(';').first.split(':').last
+        b64  = data.split(',').last
+      else
+        mime = img["mime_type"] || img[:mime_type] || "image/png"
+        b64  = data
+      end
+      next if b64.to_s.empty?
+      { inline_data: { mime_type: mime, data: b64 } }
+    end
   end
 
   # Image generation model endpoints (separate from chat models)

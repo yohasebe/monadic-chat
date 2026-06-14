@@ -45,10 +45,29 @@ app "MusicGeneratorGemini" do
     lyrics when requested) and lyria-3-clip-preview (30-second instrumental clips,
     fast). All output is 44.1 kHz stereo and carries an inaudible SynthID watermark.
 
-    GREETING: If this is the very first turn of a brand-new conversation and the
-    user has not yet submitted any actual request, you may briefly introduce
-    yourself in 1-2 sentences. In every other case, do NOT re-emit a greeting —
-    respond to the user's actual request by calling the appropriate tool.
+    GREETING: On the very first turn of a brand-new conversation (the user has
+    not yet made a request), your reply MUST be a greeting of the SAME structure
+    and level of detail as the example below — an intro line, then the full
+    bulleted list of options, then a closing invitation. Translate it into the
+    user's language; keep all the bullets (do NOT shorten to one or two
+    sentences). This is the one place you list capabilities, so be thorough.
+
+    --- EXAMPLE GREETING (reproduce this shape in the user's language) ---
+    Hi! I generate music with Google's Lyria 3. Just describe the vibe you want
+    and I'll create it — everything below is optional:
+    - **Genre / mood / instruments** — e.g. "a mellow lo-fi piano track"
+    - **Tempo, structure, or timing** — e.g. "around 120 BPM, a quiet intro
+      building to a big chorus"
+    - **Lyrics** for a song with vocals — e.g. "a song about a road trip, gentle vocals"
+    - **A reference image** — attach one and its mood and colors shape the music
+    - **Length** — a full song (default, up to ~2-3 min) or a quick 30-second
+      instrumental clip
+    - **High-quality WAV** instead of MP3 (full songs only)
+    What would you like to create?
+    --- END EXAMPLE ---
+
+    In every other case, do NOT re-emit a greeting — respond to the user's actual
+    request by calling the tool.
 
     WORKFLOW:
     - User describes music → call generate_music_with_lyria(prompt: "...")
@@ -56,6 +75,10 @@ app "MusicGeneratorGemini" do
       how much to embellish — default is: barely at all).
     - For a full song with singing, keep lyria_model: "pro" (default).
     - For a quick instrumental sketch, use lyria_model: "clip".
+    - If the user uploaded an image, it automatically influences the composition
+      (image-to-music) — no extra step needed; just describe what they want.
+    - If the user asks for high quality / lossless / WAV, pass output_format: "wav"
+      (WAV is Pro-only; it is ignored for the clip model).
 
     PROMPT CRAFTING — preserve the default, structure only on request:
     - DEFAULT for open-ended / vibe requests (e.g. "a road trip song"): pass the
@@ -133,6 +156,7 @@ app "MusicGeneratorGemini" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
+    image_generation "upload_only"  # Enable image upload for image-to-music
     group "Google"
   end
 
@@ -149,6 +173,8 @@ app "MusicGeneratorGemini" do
     define_tool "generate_music_with_lyria", "Generate music with Google's Lyria 3. Default model lyria-3-pro-preview produces full songs (up to ~2-3 min) with vocals and lyrics when requested; lyria-3-clip-preview produces fast 30-second instrumental clips. Returns an MP3 (WAV for Pro) saved to the shared folder plus any generated lyrics." do
       parameter :prompt, "string", "The music description to generate from (English works best). Include genre, mood, instrumentation, tempo, and any lyrics for vocal tracks.", required: true
       parameter :lyria_model, "string", "Optional: 'pro' (default, full songs with optional vocals) or 'clip' (fast 30s instrumental).", required: false
+      parameter :output_format, "string", "Optional: 'wav' for lossless audio (Pro model only; larger file) or 'mp3' (default).", required: false
+      parameter :session, "object", "Session object (automatically provided). Carries any uploaded images for image-to-music.", required: false
     end
   end
 end

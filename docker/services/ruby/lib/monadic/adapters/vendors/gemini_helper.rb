@@ -295,7 +295,7 @@ module GeminiHelper
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
       end
 
-      return { success: false, error: "No image returned from Gemini image generation" }.to_json
+      return { success: false, error: gemini_block_reason(data, kind: :image) }.to_json
     else
       error_data = JSON.parse(response.body) rescue {}
       error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
@@ -377,7 +377,7 @@ module GeminiHelper
       inline = p["inlineData"] || p["inline_data"]
       inline && (inline["mimeType"] || inline["mime_type"]).to_s.start_with?("audio/")
     end
-    return { success: false, error: lyria_no_audio_reason(data) }.to_json unless audio_part
+    return { success: false, error: gemini_block_reason(data, kind: :audio) }.to_json unless audio_part
 
     inline = audio_part["inlineData"] || audio_part["inline_data"]
     mime = inline["mimeType"] || inline["mime_type"] || "audio/mpeg"
@@ -398,39 +398,66 @@ module GeminiHelper
     ) }.to_json
   end
 
-  # Build a detailed reason string when Lyria returns a 200 response with no
-  # audio. Lyria reports a blocked prompt via promptFeedback.blockReason (e.g.
-  # PROHIBITED_CONTENT when the prompt names a specific artist/band or
-  # references copyrighted material) and a mid-generation stop via the
-  # candidate's finishReason (SAFETY / RECITATION). Surface whichever is
-  # present, with actionable guidance, so the failure card explains *why*.
-  def lyria_no_audio_reason(data)
+  # Build a detailed reason string when a Gemini generateContent generation
+  # (music via Lyria, image via Gemini image models) returns a 200 response
+  # with no usable media. The model reports a blocked prompt via
+  # promptFeedback.blockReason (e.g. PROHIBITED_CONTENT when the prompt names a
+  # specific artist/work or references copyrighted material) and a
+  # mid-generation stop via the candidate's finishReason (SAFETY /
+  # IMAGE_SAFETY / RECITATION). Surface whichever is present, with guidance
+  # tailored to the output kind, so the failure card explains *why*.
+  #
+  # kind: :audio or :image — controls the noun and the rewrite guidance.
+  def gemini_block_reason(data, kind: :media)
     block_reason = data.dig("promptFeedback", "blockReason")
     block_message = data.dig("promptFeedback", "blockReasonMessage")
     finish_reason = data.dig("candidates", 0, "finishReason")
     finish_message = data.dig("candidates", 0, "finishMessage")
     reason = block_reason || finish_reason
 
+    noun = kind == :audio ? "audio" : (kind == :image ? "image" : "output")
+    prohibited_hint = case kind
+                      when :audio
+                        "Lyria rejects prompts that name a specific artist, band, or song, or that reference copyrighted material. Describe the style instead — genre, mood, tempo, instruments, vocal type, and era — rather than naming an artist."
+                      when :image
+                        "The model rejects prompts that name a specific artist, artwork, or identifiable person, or that reference copyrighted material. Describe the subject and style in your own words — composition, colors, mood, medium — rather than naming a source."
+                      else
+                        "Rephrase to avoid naming a specific artist, work, or person, or referencing copyrighted material."
+                      end
+
     lines = case reason
             when "PROHIBITED_CONTENT"
               ["The prompt was blocked for prohibited content (reason: PROHIBITED_CONTENT).",
-               "Lyria rejects prompts that name a specific artist, band, or song, or that reference copyrighted material. Describe the style instead — genre, mood, tempo, instruments, vocal type, and era — rather than naming an artist."]
-            when "SAFETY"
-              ["The prompt was blocked by the safety filter (reason: SAFETY).",
+               prohibited_hint]
+            when "SAFETY", "IMAGE_SAFETY"
+              ["The prompt was blocked by the safety filter (reason: #{reason}).",
                "Rephrase the prompt to avoid content the safety system flags."]
             when "RECITATION"
               ["Generation was stopped to avoid reproducing copyrighted material (reason: RECITATION).",
-               "Avoid referencing specific copyrighted lyrics or works."]
+               "Avoid referencing specific copyrighted works."]
             when nil
-              ["No audio was returned from Lyria and no block reason was reported.",
+              ["No #{noun} was returned and no block reason was reported.",
                "Try again, or adjust the prompt."]
             else
-              ["No audio was returned from Lyria (reason: #{reason})."]
+              ["No #{noun} was returned (reason: #{reason})."]
             end
 
     extra = block_message || finish_message
     lines << extra if extra && !extra.to_s.strip.empty?
     lines.join(" ")
+  end
+
+  # Imagen uses the predict API (predictions[]), not generateContent, so RAI
+  # filtering surfaces as raiFilteredReason rather than promptFeedback /
+  # finishReason. Surface it when present, otherwise give actionable guidance.
+  def imagen_block_reason(result)
+    rai = (result["predictions"] || []).filter_map { |p| p.is_a?(Hash) ? p["raiFilteredReason"] : nil }.first
+    rai ||= result["raiFilteredReason"]
+    if rai && !rai.to_s.strip.empty?
+      "Imagen filtered the request: #{rai}"
+    else
+      "No image was returned by Imagen. This usually means the prompt was filtered for safety or referenced restricted content (e.g. a named artist or identifiable person). Describe the subject and style in your own words and try again."
+    end
   end
 
   # Render Lyria's raw timed-lyrics format as a readable timed lyric sheet.
@@ -4253,9 +4280,9 @@ module GeminiHelper
         end
         
         # If no image was found in response
-        return { 
-          success: false, 
-          error: "No image was generated. Response parts: #{result["candidates"]&.first&.dig("content", "parts")&.map { |p| p.keys }}"
+        return {
+          success: false,
+          error: gemini_block_reason(result, kind: :image)
         }.to_json
       else
         error_data = JSON.parse(response.body) rescue {}
@@ -4355,7 +4382,7 @@ module GeminiHelper
         # If no image was found in response
         error_result = {
           success: false,
-          error: "No image was generated by Imagen. Response: #{result}"
+          error: imagen_block_reason(result)
         }.to_json
         return error_result
       else

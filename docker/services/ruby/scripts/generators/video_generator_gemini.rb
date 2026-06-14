@@ -574,10 +574,21 @@ def process_operation_result(operation_data, prompt, aspect_ratio, params, api_k
         "parameters" => params
       }
     else
+      # Veo reports content-filtered requests via raiMediaFilteredReasons /
+      # raiMediaFilteredCount with no generatedSamples. Surface the reason so
+      # the user learns *why* (e.g. a named artist or identifiable person) and
+      # how to fix it, instead of a generic "no samples" message.
+      gvr = response["generateVideoResponse"] || {}
+      rai_reasons = Array(gvr["raiMediaFilteredReasons"]).reject { |r| r.to_s.strip.empty? }
+      message = if rai_reasons.any?
+                  "Video generation was blocked by content filtering. Reason: #{rai_reasons.join('; ')}. This usually means the prompt referenced restricted content (e.g. a named artist or identifiable person). Describe the subject and style in your own words and try again."
+                else
+                  "No generated samples found in operation response"
+                end
       return {
         "original_prompt" => prompt,
         "success" => false,
-        "message" => "No generated samples found in operation response",
+        "message" => message,
         "parameters" => params
       }
     end

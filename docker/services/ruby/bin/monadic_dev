@@ -363,13 +363,20 @@ end
 def stop_server
   # Stop the main server process (Falcon)
   begin
-    # Find and kill falcon processes
-    falcon_pids = `pgrep -f "falcon serve"`.strip.split("\n")
-    if falcon_pids.any?
-      falcon_pids.each do |pid|
+    # Find the server by name AND by the port it holds. Name matching alone is
+    # not enough: depending on how it was launched, the listener can run as a
+    # bare `ruby` process whose command line lacks "falcon serve", so a stale
+    # server survives `restart` and the next start can't bind the port — which
+    # silently serves old code/MDSL. Killing whoever holds the port covers that.
+    port = DEFAULT_PORT
+    name_pids = `pgrep -f "falcon serve"`.strip.split("\n")
+    port_pids = `lsof -ti tcp:#{port} -sTCP:LISTEN 2>/dev/null`.strip.split("\n")
+    server_pids = (name_pids + port_pids).map(&:strip).reject(&:empty?).uniq
+    if server_pids.any?
+      server_pids.each do |pid|
         begin
           Process.kill(9, pid.to_i)
-          puts "Killed falcon process #{pid}"
+          puts "Killed server process #{pid}"
         rescue Errno::ESRCH
           # Process already stopped
         end

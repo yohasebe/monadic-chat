@@ -350,6 +350,12 @@ module WebSocketHelper
     session.delete(:_substitution_pipeline)
     # Reset state-of-truth toggle as well; user re-negotiates via UI.
     session.delete(:_privacy_session_enabled)
+    # Drop the Grok Context Compaction cache. The blob is a cache derived from
+    # session[:messages]; once the canon is cleared it must not be replayed.
+    session.delete(:grok_compaction)
+    # Reset the one-time model-fallback notice (e.g. Fable 5 → Opus 4.8) so a
+    # fresh conversation re-announces the substitution if it still applies.
+    session.delete(:_model_fallback_notified)
     # Clear provider-specific media references to prevent cross-session leakage
     session.keys
       .select { |k| k.is_a?(Symbol) && (k.to_s.match?(/last_image|last_video/) || k == :tool_html_fragments) }

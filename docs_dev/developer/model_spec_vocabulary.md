@@ -68,6 +68,12 @@ This document defines the canonical property names used across providers in `mod
 - api_version: string
   - Provider-specific version tagging (e.g., "2023-06-01" for Anthropic).
 
+- native_multiturn_reasoning: boolean
+  - Cohere-specific. When `true`, a reasoning model handles the native Cohere v2 multi-turn tool flow with reasoning on, so `cohere_helper`'s single-text flattening workaround (needed by `command-a-reasoning`) is bypassed. Set on models verified to keep the native message array (e.g., North Mini Code). Absent/false → the flattening workaround applies.
+
+- unavailable_fallback: string
+  - A model id to transparently retry on when this model returns a 404 not_found. Used for temporarily-paused models whose API contract is identical to the fallback (e.g., `claude-fable-5` → `claude-opus-4-8` while Fable 5 access is paused). The vendor helper swaps the model id and reuses the request body verbatim; when the original model returns, the 404 stops and it is used again with no change. See `claude_helper.rb`.
+
 ## Alias Normalization
 
 The server normalizes aliases into canonical properties without removing the originals. This ensures backward compatibility while providing a single vocabulary for helpers.
@@ -184,6 +190,7 @@ const providerDefaults = {
 | `image` | Image generation (OpenAI, Gemini, xAI) |
 | `video` | Video generation (Veo, Grok Imagine) |
 | `tts` | Text-to-speech (OpenAI TTS: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1; Gemini TTS: [0]=flash, [1]=pro) |
+| `music` | Music generation (Gemini Lyria: [0]=lyria-3-pro-preview, [1]=lyria-3-clip-preview). Resolved inside the generation tool, not a chat dropdown |
 
 > Note: there is no `embedding` category. Help search and the local PDF
 > knowledge base run on a self-hosted `multilingual-e5-base` model in the

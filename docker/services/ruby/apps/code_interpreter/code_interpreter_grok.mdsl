@@ -45,6 +45,15 @@ app "CodeInterpreterGrok" do
     end
   end
 
+  # xAI Responses API client-driven Context Compaction (grok-4.3, 2026-05).
+  # Multi-step data analysis (run_code + verification + replotting) accumulates
+  # token-heavy outputs over long sessions; folding older turns into an opaque
+  # summary blob keeps cost/latency down without dropping context. Mirrors the
+  # OpenAI variant's threshold.
+  compaction do
+    compact_threshold 150_000
+  end
+
   system_prompt <<~TEXT
     You are a CODE EXECUTION ASSISTANT. Your PRIMARY function is to EXECUTE code using the run_code tool.
 

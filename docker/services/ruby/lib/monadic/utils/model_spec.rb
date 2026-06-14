@@ -437,6 +437,10 @@ module Monadic
           get_provider_default(provider, "video")
         end
 
+        def default_music_model(provider)
+          get_provider_default(provider, "music")
+        end
+
         def default_tts_model(provider)
           get_provider_default(provider, "tts")
         end

@@ -138,7 +138,7 @@ describe('providerDefaults', () => {
     // - Ollama models are dynamic/local and not registered in the static spec
     // - Audio transcription models use dedicated API endpoints, not the chat completions spec
     const skipProviders = new Set(['ollama']);
-    const skipCategories = new Set(['audio_transcription', 'image', 'video', 'tts', 'embedding']);
+    const skipCategories = new Set(['audio_transcription', 'image', 'video', 'tts', 'music', 'embedding']);
 
     Object.entries(require(path.join(__dirname, '../../docker/services/ruby/public/js/monadic/model_spec.js')).providerDefaults || {}).forEach(([provider, categories]) => {
       if (skipProviders.has(provider)) return;

@@ -27,6 +27,11 @@ module WebSocketHelper
     # Delete the message
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
 
+    # Invalidate any Grok compaction blob: it summarized the pre-edit history,
+    # so a delete makes the cached covered_count and summary stale. Dropping it
+    # degrades to full-history replay (and re-compaction) on the next turn.
+    rack_session.delete(:grok_compaction)
+
     # Update Session Context if a turn was deleted
     if deleted_turn
       schema = get_context_schema(rack_session)
@@ -119,6 +124,11 @@ module WebSocketHelper
 
       # Update the message directly in the array to ensure it's persisted
       messages[message_index]["text"] = obj["content"]
+
+      # Invalidate any Grok compaction blob: the edited message may already be
+      # folded into the opaque summary, so the cache is now stale. Dropping it
+      # degrades to full-history replay (and re-compaction) on the next turn.
+      rack_session.delete(:grok_compaction)
 
       # Update images if provided in the edit request
       if obj["images"] && obj["images"].is_a?(Array)

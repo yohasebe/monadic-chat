@@ -319,7 +319,8 @@ const modelSpec = {
     "supports_context_management": true,
     "structured_output": true,
     "structured_output_mode": "json_schema",
-    "beta_flags": []
+    "beta_flags": [],
+    "unavailable_fallback": "claude-opus-4-8"
   },
   "claude-opus-4-8": {
     "context_window" : [1, 1000000],
@@ -523,6 +524,21 @@ const modelSpec = {
     "supports_thinking": true,
     "supports_structured_output": true,
     "reasoning_effort": [["disabled", "enabled"], "enabled"]
+  },
+  // North Mini Code (Cohere's first agentic-coding model; MoE 30B total / 3B
+  // active, Apache 2.0). Reasoning-native and verified to handle the native
+  // Cohere v2 multi-turn tool flow without the single-text flattening that
+  // command-a-reasoning needs (`native_multiturn_reasoning`). Context shown per
+  // Cohere's published 256k spec.
+  "north-mini-code-1-0": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 64000],
+    "tool_capability": true,
+    "supports_thinking": true,
+    "reasoning_model": true,
+    "reasoning_effort": [["disabled", "enabled"], "enabled"],
+    "supports_structured_output": true,
+    "native_multiturn_reasoning": true
   },
   // Gemini models
   // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
@@ -1133,6 +1149,7 @@ const providerDefaults = {
     "audio_transcription": ["gemini-3.5-flash"],
     "image": ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
+    "music": ["lyria-3-pro-preview", "lyria-3-clip-preview"],
     "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {

@@ -256,6 +256,8 @@ def wv_extract_tools(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_tools
 def wv_extract_shared_tool_groups(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_shared_tool_groups(s)
 def wv_extract_agents(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_agents(s)
 def wv_extract_features(s) = Monadic::Utils::WorkflowViewerHelpers.wv_extract_features(s)
+def wv_generates_image?(s) = Monadic::Utils::WorkflowViewerHelpers.wv_generates_image?(s)
+def wv_accepts_image_upload?(s) = Monadic::Utils::WorkflowViewerHelpers.wv_accepts_image_upload?(s)
 
 def handle_error(message)
   session[:error] = message

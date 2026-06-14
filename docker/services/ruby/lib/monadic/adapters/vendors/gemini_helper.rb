@@ -377,7 +377,7 @@ module GeminiHelper
       inline = p["inlineData"] || p["inline_data"]
       inline && (inline["mimeType"] || inline["mime_type"]).to_s.start_with?("audio/")
     end
-    return { success: false, error: "No audio returned from Lyria music generation" }.to_json unless audio_part
+    return { success: false, error: lyria_no_audio_reason(data) }.to_json unless audio_part
 
     inline = audio_part["inlineData"] || audio_part["inline_data"]
     mime = inline["mimeType"] || inline["mime_type"] || "audio/mpeg"
@@ -396,6 +396,41 @@ module GeminiHelper
       tool_name: "generate_music_with_lyria",
       message: e.message
     ) }.to_json
+  end
+
+  # Build a detailed reason string when Lyria returns a 200 response with no
+  # audio. Lyria reports a blocked prompt via promptFeedback.blockReason (e.g.
+  # PROHIBITED_CONTENT when the prompt names a specific artist/band or
+  # references copyrighted material) and a mid-generation stop via the
+  # candidate's finishReason (SAFETY / RECITATION). Surface whichever is
+  # present, with actionable guidance, so the failure card explains *why*.
+  def lyria_no_audio_reason(data)
+    block_reason = data.dig("promptFeedback", "blockReason")
+    block_message = data.dig("promptFeedback", "blockReasonMessage")
+    finish_reason = data.dig("candidates", 0, "finishReason")
+    finish_message = data.dig("candidates", 0, "finishMessage")
+    reason = block_reason || finish_reason
+
+    lines = case reason
+            when "PROHIBITED_CONTENT"
+              ["The prompt was blocked for prohibited content (reason: PROHIBITED_CONTENT).",
+               "Lyria rejects prompts that name a specific artist, band, or song, or that reference copyrighted material. Describe the style instead — genre, mood, tempo, instruments, vocal type, and era — rather than naming an artist."]
+            when "SAFETY"
+              ["The prompt was blocked by the safety filter (reason: SAFETY).",
+               "Rephrase the prompt to avoid content the safety system flags."]
+            when "RECITATION"
+              ["Generation was stopped to avoid reproducing copyrighted material (reason: RECITATION).",
+               "Avoid referencing specific copyrighted lyrics or works."]
+            when nil
+              ["No audio was returned from Lyria and no block reason was reported.",
+               "Try again, or adjust the prompt."]
+            else
+              ["No audio was returned from Lyria (reason: #{reason})."]
+            end
+
+    extra = block_message || finish_message
+    lines << extra if extra && !extra.to_s.strip.empty?
+    lines.join(" ")
   end
 
   # Render Lyria's raw timed-lyrics format as a readable timed lyric sheet.

@@ -91,6 +91,47 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
     expect(result['error']).to match(/No audio/i)
   end
 
+  it 'surfaces a PROHIBITED_CONTENT block with actionable guidance (artist name)' do
+    # Real Lyria shape when the prompt names a specific artist: HTTP 200,
+    # no candidates, promptFeedback.blockReason = PROHIBITED_CONTENT.
+    allow(Net::HTTP).to receive(:start).and_return(
+      response('200', { 'promptFeedback' => { 'blockReason' => 'PROHIBITED_CONTENT' } })
+    )
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'a song like Some Artist'))
+    expect(result['success']).to be false
+    expect(result['error']).to include('PROHIBITED_CONTENT')
+    expect(result['error']).to match(/specific artist|copyrighted/i)
+  end
+
+  it 'surfaces a candidate-level SAFETY finishReason' do
+    allow(Net::HTTP).to receive(:start).and_return(
+      response('200', { 'candidates' => [{ 'finishReason' => 'SAFETY', 'content' => { 'parts' => [] } }] })
+    )
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x'))
+    expect(result['success']).to be false
+    expect(result['error']).to include('SAFETY')
+  end
+
+  it 'surfaces a RECITATION finishReason' do
+    allow(Net::HTTP).to receive(:start).and_return(
+      response('200', { 'candidates' => [{ 'finishReason' => 'RECITATION', 'content' => { 'parts' => [] } }] })
+    )
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x'))
+    expect(result['success']).to be false
+    expect(result['error']).to include('RECITATION')
+  end
+
+  it 'appends blockReasonMessage when the API provides one' do
+    allow(Net::HTTP).to receive(:start).and_return(
+      response('200', { 'promptFeedback' => {
+                 'blockReason' => 'PROHIBITED_CONTENT',
+                 'blockReasonMessage' => 'Detailed server explanation.'
+               } })
+    )
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x'))
+    expect(result['error']).to include('Detailed server explanation.')
+  end
+
   it 'errors cleanly when GEMINI_API_KEY is not configured' do
     stub_const('CONFIG', {})
     result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x'))

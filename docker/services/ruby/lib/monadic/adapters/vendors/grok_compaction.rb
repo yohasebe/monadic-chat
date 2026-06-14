@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "../../dsl/configurations"
+require_relative "../../utils/progress_broadcaster"
 
 # xAI Context Compaction orchestration for the Grok Responses API.
 #
@@ -187,9 +188,17 @@ module GrokCompaction
     http = HTTP.headers(headers)
     target_uri = "#{GrokHelper::API_ENDPOINT}#{COMPACT_PATH}"
 
-    res = post_json_with_retries(http, target_uri, body,
-                                 max_retries: GrokHelper::MAX_RETRIES,
-                                 retry_delay: GrokHelper::RETRY_DELAY)
+    # The compact call is a synchronous extra round-trip before the main turn
+    # (it summarizes history server-side and consumes reasoning), so surface a
+    # progress message instead of leaving the user with a silent pause.
+    res = Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "GrokCompaction",
+      label: "Compacting conversation context"
+    ) do
+      post_json_with_retries(http, target_uri, body,
+                             max_retries: GrokHelper::MAX_RETRIES,
+                             retry_delay: GrokHelper::RETRY_DELAY)
+    end
     return nil if res.nil? || res.status.nil?
 
     unless res.status.success?

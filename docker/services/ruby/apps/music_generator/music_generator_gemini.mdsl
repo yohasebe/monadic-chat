@@ -134,7 +134,6 @@ app "MusicGeneratorGemini" do
     define_tool "generate_music_with_lyria", "Generate music with Google's Lyria 3. Default model lyria-3-pro-preview produces full songs (up to ~2-3 min) with vocals and lyrics when requested; lyria-3-clip-preview produces fast 30-second instrumental clips. Returns an MP3 (WAV for Pro) saved to the shared folder plus any generated lyrics." do
       parameter :prompt, "string", "The music description to generate from (English works best). Include genre, mood, instrumentation, tempo, and any lyrics for vocal tracks.", required: true
       parameter :lyria_model, "string", "Optional: 'pro' (default, full songs with optional vocals) or 'clip' (fast 30s instrumental).", required: false
-      parameter :session, "object", "Session object (automatically provided)", required: false
     end
   end
 end

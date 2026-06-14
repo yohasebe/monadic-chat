@@ -316,10 +316,11 @@ module GeminiHelper
   # carrying lyrics/structure. lyria_model: "pro" (default, full songs with
   # vocals) or "clip" (30s instrumental, fast). Resolves the actual model id
   # from providerDefaults.gemini.music (SSOT). Mirrors generate_image_with_gemini_native.
-  def generate_music_with_lyria(prompt:, lyria_model: nil, session: nil)
+  def generate_music_with_lyria(prompt:, lyria_model: nil)
     require 'net/http'
     require 'json'
     require 'base64'
+    require 'securerandom'
 
     api_key = CONFIG["GEMINI_API_KEY"]
     return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
@@ -373,7 +374,7 @@ module GeminiHelper
     ext = mime.include?("wav") ? "wav" : "mp3"
     lyrics = format_lyria_lyrics(parts.filter_map { |p| p["text"] }.join("\n"))
 
-    filename = "lyria_music_#{Time.now.to_i}.#{ext}"
+    filename = "lyria_music_#{Time.now.to_i}_#{SecureRandom.hex(3)}.#{ext}"
     filepath = File.join(shared_folder, filename)
     File.open(filepath, 'wb') { |f| f.write(Base64.decode64(inline["data"])) }
 

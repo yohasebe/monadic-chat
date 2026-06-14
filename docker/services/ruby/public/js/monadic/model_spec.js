@@ -525,6 +525,21 @@ const modelSpec = {
     "supports_structured_output": true,
     "reasoning_effort": [["disabled", "enabled"], "enabled"]
   },
+  // North Mini Code (Cohere's first agentic-coding model; MoE 30B total / 3B
+  // active, Apache 2.0). Reasoning-native and verified to handle the native
+  // Cohere v2 multi-turn tool flow without the single-text flattening that
+  // command-a-reasoning needs (`native_multiturn_reasoning`). Context shown per
+  // Cohere's published 256k spec.
+  "north-mini-code-1-0": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 64000],
+    "tool_capability": true,
+    "supports_thinking": true,
+    "reasoning_model": true,
+    "reasoning_effort": [["disabled", "enabled"], "enabled"],
+    "supports_structured_output": true,
+    "native_multiturn_reasoning": true
+  },
   // Gemini models
   // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
   // Stable alias of the gemini-3-flash-preview line.

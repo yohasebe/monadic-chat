@@ -35,9 +35,13 @@ app "CodeInterpreterCohere" do
 
   llm do
     provider "cohere"
-    # Use reasoning model for better tool handling and code execution decisions
-    reasoning_effort "disabled"
-    temperature 0.0
+    # North Mini Code: Cohere's agentic-coding model. Reasoning-native and
+    # verified stable with multi-turn tool flows, so reasoning stays on
+    # (temperature is omitted — reasoning models reject sampling params).
+    # An array populates the curated dropdown (North first = default selection,
+    # the Command flagship as the easy alternative).
+    model ["north-mini-code-1-0", "command-a-plus-05-2026"]
+    reasoning_effort "enabled"
   end
 
   system_prompt <<~TEXT

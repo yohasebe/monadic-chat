@@ -72,7 +72,7 @@ module CohereHelper
         model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
         if model_spec
           model_spec.each do |model_name, model_config|
-            if model_name.match?(/^(command|c4ai)/) &&
+            if model_name.match?(/^(command|c4ai|north)/) &&
                model_config["deprecated"] == false &&
                !api_models.include?(model_name)
               api_models << model_name
@@ -879,8 +879,15 @@ module CohereHelper
 
     Monadic::Utils::ExtraLogger.log { "Cohere reasoning check:\n  Model: #{obj["model"]}\n  Reasoning effort: #{obj["reasoning_effort"]}\n  Has assistant messages: #{has_assistant_messages}\n  Message count: #{messages.size}\n  Message roles: #{messages.map { |m| m["role"] }.join(", ")}" }
 
+    # Models flagged `native_multiturn_reasoning` (e.g. North Mini Code) handle
+    # the standard Cohere v2 multi-turn tool flow with reasoning on — verified
+    # empirically — so they skip the single-text flattening below and keep the
+    # native message array. Flattening is reserved for models like
+    # command-a-reasoning that need it.
+    native_multiturn = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "native_multiturn_reasoning") == true
+
     if obj["reasoning_effort"] == "enabled"
-      if has_assistant_messages
+      if has_assistant_messages && !native_multiturn
         Monadic::Utils::ExtraLogger.log { "Cohere: Using single-text workaround for reasoning model with history" }
 
         conversation_text = format_conversation_as_single_text(messages)

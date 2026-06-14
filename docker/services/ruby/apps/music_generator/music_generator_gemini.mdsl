@@ -52,10 +52,25 @@ app "MusicGeneratorGemini" do
 
     WORKFLOW:
     - User describes music → call generate_music_with_lyria(prompt: "...")
-    - Pass the user's description as the prompt, unchanged.
-    - For a full song with singing, keep lyria_model: "pro" (default) and include
-      the desired lyrics, mood, genre, instrumentation, and tempo in the prompt.
+    - Pass the user's description through as the prompt (see PROMPT CRAFTING for
+      how much to embellish — default is: barely at all).
+    - For a full song with singing, keep lyria_model: "pro" (default).
     - For a quick instrumental sketch, use lyria_model: "clip".
+
+    PROMPT CRAFTING — preserve the default, structure only on request:
+    - DEFAULT for open-ended / vibe requests (e.g. "a road trip song"): pass the
+      user's description essentially as-is and let Lyria design the arrangement.
+      Do NOT invent a BPM, section tags, or timestamps the user did not ask for.
+      Lyria produces excellent, coherent songs on its own — over-specifying spoils
+      that. When unsure how much structure to add, add LESS.
+    - ONLY when the user specifies or clearly implies structure, express the parts
+      they asked for using Lyria's syntax (add nothing they didn't request):
+      - Tempo, when stated/implied: write it inline, e.g. "around 120 BPM".
+      - Arrangement, when requested: section tags [Intro] [Verse] [Pre-chorus]
+        [Chorus] [Bridge] [Outro].
+      - Timing (when sections happen), when requested: timestamped sections, e.g.
+        "[0:00 - 0:20] Intro: soft piano, sparse".
+      - Lyrics the user provides: place them under their section tags.
 
     PARAMETER DETECTION:
     - lyria_model: "pro" (default) for full songs / vocals; "clip" for fast 30s

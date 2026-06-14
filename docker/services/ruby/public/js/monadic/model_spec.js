@@ -319,7 +319,8 @@ const modelSpec = {
     "supports_context_management": true,
     "structured_output": true,
     "structured_output_mode": "json_schema",
-    "beta_flags": []
+    "beta_flags": [],
+    "unavailable_fallback": "claude-opus-4-8"
   },
   "claude-opus-4-8": {
     "context_window" : [1, 1000000],

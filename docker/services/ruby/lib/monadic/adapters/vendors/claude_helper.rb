@@ -935,7 +935,31 @@ module ClaudeHelper
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     unless res.status.success?
-      error_report = JSON.parse(res.body)["error"]
+      error_report = (JSON.parse(res.body)["error"] rescue nil) || {}
+
+      # Transparent fallback for a temporarily-unavailable model. While Claude
+      # Fable 5's public access is paused, the API returns 404 not_found_error
+      # ("Claude Fable 5 is not available. Please use Opus 4.8."). When the
+      # model spec declares an `unavailable_fallback` and the API reports the
+      # model as not found, retry once with the fallback model: its API
+      # contract is identical (adaptive-thinking-only, rejects sampling, same
+      # 1M/128k limits), so the request body is reused verbatim — only the
+      # model id changes. The `body["model"] != fallback_model` guard prevents
+      # recursion if the fallback itself 404s. When the original model returns,
+      # the 404 stops and it is used again with no code change.
+      fallback_model = Monadic::Utils::ModelSpec.get_model_property(body["model"], "unavailable_fallback")
+      if res.status.code == 404 && error_report["type"] == "not_found_error" &&
+         fallback_model && !fallback_model.to_s.empty? && body["model"] != fallback_model
+        unless session[:_model_fallback_notified]
+          session[:_model_fallback_notified] = true
+          block&.call({ "type" => "system_info",
+                        "content" => "#{body["model"]} is currently unavailable; continuing with #{fallback_model}." })
+        end
+        Monadic::Utils::ExtraLogger.log { "[Claude] #{body["model"]} unavailable (404 not_found); falling back to #{fallback_model}" }
+        body["model"] = fallback_model
+        return execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
+      end
+
       Monadic::Utils::ExtraLogger.log { "[Claude API Error] #{error_report}" }
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Claude",

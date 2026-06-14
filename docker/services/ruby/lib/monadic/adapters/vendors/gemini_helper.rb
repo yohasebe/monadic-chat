@@ -310,6 +310,120 @@ module GeminiHelper
   end
 
 
+  # Generate music with Google Lyria 3 via the Gemini API (synchronous
+  # generateContent with AUDIO modality — same response shape as Gemini TTS).
+  # Returns inline base64 audio (MP3 by default; WAV for Pro) plus a text part
+  # carrying lyrics/structure. lyria_model: "pro" (default, full songs with
+  # vocals) or "clip" (30s instrumental, fast). Resolves the actual model id
+  # from providerDefaults.gemini.music (SSOT). Mirrors generate_image_with_gemini_native.
+  def generate_music_with_lyria(prompt:, lyria_model: nil, session: nil)
+    require 'net/http'
+    require 'json'
+    require 'base64'
+
+    api_key = CONFIG["GEMINI_API_KEY"]
+    return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
+
+    music_models = begin
+      Monadic::Utils::ModelSpec.get_provider_models("gemini", "music")
+    rescue StandardError
+      nil
+    end
+    pro_model  = music_models&.[](0) || "lyria-3-pro-preview"
+    clip_model = music_models&.[](1) || "lyria-3-clip-preview"
+    model_id = lyria_model.to_s.downcase == "clip" ? clip_model : pro_model
+
+    shared_folder = Monadic::Utils::Environment.shared_volume
+    body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ["AUDIO"] }
+    }
+
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
+    response = nil
+    Monadic::Utils::ProgressBroadcaster.with_progress(
+      source: "MusicGeneratorGemini",
+      label: "Generating music with #{model_id}"
+    ) do
+      uri = URI(endpoint)
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+      request.body = body.to_json
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+        http.request(request)
+      end
+    end
+
+    unless response.code == '200'
+      error_data = JSON.parse(response.body) rescue {}
+      error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
+      return { success: false, error: error_message }.to_json
+    end
+
+    data = JSON.parse(response.body)
+    parts = data.dig("candidates", 0, "content", "parts") || []
+    audio_part = parts.find do |p|
+      inline = p["inlineData"] || p["inline_data"]
+      inline && (inline["mimeType"] || inline["mime_type"]).to_s.start_with?("audio/")
+    end
+    return { success: false, error: "No audio returned from Lyria music generation" }.to_json unless audio_part
+
+    inline = audio_part["inlineData"] || audio_part["inline_data"]
+    mime = inline["mimeType"] || inline["mime_type"] || "audio/mpeg"
+    ext = mime.include?("wav") ? "wav" : "mp3"
+    lyrics = format_lyria_lyrics(parts.filter_map { |p| p["text"] }.join("\n"))
+
+    filename = "lyria_music_#{Time.now.to_i}.#{ext}"
+    filepath = File.join(shared_folder, filename)
+    File.open(filepath, 'wb') { |f| f.write(Base64.decode64(inline["data"])) }
+
+    { success: true, filename: filename, mime_type: mime, lyrics: lyrics,
+      model: model_id, prompt: prompt }.to_json
+  rescue StandardError => e
+    { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
+      provider: "Gemini",
+      tool_name: "generate_music_with_lyria",
+      message: e.message
+    ) }.to_json
+  end
+
+  # Render Lyria's raw timed-lyrics format as a readable timed lyric sheet.
+  # Lyria encodes structure as section markers ("[[A0]]", "[[B1]]"), per-line
+  # timestamps in seconds ("[0.0:]") and continuation markers ("[:]"). The raw
+  # codes are internal, but the timing is meaningful (it aligns with the audio),
+  # so we keep it: section start lines get a "[m:ss]" prefix, continuation lines
+  # are indented to align under it, and each section marker becomes a blank-line
+  # break. Instrumental tracks come back as "<instrumental>" → no lyrics to show.
+  TS_INDENT = "       " # 7 spaces — matches the width of "[m:ss] "
+
+  def format_lyria_lyrics(raw)
+    return "" if raw.nil?
+    text = raw.strip
+    return "" if text.empty? || text.downcase == "<instrumental>"
+
+    out = []
+    text.each_line do |line|
+      line = line.strip
+      next if line.empty?
+
+      if line.match?(/\A\[\[.*\]\]\z/)            # section marker -> blank-line break
+        out << ""
+      elsif (m = line.match(/\A\[(\d+(?:\.\d+)?):\]\s*(.*)\z/)) # [N.N:] timestamped line
+        secs = m[1].to_f.round
+        content = m[2].strip
+        out << format("[%d:%02d] %s", secs / 60, secs % 60, content) unless content.empty?
+      elsif (m = line.match(/\A\[:\]\s*(.*)\z/))  # [:] continuation line
+        content = m[1].strip
+        out << "#{TS_INDENT}#{content}" unless content.empty?
+      else                                         # plain or unknown-prefixed line
+        content = line.sub(/\A\[[^\]]*\]\s*/, "").strip
+        out << content unless content.empty?
+      end
+    end
+
+    out.join("\n").gsub(/\n{3,}/, "\n\n").strip
+  end
+
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list
   IMAGE_GENERATION_MODELS = {

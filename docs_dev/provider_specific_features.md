@@ -135,6 +135,7 @@ parallel beta-header handling.**
 | Live search / `x_search` | server_tool | MDSL | `grok_helper.rb:~23` | Responses API server tool |
 | Reasoning effort | model_param | Model-gated | `grok_helper.rb` | — |
 | Multi-turn tool context accumulation | client_side | Automatic | `grok_helper.rb:510-517, 1460-1470, 1642-1644` | `function_returns` and `assistant_function_calls` are concat-accumulated across recursive `api_request("tool")` rounds using the `(obj[...] ||= []).concat(...)` pattern. Prior tool rounds remain visible to the model on the next API call. Cleared on `role="user"` at L936-937. Mirrors the Claude / OpenAI fix |
+| Client-driven context compaction | api_feature | MDSL `compaction do compact_threshold N end` / `compaction false` (same vocabulary as OpenAI) | `grok_compaction.rb` (mixed into `grok_helper`) | xAI is client-driven (2 endpoints), unlike OpenAI's server-side `context_management`. When the uncompacted tail exceeds the threshold, `POST /v1/responses/compact` folds older history into an opaque `cmp_*` blob cached at `session[:grok_compaction]`; input is rebuilt as `[blob, system, live_tail]`. Privacy masking applied before the compact call. Invalidated on edit/delete/reset and model/app/threshold change → degrades to full history. Apps: AutoForge / Code Interpreter / Jupyter / Coding Assistant (Grok variants) |
 
 ### DeepSeek
 

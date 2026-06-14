@@ -92,7 +92,7 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 
 ### Featured Applications
 
-Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · PDF Navigator · Image Generator · Language Practice
+Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · PDF Navigator · Image Generator · Music Generator · Language Practice
 
 📖 **Full list and details**: [Basic Apps](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps) (30+ apps)
 

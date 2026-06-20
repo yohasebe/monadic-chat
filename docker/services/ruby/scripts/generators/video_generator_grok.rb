@@ -120,9 +120,19 @@ end
 
 shared_folder = get_save_path
 
+has_image = options[:image_path] && !options[:image_path].strip.empty?
+
+# Model selection by input modality (verified against the live xAI API):
+#   - image-to-video → grok-imagine-video-1.5 (image-to-video only; native
+#     audio, higher quality). It rejects text-only requests.
+#   - text-to-video  → grok-imagine-video (1.0); v1.5 does not support t2v.
+# The xAI videos API also changed the `image` field from a base64 string to an
+# ImageUrl struct ({ "url": ... }); both models now require the struct form.
+video_model = has_image ? "grok-imagine-video-1.5" : default_grok_video_model
+
 # Build request payload
 payload = {
-  model: default_grok_video_model,
+  model: video_model,
   prompt: options[:prompt],
   duration: options[:duration],
   aspect_ratio: options[:aspect_ratio],
@@ -130,7 +140,7 @@ payload = {
 }
 
 # Handle image-to-video
-if options[:image_path] && !options[:image_path].strip.empty?
+if has_image
   image_full_path = if File.absolute_path?(options[:image_path])
                       options[:image_path]
                     else
@@ -155,7 +165,8 @@ if options[:image_path] && !options[:image_path].strip.empty?
                 exit 1
               end
 
-  payload[:image] = "data:#{mime_type};base64,#{Base64.strict_encode64(image_data)}"
+  # xAI expects an ImageUrl struct (not a bare data-URL string).
+  payload[:image] = { url: "data:#{mime_type};base64,#{Base64.strict_encode64(image_data)}" }
 end
 
 begin

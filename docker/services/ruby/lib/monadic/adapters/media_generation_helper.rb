@@ -149,9 +149,15 @@ module MonadicHelper
     # Resolve the source image for image-to-video. Uploaded images live in the
     # session as a data URL and must be materialized to a file on the shared
     # volume for the CLI generator. Shared with the Veo path via ToolImageUtils.
-    image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
-      session, image_path: image_path, last_image_key: :grok_last_video_image
-    )
+    # If an upload exists but can't be materialized, surface the error instead
+    # of silently downgrading to text-to-video.
+    begin
+      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
+        session, image_path: image_path, last_image_key: :grok_last_video_image
+      )
+    rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      return JSON.generate({ success: false, message: e.message })
+    end
 
     # Track our own temp file so we can delete it after generation.
     temp_file_path = nil

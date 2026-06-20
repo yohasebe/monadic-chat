@@ -32,7 +32,7 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
       session = session_with_image(data: data_url)
       filename = described_class.materialize_session_image(session)
 
-      expect(filename).to match(/\Avideo_gen_temp_\d+_\d+\.png\z/)
+      expect(filename).to match(/\Avideo_gen_temp_\d+_[0-9a-f]+\.png\z/)
       saved = File.join(tmpdir, filename)
       expect(File.exist?(saved)).to be true
       expect(File.binread(saved)).to eq(Base64.decode64(png_b64))
@@ -67,10 +67,20 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
       expect(described_class.materialize_session_image({ messages: [] })).to be_nil
     end
 
-    it 'rejects an oversize image (returns nil)' do
-      huge = 'A' * (21 * 1024 * 1024)
+    it 'raises (does not silently downgrade) on an absurdly oversize upload' do
+      huge = 'A' * (101 * 1024 * 1024)
       session = session_with_image(data: "data:image/png;base64,#{Base64.strict_encode64(huge)}")
-      expect(described_class.materialize_session_image(session)).to be_nil
+      expect {
+        described_class.materialize_session_image(session)
+      }.to raise_error(Monadic::Utils::ToolImageUtils::ImageMaterializationError, /too large/)
+    end
+
+    it 'raises a materialization error when the shared dir is unavailable' do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(nil)
+      session = session_with_image(data: data_url)
+      expect {
+        described_class.materialize_session_image(session)
+      }.to raise_error(Monadic::Utils::ToolImageUtils::ImageMaterializationError)
     end
   end
 end

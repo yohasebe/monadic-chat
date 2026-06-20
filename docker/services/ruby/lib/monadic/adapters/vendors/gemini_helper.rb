@@ -3762,9 +3762,14 @@ module GeminiHelper
     # Resolve the source image for image-to-video: an uploaded image lives in
     # the session as a data URL and must be materialized to a file on the shared
     # volume for the CLI generator. Shared with the Grok path via ToolImageUtils.
-    final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
-      session, image_path: image_path, last_image_key: :gemini_last_video_image
-    )
+    # Surface a materialization failure instead of silently downgrading to t2v.
+    begin
+      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
+        session, image_path: image_path, last_image_key: :gemini_last_video_image
+      )
+    rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json
+    end
 
     Monadic::Utils::ExtraLogger.log { "Final image path decision (veo):\n  image_path (from LLM param): #{image_path.inspect}\n  final_image_path (used): #{final_image_path.inspect}" }
 
@@ -3849,28 +3854,14 @@ module GeminiHelper
       end
 
       # Clean up temporary files if we created them
-      if temp_file_path && File.exist?(temp_file_path)
-        File.unlink(temp_file_path)
-        # Also clean up mime info file if it exists
-        mime_info_path = temp_file_path + ".mime"
-        if File.exist?(mime_info_path)
-          File.unlink(mime_info_path)
-        end
-      end
+      File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
       
       return result_json
     rescue => e
       STDERR.puts "Error executing command: #{e.message}"
       
       # Clean up temporary files even if there was an error
-      if temp_file_path && File.exist?(temp_file_path)
-        File.unlink(temp_file_path)
-        # Also clean up mime info file if it exists
-        mime_info_path = temp_file_path + ".mime"
-        if File.exist?(mime_info_path)
-          File.unlink(mime_info_path)
-        end
-      end
+      File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
       return { 
         "success" => false, 
         "message" => "Error executing video generation command: #{e.message}", 

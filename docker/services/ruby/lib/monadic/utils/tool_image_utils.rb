@@ -33,8 +33,16 @@ module Monadic
         { media_type: media_type, base64_data: base64_data }
       end
 
-      # Max image size accepted for image-to-video (provider limit, e.g. Vertex AI).
-      MAX_IMAGE_TO_VIDEO_BYTES = 20 * 1024 * 1024
+      # Raised when an image was uploaded but could not be materialized to a
+      # file (decode/write failure or an absurd payload). Callers surface this
+      # instead of silently falling back to text-to-video.
+      class ImageMaterializationError < StandardError; end
+
+      # Sanity guard against pathological payloads (prevents decoding an absurd
+      # base64 string into memory). This is NOT a provider limit — neither xAI
+      # nor Google publish an image-to-video input-size limit, so the real cap
+      # is enforced by the provider API and its error is surfaced to the user.
+      MAX_IMAGE_DECODE_BYTES = 100 * 1024 * 1024
 
       # Resolve the source image for an image-to-video request into a real file
       # in the shared data directory, returning its bare filename.
@@ -43,7 +51,7 @@ module Monadic
       # (message["images"].first["data"] == "data:image/...;base64,...") and are
       # NOT yet written to disk; the video CLI generators need a file on the
       # shared volume. This materializes that data URL into
-      # "video_gen_temp_<timestamp>_<rand>.<ext>" and returns the filename.
+      # "video_gen_temp_<timestamp>_<hex>.<ext>" and returns the filename.
       #
       # Resolution order:
       #   1. The most recent uploaded image in the session (data URL → file).
@@ -55,9 +63,8 @@ module Monadic
       # @param image_path [String, nil] filename passed by the tool call, if any
       # @param last_image_key [Symbol, nil] session key holding a prior filename
       # @return [String, nil] the bare filename on the shared volume, or nil
+      # @raise [ImageMaterializationError] if an upload exists but cannot be written
       def self.materialize_session_image(session, image_path: nil, last_image_key: nil)
-        require "base64"
-
         materialized = nil
 
         # A freshly uploaded image always wins. Resolve it first regardless of
@@ -71,6 +78,8 @@ module Monadic
           if first_image
             data_url = first_image["data"]
             if data_url.is_a?(String) && data_url.start_with?("data:image/")
+              # An upload is present: a failure here is an error to surface, not
+              # a reason to silently downgrade to text-to-video.
               materialized = write_data_url_to_shared(data_url, first_image["type"])
             elsif first_image["filename"]
               materialized = first_image["filename"]
@@ -94,11 +103,16 @@ module Monadic
       end
 
       # Decode a "data:image/...;base64,..." URL and write it to the shared data
-      # directory. Returns the bare filename, or nil on failure / oversize.
+      # directory. Returns the bare filename.
+      # @raise [ImageMaterializationError] on oversize payload or write failure
       def self.write_data_url_to_shared(data_url, declared_mime = nil)
+        require "securerandom"
         base64_data = data_url.split(",", 2).last
         binary = Base64.decode64(base64_data)
-        return nil if binary.bytesize > MAX_IMAGE_TO_VIDEO_BYTES
+        if binary.bytesize > MAX_IMAGE_DECODE_BYTES
+          raise ImageMaterializationError,
+                "Uploaded image is too large to process (#{binary.bytesize / (1024 * 1024)} MB)."
+        end
 
         mime = declared_mime
         mime ||= data_url.split(";").first.split(":").last if data_url.include?("image/")
@@ -116,16 +130,16 @@ module Monadic
               end
 
         dir = Environment.data_path
-        return nil unless dir
+        raise ImageMaterializationError, "Shared data directory is unavailable." unless dir
 
-        require "fileutils"
         FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
-        filename = "video_gen_temp_#{Time.now.to_i}_#{rand(1000)}#{ext}"
+        filename = "video_gen_temp_#{Time.now.to_i}_#{SecureRandom.hex(4)}#{ext}"
         File.binwrite(File.join(dir, filename), binary)
         filename
+      rescue ImageMaterializationError
+        raise
       rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[ToolImageUtils] write_data_url_to_shared failed: #{e.message}" }
-        nil
+        raise ImageMaterializationError, "Failed to process uploaded image: #{e.message}"
       end
     end
   end

@@ -19,7 +19,7 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_analyze_image", "monadic_transcribe_audio",
         "monadic_analyze_audio", "monadic_analyze_video",
         "monadic_speak", "monadic_generate_code", "monadic_generate_image",
-        "monadic_generate_video", "monadic_generate_music",
+        "monadic_generate_video", "monadic_generate_music", "monadic_agent",
         "monadic_submit", "monadic_poll", "monadic_cancel", "monadic_jobs"
       )
     end
@@ -57,6 +57,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_generate_image")).to be true
       expect(described_class.tool?("monadic_generate_video")).to be true
       expect(described_class.tool?("monadic_generate_music")).to be true
+      expect(described_class.tool?("monadic_agent")).to be true
       expect(described_class.tool?("monadic_submit")).to be true
       expect(described_class.tool?("monadic_poll")).to be true
       expect(described_class.tool?("monadic_cancel")).to be true
@@ -1126,6 +1127,64 @@ RSpec.describe Monadic::MCP::Conduit do
     it "requires a prompt" do
       expect { described_class.call("monadic_generate_music", {}) }
         .to raise_error(ArgumentError, /prompt is required/)
+    end
+  end
+
+  describe "monadic_agent" do
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:require_background_job).and_return(nil)
+      allow(described_class).to receive(:default_chat_model_for).and_return("gpt-x")
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "runs the bounded agent and returns its final answer" do
+      expect(Monadic::MCP::ConduitAgent).to receive(:run)
+        .with(hash_including(task: "find X", provider: "openai", model: "gpt-x"))
+        .and_return("Here is what I found about X. (https://example.com)")
+      result = described_class.call("monadic_agent", { "task" => "find X" })
+      expect(result[:success]).to be true
+      expect(result[:provider]).to eq("openai")
+      expect(result[:tools]).to eq(["web_search_tools"])
+      expect(result[:text]).to match(/found about X/)
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "passes requested tool groups and provider (claude -> anthropic)" do
+      expect(Monadic::MCP::ConduitAgent).to receive(:run)
+        .with(hash_including(provider: "anthropic", groups: %w[web_search_tools file_reading]))
+        .and_return("ok.")
+      described_class.call("monadic_agent",
+                           { "task" => "t", "provider" => "claude",
+                             "tools" => %w[web_search_tools file_reading] })
+    end
+
+    it "surfaces an agent error as failure" do
+      allow(Monadic::MCP::ConduitAgent).to receive(:run).and_return("ERROR: no web search key")
+      result = described_class.call("monadic_agent", { "task" => "t" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/no web search key/)
+    end
+
+    it "requires a task" do
+      expect { described_class.call("monadic_agent", {}) }
+        .to raise_error(ArgumentError, /task is required/)
+    end
+
+    it "refuses a direct (non-job) call" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      result = described_class.call("monadic_agent", { "task" => "t" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/must run in the background/)
+    end
+
+    it "refuses when the budget is exhausted (no agent run)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(Monadic::MCP::ConduitAgent).not_to receive(:run)
+      result = described_class.call("monadic_agent", { "task" => "t" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
     end
   end
 

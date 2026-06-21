@@ -3,6 +3,7 @@
 require 'json'
 require_relative 'cost_guard'
 require_relative 'job_store'
+require_relative 'conduit_agent'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
 require_relative '../agents/audio_transcription_agent'
@@ -638,6 +639,42 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_generate_music
+          },
+          {
+            name: "monadic_agent",
+            description: "Run a bounded autonomous agent that USES TOOLS recursively to do a " \
+                         "task: it can call a tool, read the result, reason, and call more tools " \
+                         "until done (e.g. search the web, read a page, search again), then " \
+                         "return a final answer. Tools come from named groups (default " \
+                         "['web_search_tools']); only safe read-only groups are permitted. " \
+                         "Termination is guaranteed (max 20 tool calls/turn + stuck-loop " \
+                         "detection). Uses your own API keys; spends provider tokens " \
+                         "(budget-gated). LONG-RUNNING — run via monadic_submit and poll.",
+            input_schema: {
+              type: "object",
+              properties: {
+                task: {
+                  type: "string",
+                  description: "The instruction for the agent (what to accomplish)."
+                },
+                tools: {
+                  type: "array",
+                  description: "Optional tool-group names to grant. Default ['web_search_tools']. " \
+                               "Allowed (read-only): web_search_tools, file_reading, " \
+                               "image_analysis, video_analysis, audio_transcription, " \
+                               "session_context, verification, planning.",
+                  items: { type: "string" }
+                },
+                provider: {
+                  type: "string",
+                  description: "Optional provider whose model runs the loop (openai default, " \
+                               "anthropic/claude, gemini/google, xai/grok)."
+                }
+              },
+              required: ["task"],
+              additionalProperties: false
+            },
+            handler: :handle_agent
           },
           {
             name: "monadic_submit",
@@ -1539,6 +1576,47 @@ module Monadic
         }.compact
       end
 
+      # ---- Autonomous tool-using agent -----------------------------------
+
+      # Generous flat budget reservation: the agent runs a multi-call tool loop
+      # (api_request) that does NOT pass through CostGuard per call, so this gates
+      # whether the agent may START. The hard per-run bound is the engine's
+      # MAX_FUNC_CALLS (20 tool calls/turn) + stuck-loop detection.
+      AGENT_ESTIMATE = 60_000
+
+      def handle_agent(arguments)
+        task = (arguments["task"] || arguments[:task]).to_s
+        raise ArgumentError, "task is required" if task.strip.empty?
+
+        guard = require_background_job("monadic_agent")
+        return guard if guard
+
+        provider = (arguments["provider"] || arguments[:provider]).to_s
+        provider = provider.empty? ? "openai" : MonadicDSL::ProviderConfig.new(provider).standard_key
+        groups = arguments["tools"] || arguments[:tools] || ConduitAgent::DEFAULT_GROUPS
+
+        begin
+          CostGuard.ensure_within!(AGENT_ESTIMATE)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        model = default_chat_model_for(provider)
+        result = ConduitAgent.run(task: task, provider: provider, model: model, groups: groups).to_s
+        success = !result.start_with?("ERROR:") && !error_string?(result) && !result.strip.empty?
+        CostGuard.record(AGENT_ESTIMATE + CostGuard.estimate_tokens(result))
+
+        {
+          provider: provider,
+          model: model,
+          tools: Array(groups),
+          success: success,
+          text: (success ? result : nil),
+          error: (success ? nil : "❌ #{result}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
       # ---- Background jobs (async submit / poll / cancel) ----------------
 
       # Job-control tools cannot themselves be submitted as jobs (no recursion).
@@ -1551,7 +1629,7 @@ module Monadic
       # on this thread), or nil to proceed (running inside monadic_submit's job).
       ASYNC_REQUIRED = %w[
         monadic_generate_image monadic_generate_video monadic_generate_music
-        monadic_generate_code monadic_analyze_video
+        monadic_generate_code monadic_analyze_video monadic_agent
       ].freeze
 
       def require_background_job(tool_name)

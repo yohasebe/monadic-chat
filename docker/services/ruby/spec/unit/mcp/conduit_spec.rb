@@ -17,7 +17,8 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
-        "monadic_speak"
+        "monadic_speak",
+        "monadic_submit", "monadic_poll", "monadic_cancel", "monadic_jobs"
       )
     end
 
@@ -48,6 +49,10 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_analyze_image")).to be true
       expect(described_class.tool?("monadic_transcribe_audio")).to be true
       expect(described_class.tool?("monadic_speak")).to be true
+      expect(described_class.tool?("monadic_submit")).to be true
+      expect(described_class.tool?("monadic_poll")).to be true
+      expect(described_class.tool?("monadic_cancel")).to be true
+      expect(described_class.tool?("monadic_jobs")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -660,6 +665,86 @@ RSpec.describe Monadic::MCP::Conduit do
       result = described_class.call("monadic_speak", { "text" => "a long sentence to speak" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
+    end
+  end
+
+  describe "background jobs (submit/poll/cancel/jobs)" do
+    after { Monadic::MCP::JobStore.reset! }
+
+    it "submits a tool and runs it to completion off the reactor" do
+      result = described_class.call("monadic_submit",
+                                    { "tool" => "monadic_status", "arguments" => {} })
+      expect(result[:success]).to be true
+      expect(result[:tool]).to eq("monadic_status")
+      expect(result[:status]).to eq("running")
+
+      id = result[:job_id]
+      # Deterministic wait: join the worker thread instead of sleeping.
+      Monadic::MCP::JobStore.fetch(id).thread.join
+
+      polled = described_class.call("monadic_poll", { "job_id" => id })
+      expect(polled[:status]).to eq("done")
+      expect(polled[:result]).to include(:backend)
+    end
+
+    it "captures a tool error as a failed job" do
+      # second_opinion raises ArgumentError without a query.
+      result = described_class.call("monadic_submit",
+                                    { "tool" => "monadic_second_opinion", "arguments" => {} })
+      Monadic::MCP::JobStore.fetch(result[:job_id]).thread.join
+      polled = described_class.call("monadic_poll", { "job_id" => result[:job_id] })
+      expect(polled[:status]).to eq("error")
+      expect(polled[:error]).to be_a(String)
+    end
+
+    it "rejects unknown and job-control tools" do
+      expect { described_class.call("monadic_submit", { "tool" => "nope" }) }
+        .to raise_error(ArgumentError, /unknown tool/)
+      expect { described_class.call("monadic_submit", { "tool" => "monadic_poll" }) }
+        .to raise_error(ArgumentError, /cannot be run as a background job/)
+      expect { described_class.call("monadic_submit", {}) }
+        .to raise_error(ArgumentError, /tool is required/)
+    end
+
+    it "enforces the concurrency cap" do
+      gate = Queue.new
+      # Stub the dispatched tool to block until released so jobs stay running.
+      allow(described_class).to receive(:handle_status) { gate.pop }
+
+      cap = Monadic::MCP::JobStore::MAX_CONCURRENT
+      ids = Array.new(cap) do
+        described_class.call("monadic_submit", { "tool" => "monadic_status" })[:job_id]
+      end
+
+      over = described_class.call("monadic_submit", { "tool" => "monadic_status" })
+      expect(over[:success]).to be false
+      expect(over[:error]).to match(/Too many concurrent jobs/)
+
+      cap.times { gate.push(:go) }
+      ids.each { |id| Monadic::MCP::JobStore.fetch(id).thread.join }
+    end
+
+    it "cancels a running job" do
+      gate = Queue.new
+      allow(described_class).to receive(:handle_status) { gate.pop }
+
+      id = described_class.call("monadic_submit", { "tool" => "monadic_status" })[:job_id]
+      cancelled = described_class.call("monadic_cancel", { "job_id" => id })
+      expect(cancelled[:status]).to eq("cancelled")
+
+      missing = described_class.call("monadic_cancel", { "job_id" => "does-not-exist" })
+      expect(missing[:success]).to be false
+    end
+
+    it "lists jobs and reports an unknown poll" do
+      described_class.call("monadic_submit", { "tool" => "monadic_status" })
+      listing = described_class.call("monadic_jobs", {})
+      expect(listing[:jobs]).to be_an(Array)
+      expect(listing[:jobs].first).to include(:job_id, :tool, :status)
+
+      poll = described_class.call("monadic_poll", { "job_id" => "missing" })
+      expect(poll[:success]).to be false
+      expect(poll[:error]).to match(/Unknown or expired job/)
     end
   end
 

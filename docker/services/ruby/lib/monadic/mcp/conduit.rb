@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative 'cost_guard'
+require_relative 'job_store'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
 require_relative '../agents/audio_transcription_agent'
@@ -448,6 +449,73 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_speak
+          },
+          {
+            name: "monadic_submit",
+            description: "Run another Conduit tool as a background job and return a job_id " \
+                         "immediately, without blocking. Use this for long or blocking tools " \
+                         "(e.g. monadic_speak, and future media-generation / code-agent tools) " \
+                         "so they don't tie up the platform. Poll with monadic_poll, stop with " \
+                         "monadic_cancel. Concurrency is capped; job-control tools cannot be " \
+                         "submitted. Budget rules still apply when the job runs.",
+            input_schema: {
+              type: "object",
+              properties: {
+                tool: {
+                  type: "string",
+                  description: "Name of the Conduit tool to run in the background " \
+                               "(e.g. 'monadic_speak')."
+                },
+                arguments: {
+                  type: "object",
+                  description: "Arguments object passed to that tool, exactly as you would " \
+                               "pass them in a direct call."
+                }
+              },
+              required: ["tool"],
+              additionalProperties: false
+            },
+            handler: :handle_submit
+          },
+          {
+            name: "monadic_poll",
+            description: "Check a background job by `job_id`. Returns its status " \
+                         "(running/done/error/cancelled) and, when finished, the tool's result " \
+                         "or error. Jobs are forgotten a while after they finish.",
+            input_schema: {
+              type: "object",
+              properties: {
+                job_id: { type: "string", description: "The job id returned by monadic_submit." }
+              },
+              required: ["job_id"],
+              additionalProperties: false
+            },
+            handler: :handle_poll
+          },
+          {
+            name: "monadic_cancel",
+            description: "Cancel a running background job by `job_id` (kill switch). Finished " \
+                         "jobs are returned unchanged.",
+            input_schema: {
+              type: "object",
+              properties: {
+                job_id: { type: "string", description: "The job id to cancel." }
+              },
+              required: ["job_id"],
+              additionalProperties: false
+            },
+            handler: :handle_cancel
+          },
+          {
+            name: "monadic_jobs",
+            description: "List known background jobs (id, tool, status, timestamps) so you can " \
+                         "track or clean up in-flight work.",
+            input_schema: {
+              type: "object",
+              properties: {},
+              additionalProperties: false
+            },
+            handler: :handle_jobs
           }
         ]
       end
@@ -778,6 +846,69 @@ module Monadic
       # stub this method) never need the full app loaded.
       def tts_host
         MonadicApp.new
+      end
+
+      # ---- Background jobs (async submit / poll / cancel) ----------------
+
+      # Job-control tools cannot themselves be submitted as jobs (no recursion).
+      ASYNC_INELIGIBLE = %w[monadic_submit monadic_poll monadic_cancel monadic_jobs].freeze
+
+      def handle_submit(arguments)
+        tool = (arguments["tool"] || arguments[:tool]).to_s
+        raise ArgumentError, "tool is required" if tool.empty?
+        raise ArgumentError, "unknown tool: #{tool}" unless tool?(tool)
+        raise ArgumentError, "#{tool} cannot be run as a background job" if ASYNC_INELIGIBLE.include?(tool)
+
+        job_args = arguments["arguments"] || arguments[:arguments] || {}
+        raise ArgumentError, "arguments must be an object" unless job_args.is_a?(Hash)
+
+        begin
+          # The block runs on the job's own thread (off the Falcon reactor),
+          # re-entering Conduit dispatch for the target tool. CostGuard inside
+          # that tool still enforces the budget ceiling at run time.
+          job = JobStore.submit(tool: tool, arguments: job_args) { call(tool, job_args) }
+        rescue JobStore::ConcurrencyLimit => e
+          return { success: false, error: "❌ #{e.message}" }
+        end
+
+        { success: true, job_id: job.id, tool: tool, status: job.status }
+      end
+
+      def handle_poll(arguments)
+        id = (arguments["job_id"] || arguments[:job_id]).to_s
+        raise ArgumentError, "job_id is required" if id.empty?
+
+        job = JobStore.fetch(id)
+        return { success: false, error: "❌ Unknown or expired job: #{id}" } unless job
+
+        job_view(job)
+      end
+
+      def handle_cancel(arguments)
+        id = (arguments["job_id"] || arguments[:job_id]).to_s
+        raise ArgumentError, "job_id is required" if id.empty?
+
+        job = JobStore.cancel(id)
+        return { success: false, error: "❌ Unknown or expired job: #{id}" } unless job
+
+        job_view(job)
+      end
+
+      def handle_jobs(_arguments)
+        { jobs: JobStore.list }
+      end
+
+      # Full view of a single job, including the tool's result/error when done.
+      def job_view(job)
+        {
+          job_id: job.id,
+          tool: job.tool,
+          status: job.status,
+          result: job.result,
+          error: job.error,
+          created_at: job.created_at&.iso8601,
+          finished_at: job.finished_at&.iso8601
+        }.compact
       end
 
       # ---- Analysis-agent helpers ----------------------------------------

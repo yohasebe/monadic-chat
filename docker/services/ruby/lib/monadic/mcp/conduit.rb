@@ -993,8 +993,11 @@ module Monadic
                    code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt)
                  end
         result = {} unless result.is_a?(Hash)
-        success = result[:success] == true
         code = result[:code]
+        # An agent can report success while leaking a provider error string into
+        # the code field (e.g. when api_request rescued mid-pipeline). Treat a
+        # "[Provider] ... Error:" code as a failure rather than passing it off.
+        success = result[:success] == true && !error_string?(code.to_s)
         CostGuard.record(input_tokens + CostGuard.estimate_tokens(code.to_s))
 
         {
@@ -1002,7 +1005,7 @@ module Monadic
           success: success,
           model: result[:model],
           code: (success ? code : nil),
-          error: (success ? nil : "❌ #{result[:error] || 'code generation failed'}"),
+          error: (success ? nil : "❌ #{result[:error] || code || 'code generation failed'}"),
           budget: CostGuard.status
         }.compact
       end
@@ -1026,20 +1029,21 @@ module Monadic
         provider_configured?(api_key_env)
       end
 
-      # Headless code host: the provider helper (api_request / send_query) plus
-      # the code-agent module, memoized per provider.
+      # Headless code host: a blank MonadicApp (for the StringUtils / shared
+      # infrastructure that the helpers' api_request path needs — e.g.
+      # markdown_to_html) with the provider helper and code-agent module mixed
+      # in, memoized per provider. Unlike provider_host (send_query only, no app
+      # base), the code agents drive the full api_request response pipeline.
       def code_host(provider, module_name)
         helper_name = MonadicDSL::ProviderConfig::PROVIDER_INFO.dig(provider, :helper_module)
         helper = Object.const_get(helper_name)
         agent = Object.const_get(module_name)
 
         @hosts_mutex.synchronize do
-          (@code_hosts ||= {})[provider] ||= begin
-            Class.new.tap do |klass|
-              klass.include(helper)
-              klass.include(agent)
-            end.new
-          end
+          (@code_hosts ||= {})[provider] ||= Class.new(MonadicApp) do
+            include helper
+            include agent
+          end.new
         end
       end
 

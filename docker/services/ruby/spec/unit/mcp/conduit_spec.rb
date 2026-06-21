@@ -712,6 +712,15 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:error]).to match(/OpenAIHelper not available/)
     end
 
+    it "treats a provider error string leaked into the code field as a failure" do
+      allow(chost).to receive(:call_openai_code)
+        .and_return({ code: "[OpenAI] API Error: boom", success: true })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      expect(result[:success]).to be false
+      expect(result[:code]).to be_nil
+      expect(result[:error]).to match(/API Error: boom/)
+    end
+
     it "requires a prompt" do
       expect { described_class.call("monadic_generate_code", {}) }
         .to raise_error(ArgumentError, /prompt is required/)

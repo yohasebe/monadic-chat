@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'securerandom'
+require 'timeout'
 require 'active_support/core_ext/hash/indifferent_access'
 
 module Monadic
@@ -34,10 +35,25 @@ module Monadic
       # Sliding-window size the WebSocket layer normally injects at runtime.
       RUNTIME_CONTEXT_SIZE = 100
 
+      # Wall-clock ceiling for a single agent run, in seconds. MAX_FUNC_CALLS
+      # (tool count) and CostGuard (tokens) already bound the agent, but neither
+      # bounds elapsed time: a slow provider, a hung HTTP read, or a tool that
+      # blocks could otherwise stall the run indefinitely. Override via the
+      # CONDUIT_AGENT_WALL_CLOCK env var.
+      DEFAULT_WALL_CLOCK_LIMIT = 300
+
       @apps_mutex = Mutex.new
 
       def allowed_groups
         SAFE_GROUPS
+      end
+
+      # Resolved wall-clock limit (seconds). Falls back to the default when the
+      # env var is absent or not a positive integer.
+      def wall_clock_limit
+        raw = (defined?(CONFIG) ? CONFIG["CONDUIT_AGENT_WALL_CLOCK"] : nil).to_s.strip
+        seconds = raw.to_i
+        seconds.positive? ? seconds : DEFAULT_WALL_CLOCK_LIMIT
       end
 
       # Run the agent; returns the final answer text (or an "ERROR:"/provider
@@ -76,8 +92,12 @@ module Monadic
             "message" => task.to_s
           )
           session = { parameters: params, messages: [] }
-          results = host.api_request("user", session, call_depth: 0) { |_fragment| nil }
+          results = Timeout.timeout(wall_clock_limit) do
+            host.api_request("user", session, call_depth: 0) { |_fragment| nil }
+          end
           extract_text(results)
+        rescue Timeout::Error
+          "ERROR: agent exceeded its wall-clock limit of #{wall_clock_limit}s"
         ensure
           unregister(app_key)
           remove_app_class(state.name)
@@ -95,6 +115,15 @@ module Monadic
         sys = system_prompt
         web = groups.include?("web_search_tools")
         other = groups - ["web_search_tools"]
+        # Concurrency invariant — DO NOT memoize this app per (provider/model/
+        # groups). Tool execution dispatches via APPS[app_name].send(fn) (see
+        # cohere_helper#invoke_cohere_tool_function / claude_helper), so app_name
+        # is a runtime routing key. A fresh, uniquely-named class+instance per run
+        # gives each concurrent run its own APPS slot, settings, and session.
+        # Reusing one host under a stable name would make two concurrent same-key
+        # runs (Conduit runs blocking turns off-reactor in their own threads) race
+        # on host.settings AND collide in APPS, routing tool calls to the wrong
+        # run. The per-run DSL build is network-cheap next to an LLM turn.
         name = "ConduitAgentRun#{SecureRandom.hex(4)}"
 
         MonadicDSL.app(name) do

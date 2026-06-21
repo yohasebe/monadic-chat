@@ -37,6 +37,40 @@ RSpec.describe Monadic::MCP::ConduitAgent do
     end
   end
 
+  describe ".wall_clock_limit" do
+    it "defaults to DEFAULT_WALL_CLOCK_LIMIT when unset" do
+      stub_const("CONFIG", {})
+      expect(described_class.wall_clock_limit).to eq(described_class::DEFAULT_WALL_CLOCK_LIMIT)
+    end
+
+    it "honors a positive CONDUIT_AGENT_WALL_CLOCK override" do
+      stub_const("CONFIG", { "CONDUIT_AGENT_WALL_CLOCK" => "45" })
+      expect(described_class.wall_clock_limit).to eq(45)
+    end
+
+    it "ignores a non-positive or non-numeric override" do
+      stub_const("CONFIG", { "CONDUIT_AGENT_WALL_CLOCK" => "0" })
+      expect(described_class.wall_clock_limit).to eq(described_class::DEFAULT_WALL_CLOCK_LIMIT)
+      stub_const("CONFIG", { "CONDUIT_AGENT_WALL_CLOCK" => "nope" })
+      expect(described_class.wall_clock_limit).to eq(described_class::DEFAULT_WALL_CLOCK_LIMIT)
+    end
+  end
+
+  describe ".run wall-clock bound" do
+    it "returns a timeout error string when the turn outruns the limit" do
+      allow(described_class).to receive(:wall_clock_limit).and_return(0.05)
+      allow_any_instance_of(MonadicApp).to receive(:api_request) do
+        sleep 0.5
+        [{ "content" => "too late" }]
+      end
+
+      result = described_class.run(
+        task: "anything", provider: "openai", model: "gpt-5.4", groups: %w[file_reading]
+      )
+      expect(result).to match(/exceeded its wall-clock limit/)
+    end
+  end
+
   describe ".build_agent_app" do
     after { described_class.send(:remove_app_class, @app_state.name) if @app_state }
 
@@ -56,6 +90,26 @@ RSpec.describe Monadic::MCP::ConduitAgent do
         Object.const_get(@app_state.name).instance_variable_get(:@settings) || {}
       )
       expect(settings["websearch"]).to be true
+    end
+
+    # Concurrency invariant: tool dispatch routes via APPS[app_name], so each run
+    # MUST get a unique app_name (no memoizing a host per provider/model/groups),
+    # or two concurrent same-key runs would collide in APPS and race on settings.
+    it "produces a unique app_name per call, equal to its class name" do
+      a = described_class.send(:build_agent_app, "openai", "gpt-5.4", %w[file_reading])
+      b = described_class.send(:build_agent_app, "openai", "gpt-5.4", %w[file_reading])
+      begin
+        names = [a, b].map do |st|
+          ActiveSupport::HashWithIndifferentAccess.new(
+            Object.const_get(st.name).instance_variable_get(:@settings) || {}
+          )["app_name"]
+        end
+        expect(names.uniq.size).to eq(2)
+        expect(names).to eq([a.name, b.name])
+      ensure
+        described_class.send(:remove_app_class, a.name)
+        described_class.send(:remove_app_class, b.name)
+      end
     end
   end
 end

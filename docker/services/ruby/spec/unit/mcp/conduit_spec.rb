@@ -12,7 +12,8 @@ RSpec.describe Monadic::MCP::Conduit do
     it "exposes the capability tools" do
       names = tools.map { |t| t[:name] }
       expect(names).to contain_exactly(
-        "monadic_status", "monadic_list_models", "monadic_query", "monadic_parallel_query"
+        "monadic_status", "monadic_list_models", "monadic_query",
+        "monadic_parallel_query", "monadic_second_opinion"
       )
     end
 
@@ -36,6 +37,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_list_models")).to be true
       expect(described_class.tool?("monadic_query")).to be true
       expect(described_class.tool?("monadic_parallel_query")).to be true
+      expect(described_class.tool?("monadic_second_opinion")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -261,6 +263,72 @@ RSpec.describe Monadic::MCP::Conduit do
       too_many = %w[openai anthropic gemini cohere mistral deepseek]
       expect { described_class.call("monadic_parallel_query", { "providers" => too_many, "message" => "hi" }) }
         .to raise_error(ArgumentError, /2-/)
+    end
+  end
+
+  describe "monadic_second_opinion" do
+    let(:agent_host) { double("SecondOpinionHost") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:second_opinion_host).and_return(agent_host)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "runs a single evaluator and returns validity + comments + budget" do
+      expect(agent_host).to receive(:second_opinion_agent)
+        .with(hash_including(user_query: "2+2?", agent_response: "5", provider: "openai"))
+        .and_return({ comments: "Incorrect, 2+2=4", validity: "2/10", model: "openai:gpt-5.4" })
+
+      result = described_class.call("monadic_second_opinion", {
+        "user_query" => "2+2?", "agent_response" => "5", "provider" => "openai"
+      })
+
+      expect(result[:provider]).to eq("openai")
+      expect(result[:validity]).to eq("2/10")
+      expect(result[:comments]).to match(/Incorrect/)
+      expect(result[:success]).to be true
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "marks an evaluator error result as failure" do
+      allow(agent_host).to receive(:second_opinion_agent)
+        .and_return({ comments: "Error: Model not specified", validity: "error", model: "none" })
+      result = described_class.call("monadic_second_opinion", {
+        "user_query" => "q", "agent_response" => "a", "provider" => "openai"
+      })
+      expect(result[:success]).to be false
+    end
+
+    it "verifies across multiple providers in parallel" do
+      allow(agent_host).to receive(:second_opinion_agent) do |provider:, **_|
+        { comments: "checked by #{provider}", validity: "8/10", model: "#{provider}:m" }
+      end
+      result = described_class.call("monadic_second_opinion", {
+        "user_query" => "q", "agent_response" => "a",
+        "providers" => %w[openai claude]
+      })
+      providers = result[:results].map { |r| r[:provider] }
+      expect(providers).to contain_exactly("openai", "anthropic")
+      expect(result[:results]).to all(include(success: true))
+    end
+
+    it "requires user_query and agent_response" do
+      expect { described_class.call("monadic_second_opinion", { "agent_response" => "a" }) }
+        .to raise_error(ArgumentError, /user_query/)
+      expect { described_class.call("monadic_second_opinion", { "user_query" => "q" }) }
+        .to raise_error(ArgumentError, /agent_response/)
+    end
+
+    it "refuses when the budget is exhausted" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(agent_host).not_to receive(:second_opinion_agent)
+      result = described_class.call("monadic_second_opinion", {
+        "user_query" => "a longer query here", "agent_response" => "a response", "provider" => "openai"
+      })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
     end
   end
 

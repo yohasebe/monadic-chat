@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative 'cost_guard'
+require_relative '../agents/second_opinion_agent'
 
 module Monadic
   module MCP
@@ -204,6 +205,46 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_parallel_query
+          },
+          {
+            name: "monadic_second_opinion",
+            description: "Ask one or more providers to critically verify a query/response pair " \
+                         "and return a validity score (1-10) plus critique — Monadic's " \
+                         "second-opinion sub-agent. Use it to cross-check an answer (your own " \
+                         "or another model's) before trusting it. Give `provider` for a single " \
+                         "evaluator, or `providers` (2-#{MAX_PARALLEL_PROVIDERS}) to verify in " \
+                         "parallel. Spends tokens; gated by the platform token budget.",
+            input_schema: {
+              type: "object",
+              properties: {
+                user_query: {
+                  type: "string",
+                  description: "The original question or prompt being evaluated."
+                },
+                agent_response: {
+                  type: "string",
+                  description: "The response whose correctness should be verified."
+                },
+                provider: {
+                  type: "string",
+                  description: "Single evaluator provider. Omit to default to OpenAI. " \
+                               "Use this OR `providers`."
+                },
+                providers: {
+                  type: "array",
+                  description: "2-#{MAX_PARALLEL_PROVIDERS} providers to verify in parallel. " \
+                               "Use this OR `provider`.",
+                  items: { type: "string" }
+                },
+                model: {
+                  type: "string",
+                  description: "Optional model override for the single-provider form."
+                }
+              },
+              required: ["user_query", "agent_response"],
+              additionalProperties: false
+            },
+            handler: :handle_second_opinion
           }
         ]
       end
@@ -297,6 +338,90 @@ module Monadic
         end
 
         { results: results, budget: CostGuard.status }
+      end
+
+      def handle_second_opinion(arguments)
+        user_query = (arguments["user_query"] || arguments[:user_query]).to_s
+        agent_response = (arguments["agent_response"] || arguments[:agent_response]).to_s
+        raise ArgumentError, "user_query is required" if user_query.empty?
+        raise ArgumentError, "agent_response is required" if agent_response.empty?
+
+        providers_arg = arguments["providers"] || arguments[:providers]
+
+        if providers_arg.is_a?(Array) && !providers_arg.empty?
+          unless providers_arg.size.between?(2, MAX_PARALLEL_PROVIDERS)
+            raise ArgumentError,
+                  "providers must list 2-#{MAX_PARALLEL_PROVIDERS} provider names"
+          end
+
+          targets = providers_arg.each_with_object([]) do |raw, acc|
+            canonical = MonadicDSL::ProviderConfig.new(raw.to_s).standard_key
+            next if acc.any? { |t| t[:provider] == canonical }
+            acc << { provider: canonical }
+          end
+
+          second_opinion_host # pre-initialize before spawning threads (avoids a lazy-init race)
+          results = run_in_parallel(targets) do |target|
+            run_one_second_opinion(
+              provider: target[:provider],
+              user_query: user_query,
+              agent_response: agent_response
+            )
+          end
+
+          { results: results, budget: CostGuard.status }
+        else
+          provider = (arguments["provider"] || arguments[:provider]).to_s
+          provider = nil if provider.empty?
+          provider &&= MonadicDSL::ProviderConfig.new(provider).standard_key
+
+          run_one_second_opinion(
+            provider: provider,
+            user_query: user_query,
+            agent_response: agent_response,
+            model: arguments["model"] || arguments[:model]
+          ).merge(budget: CostGuard.status)
+        end
+      end
+
+      # ---- Second-opinion helpers ----------------------------------------
+
+      # Host object that mixes in the SecondOpinionAgent module. The agent
+      # builds its own per-provider helper instance internally, so it needs no
+      # app instance or session — only CONFIG and the loaded vendor helpers.
+      def second_opinion_host
+        @second_opinion_host ||= Class.new { include SecondOpinionAgent }.new
+      end
+
+      def run_one_second_opinion(provider:, user_query:, agent_response:, model: nil)
+        input_tokens = CostGuard.estimate_tokens("#{user_query}\n#{agent_response}")
+        begin
+          CostGuard.ensure_within!(input_tokens + DEFAULT_MAX_OUTPUT)
+        rescue CostGuard::BudgetExceeded => e
+          return { provider: provider, success: false, error: "❌ Budget exceeded: #{e.message}" }
+        end
+
+        result = second_opinion_host.second_opinion_agent(
+          user_query: user_query,
+          agent_response: agent_response,
+          provider: provider,
+          model: model,
+          session: {}
+        )
+
+        comments = result[:comments] || result["comments"]
+        validity = result[:validity] || result["validity"]
+        used_model = result[:model] || result["model"]
+
+        CostGuard.record(input_tokens + CostGuard.estimate_tokens(comments))
+
+        {
+          provider: provider || used_model.to_s.split(":").first,
+          model: used_model,
+          success: validity.to_s != "error",
+          validity: validity,
+          comments: comments
+        }
       end
 
       # ---- Query helpers --------------------------------------------------

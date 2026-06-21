@@ -149,6 +149,17 @@ module Monadic
                 temperature: {
                   type: "number",
                   description: "Optional sampling temperature (ignored by models that reject it)."
+                },
+                knowledge_base: {
+                  type: "string",
+                  description: "Optional KB namespace. When set, the latest user message is " \
+                               "used to retrieve relevant chunks from the local Knowledge Base " \
+                               "and inject them as grounding context (data stays local)."
+                },
+                privacy: {
+                  type: "boolean",
+                  description: "When true, mask PII in the request before sending and restore " \
+                               "it in the response (requires the privacy container; fails closed)."
                 }
               },
               required: ["provider"],
@@ -203,6 +214,15 @@ module Monadic
                 temperature: {
                   type: "number",
                   description: "Optional sampling temperature applied to every provider."
+                },
+                knowledge_base: {
+                  type: "string",
+                  description: "Optional KB namespace to ground every provider's answer."
+                },
+                privacy: {
+                  type: "boolean",
+                  description: "When true, mask PII before sending to every provider and " \
+                               "restore it in each response (fails closed)."
                 }
               },
               required: ["providers"],
@@ -374,7 +394,9 @@ module Monadic
           system: (arguments["system"] || arguments[:system]).to_s,
           model: (arguments["model"] || arguments[:model]),
           max_output: (arguments["max_tokens"] || arguments[:max_tokens]),
-          temperature: (arguments["temperature"] || arguments[:temperature])
+          temperature: (arguments["temperature"] || arguments[:temperature]),
+          knowledge_base: (arguments["knowledge_base"] || arguments[:knowledge_base]),
+          privacy: (arguments["privacy"] || arguments[:privacy])
         )
         result.merge(budget: CostGuard.status)
       end
@@ -393,6 +415,8 @@ module Monadic
         max_output = (arguments["max_tokens"] || arguments[:max_tokens])
         temperature = arguments["temperature"] || arguments[:temperature]
         models = arguments["models"] || arguments[:models] || {}
+        knowledge_base = arguments["knowledge_base"] || arguments[:knowledge_base]
+        privacy = arguments["privacy"] || arguments[:privacy]
 
         # Canonicalize and de-duplicate so the same provider's (shared) app
         # instance is never driven by two concurrent threads.
@@ -410,7 +434,9 @@ module Monadic
             system: system,
             model: target[:model],
             max_output: max_output,
-            temperature: temperature
+            temperature: temperature,
+            knowledge_base: knowledge_base,
+            privacy: privacy
           )
         end
 
@@ -640,10 +666,13 @@ module Monadic
       # ---- Query helpers --------------------------------------------------
 
       # Shared single-provider execution used by both monadic_query and the
-      # parallel fan-out. Borrows a per-provider host (Provider Independence),
-      # gates spend through CostGuard, and returns a normalized result hash.
+      # parallel fan-out. Builds a headless per-provider host (Provider
+      # Independence), optionally grounds the query in a local KB and/or masks
+      # PII (the Conduit differentiators), gates spend through CostGuard, and
+      # returns a normalized result hash.
       def execute_query(provider:, messages:, system: "", model: nil,
-                        max_output: nil, temperature: nil)
+                        max_output: nil, temperature: nil,
+                        knowledge_base: nil, privacy: nil)
         model = model.to_s.strip
         model = nil if model.empty?
         model ||= default_chat_model_for(provider)
@@ -658,27 +687,59 @@ module Monadic
                 "(unknown provider or helper not loaded)"
         end
 
-        input_tokens = CostGuard.estimate_tokens(
-          messages.map { |m| m["content"] }.join("\n") + "\n" + system.to_s
-        )
+        # (1) KB grounding — retrieve relevant context for the latest user turn.
+        grounded = false
+        kb_context = ""
+        kb = knowledge_base.to_s.strip
+        unless kb.empty?
+          begin
+            kb_context, grounded = retrieve_kb_context(messages, kb)
+          rescue Monadic::VectorStore::BackendError => e
+            return { provider: provider, model: model, success: false,
+                     error: "❌ Knowledge Base unavailable: #{e.message} (grounding requested)" }
+          end
+        end
+
+        # Fold the explicit system prompt and any KB context into the user turn.
+        # send_query does NOT uniformly honor a top-level system across providers
+        # (OpenAI-family read a system-role message; Claude rejects one and reads
+        # options["system"]). Folding into the user message is the one delivery
+        # that works for every provider without provider-specific branching.
+        preamble = [system.to_s, kb_context].reject { |s| s.to_s.empty? }.join("\n\n")
+        send_messages = apply_preamble(messages, preamble)
+
+        # (2) Privacy masking — mask PII before sending; restore after.
+        pipeline = privacy_enabled?(privacy) ? build_privacy_pipeline(privacy) : nil
+        if pipeline
+          begin
+            send_messages = send_messages.map do |m|
+              { "role" => m["role"], "content" => mask_text(pipeline, m["content"], m["role"]) }
+            end
+          rescue Monadic::Utils::Privacy::BackendError => e
+            return { provider: provider, model: model, success: false,
+                     error: "❌ Privacy masking unavailable: #{e.message} (refusing to send unmasked)" }
+          end
+        end
+
+        input_tokens = CostGuard.estimate_tokens(send_messages.map { |m| m["content"] }.join("\n"))
 
         begin
           CostGuard.ensure_within!(input_tokens + max_output)
         rescue CostGuard::BudgetExceeded => e
-          return {
-            provider: provider,
-            model: model,
-            success: false,
-            error: "❌ Budget exceeded: #{e.message}"
-          }
+          return { provider: provider, model: model, success: false,
+                   error: "❌ Budget exceeded: #{e.message}" }
         end
 
-        body = { "messages" => messages, "model" => model, "max_tokens" => max_output }
-        body["system"] = system.to_s unless system.to_s.empty?
+        body = { "messages" => send_messages, "model" => model, "max_tokens" => max_output }
         body["temperature"] = temperature unless temperature.nil?
 
         raw = host.send_query(body, model: model)
         normalized = normalize_query_response(raw)
+
+        # Restore masked placeholders in the response back to original values.
+        if pipeline && normalized[:text]
+          normalized = normalized.merge(text: pipeline.after_receive_from_llm(normalized[:text]).text)
+        end
 
         output_tokens = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
         CostGuard.record(input_tokens + output_tokens)
@@ -690,12 +751,82 @@ module Monadic
           text: normalized[:text],
           tool_calls: normalized[:tool_calls],
           error: normalized[:error],
+          grounded: (grounded || nil),
+          privacy: (pipeline ? true : nil),
           usage: {
             input_tokens_est: input_tokens,
             output_tokens_est: output_tokens,
             note: "estimated via tiktoken; send_query does not expose provider usage"
           }
         }.compact
+      end
+
+      # ---- KB grounding + Privacy helpers --------------------------------
+
+      KB_GROUNDING_TOP_N = 4
+
+      # PII-focused default mask set (excludes LOCATION/DATE_TIME by design).
+      DEFAULT_PRIVACY_MASK_TYPES = %i[person email phone credit_card ip iban us_ssn].freeze
+
+      # Search the KB with the latest user turn. Returns [context_block, grounded?].
+      def retrieve_kb_context(messages, knowledge_base)
+        user_text = messages.reverse.find { |m| m["role"].to_s == "user" }&.dig("content").to_s
+        return ["", false] if user_text.empty?
+
+        hits = kb_store(knowledge_base).find_closest_text(user_text, top_n: KB_GROUNDING_TOP_N)
+        context = hits.map { |h| (h[:text] || h["text"]).to_s }.reject(&:empty?).join("\n\n")
+        return ["", false] if context.empty?
+
+        ["Relevant context from the knowledge base (use it if helpful):\n#{context}", true]
+      end
+
+      # Fold a preamble (system instructions + KB context) into the latest user
+      # message so it reaches every provider uniformly (see execute_query note).
+      def apply_preamble(messages, preamble)
+        return messages if preamble.to_s.empty?
+
+        idx = messages.rindex { |m| m["role"].to_s == "user" }
+        if idx
+          messages.each_with_index.map do |m, i|
+            i == idx ? { "role" => m["role"], "content" => "#{preamble}\n\n#{m["content"]}" } : m
+          end
+        else
+          [{ "role" => "user", "content" => preamble }] + messages
+        end
+      end
+
+      def privacy_enabled?(privacy)
+        case privacy
+        when true then true
+        when Hash then privacy["enabled"] != false && privacy[:enabled] != false
+        else false
+        end
+      end
+
+      def build_privacy_pipeline(privacy)
+        require_relative '../utils/privacy/pipeline'
+        opts = privacy.is_a?(Hash) ? privacy : {}
+        mask_types = Array(opts["mask_types"] || opts[:mask_types]).map(&:to_sym)
+        mask_types = DEFAULT_PRIVACY_MASK_TYPES if mask_types.empty?
+        language = (opts["language"] || opts[:language] || "en").to_s
+
+        Monadic::Utils::Privacy::Pipeline.new(
+          backend: Monadic::Utils::Privacy::PresidioBackend.new,
+          config: {
+            enabled: true,
+            mask_types: mask_types,
+            score_threshold: 0.4,
+            honorific_trim: true,
+            on_failure: :block
+          },
+          session: { parameters: { conversation_language: language }, monadic_state: {} }
+        )
+      end
+
+      def mask_text(pipeline, text, role)
+        return text.to_s if text.to_s.empty?
+        raw = Monadic::Utils::Privacy::RawMessage.new(text.to_s, role.to_s, {})
+        pipeline.before_send_to_llm(raw).text
       end
 
       # Run a block per target concurrently, bounded by PARALLEL_TIMEOUT of

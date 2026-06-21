@@ -3,6 +3,7 @@
 require "spec_helper"
 require_relative "../../../lib/monadic/utils/model_spec"
 require_relative "../../../lib/monadic/utils/container_dependencies"
+require_relative "../../../lib/monadic/utils/privacy/pipeline"
 require_relative "../../../lib/monadic/mcp/conduit"
 
 RSpec.describe Monadic::MCP::Conduit do
@@ -499,6 +500,91 @@ RSpec.describe Monadic::MCP::Conduit do
       chunks = described_class.chunk_text("a\nb\nc\nd", max_tokens: 1)
       expect(chunks).not_to be_empty
       expect(chunks).to all(include("text"))
+    end
+  end
+
+  describe "monadic_query grounding (knowledge_base)" do
+    let(:host) { double("host") }
+    let(:store) { double("store") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:provider_host).and_return(host)
+      allow(described_class).to receive(:default_chat_model_for).and_return("m")
+      allow(described_class).to receive(:kb_store).and_return(store)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "injects KB context into the system prompt and flags grounded" do
+      allow(store).to receive(:find_closest_text).with("explain X", top_n: 4)
+        .and_return([{ text: "X is a documented thing" }])
+      captured = nil
+      allow(host).to receive(:send_query) { |body, **| captured = body; "answer" }
+
+      result = described_class.call("monadic_query", {
+        "provider" => "openai", "message" => "explain X", "knowledge_base" => "kb1"
+      })
+
+      # Context is folded into the user turn (uniform cross-provider delivery).
+      user_msg = captured["messages"].last["content"]
+      expect(user_msg).to include("X is a documented thing")
+      expect(user_msg).to include("explain X")
+      expect(result[:grounded]).to be true
+      expect(result[:success]).to be true
+    end
+
+    it "fails closed when the KB is unavailable" do
+      allow(store).to receive(:find_closest_text)
+        .and_raise(Monadic::VectorStore::BackendError.new("connection refused"))
+      expect(host).not_to receive(:send_query)
+      result = described_class.call("monadic_query", {
+        "provider" => "openai", "message" => "q", "knowledge_base" => "kb1"
+      })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Knowledge Base unavailable/)
+    end
+  end
+
+  describe "monadic_query privacy" do
+    let(:host) { double("host") }
+    let(:pipeline) { double("pipeline") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:provider_host).and_return(host)
+      allow(described_class).to receive(:default_chat_model_for).and_return("m")
+      allow(described_class).to receive(:build_privacy_pipeline).and_return(pipeline)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "masks the outgoing message, restores the response, and flags privacy" do
+      allow(pipeline).to receive(:before_send_to_llm)
+        .and_return(double(text: "Hi <<PERSON_1>>"))
+      allow(pipeline).to receive(:after_receive_from_llm)
+        .with("Reply to <<PERSON_1>>").and_return(double(text: "Reply to John"))
+      captured = nil
+      allow(host).to receive(:send_query) { |body, **| captured = body; "Reply to <<PERSON_1>>" }
+
+      result = described_class.call("monadic_query", {
+        "provider" => "openai", "message" => "Hi John", "privacy" => true
+      })
+
+      expect(captured["messages"].first["content"]).to eq("Hi <<PERSON_1>>")
+      expect(result[:text]).to eq("Reply to John")
+      expect(result[:privacy]).to be true
+    end
+
+    it "fails closed when the masking backend is down" do
+      allow(pipeline).to receive(:before_send_to_llm)
+        .and_raise(Monadic::Utils::Privacy::BackendError.new("presidio unreachable"))
+      expect(host).not_to receive(:send_query)
+      result = described_class.call("monadic_query", {
+        "provider" => "openai", "message" => "Hi John", "privacy" => true
+      })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Privacy masking unavailable/)
     end
   end
 end

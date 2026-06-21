@@ -481,6 +481,35 @@ module Monadic
             handler: :handle_generate_code
           },
           {
+            name: "monadic_generate_image",
+            description: "Generate an image from a text prompt and save it to the shared " \
+                         "volume (~/monadic/data). Returns the saved filename(s). Uses your own " \
+                         "API keys; spends provider tokens (budget-gated). Providers: openai " \
+                         "(default), grok/xai, gemini/google. Can take a while — run via " \
+                         "monadic_submit and poll for progress.",
+            input_schema: {
+              type: "object",
+              properties: {
+                prompt: { type: "string", description: "What to draw." },
+                provider: {
+                  type: "string",
+                  description: "openai (default), grok/xai, gemini/google."
+                },
+                aspect_ratio: {
+                  type: "string",
+                  description: "Optional aspect ratio for grok/gemini, e.g. '16:9'."
+                },
+                size: {
+                  type: "string",
+                  description: "Optional pixel size for openai, e.g. '1024x1024'."
+                }
+              },
+              required: ["prompt"],
+              additionalProperties: false
+            },
+            handler: :handle_generate_image
+          },
+          {
             name: "monadic_submit",
             description: "Run another Conduit tool as a background job and return a job_id " \
                          "immediately, without blocking. Use this for long or blocking tools " \
@@ -968,6 +997,103 @@ module Monadic
               klass.include(helper)
               klass.include(agent)
             end.new
+          end
+        end
+      end
+
+      # ---- Media generation (image) --------------------------------------
+
+      # Internal provider labels (match the helper method names). Requested
+      # aliases (xai/google) are normalized onto these.
+      IMAGE_PROVIDERS = %w[openai grok gemini].freeze
+
+      # Images bill per-image, not per-token; reserve a flat backstop alongside
+      # the platform ceiling.
+      IMAGE_GEN_ESTIMATE = 1000
+
+      def handle_generate_image(arguments)
+        prompt = (arguments["prompt"] || arguments[:prompt]).to_s
+        raise ArgumentError, "prompt is required" if prompt.strip.empty?
+
+        provider = normalize_image_provider(arguments["provider"] || arguments[:provider])
+        aspect_ratio = arguments["aspect_ratio"] || arguments[:aspect_ratio]
+        size = arguments["size"] || arguments[:size]
+
+        begin
+          CostGuard.ensure_within!(IMAGE_GEN_ESTIMATE)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        # The helper methods wrap themselves in ProgressBroadcaster.with_progress,
+        # which mirrors progress into the current job for polling clients.
+        raw = invoke_image_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio, size: size)
+        result = normalize_image_result(provider, raw)
+        CostGuard.record(IMAGE_GEN_ESTIMATE)
+
+        {
+          provider: provider,
+          success: result[:success],
+          files: (result[:success] ? result[:files] : nil),
+          note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+          error: (result[:success] ? nil : "❌ #{result[:error]}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      def normalize_image_provider(value)
+        v = value.to_s.strip.downcase
+        return "openai" if v.empty?
+        return "gemini" if %w[gemini google].include?(v)
+        return "grok" if %w[grok xai].include?(v)
+
+        IMAGE_PROVIDERS.include?(v) ? v : "openai"
+      end
+
+      def invoke_image_generator(provider, prompt:, aspect_ratio:, size:)
+        case provider
+        when "openai"
+          model = Monadic::Utils::ModelSpec.default_image_model("openai") || "gpt-image-2"
+          media_app_host.generate_image_with_openai(
+            operation: "generate", model: model, prompt: prompt, size: (size || "1024x1024"), n: 1
+          )
+        when "grok"
+          media_app_host.generate_image_with_grok(
+            prompt: prompt, aspect_ratio: aspect_ratio, operation: "generate"
+          )
+        when "gemini"
+          provider_host("gemini").generate_image_with_gemini(
+            prompt: prompt, operation: "generate", model: "gemini",
+            aspect_ratio: aspect_ratio, image_size: size
+          )
+        end
+      end
+
+      # OpenAI/Grok image helpers shell out via send_command, so they need a
+      # full MonadicApp host (like tts_host). Gemini goes through its own helper.
+      def media_app_host
+        MonadicApp.new
+      end
+
+      # Normalize heterogeneous generator outputs to {success:, files:|error:}.
+      # OpenAI prints "Saved file: <path>" lines; Grok/Gemini return JSON.
+      def normalize_image_result(provider, raw)
+        if provider == "openai"
+          text = raw.to_s
+          files = text.scan(/Saved file:\s*(\S+)/i).flatten.map { |p| File.basename(p) }
+          return { success: true, files: files } if files.any? && !text.start_with?("Error occurred:")
+
+          { success: false, error: text }
+        else
+          data = begin
+            JSON.parse(raw.to_s)
+          rescue JSON::ParserError
+            nil
+          end
+          if data && data["success"] == true
+            { success: true, files: Array(data["filename"] || data["file"]) }
+          else
+            { success: false, error: (data && (data["message"] || data["error"])) || raw.to_s }
           end
         end
       end

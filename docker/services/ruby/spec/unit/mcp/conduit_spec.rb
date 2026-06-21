@@ -17,7 +17,7 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
-        "monadic_speak", "monadic_generate_code",
+        "monadic_speak", "monadic_generate_code", "monadic_generate_image",
         "monadic_submit", "monadic_poll", "monadic_cancel", "monadic_jobs"
       )
     end
@@ -50,6 +50,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_transcribe_audio")).to be true
       expect(described_class.tool?("monadic_speak")).to be true
       expect(described_class.tool?("monadic_generate_code")).to be true
+      expect(described_class.tool?("monadic_generate_image")).to be true
       expect(described_class.tool?("monadic_submit")).to be true
       expect(described_class.tool?("monadic_poll")).to be true
       expect(described_class.tool?("monadic_cancel")).to be true
@@ -729,6 +730,77 @@ RSpec.describe Monadic::MCP::Conduit do
       stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
       expect(chost).not_to receive(:call_openai_code)
       result = described_class.call("monadic_generate_code", { "prompt" => "make something big" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
+    end
+  end
+
+  describe "monadic_generate_image" do
+    let(:mhost) { double("media_host") }
+
+    before { Monadic::MCP::CostGuard.reset! }
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "generates with openai and parses 'Saved file' output" do
+      allow(described_class).to receive(:media_app_host).and_return(mhost)
+      allow(Monadic::Utils::ModelSpec).to receive(:default_image_model).with("openai").and_return("gpt-image-2")
+      expect(mhost).to receive(:generate_image_with_openai)
+        .with(hash_including(operation: "generate", model: "gpt-image-2", prompt: "a cat"))
+        .and_return("output: \nSaved file: /monadic/data/generate_gpt-image-2_123_0.png")
+      result = described_class.call("monadic_generate_image", { "prompt" => "a cat" })
+      expect(result[:success]).to be true
+      expect(result[:provider]).to eq("openai")
+      expect(result[:files]).to eq(["generate_gpt-image-2_123_0.png"])
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "parses a grok JSON result and accepts the xai alias" do
+      allow(described_class).to receive(:media_app_host).and_return(mhost)
+      expect(mhost).to receive(:generate_image_with_grok)
+        .with(hash_including(prompt: "fox", operation: "generate"))
+        .and_return(JSON.generate({ success: true, filename: "123.png", revised_prompt: "a fox" }))
+      result = described_class.call("monadic_generate_image", { "prompt" => "fox", "provider" => "xai" })
+      expect(result[:provider]).to eq("grok")
+      expect(result[:files]).to eq(["123.png"])
+    end
+
+    it "routes gemini through the gemini helper host (google alias)" do
+      ghost = double("gemini_host")
+      expect(described_class).to receive(:provider_host).with("gemini").and_return(ghost)
+      expect(ghost).to receive(:generate_image_with_gemini)
+        .and_return(JSON.generate({ success: true, filename: "g.png", model: "gemini" }))
+      result = described_class.call("monadic_generate_image", { "prompt" => "p", "provider" => "google" })
+      expect(result[:provider]).to eq("gemini")
+      expect(result[:files]).to eq(["g.png"])
+    end
+
+    it "maps a failed JSON result to a structured error" do
+      allow(described_class).to receive(:media_app_host).and_return(mhost)
+      allow(mhost).to receive(:generate_image_with_grok)
+        .and_return(JSON.generate({ success: false, message: "content filtered" }))
+      result = described_class.call("monadic_generate_image", { "prompt" => "x", "provider" => "grok" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/content filtered/)
+    end
+
+    it "maps an openai error output to failure" do
+      allow(described_class).to receive(:media_app_host).and_return(mhost)
+      allow(Monadic::Utils::ModelSpec).to receive(:default_image_model).and_return("gpt-image-2")
+      allow(mhost).to receive(:generate_image_with_openai).and_return("Error occurred: boom")
+      result = described_class.call("monadic_generate_image", { "prompt" => "x" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/boom/)
+    end
+
+    it "requires a prompt" do
+      expect { described_class.call("monadic_generate_image", {}) }
+        .to raise_error(ArgumentError, /prompt is required/)
+    end
+
+    it "refuses when the budget is exhausted (no generation)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(described_class).not_to receive(:invoke_image_generator)
+      result = described_class.call("monadic_generate_image", { "prompt" => "x" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end

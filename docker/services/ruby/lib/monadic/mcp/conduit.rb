@@ -3,6 +3,7 @@
 require 'json'
 require_relative 'cost_guard'
 require_relative '../agents/second_opinion_agent'
+require_relative '../agents/image_analysis_agent'
 
 module Monadic
   module MCP
@@ -342,6 +343,36 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_import_kb
+          },
+          {
+            name: "monadic_analyze_image",
+            description: "Analyze an image with a vision model and return a text description/" \
+                         "answer. Give a `prompt` (what to look at) and an image `path` on the " \
+                         "shared volume (~/monadic/data). Uses your own API keys; spends provider " \
+                         "tokens (budget-gated). A vision-capable provider is chosen automatically " \
+                         "unless you pass one.",
+            input_schema: {
+              type: "object",
+              properties: {
+                prompt: {
+                  type: "string",
+                  description: "What to ask about the image (e.g. 'Describe this diagram')."
+                },
+                path: {
+                  type: "string",
+                  description: "Image path: absolute, or relative to the shared volume " \
+                               "(~/monadic/data). Formats: jpg, png, gif, webp (max 10MB)."
+                },
+                provider: {
+                  type: "string",
+                  description: "Optional preferred vision provider (openai, anthropic/claude, " \
+                               "gemini/google, xai/grok). Falls back to the first available."
+                }
+              },
+              required: ["prompt", "path"],
+              additionalProperties: false
+            },
+            handler: :handle_analyze_image
           }
         ]
       end
@@ -525,6 +556,63 @@ module Monadic
           validity: validity,
           comments: comments
         }
+      end
+
+      # ---- Vision (image analysis) ---------------------------------------
+
+      # Rough per-image token allowance for the budget backstop (vision token
+      # cost is provider-specific and not returned by the agent).
+      IMAGE_TOKENS_ESTIMATE = 1000
+
+      def handle_analyze_image(arguments)
+        prompt = (arguments["prompt"] || arguments[:prompt]).to_s
+        path = (arguments["path"] || arguments[:path]).to_s
+        raise ArgumentError, "prompt is required" if prompt.empty?
+        raise ArgumentError, "path is required" if path.empty?
+
+        provider = (arguments["provider"] || arguments[:provider]).to_s
+        provider = MonadicDSL::ProviderConfig.new(provider).standard_key unless provider.empty?
+
+        input_tokens = CostGuard.estimate_tokens(prompt) + IMAGE_TOKENS_ESTIMATE
+        begin
+          CostGuard.ensure_within!(input_tokens + DEFAULT_MAX_OUTPUT)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        result = vision_host(provider).image_analysis_agent(message: prompt, image_path: path)
+        success = !error_marker?(result)
+        CostGuard.record(input_tokens + CostGuard.estimate_tokens(result))
+
+        {
+          provider: (provider.empty? ? "auto" : provider),
+          success: success,
+          text: (success ? result : nil),
+          error: (success ? nil : "❌ #{result}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      # Host mixing in ImageAnalysisAgent. The agent reads settings["provider"]
+      # to prefer a vision provider, so we supply a minimal settings carrying the
+      # (optional) requested provider; an empty value triggers the agent's own
+      # first-available fallback.
+      def vision_host(provider)
+        klass = Class.new do
+          include ImageAnalysisAgent
+          attr_accessor :_conduit_provider
+          def settings
+            { "provider" => _conduit_provider.to_s }
+          end
+        end
+        host = klass.new
+        host._conduit_provider = provider
+        host
+      end
+
+      # The analysis agents signal failure with a leading "ERROR:" string.
+      def error_marker?(text)
+        text.is_a?(String) && text.start_with?("ERROR:")
       end
 
       # ---- Knowledge Base (local PDF KB via Monadic::Pdf::Store) ----------

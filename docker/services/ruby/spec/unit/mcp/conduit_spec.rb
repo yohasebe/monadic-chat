@@ -15,7 +15,8 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(names).to contain_exactly(
         "monadic_status", "monadic_list_models", "monadic_query",
         "monadic_parallel_query", "monadic_second_opinion",
-        "monadic_search_kb", "monadic_list_kb", "monadic_import_kb"
+        "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
+        "monadic_analyze_image"
       )
     end
 
@@ -43,6 +44,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_search_kb")).to be true
       expect(described_class.tool?("monadic_list_kb")).to be true
       expect(described_class.tool?("monadic_import_kb")).to be true
+      expect(described_class.tool?("monadic_analyze_image")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -500,6 +502,61 @@ RSpec.describe Monadic::MCP::Conduit do
       chunks = described_class.chunk_text("a\nb\nc\nd", max_tokens: 1)
       expect(chunks).not_to be_empty
       expect(chunks).to all(include("text"))
+    end
+  end
+
+  describe "monadic_analyze_image" do
+    let(:vhost) { double("vision_host") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:vision_host).and_return(vhost)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "returns the analysis text and charges the budget" do
+      expect(vhost).to receive(:image_analysis_agent)
+        .with(message: "describe", image_path: "pic.png")
+        .and_return("A red square on white.")
+      result = described_class.call("monadic_analyze_image", {
+        "prompt" => "describe", "path" => "pic.png"
+      })
+      expect(result[:success]).to be true
+      expect(result[:text]).to eq("A red square on white.")
+      expect(result[:provider]).to eq("auto")
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "passes a requested provider through (canonicalized)" do
+      expect(described_class).to receive(:vision_host).with("anthropic").and_return(vhost)
+      allow(vhost).to receive(:image_analysis_agent).and_return("ok")
+      described_class.call("monadic_analyze_image", {
+        "prompt" => "p", "path" => "x.png", "provider" => "claude"
+      })
+    end
+
+    it "maps an agent ERROR string to a structured failure" do
+      allow(vhost).to receive(:image_analysis_agent)
+        .and_return("ERROR: Image file not found: x.png")
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Image file not found/)
+    end
+
+    it "requires prompt and path" do
+      expect { described_class.call("monadic_analyze_image", { "path" => "x.png" }) }
+        .to raise_error(ArgumentError, /prompt is required/)
+      expect { described_class.call("monadic_analyze_image", { "prompt" => "p" }) }
+        .to raise_error(ArgumentError, /path is required/)
+    end
+
+    it "refuses when the budget is exhausted (no agent call)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(vhost).not_to receive(:image_analysis_agent)
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
     end
   end
 

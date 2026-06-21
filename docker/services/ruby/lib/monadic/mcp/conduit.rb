@@ -979,6 +979,9 @@ module Monadic
         path = (arguments["path"] || arguments[:path]).to_s
         raise ArgumentError, "path is required" if path.empty?
 
+        guard = require_background_job("monadic_analyze_video")
+        return guard if guard
+
         query = arguments["query"] || arguments[:query]
         fps = (arguments["fps"] || arguments[:fps]).to_i
         fps = 1 if fps <= 0
@@ -1006,7 +1009,10 @@ module Monadic
       end
 
       def video_analyze_host
-        Class.new(MonadicApp) { include VideoAnalyzeAgent }.new
+        klass = @hosts_mutex.synchronize do
+          @video_analyze_host_class ||= Class.new(MonadicApp) { include VideoAnalyzeAgent }
+        end
+        klass.new
       end
 
       # The video agent signals failure with either "ERROR:" or "Error:".
@@ -1015,12 +1021,21 @@ module Monadic
       end
 
       # Resolve a shared-volume path to an absolute path, rejecting traversal.
+      # Resolve a path to an absolute path that is guaranteed to live inside the
+      # shared volume (~/monadic/data). Relative paths resolve against it;
+      # absolute paths are allowed only if they fall within it. This keeps a
+      # caller from reading arbitrary host files (the analysis agents read the
+      # file directly in the Ruby process and send its bytes to a provider).
       def resolve_shared_path(path)
         raise ArgumentError, "invalid path (traversal not allowed)" if path.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
-        return path if path.start_with?("/")
+        base = File.expand_path(Monadic::Utils::Environment.shared_volume)
+        abs = path.start_with?("/") ? File.expand_path(path) : File.expand_path(File.join(base, path))
+        unless abs == base || abs.start_with?("#{base}/")
+          raise ArgumentError, "path must be within the shared volume (~/monadic/data)"
+        end
 
-        File.join(Monadic::Utils::Environment.shared_volume, path)
+        abs
       end
 
       # ---- Speech synthesis (TTS) ----------------------------------------
@@ -1120,6 +1135,9 @@ module Monadic
         prompt = (arguments["prompt"] || arguments[:prompt]).to_s
         raise ArgumentError, "prompt is required" if prompt.strip.empty?
 
+        guard = require_background_job("monadic_generate_code")
+        return guard if guard
+
         provider = resolve_code_provider(arguments["provider"] || arguments[:provider])
         unless provider
           return { success: false,
@@ -1188,12 +1206,17 @@ module Monadic
         helper = Object.const_get(helper_name)
         agent = Object.const_get(module_name)
 
-        @hosts_mutex.synchronize do
-          (@code_hosts ||= {})[provider] ||= Class.new(MonadicApp) do
+        # Memoize the host CLASS (so it is compiled once) but return a FRESH
+        # instance per call: agents keep per-call instance state (e.g. access-
+        # check memos), and concurrent background jobs must not share one
+        # mutable instance.
+        klass = @hosts_mutex.synchronize do
+          (@code_host_classes ||= {})[provider] ||= Class.new(MonadicApp) do
             include helper
             include agent
-          end.new
+          end
         end
+        klass.new
       end
 
       # ---- Media generation (image) --------------------------------------
@@ -1202,13 +1225,20 @@ module Monadic
       # aliases (xai/google) are normalized onto these.
       IMAGE_PROVIDERS = %w[openai grok gemini].freeze
 
-      # Images bill per-image, not per-token; reserve a flat backstop alongside
-      # the platform ceiling.
-      IMAGE_GEN_ESTIMATE = 1000
+      # Media generation bills per image / per second / per request — not per
+      # token — so these flat reservations are token-equivalent *cost proxies*,
+      # not real token counts. They are scaled to the rough dollar cost of each
+      # operation relative to text tokens, so the budget meaningfully limits the
+      # most expensive operations (a token-cheap estimate would let a runaway
+      # client generate hundreds of videos before the ceiling bites).
+      IMAGE_GEN_ESTIMATE = 4000
 
       def handle_generate_image(arguments)
         prompt = (arguments["prompt"] || arguments[:prompt]).to_s
         raise ArgumentError, "prompt is required" if prompt.strip.empty?
+
+        guard = require_background_job("monadic_generate_image")
+        return guard if guard
 
         provider = normalize_image_provider(arguments["provider"] || arguments[:provider])
         aspect_ratio = arguments["aspect_ratio"] || arguments[:aspect_ratio]
@@ -1272,12 +1302,14 @@ module Monadic
 
       # Gemini media host. Unlike query (send_query only), some Gemini media
       # methods shell out via send_command (e.g. Veo video → video_generator
-      # script), so this needs the MonadicApp base, not a bare helper host.
-      # Memoized; safe for the direct-API methods (image/Lyria) too.
+      # script), so this needs the MonadicApp base, not a bare helper host. The
+      # class is memoized; a fresh instance is returned per call so concurrent
+      # jobs never share one mutable host.
       def gemini_media_host
-        @hosts_mutex.synchronize do
-          @gemini_media_host ||= Class.new(MonadicApp) { include GeminiHelper }.new
+        klass = @hosts_mutex.synchronize do
+          @gemini_media_host_class ||= Class.new(MonadicApp) { include GeminiHelper }
         end
+        klass.new
       end
 
       # Normalize an image result to {success:, files:|error:}. OpenAI prints
@@ -1347,11 +1379,16 @@ module Monadic
       # ---- Media generation (video) --------------------------------------
 
       VIDEO_PROVIDERS = %w[gemini grok].freeze
-      VIDEO_GEN_ESTIMATE = 2000
+      # Cost proxy (see IMAGE_GEN_ESTIMATE): video is by far the most expensive
+      # operation, so it reserves the largest share of the budget.
+      VIDEO_GEN_ESTIMATE = 50_000
 
       def handle_generate_video(arguments)
         prompt = (arguments["prompt"] || arguments[:prompt]).to_s
         raise ArgumentError, "prompt is required" if prompt.strip.empty?
+
+        guard = require_background_job("monadic_generate_video")
+        return guard if guard
 
         provider = normalize_video_provider(arguments["provider"] || arguments[:provider])
         aspect_ratio = arguments["aspect_ratio"] || arguments[:aspect_ratio]
@@ -1407,11 +1444,15 @@ module Monadic
 
       # ---- Media generation (music) --------------------------------------
 
-      MUSIC_GEN_ESTIMATE = 2000
+      # Cost proxy (see IMAGE_GEN_ESTIMATE).
+      MUSIC_GEN_ESTIMATE = 6000
 
       def handle_generate_music(arguments)
         prompt = (arguments["prompt"] || arguments[:prompt]).to_s
         raise ArgumentError, "prompt is required" if prompt.strip.empty?
+
+        guard = require_background_job("monadic_generate_music")
+        return guard if guard
 
         output_format = arguments["format"] || arguments[:format]
 
@@ -1441,6 +1482,27 @@ module Monadic
 
       # Job-control tools cannot themselves be submitted as jobs (no recursion).
       ASYNC_INELIGIBLE = %w[monadic_submit monadic_poll monadic_cancel monadic_jobs].freeze
+
+      # Long-running tools that must run as a background job. Calling one
+      # synchronously would occupy the single Falcon reactor for seconds-to-
+      # minutes and freeze the Web UI, so a direct call is refused with guidance
+      # to submit it instead. Returns an error hash when called directly (no job
+      # on this thread), or nil to proceed (running inside monadic_submit's job).
+      ASYNC_REQUIRED = %w[
+        monadic_generate_image monadic_generate_video monadic_generate_music
+        monadic_generate_code monadic_analyze_video
+      ].freeze
+
+      def require_background_job(tool_name)
+        return nil unless JobStore.current_job_id.nil?
+
+        {
+          success: false,
+          error: "❌ #{tool_name} is long-running and must run in the background. " \
+                 "Call monadic_submit with tool=\"#{tool_name}\" (and the same arguments), " \
+                 "then poll with monadic_poll."
+        }
+      end
 
       def handle_submit(arguments)
         tool = (arguments["tool"] || arguments[:tool]).to_s

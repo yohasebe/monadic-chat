@@ -648,6 +648,11 @@ RSpec.describe Monadic::MCP::Conduit do
       expect { described_class.call("monadic_analyze_audio", { "prompt" => "p", "path" => "../etc/passwd" }) }
         .to raise_error(ArgumentError, /traversal/)
     end
+
+    it "rejects an absolute path outside the shared volume" do
+      expect { described_class.call("monadic_analyze_audio", { "prompt" => "p", "path" => "/etc/passwd" }) }
+        .to raise_error(ArgumentError, /within the shared volume/)
+    end
   end
 
   describe "monadic_analyze_video" do
@@ -655,10 +660,19 @@ RSpec.describe Monadic::MCP::Conduit do
 
     before do
       Monadic::MCP::CostGuard.reset!
+      # Simulate running inside a background job (the guard requires it).
+      allow(described_class).to receive(:require_background_job).and_return(nil)
       allow(described_class).to receive(:video_analyze_host).and_return(vhost)
     end
 
     after { Monadic::MCP::CostGuard.reset! }
+
+    it "refuses a direct (non-job) call and points to monadic_submit" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/must run in the background/)
+    end
 
     it "analyzes a video and charges the budget" do
       expect(vhost).to receive(:analyze_video)
@@ -764,11 +778,19 @@ RSpec.describe Monadic::MCP::Conduit do
 
     before do
       Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:require_background_job).and_return(nil)
       allow(described_class).to receive(:code_provider_configured?).and_return(true)
       allow(described_class).to receive(:code_host).and_return(chost)
     end
 
     after { Monadic::MCP::CostGuard.reset! }
+
+    it "refuses a direct (non-job) call and points to monadic_submit" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/must run in the background/)
+    end
 
     it "generates code with the auto-selected provider and charges the budget" do
       expect(chost).to receive(:call_openai_code).with(prompt: "make a fib fn")
@@ -836,8 +858,19 @@ RSpec.describe Monadic::MCP::Conduit do
   describe "monadic_generate_image" do
     let(:mhost) { double("media_host") }
 
-    before { Monadic::MCP::CostGuard.reset! }
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:require_background_job).and_return(nil)
+    end
+
     after { Monadic::MCP::CostGuard.reset! }
+
+    it "refuses a direct (non-job) call and points to monadic_submit" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      result = described_class.call("monadic_generate_image", { "prompt" => "a cat" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/must run in the background/)
+    end
 
     it "generates with openai and parses 'Saved file' output" do
       allow(described_class).to receive(:media_app_host).and_return(mhost)
@@ -907,8 +940,19 @@ RSpec.describe Monadic::MCP::Conduit do
   describe "monadic_generate_video" do
     let(:mhost) { double("media_host") }
 
-    before { Monadic::MCP::CostGuard.reset! }
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:require_background_job).and_return(nil)
+    end
+
     after { Monadic::MCP::CostGuard.reset! }
+
+    it "refuses a direct (non-job) call and points to monadic_submit" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      result = described_class.call("monadic_generate_video", { "prompt" => "waves" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/must run in the background/)
+    end
 
     it "defaults to Veo (gemini) and parses the JSON filename" do
       ghost = double("gemini_host")
@@ -973,8 +1017,19 @@ RSpec.describe Monadic::MCP::Conduit do
   describe "monadic_generate_music" do
     let(:ghost) { double("gemini_host") }
 
-    before { Monadic::MCP::CostGuard.reset! }
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:require_background_job).and_return(nil)
+    end
+
     after { Monadic::MCP::CostGuard.reset! }
+
+    it "refuses a direct (non-job) call and points to monadic_submit" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      result = described_class.call("monadic_generate_music", { "prompt" => "jazz" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/must run in the background/)
+    end
 
     it "generates with Lyria and returns the saved filename" do
       allow(described_class).to receive(:gemini_media_host).and_return(ghost)

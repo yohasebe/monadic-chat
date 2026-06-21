@@ -336,7 +336,37 @@ RSpec.describe "VideoGeneratorGemini" do
       expect(filename).to match(/\d+_0_16x9\.mp4/)
     end
   end
-  
+
+  describe "#process_operation_result content filtering" do
+    let(:params) { { "aspect_ratio" => "16:9" } }
+
+    it "surfaces raiMediaFilteredReasons when the request is content-filtered" do
+      operation_data = {
+        "response" => {
+          "generateVideoResponse" => {
+            "raiMediaFilteredCount" => 1,
+            "raiMediaFilteredReasons" => ["Filtered: depiction of a public figure."]
+          }
+        }
+      }
+
+      result = process_operation_result(operation_data, test_prompt, "16:9", params, mock_api_key)
+
+      expect(result["success"]).to be false
+      expect(result["message"]).to include("Filtered: depiction of a public figure.")
+      expect(result["message"]).to match(/content filtering|restricted content/i)
+    end
+
+    it "falls back to the generic message when no samples and no filter reason" do
+      operation_data = { "response" => { "generateVideoResponse" => {} } }
+
+      result = process_operation_result(operation_data, test_prompt, "16:9", params, mock_api_key)
+
+      expect(result["success"]).to be false
+      expect(result["message"]).to match(/No generated samples/i)
+    end
+  end
+
   describe "#generate_video" do
     let(:operation_url) { "https://generativelanguage.googleapis.com/v1beta/#{mock_operation_name}" }
     

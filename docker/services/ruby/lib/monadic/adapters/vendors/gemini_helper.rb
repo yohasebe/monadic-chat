@@ -295,7 +295,7 @@ module GeminiHelper
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
       end
 
-      return { success: false, error: "No image returned from Gemini image generation" }.to_json
+      return { success: false, error: gemini_block_reason(data, kind: :image) }.to_json
     else
       error_data = JSON.parse(response.body) rescue {}
       error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
@@ -377,7 +377,7 @@ module GeminiHelper
       inline = p["inlineData"] || p["inline_data"]
       inline && (inline["mimeType"] || inline["mime_type"]).to_s.start_with?("audio/")
     end
-    return { success: false, error: "No audio returned from Lyria music generation" }.to_json unless audio_part
+    return { success: false, error: gemini_block_reason(data, kind: :audio) }.to_json unless audio_part
 
     inline = audio_part["inlineData"] || audio_part["inline_data"]
     mime = inline["mimeType"] || inline["mime_type"] || "audio/mpeg"
@@ -396,6 +396,68 @@ module GeminiHelper
       tool_name: "generate_music_with_lyria",
       message: e.message
     ) }.to_json
+  end
+
+  # Build a detailed reason string when a Gemini generateContent generation
+  # (music via Lyria, image via Gemini image models) returns a 200 response
+  # with no usable media. The model reports a blocked prompt via
+  # promptFeedback.blockReason (e.g. PROHIBITED_CONTENT when the prompt names a
+  # specific artist/work or references copyrighted material) and a
+  # mid-generation stop via the candidate's finishReason (SAFETY /
+  # IMAGE_SAFETY / RECITATION). Surface whichever is present, with guidance
+  # tailored to the output kind, so the failure card explains *why*.
+  #
+  # kind: :audio or :image — controls the noun and the rewrite guidance.
+  def gemini_block_reason(data, kind: :media)
+    block_reason = data.dig("promptFeedback", "blockReason")
+    block_message = data.dig("promptFeedback", "blockReasonMessage")
+    finish_reason = data.dig("candidates", 0, "finishReason")
+    finish_message = data.dig("candidates", 0, "finishMessage")
+    reason = block_reason || finish_reason
+
+    noun = kind == :audio ? "audio" : (kind == :image ? "image" : "output")
+    prohibited_hint = case kind
+                      when :audio
+                        "Lyria rejects prompts that name a specific artist, band, or song, or that reference copyrighted material. Describe the style instead — genre, mood, tempo, instruments, vocal type, and era — rather than naming an artist."
+                      when :image
+                        "The model rejects prompts that name a specific artist, artwork, or identifiable person, or that reference copyrighted material. Describe the subject and style in your own words — composition, colors, mood, medium — rather than naming a source."
+                      else
+                        "Rephrase to avoid naming a specific artist, work, or person, or referencing copyrighted material."
+                      end
+
+    lines = case reason
+            when "PROHIBITED_CONTENT"
+              ["The prompt was blocked for prohibited content (reason: PROHIBITED_CONTENT).",
+               prohibited_hint]
+            when "SAFETY", "IMAGE_SAFETY"
+              ["The prompt was blocked by the safety filter (reason: #{reason}).",
+               "Rephrase the prompt to avoid content the safety system flags."]
+            when "RECITATION"
+              ["Generation was stopped to avoid reproducing copyrighted material (reason: RECITATION).",
+               "Avoid referencing specific copyrighted works."]
+            when nil
+              ["No #{noun} was returned and no block reason was reported.",
+               "Try again, or adjust the prompt."]
+            else
+              ["No #{noun} was returned (reason: #{reason})."]
+            end
+
+    extra = block_message || finish_message
+    lines << extra if extra && !extra.to_s.strip.empty?
+    lines.join(" ")
+  end
+
+  # Imagen uses the predict API (predictions[]), not generateContent, so RAI
+  # filtering surfaces as raiFilteredReason rather than promptFeedback /
+  # finishReason. Surface it when present, otherwise give actionable guidance.
+  def imagen_block_reason(result)
+    rai = (result["predictions"] || []).filter_map { |p| p.is_a?(Hash) ? p["raiFilteredReason"] : nil }.first
+    rai ||= result["raiFilteredReason"]
+    if rai && !rai.to_s.strip.empty?
+      "Imagen filtered the request: #{rai}"
+    else
+      "No image was returned by Imagen. This usually means the prompt was filtered for safety or referenced restricted content (e.g. a named artist or identifiable person). Describe the subject and style in your own words and try again."
+    end
   end
 
   # Render Lyria's raw timed-lyrics format as a readable timed lyric sheet.
@@ -3697,155 +3759,26 @@ module GeminiHelper
   # Helper function to generate video with Veo model
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil)
 
-    # Try to get image data from session and create temporary file
-    actual_image_path = nil
+    # Resolve the source image for image-to-video: an uploaded image lives in
+    # the session as a data URL and must be materialized to a file on the shared
+    # volume for the CLI generator. Shared with the Grok path via ToolImageUtils.
+    # Surface a materialization failure instead of silently downgrading to t2v.
+    begin
+      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
+        session, image_path: image_path, last_image_key: :gemini_last_video_image
+      )
+    rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json
+    end
+
+    Monadic::Utils::ExtraLogger.log { "Final image path decision (veo):\n  image_path (from LLM param): #{image_path.inspect}\n  final_image_path (used): #{final_image_path.inspect}" }
+
+    # If we materialized an uploaded image into a temp file, remember its full
+    # path so we can delete it after generation (only our own temp files).
     temp_file_path = nil
-
-    # Use uploaded image from session if image_path is not explicitly provided
-    if image_path.nil? && session && session[:messages]
-      # Look for the most recent user message with non-empty images
-      user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
-
-      if user_messages_with_images.any?
-        latest_message = user_messages_with_images.last
-
-        if latest_message["images"] && latest_message["images"].first
-          # Extract image data from the first image
-          first_image = latest_message["images"].first
-          
-          # Get the base64 data from the session
-          if first_image["data"] && first_image["data"].start_with?("data:image/")
-            # Create a temporary file from the base64 data
-            require 'tempfile'
-            require 'base64'
-            
-            # Extract the base64 data
-            data_url = first_image["data"]
-            # Split the data URL to get the base64 part
-            base64_data = data_url.split(',').last
-            # Decode the base64 data
-            image_binary = Base64.decode64(base64_data)
-            
-            # Determine file extension and mime type from data URL or session data
-            detected_mime_type = nil
-            if first_image["type"]
-              detected_mime_type = first_image["type"]
-            elsif data_url.include?('image/')
-              detected_mime_type = data_url.split(';').first.split(':').last
-            end
-            
-            extension = case detected_mime_type
-                       when 'image/jpeg', 'image/jpg' then '.jpg'
-                       when 'image/png' then '.png'
-                       when 'image/gif' then '.gif'
-                       when 'image/webp' then '.webp'
-                       else
-                         # Try to detect from data URL if mime type is not available
-                         if data_url.include?('image/jpeg')
-                           '.jpg'
-                         elsif data_url.include?('image/png')
-                           '.png'
-                         elsif data_url.include?('image/gif')
-                           '.gif'
-                         elsif data_url.include?('image/webp')
-                           '.webp'
-                         else
-                           '.jpg' # default
-                         end
-                       end
-            
-            
-            # Create temporary file in shared data directory
-            # This ensures the file is accessible both locally and in Docker container
-            data_paths = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
-            temp_dir = nil
-            
-            # Find or create the data directory
-            data_paths.each do |path|
-              if Dir.exist?(path)
-                temp_dir = path
-                break
-              else
-                begin
-                  FileUtils.mkdir_p(path)
-                  temp_dir = path
-                  break
-                rescue StandardError
-                  next
-                end
-              end
-            end
-            
-            if temp_dir
-              # Create a unique filename with timestamp and mime type info
-              timestamp = Time.now.to_i
-              temp_filename = "video_gen_temp_#{timestamp}_#{rand(1000)}#{extension}"
-              temp_file_path = File.join(temp_dir, temp_filename)
-              
-              # Store mime type information in a companion file for reference
-              mime_info_path = temp_file_path + ".mime"
-              
-              # Check and potentially resize image before writing
-              begin
-                # Check image size
-                image_size = image_binary.size
-                
-                # Check image size against Vertex AI limits (20MB)
-                if image_size > 20 * 1024 * 1024
-                  STDERR.puts "ERROR: Image is too large (#{image_size} bytes). Maximum supported size is 20MB."
-                  actual_image_path = nil
-                elsif image_size > 10 * 1024 * 1024
-                  STDERR.puts "WARNING: Image is large (#{image_size} bytes). This may take longer to process."
-                end
-                
-                # Write the image file and mime type info
-                File.open(temp_file_path, 'wb') do |f|
-                  f.write(image_binary)
-                end
-                
-                # Write mime type info to companion file
-                if detected_mime_type
-                  File.write(mime_info_path, detected_mime_type)
-                end
-                
-                actual_image_path = temp_filename  # Use just the filename, not full path
-
-                Monadic::Utils::ExtraLogger.log { "Temp file created successfully:\n  temp_file_path: #{temp_file_path}\n  actual_image_path: #{actual_image_path}" }
-              rescue StandardError => e
-                STDERR.puts "ERROR: Failed to process image: #{e.message}"
-                actual_image_path = nil
-
-                Monadic::Utils::ExtraLogger.log { "ERROR creating temp file: #{e.message}\n  #{e.backtrace.first(3).join("\n  ")}" }
-              end
-            else
-              STDERR.puts "ERROR: Could not create temporary file - no accessible data directory"
-            end
-            
-          elsif first_image["filename"]
-            actual_image_path = first_image["filename"]
-          elsif first_image["title"]
-            actual_image_path = first_image["title"]
-          else
-          end
-        else
-        end
-      else
-      end
-    else
+    if final_image_path.to_s.start_with?("video_gen_temp_")
+      temp_file_path = File.join(Monadic::Utils::Environment.data_path, final_image_path)
     end
-    
-    # Use session image path if available, otherwise use provided image_path (but ignore "image_path" literal)
-    final_image_path = actual_image_path
-    if !final_image_path && image_path && image_path != "image_path"
-      final_image_path = image_path
-    end
-    
-    # If still nil, fall back to last video image stored in session
-    if !final_image_path && session && session[:gemini_last_video_image]
-      final_image_path = session[:gemini_last_video_image]
-    end
-
-    Monadic::Utils::ExtraLogger.log { "Final image path decision:\n  actual_image_path (from session): #{actual_image_path.inspect}\n  image_path (from LLM param): #{image_path.inspect}\n  final_image_path (used): #{final_image_path.inspect}" }
 
     # Construct the command
     # Use shellwords to properly escape all parameters
@@ -3921,28 +3854,14 @@ module GeminiHelper
       end
 
       # Clean up temporary files if we created them
-      if temp_file_path && File.exist?(temp_file_path)
-        File.unlink(temp_file_path)
-        # Also clean up mime info file if it exists
-        mime_info_path = temp_file_path + ".mime"
-        if File.exist?(mime_info_path)
-          File.unlink(mime_info_path)
-        end
-      end
+      File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
       
       return result_json
     rescue => e
       STDERR.puts "Error executing command: #{e.message}"
       
       # Clean up temporary files even if there was an error
-      if temp_file_path && File.exist?(temp_file_path)
-        File.unlink(temp_file_path)
-        # Also clean up mime info file if it exists
-        mime_info_path = temp_file_path + ".mime"
-        if File.exist?(mime_info_path)
-          File.unlink(mime_info_path)
-        end
-      end
+      File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
       return { 
         "success" => false, 
         "message" => "Error executing video generation command: #{e.message}", 
@@ -4218,9 +4137,9 @@ module GeminiHelper
         end
         
         # If no image was found in response
-        return { 
-          success: false, 
-          error: "No image was generated. Response parts: #{result["candidates"]&.first&.dig("content", "parts")&.map { |p| p.keys }}"
+        return {
+          success: false,
+          error: gemini_block_reason(result, kind: :image)
         }.to_json
       else
         error_data = JSON.parse(response.body) rescue {}
@@ -4320,7 +4239,7 @@ module GeminiHelper
         # If no image was found in response
         error_result = {
           success: false,
-          error: "No image was generated by Imagen. Response: #{result}"
+          error: imagen_block_reason(result)
         }.to_json
         return error_result
       else

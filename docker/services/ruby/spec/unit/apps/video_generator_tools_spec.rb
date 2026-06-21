@@ -65,6 +65,26 @@ RSpec.describe "VideoGeneratorTools" do
           app.send(:validate_grok_video_params, prompt: "a cat", duration: 10, aspect_ratio: "16:9", resolution: "720p")
         ).to eq(true)
       end
+
+      # Image-to-video routes to Grok Imagine Video 1.5 (6-15s); text-to-video
+      # to Grok Imagine Video 1.0 (1-15s). Duration lower bound depends on mode.
+      it "accepts short duration for text-to-video (no image)" do
+        expect(
+          app.send(:validate_grok_video_params, prompt: "a cat", duration: 3, image_path: nil)
+        ).to eq(true)
+      end
+
+      it "rejects duration below 6 for image-to-video (v1.5)" do
+        expect {
+          app.send(:validate_grok_video_params, prompt: "animate", duration: 3, image_path: "photo.jpg")
+        }.to raise_error(ArgumentError, /Must be between 6 and 15/)
+      end
+
+      it "accepts duration 6-15 for image-to-video (v1.5)" do
+        expect(
+          app.send(:validate_grok_video_params, prompt: "animate", duration: 6, image_path: "photo.jpg")
+        ).to eq(true)
+      end
     end
   end
 

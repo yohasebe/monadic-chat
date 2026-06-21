@@ -171,11 +171,13 @@ get "/api/app/:name/graph" do
 
     prompt_text = (s[:initial_prompt] || s["initial_prompt"]).to_s
     output_types = ["text"]
-    output_types << "image" if s[:image_generation] || s["image_generation"]
+    output_types << "image" if wv_generates_image?(s)
+    output_types << "video" if s[:video_generation] || s["video_generation"]
     output_types << "audio" if s[:auto_speech] || s["auto_speech"]
 
     input_types = ["text"]
-    input_types << "image" if s[:image] || s["image"]
+    # Image input: explicit vision flag OR image-to-X upload (upload_only).
+    input_types << "image" if s[:image] || s["image"] || wv_accepts_image_upload?(s)
     input_types << "pdf" if s[:pdf] || s["pdf"] || s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"]
 
     {

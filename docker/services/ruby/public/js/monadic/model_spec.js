@@ -1169,6 +1169,9 @@ const providerDefaults = {
     "code": ["grok-build-0.1", "grok-4.3"],
     "vision": ["grok-4.3"],
     "image": ["grok-imagine-image"],
+    // text-to-video default. Image-to-video is routed to grok-imagine-video-1.5
+    // in scripts/generators/video_generator_grok.rb (i2v-only, native audio,
+    // higher quality; v1.5 rejects text-only requests).
     "video": ["grok-imagine-video"],
     "tts": ["grok-tts"],
     "audio_transcription": ["xai-stt"]

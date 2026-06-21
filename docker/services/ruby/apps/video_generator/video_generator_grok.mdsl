@@ -40,13 +40,13 @@ app "VideoGeneratorGrok" do
   end
 
   system_prompt <<~TEXT
-    You help users create videos using xAI's Grok Imagine Video model.
-    Specs: 480p/720p, 1-15 seconds, aspect ratios 16:9/9:16/1:1, native audio.
-    Capabilities: text-to-video only. The xAI API does NOT accept image
-    uploads for video generation — if the user attaches an image, treat
-    it purely as visual reference for crafting a richer text prompt and
-    do not pass image_path to the tool. (Use Gemini Veo if true
-    image-to-video is required.)
+    You help users create videos using xAI's Grok Imagine Video models.
+    Specs: 480p/720p, aspect ratios 16:9/9:16/1:1, native audio.
+    Two modes, chosen automatically by whether an image is provided:
+    - Text-to-video (no image): Grok Imagine Video, 1-15 seconds.
+    - Image-to-video (image provided): Grok Imagine Video 1.5, 6-15 seconds,
+      higher quality with native audio. The uploaded image becomes the
+      first frame and the prompt directs the motion.
 
     GREETING: If this is the very first turn of a brand-new conversation
     and the user has not yet submitted any actual request, you may briefly
@@ -56,15 +56,22 @@ app "VideoGeneratorGrok" do
 
     WORKFLOW:
 
-    1. **Text-to-Video (the only supported flow):**
+    1. **Text-to-Video (no image attached):**
        - User describes a video → call generate_video_with_grok_imagine(prompt: "...")
-       - Pass user's prompt unchanged
-       - If the user uploaded an image, describe its contents in the prompt
-         (e.g., "a green Ibanez electric guitar with maple fretboard ...");
-         do NOT include image_path
+       - Pass the user's prompt unchanged. Duration 1-15 seconds.
+
+    2. **Image-to-Video (user attached an image):**
+       - Call generate_video_with_grok_imagine(prompt: "...") WITHOUT image_path —
+         the system automatically retrieves the uploaded image from the session
+         and saves its filename for later reuse. The prompt describes the desired
+         motion/animation of the image.
+       - To reuse a previously uploaded image (no new upload this turn), first
+         call monadic_load_state(app: "VideoGeneratorGrok", key: "last_images")
+         to get the filename, then pass it as image_path.
+       - Uses Grok Imagine Video 1.5. Duration must be 6-15 seconds.
 
     PARAMETER DETECTION:
-    - Duration: 1-15 seconds (default: 5)
+    - Duration: text-to-video 1-15 seconds; image-to-video 6-15 seconds (default: 6)
     - Aspect ratio: 16:9 (default), 9:16 (vertical/portrait), 1:1 (square)
     - Resolution: 720p (default), 480p (for faster generation)
 
@@ -95,8 +102,10 @@ app "VideoGeneratorGrok" do
     RULES:
     - Always call tools for video operations
     - Do not modify user's prompt
-    - Never pass image_path to generate_video_with_grok_imagine — the
-      xAI API rejects image uploads with HTTP 400
+    - When the user attaches an image this turn, call the tool WITHOUT
+      image_path — the system retrieves the uploaded image automatically (this
+      triggers image-to-video with Grok Imagine Video 1.5). Only pass image_path
+      to reuse a previously uploaded image fetched via monadic_load_state.
     - NEVER retry automatically on error
     - Video generation may take several minutes
 
@@ -135,12 +144,12 @@ app "VideoGeneratorGrok" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_video_with_grok_imagine", "Generate 1-15 second videos using xAI's Grok Imagine Video model (480p or 720p, with native audio)." do
+    define_tool "generate_video_with_grok_imagine", "Generate videos with xAI Grok Imagine (480p or 720p, native audio). With no uploaded image it does text-to-video (1-15s, Grok Imagine Video); when an image was uploaded this turn it automatically does image-to-video (6-15s, Grok Imagine Video 1.5) — do not pass image_path for a fresh upload." do
       parameter :prompt, "string", "The prompt to generate a video from (should be descriptive for best results).", required: true
-      parameter :duration, "integer", "Video duration in seconds (1-15, default: 5).", required: false
+      parameter :duration, "integer", "Video duration in seconds. Text-to-video: 1-15. Image-to-video: 6-15 (default: 6).", required: false
       parameter :aspect_ratio, "string", "Aspect ratio: '16:9' (default), '9:16' (vertical), '1:1' (square).", required: false
       parameter :resolution, "string", "Resolution: '720p' (default) or '480p'.", required: false
-      parameter :image_path, "string", "Optional: Filename of image in the shared folder for image-to-video generation (e.g., 'photo.jpg').", required: false
+      parameter :image_path, "string", "Optional: only to REUSE a previously uploaded image (filename from monadic_load_state). For a freshly uploaded image, omit this — the system retrieves it automatically.", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 

@@ -58,7 +58,7 @@ class VideoGeneratorGrok < MonadicApp
   end
 
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil, image_path: nil, session: nil)
-    validate_grok_video_params(prompt: prompt, duration: duration, aspect_ratio: aspect_ratio, resolution: resolution)
+    validate_grok_video_params(prompt: prompt, duration: duration, aspect_ratio: aspect_ratio, resolution: resolution, image_path: image_path)
 
     result_json = super
 
@@ -82,12 +82,18 @@ class VideoGeneratorGrok < MonadicApp
 
   private
 
-  def validate_grok_video_params(prompt:, duration: nil, aspect_ratio: nil, resolution: nil)
+  def validate_grok_video_params(prompt:, duration: nil, aspect_ratio: nil, resolution: nil, image_path: nil)
     raise ArgumentError, "Prompt cannot be empty" if prompt.to_s.strip.empty?
 
+    # Image-to-video uses grok-imagine-video-1.5 (6-15s); text-to-video uses
+    # grok-imagine-video 1.0 (1-15s). See video_generator_grok.rb model select.
+    has_image = !image_path.to_s.strip.empty?
+    min_duration = has_image ? 6 : 1
     if duration
       d = duration.to_i
-      raise ArgumentError, "Invalid duration: #{duration}. Must be between 1 and 15" unless d >= 1 && d <= 15
+      unless d >= min_duration && d <= 15
+        raise ArgumentError, "Invalid duration: #{duration}. Must be between #{min_duration} and 15"
+      end
     end
 
     if aspect_ratio

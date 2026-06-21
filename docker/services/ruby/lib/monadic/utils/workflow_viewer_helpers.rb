@@ -56,14 +56,43 @@ module Monadic
         end
       end
 
+      # Raw image_generation setting value (symbol or string key).
+      def wv_image_generation_value(s)
+        val = s[:image_generation]
+        val = s["image_generation"] if val.nil?
+        val
+      end
+
+      # True only when the app actually GENERATES images.
+      # "upload_only"/"disabled"/false enable image input (or nothing), not
+      # generation. This mirrors the frontend `toBool()` in
+      # public/js/monadic/model-capabilities.js so the Workflow Viewer agrees
+      # with the rest of the UI about what counts as an image-generating app.
+      def wv_generates_image?(s)
+        val = wv_image_generation_value(s)
+        val == true || val == "true"
+      end
+
+      # True when the app accepts image uploads as input (image-to-X) without
+      # generating images itself (e.g. Music/Video Generator's image-to-music
+      # / image-to-video).
+      def wv_accepts_image_upload?(s)
+        wv_image_generation_value(s) == "upload_only"
+      end
+
       def wv_extract_features(s)
         flags = %w[websearch monadic image pdf jupyter mermaid math abc
-                   image_generation easy_submit auto_speech initiate_from_assistant]
+                   easy_submit auto_speech initiate_from_assistant]
         result = flags.each_with_object({}) do |f, h|
           val = s[f.to_sym]
           val = s[f] if val.nil?
           h[f] = !!val
         end
+        # image_generation only counts when the app truly generates images;
+        # "upload_only" is image input, not a generation feature.
+        result["image_generation"] = wv_generates_image?(s)
+        # video_generation is a generation feature in its own right.
+        result["video_generation"] = !!(s[:video_generation] || s["video_generation"])
         # Normalize: pdf_vector_storage and pdf_upload imply pdf capability
         unless result["pdf"]
           result["pdf"] = !!(s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"])

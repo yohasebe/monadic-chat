@@ -154,6 +154,50 @@ RSpec.describe "API Routes helpers" do
         expect(result["websearch"]).to be true
         expect(result["jupyter"]).to be true
       end
+
+      it "treats image_generation 'upload_only' as NOT image generation" do
+        # upload_only enables image input (image-to-X), not image generation.
+        result = described_class.wv_extract_features({ image_generation: "upload_only" })
+        expect(result["image_generation"]).to be false
+      end
+
+      it "treats image_generation 'disabled' as NOT image generation" do
+        result = described_class.wv_extract_features({ image_generation: "disabled" })
+        expect(result["image_generation"]).to be false
+      end
+
+      it "treats image_generation 'true' string as image generation" do
+        result = described_class.wv_extract_features({ image_generation: "true" })
+        expect(result["image_generation"]).to be true
+      end
+
+      it "extracts video_generation as a feature flag" do
+        result = described_class.wv_extract_features({ video_generation: true })
+        expect(result["video_generation"]).to be true
+      end
+    end
+
+    describe ".wv_generates_image? and .wv_accepts_image_upload?" do
+      it "wv_generates_image? is true only for true / 'true'" do
+        expect(described_class.wv_generates_image?({ image_generation: true })).to be true
+        expect(described_class.wv_generates_image?({ image_generation: "true" })).to be true
+        expect(described_class.wv_generates_image?({ image_generation: "upload_only" })).to be false
+        expect(described_class.wv_generates_image?({ image_generation: "disabled" })).to be false
+        expect(described_class.wv_generates_image?({ image_generation: false })).to be false
+        expect(described_class.wv_generates_image?({})).to be false
+      end
+
+      it "wv_accepts_image_upload? is true only for 'upload_only'" do
+        expect(described_class.wv_accepts_image_upload?({ image_generation: "upload_only" })).to be true
+        expect(described_class.wv_accepts_image_upload?({ image_generation: true })).to be false
+        expect(described_class.wv_accepts_image_upload?({ image_generation: "disabled" })).to be false
+        expect(described_class.wv_accepts_image_upload?({})).to be false
+      end
+
+      it "supports string keys" do
+        expect(described_class.wv_generates_image?({ "image_generation" => "true" })).to be true
+        expect(described_class.wv_accepts_image_upload?({ "image_generation" => "upload_only" })).to be true
+      end
     end
 
     describe ".wv_extract_shared_tool_groups" do

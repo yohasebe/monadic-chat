@@ -1,5 +1,7 @@
 require 'shellwords'
 require_relative '../utils/progress_broadcaster'
+require_relative '../utils/tool_image_utils'
+require_relative '../utils/environment'
 
 module MonadicHelper
   # Adapter for OpenAI function generate_image
@@ -144,18 +146,23 @@ module MonadicHelper
   # Accepts keyword args: prompt, duration, aspect_ratio, resolution, image_path
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil,
                                        image_path: nil, max_wait: 420, session: nil)
-    # Resolve image_path from session if not provided directly
-    if image_path.nil? && session && session[:messages]
-      last_user_msg = session[:messages].reverse.find { |m| m["role"] == "user" }
-      if last_user_msg && last_user_msg["images"] && !last_user_msg["images"].empty?
-        image_path = last_user_msg["images"].first["name"] || last_user_msg["images"].first["filename"]
-        image_path = File.basename(image_path) if image_path && !image_path.to_s.strip.empty?
-      end
+    # Resolve the source image for image-to-video. Uploaded images live in the
+    # session as a data URL and must be materialized to a file on the shared
+    # volume for the CLI generator. Shared with the Veo path via ToolImageUtils.
+    # If an upload exists but can't be materialized, surface the error instead
+    # of silently downgrading to text-to-video.
+    begin
+      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
+        session, image_path: image_path, last_image_key: :grok_last_video_image
+      )
+    rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      return JSON.generate({ success: false, message: e.message })
     end
 
-    # Fallback to last used image when none uploaded this turn
-    if image_path.to_s.strip.empty? && session && session[:grok_last_video_image]
-      image_path = session[:grok_last_video_image]
+    # Track our own temp file so we can delete it after generation.
+    temp_file_path = nil
+    if image_path.to_s.start_with?("video_gen_temp_")
+      temp_file_path = File.join(Monadic::Utils::Environment.data_path, image_path)
     end
 
     # Build CLI command
@@ -216,6 +223,13 @@ module MonadicHelper
         raw_stdout: stdout,
         raw_stderr: stderr
       })
+    ensure
+      # Delete only the temp file we materialized (not user-managed images).
+      begin
+        File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
+      rescue StandardError
+        # best-effort cleanup
+      end
     end
   end
 

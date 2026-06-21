@@ -12,7 +12,7 @@ RSpec.describe Monadic::MCP::Conduit do
     it "exposes the capability tools" do
       names = tools.map { |t| t[:name] }
       expect(names).to contain_exactly(
-        "monadic_status", "monadic_list_models", "monadic_query"
+        "monadic_status", "monadic_list_models", "monadic_query", "monadic_parallel_query"
       )
     end
 
@@ -35,6 +35,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_status")).to be true
       expect(described_class.tool?("monadic_list_models")).to be true
       expect(described_class.tool?("monadic_query")).to be true
+      expect(described_class.tool?("monadic_parallel_query")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -187,6 +188,79 @@ RSpec.describe Monadic::MCP::Conduit do
       allow(described_class).to receive(:provider_host).and_return(nil)
       expect { described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" }) }
         .to raise_error(/no app instance available/)
+    end
+  end
+
+  describe "monadic_parallel_query" do
+    let(:host) { double("ChatApp") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:provider_host).and_return(host)
+      allow(described_class).to receive(:default_chat_model_for) { |p| "#{p}-default" }
+      allow(host).to receive(:send_query).and_return("answer")
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "fans out to each provider and aggregates results" do
+      result = described_class.call("monadic_parallel_query", {
+        "providers" => %w[openai anthropic gemini],
+        "message" => "What is 2+2?"
+      })
+      providers = result[:results].map { |r| r[:provider] }
+      expect(providers).to contain_exactly("openai", "anthropic", "gemini")
+      expect(result[:results]).to all(include(success: true, text: "answer"))
+      expect(result[:budget]).to include(:tokens_spent)
+    end
+
+    it "canonicalizes and de-duplicates providers (claude == anthropic)" do
+      result = described_class.call("monadic_parallel_query", {
+        "providers" => %w[claude anthropic openai],
+        "message" => "hi"
+      })
+      providers = result[:results].map { |r| r[:provider] }
+      expect(providers).to contain_exactly("anthropic", "openai")
+    end
+
+    it "applies per-provider model overrides" do
+      expect(host).to receive(:send_query)
+        .with(hash_including("model" => "gpt-x"), model: "gpt-x").and_return("a")
+      expect(host).to receive(:send_query)
+        .with(hash_including("model" => "anthropic-default"), model: "anthropic-default")
+        .and_return("b")
+      described_class.call("monadic_parallel_query", {
+        "providers" => %w[openai anthropic],
+        "message" => "hi",
+        "models" => { "openai" => "gpt-x" }
+      })
+    end
+
+    it "isolates a failing provider without aborting the others" do
+      allow(described_class).to receive(:execute_query) do |provider:, **_|
+        raise "boom" if provider == "gemini"
+        { provider: provider, success: true, text: "ok" }
+      end
+      result = described_class.call("monadic_parallel_query", {
+        "providers" => %w[openai gemini],
+        "message" => "hi"
+      })
+      gemini = result[:results].find { |r| r[:provider] == "gemini" }
+      openai = result[:results].find { |r| r[:provider] == "openai" }
+      expect(openai[:success]).to be true
+      expect(gemini[:success]).to be false
+      expect(gemini[:error]).to match(/boom/)
+    end
+
+    it "rejects fewer than 2 providers" do
+      expect { described_class.call("monadic_parallel_query", { "providers" => ["openai"], "message" => "hi" }) }
+        .to raise_error(ArgumentError, /2-/)
+    end
+
+    it "rejects more than the max providers" do
+      too_many = %w[openai anthropic gemini cohere mistral deepseek]
+      expect { described_class.call("monadic_parallel_query", { "providers" => too_many, "message" => "hi" }) }
+        .to raise_error(ArgumentError, /2-/)
     end
   end
 

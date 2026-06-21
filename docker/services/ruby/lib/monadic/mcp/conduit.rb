@@ -31,6 +31,10 @@ module Monadic
       # Default cap on a single query's output tokens when the caller omits one.
       DEFAULT_MAX_OUTPUT = 4096
 
+      # Bounds for parallel fan-out.
+      MAX_PARALLEL_PROVIDERS = 5
+      PARALLEL_TIMEOUT = 180
+
       # Public: MCP tool definitions for `tools/list`.
       def tools
         registry.map do |tool|
@@ -146,6 +150,60 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_query
+          },
+          {
+            name: "monadic_parallel_query",
+            description: "Fan the same query out to 2-#{MAX_PARALLEL_PROVIDERS} providers " \
+                         "concurrently and return all responses together. Lets a CLI agent " \
+                         "compare or cross-check answers across providers without writing its " \
+                         "own concurrency. Each sub-query spends tokens and is gated by the " \
+                         "platform token budget. Provide `message` or `messages`.",
+            input_schema: {
+              type: "object",
+              properties: {
+                providers: {
+                  type: "array",
+                  description: "2-#{MAX_PARALLEL_PROVIDERS} provider names to query in parallel.",
+                  items: { type: "string" }
+                },
+                message: {
+                  type: "string",
+                  description: "A single user prompt sent to every provider. Use this OR `messages`."
+                },
+                messages: {
+                  type: "array",
+                  description: "A full conversation sent to every provider. Use this OR `message`.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      role: { type: "string", description: "user | assistant | system" },
+                      content: { type: "string", description: "Message text." }
+                    },
+                    required: ["role", "content"]
+                  }
+                },
+                models: {
+                  type: "object",
+                  description: "Optional per-provider model override, keyed by provider name. " \
+                               "Providers without an entry use their chat default."
+                },
+                system: {
+                  type: "string",
+                  description: "Optional system prompt applied to every provider."
+                },
+                max_tokens: {
+                  type: "integer",
+                  description: "Optional per-provider output cap (default #{DEFAULT_MAX_OUTPUT})."
+                },
+                temperature: {
+                  type: "number",
+                  description: "Optional sampling temperature applied to every provider."
+                }
+              },
+              required: ["providers"],
+              additionalProperties: false
+            },
+            handler: :handle_parallel_query
           }
         ]
       end
@@ -192,41 +250,93 @@ module Monadic
         messages = normalize_messages(arguments)
         raise ArgumentError, "provide either `message` or `messages`" if messages.empty?
 
+        result = execute_query(
+          provider: canonical,
+          messages: messages,
+          system: (arguments["system"] || arguments[:system]).to_s,
+          model: (arguments["model"] || arguments[:model]),
+          max_output: (arguments["max_tokens"] || arguments[:max_tokens]),
+          temperature: (arguments["temperature"] || arguments[:temperature])
+        )
+        result.merge(budget: CostGuard.status)
+      end
+
+      def handle_parallel_query(arguments)
+        providers_arg = arguments["providers"] || arguments[:providers]
+        unless providers_arg.is_a?(Array) && providers_arg.size.between?(2, MAX_PARALLEL_PROVIDERS)
+          raise ArgumentError,
+                "providers must be an array of 2-#{MAX_PARALLEL_PROVIDERS} provider names"
+        end
+
+        messages = normalize_messages(arguments)
+        raise ArgumentError, "provide either `message` or `messages`" if messages.empty?
+
         system = (arguments["system"] || arguments[:system]).to_s
-        model = (arguments["model"] || arguments[:model]).to_s.strip
-        model = nil if model.empty?
-        model ||= default_chat_model_for(canonical)
-        raise "no chat model resolved for provider '#{canonical}'" if model.to_s.empty?
-
-        max_output = (arguments["max_tokens"] || arguments[:max_tokens]).to_i
-        max_output = DEFAULT_MAX_OUTPUT if max_output <= 0
+        max_output = (arguments["max_tokens"] || arguments[:max_tokens])
         temperature = arguments["temperature"] || arguments[:temperature]
+        models = arguments["models"] || arguments[:models] || {}
 
-        host = provider_host(canonical)
+        # Canonicalize and de-duplicate so the same provider's (shared) app
+        # instance is never driven by two concurrent threads.
+        targets = providers_arg.each_with_object([]) do |raw, acc|
+          original = raw.to_s
+          canonical = MonadicDSL::ProviderConfig.new(original).standard_key
+          next if acc.any? { |t| t[:provider] == canonical }
+          acc << { provider: canonical, model: (models[original] || models[canonical]) }
+        end
+
+        results = run_in_parallel(targets) do |target|
+          execute_query(
+            provider: target[:provider],
+            messages: messages,
+            system: system,
+            model: target[:model],
+            max_output: max_output,
+            temperature: temperature
+          )
+        end
+
+        { results: results, budget: CostGuard.status }
+      end
+
+      # ---- Query helpers --------------------------------------------------
+
+      # Shared single-provider execution used by both monadic_query and the
+      # parallel fan-out. Borrows a per-provider host (Provider Independence),
+      # gates spend through CostGuard, and returns a normalized result hash.
+      def execute_query(provider:, messages:, system: "", model: nil,
+                        max_output: nil, temperature: nil)
+        model = model.to_s.strip
+        model = nil if model.empty?
+        model ||= default_chat_model_for(provider)
+        raise "no chat model resolved for provider '#{provider}'" if model.to_s.empty?
+
+        max_output = max_output.to_i
+        max_output = DEFAULT_MAX_OUTPUT if max_output <= 0
+
+        host = provider_host(provider)
         unless host
-          raise "no app instance available for provider '#{canonical}' " \
+          raise "no app instance available for provider '#{provider}' " \
                 "(is the provider configured and an app loaded?)"
         end
 
-        # Cost gate (hard ceiling) BEFORE spending any tokens.
         input_tokens = CostGuard.estimate_tokens(
-          messages.map { |m| m["content"] }.join("\n") + "\n" + system
+          messages.map { |m| m["content"] }.join("\n") + "\n" + system.to_s
         )
-        projected = input_tokens + max_output
+
         begin
-          CostGuard.ensure_within!(projected)
+          CostGuard.ensure_within!(input_tokens + max_output)
         rescue CostGuard::BudgetExceeded => e
           return {
-            provider: canonical,
+            provider: provider,
             model: model,
             success: false,
-            error: "❌ Budget exceeded: #{e.message}",
-            budget: CostGuard.status
+            error: "❌ Budget exceeded: #{e.message}"
           }
         end
 
         body = { "messages" => messages, "model" => model, "max_tokens" => max_output }
-        body["system"] = system unless system.empty?
+        body["system"] = system.to_s unless system.to_s.empty?
         body["temperature"] = temperature unless temperature.nil?
 
         raw = host.send_query(body, model: model)
@@ -236,7 +346,7 @@ module Monadic
         CostGuard.record(input_tokens + output_tokens)
 
         {
-          provider: canonical,
+          provider: provider,
           model: model,
           success: normalized[:success],
           text: normalized[:text],
@@ -246,12 +356,40 @@ module Monadic
             input_tokens_est: input_tokens,
             output_tokens_est: output_tokens,
             note: "estimated via tiktoken; send_query does not expose provider usage"
-          },
-          budget: CostGuard.status
+          }
         }.compact
       end
 
-      # ---- Query helpers --------------------------------------------------
+      # Run a block per target concurrently, bounded by PARALLEL_TIMEOUT of
+      # total wall time. A target that raises or times out yields a structured
+      # failure rather than aborting the whole fan-out.
+      def run_in_parallel(targets)
+        started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+        threads = targets.map do |target|
+          [target, Thread.new do
+            begin
+              yield(target)
+            rescue StandardError => e
+              { provider: target[:provider], success: false, error: "❌ #{e.class}: #{e.message}" }
+            end
+          end]
+        end
+
+        threads.map do |target, thread|
+          elapsed = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - started
+          remaining = [PARALLEL_TIMEOUT - elapsed, 0.1].max
+          if thread.join(remaining)
+            thread.value
+          else
+            thread.kill
+            {
+              provider: target[:provider],
+              success: false,
+              error: "❌ timed out after #{PARALLEL_TIMEOUT}s"
+            }
+          end
+        end
+      end
 
       # Accept either a single `message` string or a `messages` array of
       # role/content (or role/text) turns; return Chat-Completions style

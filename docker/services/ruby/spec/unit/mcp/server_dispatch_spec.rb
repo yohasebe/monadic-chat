@@ -31,7 +31,9 @@ RSpec.describe Monadic::MCP::Server do
     it "returns the Conduit capability surface, not app__tool entries" do
       body = rpc("tools/list")
       names = body.dig("result", "tools").map { |t| t["name"] }
-      expect(names).to contain_exactly("monadic_status", "monadic_list_models", "monadic_query")
+      expect(names).to contain_exactly(
+        "monadic_status", "monadic_list_models", "monadic_query", "monadic_parallel_query"
+      )
     end
   end
 

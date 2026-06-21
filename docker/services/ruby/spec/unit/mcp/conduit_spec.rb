@@ -778,7 +778,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "routes gemini through the gemini helper host (google alias)" do
       ghost = double("gemini_host")
-      expect(described_class).to receive(:provider_host).with("gemini").and_return(ghost)
+      expect(described_class).to receive(:gemini_media_host).and_return(ghost)
       expect(ghost).to receive(:generate_image_with_gemini)
         .and_return(JSON.generate({ success: true, filename: "g.png", model: "gemini" }))
       result = described_class.call("monadic_generate_image", { "prompt" => "p", "provider" => "google" })
@@ -826,7 +826,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "defaults to Veo (gemini) and parses the JSON filename" do
       ghost = double("gemini_host")
-      expect(described_class).to receive(:provider_host).with("gemini").and_return(ghost)
+      expect(described_class).to receive(:gemini_media_host).and_return(ghost)
       expect(ghost).to receive(:generate_video_with_veo)
         .with(hash_including(prompt: "a sunrise"))
         .and_return(JSON.generate({ "success" => true, "filename" => "v.mp4" }))
@@ -835,6 +835,18 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:provider]).to eq("gemini")
       expect(result[:files]).to eq(["v.mp4"])
       expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "extracts the JSON + nested filename from Veo's wrapped send_command output" do
+      ghost = double("gemini_host")
+      allow(described_class).to receive(:gemini_media_host).and_return(ghost)
+      wrapped = "Command has been executed with the following output: \n" \
+                "Generating video...\nUsing parameters: {\"number_of_videos\" => 1}\n" \
+                "{\"success\":true,\"videos\":[{\"filename\":\"v.mp4\",\"aspect_ratio\":\"16:9\"}]}\n"
+      allow(ghost).to receive(:generate_video_with_veo).and_return(wrapped)
+      result = described_class.call("monadic_generate_video", { "prompt" => "waves" })
+      expect(result[:success]).to be true
+      expect(result[:files]).to eq(["v.mp4"])
     end
 
     it "routes grok (xai) image-to-video with the source image path" do
@@ -850,7 +862,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "maps a failed result to a structured error" do
       ghost = double("gemini_host")
-      allow(described_class).to receive(:provider_host).and_return(ghost)
+      allow(described_class).to receive(:gemini_media_host).and_return(ghost)
       allow(ghost).to receive(:generate_video_with_veo)
         .and_return(JSON.generate({ "success" => false, "message" => "blocked" }))
       result = described_class.call("monadic_generate_video", { "prompt" => "x" })
@@ -879,7 +891,7 @@ RSpec.describe Monadic::MCP::Conduit do
     after { Monadic::MCP::CostGuard.reset! }
 
     it "generates with Lyria and returns the saved filename" do
-      allow(described_class).to receive(:provider_host).with("gemini").and_return(ghost)
+      allow(described_class).to receive(:gemini_media_host).and_return(ghost)
       expect(ghost).to receive(:generate_music_with_lyria)
         .with(hash_including(prompt: "lofi beat"))
         .and_return(JSON.generate({ success: true, filename: "lyria_1.mp3", mime_type: "audio/mp3" }))
@@ -891,7 +903,7 @@ RSpec.describe Monadic::MCP::Conduit do
     end
 
     it "passes an explicit output format through" do
-      allow(described_class).to receive(:provider_host).and_return(ghost)
+      allow(described_class).to receive(:gemini_media_host).and_return(ghost)
       expect(ghost).to receive(:generate_music_with_lyria)
         .with(hash_including(prompt: "jazz", output_format: "wav"))
         .and_return(JSON.generate({ success: true, filename: "j.wav" }))
@@ -899,7 +911,7 @@ RSpec.describe Monadic::MCP::Conduit do
     end
 
     it "maps a failed result to a structured error" do
-      allow(described_class).to receive(:provider_host).and_return(ghost)
+      allow(described_class).to receive(:gemini_media_host).and_return(ghost)
       allow(ghost).to receive(:generate_music_with_lyria)
         .and_return(JSON.generate({ success: false, error: "filtered" }))
       result = described_class.call("monadic_generate_music", { "prompt" => "x" })

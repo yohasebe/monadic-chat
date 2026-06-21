@@ -1108,7 +1108,7 @@ module Monadic
             prompt: prompt, aspect_ratio: aspect_ratio, operation: "generate"
           )
         when "gemini"
-          provider_host("gemini").generate_image_with_gemini(
+          gemini_media_host.generate_image_with_gemini(
             prompt: prompt, operation: "generate", model: "gemini",
             aspect_ratio: aspect_ratio, image_size: size
           )
@@ -1116,9 +1116,19 @@ module Monadic
       end
 
       # OpenAI/Grok image helpers shell out via send_command, so they need a
-      # full MonadicApp host (like tts_host). Gemini goes through its own helper.
+      # full MonadicApp host (like tts_host).
       def media_app_host
         MonadicApp.new
+      end
+
+      # Gemini media host. Unlike query (send_query only), some Gemini media
+      # methods shell out via send_command (e.g. Veo video → video_generator
+      # script), so this needs the MonadicApp base, not a bare helper host.
+      # Memoized; safe for the direct-API methods (image/Lyria) too.
+      def gemini_media_host
+        @hosts_mutex.synchronize do
+          @gemini_media_host ||= Class.new(MonadicApp) { include GeminiHelper }.new
+        end
       end
 
       # Normalize an image result to {success:, files:|error:}. OpenAI prints
@@ -1133,19 +1143,56 @@ module Monadic
         { success: false, error: text }
       end
 
-      # Shared normalizer for the JSON-returning generators (grok image, all
-      # video providers, Lyria music): {success, filename} -> {success, files}.
+      # Shared normalizer for the JSON-returning generators (grok image/video,
+      # Lyria music, Veo video). Some return clean JSON; Veo returns the raw
+      # send_command text with a JSON object embedded on its own line (and a
+      # decoy Ruby-hash "{...}" earlier in the log). Filenames may be top-level
+      # or nested under a videos/images array.
       def normalize_media_json(raw)
-        data = begin
-          JSON.parse(raw.to_s)
-        rescue JSON::ParserError
-          nil
-        end
+        data = parse_embedded_json(raw)
         if data && data["success"] == true
-          { success: true, files: Array(data["filename"] || data["file"]) }
-        else
-          { success: false, error: (data && (data["message"] || data["error"])) || raw.to_s }
+          files = media_filenames(data)
+          return { success: true, files: files } if files.any?
         end
+        { success: false, error: (data && (data["message"] || data["error"])) || raw.to_s }
+      end
+
+      # Parse a JSON object that may be embedded in surrounding log text. Tries
+      # the whole string first, then the last line that is a JSON object (so a
+      # "Using parameters: {..=>..}" Ruby-hash decoy is skipped).
+      def parse_embedded_json(raw)
+        str = raw.to_s
+        whole = try_parse_json_object(str)
+        return whole if whole
+
+        str.each_line.reverse_each do |line|
+          line = line.strip
+          next unless line.start_with?("{") && line.end_with?("}")
+
+          parsed = try_parse_json_object(line)
+          return parsed if parsed
+        end
+        nil
+      end
+
+      def try_parse_json_object(str)
+        data = JSON.parse(str)
+        data.is_a?(Hash) ? data : nil
+      rescue JSON::ParserError
+        nil
+      end
+
+      # Collect saved filenames from a generator result: top-level filename/file
+      # plus any videos/images/files array of {filename}/{file} or bare strings.
+      def media_filenames(data)
+        files = [data["filename"], data["file"]]
+        %w[videos images files].each do |key|
+          arr = data[key]
+          next unless arr.is_a?(Array)
+
+          arr.each { |e| files << (e.is_a?(Hash) ? (e["filename"] || e["file"]) : e) }
+        end
+        files.compact.uniq
       end
 
       # ---- Media generation (video) --------------------------------------
@@ -1199,7 +1246,7 @@ module Monadic
           args[:aspect_ratio] = aspect_ratio if aspect_ratio
           args[:image_path] = image_path if image_path
           args[:duration_seconds] = duration.to_i if duration
-          provider_host("gemini").generate_video_with_veo(**args)
+          gemini_media_host.generate_video_with_veo(**args)
         when "grok"
           args = { prompt: prompt }
           args[:aspect_ratio] = aspect_ratio if aspect_ratio
@@ -1227,7 +1274,7 @@ module Monadic
 
         args = { prompt: prompt }
         args[:output_format] = output_format if output_format
-        raw = provider_host("gemini").generate_music_with_lyria(**args)
+        raw = gemini_media_host.generate_music_with_lyria(**args)
         result = normalize_media_json(raw)
         CostGuard.record(MUSIC_GEN_ESTIMATE)
 

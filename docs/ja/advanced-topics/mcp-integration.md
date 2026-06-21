@@ -28,6 +28,18 @@ CONDUIT_TOKEN_BUDGET=1000000
 - **ヘルスチェック**: `http://localhost:3100/health`
 - **サーバー名**: monadic-chat
 
+## stdio クライアントからの接続
+
+HTTP（streamable-HTTP）MCP に対応するクライアントは、`http://localhost:3100/mcp` に直接接続できます。
+
+一部の MCP クライアントは **stdio** トランスポートしか話せません（サブプロセスを起動し、stdin/stdout で JSON-RPC をやり取りする方式）。そうしたクライアントでも Conduit を使えるよう、stdio を HTTP エンドポイントへ中継するブリッジスクリプト `mcp_stdio_bridge.rb`（Ruby サービスの `scripts/` 配下に同梱）を提供しています。ホストの Ruby を使ってクライアントに登録してください:
+
+```bash
+<your-mcp-client> mcp add monadic-conduit -- ruby /path/to/mcp_stdio_bridge.rb
+```
+
+このブリッジは Ruby 標準ライブラリのみを使用し、`MCP_SERVER_HOST` / `MCP_SERVER_PORT` を参照します。MCP サーバーを有効化した状態で Monadic アプリが起動している必要があります。
+
 ## ケイパビリティ一覧
 
 Conduit は以下の `monadic_*` ツールを公開します。各ツールの完全な入力スキーマは `tools/list` で取得できます。

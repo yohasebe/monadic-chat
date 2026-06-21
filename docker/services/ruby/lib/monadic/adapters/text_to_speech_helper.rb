@@ -1,3 +1,5 @@
+require 'securerandom'
+
 module MonadicHelper
   def list_providers_and_voices
     command = "tts_query.rb --list"
@@ -22,7 +24,10 @@ module MonadicHelper
 
     save_path = Monadic::Utils::Environment.shared_volume
 
-    textfile = "#{Time.now.to_i}.md"
+    # Unique per call: Time.now.to_i has 1-second resolution, so concurrent
+    # syntheses (e.g. parallel Conduit jobs) would otherwise collide on the
+    # same .md input and .mp3 output filename. The random suffix prevents that.
+    textfile = "#{Time.now.to_i}_#{SecureRandom.hex(4)}.md"
     textpath = File.join(save_path, textfile)
 
     File.open(textpath, "w") do |f|

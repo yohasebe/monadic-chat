@@ -6,6 +6,8 @@ require_relative 'job_store'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
 require_relative '../agents/audio_transcription_agent'
+require_relative '../agents/audio_analysis_agent'
+require_relative '../agents/video_analyze_agent'
 require_relative '../agents/openai_code_agent'
 require_relative '../agents/claude_code_agent'
 require_relative '../agents/grok_code_agent'
@@ -411,6 +413,59 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_transcribe_audio
+          },
+          {
+            name: "monadic_analyze_audio",
+            description: "Analyze an audio file qualitatively (e.g. describe/critique music or " \
+                         "speech) with Gemini. Give an audio `path` on the shared volume " \
+                         "(~/monadic/data) and a `prompt` for what to analyze. This is " \
+                         "interpretive analysis, not transcription (use monadic_transcribe_audio " \
+                         "for text). Uses your own API keys; spends provider tokens (budget-gated).",
+            input_schema: {
+              type: "object",
+              properties: {
+                prompt: {
+                  type: "string",
+                  description: "What to analyze (e.g. 'Critique this performance')."
+                },
+                path: {
+                  type: "string",
+                  description: "Audio path: absolute, or relative to the shared volume " \
+                               "(~/monadic/data)."
+                }
+              },
+              required: ["prompt", "path"],
+              additionalProperties: false
+            },
+            handler: :handle_analyze_audio
+          },
+          {
+            name: "monadic_analyze_video",
+            description: "Analyze a video file by extracting frames and querying a vision model, " \
+                         "plus transcribing its audio. Give a video `path` on the shared volume " \
+                         "(~/monadic/data) and an optional `query`. Requires the Python container " \
+                         "(frame extraction). Uses your own API keys; spends provider tokens " \
+                         "(budget-gated). Can take a while — runnable via monadic_submit.",
+            input_schema: {
+              type: "object",
+              properties: {
+                path: {
+                  type: "string",
+                  description: "Video filename on the shared volume (~/monadic/data)."
+                },
+                query: {
+                  type: "string",
+                  description: "Optional question about the video (default: describe what happens)."
+                },
+                fps: {
+                  type: "number",
+                  description: "Optional frames-per-second to sample (default 1)."
+                }
+              },
+              required: ["path"],
+              additionalProperties: false
+            },
+            handler: :handle_analyze_video
           },
           {
             name: "monadic_speak",
@@ -872,6 +927,100 @@ module Monadic
           error: (success ? nil : "❌ #{result}"),
           budget: CostGuard.status
         }.compact
+      end
+
+      # ---- Audio analysis (qualitative, Gemini) --------------------------
+
+      AUDIO_ANALYZE_FALLBACK_MODEL = "gemini-3.5-flash"
+
+      def handle_analyze_audio(arguments)
+        prompt = (arguments["prompt"] || arguments[:prompt]).to_s
+        path = (arguments["path"] || arguments[:path]).to_s
+        raise ArgumentError, "prompt is required" if prompt.strip.empty?
+        raise ArgumentError, "path is required" if path.empty?
+
+        abs_path = resolve_shared_path(path)
+
+        input_tokens = CostGuard.estimate_tokens(prompt) + AUDIO_TOKENS_ESTIMATE
+        begin
+          CostGuard.ensure_within!(input_tokens + DEFAULT_MAX_OUTPUT)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        # AudioAnalysisAgent is a module_function utility (Gemini direct API,
+        # ffmpeg compression) — no host instance needed.
+        result = AudioAnalysisAgent.analyze(audio_path: abs_path, prompt: prompt, model: audio_analyze_model)
+        success = !error_marker?(result)
+        CostGuard.record(input_tokens + CostGuard.estimate_tokens(result))
+
+        {
+          provider: "gemini",
+          success: success,
+          text: (success ? result : nil),
+          error: (success ? nil : "❌ #{result}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      def audio_analyze_model
+        (Monadic::Utils::ModelSpec.default_audio_model("gemini") if defined?(Monadic::Utils::ModelSpec)) ||
+          AUDIO_ANALYZE_FALLBACK_MODEL
+      rescue StandardError
+        AUDIO_ANALYZE_FALLBACK_MODEL
+      end
+
+      # ---- Video analysis (frames + vision + audio) ----------------------
+
+      # Frame extraction + multi-frame vision is heavier than a single image.
+      VIDEO_ANALYZE_ESTIMATE = 4000
+
+      def handle_analyze_video(arguments)
+        path = (arguments["path"] || arguments[:path]).to_s
+        raise ArgumentError, "path is required" if path.empty?
+
+        query = arguments["query"] || arguments[:query]
+        fps = (arguments["fps"] || arguments[:fps]).to_i
+        fps = 1 if fps <= 0
+
+        begin
+          CostGuard.ensure_within!(VIDEO_ANALYZE_ESTIMATE + DEFAULT_MAX_OUTPUT)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        # The video agent shells out to extract_frames.py in the Python
+        # container, then queries a vision provider and transcribes audio — it
+        # needs the full MonadicApp surface (send_command + ImageAnalysisAgent +
+        # AudioTranscriptionAgent), which MonadicApp already mixes in.
+        result = video_analyze_host.analyze_video(file: path, fps: fps, query: query)
+        success = !video_error?(result)
+        CostGuard.record(VIDEO_ANALYZE_ESTIMATE + CostGuard.estimate_tokens(result))
+
+        {
+          success: success,
+          text: (success ? result : nil),
+          error: (success ? nil : "❌ #{result}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      def video_analyze_host
+        Class.new(MonadicApp) { include VideoAnalyzeAgent }.new
+      end
+
+      # The video agent signals failure with either "ERROR:" or "Error:".
+      def video_error?(text)
+        text.is_a?(String) && text.start_with?("ERROR:", "Error:", "Video analysis failed:")
+      end
+
+      # Resolve a shared-volume path to an absolute path, rejecting traversal.
+      def resolve_shared_path(path)
+        raise ArgumentError, "invalid path (traversal not allowed)" if path.match?(%r{(?:\A|/)\.\.(?:/|\z)})
+
+        return path if path.start_with?("/")
+
+        File.join(Monadic::Utils::Environment.shared_volume, path)
       end
 
       # ---- Speech synthesis (TTS) ----------------------------------------

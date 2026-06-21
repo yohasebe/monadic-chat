@@ -17,6 +17,7 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
+        "monadic_analyze_audio", "monadic_analyze_video",
         "monadic_speak", "monadic_generate_code", "monadic_generate_image",
         "monadic_generate_video", "monadic_generate_music",
         "monadic_submit", "monadic_poll", "monadic_cancel", "monadic_jobs"
@@ -49,6 +50,8 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_import_kb")).to be true
       expect(described_class.tool?("monadic_analyze_image")).to be true
       expect(described_class.tool?("monadic_transcribe_audio")).to be true
+      expect(described_class.tool?("monadic_analyze_audio")).to be true
+      expect(described_class.tool?("monadic_analyze_video")).to be true
       expect(described_class.tool?("monadic_speak")).to be true
       expect(described_class.tool?("monadic_generate_code")).to be true
       expect(described_class.tool?("monadic_generate_image")).to be true
@@ -605,6 +608,89 @@ RSpec.describe Monadic::MCP::Conduit do
     it "requires path" do
       expect { described_class.call("monadic_transcribe_audio", {}) }
         .to raise_error(ArgumentError, /path is required/)
+    end
+  end
+
+  describe "monadic_analyze_audio" do
+    before { Monadic::MCP::CostGuard.reset! }
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "analyzes audio with Gemini and charges the budget" do
+      allow(described_class).to receive(:resolve_shared_path).with("song.mp3").and_return("/data/song.mp3")
+      allow(described_class).to receive(:audio_analyze_model).and_return("gemini-3.5-flash")
+      expect(AudioAnalysisAgent).to receive(:analyze)
+        .with(audio_path: "/data/song.mp3", prompt: "critique", model: "gemini-3.5-flash")
+        .and_return("A lively swing performance.")
+      result = described_class.call("monadic_analyze_audio", { "prompt" => "critique", "path" => "song.mp3" })
+      expect(result[:success]).to be true
+      expect(result[:provider]).to eq("gemini")
+      expect(result[:text]).to eq("A lively swing performance.")
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "maps an ERROR string to a structured failure" do
+      allow(described_class).to receive(:resolve_shared_path).and_return("/data/x.mp3")
+      allow(described_class).to receive(:audio_analyze_model).and_return("gemini-3.5-flash")
+      allow(AudioAnalysisAgent).to receive(:analyze).and_return("ERROR: Audio file not found: x.mp3")
+      result = described_class.call("monadic_analyze_audio", { "prompt" => "p", "path" => "x.mp3" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Audio file not found/)
+    end
+
+    it "requires prompt and path" do
+      expect { described_class.call("monadic_analyze_audio", { "path" => "x.mp3" }) }
+        .to raise_error(ArgumentError, /prompt is required/)
+      expect { described_class.call("monadic_analyze_audio", { "prompt" => "p" }) }
+        .to raise_error(ArgumentError, /path is required/)
+    end
+
+    it "rejects a path-traversal path" do
+      expect { described_class.call("monadic_analyze_audio", { "prompt" => "p", "path" => "../etc/passwd" }) }
+        .to raise_error(ArgumentError, /traversal/)
+    end
+  end
+
+  describe "monadic_analyze_video" do
+    let(:vhost) { double("video_host") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:video_analyze_host).and_return(vhost)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "analyzes a video and charges the budget" do
+      expect(vhost).to receive(:analyze_video)
+        .with(file: "clip.mp4", fps: 1, query: "what happens?")
+        .and_return("A person waves at the camera.")
+      result = described_class.call("monadic_analyze_video",
+                                    { "path" => "clip.mp4", "query" => "what happens?" })
+      expect(result[:success]).to be true
+      expect(result[:text]).to eq("A person waves at the camera.")
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "passes a custom fps and maps an Error string to failure" do
+      expect(vhost).to receive(:analyze_video)
+        .with(hash_including(fps: 2))
+        .and_return("Error: Failed to extract frames from video.")
+      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4", "fps" => 2 })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Failed to extract frames/)
+    end
+
+    it "requires path" do
+      expect { described_class.call("monadic_analyze_video", {}) }
+        .to raise_error(ArgumentError, /path is required/)
+    end
+
+    it "refuses when the budget is exhausted (no analysis)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(vhost).not_to receive(:analyze_video)
+      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
     end
   end
 

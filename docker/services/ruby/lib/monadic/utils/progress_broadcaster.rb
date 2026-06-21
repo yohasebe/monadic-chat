@@ -34,12 +34,17 @@ module Monadic
         # don't inherit thread-local variables in Ruby, so we must read it
         # in the parent and pass it explicitly.
         parent_session_id = Thread.current[:websocket_session_id]
+        # Same reason for the Conduit background-job id: when a generator runs
+        # inside a headless Conduit job there is no WebSocket session, so we
+        # also mirror progress into the job record for polling clients.
+        parent_job_id = Thread.current[:conduit_job_id]
 
         progress_thread = spawn_progress_thread(
           source: source,
           label: label,
           interval: interval,
-          session_id: parent_session_id
+          session_id: parent_session_id,
+          job_id: parent_job_id
         )
 
         begin
@@ -63,7 +68,7 @@ module Monadic
         }
       end
 
-      def spawn_progress_thread(source:, label:, interval:, session_id:)
+      def spawn_progress_thread(source:, label:, interval:, session_id:, job_id: nil)
         Thread.new do
           Thread.current.report_on_exception = false
           start = Time.now
@@ -85,6 +90,7 @@ module Monadic
             elapsed = now - start
             fragment = build_fragment(source: source, label: label, elapsed: elapsed)
             broadcast(fragment, session_id)
+            report_to_job(job_id, fragment)
             last_broadcast = now
           end
         rescue StandardError
@@ -97,6 +103,18 @@ module Monadic
         return unless defined?(::WebSocketHelper)
         return unless ::WebSocketHelper.respond_to?(:send_progress_fragment)
         ::WebSocketHelper.send_progress_fragment(fragment, session_id)
+      rescue StandardError
+        # silent — see spawn_progress_thread rescue
+      end
+
+      # Mirror progress into a Conduit background job, if one is driving this
+      # work. Guarded by defined? so ProgressBroadcaster stays usable wherever
+      # the MCP layer isn't loaded.
+      def report_to_job(job_id, fragment)
+        return unless job_id
+        return unless defined?(Monadic::MCP::JobStore)
+
+        Monadic::MCP::JobStore.report(job_id, fragment["content"])
       rescue StandardError
         # silent — see spawn_progress_thread rescue
       end

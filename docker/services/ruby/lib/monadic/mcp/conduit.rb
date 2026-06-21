@@ -4,6 +4,7 @@ require 'json'
 require_relative 'cost_guard'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
+require_relative '../agents/audio_transcription_agent'
 
 module Monadic
   module MCP
@@ -373,6 +374,39 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_analyze_image
+          },
+          {
+            name: "monadic_transcribe_audio",
+            description: "Transcribe an audio file to text (speech-to-text) using a provider's " \
+                         "STT API. Give an audio `path` on the shared volume (~/monadic/data). " \
+                         "Uses your own API keys; spends provider tokens (budget-gated). A " \
+                         "capable provider is chosen automatically unless you pass one.",
+            input_schema: {
+              type: "object",
+              properties: {
+                path: {
+                  type: "string",
+                  description: "Audio path: absolute, or relative to the shared volume " \
+                               "(~/monadic/data). Max 25MB."
+                },
+                language: {
+                  type: "string",
+                  description: "Optional ISO language code hint (e.g. 'en', 'ja')."
+                },
+                model: {
+                  type: "string",
+                  description: "Optional STT model override."
+                },
+                provider: {
+                  type: "string",
+                  description: "Optional preferred provider (openai, gemini/google). Falls " \
+                               "back to the first available."
+                }
+              },
+              required: ["path"],
+              additionalProperties: false
+            },
+            handler: :handle_transcribe_audio
           }
         ]
       end
@@ -580,7 +614,8 @@ module Monadic
           return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
         end
 
-        result = vision_host(provider).image_analysis_agent(message: prompt, image_path: path)
+        result = agent_host(ImageAnalysisAgent, provider)
+                 .image_analysis_agent(message: prompt, image_path: path)
         success = !error_marker?(result)
         CostGuard.record(input_tokens + CostGuard.estimate_tokens(result))
 
@@ -593,18 +628,56 @@ module Monadic
         }.compact
       end
 
-      # Host mixing in ImageAnalysisAgent. The agent reads settings["provider"]
-      # to prefer a vision provider, so we supply a minimal settings carrying the
-      # (optional) requested provider; an empty value triggers the agent's own
-      # first-available fallback.
-      def vision_host(provider)
+      # ---- Audio transcription (STT) -------------------------------------
+
+      # Rough token allowance for an audio file (STT bills by duration, not
+      # tokens, so this is only a budget backstop alongside the transcript).
+      AUDIO_TOKENS_ESTIMATE = 2000
+
+      def handle_transcribe_audio(arguments)
+        path = (arguments["path"] || arguments[:path]).to_s
+        raise ArgumentError, "path is required" if path.empty?
+
+        provider = (arguments["provider"] || arguments[:provider]).to_s
+        provider = MonadicDSL::ProviderConfig.new(provider).standard_key unless provider.empty?
+        model = (arguments["model"] || arguments[:model])
+        language = (arguments["language"] || arguments[:language])
+
+        begin
+          CostGuard.ensure_within!(AUDIO_TOKENS_ESTIMATE)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        result = agent_host(AudioTranscriptionAgent, provider).audio_transcription_agent(
+          audio_path: path, model: model, response_format: "text", lang_code: language
+        )
+        success = !error_marker?(result)
+        CostGuard.record(AUDIO_TOKENS_ESTIMATE + CostGuard.estimate_tokens(result))
+
+        {
+          provider: (provider.empty? ? "auto" : provider),
+          success: success,
+          text: (success ? result : nil),
+          error: (success ? nil : "❌ #{result}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      # ---- Analysis-agent helpers ----------------------------------------
+
+      # Build a headless host mixing in an analysis agent module. These agents
+      # read settings["provider"] to prefer a provider, so we supply a minimal
+      # settings carrying the (optional) requested provider; an empty value
+      # triggers each agent's own first-available fallback.
+      def agent_host(agent_module, provider)
         klass = Class.new do
-          include ImageAnalysisAgent
           attr_accessor :_conduit_provider
           def settings
             { "provider" => _conduit_provider.to_s }
           end
         end
+        klass.include(agent_module)
         host = klass.new
         host._conduit_provider = provider
         host

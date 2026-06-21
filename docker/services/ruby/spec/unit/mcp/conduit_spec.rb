@@ -16,7 +16,7 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_status", "monadic_list_models", "monadic_query",
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
-        "monadic_analyze_image"
+        "monadic_analyze_image", "monadic_transcribe_audio"
       )
     end
 
@@ -45,6 +45,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_list_kb")).to be true
       expect(described_class.tool?("monadic_import_kb")).to be true
       expect(described_class.tool?("monadic_analyze_image")).to be true
+      expect(described_class.tool?("monadic_transcribe_audio")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -510,7 +511,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     before do
       Monadic::MCP::CostGuard.reset!
-      allow(described_class).to receive(:vision_host).and_return(vhost)
+      allow(described_class).to receive(:agent_host).and_return(vhost)
     end
 
     after { Monadic::MCP::CostGuard.reset! }
@@ -529,7 +530,8 @@ RSpec.describe Monadic::MCP::Conduit do
     end
 
     it "passes a requested provider through (canonicalized)" do
-      expect(described_class).to receive(:vision_host).with("anthropic").and_return(vhost)
+      expect(described_class).to receive(:agent_host)
+        .with(ImageAnalysisAgent, "anthropic").and_return(vhost)
       allow(vhost).to receive(:image_analysis_agent).and_return("ok")
       described_class.call("monadic_analyze_image", {
         "prompt" => "p", "path" => "x.png", "provider" => "claude"
@@ -557,6 +559,40 @@ RSpec.describe Monadic::MCP::Conduit do
       result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
+    end
+  end
+
+  describe "monadic_transcribe_audio" do
+    let(:ahost) { double("audio_host") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:agent_host).and_return(ahost)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "returns the transcript and charges the budget" do
+      expect(ahost).to receive(:audio_transcription_agent)
+        .with(hash_including(audio_path: "speech.mp3"))
+        .and_return("hello world")
+      result = described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3" })
+      expect(result[:success]).to be true
+      expect(result[:text]).to eq("hello world")
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "maps an agent ERROR string to a structured failure" do
+      allow(ahost).to receive(:audio_transcription_agent)
+        .and_return("ERROR: Audio file not found: speech.mp3")
+      result = described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Audio file not found/)
+    end
+
+    it "requires path" do
+      expect { described_class.call("monadic_transcribe_audio", {}) }
+        .to raise_error(ArgumentError, /path is required/)
     end
   end
 

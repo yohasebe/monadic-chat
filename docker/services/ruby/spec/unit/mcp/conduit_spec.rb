@@ -16,7 +16,8 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_status", "monadic_list_models", "monadic_query",
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
-        "monadic_analyze_image", "monadic_transcribe_audio"
+        "monadic_analyze_image", "monadic_transcribe_audio",
+        "monadic_speak"
       )
     end
 
@@ -46,6 +47,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_import_kb")).to be true
       expect(described_class.tool?("monadic_analyze_image")).to be true
       expect(described_class.tool?("monadic_transcribe_audio")).to be true
+      expect(described_class.tool?("monadic_speak")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -593,6 +595,71 @@ RSpec.describe Monadic::MCP::Conduit do
     it "requires path" do
       expect { described_class.call("monadic_transcribe_audio", {}) }
         .to raise_error(ArgumentError, /path is required/)
+    end
+  end
+
+  describe "monadic_speak" do
+    let(:thost) { double("tts_host") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:tts_host).and_return(thost)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "synthesizes speech and returns the saved filename" do
+      expect(thost).to receive(:text_to_speech)
+        .with(hash_including(provider: "openai", text: "hello", voice_id: "alloy"))
+        .and_return("Command has been executed with the following output: \nText-to-speech audio MP3 saved to 1718967890.mp3")
+      result = described_class.call("monadic_speak", { "text" => "hello" })
+      expect(result[:success]).to be true
+      expect(result[:provider]).to eq("openai")
+      expect(result[:file]).to eq("1718967890.mp3")
+      expect(result[:note]).to match(%r{~/monadic/data/1718967890\.mp3})
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "normalizes provider aliases and applies the per-provider default voice" do
+      expect(thost).to receive(:text_to_speech)
+        .with(hash_including(provider: "gemini", voice_id: "zephyr"))
+        .and_return("Text-to-speech audio saved to 42.wav (WAV format)")
+      result = described_class.call("monadic_speak", { "text" => "hi", "provider" => "google" })
+      expect(result[:provider]).to eq("gemini")
+      expect(result[:file]).to eq("42.wav")
+    end
+
+    it "passes an explicit voice and speed through" do
+      expect(thost).to receive(:text_to_speech)
+        .with(hash_including(provider: "elevenlabs", voice_id: "abc123", speed: 1.5))
+        .and_return("Text-to-speech audio MP3 saved to v.mp3")
+      described_class.call("monadic_speak", {
+        "text" => "hi", "provider" => "elevenlabs", "voice" => "abc123", "speed" => 1.5
+      })
+    end
+
+    it "maps a helper error to a structured failure" do
+      allow(thost).to receive(:text_to_speech)
+        .and_return("Error occurred: ELEVENLABS_API_KEY is not set.")
+      result = described_class.call("monadic_speak", { "text" => "hi", "provider" => "elevenlabs" })
+      expect(result[:success]).to be false
+      expect(result[:file]).to be_nil
+      expect(result[:error]).to match(/ELEVENLABS_API_KEY is not set/)
+    end
+
+    it "requires text" do
+      expect { described_class.call("monadic_speak", {}) }
+        .to raise_error(ArgumentError, /text is required/)
+      expect { described_class.call("monadic_speak", { "text" => "   " }) }
+        .to raise_error(ArgumentError, /text is required/)
+    end
+
+    it "refuses when the budget is exhausted (no synthesis)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(thost).not_to receive(:text_to_speech)
+      result = described_class.call("monadic_speak", { "text" => "a long sentence to speak" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
     end
   end
 

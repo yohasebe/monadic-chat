@@ -407,6 +407,47 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_transcribe_audio
+          },
+          {
+            name: "monadic_speak",
+            description: "Synthesize speech from text (text-to-speech) and save an audio file " \
+                         "to the shared volume (~/monadic/data). Returns the saved filename. " \
+                         "Uses your own API keys; spends provider tokens (budget-gated). " \
+                         "Providers: openai (default), gemini/google, elevenlabs. " \
+                         "ElevenLabs requires an explicit `voice` (voice_id).",
+            input_schema: {
+              type: "object",
+              properties: {
+                text: {
+                  type: "string",
+                  description: "The text to speak."
+                },
+                provider: {
+                  type: "string",
+                  description: "TTS provider: openai (default), gemini/google, elevenlabs."
+                },
+                voice: {
+                  type: "string",
+                  description: "Optional voice id. Defaults: openai='alloy', gemini='zephyr'. " \
+                               "ElevenLabs has no default — pass a voice_id from your account."
+                },
+                speed: {
+                  type: "number",
+                  description: "Optional speaking rate (0.25–4.0, default 1.0)."
+                },
+                language: {
+                  type: "string",
+                  description: "Optional ISO language code (e.g. 'en', 'ja') or 'auto' (default)."
+                },
+                instructions: {
+                  type: "string",
+                  description: "Optional style/delivery instructions (openai)."
+                }
+              },
+              required: ["text"],
+              additionalProperties: false
+            },
+            handler: :handle_speak
           }
         ]
       end
@@ -662,6 +703,81 @@ module Monadic
           error: (success ? nil : "❌ #{result}"),
           budget: CostGuard.status
         }.compact
+      end
+
+      # ---- Speech synthesis (TTS) ----------------------------------------
+
+      # Supported TTS provider labels (passed verbatim to tts_query.rb, which
+      # dispatches on these). Anything else is normalized to the default.
+      TTS_PROVIDERS = %w[openai gemini elevenlabs].freeze
+      DEFAULT_TTS_VOICES = { "openai" => "alloy", "gemini" => "zephyr" }.freeze
+
+      def handle_speak(arguments)
+        text = (arguments["text"] || arguments[:text]).to_s
+        raise ArgumentError, "text is required" if text.strip.empty?
+
+        provider = normalize_tts_provider(arguments["provider"] || arguments[:provider])
+        voice = (arguments["voice"] || arguments[:voice]).to_s
+        voice = DEFAULT_TTS_VOICES[provider].to_s if voice.empty?
+        speed = (arguments["speed"] || arguments[:speed] || 1.0)
+        language = (arguments["language"] || arguments[:language] || "auto").to_s
+        instructions = (arguments["instructions"] || arguments[:instructions]).to_s
+
+        # TTS bills by audio duration, not tokens; the input text length is a
+        # reasonable budget backstop alongside the platform's hard ceiling.
+        est_tokens = CostGuard.estimate_tokens(text)
+        begin
+          CostGuard.ensure_within!(est_tokens)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        result = tts_host.text_to_speech(
+          provider: provider, text: text, speed: speed,
+          voice_id: voice, language: language, instructions: instructions
+        ).to_s
+        CostGuard.record(est_tokens)
+
+        filename = extract_audio_filename(result)
+        success = !filename.nil? && !speak_error?(result)
+
+        {
+          provider: provider,
+          success: success,
+          file: (success ? filename : nil),
+          note: (success ? "Saved to ~/monadic/data/#{filename}" : nil),
+          error: (success ? nil : "❌ #{result.strip}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      # Map a requested provider onto a supported TTS label (default openai).
+      def normalize_tts_provider(value)
+        v = value.to_s.strip.downcase
+        return "openai" if v.empty?
+        return "gemini" if %w[gemini google].include?(v)
+        return "elevenlabs" if v.start_with?("elevenlabs")
+        TTS_PROVIDERS.include?(v) ? v : "openai"
+      end
+
+      # The TTS helper reports success as "... saved to <name>.<ext>".
+      def extract_audio_filename(output)
+        m = output.match(/saved to (\S+\.(?:mp3|wav|ogg|flac|aac))/i)
+        m && m[1]
+      end
+
+      def speak_error?(output)
+        output.start_with?("Error occurred:") ||
+          output.include?("An error occurred") ||
+          output.include?("ERROR:")
+      end
+
+      # Headless TTS host: a bare MonadicApp already mixes in the TTS helper
+      # plus send_command/capture_command and resolves the shared-volume path
+      # for the current execution mode. Referenced lazily so unit specs (which
+      # stub this method) never need the full app loaded.
+      def tts_host
+        MonadicApp.new
       end
 
       # ---- Analysis-agent helpers ----------------------------------------

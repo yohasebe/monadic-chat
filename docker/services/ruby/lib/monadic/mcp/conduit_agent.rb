@@ -64,14 +64,18 @@ module Monadic
         register(app_key, host)
         begin
           # session[:parameters] = the app's settings PLUS the runtime params the
-          # WebSocket layer normally injects (which a headless run lacks). Only
-          # context_size matters here: Claude/Gemini take messages.last(N), so a
-          # missing/zero N drops the user turn and the model just greets.
-          params = host.settings.merge("context_size" => RUNTIME_CONTEXT_SIZE)
-          session = {
-            parameters: params,
-            messages: [{ "role" => "user", "text" => task.to_s, "active" => true }]
-          }
+          # WebSocket layer normally injects (which a headless run lacks):
+          #   - "message": every provider's prepare_request reads the user input
+          #     from obj["message"] and appends it to session[:messages] itself,
+          #     so we pass the task there (NOT pre-added to messages) and start
+          #     with an empty history — exactly the WebSocket's first-turn shape.
+          #   - "context_size": providers take messages.last(N); a missing/zero N
+          #     drops the turn and the model just greets.
+          params = host.settings.merge(
+            "context_size" => RUNTIME_CONTEXT_SIZE,
+            "message" => task.to_s
+          )
+          session = { parameters: params, messages: [] }
           results = host.api_request("user", session, call_depth: 0) { |_fragment| nil }
           extract_text(results)
         ensure

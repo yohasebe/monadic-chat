@@ -35,8 +35,21 @@ RSpec.describe Monadic::MCP::Server do
         "monadic_status", "monadic_list_models", "monadic_query",
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
-        "monadic_analyze_image", "monadic_transcribe_audio"
+        "monadic_analyze_image", "monadic_transcribe_audio",
+        "monadic_speak"
       )
+    end
+  end
+
+  describe ".mcp_bind_host" do
+    it "binds all interfaces inside the container so Docker port publish works" do
+      allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(true)
+      expect(described_class.mcp_bind_host).to eq("0.0.0.0")
+    end
+
+    it "binds loopback on the host (dev mode)" do
+      allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
+      expect(described_class.mcp_bind_host).to eq("127.0.0.1")
     end
   end
 

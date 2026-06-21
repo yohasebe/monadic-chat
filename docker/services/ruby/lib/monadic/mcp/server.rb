@@ -10,6 +10,7 @@ require 'async/http/server'
 require 'protocol/rack'
 require_relative '../utils/debug_helper'
 require_relative '../utils/extra_logger'
+require_relative '../utils/environment'
 require_relative 'cache_invalidator'
 require_relative 'conduit'
 
@@ -205,6 +206,20 @@ module Monadic
         nil
       end
 
+      # Interface to bind the MCP HTTP server to. In the container we bind all
+      # interfaces so Docker port publishing works; on the host we stay on
+      # loopback. Host-side exposure is constrained to loopback by the compose
+      # publish mapping regardless of this value.
+      def self.mcp_bind_host
+        if defined?(Monadic::Utils::Environment) &&
+           Monadic::Utils::Environment.respond_to?(:in_container?) &&
+           Monadic::Utils::Environment.in_container?
+          "0.0.0.0"
+        else
+          "127.0.0.1"
+        end
+      end
+
       # Get server status
       def self.status
         {
@@ -230,10 +245,16 @@ module Monadic
 
         port = (CONFIG["MCP_SERVER_PORT"] || 3100).to_i
 
+        # Inside the Ruby container we must bind all interfaces so Docker's
+        # port publish (host 127.0.0.1 -> container) can reach us; the publish
+        # mapping in compose keeps host exposure on loopback only. On the host
+        # (dev mode) we bind loopback directly. See compose.yml MCP port note.
+        bind_host = mcp_bind_host
+
         # Check if port is already in use
         begin
           require 'socket'
-          server = TCPServer.new('127.0.0.1', port)
+          server = TCPServer.new(bind_host, port)
           server.close
         rescue Errno::EADDRINUSE
           puts "[MCP] MCP Server port #{port} is already in use. Skipping MCP server startup."
@@ -249,7 +270,7 @@ module Monadic
           begin
             puts "[MCP] Starting MCP Server on port #{port} in worker process #{Process.pid}..."
 
-            endpoint = Async::HTTP::Endpoint.parse("http://127.0.0.1:#{port}")
+            endpoint = Async::HTTP::Endpoint.parse("http://#{bind_host}:#{port}")
 
             # Create Rack app
             app = Rack::Builder.new do

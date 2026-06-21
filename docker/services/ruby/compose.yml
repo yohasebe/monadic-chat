@@ -31,6 +31,13 @@ services:
       - ~/monadic/log:/monadic/log
     ports:
       - "${HOST_BINDING:-127.0.0.1}:4567:4567"
+      # MCP (Conduit) capability surface. Published to the host loopback ONLY,
+      # never following HOST_BINDING: the MCP server has no auth yet and Conduit
+      # spends API keys / (later) runs container commands, so it must not reach
+      # the LAN. The container binds 0.0.0.0 (see Server.mcp_bind_host) so this
+      # forward arrives. Inert unless MCP_SERVER_ENABLED=true. Port tracks the
+      # 3100 default; change MCP_SERVER_PORT and this mapping together.
+      - "127.0.0.1:3100:3100"
     stdin_open: true
     tty: true
     command: ["sh", "/usr/local/bin/entrypoint.sh"]

@@ -960,7 +960,7 @@ module CohereHelper
         body["tools"].push(*WEBSEARCH_TOOLS) if websearch
         body["tools"].uniq!
       elsif websearch
-        body["tools"] = WEBSEARCH_TOOLS
+        body["tools"] = WEBSEARCH_TOOLS.dup
       else
         body.delete("tools")
       end
@@ -1064,9 +1064,7 @@ module CohereHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    has_tavily = !!CONFIG["TAVILY_API_KEY"]
-    requested_web = (obj["websearch"] == "true" || obj["websearch"] == true)
-    websearch = has_tavily && requested_web
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
     message = obj["message"]
 
     # Handle non-tool messages and update session

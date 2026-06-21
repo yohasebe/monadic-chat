@@ -915,7 +915,12 @@ module Monadic
         end
 
         spec = CODE_AGENTS[provider]
-        result = code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt)
+        reporter = job_progress_reporter
+        result = if reporter
+                   code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt, &reporter)
+                 else
+                   code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt)
+                 end
         result = {} unless result.is_a?(Hash)
         success = result[:success] == true
         code = result[:code]
@@ -1017,12 +1022,40 @@ module Monadic
         { jobs: JobStore.list }
       end
 
+      # Build a progress callback bound to the current background job, or nil
+      # when running synchronously (no job). Agents fire their progress block
+      # from sub-threads, so the job id is captured in the closure here — read
+      # once on the job thread — rather than via a thread-local.
+      def job_progress_reporter
+        job_id = JobStore.current_job_id
+        return nil unless job_id
+
+        ->(fragment) { JobStore.report(job_id, progress_message(fragment)) }
+      end
+
+      # Reduce an agent/generator progress fragment to a short human snapshot.
+      def progress_message(fragment)
+        return fragment.to_s unless fragment.is_a?(Hash)
+
+        content = fragment["content"] || fragment[:content]
+        step = fragment["step_progress"] || fragment[:step_progress]
+        if step
+          current = (step["current"] || step[:current]).to_i
+          total = step["total"] || step[:total]
+          "#{content} (#{current + 1}/#{total})"
+        else
+          content.to_s
+        end
+      end
+
       # Full view of a single job, including the tool's result/error when done.
       def job_view(job)
         {
           job_id: job.id,
           tool: job.tool,
           status: job.status,
+          progress: job.progress,
+          progress_at: job.progress_at&.iso8601,
           result: job.result,
           error: job.error,
           created_at: job.created_at&.iso8601,

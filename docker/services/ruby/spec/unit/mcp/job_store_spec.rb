@@ -51,6 +51,47 @@ RSpec.describe Monadic::MCP::JobStore do
     expect(described_class.cancel("nope")).to be_nil
   end
 
+  it "exposes the current job id only inside a running work block" do
+    expect(described_class.current_job_id).to be_nil
+
+    seen = Queue.new
+    gate = Queue.new
+    job = described_class.submit(tool: "t", arguments: {}) do
+      seen.push(described_class.current_job_id)
+      gate.pop
+    end
+    expect(seen.pop).to eq(job.id)
+    gate.push(:go)
+    job.thread.join
+  end
+
+  it "captures the latest progress snapshot reported during a job" do
+    reported = Queue.new
+    gate = Queue.new
+    job = described_class.submit(tool: "t", arguments: {}) do
+      described_class.report(described_class.current_job_id, "halfway there")
+      reported.push(:ok)
+      gate.pop
+    end
+
+    reported.pop # progress is now recorded
+    stored = described_class.fetch(job.id)
+    expect(stored.progress).to eq("halfway there")
+    expect(stored.progress_at).not_to be_nil
+
+    gate.push(:go)
+    job.thread.join
+  end
+
+  it "truncates an oversized progress snapshot" do
+    long = "x" * (described_class::PROGRESS_MAX_CHARS + 50)
+    job = described_class.submit(tool: "t", arguments: {}) { 1 }
+    job.thread.join
+    described_class.report(job.id, long)
+    expect(described_class.fetch(job.id).progress.length)
+      .to eq(described_class::PROGRESS_MAX_CHARS + 1) # trailing ellipsis
+  end
+
   it "summarizes jobs without leaking the full result payload" do
     job = described_class.submit(tool: "t", arguments: {}) { "secret" }
     job.thread.join

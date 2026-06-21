@@ -36,8 +36,13 @@ module Monadic
       Job = Struct.new(
         :id, :tool, :arguments, :status,
         :result, :error, :created_at, :finished_at, :thread,
+        :progress, :progress_at,
         keyword_init: true
       )
+
+      # Cap a single progress snapshot so streaming fragments can't bloat the
+      # job record (poll returns the latest snapshot, not a log).
+      PROGRESS_MAX_CHARS = 240
 
       class ConcurrencyLimit < StandardError; end
 
@@ -59,6 +64,10 @@ module Monadic
                         status: RUNNING, created_at: Time.now)
           @jobs[id] = job
           job.thread = Thread.new do
+            # The work block reads this once (on the job thread) to capture the
+            # id into a progress closure; agent progress sub-threads then report
+            # via the captured id, not this thread-local.
+            Thread.current[:conduit_job_id] = id
             begin
               # Explicit block object (not `yield`): the work runs on this
               # separate thread, so capturing it as a Proc keeps the cross-
@@ -75,6 +84,27 @@ module Monadic
 
       def fetch(id)
         @mutex.synchronize { @jobs[id] }
+      end
+
+      # The id of the job whose work block is currently executing on this
+      # thread (nil when a tool runs synchronously, outside any job). A handler
+      # reads this on the job thread to build a progress closure.
+      def current_job_id
+        Thread.current[:conduit_job_id]
+      end
+
+      # Record a periodic progress snapshot for a job. Safe to call from an
+      # agent's progress sub-thread (id is passed explicitly, not thread-local).
+      def report(id, message)
+        snapshot = message.to_s
+        snapshot = "#{snapshot[0, PROGRESS_MAX_CHARS]}…" if snapshot.length > PROGRESS_MAX_CHARS
+        @mutex.synchronize do
+          job = @jobs[id]
+          break unless job
+
+          job.progress = snapshot
+          job.progress_at = Time.now
+        end
       end
 
       # Kill switch (design §5). Killing a thread mid-subprocess may leave an
@@ -105,6 +135,7 @@ module Monadic
           job_id: job.id,
           tool: job.tool,
           status: job.status,
+          progress: job.progress,
           created_at: job.created_at&.iso8601,
           finished_at: job.finished_at&.iso8601
         }.compact

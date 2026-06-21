@@ -812,6 +812,45 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(poll[:success]).to be false
       expect(poll[:error]).to match(/Unknown or expired job/)
     end
+
+    it "surfaces a job's progress snapshot through poll while it runs" do
+      reported = Queue.new
+      gate = Queue.new
+      allow(described_class).to receive(:handle_status) do
+        Monadic::MCP::JobStore.report(Monadic::MCP::JobStore.current_job_id, "checking containers")
+        reported.push(:ok)
+        gate.pop
+        { ok: true }
+      end
+
+      id = described_class.call("monadic_submit", { "tool" => "monadic_status" })[:job_id]
+      reported.pop # progress recorded
+
+      polled = described_class.call("monadic_poll", { "job_id" => id })
+      expect(polled[:status]).to eq("running")
+      expect(polled[:progress]).to eq("checking containers")
+      expect(polled[:progress_at]).to be_a(String)
+
+      gate.push(:go)
+      Monadic::MCP::JobStore.fetch(id).thread.join
+    end
+  end
+
+  describe "progress fragment rendering" do
+    it "renders a sequential step fragment as content (n/total)" do
+      msg = described_class.send(:progress_message,
+                                 { "content" => "Generating code",
+                                   "step_progress" => { "current" => 1, "total" => 4 } })
+      expect(msg).to eq("Generating code (2/4)")
+    end
+
+    it "passes a plain content fragment through" do
+      expect(described_class.send(:progress_message, { "content" => "Working" })).to eq("Working")
+    end
+
+    it "has no progress reporter outside a background job" do
+      expect(described_class.send(:job_progress_reporter)).to be_nil
+    end
   end
 
   describe "monadic_query grounding (knowledge_base)" do

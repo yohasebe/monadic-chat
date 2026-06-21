@@ -224,9 +224,12 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(host).not_to respond_to(:settings)
     end
 
-    it "memoizes one host per provider" do
-      expect(described_class.provider_host("anthropic"))
-        .to be(described_class.provider_host("anthropic"))
+    it "returns a fresh host instance per call (no shared mutable host across threads)" do
+      a = described_class.provider_host("anthropic")
+      b = described_class.provider_host("anthropic")
+      expect(a).not_to be(b)
+      expect(a).to respond_to(:send_query)
+      expect(b).to respond_to(:send_query)
     end
 
     it "returns nil for an unknown provider" do
@@ -304,6 +307,54 @@ RSpec.describe Monadic::MCP::Conduit do
       too_many = %w[openai anthropic gemini cohere mistral deepseek]
       expect { described_class.call("monadic_parallel_query", { "providers" => too_many, "message" => "hi" }) }
         .to raise_error(ArgumentError, /2-/)
+    end
+
+    it "accepts an explicit targets list, including same-provider duplicates, indexed" do
+      captured = []
+      allow(described_class).to receive(:execute_query) do |provider:, model:, **_|
+        captured << [provider, model]
+        { provider: provider, model: model, success: true, text: "ok" }
+      end
+      result = described_class.call("monadic_parallel_query", {
+        "targets" => [
+          { "provider" => "openai", "model" => "gpt-5.5" },
+          { "provider" => "openai", "model" => "gpt-5.4" },
+          { "provider" => "anthropic", "model" => "claude-opus-4-8" }
+        ],
+        "message" => "compare"
+      })
+      expect(captured).to contain_exactly(
+        ["openai", "gpt-5.5"], ["openai", "gpt-5.4"], ["anthropic", "claude-opus-4-8"]
+      )
+      expect(result[:results].map { |r| r[:index] }).to eq([0, 1, 2])
+      expect(result[:results]).to all(include(success: true))
+    end
+
+    it "canonicalizes target providers (claude -> anthropic)" do
+      captured = []
+      allow(described_class).to receive(:execute_query) do |provider:, **_|
+        captured << provider
+        { provider: provider, success: true }
+      end
+      described_class.call("monadic_parallel_query", {
+        "targets" => [{ "provider" => "claude" }, { "provider" => "openai" }],
+        "message" => "hi"
+      })
+      expect(captured).to contain_exactly("anthropic", "openai")
+    end
+
+    it "rejects too many or malformed targets" do
+      cap = described_class::MAX_PARALLEL_TARGETS
+      many = Array.new(cap + 1) { { "provider" => "openai" } }
+      expect { described_class.call("monadic_parallel_query", { "targets" => many, "message" => "hi" }) }
+        .to raise_error(ArgumentError, /2-#{cap}/)
+      expect { described_class.call("monadic_parallel_query", { "targets" => [{}, {}], "message" => "hi" }) }
+        .to raise_error(ArgumentError, /provider/)
+    end
+
+    it "requires either targets or providers" do
+      expect { described_class.call("monadic_parallel_query", { "message" => "hi" }) }
+        .to raise_error(ArgumentError, /providers/)
     end
   end
 

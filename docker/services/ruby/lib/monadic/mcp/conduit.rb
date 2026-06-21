@@ -42,10 +42,14 @@ module Monadic
 
       # Bounds for parallel fan-out.
       MAX_PARALLEL_PROVIDERS = 5
+      # Upper bound for the explicit `targets` fan-out (lets a caller compare
+      # many specific models, including several from the same provider).
+      MAX_PARALLEL_TARGETS = 12
       PARALLEL_TIMEOUT = 180
 
-      # Memoized headless provider hosts (see provider_host).
-      @provider_hosts = {}
+      # Memoized host CLASSES (see provider_host); a fresh instance is built per
+      # call so concurrent same-provider queries never share one host.
+      @provider_host_classes = {}
       @hosts_mutex = Mutex.new
 
       # Public: MCP tool definitions for `tools/list`.
@@ -177,17 +181,35 @@ module Monadic
           },
           {
             name: "monadic_parallel_query",
-            description: "Fan the same query out to 2-#{MAX_PARALLEL_PROVIDERS} providers " \
-                         "concurrently and return all responses together. Lets a CLI agent " \
-                         "compare or cross-check answers across providers without writing its " \
-                         "own concurrency. Each sub-query spends tokens and is gated by the " \
-                         "platform token budget. Provide `message` or `messages`.",
+            description: "Fan the same query out to several models concurrently and return all " \
+                         "responses together (each labeled with its `index`). Lets a CLI agent " \
+                         "compare or cross-check answers — e.g. to run a peer review — without " \
+                         "writing its own concurrency. Use `targets` to pick specific models " \
+                         "(any mix, including several from the same provider, up to " \
+                         "#{MAX_PARALLEL_TARGETS}), or `providers` for distinct providers on " \
+                         "their chat defaults. Each sub-query spends tokens (budget-gated). " \
+                         "Provide `message` or `messages`.",
             input_schema: {
               type: "object",
               properties: {
+                targets: {
+                  type: "array",
+                  description: "2-#{MAX_PARALLEL_TARGETS} explicit {provider, model} targets. " \
+                               "Duplicates and repeated providers are allowed. Use this OR " \
+                               "`providers`.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      provider: { type: "string", description: "Provider name." },
+                      model: { type: "string", description: "Optional model id (chat default if omitted)." }
+                    },
+                    required: ["provider"]
+                  }
+                },
                 providers: {
                   type: "array",
-                  description: "2-#{MAX_PARALLEL_PROVIDERS} provider names to query in parallel.",
+                  description: "2-#{MAX_PARALLEL_PROVIDERS} distinct provider names. Use this OR " \
+                               "`targets`.",
                   items: { type: "string" }
                 },
                 message: {
@@ -233,7 +255,7 @@ module Monadic
                                "restore it in each response (fails closed)."
                 }
               },
-              required: ["providers"],
+              required: [],
               additionalProperties: false
             },
             handler: :handle_parallel_query
@@ -732,30 +754,16 @@ module Monadic
       end
 
       def handle_parallel_query(arguments)
-        providers_arg = arguments["providers"] || arguments[:providers]
-        unless providers_arg.is_a?(Array) && providers_arg.size.between?(2, MAX_PARALLEL_PROVIDERS)
-          raise ArgumentError,
-                "providers must be an array of 2-#{MAX_PARALLEL_PROVIDERS} provider names"
-        end
-
         messages = normalize_messages(arguments)
         raise ArgumentError, "provide either `message` or `messages`" if messages.empty?
 
         system = (arguments["system"] || arguments[:system]).to_s
         max_output = (arguments["max_tokens"] || arguments[:max_tokens])
         temperature = arguments["temperature"] || arguments[:temperature]
-        models = arguments["models"] || arguments[:models] || {}
         knowledge_base = arguments["knowledge_base"] || arguments[:knowledge_base]
         privacy = arguments["privacy"] || arguments[:privacy]
 
-        # Canonicalize and de-duplicate so the same provider's (shared) app
-        # instance is never driven by two concurrent threads.
-        targets = providers_arg.each_with_object([]) do |raw, acc|
-          original = raw.to_s
-          canonical = MonadicDSL::ProviderConfig.new(original).standard_key
-          next if acc.any? { |t| t[:provider] == canonical }
-          acc << { provider: canonical, model: (models[original] || models[canonical]) }
-        end
+        targets = resolve_parallel_targets(arguments)
 
         results = run_in_parallel(targets) do |target|
           execute_query(
@@ -770,7 +778,49 @@ module Monadic
           )
         end
 
-        { results: results, budget: CostGuard.status }
+        # Index results so duplicate (same provider+model) targets stay
+        # distinguishable in the response.
+        indexed = results.each_with_index.map { |r, i| (r || {}).merge(index: i) }
+        { results: indexed, budget: CostGuard.status }
+      end
+
+      # Build the list of {provider, model} targets to fan out to, from EITHER:
+      #   - `targets`: an explicit array of {provider, model?} (any count up to
+      #     MAX_PARALLEL_TARGETS, duplicates and same-provider repeats allowed);
+      #   - `providers`: 2-MAX_PARALLEL_PROVIDERS provider names with an optional
+      #     per-provider `models` map (de-duplicated; backward compatible).
+      def resolve_parallel_targets(arguments)
+        explicit = arguments["targets"] || arguments[:targets]
+        if explicit
+          unless explicit.is_a?(Array) && explicit.size.between?(2, MAX_PARALLEL_TARGETS)
+            raise ArgumentError,
+                  "targets must be an array of 2-#{MAX_PARALLEL_TARGETS} {provider, model} objects"
+          end
+          return explicit.map do |t|
+            raise ArgumentError, "each target needs a provider" unless t.is_a?(Hash)
+
+            provider = (t["provider"] || t[:provider]).to_s
+            raise ArgumentError, "each target needs a provider" if provider.empty?
+
+            { provider: MonadicDSL::ProviderConfig.new(provider).standard_key,
+              model: (t["model"] || t[:model]) }
+          end
+        end
+
+        providers_arg = arguments["providers"] || arguments[:providers]
+        unless providers_arg.is_a?(Array) && providers_arg.size.between?(2, MAX_PARALLEL_PROVIDERS)
+          raise ArgumentError,
+                "provide `targets`, or `providers` (an array of 2-#{MAX_PARALLEL_PROVIDERS} names)"
+        end
+
+        models = arguments["models"] || arguments[:models] || {}
+        providers_arg.each_with_object([]) do |raw, acc|
+          original = raw.to_s
+          canonical = MonadicDSL::ProviderConfig.new(original).standard_key
+          next if acc.any? { |t| t[:provider] == canonical }
+
+          acc << { provider: canonical, model: (models[original] || models[canonical]) }
+        end
       end
 
       def handle_second_opinion(arguments)
@@ -1926,7 +1976,8 @@ module Monadic
             begin
               yield(target)
             rescue StandardError => e
-              { provider: target[:provider], success: false, error: "❌ #{e.class}: #{e.message}" }
+              { provider: target[:provider], model: target[:model],
+                success: false, error: "❌ #{e.class}: #{e.message}" }
             end
           end]
         end
@@ -1940,6 +1991,7 @@ module Monadic
             thread.kill
             {
               provider: target[:provider],
+              model: target[:model],
               success: false,
               error: "❌ timed out after #{PARALLEL_TIMEOUT}s"
             }
@@ -1994,12 +2046,13 @@ module Monadic
         helper_name = MonadicDSL::ProviderConfig::PROVIDER_INFO.dig(provider, :helper_module)
         return nil unless helper_name && Object.const_defined?(helper_name)
 
-        @hosts_mutex.synchronize do
-          @provider_hosts[provider] ||= begin
+        klass = @hosts_mutex.synchronize do
+          @provider_host_classes[provider] ||= begin
             helper = Object.const_get(helper_name)
-            Class.new.tap { |klass| klass.include(helper) }.new
+            Class.new.tap { |k| k.include(helper) }
           end
         end
+        klass.new
       end
 
       # send_query returns a String (text, or a formatted "[Provider] X Error:"

@@ -73,6 +73,9 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 - `monadic_generate_video` — video generation (text-to-video or image-to-video)
 - `monadic_generate_music` — music generation
 
+**Autonomous agent**
+- `monadic_agent` — a bounded, tool-using agent that searches, reads, and reasons over read-only tools to accomplish a task, then writes a self-contained final answer
+
 **Background jobs**
 - `monadic_submit` — run another tool as a background job and return a job id immediately
 - `monadic_poll` — check a job's status, progress, and result
@@ -127,6 +130,8 @@ A tool result is returned as both human-readable `content` text and a machine-re
 ## Cost Control
 
 Tools that call a provider spend tokens against a shared budget enforced by Conduit. The platform reserves the estimated cost **before** the call and refuses it if the budget would be exceeded, so a runaway client is stopped rather than trusted. The remaining budget is reported by `monadic_status` and included in each spending tool's result. The ceiling is configured with `CONDUIT_TOKEN_BUDGET` and resets when the server restarts. Knowledge-base tools use a local embeddings model and are not budget-gated.
+
+The `monadic_agent` tool is additionally bounded by a tool-call cap and a wall-clock limit (default 300 seconds, configurable with `CONDUIT_AGENT_WALL_CLOCK`) on top of the token budget, so a single agent run cannot loop or stall indefinitely.
 
 ## Background Jobs
 

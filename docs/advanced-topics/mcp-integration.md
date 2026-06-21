@@ -32,10 +32,12 @@ In the packaged application the server runs inside the Ruby container and its po
 
 Clients that support HTTP (streamable-HTTP) MCP can connect to `http://localhost:3100/mcp` directly.
 
-Some MCP clients speak only the **stdio** transport — they launch a subprocess and exchange JSON-RPC over stdin/stdout. A bridge script, `mcp_stdio_bridge.rb` (shipped with the Ruby service under `scripts/`), forwards stdio to the HTTP endpoint so those clients can use Conduit too. Register it with your client using your host's Ruby:
+Some MCP clients speak only the **stdio** transport — they launch a subprocess and exchange JSON-RPC over stdin/stdout. A bridge script, `mcp_stdio_bridge.rb` (shipped with the Ruby service under `scripts/`), forwards stdio to the HTTP endpoint so those clients can use Conduit too.
+
+Register it in your client as a **command-based (stdio) MCP server**. The exact registration syntax varies by client, so consult your MCP client's own documentation; the command to run, with your host's Ruby, is:
 
 ```bash
-<your-mcp-client> mcp add monadic-conduit -- ruby /path/to/mcp_stdio_bridge.rb
+ruby /path/to/mcp_stdio_bridge.rb
 ```
 
 The bridge uses only the Ruby standard library and honors `MCP_SERVER_HOST` / `MCP_SERVER_PORT`. The Monadic app must be running with the MCP server enabled.

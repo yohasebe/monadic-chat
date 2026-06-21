@@ -6,6 +6,9 @@ require_relative 'job_store'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
 require_relative '../agents/audio_transcription_agent'
+require_relative '../agents/openai_code_agent'
+require_relative '../agents/claude_code_agent'
+require_relative '../agents/grok_code_agent'
 
 module Monadic
   module MCP
@@ -451,6 +454,33 @@ module Monadic
             handler: :handle_speak
           },
           {
+            name: "monadic_generate_code",
+            description: "Generate code with a provider's dedicated code agent (OpenAI Code, " \
+                         "Claude Code, or Grok Code). Give a `prompt` describing the task; " \
+                         "returns the generated code. Uses your own API keys; spends provider " \
+                         "tokens (budget-gated). LONG-RUNNING (up to ~20 min for complex tasks) " \
+                         "— run this via monadic_submit and poll, so it doesn't block the " \
+                         "platform. A configured provider is chosen automatically unless you " \
+                         "pass one.",
+            input_schema: {
+              type: "object",
+              properties: {
+                prompt: {
+                  type: "string",
+                  description: "The coding task / instruction for the code agent."
+                },
+                provider: {
+                  type: "string",
+                  description: "Optional preferred provider: openai, anthropic/claude, xai/grok. " \
+                               "Falls back to the first configured one."
+                }
+              },
+              required: ["prompt"],
+              additionalProperties: false
+            },
+            handler: :handle_generate_code
+          },
+          {
             name: "monadic_submit",
             description: "Run another Conduit tool as a background job and return a job_id " \
                          "immediately, without blocking. Use this for long or blocking tools " \
@@ -846,6 +876,95 @@ module Monadic
       # stub this method) never need the full app loaded.
       def tts_host
         MonadicApp.new
+      end
+
+      # ---- Code generation (provider code agents) ------------------------
+
+      # Provider -> code-agent module + entry method. Each agent needs its own
+      # provider helper mixed in (api_request / send_query); Provider
+      # Independence is preserved per variant (no cross-provider calls).
+      CODE_AGENTS = {
+        "openai"    => { module: "Monadic::Agents::OpenAICodeAgent", call: :call_openai_code },
+        "anthropic" => { module: "Monadic::Agents::ClaudeCodeAgent", call: :call_claude_code },
+        "xai"       => { module: "Monadic::Agents::GrokCodeAgent",   call: :call_grok_code }
+      }.freeze
+
+      # Auto-selection order when no provider is requested.
+      CODE_PROVIDER_ORDER = %w[openai anthropic xai].freeze
+
+      # Code output can be large; reserve a generous backstop on top of the
+      # prompt and reconcile with the actual length afterward.
+      CODE_OUTPUT_ESTIMATE = 8000
+
+      def handle_generate_code(arguments)
+        prompt = (arguments["prompt"] || arguments[:prompt]).to_s
+        raise ArgumentError, "prompt is required" if prompt.strip.empty?
+
+        provider = resolve_code_provider(arguments["provider"] || arguments[:provider])
+        unless provider
+          return { success: false,
+                   error: "❌ No code-capable provider is configured (need an API key for " \
+                          "openai, anthropic, or xai)." }
+        end
+
+        input_tokens = CostGuard.estimate_tokens(prompt)
+        begin
+          CostGuard.ensure_within!(input_tokens + CODE_OUTPUT_ESTIMATE)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        spec = CODE_AGENTS[provider]
+        result = code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt)
+        result = {} unless result.is_a?(Hash)
+        success = result[:success] == true
+        code = result[:code]
+        CostGuard.record(input_tokens + CostGuard.estimate_tokens(code.to_s))
+
+        {
+          provider: provider,
+          success: success,
+          model: result[:model],
+          code: (success ? code : nil),
+          error: (success ? nil : "❌ #{result[:error] || 'code generation failed'}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      # Resolve a requested provider to a configured code provider, or pick the
+      # first configured one when none is requested. Returns nil if nothing is
+      # available; raises for a named provider that has no code agent.
+      def resolve_code_provider(requested)
+        req = requested.to_s.strip
+        unless req.empty?
+          canonical = MonadicDSL::ProviderConfig.new(req).standard_key
+          raise ArgumentError, "#{req} has no code agent" unless CODE_AGENTS.key?(canonical)
+
+          return code_provider_configured?(canonical) ? canonical : nil
+        end
+        CODE_PROVIDER_ORDER.find { |p| code_provider_configured?(p) }
+      end
+
+      def code_provider_configured?(provider)
+        api_key_env = MonadicDSL::ProviderConfig::PROVIDER_INFO.dig(provider, :api_key)
+        provider_configured?(api_key_env)
+      end
+
+      # Headless code host: the provider helper (api_request / send_query) plus
+      # the code-agent module, memoized per provider.
+      def code_host(provider, module_name)
+        helper_name = MonadicDSL::ProviderConfig::PROVIDER_INFO.dig(provider, :helper_module)
+        helper = Object.const_get(helper_name)
+        agent = Object.const_get(module_name)
+
+        @hosts_mutex.synchronize do
+          (@code_hosts ||= {})[provider] ||= begin
+            Class.new.tap do |klass|
+              klass.include(helper)
+              klass.include(agent)
+            end.new
+          end
+        end
       end
 
       # ---- Background jobs (async submit / poll / cancel) ----------------

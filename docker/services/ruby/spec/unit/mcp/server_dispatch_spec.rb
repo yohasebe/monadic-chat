@@ -36,7 +36,7 @@ RSpec.describe Monadic::MCP::Server do
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
-        "monadic_speak",
+        "monadic_speak", "monadic_generate_code",
         "monadic_submit", "monadic_poll", "monadic_cancel", "monadic_jobs"
       )
     end

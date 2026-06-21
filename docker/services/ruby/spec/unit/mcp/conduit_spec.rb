@@ -17,7 +17,7 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_parallel_query", "monadic_second_opinion",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
-        "monadic_speak",
+        "monadic_speak", "monadic_generate_code",
         "monadic_submit", "monadic_poll", "monadic_cancel", "monadic_jobs"
       )
     end
@@ -49,6 +49,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_analyze_image")).to be true
       expect(described_class.tool?("monadic_transcribe_audio")).to be true
       expect(described_class.tool?("monadic_speak")).to be true
+      expect(described_class.tool?("monadic_generate_code")).to be true
       expect(described_class.tool?("monadic_submit")).to be true
       expect(described_class.tool?("monadic_poll")).to be true
       expect(described_class.tool?("monadic_cancel")).to be true
@@ -663,6 +664,71 @@ RSpec.describe Monadic::MCP::Conduit do
       stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
       expect(thost).not_to receive(:text_to_speech)
       result = described_class.call("monadic_speak", { "text" => "a long sentence to speak" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
+    end
+  end
+
+  describe "monadic_generate_code" do
+    let(:chost) { double("code_host") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:code_provider_configured?).and_return(true)
+      allow(described_class).to receive(:code_host).and_return(chost)
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "generates code with the auto-selected provider and charges the budget" do
+      expect(chost).to receive(:call_openai_code).with(prompt: "make a fib fn")
+        .and_return({ code: "def fib(n); end", success: true, model: "gpt-5-codex" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "make a fib fn" })
+      expect(result[:success]).to be true
+      expect(result[:provider]).to eq("openai")
+      expect(result[:code]).to include("def fib")
+      expect(result[:model]).to eq("gpt-5-codex")
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "routes a requested provider (claude -> anthropic, call_claude_code)" do
+      expect(described_class).to receive(:code_host)
+        .with("anthropic", "Monadic::Agents::ClaudeCodeAgent").and_return(chost)
+      allow(chost).to receive(:call_claude_code).and_return({ code: "x", success: true })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "claude" })
+      expect(result[:provider]).to eq("anthropic")
+      expect(result[:success]).to be true
+    end
+
+    it "maps an agent failure to a structured error" do
+      allow(chost).to receive(:call_openai_code)
+        .and_return({ error: "OpenAIHelper not available", success: false })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/OpenAIHelper not available/)
+    end
+
+    it "requires a prompt" do
+      expect { described_class.call("monadic_generate_code", {}) }
+        .to raise_error(ArgumentError, /prompt is required/)
+    end
+
+    it "rejects a provider that has no code agent" do
+      expect { described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "gemini" }) }
+        .to raise_error(ArgumentError, /has no code agent/)
+    end
+
+    it "reports when no code provider is configured" do
+      allow(described_class).to receive(:code_provider_configured?).and_return(false)
+      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/No code-capable provider/)
+    end
+
+    it "refuses when the budget is exhausted (no agent call)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(chost).not_to receive(:call_openai_code)
+      result = described_class.call("monadic_generate_code", { "prompt" => "make something big" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end

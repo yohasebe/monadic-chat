@@ -249,6 +249,79 @@ module Monadic
               additionalProperties: false
             },
             handler: :handle_second_opinion
+          },
+          {
+            name: "monadic_search_kb",
+            description: "Semantic search over a local PDF Knowledge Base (Qdrant + " \
+                         "multilingual-e5 embeddings). Returns the most relevant chunks for a " \
+                         "query. Runs entirely on your machine (no provider API, no token " \
+                         "cost). Use it to ground answers in your own documents.",
+            input_schema: {
+              type: "object",
+              properties: {
+                query: { type: "string", description: "The text to search for." },
+                knowledge_base: {
+                  type: "string",
+                  description: "KB namespace (app key). Defaults to 'global' (the generic " \
+                               "PDF upload namespace)."
+                },
+                top_n: {
+                  type: "integer",
+                  description: "Number of results to return (1-50, default 5)."
+                },
+                level: {
+                  type: "string",
+                  description: "'item' for text chunks (default) or 'doc' for document-level hits."
+                }
+              },
+              required: ["query"],
+              additionalProperties: false
+            },
+            handler: :handle_search_kb
+          },
+          {
+            name: "monadic_list_kb",
+            description: "List the documents stored in a local PDF Knowledge Base namespace.",
+            input_schema: {
+              type: "object",
+              properties: {
+                knowledge_base: {
+                  type: "string",
+                  description: "KB namespace (app key). Defaults to 'global'."
+                }
+              },
+              additionalProperties: false
+            },
+            handler: :handle_list_kb
+          },
+          {
+            name: "monadic_import_kb",
+            description: "Import a document into a local PDF Knowledge Base namespace " \
+                         "(chunk + embed + store). Provide `text` for raw text (no extra " \
+                         "containers needed) or `path` to a local .pdf file (extracted via the " \
+                         "python container). Embeddings are computed locally — no provider " \
+                         "token cost. Synchronous.",
+            input_schema: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "Title for the stored document." },
+                text: {
+                  type: "string",
+                  description: "Raw text to import. Use this OR `path`."
+                },
+                path: {
+                  type: "string",
+                  description: "Absolute path to a local .pdf file to import. Use this OR `text`."
+                },
+                knowledge_base: {
+                  type: "string",
+                  description: "KB namespace (app key). Defaults to 'global'."
+                }
+              },
+              required: ["title"],
+              additionalProperties: false
+            },
+            handler: :handle_import_kb
           }
         ]
       end
@@ -426,6 +499,142 @@ module Monadic
           validity: validity,
           comments: comments
         }
+      end
+
+      # ---- Knowledge Base (local PDF KB via Monadic::Pdf::Store) ----------
+
+      DEFAULT_KB = "global"
+      KB_MAX_TOP_N = 50
+
+      def handle_search_kb(arguments)
+        query = (arguments["query"] || arguments[:query]).to_s
+        raise ArgumentError, "query is required" if query.empty?
+
+        kb = kb_namespace(arguments)
+        top_n = (arguments["top_n"] || arguments[:top_n]).to_i
+        top_n = 5 if top_n <= 0
+        top_n = KB_MAX_TOP_N if top_n > KB_MAX_TOP_N
+        level = (arguments["level"] || arguments[:level]).to_s
+        level = "item" unless %w[item doc].include?(level)
+
+        store = kb_store(kb)
+        hits = level == "doc" ? store.find_closest_doc(query, top_n: top_n)
+                              : store.find_closest_text(query, top_n: top_n)
+
+        { knowledge_base: kb, level: level, count: hits.size, results: hits }
+      rescue Monadic::VectorStore::BackendError => e
+        { knowledge_base: kb, success: false,
+          error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
+      end
+
+      def handle_list_kb(arguments)
+        kb = kb_namespace(arguments)
+        store = kb_store(kb)
+        documents = store.list_titles
+        { knowledge_base: kb, count: documents.size, documents: documents }
+      rescue Monadic::VectorStore::BackendError => e
+        { knowledge_base: kb, success: false,
+          error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
+      end
+
+      def handle_import_kb(arguments)
+        title = (arguments["title"] || arguments[:title]).to_s
+        raise ArgumentError, "title is required" if title.empty?
+
+        kb = kb_namespace(arguments)
+        text = (arguments["text"] || arguments[:text]).to_s
+        path = (arguments["path"] || arguments[:path]).to_s
+
+        chunks, source =
+          if !text.empty?
+            [chunk_text(text), "text"]
+          elsif !path.empty?
+            [extract_pdf_chunks(path), path]
+          else
+            raise ArgumentError, "provide either `text` or `path`"
+          end
+
+        raise "no text could be extracted to import" if chunks.empty?
+
+        store = kb_store(kb)
+        doc_data = { title: title, items: chunks.size, metadata: { source: source } }
+        items_data = chunks.map do |c|
+          { text: (c["text"] || c[:text]), metadata: { tokens: (c["tokens"] || c[:tokens]) } }
+        end
+        doc_id = store.store_embeddings(doc_data, items_data)
+
+        { knowledge_base: kb, doc_id: doc_id, title: title, chunks: chunks.size, source: source }
+      rescue Monadic::VectorStore::BackendError => e
+        { knowledge_base: kb, success: false,
+          error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
+      end
+
+      # ---- Knowledge Base helpers ----------------------------------------
+
+      def kb_namespace(arguments)
+        ns = (arguments["knowledge_base"] || arguments[:knowledge_base]).to_s.strip
+        ns.empty? ? DEFAULT_KB : ns
+      end
+
+      def kb_store(knowledge_base)
+        require_relative '../pdf'
+        Monadic::Pdf::Store.new(app_key: knowledge_base)
+      end
+
+      # Token-based line chunker mirroring PDF2Text#split_text, but for arbitrary
+      # text (no PDF / python container needed).
+      def chunk_text(text, max_tokens: kb_chunk_tokens, overlap_lines: kb_overlap_lines, separator: "\n")
+        return chunk_text_by_length(text) unless tokenizer_available?
+
+        tok = MonadicApp::TOKENIZER
+        lines = text.split(separator)
+        chunks = []
+        current = []
+        current_tokens = 0
+
+        lines.each do |line|
+          line_token_count = tok.get_tokens_sequence(line).size
+          if current_tokens + line_token_count > max_tokens && !current.empty?
+            chunks << { "text" => current.join(separator).strip, "tokens" => current_tokens }
+            current = current.last(overlap_lines)
+            current_tokens = tok.get_tokens_sequence(current.join(separator)).size
+          end
+          current << line.strip
+          current_tokens += line_token_count
+        end
+        chunks << { "text" => current.join(separator).strip, "tokens" => current_tokens } unless current.empty?
+        chunks.reject { |c| c["text"].to_s.empty? }
+      end
+
+      # Fallback chunker when the tokenizer is unavailable: split on ~max_chars.
+      def chunk_text_by_length(text, max_chars: 8000)
+        text.scan(/.{1,#{max_chars}}/m).map { |slice| { "text" => slice.strip, "tokens" => nil } }
+            .reject { |c| c["text"].empty? }
+      end
+
+      def extract_pdf_chunks(path)
+        unless path.downcase.end_with?(".pdf")
+          raise ArgumentError, "path must point to a .pdf file"
+        end
+        raise ArgumentError, "file not found: #{path}" unless File.exist?(path)
+
+        require_relative '../utils/pdf_text_extractor'
+        pdf = PDF2Text.new(path: path, max_tokens: kb_chunk_tokens, separator: "\n",
+                           overwrap_lines: kb_overlap_lines)
+        pdf.extract
+        pdf.split_text
+      end
+
+      def kb_chunk_tokens
+        defined?(RAG_TOKENS) ? RAG_TOKENS : 4000
+      end
+
+      def kb_overlap_lines
+        defined?(RAG_OVERLAP_LINES) ? RAG_OVERLAP_LINES : 4
+      end
+
+      def tokenizer_available?
+        defined?(MonadicApp) && defined?(MonadicApp::TOKENIZER) && MonadicApp::TOKENIZER
       end
 
       # ---- Query helpers --------------------------------------------------

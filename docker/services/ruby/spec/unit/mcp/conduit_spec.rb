@@ -13,7 +13,8 @@ RSpec.describe Monadic::MCP::Conduit do
       names = tools.map { |t| t[:name] }
       expect(names).to contain_exactly(
         "monadic_status", "monadic_list_models", "monadic_query",
-        "monadic_parallel_query", "monadic_second_opinion"
+        "monadic_parallel_query", "monadic_second_opinion",
+        "monadic_search_kb", "monadic_list_kb", "monadic_import_kb"
       )
     end
 
@@ -38,6 +39,9 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_query")).to be true
       expect(described_class.tool?("monadic_parallel_query")).to be true
       expect(described_class.tool?("monadic_second_opinion")).to be true
+      expect(described_class.tool?("monadic_search_kb")).to be true
+      expect(described_class.tool?("monadic_list_kb")).to be true
+      expect(described_class.tool?("monadic_import_kb")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -404,6 +408,97 @@ RSpec.describe Monadic::MCP::Conduit do
 
       expect(excluded_ids).not_to include("__dep_model__")
       expect(included_ids).to include("__dep_model__")
+    end
+  end
+
+  describe "knowledge base tools" do
+    let(:store) { double("PdfStore") }
+
+    before { allow(described_class).to receive(:kb_store).and_return(store) }
+
+    describe "monadic_search_kb" do
+      it "searches text chunks and returns hits with the namespace" do
+        expect(store).to receive(:find_closest_text).with("neural nets", top_n: 5)
+          .and_return([{ text: "chunk A", similarity: 0.9, doc_id: "d1" }])
+        result = described_class.call("monadic_search_kb", { "query" => "neural nets" })
+        expect(result[:knowledge_base]).to eq("global")
+        expect(result[:level]).to eq("item")
+        expect(result[:count]).to eq(1)
+        expect(result[:results].first[:text]).to eq("chunk A")
+      end
+
+      it "honors a custom namespace, top_n and doc level" do
+        expect(described_class).to receive(:kb_store).with("papers").and_return(store)
+        expect(store).to receive(:find_closest_doc).with("q", top_n: 3).and_return([])
+        result = described_class.call("monadic_search_kb", {
+          "query" => "q", "knowledge_base" => "papers", "top_n" => 3, "level" => "doc"
+        })
+        expect(result[:level]).to eq("doc")
+      end
+
+      it "requires a query" do
+        expect { described_class.call("monadic_search_kb", {}) }
+          .to raise_error(ArgumentError, /query is required/)
+      end
+
+      it "returns a structured error when the vector store is down" do
+        allow(store).to receive(:find_closest_text)
+          .and_raise(Monadic::VectorStore::BackendError.new("connection refused"))
+        result = described_class.call("monadic_search_kb", { "query" => "q" })
+        expect(result[:success]).to be false
+        expect(result[:error]).to match(/Knowledge Base unavailable/)
+      end
+    end
+
+    describe "monadic_list_kb" do
+      it "lists stored documents" do
+        allow(store).to receive(:list_titles)
+          .and_return([{ doc_id: "d1", title: "Paper", items: 12 }])
+        result = described_class.call("monadic_list_kb", { "knowledge_base" => "papers" })
+        expect(result[:knowledge_base]).to eq("papers")
+        expect(result[:count]).to eq(1)
+        expect(result[:documents].first[:title]).to eq("Paper")
+      end
+    end
+
+    describe "monadic_import_kb" do
+      it "imports raw text: chunks, stores, and reports the doc_id" do
+        expect(store).to receive(:store_embeddings) do |doc_data, items_data|
+          expect(doc_data[:title]).to eq("Notes")
+          expect(items_data).to all(include(:text))
+          "doc-123"
+        end
+        result = described_class.call("monadic_import_kb", {
+          "title" => "Notes", "text" => "line one\nline two\nline three"
+        })
+        expect(result[:doc_id]).to eq("doc-123")
+        expect(result[:title]).to eq("Notes")
+        expect(result[:chunks]).to be > 0
+        expect(result[:source]).to eq("text")
+      end
+
+      it "requires a title" do
+        expect { described_class.call("monadic_import_kb", { "text" => "x" }) }
+          .to raise_error(ArgumentError, /title is required/)
+      end
+
+      it "requires text or path" do
+        expect { described_class.call("monadic_import_kb", { "title" => "T" }) }
+          .to raise_error(ArgumentError, /text.*or.*path/)
+      end
+
+      it "rejects a non-pdf path" do
+        expect { described_class.call("monadic_import_kb", { "title" => "T", "path" => "/tmp/foo.txt" }) }
+          .to raise_error(ArgumentError, /must point to a \.pdf/)
+      end
+    end
+  end
+
+  describe ".chunk_text" do
+    it "splits text into chunks with text + token fields" do
+      chunks = described_class.chunk_text("a\nb\nc\nd", max_tokens: 1)
+      expect(chunks).not_to be_empty
+      expect(chunks).to all(include("text"))
     end
   end
 end

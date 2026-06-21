@@ -18,6 +18,7 @@ RSpec.describe Monadic::MCP::Conduit do
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
         "monadic_speak", "monadic_generate_code", "monadic_generate_image",
+        "monadic_generate_video", "monadic_generate_music",
         "monadic_submit", "monadic_poll", "monadic_cancel", "monadic_jobs"
       )
     end
@@ -51,6 +52,8 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_speak")).to be true
       expect(described_class.tool?("monadic_generate_code")).to be true
       expect(described_class.tool?("monadic_generate_image")).to be true
+      expect(described_class.tool?("monadic_generate_video")).to be true
+      expect(described_class.tool?("monadic_generate_music")).to be true
       expect(described_class.tool?("monadic_submit")).to be true
       expect(described_class.tool?("monadic_poll")).to be true
       expect(described_class.tool?("monadic_cancel")).to be true
@@ -803,6 +806,101 @@ RSpec.describe Monadic::MCP::Conduit do
       result = described_class.call("monadic_generate_image", { "prompt" => "x" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
+    end
+  end
+
+  describe "monadic_generate_video" do
+    let(:mhost) { double("media_host") }
+
+    before { Monadic::MCP::CostGuard.reset! }
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "defaults to Veo (gemini) and parses the JSON filename" do
+      ghost = double("gemini_host")
+      expect(described_class).to receive(:provider_host).with("gemini").and_return(ghost)
+      expect(ghost).to receive(:generate_video_with_veo)
+        .with(hash_including(prompt: "a sunrise"))
+        .and_return(JSON.generate({ "success" => true, "filename" => "v.mp4" }))
+      result = described_class.call("monadic_generate_video", { "prompt" => "a sunrise" })
+      expect(result[:success]).to be true
+      expect(result[:provider]).to eq("gemini")
+      expect(result[:files]).to eq(["v.mp4"])
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "routes grok (xai) image-to-video with the source image path" do
+      allow(described_class).to receive(:media_app_host).and_return(mhost)
+      expect(mhost).to receive(:generate_video_with_grok_imagine)
+        .with(hash_including(prompt: "pan", image_path: "src.png"))
+        .and_return(JSON.generate({ success: true, filename: "g.mp4", request_id: "r1" }))
+      result = described_class.call("monadic_generate_video",
+                                    { "prompt" => "pan", "provider" => "xai", "image_path" => "src.png" })
+      expect(result[:provider]).to eq("grok")
+      expect(result[:files]).to eq(["g.mp4"])
+    end
+
+    it "maps a failed result to a structured error" do
+      ghost = double("gemini_host")
+      allow(described_class).to receive(:provider_host).and_return(ghost)
+      allow(ghost).to receive(:generate_video_with_veo)
+        .and_return(JSON.generate({ "success" => false, "message" => "blocked" }))
+      result = described_class.call("monadic_generate_video", { "prompt" => "x" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/blocked/)
+    end
+
+    it "requires a prompt" do
+      expect { described_class.call("monadic_generate_video", {}) }
+        .to raise_error(ArgumentError, /prompt is required/)
+    end
+
+    it "refuses when the budget is exhausted (no generation)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
+      expect(described_class).not_to receive(:invoke_video_generator)
+      result = described_class.call("monadic_generate_video", { "prompt" => "x" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
+    end
+  end
+
+  describe "monadic_generate_music" do
+    let(:ghost) { double("gemini_host") }
+
+    before { Monadic::MCP::CostGuard.reset! }
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "generates with Lyria and returns the saved filename" do
+      allow(described_class).to receive(:provider_host).with("gemini").and_return(ghost)
+      expect(ghost).to receive(:generate_music_with_lyria)
+        .with(hash_including(prompt: "lofi beat"))
+        .and_return(JSON.generate({ success: true, filename: "lyria_1.mp3", mime_type: "audio/mp3" }))
+      result = described_class.call("monadic_generate_music", { "prompt" => "lofi beat" })
+      expect(result[:success]).to be true
+      expect(result[:provider]).to eq("gemini")
+      expect(result[:files]).to eq(["lyria_1.mp3"])
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "passes an explicit output format through" do
+      allow(described_class).to receive(:provider_host).and_return(ghost)
+      expect(ghost).to receive(:generate_music_with_lyria)
+        .with(hash_including(prompt: "jazz", output_format: "wav"))
+        .and_return(JSON.generate({ success: true, filename: "j.wav" }))
+      described_class.call("monadic_generate_music", { "prompt" => "jazz", "format" => "wav" })
+    end
+
+    it "maps a failed result to a structured error" do
+      allow(described_class).to receive(:provider_host).and_return(ghost)
+      allow(ghost).to receive(:generate_music_with_lyria)
+        .and_return(JSON.generate({ success: false, error: "filtered" }))
+      result = described_class.call("monadic_generate_music", { "prompt" => "x" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/filtered/)
+    end
+
+    it "requires a prompt" do
+      expect { described_class.call("monadic_generate_music", {}) }
+        .to raise_error(ArgumentError, /prompt is required/)
     end
   end
 

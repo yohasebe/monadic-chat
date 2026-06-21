@@ -510,6 +510,48 @@ module Monadic
             handler: :handle_generate_image
           },
           {
+            name: "monadic_generate_video",
+            description: "Generate a video from a text prompt (optionally image-to-video) and " \
+                         "save it to the shared volume (~/monadic/data). Returns the saved " \
+                         "filename. Uses your own API keys; spends provider tokens (budget-" \
+                         "gated). Providers: gemini/veo (default), grok/xai. LONG-RUNNING " \
+                         "(minutes) — run via monadic_submit and poll for progress.",
+            input_schema: {
+              type: "object",
+              properties: {
+                prompt: { type: "string", description: "What the video should show." },
+                provider: { type: "string", description: "gemini/veo (default), grok/xai." },
+                aspect_ratio: { type: "string", description: "Optional aspect ratio, e.g. '16:9'." },
+                duration: { type: "number", description: "Optional duration in seconds." },
+                image_path: {
+                  type: "string",
+                  description: "Optional source image (filename on the shared volume) for " \
+                               "image-to-video."
+                }
+              },
+              required: ["prompt"],
+              additionalProperties: false
+            },
+            handler: :handle_generate_video
+          },
+          {
+            name: "monadic_generate_music",
+            description: "Generate music/audio from a text prompt (Lyria) and save it to the " \
+                         "shared volume (~/monadic/data). Returns the saved filename. Uses your " \
+                         "own API keys; spends provider tokens (budget-gated). LONG-RUNNING — " \
+                         "run via monadic_submit and poll for progress.",
+            input_schema: {
+              type: "object",
+              properties: {
+                prompt: { type: "string", description: "Description of the music to generate." },
+                format: { type: "string", description: "Optional output format (e.g. 'mp3', 'wav')." }
+              },
+              required: ["prompt"],
+              additionalProperties: false
+            },
+            handler: :handle_generate_music
+          },
+          {
             name: "monadic_submit",
             description: "Run another Conduit tool as a background job and return a job_id " \
                          "immediately, without blocking. Use this for long or blocking tools " \
@@ -1075,27 +1117,124 @@ module Monadic
         MonadicApp.new
       end
 
-      # Normalize heterogeneous generator outputs to {success:, files:|error:}.
-      # OpenAI prints "Saved file: <path>" lines; Grok/Gemini return JSON.
+      # Normalize an image result to {success:, files:|error:}. OpenAI prints
+      # "Saved file: <path>" lines; every other generator returns JSON.
       def normalize_image_result(provider, raw)
-        if provider == "openai"
-          text = raw.to_s
-          files = text.scan(/Saved file:\s*(\S+)/i).flatten.map { |p| File.basename(p) }
-          return { success: true, files: files } if files.any? && !text.start_with?("Error occurred:")
+        return normalize_media_json(raw) unless provider == "openai"
 
-          { success: false, error: text }
-        else
-          data = begin
-            JSON.parse(raw.to_s)
-          rescue JSON::ParserError
-            nil
-          end
-          if data && data["success"] == true
-            { success: true, files: Array(data["filename"] || data["file"]) }
-          else
-            { success: false, error: (data && (data["message"] || data["error"])) || raw.to_s }
-          end
+        text = raw.to_s
+        files = text.scan(/Saved file:\s*(\S+)/i).flatten.map { |p| File.basename(p) }
+        return { success: true, files: files } if files.any? && !text.start_with?("Error occurred:")
+
+        { success: false, error: text }
+      end
+
+      # Shared normalizer for the JSON-returning generators (grok image, all
+      # video providers, Lyria music): {success, filename} -> {success, files}.
+      def normalize_media_json(raw)
+        data = begin
+          JSON.parse(raw.to_s)
+        rescue JSON::ParserError
+          nil
         end
+        if data && data["success"] == true
+          { success: true, files: Array(data["filename"] || data["file"]) }
+        else
+          { success: false, error: (data && (data["message"] || data["error"])) || raw.to_s }
+        end
+      end
+
+      # ---- Media generation (video) --------------------------------------
+
+      VIDEO_PROVIDERS = %w[gemini grok].freeze
+      VIDEO_GEN_ESTIMATE = 2000
+
+      def handle_generate_video(arguments)
+        prompt = (arguments["prompt"] || arguments[:prompt]).to_s
+        raise ArgumentError, "prompt is required" if prompt.strip.empty?
+
+        provider = normalize_video_provider(arguments["provider"] || arguments[:provider])
+        aspect_ratio = arguments["aspect_ratio"] || arguments[:aspect_ratio]
+        duration = arguments["duration"] || arguments[:duration]
+        image_path = arguments["image_path"] || arguments[:image_path]
+
+        begin
+          CostGuard.ensure_within!(VIDEO_GEN_ESTIMATE)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        raw = invoke_video_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio,
+                                               duration: duration, image_path: image_path)
+        result = normalize_media_json(raw)
+        CostGuard.record(VIDEO_GEN_ESTIMATE)
+
+        {
+          provider: provider,
+          success: result[:success],
+          files: (result[:success] ? result[:files] : nil),
+          note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+          error: (result[:success] ? nil : "❌ #{result[:error]}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      def normalize_video_provider(value)
+        v = value.to_s.strip.downcase
+        return "gemini" if v.empty?
+        return "grok" if %w[grok xai].include?(v)
+        return "gemini" if %w[gemini google veo].include?(v)
+
+        VIDEO_PROVIDERS.include?(v) ? v : "gemini"
+      end
+
+      def invoke_video_generator(provider, prompt:, aspect_ratio:, duration:, image_path:)
+        case provider
+        when "gemini"
+          args = { prompt: prompt }
+          args[:aspect_ratio] = aspect_ratio if aspect_ratio
+          args[:image_path] = image_path if image_path
+          args[:duration_seconds] = duration.to_i if duration
+          provider_host("gemini").generate_video_with_veo(**args)
+        when "grok"
+          args = { prompt: prompt }
+          args[:aspect_ratio] = aspect_ratio if aspect_ratio
+          args[:duration] = duration.to_i if duration
+          args[:image_path] = image_path if image_path
+          media_app_host.generate_video_with_grok_imagine(**args)
+        end
+      end
+
+      # ---- Media generation (music) --------------------------------------
+
+      MUSIC_GEN_ESTIMATE = 2000
+
+      def handle_generate_music(arguments)
+        prompt = (arguments["prompt"] || arguments[:prompt]).to_s
+        raise ArgumentError, "prompt is required" if prompt.strip.empty?
+
+        output_format = arguments["format"] || arguments[:format]
+
+        begin
+          CostGuard.ensure_within!(MUSIC_GEN_ESTIMATE)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        args = { prompt: prompt }
+        args[:output_format] = output_format if output_format
+        raw = provider_host("gemini").generate_music_with_lyria(**args)
+        result = normalize_media_json(raw)
+        CostGuard.record(MUSIC_GEN_ESTIMATE)
+
+        {
+          provider: "gemini",
+          success: result[:success],
+          files: (result[:success] ? result[:files] : nil),
+          note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+          error: (result[:success] ? nil : "❌ #{result[:error]}"),
+          budget: CostGuard.status
+        }.compact
       end
 
       # ---- Background jobs (async submit / poll / cancel) ----------------

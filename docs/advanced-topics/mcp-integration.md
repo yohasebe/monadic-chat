@@ -52,8 +52,8 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 
 **Query**
 - `monadic_query` — a single-provider, context-aware query, with optional knowledge-base grounding and privacy masking
-- `monadic_parallel_query` — the same prompt sent to several providers concurrently
-- `monadic_second_opinion` — verify a response by asking one or more providers to rate and critique it
+- `monadic_parallel_query` — **generate**: the same prompt sent to several providers concurrently to compare fresh, independent answers
+- `monadic_second_opinion` — **grade**: ask one or more providers to score (1–10) and critique a response you already have
 
 **Knowledge base (local PDF knowledge base)**
 - `monadic_search_kb` — semantic search over an imported knowledge base

@@ -186,11 +186,13 @@ module Monadic
           },
           {
             name: "monadic_parallel_query",
-            description: "Fan the same query out to several models concurrently and return all " \
-                         "responses together (each labeled with its `index`). Lets a CLI agent " \
-                         "compare or cross-check answers — e.g. to run a peer review — without " \
-                         "writing its own concurrency. Use `targets` to pick specific models " \
-                         "(any mix, including several from the same provider, up to " \
+            description: "GENERATE answers: fan the same query out to several models concurrently " \
+                         "and return all of their fresh, independent responses together (each " \
+                         "labeled with its `index`), so a CLI agent can compare diverse answers " \
+                         "without writing its own concurrency. This PRODUCES new answers — it " \
+                         "does not score an existing one; to grade an answer you already have, " \
+                         "use `monadic_second_opinion` instead. Use `targets` to pick specific " \
+                         "models (any mix, including several from the same provider, up to " \
                          "#{MAX_PARALLEL_TARGETS}), or `providers` for distinct providers on " \
                          "their chat defaults. Each sub-query spends tokens (budget-gated). " \
                          "Provide `message` or `messages`.",
@@ -274,12 +276,16 @@ module Monadic
           },
           {
             name: "monadic_second_opinion",
-            description: "Ask one or more providers to critically verify a query/response pair " \
-                         "and return a validity score (1-10) plus critique — Monadic's " \
-                         "second-opinion sub-agent. Use it to cross-check an answer (your own " \
-                         "or another model's) before trusting it. Give `provider` for a single " \
-                         "evaluator, or `providers` (2-#{MAX_PARALLEL_PROVIDERS}) to verify in " \
-                         "parallel. Spends tokens; gated by the platform token budget.",
+            description: "GRADE an answer: ask one or more providers to critically evaluate a " \
+                         "query/response pair you ALREADY have and return a validity score " \
+                         "(1-10) plus critique — Monadic's second-opinion sub-agent. This SCORES " \
+                         "a given answer (both `user_query` and `agent_response` are required); " \
+                         "it does not generate fresh answers — to produce new answers across " \
+                         "models, use `monadic_parallel_query` instead. Use it to cross-check an " \
+                         "answer (your own or another model's) before trusting it. Give " \
+                         "`provider` for a single evaluator, or `providers` " \
+                         "(2-#{MAX_PARALLEL_PROVIDERS}) to verify in parallel. Spends tokens; " \
+                         "gated by the platform token budget.",
             input_schema: {
               type: "object",
               properties: {

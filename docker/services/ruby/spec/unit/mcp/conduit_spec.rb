@@ -9,9 +9,11 @@ RSpec.describe Monadic::MCP::Conduit do
   describe ".tools" do
     subject(:tools) { described_class.tools }
 
-    it "exposes exactly the Phase 0 capability tools" do
+    it "exposes the capability tools" do
       names = tools.map { |t| t[:name] }
-      expect(names).to contain_exactly("monadic_status", "monadic_list_models")
+      expect(names).to contain_exactly(
+        "monadic_status", "monadic_list_models", "monadic_query"
+      )
     end
 
     it "publishes monadic_* names only (no app__tool surface)" do
@@ -32,6 +34,7 @@ RSpec.describe Monadic::MCP::Conduit do
     it "recognizes Conduit tools and rejects others" do
       expect(described_class.tool?("monadic_status")).to be true
       expect(described_class.tool?("monadic_list_models")).to be true
+      expect(described_class.tool?("monadic_query")).to be true
       expect(described_class.tool?("Chat__some_tool")).to be false
       expect(described_class.tool?("nonexistent")).to be false
     end
@@ -83,6 +86,107 @@ RSpec.describe Monadic::MCP::Conduit do
       status[:containers].each do |c|
         expect(c).to include(:container, :running)
       end
+    end
+
+    it "surfaces the Conduit token budget" do
+      expect(status[:conduit_budget]).to include(
+        :token_budget, :tokens_spent, :tokens_remaining
+      )
+    end
+  end
+
+  describe "monadic_query" do
+    let(:host) { double("ChatApp") }
+
+    before do
+      Monadic::MCP::CostGuard.reset!
+      allow(described_class).to receive(:provider_host).and_return(host)
+      allow(described_class).to receive(:default_chat_model_for).and_return("test-model")
+    end
+
+    after { Monadic::MCP::CostGuard.reset! }
+
+    it "sends a single message and returns normalized text + usage + budget" do
+      expect(host).to receive(:send_query)
+        .with(hash_including("messages", "model" => "test-model"), model: "test-model")
+        .and_return("Hello from the provider")
+
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "Hi" })
+
+      expect(result[:provider]).to eq("openai")
+      expect(result[:success]).to be true
+      expect(result[:text]).to eq("Hello from the provider")
+      expect(result[:usage]).to include(:input_tokens_est, :output_tokens_est)
+      expect(result[:budget][:tokens_spent]).to be > 0
+    end
+
+    it "resolves provider aliases (claude -> anthropic)" do
+      allow(host).to receive(:send_query).and_return("ok")
+      result = described_class.call("monadic_query",
+                                    { "provider" => "claude", "message" => "Hi" })
+      expect(result[:provider]).to eq("anthropic")
+    end
+
+    it "accepts a full messages array" do
+      expect(host).to receive(:send_query) do |body, **_|
+        expect(body["messages"]).to eq([
+          { "role" => "system", "content" => "be terse" },
+          { "role" => "user", "content" => "hi" }
+        ])
+        "ok"
+      end
+      described_class.call("monadic_query", {
+        "provider" => "openai",
+        "messages" => [
+          { "role" => "system", "content" => "be terse" },
+          { "role" => "user", "content" => "hi" }
+        ]
+      })
+    end
+
+    it "normalizes a tool-call hash response" do
+      allow(host).to receive(:send_query)
+        .and_return({ text: "calling tool", tool_calls: [{ name: "foo" }] })
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "Hi" })
+      expect(result[:success]).to be true
+      expect(result[:text]).to eq("calling tool")
+      expect(result[:tool_calls]).to eq([{ name: "foo" }])
+    end
+
+    it "detects an ErrorFormatter error string as failure" do
+      allow(host).to receive(:send_query)
+        .and_return("[OpenAI] API Error: invalid key (Code: 401)")
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "Hi" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/API Error/)
+    end
+
+    it "refuses to spend when the budget is exhausted (hard ceiling)" do
+      stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "5"))
+      expect(host).not_to receive(:send_query)
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "a long enough prompt" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/Budget exceeded/)
+    end
+
+    it "requires a provider" do
+      expect { described_class.call("monadic_query", { "message" => "hi" }) }
+        .to raise_error(ArgumentError, /provider is required/)
+    end
+
+    it "requires message or messages" do
+      expect { described_class.call("monadic_query", { "provider" => "openai" }) }
+        .to raise_error(ArgumentError, /message/)
+    end
+
+    it "errors when no host app is available for the provider" do
+      allow(described_class).to receive(:provider_host).and_return(nil)
+      expect { described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" }) }
+        .to raise_error(/no app instance available/)
     end
   end
 

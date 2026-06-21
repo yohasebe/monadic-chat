@@ -199,6 +199,18 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:error]).to match(/Budget exceeded/)
     end
 
+    it "flags a possibly-truncated answer (no sentence-final punctuation)" do
+      allow(host).to receive(:send_query).and_return("This answer is cut off mid")
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(result[:possibly_incomplete]).to be true
+    end
+
+    it "does not flag a complete answer" do
+      allow(host).to receive(:send_query).and_return("This answer is complete.")
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(result).not_to have_key(:possibly_incomplete)
+    end
+
     it "requires a provider" do
       expect { described_class.call("monadic_query", { "message" => "hi" }) }
         .to raise_error(ArgumentError, /provider is required/)

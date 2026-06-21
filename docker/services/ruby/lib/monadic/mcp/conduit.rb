@@ -152,11 +152,15 @@ module Monadic
                 },
                 model: {
                   type: "string",
-                  description: "Optional model id. Defaults to the provider's chat default."
+                  description: "Optional model id. Defaults to the provider's chat default. " \
+                               "Call monadic_list_models to discover valid model ids."
                 },
                 max_tokens: {
                   type: "integer",
-                  description: "Optional cap on output tokens (default #{DEFAULT_MAX_OUTPUT})."
+                  description: "Optional cap on output tokens (default #{DEFAULT_MAX_OUTPUT}). " \
+                               "Note: reasoning/thinking models spend this cap on internal " \
+                               "reasoning before any visible output, so set it generously " \
+                               "(e.g. >= 1000) or the answer can come back truncated."
                 },
                 temperature: {
                   type: "number",
@@ -201,7 +205,11 @@ module Monadic
                     type: "object",
                     properties: {
                       provider: { type: "string", description: "Provider name." },
-                      model: { type: "string", description: "Optional model id (chat default if omitted)." }
+                      model: {
+                        type: "string",
+                        description: "Optional model id (chat default if omitted). Call " \
+                                     "monadic_list_models to discover valid model ids."
+                      }
                     },
                     required: ["provider"]
                   }
@@ -239,7 +247,10 @@ module Monadic
                 },
                 max_tokens: {
                   type: "integer",
-                  description: "Optional per-provider output cap (default #{DEFAULT_MAX_OUTPUT})."
+                  description: "Optional per-provider output cap (default #{DEFAULT_MAX_OUTPUT}). " \
+                               "Reasoning/thinking models spend this cap on internal reasoning " \
+                               "before visible output — set it generously (e.g. >= 1000) or an " \
+                               "answer can return truncated (see each result's possibly_incomplete)."
                 },
                 temperature: {
                   type: "number",
@@ -1890,6 +1901,10 @@ module Monadic
           error: normalized[:error],
           grounded: (grounded || nil),
           privacy: (pipeline ? true : nil),
+          # Best-effort hint: the text looks cut off (no sentence-final
+          # punctuation), e.g. a reasoning model that spent `max_tokens` on
+          # internal reasoning before finishing. Raise `max_tokens` and retry.
+          possibly_incomplete: (true if normalized[:success] && looks_incomplete?(normalized[:text])),
           usage: {
             input_tokens_est: input_tokens,
             output_tokens_est: output_tokens,
@@ -2083,6 +2098,16 @@ module Monadic
       # Detects ErrorFormatter's "[Provider] <Category> Error: ..." convention.
       def error_string?(text)
         text.is_a?(String) && text.match?(/\A\[[^\]]+\][^\n]*?Error:/)
+      end
+
+      # Heuristic: a non-empty answer that does not end on sentence-final
+      # punctuation (incl. CJK and closing quotes/brackets) likely got cut off.
+      # Used only as a soft hint — some valid answers legitimately end this way.
+      def looks_incomplete?(text)
+        s = text.to_s.strip
+        return false if s.empty?
+
+        !s.match?(/[.!?…。！？”’"')\]\}]\z/)
       end
 
       # ---- Status helpers -------------------------------------------------

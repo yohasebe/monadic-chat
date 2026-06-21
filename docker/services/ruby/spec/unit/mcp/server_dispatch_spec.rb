@@ -88,6 +88,13 @@ RSpec.describe Monadic::MCP::Server do
       body = rpc("nonexistent/method")
       expect(body.dig("error", "code")).to eq(Monadic::MCP::Server::METHOD_NOT_FOUND)
     end
+
+    it "maps a tool's ArgumentError (bad params) to INVALID_PARAMS, not INTERNAL_ERROR" do
+      # monadic_query without a provider raises ArgumentError inside the handler.
+      body = rpc("tools/call", { "name" => "monadic_query", "arguments" => { "message" => "hi" } })
+      expect(body.dig("error", "code")).to eq(Monadic::MCP::Server::INVALID_PARAMS)
+      expect(body.dig("error", "data")).to match(/provider is required/)
+    end
   end
 
   describe "initialize" do

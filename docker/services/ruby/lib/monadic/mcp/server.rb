@@ -43,8 +43,8 @@ module Monadic
       INTERNAL_ERROR = -32603
 
       # Server status
-      @@server_running = false
-      @@server_thread = nil
+      @server_running = false
+      @server_thread = nil
 
       # CORS headers for HTTP transport
       before do
@@ -172,6 +172,11 @@ module Monadic
             content: [{ type: "text", text: JSON.pretty_generate(result) }],
             structuredContent: result
           })
+        rescue ArgumentError => e
+          # Bad/missing arguments are the caller's to fix — report them as
+          # INVALID_PARAMS (-32602), not as a server-side INTERNAL_ERROR, so a
+          # client can tell "fix your request" from "the server broke".
+          json_rpc_error(id, "Invalid params", INVALID_PARAMS, e.message)
         rescue => e
           Monadic::Utils::ExtraLogger.log { "[MCP] Error executing tool #{tool_name}: #{e.message}" }
           json_rpc_error(id, "Tool execution failed", INTERNAL_ERROR, e.message)
@@ -225,16 +230,16 @@ module Monadic
         {
           enabled: CONFIG["MCP_SERVER_ENABLED"] == true || CONFIG["MCP_SERVER_ENABLED"] == "true",
           port: (CONFIG["MCP_SERVER_PORT"] || 3100).to_i,
-          running: defined?(@@server_running) && @@server_running
+          running: defined?(@server_running) && @server_running
         }
       end
 
       # Stop the MCP server
       def self.stop!
-        if defined?(@@server_thread) && @@server_thread
-          @@server_thread.kill
-          @@server_thread = nil
-          @@server_running = false
+        if defined?(@server_thread) && @server_thread
+          @server_thread.kill
+          @server_thread = nil
+          @server_running = false
           puts "[MCP] Server stopped"
         end
       end
@@ -283,7 +288,7 @@ module Monadic
             # Create and bind the server
             server = Async::HTTP::Server.new(middleware, endpoint)
 
-            @@server_running = true
+            @server_running = true
             puts "[MCP] MCP Server started on port #{port}"
 
             # Notify via WebSocket if available
@@ -295,15 +300,17 @@ module Monadic
               })
             end
 
-            # Run the server (this blocks the task)
+            # Start serving. Async::HTTP::Server#run registers an accept loop on
+            # the reactor and RETURNS (it does not block this task), so the
+            # server keeps serving after this block ends. Therefore we must NOT
+            # clear @server_running in an ensure here — doing so reported the
+            # server as "not running" while it was actively serving requests.
+            # The flag is cleared only on a genuine error (below) or stop!.
             server.run
           rescue => e
             puts "[MCP] Server error: #{e.message}"
             Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
-            @@server_running = false
-          ensure
-            @@server_running = false
-            Monadic::Utils::ExtraLogger.log { "[MCP] Server stopped" }
+            @server_running = false
           end
         end
       end

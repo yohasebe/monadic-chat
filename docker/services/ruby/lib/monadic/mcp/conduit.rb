@@ -36,6 +36,10 @@ module Monadic
       MAX_PARALLEL_PROVIDERS = 5
       PARALLEL_TIMEOUT = 180
 
+      # Memoized headless provider hosts (see provider_host).
+      @provider_hosts = {}
+      @hosts_mutex = Mutex.new
+
       # Public: MCP tool definitions for `tools/list`.
       def tools
         registry.map do |tool|
@@ -441,8 +445,8 @@ module Monadic
 
         host = provider_host(provider)
         unless host
-          raise "no app instance available for provider '#{provider}' " \
-                "(is the provider configured and an app loaded?)"
+          raise "no vendor helper available for provider '#{provider}' " \
+                "(unknown provider or helper not loaded)"
         end
 
         input_tokens = CostGuard.estimate_tokens(
@@ -550,34 +554,24 @@ module Monadic
         nil
       end
 
-      # Borrow a loaded app instance that includes the provider's helper (i.e.
-      # responds to send_query) and whose group matches the provider. Prefers a
-      # plain Chat app. Mirrors TitleSuggester / AIUserAgent provider routing.
+      # Build (and memoize) a dedicated headless host for a provider: a bare
+      # object that mixes in only that provider's vendor helper, so it responds
+      # to send_query. We deliberately CONSTRUCT this host rather than borrow a
+      # Chat app from APPS — send_query is stateless w.r.t. app prompt/context
+      # (it reads only its options + CONFIG), so a headless host carries no
+      # stray system prompt and needs no app to exist. The helper module is
+      # resolved from the SSOT (PROVIDER_INFO). This mirrors what
+      # SecondOpinionAgent#get_provider_helper does internally, keeping a single
+      # principle across Conduit: the platform owns its own provider hosts.
       def provider_host(provider)
-        return nil unless defined?(::APPS) && ::APPS.respond_to?(:each)
+        helper_name = MonadicDSL::ProviderConfig::PROVIDER_INFO.dig(provider, :helper_module)
+        return nil unless helper_name && Object.const_defined?(helper_name)
 
-        keywords = provider_keywords(provider)
-        fallback = nil
-
-        ::APPS.each do |_key, app|
-          next unless app.respond_to?(:settings) && app.respond_to?(:send_query)
-          group = app.settings && app.settings["group"].to_s.downcase.strip
-          next if group.to_s.empty?
-          next unless keywords.any? { |kw| group.include?(kw) }
-
-          return app if app.settings["display_name"] == "Chat"
-          fallback ||= app
-        end
-
-        fallback
-      end
-
-      def provider_keywords(provider)
-        case provider
-        when "anthropic" then %w[anthropic claude]
-        when "xai" then %w[grok xai]
-        when "gemini" then %w[gemini google]
-        else [provider]
+        @hosts_mutex.synchronize do
+          @provider_hosts[provider] ||= begin
+            helper = Object.const_get(helper_name)
+            Class.new.tap { |klass| klass.include(helper) }.new
+          end
         end
       end
 

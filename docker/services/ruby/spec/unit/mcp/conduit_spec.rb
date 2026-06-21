@@ -186,10 +186,28 @@ RSpec.describe Monadic::MCP::Conduit do
         .to raise_error(ArgumentError, /message/)
     end
 
-    it "errors when no host app is available for the provider" do
+    it "errors when no vendor helper is available for the provider" do
       allow(described_class).to receive(:provider_host).and_return(nil)
       expect { described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" }) }
-        .to raise_error(/no app instance available/)
+        .to raise_error(/no vendor helper available/)
+    end
+  end
+
+  describe ".provider_host" do
+    it "builds a headless host that responds to send_query, without borrowing an app" do
+      host = described_class.provider_host("openai")
+      expect(host).to respond_to(:send_query)
+      # It is NOT a MonadicApp (no app borrowed) — just a helper-bearing object.
+      expect(host).not_to respond_to(:settings)
+    end
+
+    it "memoizes one host per provider" do
+      expect(described_class.provider_host("anthropic"))
+        .to be(described_class.provider_host("anthropic"))
+    end
+
+    it "returns nil for an unknown provider" do
+      expect(described_class.provider_host("nonsense-provider")).to be_nil
     end
   end
 

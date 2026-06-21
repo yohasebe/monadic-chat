@@ -37,15 +37,25 @@ RSpec.describe Monadic::MCP::ConduitAgent do
     end
   end
 
-  describe ".assemble_tools" do
-    it "builds OpenAI-style function defs and resolves executor modules" do
-      defs, modules = described_class.assemble_tools(%w[web_search_tools])
-      expect(defs).to be_an(Array).and(be_any)
-      first = defs.first
-      expect(first["type"]).to eq("function")
-      expect(first["function"]).to include("name", "description", "parameters")
-      expect(defs.map { |d| d["function"]["name"] }).to include("search_web")
-      expect(modules).to include(MonadicSharedTools::WebSearchTools)
+  describe ".build_agent_app" do
+    after { described_class.send(:remove_app_class, @app_state.name) if @app_state }
+
+    it "builds a real app via the DSL with provider-formatted tools (no hand conversion)" do
+      @app_state = described_class.send(:build_agent_app, "openai", "gpt-5.4", %w[file_reading])
+      klass = Object.const_get(@app_state.name)
+      settings = ActiveSupport::HashWithIndifferentAccess.new(klass.instance_variable_get(:@settings) || {})
+      names = Array(settings["tools"]).map { |t| t.dig("function", "name") }
+      # The DSL imported the file_reading group and formatted it as function tools.
+      expect(names).to include("fetch_text_from_file")
+      expect(settings["websearch"]).to be_nil.or be(false)
+    end
+
+    it "enables web search via the websearch feature" do
+      @app_state = described_class.send(:build_agent_app, "openai", "gpt-5.4", %w[web_search_tools])
+      settings = ActiveSupport::HashWithIndifferentAccess.new(
+        Object.const_get(@app_state.name).instance_variable_get(:@settings) || {}
+      )
+      expect(settings["websearch"]).to be true
     end
   end
 end

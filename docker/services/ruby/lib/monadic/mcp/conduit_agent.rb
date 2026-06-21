@@ -1,24 +1,29 @@
 # frozen_string_literal: true
 
 require 'securerandom'
+require 'active_support/core_ext/hash/indifferent_access'
 
 module Monadic
   module MCP
-    # Headless, bounded, tool-using agent. Runs a provider's real tool-execution
-    # loop (api_request) so the model can call tools, read results, and decide to
-    # call more — web search is just one tool group. Termination is guaranteed by
-    # the engine's own MAX_FUNC_CALLS cap (20 tool calls/turn) plus the
-    # ErrorPatternDetector (stuck-loop detection); Conduit adds a budget gate.
+    # Headless, bounded, tool-using agent.
     #
-    # Tool groups come from the shared-tool Registry (module + JSON schemas), so
-    # the mechanism is tool-agnostic. Only safe, read-only groups are allowed by
-    # default; execution / file-write / container groups are excluded.
+    # Rather than hand-format tools per provider, this builds a REAL Monadic app
+    # at run time via the same DSL pipeline (`MonadicDSL.app` + `features` /
+    # `import_shared_tools`) that every shipped app uses. The DSL produces the
+    # correctly per-provider-formatted `settings[:tools]`, wires the executor
+    # modules, and sets the session conventions — so adding a tool group or a
+    # provider needs NO conversion code here. The agent then drives the app's
+    # own tool-execution loop (api_request), whose MAX_FUNC_CALLS cap (20 tool
+    # calls/turn) + ErrorPatternDetector guarantee termination; Conduit adds a
+    # budget gate on top.
+    #
+    # Only safe, read-only tool groups are allowed by default; execution /
+    # file-write / container groups are excluded.
     module ConduitAgent
       module_function
 
-      # Safe, read-only tool groups an autonomous agent may use. Deliberately
-      # excludes python_execution, file_operations, web_automation,
-      # jupyter_operations, app_creation, parallel_* (code/file/container power).
+      # Safe, read-only tool groups. Excludes python_execution, file_operations,
+      # web_automation, jupyter_operations, app_creation, parallel_* etc.
       SAFE_GROUPS = %w[
         web_search_tools file_reading image_analysis video_analysis
         audio_transcription session_context verification planning
@@ -26,33 +31,77 @@ module Monadic
 
       DEFAULT_GROUPS = %w[web_search_tools].freeze
 
+      # Sliding-window size the WebSocket layer normally injects at runtime.
+      RUNTIME_CONTEXT_SIZE = 100
+
       @apps_mutex = Mutex.new
 
       def allowed_groups
         SAFE_GROUPS
       end
 
-      # Run the agent and return its final answer text (or an "ERROR:"/provider
+      # Run the agent; returns the final answer text (or an "ERROR:"/provider
       # error string). `model` is resolved by the caller.
       def run(task:, provider:, model:, groups: DEFAULT_GROUPS)
         groups = normalize_groups(groups)
-        helper = provider_helper(provider)
 
-        tool_defs, modules = assemble_tools(groups)
-        app_key = "ConduitAgent_#{SecureRandom.hex(6)}"
-        host = build_host(helper, modules, tool_defs, model, app_key)
+        state = build_agent_app(provider.to_s, model.to_s, groups)
+        klass = Object.const_get(state.name)
+        # Mirror init_apps: the DSL stores @settings on the class; an instance
+        # gets them as a HashWithIndifferentAccess (string/symbol agnostic, which
+        # is what api_request reads).
+        host = klass.new
+        host.settings = ::ActiveSupport::HashWithIndifferentAccess.new(
+          klass.instance_variable_get(:@settings) || {}
+        )
+        app_key = host.settings["app_name"]
 
         register(app_key, host)
         begin
-          session = build_session(task, model, app_key, tool_defs)
+          # session[:parameters] = the app's settings PLUS the runtime params the
+          # WebSocket layer normally injects (which a headless run lacks). Only
+          # context_size matters here: Claude/Gemini take messages.last(N), so a
+          # missing/zero N drops the user turn and the model just greets.
+          params = host.settings.merge("context_size" => RUNTIME_CONTEXT_SIZE)
+          session = {
+            parameters: params,
+            messages: [{ "role" => "user", "text" => task.to_s, "active" => true }]
+          }
           results = host.api_request("user", session, call_depth: 0) { |_fragment| nil }
           extract_text(results)
         ensure
           unregister(app_key)
+          remove_app_class(state.name)
         end
       end
 
-      # --- internals ----------------------------------------------------
+      # --- build via the real DSL pipeline ------------------------------
+
+      # Construct an agent app through the DSL. Web search is enabled via the
+      # `websearch` feature (which sets up each provider's native/Tavily search
+      # correctly); every other group is imported from the shared-tool registry.
+      def build_agent_app(provider, model, groups)
+        prov = provider
+        mdl = model
+        sys = system_prompt
+        web = groups.include?("web_search_tools")
+        other = groups - ["web_search_tools"]
+        name = "ConduitAgentRun#{SecureRandom.hex(4)}"
+
+        MonadicDSL.app(name) do
+          llm do
+            provider prov
+            model mdl
+          end
+          system_prompt sys
+          features { websearch true } if web
+          unless other.empty?
+            tools do
+              other.each { |g| import_shared_tools g.to_sym, visibility: "always" }
+            end
+          end
+        end
+      end
 
       def normalize_groups(groups)
         list = Array(groups).map(&:to_s)
@@ -64,66 +113,7 @@ module Monadic
                 "tool group(s) not permitted for the agent: #{not_allowed.join(', ')} " \
                 "(allowed: #{allowed_groups.join(', ')})"
         end
-
-        unknown = list.reject { |g| MonadicSharedTools::Registry.group_exists?(g.to_sym) }
-        raise ArgumentError, "unknown tool group(s): #{unknown.join(', ')}" unless unknown.empty?
-
         list.uniq
-      end
-
-      def provider_helper(provider)
-        name = MonadicDSL::ProviderConfig::PROVIDER_INFO.dig(provider, :helper_module)
-        raise ArgumentError, "no helper for provider '#{provider}'" unless name && Object.const_defined?(name)
-
-        Object.const_get(name)
-      end
-
-      # Build the OpenAI-style function tool definitions + the executor modules
-      # for the requested groups, from the Registry.
-      def assemble_tools(groups)
-        defs = []
-        modules = []
-        groups.each do |group|
-          sym = group.to_sym
-          MonadicSharedTools::Registry.tools_for(sym).each do |spec|
-            s = spec.respond_to?(:to_h) ? spec.to_h : spec
-            defs << {
-              "type" => "function",
-              "function" => {
-                "name" => s[:name].to_s,
-                "description" => s[:description].to_s,
-                "parameters" => params_to_schema(s[:parameters])
-              },
-              "strict" => false
-            }
-          end
-          modules << Object.const_get(MonadicSharedTools::Registry.module_name_for(sym))
-        end
-        [defs, modules]
-      end
-
-      def build_host(helper, modules, tool_defs, model, app_key)
-        sys = system_prompt
-        Class.new(MonadicApp) do
-          include helper
-          modules.each { |m| include m }
-          define_method(:settings) do
-            { "tools" => tool_defs, "app_name" => app_key, "model" => model, "initial_prompt" => sys }
-          end
-        end.new
-      end
-
-      def build_session(task, model, app_key, tool_defs)
-        {
-          parameters: {
-            "model" => model,
-            "app_name" => app_key,
-            "tools" => tool_defs,
-            "initial_prompt" => system_prompt,
-            "temperature" => 0.3
-          },
-          messages: [{ "role" => "user", "text" => task.to_s, "active" => true }]
-        }
       end
 
       def system_prompt
@@ -150,35 +140,12 @@ module Monadic
         @apps_mutex.synchronize { APPS.delete(key) }
       end
 
-      # Registry stores a tool's parameters as an array of {name, type,
-      # description, required, ...}; providers want a JSON-Schema object.
-      def params_to_schema(params)
-        properties = {}
-        required = []
-        Array(params).each do |raw|
-          p = raw.respond_to?(:to_h) ? raw.to_h : raw
-          name = (p[:name] || p["name"]).to_s
-          next if name.empty?
-
-          schema = {}
-          p.each do |k, v|
-            next if %i[name required].include?(k.to_sym)
-
-            schema[k.to_s] = deep_stringify(v)
-          end
-          schema["type"] ||= "string"
-          properties[name] = schema
-          required << name if p[:required] || p["required"]
+      def remove_app_class(name)
+        @apps_mutex.synchronize do
+          Object.send(:remove_const, name) if Object.const_defined?(name, false)
         end
-        { "type" => "object", "properties" => properties, "required" => required, "additionalProperties" => false }
-      end
-
-      def deep_stringify(obj)
-        case obj
-        when Hash then obj.each_with_object({}) { |(k, v), h| h[k.to_s] = deep_stringify(v) }
-        when Array then obj.map { |e| deep_stringify(e) }
-        else obj
-        end
+      rescue StandardError
+        nil
       end
     end
   end

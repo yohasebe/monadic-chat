@@ -54,6 +54,11 @@ module Monadic
         host.settings = ::ActiveSupport::HashWithIndifferentAccess.new(
           klass.instance_variable_get(:@settings) || {}
         )
+        # Disable Progressive Tool Disclosure: an autonomous agent should see all
+        # its tools immediately, not unlock them via request_tool. With PTD off,
+        # every provider's api_request surfaces web search directly (the Tavily-
+        # fallback providers push their WEBSEARCH_TOOLS instead of hiding them).
+        host.settings.delete("progressive_tools")
         app_key = host.settings["app_name"]
 
         register(app_key, host)

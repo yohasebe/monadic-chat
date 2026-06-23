@@ -33,7 +33,7 @@ RSpec.describe Monadic::MCP::Server do
       names = body.dig("result", "tools").map { |t| t["name"] }
       expect(names).to contain_exactly(
         "monadic_status", "monadic_list_models", "monadic_query",
-        "monadic_parallel_query", "monadic_second_opinion",
+        "monadic_parallel_query", "monadic_second_opinion", "monadic_confidence",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
         "monadic_analyze_audio", "monadic_analyze_video",

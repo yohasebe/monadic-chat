@@ -319,6 +319,90 @@ module Monadic
             handler: :handle_second_opinion
           },
           {
+            name: "monadic_confidence",
+            description: "ASSESS confidence by AGREEMENT: fan a question out to several DIVERSE " \
+                         "(cross-provider) models, then judge how much their independent answers " \
+                         "AGREE. Cross-provider agreement is a calibrated proxy for trustworthiness " \
+                         "— on labeled benchmarks, when a diverse panel agreed the answer was " \
+                         "almost always correct, and when it scattered correctness fell to a " \
+                         "coin-flip. Use it to catch overconfident single-model hallucination: a " \
+                         "lone model always sounds sure, but disagreement across independent models " \
+                         "is a real uncertainty signal. Returns a confidence level (high/medium/low) " \
+                         "+ what they agree on, the points of disagreement, the raw responses, and a " \
+                         "recommendation (trust/verify/escalate). For a meaningful signal use " \
+                         "DISTINCT providers (same-provider agreement has correlated errors). Each " \
+                         "sub-query plus one judge call spends tokens (budget-gated). Provide " \
+                         "`message` or `messages`.",
+            input_schema: {
+              type: "object",
+              properties: {
+                targets: {
+                  type: "array",
+                  description: "2-#{MAX_PARALLEL_TARGETS} explicit {provider, model} panel members. " \
+                               "Prefer DISTINCT providers for an independent signal. Use this OR " \
+                               "`providers`.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      provider: { type: "string", description: "Provider name." },
+                      model: { type: "string", description: "Optional model id (chat default if omitted)." }
+                    },
+                    required: ["provider"]
+                  }
+                },
+                providers: {
+                  type: "array",
+                  description: "2-#{MAX_PARALLEL_PROVIDERS} distinct provider names (the diverse " \
+                               "panel). Use this OR `targets`.",
+                  items: { type: "string" }
+                },
+                message: {
+                  type: "string",
+                  description: "A single question sent to every panel member. Use this OR `messages`."
+                },
+                messages: {
+                  type: "array",
+                  description: "A full conversation sent to every panel member. Use this OR `message`.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      role: { type: "string", description: "user | assistant | system" },
+                      content: { type: "string", description: "Message text." }
+                    },
+                    required: ["role", "content"]
+                  }
+                },
+                judge: {
+                  type: "object",
+                  description: "Optional {provider, model} for the consensus judge (defaults to " \
+                               "OpenAI chat default). The judge reads the panel's responses " \
+                               "ANONYMIZED, so it cannot favor its own.",
+                  properties: {
+                    provider: { type: "string" },
+                    model: { type: "string" }
+                  }
+                },
+                system: { type: "string", description: "Optional system prompt for every panel member." },
+                max_tokens: {
+                  type: "integer",
+                  description: "Optional per-member output cap (default #{DEFAULT_MAX_OUTPUT})."
+                },
+                temperature: { type: "number", description: "Optional sampling temperature for the panel." },
+                knowledge_base: {
+                  type: "string",
+                  description: "Optional KB namespace to ground every panel member's answer."
+                },
+                privacy: {
+                  type: "boolean",
+                  description: "When true, mask PII before sending to every member and restore it (fails closed)."
+                }
+              },
+              required: [],
+              additionalProperties: false
+            },
+            handler: :handle_confidence
+          },
+          {
             name: "monadic_search_kb",
             description: "Semantic search over a local PDF Knowledge Base (Qdrant + " \
                          "multilingual-e5 embeddings). Returns the most relevant chunks for a " \
@@ -811,31 +895,41 @@ module Monadic
         messages = normalize_messages(arguments)
         raise ArgumentError, "provide either `message` or `messages`" if messages.empty?
 
+        indexed = fan_out_panel(messages, resolve_parallel_targets(arguments), arguments)
+        { results: indexed, budget: CostGuard.status }
+      end
+
+      # Shared fan-out: run the same conversation against every target and return
+      # the results indexed (so duplicate provider+model targets stay
+      # distinguishable). Used by both parallel_query and confidence. `sequential`
+      # forces one-at-a-time execution (required when a target is a single local
+      # server — concurrent requests get dropped, ensemble-experiment gotcha).
+      def fan_out_panel(messages, targets, arguments, sequential: false, temperature: nil)
         system = (arguments["system"] || arguments[:system]).to_s
-        max_output = (arguments["max_tokens"] || arguments[:max_tokens])
-        temperature = arguments["temperature"] || arguments[:temperature]
+        max_output = arguments["max_tokens"] || arguments[:max_tokens]
+        temperature ||= arguments["temperature"] || arguments[:temperature]
         knowledge_base = arguments["knowledge_base"] || arguments[:knowledge_base]
         privacy = arguments["privacy"] || arguments[:privacy]
 
-        targets = resolve_parallel_targets(arguments)
-
-        results = run_in_parallel(targets) do |target|
+        runner = lambda do |target|
           execute_query(
-            provider: target[:provider],
-            messages: messages,
-            system: system,
-            model: target[:model],
-            max_output: max_output,
-            temperature: temperature,
-            knowledge_base: knowledge_base,
-            privacy: privacy
+            provider: target[:provider], messages: messages, system: system,
+            model: target[:model], max_output: max_output, temperature: temperature,
+            knowledge_base: knowledge_base, privacy: privacy
           )
         end
 
-        # Index results so duplicate (same provider+model) targets stay
-        # distinguishable in the response.
-        indexed = results.each_with_index.map { |r, i| (r || {}).merge(index: i) }
-        { results: indexed, budget: CostGuard.status }
+        results =
+          if sequential
+            targets.map do |t|
+              runner.call(t)
+            rescue StandardError => e
+              { provider: t[:provider], model: t[:model], success: false, error: "❌ #{e.class}: #{e.message}" }
+            end
+          else
+            run_in_parallel(targets, &runner)
+          end
+        results.each_with_index.map { |r, i| (r || {}).merge(index: i) }
       end
 
       # Build the list of {provider, model} targets to fan out to, from EITHER:
@@ -875,6 +969,261 @@ module Monadic
 
           acc << { provider: canonical, model: (models[original] || models[canonical]) }
         end
+      end
+
+      # ---- Confidence via agreement --------------------------------------
+
+      # Map a 0-1 consensus score to a confidence band + recommended action.
+      # Calibrated against labeled benchmarks (validate_confidence.rb): a
+      # unanimous DIVERSE panel was ~always correct, a split panel ~coin-flip.
+      CONFIDENCE_BANDS = [
+        [0.8, "high",   "trust"],
+        [0.5, "medium", "verify"]
+      ].freeze
+
+      def handle_confidence(arguments)
+        messages = normalize_messages(arguments)
+        raise ArgumentError, "provide either `message` or `messages`" if messages.empty?
+
+        # Panel: the caller's explicit choice, OR auto-select via the degradation
+        # ladder when none is given (the chat-UI verify button takes this path).
+        # When the ladder reports it CANNOT measure agreement honestly (e.g. a
+        # single deterministic model), refuse rather than fan out and fake it.
+        explicit = arguments["targets"] || arguments[:targets] ||
+                   arguments["providers"] || arguments[:providers]
+        temperature_override = nil
+        if explicit
+          targets = resolve_parallel_targets(arguments)
+        else
+          plan = select_confidence_panel
+          if plan[:mode] == :unavailable
+            return { confidence: "unavailable", score: nil, consensus: "", disagreements: [],
+                     recommendation: "verify", note: plan[:reason], responses: [],
+                     budget: CostGuard.status }
+          end
+          targets = plan[:targets]
+          if plan[:mode] == :within_provider
+            # Self-consistency: run the ONE model K times. Force a sampling
+            # temperature so the samples can actually diverge — at temperature 0
+            # they would be identical and fake a unanimous (false) signal.
+            targets *= plan[:samples].to_i.clamp(2, 8)
+            temperature_override = 0.8
+          end
+        end
+
+        # A single local server (Ollama) drops concurrent requests, so its panel
+        # must run sequentially (ensemble-experiment gotcha).
+        sequential = targets.any? { |t| single_local_server?(t[:provider]) }
+
+        # (1) Fan out to the panel (shared machinery; sequential when required).
+        responses = fan_out_panel(messages, targets, arguments,
+                                  sequential: sequential, temperature: temperature_override)
+        usable = responses.select { |r| r[:success] && !r[:text].to_s.strip.empty? }
+
+        if usable.size < 2
+          return {
+            confidence: "unknown", score: nil, consensus: "", disagreements: [],
+            recommendation: "verify",
+            note: "Need >= 2 successful responses to assess agreement (got #{usable.size}).",
+            responses: responses, budget: CostGuard.status
+          }
+        end
+
+        # (2) Judge consensus over ANONYMIZED responses (no provider labels, so
+        # the judge cannot favor its own).
+        question = (messages.reverse.find { |m| m["role"] == "user" } || messages.last)&.dig("content").to_s
+        verdict = judge_consensus(question, usable, arguments["judge"] || arguments[:judge])
+        band = confidence_band(verdict[:score])
+
+        # Honesty: the signal strength reflects the providers that ACTUALLY
+        # answered, not the ones requested — if a provider dropped, surviving
+        # same-provider answers must NOT be sold as an independent cross-check.
+        diverse = usable.map { |r| r[:provider] }.uniq.size >= 2
+
+        {
+          confidence: band[:level],
+          score: verdict[:score],
+          consensus: verdict[:consensus],
+          disagreements: verdict[:disagreements],
+          recommendation: band[:action],
+          panel_size: usable.size,
+          cross_provider: diverse,
+          note: (diverse ? nil : "Surviving responses are from a single provider: agreement has " \
+                                  "correlated errors (weak signal)."),
+          judge_error: verdict[:judge_error],
+          responses: responses,
+          budget: CostGuard.status
+        }.compact
+      end
+
+      # {level:, action:} for a 0-1 score; a non-numeric score -> medium/verify.
+      def confidence_band(score)
+        return { level: "unknown", action: "verify" } unless score.is_a?(Numeric)
+
+        CONFIDENCE_BANDS.each { |min, level, action| return { level: level, action: action } if score >= min }
+        { level: "low", action: "escalate" }
+      end
+
+      # Ask a judge model how much the (anonymized) responses agree. Returns
+      # {score:, consensus:, disagreements:[]}; a malformed/failed judge yields a
+      # neutral verdict (score nil) instead of raising.
+      def judge_consensus(question, usable, judge_arg)
+        candidates = usable.each_with_index
+                           .map { |r, i| "--- Response #{i + 1} ---\n#{r[:text].to_s.strip}" }
+                           .join("\n\n")
+        prompt = <<~PROMPT
+          You are assessing how much a panel of INDEPENDENT AI models AGREE on the answer to a
+          question. Agreement is a proxy for trustworthiness: when diverse models independently
+          converge the answer is more likely correct; when they diverge it is less reliable. Judge
+          the SUBSTANTIVE answer only — ignore wording, length, and style.
+
+          Question:
+          #{question}
+
+          Independent responses:
+          #{candidates}
+
+          Respond with ONLY a JSON object, no prose:
+          {"score": <0.0-1.0 how strongly they agree on the substantive answer>,
+           "consensus": "<the answer/claim they share, or empty string if none>",
+           "disagreements": ["<specific substantive point where they differ>"]}
+        PROMPT
+
+        jp = (judge_arg && (judge_arg["provider"] || judge_arg[:provider])).to_s
+        jp = "openai" if jp.empty?
+        jp = MonadicDSL::ProviderConfig.new(jp).standard_key
+        jm = judge_arg && (judge_arg["model"] || judge_arg[:model])
+
+        res = execute_query(
+          provider: jp, messages: [{ "role" => "user", "content" => prompt }],
+          model: jm, max_output: DEFAULT_MAX_OUTPUT, temperature: 0
+        )
+        # execute_query does NOT raise on budget/transport/model failure — it
+        # returns success:false with no text. Surface that as judge_error so the
+        # caller can tell "judge couldn't run" from "panel genuinely disagreed".
+        if res[:success] == false || res[:text].to_s.strip.empty?
+          return { score: nil, consensus: "", disagreements: [],
+                   judge_error: (res[:error] || "judge returned no text") }
+        end
+
+        parsed = parse_consensus(res[:text])
+        return parsed unless parsed[:score].nil?
+
+        # Successful call but no usable score = unparseable verdict (distinct from
+        # a real "no consensus", which the judge would express as a low score).
+        parsed.merge(judge_error: "judge response was not a parseable consensus verdict")
+      rescue StandardError => e
+        { score: nil, consensus: "", disagreements: [], judge_error: "❌ #{e.class}: #{e.message}" }
+      end
+
+      # All balanced top-level {...} substrings of `text`, in order. A depth
+      # counter (not a greedy regex) so a brace-containing preamble like
+      # "comparing {Response 1} ... {\"score\":...}" yields BOTH objects as
+      # separate candidates instead of one corrupted span.
+      def json_object_candidates(text)
+        s = text.to_s.gsub(/```(?:json)?/i, "")
+        out = []
+        depth = 0
+        start = nil
+        s.each_char.with_index do |ch, i|
+          if ch == "{"
+            start = i if depth.zero?
+            depth += 1
+          elsif ch == "}" && depth.positive?
+            depth -= 1
+            (out << s[start..i]) if depth.zero?
+          end
+        end
+        out
+      end
+
+      # Extract the judge's JSON verdict defensively (it may wrap it in prose or
+      # emit example braces first). Picks the first balanced object that parses
+      # and carries a "score"; coerces a stringified score and clamps to [0,1].
+      def parse_consensus(text)
+        data = json_object_candidates(text)
+               .filter_map { |c| JSON.parse(c) rescue nil }
+               .find { |h| h.is_a?(Hash) && h.key?("score") } || {}
+        raw = data["score"]
+        score =
+          case raw
+          when Numeric then raw.to_f
+          when String then (Float(raw) rescue nil)
+          end
+        score = score.clamp(0.0, 1.0) if score
+        {
+          score: score,
+          consensus: data["consensus"].to_s,
+          disagreements: (data["disagreements"].is_a?(Array) ? data["disagreements"].map(&:to_s) : [])
+        }
+      end
+
+      # ---- Confidence panel selection (graceful-degradation ladder) -------
+      #
+      # Total over EVERY user configuration: returns the most diverse panel the
+      # configured providers allow, and HONESTLY degrades — it never manufactures
+      # a strong signal where independence is impossible. Governing rule (from the
+      # validation): agreement is meaningful only across INDEPENDENT models; a lone
+      # deterministic model "agreeing with itself" is false confidence, so we
+      # return :unavailable rather than fake it. The chat-UI verify button reads
+      # `signal` to label the result (strong / weak) or disable itself (:none).
+      CONFIDENCE_PANEL_CAP = 3
+      CONFIDENCE_SELF_CONSISTENCY_K = 3
+
+      def select_confidence_panel(cap: CONFIDENCE_PANEL_CAP)
+        usable = usable_chat_providers # distinct providers, one verifier model each
+
+        if usable.size >= 2
+          targets = usable.first(cap)
+          { mode: :cross_provider, signal: :strong, targets: targets,
+            samples: 1, sequential: targets.any? { |t| single_local_server?(t[:provider]) },
+            reason: "#{targets.size} distinct providers" }
+        elsif usable.size == 1
+          t = usable.first
+          if sampling_capable?(t[:model])
+            { mode: :within_provider, signal: :weak, targets: [t],
+              samples: CONFIDENCE_SELF_CONSISTENCY_K, sequential: single_local_server?(t[:provider]),
+              reason: "single provider (#{t[:provider]}): self-consistency only — correlated errors, weak signal" }
+          else
+            { mode: :unavailable, signal: :none, targets: [], samples: 0, sequential: false,
+              reason: "only a single deterministic model (#{t[:provider]}/#{t[:model]}) is configured; " \
+                      "agreement cannot be measured without independent samples" }
+          end
+        else
+          { mode: :unavailable, signal: :none, targets: [], samples: 0, sequential: false,
+            reason: "no chat-capable provider with a resolvable model is configured" }
+        end
+      end
+
+      # Configured + chat-capable + model-resolvable providers, one verifier model
+      # each, in PROVIDER_INFO order (deterministic, diversity-first). The verifier
+      # model is the provider's SSOT chat default (a reasonable, cost-controlled
+      # pick; never a hardcoded id).
+      def usable_chat_providers
+        MonadicDSL::ProviderConfig::PROVIDER_INFO.filter_map do |provider, info|
+          next unless provider_configured?(info[:api_key])
+          next unless provider_host(provider)
+
+          model = default_chat_model_for(provider).to_s
+          next if model.empty?
+
+          { provider: provider, model: model }
+        end
+      rescue StandardError
+        []
+      end
+
+      def sampling_capable?(model)
+        !Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
+      rescue StandardError
+        true # if capability is unknown, assume samplable (don't over-block)
+      end
+
+      # A provider served by a SINGLE local server (one Ollama instance) drops
+      # concurrent requests, so its panel/self-consistency calls must run
+      # SEQUENTIALLY (gotcha carried over from the ensemble experiment).
+      def single_local_server?(provider)
+        provider.to_s == "ollama"
       end
 
       def handle_second_opinion(arguments)

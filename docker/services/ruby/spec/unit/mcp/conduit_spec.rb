@@ -14,7 +14,7 @@ RSpec.describe Monadic::MCP::Conduit do
       names = tools.map { |t| t[:name] }
       expect(names).to contain_exactly(
         "monadic_status", "monadic_list_models", "monadic_query",
-        "monadic_parallel_query", "monadic_second_opinion",
+        "monadic_parallel_query", "monadic_second_opinion", "monadic_confidence",
         "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
         "monadic_analyze_image", "monadic_transcribe_audio",
         "monadic_analyze_audio", "monadic_analyze_video",
@@ -70,6 +70,194 @@ RSpec.describe Monadic::MCP::Conduit do
   describe ".call" do
     it "raises for an unknown tool" do
       expect { described_class.call("nope") }.to raise_error(/Unknown Conduit tool/)
+    end
+  end
+
+  describe "monadic_confidence" do
+    describe ".confidence_band" do
+      it "maps scores to calibrated bands + actions" do
+        expect(described_class.confidence_band(0.9)).to eq(level: "high", action: "trust")
+        expect(described_class.confidence_band(0.8)).to eq(level: "high", action: "trust")
+        expect(described_class.confidence_band(0.6)).to eq(level: "medium", action: "verify")
+        expect(described_class.confidence_band(0.3)).to eq(level: "low", action: "escalate")
+      end
+
+      it "returns unknown/verify for a non-numeric score" do
+        expect(described_class.confidence_band(nil)).to eq(level: "unknown", action: "verify")
+      end
+    end
+
+    describe ".parse_consensus" do
+      it "extracts a JSON verdict embedded in prose and clamps the score" do
+        text = %(Here is my assessment: {"score": 1.5, "consensus": "42", ) +
+               %("disagreements": ["units"]} done)
+        v = described_class.parse_consensus(text)
+        expect(v[:score]).to eq(1.0) # clamped to [0,1]
+        expect(v[:consensus]).to eq("42")
+        expect(v[:disagreements]).to eq(["units"])
+      end
+
+      it "yields a neutral verdict (nil score) on malformed output" do
+        v = described_class.parse_consensus("no json here")
+        expect(v[:score]).to be_nil
+        expect(v[:disagreements]).to eq([])
+      end
+
+      it "skips a brace-containing preamble and finds the real score object" do
+        text = %(Comparing {Response 1} and {Response 2}: {"score": 0.8, "consensus": "x", ) +
+               %("disagreements": []})
+        expect(described_class.parse_consensus(text)[:score]).to eq(0.8)
+      end
+
+      it "coerces a stringified score (LLMs often quote numbers)" do
+        expect(described_class.parse_consensus(%({"score": "0.7"}))[:score]).to eq(0.7)
+      end
+    end
+
+    describe ".handle_confidence" do
+      let(:ok_openai)    { { provider: "openai", model: "m1", success: true, text: "42." } }
+      let(:ok_anthropic) { { provider: "anthropic", model: "m2", success: true, text: "42." } }
+
+      it "assembles a verdict; cross_provider reflects the SURVIVING providers" do
+        allow(described_class).to receive(:execute_query).and_return(ok_openai, ok_anthropic)
+        allow(described_class).to receive(:judge_consensus)
+          .and_return(score: 0.9, consensus: "42", disagreements: [])
+        result = described_class.call("monadic_confidence",
+                                      { "providers" => %w[openai anthropic], "message" => "6*7?" })
+        expect(result[:confidence]).to eq("high")
+        expect(result[:recommendation]).to eq("trust")
+        expect(result[:panel_size]).to eq(2)
+        expect(result[:cross_provider]).to be true
+      end
+
+      it "does NOT claim cross_provider when a provider drops and survivors share one" do
+        # anthropic errors -> both usable answers are openai -> weak, not cross.
+        allow(described_class).to receive(:execute_query)
+          .and_return(ok_openai, { provider: "openai", model: "m1b", success: true, text: "42." })
+        allow(described_class).to receive(:judge_consensus)
+          .and_return(score: 0.9, consensus: "42", disagreements: [])
+        result = described_class.call("monadic_confidence",
+                                      { "targets" => [{ "provider" => "openai" }, { "provider" => "anthropic" }],
+                                        "message" => "6*7?" })
+        expect(result[:cross_provider]).to be false
+        expect(result[:note]).to match(/single provider/i)
+      end
+
+      it "returns unknown when fewer than two members succeed" do
+        allow(described_class).to receive(:execute_query)
+          .and_return(ok_openai, { provider: "anthropic", success: false, error: "❌ down" })
+        result = described_class.call("monadic_confidence",
+                                      { "providers" => %w[openai anthropic], "message" => "hi" })
+        expect(result[:confidence]).to eq("unknown")
+        expect(result[:note]).to match(/Need >= 2/)
+      end
+
+      it "surfaces judge_error so a failed judge isn't read as 'no consensus'" do
+        allow(described_class).to receive(:execute_query).and_return(ok_openai, ok_anthropic)
+        allow(described_class).to receive(:judge_consensus)
+          .and_return(score: nil, consensus: "", disagreements: [], judge_error: "❌ Budget exceeded")
+        result = described_class.call("monadic_confidence",
+                                      { "providers" => %w[openai anthropic], "message" => "hi" })
+        expect(result[:confidence]).to eq("unknown")
+        expect(result[:judge_error]).to match(/Budget/)
+      end
+
+      it "AUTO-selects the panel via the ladder when no targets/providers are given" do
+        allow(described_class).to receive(:select_confidence_panel)
+          .and_return(mode: :cross_provider, signal: :strong,
+                      targets: [{ provider: "openai", model: "m1" }, { provider: "anthropic", model: "m2" }])
+        allow(described_class).to receive(:execute_query).and_return(ok_openai, ok_anthropic)
+        allow(described_class).to receive(:judge_consensus)
+          .and_return(score: 0.85, consensus: "42", disagreements: [])
+        result = described_class.call("monadic_confidence", { "message" => "6*7?" })
+        expect(result[:confidence]).to eq("high")
+      end
+
+      it "runs within-provider self-consistency (K samples) for a single provider" do
+        allow(described_class).to receive(:select_confidence_panel)
+          .and_return(mode: :within_provider, signal: :weak,
+                      targets: [{ provider: "openai", model: "m1" }], samples: 3)
+        # Must fan out 3 times (K samples), not once -> 3 usable responses.
+        expect(described_class).to receive(:fan_out_panel) do |_msgs, targets, _args, **_kw|
+          expect(targets.size).to eq(3)
+          targets.map { |t| t.merge(success: true, text: "42.") }
+        end
+        allow(described_class).to receive(:judge_consensus)
+          .and_return(score: 0.9, consensus: "42", disagreements: [])
+        result = described_class.call("monadic_confidence", { "message" => "6*7?" })
+        expect(result[:confidence]).to eq("high")
+        expect(result[:cross_provider]).to be false # same provider -> weak signal
+      end
+
+      it "refuses (unavailable) WITHOUT fanning out when the ladder can't measure" do
+        allow(described_class).to receive(:select_confidence_panel)
+          .and_return(mode: :unavailable, signal: :none, targets: [], reason: "single deterministic model")
+        expect(described_class).not_to receive(:execute_query)
+        result = described_class.call("monadic_confidence", { "message" => "hi" })
+        expect(result[:confidence]).to eq("unavailable")
+        expect(result[:note]).to match(/deterministic/)
+      end
+    end
+
+    describe ".judge_consensus" do
+      it "sets judge_error when the judge query fails (execute_query returns success:false)" do
+        allow(described_class).to receive(:execute_query)
+          .and_return(provider: "openai", success: false, error: "❌ Budget exceeded")
+        v = described_class.judge_consensus("q", [{ text: "a" }, { text: "b" }], nil)
+        expect(v[:score]).to be_nil
+        expect(v[:judge_error]).to match(/Budget/)
+      end
+
+      it "parses a valid judge verdict" do
+        allow(described_class).to receive(:execute_query)
+          .and_return(provider: "openai", success: true, text: %({"score": 0.9, "consensus": "42", "disagreements": []}))
+        v = described_class.judge_consensus("q", [{ text: "a" }, { text: "b" }], nil)
+        expect(v[:score]).to eq(0.9)
+        expect(v[:judge_error]).to be_nil
+      end
+    end
+
+    describe ".select_confidence_panel (graceful-degradation ladder)" do
+      def stub_usable(list)
+        allow(described_class).to receive(:usable_chat_providers).and_return(list)
+      end
+
+      it "cross-provider (strong) when >=2 distinct providers, capped at 3" do
+        stub_usable([{ provider: "openai", model: "a" }, { provider: "anthropic", model: "b" },
+                     { provider: "gemini", model: "c" }, { provider: "xai", model: "d" }])
+        p = described_class.select_confidence_panel
+        expect(p[:mode]).to eq(:cross_provider)
+        expect(p[:signal]).to eq(:strong)
+        expect(p[:targets].size).to eq(3) # capped
+      end
+
+      it "within-provider self-consistency (weak) when exactly 1 samplable provider" do
+        stub_usable([{ provider: "openai", model: "samplable" }])
+        allow(described_class).to receive(:sampling_capable?).and_return(true)
+        p = described_class.select_confidence_panel
+        expect(p[:mode]).to eq(:within_provider)
+        expect(p[:signal]).to eq(:weak)
+        expect(p[:samples]).to be >= 2
+      end
+
+      it "UNAVAILABLE (no false signal) when the lone model is deterministic" do
+        stub_usable([{ provider: "openai", model: "deterministic" }])
+        allow(described_class).to receive(:sampling_capable?).and_return(false)
+        p = described_class.select_confidence_panel
+        expect(p[:mode]).to eq(:unavailable)
+        expect(p[:signal]).to eq(:none)
+      end
+
+      it "UNAVAILABLE when no chat-capable provider is configured" do
+        stub_usable([])
+        p = described_class.select_confidence_panel
+        expect(p[:mode]).to eq(:unavailable)
+      end
+
+      it "marks the panel sequential when a single-local-server (ollama) is included" do
+        stub_usable([{ provider: "openai", model: "a" }, { provider: "ollama", model: "b" }])
+        expect(described_class.select_confidence_panel[:sequential]).to be true
+      end
     end
   end
 

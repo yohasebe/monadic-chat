@@ -1902,6 +1902,19 @@ module Monadic
       # Independence), optionally grounds the query in a local KB and/or masks
       # PII (the Conduit differentiators), gates spend through CostGuard, and
       # returns a normalized result hash.
+      # True when a model can spend hidden reasoning/thinking tokens that do not
+      # appear in the visible response text (responses-API reasoning, extended
+      # thinking, or adaptive reasoning). Used to charge the budget conservatively
+      # since send_query exposes no provider usage. Signals are fragmented across
+      # providers, so we OR the available capability accessors; a false negative
+      # only reverts to the visible-text estimate (no worse than before).
+      def hidden_reasoning_capable?(model)
+        ms = Monadic::Utils::ModelSpec
+        ms.responses_api?(model) || ms.supports_thinking?(model) || ms.adaptive_reasoning?(model)
+      rescue StandardError
+        false
+      end
+
       def execute_query(provider:, messages:, system: "", model: nil,
                         max_output: nil, temperature: nil,
                         knowledge_base: nil, privacy: nil)
@@ -1973,7 +1986,16 @@ module Monadic
           normalized = normalized.merge(text: pipeline.after_receive_from_llm(normalized[:text]).text)
         end
 
+        # Reasoning/thinking models spend hidden tokens (billed at the output rate)
+        # that never appear in the visible response text. Estimating output from
+        # that text alone undercounts real spend by up to an order of magnitude,
+        # softening the budget ceiling exactly for the most expensive models.
+        # send_query returns text only (no provider usage), so we fail closed:
+        # charge such models the output we already reserved in ensure_within!.
+        # This over-counts short replies — the safe direction for a spend *ceiling*
+        # (a safety backstop, not an accounting ledger).
         output_tokens = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
+        output_tokens = max_output if hidden_reasoning_capable?(model) && max_output > output_tokens
         CostGuard.record(input_tokens + output_tokens)
 
         {

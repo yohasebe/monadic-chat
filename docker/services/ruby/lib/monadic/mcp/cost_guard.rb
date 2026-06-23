@@ -13,7 +13,10 @@ module Monadic
     # token ceiling is the honest, provider-agnostic unit. Counts are estimated
     # with the shared tiktoken tokenizer (send_query does not expose provider
     # usage), which is approximate across providers but sufficient as a safety
-    # backstop.
+    # backstop. Caveat: the estimate counts only VISIBLE text, so reasoning/
+    # thinking models (hidden tokens billed at the output rate) would be
+    # undercounted by up to an order of magnitude; the query path compensates by
+    # charging such models the reserved output (see Conduit#hidden_reasoning_capable?).
     #
     # The budget is cumulative for the life of the server process and surfaced
     # in monadic_status. Raise it via CONFIG["CONDUIT_TOKEN_BUDGET"]; it resets

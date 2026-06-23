@@ -200,6 +200,28 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:error]).to match(/Budget exceeded/)
     end
 
+    it "charges the reserved output for hidden-reasoning models, not the visible text" do
+      # gpt-5.5 etc. spend hidden reasoning tokens absent from the text; the budget
+      # must fail closed by charging the reserved max_output, not the short reply.
+      allow(described_class).to receive(:hidden_reasoning_capable?).and_return(true)
+      allow(host).to receive(:send_query).and_return("42")
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "Hi" })
+      expect(result[:budget][:tokens_spent]).to be >= 4096 # DEFAULT_MAX_OUTPUT reserved
+    end
+
+    it "charges only the visible-text estimate for non-reasoning models" do
+      allow(described_class).to receive(:hidden_reasoning_capable?).and_return(false)
+      allow(host).to receive(:send_query).and_return("42")
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "Hi" })
+      expect(result[:budget][:tokens_spent]).to be < 100 # input + tiny visible output
+    end
+
+    it "classifies responses-API / thinking models as hidden-reasoning-capable" do
+      expect(described_class.send(:hidden_reasoning_capable?, "gpt-5.5")).to be true       # responses API
+      expect(described_class.send(:hidden_reasoning_capable?, "claude-sonnet-4-6")).to be true # thinking
+      expect(described_class.send(:hidden_reasoning_capable?, "no-such-model-xyz")).to be false # rescue path
+    end
+
     it "flags a possibly-truncated answer (no sentence-final punctuation)" do
       allow(host).to receive(:send_query).and_return("This answer is cut off mid")
       result = described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })

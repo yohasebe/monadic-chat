@@ -79,6 +79,7 @@ RSpec.describe 'Chat Export/Import Functionality' do
         # Add optional fields if present
         message_obj["thinking"] = msg["thinking"] if msg["thinking"]
         message_obj["images"] = msg["images"] if msg["images"]
+        message_obj["verify"] = msg["verify"] if msg["verify"].is_a?(Hash)
         message_obj
       end.compact # Remove nil values from invalid messages
       
@@ -189,18 +190,26 @@ RSpec.describe 'Chat Export/Import Functionality' do
               'text' => 'Response with thinking',
               'thinking' => 'Internal reasoning...',
               'images' => ['image1.png', 'image2.png'],
+              'verify' => { 'confidence' => 'high', 'score' => 0.9 },
               'mid' => 'ast001'
             }
           ]
         }
       end
-      
+
       it 'preserves thinking and images fields' do
         handler.process_import(json_with_extras)
-        
+
         msg = handler.session[:messages].first
         expect(msg['thinking']).to eq('Internal reasoning...')
         expect(msg['images']).to eq(['image1.png', 'image2.png'])
+      end
+
+      it 'preserves a confidence-via-agreement verdict on import (JSON round-trip)' do
+        handler.process_import(json_with_extras)
+
+        msg = handler.session[:messages].first
+        expect(msg['verify']).to eq('confidence' => 'high', 'score' => 0.9)
       end
     end
     

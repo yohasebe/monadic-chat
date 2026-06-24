@@ -134,6 +134,24 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(replies.first['res']).to eq('success')
     end
 
+    it "strips per-message 'verify' verdicts so they never reach the Knowledge Base" do
+      captured = nil
+      allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
+        captured = args[:input]
+        { conversation_id: 'conv-v', counts: { summary: 1, turns: 1 } }
+      end
+      payload = valid_payload.merge(
+        'messages' => [
+          { 'role' => 'user', 'text' => 'Hi', 'mid' => 2 },
+          { 'role' => 'assistant', 'text' => 'Hello!', 'mid' => 3,
+            'verify' => { 'confidence' => 'high', 'consensus' => 'meta-commentary' } }
+        ]
+      )
+      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
+      expect(captured['messages'].any? { |m| m.key?('verify') }).to be false
+      expect(captured['messages'].map { |m| m['text'] }).to include('Hello!')
+    end
+
     it 'rejects payloads with no messages' do
       payload = valid_payload.merge('messages' => [])
       host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})

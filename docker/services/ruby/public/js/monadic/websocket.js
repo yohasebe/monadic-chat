@@ -639,6 +639,30 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "verify_confidence_start": {
+        renderVerifyConfidence({ mid: data.mid, pending: true });
+        break;
+      }
+
+      case "verify_confidence": {
+        verifyUIEnd();
+        renderVerifyConfidence(data);
+        // Persist on the frontend message object so the verdict travels with a
+        // JSON export (backend stores it on the session message in parallel).
+        try {
+          const list = window.messages;
+          if (Array.isArray(list)) {
+            const m = list.find((x) => x && String(x.mid) === String(data.mid));
+            if (m) {
+              const v = Object.assign({}, data);
+              delete v.type; delete v.mid; delete v.budget;
+              m.verify = v;
+            }
+          }
+        } catch (_) { /* non-fatal: export persistence is best-effort */ }
+        break;
+      }
+
       case "privacy_registry": {
         const wph2 = window.WsPrivacyHandler;
         if (wph2 && typeof wph2.handleRegistry === 'function') {
@@ -1181,3 +1205,9 @@ if (typeof module !== 'undefined' && module.exports) {
 // This ensures tab_id is available when connecting
 ws = connect_websocket();
 window.ws = ws;  // Make ws globally accessible
+
+// Confidence-via-agreement rendering + in-progress UI (verifyT,
+// renderVerifyConfidence, verifyUIStart, verifyUIEnd) now live in
+// js/monadic/verify-render.js so the rendering logic is unit-testable in
+// isolation. They are global functions in the concatenated bundle; the switch
+// cases above and cards.js call them directly.

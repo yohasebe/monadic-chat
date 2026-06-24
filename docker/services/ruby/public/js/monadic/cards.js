@@ -371,6 +371,38 @@ function attachEventListeners(card) {
       return;
     }
 
+    // --- func-verify (confidence via agreement) ---
+    const verifyBtn = event.target.closest(".func-verify");
+    if (verifyBtn && card.contains(verifyBtn)) {
+      if (typeof cleanupAllTooltips === 'function') {
+        cleanupAllTooltips();
+      } else {
+        document.querySelectorAll('.tooltip').forEach(el => el.remove());
+      }
+      // Don't start while the system is busy (a generation or another verify
+      // in flight) — showing the spinner makes isSystemBusy() true, so this also
+      // blocks new sends while verification runs.
+      if (typeof window.isSystemBusy === 'function' && window.isSystemBusy()) {
+        if (typeof setAlert === 'function') {
+          var busyMsg = (typeof getTranslation === 'function')
+            ? getTranslation('ui.verify.busy', 'Please wait for the current operation to finish')
+            : 'Please wait for the current operation to finish';
+          setAlert("<i class='fas fa-hourglass-half'></i> " + busyMsg, "warning");
+        }
+        return;
+      }
+      const mid = card.id;
+      // Backend derives the question + answer from the session by mid, so we
+      // only send the message id (server-side history is the source of truth).
+      if (typeof window.verifyUIStart === 'function') window.verifyUIStart(mid);
+      if (typeof window.safeWsSend === 'function') {
+        window.safeWsSend({ message: "VERIFY_CONFIDENCE", mid: mid });
+      } else if (typeof ws !== 'undefined' && ws) {
+        ws.send(JSON.stringify({ message: "VERIFY_CONFIDENCE", mid: mid }));
+      }
+      return;
+    }
+
     // --- func-edit ---
     const editBtn = event.target.closest(".func-edit");
     if (editBtn && card.contains(editBtn)) {
@@ -915,7 +947,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
 
   // Tooltip handlers via mouseenter/mouseleave delegation
   function tooltipEnterHandler(event) {
-    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status, .card-turn-badge");
+    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
     if (target && card.contains(target)) {
       const tip = bootstrap.Tooltip.getInstance(target);
       if (tip) tip.show();
@@ -925,7 +957,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   }
 
   function tooltipLeaveHandler(event) {
-    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status, .card-turn-badge");
+    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
     if (target && card.contains(target)) {
       const tip = bootstrap.Tooltip.getInstance(target);
       if (tip) tip.hide();

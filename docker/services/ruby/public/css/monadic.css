@@ -125,18 +125,21 @@
   --code-text: #555;
   --inline-code-bg: rgba(0, 0, 0, 0.05);
 
-  /* Badge Colors */
-  --badge-tools-bg: #f5f0f0;
-  --badge-tools-border: #e0d8d8;
-  --badge-tools-color: #7a5a5a;
-  --badge-capabilities-bg: #f0f3f5;
-  --badge-capabilities-border: #d8e0e5;
-  --badge-capabilities-color: #5a6a7a;
+  /* Badge Colors — soft tints derived from the theme accents (--accent-red /
+     --accent-blue) so category badges read as the same color family as the
+     vivid status badges, just lighter. Tools = red family, Capabilities = blue
+     family. */
+  --badge-tools-bg: #fce9ed;
+  --badge-tools-border: #f1c9d2;
+  --badge-tools-color: #b1374f;
+  --badge-capabilities-bg: #e6f3fb;
+  --badge-capabilities-border: #c2e0f1;
+  --badge-capabilities-color: #1f78a8;
   --badge-category-label: #666;
 
-  /* Tool Group Badge */
-  --tool-group-badge-bg: #f0f3f5;
-  --tool-group-badge-color: #5a6a7a;
+  /* Tool Group Badge — blue family, aligned with Capabilities */
+  --tool-group-badge-bg: #e6f3fb;
+  --tool-group-badge-color: #1f78a8;
 
   /* Alert Message Colors */
   --alert-info-bg: #e3f2fd;
@@ -246,18 +249,19 @@
   --code-text: #d0d0d0;
   --inline-code-bg: rgba(255, 255, 255, 0.1);
 
-  /* Badge Colors */
-  --badge-tools-bg: #3a2e2e;
-  --badge-tools-border: #4a3e3e;
-  --badge-tools-color: #c8b0b0;
-  --badge-capabilities-bg: #2e3338;
-  --badge-capabilities-border: #3e4348;
-  --badge-capabilities-color: #b0b8c0;
+  /* Badge Colors — accent-derived tints (dark): Tools = red family,
+     Capabilities = blue family, matching the light-theme derivation. */
+  --badge-tools-bg: #3a2a2e;
+  --badge-tools-border: #5a3a42;
+  --badge-tools-color: #eaa8b4;
+  --badge-capabilities-bg: #233640;
+  --badge-capabilities-border: #355365;
+  --badge-capabilities-color: #93cdea;
   --badge-category-label: #b0b0b0;
 
-  /* Tool Group Badge */
-  --tool-group-badge-bg: #2e3338;
-  --tool-group-badge-color: #b0b8c0;
+  /* Tool Group Badge — blue family, aligned with Capabilities */
+  --tool-group-badge-bg: #233640;
+  --tool-group-badge-color: #93cdea;
 
   /* Alert Message Colors */
   --alert-info-bg: #1a3050;
@@ -983,6 +987,8 @@ div.sourcecode-toggle i {
 .badge {
   font-weight: 300;
 }
+/* Status badge colors are defined together with the rest of the badge color
+   system near the end of this file (search "Badge color system"). */
 
 a {
   font-weight: 500;
@@ -6243,3 +6249,181 @@ i.fas.fa-bolt,
    button), so a control a user expects is shown disabled-with-reason rather
    than vanishing where it isn't supported — consistent across KB and Privacy.
    The classes remain available for any app-aware styling. */
+
+/* --- Confidence-via-agreement (Verify button) --------------------------- */
+.verify-bar {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+.func-verify {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-link);
+  user-select: none;
+}
+.func-verify:hover { color: var(--color-link-hover); text-decoration: underline; }
+body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
+
+.verify-result {
+  margin-top: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  /* Neutral near-white surface (not a color tint) so rendered markdown,
+     tables, and code inside the panel read cleanly. */
+  background: var(--bg-panel, #f8f8f8);
+  overflow: hidden;
+}
+.verify-result--pending {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--color-link);
+}
+.verify-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+.verify-caret { transition: transform 0.15s ease; font-size: 0.8rem; color: #6c757d; }
+.verify-collapsed .verify-caret { transform: rotate(-90deg); }
+.verify-collapsed .verify-body { display: none; }
+.verify-body { padding: 0 0.75rem 0.6rem 0.75rem; font-size: 0.9rem; }
+.verify-row { margin-top: 0.4rem; }
+.verify-list { margin: 0.2rem 0 0.2rem 1.1rem; padding: 0; }
+.verify-rec { color: #6c757d; font-weight: 500; }
+.verify-weak { color: var(--accent-amber); font-weight: 500; }
+.verify-muted { color: #6c757d; }
+.verify-error { color: var(--accent-red); }
+
+.verify-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  background: #6c757d;
+  line-height: 1.2;
+}
+/* Confidence badge colors (.verify-badge--*) are defined with the rest of the
+   badge color system near the end of this file (search "Badge color system"). */
+
+.dark-theme .verify-result { background: rgba(255, 255, 255, 0.05); border-color: var(--border-color-light); }
+
+/* Verify: per-member raw answer expansion */
+.verify-panel-item { list-style: none; margin-left: -0.6rem; }
+.verify-panel-toggle { cursor: pointer; color: var(--color-link); user-select: none; }
+.verify-panel-toggle:hover { color: var(--color-link-hover); }
+.verify-panel-caret { transition: transform 0.15s ease; font-size: 0.75rem; }
+.verify-panel-open .verify-panel-caret { transform: rotate(90deg); }
+.verify-panel-text {
+  display: none;
+  margin: 0.25rem 0 0.25rem 1rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 2px solid var(--border-color);
+  font-size: 0.85rem;
+  color: #555;
+}
+.verify-panel-open .verify-panel-text { display: block; }
+.dark-theme .verify-panel-text { color: #bbb; }
+/* Keep rendered markdown compact and contained inside the small panel. */
+.verify-panel-text > :first-child { margin-top: 0; }
+.verify-panel-text > :last-child { margin-bottom: 0; }
+.verify-panel-text h1, .verify-panel-text h2, .verify-panel-text h3,
+.verify-panel-text h4, .verify-panel-text h5, .verify-panel-text h6 {
+  font-size: 0.95rem; font-weight: 700; margin: 0.5rem 0 0.25rem;
+}
+.verify-panel-text table { font-size: 0.8rem; border-collapse: collapse; }
+.verify-panel-text th, .verify-panel-text td {
+  border: 1px solid var(--border-color); padding: 0.15rem 0.4rem;
+}
+.verify-panel-text pre { font-size: 0.8rem; overflow-x: auto; }
+.verify-panel-raw { white-space: pre-wrap; margin: 0; font-family: inherit; }
+
+/* Verify: at-a-glance header chip */
+.verify-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  background: #6c757d;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* === Unified badge geometry (Option A) ====================================
+   One pill shape + size for every badge family, applied last so it overrides
+   each family's original geometry. Treatment stays SEMANTIC: category/tool
+   badges keep their muted outlined fill, status/confidence badges keep their
+   vivid accent fill — only shape/size are harmonized. Scoped to the badge
+   families shown in the UI; bare Bootstrap .badge elsewhere is untouched
+   except inside #summary-indicators. */
+.badge-tools,
+.badge-capabilities,
+.tool-group-badge,
+.verify-badge,
+.privacy-lang-badge,
+#summary-indicators .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+/* === Badge color system: one accent-derived tint set for ALL badges =======
+   Every badge (category, status, confidence) uses a soft tinted background +
+   accent-colored text + a visible accent border — a single refined treatment,
+   colored by SEMANTIC family (red/blue/green/amber/grey). Replaces the earlier
+   flat solid-fill status badges. Defined last so it supersedes the vivid rules
+   above. */
+:root {
+  --bdg-red-bg: #fce9ed;   --bdg-red-bd: #f1c9d2;   --bdg-red-fg: #b1374f;
+  --bdg-blue-bg: #e6f3fb;  --bdg-blue-bd: #c2e0f1;  --bdg-blue-fg: #1f78a8;
+  --bdg-green-bg: #e6f6ec; --bdg-green-bd: #c2e6cf; --bdg-green-fg: #1e7d3f;
+  --bdg-amber-bg: #fdf3d9; --bdg-amber-bd: #f0e0a8; --bdg-amber-fg: #8a6d1a;
+  --bdg-grey-bg: #eef0f2;  --bdg-grey-bd: #dcdfe3;  --bdg-grey-fg: #5f6b76;
+  /* Category vars point at the shared tokens (single source of truth). */
+  --badge-tools-bg: var(--bdg-red-bg); --badge-tools-border: var(--bdg-red-bd); --badge-tools-color: var(--bdg-red-fg);
+  --badge-capabilities-bg: var(--bdg-blue-bg); --badge-capabilities-border: var(--bdg-blue-bd); --badge-capabilities-color: var(--bdg-blue-fg);
+  --tool-group-badge-bg: var(--bdg-blue-bg); --tool-group-badge-color: var(--bdg-blue-fg);
+}
+.dark-theme {
+  --bdg-red-bg: #3a2a2e;   --bdg-red-bd: #5a3a42;   --bdg-red-fg: #eaa8b4;
+  --bdg-blue-bg: #233640;  --bdg-blue-bd: #355365;  --bdg-blue-fg: #93cdea;
+  --bdg-green-bg: #233a2c; --bdg-green-bd: #355f43; --bdg-green-fg: #8fd6a6;
+  --bdg-amber-bg: #3a3320; --bdg-amber-bd: #5f5530; --bdg-amber-fg: #e8cf8f;
+  --bdg-grey-bg: #2e3338;  --bdg-grey-bd: #444b52;  --bdg-grey-fg: #b8c0c8;
+  --badge-tools-bg: var(--bdg-red-bg); --badge-tools-border: var(--bdg-red-bd); --badge-tools-color: var(--bdg-red-fg);
+  --badge-capabilities-bg: var(--bdg-blue-bg); --badge-capabilities-border: var(--bdg-blue-bd); --badge-capabilities-color: var(--bdg-blue-fg);
+  --tool-group-badge-bg: var(--bdg-blue-bg); --tool-group-badge-color: var(--bdg-blue-fg);
+}
+
+/* Status badges (summary indicators, etc.) — soft tint + border by semantic. */
+.badge.bg-success { background-color: var(--bdg-green-bg) !important; color: var(--bdg-green-fg) !important; border: 1px solid var(--bdg-green-bd) !important; }
+.badge.bg-danger  { background-color: var(--bdg-red-bg) !important;   color: var(--bdg-red-fg) !important;   border: 1px solid var(--bdg-red-bd) !important; }
+.badge.bg-info    { background-color: var(--bdg-blue-bg) !important;  color: var(--bdg-blue-fg) !important;  border: 1px solid var(--bdg-blue-bd) !important; }
+.badge.bg-warning { background-color: var(--bdg-amber-bg) !important; color: var(--bdg-amber-fg) !important; border: 1px solid var(--bdg-amber-bd) !important; }
+.badge.bg-secondary { background-color: var(--bdg-grey-bg) !important; color: var(--bdg-grey-fg) !important; border: 1px solid var(--bdg-grey-bd) !important; }
+
+/* Confidence (verify) badges + header chip — same soft treatment by family. */
+.verify-badge, .verify-chip { border: 1px solid transparent; }
+.verify-badge--high, .verify-badge--corroborated,
+.verify-chip.verify-badge--high { background: var(--bdg-green-bg); color: var(--bdg-green-fg); border-color: var(--bdg-green-bd); }
+.verify-badge--medium, .verify-badge--partial,
+.verify-chip.verify-badge--medium { background: var(--bdg-amber-bg); color: var(--bdg-amber-fg); border-color: var(--bdg-amber-bd); }
+.verify-badge--low, .verify-badge--disputed,
+.verify-chip.verify-badge--low { background: var(--bdg-red-bg); color: var(--bdg-red-fg); border-color: var(--bdg-red-bd); }
+.verify-badge--unknown, .verify-badge--unavailable,
+.verify-chip.verify-badge--unknown, .verify-chip.verify-badge--unavailable { background: var(--bdg-grey-bg); color: var(--bdg-grey-fg); border-color: var(--bdg-grey-bd); }

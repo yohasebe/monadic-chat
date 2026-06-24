@@ -275,6 +275,11 @@ module CohereHelper
       "stream" => false
     }
     body["temperature"] = options["temperature"] || 0.7 unless is_thinking_model
+    # Cohere's command models can fall into a repetition loop on longer
+    # generations. frequency_penalty (Cohere's documented anti-repetition lever,
+    # default 0.0, range 0.0–1.0) curbs it; omitted for thinking models, which
+    # reject sampling params.
+    body["frequency_penalty"] = options["frequency_penalty"] || 0.3 unless is_thinking_model
 
     # Add tool definitions if provided (for testing tool-calling apps)
     if options["tools"] && options["tools"].any?

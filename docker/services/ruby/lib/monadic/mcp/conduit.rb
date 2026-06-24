@@ -382,6 +382,13 @@ module Monadic
                     model: { type: "string" }
                   }
                 },
+                review_answer: {
+                  type: "string",
+                  description: "Optional EXISTING answer to corroborate against the panel (e.g. a " \
+                               "response you already have). When given, the judge also reports " \
+                               "whether this answer aligns with the panel's consensus or is an " \
+                               "outlier (`corroboration`: corroborated | partial | disputed)."
+                },
                 system: { type: "string", description: "Optional system prompt for every panel member." },
                 max_tokens: {
                   type: "integer",
@@ -1032,7 +1039,9 @@ module Monadic
         # (2) Judge consensus over ANONYMIZED responses (no provider labels, so
         # the judge cannot favor its own).
         question = (messages.reverse.find { |m| m["role"] == "user" } || messages.last)&.dig("content").to_s
-        verdict = judge_consensus(question, usable, arguments["judge"] || arguments[:judge])
+        review_answer = (arguments["review_answer"] || arguments[:review_answer]).to_s
+        verdict = judge_consensus(question, usable, arguments["judge"] || arguments[:judge],
+                                  review_answer: review_answer)
         band = confidence_band(verdict[:score])
 
         # Honesty: the signal strength reflects the providers that ACTUALLY
@@ -1040,14 +1049,22 @@ module Monadic
         # same-provider answers must NOT be sold as an independent cross-check.
         diverse = usable.map { |r| r[:provider] }.uniq.size >= 2
 
+        # Corroboration mode: a reviewed answer that the panel DISPUTES is an
+        # outlier — escalate even when the panel itself agrees (high score).
+        recommendation = verdict[:review_aligns] == "disputed" ? "escalate" : band[:action]
+
         {
           confidence: band[:level],
           score: verdict[:score],
           consensus: verdict[:consensus],
           disagreements: verdict[:disagreements],
-          recommendation: band[:action],
+          corroboration: verdict[:review_aligns],
+          recommendation: recommendation,
           panel_size: usable.size,
           cross_provider: diverse,
+          moderator: (if verdict[:judge_provider]
+                        { provider: verdict[:judge_provider], model: verdict[:judge_model] }
+                      end),
           note: (diverse ? nil : "Surviving responses are from a single provider: agreement has " \
                                   "correlated errors (weak signal)."),
           judge_error: verdict[:judge_error],
@@ -1067,10 +1084,32 @@ module Monadic
       # Ask a judge model how much the (anonymized) responses agree. Returns
       # {score:, consensus:, disagreements:[]}; a malformed/failed judge yields a
       # neutral verdict (score nil) instead of raising.
-      def judge_consensus(question, usable, judge_arg)
+      def judge_consensus(question, usable, judge_arg, review_answer: "")
+        # Resolve the moderator up front so we can report it (provider + the
+        # concrete model, even when the caller let it default).
+        jp = (judge_arg && (judge_arg["provider"] || judge_arg[:provider])).to_s
+        jp = "openai" if jp.empty?
+        jp = MonadicDSL::ProviderConfig.new(jp).standard_key
+        jm = (judge_arg && (judge_arg["model"] || judge_arg[:model])).to_s
+        jm = default_chat_model_for(jp).to_s if jm.empty?
+        judge_id = { judge_provider: jp, judge_model: jm }
+
         candidates = usable.each_with_index
                            .map { |r, i| "--- Response #{i + 1} ---\n#{r[:text].to_s.strip}" }
                            .join("\n\n")
+        # Corroboration mode (anonymized): when an existing answer is under
+        # review, also ask whether it aligns with the panel — but never tell the
+        # judge which model produced it, so it can't favor a familiar style.
+        review_block = review_answer.to_s.strip.empty? ? "" : <<~REVIEW
+
+          Separately, an existing ANSWER UNDER REVIEW was given (source hidden):
+          #{review_answer.strip}
+          Also judge whether it aligns with the panel's consensus.
+        REVIEW
+        review_field = review_answer.to_s.strip.empty? ? "" : <<~FIELD.chomp
+          ,
+           "review_aligns": "<corroborated | partial | disputed — how the answer under review compares to the consensus>"
+        FIELD
         prompt = <<~PROMPT
           You are assessing how much a panel of INDEPENDENT AI models AGREE on the answer to a
           question. Agreement is a proxy for trustworthiness: when diverse models independently
@@ -1082,17 +1121,12 @@ module Monadic
 
           Independent responses:
           #{candidates}
-
+          #{review_block}
           Respond with ONLY a JSON object, no prose:
           {"score": <0.0-1.0 how strongly they agree on the substantive answer>,
            "consensus": "<the answer/claim they share, or empty string if none>",
-           "disagreements": ["<specific substantive point where they differ>"]}
+           "disagreements": ["<specific substantive point where they differ>"]#{review_field}}
         PROMPT
-
-        jp = (judge_arg && (judge_arg["provider"] || judge_arg[:provider])).to_s
-        jp = "openai" if jp.empty?
-        jp = MonadicDSL::ProviderConfig.new(jp).standard_key
-        jm = judge_arg && (judge_arg["model"] || judge_arg[:model])
 
         res = execute_query(
           provider: jp, messages: [{ "role" => "user", "content" => prompt }],
@@ -1102,18 +1136,18 @@ module Monadic
         # returns success:false with no text. Surface that as judge_error so the
         # caller can tell "judge couldn't run" from "panel genuinely disagreed".
         if res[:success] == false || res[:text].to_s.strip.empty?
-          return { score: nil, consensus: "", disagreements: [],
-                   judge_error: (res[:error] || "judge returned no text") }
+          return judge_id.merge(score: nil, consensus: "", disagreements: [],
+                                judge_error: (res[:error] || "judge returned no text"))
         end
 
-        parsed = parse_consensus(res[:text])
+        parsed = parse_consensus(res[:text]).merge(judge_id)
         return parsed unless parsed[:score].nil?
 
         # Successful call but no usable score = unparseable verdict (distinct from
         # a real "no consensus", which the judge would express as a low score).
         parsed.merge(judge_error: "judge response was not a parseable consensus verdict")
       rescue StandardError => e
-        { score: nil, consensus: "", disagreements: [], judge_error: "❌ #{e.class}: #{e.message}" }
+        judge_id.merge(score: nil, consensus: "", disagreements: [], judge_error: "❌ #{e.class}: #{e.message}")
       end
 
       # All balanced top-level {...} substrings of `text`, in order. A depth
@@ -1154,7 +1188,8 @@ module Monadic
         {
           score: score,
           consensus: data["consensus"].to_s,
-          disagreements: (data["disagreements"].is_a?(Array) ? data["disagreements"].map(&:to_s) : [])
+          disagreements: (data["disagreements"].is_a?(Array) ? data["disagreements"].map(&:to_s) : []),
+          review_aligns: (data["review_aligns"].to_s if data.key?("review_aligns"))
         }
       end
 

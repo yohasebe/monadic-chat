@@ -213,6 +213,9 @@ post "/load" do
             "mid" => mid,
             "active" => true
           }
+          # Preserve a confidence-via-agreement verdict so an imported
+          # conversation restores it on render (KB save strips it separately).
+          message_obj["verify"] = msg["verify"] if msg["verify"].is_a?(Hash)
           message_obj["app_name"] = app_name if app_name
           if json_data["parameters"].key?("monadic")
             message_obj["monadic"] = json_data["parameters"]["monadic"]

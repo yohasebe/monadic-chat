@@ -785,7 +785,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     var indicators = "";
     var websearchCb = $id("websearch");
-    if (websearchCb && websearchCb.checked) indicators += '<span class="badge bg-info me-1">Web</span>';
+    if (websearchCb && websearchCb.checked) indicators += '<span class="badge bg-info me-1">Web Search</span>';
     var mathCb = $id("math");
     if (mathCb && mathCb.checked) indicators += '<span class="badge bg-secondary me-1">Math</span>';
     var reasoningEffortSel = $id("reasoning-effort");
@@ -3391,6 +3391,9 @@ document.addEventListener("DOMContentLoaded", function () {
           "mid": message.mid,
           "thinking": message.thinking
         };
+        // Carry the confidence-via-agreement verdict so a re-imported
+        // conversation restores it (KB save strips it separately).
+        if (message.verify) message_obj.verify = message.verify;
       } else {
         message_obj = {
           "role": message.role,

@@ -112,6 +112,15 @@ RSpec.describe Monadic::MCP::Conduit do
       it "coerces a stringified score (LLMs often quote numbers)" do
         expect(described_class.parse_consensus(%({"score": "0.7"}))[:score]).to eq(0.7)
       end
+
+      it "extracts review_aligns when present (corroboration mode)" do
+        v = described_class.parse_consensus(%({"score": 0.9, "review_aligns": "disputed"}))
+        expect(v[:review_aligns]).to eq("disputed")
+      end
+
+      it "leaves review_aligns nil when absent (plain agreement mode)" do
+        expect(described_class.parse_consensus(%({"score": 0.9}))[:review_aligns]).to be_nil
+      end
     end
 
     describe ".handle_confidence" do
@@ -150,6 +159,18 @@ RSpec.describe Monadic::MCP::Conduit do
                                       { "providers" => %w[openai anthropic], "message" => "hi" })
         expect(result[:confidence]).to eq("unknown")
         expect(result[:note]).to match(/Need >= 2/)
+      end
+
+      it "escalates a DISPUTED reviewed answer even when the panel agrees (corroboration)" do
+        allow(described_class).to receive(:execute_query).and_return(ok_openai, ok_anthropic)
+        allow(described_class).to receive(:judge_consensus)
+          .and_return(score: 0.9, consensus: "42", disagreements: [], review_aligns: "disputed")
+        result = described_class.call("monadic_confidence",
+                                      { "providers" => %w[openai anthropic], "message" => "6*7?",
+                                        "review_answer" => "The answer is 41." })
+        expect(result[:confidence]).to eq("high")          # panel itself agrees
+        expect(result[:corroboration]).to eq("disputed")    # but the reviewed answer is an outlier
+        expect(result[:recommendation]).to eq("escalate")   # so don't trust it
       end
 
       it "surfaces judge_error so a failed judge isn't read as 'no consensus'" do
@@ -208,12 +229,15 @@ RSpec.describe Monadic::MCP::Conduit do
         expect(v[:judge_error]).to match(/Budget/)
       end
 
-      it "parses a valid judge verdict" do
+      it "parses a valid judge verdict and reports the moderator identity" do
+        allow(described_class).to receive(:default_chat_model_for).and_return("judge-model")
         allow(described_class).to receive(:execute_query)
           .and_return(provider: "openai", success: true, text: %({"score": 0.9, "consensus": "42", "disagreements": []}))
         v = described_class.judge_consensus("q", [{ text: "a" }, { text: "b" }], nil)
         expect(v[:score]).to eq(0.9)
         expect(v[:judge_error]).to be_nil
+        expect(v[:judge_provider]).to eq("openai")
+        expect(v[:judge_model]).to eq("judge-model")
       end
     end
 

@@ -277,6 +277,12 @@ module WebSocketHelper
       return
     end
 
+    # Verify-button results are session-only annotations ABOUT an answer, not
+    # knowledge — strip them so a persisted verdict never pollutes KB embeddings
+    # or semantic search (defense in depth; the client also keeps them off the
+    # save payload).
+    messages = messages.map { |m| m.is_a?(Hash) ? m.reject { |k, _| k == 'verify' } : m }
+
     importer_input = { 'parameters' => parameters, 'messages' => messages }
     importer_input['monadic_state'] = monadic_state if monadic_state.is_a?(Hash)
 

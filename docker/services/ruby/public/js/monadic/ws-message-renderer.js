@@ -140,6 +140,10 @@ function handlePastMessages(data) {
         if (discourseEl && assistantCard) {
           discourseEl.appendChild(assistantCard[0] || assistantCard);
         }
+        // Restore a persisted verification verdict, if the message carries one.
+        if (msg.verify && typeof window.renderVerifyConfidence === 'function') {
+          window.renderVerifyConfidence(Object.assign({ mid: msg.mid }, msg.verify));
+        }
         if (window.MarkdownRenderer) {
           window.MarkdownRenderer.applyRenderers(assistantCard[0] || assistantCard);
         }

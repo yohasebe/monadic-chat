@@ -2395,6 +2395,13 @@ module Monadic
           # punctuation), e.g. a reasoning model that spent `max_tokens` on
           # internal reasoning before finishing. Raise `max_tokens` and retry.
           possibly_incomplete: (true if normalized[:success] && looks_incomplete?(normalized[:text])),
+          # Empty visible output on a successful call almost always means the
+          # model spent its whole max_tokens budget before emitting any text —
+          # for reasoning models (GPT-5.x, o-series, …) the internal reasoning
+          # consumes the cap. Surface an explicit flag + actionable warning so
+          # external callers can diagnose the silent-empty case immediately.
+          empty_output: (true if normalized[:success] && normalized[:text].to_s.strip.empty?),
+          warning: ((normalized[:success] && normalized[:text].to_s.strip.empty?) ? empty_output_warning(model, max_output) : nil),
           usage: {
             input_tokens_est: input_tokens,
             output_tokens_est: output_tokens,
@@ -2598,6 +2605,25 @@ module Monadic
         return false if s.empty?
 
         !s.match?(/[.!?…。！？”’"')\]\}]\z/)
+      end
+
+      # Actionable warning for a successful call that produced no visible text.
+      # Reasoning models spend max_tokens on hidden reasoning first, so a too-low
+      # cap yields an empty response; non-reasoning models simply hit the cap.
+      def empty_output_warning(model, max_output)
+        reasoning = begin
+          Monadic::Utils::ModelSpec.is_reasoning_model?(model)
+        rescue StandardError
+          false
+        end
+        if reasoning
+          "empty output: a reasoning model returned no visible text — internal " \
+          "reasoning likely consumed the entire max_tokens budget (#{max_output}) " \
+          "before emitting any. Increase max_tokens (e.g. 32000) and retry."
+        else
+          "empty output: the model returned no visible text. Increase max_tokens " \
+          "(current #{max_output}) and retry."
+        end
       end
 
       # ---- Status helpers -------------------------------------------------

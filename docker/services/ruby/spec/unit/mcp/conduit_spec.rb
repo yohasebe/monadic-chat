@@ -73,6 +73,48 @@ RSpec.describe Monadic::MCP::Conduit do
     end
   end
 
+  describe "monadic_query empty-output diagnostics" do
+    let(:host) { double("host") }
+
+    before { allow(described_class).to receive(:provider_host).and_return(host) }
+
+    it "flags empty visible output with empty_output + an actionable warning" do
+      allow(host).to receive(:send_query).and_return("")
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "hi", "max_tokens" => 100 })
+      expect(result[:success]).to be true
+      expect(result[:empty_output]).to be true
+      expect(result[:warning]).to match(/empty output/i)
+      expect(result[:warning]).to match(/max_tokens/)
+    end
+
+    it "adds no empty_output/warning when the model returns text" do
+      allow(host).to receive(:send_query).and_return("A complete answer.")
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "hi" })
+      expect(result[:success]).to be true
+      expect(result).not_to have_key(:empty_output) # nil compacted away
+      expect(result).not_to have_key(:warning)
+    end
+  end
+
+  describe ".empty_output_warning" do
+    it "names reasoning + the budget for reasoning models" do
+      allow(Monadic::Utils::ModelSpec).to receive(:is_reasoning_model?).and_return(true)
+      msg = described_class.empty_output_warning("gpt-5.5", 6000)
+      expect(msg).to match(/reasoning/i)
+      expect(msg).to match(/6000/)
+      expect(msg).to match(/max_tokens/)
+    end
+
+    it "gives a generic increase-max_tokens hint for non-reasoning models" do
+      allow(Monadic::Utils::ModelSpec).to receive(:is_reasoning_model?).and_return(false)
+      msg = described_class.empty_output_warning("some-model", 4096)
+      expect(msg).to match(/max_tokens/)
+      expect(msg).not_to match(/reasoning/i)
+    end
+  end
+
   describe "monadic_confidence" do
     describe ".confidence_band" do
       it "maps scores to calibrated bands + actions" do

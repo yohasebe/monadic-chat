@@ -163,6 +163,14 @@ module Monadic
                                "reasoning before any visible output, so set it generously " \
                                "(e.g. >= 1000) or the answer can come back truncated."
                 },
+                reasoning_effort: {
+                  type: "string",
+                  description: "Optional reasoning depth for reasoning-capable models " \
+                               "(e.g. none/low/medium/high/xhigh; valid set varies by model — " \
+                               "see monadic_list_models). Lower effort = faster, cheaper, and " \
+                               "less likely to exhaust max_tokens on hidden reasoning. " \
+                               "Ignored by models that don't support it."
+                },
                 temperature: {
                   type: "number",
                   description: "Optional sampling temperature (ignored by models that reject it)."
@@ -254,6 +262,12 @@ module Monadic
                                "Reasoning/thinking models spend this cap on internal reasoning " \
                                "before visible output — set it generously (e.g. >= 1000) or an " \
                                "answer can return truncated (see each result's possibly_incomplete)."
+                },
+                reasoning_effort: {
+                  type: "string",
+                  description: "Optional reasoning depth applied to every reasoning-capable " \
+                               "target (none/low/medium/high/xhigh; varies by model). Ignored " \
+                               "by models that don't support it."
                 },
                 temperature: {
                   type: "number",
@@ -393,6 +407,11 @@ module Monadic
                 max_tokens: {
                   type: "integer",
                   description: "Optional per-member output cap (default #{DEFAULT_MAX_OUTPUT})."
+                },
+                reasoning_effort: {
+                  type: "string",
+                  description: "Optional reasoning depth for reasoning-capable panel members " \
+                               "(none/low/medium/high/xhigh; varies by model). Ignored otherwise."
                 },
                 temperature: { type: "number", description: "Optional sampling temperature for the panel." },
                 knowledge_base: {
@@ -893,7 +912,8 @@ module Monadic
           max_output: (arguments["max_tokens"] || arguments[:max_tokens]),
           temperature: (arguments["temperature"] || arguments[:temperature]),
           knowledge_base: (arguments["knowledge_base"] || arguments[:knowledge_base]),
-          privacy: (arguments["privacy"] || arguments[:privacy])
+          privacy: (arguments["privacy"] || arguments[:privacy]),
+          reasoning_effort: (arguments["reasoning_effort"] || arguments[:reasoning_effort])
         )
         result.merge(budget: CostGuard.status)
       end
@@ -917,12 +937,13 @@ module Monadic
         temperature ||= arguments["temperature"] || arguments[:temperature]
         knowledge_base = arguments["knowledge_base"] || arguments[:knowledge_base]
         privacy = arguments["privacy"] || arguments[:privacy]
+        reasoning_effort = arguments["reasoning_effort"] || arguments[:reasoning_effort]
 
         runner = lambda do |target|
           execute_query(
             provider: target[:provider], messages: messages, system: system,
             model: target[:model], max_output: max_output, temperature: temperature,
-            knowledge_base: knowledge_base, privacy: privacy
+            knowledge_base: knowledge_base, privacy: privacy, reasoning_effort: reasoning_effort
           )
         end
 
@@ -2301,7 +2322,7 @@ module Monadic
 
       def execute_query(provider:, messages:, system: "", model: nil,
                         max_output: nil, temperature: nil,
-                        knowledge_base: nil, privacy: nil)
+                        knowledge_base: nil, privacy: nil, reasoning_effort: nil)
         model = model.to_s.strip
         model = nil if model.empty?
         model ||= default_chat_model_for(provider)
@@ -2361,6 +2382,13 @@ module Monadic
 
         body = { "messages" => send_messages, "model" => model, "max_tokens" => max_output }
         body["temperature"] = temperature unless temperature.nil?
+        # Reasoning effort is honored only by reasoning-capable models; send_query
+        # ignores it for the rest, so passing it through is always safe. Lets a
+        # caller trade depth for speed/cost — and avoid the "reasoning ate the
+        # whole max_tokens budget → empty text" trap by lowering effort.
+        unless reasoning_effort.to_s.strip.empty?
+          body["reasoning_effort"] = reasoning_effort.to_s.strip
+        end
 
         raw = host.send_query(body, model: model)
         normalized = normalize_query_response(raw)

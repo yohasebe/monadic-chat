@@ -202,7 +202,25 @@ module ClaudeHelper
     unless Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
       body["temperature"] = options["temperature"] || 0.7
     end
-    
+
+    # Honor reasoning_effort on the simple-query path (used by Conduit) the same
+    # way the chat path does: reuse configure_claude_thinking so adaptive models
+    # get output_config.effort and budget models get thinking.budget_tokens.
+    # Extended thinking requires temperature to be unset, so drop it when on.
+    if options["reasoning_effort"] && options["reasoning_effort"] != "none"
+      # configure_claude_thinking reads obj["model"]; send_query's authoritative
+      # model is the keyword arg, so merge it in (options may omit "model").
+      tc = configure_claude_thinking(options.merge("model" => model), model, max_tokens_value, nil)
+      if tc[:thinking_enabled]
+        if tc[:adaptive_effort]
+          body["output_config"] = { "effort" => tc[:adaptive_effort] }
+        elsif tc[:budget_tokens]
+          body["thinking"] = { "type" => "enabled", "budget_tokens" => tc[:budget_tokens] }
+        end
+        body.delete("temperature")
+      end
+    end
+
     # Extract system message - Claude API expects this as a top-level parameter
     if options["system"]
       body["system"] = options["system"]

@@ -838,6 +838,17 @@ module GrokHelper
     body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
+    # Reasoning effort for models that expose it (currently grok-4.3). xAI's
+    # Responses API takes a nested reasoning object ({"effort": ...}); valid
+    # values are none/low/medium/high. Gate strictly on the model spec so we
+    # never send it to models that reject it (or where effort means something
+    # else, e.g. grok-4.20-multi-agent's agent count).
+    grok_effort = options["reasoning_effort"].to_s.strip
+    if !grok_effort.empty? &&
+       (Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort") rescue false)
+      body["reasoning"] = { "effort" => grok_effort }
+    end
+
 
     # Handle websearch via search tools
     websearch = options["websearch"] == true || options["websearch"] == "true"

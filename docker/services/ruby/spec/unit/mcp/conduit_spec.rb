@@ -98,6 +98,33 @@ RSpec.describe Monadic::MCP::Conduit do
     end
   end
 
+  describe "monadic_query reasoning_effort passthrough" do
+    let(:host) { double("host") }
+
+    before { allow(described_class).to receive(:provider_host).and_return(host) }
+
+    it "forwards reasoning_effort into the send_query body" do
+      captured = nil
+      allow(host).to receive(:send_query) { |body, **| captured = body; "answer." }
+      described_class.call("monadic_query",
+                           { "provider" => "openai", "message" => "hi", "reasoning_effort" => "low" })
+      expect(captured["reasoning_effort"]).to eq("low")
+    end
+
+    it "omits reasoning_effort from the body when not provided" do
+      captured = nil
+      allow(host).to receive(:send_query) { |body, **| captured = body; "answer." }
+      described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(captured).not_to have_key("reasoning_effort")
+    end
+
+    it "advertises reasoning_effort in the monadic_query tool schema" do
+      tool = described_class.tools.find { |t| t[:name] == "monadic_query" }
+      props = tool.dig(:inputSchema, :properties) || tool.dig("inputSchema", "properties")
+      expect(props).to have_key(:reasoning_effort).or have_key("reasoning_effort")
+    end
+  end
+
   describe ".empty_output_warning" do
     it "names reasoning + the budget for reasoning models" do
       allow(Monadic::Utils::ModelSpec).to receive(:is_reasoning_model?).and_return(true)

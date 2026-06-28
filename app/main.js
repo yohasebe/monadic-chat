@@ -6,6 +6,7 @@ process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor } = require('electron');
 const updater = require('./updater');
+const { injectUpdateButton } = require('./update-ui');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
 let extendedContextMenu = null;
 const i18n = require('./i18n');
@@ -1062,7 +1063,7 @@ function checkForUpdatesManual(showDialog = false) {
               defaultId: 0,
               cancelId: 2,
               message: 'Update Available',
-              detail: `A new version (${latestVersion}) is available.\nCurrent version: ${currentVersion}\n\n"Download & Install" downloads the update in the background; you will be prompted to restart once the download finishes. Docker containers will be stopped gracefully before restart.`,
+              detail: `New: ${latestVersion} (current: ${currentVersion}).\nDownloads in the background; you'll be asked to restart when it's ready.`,
               icon: path.join(iconDir, 'app-icon.png')
             }).then((result) => {
               if (result.response === 0) {
@@ -1085,7 +1086,9 @@ function checkForUpdatesManual(showDialog = false) {
           } else {
             // Display update notification in main window only on startup
             if (mainWindow && !mainWindow.isDestroyed()) {
-              lastUpdateCheckResult = formatMessage('warning', 'messages.newVersionAvailable', { version: latestVersion, current: currentVersion });
+              lastUpdateCheckResult = injectUpdateButton(
+                formatMessage('warning', 'messages.newVersionAvailable', { version: latestVersion, current: currentVersion }),
+                i18n.t('messages.downloadAndInstall'));
               mainWindow.webContents.send('command-output', lastUpdateCheckResult);
             }
           }
@@ -4117,7 +4120,9 @@ ipcMain.on('save-settings', (_event, data) => {
           // New version available - extract version from the message
           const versionMatch = lastUpdateCheckResult.match(/v([0-9.\\-a-z]+)/i);
           if (versionMatch) {
-            lastUpdateCheckResult = formatMessage('warning', 'messages.newVersionAvailable', { version: versionMatch[1], current: currentVersion });
+            lastUpdateCheckResult = injectUpdateButton(
+              formatMessage('warning', 'messages.newVersionAvailable', { version: versionMatch[1], current: currentVersion }),
+              i18n.t('messages.downloadAndInstall'));
           }
         } else if (lastUpdateCheckResult.includes('fa-circle-info')) {
           // Failed to retrieve version

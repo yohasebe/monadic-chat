@@ -43,7 +43,13 @@ RSpec.describe 'send_query reasoning_effort wiring (Conduit path)' do
 
   describe 'GrokHelper' do
     let(:helper) { Class.new { include GrokHelper }.new }
-    before { allow(HTTP).to receive(:headers).and_return(double('http')) }
+    before do
+      allow(HTTP).to receive(:headers).and_return(double('http'))
+      # grok send_query returns early if XAI_API_KEY is unset (e.g. on CI),
+      # before building the body — stub it so we reach the body construction.
+      allow(CONFIG).to receive(:[]).and_call_original
+      allow(CONFIG).to receive(:[]).with('XAI_API_KEY').and_return('test-key')
+    end
 
     def capture_body(opts, model)
       captured = nil

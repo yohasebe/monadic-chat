@@ -299,8 +299,7 @@ module MistralHelper
     # The reactive `tavily_disabled` flag below remains as defense in
     # depth (catches the case where the key is set at boot but Tavily
     # rejects it at request time — e.g. revoked / rate-limited).
-    websearch = !CONFIG["TAVILY_API_KEY"].to_s.strip.empty? &&
-                (obj["websearch"] == "true" || obj["websearch"] == true)
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
     if session[:parameters]["tavily_disabled"]
       websearch = false
     end
@@ -876,6 +875,10 @@ module MistralHelper
     else
       if request_tools && !request_tools.empty?
         base = Array(app_tools).select { |tool| tool.is_a?(Hash) } + Array(request_tools).select { |tool| tool.is_a?(Hash) }
+        # Add web search tools when enabled — this branch previously omitted
+        # them (unlike the app_tools / websearch-only branches below), so a
+        # request that carried obj["tools"] while websearch was on lost Tavily.
+        base += WEBSEARCH_TOOLS if websearch
         base = base.flatten.compact
         base.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
         final_tools = base unless base.empty?

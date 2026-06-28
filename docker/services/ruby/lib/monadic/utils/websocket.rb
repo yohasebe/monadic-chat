@@ -28,6 +28,7 @@ require_relative 'websocket/streaming_handler'
 require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
 require_relative 'websocket/privacy_handler'
+require_relative 'websocket/verify_handler'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
@@ -257,6 +258,8 @@ module WebSocketHelper
           handle_ws_privacy_export(connection, session, obj)
         when "PRIVACY_TOGGLE"
           handle_ws_privacy_toggle(connection, session, obj)
+        when "VERIFY_CONFIDENCE"
+          handle_ws_verify_confidence(connection, obj, session)
         else # fragment
           thread = handle_ws_streaming(connection, obj, session, queue)
         end

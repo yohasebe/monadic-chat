@@ -205,3 +205,33 @@ Customize the system prompt that guides how the AI generates user responses. You
 - For best results, start with a clear topic or question before using AI User
 - You can use AI User multiple times in succession to create an extended automated conversation
 - The generated message appears in the input field, allowing you to review and edit before sending
+
+## Response Verification :id=response-verification
+
+Each AI response has a **Verify this response** action below it. Clicking it cross-checks the answer by asking a diverse panel of your other configured providers the same question — using the same conversation context the answer was written in — and judging how much they independently agree. Agreement across independent models is a trust signal: when diverse providers converge on the same answer it is more likely correct, and when they scatter the answer warrants more scrutiny.
+
+### How It Works
+
+- The question (and the prior conversation context) is sent to a panel of distinct configured providers, each on a cost-efficient model.
+- A separate moderator model reads the panel's answers — anonymized, so it cannot favor any one provider — and reports how strongly they agree.
+- The result appears under the response: a confidence level, what the panel agrees on, the points of disagreement, each member's own answer (expandable), the moderating model, and whether the original answer is corroborated or disputed.
+- While verification runs, a spinner is shown and other actions are paused until it completes.
+
+### Confidence Levels
+
+- **High** — the panel strongly agrees; recommendation: trust.
+- **Medium** — partial agreement; recommendation: verify.
+- **Low** — the panel diverges; recommendation: escalate.
+- If the original answer disagrees with the panel's consensus, it is flagged as disputed regardless of how much the panel agrees internally.
+
+### Requirements and Limitations
+
+- A meaningful cross-provider check needs **at least two configured providers**. With a single provider, verification falls back to a weaker self-consistency signal (clearly labeled), and a model that cannot vary its output reports that agreement cannot be measured rather than implying false confidence.
+- Verification makes several model calls (the panel plus the moderator), so it spends additional tokens.
+
+### Persistence
+
+- A verification result is kept when you reload the page and when you export or import the conversation as JSON.
+- It is **not** included when you save the conversation to a Knowledge Base or export to PDF — it is commentary about an answer, not part of the conversation's content.
+
+The same capability is available to external agents through the `monadic_confidence` tool — see [MCP Integration](/advanced-topics/mcp-integration.md).

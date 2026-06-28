@@ -173,15 +173,17 @@ module MonadicSharedTools
         timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
         filename = "web_content_#{timestamp}.txt"
 
-        # Use appropriate path based on environment
-        data_dir = if defined?(Monadic::Utils::Environment) && Monadic::Utils::Environment.in_container?
-                     SHARED_VOL
-                   else
-                     LOCAL_SHARED_VOL
-                   end
+        # Resolve the shared volume for the current mode. Use the Environment
+        # helper (a method call) rather than the bare SHARED_VOL/LOCAL_SHARED_VOL
+        # constants, which only resolve from a class that defines them — not
+        # from this module's lexical scope (e.g. a headless agent host).
+        data_dir = Monadic::Utils::Environment.shared_volume
 
         filepath = File.join(data_dir, filename)
-        File.write(filepath, response.body, encoding: 'UTF-8')
+        # Interpret the raw body as UTF-8 and scrub invalid bytes rather than
+        # transcoding (the response is ASCII-8BIT and `encoding: 'UTF-8'` raises
+        # on non-ASCII bytes, e.g. a Cyrillic page).
+        File.write(filepath, response.body.to_s.dup.force_encoding('UTF-8').scrub)
 
         {
           success: true,
@@ -267,14 +269,13 @@ module MonadicSharedTools
         return { error: "URL cannot be empty" }
       end
 
-      # Delegate to the tavily_fetch implementation
-      if respond_to?(:super_method_missing, true) || method_defined?(:tavily_fetch)
-        begin
-          super(url: url)
-        rescue NoMethodError
-          { error: "Tavily fetch is not available. Please include TavilyHelper in your app." }
-        end
-      else
+      # Delegate to the real implementation (InteractionUtils#tavily_fetch) via
+      # super if it is in the ancestor chain; otherwise report it's unavailable.
+      # (The previous `method_defined?` guard called a Module method on an
+      # instance and raised NoMethodError.)
+      begin
+        super(url: url)
+      rescue NoMethodError
         { error: "Tavily fetch is not available. Please include TavilyHelper in your app." }
       end
     end

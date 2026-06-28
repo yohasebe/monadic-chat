@@ -191,8 +191,7 @@ module DeepSeekHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    # Handle both string and boolean values for websearch parameter
-    websearch = CONFIG["TAVILY_API_KEY"] && (obj["websearch"] == "true" || obj["websearch"] == true)
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
 
     if role != "tool"
       message = obj["message"].to_s

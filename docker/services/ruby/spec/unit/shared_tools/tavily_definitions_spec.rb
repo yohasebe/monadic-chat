@@ -30,6 +30,39 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
     end
   end
 
+  describe '.websearch_requested?' do
+    around do |example|
+      original = defined?(CONFIG) ? CONFIG.dup : nil
+      example.run
+    ensure
+      if original
+        CONFIG.clear
+        CONFIG.merge!(original)
+      end
+    end
+
+    before { stub_const('CONFIG', { 'TAVILY_API_KEY' => 'key-123' }) }
+
+    it 'is true for boolean true and string "true"' do
+      expect(described_class.websearch_requested?('websearch' => true)).to be true
+      expect(described_class.websearch_requested?('websearch' => 'true')).to be true
+    end
+
+    it 'is false when the flag is absent, false, or any other value' do
+      expect(described_class.websearch_requested?({})).to be false
+      expect(described_class.websearch_requested?('websearch' => false)).to be false
+      expect(described_class.websearch_requested?('websearch' => 'false')).to be false
+      expect(described_class.websearch_requested?('websearch' => '1')).to be false
+    end
+
+    it 'is false when TAVILY_API_KEY is missing or blank (fixes DeepSeek empty-string truthy bug)' do
+      stub_const('CONFIG', { 'TAVILY_API_KEY' => '' })
+      expect(described_class.websearch_requested?('websearch' => true)).to be false
+      stub_const('CONFIG', {})
+      expect(described_class.websearch_requested?('websearch' => true)).to be false
+    end
+  end
+
   describe 'PROMPT' do
     let(:prompt) { described_class::PROMPT }
 
@@ -98,6 +131,16 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
       it "#{filename} does NOT redefine WEBSEARCH_PROMPT as a literal heredoc" do
         content = File.read(File.join(vendors_dir, filename))
         expect(content).not_to match(/WEBSEARCH_PROMPT\s*=\s*<<~?[A-Z]/)
+      end
+
+      it "#{filename} computes the websearch flag via TavilyDefinitions.websearch_requested?" do
+        content = File.read(File.join(vendors_dir, filename))
+        expect(content).to match(/TavilyDefinitions\.websearch_requested\?/)
+      end
+
+      it "#{filename} does NOT recompute the websearch flag inline (drift guard)" do
+        content = File.read(File.join(vendors_dir, filename))
+        expect(content).not_to match(/websearch\s*=\s*.*obj\["websearch"\]\s*==\s*"true"/)
       end
     end
   end

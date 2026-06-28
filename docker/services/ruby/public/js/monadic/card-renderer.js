@@ -172,6 +172,13 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   }
 
   // Build card HTML
+  // Verify (confidence-via-agreement) applies only to AI answers; it lives below
+  // the response (not in the header cluster) as a labeled action.
+  var verifyLabel = getTranslation('ui.verify.action', 'Verify this response');
+  var verifyBar = (role === "assistant")
+    ? '<div class="verify-bar"><span class="func-verify" title="' + verifyLabel + '">' +
+      '<i class="fas fa-check-double"></i> ' + verifyLabel + '</span></div>'
+    : '';
   var headerButtons;
   if (!runningOnChrome && !runningOnEdge && !runningOnSafari) {
     headerButtons =
@@ -204,6 +211,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
     '</div>' +
     '<div class="card-body ' + className + '">' +
     '<div class="card-text">' + replaced_html + image_data + '</div>' +
+    verifyBar +
     '</div>' +
     '</div>';
   var card = wrapper.firstChild;

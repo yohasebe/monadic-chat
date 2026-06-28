@@ -42,6 +42,6 @@ In Chat apps, the web search tool is disabled by default to give users control o
 
 ---
 
-##### Q: Can I access all Monadic Chat tools through MCP? :id=mcp-tools
+##### Q: What can I access through MCP? :id=mcp-tools
 
-**A**: Yes, the MCP server automatically exposes all tools from all enabled apps. This includes image generation, diagram creation (Mermaid, Syntax Tree), code execution, PDF search, and more. Tools are named using the convention `AppName__tool_name`. No additional configuration is needed - new apps and tools are automatically discovered.
+**A**: The MCP server (Monadic Conduit) exposes a small, stable set of capability tools in the `monadic_*` namespace rather than every individual app tool. These cover model queries, a local knowledge base, audio/image/video analysis, and audio/image/video/music generation, plus background-job control for long-running work. Orchestration is left to the calling client. Tools that call a provider are gated by a token budget. See [MCP Integration](/advanced-topics/mcp-integration.md) for the full list.

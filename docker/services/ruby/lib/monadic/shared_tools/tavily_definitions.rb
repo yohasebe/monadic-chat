@@ -103,6 +103,20 @@ module Monadic
         - Cite sources using HTML anchors: <a href="URL" target="_blank" rel="noopener noreferrer">Title</a>.
         - Use the information you find — do not fabricate when search can confirm.
       TEXT
+
+      # Single source of truth for "is Tavily-backed web search active for this
+      # request?". Replaces four subtly-divergent copies that lived in the
+      # Cohere / DeepSeek / Mistral / Ollama helpers — notably DeepSeek's bare
+      # `CONFIG["TAVILY_API_KEY"]` truthy check, which treated an empty-string
+      # key as configured. Centralizing it also makes every Tavily-fallback
+      # provider behave identically (important for headless callers that supply
+      # the `websearch` flag themselves).
+      def self.websearch_requested?(obj)
+        return false if !defined?(CONFIG) || CONFIG["TAVILY_API_KEY"].to_s.strip.empty?
+
+        value = obj.is_a?(Hash) || obj.respond_to?(:[]) ? obj["websearch"] : nil
+        value == true || value == "true"
+      end
     end
   end
 end

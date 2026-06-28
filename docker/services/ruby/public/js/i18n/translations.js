@@ -2,6 +2,15 @@
 const webUITranslations = {
   en: {
     ui: {
+      verify: {
+        action: "Verify this response", running: "Verifying across models…",
+        confidence: "Confidence", consensus: "Consensus", disagreements: "Disagreements",
+        panel: "Panel", moderator: "Moderator", weakSignal: "single-provider — weak signal",
+        timedOut: "Verification timed out", busy: "Please wait for the current operation to finish",
+        conf_high: "high", conf_medium: "medium", conf_low: "low", conf_unknown: "unknown", conf_unavailable: "unavailable",
+        rec_trust: "trust", rec_verify: "verify", rec_escalate: "escalate",
+        corr_corroborated: "corroborated", corr_partial: "partial", corr_disputed: "disputed"
+      },
       start: "Start",
       stop: "Stop",
       restart: "Restart",
@@ -463,6 +472,15 @@ const webUITranslations = {
   },
   ja: {
     ui: {
+      verify: {
+        action: "この回答を検証", running: "複数モデルで検証中…",
+        confidence: "信頼度", consensus: "合意", disagreements: "相違点",
+        panel: "パネル", moderator: "モデレータ", weakSignal: "単一プロバイダ — 弱い信号",
+        timedOut: "検証がタイムアウトしました", busy: "現在の処理が終わるまでお待ちください",
+        conf_high: "高", conf_medium: "中", conf_low: "低", conf_unknown: "不明", conf_unavailable: "検証不可",
+        rec_trust: "信頼できる", rec_verify: "要確認", rec_escalate: "要再検討",
+        corr_corroborated: "裏付けあり", corr_partial: "部分的", corr_disputed: "異議あり"
+      },
       start: "開始",
       stop: "停止",
       restart: "再起動",
@@ -924,6 +942,15 @@ const webUITranslations = {
   },
   zh: {
     ui: {
+      verify: {
+        action: "验证此回答", running: "正在跨模型验证…",
+        confidence: "可信度", consensus: "共识", disagreements: "分歧",
+        panel: "评审组", moderator: "主持模型", weakSignal: "单一提供方 — 弱信号",
+        timedOut: "验证超时", busy: "请等待当前操作完成",
+        conf_high: "高", conf_medium: "中", conf_low: "低", conf_unknown: "未知", conf_unavailable: "无法验证",
+        rec_trust: "可信", rec_verify: "需核实", rec_escalate: "需复核",
+        corr_corroborated: "已佐证", corr_partial: "部分一致", corr_disputed: "有异议"
+      },
       start: "启动",
       stop: "停止",
       restart: "重启",
@@ -1408,6 +1435,15 @@ const webUITranslations = {
   },
   ko: {
     ui: {
+      verify: {
+        action: "이 응답 검증", running: "여러 모델로 검증 중…",
+        confidence: "신뢰도", consensus: "합의", disagreements: "이견",
+        panel: "패널", moderator: "중재자", weakSignal: "단일 제공자 — 약한 신호",
+        timedOut: "검증 시간 초과", busy: "현재 작업이 끝날 때까지 기다려 주세요",
+        conf_high: "높음", conf_medium: "중간", conf_low: "낮음", conf_unknown: "알 수 없음", conf_unavailable: "검증 불가",
+        rec_trust: "신뢰", rec_verify: "확인 필요", rec_escalate: "재검토 필요",
+        corr_corroborated: "입증됨", corr_partial: "부분적", corr_disputed: "이견 있음"
+      },
       start: "시작",
       stop: "중지",
       restart: "재시작",
@@ -1869,6 +1905,15 @@ const webUITranslations = {
   },
   es: {
     ui: {
+      verify: {
+        action: "Verificar esta respuesta", running: "Verificando entre modelos…",
+        confidence: "Confianza", consensus: "Consenso", disagreements: "Discrepancias",
+        panel: "Panel", moderator: "Moderador", weakSignal: "un solo proveedor — señal débil",
+        timedOut: "La verificación agotó el tiempo", busy: "Espere a que termine la operación actual",
+        conf_high: "alta", conf_medium: "media", conf_low: "baja", conf_unknown: "desconocida", conf_unavailable: "no disponible",
+        rec_trust: "confiar", rec_verify: "verificar", rec_escalate: "escalar",
+        corr_corroborated: "corroborada", corr_partial: "parcial", corr_disputed: "en disputa"
+      },
       start: "Iniciar",
       stop: "Detener",
       restart: "Reiniciar",
@@ -2330,6 +2375,15 @@ const webUITranslations = {
   },
   fr: {
     ui: {
+      verify: {
+        action: "Vérifier cette réponse", running: "Vérification entre modèles…",
+        confidence: "Confiance", consensus: "Consensus", disagreements: "Désaccords",
+        panel: "Panel", moderator: "Modérateur", weakSignal: "fournisseur unique — signal faible",
+        timedOut: "La vérification a expiré", busy: "Veuillez attendre la fin de l'opération en cours",
+        conf_high: "élevée", conf_medium: "moyenne", conf_low: "faible", conf_unknown: "inconnue", conf_unavailable: "indisponible",
+        rec_trust: "faire confiance", rec_verify: "vérifier", rec_escalate: "escalader",
+        corr_corroborated: "corroborée", corr_partial: "partielle", corr_disputed: "contestée"
+      },
       start: "Démarrer",
       stop: "Arrêter",
       restart: "Redémarrer",
@@ -2791,6 +2845,15 @@ const webUITranslations = {
   },
   de: {
     ui: {
+      verify: {
+        action: "Diese Antwort verifizieren", running: "Verifizierung über mehrere Modelle…",
+        confidence: "Konfidenz", consensus: "Konsens", disagreements: "Abweichungen",
+        panel: "Panel", moderator: "Moderator", weakSignal: "einzelner Anbieter — schwaches Signal",
+        timedOut: "Verifizierung zeitüberschritten", busy: "Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist",
+        conf_high: "hoch", conf_medium: "mittel", conf_low: "niedrig", conf_unknown: "unbekannt", conf_unavailable: "nicht verfügbar",
+        rec_trust: "vertrauen", rec_verify: "prüfen", rec_escalate: "eskalieren",
+        corr_corroborated: "bestätigt", corr_partial: "teilweise", corr_disputed: "bestritten"
+      },
       start: "Starten",
       stop: "Stoppen",
       restart: "Neustart",

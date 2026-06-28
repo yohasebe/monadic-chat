@@ -351,8 +351,7 @@ module OllamaHelper
     # feedback_ollama_tool_calling_required.md) will otherwise dispatch
     # tavily_search and surface "Tavily API key is not configured"
     # mid-conversation.
-    websearch = !CONFIG["TAVILY_API_KEY"].to_s.strip.empty? &&
-                (obj["websearch"] == "true" || obj["websearch"] == true)
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
 
     message = obj["message"].to_s
 

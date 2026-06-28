@@ -275,6 +275,11 @@ module CohereHelper
       "stream" => false
     }
     body["temperature"] = options["temperature"] || 0.7 unless is_thinking_model
+    # Cohere's command models can fall into a repetition loop on longer
+    # generations. frequency_penalty (Cohere's documented anti-repetition lever,
+    # default 0.0, range 0.0–1.0) curbs it; omitted for thinking models, which
+    # reject sampling params.
+    body["frequency_penalty"] = options["frequency_penalty"] || 0.3 unless is_thinking_model
 
     # Add tool definitions if provided (for testing tool-calling apps)
     if options["tools"] && options["tools"].any?
@@ -960,7 +965,7 @@ module CohereHelper
         body["tools"].push(*WEBSEARCH_TOOLS) if websearch
         body["tools"].uniq!
       elsif websearch
-        body["tools"] = WEBSEARCH_TOOLS
+        body["tools"] = WEBSEARCH_TOOLS.dup
       else
         body.delete("tools")
       end
@@ -1064,9 +1069,7 @@ module CohereHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    has_tavily = !!CONFIG["TAVILY_API_KEY"]
-    requested_web = (obj["websearch"] == "true" || obj["websearch"] == true)
-    websearch = has_tavily && requested_web
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
     message = obj["message"]
 
     # Handle non-tool messages and update session
@@ -1567,15 +1570,23 @@ module CohereHelper
     begin
       function_return = APPS[app].send(function_name.to_sym, **argument_hash)
       send_verification_notification(session, &block) if function_name == "report_verification"
-      Monadic::Utils::TtsTextExtractor.extract_tts_text(
-        app: app, function_name: function_name,
-        argument_hash: argument_hash, session: session
-      )
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Cohere Tools] Function execution error: #{e.message}" }
       function_return = Monadic::Utils::ErrorFormatter.tool_error(
         provider: "Cohere", tool_name: function_name, message: e.message
       )
+    end
+
+    # TTS extraction is a non-fatal side effect — isolate it so a failure here
+    # cannot clobber a successful tool result (which previously surfaced as a
+    # bogus "Tool Execution Error" and made the model re-call in a loop).
+    begin
+      Monadic::Utils::TtsTextExtractor.extract_tts_text(
+        app: app, function_name: function_name,
+        argument_hash: argument_hash, session: session
+      )
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[Cohere Tools] TTS extract (non-fatal): #{e.message}" }
     end
 
     # Check for repeated errors
@@ -1631,7 +1642,10 @@ module CohereHelper
           "type" => "document",
           "document" => {
             "id" => tool_call_id,
-            "data" => { "results" => result_content }
+            # Cohere v2 requires document.data to be a JSON STRING, not a raw
+            # object. Sending a Hash here made the model fail to register tool
+            # results and re-call the same tool in a loop on multi-turn flows.
+            "data" => JSON.generate({ "results" => result_content })
           }
         }
       ]
@@ -1997,11 +2011,16 @@ module CohereHelper
     content.each do |part|
       next unless part.is_a?(Hash)
 
-      # Handle document format (Cohere v2 tool results)
+      # Handle document format (Cohere v2 tool results). document.data is a
+      # JSON string per the v2 spec; tolerate a legacy Hash too.
       if part["type"] == "document" && part["document"]
         doc = part["document"]
-        if doc["data"] && doc["data"]["results"]
-          results << doc["data"]["results"].to_s
+        data = doc["data"]
+        if data.is_a?(String)
+          parsed = (JSON.parse(data) rescue nil)
+          results << (parsed.is_a?(Hash) && parsed["results"] ? parsed["results"].to_s : data)
+        elsif data.is_a?(Hash) && data["results"]
+          results << data["results"].to_s
         end
       # Handle text format
       elsif part["type"] == "text" && part["text"]

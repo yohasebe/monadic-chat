@@ -10,7 +10,9 @@ require 'async/http/server'
 require 'protocol/rack'
 require_relative '../utils/debug_helper'
 require_relative '../utils/extra_logger'
+require_relative '../utils/environment'
 require_relative 'cache_invalidator'
+require_relative 'conduit'
 
 module Monadic
   module MCP
@@ -41,13 +43,8 @@ module Monadic
       INTERNAL_ERROR = -32603
 
       # Server status
-      @@server_running = false
-      @@server_thread = nil
-
-      # Tool cache
-      @@tools_cache = nil
-      @@tools_cache_time = nil
-      CACHE_TTL = 300 # 5 minutes
+      @server_running = false
+      @server_thread = nil
 
       # CORS headers for HTTP transport
       before do
@@ -143,30 +140,13 @@ module Monadic
         json_rpc_response(id, result)
       end
 
-      def handle_tools_list(id, params)
-        # Use cached tools if available and not expired
-        tools = get_cached_tools
+      def handle_tools_list(id, _params)
+        # Conduit surface: a small, stable set of capability tools (monadic_*).
+        # This deliberately replaces the former per-app `app__tool` surface —
+        # see lib/monadic/mcp/conduit.rb for the design rationale.
+        tools = Monadic::MCP::Conduit.tools
 
-        unless tools
-          # Build tools list
-          tools = []
-
-          discover_apps.each do |app_name, app_info|
-            next unless app_info[:tools]
-
-            app_info[:tools].each do |tool|
-              formatted_tool = format_tool_for_mcp(app_name, tool, app_info[:display_name])
-              tools << formatted_tool if formatted_tool
-            end
-          end
-
-          # Cache the tools
-          cache_tools(tools)
-
-          Monadic::Utils::ExtraLogger.log { "[MCP] Built and cached #{tools.length} tools" }
-        else
-          Monadic::Utils::ExtraLogger.log { "[MCP] Using cached tools (#{tools.length} tools)" }
-        end
+        Monadic::Utils::ExtraLogger.log { "[MCP] Listing #{tools.length} Conduit tools" }
 
         json_rpc_response(id, { tools: tools })
       end
@@ -179,197 +159,27 @@ module Monadic
           return json_rpc_error(id, "Missing tool name", INVALID_PARAMS)
         end
 
-        # Parse tool name to get app and tool names
-        parts = tool_name.split('__', 2)
-        if parts.length != 2
-          return json_rpc_error(id, "Invalid tool name format", INVALID_PARAMS)
+        unless Monadic::MCP::Conduit.tool?(tool_name)
+          return json_rpc_error(id, "Unknown tool: #{tool_name}", INVALID_PARAMS)
         end
 
-        app_name = parts[0]
-        actual_tool_name = parts[1]
-
-        # Direct lookup from APPS instead of calling discover_apps
-        app_instance = ::APPS[app_name] if defined?(::APPS)
-        unless app_instance && app_instance.respond_to?(:settings) && !app_instance.settings['disabled']
-          return json_rpc_error(id, "App not found or disabled: #{app_name}", INVALID_PARAMS)
-        end
-
-        # Execute tool
         begin
-          result = execute_app_tool(app_instance, actual_tool_name, arguments)
-          json_rpc_response(id, result)
+          result = Monadic::MCP::Conduit.call(tool_name, arguments)
+          # MCP 2025-06-18 lets a tool return both human-readable text and a
+          # machine-readable structuredContent object. Conduit handlers return
+          # a Hash, so we surface both for calling agents.
+          json_rpc_response(id, {
+            content: [{ type: "text", text: JSON.pretty_generate(result) }],
+            structuredContent: result
+          })
+        rescue ArgumentError => e
+          # Bad/missing arguments are the caller's to fix — report them as
+          # INVALID_PARAMS (-32602), not as a server-side INTERNAL_ERROR, so a
+          # client can tell "fix your request" from "the server broke".
+          json_rpc_error(id, "Invalid params", INVALID_PARAMS, e.message)
         rescue => e
           Monadic::Utils::ExtraLogger.log { "[MCP] Error executing tool #{tool_name}: #{e.message}" }
           json_rpc_error(id, "Tool execution failed", INTERNAL_ERROR, e.message)
-        end
-      end
-
-      def discover_apps
-        apps = {}
-
-        return apps unless defined?(::APPS) && ::APPS.is_a?(Hash)
-
-        ::APPS.each do |app_name, app_instance|
-          next unless app_instance.respond_to?(:settings)
-
-          settings = app_instance.settings
-          next if settings['disabled']
-
-          # Get tools from settings
-          tools = settings['tools']
-          next unless tools
-
-          # Handle different tool formats
-          tool_list = case tools
-                     when Hash
-                       # Gemini format with function_declarations
-                       tools['function_declarations'] || []
-                     when Array
-                       # Standard format
-                       tools
-                     else
-                       []
-                     end
-
-          next if tool_list.empty?
-
-          apps[app_name] = {
-            instance: app_instance,
-            display_name: settings['display_name'] || app_name,
-            tools: tool_list
-          }
-
-          Monadic::Utils::ExtraLogger.log { "[MCP] Found #{tool_list.length} tools in app #{app_name}" }
-        end
-
-        apps
-      end
-
-      def format_tool_for_mcp(app_name, tool, display_name)
-        # Convert tool format based on provider
-        if tool.is_a?(Hash) && tool['function']
-          # OpenAI/Mistral format
-          tool_def = tool['function']
-          {
-            name: "#{app_name}__#{tool_def['name']}",
-            description: "#{display_name}: #{tool_def['description']}",
-            inputSchema: tool_def['parameters'] || { type: "object", properties: {} }
-          }
-        elsif tool.is_a?(Hash) && tool['name']
-          # Claude/Gemini format
-          {
-            name: "#{app_name}__#{tool['name']}",
-            description: "#{display_name}: #{tool['description']}",
-            inputSchema: tool['input_schema'] || tool['parameters'] || { type: "object", properties: {} }
-          }
-        else
-          nil
-        end
-      end
-
-      def execute_app_tool(app_instance, tool_name, arguments)
-        # Convert arguments to symbol keys for Ruby method calls
-        ruby_args = arguments.transform_keys(&:to_sym)
-
-        # Check if the app instance responds to the tool method
-        unless app_instance.respond_to?(tool_name.to_sym)
-          raise "Tool method not found: #{tool_name}"
-        end
-
-        # Execute the tool with better error handling
-        begin
-          result = if ruby_args.empty?
-                    app_instance.send(tool_name.to_sym)
-                  else
-                    app_instance.send(tool_name.to_sym, **ruby_args)
-                  end
-
-          # Format the result for MCP
-          format_tool_result(result)
-        rescue ArgumentError => e
-          # Provide helpful error message for parameter issues
-          method = app_instance.method(tool_name.to_sym)
-          params = method.parameters
-          required_params = params.select { |type, _| type == :keyreq }.map(&:last)
-          optional_params = params.select { |type, _| type == :key }.map(&:last)
-
-          error_msg = "Parameter error: #{e.message}\n"
-          error_msg += "Required parameters: #{required_params.join(', ')}\n"
-          error_msg += "Optional parameters: #{optional_params.join(', ')}\n"
-          error_msg += "Provided parameters: #{ruby_args.keys.join(', ')}"
-
-          raise error_msg
-        end
-      end
-
-      def format_tool_result(result)
-        case result
-        when String
-          {
-            content: [
-              {
-                type: "text",
-                text: result
-              }
-            ]
-          }
-        when Hash
-          if result[:error]
-            raise result[:error]
-          elsif result[:content]
-            # Already formatted
-            result
-          else
-            # Convert hash to formatted text
-            {
-              content: [
-                {
-                  type: "text",
-                  text: format_hash_result(result)
-                }
-              ]
-            }
-          end
-        when Array
-          {
-            content: [
-              {
-                type: "text",
-                text: format_array_result(result)
-              }
-            ]
-          }
-        else
-          {
-            content: [
-              {
-                type: "text",
-                text: result.to_s
-              }
-            ]
-          }
-        end
-      end
-
-      def format_hash_result(hash)
-        # Format hash results nicely
-        if hash[:success] == false && hash[:error]
-          "Error: #{hash[:error]}"
-        elsif hash[:filename] && hash[:url]
-          "Generated file: #{hash[:filename]}\nURL: #{hash[:url]}"
-        else
-          # Generic hash formatting
-          hash.map { |k, v| "#{k}: #{v}" }.join("\n")
-        end
-      end
-
-      def format_array_result(array)
-        if array.all? { |item| item.is_a?(Hash) && item[:title] }
-          # Format as a list of items with titles
-          array.map { |item| "• #{item[:title]}" }.join("\n")
-        else
-          # Generic array formatting
-          array.map { |item| "• #{item}" }.join("\n")
         end
       end
 
@@ -394,30 +204,25 @@ module Monadic
         error.to_json
       end
 
-      # Cache management methods
-      def get_cached_tools
-        return nil unless @@tools_cache && @@tools_cache_time
-
-        # Check if cache is still valid
-        if Time.now - @@tools_cache_time < CACHE_TTL
-          @@tools_cache
-        else
-          # Cache expired
-          @@tools_cache = nil
-          @@tools_cache_time = nil
-          nil
-        end
-      end
-
-      def cache_tools(tools)
-        @@tools_cache = tools
-        @@tools_cache_time = Time.now
-      end
-
-      # Clear cache when apps might have changed
+      # Retained for CacheInvalidator, which clears the MCP tool cache on app
+      # reloads. The Conduit surface is static (not derived from apps), so there
+      # is nothing to invalidate — this is intentionally a no-op.
       def self.clear_cache
-        @@tools_cache = nil
-        @@tools_cache_time = nil
+        nil
+      end
+
+      # Interface to bind the MCP HTTP server to. In the container we bind all
+      # interfaces so Docker port publishing works; on the host we stay on
+      # loopback. Host-side exposure is constrained to loopback by the compose
+      # publish mapping regardless of this value.
+      def self.mcp_bind_host
+        if defined?(Monadic::Utils::Environment) &&
+           Monadic::Utils::Environment.respond_to?(:in_container?) &&
+           Monadic::Utils::Environment.in_container?
+          "0.0.0.0"
+        else
+          "127.0.0.1"
+        end
       end
 
       # Get server status
@@ -425,16 +230,16 @@ module Monadic
         {
           enabled: CONFIG["MCP_SERVER_ENABLED"] == true || CONFIG["MCP_SERVER_ENABLED"] == "true",
           port: (CONFIG["MCP_SERVER_PORT"] || 3100).to_i,
-          running: defined?(@@server_running) && @@server_running
+          running: defined?(@server_running) && @server_running
         }
       end
 
       # Stop the MCP server
       def self.stop!
-        if defined?(@@server_thread) && @@server_thread
-          @@server_thread.kill
-          @@server_thread = nil
-          @@server_running = false
+        if defined?(@server_thread) && @server_thread
+          @server_thread.kill
+          @server_thread = nil
+          @server_running = false
           puts "[MCP] Server stopped"
         end
       end
@@ -445,10 +250,16 @@ module Monadic
 
         port = (CONFIG["MCP_SERVER_PORT"] || 3100).to_i
 
+        # Inside the Ruby container we must bind all interfaces so Docker's
+        # port publish (host 127.0.0.1 -> container) can reach us; the publish
+        # mapping in compose keeps host exposure on loopback only. On the host
+        # (dev mode) we bind loopback directly. See compose.yml MCP port note.
+        bind_host = mcp_bind_host
+
         # Check if port is already in use
         begin
           require 'socket'
-          server = TCPServer.new('127.0.0.1', port)
+          server = TCPServer.new(bind_host, port)
           server.close
         rescue Errno::EADDRINUSE
           puts "[MCP] MCP Server port #{port} is already in use. Skipping MCP server startup."
@@ -464,7 +275,7 @@ module Monadic
           begin
             puts "[MCP] Starting MCP Server on port #{port} in worker process #{Process.pid}..."
 
-            endpoint = Async::HTTP::Endpoint.parse("http://127.0.0.1:#{port}")
+            endpoint = Async::HTTP::Endpoint.parse("http://#{bind_host}:#{port}")
 
             # Create Rack app
             app = Rack::Builder.new do
@@ -477,7 +288,7 @@ module Monadic
             # Create and bind the server
             server = Async::HTTP::Server.new(middleware, endpoint)
 
-            @@server_running = true
+            @server_running = true
             puts "[MCP] MCP Server started on port #{port}"
 
             # Notify via WebSocket if available
@@ -489,15 +300,17 @@ module Monadic
               })
             end
 
-            # Run the server (this blocks the task)
+            # Start serving. Async::HTTP::Server#run registers an accept loop on
+            # the reactor and RETURNS (it does not block this task), so the
+            # server keeps serving after this block ends. Therefore we must NOT
+            # clear @server_running in an ensure here — doing so reported the
+            # server as "not running" while it was actively serving requests.
+            # The flag is cleared only on a genuine error (below) or stop!.
             server.run
           rescue => e
             puts "[MCP] Server error: #{e.message}"
             Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
-            @@server_running = false
-          ensure
-            @@server_running = false
-            Monadic::Utils::ExtraLogger.log { "[MCP] Server stopped" }
+            @server_running = false
           end
         end
       end

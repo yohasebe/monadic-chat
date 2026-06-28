@@ -4,6 +4,7 @@ require "base64"
 require "http"
 require "json"
 require "optparse"
+require "securerandom"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 require_relative "../../lib/monadic/utils/model_spec"
 
@@ -170,7 +171,10 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
     secondary_save_path = File.expand_path("~/monadic/data/")
 
     save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
-    filename = "#{Time.now.to_i}.png"
+    # Random suffix: Time.now.to_i has 1-second resolution, so concurrent
+    # generations (e.g. parallel Conduit jobs) would otherwise collide on the
+    # same output filename. The caller reads the name from this script's output.
+    filename = "#{Time.now.to_i}_#{SecureRandom.hex(4)}.png"
     file_path = File.join(save_path, filename)
 
     File.open(file_path, "wb") do |f|

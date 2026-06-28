@@ -2,7 +2,9 @@
 
 ## Overview
 
-Monadic Chat implements a Model Context Protocol (MCP) server that exposes all app tools via a standard JSON-RPC 2.0 interface. This enables AI assistants and other MCP clients to access Monadic Chat functionality programmatically.
+Monadic Chat exposes a Model Context Protocol (MCP) server called **Monadic Conduit**. It lets MCP-compatible clients and agentic CLI tools use Monadic Chat's capabilities — multi-provider model access, a local knowledge base, audio/image/video analysis, and audio/image/video/music generation — over a standard JSON-RPC 2.0 interface.
+
+Conduit publishes a small, stable set of capability tools in the `monadic_*` namespace. Instead of re-exposing every app's individual tools, it provides reusable building blocks and leaves orchestration to the calling client. Conduit uses your own API keys, runs locally, and keeps your data on your machine. Every tool that spends provider tokens is gated by a token budget.
 
 ## Configuration
 
@@ -11,23 +13,75 @@ Enable the MCP server by adding the following to `~/monadic/config/env`:
 ```bash
 MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
+
+# Optional: token budget ceiling for provider-spending tools (default 1,000,000)
+CONDUIT_TOKEN_BUDGET=1000000
 ```
+
+In the packaged application the server runs inside the Ruby container and its port is published to the host loopback (`127.0.0.1`) only. In development mode (`rake server:debug`) it runs on the host directly.
 
 ## Protocol Details
 
 - **Version**: 2025-06-18
 - **Transport**: HTTP (JSON-RPC 2.0)
 - **Endpoint**: `http://localhost:3100/mcp`
+- **Health check**: `http://localhost:3100/health`
 - **Server Name**: monadic-chat
 
-## Automatic Tool Discovery
+## Connecting a stdio client
 
-The MCP server automatically discovers and exposes all tools from Monadic Chat apps:
+Clients that support HTTP (streamable-HTTP) MCP can connect to `http://localhost:3100/mcp` directly.
 
-- New apps are automatically detected when added
-- No additional configuration required
-- Tools are discovered from app settings at runtime
-- Tool naming convention: `AppName__tool_name`
+Some MCP clients speak only the **stdio** transport — they launch a subprocess and exchange JSON-RPC over stdin/stdout. A bridge script, `mcp_stdio_bridge.rb` (shipped with the Ruby service under `scripts/`), forwards stdio to the HTTP endpoint so those clients can use Conduit too.
+
+Register it in your client as a **command-based (stdio) MCP server**. The exact registration syntax varies by client, so consult your MCP client's own documentation; the command to run, with your host's Ruby, is:
+
+```bash
+ruby /path/to/mcp_stdio_bridge.rb
+```
+
+The bridge uses only the Ruby standard library and honors `MCP_SERVER_HOST` / `MCP_SERVER_PORT`. The Monadic app must be running with the MCP server enabled.
+
+## Capability Surface
+
+Conduit exposes the following `monadic_*` tools. Each tool's full input schema is available through `tools/list`.
+
+**Inspection (read-only, no cost)**
+- `monadic_status` — backend identity, provider configuration, dependent-container readiness, and the current token budget
+- `monadic_list_models` — providers, models, and their capabilities (context window, vision, tool use, etc.)
+
+**Query**
+- `monadic_query` — a single-provider, context-aware query, with optional knowledge-base grounding and privacy masking
+- `monadic_parallel_query` — **generate**: the same prompt sent to several providers concurrently to compare fresh, independent answers
+- `monadic_second_opinion` — **grade**: ask one or more providers to score (1–10) and critique a response you already have
+- `monadic_confidence` — **assess by agreement**: fan a question out to several distinct providers and judge how much their independent answers agree, returning a confidence level (high/medium/low), the points of agreement and disagreement, and a recommendation (trust/verify/escalate)
+
+**Knowledge base (local PDF knowledge base)**
+- `monadic_search_kb` — semantic search over an imported knowledge base
+- `monadic_list_kb` — list imported documents
+- `monadic_import_kb` — import text or a PDF into a knowledge base
+
+**Analysis (input)**
+- `monadic_analyze_image` — describe or answer questions about an image
+- `monadic_transcribe_audio` — speech-to-text transcription
+- `monadic_analyze_audio` — qualitative analysis of audio (e.g. music critique)
+- `monadic_analyze_video` — frame extraction, vision analysis, and audio transcription of a video
+
+**Generation (output saved to the shared volume `~/monadic/data`)**
+- `monadic_speak` — text-to-speech
+- `monadic_generate_code` — code generation via a provider's code agent
+- `monadic_generate_image` — image generation
+- `monadic_generate_video` — video generation (text-to-video or image-to-video)
+- `monadic_generate_music` — music generation
+
+**Autonomous agent**
+- `monadic_agent` — a bounded, tool-using agent that searches, reads, and reasons over read-only tools to accomplish a task, then writes a self-contained final answer
+
+**Background jobs**
+- `monadic_submit` — run another tool as a background job and return a job id immediately
+- `monadic_poll` — check a job's status, progress, and result
+- `monadic_cancel` — cancel a running job
+- `monadic_jobs` — list known jobs
 
 ## Available Methods
 
@@ -63,36 +117,46 @@ The MCP server automatically discovers and exposes all tools from Monadic Chat a
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "MonadicHelpOpenAI__find_help_topics",
+    "name": "monadic_query",
     "arguments": {
-      "text": "voice chat"
+      "provider": "openai",
+      "message": "Summarize the theory of relativity in one sentence."
     }
   }
 }
 ```
 
-## Example Tools
+A tool result is returned as both human-readable `content` text and a machine-readable `structuredContent` object.
 
-- `PDFNavigatorOpenAI__find_closest_text` - Find closest text in PDF documents
-- `CodeInterpreterOpenAI__run_code` - Execute code
-- `ImageGeneratorOpenAI__generate_image_with_openai` - Generate images
-- `MonadicHelpOpenAI__find_help_topics` - Search help documentation
-- `SyntaxTreeOpenAI__render_syntax_tree` - Create syntax tree diagrams
-- `MermaidGrapherOpenAI__validate_mermaid_syntax` - Validate Mermaid diagram syntax
+## Cost Control
 
-Each tool includes:
-- `name`: Unique identifier
-- `description`: Human-readable description
-- `inputSchema`: JSON Schema defining parameters
+Tools that call a provider spend tokens against a shared budget enforced by Conduit. The platform reserves the estimated cost **before** the call and refuses it if the budget would be exceeded, so a runaway client is stopped rather than trusted. The remaining budget is reported by `monadic_status` and included in each spending tool's result. The ceiling is configured with `CONDUIT_TOKEN_BUDGET` and resets when the server restarts. Knowledge-base tools use a local embeddings model and are not budget-gated.
+
+The `monadic_agent` tool is additionally bounded by a tool-call cap and a wall-clock limit (default 300 seconds, configurable with `CONDUIT_AGENT_WALL_CLOCK`) on top of the token budget, so a single agent run cannot loop or stall indefinitely.
+
+## Background Jobs
+
+Long-running tools — code generation, media generation, and video analysis — can be run in the background so a request does not block. Submit the tool with `monadic_submit`, then call `monadic_poll` with the returned job id to read its status, periodic progress, and final result. A running job can be stopped with `monadic_cancel`. The number of concurrently running jobs is capped.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "monadic_submit",
+    "arguments": {
+      "tool": "monadic_generate_image",
+      "arguments": { "prompt": "a watercolor fox" }
+    }
+  }
+}
+```
 
 ## Client Implementation Example
 
-A complete example client is available at:
-```bash
-ruby docker/services/ruby/scripts/mcp_client_example.rb "search query"
-```
+A minimal Ruby client:
 
-Basic client implementation:
 ```ruby
 require 'net/http'
 require 'json'
@@ -111,25 +175,20 @@ class MCPClient
       "method" => method,
       "params" => params
     }
-    
+
     uri = URI.parse(@url)
     http = Net::HTTP.new(uri.host, uri.port)
     req = Net::HTTP::Post.new(uri.path)
     req.content_type = "application/json"
     req.body = request.to_json
-    
-    response = http.request(req)
-    JSON.parse(response.body)
+
+    JSON.parse(http.request(req).body)
   end
 end
+
+client = MCPClient.new
+puts client.call_method("tools/list")
 ```
-
-## Performance
-
-The MCP server includes performance optimizations:
-- 5-minute TTL cache for tool discovery
-- Direct app lookup for tool execution (O(1) complexity)
-- Cache automatically invalidated when apps are reloaded
 
 ## Error Handling
 
@@ -140,26 +199,29 @@ The server uses standard JSON-RPC 2.0 error codes:
 - `-32602`: Invalid params
 - `-32603`: Internal error
 
-Error responses include helpful details:
+Tools that fail at runtime (a missing file, a refused budget, a provider error) return a result with `success: false` and an `error` message rather than a protocol-level error.
+
 ```json
 {
   "jsonrpc": "2.0",
   "id": 1,
   "error": {
     "code": -32602,
-    "message": "Parameter error: missing keyword: text",
-    "data": "Required parameters: text\nOptional parameters: top_n\nProvided parameters: query"
+    "message": "Unknown tool: example_tool"
   }
 }
 ```
 
 ## Security
 
-- Server binds to localhost only (127.0.0.1)
-- No authentication required (localhost only)
-- CORS headers configured for browser-based clients
+- The server binds to the host loopback only; in the packaged app the container port is published to `127.0.0.1` and is not exposed to the local network.
+- All provider calls use your own API keys, and generated files stay on your machine under `~/monadic/data`.
+- The token budget is a hard ceiling that stops runaway spending.
+- CORS headers are configured for browser-based clients.
 
 ## Known Limitations
 
-- Resources and prompts methods not implemented
-- Some MCP clients may have compatibility issues with the standard implementation
+- The `resources` and `prompts` MCP methods are not implemented.
+- Knowledge-base tools require the Qdrant and embeddings containers.
+- `monadic_analyze_video` requires the Python container for frame extraction.
+- Generation and analysis tools require an API key for the relevant provider.

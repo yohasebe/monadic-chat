@@ -95,6 +95,28 @@ RSpec.describe Monadic::Utils::ProgressBroadcaster do
     end
   end
 
+  describe '.report_to_job (Conduit job bridge)' do
+    it 'is a no-op when there is no job id' do
+      expect { described_class.send(:report_to_job, nil, { "content" => "x" }) }.not_to raise_error
+    end
+
+    it 'mirrors the fragment content into JobStore when a job id is present' do
+      fake = Class.new do
+        def self.calls
+          @calls ||= []
+        end
+
+        def self.report(id, msg)
+          calls << [id, msg]
+        end
+      end
+      stub_const("Monadic::MCP::JobStore", fake)
+
+      described_class.send(:report_to_job, "job-1", { "content" => "rendering — 1s elapsed" })
+      expect(fake.calls).to eq([["job-1", "rendering — 1s elapsed"]])
+    end
+  end
+
   describe '.build_fragment' do
     it 'formats elapsed seconds under one minute' do
       f = described_class.build_fragment(source: "X", label: "Y", elapsed: 45)

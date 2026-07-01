@@ -16,7 +16,7 @@ RSpec.describe "ModelSpecLoader Integration", type: :integration do
       
       # Check for some expected models
       expect(result).to have_key("gpt-5.4")
-      expect(result).to have_key("claude-opus-4-20250514")
+      expect(result).to have_key("claude-opus-4-8")
       
       # Verify structure of a model
       gpt = result["gpt-5.4"]
@@ -123,7 +123,7 @@ RSpec.describe "ModelSpecLoader Integration", type: :integration do
       
       expect(result).to be_a(Hash)
       expect(result).to have_key("gpt-5.4")
-      expect(result).to have_key("claude-opus-4-20250514")
+      expect(result).to have_key("claude-opus-4-8")
     end
   end
   

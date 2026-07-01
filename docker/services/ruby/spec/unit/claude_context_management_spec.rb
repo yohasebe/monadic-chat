@@ -4,7 +4,7 @@ require_relative "../../lib/monadic/utils/model_spec"
 RSpec.describe "Claude Context Management" do
   describe "ModelSpec.supports_context_management?" do
     it "returns true for Claude Opus 4" do
-      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-opus-4-20250514")).to be true
+      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-opus-4-8")).to be true
     end
 
     it "returns true for Claude Sonnet 4.5" do

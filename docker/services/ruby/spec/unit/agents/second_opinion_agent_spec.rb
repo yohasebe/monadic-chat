@@ -68,7 +68,7 @@ RSpec.describe SecondOpinionAgent do
     
     context "with explicit model" do
       it "uses the provided model when specified" do
-        expect(agent.send(:determine_provider_and_model, "claude", "claude-opus-4-20250514")).to eq(["claude", "claude-opus-4-20250514"])
+        expect(agent.send(:determine_provider_and_model, "claude", "claude-opus-4-8")).to eq(["claude", "claude-opus-4-8"])
         expect(agent.send(:determine_provider_and_model, "openai", "gpt-5")).to eq(["openai", "gpt-5"])
       end
       

@@ -331,7 +331,7 @@ RSpec.describe AIUserAgent do
       expect(model).to eq("gpt-5.4")
 
       model = agent.send(:default_model_for_provider, "anthropic")
-      expect(model).to eq("claude-sonnet-4-6")
+      expect(model).to eq("claude-sonnet-5")
     end
 
     it 'handles various provider names' do

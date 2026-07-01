@@ -92,8 +92,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.openai.chat[0]).toBe('gpt-5.4');
     });
 
-    it('anthropic chat default is claude-sonnet-4-6', () => {
-      expect(providerDefaults.anthropic.chat[0]).toBe('claude-sonnet-4-6');
+    it('anthropic chat default is claude-sonnet-5', () => {
+      expect(providerDefaults.anthropic.chat[0]).toBe('claude-sonnet-5');
     });
 
     it('gemini chat default is gemini-3.5-flash', () => {

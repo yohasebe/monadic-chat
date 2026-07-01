@@ -1,4 +1,5 @@
 - [June, 2026] 1.0.0-beta.25
+  - **Claude Sonnet 5 support**: Anthropic's new `claude-sonnet-5` is now the default Anthropic chat and coding model (1M-token context, up to 128k output, adaptive thinking with selectable effort, vision and PDF input). The Claude variants of Chat Plus, Coding Assistant, Code Interpreter, Jupyter Notebook, Language Practice Plus, and AutoForge now use it. Claude Sonnet 4.6 remains available for anyone who has selected it explicitly.
   - **Smoother in-app update experience**: when a new version is available, the notification now includes a "Download & Install" button so you can start the update right there instead of opening the menu; the download shows a single progress line with a bar that advances in place rather than adding a new line per step; the update dialogs are more concise; and the "Stopping Docker containers" notice no longer appears twice during the restart.
 
 - [June, 2026] 1.0.0-beta.24

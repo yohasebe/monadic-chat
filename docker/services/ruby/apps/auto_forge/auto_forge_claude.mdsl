@@ -20,7 +20,7 @@ app "AutoForgeClaude" do
     # turn-around. The Anthropic Advisor Tool's canonical pairing is
     # "Sonnet executor + Opus advisor" — Sonnet handles the bulk of tool
     # calls while Opus is consulted only for strategic guidance.
-    model "claude-sonnet-4-6"
+    model "claude-sonnet-5"
   end
 
   # Advisor Tool (Anthropic beta): consult Opus 4.6 for strategic guidance on

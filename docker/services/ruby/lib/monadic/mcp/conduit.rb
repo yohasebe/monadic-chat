@@ -2390,7 +2390,14 @@ module Monadic
           body["reasoning_effort"] = reasoning_effort.to_s.strip
         end
 
+        # Clear before the call so a stale value from an earlier call can't leak
+        # in when this provider's send_query doesn't (yet) report usage.
+        Thread.current[:conduit_provider_usage] = nil
         raw = host.send_query(body, model: model)
+        # Real provider-reported usage (normalized to {input,output,reasoning,
+        # cached,total}); nil for providers whose send_query is not yet wired.
+        provider_usage = Thread.current[:conduit_provider_usage]
+        Thread.current[:conduit_provider_usage] = nil
         normalized = normalize_query_response(raw)
 
         # Restore masked placeholders in the response back to original values.
@@ -2430,10 +2437,14 @@ module Monadic
           # external callers can diagnose the silent-empty case immediately.
           empty_output: (true if normalized[:success] && normalized[:text].to_s.strip.empty?),
           warning: ((normalized[:success] && normalized[:text].to_s.strip.empty?) ? empty_output_warning(model, max_output) : nil),
+          # Real provider-reported token usage when available (OpenAI wired
+          # first; other providers report nil until their send_query is wired).
+          provider_usage: provider_usage,
           usage: {
             input_tokens_est: input_tokens,
             output_tokens_est: output_tokens,
-            note: "estimated via tiktoken; send_query does not expose provider usage"
+            note: (provider_usage ? "tiktoken estimate; see provider_usage for real counts" \
+                                  : "estimated via tiktoken; provider usage not reported for this provider")
           }
         }.compact
       end

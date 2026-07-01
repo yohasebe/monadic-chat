@@ -125,6 +125,29 @@ RSpec.describe Monadic::MCP::Conduit do
     end
   end
 
+  describe "monadic_query provider usage surfacing" do
+    let(:host) { double("host") }
+
+    before { allow(described_class).to receive(:provider_host).and_return(host) }
+
+    it "surfaces real provider usage when the helper reports it (thread-local)" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: 100, output: 20, reasoning: 8, cached: 0, total: 120 }
+        "answer."
+      end
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(result[:provider_usage]).to eq(input: 100, output: 20, reasoning: 8, cached: 0, total: 120)
+    end
+
+    it "omits provider_usage (and does not leak a stale value) when unreported" do
+      Thread.current[:conduit_provider_usage] = { input: 999 } # stale from a prior call
+      allow(host).to receive(:send_query) { |_b, **| "answer." } # reports nothing
+      result = described_class.call("monadic_query", { "provider" => "cohere", "message" => "hi" })
+      expect(result).not_to have_key(:provider_usage)
+    end
+  end
+
   describe ".empty_output_warning" do
     it "names reasoning + the budget for reasoning models" do
       allow(Monadic::Utils::ModelSpec).to receive(:is_reasoning_model?).and_return(true)

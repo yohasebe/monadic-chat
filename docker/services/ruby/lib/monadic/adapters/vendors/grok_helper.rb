@@ -3,6 +3,7 @@
 require 'cgi'
 
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
@@ -891,6 +892,10 @@ module GrokHelper
       begin
         parsed = JSON.parse(res.body.to_s)
         return parsed.to_s unless parsed.is_a?(Hash)
+        # Real provider usage for the Conduit query path (thread-local; read+
+        # cleared by Conduit#execute_query). Non-breaking; never raises.
+        Thread.current[:conduit_provider_usage] =
+          (Monadic::Utils::UsageNormalizer.extract("grok", parsed) rescue nil)
 
         output = parsed["output"] || []
 

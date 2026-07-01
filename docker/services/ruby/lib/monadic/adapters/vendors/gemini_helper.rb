@@ -4,6 +4,7 @@
 require "uri"
 require "cgi"
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
@@ -919,7 +920,11 @@ module GeminiHelper
       # Process successful response
       if response.status.success?
         parsed_response = JSON.parse(response.body)
-        
+        # Real provider usage for the Conduit query path (thread-local; read+
+        # cleared by Conduit#execute_query). Non-breaking; never raises.
+        Thread.current[:conduit_provider_usage] =
+          (Monadic::Utils::UsageNormalizer.extract("gemini", parsed_response) rescue nil)
+
         # Debug logging for second opinion
         Monadic::Utils::ExtraLogger.log_json("GeminiHelper send_query: Full response structure", parsed_response)
         

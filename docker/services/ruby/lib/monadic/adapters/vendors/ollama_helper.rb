@@ -1,5 +1,6 @@
 require 'http'
 require_relative "../../utils/system_prompt_injector"
+require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
@@ -300,7 +301,12 @@ module OllamaHelper
     return "Error: Ollama is not reachable. (#{last_error.message})" if last_error
 
     if res&.status&.success?
-      JSON.parse(res.body).dig("message", "content")
+      parsed = JSON.parse(res.body)
+      # Real provider usage for the Conduit query path (thread-local; read+
+      # cleared by Conduit#execute_query). Non-breaking; never raises.
+      Thread.current[:conduit_provider_usage] =
+        (Monadic::Utils::UsageNormalizer.extract("ollama", parsed) rescue nil)
+      parsed.dig("message", "content")
     else
       error = begin
         JSON.parse(res.body)["error"]

@@ -2413,9 +2413,14 @@ module Monadic
         # charge such models the output we already reserved in ensure_within!.
         # This over-counts short replies — the safe direction for a spend *ceiling*
         # (a safety backstop, not an accounting ledger).
-        output_tokens = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
-        output_tokens = max_output if hidden_reasoning_capable?(model) && max_output > output_tokens
-        CostGuard.record(input_tokens + output_tokens)
+        # Prefer real provider-reported usage (includes hidden reasoning tokens)
+        # for the spend ledger. The tiktoken estimate below — which over-counts
+        # reasoning models on purpose (fail-closed) — is the fallback used only
+        # when the provider did not report usage.
+        est_output = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
+        est_output = max_output if hidden_reasoning_capable?(model) && max_output > est_output
+        recorded_tokens = provider_usage&.[](:total) ? provider_usage[:total].to_i : (input_tokens + est_output)
+        CostGuard.record(recorded_tokens)
 
         {
           provider: provider,
@@ -2442,9 +2447,10 @@ module Monadic
           provider_usage: provider_usage,
           usage: {
             input_tokens_est: input_tokens,
-            output_tokens_est: output_tokens,
-            note: (provider_usage ? "tiktoken estimate; see provider_usage for real counts" \
-                                  : "estimated via tiktoken; provider usage not reported for this provider")
+            output_tokens_est: est_output,
+            recorded_tokens: recorded_tokens,
+            note: (provider_usage ? "recorded real provider usage; *_est are tiktoken estimates" \
+                                  : "recorded tiktoken estimate; provider usage not reported for this provider")
           }
         }.compact
       end

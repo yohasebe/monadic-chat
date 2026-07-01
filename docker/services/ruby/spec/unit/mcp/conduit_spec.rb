@@ -146,6 +146,18 @@ RSpec.describe Monadic::MCP::Conduit do
       result = described_class.call("monadic_query", { "provider" => "cohere", "message" => "hi" })
       expect(result).not_to have_key(:provider_usage)
     end
+
+    it "records the real provider total (not the tiktoken estimate) in the budget when reported" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: 1000, output: 500, reasoning: 200, cached: 0, total: 1500 }
+        "short." # a tiny visible answer whose tiktoken estimate is far below 1500
+      end
+      before = Monadic::MCP::CostGuard.spent
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(Monadic::MCP::CostGuard.spent - before).to eq(1500)
+      expect(result[:usage][:recorded_tokens]).to eq(1500)
+    end
   end
 
   describe ".empty_output_warning" do

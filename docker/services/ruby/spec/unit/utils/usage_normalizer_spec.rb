@@ -39,6 +39,16 @@ RSpec.describe Monadic::Utils::UsageNormalizer do
       )
     end
 
+    it 'maps Anthropic thinking_tokens as reasoning (Claude names it thinking, not reasoning)' do
+      raw = { 'usage' => {
+        'input_tokens' => 2000, 'output_tokens' => 700,
+        'output_tokens_details' => { 'thinking_tokens' => 480 }
+      } }
+      expect(described_class.extract('anthropic', raw)).to eq(
+        input: 2000, output: 700, reasoning: 480, cached: nil, total: 2700
+      )
+    end
+
     it 'maps Gemini usageMetadata (thoughts + cached)' do
       raw = { 'usageMetadata' => {
         'promptTokenCount' => 5000, 'candidatesTokenCount' => 600,

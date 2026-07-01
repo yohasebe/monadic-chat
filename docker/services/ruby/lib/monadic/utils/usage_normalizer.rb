@@ -51,7 +51,11 @@ module Monadic
 
           input  = int(u["input_tokens"]) || int(u["prompt_tokens"]) || (nested && int(nested["input_tokens"]))
           output = int(u["output_tokens"]) || int(u["completion_tokens"]) || (nested && int(nested["output_tokens"]))
+          # Reasoning/thinking sub-count of output. Anthropic calls it
+          # `thinking_tokens` (usage.output_tokens_details.thinking_tokens);
+          # OpenAI/others call it `reasoning_tokens`.
           reasoning = dig_i(u, "output_tokens_details", "reasoning_tokens") ||
+                      dig_i(u, "output_tokens_details", "thinking_tokens") ||
                       dig_i(u, "completion_tokens_details", "reasoning_tokens")
           cached = dig_i(u, "prompt_tokens_details", "cached_tokens") ||
                    int(u["cache_read_input_tokens"]) ||

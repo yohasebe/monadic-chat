@@ -4482,7 +4482,10 @@ ipcMain.handle('select-tts-dict', async () => {
                     delete envConfig.TTS_DICT_DATA;
                 }
                 
-                // Copy the file to the config directory
+                // Copy the file to the config directory. If the copy fails the
+                // dictionary is NOT installed, so report failure instead of
+                // returning the path (which made the settings field show the
+                // dictionary as installed on a silent copy error).
                 try {
                     const configDir = path.dirname(envPath);
                     const ttsDictFile = path.join(configDir, 'TTS_DICT.csv');
@@ -4490,11 +4493,12 @@ ipcMain.handle('select-tts-dict', async () => {
                     console.log(`TTS Dictionary copied to ${ttsDictFile}`);
                 } catch (error) {
                     console.error('Error copying TTS dictionary file:', error);
+                    return '';
                 }
-                
+
                 writeEnvFile(envPath, envConfig);
             }
-            
+
             return filePath;
         } catch (error) {
             console.error('Error reading TTS dictionary file:', error);

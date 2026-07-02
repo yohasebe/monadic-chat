@@ -4235,9 +4235,16 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update RTL/LTR for message display based on conversation language
     updateRTLInterface(params["conversation_language"]);
     
-    // Update image button visibility to ensure correct translations
-    if (typeof window.checkAndUpdateImageButtonVisibility === 'function') {
-      window.checkAndUpdateImageButtonVisibility();
+    // Refresh the image/file attach button so its label follows the new
+    // language. The real updater is adjustImageUploadButton (the old
+    // checkAndUpdateImageButtonVisibility name was never defined, so this was
+    // a silent no-op).
+    {
+      const _model = ($id("model") || {}).value;
+      const _uiUtils = (window.shims && window.shims.uiUtils) || window.uiUtils;
+      if (_uiUtils && typeof _uiUtils.adjustImageUploadButton === 'function') {
+        _uiUtils.adjustImageUploadButton(_model);
+      }
     }
 
     // UPDATE_LANGUAGE is idempotent (added to the wrapper's default

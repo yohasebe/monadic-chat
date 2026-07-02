@@ -330,10 +330,18 @@ function populateWebSpeechVoices() {
   if (highQualityVoices.length === 0) {
     // Hide the webspeech option if no quality voices available
     $hide(webspeechOption);
-    // If webspeech was selected, switch to another provider
+    // If webspeech was selected, switch to a REAL enabled provider option.
+    // (Setting a value with no matching <option> — the old "openai", which is
+    // not one of the option values like "openai-tts-4o" — leaves the select
+    // with selectedIndex -1, i.e. blank/nothing selected.)
     if (ttsProviderSelect && ttsProviderSelect.value === "webspeech") {
-      ttsProviderSelect.value = "openai";
-      $dispatch(ttsProviderSelect, "change");
+      var firstEnabled = Array.from(ttsProviderSelect.options).find(function(o) {
+        return !o.disabled && o.value !== "webspeech" && o.style.display !== "none";
+      });
+      if (firstEnabled) {
+        ttsProviderSelect.value = firstEnabled.value;
+        $dispatch(ttsProviderSelect, "change");
+      }
     }
     return;
   } else {

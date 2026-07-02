@@ -1000,7 +1000,14 @@ function resetParams() {
     });
 
     const pdfPanel = $id("pdf-panel");
-    $toggle(pdfPanel, (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"])));
+    const pdfVisible = (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"]));
+    $toggle(pdfPanel, pdfVisible);
+    // The list was cleared at the top of resetParams; re-fetch so the panel
+    // shows the current PDFs (or the "No PDFs imported" empty state) instead of
+    // a bare blank region until the user manually refreshes.
+    if (pdfVisible && window.ws && typeof window.sendPdfWsMessage === "function") {
+      window.sendPdfWsMessage({ message: "PDF_TITLES" });
+    }
     const audioUpload = $id("audio-upload");
     $toggle(audioUpload, toBool(params["audio_upload"]));
     // Reset the flag after loading is complete

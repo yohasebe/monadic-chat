@@ -487,7 +487,7 @@
             <div id="context-panel-body" class="collapse show px-3 pb-3">
             <div class="text-muted small mb-2 d-flex align-items-center gap-2" id="context-legend" style="display: none;">
               <span data-i18n="ui.contextTurnLegend">T = Turn</span>
-              <span class="badge bg-secondary" id="context-turn-badge" title="Total turns">0</span>
+              <span class="mc-badge mc-badge--grey" id="context-turn-badge" title="Total turns">0</span>
             </div>
             <div id="context-sections">
               <!-- Context sections will be dynamically populated -->
@@ -587,7 +587,7 @@
                 <option id="webspeech-provider-option" value="webspeech" selected>Web Speech API</option>
               </select>
               <div id="expressive-speech-indicator" class="mt-2" style="display: none;">
-                <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle"
+                <span class="mc-badge mc-badge--grey"
                       role="status"
                       data-i18n-title="ui.expressiveSpeechTooltip"
                       title="The selected TTS engine interprets speech markers that the assistant weaves into its replies.">
@@ -708,10 +708,15 @@
         <div id="main" class="col-md-8 order-md-1 scrollable">
           <div id="config-wrapper">
           <!-- Config Summary Bar: persistent header that mirrors current settings.
-               Click to toggle Box A (#config-body) collapse. aria-expanded must
-               match #config-body's initial .show state for the chevron rotation
-               CSS to render correctly on first paint. -->
-          <div id="config-summary" class="rounded p-2 px-3 shaded-panel mb-2" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
+               Click to toggle Box A (#config-body) collapse — but only during a
+               session: before one starts the settings ARE the screen, so
+               collapsing them would leave a bare header with nothing to reveal.
+               The bar starts locked (.config-summary-locked, no data-bs-toggle,
+               chevron hidden); enterConversationMode() unlocks it and
+               enterSettingsMode() re-locks it. aria-expanded must match
+               #config-body's initial .show state for the chevron rotation CSS
+               to render correctly on first paint. -->
+          <div id="config-summary" class="rounded p-2 px-3 shaded-panel mb-2 config-summary-locked" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
             <div class="d-flex align-items-center">
               <span id="summary-app-icon" class="me-2"></span>
               <span id="summary-app-name" class="fw-semibold me-2"></span>

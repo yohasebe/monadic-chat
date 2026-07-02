@@ -785,13 +785,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     var indicators = "";
     var websearchCb = $id("websearch");
-    if (websearchCb && websearchCb.checked) indicators += '<span class="badge bg-info me-1">Web Search</span>';
+    if (websearchCb && websearchCb.checked) indicators += '<span class="mc-badge mc-badge--blue me-1">Web Search</span>';
     var mathCb = $id("math");
-    if (mathCb && mathCb.checked) indicators += '<span class="badge bg-secondary me-1">Math</span>';
+    if (mathCb && mathCb.checked) indicators += '<span class="mc-badge mc-badge--grey me-1">Math</span>';
     var reasoningEffortSel = $id("reasoning-effort");
     var re = reasoningEffortSel ? reasoningEffortSel.value : "";
     if (reasoningEffortSel && !reasoningEffortSel.disabled && re && re !== "none" && re !== "disabled") {
-      indicators += '<span class="badge bg-warning text-dark me-1">' + re + '</span>';
+      indicators += '<span class="mc-badge mc-badge--amber me-1">' + re + '</span>';
     }
     var summaryIndicators = $id("summary-indicators");
     if (summaryIndicators) summaryIndicators.innerHTML = indicators;
@@ -823,10 +823,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Collapse settings and show conversation (used when starting/continuing session).
   // #config-summary is always visible (it acts as the persistent toggle header
-  // for #config-body), so it is not part of this state machine.
+  // for #config-body), so it is not part of this state machine — but its
+  // collapse TOGGLE is: before a session the settings are the whole screen
+  // (collapsing them reveals nothing), so the toggle is unlocked only here
+  // and re-locked in enterSettingsMode().
   function enterConversationMode() {
     var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.hide();
+    var summary = $id("config-summary");
+    if (summary) {
+      summary.setAttribute("data-bs-toggle", "collapse");
+      summary.classList.remove("config-summary-locked");
+    }
     var configActions = $id("config-actions");
     $hide(configActions);
     var mainPanelEl = $id("main-panel");
@@ -839,6 +847,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function enterSettingsMode() {
     var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
     bsCollapse.show();
+    var summary = $id("config-summary");
+    if (summary) {
+      summary.removeAttribute("data-bs-toggle");
+      summary.classList.add("config-summary-locked");
+    }
     var configActions = $id("config-actions");
     $show(configActions);
     var mainPanelEl = $id("main-panel");

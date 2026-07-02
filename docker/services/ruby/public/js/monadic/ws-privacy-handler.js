@@ -197,7 +197,7 @@
       return '<tr>'
         + '<td><code>' + escapeHtml(e.placeholder) + '</code></td>'
         + '<td>' + escapeHtml(e.original) + '</td>'
-        + '<td><span class="badge bg-secondary">' + escapeHtml(e.type) + '</span></td>'
+        + '<td><span class="mc-badge mc-badge--grey">' + escapeHtml(e.type) + '</span></td>'
         + '</tr>';
     }).join('');
   }

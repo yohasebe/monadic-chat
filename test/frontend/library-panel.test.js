@@ -42,14 +42,14 @@ describe('library-panel module', () => {
   });
 
   describe('scopeBadge', () => {
-    it('renders Global as the green success badge with label "Global"', () => {
+    it('renders Global as the green badge with label "Global"', () => {
       const html = lib.scopeBadge('Global');
-      expect(html).toContain('bg-success');
+      expect(html).toContain('mc-badge--green');
       expect(html).toContain('Global');
     });
     it('renders an app-class scope as a muted badge with the formatted name', () => {
       const html = lib.scopeBadge('ChatOpenAI');
-      expect(html).toContain('bg-secondary');
+      expect(html).toContain('mc-badge--grey');
       expect(html).toContain('Chat (OpenAI)');
     });
     it('treats nil/empty as Global', () => {

@@ -6014,11 +6014,25 @@ i.fas.fa-bolt,
   border: 1px solid var(--border-light, #dee2e6);
   transition: background-color 0.15s ease;
   user-select: none;
+  cursor: pointer;
 }
 
 #config-summary:hover {
   background: var(--bg-hover, #e9ecef);
   background: color-mix(in srgb, var(--bg-panel) 20%, var(--bg-body));
+}
+
+/* Before a session starts the settings are the whole screen, so collapsing
+   them reveals nothing — the summary bar is locked (JS removes data-bs-toggle)
+   and must not LOOK clickable either: no pointer, no chevron, no hover shift. */
+#config-summary.config-summary-locked {
+  cursor: default;
+}
+#config-summary.config-summary-locked:hover {
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
+}
+#config-summary.config-summary-locked .config-collapse-icon {
+  display: none;
 }
 
 .config-collapse-icon {
@@ -6358,19 +6372,16 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   vertical-align: middle;
 }
 
-/* === Unified badge geometry (Option A) ====================================
+/* === Unified badge geometry ===============================================
    One pill shape + size for every badge family, applied last so it overrides
-   each family's original geometry. Treatment stays SEMANTIC: category/tool
-   badges keep their muted outlined fill, status/confidence badges keep their
-   vivid accent fill — only shape/size are harmonized. Scoped to the badge
-   families shown in the UI; bare Bootstrap .badge elsewhere is untouched
-   except inside #summary-indicators. */
+   each family's original geometry. All families share the soft treatment
+   (tint background + accent border + accent text) defined below. */
+.mc-badge,
 .badge-tools,
 .badge-capabilities,
 .tool-group-badge,
 .verify-badge,
-.privacy-lang-badge,
-#summary-indicators .badge {
+.privacy-lang-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -6410,12 +6421,28 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   --tool-group-badge-bg: var(--bdg-blue-bg); --tool-group-badge-color: var(--bdg-blue-fg);
 }
 
-/* Status badges (summary indicators, etc.) — soft tint + border by semantic. */
-.badge.bg-success { background-color: var(--bdg-green-bg) !important; color: var(--bdg-green-fg) !important; border: 1px solid var(--bdg-green-bd) !important; }
-.badge.bg-danger  { background-color: var(--bdg-red-bg) !important;   color: var(--bdg-red-fg) !important;   border: 1px solid var(--bdg-red-bd) !important; }
-.badge.bg-info    { background-color: var(--bdg-blue-bg) !important;  color: var(--bdg-blue-fg) !important;  border: 1px solid var(--bdg-blue-bd) !important; }
-.badge.bg-warning { background-color: var(--bdg-amber-bg) !important; color: var(--bdg-amber-fg) !important; border: 1px solid var(--bdg-amber-bd) !important; }
-.badge.bg-secondary { background-color: var(--bdg-grey-bg) !important; color: var(--bdg-grey-fg) !important; border: 1px solid var(--bdg-grey-bd) !important; }
+/* The app's own badge component. Markup uses `mc-badge mc-badge--<family>`
+   instead of Bootstrap's `badge bg-*`: bootstrap.min.css is imported into
+   @layer vendor (vendor-layers.css), and by the cascade rules for !important,
+   its layered `bg-* { ... !important }` utilities BEAT any unlayered override
+   — so bg-* utilities on badges cannot be restyled reliably. Using our own
+   class sidesteps the fight entirely (and needs no !important). */
+.mc-badge { background: var(--bdg-grey-bg); color: var(--bdg-grey-fg); border: 1px solid var(--bdg-grey-bd); }
+.mc-badge--red   { background: var(--bdg-red-bg);   color: var(--bdg-red-fg);   border-color: var(--bdg-red-bd); }
+.mc-badge--blue  { background: var(--bdg-blue-bg);  color: var(--bdg-blue-fg);  border-color: var(--bdg-blue-bd); }
+.mc-badge--green { background: var(--bdg-green-bg); color: var(--bdg-green-fg); border-color: var(--bdg-green-bd); }
+.mc-badge--amber { background: var(--bdg-amber-bg); color: var(--bdg-amber-fg); border-color: var(--bdg-amber-bd); }
+.mc-badge--grey  { background: var(--bdg-grey-bg);  color: var(--bdg-grey-fg);  border-color: var(--bdg-grey-bd); }
+.mc-badge i { color: inherit; }
+
+/* Fallback for tool-group badges whose type maps to no specific family
+   (badge-renderer's getBadgeColorClass returns "badge-default"): grey, so an
+   unknown type never renders as a colorless/transparent pill. */
+.tool-group-badge.badge-default {
+  background: var(--bdg-grey-bg);
+  color: var(--bdg-grey-fg);
+  border: 1px solid var(--bdg-grey-bd);
+}
 
 /* Confidence (verify) badges + header chip — same soft treatment by family. */
 .verify-badge, .verify-chip { border: 1px solid transparent; }

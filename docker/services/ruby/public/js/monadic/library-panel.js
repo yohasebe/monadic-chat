@@ -184,8 +184,8 @@
     // "Global" stays the soft-green pill (cross-app reach is the
     // expansive case); per-app scopes use the muted secondary pill.
     var cls = label === 'Global'
-      ? 'badge bg-success-subtle text-success-emphasis'
-      : 'badge bg-secondary-subtle text-secondary-emphasis';
+      ? 'mc-badge mc-badge--green'
+      : 'mc-badge mc-badge--grey';
     return '<span class="' + cls + '">' + escapeHtml(label) + '</span>';
   }
 

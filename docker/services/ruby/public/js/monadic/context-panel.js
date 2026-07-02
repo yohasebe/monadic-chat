@@ -325,7 +325,7 @@ const ContextPanel = {
         <div class="context-section-header d-flex align-items-center">
           <i class="fas ${icon} me-2"></i>
           <span class="flex-grow-1">${this.escapeHtml(displayName)}</span>
-          <span class="badge bg-secondary context-badge">${itemCount}</span>
+          <span class="mc-badge mc-badge--grey context-badge">${itemCount}</span>
           <i class="fas fa-chevron-down ms-2 toggle-icon"></i>
         </div>
         <div class="context-section-content">

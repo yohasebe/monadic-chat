@@ -36,7 +36,7 @@ class ReasoningUIManager {
       <div class="d-flex align-items-center gap-2">
         <input type="range" class="form-range flex-fill" id="thinking-budget-slider" 
                min="1024" max="50000" value="10000" step="1000">
-        <span id="thinking-budget-value" class="badge bg-secondary" style="min-width: 70px;">10,000</span>
+        <span id="thinking-budget-value" class="mc-badge mc-badge--grey" style="min-width: 70px;">10,000</span>
       </div>
     `;
     container.appendChild(claudeUI);

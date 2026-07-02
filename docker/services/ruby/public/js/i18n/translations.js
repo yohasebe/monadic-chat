@@ -454,7 +454,8 @@ const webUITranslations = {
       },
       session: {
         startSession: "Start Session",
-        continueSession: "Continue Session"
+        continueSession: "Continue Session",
+        resetHint: "Reset this chat (keeps the current app)"
       },
       tts: {
         noticeTitle: "Audio Output",
@@ -925,7 +926,8 @@ const webUITranslations = {
       },
       session: {
         startSession: "セッションを開始",
-        continueSession: "セッションを続行"
+        continueSession: "セッションを続行",
+        resetHint: "このチャットをリセット（現在のアプリは維持）"
       },
       tts: {
         noticeTitle: "音声出力",
@@ -1419,7 +1421,8 @@ const webUITranslations = {
       },
       session: {
         startSession: "开始会话",
-        continueSession: "继续会话"
+        continueSession: "继续会话",
+        resetHint: "重置此对话（保留当前应用）"
       },
       tts: {
         noticeTitle: "音频输出",
@@ -1890,7 +1893,8 @@ const webUITranslations = {
       },
       session: {
         startSession: "세션 시작",
-        continueSession: "세션 계속"
+        continueSession: "세션 계속",
+        resetHint: "이 대화 초기화 (현재 앱 유지)"
       },
       tts: {
         noticeTitle: "음성 출력",
@@ -2361,7 +2365,8 @@ const webUITranslations = {
       },
       session: {
         startSession: "Iniciar Sesión",
-        continueSession: "Continuar Sesión"
+        continueSession: "Continuar Sesión",
+        resetHint: "Restablecer este chat (mantiene la app actual)"
       },
       tts: {
         noticeTitle: "Salida de Audio",
@@ -2841,7 +2846,8 @@ const webUITranslations = {
       },
       session: {
         startSession: "Démarrer Session",
-        continueSession: "Continuer Session"
+        continueSession: "Continuer Session",
+        resetHint: "Réinitialiser ce chat (conserve l'app actuelle)"
       },
       expensiveModelConfirm: {
         title: "Avertissement de modèle coûteux",
@@ -3312,7 +3318,8 @@ const webUITranslations = {
       },
       session: {
         startSession: "Sitzung Starten",
-        continueSession: "Sitzung Fortsetzen"
+        continueSession: "Sitzung Fortsetzen",
+        resetHint: "Diesen Chat zurücksetzen (aktuelle App bleibt)"
       },
       expensiveModelConfirm: {
         title: "Warnung: Teures Modell",

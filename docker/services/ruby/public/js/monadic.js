@@ -3357,6 +3357,9 @@ document.addEventListener("DOMContentLoaded", function () {
   
   // Logo click - resets conversation but keeps current app
   document.querySelectorAll(".reset-area").forEach(function(_el) { _el.addEventListener("click", function(event) {
+    // The logo is an href="#" anchor; without this the click also jumps the
+    // page to the top and appends "#" to the URL.
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app

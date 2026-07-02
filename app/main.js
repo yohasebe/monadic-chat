@@ -1527,20 +1527,27 @@ function initializeApp() {
     ipcMain.on('command', async (_event, command) => {
       try {
         switch (command) {
-          case 'start':
-            // Check requirements first
+          case 'start': {
+            // Immediate feedback: checkRequirements() below is async and can
+            // take a few seconds; without this the button click looks ignored.
+            // Show 'Starting' now, and revert to the prior status if we abort
+            // before runCommand (which sets its own 'Starting') takes over.
+            const prevStatus = currentStatus;
+            updateStatusIndicator('Starting');
             dockerManager.checkRequirements()
               .then(() => promptForPendingRebuilds())
               .then((proceed) => {
-                if (!proceed) return;
+                if (!proceed) { updateStatusIndicator(prevStatus); return; }
                 dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
               })
               .catch((error) => {
+                updateStatusIndicator(prevStatus);
                 console.log(`Docker requirements check failed: ${error}`);
                 // Show error dialog for Docker issues
                 dialog.showErrorBox('Docker Error', error);
               });
             break;
+          }
           case 'stop':
             // Inform the embedded browser to suppress reconnect noise (show "Stopped")
             try {
@@ -3081,7 +3088,10 @@ function openSharedFolder() {
 
   shell.openPath(folderPath).then((result) => {
     if (result) {
+      // result is a non-empty error string when the OS could not open the
+      // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
+      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3108,7 +3118,10 @@ function openConfigFolder() {
 
   shell.openPath(folderPath).then((result) => {
     if (result) {
+      // result is a non-empty error string when the OS could not open the
+      // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
+      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3135,7 +3148,10 @@ function openLogFolder() {
 
   shell.openPath(folderPath).then((result) => {
     if (result) {
+      // result is a non-empty error string when the OS could not open the
+      // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
+      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
     }
   });
 }

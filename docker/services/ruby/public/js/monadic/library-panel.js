@@ -875,6 +875,11 @@
           state.currentConversationId = null;
         }
       }
+    } else {
+      // Surface the failure instead of leaving the row in place with no
+      // explanation (the click otherwise looks like it did nothing).
+      var msg = (data && data.content) ? String(data.content) : 'Failed to delete the entry.';
+      flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(msg), 'error');
     }
     requestList();
     requestStats();

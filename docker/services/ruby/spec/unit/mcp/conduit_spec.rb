@@ -158,6 +158,29 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(Monadic::MCP::CostGuard.spent - before).to eq(1500)
       expect(result[:usage][:recorded_tokens]).to eq(1500)
     end
+
+    it "falls back to the estimate (not a 0 charge) when the provider reports a zero total" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: 0, output: 0, reasoning: nil, cached: nil, total: 0 }
+        "a normal visible answer with several words."
+      end
+      result = described_class.call("monadic_query", { "provider" => "cohere", "message" => "hi" })
+      expect(result[:usage][:recorded_tokens]).to be > 0            # not the bogus 0 total
+      expect(result).not_to have_key(:provider_usage)              # zero total is not "real"
+      expect(result[:usage][:note]).to match(/tiktoken estimate/)
+    end
+
+    it "labels the charge as an estimate when a wired provider reports no usable total" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: nil, output: nil, reasoning: nil, cached: nil, total: nil } # all-nil extraction
+        "answer."
+      end
+      result = described_class.call("monadic_query", { "provider" => "gemini", "message" => "hi" })
+      expect(result).not_to have_key(:provider_usage)              # all-nil hash is not surfaced as real
+      expect(result[:usage][:note]).to match(/tiktoken estimate/)  # note must not claim "real"
+    end
   end
 
   describe ".empty_output_warning" do

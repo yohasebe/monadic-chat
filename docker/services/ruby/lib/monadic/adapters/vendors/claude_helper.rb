@@ -477,7 +477,11 @@ module ClaudeHelper
         when "medium"
           budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
           max_tokens = user_max_tokens
-        when "high"
+        when "high", "xhigh", "max"
+          # xhigh/max exist only on adaptive models; on a non-adaptive model a
+          # caller requesting them gets the deepest budget tier, not the `else`
+          # (low-equivalent) tier — otherwise the highest requested effort would
+          # silently produce LESS thinking than "medium".
           budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
           max_tokens = user_max_tokens
         else
@@ -498,6 +502,20 @@ module ClaudeHelper
 
     if budget_tokens && budget_tokens >= max_tokens
       budget_tokens = (max_tokens * 0.8).to_i
+    end
+
+    # Anthropic rejects thinking budgets below its 1024-token minimum. The
+    # ratio-based arms above can land under it when the caller's max_tokens is
+    # small (e.g. a headless query with max_tokens 1500 at "low" → 750 → 400
+    # error). Floor the budget at 1024; when even 1024 cannot fit under
+    # max_tokens, disable thinking instead of sending a request the API rejects.
+    if budget_tokens && budget_tokens < 1024
+      if max_tokens > 1024
+        budget_tokens = 1024
+      else
+        thinking_enabled = false
+        budget_tokens = nil
+      end
     end
 
     # Determine if thinking display should be omitted (faster streaming)

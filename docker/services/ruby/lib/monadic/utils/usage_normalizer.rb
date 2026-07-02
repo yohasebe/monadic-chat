@@ -13,9 +13,14 @@ module Monadic
     # accounting/display/context code reads one shape regardless of provider.
     #
     # Notes:
-    # - `output` already includes reasoning tokens for reasoning models (e.g.
-    #   OpenAI completion_tokens counts reasoning_tokens); `reasoning` is the
-    #   informational sub-count, so `total` sums input+output only.
+    # - For OpenAI/Anthropic-shaped usage, `output` already includes reasoning
+    #   tokens (e.g. OpenAI completion_tokens counts reasoning_tokens), so `total`
+    #   sums input+output only and `reasoning` is the informational sub-count.
+    # - Gemini is the exception: `output` maps to candidatesTokenCount (VISIBLE
+    #   output only, excludes thoughts) and `reasoning` to thoughtsTokenCount, so
+    #   for Gemini the authoritative figure is `total` (= totalTokenCount, which
+    #   the API already includes thoughts in) — do not derive spend from `output`
+    #   alone for Gemini.
     # - Streaming responses surface usage only in the final chunk (and OpenAI
     #   needs stream_options:{include_usage:true}); that capture is the caller's
     #   job — this module only maps whatever usage object it is handed.
@@ -57,10 +62,21 @@ module Monadic
           reasoning = dig_i(u, "output_tokens_details", "reasoning_tokens") ||
                       dig_i(u, "output_tokens_details", "thinking_tokens") ||
                       dig_i(u, "completion_tokens_details", "reasoning_tokens")
+          cache_read  = int(u["cache_read_input_tokens"])  # Anthropic-only key
+          cache_write = int(u["cache_creation_input_tokens"]) # Anthropic-only key
           cached = dig_i(u, "prompt_tokens_details", "cached_tokens") ||
-                   int(u["cache_read_input_tokens"]) ||
+                   cache_read ||
                    int(u["prompt_cache_hit_tokens"])
           total = int(u["total_tokens"])
+          # Anthropic meters cache reads/writes SEPARATELY: input_tokens excludes
+          # them and no total_tokens is reported. Fold them into the fallback sum
+          # so cached Claude calls (cache_control is the norm on our request
+          # paths) don't under-count real billed tokens. OpenAI/DeepSeek are
+          # unaffected: they report total_tokens (explicit total wins) and use
+          # different cache keys (their prompt totals already include cache hits).
+          if total.nil? && (cache_read || cache_write)
+            total = [input, output, cache_read, cache_write].compact.sum
+          end
 
           build(input: input, output: output, reasoning: reasoning, cached: cached, total: total)
         end
@@ -75,7 +91,9 @@ module Monadic
         return nil if value.nil?
         Integer(value)
       rescue ArgumentError, TypeError
-        value.respond_to?(:to_i) ? value.to_i : nil
+        # Unparseable (e.g. "N/A", ""): report "not reported" (nil), not a
+        # fabricated 0 that downstream code cannot distinguish from a real zero.
+        nil
       end
 
       def self.dig_i(hash, *keys)

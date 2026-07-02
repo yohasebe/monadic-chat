@@ -29,13 +29,24 @@ RSpec.describe Monadic::Utils::UsageNormalizer do
       )
     end
 
-    it 'maps Anthropic/Claude usage with cache read' do
+    it 'maps Anthropic/Claude usage with cache read (cache meters count toward total)' do
       raw = { 'usage' => {
         'input_tokens' => 3000, 'output_tokens' => 400, 'cache_read_input_tokens' => 2000
       } }
-      # No total from Claude -> computed input+output.
+      # Anthropic reports no total and EXCLUDES cache reads from input_tokens,
+      # but they are billed — the computed total must include them.
       expect(described_class.extract('anthropic', raw)).to eq(
-        input: 3000, output: 400, reasoning: nil, cached: 2000, total: 3400
+        input: 3000, output: 400, reasoning: nil, cached: 2000, total: 5400
+      )
+    end
+
+    it 'includes Anthropic cache_creation tokens in the computed total' do
+      raw = { 'usage' => {
+        'input_tokens' => 200, 'output_tokens' => 100,
+        'cache_read_input_tokens' => 3000, 'cache_creation_input_tokens' => 500
+      } }
+      expect(described_class.extract('claude', raw)).to eq(
+        input: 200, output: 100, reasoning: nil, cached: 3000, total: 3800
       )
     end
 

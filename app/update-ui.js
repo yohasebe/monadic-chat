@@ -28,16 +28,26 @@
       line.className = 'update-progress';
       host.appendChild(line);
     }
-    // textContent for the label (no untrusted input, but keep it text), and a
-    // native <progress> element for the bar.
-    const label = document.createElement('span');
-    label.className = 'update-progress-label';
+    // Create the label/bar once and update them in place on later ticks —
+    // electron-updater emits progress many times per second, so per-tick node
+    // churn is real. textContent for the label (no untrusted input), a native
+    // <progress> element for the bar.
+    let label = line.querySelector('.update-progress-label');
+    let bar = line.querySelector('.update-progress-bar');
+    if (!label || !bar) {
+      label = document.createElement('span');
+      label.className = 'update-progress-label';
+      bar = document.createElement('progress');
+      bar.className = 'update-progress-bar';
+      bar.max = 100;
+      line.replaceChildren(label, bar);
+    }
     label.textContent = `Downloading update: ${percent}%${speed}`;
-    const bar = document.createElement('progress');
-    bar.className = 'update-progress-bar';
-    bar.max = 100;
     bar.value = percent;
-    line.replaceChildren(label, bar);
+    // Mirror the value into the attribute: other console writes use
+    // `innerHTML +=`, which reserializes and reparses the container — the
+    // JS-set .value property would be lost, but the attribute survives.
+    bar.setAttribute('value', String(percent));
     return line;
   }
 

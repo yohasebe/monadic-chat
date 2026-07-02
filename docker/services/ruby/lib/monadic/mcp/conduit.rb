@@ -2419,8 +2419,19 @@ module Monadic
         # when the provider did not report usage.
         est_output = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
         est_output = max_output if hidden_reasoning_capable?(model) && max_output > est_output
-        recorded_tokens = provider_usage&.[](:total) ? provider_usage[:total].to_i : (input_tokens + est_output)
+        # Prefer the provider's own total, but ONLY when it actually reported a
+        # positive count. An all-nil extraction (e.g. a wired provider whose
+        # response carried no usage object, like streaming without include_usage)
+        # yields a truthy Hash with total: nil, and a soft-failed 200 can report
+        # total: 0 — both must fall back to the fail-closed tiktoken estimate
+        # rather than recording 0 or mislabeling an estimate as "real" usage.
+        real_total = provider_usage && provider_usage[:total]
+        real_total = nil unless real_total.is_a?(Integer) && real_total.positive?
+        recorded_tokens = real_total || (input_tokens + est_output)
         CostGuard.record(recorded_tokens)
+        # Single source for the "no visible text on a successful call" condition,
+        # so empty_output and its warning can never disagree.
+        empty_visible = normalized[:success] && normalized[:text].to_s.strip.empty?
 
         {
           provider: provider,
@@ -2440,17 +2451,18 @@ module Monadic
           # for reasoning models (GPT-5.x, o-series, …) the internal reasoning
           # consumes the cap. Surface an explicit flag + actionable warning so
           # external callers can diagnose the silent-empty case immediately.
-          empty_output: (true if normalized[:success] && normalized[:text].to_s.strip.empty?),
-          warning: ((normalized[:success] && normalized[:text].to_s.strip.empty?) ? empty_output_warning(model, max_output) : nil),
-          # Real provider-reported token usage when available (OpenAI wired
-          # first; other providers report nil until their send_query is wired).
-          provider_usage: provider_usage,
+          empty_output: (true if empty_visible),
+          warning: (empty_visible ? empty_output_warning(model, max_output) : nil),
+          # Real provider-reported token usage, surfaced only when the provider
+          # actually reported a usable total (see real_total above); nil otherwise
+          # so the field never advertises an all-nil/zero usage object as "real".
+          provider_usage: (real_total ? provider_usage : nil),
           usage: {
             input_tokens_est: input_tokens,
             output_tokens_est: est_output,
             recorded_tokens: recorded_tokens,
-            note: (provider_usage ? "recorded real provider usage; *_est are tiktoken estimates" \
-                                  : "recorded tiktoken estimate; provider usage not reported for this provider")
+            note: (real_total ? "recorded real provider usage; *_est are tiktoken estimates" \
+                              : "recorded tiktoken estimate; provider usage not reported for this provider")
           }
         }.compact
       end

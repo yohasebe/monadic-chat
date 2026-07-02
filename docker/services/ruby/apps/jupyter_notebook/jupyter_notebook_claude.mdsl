@@ -42,7 +42,7 @@ app "JupyterNotebookClaude" do
     # Advisor Tool's canonical pairing is "Sonnet executor + Opus advisor" —
     # Sonnet handles the bulk of notebook operations while Opus is consulted
     # only for strategic guidance on architecturally non-trivial tasks.
-    model "claude-sonnet-4-6"
+    model "claude-sonnet-5"
   end
 
   # Advisor Tool (Anthropic beta): consult Opus 4.6 for strategic guidance on

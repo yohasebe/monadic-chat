@@ -159,7 +159,7 @@ describe('app/updater.js — installInProgress state machine', () => {
   });
 });
 
-describe('app/updater.js — download progress milestone logging', () => {
+describe('app/updater.js — download progress (structured event, no log lines)', () => {
   let deps;
   let sent;
 
@@ -184,31 +184,30 @@ describe('app/updater.js — download progress milestone logging', () => {
     });
   }
 
+  function progressEvents() {
+    return sent.filter(s => s.channel === 'update-download-progress').map(s => s.payload);
+  }
+
   function commandOutputLines() {
     return sent.filter(s => s.channel === 'command-output').map(s => s.payload);
   }
 
-  it('logs at 25/50/75/100 milestones, not every tick', () => {
-    [10, 15, 20, 25, 30, 45, 50, 60, 75, 80, 95, 100].forEach(emitProgress);
-    const lines = commandOutputLines();
-    expect(lines).toHaveLength(4);
+  it('emits a structured update-download-progress event on EVERY tick', () => {
+    [10, 25, 52, 80, 100].forEach(emitProgress);
+    expect(progressEvents()).toHaveLength(5);
   });
 
-  it('displays the actual percent rather than the milestone value', () => {
-    emitProgress(52);  // First tick crosses 25 and 50
-    const lines = commandOutputLines();
-    // The single log line should reflect the REAL percent (52), not 25 or 50.
-    expect(lines[0]).toContain('52%');
+  it('does NOT append command-output "Downloading update" lines (renderer draws the bar)', () => {
+    [10, 25, 52, 80, 100].forEach(emitProgress);
+    const downloadingLines = commandOutputLines().filter(l => /Downloading update/.test(l));
+    expect(downloadingLines).toHaveLength(0);
   });
 
-  it('captures ALL milestones crossed in a single jump (20% → 80%)', () => {
-    emitProgress(20);  // Below all milestones, no log
-    emitProgress(80);  // Crosses 25, 50, AND 75 at once
-    // One line (at the jump), but all three milestones should be marked so
-    // 100% still logs when we reach it — not suppressed by the catch-up.
-    expect(commandOutputLines()).toHaveLength(1);
-    emitProgress(100);
-    expect(commandOutputLines()).toHaveLength(2);
+  it('carries rounded percent and bytesPerSecond for the renderer bar', () => {
+    emitProgress(52.6);
+    const evt = progressEvents()[0];
+    expect(evt.percent).toBe(53);
+    expect(evt.bytesPerSecond).toBe(1024 * 1024 * 10);
   });
 
   it('does nothing when mainWindow is destroyed mid-download', () => {
@@ -220,6 +219,60 @@ describe('app/updater.js — download progress milestone logging', () => {
     updater.init(destroyedDeps);
     // Should not throw, should not crash.
     expect(() => emitProgress(50)).not.toThrow();
+  });
+});
+
+describe('app/updater.js — single "Stopping Docker" notice', () => {
+  beforeEach(() => {
+    updater._resetForTests();
+    Object.keys(autoUpdaterEvents).forEach(k => delete autoUpdaterEvents[k]);
+    autoUpdaterMock.quitAndInstall.mockClear();
+    appExitMock.mockClear();
+  });
+
+  function depsWithCapture({ dockerRunning }) {
+    const sent = [];
+    const deps = makeDeps({
+      dockerManager: {
+        checkStatus: jest.fn(() => Promise.resolve(dockerRunning)),
+        runCommand: jest.fn(() => Promise.resolve())
+      },
+      getMainWindow: () => ({
+        isDestroyed: () => false,
+        webContents: { send: (channel, payload) => sent.push({ channel, payload }) }
+      })
+    });
+    return { deps, sent };
+  }
+
+  it('emits the stopping notice once via runCommand, with no duplicate manual send', async () => {
+    const { deps, sent } = depsWithCapture({ dockerRunning: true });
+    updater.init(deps);
+    const p = updater.gracefulStopThenInstall();
+    await jest.advanceTimersByTimeAsync(1500);
+    await p.catch(() => {});
+
+    // The manual command-output send was removed; the notice is no longer
+    // emitted directly by gracefulStopThenInstall.
+    const manual = sent.filter(s => s.channel === 'command-output' &&
+      /Stopping Docker containers/.test(String(s.payload)));
+    expect(manual).toHaveLength(0);
+
+    // runCommand carries the stopping notice exactly once.
+    const stopCalls = deps.dockerManager.runCommand.mock.calls
+      .filter(args => /Stopping Docker containers/.test(String(args[1])));
+    expect(stopCalls).toHaveLength(1);
+  });
+
+  it('shows no stopping notice when Docker is not running', async () => {
+    const { deps, sent } = depsWithCapture({ dockerRunning: false });
+    updater.init(deps);
+    const p = updater.gracefulStopThenInstall();
+    await jest.advanceTimersByTimeAsync(1500);
+    await p.catch(() => {});
+
+    expect(deps.dockerManager.runCommand).not.toHaveBeenCalled();
+    expect(sent.filter(s => /Stopping Docker/.test(String(s.payload)))).toHaveLength(0);
   });
 });
 

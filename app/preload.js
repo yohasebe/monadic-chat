@@ -89,6 +89,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     });
   },
 
+  // Per-tick auto-update download progress (drives the single in-place
+  // progress line + bar rendered by app/update-ui.js).
+  onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', callback),
+
   // Cancel update download
   cancelUpdate: () => ipcRenderer.send('cancel-update'),
 

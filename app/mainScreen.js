@@ -771,7 +771,20 @@ document.addEventListener('DOMContentLoaded', () => {
   window.electronAPI.onCommandOutput((_event, output) => {
     writeToScreen(output);
   });
-  
+
+  // Auto-update download progress: update a SINGLE in-place line + bar (see
+  // app/update-ui.js) instead of appending one line per milestone.
+  if (window.electronAPI.onUpdateDownloadProgress && window.MonadicUpdateUI) {
+    window.electronAPI.onUpdateDownloadProgress((_event, progress) => {
+      window.MonadicUpdateUI.renderDownloadProgress(htmlOutputElement, progress);
+    });
+  }
+  // Wire the "Download & Install" button embedded in the update-available
+  // message to the existing check-for-updates flow.
+  if (window.MonadicUpdateUI) {
+    window.MonadicUpdateUI.attachUpdateButtonHandler(htmlOutputElement, window.electronAPI);
+  }
+
   // Handle clear messages command
   window.electronAPI.onClearMessages((_event) => {
     // Clear both message areas

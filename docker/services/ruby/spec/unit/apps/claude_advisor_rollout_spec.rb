@@ -5,8 +5,8 @@ require_relative '../../../lib/monadic/dsl'
 require_relative '../../../lib/monadic/dsl/loader'
 
 # Integration check for the Advisor Tool rollout to additional Claude
-# apps beyond AutoForge. Each app should load cleanly with Sonnet 4.6
-# as executor and Opus 4.6 as advisor (canonical pairing), and carry
+# apps beyond AutoForge. Each app should load cleanly with Sonnet 5
+# as executor and Opus 4.8 as advisor (canonical pairing), and carry
 # the advisor_tool settings through to the generated class.
 RSpec.describe 'Claude Advisor Tool rollout — integration' do
   before(:all) do
@@ -38,8 +38,8 @@ RSpec.describe 'Claude Advisor Tool rollout — integration' do
       expect(Object.const_defined?(const_name)).to be true
     end
 
-    it 'sets Sonnet 4.6 as the executor (canonical advisor pairing)' do
-      expect(settings[:model] || settings['model']).to eq('claude-sonnet-4-6')
+    it 'sets Sonnet 5 as the executor (canonical advisor pairing)' do
+      expect(settings[:model] || settings['model']).to eq('claude-sonnet-5')
     end
 
     it 'carries advisor_tool settings into the generated class' do

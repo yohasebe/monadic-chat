@@ -163,6 +163,14 @@ module Monadic
                                "reasoning before any visible output, so set it generously " \
                                "(e.g. >= 1000) or the answer can come back truncated."
                 },
+                reasoning_effort: {
+                  type: "string",
+                  description: "Optional reasoning depth for reasoning-capable models " \
+                               "(e.g. none/low/medium/high/xhigh; valid set varies by model — " \
+                               "see monadic_list_models). Lower effort = faster, cheaper, and " \
+                               "less likely to exhaust max_tokens on hidden reasoning. " \
+                               "Ignored by models that don't support it."
+                },
                 temperature: {
                   type: "number",
                   description: "Optional sampling temperature (ignored by models that reject it)."
@@ -254,6 +262,12 @@ module Monadic
                                "Reasoning/thinking models spend this cap on internal reasoning " \
                                "before visible output — set it generously (e.g. >= 1000) or an " \
                                "answer can return truncated (see each result's possibly_incomplete)."
+                },
+                reasoning_effort: {
+                  type: "string",
+                  description: "Optional reasoning depth applied to every reasoning-capable " \
+                               "target (none/low/medium/high/xhigh; varies by model). Ignored " \
+                               "by models that don't support it."
                 },
                 temperature: {
                   type: "number",
@@ -393,6 +407,11 @@ module Monadic
                 max_tokens: {
                   type: "integer",
                   description: "Optional per-member output cap (default #{DEFAULT_MAX_OUTPUT})."
+                },
+                reasoning_effort: {
+                  type: "string",
+                  description: "Optional reasoning depth for reasoning-capable panel members " \
+                               "(none/low/medium/high/xhigh; varies by model). Ignored otherwise."
                 },
                 temperature: { type: "number", description: "Optional sampling temperature for the panel." },
                 knowledge_base: {
@@ -893,7 +912,8 @@ module Monadic
           max_output: (arguments["max_tokens"] || arguments[:max_tokens]),
           temperature: (arguments["temperature"] || arguments[:temperature]),
           knowledge_base: (arguments["knowledge_base"] || arguments[:knowledge_base]),
-          privacy: (arguments["privacy"] || arguments[:privacy])
+          privacy: (arguments["privacy"] || arguments[:privacy]),
+          reasoning_effort: (arguments["reasoning_effort"] || arguments[:reasoning_effort])
         )
         result.merge(budget: CostGuard.status)
       end
@@ -917,12 +937,13 @@ module Monadic
         temperature ||= arguments["temperature"] || arguments[:temperature]
         knowledge_base = arguments["knowledge_base"] || arguments[:knowledge_base]
         privacy = arguments["privacy"] || arguments[:privacy]
+        reasoning_effort = arguments["reasoning_effort"] || arguments[:reasoning_effort]
 
         runner = lambda do |target|
           execute_query(
             provider: target[:provider], messages: messages, system: system,
             model: target[:model], max_output: max_output, temperature: temperature,
-            knowledge_base: knowledge_base, privacy: privacy
+            knowledge_base: knowledge_base, privacy: privacy, reasoning_effort: reasoning_effort
           )
         end
 
@@ -2301,7 +2322,7 @@ module Monadic
 
       def execute_query(provider:, messages:, system: "", model: nil,
                         max_output: nil, temperature: nil,
-                        knowledge_base: nil, privacy: nil)
+                        knowledge_base: nil, privacy: nil, reasoning_effort: nil)
         model = model.to_s.strip
         model = nil if model.empty?
         model ||= default_chat_model_for(provider)
@@ -2361,8 +2382,22 @@ module Monadic
 
         body = { "messages" => send_messages, "model" => model, "max_tokens" => max_output }
         body["temperature"] = temperature unless temperature.nil?
+        # Reasoning effort is honored only by reasoning-capable models; send_query
+        # ignores it for the rest, so passing it through is always safe. Lets a
+        # caller trade depth for speed/cost — and avoid the "reasoning ate the
+        # whole max_tokens budget → empty text" trap by lowering effort.
+        unless reasoning_effort.to_s.strip.empty?
+          body["reasoning_effort"] = reasoning_effort.to_s.strip
+        end
 
+        # Clear before the call so a stale value from an earlier call can't leak
+        # in when this provider's send_query doesn't (yet) report usage.
+        Thread.current[:conduit_provider_usage] = nil
         raw = host.send_query(body, model: model)
+        # Real provider-reported usage (normalized to {input,output,reasoning,
+        # cached,total}); nil for providers whose send_query is not yet wired.
+        provider_usage = Thread.current[:conduit_provider_usage]
+        Thread.current[:conduit_provider_usage] = nil
         normalized = normalize_query_response(raw)
 
         # Restore masked placeholders in the response back to original values.
@@ -2378,9 +2413,25 @@ module Monadic
         # charge such models the output we already reserved in ensure_within!.
         # This over-counts short replies — the safe direction for a spend *ceiling*
         # (a safety backstop, not an accounting ledger).
-        output_tokens = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
-        output_tokens = max_output if hidden_reasoning_capable?(model) && max_output > output_tokens
-        CostGuard.record(input_tokens + output_tokens)
+        # Prefer real provider-reported usage (includes hidden reasoning tokens)
+        # for the spend ledger. The tiktoken estimate below — which over-counts
+        # reasoning models on purpose (fail-closed) — is the fallback used only
+        # when the provider did not report usage.
+        est_output = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
+        est_output = max_output if hidden_reasoning_capable?(model) && max_output > est_output
+        # Prefer the provider's own total, but ONLY when it actually reported a
+        # positive count. An all-nil extraction (e.g. a wired provider whose
+        # response carried no usage object, like streaming without include_usage)
+        # yields a truthy Hash with total: nil, and a soft-failed 200 can report
+        # total: 0 — both must fall back to the fail-closed tiktoken estimate
+        # rather than recording 0 or mislabeling an estimate as "real" usage.
+        real_total = provider_usage && provider_usage[:total]
+        real_total = nil unless real_total.is_a?(Integer) && real_total.positive?
+        recorded_tokens = real_total || (input_tokens + est_output)
+        CostGuard.record(recorded_tokens)
+        # Single source for the "no visible text on a successful call" condition,
+        # so empty_output and its warning can never disagree.
+        empty_visible = normalized[:success] && normalized[:text].to_s.strip.empty?
 
         {
           provider: provider,
@@ -2395,10 +2446,23 @@ module Monadic
           # punctuation), e.g. a reasoning model that spent `max_tokens` on
           # internal reasoning before finishing. Raise `max_tokens` and retry.
           possibly_incomplete: (true if normalized[:success] && looks_incomplete?(normalized[:text])),
+          # Empty visible output on a successful call almost always means the
+          # model spent its whole max_tokens budget before emitting any text —
+          # for reasoning models (GPT-5.x, o-series, …) the internal reasoning
+          # consumes the cap. Surface an explicit flag + actionable warning so
+          # external callers can diagnose the silent-empty case immediately.
+          empty_output: (true if empty_visible),
+          warning: (empty_visible ? empty_output_warning(model, max_output) : nil),
+          # Real provider-reported token usage, surfaced only when the provider
+          # actually reported a usable total (see real_total above); nil otherwise
+          # so the field never advertises an all-nil/zero usage object as "real".
+          provider_usage: (real_total ? provider_usage : nil),
           usage: {
             input_tokens_est: input_tokens,
-            output_tokens_est: output_tokens,
-            note: "estimated via tiktoken; send_query does not expose provider usage"
+            output_tokens_est: est_output,
+            recorded_tokens: recorded_tokens,
+            note: (real_total ? "recorded real provider usage; *_est are tiktoken estimates" \
+                              : "recorded tiktoken estimate; provider usage not reported for this provider")
           }
         }.compact
       end
@@ -2598,6 +2662,25 @@ module Monadic
         return false if s.empty?
 
         !s.match?(/[.!?…。！？”’"')\]\}]\z/)
+      end
+
+      # Actionable warning for a successful call that produced no visible text.
+      # Reasoning models spend max_tokens on hidden reasoning first, so a too-low
+      # cap yields an empty response; non-reasoning models simply hit the cap.
+      def empty_output_warning(model, max_output)
+        reasoning = begin
+          Monadic::Utils::ModelSpec.is_reasoning_model?(model)
+        rescue StandardError
+          false
+        end
+        if reasoning
+          "empty output: a reasoning model returned no visible text — internal " \
+          "reasoning likely consumed the entire max_tokens budget (#{max_output}) " \
+          "before emitting any. Increase max_tokens (e.g. 32000) and retry."
+        else
+          "empty output: the model returned no visible text. Increase max_tokens " \
+          "(current #{max_output}) and retry."
+        end
       end
 
       # ---- Status helpers -------------------------------------------------

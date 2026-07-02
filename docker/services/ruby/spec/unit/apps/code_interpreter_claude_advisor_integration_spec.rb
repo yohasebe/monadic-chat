@@ -34,8 +34,8 @@ RSpec.describe 'Code Interpreter Claude advisor_tool integration' do
     expect(Object.const_defined?('CodeInterpreterClaude')).to be true
   end
 
-  it 'sets Sonnet 4.6 as the executor (canonical advisor pairing)' do
-    expect(settings[:model] || settings['model']).to eq('claude-sonnet-4-6')
+  it 'sets Sonnet 5 as the executor (canonical advisor pairing)' do
+    expect(settings[:model] || settings['model']).to eq('claude-sonnet-5')
   end
 
   it 'carries advisor_tool settings into the generated class @settings' do

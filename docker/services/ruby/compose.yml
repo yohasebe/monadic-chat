@@ -9,7 +9,7 @@ services:
         GEMS_FINGERPRINT: ${GEMS_FINGERPRINT:-unknown}
     container_name: monadic-chat-ruby-container
     environment:
-      HOST_OS: ${HOST_OS}
+      HOST_OS: ${HOST_OS:-}
       PRIVACY_FILTER: ${PRIVACY_FILTER:-true}
       PRIVACY_LANGS: ${PRIVACY_LANGS:-en}
       EXTRACTOR_SERVICE: ${EXTRACTOR_SERVICE:-}

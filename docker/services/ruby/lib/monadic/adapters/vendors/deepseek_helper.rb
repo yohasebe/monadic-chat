@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../shared_tools/tavily_definitions"
@@ -129,6 +130,10 @@ module DeepSeekHelper
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
+        # Real provider usage for the Conduit query path (thread-local; read+
+        # cleared by Conduit#execute_query). Non-breaking; never raises.
+        Thread.current[:conduit_provider_usage] =
+          (Monadic::Utils::UsageNormalizer.extract("deepseek", parsed_response) rescue nil)
         message = parsed_response.dig("choices", 0, "message") || {}
         content = message["content"]
         # Note: in Ruby, `"" || "fallback"` returns "" because empty strings

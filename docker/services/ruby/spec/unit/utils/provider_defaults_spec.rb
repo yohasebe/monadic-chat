@@ -31,7 +31,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'returns the first model for anthropic chat' do
-      expect(described_class.get_provider_default("anthropic", "chat")).to eq("claude-sonnet-4-6")
+      expect(described_class.get_provider_default("anthropic", "chat")).to eq("claude-sonnet-5")
     end
 
     it 'returns the first model for gemini chat' do

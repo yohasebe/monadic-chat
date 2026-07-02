@@ -1,6 +1,7 @@
 require 'fileutils'
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/error_pattern_detector"
@@ -202,7 +203,25 @@ module ClaudeHelper
     unless Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
       body["temperature"] = options["temperature"] || 0.7
     end
-    
+
+    # Honor reasoning_effort on the simple-query path (used by Conduit) the same
+    # way the chat path does: reuse configure_claude_thinking so adaptive models
+    # get output_config.effort and budget models get thinking.budget_tokens.
+    # Extended thinking requires temperature to be unset, so drop it when on.
+    if options["reasoning_effort"] && options["reasoning_effort"] != "none"
+      # configure_claude_thinking reads obj["model"]; send_query's authoritative
+      # model is the keyword arg, so merge it in (options may omit "model").
+      tc = configure_claude_thinking(options.merge("model" => model), model, max_tokens_value, nil)
+      if tc[:thinking_enabled]
+        if tc[:adaptive_effort]
+          body["output_config"] = { "effort" => tc[:adaptive_effort] }
+        elsif tc[:budget_tokens]
+          body["thinking"] = { "type" => "enabled", "budget_tokens" => tc[:budget_tokens] }
+        end
+        body.delete("temperature")
+      end
+    end
+
     # Extract system message - Claude API expects this as a top-level parameter
     if options["system"]
       body["system"] = options["system"]
@@ -279,6 +298,10 @@ module ClaudeHelper
     if res && res.status && res.status.success?
       begin
         parsed_response = JSON.parse(res.body)
+        # Surface real provider usage for the Conduit query path (thread-local,
+        # read+cleared by Conduit#execute_query). Non-breaking; never raises.
+        Thread.current[:conduit_provider_usage] =
+          (Monadic::Utils::UsageNormalizer.extract("anthropic", parsed_response) rescue nil)
 
         # Check for tool calls in the response (Anthropic uses type: "tool_use")
         if parsed_response["content"] && parsed_response["content"].is_a?(Array)
@@ -454,7 +477,11 @@ module ClaudeHelper
         when "medium"
           budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
           max_tokens = user_max_tokens
-        when "high"
+        when "high", "xhigh", "max"
+          # xhigh/max exist only on adaptive models; on a non-adaptive model a
+          # caller requesting them gets the deepest budget tier, not the `else`
+          # (low-equivalent) tier — otherwise the highest requested effort would
+          # silently produce LESS thinking than "medium".
           budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
           max_tokens = user_max_tokens
         else
@@ -475,6 +502,20 @@ module ClaudeHelper
 
     if budget_tokens && budget_tokens >= max_tokens
       budget_tokens = (max_tokens * 0.8).to_i
+    end
+
+    # Anthropic rejects thinking budgets below its 1024-token minimum. The
+    # ratio-based arms above can land under it when the caller's max_tokens is
+    # small (e.g. a headless query with max_tokens 1500 at "low" → 750 → 400
+    # error). Floor the budget at 1024; when even 1024 cannot fit under
+    # max_tokens, disable thinking instead of sending a request the API rejects.
+    if budget_tokens && budget_tokens < 1024
+      if max_tokens > 1024
+        budget_tokens = 1024
+      else
+        thinking_enabled = false
+        budget_tokens = nil
+      end
     end
 
     # Determine if thinking display should be omitted (faster streaming)

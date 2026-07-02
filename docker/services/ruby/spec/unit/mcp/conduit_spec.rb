@@ -73,6 +73,133 @@ RSpec.describe Monadic::MCP::Conduit do
     end
   end
 
+  describe "monadic_query empty-output diagnostics" do
+    let(:host) { double("host") }
+
+    before { allow(described_class).to receive(:provider_host).and_return(host) }
+
+    it "flags empty visible output with empty_output + an actionable warning" do
+      allow(host).to receive(:send_query).and_return("")
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "hi", "max_tokens" => 100 })
+      expect(result[:success]).to be true
+      expect(result[:empty_output]).to be true
+      expect(result[:warning]).to match(/empty output/i)
+      expect(result[:warning]).to match(/max_tokens/)
+    end
+
+    it "adds no empty_output/warning when the model returns text" do
+      allow(host).to receive(:send_query).and_return("A complete answer.")
+      result = described_class.call("monadic_query",
+                                    { "provider" => "openai", "message" => "hi" })
+      expect(result[:success]).to be true
+      expect(result).not_to have_key(:empty_output) # nil compacted away
+      expect(result).not_to have_key(:warning)
+    end
+  end
+
+  describe "monadic_query reasoning_effort passthrough" do
+    let(:host) { double("host") }
+
+    before { allow(described_class).to receive(:provider_host).and_return(host) }
+
+    it "forwards reasoning_effort into the send_query body" do
+      captured = nil
+      allow(host).to receive(:send_query) { |body, **| captured = body; "answer." }
+      described_class.call("monadic_query",
+                           { "provider" => "openai", "message" => "hi", "reasoning_effort" => "low" })
+      expect(captured["reasoning_effort"]).to eq("low")
+    end
+
+    it "omits reasoning_effort from the body when not provided" do
+      captured = nil
+      allow(host).to receive(:send_query) { |body, **| captured = body; "answer." }
+      described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(captured).not_to have_key("reasoning_effort")
+    end
+
+    it "advertises reasoning_effort in the monadic_query tool schema" do
+      tool = described_class.tools.find { |t| t[:name] == "monadic_query" }
+      props = tool.dig(:inputSchema, :properties) || tool.dig("inputSchema", "properties")
+      expect(props).to have_key(:reasoning_effort).or have_key("reasoning_effort")
+    end
+  end
+
+  describe "monadic_query provider usage surfacing" do
+    let(:host) { double("host") }
+
+    before { allow(described_class).to receive(:provider_host).and_return(host) }
+
+    it "surfaces real provider usage when the helper reports it (thread-local)" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: 100, output: 20, reasoning: 8, cached: 0, total: 120 }
+        "answer."
+      end
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(result[:provider_usage]).to eq(input: 100, output: 20, reasoning: 8, cached: 0, total: 120)
+    end
+
+    it "omits provider_usage (and does not leak a stale value) when unreported" do
+      Thread.current[:conduit_provider_usage] = { input: 999 } # stale from a prior call
+      allow(host).to receive(:send_query) { |_b, **| "answer." } # reports nothing
+      result = described_class.call("monadic_query", { "provider" => "cohere", "message" => "hi" })
+      expect(result).not_to have_key(:provider_usage)
+    end
+
+    it "records the real provider total (not the tiktoken estimate) in the budget when reported" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: 1000, output: 500, reasoning: 200, cached: 0, total: 1500 }
+        "short." # a tiny visible answer whose tiktoken estimate is far below 1500
+      end
+      before = Monadic::MCP::CostGuard.spent
+      result = described_class.call("monadic_query", { "provider" => "openai", "message" => "hi" })
+      expect(Monadic::MCP::CostGuard.spent - before).to eq(1500)
+      expect(result[:usage][:recorded_tokens]).to eq(1500)
+    end
+
+    it "falls back to the estimate (not a 0 charge) when the provider reports a zero total" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: 0, output: 0, reasoning: nil, cached: nil, total: 0 }
+        "a normal visible answer with several words."
+      end
+      result = described_class.call("monadic_query", { "provider" => "cohere", "message" => "hi" })
+      expect(result[:usage][:recorded_tokens]).to be > 0            # not the bogus 0 total
+      expect(result).not_to have_key(:provider_usage)              # zero total is not "real"
+      expect(result[:usage][:note]).to match(/tiktoken estimate/)
+    end
+
+    it "labels the charge as an estimate when a wired provider reports no usable total" do
+      allow(host).to receive(:send_query) do |_body, **|
+        Thread.current[:conduit_provider_usage] =
+          { input: nil, output: nil, reasoning: nil, cached: nil, total: nil } # all-nil extraction
+        "answer."
+      end
+      result = described_class.call("monadic_query", { "provider" => "gemini", "message" => "hi" })
+      expect(result).not_to have_key(:provider_usage)              # all-nil hash is not surfaced as real
+      expect(result[:usage][:note]).to match(/tiktoken estimate/)  # note must not claim "real"
+    end
+  end
+
+  describe ".empty_output_warning" do
+    it "names reasoning + the budget for reasoning models" do
+      allow(Monadic::Utils::ModelSpec).to receive(:is_reasoning_model?).and_return(true)
+      msg = described_class.empty_output_warning("gpt-5.5", 6000)
+      expect(msg).to match(/reasoning/i)
+      expect(msg).to match(/6000/)
+      expect(msg).to match(/max_tokens/)
+    end
+
+    it "gives a generic increase-max_tokens hint for non-reasoning models" do
+      allow(Monadic::Utils::ModelSpec).to receive(:is_reasoning_model?).and_return(false)
+      msg = described_class.empty_output_warning("some-model", 4096)
+      expect(msg).to match(/max_tokens/)
+      expect(msg).not_to match(/reasoning/i)
+    end
+  end
+
   describe "monadic_confidence" do
     describe ".confidence_band" do
       it "maps scores to calibrated bands + actions" do

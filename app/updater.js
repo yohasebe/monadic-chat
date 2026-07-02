@@ -32,12 +32,6 @@ let downloadInProgress = false;
 // confirmation dialog returns. Otherwise a failed install would leave the
 // app unable to show the "Quit?" dialog for the rest of the session.
 let installInProgress = false;
-// Progress-line throttling: we only append a human-readable line to the
-// command-output panel at 25/50/75/100% milestones so the UI doesn't fill
-// with a dozen near-identical rows. The structured `update-download-progress`
-// event still fires on every tick for any future progress-bar widget.
-const PROGRESS_MILESTONES = [25, 50, 75, 100];
-let loggedMilestones = new Set();
 
 function init(injected) {
   deps = injected; // { dockerManager, getMainWindow, log, i18n }
@@ -53,29 +47,17 @@ function init(injected) {
     const mainWindow = deps.getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
-    // Structured event (every tick) — any future progress-bar widget can
-    // subscribe to this.
+    // Structured event (every tick). The renderer subscribes via
+    // electronAPI.onUpdateDownloadProgress and updates a SINGLE in-place line
+    // with a <progress> bar (see app/update-ui.js), rather than appending a
+    // new command-output line per milestone — so the console shows one line
+    // whose percentage and bar advance.
     mainWindow.webContents.send('update-download-progress', {
       percent: Math.round(progress.percent),
       bytesPerSecond: progress.bytesPerSecond,
       transferred: progress.transferred,
       total: progress.total
     });
-
-    // Command-output line — throttled to milestone percentages so the log
-    // reads cleanly: 25%, 50%, 75%, done. Collect ALL milestones crossed
-    // since the last event (not just the first) so a progress jump like
-    // 20% → 80% still records 25/50/75 rather than silently dropping them.
-    // Display the ACTUAL percent rather than the milestone value so the
-    // line is honest when a single tick crosses multiple thresholds.
-    const percent = Math.round(progress.percent);
-    const crossed = PROGRESS_MILESTONES.filter(m => percent >= m && !loggedMilestones.has(m));
-    if (crossed.length > 0) {
-      crossed.forEach(m => loggedMilestones.add(m));
-      const mbps = (progress.bytesPerSecond / 1024 / 1024).toFixed(1);
-      mainWindow.webContents.send('command-output',
-        `[HTML]: <p>Downloading update: ${percent}% (${mbps} MB/s)</p>`);
-    }
   });
 
   autoUpdater.on('update-downloaded', async (info) => {
@@ -157,7 +139,6 @@ async function downloadUpdate() {
   }
   downloadInProgress = true;
   setUpdateBusy(true);
-  loggedMilestones = new Set();  // Fresh progress log per download attempt
   try {
     await autoUpdater.checkForUpdates();
     await autoUpdater.downloadUpdate();
@@ -173,12 +154,9 @@ async function downloadUpdate() {
 // exposed so callers can trigger the same sequence if they initiated the
 // download flow out-of-band.
 async function gracefulStopThenInstall() {
-  const mainWindow = deps.getMainWindow();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('command-output',
-      '[HTML]: <p>Stopping Docker containers before restart . . .</p>');
-  }
-
+  // The "Stopping Docker containers before restart" line is emitted once, by
+  // runCommand('stop', ...) below — only when containers are actually running.
+  // (A separate manual send here previously produced a duplicate line.)
   try {
     const dockerStatus = await deps.dockerManager.checkStatus();
     if (dockerStatus) {
@@ -280,7 +258,6 @@ function _resetForTests() {
   deps = null;
   downloadInProgress = false;
   installInProgress = false;
-  loggedMilestones = new Set();
 }
 
 module.exports = { init, downloadUpdate, gracefulStopThenInstall, isInstallInProgress, _resetForTests };

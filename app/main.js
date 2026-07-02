@@ -80,6 +80,7 @@ let isQuitting = false;
 let contextMenu = null;
 let initialLaunch = true;
 let lastUpdateCheckResult = null; // Store the last update check result
+let lastKnownLatestVersion = null; // Latest version from the most recent check (for the inline download button)
 // Preference for browser launch: 'external' or 'internal'
 // Default browser mode: 'internal' for internal Electron view
 let browserMode = 'internal';
@@ -1052,6 +1053,7 @@ function checkForUpdatesManual(showDialog = false) {
 
       if (match && match[1]) {
         const latestVersion = match[1];
+        lastKnownLatestVersion = latestVersion;
         const currentVersion = app.getVersion();
 
         if (compareVersions(latestVersion, currentVersion) > 0) {
@@ -3974,6 +3976,21 @@ ipcMain.on('request-settings', (event) => {
 // Handle check-for-updates request from settings window
 ipcMain.on('check-for-updates-from-settings', () => {
   checkForUpdates();
+});
+
+// Inline "Download & Install" button: start the download directly. downloadUpdate()
+// re-checks electron-updater's state internally, so this is safe even though our
+// primary version check goes through raw.githubusercontent.com. Mirrors the
+// dialog's "Download & Install" branch (progress feedback + fallback dialog).
+ipcMain.on('start-update-download', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('command-output',
+      formatMessage('info', 'messages.downloadingUpdate', { version: lastKnownLatestVersion || '' }));
+  }
+  updater.downloadUpdate().catch((err) => {
+    console.error('downloadUpdate failed:', err);
+    // updater.js shows a fallback dialog linking to releases.
+  });
 });
 
 // Handle open-external-url request from settings window

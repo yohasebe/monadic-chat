@@ -894,6 +894,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.i18n && window.i18n.t) {
               const translatedText = window.i18n.t(key, params);
               
+              // Preserve nested interactive children that carry their own
+              // data-i18n-key (e.g. the inline "Download & Install" button in
+              // the update-available message) — rebuilding innerHTML from the
+              // translated text alone would wipe them. The same forEach visits
+              // those children later and re-translates their own labels.
+              const preserved = Array.from(msg.children).filter(function (c) {
+                return c.nodeType === 1 && c.hasAttribute('data-i18n-key');
+              });
+
               // Find the icon if exists
               const icon = msg.querySelector('i.fa-solid');
               if (icon) {
@@ -903,6 +912,8 @@ document.addEventListener('DOMContentLoaded', () => {
               } else {
                 msg.textContent = translatedText;
               }
+
+              preserved.forEach(function (el) { msg.appendChild(el); });
             }
           });
         }

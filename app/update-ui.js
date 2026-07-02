@@ -60,7 +60,13 @@
     host.addEventListener('click', function (e) {
       const target = e && e.target;
       const btn = target && target.closest ? target.closest('.mc-update-now') : null;
-      if (btn && api && typeof api.checkForUpdates === 'function') {
+      if (!btn || !api) return;
+      // The button says "Download & Install", so start the download directly
+      // when that API exists; fall back to re-checking (older preload) only if
+      // it doesn't.
+      if (typeof api.startUpdateDownload === 'function') {
+        api.startUpdateDownload();
+      } else if (typeof api.checkForUpdates === 'function') {
         api.checkForUpdates();
       }
     });

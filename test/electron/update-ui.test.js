@@ -59,21 +59,30 @@ describe('attachUpdateButtonHandler', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="host"></div>';
     host = document.getElementById('host');
-    api = { checkForUpdates: jest.fn() };
+    api = { startUpdateDownload: jest.fn(), checkForUpdates: jest.fn() };
   });
 
-  it('calls api.checkForUpdates when a .mc-update-now button is clicked', () => {
+  it('starts the download directly (not a re-check) when a .mc-update-now button is clicked', () => {
     attachUpdateButtonHandler(host, api);
     host.innerHTML = '<p>Update available <button class="mc-update-now">Download</button></p>';
     host.querySelector('.mc-update-now').click();
-    expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
+    expect(api.startUpdateDownload).toHaveBeenCalledTimes(1);
+    expect(api.checkForUpdates).not.toHaveBeenCalled();
+  });
+
+  it('falls back to checkForUpdates when startUpdateDownload is unavailable (older preload)', () => {
+    const legacy = { checkForUpdates: jest.fn() };
+    attachUpdateButtonHandler(host, legacy);
+    host.innerHTML = '<button class="mc-update-now">x</button>';
+    host.querySelector('.mc-update-now').click();
+    expect(legacy.checkForUpdates).toHaveBeenCalledTimes(1);
   });
 
   it('ignores clicks elsewhere', () => {
     attachUpdateButtonHandler(host, api);
     host.innerHTML = '<p>other content</p>';
     host.querySelector('p').click();
-    expect(api.checkForUpdates).not.toHaveBeenCalled();
+    expect(api.startUpdateDownload).not.toHaveBeenCalled();
   });
 
   it('is idempotent — repeated attach does not stack handlers', () => {
@@ -81,7 +90,7 @@ describe('attachUpdateButtonHandler', () => {
     attachUpdateButtonHandler(host, api);
     host.innerHTML = '<button class="mc-update-now">x</button>';
     host.querySelector('.mc-update-now').click();
-    expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
+    expect(api.startUpdateDownload).toHaveBeenCalledTimes(1);
   });
 });
 

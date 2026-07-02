@@ -123,6 +123,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Check for updates (from settings window)
   checkForUpdates: () => ipcRenderer.send('check-for-updates-from-settings'),
 
+  // Start downloading the already-detected update directly (used by the inline
+  // "Download & Install" button, which should begin the download rather than
+  // re-run the version check and re-open the confirmation dialog).
+  startUpdateDownload: () => ipcRenderer.send('start-update-download'),
+
   // Open URL in external browser (from settings window)
   openExternal: (url) => ipcRenderer.send('open-external-url', url),
 

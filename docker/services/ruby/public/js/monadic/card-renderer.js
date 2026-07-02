@@ -34,6 +34,22 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+// Count distinct providers that have an API key configured, from the SSOT
+// payload (/api/ai_user_defaults, cached on window.aiUserDefaults). Used to
+// decide whether cross-provider verification is possible. Returns a large
+// number when the payload isn't loaded yet, so we never wrongly discourage
+// verification before startup data arrives.
+function countConfiguredProviders() {
+  var defs = (typeof window !== 'undefined') ? window.aiUserDefaults : null;
+  if (!defs || typeof defs !== 'object') return Infinity;
+  var n = 0;
+  Object.keys(defs).forEach(function(k) {
+    var ent = defs[k];
+    if (ent && ent.has_key) n++;
+  });
+  return n;
+}
+
 /**
  * Create an HTML card element for a chat message.
  * @param {string} role - Message role (user, assistant, system, info)
@@ -175,8 +191,16 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   // Verify (confidence-via-agreement) applies only to AI answers; it lives below
   // the response (not in the header cluster) as a labeled action.
   var verifyLabel = getTranslation('ui.verify.action', 'Verify this response');
+  // Tooltip explains what verify does; when fewer than two providers have API
+  // keys, a real cross-provider check isn't possible, so say so up front (the
+  // button still works — it degrades to a labeled weak self-consistency check).
+  var configuredProviderCount = countConfiguredProviders();
+  var verifyTip = (configuredProviderCount >= 2)
+    ? getTranslation('ui.verify.tip', 'Cross-checks this answer against your other configured providers.')
+    : getTranslation('ui.verify.tipSingle', "Add a second provider's API key for a cross-provider check (with one provider it is a weaker self-consistency check).");
+  var verifyTitle = escapeHtml(verifyLabel + ' — ' + verifyTip);
   var verifyBar = (role === "assistant")
-    ? '<div class="verify-bar"><span class="func-verify" title="' + verifyLabel + '">' +
+    ? '<div class="verify-bar"><span class="func-verify" title="' + verifyTitle + '">' +
       '<i class="fas fa-check-double"></i> ' + verifyLabel + '</span></div>'
     : '';
   var headerButtons;

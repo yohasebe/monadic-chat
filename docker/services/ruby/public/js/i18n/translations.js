@@ -4,6 +4,7 @@ const webUITranslations = {
     ui: {
       verify: {
         action: "Verify this response", running: "Verifying across models…",
+        tip: "Cross-checks this answer against your other configured providers.", tipSingle: "Add a second provider's API key for a cross-provider check (with one provider it is a weaker self-consistency check).",
         confidence: "Confidence", consensus: "Consensus", disagreements: "Disagreements",
         panel: "Panel", moderator: "Moderator", weakSignal: "single-provider — weak signal",
         timedOut: "Verification timed out", busy: "Please wait for the current operation to finish",
@@ -474,6 +475,7 @@ const webUITranslations = {
     ui: {
       verify: {
         action: "この回答を検証", running: "複数モデルで検証中…",
+        tip: "この回答を他の設定済みプロバイダと照合します。", tipSingle: "2社目のAPIキーを設定するとクロスプロバイダ検証が有効になります（1社では弱い自己整合チェックです）。",
         confidence: "信頼度", consensus: "合意", disagreements: "相違点",
         panel: "パネル", moderator: "モデレータ", weakSignal: "単一プロバイダ — 弱い信号",
         timedOut: "検証がタイムアウトしました", busy: "現在の処理が終わるまでお待ちください",
@@ -944,6 +946,7 @@ const webUITranslations = {
     ui: {
       verify: {
         action: "验证此回答", running: "正在跨模型验证…",
+        tip: "将此回答与您其他已配置的提供商交叉核对。", tipSingle: "配置第二个提供商的API密钥即可进行跨提供商验证（仅一个提供商时为较弱的自一致性检查）。",
         confidence: "可信度", consensus: "共识", disagreements: "分歧",
         panel: "评审组", moderator: "主持模型", weakSignal: "单一提供方 — 弱信号",
         timedOut: "验证超时", busy: "请等待当前操作完成",
@@ -1437,6 +1440,7 @@ const webUITranslations = {
     ui: {
       verify: {
         action: "이 응답 검증", running: "여러 모델로 검증 중…",
+        tip: "이 응답을 다른 구성된 제공자와 교차 확인합니다.", tipSingle: "두 번째 제공자의 API 키를 추가하면 교차 제공자 검증이 가능합니다(제공자가 하나면 약한 자기 일관성 검사입니다).",
         confidence: "신뢰도", consensus: "합의", disagreements: "이견",
         panel: "패널", moderator: "중재자", weakSignal: "단일 제공자 — 약한 신호",
         timedOut: "검증 시간 초과", busy: "현재 작업이 끝날 때까지 기다려 주세요",
@@ -1907,6 +1911,7 @@ const webUITranslations = {
     ui: {
       verify: {
         action: "Verificar esta respuesta", running: "Verificando entre modelos…",
+        tip: "Contrasta esta respuesta con tus otros proveedores configurados.", tipSingle: "Añade la clave API de un segundo proveedor para una verificación entre proveedores (con uno solo es una comprobación de autoconsistencia más débil).",
         confidence: "Confianza", consensus: "Consenso", disagreements: "Discrepancias",
         panel: "Panel", moderator: "Moderador", weakSignal: "un solo proveedor — señal débil",
         timedOut: "La verificación agotó el tiempo", busy: "Espere a que termine la operación actual",
@@ -2377,6 +2382,7 @@ const webUITranslations = {
     ui: {
       verify: {
         action: "Vérifier cette réponse", running: "Vérification entre modèles…",
+        tip: "Recoupe cette réponse avec vos autres fournisseurs configurés.", tipSingle: "Ajoutez la clé API d'un second fournisseur pour une vérification entre fournisseurs (avec un seul, c'est une vérification d'auto-cohérence plus faible).",
         confidence: "Confiance", consensus: "Consensus", disagreements: "Désaccords",
         panel: "Panel", moderator: "Modérateur", weakSignal: "fournisseur unique — signal faible",
         timedOut: "La vérification a expiré", busy: "Veuillez attendre la fin de l'opération en cours",
@@ -2847,6 +2853,7 @@ const webUITranslations = {
     ui: {
       verify: {
         action: "Diese Antwort verifizieren", running: "Verifizierung über mehrere Modelle…",
+        tip: "Gleicht diese Antwort mit Ihren anderen konfigurierten Anbietern ab.", tipSingle: "Fügen Sie den API-Schlüssel eines zweiten Anbieters hinzu für eine anbieterübergreifende Prüfung (mit nur einem Anbieter ist es eine schwächere Selbstkonsistenzprüfung).",
         confidence: "Konfidenz", consensus: "Konsens", disagreements: "Abweichungen",
         panel: "Panel", moderator: "Moderator", weakSignal: "einzelner Anbieter — schwaches Signal",
         timedOut: "Verifizierung zeitüberschritten", busy: "Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist",

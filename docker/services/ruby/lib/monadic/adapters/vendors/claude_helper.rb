@@ -665,6 +665,26 @@ module ClaudeHelper
     final_tools
   end
 
+  # Re-apply progressive-tool visibility to a fully-assembled Claude tools array
+  # and annotate request_tool with the current skill menu. build_claude_final_tools
+  # merges obj["tools"] (tools_param), which can smuggle PTD-hidden conditional
+  # tools back into the request even though visible_tools already dropped them.
+  # This filters the assembled list by name again, then attaches the menu last so
+  # it is not lost to earlier dedup.
+  private def apply_claude_skill_visibility(tools, app_settings, session, app)
+    return tools unless app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
+
+    visible = Monadic::Utils::ProgressiveToolManager.visible_tools(
+      app_name: app, session: session, app_settings: app_settings, default_tools: tools
+    )
+    Monadic::Utils::ProgressiveToolManager.annotate_request_tool(
+      tools: visible, app_settings: app_settings, session: session, app_name: app
+    )
+  rescue StandardError => e
+    DebugHelper.debug("Claude: skill visibility re-apply skipped due to #{e.message}", category: :api, level: :warning)
+    tools
+  end
+
   # Add code_execution tool when Skills are configured.
   private def add_claude_skills_tool(body, app_skills)
     return unless app_skills && app_skills.is_a?(Array) && !app_skills.empty?
@@ -760,6 +780,7 @@ module ClaudeHelper
         body.delete("tools")
       else
         body["tools"] = final_tools.map { |t| ClaudeHelper.convert_tool_to_claude_format(t) }
+        body["tools"] = apply_claude_skill_visibility(body["tools"], app_settings, session, app)
       end
 
       add_claude_skills_tool(body, app_skills)
@@ -799,6 +820,7 @@ module ClaudeHelper
         body.delete("tools")
       else
         body["tools"] = final_tools.map { |t| ClaudeHelper.convert_tool_to_claude_format(t) }
+        body["tools"] = apply_claude_skill_visibility(body["tools"], app_settings, session, app)
       end
 
       add_claude_skills_tool(body, app_skills)
@@ -1734,30 +1756,48 @@ module ClaudeHelper
       argument_hash[:session] = session
     end
 
-    begin
-      if argument_hash.empty?
-        tool_return = app_instance.send(tool_name.to_sym)
+    if tool_name == "request_tool"
+      # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
+      # Unlock the requested skill (group or single tool) so its tools become
+      # visible on the next request round.
+      requested = (argument_hash[:tool_name] || argument_hash[:name]).to_s
+      unlocked = Monadic::Utils::ProgressiveToolManager.unlock_request(
+        session: session, app_name: app, app_settings: (app_instance&.settings || {}), request_key: requested
+      )
+      Monadic::Utils::ExtraLogger.log { "[PTD] request_tool(#{requested.inspect}) -> unlocked #{unlocked.size} tool(s): #{unlocked.inspect}" }
+      tool_return = if unlocked.any?
+        "Unlocked: #{unlocked.join(', ')}. These tools are now available — call them as needed."
+      elsif requested.empty?
+        "No skill name provided. Call request_tool with the name of the skill to unlock."
       else
-        tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+        "Nothing to unlock for '#{requested}' (already available, or not a known skill)."
       end
+    else
+      begin
+        if argument_hash.empty?
+          tool_return = app_instance.send(tool_name.to_sym)
+        else
+          tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+        end
 
-      Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}" }
+        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}" }
 
-      send_verification_notification(session, &block) if tool_name == "report_verification"
+        send_verification_notification(session, &block) if tool_name == "report_verification"
 
-      Monadic::Utils::TtsTextExtractor.extract_tts_text(
-        app: app,
-        function_name: tool_name,
-        argument_hash: argument_hash,
-        session: session
-      )
-    rescue => e
-      Monadic::Utils::ExtraLogger.log { "ERROR calling function: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}" }
-      tool_return = Monadic::Utils::ErrorFormatter.tool_error(
-        provider: "Claude",
-        tool_name: tool_name,
-        message: e.message
-      )
+        Monadic::Utils::TtsTextExtractor.extract_tts_text(
+          app: app,
+          function_name: tool_name,
+          argument_hash: argument_hash,
+          session: session
+        )
+      rescue => e
+        Monadic::Utils::ExtraLogger.log { "ERROR calling function: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}" }
+        tool_return = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "Claude",
+          tool_name: tool_name,
+          message: e.message
+        )
+      end
     end
 
     unless tool_return

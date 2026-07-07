@@ -69,12 +69,11 @@ module Monadic
 
         content.scan(REQUEST_TOOL_REGEX) do |match|
           request_key = Array(match).first.to_s
-          resolved = unlockable[request_key]
-          resolved ||= request_key if conditional_names.include?(request_key)
-          next if resolved.nil?
-
-          tool_name = resolved.to_s
-          state[:unlocked] << tool_name unless state[:unlocked].include?(tool_name)
+          targets = Array(unlockable[request_key]).dup
+          targets << request_key if conditional_names.include?(request_key)
+          targets.uniq.each do |tool_name|
+            state[:unlocked] << tool_name unless state[:unlocked].include?(tool_name)
+          end
         end
       end
 
@@ -103,6 +102,134 @@ module Monadic
         state = ensure_state(session, app_name)
         state[:unlocked].include?(tool_name.to_s)
       end
+
+      # Unlock every tool associated with a request key. The key may be a tool
+      # group name (unlocks the whole bundle) or an individual conditional tool
+      # name (unlocks just that tool). Returns the list of newly unlocked tool
+      # names (empty if the key was unknown or everything was already unlocked).
+      def unlock_request(session:, app_name:, app_settings:, request_key:)
+        return [] unless session.respond_to?(:[]) && session.respond_to?(:[]=)
+
+        metadata = app_settings["progressive_tools"] || app_settings[:progressive_tools] if app_settings.is_a?(Hash)
+        return [] unless metadata.is_a?(Hash)
+
+        metadata = deep_symbolize(metadata)
+        state = ensure_state(session, app_name)
+
+        mapping = extract_unlockable(metadata)
+        conditional_names = Set.new(Array(metadata[:conditional]).map do |entry|
+          entry.is_a?(Hash) ? deep_symbolize(entry)[:name].to_s : nil
+        end.compact)
+
+        key = request_key.to_s
+        targets = Array(mapping[key]).dup
+        targets << key if conditional_names.include?(key)
+
+        newly = []
+        targets.uniq.each do |tool_name|
+          next if state[:unlocked].include?(tool_name)
+          state[:unlocked] << tool_name
+          newly << tool_name
+        end
+        newly
+      end
+
+      # Build a menu of skills (tool groups) that are still locked for this
+      # session, so the model can discover what it may request. Returns a list of
+      # human-readable hint strings (one per still-locked group). This is the
+      # "progressive disclosure" surface: the model sees names/descriptions of
+      # capabilities without their full schemas until it requests them.
+      def skill_menu(app_settings:, session:, app_name:)
+        return [] unless app_settings.is_a?(Hash)
+
+        metadata = app_settings["progressive_tools"] || app_settings[:progressive_tools]
+        return [] unless metadata.is_a?(Hash)
+
+        metadata = deep_symbolize(metadata)
+        state = ensure_state(session, app_name)
+        unlocked = Set.new(Array(state[:unlocked]).map(&:to_s))
+
+        groups = {}
+        Array(metadata[:conditional]).each do |entry|
+          next unless entry.is_a?(Hash)
+          entry = deep_symbolize(entry)
+          name = entry[:name].to_s
+          next if name.empty?
+
+          key = nil
+          Array(entry[:unlock_conditions]).each do |condition|
+            next unless condition.is_a?(Hash)
+            condition = deep_symbolize(condition)
+            key ||= condition[:tool_request].to_s if condition[:tool_request]
+          end
+          key ||= name
+
+          group = (groups[key] ||= { hint: nil, names: [] })
+          hint = entry[:unlock_hint].to_s
+          group[:hint] = hint unless hint.empty?
+          group[:names] << name
+        end
+
+        lines = []
+        groups.each do |key, group|
+          next if group[:names].all? { |n| unlocked.include?(n) }
+          hint = group[:hint]
+          hint = "Call request_tool(\"#{key}\") to unlock." if hint.nil? || hint.empty?
+          lines << hint
+        end
+        lines
+      end
+
+      # Return a copy of a provider-formatted tools array in which request_tool's
+      # description is augmented with the current skill menu. Non-destructive:
+      # the shared app settings tools are never mutated. If nothing is locked (or
+      # request_tool is absent), the array is returned unchanged.
+      def annotate_request_tool(tools:, app_settings:, session:, app_name:)
+        return tools unless tools.is_a?(Array)
+
+        lines = skill_menu(app_settings: app_settings, session: session, app_name: app_name)
+        return tools if lines.empty?
+
+        menu = "\n\nAdditional skills are available but currently locked. " \
+               "When the conversation calls for one, unlock it by calling this tool " \
+               "with the matching skill name. Available skills:\n" +
+               lines.map { |line| "- #{line}" }.join("\n")
+
+        tools.map do |tool|
+          name = extract_tool_name(tool)
+          next tool unless name.to_s == "request_tool"
+          annotate_tool_description(tool, menu)
+        end
+      end
+
+      def annotate_tool_description(tool, suffix)
+        return tool unless tool.is_a?(Hash)
+
+        copy = deep_dup(tool)
+        if copy["function"].is_a?(Hash)
+          copy["function"]["description"] = "#{copy["function"]["description"]}#{suffix}"
+        elsif copy[:function].is_a?(Hash)
+          copy[:function][:description] = "#{copy[:function][:description]}#{suffix}"
+        elsif copy.key?("description")
+          copy["description"] = "#{copy["description"]}#{suffix}"
+        elsif copy.key?(:description)
+          copy[:description] = "#{copy[:description]}#{suffix}"
+        end
+        copy
+      end
+      private_class_method :annotate_tool_description
+
+      def deep_dup(obj)
+        case obj
+        when Hash
+          obj.each_with_object({}) { |(k, v), result| result[k] = deep_dup(v) }
+        when Array
+          obj.map { |v| deep_dup(v) }
+        else
+          obj
+        end
+      end
+      private_class_method :deep_dup
 
       def ensure_state(session, app_name)
         session[:progressive_tools] ||= {}
@@ -135,13 +262,10 @@ module Monadic
 
           text.scan(REQUEST_TOOL_REGEX) do |match|
             request_key = Array(match).first.to_s
-            resolved = unlockable[request_key]
-            resolved ||= request_key if conditional_names.include?(request_key)
-            next unless resolved
-
-            tool_name = resolved.to_s
-            unless state[:unlocked].include?(tool_name)
-              state[:unlocked] << tool_name
+            targets = Array(unlockable[request_key]).dup
+            targets << request_key if conditional_names.include?(request_key)
+            targets.uniq.each do |tool_name|
+              state[:unlocked] << tool_name unless state[:unlocked].include?(tool_name)
             end
           end
         end
@@ -150,6 +274,11 @@ module Monadic
       end
       private_class_method :scan_for_unlock_requests
 
+      # Build a mapping from an unlock key (a tool-group name or event) to the
+      # list of tool names it unlocks. A single key (e.g. a group like
+      # "web_search_tools") can map to MANY tools, so values are arrays: this is
+      # what makes request_tool("<group>") unlock the whole bundle rather than a
+      # single tool.
       def extract_unlockable(metadata)
         mapping = {}
         Array(metadata[:conditional]).each do |entry|
@@ -160,11 +289,11 @@ module Monadic
           Array(entry[:unlock_conditions]).each do |condition|
             next unless condition.is_a?(Hash)
             condition = deep_symbolize(condition)
-            if condition[:tool_request]
-              mapping[condition[:tool_request].to_s] = tool_name
-            elsif condition[:event]
-              mapping[condition[:event].to_s] = tool_name
-            end
+            key = condition[:tool_request] || condition[:event]
+            next unless key
+            key = key.to_s
+            mapping[key] ||= []
+            mapping[key] << tool_name unless mapping[key].include?(tool_name)
           end
         end
         mapping

@@ -860,6 +860,20 @@ module MistralHelper
       merged = merged.flatten.compact.select { |tool| tool.is_a?(Hash) }
       merged.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
 
+      # obj["tools"] (request_tools) is merged unfiltered above, which can
+      # reintroduce PTD-hidden conditional tools. Re-apply visibility by name to
+      # the assembled list, then annotate request_tool with the skill menu.
+      begin
+        merged = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app, session: session, app_settings: app_settings, default_tools: merged
+        )
+        merged = Monadic::Utils::ProgressiveToolManager.annotate_request_tool(
+          tools: merged, app_settings: app_settings, session: session, app_name: app
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Mistral: skill visibility re-apply skipped due to #{e.message}", category: :api, level: :warning)
+      end
+
       if merged.empty?
         DebugHelper.debug("Mistral progressive tools: none unlocked", category: :api, level: :debug)
       else
@@ -1115,7 +1129,11 @@ module MistralHelper
 
     # Call the function
     begin
-      function_return = if args_hash.empty?
+      function_return = if function_name == "request_tool"
+                          Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+                            session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: args_hash
+                          )
+                        elsif args_hash.empty?
                           APPS[app].send(function_name.to_sym)
                         else
                           APPS[app].send(function_name.to_sym, **args_hash)

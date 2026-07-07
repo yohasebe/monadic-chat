@@ -433,6 +433,21 @@ module OllamaHelper
     tools_config = obj["tools"]
     if tools_config && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
       formatted_tools = format_tools_for_ollama(tools_config)
+      # Ollama sources tools from obj["tools"] (frontend), so PTD filtering must
+      # run here: hide conditional tools not yet unlocked, then annotate the
+      # request_tool skill menu. Metadata comes from the app's settings.
+      if APPS[app] && !formatted_tools.empty?
+        begin
+          formatted_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+            app_name: app, session: session, app_settings: APPS[app].settings, default_tools: formatted_tools
+          )
+          formatted_tools = Monadic::Utils::ProgressiveToolManager.annotate_request_tool(
+            tools: formatted_tools, app_settings: APPS[app].settings, session: session, app_name: app
+          )
+        rescue StandardError => e
+          DebugHelper.debug("Ollama: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
+        end
+      end
       body["tools"] = formatted_tools unless formatted_tools.empty?
     end
 
@@ -767,7 +782,11 @@ module OllamaHelper
       end
 
       begin
-        function_return = if converted.empty?
+        function_return = if function_name == "request_tool"
+                           Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+                             session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
+                           )
+                         elsif converted.empty?
                            APPS[app].send(function_name.to_sym)
                          else
                            APPS[app].send(function_name.to_sym, **converted)

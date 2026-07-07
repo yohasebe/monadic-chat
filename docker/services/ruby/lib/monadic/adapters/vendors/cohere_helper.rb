@@ -950,6 +950,14 @@ module CohereHelper
       rescue StandardError => e
         DebugHelper.debug("Cohere: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
       end
+
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.annotate_request_tool(
+          tools: app_tools, app_settings: app_settings, session: session, app_name: app
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Cohere: Skill menu annotation skipped due to #{e.message}", category: :api, level: :warning)
+      end
     end
 
     if progressive_enabled
@@ -1548,18 +1556,8 @@ module CohereHelper
     # Special handling for check_environment function
     argument_hash = {} if function_name == "check_environment" && argument_hash.empty?
 
-    # Handle progressive disclosure: unlock requested tool
-    if function_name == "request_tool" && argument_hash[:tool_name] && APPS[app]&.respond_to?(:settings)
-      begin
-        requested_tool = argument_hash[:tool_name].to_s
-        Monadic::Utils::ProgressiveToolManager.unlock_tool(
-          session: session, app_name: app, tool_name: requested_tool
-        )
-        DebugHelper.debug("Cohere progressive tools: unlocked requested tool '#{requested_tool}' via request_tool", category: :api, level: :info)
-      rescue StandardError => e
-        DebugHelper.debug("Cohere progressive tools: failed to unlock requested tool due to #{e.message}", category: :api, level: :warning)
-      end
-    end
+    # request_tool (progressive disclosure) is handled group-aware in the execute
+    # block below via ProgressiveToolManager.handle_request_tool.
 
     # Expand vocabulary ${TOKEN}s before the tool runs; before :session
     # injection so the session object is never walked. No-op without vocabulary.
@@ -1573,7 +1571,13 @@ module CohereHelper
 
     # Execute function and capture result
     begin
-      function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+      function_return = if function_name == "request_tool"
+        Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+          session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
+        )
+      else
+        APPS[app].send(function_name.to_sym, **argument_hash)
+      end
       send_verification_notification(session, &block) if function_name == "report_verification"
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Cohere Tools] Function execution error: #{e.message}" }

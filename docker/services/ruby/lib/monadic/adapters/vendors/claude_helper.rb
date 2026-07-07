@@ -1758,20 +1758,9 @@ module ClaudeHelper
 
     if tool_name == "request_tool"
       # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
-      # Unlock the requested skill (group or single tool) so its tools become
-      # visible on the next request round.
-      requested = (argument_hash[:tool_name] || argument_hash[:name]).to_s
-      unlocked = Monadic::Utils::ProgressiveToolManager.unlock_request(
-        session: session, app_name: app, app_settings: (app_instance&.settings || {}), request_key: requested
+      tool_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+        session: session, app_name: app, app_settings: (app_instance&.settings || {}), argument_hash: argument_hash
       )
-      Monadic::Utils::ExtraLogger.log { "[PTD] request_tool(#{requested.inspect}) -> unlocked #{unlocked.size} tool(s): #{unlocked.inspect}" }
-      tool_return = if unlocked.any?
-        "Unlocked: #{unlocked.join(', ')}. These tools are now available — call them as needed."
-      elsif requested.empty?
-        "No skill name provided. Call request_tool with the name of the skill to unlock."
-      else
-        "Nothing to unlock for '#{requested}' (already available, or not a known skill)."
-      end
     else
       begin
         if argument_hash.empty?

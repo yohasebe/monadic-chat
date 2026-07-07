@@ -1936,25 +1936,12 @@ module OpenAIHelper
     function_return = nil
 
     # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
-    # Handle it here by unlocking the requested skill (group or single tool) so the
-    # newly unlocked tools become visible on the next request round.
+    # Unlock the requested skill so its tools become visible on the next round.
     if function_name == "request_tool"
-      requested = (argument_hash[:tool_name] || argument_hash[:name]).to_s
-      unlocked = Monadic::Utils::ProgressiveToolManager.unlock_request(
-        session: session,
-        app_name: app,
-        app_settings: (APPS[app]&.settings || {}),
-        request_key: requested
+      function_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+        session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
       )
-      Monadic::Utils::ExtraLogger.log { "[PTD] request_tool(#{requested.inspect}) -> unlocked #{unlocked.size} tool(s): #{unlocked.inspect}" }
       skip_function_execution = true
-      function_return = if unlocked.any?
-        "Unlocked: #{unlocked.join(', ')}. These tools are now available — call them as needed."
-      elsif requested.empty?
-        "No skill name provided. Call request_tool with the name of the skill to unlock."
-      else
-        "Nothing to unlock for '#{requested}' (already available, or not a known skill)."
-      end
     end
 
     if function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"

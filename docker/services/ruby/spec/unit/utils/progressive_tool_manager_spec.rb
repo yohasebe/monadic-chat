@@ -142,4 +142,37 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
       expect(annotated).to eq(tools)
     end
   end
+
+  describe "#handle_request_tool" do
+    it "unlocks a whole group and returns a confirmation naming the tools" do
+      msg = described_class.handle_request_tool(
+        session: session, app_name: app_name, app_settings: app_settings,
+        argument_hash: { tool_name: "web_search_tools" }
+      )
+      expect(msg).to include("Unlocked", "search_web")
+      expect(described_class.unlocked?(session: session, app_name: app_name, tool_name: "tavily_fetch")).to be true
+    end
+
+    it "accepts string-keyed arguments" do
+      msg = described_class.handle_request_tool(
+        session: session, app_name: app_name, app_settings: app_settings,
+        argument_hash: { "tool_name" => "analyze_image" }
+      )
+      expect(msg).to include("Unlocked", "analyze_image")
+    end
+
+    it "reports when the requested key matches nothing" do
+      expect(described_class.handle_request_tool(
+        session: session, app_name: app_name, app_settings: app_settings,
+        argument_hash: { tool_name: "nope" }
+      )).to include("Nothing to unlock")
+    end
+
+    it "prompts when no skill name is provided" do
+      expect(described_class.handle_request_tool(
+        session: session, app_name: app_name, app_settings: app_settings,
+        argument_hash: {}
+      )).to include("No skill name provided")
+    end
+  end
 end

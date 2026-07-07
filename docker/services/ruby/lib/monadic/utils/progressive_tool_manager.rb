@@ -134,6 +134,30 @@ module Monadic
         newly
       end
 
+      # Execute the request_tool meta-tool for any provider. request_tool has no
+      # Ruby method: it exists only to let the model unlock a skill (group or
+      # single tool). Reads the requested key from the tool arguments (symbol or
+      # string keyed), unlocks it, logs, and returns a confirmation string to feed
+      # back as the tool result. Providers call this instead of dispatching
+      # request_tool to APPS[app].send.
+      def handle_request_tool(session:, app_name:, app_settings:, argument_hash:)
+        args = argument_hash.is_a?(Hash) ? argument_hash : {}
+        requested = (args[:tool_name] || args["tool_name"] || args[:name] || args["name"]).to_s
+        unlocked = unlock_request(
+          session: session, app_name: app_name, app_settings: app_settings, request_key: requested
+        )
+        if defined?(Monadic::Utils::ExtraLogger)
+          Monadic::Utils::ExtraLogger.log { "[PTD] request_tool(#{requested.inspect}) -> unlocked #{unlocked.size} tool(s): #{unlocked.inspect}" }
+        end
+        if unlocked.any?
+          "Unlocked: #{unlocked.join(', ')}. These tools are now available — call them as needed."
+        elsif requested.empty?
+          "No skill name provided. Call request_tool with the name of the skill to unlock."
+        else
+          "Nothing to unlock for '#{requested}' (already available, or not a known skill)."
+        end
+      end
+
       # Build a menu of skills (tool groups) that are still locked for this
       # session, so the model can discover what it may request. Returns a list of
       # human-readable hint strings (one per still-locked group). This is the

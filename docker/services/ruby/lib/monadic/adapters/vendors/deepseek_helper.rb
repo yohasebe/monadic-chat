@@ -300,7 +300,7 @@ module DeepSeekHelper
       }
     end
 
-    configure_deepseek_tools(body, app, obj, websearch)
+    configure_deepseek_tools(body, app, obj, websearch, session)
 
     # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
     is_initial_greeting = body["messages"].length == 2 &&
@@ -619,8 +619,21 @@ module DeepSeekHelper
 
   private
 
-  def configure_deepseek_tools(body, app, obj, websearch)
+  def configure_deepseek_tools(body, app, obj, websearch, session)
     app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+
+    if APPS[app]
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app, session: session, app_settings: APPS[app].settings, default_tools: app_tools
+        )
+        app_tools = Monadic::Utils::ProgressiveToolManager.annotate_request_tool(
+          tools: app_tools, app_settings: APPS[app].settings, session: session, app_name: app
+        )
+      rescue StandardError => e
+        DebugHelper.debug("DeepSeek: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
+      end
+    end
 
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
@@ -1118,7 +1131,11 @@ module DeepSeekHelper
     end
 
     begin
-      function_return = if converted.empty?
+      function_return = if function_name == "request_tool"
+                          Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+                            session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
+                          )
+                        elsif converted.empty?
                           APPS[app].send(function_name.to_sym)
                         else
                           APPS[app].send(function_name.to_sym, **converted)

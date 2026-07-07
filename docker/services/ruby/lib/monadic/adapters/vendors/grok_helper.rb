@@ -205,6 +205,14 @@ module GrokHelper
       rescue StandardError => e
         DebugHelper.debug("Grok: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
       end
+
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.annotate_request_tool(
+          tools: app_tools, app_settings: app_instance.settings, session: session, app_name: app
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Grok: Skill menu annotation skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
+      end
     end
 
     # Convert tools to Responses API flattened format
@@ -593,7 +601,13 @@ module GrokHelper
 
     # Execute function
     begin
-      function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+      function_return = if function_name == "request_tool"
+        Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+          session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
+        )
+      else
+        APPS[app].send(function_name.to_sym, **argument_hash)
+      end
       send_verification_notification(session, &block) if function_name == "report_verification"
 
       # Fix HTML-escaped SVG files (Grok-specific)

@@ -1985,6 +1985,14 @@ module GeminiHelper
         DebugHelper.debug("Gemini: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
         filtered_function_tools = raw_function_tools
       end
+
+      begin
+        filtered_function_tools = Monadic::Utils::ProgressiveToolManager.annotate_request_tool(
+          tools: filtered_function_tools, app_settings: app_settings, session: session, app_name: app
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Gemini: Skill menu annotation skipped due to #{e.message}", category: :api, level: :warning)
+      end
     end
 
     # Re-wrap tools using original structure expectations
@@ -3299,7 +3307,13 @@ module GeminiHelper
         argument_hash = prepare_gemini_tool_arguments(tool_call, app, function_name, session)
 
         Monadic::Utils::ExtraLogger.log { "[process_functions] Invoking #{function_name} with #{argument_hash.keys.inspect}" }
-        function_return = invoke_gemini_tool_function(app, function_name, argument_hash)
+        function_return = if function_name == "request_tool"
+          Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+            session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
+          )
+        else
+          invoke_gemini_tool_function(app, function_name, argument_hash)
+        end
         Monadic::Utils::ExtraLogger.log { "[process_functions] #{function_name} returned #{function_return.to_s[0..200]}" }
 
         send_verification_notification(session, &block) if function_name == "report_verification"

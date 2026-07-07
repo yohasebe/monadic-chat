@@ -202,15 +202,23 @@ module MonadicDSL
         formatted
       end
 
+      # Merge (union), do NOT overwrite. to_h can run several times against the
+      # same settings: once for the app's own `tools do` block and again for each
+      # auto-injected group (library_search, file_operations), each via its own
+      # ToolConfiguration. Overwriting here would drop the app's own conditional
+      # tools from the PTD metadata whenever a later injection runs, silently
+      # un-hiding them. Union keeps this idempotent for repeated calls on the same
+      # config and cumulative across configs.
       if @tools.any?
-        @state.settings[:progressive_tools] ||= {}
-        @state.settings[:progressive_tools][:provider] = @provider
-        @state.settings[:progressive_tools][:all_tool_names] = @tools.map(&:name)
-        @state.settings[:progressive_tools][:always_visible] = @tools.select { |t| t.visibility == :always }.map(&:name)
+        pt = (@state.settings[:progressive_tools] ||= {})
+        pt[:provider] = @provider
+        pt[:all_tool_names] = Array(pt[:all_tool_names]) | @tools.map(&:name)
+        pt[:always_visible] = Array(pt[:always_visible]) | @tools.select { |t| t.visibility == :always }.map(&:name)
       end
 
       if conditional_metadata.any?
-        @state.settings[:progressive_tools][:conditional] = conditional_metadata
+        pt = (@state.settings[:progressive_tools] ||= {})
+        pt[:conditional] = (Array(pt[:conditional]) + conditional_metadata).uniq { |c| c[:name] }
       end
 
       wrapper = PROVIDER_WRAPPERS[@provider] || PROVIDER_WRAPPERS[:default]

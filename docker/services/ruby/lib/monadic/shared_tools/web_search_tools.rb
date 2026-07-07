@@ -57,7 +57,7 @@ module MonadicSharedTools
     #
     # @example Search recent news
     #   search_web(query: "AI breakthroughs 2025")
-    def search_web(query:, max_results: 5)
+    def search_web(query:, max_results: 5, **_)
       # Validate input
       unless query
         return {
@@ -122,7 +122,7 @@ module MonadicSharedTools
     #
     # @example Fetch with custom timeout
     #   fetch_web_content(url: "https://example.com/large-file", timeout: 30)
-    def fetch_web_content(url:, timeout: 10)
+    def fetch_web_content(url:, timeout: 10, **_)
       # Validate URL
       unless url
         return {
@@ -231,7 +231,7 @@ module MonadicSharedTools
     #
     # @example Research query
     #   tavily_search(query: "quantum computing breakthroughs 2025", n: 10)
-    def tavily_search(query:, n: 3)
+    def tavily_search(query:, n: 3, **_)
       # Validate query
       if query.to_s.strip.empty?
         return { error: "Query cannot be empty" }
@@ -263,7 +263,7 @@ module MonadicSharedTools
     #
     # @example Fetch article content
     #   tavily_fetch(url: "https://example.com/article")
-    def tavily_fetch(url:)
+    def tavily_fetch(url:, **_)
       # Validate URL
       if url.to_s.strip.empty?
         return { error: "URL cannot be empty" }

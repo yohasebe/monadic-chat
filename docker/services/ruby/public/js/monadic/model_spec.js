@@ -497,7 +497,8 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_structured_output": true,
-    "reasoning_effort": [["disabled", "enabled"], "enabled"]
+    "reasoning_effort": [["disabled", "enabled"], "enabled"],
+    "native_multiturn_reasoning": true
   },
   // North Mini Code (Cohere's first agentic-coding model; MoE 30B total / 3B
   // active, Apache 2.0). Reasoning-native and verified to handle the native

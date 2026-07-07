@@ -3,6 +3,7 @@
 require 'securerandom'
 require 'timeout'
 require 'active_support/core_ext/hash/indifferent_access'
+require_relative '../shared_tools/registry'
 
 module Monadic
   module MCP
@@ -23,12 +24,10 @@ module Monadic
     module ConduitAgent
       module_function
 
-      # Safe, read-only tool groups. Excludes python_execution, file_operations,
-      # web_automation, jupyter_operations, app_creation, parallel_* etc.
-      SAFE_GROUPS = %w[
-        web_search_tools file_reading image_analysis video_analysis
-        audio_transcription session_context verification planning
-      ].freeze
+      # Safe, read-only tool groups. Single source of truth lives in
+      # MonadicSharedTools::Registry.safe_groups (symbols); Conduit compares
+      # against user-supplied strings, so mirror it as strings here.
+      SAFE_GROUPS = MonadicSharedTools::Registry.safe_groups.map(&:to_s).freeze
 
       DEFAULT_GROUPS = %w[web_search_tools].freeze
 

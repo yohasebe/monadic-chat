@@ -575,6 +575,18 @@ module MonadicDSL
 
       @state.settings[:tools] = @tool_config.to_h
     end
+
+    # App-level sugar for declaring reachable (conditional) skill groups outside a
+    # tools {} block. Delegates to ToolConfiguration#reachable_skills; `:safe`
+    # expands to the read-only Registry.safe_groups pool.
+    def reachable_skills(*groups, **options)
+      provider = @state.settings[:provider].to_s.downcase.to_sym
+      @tool_config ||= ToolConfiguration.new(@state, provider)
+
+      @tool_config.reachable_skills(*groups, **options)
+
+      @state.settings[:tools] = @tool_config.to_h
+    end
   end
 
   # Helper method to convert simplified state to class

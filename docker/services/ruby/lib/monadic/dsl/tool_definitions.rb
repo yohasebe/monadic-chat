@@ -310,6 +310,26 @@ module MonadicDSL
       end
     end
 
+    # Sugar: declare skill groups the app can reach for mid-conversation. They are
+    # imported as `conditional` (hidden until the model unlocks them via the
+    # request_tool skill menu), so the app starts lean and expands on demand.
+    # Pass `:safe` to include every read-only group in Registry.safe_groups.
+    #
+    # @example
+    #   tools do
+    #     reachable_skills :web_search_tools, :image_analysis
+    #   end
+    # @example open the whole read-only safe pool
+    #   tools do
+    #     reachable_skills :safe
+    #   end
+    def reachable_skills(*groups, **options)
+      expanded = groups.flat_map do |group|
+        group.to_sym == :safe ? MonadicSharedTools::Registry.safe_groups : [group]
+      end.uniq
+      import_shared_tools(*expanded, visibility: "conditional", **options)
+    end
+
     private
 
     # Ensure request_tool is defined for PTD

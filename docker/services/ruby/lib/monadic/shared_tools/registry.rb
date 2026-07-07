@@ -1178,6 +1178,20 @@ module MonadicSharedTools
       TOOL_GROUPS.keys
     end
 
+    # Read-only tool groups considered safe to expose to autonomous / lower-trust
+    # callers: no code execution, file writes, browser control, or app creation.
+    # Single source of truth — referenced by the DSL `reachable_skills :safe`
+    # preset and by the Conduit agent's allowlist.
+    SAFE_GROUPS = %i[
+      web_search_tools file_reading image_analysis video_analysis
+      audio_transcription session_context verification planning
+    ].freeze
+
+    # @return [Array<Symbol>] the safe tool-group names (see SAFE_GROUPS)
+    def self.safe_groups
+      SAFE_GROUPS
+    end
+
     # Check if a tool group exists
     #
     # @param group [Symbol] Tool group name

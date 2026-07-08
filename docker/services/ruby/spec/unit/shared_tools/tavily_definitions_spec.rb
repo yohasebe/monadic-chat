@@ -4,6 +4,24 @@ require 'spec_helper'
 require_relative '../../../lib/monadic/shared_tools/tavily_definitions'
 
 RSpec.describe Monadic::SharedTools::TavilyDefinitions do
+  describe '.web_search_tool?' do
+    it 'recognizes every web-search tool name (schema + Tavily primitives)' do
+      %w[search_web fetch_web_content tavily_search tavily_fetch].each do |name|
+        expect(described_class.web_search_tool?(name)).to be(true), "expected #{name} to be a web-search tool"
+      end
+    end
+
+    it 'accepts symbols as well as strings' do
+      expect(described_class.web_search_tool?(:tavily_search)).to be(true)
+    end
+
+    it 'returns false for unrelated tools' do
+      %w[read_file_from_shared_folder run_code request_tool library_search].each do |name|
+        expect(described_class.web_search_tool?(name)).to be(false)
+      end
+    end
+  end
+
   describe 'TOOLS' do
     let(:tools) { described_class::TOOLS }
 

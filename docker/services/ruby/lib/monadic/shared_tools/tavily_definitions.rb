@@ -117,6 +117,16 @@ module Monadic
         value = obj.is_a?(Hash) || obj.respond_to?(:[]) ? obj["websearch"] : nil
         value == true || value == "true"
       end
+
+      # Names of every tool that performs web search (the web_search_tools group
+      # plus the Tavily primitives). Used to gate web search at the execution
+      # point so a UI-disabled toggle is honored no matter how the model
+      # surfaced the call (schema, or a content-embedded JSON/DSML fallback).
+      WEB_SEARCH_TOOL_NAMES = %w[search_web fetch_web_content tavily_search tavily_fetch].freeze
+
+      def self.web_search_tool?(name)
+        WEB_SEARCH_TOOL_NAMES.include?(name.to_s)
+      end
     end
   end
 end

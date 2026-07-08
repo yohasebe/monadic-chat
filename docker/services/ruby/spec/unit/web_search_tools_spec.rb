@@ -30,59 +30,41 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
   end
 
   describe 'Provider detection and routing' do
-    context 'with OpenAI provider' do
-      let(:instance) do
-        test_class.new.tap do |obj|
-          allow(obj.class).to receive(:name).and_return('ChatOpenAI')
-        end
+    context 'when TAVILY_API_KEY is configured' do
+      before do
+        allow(CONFIG).to receive(:[]).with('TAVILY_API_KEY').and_return('test-key')
       end
 
-      it 'routes to native OpenAI search' do
-        result = instance.search_web(query: 'test query')
-        expect(result).to be_a(String)
-        expect(result).to include('native capabilities')
+      # A real search backend is preferred for every provider. Native search
+      # runs on the provider side and does not route through this function, so
+      # an actual search_web call always wants concrete results.
+      %w[openai claude gemini grok].each do |provider|
+        it "routes #{provider} to Tavily instead of a native placeholder" do
+          instance = test_class.new
+          allow(instance.class).to receive(:name).and_return("Chat#{provider.capitalize}")
+          result = instance.search_web(query: 'test query', max_results: 5)
+          expect(result).to be_a(Hash)
+          expect(result[:success]).to be true
+          expect(result[:results_count]).to eq(5)
+        end
       end
     end
 
-    context 'with Claude provider' do
-      let(:instance) do
-        test_class.new.tap do |obj|
-          allow(obj.class).to receive(:name).and_return('ChatClaude')
-        end
+    context 'when TAVILY_API_KEY is NOT configured' do
+      before do
+        allow(CONFIG).to receive(:[]).with('TAVILY_API_KEY').and_return(nil)
       end
 
-      it 'routes to native Claude search' do
+      it 'returns a provider-agnostic native-search notice for native providers' do
+        instance = test_class.new
+        allow(instance.class).to receive(:name).and_return('ChatGrok')
         result = instance.search_web(query: 'test query')
         expect(result).to be_a(String)
-        expect(result).to include('native search capabilities')
-      end
-    end
-
-    context 'with Gemini provider' do
-      let(:instance) do
-        test_class.new.tap do |obj|
-          allow(obj.class).to receive(:name).and_return('ChatGemini')
-        end
-      end
-
-      it 'routes to native Gemini search' do
-        result = instance.search_web(query: 'test query')
-        expect(result).to be_a(String)
-        expect(result).to include('URL Context')
-      end
-    end
-
-    context 'with Grok provider' do
-      let(:instance) do
-        test_class.new.tap do |obj|
-          allow(obj.class).to receive(:name).and_return('ChatGrok')
-        end
-      end
-
-      it 'routes to native Grok search' do
-        result = instance.search_web(query: 'test query')
-        expect(result).to be_a(String)
-        expect(result).to include('Live Search')
+        expect(result).to include("native search")
+        # Regression: the old code hardcoded "Claude" for every non-OpenAI
+        # provider, mislabeling Grok/Gemini. The message must not name a
+        # specific provider it cannot verify.
+        expect(result).not_to include('Claude')
       end
     end
 
@@ -210,10 +192,11 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
     end
 
     it 'maintains WebSearchAgent routing logic' do
-      # WebSearchAgent routed based on provider name
+      # Without a Tavily key, native providers fall back to the native-search
+      # notice string (never an error), regardless of provider name.
+      allow(CONFIG).to receive(:[]).with('TAVILY_API_KEY').and_return(nil)
       instance = test_class.new
 
-      # Test each provider category
       native_providers = ['openai', 'claude', 'gemini', 'grok']
       native_providers.each do |provider|
         allow(instance.class).to receive(:name).and_return("Chat#{provider.capitalize}")

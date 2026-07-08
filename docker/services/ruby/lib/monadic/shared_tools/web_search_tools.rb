@@ -73,31 +73,33 @@ module MonadicSharedTools
         }
       end
 
-      # Provider detection and routing
-      provider = self.class.name.downcase
-
-      # For providers with native websearch support
-      if provider.include?("openai")
-        return "Web search results are being processed by the AI model's native capabilities. Please continue with your response based on the search query: #{query}"
-      elsif provider.include?("claude")
-        return "Web search is handled through Claude's native search capabilities. Processing query: #{query}"
-      elsif provider.include?("gemini")
-        return "Web search is handled through Gemini's native URL Context feature. Processing query: #{query}"
-      elsif provider.include?("grok")
-        return "Web search is handled through Grok's native Live Search. Processing query: #{query}"
-      end
-
-      # For providers that use Tavily (Mistral, Cohere, DeepSeek, Ollama)
+      # Prefer a real search backend whenever Tavily is configured.
+      #
+      # Provider-native web search runs automatically on the provider side and
+      # does NOT route through this function tool. So when `search_web` is
+      # actually invoked as a function, the model wants concrete results — for
+      # every provider, route to Tavily if a key is present. Returning a
+      # native-search placeholder here (the old behavior) was a dead end for
+      # apps without native search enabled: the model got no results and
+      # retried in a loop.
       if CONFIG["TAVILY_API_KEY"] && respond_to?(:tavily_search)
         return tavily_search(query: query, n: max_results)
-      else
-        error_msg = if !CONFIG["TAVILY_API_KEY"]
-          "Web search is not available. Please ensure TAVILY_API_KEY is configured."
-        else
-          "Web search is not available for this provider. This app does not include Tavily support."
-        end
-        return { success: false, error: error_msg }
       end
+
+      # No Tavily key. If the provider has native web search, it will handle
+      # the query directly (this call is a no-op nudge). Otherwise report that
+      # search is unavailable. Use a provider-agnostic message: the previous
+      # code hardcoded "Claude's native ..." for every non-OpenAI provider,
+      # which mislabeled Grok/Gemini/etc. in agent-host contexts where
+      # `self.class.name` does not carry the provider name.
+      provider = self.class.name.to_s.downcase
+      has_native = %w[openai claude gemini grok].any? { |p| provider.include?(p) }
+      if has_native
+        return "Web search is handled by the AI model's native search. " \
+               "Please continue your response based on the search query: #{query}"
+      end
+
+      { success: false, error: "Web search is not available. Please ensure TAVILY_API_KEY is configured." }
     end
 
     # Fetch web content from a URL and save to shared folder

@@ -1112,7 +1112,7 @@ module MonadicSharedTools
             ]
           }
         ],
-        default_hint: "Call library_search when the user references prior project knowledge or asks about content stored in the Knowledge Base.",
+        default_hint: "Call request_tool(\"library_search\") when the user references prior project knowledge or asks about content stored in the Knowledge Base.",
         visibility: 'conditional',
         available_when: -> { MonadicSharedTools::LibrarySearch.available? }
       }

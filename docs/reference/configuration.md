@@ -51,6 +51,7 @@ For the OpenAI default model:
 | `COHERE_API_KEY` | Cohere API key | Yes (for Cohere apps) | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek API key | Yes (for DeepSeek apps) | `...` |
 | `XAI_API_KEY` | xAI API key for Grok models | Yes (for Grok apps) | `xai-...` |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key for TTS and Scribe speech-to-text | Yes (for ElevenLabs voices) | `...` |
 | `TAVILY_API_KEY` | Tavily API key for web search (required for Mistral, Cohere, DeepSeek, Ollama web search) | No | `tvly-...` |
 
 ## Model Settings
@@ -108,7 +109,7 @@ To see all available models from the provider, toggle the **All** switch next to
 
 | Variable | Description | Default | Options |
 |----------|-------------|---------|---------|
-| `DISTRIBUTED_MODE` | Enable multi-user server mode | `false` | `true`, `false`, `server` |
+| `DISTRIBUTED_MODE` | Enable multi-user server mode | `off` | `off`, `server` |
 | `SESSION_SECRET` | Secret key for session management | (generated) | Any string |
 | `MCP_SERVER_ENABLED` | Enable Model Context Protocol server | `false` | `true`, `false` |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | Enable Jupyter in server mode | `false` | `true`, `false` |
@@ -223,7 +224,7 @@ PDF_RAG_TOKENS=6000
 PDF_RAG_OVERLAP_LINES=6
 
 # Development
-DISTRIBUTED_MODE=true
+DISTRIBUTED_MODE=server
 MCP_SERVER_ENABLED=true
 ```
 

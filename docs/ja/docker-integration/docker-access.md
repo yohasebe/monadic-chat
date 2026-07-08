@@ -63,7 +63,7 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 
 ### Rubyコンテナ
 - Ruby gemsを確認: `bundle list`
-- ログを表示: `tail -f /monadic/log/sinatra.log`
+- ログを表示: `tail -f /monadic/log/server.log`
 - 設定にアクセス: `cd /monadic/config`
 
 ## 関連ドキュメント

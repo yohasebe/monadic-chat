@@ -48,7 +48,7 @@ The `llm` block is required and contains:
 ## Optional Settings
 
 ### LLM Block Options
-- `temperature` - Controls randomness in responses. Range and availability depend on provider and model. Some models (e.g., OpenAI o1/o3, Gemini 2.5 thinking models) don't support temperature adjustment
+- `temperature` - Controls randomness in responses. Range and availability depend on provider and model. Some models (e.g., certain reasoning-focused models across providers) don't support temperature adjustment
 
 - `max_tokens` - Maximum tokens in response (availability and limits vary by model)
 - `presence_penalty` - Penalize repeated topics. Supported by some OpenAI and Mistral models

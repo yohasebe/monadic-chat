@@ -144,7 +144,7 @@ Settings configured in the settings panel are automatically saved. The settings 
 ### API Keys
 
 **OPENAI_API_KEY** <br />
-(Recommended) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Speech-to-Text API, and Text-to-Speech API. While not strictly required, many core features depend on this key. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
+(Recommended) Enter your OpenAI API key. This key is used to access the Chat API, image generation API, Speech-to-Text API, and Text-to-Speech API. While not strictly required, many core features depend on this key. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
 
 
 **ANTHROPIC_API_KEY** <br />

@@ -51,6 +51,7 @@ OpenAIのデフォルトモデルの場合：
 | `COHERE_API_KEY` | Cohere APIキー | はい（Cohereアプリ使用時） | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek APIキー | はい（DeepSeekアプリ使用時） | `...` |
 | `XAI_API_KEY` | Grokモデル用のxAI APIキー | はい（Grokアプリ使用時） | `xai-...` |
+| `ELEVENLABS_API_KEY` | TTSおよびScribe音声認識用のElevenLabs APIキー | はい（ElevenLabs音声使用時） | `...` |
 | `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー（Mistral、Cohere、DeepSeek、Ollamaのウェブ検索に必要） | いいえ | `tvly-...` |
 
 ## モデル設定
@@ -107,7 +108,7 @@ OpenAIのデフォルトモデルの場合：
 
 | 変数名 | 説明 | デフォルト | オプション |
 |--------|------|------------|-----------|
-| `DISTRIBUTED_MODE` | マルチユーザーサーバーモードを有効化 | `false` | `true`, `false`, `server` |
+| `DISTRIBUTED_MODE` | マルチユーザーサーバーモードを有効化 | `off` | `off`, `server` |
 | `SESSION_SECRET` | セッション管理用の秘密鍵 | （自動生成） | 任意の文字列 |
 | `MCP_SERVER_ENABLED` | Model Context Protocolサーバーを有効化 | `false` | `true`, `false` |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | サーバーモードでJupyterを有効化 | `false` | `true`, `false` |
@@ -223,7 +224,7 @@ PDF_RAG_TOKENS=6000
 PDF_RAG_OVERLAP_LINES=6
 
 # 開発
-DISTRIBUTED_MODE=true
+DISTRIBUTED_MODE=server
 MCP_SERVER_ENABLED=true
 ```
 

@@ -93,6 +93,12 @@ This container hosts a small FastAPI service that wraps the `intfloat/multilingu
 - **Apps that use this container**: same set as Qdrant (Knowledge Base, Monadic Help, custom RAG)
 - No external API key is required; embedding inference runs entirely on the host CPU.
 
+### Privacy Container (`monadic-chat-privacy-container`) :id=privacy-container
+This container runs a local PII-masking service (spaCy + Presidio) used by the Privacy Filter to replace personal information with placeholders before text is sent to external APIs. It is started by default (`PRIVACY_FILTER=true`).
+- **Main features**: Named-entity recognition and PII masking for the Privacy Filter
+- **Apps that use this container**: Any app while the Privacy Filter is enabled (on by default)
+- No external API key is required; masking runs locally on the host CPU.
+
 
 ## Container Requirements by App Type :id=container-requirements
 

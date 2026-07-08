@@ -65,6 +65,7 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `monadic-chat-qdrant-container`
 - `monadic-chat-embeddings-container`
 - `monadic-chat-privacy-container` (only present if Privacy Filter is installed)
+- `monadic-chat-extractor-container` (only present if the Knowledge Base Quality Pack is installed)
 - `monadic-chat-pgvector-container` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
 - `monadic-chat-web-container` (legacy)
 - `monadic-chat-container` (legacy)

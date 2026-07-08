@@ -63,7 +63,7 @@ By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you ca
 
 ### Ruby Container
 - Check Ruby gems: `bundle list`
-- View logs: `tail -f /monadic/log/sinatra.log`
+- View logs: `tail -f /monadic/log/server.log`
 - Access configuration: `cd /monadic/config`
 
 ## Related Documentation

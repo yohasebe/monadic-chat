@@ -675,11 +675,43 @@
             <div id="grok-voices" class="my-1" style="display: none;">
               <label for="grok-tts-voice" class="div-label my-2">Grok Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="grok-tts-voice">
-                <option value="eve">Eve (Energetic)</option>
-                <option value="ara">Ara (Warm)</option>
-                <option value="rex">Rex (Confident)</option>
-                <option value="sal">Sal (Smooth)</option>
-                <option value="leo">Leo (Authoritative)</option>
+                <!--
+                  xAI flagship voices (grok-tts). All voices are natively
+                  multilingual; grouped by the gender reported by the
+                  authoritative GET /v1/tts/voices roster. `eve` is the xAI
+                  default. Keep this list in sync with model_spec.js
+                  `grok-tts` → `tts_voices` (a Jest drift guard enforces it).
+                -->
+                <optgroup label="Female">
+                  <option value="ara">Ara</option>
+                  <option value="carina">Carina</option>
+                  <option value="celeste">Celeste</option>
+                  <option value="eve" selected>Eve</option>
+                  <option value="iris">Iris</option>
+                  <option value="luna">Luna</option>
+                  <option value="ursa">Ursa</option>
+                </optgroup>
+                <optgroup label="Male">
+                  <option value="altair">Altair</option>
+                  <option value="atlas">Atlas</option>
+                  <option value="castor">Castor</option>
+                  <option value="cosmo">Cosmo</option>
+                  <option value="helios">Helios</option>
+                  <option value="helix">Helix</option>
+                  <option value="kepler">Kepler</option>
+                  <option value="leo">Leo</option>
+                  <option value="lumen">Lumen</option>
+                  <option value="lux">Lux</option>
+                  <option value="naksh">Naksh</option>
+                  <option value="orion">Orion</option>
+                  <option value="perseus">Perseus</option>
+                  <option value="rex">Rex</option>
+                  <option value="rigel">Rigel</option>
+                  <option value="sal">Sal</option>
+                  <option value="sirius">Sirius</option>
+                  <option value="zagan">Zagan</option>
+                  <option value="zenith">Zenith</option>
+                </optgroup>
               </select>
             </div>
 

@@ -170,6 +170,12 @@ module DeepSeekHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      # Reset the cross-round reasoning accumulator (see the tool branch and the
+      # terminal text branch below). DeepSeek emits its reasoning trace before
+      # each tool call; without accumulating it here, only the final round's
+      # reasoning survives into the displayed message and the persistent
+      # thinking toggle disappears once tools are involved.
+      session[:deepseek_reasoning] = nil
     end
 
     num_retrial = 0
@@ -1035,6 +1041,12 @@ module DeepSeekHelper
         if reasoning_content && !reasoning_content.empty?
           assistant_msg["reasoning_content"] = reasoning_content
           DebugHelper.debug("DeepSeek: Including reasoning_content in tool call context (#{reasoning_content.length} chars)", category: :api, level: :debug)
+
+          # Accumulate this round's reasoning so it survives into the final
+          # displayed message (merged in the terminal text branch below).
+          acc = session[:deepseek_reasoning].to_s
+          acc += "\n\n" unless acc.empty?
+          session[:deepseek_reasoning] = acc + reasoning_content
         end
       end
 
@@ -1056,6 +1068,18 @@ module DeepSeekHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       text_result["choices"][0]["finish_reason"] = finish_reason
+
+      # Merge reasoning accumulated across earlier tool rounds with this final
+      # round's own reasoning, so the persistent thinking toggle reflects the
+      # whole trace rather than just the last (often empty) round.
+      accumulated = session[:deepseek_reasoning].to_s
+      unless accumulated.empty?
+        message = (text_result["choices"][0]["message"] ||= {})
+        own = message["reasoning_content"].to_s
+        merged = own.empty? ? accumulated : "#{accumulated}\n\n#{own}"
+        message["reasoning_content"] = merged unless merged.strip.empty?
+      end
+
       [text_result]
     else
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
@@ -1130,18 +1154,31 @@ module DeepSeekHelper
       converted[:session] = session
     end
 
-    begin
-      function_return = if function_name == "request_tool"
-                          Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-                            session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
-                          )
-                        elsif converted.empty?
-                          APPS[app].send(function_name.to_sym)
-                        else
-                          APPS[app].send(function_name.to_sym, **converted)
-                        end
-    rescue StandardError => e
-      function_return = "ERROR: #{e.message}"
+    # Consumption-point gate for the Web Search UI toggle. The schema gate hides
+    # web-search tools when the toggle is off, but DeepSeek's model can still
+    # surface a call via its content fallbacks (JSON or DSML). Block execution
+    # here — the single point every request path converges on — so a UI-disabled
+    # capability never runs regardless of how it was requested.
+    if Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
+       !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(session[:parameters])
+      Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
+      function_return = "❌ Web search is turned off for this conversation. " \
+                        "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
+                        "knowledge, and note that your information may not be up to date."
+    else
+      begin
+        function_return = if function_name == "request_tool"
+                            Monadic::Utils::ProgressiveToolManager.handle_request_tool(
+                              session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
+                            )
+                          elsif converted.empty?
+                            APPS[app].send(function_name.to_sym)
+                          else
+                            APPS[app].send(function_name.to_sym, **converted)
+                          end
+      rescue StandardError => e
+        function_return = "ERROR: #{e.message}"
+      end
     end
 
     send_verification_notification(session, &block) if function_name == "report_verification"
@@ -1191,6 +1228,15 @@ module DeepSeekHelper
 
       tool_entry, error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
       context << tool_entry if tool_entry
+
+      # A web-search call blocked by the Web Search toggle must not spiral into
+      # repeated attempts with other web tools ("Repeated errors"). Force the
+      # next request to omit tools so the model answers from its own knowledge.
+      if Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
+         !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+        obj["_skip_tools_next_request"] = true
+      end
+
       next if error_stop
     end
 

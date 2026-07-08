@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+# Require the implementation under test directly so the SSOT-drift example
+# below does not depend on another spec having loaded ConduitAgent first
+# (it referenced Monadic::MCP::ConduitAgent::SAFE_GROUPS with no require and
+# failed with NameError when run in isolation).
+require_relative '../../../lib/monadic/mcp/conduit_agent'
+require_relative '../../../lib/monadic/shared_tools/registry'
 
 # `reachable_skills` is DSL sugar for declaring skill groups an app can reach for
 # mid-conversation: imported as `conditional` (hidden until the model unlocks them

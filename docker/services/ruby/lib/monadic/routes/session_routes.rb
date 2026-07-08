@@ -53,6 +53,9 @@ end
 # Get monadic_state for export (Session State mechanism)
 get "/monadic_state" do
   content_type :json
+
+  response_data = { success: true, monadic_state: nil }
+
   if session[:monadic_state]
     # Convert symbol keys to strings for JSON serialization
     serializable_state = session[:monadic_state].each_with_object({}) do |(app_key, app_data), result|
@@ -71,7 +74,7 @@ get "/monadic_state" do
       end
     end
 
-    response_data = { success: true, monadic_state: serializable_state }
+    response_data[:monadic_state] = serializable_state
 
     # Include conversation_context (Session Context) if present
     conversation_context = session[:monadic_state][:conversation_context] || session[:monadic_state]["conversation_context"]
@@ -84,11 +87,15 @@ get "/monadic_state" do
     if context_schema
       response_data[:context_schema] = context_schema
     end
-
-    response_data.to_json
-  else
-    { success: true, monadic_state: nil }.to_json
   end
+
+  # Include dynamic-skill unlock state so an exported session restores the
+  # skills the model had acquired (reproducibility). Independent of
+  # monadic_state — a thin app may have unlocked skills without any state.
+  progressive_tools = Monadic::Utils::ProgressiveToolManager.export_unlocked(session)
+  response_data[:progressive_tools] = progressive_tools if progressive_tools
+
+  response_data.to_json
 end
 
 # Upload a Session JSON file to load past messages. Always returns JSON;
@@ -160,6 +167,13 @@ post "/load" do
         session[:parameters] = imported_params
 
         Monadic::Utils::ExtraLogger.log { "[Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}" }
+
+        # Restore dynamic-skill unlock state so the imported session resumes
+        # with the skills the model had acquired (reproducibility). Volatile
+        # and absent from older exports, so this is a no-op for those.
+        if json_data["progressive_tools"].is_a?(Hash)
+          Monadic::Utils::ProgressiveToolManager.import_unlocked(session, json_data["progressive_tools"])
+        end
 
         # Check if the first message is a system message
         if json_data["messages"].first && json_data["messages"].first["role"] == "system"

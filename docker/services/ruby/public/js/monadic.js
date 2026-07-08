@@ -3433,6 +3433,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let monadicState = null;
     let serverSessionContext = null;
     let serverContextSchema = null;
+    let progressiveTools = null;
     try {
       const response = await fetch('/monadic_state');
       if (!response.ok) throw new Error(`/monadic_state failed: ${response.status}`);
@@ -3447,6 +3448,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (data.context_schema) {
           serverContextSchema = data.context_schema;
+        }
+        // Dynamic-skill unlock state, so the export restores acquired skills
+        if (data.progressive_tools) {
+          progressiveTools = data.progressive_tools;
         }
       }
     } catch (e) {
@@ -3474,6 +3479,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (contextSchema) {
       obj.context_schema = contextSchema;
+    }
+    if (progressiveTools) {
+      obj.progressive_tools = progressiveTools;
     }
 
     saveObjToJson(obj, "monadic.json");

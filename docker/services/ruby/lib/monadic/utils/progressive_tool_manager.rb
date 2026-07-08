@@ -9,6 +9,47 @@ module Monadic
 
       REQUEST_TOOL_REGEX = /request_tool\(\s*["']([\w\-\.:]+)["']\s*\)/i
 
+      # Tool groups governed by an explicit Web UI toggle rather than by dynamic
+      # unlocking. When the toggle is off, these stay fully hidden — absent from
+      # the tool set, the skill menu, and unlockable set — so a UI-disabled
+      # capability is never acquired through the dynamic skill system.
+      WEBSEARCH_GROUP = "web_search_tools"
+
+      # True only when the session has web search explicitly turned off
+      # (false/"false"). A missing value (e.g. headless callers that manage web
+      # search themselves) leaves the tools untouched.
+      def websearch_disabled?(session)
+        params = session.respond_to?(:[]) ? session[:parameters] : nil
+        return false unless params.respond_to?(:[])
+
+        value = if params.respond_to?(:key?)
+                  params.key?("websearch") ? params["websearch"] : params[:websearch]
+                else
+                  params["websearch"]
+                end
+        value == false || value == "false"
+      end
+
+      # Names of the tools that belong to `group` in this app's progressive
+      # metadata (resolved via each conditional entry's unlock tool_request, or
+      # the entry name for single-tool groups).
+      def group_tool_names(metadata, group)
+        group = group.to_s
+        Array(metadata[:conditional]).each_with_object(Set.new) do |entry, set|
+          entry = deep_symbolize(entry) if entry.is_a?(Hash)
+          next unless entry.is_a?(Hash)
+          name = entry[:name].to_s
+          next if name.empty?
+
+          keys = Array(entry[:unlock_conditions]).filter_map do |c|
+            c = deep_symbolize(c) if c.is_a?(Hash)
+            c.is_a?(Hash) ? c[:tool_request]&.to_s : nil
+          end
+          keys << name if keys.empty?
+          set << name if keys.include?(group)
+        end
+      end
+
       def visible_tools(app_name:, session:, app_settings:, default_tools:)
         # Early return if session or app_settings doesn't support Hash-like operations
         # Note: session can be Rack::Session::Abstract::SessionHash, which is Hash-like but not a Hash subclass
@@ -44,6 +85,20 @@ module Monadic
           end
 
           decision
+        end
+
+        # Honor the Web Search UI toggle: when it is explicitly off, drop the
+        # web-search tools even if a prior turn unlocked them or the app always
+        # imports them.
+        if websearch_disabled?(session)
+          ws_names = group_tool_names(metadata, WEBSEARCH_GROUP)
+          unless ws_names.empty?
+            before = filtered.size
+            filtered = filtered.reject { |t| ws_names.include?(extract_tool_name(t).to_s) }
+            if before != filtered.size && defined?(Monadic::Utils::ExtraLogger)
+              Monadic::Utils::ExtraLogger.log { "[PTD] Web Search off — hid #{before - filtered.size} web_search tool(s) for #{app_name}" }
+            end
+          end
         end
 
         filtered
@@ -122,6 +177,14 @@ module Monadic
         end.compact)
 
         key = request_key.to_s
+
+        # Refuse to unlock a UI-toggle-gated group (web search) while its toggle
+        # is off, so the model cannot acquire it through request_tool.
+        if websearch_disabled?(session) &&
+           (key == WEBSEARCH_GROUP || group_tool_names(metadata, WEBSEARCH_GROUP).include?(key))
+          return []
+        end
+
         targets = Array(mapping[key]).dup
         targets << key if conditional_names.include?(key)
 
@@ -194,12 +257,28 @@ module Monadic
           group[:names] << name
         end
 
+        websearch_off = websearch_disabled?(session)
+
         lines = []
         groups.each do |key, group|
           next if group[:names].all? { |n| unlocked.include?(n) }
-          hint = group[:hint]
-          hint = "Call request_tool(\"#{key}\") to unlock." if hint.nil? || hint.empty?
-          lines << hint
+          # Don't advertise a UI-toggle-gated group (web search) while its
+          # toggle is off — the model must not be told to request it.
+          next if websearch_off && key.to_s == WEBSEARCH_GROUP
+          hint = group[:hint].to_s
+          # Every menu line MUST tell the model to unlock via request_tool with
+          # the group key. A hint that says "Call <skill> ..." (without
+          # request_tool) leads strict models to call the still-locked skill
+          # directly, which some providers reject (e.g. Cohere 422
+          # "invalid tool generation"). If the hint doesn't already reference
+          # request_tool, prefix the explicit call so the syntax is unambiguous.
+          lines << if hint.empty?
+                     "Call request_tool(\"#{key}\") to unlock this skill."
+                   elsif hint.include?("request_tool")
+                     hint
+                   else
+                     "Call request_tool(\"#{key}\") to unlock: #{hint}"
+                   end
         end
         lines
       end
@@ -254,6 +333,40 @@ module Monadic
         end
       end
       private_class_method :deep_dup
+
+      # Serialize the per-app unlock state for session export (reproducibility).
+      #
+      # Only the `unlocked` tool lists are persisted; `triggered_events` and
+      # `scanned_count` are transient scanning bookkeeping that is rebuilt on
+      # replay. Returns nil when nothing has been unlocked, so callers can omit
+      # the key from the export payload entirely.
+      def export_unlocked(session)
+        pt = session && session[:progressive_tools]
+        return nil unless pt.is_a?(Hash) && !pt.empty?
+
+        out = {}
+        pt.each do |app_name, state|
+          next unless state.is_a?(Hash)
+          unlocked = Array(state[:unlocked] || state["unlocked"]).map(&:to_s).reject(&:empty?)
+          out[app_name.to_s] = unlocked unless unlocked.empty?
+        end
+        out.empty? ? nil : out
+      end
+
+      # Restore unlock state produced by export_unlocked back into the session.
+      # Idempotent and tolerant of missing/blank data (a no-op then). Rebuilds
+      # the standard state shape so subsequent visible_tools calls see the
+      # unlocked tools immediately.
+      def import_unlocked(session, data)
+        return unless session.respond_to?(:[]=) && data.is_a?(Hash)
+
+        data.each do |app_name, unlocked|
+          names = Array(unlocked).map(&:to_s).reject(&:empty?)
+          next if names.empty?
+          state = ensure_state(session, app_name)
+          names.each { |n| state[:unlocked] << n unless state[:unlocked].include?(n) }
+        end
+      end
 
       def ensure_state(session, app_name)
         session[:progressive_tools] ||= {}

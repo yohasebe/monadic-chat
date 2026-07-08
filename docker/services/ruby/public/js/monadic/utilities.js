@@ -1034,6 +1034,17 @@ function setParams() {
   const mathEl = $id("math");
   params["math"] = mathEl ? mathEl.checked : false;
 
+  // Knowledge Base (RAG) session toggle. It must round-trip through the submit
+  // so the backend reflects the visible toggle: RESET clears session[:parameters]
+  // and the WS LIBRARY_RAG_TOGGLE message only fires on an explicit user toggle,
+  // so a session that merely SHOWS the toggle ON (after reset/import/launch)
+  // would otherwise leave the backend unset and library_search disabled. Only
+  // emit it for apps that expose the toggle (element absent for non-KB apps).
+  const libRagEl = $id("library-rag-toggle");
+  if (libRagEl) {
+    params["library_rag_enabled"] = libRagEl.checked;
+  }
+
   // Privacy Filter session toggle lives on the backend only — see
   // ws-privacy-handler.js. Putting it in params would shadow the
   // health-checked authoritative state on the next submit.

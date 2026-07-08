@@ -43,10 +43,17 @@ recording.js                Monadic WS                bridge task
     frame. Lifecycle parallels the legacy `startAudioCapture()` so the
     rest of the recording UX (waveform, Stop button, silence detection
     no-op for the streaming path) stays unchanged.
-  - `isRealtimeSttEnabled()` gates the worklet path on
-    `window.modelSpec[selected_stt_model].supports_realtime_streaming`.
-    `localStorage.stt_realtime === '1'` survives as a debug back door
-    for development.
+  - `isRealtimeSttEnabled()` (in the standalone `monadic/stt-gate.js`
+    module) gates the worklet path. The realtime endpoint is OpenAI-only,
+    so the gate FIRST rejects any non-OpenAI STT model — identified by the
+    same provider prefixes the batch router uses
+    (`NON_OPENAI_STT_PREFIXES`: `gemini-`, `scribe`, `cohere-transcribe`,
+    `voxtral`, `xai-stt`). Only for an OpenAI STT model does it then
+    consult `window.modelSpec[model].supports_realtime_streaming`, falling
+    back to the `localStorage.stt_realtime === '1'` debug back door. This
+    OpenAI-only precondition is essential: without it a stale back-door
+    flag would send e.g. ElevenLabs `scribe_v2` to the realtime endpoint,
+    which 400s ("Realtime STT: Invalid value").
   - On Stop → `AUDIO_COMMIT`; on silence-abort → `AUDIO_ABORT`.
   - Enter-key capture-phase listener delegates to the voice button
     click handler while a streaming session is active, so Enter
@@ -187,10 +194,15 @@ is a one-line capability change; no UI or routing surgery required.
   user-typing-during-stream, multi-delta overwrite, commit-from-active,
   user-typed-then-commit, explicit clear.
 - `test/frontend/recording-stt-gate.test.js` — capability gate
-  semantics. The function is mirrored from `recording.js` (which
-  cannot be required cleanly in jsdom due to top-level DOM
-  attachments); the docstring at the top of the spec file points
-  back to the source.
+  semantics, exercising the shipped `stt-gate.js` module directly
+  (required as-is; no mirrored copy). Covers the OpenAI-only
+  precondition: non-OpenAI STT models never enter realtime even with
+  the debug back door set.
+- `test/frontend/stt-gate-prefix-parity.test.js` — cross-stack drift
+  guard locking `NON_OPENAI_STT_PREFIXES` (JS gate) to the
+  `model.start_with?` provider prefixes in `stt_utils.rb` (Ruby batch
+  router), so a new non-OpenAI provider added to one but not the other
+  fails CI instead of silently regressing the realtime bug.
 - `spec/unit/utils/websocket/audio_stream_handler_spec.rb` — wire
   contract for `session.update` payload shape and
   `parse_realtime_payload` edge cases. Mocks the WS connection at

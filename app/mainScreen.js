@@ -626,6 +626,12 @@ document.addEventListener('DOMContentLoaded', () => {
     updateInProgress = !!busy;
     // Re-apply the current status so the guard takes effect immediately.
     updateMonadicChatStatusUI(currentStatus);
+    // Keep the inline "Download & Install" button in sync: disabled while a
+    // download is in flight, re-enabled if it errors (busy=false) so the user
+    // can retry.
+    if (window.MonadicUpdateUI && typeof window.MonadicUpdateUI.setUpdateButtonsBusy === 'function') {
+      window.MonadicUpdateUI.setUpdateButtonsBusy(htmlOutputElement, !!busy);
+    }
   });
 
   // Listen for distributed mode updates from the main process

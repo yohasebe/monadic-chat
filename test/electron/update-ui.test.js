@@ -6,7 +6,7 @@
 //   - renderDownloadProgress: a single in-place line + <progress> bar
 //   - attachUpdateButtonHandler: delegated click on .mc-update-now
 
-const { renderDownloadProgress, attachUpdateButtonHandler, injectUpdateButton } = require('../../app/update-ui');
+const { renderDownloadProgress, attachUpdateButtonHandler, injectUpdateButton, setUpdateButtonsBusy } = require('../../app/update-ui');
 
 describe('renderDownloadProgress', () => {
   let host;
@@ -91,6 +91,54 @@ describe('attachUpdateButtonHandler', () => {
     host.innerHTML = '<button class="mc-update-now">x</button>';
     host.querySelector('.mc-update-now').click();
     expect(api.startUpdateDownload).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the button on click (visual feedback + double-click failsafe)', () => {
+    attachUpdateButtonHandler(host, api);
+    host.innerHTML = '<button class="mc-update-now">Download</button>';
+    const btn = host.querySelector('.mc-update-now');
+    expect(btn.disabled).toBe(false);
+    btn.click();
+    expect(btn.disabled).toBe(true);
+    expect(btn.style.cursor).toBe('not-allowed');
+  });
+
+  it('ignores a second (double) click while the button is disabled', () => {
+    attachUpdateButtonHandler(host, api);
+    host.innerHTML = '<button class="mc-update-now">Download</button>';
+    const btn = host.querySelector('.mc-update-now');
+    btn.click();
+    btn.click(); // accidental double-click
+    btn.click();
+    expect(api.startUpdateDownload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('setUpdateButtonsBusy', () => {
+  let host;
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="host"><button class="mc-update-now">Download</button></div>';
+    host = document.getElementById('host');
+  });
+
+  it('disables every update button when busy', () => {
+    setUpdateButtonsBusy(host, true);
+    const btn = host.querySelector('.mc-update-now');
+    expect(btn.disabled).toBe(true);
+    expect(btn.style.cursor).toBe('not-allowed');
+  });
+
+  it('re-enables the button when no longer busy (retry after an error)', () => {
+    setUpdateButtonsBusy(host, true);
+    setUpdateButtonsBusy(host, false);
+    const btn = host.querySelector('.mc-update-now');
+    expect(btn.disabled).toBe(false);
+    expect(btn.style.cursor).toBe('pointer');
+  });
+
+  it('no-ops without a valid host', () => {
+    expect(() => setUpdateButtonsBusy(null, true)).not.toThrow();
+    expect(() => setUpdateButtonsBusy({}, true)).not.toThrow();
   });
 });
 

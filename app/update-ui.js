@@ -51,6 +51,22 @@
     return line;
   }
 
+  // Set the busy (disabled + dimmed) state of every .mc-update-now button in
+  // `host`. busy=true while a download is underway — blocks a second click and
+  // gives visual feedback; busy=false restores them so a retry after a download
+  // error is possible. Driven by the `update-busy` IPC signal (updater.js sets
+  // it false on error/completion), so an errored download re-enables the button.
+  function setUpdateButtonsBusy(host, busy) {
+    if (!host || typeof host.querySelectorAll !== 'function') return;
+    const btns = host.querySelectorAll('.mc-update-now');
+    for (let i = 0; i < btns.length; i++) {
+      const b = btns[i];
+      b.disabled = !!busy;
+      b.style.opacity = busy ? '0.6' : '';
+      b.style.cursor = busy ? 'not-allowed' : 'pointer';
+    }
+  }
+
   // Delegate clicks on any .mc-update-now button (rendered inside the
   // update-available message) to the provided API. Idempotent: the listener is
   // attached at most once per host so repeated init calls don't stack handlers.
@@ -61,6 +77,15 @@
       const target = e && e.target;
       const btn = target && target.closest ? target.closest('.mc-update-now') : null;
       if (!btn || !api) return;
+      // Failsafe against an accidental double-click: once the button has fired
+      // it is disabled, so a second click is a no-op here. (The main process
+      // also guards downloadUpdate() with downloadInProgress — this is the
+      // renderer-side belt to that suspenders, plus instant visual feedback.)
+      // setUpdateButtonsBusy re-enables it if the download later errors.
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'not-allowed';
       // The button says "Download & Install", so start the download directly
       // when that API exists; fall back to re-checking (older preload) only if
       // it doesn't.
@@ -92,9 +117,9 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.MonadicUpdateUI = { renderDownloadProgress, attachUpdateButtonHandler, injectUpdateButton };
+    window.MonadicUpdateUI = { renderDownloadProgress, attachUpdateButtonHandler, injectUpdateButton, setUpdateButtonsBusy };
   }
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { renderDownloadProgress, attachUpdateButtonHandler, injectUpdateButton };
+    module.exports = { renderDownloadProgress, attachUpdateButtonHandler, injectUpdateButton, setUpdateButtonsBusy };
   }
 })();

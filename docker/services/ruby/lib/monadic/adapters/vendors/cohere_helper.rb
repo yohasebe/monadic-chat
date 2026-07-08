@@ -930,8 +930,13 @@ module CohereHelper
   # Configure tools for the request: progressive disclosure, legacy tools, SSOT capability check.
   # Modifies body in-place.
   private def configure_cohere_tools(body, obj, app, session, role, websearch)
-    return if role == "tool"
-
+    # NOTE: tools must be configured on tool-round requests (role == "tool")
+    # too. The conversation replays an assistant message carrying tool_calls,
+    # and Cohere rejects that with INVALID_TOOL_GENERATION unless the matching
+    # tools are also present. It is also required for multi-round tool use —
+    # e.g. a skill unlocked via request_tool is only usable if the follow-up
+    # request still carries the (now-expanded) tool set. Loop protection is
+    # handled separately by MAX_FUNC_CALLS.
     app_settings = APPS[app]&.settings
     app_tools = app_settings&.[]("tools")
     progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
@@ -962,6 +967,12 @@ module CohereHelper
 
     if progressive_enabled
       final_tools = Array(app_tools).flatten.compact.select { |tool| tool.is_a?(Hash) }
+      # Web search is an explicit user toggle, so make the Tavily tools directly
+      # available (not gated behind request_tool) even in progressive mode.
+      # Without this a progressive app (e.g. Chat) with Web Search ON has no way
+      # to actually search, and answers from stale training data instead.
+      final_tools.push(*WEBSEARCH_TOOLS) if websearch
+      final_tools.uniq! { |t| (t["function"] || t[:function] || t).values_at("name", :name).compact.first }
       if final_tools.empty?
         body.delete("tools")
       else
@@ -1014,6 +1025,18 @@ module CohereHelper
       body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
     end
 
+    # Diagnostic: dump the exact tools and message roles sent to Cohere. The v2
+    # API rejects malformed tool schemas (and model-generated calls to
+    # non-existent tools) with a 422 "INVALID_TOOL_GENERATION"; this makes the
+    # offending request visible without a live repro.
+    if CONFIG["EXTRA_LOGGING"] && body.is_a?(Hash)
+      Monadic::Utils::ExtraLogger.log do
+        tool_names = Array(body["tools"]).map { |t| (t["function"] || t[:function] || t)["name"] || (t["function"] || t[:function] || t)[:name] }
+        "[Cohere REQUEST] model=#{body["model"]} roles=#{Array(body["messages"]).map { |m| m["role"] }.join(",")} " \
+          "tool_names=#{tool_names.inspect}"
+      end
+    end
+
     res = nil
     MAX_RETRIES.times do |i|
       begin
@@ -1023,6 +1046,14 @@ module CohereHelper
           read: read_timeout
         ).post(target_uri, json: body)
         break if res.status.success?
+        if CONFIG["EXTRA_LOGGING"]
+          body_preview = begin
+            res.body.to_s[0, 800]
+          rescue StandardError
+            "(unreadable)"
+          end
+          Monadic::Utils::ExtraLogger.log { "[Cohere RESPONSE ERROR] status=#{res.status} body=#{body_preview}" }
+        end
         sleep RETRY_DELAY * (i + 1)
       rescue HTTP::Error, HTTP::TimeoutError => e
         next unless i == MAX_RETRIES - 1
@@ -1062,6 +1093,12 @@ module CohereHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      # Reset the cross-round tool_plan accumulator (see the tool branch and
+      # build_cohere_text_response). Some reasoning models (e.g. command-a-plus)
+      # emit their reasoning as tool_plan on tool rounds rather than as
+      # content.thinking; accumulating it here lets it surface in the final
+      # thinking panel instead of vanishing when tools are involved.
+      session[:cohere_tool_plan_reasoning] = nil
     end
 
     current_call_depth = session[:call_depth_per_turn] || 0
@@ -1191,6 +1228,10 @@ module CohereHelper
     # Configure tools
     configure_cohere_tools(body, obj, app, session, role, websearch)
 
+    # Reconcile thinking-disabled with tools (see helper). Runs after tool
+    # configuration because reasoning is configured before tools are known.
+    drop_incompatible_thinking!(body)
+
     # Set messages if not already set by reasoning workaround
     body["messages"] ||= messages
     body["messages"] = Array(body["messages"]).compact
@@ -1235,10 +1276,28 @@ module CohereHelper
     [res]
   end
 
+  # A Cohere reasoning model (e.g. command-a-plus) rejects a tool request sent
+  # with thinking explicitly disabled: `thinking: {type: "disabled"}` together
+  # with `tools` returns 422 "INVALID_TOOL_GENERATION". Verified against the
+  # live API — omitting the thinking key (letting Cohere default) succeeds, as
+  # does enabling it. Since body["thinking"] is only ever set for reasoning
+  # models, drop the explicit disable whenever tools are present so an app that
+  # pins reasoning_effort "disabled" (e.g. Chat) can still use tools.
+  private def drop_incompatible_thinking!(body)
+    return body unless body.is_a?(Hash)
+
+    if body["tools"].is_a?(Array) && !body["tools"].empty? && body.dig("thinking", "type") == "disabled"
+      body.delete("thinking")
+      Monadic::Utils::ExtraLogger.log { "[Cohere] Dropped thinking:disabled because tools are present (avoids 422 INVALID_TOOL_GENERATION)" }
+    end
+    body
+  end
+
   # Build the final text response from streaming results, including thinking and usage
   private def build_cohere_text_response(result:, obj:, finish_reason:, thinking_content:,
                                          fragment_sequence:, usage_input_tokens:,
-                                         usage_output_tokens:, usage_total_tokens:, &block)
+                                         usage_output_tokens:, usage_total_tokens:,
+                                         session: nil, &block)
     if result
       # Send DONE message to complete the stream
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason })
@@ -1254,9 +1313,18 @@ module CohereHelper
         }
       ]
 
-      # Add thinking content if collected
-      if thinking_content && !thinking_content.empty?
-        response[0]["choices"][0]["message"]["thinking"] = thinking_content.join("")
+      # Add thinking content if collected. Prefer content.thinking; when a
+      # reasoning model emitted none (e.g. command-a-plus, which routes its
+      # reasoning through tool_plan on tool rounds), fall back to the tool_plan
+      # accumulated across rounds so the persistent thinking toggle still
+      # reflects the model's reasoning instead of disappearing.
+      thinking_text = if thinking_content && !thinking_content.empty?
+                        thinking_content.join("")
+                      elsif session
+                        session[:cohere_tool_plan_reasoning].to_s
+                      end
+      if thinking_text && !thinking_text.strip.empty?
+        response[0]["choices"][0]["message"]["thinking"] = thinking_text
       end
 
       # Attach usage if captured
@@ -1503,11 +1571,25 @@ module CohereHelper
     # Route to tool processing or build final text response
     if accumulated_tool_calls.any?
       tool_plan_text = tool_plan_content.empty? ? nil : tool_plan_content.join("")
+      # Accumulate only genuine tool_plan reasoning for the thinking panel —
+      # never the synthetic fallback below.
+      if tool_plan_text && !tool_plan_text.strip.empty?
+        acc = session[:cohere_tool_plan_reasoning].to_s
+        acc += "\n\n" unless acc.empty?
+        session[:cohere_tool_plan_reasoning] = acc + tool_plan_text
+      end
+
+      # Do NOT echo tool_plan back on the assistant tool-call turn. Verified
+      # against the live API: command-a-plus and north-mini-code reject any
+      # tool_plan on a replayed assistant message ("`tool plan` cannot be used
+      # with this model", 400); command-a-reasoning tolerates it. Omitting it
+      # is accepted by every model, so leave it out universally. (The streamed
+      # tool_plan is still captured above for the thinking panel — that is a
+      # display concern, separate from what we send back.)
       context = [
         {
           "role" => "assistant",
-          "tool_calls" => accumulated_tool_calls,
-          "tool_plan" => tool_plan_text
+          "tool_calls" => accumulated_tool_calls
         }
       ]
 
@@ -1525,7 +1607,7 @@ module CohereHelper
         result: result, obj: obj, finish_reason: finish_reason,
         thinking_content: thinking_content, fragment_sequence: fragment_sequence,
         usage_input_tokens: usage_input_tokens, usage_output_tokens: usage_output_tokens,
-        usage_total_tokens: usage_total_tokens, &block
+        usage_total_tokens: usage_total_tokens, session: session, &block
       )
     end
   end

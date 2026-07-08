@@ -148,6 +148,35 @@ MonadicApp.register "MyCustomApp" do
 end
 ```
 
+## Dynamic Skills (reachable_skills)
+
+An app does not have to declare every tool it might ever use. With `reachable_skills`, an app can declare tool groups it is *allowed to acquire on demand* during a conversation. The tools stay hidden until the model actually needs them.
+
+How it works:
+
+1. The hidden groups are presented to the model as a short menu (each group's name and a one-line description).
+2. When the model decides it needs a group, it requests it by name (`request_tool("web_search_tools")`).
+3. The whole group is unlocked and its tools become usable within the same conversation.
+
+```ruby
+MonadicApp.register "MyAssistant" do
+  llm do
+    provider "openai"
+    model "<model-id>"
+  end
+
+  # Groups the app can reach for when the conversation calls for them.
+  reachable_skills :web_search_tools, :image_analysis
+
+  # Or reach for the curated pool of read-only safe groups in one line:
+  # reachable_skills :safe
+end
+```
+
+`reachable_skills :group_a, :group_b` is equivalent to importing each group with `import_shared_tools :group_a, visibility: "conditional"`, but states the intent more clearly. `reachable_skills :safe` expands to the curated set of read-only safe groups.
+
+This keeps an app lean by default: only the groups the conversation actually needs are exposed, rather than presenting every tool up front. Acquired skills are preserved when a session is exported and restored when it is reopened, so a saved conversation resumes with the same tools available.
+
 ## Benefits of Tool Groups
 
 1. **Consistency**: Tools work the same way across all apps

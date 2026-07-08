@@ -343,7 +343,11 @@ module OpenAIHelper
   private def resolve_openai_model_capabilities(model, obj, use_responses_api, &block)
     reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
     non_stream_model = (Monadic::Utils::ModelSpec.get_model_property(model, "supports_streaming") == false)
-    tool_capability = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability") == true
+    # Use the canonical SSOT accessor so an absent `tool_capability` flag
+    # defaults to tool-capable (`!= false`), matching every other provider
+    # helper and ModelSpec.tool_capability?. The prior `== true` here treated
+    # unknown models as non-tool, diverging from the rest of the stack.
+    tool_capability = Monadic::Utils::ModelSpec.tool_capability?(model)
     non_tool_model = !tool_capability
     supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model)
 

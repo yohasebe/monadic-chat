@@ -983,6 +983,13 @@ module MistralHelper
   # Returns true on success, or an Array (error response) for the orchestrator to propagate.
   def build_mistral_messages(body, context, obj, session, role, &block)
     system_message_modified = false
+    # Defensive: `context` comes from session[:messages], which only ever holds
+    # user/assistant/system turns — tool results live in obj["function_returns"]
+    # and are appended fresh for the current round below (role == "tool"). This
+    # reject is therefore a no-op in normal flow; it is kept only to guard
+    # against an imported/edge session that carries an orphaned tool message
+    # (Mistral rejects a role:"tool" not paired with a preceding assistant
+    # tool_calls turn). It does NOT drop live tool results.
     body["messages"] = context.reject do |msg|
                          msg["role"] == "tool"
                        end.map do |msg|
@@ -1225,10 +1232,18 @@ module MistralHelper
 
     Monadic::Utils::ExtraLogger.log { "[Mistral] content_buffer length: #{content_buffer.length}\n[Mistral] content_buffer first 500 chars: #{content_buffer[0..500]}\n[Mistral] content_buffer last 500 chars: #{content_buffer[-500..-1]}" }
 
-    # Prepend any saved pre-tool content from earlier in the conversation
+    # Fall back to pre-tool content ONLY when the post-tool answer is empty.
+    #
+    # Mistral often "thinks out loud" before calling a tool, emitting a
+    # training-data guess ("The latest Ruby is 3.4.1, let me check..."). The
+    # old code unconditionally prepended that text to the final answer, so a
+    # tool-grounded result (e.g. 4.0.5 from a fresh search) got glued behind a
+    # stale guess — the relay-fidelity leak. Keep the pre-tool text only as a
+    # fallback for the rare case where the model produced no post-tool answer,
+    # and always clear it so it never bleeds into a later turn.
     pre_tool_content = session[:mistral_pre_tool_content]
-    if pre_tool_content && pre_tool_content.is_a?(String) && !pre_tool_content.strip.empty?
-      content_buffer = pre_tool_content + "\n\n" + content_buffer.to_s
+    if pre_tool_content.is_a?(String) && !pre_tool_content.strip.empty?
+      content_buffer = pre_tool_content if content_buffer.to_s.strip.empty?
       session.delete(:mistral_pre_tool_content)
     end
 

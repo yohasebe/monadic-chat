@@ -32,6 +32,17 @@ This document describes the server-side normalization layer and canonical access
 **Helper Guidelines**
 - Streaming: Gate by `supports_streaming?`; default to true for undefined.
 - Tools: Gate by `tool_capability?`; drop `tools/tool_choice` for false.
+  - **Tool calling is a baseline requirement.** An absent `tool_capability`
+    flag means *capable* (`!= false`), not incapable. All cloud models in
+    `model_spec.js` declare `tool_capability: true`; only runtime-discovered
+    Ollama models can lack it, and those are supported only when tool-capable.
+    Features like dynamic skill loading degrade gracefully (tools are simply
+    skipped) on a non-tool model.
+  - Every provider helper must derive the default from the canonical accessor
+    (`ModelSpec.tool_capability?`) or the equivalent `spec.nil? ? true : !!spec`
+    — never `== true`, which would flip an unknown model to non-tool and
+    diverge from the rest of the stack. Preserve each provider's legacy-mode
+    ENV override on top of that default.
 - Vision/PDF: Validate before assembling content parts. For URL‑only PDFs, return a clear error (or instruct the user) instead of attaching base64.
 - Reasoning: Use `is_reasoning_model`/`reasoning_effort` where applicable; avoid string matching on model names.
 - Web search: Use `supports_web_search?` (and provider’s native config) instead of hardcoded lists.

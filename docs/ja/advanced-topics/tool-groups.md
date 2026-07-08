@@ -148,6 +148,35 @@ MonadicApp.register "MyCustomApp" do
 end
 ```
 
+## 動的スキル（reachable_skills）
+
+アプリは、将来使うかもしれないすべてのツールをあらかじめ宣言しておく必要はありません。`reachable_skills` を使うと、会話の流れに応じて*必要になったときに獲得できる*ツールグループを宣言できます。これらのツールは、モデルが実際に必要とするまで隠されたままです。
+
+動作の仕組み:
+
+1. 隠されたグループは、短いメニュー（各グループの名前と1行の説明）としてモデルに提示されます。
+2. モデルがあるグループを必要と判断すると、名前で要求します（`request_tool("web_search_tools")`）。
+3. グループ全体が解除され、同じ会話の中でそのツールが使えるようになります。
+
+```ruby
+MonadicApp.register "MyAssistant" do
+  llm do
+    provider "openai"
+    model "<model-id>"
+  end
+
+  # 会話で必要になったときに手を伸ばせるグループ
+  reachable_skills :web_search_tools, :image_analysis
+
+  # または、読み取り専用の安全なグループ群を1行でまとめて指定:
+  # reachable_skills :safe
+end
+```
+
+`reachable_skills :group_a, :group_b` は、各グループを `import_shared_tools :group_a, visibility: "conditional"` でインポートするのと同等ですが、意図をより明確に表現します。`reachable_skills :safe` は、読み取り専用の安全なグループ群に展開されます。
+
+これにより、アプリは既定では軽量に保たれます。すべてのツールを最初から提示するのではなく、会話が実際に必要とするグループだけが露出します。獲得したスキルはセッションのエクスポート時に保存され、再度開いたときに復元されるため、保存した会話は同じツールが使える状態で再開できます。
+
 ## ツールグループのメリット
 
 1. **一貫性**: ツールはすべてのアプリで同じように動作

@@ -92,13 +92,7 @@ module Monadic
         # imports them.
         if websearch_disabled?(session)
           ws_names = group_tool_names(metadata, WEBSEARCH_GROUP)
-          unless ws_names.empty?
-            before = filtered.size
-            filtered = filtered.reject { |t| ws_names.include?(extract_tool_name(t).to_s) }
-            if before != filtered.size && defined?(Monadic::Utils::ExtraLogger)
-              Monadic::Utils::ExtraLogger.log { "[PTD] Web Search off — hid #{before - filtered.size} web_search tool(s) for #{app_name}" }
-            end
-          end
+          filtered = filtered.reject { |t| ws_names.include?(extract_tool_name(t).to_s) } unless ws_names.empty?
         end
 
         filtered

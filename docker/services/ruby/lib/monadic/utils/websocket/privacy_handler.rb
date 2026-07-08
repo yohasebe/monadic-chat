@@ -182,6 +182,12 @@ module WebSocketHelper
     parameters.delete("initiate_from_assistant")
     parameters.delete(:initiate_from_assistant)
     monadic_state = privacy_export_monadic_state(session)
+    # Dynamic-skill unlock state, so an imported session restores the skills the
+    # model had acquired (reproducibility). This is the ACTIVE export path
+    # (the frontend $id("save") handler delegates here), so progressive_tools
+    # must be attached to the payload here — not only in the legacy frontend
+    # export branch.
+    progressive_tools = Monadic::Utils::ProgressiveToolManager.export_unlocked(session)
 
     if encrypt
       passphrase = obj["passphrase"].to_s
@@ -198,6 +204,7 @@ module WebSocketHelper
         "parameters" => parameters
       }
       payload["monadic_state"] = monadic_state if monadic_state
+      payload["progressive_tools"] = progressive_tools if progressive_tools
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
       )
@@ -206,6 +213,7 @@ module WebSocketHelper
       payload = { "parameters" => parameters, "messages" => messages }
       payload["registry"] = registry_to_export unless registry_to_export.empty?
       payload["monadic_state"] = monadic_state if monadic_state
+      payload["progressive_tools"] = progressive_tools if progressive_tools
       content = JSON.pretty_generate(payload)
     end
 

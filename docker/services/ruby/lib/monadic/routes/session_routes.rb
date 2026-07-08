@@ -47,6 +47,7 @@ def privacy_synthesize_session(header, body, mode)
     "messages" => messages
   }
   result["monadic_state"] = body["monadic_state"] if body["monadic_state"].is_a?(Hash)
+  result["progressive_tools"] = body["progressive_tools"] if body["progressive_tools"].is_a?(Hash)
   result
 end
 

@@ -48,12 +48,12 @@ RSpec.describe "ElevenLabs STT Integration" do
     describe "API request structure" do
       it "builds correct multipart form data options" do
         options = {
-          "model_id" => "scribe_v1",
+          "model_id" => "scribe_v2",
           "file_format" => "other",
           "timestamps_granularity" => "word"
         }
 
-        expect(options["model_id"]).to eq("scribe_v1")
+        expect(options["model_id"]).to eq("scribe_v2")
         expect(options["file_format"]).to eq("other")
         expect(options["timestamps_granularity"]).to eq("word")
       end
@@ -144,7 +144,7 @@ RSpec.describe "ElevenLabs STT Integration" do
   describe "calculate_logprob for ElevenLabs" do
     it "returns nil for empty logprobs array" do
       res = { "logprobs" => [] }
-      model = "scribe_v1"
+      model = "scribe_v2"
 
       # Simulate the calculation logic
       result = if model.start_with?("scribe")
@@ -167,7 +167,7 @@ RSpec.describe "ElevenLabs STT Integration" do
           { "logprob" => -0.15 }
         ]
       }
-      model = "scribe_v1"
+      model = "scribe_v2"
 
       # Simulate the calculation logic
       result = if model.start_with?("scribe") && res["logprobs"].is_a?(Array) && !res["logprobs"].empty?
@@ -183,11 +183,11 @@ RSpec.describe "ElevenLabs STT Integration" do
 
   describe "UI integration" do
     it "has correct option ID for selector" do
-      option_id = "elevenlabs-stt-scribe"
-      option_value = "scribe_v1"
+      option_id = "elevenlabs-stt-scribe-v2"
+      option_value = "scribe_v2"
 
-      expect(option_id).to eq("elevenlabs-stt-scribe")
-      expect(option_value).to eq("scribe_v1")
+      expect(option_id).to eq("elevenlabs-stt-scribe-v2")
+      expect(option_value).to eq("scribe_v2")
     end
   end
 

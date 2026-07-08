@@ -288,7 +288,7 @@ module InteractionUtils
   # @param blob [String] The audio data
   # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
   # @param lang_code [String] The language code (e.g., "en", "ja", "auto")
-  # @param model [String] The model to use (e.g., "scribe_v2", "scribe_v1")
+  # @param model [String] The model to use (e.g., "scribe_v2", "scribe_v1_experimental")
   # @return [Hash] The transcription result or error
   def elevenlabs_stt_api_request(blob, format, lang_code, model)
     api_key = CONFIG["ELEVENLABS_API_KEY"]

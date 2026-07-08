@@ -82,6 +82,36 @@ describe('isRealtimeSttEnabled (capability gate)', () => {
     expect(SttGate.isRealtimeSttEnabled()).toBe(true);
   });
 
+  // Realtime STT is an OpenAI-only WebSocket path. A non-OpenAI STT model
+  // (ElevenLabs Scribe, Gemini, Cohere, Mistral Voxtral, xAI) must ALWAYS use
+  // the batch path — the realtime endpoint 400s on its model value
+  // ("Realtime STT: Invalid value: 'scribe_v2'"). This must hold even when the
+  // stale localStorage debug back door is set from a prior OpenAI-realtime run.
+  describe('non-OpenAI STT models never enter realtime (batch fallback)', () => {
+    const nonOpenAiModels = [
+      'scribe_v2', 'scribe_v1', 'gemini-2.5-flash', 'cohere-transcribe-03-2026',
+      'voxtral-mini-transcribe-26-02', 'xai-stt-1'
+    ];
+
+    nonOpenAiModels.forEach((model) => {
+      it(`returns false for ${model} even with the debug back door set`, () => {
+        const sel = document.getElementById('stt-model');
+        sel.innerHTML = `<option value="${model}" selected>${model}</option>`;
+        sel.value = model;
+        localStorage.setItem('stt_realtime', '1');
+        expect(SttGate.isRealtimeSttEnabled()).toBe(false);
+      });
+    });
+
+    it('returns false for a non-OpenAI model even if it somehow carried the streaming flag', () => {
+      const sel = document.getElementById('stt-model');
+      sel.innerHTML = '<option value="scribe_v2" selected>ElevenLabs Scribe v2</option>';
+      sel.value = 'scribe_v2';
+      window.modelSpec['scribe_v2'] = { supports_realtime_streaming: true };
+      expect(SttGate.isRealtimeSttEnabled()).toBe(false);
+    });
+  });
+
   it('capability flag takes precedence over localStorage', () => {
     document.getElementById('stt-model').value = 'gpt-realtime-whisper';
     localStorage.setItem('stt_realtime', '0');

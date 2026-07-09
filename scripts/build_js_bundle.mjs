@@ -104,6 +104,7 @@ const FILES = [
   "js/monadic/websearch_tavily_check.js",
   "js/monadic/tts.js",
   "js/monadic/stt-gate.js",
+  "js/monadic/thinking-effort-link.js",
   "js/monadic/recording.js",
   "js/monadic/select_image.js",
   "js/monadic/mask_editor.js",

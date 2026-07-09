@@ -2096,8 +2096,12 @@ document.addEventListener("DOMContentLoaded", function () {
         { const el = $id("max-tokens"); if (el) el.value = DEFAULT_MAX_OUTPUT_TOKENS; }
         { const el = $id("max-tokens-toggle"); if (el) { el.checked = false; el.disabled = false; $dispatch(el, "change"); } }
       }
-      // Show Thinking toggle: only for models with supports_thinking
-      if (modelSpec[selectedModel]["supports_thinking"]) {
+      // Show Thinking toggle: for any reasoning model (supports_thinking OR a
+      // declared reasoning_effort). reasoning_effort-only models (e.g. OpenAI
+      // gpt-5.x) also emit displayable reasoning, and the toggle pairs with
+      // thinking-effort-link.js: turning it ON while effort is "none" bumps
+      // the effort to the model's lowest thinking level.
+      if (isReasoningModel) {
         $show($id("thinking-display-container"));
       } else {
         $hide($id("thinking-display-container"));

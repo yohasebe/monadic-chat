@@ -217,14 +217,20 @@ module Monadic
 
           # Use max_completion_tokens for newer models (gpt-5+), max_tokens for legacy
           token_param = model.to_s.match?(/\Agpt-[5-9]|o[1-9]/) ? :max_completion_tokens : :max_tokens
-          request.body = {
+          body = {
             model: model,
             messages: [
               { role: 'user', content: prompt }
             ],
-            temperature: 0.0,
             token_param => 500
-          }.to_json
+          }
+          # Deterministic sampling helps evaluation consistency, but reasoning
+          # models reject a non-default temperature outright (gpt-5.6: "Only
+          # the default (1) value is supported", verified live 2026-07-10).
+          # Gate on the model spec actually DECLARING a temperature range.
+          declares_temp = (Monadic::Utils::ModelSpec.model_has_property?(model, "temperature") rescue false)
+          body[:temperature] = 0.0 if declares_temp
+          request.body = body.to_json
 
           http = Net::HTTP.new(uri.host, uri.port)
           http.use_ssl = true

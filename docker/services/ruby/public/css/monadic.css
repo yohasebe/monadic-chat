@@ -2993,6 +2993,20 @@ h1 {
   color: #555;  /* Slightly muted text */
 }
 
+/* The thinking trace is rendered as Markdown (see renderThinkingMarkdown in
+   websocket-handlers.js) — tighten block spacing so the panel stays compact. */
+.thinking-block .card-text p,
+.thinking-block .card-text ul,
+.thinking-block .card-text ol,
+.thinking-block .card-text pre,
+.thinking-block .card-text blockquote {
+  margin-bottom: 0.5rem;
+}
+
+.thinking-block .card-text > *:last-child {
+  margin-bottom: 0;
+}
+
 /* Provider colors for custom dropdown */
 
 .custom-dropdown-group[data-group="OpenAI"] span:first-child {

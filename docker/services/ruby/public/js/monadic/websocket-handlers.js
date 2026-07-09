@@ -12,6 +12,34 @@
  * @param {string} title - Optional custom title (defaults to "Thinking Process")
  * @returns {string} - HTML string for the thinking block
  */
+// Cached markdown-it instance for thinking content. `html: false` keeps any
+// raw HTML in the model's trace escaped (XSS-safe); `breaks: true` because
+// reasoning traces use loose single newlines as paragraph-ish breaks.
+let _thinkingMd = null;
+
+/**
+ * Renders a model's thinking trace as Markdown when markdown-it is available
+ * (it is loaded globally by index.erb for message rendering); falls back to
+ * escaped text with <br> line breaks otherwise, so the panel never shows
+ * raw literal markdown markers like **bold** or `- ` lists as plain strings.
+ * @param {string} thinkingContent
+ * @returns {string} HTML
+ */
+function renderThinkingMarkdown(thinkingContent) {
+  const text = String(thinkingContent == null ? '' : thinkingContent);
+  try {
+    if (typeof markdownit === 'function') {
+      if (!_thinkingMd) {
+        _thinkingMd = markdownit({ html: false, breaks: true, linkify: true });
+      }
+      return _thinkingMd.render(text);
+    }
+  } catch (_) {
+    // fall through to the escaped-text fallback
+  }
+  return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
 function renderThinkingBlock(thinkingContent, title = null) {
   // Use translated title if not provided
   if (!title && typeof webUIi18n !== 'undefined') {
@@ -33,7 +61,7 @@ function renderThinkingBlock(thinkingContent, title = null) {
       </div>
       <div class="card-body thinking-block-content">
         <div class="thinking-block-inner">
-          <div class="card-text">${escapeHtml(thinkingContent).replace(/\n/g, '<br>')}</div>
+          <div class="card-text">${renderThinkingMarkdown(thinkingContent)}</div>
         </div>
       </div>
     </div>
@@ -855,7 +883,9 @@ window.wsHandlers = {
   handleCancelMessage,
   clearProcessedAudioIds,
   isAudioProcessed,
-  markAudioProcessed
+  markAudioProcessed,
+  renderThinkingBlock,
+  renderThinkingMarkdown
 };
 
 // Support for Jest testing environment (CommonJS)

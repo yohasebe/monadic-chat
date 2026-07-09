@@ -67,8 +67,27 @@ const WorkflowViewer = (function () {
   ];
 
   // ── View state save/restore ─────────────────────────────────
+
+  // True when the graph's rendered bounds intersect the container viewport.
+  // Guards the save/restore cycle against "blank view" poisoning: renders and
+  // view-state snapshots that happen while the container is hidden/zero-size
+  // (panel collapsed, mode switching, mid-animation) produce transforms that
+  // place the content off-screen; validating here lets callers fall back to a
+  // fresh fit instead of showing (or memorising) an empty canvas.
+  function viewShowsContent() {
+    if (!graph || !container) return false;
+    var cw = container.clientWidth, ch = container.clientHeight;
+    if (cw === 0 || ch === 0) return false;
+    var b = graph.getGraphBounds();
+    if (!b || b.width === 0 || b.height === 0) return false;
+    return b.x < cw && b.y < ch && (b.x + b.width) > 0 && (b.y + b.height) > 0;
+  }
+
   function saveViewState() {
     if (!graph || !currentApp) return;
+    // Never memorise a state in which nothing is visible — restoring it later
+    // would reproduce the blank view instead of fixing it.
+    if (!viewShowsContent()) return;
     var view = graph.getView();
     viewStates[currentApp] = {
       scale: view.scale || 1,
@@ -81,6 +100,13 @@ const WorkflowViewer = (function () {
     if (!graph || !currentApp || !viewStates[currentApp]) return false;
     var vs = viewStates[currentApp];
     graph.getView().scaleAndTranslate(vs.scale, vs.tx, vs.ty);
+    // A saved state can still be wrong for the CURRENT container size (e.g.
+    // captured in floating mode, restored inline). Report failure so the
+    // caller falls back to fitGraphToContainer(); drop the stale entry.
+    if (!viewShowsContent()) {
+      delete viewStates[currentApp];
+      return false;
+    }
     return true;
   }
 

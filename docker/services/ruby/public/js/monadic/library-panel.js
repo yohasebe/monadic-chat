@@ -1764,6 +1764,9 @@
         // is the user's last chance to change it.
         writeRagDefault(on);
         setRagToggle(on);
+        // Refresh the header summary bar so its "Knowledge Base" badge
+        // tracks the toggle immediately.
+        if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
       };
       // Apply the persisted default on first paint. We only push it
       // upstream when the user previously chose ON — pushing OFF would

@@ -788,6 +788,17 @@ document.addEventListener("DOMContentLoaded", function () {
     if (websearchCb && websearchCb.checked) indicators += '<span class="mc-badge mc-badge--blue me-1">Web Search</span>';
     var mathCb = $id("math");
     if (mathCb && mathCb.checked) indicators += '<span class="mc-badge mc-badge--grey me-1">Math</span>';
+    // Knowledge Base access indicator. Two distinct paths hit the Library:
+    //  - any app with the shared library_search tool, when the sidebar
+    //    "Use Knowledge Base for retrieval" toggle is ON (checked AND enabled
+    //    — a checked-but-disabled toggle means this app can't use it);
+    //  - the Knowledge Base app itself, which always has full DB access via
+    //    its own tools regardless of the toggle (the toggle is disabled there).
+    var kbToggle = $id("library-rag-toggle");
+    var isKbApp = !!(appsSelect && /^KnowledgeBase/.test(appsSelect.value || ""));
+    if (isKbApp || (kbToggle && kbToggle.checked && !kbToggle.disabled)) {
+      indicators += '<span class="mc-badge mc-badge--green me-1">Knowledge Base</span>';
+    }
     var reasoningEffortSel = $id("reasoning-effort");
     var re = reasoningEffortSel ? reasoningEffortSel.value : "";
     if (reasoningEffortSel && !reasoningEffortSel.disabled && re && re !== "none" && re !== "disabled") {

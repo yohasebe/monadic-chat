@@ -2957,8 +2957,31 @@ h1 {
 /* Content area - collapsed by default, expanded via JavaScript */
 
 .thinking-block .thinking-block-content {
-  transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+  /* Collapse/expand via an animatable grid row (0fr <-> 1fr) instead of a
+     measured max-height. This animates smoothly to the content's natural
+     height with no JS measurement, so there is no clipped "two-stage" open. */
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out;
+  padding: 0;
   background-color: #fafafa;  /* Very subtle background */
+}
+
+.thinking-block.expanded .thinking-block-content {
+  grid-template-rows: 1fr;
+}
+
+.thinking-block .thinking-block-inner {
+  /* The clipping wrapper must carry NO padding of its own: padding is not
+     shrinkable, so it would keep the row from collapsing to 0 (leaving the
+     first line visible when closed). Padding lives on the inner .card-text. */
+  overflow: hidden;
+  min-height: 0;
+}
+
+.thinking-block .thinking-block-inner .card-text {
+  padding: 1rem;
+  margin-bottom: 0;
 }
 
 /* Text styling for thinking content */

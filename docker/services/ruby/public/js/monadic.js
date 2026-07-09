@@ -859,6 +859,29 @@ document.addEventListener("DOMContentLoaded", function () {
     unlockSessionSettings();
   }
 
+  // Keep the summary-bar chevron in sync with #config-body. The rotation CSS
+  // keys off #config-summary[aria-expanded], but Bootstrap only maintains
+  // aria-expanded on togglers that carried data-bs-toggle when the Collapse
+  // instance was FIRST created — and #config-summary gains data-bs-toggle only
+  // once a session starts (enterConversationMode), after the instance already
+  // exists with an empty trigger list. So Bootstrap never updates it and the
+  // chevron would stay frozen. Drive aria-expanded from the collapse events
+  // instead (guarding against bubbled events from nested collapses).
+  (function () {
+    var configBody = $id("config-body");
+    if (!configBody) return;
+    configBody.addEventListener("show.bs.collapse", function (e) {
+      if (e.target !== configBody) return;
+      var summary = $id("config-summary");
+      if (summary) summary.setAttribute("aria-expanded", "true");
+    });
+    configBody.addEventListener("hide.bs.collapse", function (e) {
+      if (e.target !== configBody) return;
+      var summary = $id("config-summary");
+      if (summary) summary.setAttribute("aria-expanded", "false");
+    });
+  })();
+
   // Expose for use in other modules
   window.updateConfigSummary = updateConfigSummary;
   window.enterConversationMode = enterConversationMode;

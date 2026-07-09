@@ -174,6 +174,59 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // -------------------------------------------------------------------------
+  // GPT-5.6 family (Sol / Terra / Luna, released 2026-07-09). All three:
+  // 1.05M context, 128K output, text+image in / text out, Responses API,
+  // knowledge cutoff 2026-02-16. Positioning per OpenAI: Sol = flagship for
+  // complex reasoning/agentic coding ($5/$30 per 1M), Terra = default tier
+  // balancing intelligence and cost ($2.50/$15), Luna = cost-optimized
+  // ($1/$6). The reasoning enumeration was verified against the live API
+  // 2026-07-10: the error enum lists none…xhigh, and "max" (the announced Max
+  // mode) is additionally accepted and echoed by all three models; "ultra" is
+  // rejected (ChatGPT-side only), so it is intentionally absent here.
+  // -------------------------------------------------------------------------
+  "gpt-5.6-sol": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "minimal", "low", "medium", "high", "xhigh", "max"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
+  "gpt-5.6-terra": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "minimal", "low", "medium", "high", "xhigh", "max"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
+  "gpt-5.6-luna": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "minimal", "low", "medium", "high", "xhigh", "max"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
   // GPT-5.5 (new generation, 1M context, shares gpt-5.4 architecture)
   "gpt-5.5": {
     "context_window": [1, 1050000],
@@ -1133,9 +1186,9 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
-    "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.4-mini"],
-    "vision": ["gpt-5.4-mini"],
+    "chat": ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
+    "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
+    "vision": ["gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
     "image": ["gpt-image-2"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]

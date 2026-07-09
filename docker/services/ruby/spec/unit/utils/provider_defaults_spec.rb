@@ -27,7 +27,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
 
   describe '.get_provider_default' do
     it 'returns the first model for openai chat' do
-      expect(described_class.get_provider_default("openai", "chat")).to eq("gpt-5.4")
+      expect(described_class.get_provider_default("openai", "chat")).to eq("gpt-5.6-terra")
     end
 
     it 'returns the first model for anthropic chat' do
@@ -51,7 +51,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'defaults to chat category when category is omitted' do
-      expect(described_class.get_provider_default("openai")).to eq("gpt-5.4")
+      expect(described_class.get_provider_default("openai")).to eq("gpt-5.6-terra")
     end
   end
 
@@ -60,7 +60,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
       models = described_class.get_provider_models("openai", "chat")
       expect(models).to be_an(Array)
       expect(models.length).to be >= 2
-      expect(models.first).to eq("gpt-5.4")
+      expect(models.first).to eq("gpt-5.6-terra")
     end
 
     it 'returns the full model list for openai code' do
@@ -93,11 +93,11 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'handles uppercase provider names' do
-      expect(described_class.get_provider_default("OpenAI", "chat")).to eq("gpt-5.4")
+      expect(described_class.get_provider_default("OpenAI", "chat")).to eq("gpt-5.6-terra")
     end
 
     it 'handles provider names with surrounding whitespace' do
-      expect(described_class.get_provider_default("  openai  ", "chat")).to eq("gpt-5.4")
+      expect(described_class.get_provider_default("  openai  ", "chat")).to eq("gpt-5.6-terra")
     end
 
     it 'handles provider alias with whitespace' do
@@ -109,7 +109,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
 
   describe 'convenience accessors' do
     it '.default_chat_model returns the chat default' do
-      expect(described_class.default_chat_model("openai")).to eq("gpt-5.4")
+      expect(described_class.default_chat_model("openai")).to eq("gpt-5.6-terra")
     end
 
     it '.default_code_model returns the code default' do
@@ -117,7 +117,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_vision_model returns the vision default' do
-      expect(described_class.default_vision_model("openai")).to eq("gpt-5.4-mini")
+      expect(described_class.default_vision_model("openai")).to eq("gpt-5.6-luna")
     end
 
     it '.default_audio_model returns the audio_transcription default' do
@@ -163,7 +163,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
       described_class.reload!
 
       # Should still work after reload
-      expect(described_class.get_provider_default("openai")).to eq("gpt-5.4")
+      expect(described_class.get_provider_default("openai")).to eq("gpt-5.6-terra")
     end
 
     it 'clears JS file content cache so file changes are picked up' do

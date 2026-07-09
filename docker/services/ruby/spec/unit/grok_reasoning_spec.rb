@@ -305,4 +305,60 @@ RSpec.describe "Grok Reasoning Content Extraction" do
       expect(is_reasoning).to be false
     end
   end
+
+  # Grok emits its reasoning summary BEFORE a tool call, then process_functions
+  # re-enters api_request with a fresh local reasoning_content. Without a
+  # session-level accumulator, the pre-tool reasoning is lost and the persistent
+  # Thinking panel disappears once tools are involved. These lock the
+  # accumulate-across-tool-rounds + terminal-merge semantics (see
+  # process_responses_api_data / build_grok_text_response call site).
+  describe "Reasoning persistence across tool-call rounds" do
+    # Mirrors the inline accumulate step taken before process_functions.
+    def accumulate(session, reasoning_content)
+      return if reasoning_content.empty?
+      acc = session[:grok_reasoning].to_s
+      acc += "\n\n" unless acc.empty?
+      session[:grok_reasoning] = acc + reasoning_content.join
+    end
+
+    # Mirrors the inline terminal merge before build_grok_text_response.
+    def merged_reasoning(session, reasoning_content)
+      accumulated = session[:grok_reasoning].to_s
+      own = reasoning_content.join
+      merged = if accumulated.empty?
+                 own
+               elsif own.empty?
+                 accumulated
+               else
+                 "#{accumulated}\n\n#{own}"
+               end
+      merged.strip.empty? ? [] : [merged]
+    end
+
+    it "carries pre-tool reasoning into the final answer after a tool round" do
+      session = {}
+      # Round 1: reasoning emitted, then a tool call recurses.
+      accumulate(session, ["Deciding to call a tool"])
+      # Round 2 (terminal): the final round has its own (possibly empty) trace.
+      expect(merged_reasoning(session, [])).to eq(["Deciding to call a tool"])
+    end
+
+    it "merges reasoning from multiple tool rounds with the final round" do
+      session = {}
+      accumulate(session, ["Round 1 reasoning"])
+      accumulate(session, ["Round 2 reasoning"])
+      result = merged_reasoning(session, ["Final reasoning"])
+      expect(result.first).to eq("Round 1 reasoning\n\nRound 2 reasoning\n\nFinal reasoning")
+    end
+
+    it "returns empty (no Thinking panel) when there was never any reasoning" do
+      session = {}
+      expect(merged_reasoning(session, [])).to eq([])
+    end
+
+    it "uses only the terminal reasoning when no tool round accumulated any" do
+      session = {}
+      expect(merged_reasoning(session, ["Only final reasoning"])).to eq(["Only final reasoning"])
+    end
+  end
 end

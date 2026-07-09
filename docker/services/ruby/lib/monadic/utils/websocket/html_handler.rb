@@ -192,9 +192,9 @@ module WebSocketHelper
                                  ![false, "false"].include?(show_thinking_param)
         if thinking && !thinking.to_s.strip.empty? && show_thinking_enabled
           new_data["thinking"] = thinking
-          if CONFIG["EXTRA_LOGGING"]
-            DebugHelper.debug("WebSocket: Attaching thinking block (length=#{thinking.to_s.length})", category: :ui, level: :info)
-          end
+          Monadic::Utils::ExtraLogger.log { "[Thinking] attached to final card (len=#{thinking.to_s.length})" }
+        elsif thinking && !thinking.to_s.strip.empty?
+          Monadic::Utils::ExtraLogger.log { "[Thinking] present but SKIPPED (show_thinking=#{show_thinking_param.inspect})" }
         end
 
         # Optional: Use provider-reported usage to set assistant tokens

@@ -1327,6 +1327,12 @@ module OpenAIHelper
       session[:tool_call_sequence] = []
       session[:parallel_dispatch_called] = nil
       session[:images_injected_this_turn] = Set.new
+      # Reset the cross-round reasoning accumulator. gpt-5.x reasoning models
+      # emit their trace before a tool call; the recursion re-enters with a
+      # fresh local `state`, so without accumulating here only the final round's
+      # reasoning survives and the persistent Thinking panel disappears once
+      # tools are involved. Mirrors the DeepSeek/Grok fix.
+      session[:openai_reasoning] = nil
 
       # Reset help topics call tracking for new user turn
       # This allows the AI to perform fresh searches for each user question
@@ -2353,7 +2359,7 @@ module OpenAIHelper
     return tool_result if tool_result
 
     # Return text response
-    build_openai_text_response(state, query, obj, &block)
+    build_openai_text_response(state, query, obj, session, &block)
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[OpenAI] Unexpected error: #{e.message}\n[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
@@ -2874,6 +2880,18 @@ module OpenAIHelper
       end.flatten.join("\n\n").strip
       message["reasoning_content"] = reasoning_text_combined unless reasoning_text_combined.empty?
       obj["reasoning_context"] = JSON.parse(JSON.generate(reasoning_entries.last(REASONING_CONTEXT_MAX)))
+      # Carry this round's reasoning across the tool-call recursion (which
+      # re-enters with a fresh local `state`) so the final answer's Thinking
+      # panel reflects the whole trace. Read the raw segment text (the same
+      # source build_openai_text_response uses for the final panel) rather than
+      # reasoning_text_combined, which is empty for summary-structured reasoning
+      # items. Mirrors the DeepSeek/Grok fix.
+      round_reasoning = state[:reasoning_segments].map { |seg| seg[:text].to_s.strip }.reject(&:empty?).join("\n\n")
+      unless round_reasoning.empty?
+        acc = session[:openai_reasoning].to_s
+        acc += "\n\n" unless acc.empty?
+        session[:openai_reasoning] = acc + round_reasoning
+      end
     end
 
     # Preserve original message items so phase (and future fields) survive replay.
@@ -2896,7 +2914,7 @@ module OpenAIHelper
   end
 
   # Build the final text response from accumulated Responses API state.
-  private def build_openai_text_response(state, query, obj, &block)
+  private def build_openai_text_response(state, query, obj, session, &block)
     if state[:texts].any?
       complete_text = state[:texts].values.join("")
 
@@ -2920,8 +2938,14 @@ module OpenAIHelper
       end
 
       reasoning_texts = state[:reasoning_segments].map { |segment| segment[:text].to_s.strip }.reject(&:empty?)
+      # Merge reasoning accumulated across earlier tool rounds with this final
+      # round's own trace, so the persistent Thinking panel survives tool use.
+      # Runs even when the final round has no reasoning of its own (the exact
+      # bug case). Mirrors the DeepSeek/Grok fix.
+      merged_reasoning = [session[:openai_reasoning].to_s, reasoning_texts.join("\n\n")]
+                         .reject { |s| s.strip.empty? }.join("\n\n")
+      response["choices"][0]["message"]["reasoning_content"] = merged_reasoning unless merged_reasoning.strip.empty?
       if reasoning_texts.any?
-        response["choices"][0]["message"]["reasoning_content"] = reasoning_texts.join("\n\n")
         obj["reasoning_context"] = JSON.parse(JSON.generate(state[:reasoning_segments].filter_map do |segment|
           text = segment[:text].to_s.strip
           next if text.empty?

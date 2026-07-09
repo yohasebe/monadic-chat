@@ -147,8 +147,13 @@ module MistralHelper
     # For reasoning models, use reasoning_effort instead of temperature.
     # Filter out "none" — Mistral only supports low/medium/high.
     # When "none", skip reasoning_effort and use temperature instead.
+    # Gate on the model spec actually DECLARING reasoning_effort: Magistral
+    # models reason by default and the API rejects the parameter outright
+    # ("reasoning_effort is not enabled for this model", HTTP 400 — verified
+    # live 2026-07-09), so supports_thinking alone must not trigger sending it.
     mistral_effort = options["reasoning_effort"]
-    if is_reasoning_model && mistral_effort && mistral_effort != "none"
+    model_declares_effort = (Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort") rescue false)
+    if is_reasoning_model && model_declares_effort && mistral_effort && mistral_effort != "none"
       body["reasoning_effort"] = mistral_effort
     else
       # For non-reasoning models or when reasoning disabled, use temperature
@@ -281,6 +286,12 @@ module MistralHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      # Reset the cross-round reasoning accumulator. Magistral emits its trace
+      # before a tool call; the recursion re-enters api_request with a fresh
+      # local `thinking`, so without accumulating here only the final round's
+      # reasoning survives and the persistent Thinking panel disappears once
+      # tools are involved. Mirrors the DeepSeek/Grok fix.
+      session[:mistral_reasoning] = nil
     end
 
     num_retrial = 0
@@ -389,8 +400,13 @@ module MistralHelper
     
     # For reasoning models, use reasoning_effort instead of temperature.
     # Filter out "none" — Mistral only supports low/medium/high.
+    # Gate on the model spec actually DECLARING reasoning_effort: Magistral
+    # models reason by default and the API rejects the parameter outright
+    # ("reasoning_effort is not enabled for this model", HTTP 400 — verified
+    # live 2026-07-09), so supports_thinking alone must not trigger sending it.
     mistral_effort = obj["reasoning_effort"]
-    if is_reasoning_model && mistral_effort && mistral_effort != "none"
+    model_declares_effort = (Monadic::Utils::ModelSpec.model_has_property?(obj["model"], "reasoning_effort") rescue false)
+    if is_reasoning_model && model_declares_effort && mistral_effort && mistral_effort != "none"
       body["reasoning_effort"] = mistral_effort
       # Log if extra logging is enabled
       DebugHelper.debug("Mistral: Using reasoning_effort '#{mistral_effort}' for model #{obj["model"]}", category: :api, level: :info)
@@ -582,13 +598,55 @@ module MistralHelper
               end
             end
 
+            # Magistral streams its reasoning INSIDE the content array
+            # (verified against the live API 2026-07-09):
+            #   delta.content = [{ "type" => "thinking",
+            #                      "thinking" => [{"type"=>"text","text"=>...}] }]
+            # while the final answer arrives as plain-string content deltas.
+            # Extract thinking items here — they feed the Thinking panel — and
+            # exclude them from the answer text below. Without this split the
+            # generic Array flattening looked at c["text"]/c["content"] (both
+            # nil for thinking items) and silently discarded the whole trace.
+            if delta["content"].is_a?(Array)
+              array_thinking_text = delta["content"].filter_map do |item|
+                next unless item.is_a?(Hash) && item["type"] == "thinking"
+
+                Array(item["thinking"]).filter_map do |chunk|
+                  chunk["text"] if chunk.is_a?(Hash) && chunk["type"] == "text"
+                end.join
+              end.join
+
+              unless array_thinking_text.empty?
+                # Concatenate the round's whole trace into ONE block: the
+                # deltas arrive token-by-token, and pushing each as its own
+                # array element would render one word per paragraph in the
+                # panel (build joins blocks with "\n\n").
+                if thinking.empty?
+                  thinking << +array_thinking_text
+                else
+                  thinking.last << array_thinking_text
+                end
+                res = {
+                  "type" => "thinking",
+                  "content" => array_thinking_text
+                }
+                block&.call res
+              end
+            end
+
             # Check if this delta contains content
             if delta["content"]
               content = delta["content"]
 
-              # Handle case where content might be an Array (some Mistral API responses)
+              # Handle case where content might be an Array (some Mistral API
+              # responses). Thinking items were already extracted above —
+              # exclude them here so reasoning never leaks into the answer.
               if content.is_a?(Array)
-                content = content.map { |c| c.is_a?(Hash) ? (c["text"] || c["content"] || "") : c.to_s }.join
+                content = content.filter_map do |c|
+                  next if c.is_a?(Hash) && c["type"] == "thinking"
+
+                  c.is_a?(Hash) ? (c["text"] || c["content"] || "") : c.to_s
+                end.join
               end
               content = content.to_s unless content.is_a?(String)
 
@@ -776,6 +834,13 @@ module MistralHelper
         res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
         block&.call res
         return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
+      end
+
+      # Carry this round's reasoning across the tool-call recursion (which
+      # re-enters api_request with a fresh local `thinking`) so the final
+      # answer's Thinking panel reflects the whole trace. Mirrors DeepSeek/Grok.
+      if thinking && !thinking.empty?
+        (session[:mistral_reasoning] ||= []).concat(thinking)
       end
 
       # Make recursive API call with tool responses
@@ -1064,6 +1129,23 @@ module MistralHelper
         end
 
         { "role" => msg["role"], "content" => content }
+      elsif msg["role"] == "assistant" && msg["thinking"].to_s.strip != "" &&
+            (Monadic::Utils::ModelSpec.supports_thinking?(obj["model"]) rescue false)
+        # Magistral stops reasoning as soon as the history contains an
+        # assistant turn WITHOUT a thinking block (verified live 2026-07-09:
+        # the same request produced 511 thinking deltas with the block
+        # replayed and 0 without; prompt_mode:"reasoning" does not restore
+        # it). Replay each turn's stored trace so multi-turn reasoning stays
+        # alive. Only real, previously-captured thinking is replayed — never
+        # synthesized.
+        {
+          "role" => "assistant",
+          "content" => [
+            { "type" => "thinking",
+              "thinking" => [{ "type" => "text", "text" => msg["thinking"].to_s }] },
+            { "type" => "text", "text" => msg["text"] }
+          ]
+        }
       else
         { "role" => msg["role"], "content" => msg["text"] }
       end
@@ -1287,6 +1369,15 @@ module MistralHelper
         "completion_tokens" => usage_completion_tokens,
         "total_tokens" => usage_total_tokens
       }.compact
+    end
+
+    # Prepend reasoning accumulated across earlier tool rounds so the persistent
+    # Thinking panel shows the whole trace, not just the final (often
+    # reasoning-free) round. Consume the accumulator so it can't bleed into a
+    # later turn (the user-turn reset is the safety net for error terminals).
+    if session[:mistral_reasoning].is_a?(Array) && !session[:mistral_reasoning].empty?
+      thinking = session[:mistral_reasoning] + thinking
+      session.delete(:mistral_reasoning)
     end
 
     if thinking && !thinking.empty?

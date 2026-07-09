@@ -434,7 +434,13 @@ module GrokHelper
           candidates = spec.keys.select do |m|
             m.start_with?("grok-") && Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") == true
           end
-          vision_model = candidates.include?("grok-4.3") ? "grok-4.3" : candidates.first
+          vision_model = if candidates.include?("grok-4.5")
+                           "grok-4.5"
+                         elsif candidates.include?("grok-4.3")
+                           "grok-4.3"
+                         else
+                           candidates.first
+                         end
         rescue StandardError
           vision_model = nil
         end
@@ -539,7 +545,26 @@ module GrokHelper
         return process_functions(app, session, tool_calls, nil, session[:call_depth_per_turn], &block) || []
       end
 
-      [{ "choices" => [{ "message" => { "role" => "assistant", "content" => frag }, "finish_reason" => "stop" }] }]
+      # Attach reasoning accumulated across earlier tool rounds. Grok emits its
+      # reasoning summary BEFORE a tool call, and process_functions recurses
+      # here with disable_streaming, so this non-streaming terminal is where the
+      # post-tool answer is assembled — the accumulated trace must be attached
+      # here for the persistent Thinking panel to survive tool use. Also capture
+      # any reasoning summary present in this round's own output. Mirrors the
+      # DeepSeek fix (session[:deepseek_reasoning]).
+      # Prefer the reasoning accumulated up to the tool decision. This round's
+      # own summary is used only as a fallback (when no earlier round reasoned),
+      # because Grok tends to re-derive the same "The user asked…" summary each
+      # round — concatenating both would show a near-duplicate trace.
+      own_reasoning = output.select { |item| item["type"] == "reasoning" }
+                            .flat_map { |item| Array(item["summary"]) }
+                            .map { |s| s.is_a?(Hash) ? s["text"].to_s : s.to_s }
+                            .join
+      accumulated_reasoning = session[:grok_reasoning].to_s
+      merged_thinking = accumulated_reasoning.strip.empty? ? own_reasoning : accumulated_reasoning
+      final_message = { "role" => "assistant", "content" => frag }
+      final_message["thinking"] = merged_thinking unless merged_thinking.strip.empty?
+      [{ "choices" => [{ "message" => final_message, "finish_reason" => "stop" }] }]
     else
       body["original_user_model"] = original_user_model
       process_responses_api_data(app: app, session: session, query: body, res: res.body, call_depth: call_depth, &block)
@@ -975,6 +1000,12 @@ module GrokHelper
       session[:images_injected_this_turn] = Set.new
       session[:parameters]["function_returns"] = nil
       session[:parameters]["assistant_function_calls"] = nil
+      # Reset the cross-round reasoning accumulator. Grok emits its reasoning
+      # summary before a tool call; without accumulating it across the
+      # tool-call recursion, only the final (often reasoning-free) round's
+      # trace survives and the persistent Thinking panel disappears once tools
+      # are involved. Mirrors the DeepSeek fix (session[:deepseek_reasoning]).
+      session[:grok_reasoning] = nil
     end
 
     current_call_depth = session[:call_depth_per_turn] || 0
@@ -1541,15 +1572,41 @@ module GrokHelper
           lines.join("\n")
         }
 
+        # Carry this round's reasoning across the tool-call recursion so the
+        # final answer's Thinking panel reflects the whole trace rather than
+        # just the last (often reasoning-free) round. process_functions
+        # re-enters api_request with a fresh local reasoning_content, so the
+        # accumulation must live on the session. Merged back in the terminal
+        # branch below. Mirrors the DeepSeek fix.
+        unless reasoning_content.empty?
+          acc = session[:grok_reasoning].to_s
+          acc += "\n\n" unless acc.empty?
+          session[:grok_reasoning] = acc + reasoning_content.join
+        end
+
         # Process the tools and get results
         new_results = process_functions(app, session, tool_calls, nil, session[:call_depth_per_turn], &block)
         return new_results || []
       end
     end
 
+    # Merge reasoning accumulated across earlier tool rounds with this final
+    # round's own reasoning, so the persistent Thinking panel shows the whole
+    # trace instead of just the terminal round.
+    accumulated = session[:grok_reasoning].to_s
+    own = reasoning_content.join
+    merged = if accumulated.empty?
+               own
+             elsif own.empty?
+               accumulated
+             else
+               "#{accumulated}\n\n#{own}"
+             end
+    merged_reasoning = merged.strip.empty? ? [] : [merged]
+
     build_grok_text_response(
       texts: texts, query: query, finish_reason: finish_reason,
-      reasoning_content: reasoning_content,
+      reasoning_content: merged_reasoning,
       usage_input_tokens: usage_input_tokens, usage_output_tokens: usage_output_tokens,
       usage_total_tokens: usage_total_tokens, &block
     )

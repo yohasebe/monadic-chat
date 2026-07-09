@@ -325,6 +325,12 @@ module OllamaHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:tool_call_sequence] = []
+      # Reset the cross-round reasoning accumulator. Reasoning models emit their
+      # trace before a tool call; process_functions recurses with a fresh local
+      # thinking_texts, so without accumulating here only the final round's
+      # reasoning survives and the persistent Thinking panel disappears once
+      # tools are involved. Mirrors the DeepSeek/Grok fix.
+      session[:ollama_reasoning] = nil
     end
 
     session[:messages].delete_if do |msg|
@@ -715,6 +721,16 @@ module OllamaHelper
       end
       context << assistant_msg
 
+      # Carry this round's reasoning across the tool-call recursion (which
+      # re-enters with a fresh local thinking_texts) so the final answer's
+      # Thinking panel reflects the whole trace. Mirrors the DeepSeek/Grok fix.
+      round_reasoning = thinking_texts.join("")
+      unless round_reasoning.empty?
+        acc = session[:ollama_reasoning].to_s
+        acc += "\n\n" unless acc.empty?
+        session[:ollama_reasoning] = acc + round_reasoning
+      end
+
       return process_functions(app, session, accumulated_tool_calls, context, session[:call_depth_per_turn], &block)
     end
 
@@ -725,7 +741,17 @@ module OllamaHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       message = { "content" => result }
-      message["reasoning_content"] = thinking_result unless thinking_result.empty?
+      # Merge reasoning accumulated across earlier tool rounds with this final
+      # round's own trace, so the persistent Thinking panel survives tool use.
+      accumulated = session[:ollama_reasoning].to_s
+      merged = if accumulated.empty?
+                 thinking_result
+               elsif thinking_result.empty?
+                 accumulated
+               else
+                 "#{accumulated}\n\n#{thinking_result}"
+               end
+      message["reasoning_content"] = merged unless merged.strip.empty?
       result = {
         "choices" => [{
           "message" => message,

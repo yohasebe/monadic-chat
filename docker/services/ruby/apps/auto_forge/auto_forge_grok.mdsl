@@ -19,7 +19,7 @@ app "AutoForgeGrok" do
     reasoning_effort "low"
   end
 
-  # xAI Responses API client-driven Context Compaction (grok-4.3, 2026-05).
+  # xAI Responses API client-driven Context Compaction (2026-05).
   # Autonomous build sessions run long agentic loops with bulky code/tool
   # outputs; compaction folds older turns into an opaque summary blob to keep
   # cost/latency bounded. Mirrors the OpenAI variant's higher threshold. No-op

@@ -907,6 +907,26 @@ const modelSpec = {
     "supports_parallel_function_calling": true,
     "structured_output": true
   },
+  // grok-4.5 (Grok 4.5) — xAI's V9-architecture frontier model (2026-07).
+  // 500K context, text+image in / text out. Reasoning model (emits
+  // reasoning_content) with selectable reasoning_effort (low/medium/high),
+  // tool calling, web search, and structured output. Pricing ~$2 in / $6 out /
+  // ~$0.50 cached per 1M (long-context tier ~doubles above the 200K threshold).
+  // presence_penalty / frequency_penalty omitted to match the grok-4.3
+  // sampling-restriction posture. Verified against the live xAI API 2026-07-09.
+  "grok-4.5": {
+    "context_window" : [1, 500000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true,
+    "structured_output": true
+  },
   // grok-build-0.1 (Grok Build 0.1) — xAI's fast agentic-coding model
   // (public beta). Rebrand/successor of grok-code-fast-1 (xAI lists
   // grok-code-fast-1 as an alias). 256k context, text+image in / text out,
@@ -1147,9 +1167,9 @@ const providerDefaults = {
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },
   "xai": {
-    "chat": ["grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
-    "code": ["grok-build-0.1", "grok-4.3"],
-    "vision": ["grok-4.3"],
+    "chat": ["grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
+    "code": ["grok-build-0.1", "grok-4.5", "grok-4.3"],
+    "vision": ["grok-4.5", "grok-4.3"],
     "image": ["grok-imagine-image"],
     // text-to-video default. Image-to-video is routed to grok-imagine-video-1.5
     // in scripts/generators/video_generator_grok.rb (i2v-only, native audio,

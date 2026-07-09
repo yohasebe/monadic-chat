@@ -58,11 +58,11 @@ app "CodingAssistantGrok" do
     temperature 0.0
 
     agents do
-      code_generator model: "grok-4.3"
+      code_generator model: "grok-4.5"
     end
   end
 
-  # xAI Responses API client-driven Context Compaction (grok-4.3, 2026-05).
+  # xAI Responses API client-driven Context Compaction (2026-05).
   # Long coding sessions accumulate large file/diff context; folding older turns
   # into an opaque summary blob keeps cost/latency down without dropping context.
   # Mirrors the OpenAI variant's threshold.

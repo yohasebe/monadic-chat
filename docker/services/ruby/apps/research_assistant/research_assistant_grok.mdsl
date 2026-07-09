@@ -115,7 +115,7 @@ app "ResearchAssistantGrok" do
     context_size 30
 
     agents do
-      code_generator model: "grok-4.3"
+      code_generator model: "grok-4.5"
     end
   end
 

@@ -42,11 +42,11 @@ app "JupyterNotebookGrok" do
     context_size 20
 
     agents do
-      code_generator model: "grok-4.3"
+      code_generator model: "grok-4.5"
     end
   end
 
-  # xAI Responses API client-driven Context Compaction (grok-4.3, 2026-05).
+  # xAI Responses API client-driven Context Compaction (2026-05).
   # Notebook sessions accumulate cell outputs across many turns; compaction
   # folds the older history into an opaque summary blob (superseding the small
   # context_size window above once the threshold is crossed). Mirrors the OpenAI

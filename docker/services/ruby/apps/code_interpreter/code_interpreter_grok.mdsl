@@ -41,11 +41,11 @@ app "CodeInterpreterGrok" do
     max_tokens 4096  # Ensure enough tokens for tool responses
 
     agents do
-      code_generator model: "grok-4.3"
+      code_generator model: "grok-4.5"
     end
   end
 
-  # xAI Responses API client-driven Context Compaction (grok-4.3, 2026-05).
+  # xAI Responses API client-driven Context Compaction (2026-05).
   # Multi-step data analysis (run_code + verification + replotting) accumulates
   # token-heavy outputs over long sessions; folding older turns into an opaque
   # summary blob keeps cost/latency down without dropping context. Mirrors the

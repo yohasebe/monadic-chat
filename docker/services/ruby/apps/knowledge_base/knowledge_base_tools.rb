@@ -15,7 +15,7 @@ module KnowledgeBaseTools
   def list_conversations(limit: 100)
     rows = with_kb_store { |store|
       Monadic::Library::Manager.list_conversations(
-        store: store, scope: :kb, limit: limit.to_i.clamp(1, 500)
+        store: store, limit: limit.to_i.clamp(1, 500)
       )
     }
     return 'The Knowledge Base is empty.' if rows.empty?
@@ -27,7 +27,7 @@ module KnowledgeBaseTools
   def search_library(query:, top_n: 3)
     hits = with_kb_store { |store|
       Monadic::Library::Retriever.cascade_search(
-        query, store: store, scope: :kb, top_n: top_n.to_i.clamp(1, 10)
+        query, store: store, top_n: top_n.to_i.clamp(1, 10)
       )
     }
     format_search_results(query, hits)
@@ -38,7 +38,7 @@ module KnowledgeBaseTools
   def get_conversation_details(conversation_id:)
     row = with_kb_store { |store|
       Monadic::Library::Manager.get_conversation_details(
-        store: store, conversation_id: conversation_id, scope: :kb
+        store: store, conversation_id: conversation_id
       )
     }
     return "❌ No conversation found with id #{conversation_id}." if row.nil?

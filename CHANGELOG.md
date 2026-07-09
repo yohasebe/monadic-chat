@@ -5,6 +5,9 @@
   - **Show Thinking and Reasoning Effort stay coherent**: the Show Thinking toggle now appears for all reasoning models (including OpenAI gpt-5.x), turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, setting the effort back to "None" turns the toggle off, and the toggle starts out matching the effective effort — the UI can no longer promise thinking the model is configured not to produce.
   - **Smoother Thinking Process panel**: the collapsed panel opens and closes in a single smooth motion (previously a jerky two-stage expand) and collapses fully, and the trace inside is rendered as Markdown (bold, lists, code) instead of showing raw markers as plain text.
   - **Update button hardening**: the "Download & Install" button in the update notification is disabled while a download is in flight (an accidental double-click is ignored) and re-enabled if the download fails so it can be retried.
+  - **Knowledge Base app works again**: listing, searching, and inspecting conversations inside the Knowledge Base app had been failing with an internal error (masked as a "temporary search error") ever since the feature shipped; the stale request parameter responsible is removed and all three operations work.
+  - **Workflow Viewer no longer shows an empty diagram**: opening or switching the viewer at an unlucky moment (while the settings panel was collapsed or animating) could leave — and even memorise — a blank canvas; the viewer now validates that its content is actually visible and re-fits itself automatically.
+  - **The settings-panel chevron now follows the panel**: the collapse indicator in the conversation header bar rotates with the panel's open/closed state instead of staying frozen.
   - **Removed the deprecated ElevenLabs `scribe_v1` speech-to-text model** (sunset July 9, 2026); `scribe_v2` remains the default and `scribe_v1_experimental` is still available.
 
 - [July, 2026] 1.0.0-beta.26

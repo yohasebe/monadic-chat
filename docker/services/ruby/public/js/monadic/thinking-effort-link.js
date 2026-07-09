@@ -35,26 +35,85 @@ function effortBumpForThinking(spec, currentEffort) {
   return firstThinking || null;
 }
 
-// Wire the change listener. Idempotent: safe to call more than once.
-function wireShowThinkingEffortLink() {
-  const toggle = (typeof $id === 'function') ? $id('show-thinking') : document.getElementById('show-thinking');
-  if (!toggle || toggle._mcEffortLinkWired) return;
-  toggle._mcEffortLinkWired = true;
-  toggle.addEventListener('change', function () {
-    if (!toggle.checked) return; // OFF never touches the effort
-    const modelEl = (typeof $id === 'function') ? $id('model') : document.getElementById('model');
-    const effortEl = (typeof $id === 'function') ? $id('reasoning-effort') : document.getElementById('reasoning-effort');
-    if (!modelEl || !effortEl) return;
-    const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[modelEl.value] : null;
-    const bump = effortBumpForThinking(spec, effortEl.value);
-    if (!bump) return;
-    effortEl.value = bump;
-    // Propagate like a user selection so params / the model-selected label update.
-    effortEl.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+// True when the model's declared enumeration includes "none" and the current
+// effort IS "none" — i.e. the model will produce no reasoning, so a checked
+// Show Thinking toggle would be a silent contradiction.
+function effortSuppressesThinking(spec, currentEffort) {
+  if (!spec || !Array.isArray(spec.reasoning_effort)) return false;
+  const options = spec.reasoning_effort[0];
+  if (!Array.isArray(options) || !options.includes('none')) return false;
+  return currentEffort === 'none';
 }
 
-const ThinkingEffortLink = { effortBumpForThinking, wireShowThinkingEffortLink };
+function getEl(id) {
+  return (typeof $id === 'function') ? $id(id) : document.getElementById(id);
+}
+
+// One-shot coherence sync, called from the model-selection handler (which
+// also runs on initial load): when the effective effort is "none", the
+// Show Thinking toggle is turned OFF so the UI never claims it will show
+// thinking that the model is configured not to produce. The model's default
+// effort is never touched here — display follows reality, not vice versa.
+function syncShowThinkingToEffort() {
+  const toggle = getEl('show-thinking');
+  const modelEl = getEl('model');
+  const effortEl = getEl('reasoning-effort');
+  if (!toggle || !modelEl || !effortEl) return;
+  const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[modelEl.value] : null;
+  if (effortSuppressesThinking(spec, effortEl.value) && toggle.checked) {
+    toggle.checked = false;
+  }
+}
+
+// Wire both directions of the link. Idempotent: safe to call more than once.
+//  - Show Thinking turned ON while effort is "none"  → bump effort to the
+//    model's lowest thinking level (user intent: see the reasoning).
+//  - Effort set to "none" while Show Thinking is ON  → turn the toggle OFF
+//    (user intent: no reasoning, so nothing will be shown).
+// Turning Show Thinking OFF never touches the effort: reasoning affects
+// answer quality, not just display.
+function wireShowThinkingEffortLink() {
+  const toggle = getEl('show-thinking');
+  if (toggle && !toggle._mcEffortLinkWired) {
+    toggle._mcEffortLinkWired = true;
+    toggle.addEventListener('change', function () {
+      if (!toggle.checked) return; // OFF never touches the effort
+      const modelEl = getEl('model');
+      const effortEl = getEl('reasoning-effort');
+      if (!modelEl || !effortEl) return;
+      const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[modelEl.value] : null;
+      const bump = effortBumpForThinking(spec, effortEl.value);
+      if (!bump) return;
+      effortEl.value = bump;
+      // Propagate like a user selection so params / the model-selected label update.
+      effortEl.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  const effortEl = getEl('reasoning-effort');
+  if (effortEl && !effortEl._mcEffortLinkWired) {
+    effortEl._mcEffortLinkWired = true;
+    effortEl.addEventListener('change', function () {
+      // No loop with the bump above: the bump only ever sets a non-"none"
+      // value, and this branch only acts on "none".
+      if (effortEl.value !== 'none') return;
+      const toggle2 = getEl('show-thinking');
+      const modelEl = getEl('model');
+      if (!toggle2 || !modelEl || !toggle2.checked) return;
+      const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[modelEl.value] : null;
+      if (effortSuppressesThinking(spec, 'none')) {
+        toggle2.checked = false;
+      }
+    });
+  }
+}
+
+const ThinkingEffortLink = {
+  effortBumpForThinking,
+  effortSuppressesThinking,
+  syncShowThinkingToEffort,
+  wireShowThinkingEffortLink
+};
 
 if (typeof window !== 'undefined') {
   window.ThinkingEffortLink = ThinkingEffortLink;

@@ -129,4 +129,79 @@ describe('wireShowThinkingEffortLink (DOM behavior)', () => {
     toggleShowThinking(true);
     expect(handler).toHaveBeenCalledTimes(1);
   });
+
+  it('unchecks Show Thinking when the effort is set to "none" (reverse link)', () => {
+    const cb = document.getElementById('show-thinking');
+    cb.checked = true;
+    const effortEl = document.getElementById('reasoning-effort');
+    effortEl.value = 'none';
+    effortEl.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(cb.checked).toBe(false);
+  });
+
+  it('does not re-check the toggle when effort is raised manually (display pref preserved)', () => {
+    const cb = document.getElementById('show-thinking');
+    cb.checked = false;
+    const effortEl = document.getElementById('reasoning-effort');
+    effortEl.value = 'high';
+    effortEl.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(cb.checked).toBe(false);
+  });
+
+  it('no bump→uncheck loop: turning ON bumps effort and the toggle STAYS on', () => {
+    toggleShowThinking(true);
+    expect(document.getElementById('reasoning-effort').value).toBe('low');
+    expect(document.getElementById('show-thinking').checked).toBe(true);
+  });
+});
+
+describe('syncShowThinkingToEffort (initial/model-selection coherence)', () => {
+  let mod;
+
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <input type="checkbox" id="show-thinking" checked>
+      <select id="model"><option value="gpt-5.4" selected>gpt-5.4</option></select>
+      <select id="reasoning-effort">
+        <option value="none" selected>none</option>
+        <option value="low">low</option>
+      </select>
+    `;
+    window.modelSpec = {
+      'gpt-5.4': { reasoning_effort: [['none', 'low', 'medium', 'high'], 'none'] }
+    };
+    jest.resetModules();
+    delete window.ThinkingEffortLink;
+    mod = require(MODULE_PATH);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    delete window.modelSpec;
+    delete window.ThinkingEffortLink;
+  });
+
+  it('unchecks a checked toggle when the current effort is "none"', () => {
+    mod.syncShowThinkingToEffort();
+    expect(document.getElementById('show-thinking').checked).toBe(false);
+  });
+
+  it('leaves the toggle checked when the effort is a thinking level', () => {
+    document.getElementById('reasoning-effort').value = 'low';
+    mod.syncShowThinkingToEffort();
+    expect(document.getElementById('show-thinking').checked).toBe(true);
+  });
+
+  it('leaves the toggle alone for always-thinking models (no "none" in enum)', () => {
+    window.modelSpec['gpt-5.4'] = { reasoning_effort: [['low', 'medium', 'high'], 'low'] };
+    mod.syncShowThinkingToEffort();
+    expect(document.getElementById('show-thinking').checked).toBe(true);
+  });
+
+  it('never force-checks an unchecked toggle (sync only removes contradictions)', () => {
+    document.getElementById('show-thinking').checked = false;
+    document.getElementById('reasoning-effort').value = 'low';
+    mod.syncShowThinkingToEffort();
+    expect(document.getElementById('show-thinking').checked).toBe(false);
+  });
 });

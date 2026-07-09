@@ -2103,6 +2103,13 @@ document.addEventListener("DOMContentLoaded", function () {
       // the effort to the model's lowest thinking level.
       if (isReasoningModel) {
         $show($id("thinking-display-container"));
+        // Keep the toggle coherent with the effective effort: when the model's
+        // effort is "none" (no reasoning will be produced), the toggle must not
+        // sit checked claiming otherwise. Runs on initial load and every model
+        // selection. See thinking-effort-link.js.
+        if (window.ThinkingEffortLink && typeof window.ThinkingEffortLink.syncShowThinkingToEffort === 'function') {
+          window.ThinkingEffortLink.syncShowThinkingToEffort();
+        }
       } else {
         $hide($id("thinking-display-container"));
       }

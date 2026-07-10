@@ -117,9 +117,19 @@ function updateAppSelectIcon(appValue) {
   // setCookie, getCookie, setCookieValues → extracted to cookie-utils.js
 
 function listModels(models, openai = false) {
+  // Speech models (STT/TTS/realtime transcription) are selected in the Speech
+  // Settings panel, never in the chat-model selector — drop them here so an
+  // API-sourced list can't leak e.g. gpt-realtime-whisper into the dropdown.
+  models = models.filter(function (m) {
+    const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
+    if (!spec) return true;
+    return !(spec.stt_capability || spec.tts_capability || spec.supports_realtime_streaming);
+  });
+
   // Array of patterns to identify different model types
-  // GPT-5: gpt-5, gpt-5.1, gpt-5.2, gpt-5-mini, gpt-5.2-pro, gpt-5.2-chat-latest, etc.
-  const gpt5ModelPatterns = [/^gpt-5(?:\.\d)?(-(?:mini|nano|pro|chat-latest|codex(?:-mini|-max)?))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
+  // GPT-5: gpt-5, gpt-5.1, gpt-5.2, gpt-5-mini, gpt-5.2-pro, gpt-5.2-chat-latest,
+  // and the named GPT-5.6 family tiers (sol / terra / luna), etc.
+  const gpt5ModelPatterns = [/^gpt-5(?:\.\d)?(-(?:mini|nano|pro|chat-latest|sol|terra|luna|codex(?:-mini|-max)?))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
   // GPT-4: gpt-4o, gpt-4o-mini, etc.
   const gpt4ModelPatterns = [/^(?:chatgpt-4o|gpt-4)/];
 

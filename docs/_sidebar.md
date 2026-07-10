@@ -10,6 +10,7 @@
     - [Console Panel](/basic-usage/console-panel.md)
     - [Web Interface](/basic-usage/web-interface.md)
     - [Message Input](/basic-usage/message-input.md)
+    - [Workflow Viewer](/basic-usage/workflow-viewer.md)
     - [Basic Apps](/basic-usage/basic-apps.md)
     - [PDF Storage](/basic-usage/pdf_storage.md)
     - [Syntax Highlighting](/basic-usage/syntax-highlighting.md)

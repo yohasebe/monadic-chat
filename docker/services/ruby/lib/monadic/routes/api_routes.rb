@@ -196,6 +196,16 @@ get "/api/app/:name/graph" do
       input_types: input_types,
       output_types: output_types,
       tools: wv_extract_tools(s),
+      # Tools unlocked dynamically THIS SESSION via request_tool (progressive
+      # tool disclosure). HTTP routes share the Rack session object with the
+      # WebSocket handlers, so the live unlock state is visible here.
+      unlocked_tools: (begin
+        pt = session && session[:progressive_tools]
+        st = pt.is_a?(Hash) ? (pt[app_name] || pt[app_name.to_s]) : nil
+        st.is_a?(Hash) ? Array(st[:unlocked] || st["unlocked"]).map(&:to_s).reject(&:empty?) : []
+      rescue StandardError
+        []
+      end),
       shared_tool_groups: wv_extract_shared_tool_groups(s),
       agents: wv_extract_agents(s),
       features: wv_extract_features(s),

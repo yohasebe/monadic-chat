@@ -207,6 +207,24 @@ module Monadic
           Monadic::Utils::ExtraLogger.log { "[PTD] request_tool(#{requested.inspect}) -> unlocked #{unlocked.size} tool(s): #{unlocked.inspect}" }
         end
         if unlocked.any?
+          # Tell the frontend so live UI (the Workflow Viewer) can reflect the
+          # session's newly widened tool set immediately. Prefer the requesting
+          # session's own connection (unlocks are per-session state; in server
+          # mode other users must not receive them), falling back to broadcast
+          # only in single-user contexts where no session id is known.
+          begin
+            payload = {
+              "type" => "tool_unlocked", "app" => app_name.to_s, "tools" => unlocked
+            }.to_json
+            ws_sid = Thread.current[:websocket_session_id]
+            if ws_sid && defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
+              WebSocketHelper.send_to_session(payload, ws_sid)
+            elsif defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:broadcast_to_all)
+              WebSocketHelper.broadcast_to_all(payload)
+            end
+          rescue StandardError
+            # Never fail the unlock because a notification could not be sent.
+          end
           "Unlocked: #{unlocked.join(', ')}. These tools are now available — call them as needed."
         elsif requested.empty?
           "No skill name provided. Call request_tool with the name of the skill to unlock."

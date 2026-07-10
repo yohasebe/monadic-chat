@@ -926,6 +926,16 @@ window.loadedApp = "Chat";
         }
         break;
       }
+      case "tool_unlocked": {
+        // The session just widened its tool set via request_tool (progressive
+        // tool disclosure). Re-fetch the Workflow Viewer graph so the chart
+        // reflects the newly unlocked skills (open-lock / check markers).
+        if (typeof window.WorkflowViewer !== 'undefined' &&
+            typeof window.WorkflowViewer.reloadCurrent === 'function') {
+          window.WorkflowViewer.reloadCurrent();
+        }
+        break;
+      }
       case "library_title_suggested": {
         if (window.libraryPanel && typeof window.libraryPanel.handleTitleSuggested === 'function') {
           window.libraryPanel.handleTitleSuggested(data);

@@ -886,6 +886,17 @@ document.addEventListener("DOMContentLoaded", function () {
       var summary = $id("config-summary");
       if (summary) summary.setAttribute("aria-expanded", "true");
     });
+    // Refit the Workflow Viewer once the expand ANIMATION completes: the
+    // viewer's ResizeObserver fires at intermediate heights mid-animation and
+    // can fit the graph to a partially-expanded container (chart appears
+    // shrunken). shown.bs.collapse fires at the final size.
+    configBody.addEventListener("shown.bs.collapse", function (e) {
+      if (e.target !== configBody) return;
+      if (typeof window.WorkflowViewer !== "undefined" &&
+          typeof window.WorkflowViewer.refit === "function") {
+        window.WorkflowViewer.refit();
+      }
+    });
     configBody.addEventListener("hide.bs.collapse", function (e) {
       if (e.target !== configBody) return;
       var summary = $id("config-summary");

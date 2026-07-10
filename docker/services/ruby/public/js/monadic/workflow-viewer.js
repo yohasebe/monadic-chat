@@ -1712,6 +1712,13 @@ const WorkflowViewer = (function () {
       if (!this.isOpen() || !currentData) return;
       refreshGraph();
     },
+    // Force a fresh fit to the container's CURRENT size. Called when a
+    // surrounding panel finishes its expand animation (mid-animation resize
+    // events can have fitted the graph to a partially-expanded height).
+    refit: function () {
+      if (!this.isOpen() || !graph) return;
+      fitGraphToContainer();
+    },
     // Re-FETCH the current app's graph (server-side state such as the
     // session's dynamically unlocked tools changed). refresh() alone would
     // re-render stale data, so drop the dedup guard and load again.

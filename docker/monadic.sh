@@ -1614,7 +1614,7 @@ start_docker_compose() {
     fi
   else
     echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #ff9800;'></i> <strong>Selenium container image not found.</strong></p>"
-    echo "[HTML]: <p>Please build the Selenium container from the menu: <strong>Actions → Build Selenium Container</strong></p>"
+    echo "[HTML]: <p>Please run <strong>Actions → Build All</strong> from the menu to download the Selenium image.</p>"
     echo "[HTML]: <p>The system will continue without Selenium. Web scraping features will use Tavily API as fallback.</p><hr />"
   fi
 

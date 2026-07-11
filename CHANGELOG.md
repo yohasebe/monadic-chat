@@ -1,4 +1,5 @@
 - [July, 2026] 1.0.0-beta.27
+  - **Image fidelity control for analyze_image**: the image-analysis skill accepts an optional detail level (`original`, `auto`, `high`, `low`) — ask the AI to examine a shared-folder image at original fidelity when fine text or diagram details matter. Chat-attached images are downscaled in the browser before sending, so full-resolution analysis goes through the shared folder (now documented).
   - **Knowledge Base access badge**: the conversation header now shows a "Knowledge Base" badge whenever the session actually reads from the Library — retrieval toggled on, or the Knowledge Base app itself (which always has full access).
   - **Workflow Viewer reflects dynamically unlocked skills**: when a conversation acquires extra tools on demand (progressive tool disclosure), the viewer now re-fetches automatically and marks the unlocked skill groups and tools, so the chart always shows the session's actual capability set.
   - **OpenAI model selector cleanup**: the GPT-5.6 tiers are grouped under GPT-5 (instead of "Other Models") and speech models such as the realtime transcriber no longer appear in the chat-model list.

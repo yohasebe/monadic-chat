@@ -81,8 +81,13 @@ function updateSttEmptyState() {
   });
   if (enabled.length === 0) {
     // Nothing usable — show the placeholder instead of a random
-    // disabled model name
-    sel.value = '';
+    // disabled model name. Only when a placeholder option exists:
+    // setting value='' with no matching option would leave the select
+    // blank (selectedIndex -1), the very defect this code prevents.
+    const placeholder = Array.from(sel.options).find(function(o) {
+      return o.value === '';
+    });
+    if (placeholder) sel.value = '';
     return;
   }
   const selectedOption = sel.options[sel.selectedIndex];

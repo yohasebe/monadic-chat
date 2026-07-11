@@ -95,6 +95,22 @@ describe('updateSttEmptyState', () => {
     expect(sel.value).toBe('');
   });
 
+  test('leaves the selection alone when no placeholder option exists', () => {
+    // A select without the placeholder (e.g. stale cached markup) must not
+    // be set to value='' — that would blank the select (selectedIndex -1)
+    document.body.innerHTML = `
+      <select id="stt-model">
+        <option id="openai-stt-4o-mini" value="gpt-4o-mini-transcribe-2025-12-15" disabled selected>GPT-4o Mini Transcribe</option>
+        <option id="gemini-stt-flash" value="gemini-2.5-flash" disabled>Gemini 2.5 Flash</option>
+      </select>
+    `;
+    const sel = document.getElementById('stt-model');
+    const SttGate = loadSttGate();
+    SttGate.updateSttEmptyState();
+    expect(sel.selectedIndex).not.toBe(-1);
+    expect(sel.value).toBe('gpt-4o-mini-transcribe-2025-12-15');
+  });
+
   test('does not throw when #stt-model is absent', () => {
     document.body.innerHTML = '';
     const SttGate = loadSttGate();

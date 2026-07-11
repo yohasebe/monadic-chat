@@ -1,7 +1,7 @@
 module MonadicHelper
-  def analyze_image(message: "", image_path: "", model: nil)
+  def analyze_image(message: "", image_path: "", model: nil, detail: nil)
     message = message.gsub(/"/, '\"')
-    image_analysis_agent(message: message, image_path: image_path)
+    image_analysis_agent(message: message, image_path: image_path, detail: detail)
   end
 
   def analyze_audio(audio: "", model: nil)

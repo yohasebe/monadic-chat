@@ -48,7 +48,7 @@ module ImageAnalysisAgent
   IMAGE_MAX_RETRIES = 1
   IMAGE_MAX_FILE_SIZE = 10 * 1024 * 1024 # 10MB
 
-  def image_analysis_agent(message:, image_path:)
+  def image_analysis_agent(message:, image_path:, detail: nil)
     # 1. Load and encode the image
     image_data = prepare_image_for_analysis(image_path)
     return image_data if image_data.is_a?(String) # Error message
@@ -69,7 +69,7 @@ module ImageAnalysisAgent
     end
 
     case provider
-    when "openai"    then vision_query_openai(message, image_data, model, api_key)
+    when "openai"    then vision_query_openai(message, image_data, model, api_key, detail: detail)
     when "anthropic" then vision_query_claude(message, image_data, model, api_key)
     when "google"    then vision_query_gemini(message, image_data, model, api_key)
     when "xai"       then vision_query_grok(message, image_data, model, api_key)
@@ -170,7 +170,7 @@ module ImageAnalysisAgent
 
   # --- Provider-specific Vision API implementations ---
 
-  def vision_query_openai(message, image_data, model, api_key)
+  def vision_query_openai(message, image_data, model, api_key, detail: detail)
     uri = "https://api.openai.com/v1/chat/completions"
     headers = {
       "Content-Type" => "application/json",
@@ -192,6 +192,12 @@ module ImageAnalysisAgent
         }
       ]
     }
+    # Optional fidelity control (verified live 2026-07-10: the platform accepts
+    # low/high/auto/original across GPT-5.x; "original" preserves full
+    # resolution). Omitted by default so existing behavior is unchanged.
+    if %w[low high auto original].include?(detail.to_s)
+      body[:messages][0][:content][1][:image_url][:detail] = detail.to_s
+    end
 
     res = vision_http_post(uri, headers, body)
     unless res.status.success?

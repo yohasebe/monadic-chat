@@ -25,6 +25,11 @@ module MonadicSharedTools
               image_path: {
                 type: "string",
                 description: "The filename of the image to analyze"
+              },
+              detail: {
+                type: "string",
+                enum: ["low", "high", "auto", "original"],
+                description: "Optional image fidelity: 'original' preserves full resolution (best for fine text/diagrams), 'auto' lets the API decide, 'high'/'low' force a level. Omit for the default. Honored by OpenAI vision; other providers ignore it."
               }
             },
             required: ["message", "image_path"]

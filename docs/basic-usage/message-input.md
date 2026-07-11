@@ -20,6 +20,8 @@ Click `Image` (or `Image/PDF` for models that support PDF) to select an image. S
 
 After uploading the image, a thumbnail of the uploaded image appears below the message input area with a delete button (×). The image is sent along with your text prompt.
 
+Attached images are downscaled in the browser before sending (long side up to 2000px). For full-resolution analysis of fine details, place the image file in the shared folder instead and ask the AI to analyze it — apps with the image-analysis skill read the original file directly and can be asked to use original fidelity.
+
 <!-- SCREENSHOT: Chat showing user message with attached image thumbnail and AI response analyzing the image content -->
 
 ## Uploading PDFs :id=uploading-pdfs

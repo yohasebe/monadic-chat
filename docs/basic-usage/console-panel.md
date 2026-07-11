@@ -33,7 +33,10 @@ The console has a menu bar at the top with several dropdown menus for additional
 
 ### Actions Menu
 
-<!-- SCREENSHOT: Actions menu dropdown showing Start, Stop, Restart, Build options, JupyterLab controls, Selenium controls, and Document DB import/export options -->
+<!-- SCREENSHOT: Actions menu dropdown showing Install Options, Start, Stop, Restart, Build options, JupyterLab controls, and Document DB import/export options -->
+
+**Install Options** <br />
+Open the Install Options panel of the settings window, where you can select optional packages (LaTeX, Python libraries, Privacy Filter languages, etc.) to be installed in the service containers.
 
 **Start** <br />
 Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
@@ -58,6 +61,12 @@ Build the Docker image and container (`monadic-chat-python-container`) used by t
 **Build User Containers** <br />
 Build the Docker images and containers defined by the user. Note that user-defined containers are not automatically built when starting Monadic Chat - you must use this menu option to build them manually after adding or modifying user container definitions.
 
+**Build Privacy Container** <br />
+Build the Docker image and container (`monadic-chat-privacy-container`) used by the Privacy Filter feature.
+
+**Build Extractor Container** <br />
+Build the Docker image and container (`monadic-chat-extractor-container`) used for extracting text from document files.
+
 **Start JupyterLab** <br />
 Launch JupyterLab. It can be accessed at [http://localhost:8889](http://localhost:8889)
 
@@ -73,10 +82,13 @@ Export the entire Document DB to the shared folder. A confirmation dialog offers
 
 ### Open Menu
 
-<!-- SCREENSHOT: Open menu dropdown showing Open Browser, Open Shared Folder, Open Config Folder, Open Log Folder, Open Console, and Settings options -->
+<!-- SCREENSHOT: Open menu dropdown showing Open Browser, Open noVNC, Open Shared Folder, Open Config Folder, Open Log Folder, Open Console, and Settings options -->
 
 **Open Browser** <br />
 Open the default browser to access Monadic Chat at [http://localhost:4567](http://localhost:4567)
+
+**Open noVNC** <br />
+Open a noVNC viewer window that shows the screen of the browser running inside the Selenium container. This lets you watch (and interact with) web automation in real time. Available while Monadic Chat is running.
 
 **Open Shared Folder** <br />
 Open the folder shared between the host and Docker containers. It can be used for importing and exporting files. It is also used when installing additional apps. The following folders are included:
@@ -134,9 +146,31 @@ Exits the application.
 
 ## Settings Panel
 
-Settings configured in the settings panel are automatically saved. The settings panel is organized into several sections accessible via tabs.
+Settings configured in the settings panel are automatically saved. The settings panel is organized into the following sections, accessible from the sidebar: **General**, **System**, **API Keys**, **Voice & Audio**, **Services**, **Install Options**, **Actions**, and **About**.
 
-<!-- SCREENSHOT: Settings panel showing API Keys tab with input fields for OPENAI_API_KEY, ANTHROPIC_API_KEY, COHERE_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, XAI_API_KEY, DEEPSEEK_API_KEY, ELEVENLABS_API_KEY, and TAVILY_API_KEY -->
+### General
+
+**UI Language** <br />
+Select the display language of the console and settings window.
+
+**Browser Mode** <br />
+Select the browser to use when opening Monadic Chat from the console. "Internal Browser" opens the built-in Electron browser window, while "External Browser" opens your system's default web browser. The default is "Internal Browser".
+
+**Syntax Highlighting Theme** <br />
+Select the theme for code syntax highlighting. The default is `github-light`.
+
+### System
+
+**Launch at Login** <br />
+Start Monadic Chat automatically when you log in to your computer.
+
+**Menu Bar Mode** <br />
+Keep Monadic Chat running in the menu bar (system tray) instead of showing a console window.
+
+**Extra Logging** <br />
+Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`.
+
+<!-- SCREENSHOT: Settings panel showing API Keys section with input fields for OPENAI_API_KEY, ANTHROPIC_API_KEY, COHERE_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, XAI_API_KEY, DEEPSEEK_API_KEY, ELEVENLABS_API_KEY, and TAVILY_API_KEY -->
 
 ### API Keys
 
@@ -168,41 +202,37 @@ Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice 
 **TAVILY_API_KEY** <br />
 Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature as an alternative to Selenium, and 2) For web search functionality in apps using providers without native search (Mistral, Cohere, DeepSeek, Ollama). It can be obtained from [https://tavily.com/](https://tavily.com/).
 
-<!-- SCREENSHOT: Settings panel showing Model tab with AI_USER_MAX_TOKENS dropdown selector -->
+<!-- SCREENSHOT: Settings panel showing Voice & Audio section with TTS Dictionary File Path input field and Auto TTS Max Bytes input -->
 
-### Model Settings
-
-**AI_USER_MAX_TOKENS** <br />
-Select the maximum number of tokens for the AI user. This setting is used to limit the number of tokens that can be used in a single request. The default is `2000`.
-
-<!-- SCREENSHOT: Settings panel showing Display tab with Syntax Highlighting Theme dropdown selector -->
-
-### Display Settings
-
-**Syntax Highlighting Theme** <br />
-Select the theme for code syntax highlighting. The default is `pastie`.
-
-<!-- SCREENSHOT: Settings panel showing Voice tab with STT_MODEL dropdown and TTS Dictionary File Path input field -->
-
-### Voice Settings
-
-**STT_MODEL** <br />
-Select the model used for speech-to-text. The dropdown lists the STT models exposed by your configured providers (for example, OpenAI Whisper or transcribe models). Refer to the provider documentation for current options.
+### Voice & Audio
 
 **TTS Dictionary File Path** <br />
 Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.
 
-<!-- SCREENSHOT: Settings panel showing System tab with Application Mode dropdown, Browser Mode dropdown, and Extra Logging toggle -->
+**Auto TTS Max Bytes** <br />
+Set the maximum text size (in bytes) for automatic text-to-speech playback in post-completion mode. Text exceeding this limit is partially played or skipped.
 
-### System Settings
+?> The speech-to-text model is selected in the web UI's Speech Settings panel, not in this settings window. See [Speech Settings Panel](./web-interface.md#speech-settings-panel).
+
+### Services
 
 **Application Mode** <br />
 Select the application mode. "Standalone" mode runs the application for a single device while "Server" mode allows multiple devices in the local network to connect to the Monadic Chat server. The default is "Standalone".
 
+**Enable MCP Server** <br />
+Enable the Model Context Protocol (MCP) server, which exposes Monadic Chat's tools to external AI assistants. See [MCP Integration](../advanced-topics/mcp-integration.md).
 
-**Browser Mode** <br />
-Select the browser to use when opening Monadic Chat from the console. "Internal Browser" opens the built-in Electron browser window, while "External Browser" opens your system's default web browser. The default is "Internal Browser".
+**MCP Server Port** <br />
+The network port for the MCP server (default: `3100`). Change it only if the port conflicts with another service.
 
+### Install Options
 
-**Extra Logging** <br />
-Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`.
+Select optional packages to be installed in the service containers: LaTeX, Python libraries (NLTK, spaCy, etc.), music analysis libraries, system tools, and additional Privacy Filter languages. Saving changed options triggers a rebuild of the affected container where required.
+
+### Actions
+
+Provides the same container lifecycle operations as the Actions menu: Start, Stop, and Restart, plus the container build commands. Containers must be stopped before building.
+
+### About
+
+Shows the application version and related information.

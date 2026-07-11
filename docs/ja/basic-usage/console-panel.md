@@ -34,7 +34,10 @@ Monadic Chat Consoleを終了します。
 
 ### Actions メニュー
 
-<!-- SCREENSHOT: Actionsメニュードロップダウン。Start、Stop、Restart、ビルドオプション、JupyterLab制御、Selenium制御、ドキュメントDBインポート/エクスポートオプションを表示 -->
+<!-- SCREENSHOT: Actionsメニュードロップダウン。Install Options、Start、Stop、Restart、ビルドオプション、JupyterLab制御、ドキュメントDBインポート/エクスポートオプションを表示 -->
+
+**インストールオプション（Install Options）** <br />
+設定ウィンドウの Install Options パネルを開きます。サービスコンテナにインストールするオプションパッケージ（LaTeX、Pythonライブラリ、Privacy Filterの追加言語など）を選択できます。
 
 **開始** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
@@ -59,6 +62,12 @@ AIエージェントが利用するDockerイメージおよびコンテナ（`mo
 **ユーザーコンテナをビルド** <br />
 ユーザーが定義したDockerイメージおよびコンテナを構築します。なお、ユーザー定義コンテナはMonadic Chat起動時に自動的には構築されませんので、ユーザーコンテナ定義を追加または変更した後は、このメニューオプションを使用して手動で構築する必要があります。
 
+**Privacy コンテナをビルド** <br />
+Privacy Filter 機能が使用するDockerイメージおよびコンテナ（`monadic-chat-privacy-container`）を構築します。
+
+**Extractor コンテナをビルド** <br />
+ドキュメントファイルからのテキスト抽出に使用するDockerイメージおよびコンテナ（`monadic-chat-extractor-container`）を構築します。
+
 **JupyterLab を開始** <br />
 JupyterLabを起動します。JupyterLabは[http://localhost:8889](http://localhost:8889)でアクセスできます。
 
@@ -73,10 +82,13 @@ JupyterLabを停止します。
 
 ### Open メニュー
 
-<!-- SCREENSHOT: Openメニュードロップダウン。Open Browser、Open Shared Folder、Open Config Folder、Open Log Folder、Open Console、Settingsオプションを表示 -->
+<!-- SCREENSHOT: Openメニュードロップダウン。Open Browser、Open noVNC、Open Shared Folder、Open Config Folder、Open Log Folder、Open Console、Settingsオプションを表示 -->
 
 **Open Browser** <br />
 Monadic Chatをデフォルトブラウザで開きます。アクセスURL: [http://localhost:4567](http://localhost:4567)
+
+**Open noVNC** <br />
+noVNCビューアウィンドウを開き、Seleniumコンテナ内で動作しているブラウザの画面を表示します。Web自動操作の様子をリアルタイムで確認（および操作）できます。Monadic Chatの実行中に利用できます。
 
 **Open Shared Folder** <br />
 ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。
@@ -134,11 +146,33 @@ Monadic ChatのすべてのDockerイメージ、コンテナ、および保存�
 
 ## 設定パネル
 
-設定パネルで行った設定は自動的に保存されます。設定パネルはタブでアクセスできる複数のセクションに分かれています。
+設定パネルで行った設定は自動的に保存されます。設定パネルはサイドバーからアクセスできる次のセクションに分かれています: **General**、**System**、**API Keys**、**Voice & Audio**、**Services**、**Install Options**、**Actions**、**About**。
 
-<!-- SCREENSHOT: 設定パネル。API Keysタブを表示し、OPENAI_API_KEY、ANTHROPIC_API_KEY、COHERE_API_KEY、GEMINI_API_KEY、MISTRAL_API_KEY、XAI_API_KEY、DEEPSEEK_API_KEY、ELEVENLABS_API_KEY、TAVILY_API_KEYの入力フィールドを含む -->
+### General（一般）
 
-### APIキー
+**UI Language** <br />
+コンソールと設定ウィンドウの表示言語を選択します。
+
+**Browser Mode** <br />
+コンソールからMonadic Chatを開く際に使用するブラウザを選択します。"Internal Browser"は組み込みのElectronブラウザウィンドウを開き、"External Browser"はシステムのデフォルトWebブラウザを開きます。デフォルトは"Internal Browser"です。
+
+**Syntax Highlighting Theme** <br />
+コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`github-light`です。
+
+### System（システム）
+
+**Launch at Login** <br />
+コンピュータへのログイン時にMonadic Chatを自動的に起動します。
+
+**Menu Bar Mode** <br />
+コンソールウィンドウを表示する代わりに、メニューバー（システムトレイ）に常駐させます。
+
+**Extra Logging** <br />
+詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。
+
+<!-- SCREENSHOT: 設定パネル。API Keysセクションを表示し、OPENAI_API_KEY、ANTHROPIC_API_KEY、COHERE_API_KEY、GEMINI_API_KEY、MISTRAL_API_KEY、XAI_API_KEY、DEEPSEEK_API_KEY、ELEVENLABS_API_KEY、TAVILY_API_KEYの入力フィールドを含む -->
+
+### API Keys（APIキー）
 
 **OPENAI_API_KEY** <br />
 （推奨）OpenAI APIキーを入力します。このキーは、Chat API、画像生成API、Speech-to-Text API、およびText-to-Speech APIにアクセスするために使用されます。必須ではありませんが、多くの基本機能がこのキーに依存しています。APIキーは[OpenAI APIページ](https://platform.openai.com/docs/guides/authentication)から取得できます。
@@ -168,41 +202,37 @@ ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声�
 **TAVILY_API_KEY** <br />
 Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) ネイティブ検索機能を持たないプロバイダー（Mistral、Cohere、DeepSeek、Ollama）でのWeb検索機能。APIキーは[https://tavily.com/](https://tavily.com/)から取得できます。
 
-<!-- SCREENSHOT: 設定パネル。Modelタブを表示し、AI_USER_MAX_TOKENSドロップダウンセレクターを含む -->
+<!-- SCREENSHOT: 設定パネル。Voice & Audioセクションを表示し、TTS Dictionary File PathとAuto TTS Max Bytesの入力フィールドを含む -->
 
-### モデル設定
-
-**AI_USER_MAX_TOKENS** <br />
-AIユーザーの最大トークン数を選択します。この設定は、単一リクエストで使用できるトークンの数を制限するために使用されます。デフォルトは`2000`です。
-
-<!-- SCREENSHOT: 設定パネル。Displayタブを表示し、Syntax Highlighting Themeドロップダウンセレクターを含む -->
-
-### 表示設定
-
-**Syntax Highlighting Theme** <br />
-コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`pastie`です。
-
-<!-- SCREENSHOT: 設定パネル。Voiceタブを表示し、STT_MODELドロップダウンとTTS Dictionary File Pathの入力フィールドを含む -->
-
-### 音声設定
-
-**STT_MODEL** <br />
-Speech-to-Textに使用するモデルを選択します。設定済みのプロバイダーが提供するSTTモデルが一覧表示されるため、詳細は各プロバイダーのドキュメントを参照してください。
+### Voice & Audio（音声）
 
 **TTS Dictionary File Path** <br />
 Text-to-Speech辞書ファイルのパスを入力します。辞書ファイルはCSV形式で、置き換えられる文字列と音声合成に使用される文字列のカンマ区切りのエントリが含まれています（ヘッダ行は不要）。Text-to-Speechを使用する際、テキスト内の置き換えられる文字列は音声合成用の文字列に置き換えられます。
 
-<!-- SCREENSHOT: 設定パネル。Systemタブを表示し、Application Modeドロップダウン、Browser Modeドロップダウン、Extra Loggingトグルを含む -->
+**Auto TTS Max Bytes** <br />
+自動音声読み上げ（post-completionモード）で読み上げるテキストの最大サイズ（バイト単位）を設定します。この上限を超えるテキストは一部のみ再生されるか、スキップされます。
 
-### システム設定
+?> Speech-to-Textモデルの選択は、この設定ウィンドウではなくWeb UIの音声設定パネルで行います。[音声設定パネル](./web-interface.md#speech-settings-panel)を参照してください。
+
+### Services（サービス）
 
 **Application Mode** <br />
 Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク上の複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
 
+**Enable MCP Server** <br />
+Model Context Protocol（MCP）サーバーを有効にします。Monadic Chatのツールを外部のAIアシスタントから利用できるようになります。詳細は[MCP連携](../advanced-topics/mcp-integration.md)を参照してください。
 
-**Browser Mode** <br />
-コンソールからMonadic Chatを開く際に使用するブラウザを選択します。"Internal Browser"は組み込みのElectronブラウザウィンドウを開き、"External Browser"はシステムのデフォルトWebブラウザを開きます。デフォルトは"Internal Browser"です。
+**MCP Server Port** <br />
+MCPサーバーが使用するネットワークポートです（デフォルト: `3100`）。他のサービスとポートが競合する場合のみ変更してください。
 
+### Install Options（インストールオプション）
 
-**Extra Logging** <br />
-詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。
+サービスコンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCyなど）、音楽分析ライブラリ、システムツール、Privacy Filterの追加言語。変更したオプションを保存すると、必要に応じて該当コンテナの再ビルドが行われます。
+
+### Actions（アクション）
+
+Actionsメニューと同じコンテナのライフサイクル操作（Start、Stop、Restart）と、各コンテナのビルドコマンドを提供します。ビルドを実行するには、事前にコンテナを停止しておく必要があります。
+
+### About（情報）
+
+アプリケーションのバージョンと関連情報を表示します。

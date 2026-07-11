@@ -15,7 +15,7 @@ This tutorial will help you get started with Monadic Chat quickly. You'll learn 
 ### 1.1 Open Settings
 
 1. Click the **Settings** button in the Console Panel
-2. Navigate to the **Basic** tab
+2. Select the **API Keys** panel from the sidebar
 
 ### 1.2 Add Your API Key
 
@@ -102,7 +102,7 @@ The Chat Plus app demonstrates "monadic" context management:
 Can you write a short Python script that generates a Fibonacci sequence?
 ```
 
-2. Save the response using the download button on the message
+2. Copy the code with the **Copy** button on the message, or save the whole conversation with the **Export** button in the Session panel
 
 ## Step 5: Code Execution
 
@@ -128,7 +128,7 @@ Now that you've tried the basics, explore more features:
 
 ## Tips for Success
 
-1. **Save your conversations**: Use File → Save to keep important chats
+1. **Save your conversations**: Use the **Export** button in the web UI's Session panel to save a chat as a JSON file, or the **Save** button in the Knowledge Base panel to store it in the Knowledge Base
 2. **Export settings**: Save your app configurations for reuse
 3. **Check the logs**: If something goes wrong, check Console Panel logs
 4. **Use appropriate models**: Different tasks work better with different models

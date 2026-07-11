@@ -91,11 +91,9 @@ Monadic Chat automatically checks for updates on startup.
 
 **Update process:**
 
-1. If an update is available, a notification appears in the main console
-2. Go to `File` → `Check for Updates`
-3. Choose "Download Now" to get the installer for your platform
-4. Quit Monadic Chat and run the new installer
-5. The new version will replace the existing installation
+1. If an update is available, a notification with a **Download & Install** button appears in the main console (you can also check manually via `File` → `Check for Updates`)
+2. Click **Download & Install** — the update downloads in the background, with progress shown in the console
+3. When the download completes, you are prompted to restart Monadic Chat to apply the update
 
 You can also manually download from the [GitHub Releases page](https://github.com/yohasebe/monadic-chat/releases/latest).
 

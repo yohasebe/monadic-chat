@@ -4,8 +4,8 @@ Monadic Chat supports syntax highlighting for code snippets in the chat. The syn
 
 ## Configuration
 
-- **Theme Selection**: Choose your preferred theme from Settings → Display Settings → Syntax Highlighting Theme
-- **Default Theme**: `pastie` (light theme with good readability)
+- **Theme Selection**: Choose your preferred theme from Settings → General → Syntax Highlighting Theme
+- **Default Theme**: `github-light` (light theme with good readability)
 - **Automatic Detection**: Programming languages are automatically detected from code block markers (e.g., ` ```python`)
 - **Theme Persistence**: Your theme choice is saved and applied to all future sessions
 - **Supported Languages**: Rouge supports over 100 programming languages including Python, JavaScript, Ruby, Java, C++, Go, Rust, and many more
@@ -44,11 +44,11 @@ Monadic Chat supports syntax highlighting for code snippets in the chat. The syn
 
 ![](../assets/images/syntax-tulip.png ':size=800')
 
-## Light Themes
-
 **thankful_eyes**
 
 ![](../assets/images/syntax-thankful_eyes.png ':size=800')
+
+## Light Themes
 
 **base16-light**
 

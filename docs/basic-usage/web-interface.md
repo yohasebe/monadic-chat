@@ -54,6 +54,9 @@ Select the AI model to use. Available models depend on the selected app. Depreca
 **Reasoning/Thinking Control** <br />
 Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
 
+**Show Thinking** <br />
+Show or hide the model's thinking/reasoning trace as a collapsible "Thinking Process" panel in each response. The toggle appears only for models that support thinking, and it is linked with the reasoning control: turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, and setting the effort back to "None" turns the toggle off.
+
 **Max Output Tokens** <br />
 Limit the maximum number of tokens in the API response.
 
@@ -92,6 +95,9 @@ Press Enter to send messages without clicking the Send button.
 
 **Web Search**<br />
 Allow the AI to search the web for current information. Available for models that support tool/function calling.
+
+**Session Indicator Badges**<br />
+During a session, the conversation header shows badges for the features currently in effect: Web Search, Math rendering, the current reasoning effort, and Knowledge Base. The Knowledge Base badge appears whenever the session actually reads from the Knowledge Base — that is, when the "Use Knowledge Base for retrieval" toggle is on, or when the Knowledge Base app itself is selected (it always has full access).
 
 **Start Session / Continue Session** <br />
 Start a new chat or continue your current conversation.
@@ -165,9 +171,9 @@ Adjust the playback speed of synthesized speech (0.7 to 1.2).
 ?> This panel is displayed only when an app with PDF reading functionality is selected.
 
 **Uploaded PDF**<br />
-This displays a list of PDFs uploaded by clicking the `Import PDF` button. You can give a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.
+This displays a list of PDFs uploaded by clicking the `Import` button. You can give a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.
 
-!> **Warning:** PDF files are converted to text embeddings and stored according to your selected storage mode. For Local Storage mode (Qdrant + multilingual-e5-base), the database may be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Use the `Export Document DB` feature to back up and restore your data. For more information about storage modes, see [PDF Storage Modes](./pdf_storage.md).
+!> **Warning:** PDF files are converted to text embeddings and stored locally in the built-in vector database (Qdrant + multilingual-e5-base). The database may be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Use the `Export Document DB` feature to back up and restore your data. For more information, see [PDF Knowledge Base](./pdf_storage.md).
 
 ## AI User Feature :id=ai-user-feature
 

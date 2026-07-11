@@ -21,7 +21,7 @@ RSpec.describe "FileAnalysisHelper without mocks" do
       attr_reader :image_agent_calls, :audio_agent_calls
 
       # Override image_analysis_agent to capture calls without making HTTP requests
-      def image_analysis_agent(message:, image_path:)
+      def image_analysis_agent(message:, image_path:, detail: nil)
         @image_agent_calls << { message: message, image_path: image_path }
         "Image analysis result for: #{message}"
       end
@@ -111,7 +111,7 @@ RSpec.describe "FileAnalysisHelper without mocks" do
           @context = []
         end
 
-        def image_analysis_agent(message:, image_path:)
+        def image_analysis_agent(message:, image_path:, detail: nil)
           "ERROR: Image file not found: #{image_path}"
         end
       end

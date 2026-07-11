@@ -19,8 +19,8 @@ RSpec.describe MonadicHelper do
     end
 
     # Mock image_analysis_agent method
-    def image_analysis_agent(message:, image_path:)
-      @image_agent_calls << { message: message, image_path: image_path }
+    def image_analysis_agent(message:, image_path:, detail: nil)
+      @image_agent_calls << { message: message, image_path: image_path, detail: detail }
       "Image analysis result: #{message}"
     end
 

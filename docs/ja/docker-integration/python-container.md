@@ -7,10 +7,11 @@ Monadic Chat は `monadic-chat-python-container` 内で Python ツールを実�
 アプリの「アクション → インストールオプション…」から、Python コンテナに含める追加機能を選択できます。
 
 - LaTeX（最小構成）：Concept Visualizer / Syntax Tree 用（有効時のみUI表示、要 OpenAI/Anthropic キー）
-- Python ライブラリ（CPU）：`nltk` / `spacy(3.7.5)` / `gensim` / `librosa` / `transformers`（`scikit-learn` はbeta.16からデフォルトインストール）
+- Python ライブラリ（CPU）：`nltk` / `spacy(3.7.5)` / `gensim` / `mediapipe(CPU)` / `transformers`（`scikit-learn` はベースイメージに含まれるためオプション不要）
+- Music：`librosa` + `madmom`（Music Lab パイプラインで使用）
 - Tools：ImageMagick（`convert`/`mogrify`）
 
-保存後に表示されるダイアログで「Rebuild now」を選ぶと、Python コンテナを成功時のみ本番に反映して再ビルドします。進捗と要約は インストールオプション ウィンドウに表示され、ログは `~/monadic/log/build/python/<timestamp>/` に保存されます。
+保存後に表示されるダイアログで「Rebuild now」を選ぶと、Python コンテナを成功時のみ本番に反映して再ビルドします。進捗と要約は インストールオプション ウィンドウに表示され、ログと成果物は `~/monadic/log/` 直下（`docker_build_python.log`、`post_install_python.log`、`python_health.json`、`python_meta.json`）に保存され、実行のたびに上書きされます。
 
 NLTK と spaCy について:
 - `nltk` オプションはライブラリのみをインストールします。コーパス/データは自動ダウンロードされません。
@@ -20,7 +21,7 @@ NLTK と spaCy について:
 ## 検証後反映のビルドとヘルスチェック
 
 - 一時タグでビルド → ポストセットアップ（`~/monadic/config/pysetup.sh` があれば実行）→ ヘルスチェック → 成功時のみ本番タグ（version/latest）へ差し替え。
-- ヘルスチェックでは `pdflatex`、`convert`、主要 Python ライブラリ（nltk, spacy, scikit-learn, gensim, librosa, mediapipe, transformers）を確認し、`health.json` に保存します。
+- ヘルスチェックでは `pdflatex`、`convert`、主要 Python ライブラリ（nltk, spacy, scikit-learn, gensim, librosa, mediapipe, transformers）を確認し、`~/monadic/log/python_health.json` に保存します。
 
 ## キャッシュ最適化
 
@@ -148,6 +149,7 @@ matplotlib 等で日本語表示できるよう、Noto CJK 系フォントと `m
 ├── utilities/          # システムユーティリティ (sysinfo.sh 等)
 ├── cli_tools/          # CLIツール (content_fetcher.py 等)
 ├── converters/         # 変換 (pdf2txt.py, office2txt.py 等)
+├── music/              # Music Lab パイプライン (music_generator.py, music_analyzer.py 等)
 └── services/           # APIサービス (jupyter_controller.py)
 ```
 

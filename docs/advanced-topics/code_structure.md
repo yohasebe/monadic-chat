@@ -14,8 +14,8 @@ Your Monadic Chat user directory (`~/monadic/`) contains:
 │   └── pysetup.sh    # Python setup script (optional)
 ├── data/             # Your data and custom content
 │   ├── apps/         # Your custom apps go here
-│   ├── scripts/      # Your custom scripts
-│   └── help/         # Help system documents
+│   ├── helpers/      # Helper Ruby files loaded before your apps
+│   └── scripts/      # Your custom scripts
 └── log/              # Application logs
 ```
 

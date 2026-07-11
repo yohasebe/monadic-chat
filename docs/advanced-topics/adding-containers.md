@@ -77,7 +77,7 @@ CMD ["tail", "-f", "/dev/null"]
 
 ## Full Example
 
-For a complete working example, see the Python container included with Monadic Chat:
+For a complete working example, see the Python container included with Monadic Chat (`docker/services/python/` in the repository). The listings below abbreviate repetitive sections with comments; consult the repository for the full files. Note that some settings shown here are specific to system containers (compose `profiles`, `cache_from`, build args driven by Install Options) and are not needed for user containers.
 
 ### compose.yml
 
@@ -87,14 +87,23 @@ For a complete working example, see the Python container included with Monadic C
 ```yaml
 services:
   python_service:
+    profiles: ["python"]
     image: yohasebe/python
     build:
       context: .
       dockerfile: Dockerfile
+      # Reuse the prebuilt default image as a layer cache so a local
+      # build only pays for the enabled option layers
+      cache_from:
+        - ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}
       args:
         PROJECT_TAG: "monadic-chat"
+        INSTALL_LATEX: ${INSTALL_LATEX:-false}
+        # ... one build arg per install option (PYOPT_NLTK, PYOPT_SPACY,
+        # PYOPT_GENSIM, PYOPT_LIBROSA, PYOPT_MEDIAPIPE, PYOPT_TRANSFORMERS,
+        # IMGOPT_IMAGEMAGICK)
     ports:
-      - "8889:8889"
+      - "${HOST_BINDING:-127.0.0.1}:8889:8889"
     container_name: monadic-chat-python-container
     volumes:
       - data:/monadic/data
@@ -102,9 +111,6 @@ services:
     command: ["sleep", "infinity"]
     networks:
       - monadic-chat-network
-    depends_on:
-      selenium_service:
-        condition: service_started
 ```
 
 </details>
@@ -115,64 +121,55 @@ services:
 <summary>Python Container Dockerfile</summary>
 
 ```dockerfile
-FROM python:3.10-slim-bookworm
-ARG PROJECT_TAG
+FROM python:3.12-slim-bookworm
+ARG PROJECT_TAG=monadic-chat
 LABEL project=$PROJECT_TAG
 
-# Install necessary packages
-# LaTeX packages for Concept Visualizer:
-# - texlive-latex-base: Basic LaTeX
-# - texlive-latex-extra: Additional LaTeX packages
-# - texlive-pictures: TikZ and PGF
-# - texlive-science: Scientific diagrams (including tikz-3dplot)
-# - texlive-pstricks: PSTricks for advanced graphics
-# - texlive-latex-recommended: Recommended packages
-# - texlive-fonts-extra: Additional fonts
-# - texlive-plain-generic: Generic packages
-# - texlive-lang-cjk: CJK language support
-# - latex-cjk-all: Complete CJK support
-# - dvisvgm: DVI to SVG converter
-# - pdf2svg: PDF to SVG converter (backup option)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential wget curl git gnupg \
-    python3-dev graphviz libgraphviz-dev pkg-config \
-    libxml2-dev libxslt-dev \
-    pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
-    imagemagick libmagickwand-dev \
-    texlive-xetex texlive-latex-base texlive-fonts-recommended \
-    texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
-    texlive-science texlive-pstricks texlive-latex-recommended \
-    texlive-fonts-extra texlive-plain-generic \
-    pdf2svg dvisvgm \
-    && fc-cache -fv \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install uv for faster package installation
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Configure uv
+# Install uv - fast Python package installer (pinned for reproducibility)
+COPY --from=ghcr.io/astral-sh/uv:0.9.18 /uv /usr/local/bin/uv
 ENV UV_SYSTEM_PYTHON=1
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-# Install Python packages
+# Optional feature toggles (defaults are lean; set by the compose
+# build args listed above, driven by Actions → Install Options)
+ARG INSTALL_LATEX=false
+ARG PYOPT_NLTK=false
+# ... one ARG per remaining install option
+
+# Base OS packages (lean by default)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential wget curl git gnupg \
+      python3-dev graphviz libgraphviz-dev pkg-config \
+      libxml2-dev libxslt-dev \
+      pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
+    && fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Base Python packages, pinned for reproducibility (abbreviated here:
+# jupyterlab, numpy, pandas, matplotlib, scikit-learn, pdfplumber,
+# selenium, opencv-python, ... — see the repository Dockerfile)
 RUN uv pip install --no-cache \
-    setuptools \
-    wheel \
-    jupyterlab ipywidgets plotly \
-    numpy  pandas statsmodels \
-    matplotlib seaborn \
-    pdfplumber pypdfium2 \
-    selenium html2text \
-    openpyxl python-docx python-pptx \
-    requests beautifulsoup4 \
-    lxml pygraphviz graphviz pydotplus networkx pyvis \
-    svgwrite cairosvg tinycss cssselect pygal \
-    pyecharts pyecharts-snapshot \
-    opencv-python
+      jupyterlab~=4.5 numpy~=1.26 pandas~=2.3 matplotlib~=3.10 \
+      scikit-learn~=1.5 pdfplumber~=0.11 selenium~=4.39 \
+      opencv-python~=4.11
+      # ... (abbreviated)
+
+# Optional: LaTeX set for Concept Visualizer / Syntax Tree,
+# installed only when the Install Option is enabled
+RUN if [ "$INSTALL_LATEX" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends \
+        texlive-xetex texlive-latex-base texlive-pictures \
+        texlive-lang-cjk latex-cjk-all dvisvgm pdf2svg \
+        # ... (abbreviated) \
+      && apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# Optional Python libs — each option in its own conditional RUN
+# so unchanged options reuse the layer cache
+RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
+# ... one RUN per remaining option (spacy, gensim, librosa+madmom,
+# mediapipe, transformers, ImageMagick)
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -189,7 +186,7 @@ RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod
 RUN mkdir -p /monadic/data/scripts
 
 # Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
+ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
 
@@ -197,11 +194,6 @@ ENV PIP_ROOT_USER_ACTION=ignore
 RUN ln -s /monadic/data /data
 
 COPY Dockerfile /monadic/Dockerfile
-
-# copy `pysetup.sh` to `/monadic` and run it
-COPY pysetup.sh /monadic/pysetup.sh
-RUN chmod +x /monadic/pysetup.sh
-RUN /monadic/pysetup.sh
 ```
 
 </details>

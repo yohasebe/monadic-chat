@@ -10,6 +10,8 @@ When you start Monadic Chat, the availability of each container is displayed in 
 
 ### Available Containers
 
+This list shows the containers common to most setups; see [Basic Architecture](basic-architecture.md#standard-containers) for the full roster and each container's role.
+
 - **Ruby Container** (`monadic-chat-ruby-container`): Main application container
   ```shell
   docker exec -it monadic-chat-ruby-container bash
@@ -33,6 +35,16 @@ When you start Monadic Chat, the availability of each container is displayed in 
 - **Selenium Container** (`monadic-chat-selenium-container`): Web scraping and browser automation
   ```shell
   docker exec -it monadic-chat-selenium-container bash
+  ```
+
+- **Privacy Container** (`monadic-chat-privacy-container`): Local PII masking for the Privacy Filter (started by default)
+  ```shell
+  docker exec -it monadic-chat-privacy-container bash
+  ```
+
+- **Extractor Container** (`monadic-chat-extractor-container`): Document extraction for the Knowledge Base Quality Pack (opt-in, present only when installed via Install Options)
+  ```shell
+  docker exec -it monadic-chat-extractor-container bash
   ```
 
 ?> **Development Tip**: When developing locally, you can stop the Ruby container and run the application on your host machine while keeping other containers running.

@@ -30,7 +30,7 @@ Monadic Chat のベクトルデータベース機能は次のことを行いま�
 Knowledge Base のインポートパイプラインの処理フローは以下の通りです：
 
 1. **コンテンツ抽出**：
-   - PDF は [pdfplumber](https://github.com/jsvine/pdfplumber) でテキストと表を抽出し、Markdown として構造を復元
+   - PDF は、Knowledge Base Quality Pack がインストールされている場合は Extractor コンテナ（[Docling](https://github.com/docling-project/docling)、OCR・レイアウト解析対応）を経由して抽出。未インストールの場合は [pdfplumber](https://github.com/jsvine/pdfplumber) でテキストと表を抽出し、Markdown として構造を復元
    - Office ファイル（`.docx`/`.xlsx`/`.pptx`）は `python-docx` / `openpyxl` / `python-pptx` で抽出
    - Markdown とソースコードはそのまま読み込み、それぞれ見出し・トップレベル定義をセクション境界とする
    - 抽出後のコンテンツはセクション単位（200〜4000 文字程度）でチャンク化（フォーマットごとの境界ルールあり）
@@ -69,7 +69,7 @@ Library エントリは `scope_app` payload を持ちます。値は「アプリ
 Knowledge Base アプリはこのシステムを使って統合的なコンテンツ Q&A を提供します：
 
 1. ユーザーが現在のチャットセッションを保存、または Browse モーダルの **Import file** をクリック
-2. システムが抽出・チャンク化・埋め込み・格納を実行（PDF は pdfplumber、Office は python-docx/openpyxl/python-pptx、Markdown とコードは直接読み込み）
+2. システムが抽出・チャンク化・埋め込み・格納を実行（PDF は Knowledge Base Quality Pack インストール時は Extractor コンテナ経由・未インストール時は pdfplumber、Office は python-docx/openpyxl/python-pptx、Markdown とコードは直接読み込み）
 3. ユーザーが内容について質問。ユーザーが該当エントリを `Global` にしておけば、他アプリも `library_search` 経由で同じ Library を参照可能
 4. summaries → turns のカスケード検索で関連チャンクを取得
 5. 取得したチャンクが LLM に渡され、それを根拠に回答が生成される

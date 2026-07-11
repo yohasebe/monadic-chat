@@ -49,7 +49,7 @@ Monadic Chatは主に2つのモードで動作します：
 
 ### Rubyコンテナ（`monadic-chat-ruby-container`） :id=ruby-container
 Monadic Chatのアプリケーションを実行するために必要なコンテナです。Webインターフェイスを提供するためにも使用されます。
-- **ポート**: 4567（Webインターフェイス）
+- **ポート**: 4567（Webインターフェイス）、3100（`127.0.0.1` のみ、MCP サーバー。`MCP_SERVER_ENABLED=true` のときに有効）
 - **主な機能**: Sinatra Webサーバー、WebSocketサポート、Docker管理
 - **共有ボリューム**: `/monadic/data`、`/monadic/config`、`/monadic/log`
 - **このコンテナが必要なアプリ**: すべてのアプリ（Webインターフェイスを実行し、すべてのMonadic Chat機能を管理するコアコンテナです）
@@ -99,6 +99,12 @@ Privacy Filter が使用するローカルの個人情報マスキングサー�
 - **このコンテナを使用するアプリ**: Privacy Filter が有効な間はすべてのアプリ（デフォルトで有効）
 - 外部 API キー不要。マスキングはホスト CPU 上でローカルに実行されます。
 
+### Extractorコンテナ（`monadic-chat-extractor-container`） :id=extractor-container
+オプトインのコンテナで、Knowledge Base Quality Pack（[Docling](https://github.com/docling-project/docling) ベースの OCR 対応ドキュメント抽出サービス）を提供します。**アクション → インストールオプション** からインストールします（`EXTRACTOR_SERVICE=true` が設定されます）。インストールされている場合、Knowledge Base の PDF インポートはこのコンテナを経由してレイアウト解析付き・OCR 対応で抽出されます。未インストールの場合、PDF は Python コンテナの pdfplumber で処理されます。
+- **主な機能**: レイアウト解析付き PDF 抽出、表構造の復元、OCR（言語はインストールオプションで選択可能）
+- **このコンテナを使用するアプリ**: `Knowledge Base`（ファイルインポート）
+- 外部 API キー不要。抽出はローカルで実行されます。
+
 
 ## アプリタイプ別のコンテナ要件 :id=container-requirements
 
@@ -131,7 +137,7 @@ Privacy Filter が使用するローカルの個人情報マスキングサー�
 - ヘルプシステム（Monadic Help）
 - カスタム RAG アプリケーション
 
-これらは常に基盤サービスとして同時に立ち上がります。オプトインフラグはありません。
+これらは常に基盤サービスとして同時に立ち上がります。オプトインフラグはありません。なお、Knowledge Base のファイルインポートには抽出経路も必要です。PDF と Office ファイルの抽出は Python コンテナが担当し、Knowledge Base Quality Pack がインストールされている場合は PDF の抽出を Extractor コンテナが担当します。
 
 ?> 追加のDockerコンテナを導入する方法については、[Dockerコンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
   
@@ -150,9 +156,11 @@ Monadic Chatは、ローカルLLMの実行に[Ollama](https://ollama.com)をサ�
 
 ### コンテナの依存関係と起動順序 :id=container-dependencies
 1. **Qdrant** と **embeddings** が基盤サービスとして並行起動
-2. **Selenium** はブラウザ自動化を必要とするアプリ用にオンデマンド起動
-3. **Python** はオンデマンド起動（Selenium と一緒に必要な場合は同時に立ち上がる）
+2. **Python** と **Selenium** もアプリケーション起動のたびに同時に立ち上がる
+3. **Privacy**（デフォルトで有効）と **Extractor**（オプトイン）も、それぞれの機能が有効な場合は起動時に立ち上がる
 4. **Ruby** はすぐに起動し、ベクトルサービスはアプリケーションレベルのリトライで待つ
+
+後からコンテナが停止していることが検出された場合（手動停止後など）は、`ensure-service` のリカバリー経路で個別に再起動されます。
 
 Ruby コンテナは qdrant や embeddings に対して `depends_on` のヘルスチェック結合を意図的に持ちません。embeddings コンテナは初回起動時に `multilingual-e5-base` のロードで 30-60 秒かかる場合があり、その完了を待たずに Ruby Web UI にアクセスできるようにするためです。
 

@@ -7,10 +7,11 @@ Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents exe
 Use the Electron app “Actions → Install Options…” to choose optional components for the Python container:
 
 - LaTeX (with CJK support): Enables Concept Visualizer / Syntax Tree. Installs TeX Live (xelatex/luatex), CJK packages, ghostscript, dvisvgm/pdf2svg so Japanese/Chinese/Korean trees render out of the box (only shown in UI when enabled)
-- Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `gensim`, `librosa`, `transformers` (note: `scikit-learn` is now installed by default since beta.16)
+- Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `gensim`, `mediapipe (CPU)`, `transformers` (`scikit-learn` is part of the base image and needs no option)
+- Music: `librosa` + `madmom` (used by the Music Lab pipeline)
 - Tools: ImageMagick (`convert`/`mogrify`)
 
-Saving does not auto-rebuild. When you explicitly run Rebuild from the main console, the Python image is built to a temporary tag, verified, and promoted only on success. Progress output appears in the main console. Logs and artifacts are saved under `~/monadic/log/build/python/<timestamp>/`.
+Saving does not auto-rebuild. When you explicitly run Rebuild from the main console, the Python image is built to a temporary tag, verified, and promoted only on success. Progress output appears in the main console. Logs and artifacts are written directly to `~/monadic/log/` (`docker_build_python.log`, `post_install_python.log`, `python_health.json`, `python_meta.json`) and are overwritten on each run.
 
 Notes on NLTK and spaCy:
 - Turning on the `nltk` option installs the package only. NLTK datasets/corpora are not downloaded automatically.
@@ -20,7 +21,7 @@ Notes on NLTK and spaCy:
 ## Verified build and health checks
 
 - Build to a temporary tag → verify → retag to version/latest only on success (keep current image on failure)
-- Immediately run health checks and write results to `health.json`:
+- Immediately run health checks and write results to `~/monadic/log/python_health.json`:
   - `pdflatex` (when LaTeX is enabled)
   - `convert` (when ImageMagick is enabled)
   - Python library import availability
@@ -153,6 +154,7 @@ Noto CJK fonts and a configured `matplotlibrc` are included so matplotlib can re
 ├── utilities/          # System utilities (e.g., sysinfo.sh)
 ├── cli_tools/          # CLI tools (e.g., content_fetcher.py)
 ├── converters/         # Converters (pdf2txt.py, office2txt.py, etc.)
+├── music/              # Music Lab pipeline (music_generator.py, music_analyzer.py, etc.)
 └── services/           # API services (jupyter_controller.py)
 ```
 

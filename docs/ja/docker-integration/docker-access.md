@@ -10,6 +10,8 @@ Monadic Chatを起動すると、各コンテナの利用可能性がメイン�
 
 ### 利用可能なコンテナ
 
+この一覧はほとんどの環境に共通するコンテナを示しています。全コンテナと各コンテナの役割については[基本アーキテクチャ](basic-architecture.md#standard-containers)を参照してください。
+
 - **Rubyコンテナ** (`monadic-chat-ruby-container`): メインアプリケーションコンテナ
   ```shell
   docker exec -it monadic-chat-ruby-container bash
@@ -33,6 +35,16 @@ Monadic Chatを起動すると、各コンテナの利用可能性がメイン�
 - **Seleniumコンテナ** (`monadic-chat-selenium-container`): Webスクレイピングとブラウザ自動化
   ```shell
   docker exec -it monadic-chat-selenium-container bash
+  ```
+
+- **Privacyコンテナ** (`monadic-chat-privacy-container`): Privacy Filter 用のローカル個人情報マスキング（デフォルトで起動）
+  ```shell
+  docker exec -it monadic-chat-privacy-container bash
+  ```
+
+- **Extractorコンテナ** (`monadic-chat-extractor-container`): Knowledge Base Quality Pack のドキュメント抽出（オプトイン。インストールオプションで導入した場合のみ存在）
+  ```shell
+  docker exec -it monadic-chat-extractor-container bash
   ```
 
 ?> **開発のヒント**: ローカルで開発する際、Rubyコンテナを停止してホストマシンでアプリケーションを実行しながら、他のコンテナは稼働させ続けることができます。

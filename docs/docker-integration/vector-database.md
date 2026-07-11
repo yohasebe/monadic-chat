@@ -30,7 +30,7 @@ Both containers start automatically with Monadic Chat and require no configurati
 Here is the processing flow in the Knowledge Base import pipeline:
 
 1. **Content Extraction**:
-   - PDFs are processed via [pdfplumber](https://github.com/jsvine/pdfplumber) to extract text and tables, with structure recovered as Markdown
+   - PDFs are routed through the Extractor container ([Docling](https://github.com/docling-project/docling) with OCR and layout analysis) when the Knowledge Base Quality Pack is installed; otherwise they are processed via [pdfplumber](https://github.com/jsvine/pdfplumber) to extract text and tables, with structure recovered as Markdown
    - Office files (`.docx`/`.xlsx`/`.pptx`) are extracted via `python-docx` / `openpyxl` / `python-pptx`
    - Markdown and source-code files are read directly; section boundaries come from headings and top-level definitions respectively
    - The extracted content is split into per-section chunks (≈200–4000 chars) with importer-specific boundary rules
@@ -69,7 +69,7 @@ Library entries carry a `scope_app` payload — either an app + provider class n
 The Knowledge Base app uses this system to provide unified content Q&A:
 
 1. Users save the current chat session or click **Import file** in the Browse modal
-2. The system extracts, chunks, embeds, and stores the content (PDFs via pdfplumber, Office via python-docx/openpyxl/python-pptx, Markdown/code directly)
+2. The system extracts, chunks, embeds, and stores the content (PDFs via the Extractor container when the Knowledge Base Quality Pack is installed, pdfplumber otherwise; Office via python-docx/openpyxl/python-pptx; Markdown/code directly)
 3. Users ask questions about the content; other apps can ask too via `library_search` when the user has flipped the entry to `Global`
 4. The system retrieves the most relevant chunks using a cascade query (summaries → turns) over the Qdrant collections above
 5. Retrieved chunks are passed to the LLM to ground its answer

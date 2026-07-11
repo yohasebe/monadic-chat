@@ -49,7 +49,7 @@ This section explains the standard Docker containers available in Monadic Chat. 
 
 ### Ruby Container (`monadic-chat-ruby-container`) :id=ruby-container
 This container is necessary to run Monadic Chat applications. It is also used to provide the web interface.
-- **Port**: 4567 (Web interface)
+- **Ports**: 4567 (Web interface); 3100 on `127.0.0.1` only (MCP server, active when `MCP_SERVER_ENABLED=true`)
 - **Main features**: Sinatra web server, WebSocket support, Docker management
 - **Shared volumes**: `/monadic/data`, `/monadic/config`, `/monadic/log`
 - **Apps that require this container**: All apps (this is the core container that runs the web interface and manages all Monadic Chat functionality)
@@ -99,6 +99,12 @@ This container runs a local PII-masking service (spaCy + Presidio) used by the P
 - **Apps that use this container**: Any app while the Privacy Filter is enabled (on by default)
 - No external API key is required; masking runs locally on the host CPU.
 
+### Extractor Container (`monadic-chat-extractor-container`) :id=extractor-container
+This opt-in container provides the Knowledge Base Quality Pack — a document extraction service based on [Docling](https://github.com/docling-project/docling) with OCR support. Install it via **Actions → Install Options** (sets `EXTRACTOR_SERVICE=true`). When installed, Knowledge Base PDF imports are routed through this container for layout-aware extraction with OCR; without it, PDFs are processed by pdfplumber in the Python container.
+- **Main features**: Layout-aware PDF extraction, table structure recovery, OCR (languages selectable in Install Options)
+- **Apps that use this container**: `Knowledge Base` (file imports)
+- No external API key is required; extraction runs locally.
+
 
 ## Container Requirements by App Type :id=container-requirements
 
@@ -131,7 +137,7 @@ The following containers enable additional features:
 - Help system (Monadic Help)
 - Custom RAG applications
 
-These two containers always start together as base services. They have no opt-in flag.
+These two containers always start together as base services. They have no opt-in flag. Note that Knowledge Base file imports additionally need an extraction path: the Python container handles PDF and Office extraction, and the Extractor container takes over PDF extraction when the Knowledge Base Quality Pack is installed.
 
 ?> For more information on adding Docker containers to extend the functionality of Monadic Chat, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
 
@@ -150,9 +156,11 @@ All containers communicate through a shared Docker network:
 
 ### Container Dependencies and Startup Order :id=container-dependencies
 1. **Qdrant** and **embeddings** start in parallel as base services
-2. **Selenium** starts on demand for apps that need browser automation
-3. **Python** starts on demand (also brought up alongside Selenium when both are needed)
+2. **Python** and **Selenium** are brought up together with them at every application start
+3. **Privacy** (enabled by default) and **Extractor** (opt-in) also start at launch when their features are turned on
 4. **Ruby** starts immediately and waits for the vector services via application-level retry
+
+If a container is found missing later (e.g., after a manual stop), the system restarts it individually via the `ensure-service` recovery path.
 
 The Ruby container intentionally has no `depends_on` health-check coupling to qdrant or embeddings: the embeddings container can take 30-60 seconds to load `multilingual-e5-base` on first start, and we want the Ruby web UI reachable before that completes.
 

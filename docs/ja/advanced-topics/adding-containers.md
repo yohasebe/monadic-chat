@@ -77,7 +77,7 @@ CMD ["tail", "-f", "/dev/null"]
 
 ## 完全な例
 
-Monadic Chatに含まれるPythonコンテナの完全な実装例：
+実際に動作する完全な例として、Monadic Chatに含まれるPythonコンテナ（リポジトリの`docker/services/python/`）を参照してください。以下のリストでは繰り返し部分をコメントで省略しています。完全なファイルはリポジトリを確認してください。なお、ここに示す設定の一部（composeの`profiles`、`cache_from`、インストールオプション連動のビルド引数）はシステムコンテナ固有のもので、ユーザーコンテナには不要です。
 
 ### compose.yml
 
@@ -87,14 +87,23 @@ Monadic Chatに含まれるPythonコンテナの完全な実装例：
 ```yaml
 services:
   python_service:
+    profiles: ["python"]
     image: yohasebe/python
     build:
       context: .
       dockerfile: Dockerfile
+      # ビルド済みデフォルトイメージをレイヤーキャッシュとして再利用し、
+      # ローカルビルドでは有効化したオプション層のみをビルドする
+      cache_from:
+        - ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}
       args:
         PROJECT_TAG: "monadic-chat"
+        INSTALL_LATEX: ${INSTALL_LATEX:-false}
+        # ... インストールオプションごとに1つのビルド引数（PYOPT_NLTK、
+        # PYOPT_SPACY、PYOPT_GENSIM、PYOPT_LIBROSA、PYOPT_MEDIAPIPE、
+        # PYOPT_TRANSFORMERS、IMGOPT_IMAGEMAGICK）
     ports:
-      - "8889:8889"
+      - "${HOST_BINDING:-127.0.0.1}:8889:8889"
     container_name: monadic-chat-python-container
     volumes:
       - data:/monadic/data
@@ -102,9 +111,6 @@ services:
     command: ["sleep", "infinity"]
     networks:
       - monadic-chat-network
-    depends_on:
-      selenium_service:
-        condition: service_started
 ```
 
 </details>
@@ -115,93 +121,79 @@ services:
 <summary>Pythonコンテナ Dockerfile</summary>
 
 ```dockerfile
-FROM python:3.10-slim-bookworm
-ARG PROJECT_TAG
+FROM python:3.12-slim-bookworm
+ARG PROJECT_TAG=monadic-chat
 LABEL project=$PROJECT_TAG
 
-# Install necessary packages
-# LaTeX packages for Concept Visualizer:
-# - texlive-latex-base: Basic LaTeX
-# - texlive-latex-extra: Additional LaTeX packages
-# - texlive-pictures: TikZ and PGF
-# - texlive-science: Scientific diagrams (including tikz-3dplot)
-# - texlive-pstricks: PSTricks for advanced graphics
-# - texlive-latex-recommended: Recommended packages
-# - texlive-fonts-extra: Additional fonts
-# - texlive-plain-generic: Generic packages
-# - texlive-lang-cjk: CJK language support
-# - latex-cjk-all: Complete CJK support
-# - dvisvgm: DVI to SVG converter
-# - pdf2svg: PDF to SVG converter (backup option)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential wget curl git gnupg \
-    python3-dev graphviz libgraphviz-dev pkg-config \
-    libxml2-dev libxslt-dev \
-    pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
-    imagemagick libmagickwand-dev \
-    texlive-xetex texlive-latex-base texlive-fonts-recommended \
-    texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
-    texlive-science texlive-pstricks texlive-latex-recommended \
-    texlive-fonts-extra texlive-plain-generic \
-    pdf2svg dvisvgm \
-    && fc-cache -fv \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# uv をインストール（パッケージインストールの高速化）
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# uv を設定
+# uv をインストール（高速なPythonパッケージインストーラ。再現性のためバージョン固定）
+COPY --from=ghcr.io/astral-sh/uv:0.9.18 /uv /usr/local/bin/uv
 ENV UV_SYSTEM_PYTHON=1
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-# Pythonパッケージをインストール
-RUN uv pip install --no-cache \
-    setuptools \
-    wheel \
-    jupyterlab ipywidgets plotly \
-    numpy  pandas statsmodels \
-    matplotlib seaborn \
-    pdfplumber pypdfium2 \
-    selenium html2text \
-    openpyxl python-docx python-pptx \
-    requests beautifulsoup4 \
-    lxml pygraphviz graphviz pydotplus networkx pyvis \
-    svgwrite cairosvg tinycss cssselect pygal \
-    pyecharts pyecharts-snapshot \
-    opencv-python
+# オプション機能のトグル（デフォルトは無効。上記composeのビルド引数
+# 経由で「アクション → インストールオプション」から設定される）
+ARG INSTALL_LATEX=false
+ARG PYOPT_NLTK=false
+# ... 残りのインストールオプションごとに1つのARG
 
-# Set up JupyterLab user settings
+# ベースOSパッケージ（デフォルトは軽量構成）
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential wget curl git gnupg \
+      python3-dev graphviz libgraphviz-dev pkg-config \
+      libxml2-dev libxslt-dev \
+      pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
+    && fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ベースPythonパッケージ（再現性のためバージョン固定。ここでは省略:
+# jupyterlab, numpy, pandas, matplotlib, scikit-learn, pdfplumber,
+# selenium, opencv-python など — 完全なリストはリポジトリのDockerfileを参照）
+RUN uv pip install --no-cache \
+      jupyterlab~=4.5 numpy~=1.26 pandas~=2.3 matplotlib~=3.10 \
+      scikit-learn~=1.5 pdfplumber~=0.11 selenium~=4.39 \
+      opencv-python~=4.11
+      # ...（省略）
+
+# オプション: Concept Visualizer / Syntax Tree 用のLaTeX一式
+#（インストールオプション有効時のみインストール）
+RUN if [ "$INSTALL_LATEX" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends \
+        texlive-xetex texlive-latex-base texlive-pictures \
+        texlive-lang-cjk latex-cjk-all dvisvgm pdf2svg \
+        # ...（省略） \
+      && apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# オプションのPythonライブラリ — オプションごとに個別の条件付きRUNとし、
+# 変更のないオプションはレイヤーキャッシュを再利用
+RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
+# ... 残りのオプションごとに1つのRUN（spacy、gensim、librosa+madmom、
+# mediapipe、transformers、ImageMagick）
+
+# JupyterLabのユーザー設定
 RUN mkdir -p /root/.jupyter/lab/user-settings
 COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
 
-# Set up Matplotlib configuration
+# Matplotlibの設定
 ENV MPLCONFIGDIR=/root/.config/matplotlib
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
 
-# Copy scripts and set permissions
+# スクリプトをコピーして実行権限を付与
 COPY scripts /monadic/scripts
 RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
 RUN mkdir -p /monadic/data/scripts
 
-# Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
+# 環境変数を設定（LLMから参照可能）
+ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
 
-# Create symbolic link for data directory
+# データディレクトリへのシンボリックリンクを作成
 RUN ln -s /monadic/data /data
 
 COPY Dockerfile /monadic/Dockerfile
-
-# copy `pysetup.sh` to `/monadic` and run it
-COPY pysetup.sh /monadic/pysetup.sh
-RUN chmod +x /monadic/pysetup.sh
-RUN /monadic/pysetup.sh
 ```
 
 </details>

@@ -498,59 +498,13 @@ class MyAppOpenAI < MonadicApp
 end
 ```
 
-## MCP Adapter Development
+## MCP Integration
 
-?> **Experimental Feature**: MCP (Model Context Protocol) support is an experimental feature and may change in future releases.
+Monadic Chat ships an MCP (Model Context Protocol) server called Monadic
+Conduit. It publishes a fixed set of capability tools in the `monadic_*`
+namespace (query, knowledge base, media analysis/generation, and so on) rather
+than re-exposing each app's individual tools, so there is nothing MCP-specific
+to develop or register when you create an app.
 
-Monadic Chat includes an experimental MCP server that allows external AI assistants to access Monadic Chat functionality through a standardized protocol.
-
-### MCP Adapter Structure
-
-MCP adapters are located in `docker/services/ruby/lib/monadic/mcp/adapters/` and must implement three core methods:
-
-```ruby
-# example_adapter.rb
-module Monadic
-  module MCP
-    module Adapters
-      class ExampleAdapter
-        def list_tools
-          # Return an array of tool definitions
-        end
-
-        def handles_tool?(tool_name)
-          # Return true if this adapter handles the tool
-        end
-
-        def execute_tool(tool_name, arguments)
-          # Execute the tool and return the result
-        end
-      end
-    end
-  end
-end
-```
-
-### Available Adapters
-
-| Adapter | Purpose | Tools | Output |
-|---------|---------|-------|--------|
-| **Help** | Documentation search | 3 tools | Text responses |
-| **Mermaid** | Diagram validation & generation | 4 tools | PNG images |
-| **Syntax Tree** | Tree notation & visualization | 5 tools | SVG images |
-
-### Configuration
-
-Enable the MCP server in `~/monadic/config/env`:
-
-```bash
-MCP_SERVER_ENABLED=true
-MCP_SERVER_PORT=3100
-```
-
-### Security Considerations
-
-- **Localhost binding**: MCP server accepts local connections only
-- **Input validation**: All adapters implement length and character validation
-- **Error sanitization**: Stack traces are hidden in production
-- **Container isolation**: Image generation uses isolated Docker containers
+See [MCP Integration](/advanced-topics/mcp-integration.md) for server setup,
+the available tools, and client configuration.

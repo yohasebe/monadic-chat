@@ -259,9 +259,26 @@
   }
 
   /**
+   * Busy state for the export button: building the print document and
+   * cloning stylesheets takes a moment, so show a spinner until the
+   * print dialog opens (or the export fails). Restored on every exit
+   * path of exportConversationToPDF.
+   */
+  function setExportPdfBusy(busy) {
+    const btn = (typeof $id === 'function') ? $id('export-pdf') : document.getElementById('export-pdf');
+    if (!btn) return;
+    btn.disabled = busy;
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = busy ? 'fas fa-spinner fa-spin' : 'fas fa-file-pdf';
+    }
+  }
+
+  /**
    * Main export function
    */
   window.exportConversationToPDF = function() {
+    setExportPdfBusy(true);
     try {
       // Get messages from SessionState if available, otherwise use global messages array
       let messagesToExport;
@@ -271,6 +288,7 @@
         messagesToExport = window.messages;
       } else {
         const noMessagesText = webUIi18n ? webUIi18n.t('ui.messages.noMessagesToExport') : 'No messages to export';
+        setExportPdfBusy(false);
         alert(noMessagesText);
         return;
       }
@@ -278,6 +296,7 @@
       // Check if there are messages to export
       if (!messagesToExport || messagesToExport.length === 0) {
         const noMessagesText = webUIi18n ? webUIi18n.t('ui.messages.noMessagesToExport') : 'No messages to export';
+        setExportPdfBusy(false);
         alert(noMessagesText);
         return;
       }
@@ -362,6 +381,7 @@
         // Give cloned stylesheets (and any KaTeX fonts) a moment to load
         setTimeout(() => {
           try {
+            setExportPdfBusy(false);
             iframe.contentWindow.print();
             setTimeout(() => {
               if (iframe.parentNode) {
@@ -370,6 +390,7 @@
             }, 100);
           } catch (error) {
             console.error('Error during print:', error);
+            setExportPdfBusy(false);
             // Clean up iframe even on error
             if (iframe.parentNode) {
               document.body.removeChild(iframe);
@@ -382,6 +403,7 @@
 
     } catch (error) {
       console.error('Error exporting to PDF:', error);
+      setExportPdfBusy(false);
       const errorText = webUIi18n ? webUIi18n.t('ui.messages.exportError') : 'Error exporting to PDF';
       alert(`${errorText}: ${error.message}`);
     }

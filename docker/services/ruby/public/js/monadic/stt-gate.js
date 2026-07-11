@@ -61,7 +61,62 @@ function isRealtimeSttEnabled() {
   catch (_) { return false; }
 }
 
-const SttGate = { isRealtimeSttEnabled };
+// ─── STT select empty state ───
+//
+// Every #stt-model option ships disabled and is enabled per verified
+// API key by three different handlers (ws-connection-handler.js for
+// OpenAI, ws-app-data-handlers.js for Gemini/ElevenLabs, monadic.js
+// for Mistral/Cohere/xAI). When NO key is present the select used to
+// display the first disabled OpenAI option as if it were usable. A
+// hidden placeholder option (value="") now owns that state, and a
+// MutationObserver keeps it in sync with option enablement so no
+// enable/disable call site needs to know about it.
+
+function updateSttEmptyState() {
+  const sel = (typeof $id === 'function') ? $id('stt-model')
+    : (typeof document !== 'undefined' ? document.getElementById('stt-model') : null);
+  if (!sel) return;
+  const enabled = Array.from(sel.options).filter(function(o) {
+    return !o.disabled && o.value !== '';
+  });
+  if (enabled.length === 0) {
+    // Nothing usable — show the placeholder instead of a random
+    // disabled model name
+    sel.value = '';
+    return;
+  }
+  const selectedOption = sel.options[sel.selectedIndex];
+  if (!sel.value || (selectedOption && selectedOption.disabled)) {
+    // Same policy as the TTS provider select: move to a REAL enabled
+    // option rather than leaving the placeholder or a disabled model
+    // selected
+    sel.value = enabled[0].value;
+    if (typeof $dispatch === 'function') {
+      $dispatch(sel, 'change');
+    } else {
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+}
+
+function initSttEmptyStateObserver() {
+  const sel = (typeof $id === 'function') ? $id('stt-model')
+    : (typeof document !== 'undefined' ? document.getElementById('stt-model') : null);
+  if (!sel || typeof MutationObserver === 'undefined') return;
+  updateSttEmptyState();
+  const observer = new MutationObserver(function() { updateSttEmptyState(); });
+  observer.observe(sel, { attributes: true, subtree: true, attributeFilter: ['disabled'] });
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSttEmptyStateObserver);
+  } else {
+    initSttEmptyStateObserver();
+  }
+}
+
+const SttGate = { isRealtimeSttEnabled, updateSttEmptyState, initSttEmptyStateObserver };
 
 if (typeof window !== 'undefined') {
   window.SttGate = SttGate;

@@ -83,6 +83,7 @@ Monadic ChatがDockerをどのように活用して強力なAI環境を実現し
 
 構成やその他の技術的側面に関する詳細情報。
 
+*   [プロバイダーとモデル](/ja/reference/providers.md)
 *   [構成リファレンス](/ja/reference/configuration.md)
 
 ## よくある質問

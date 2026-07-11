@@ -83,6 +83,7 @@ Explore advanced configurations, app development, and integration possibilities.
 
 Detailed information on configuration and other technical aspects.
 
+*   [Providers & Models](/reference/providers.md)
 *   [Configuration Reference](/reference/configuration.md)
 
 ## Frequently Asked Questions

@@ -57,6 +57,7 @@
     
 - **Reference**
 
+    - [Providers & Models](/reference/providers.md)
     - [Configuration Reference](/reference/configuration.md)
     
 - **Frequently Asked Questions**

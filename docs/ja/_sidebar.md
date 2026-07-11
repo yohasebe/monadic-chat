@@ -57,6 +57,7 @@
     
 - **リファレンス**
 
+    - [プロバイダーとモデル](/ja/reference/providers.md)
     - [設定リファレンス](/ja/reference/configuration.md)
     
 - **よくある質問**

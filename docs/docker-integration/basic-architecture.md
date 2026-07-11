@@ -31,7 +31,7 @@ Monadic Chat can operate in two primary modes:
 - Multiple tabs in the same browser share session state
 - Jupyter-related features are disabled for security reasons
 
->! **Security Warning**: When exposing Monadic Chat in Server Mode to external networks, especially the internet, implement appropriate security measures such as firewalls, reverse proxies, and authentication mechanisms. The default configuration has no built-in authentication, so it should only be used on trusted networks or with additional security layers.
+>! **Security Warning**: Server Mode requires an access token (`MONADIC_AUTH_TOKEN`); clients on other devices authenticate with a token URL, and requests without a valid token are rejected (see [Web Interface](../basic-usage/web-interface.md) for the authentication flow). The token gate is designed for trusted local networks — when exposing Monadic Chat to external networks, especially the internet, still add security layers such as firewalls, reverse proxies, and TLS.
 
 For details on multi-tab session management and session isolation, see [Advanced Configuration](../advanced-topics/advanced-configuration.md#server-mode).
 

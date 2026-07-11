@@ -65,9 +65,6 @@ Launch JupyterLab. It can be accessed at [http://localhost:8889](http://localhos
 **Stop JupyterLab** <br />
 Stop JupyterLab.
 
-**Stop Selenium Container** <br />
-Disable the Selenium container from starting automatically on next launch of Monadic Chat. When Selenium is disabled, the system will use Tavily API as a fallback for web scraping features (if Tavily API key is configured). Note: This setting only takes effect after restarting Monadic Chat. Users attempting Selenium-backed tools while the container is disabled will see guidance indicating that the Selenium container is stopped and the feature cannot run until it is re-enabled.
-
 **Import Document DB** <br />
 Import the entire Document DB (saved conversations, PDFs, and Knowledge Base entries) from a previously exported tarball in the shared folder. A confirmation dialog warns that importing OVERWRITES the current database. The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time).
 

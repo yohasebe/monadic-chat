@@ -94,10 +94,9 @@ These tool groups require specific containers or API keys to be available:
 **Apps using this**: Web Insight (all providers), AutoForge (all providers)
 
 **How to enable**:
-1. Go to **Actions** menu
-2. Select **Start Selenium Container**
-3. Wait for the container to start
-4. The tool group badge will change from unavailable to available
+The Selenium container starts automatically with Monadic Chat. If the badge
+shows the group as unavailable, wait for startup to finish; if the Selenium
+image is missing, run **Actions → Build All** to download it.
 
 #### Video Analysis (1 tool)
 **Requires**: OpenAI API key configured
@@ -192,7 +191,7 @@ If a tool group shows as unavailable even after starting the required containers
 
 1. **Refresh the app list**: The UI checks availability every 10 seconds
 2. **Restart containers**: Stop and start the container from the Actions menu
-3. **Check container status**: Use `Actions → Show Container Status` to verify containers are running
+3. **Check container status**: Verify containers are running with `docker ps` (or the status messages in the console panel)
 4. **Check logs**: Container logs may show errors preventing startup
 
 ### Tools Not Working as Expected

@@ -9,7 +9,6 @@ Use the Electron app “Actions → Install Options…” to choose optional com
 - LaTeX (with CJK support): Enables Concept Visualizer / Syntax Tree. Installs TeX Live (xelatex/luatex), CJK packages, ghostscript, dvisvgm/pdf2svg so Japanese/Chinese/Korean trees render out of the box (only shown in UI when enabled)
 - Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `gensim`, `librosa`, `transformers` (note: `scikit-learn` is now installed by default since beta.16)
 - Tools: ImageMagick (`convert`/`mogrify`)
-- Selenium toggle: When disabled and Tavily key exists, From URL uses Tavily; otherwise #url/#doc is hidden
 
 Saving does not auto-rebuild. When you explicitly run Rebuild from the main console, the Python image is built to a temporary tag, verified, and promoted only on success. Progress output appears in the main console. Logs and artifacts are saved under `~/monadic/log/build/python/<timestamp>/`.
 

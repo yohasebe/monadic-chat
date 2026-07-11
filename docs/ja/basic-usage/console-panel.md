@@ -65,9 +65,6 @@ JupyterLabを起動します。JupyterLabは[http://localhost:8889](http://local
 **JupyterLab を停止** <br />
 JupyterLabを停止します。
 
-**Selenium コンテナを停止** <br />
-次回の Monadic Chat 起動時に Selenium コンテナが自動で起動しないようにします。Selenium を無効化すると、Tavily API キーが設定されている場合は「From URL」機能が Tavily を利用し、キーが無い場合は関連ボタンが非表示になります。この設定は Monadic Chat の再起動後に有効になります。Selenium を利用するアプリ機能を実行すると、コンテナが停止中で利用できない旨がアシスタントから案内されます。
-
 **ドキュメント DB をインポート** <br />
 ドキュメント DB（保存された会話・PDF・Knowledge Base エントリすべて）を共有フォルダ内の tarball から取り込みます。実行前に、現在の DB を上書きすることを警告する確認ダイアログが表示されます。受け入れられるファイル名は `monadic-qdrant.tar.gz`（平文）または `monadic-qdrant.tar.gz.enc`（暗号化、エクスポート時のパスフレーズを入力するよう促されます）です。
 

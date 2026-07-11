@@ -12,7 +12,7 @@
     - [Message Input](/basic-usage/message-input.md)
     - [Workflow Viewer](/basic-usage/workflow-viewer.md)
     - [Basic Apps](/basic-usage/basic-apps.md)
-    - [PDF Storage](/basic-usage/pdf_storage.md)
+    - [PDF Database](/basic-usage/pdf_storage.md)
     - [Syntax Highlighting](/basic-usage/syntax-highlighting.md)
 
 - **Apps**

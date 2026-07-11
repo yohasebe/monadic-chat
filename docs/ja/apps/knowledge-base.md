@@ -6,6 +6,8 @@
 
 Knowledge Base は従来の PDF Navigator と Content Reader を置き換えるサブシステムです。会話のトランスクリプト、PDF、Office ファイル、Markdown、ソースコードを単一のインターフェースで扱えるようにまとめています。
 
+?> Knowledge Base はアプリ単位の [PDF Database パネル](../basic-usage/pdf_storage.md)（`pdf_vector_storage` を宣言したアプリ＝現在は Chat Plus と Research Assistant 向けのアプリスコープ PDF ストレージ）とは別の機能です。一方に取り込んだ内容がもう一方に現れることはありません。
+
 **コンテンツの追加方法は 2 通り:**
 
 1. **現在のチャットセッションを保存** — サイドバーの **Save** ボタンで、進行中の会話 (メッセージ + 参加者 + メタデータ) を Knowledge Base にシリアライズします。

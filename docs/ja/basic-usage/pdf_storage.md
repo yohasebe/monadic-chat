@@ -1,6 +1,8 @@
-# PDFナレッジベース
+# PDF Database
 
-Monadic Chat はローカル PDF ナレッジベースを構築でき、AI エージェントが会話中にその内容を検索します。ドキュメントの処理はすべてローカルで完結します。各 PDF からテキストを抽出し、ローカルの sentence-transformer コンテナで埋め込みベクトルに変換し、Qdrant ベクトルデータベースに保存します。保存・検索のいずれにも外部 API キーは不要です。
+PDF Database は、対応アプリに PDF のローカルストアを提供し、AI エージェントが会話中にその内容を検索できるようにします。ドキュメントの処理はすべてローカルで完結します。各 PDF からテキストを抽出し、ローカルの sentence-transformer コンテナで埋め込みベクトルに変換し、Qdrant ベクトルデータベースに保存します。保存・検索のいずれにも外部 API キーは不要です。
+
+?> **PDF Database と Knowledge Base の違い** — この2つは別の機能です。本ページで説明する **PDF Database パネル**はアプリ単位の PDF ストレージで、`pdf_vector_storage` を宣言したアプリ（現在は Chat Plus と Research Assistant）でのみサイドバーに表示され、アプリごとに独立した名前空間を持ちます。一方 [Knowledge Base](../apps/knowledge-base.md) はプロジェクト全体で共有される、保存した会話とインポートしたドキュメントのライブラリで、アプリ/Global のスコープモデルを持ちます。一方に取り込んだ PDF がもう一方に現れることはありません。
 
 ## 仕組み
 

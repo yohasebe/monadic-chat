@@ -29,7 +29,7 @@ Monadic Chatの機能と組み込みアプリケーションの基本を学び�
 *   [メッセージ入力](/ja/basic-usage/message-input.md)
 *   [Workflow Viewer](/ja/basic-usage/workflow-viewer.md)
 *   [基本アプリ](/ja/basic-usage/basic-apps.md)
-*   [PDFストレージ](/ja/basic-usage/pdf_storage.md)
+*   [PDF Database](/ja/basic-usage/pdf_storage.md)
 *   [シンタックスハイライト](/ja/basic-usage/syntax-highlighting.md)
 
 ## アプリ

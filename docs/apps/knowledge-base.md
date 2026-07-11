@@ -6,6 +6,8 @@ A unified, project-wide library of conversations and documents. The Knowledge Ba
 
 The Knowledge Base replaces the previous PDF Navigator and Content Reader apps. Their functionality is consolidated into a single subsystem that handles conversation transcripts, PDFs, Office files, Markdown, and source code uniformly.
 
+?> The Knowledge Base is separate from the per-app [PDF Database panel](../basic-usage/pdf_storage.md), which serves app-scoped PDF storage for apps that declare `pdf_vector_storage` (currently Chat Plus and Research Assistant). Content imported into one is not visible in the other.
+
 **Two ways to add content:**
 
 1. **Save the current chat session** — the **Save** button in the sidebar serialises the active conversation (messages + participants + metadata) into the Knowledge Base.

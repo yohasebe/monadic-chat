@@ -1,6 +1,8 @@
-# PDF Knowledge Base
+# PDF Database
 
-Monadic Chat lets you build a local PDF knowledge base that AI agents can search during conversations. Documents are processed entirely on your machine: text is extracted from each PDF, converted to embeddings by a local sentence-transformer container, and stored in a Qdrant vector database. No external API key is required for either step.
+The PDF Database gives selected apps a local store of PDFs that AI agents can search during conversations. Documents are processed entirely on your machine: text is extracted from each PDF, converted to embeddings by a local sentence-transformer container, and stored in a Qdrant vector database. No external API key is required for either step.
+
+?> **PDF Database vs. Knowledge Base** — these are two separate features. The **PDF Database panel** described on this page provides per-app PDF storage: it appears in the sidebar only for apps that declare `pdf_vector_storage` (currently Chat Plus and Research Assistant), and each app keeps its own namespace. The [Knowledge Base](../apps/knowledge-base.md) is a different, project-wide library for saved conversations and imported documents with an app/Global scope model. Importing a PDF into one does not make it visible in the other.
 
 ## How It Works
 

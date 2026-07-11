@@ -62,12 +62,13 @@ For the OpenAI default model:
 |----------|-------------|---------------|
 | `OPENAI_DEFAULT_MODEL` | Default model for OpenAI apps | `OPENAI_DEFAULT_MODEL=<model-id>` |
 | `ANTHROPIC_DEFAULT_MODEL` | Default model for Claude apps | `ANTHROPIC_DEFAULT_MODEL=<model-id>` |
-| `TOKEN_COUNT_SOURCE` | Token counting source policy | `TOKEN_COUNT_SOURCE=python_only` (options: `provider_only`, `hybrid`) |
+| `TOKEN_COUNT_SOURCE` | Token counting source policy | `TOKEN_COUNT_SOURCE=provider_only` (options: `provider_only`, `hybrid`) |
 | `GEMINI_DEFAULT_MODEL` | Default model for Gemini apps | `GEMINI_DEFAULT_MODEL=<model-id>` |
 | `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `MISTRAL_DEFAULT_MODEL=<model-id>` |
 | `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `COHERE_DEFAULT_MODEL=<model-id>` |
 | `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
 | `GROK_DEFAULT_MODEL` | Default model for Grok apps | `GROK_DEFAULT_MODEL=<model-id>` |
+| `OLLAMA_DEFAULT_MODEL` | Default model for Ollama apps | `OLLAMA_DEFAULT_MODEL=<model-id>` |
 
 ### Model Selection in the UI
 
@@ -79,13 +80,8 @@ To see all available models from the provider, toggle the **All** switch next to
 
 | Variable | Description | Default | Range/Options |
 |----------|-------------|---------|---------------|
-| `FONT_SIZE` | Base font size for the interface | `16` | 10-24 |
-| `AUTONOMOUS_ITERATIONS` | Number of autonomous mode iterations | `2` | 1-10 |
-| `MAX_CHAR_COUNT` | Maximum message length | `200000` | 1000-500000 |
 | `MAX_STORED_MESSAGES` | Maximum number of messages stored in localStorage for session restoration | `1000` | 50-1000 (cannot exceed context size when enabled) |
-| `PDF_BOLD_FONT_PATH` | Path to bold font for PDF generation | (optional) | File path |
-| `PDF_STANDARD_FONT_PATH` | Path to standard font for PDF generation | (optional) | File path |
-| `ROUGE_THEME` | Syntax highlighting theme | `pastie:light` | See [available themes](../basic-usage/syntax-highlighting.md) |
+| `ROUGE_THEME` | Syntax highlighting theme | `github:light` | See [available themes](../basic-usage/syntax-highlighting.md) |
 
 > **Note**: `MAX_STORED_MESSAGES` determines how many conversation messages are persisted across browser sessions. When the context size setting is enabled in the Web UI, the actual limit will be the smaller of `MAX_STORED_MESSAGES` or the configured context size value.
 
@@ -93,9 +89,10 @@ To see all available models from the provider, toggle the **All** switch next to
 
 | Variable | Description | Default | Range/Options |
 |----------|-------------|---------|---------------|
-| `STT_MODEL` | Speech-to-text model | See model_spec.js | Refer to provider documentation for available models |
-| `TTS_DICT_PATH` | Path to TTS pronunciation dictionary | (optional) | File path |
-| `TTS_DICT_DATA` | Inline TTS pronunciation data | (optional) | CSV format |
+| `TTS_DICT_PATH` | Path to a TTS pronunciation dictionary CSV. Set via the Electron Settings panel ("TTS Dictionary File Path"); the file is copied to `~/monadic/config/TTS_DICT.csv`, which the server reads | (optional) | File path |
+| `TTS_DICT_DATA` | Inline TTS pronunciation data (legacy; used only when no dictionary file is available) | (optional) | CSV format |
+
+> **Note**: The speech-to-text model is not configured via environment variables. Select it in the **Speech** panel of the web UI; the selection is stored in a browser cookie.
 
 ## Help System Settings
 
@@ -112,7 +109,9 @@ To see all available models from the provider, toggle the **All** switch next to
 | `DISTRIBUTED_MODE` | Enable multi-user server mode | `off` | `off`, `server` |
 | `SESSION_SECRET` | Secret key for session management | (generated) | Any string |
 | `MCP_SERVER_ENABLED` | Enable Model Context Protocol server | `false` | `true`, `false` |
+| `MCP_SERVER_PORT` | Port for the Model Context Protocol server | `3100` | Any free port |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | Enable Jupyter in server mode | `false` | `true`, `false` |
+| `EXTRA_LOGGING` | Enable detailed logging | `false` | `true`, `false` |
 
 ### Application Modes
 
@@ -139,6 +138,9 @@ Monadic Chat supports two application modes that control network accessibility:
 | `EMBEDDINGS_URL` | Full URL of the embeddings service | `http://embeddings_service:8000` (in-container) / `http://localhost:8002` (dev) | Override only when relocating |
 | `EMBEDDINGS_DEV_PORT` | Embeddings host port in dev mode | `8002` | Exposed via `compose.dev.yml` |
 | `QDRANT_DEV_PORT` | Qdrant host port in dev mode | `6333` | Exposed via `compose.dev.yml` |
+| `START_HEALTH_TRIES` | Number of startup health probe attempts | `20` | See [Advanced Configuration](/advanced-topics/advanced-configuration.md#startup-health-tuning) |
+| `START_HEALTH_INTERVAL` | Seconds between startup health probe attempts | `2` | See [Advanced Configuration](/advanced-topics/advanced-configuration.md#startup-health-tuning) |
+| `FORCE_RUBY_REBUILD_NO_CACHE` | Force Ruby container rebuilds to run without Docker cache | `false` | See [Advanced Configuration](/advanced-topics/advanced-configuration.md#ruby-rebuild) |
 
 ## Install Options
 
@@ -209,15 +211,13 @@ ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_DEFAULT_MODEL=<model-id>
 
 # UI Settings
-FONT_SIZE=18
-ROUGE_THEME=github
+ROUGE_THEME=github:light
 ```
 
 ### Advanced Configuration
 ```bash
-# Web Search and Voice
+# Web Search
 TAVILY_API_KEY=tvly-...
-STT_MODEL=<model-id>
 
 # PDF Processing
 PDF_RAG_TOKENS=6000

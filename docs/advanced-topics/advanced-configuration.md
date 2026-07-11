@@ -21,7 +21,7 @@ From the app menu **Actions → Install Options…**, you can choose optional co
 
 ### Rebuild Process
 
-Saving options does not trigger a rebuild automatically. When ready, run **Rebuild** from the main console to update the Python image.
+Saving options does not trigger a rebuild automatically. When ready, run **Actions → Build Python Container** from the app menu to update the Python image.
 
 The update is atomic (build → verify → promote on success) and progress/logs appear in the main console. A per-run summary and health check are written alongside the logs.
 
@@ -91,13 +91,7 @@ This is presented as informational prompts; finally a green "Ready" indicates su
 
 ### Probe Tuning
 
-You can tune health probe behavior via `~/monadic/config/env`:
-
-```
-# Health probe window
-START_HEALTH_TRIES=20
-START_HEALTH_INTERVAL=2
-```
+Health probe behavior can be tuned with `START_HEALTH_TRIES` and `START_HEALTH_INTERVAL` in `~/monadic/config/env` — see [Environment Variables](#environment-variables) below.
 
 ## Dependency-Aware Ruby Rebuild :id=ruby-rebuild
 
@@ -107,11 +101,7 @@ The image carries this value as `com.monadic.gems_hash`; when it differs from yo
 
 ### Force Clean Rebuild
 
-To force a clean rebuild for troubleshooting, set in `~/monadic/config/env`:
-
-```
-FORCE_RUBY_REBUILD_NO_CACHE=true
-```
+For troubleshooting, a clean rebuild can be forced with `FORCE_RUBY_REBUILD_NO_CACHE` in `~/monadic/config/env` — see [Environment Variables](#environment-variables) below.
 
 ## Build Logs :id=build-logs
 
@@ -195,4 +185,4 @@ MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
 ```
 
-See [Setting Items](setting-items.md) for complete configuration reference.
+See the [Configuration Reference](/reference/configuration.md) for the complete list of environment variables.

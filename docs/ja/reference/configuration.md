@@ -62,11 +62,13 @@ OpenAIのデフォルトモデルの場合：
 |--------|------|--------|
 | `OPENAI_DEFAULT_MODEL` | OpenAIアプリのデフォルトモデル | `OPENAI_DEFAULT_MODEL=<model-id>` |
 | `ANTHROPIC_DEFAULT_MODEL` | Claudeアプリのデフォルトモデル | `ANTHROPIC_DEFAULT_MODEL=<model-id>` |
+| `TOKEN_COUNT_SOURCE` | トークンカウントのソースポリシー | `TOKEN_COUNT_SOURCE=provider_only`（オプション: `provider_only`, `hybrid`） |
 | `GEMINI_DEFAULT_MODEL` | Geminiアプリのデフォルトモデル | `GEMINI_DEFAULT_MODEL=<model-id>` |
 | `MISTRAL_DEFAULT_MODEL` | Mistralアプリのデフォルトモデル | `MISTRAL_DEFAULT_MODEL=<model-id>` |
 | `COHERE_DEFAULT_MODEL` | Cohereアプリのデフォルトモデル | `COHERE_DEFAULT_MODEL=<model-id>` |
 | `DEEPSEEK_DEFAULT_MODEL` | DeepSeekアプリのデフォルトモデル | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
 | `GROK_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `GROK_DEFAULT_MODEL=<model-id>` |
+| `OLLAMA_DEFAULT_MODEL` | Ollamaアプリのデフォルトモデル | `OLLAMA_DEFAULT_MODEL=<model-id>` |
 
 ### UIでのモデル選択
 
@@ -78,13 +80,8 @@ OpenAIのデフォルトモデルの場合：
 
 | 変数名 | 説明 | デフォルト | 範囲/オプション |
 |--------|------|------------|-----------------|
-| `FONT_SIZE` | インターフェースの基本フォントサイズ | `16` | 10-24 |
-| `AUTONOMOUS_ITERATIONS` | 自律モードの反復回数 | `2` | 1-10 |
-| `MAX_CHAR_COUNT` | メッセージの最大文字数 | `200000` | 1000-500000 |
 | `MAX_STORED_MESSAGES` | セッション復元のためにlocalStorageに保存される最大メッセージ数 | `1000` | 50-1000（context sizeが有効な場合、その値を超えることはできません） |
-| `PDF_BOLD_FONT_PATH` | PDF生成用の太字フォントパス | （オプション） | ファイルパス |
-| `PDF_STANDARD_FONT_PATH` | PDF生成用の標準フォントパス | （オプション） | ファイルパス |
-| `ROUGE_THEME` | シンタックスハイライトのテーマ | `pastie:light` | [利用可能なテーマ](../basic-usage/syntax-highlighting.md)を参照 |
+| `ROUGE_THEME` | シンタックスハイライトのテーマ | `github:light` | [利用可能なテーマ](../basic-usage/syntax-highlighting.md)を参照 |
 
 > **注意**: `MAX_STORED_MESSAGES`は、ブラウザセッション間で永続化される会話メッセージの数を決定します。Web UIでcontext size設定が有効になっている場合、実際の上限は`MAX_STORED_MESSAGES`と設定されたcontext sizeの値のうち、小さい方になります。
 
@@ -92,9 +89,10 @@ OpenAIのデフォルトモデルの場合：
 
 | 変数名 | 説明 | デフォルト | 範囲/オプション |
 |--------|------|------------|----------------|
-| `STT_MODEL` | 音声認識モデル | model_spec.js参照 | 利用可能なモデルはプロバイダーのドキュメント参照 |
-| `TTS_DICT_PATH` | TTS発音辞書のパス | （オプション） | ファイルパス |
-| `TTS_DICT_DATA` | インラインTTS発音データ | （オプション） | CSV形式 |
+| `TTS_DICT_PATH` | TTS発音辞書CSVのパス。Electronの設定パネル（「TTS辞書ファイルパス」）で設定すると、ファイルが`~/monadic/config/TTS_DICT.csv`にコピーされ、サーバーがこれを読み込みます | （オプション） | ファイルパス |
+| `TTS_DICT_DATA` | インラインTTS発音データ（レガシー。辞書ファイルがない場合のみ使用） | （オプション） | CSV形式 |
+
+> **Note**: 音声認識（STT）モデルは環境変数では設定しません。Web UIの**Speech**パネルで選択してください。選択内容はブラウザのクッキーに保存されます。
 
 ## ヘルプシステム設定
 
@@ -111,7 +109,9 @@ OpenAIのデフォルトモデルの場合：
 | `DISTRIBUTED_MODE` | マルチユーザーサーバーモードを有効化 | `off` | `off`, `server` |
 | `SESSION_SECRET` | セッション管理用の秘密鍵 | （自動生成） | 任意の文字列 |
 | `MCP_SERVER_ENABLED` | Model Context Protocolサーバーを有効化 | `false` | `true`, `false` |
+| `MCP_SERVER_PORT` | Model Context Protocolサーバーのポート | `3100` | 空いている任意のポート |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | サーバーモードでJupyterを有効化 | `false` | `true`, `false` |
+| `EXTRA_LOGGING` | 詳細なロギングを有効化 | `false` | `true`, `false` |
 
 ### アプリケーションモード
 
@@ -138,6 +138,9 @@ Monadic Chatは、ネットワークアクセスを制御する2つのアプリ�
 | `EMBEDDINGS_URL` | Embeddings サービスのフル URL | `http://embeddings_service:8000`（コンテナ内）/ `http://localhost:8002`（dev） | 上書きする場合のみ設定 |
 | `EMBEDDINGS_DEV_PORT` | dev モード時の Embeddings ホストポート | `8002` | `compose.dev.yml` 経由で公開 |
 | `QDRANT_DEV_PORT` | dev モード時の Qdrant ホストポート | `6333` | `compose.dev.yml` 経由で公開 |
+| `START_HEALTH_TRIES` | 起動時ヘルスプローブの試行回数 | `20` | [高度な設定](/ja/advanced-topics/advanced-configuration.md#startup-health-tuning)を参照 |
+| `START_HEALTH_INTERVAL` | 起動時ヘルスプローブの試行間隔（秒） | `2` | [高度な設定](/ja/advanced-topics/advanced-configuration.md#startup-health-tuning)を参照 |
+| `FORCE_RUBY_REBUILD_NO_CACHE` | RubyコンテナのリビルドをDockerキャッシュなしで強制実行 | `false` | [高度な設定](/ja/advanced-topics/advanced-configuration.md#ruby-rebuild)を参照 |
 
 ## インストールオプション
 
@@ -208,15 +211,13 @@ ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_DEFAULT_MODEL=<model-id>
 
 # UI設定
-FONT_SIZE=18
-ROUGE_THEME=github
+ROUGE_THEME=github:light
 ```
 
 ### 高度な設定
 ```bash
-# ウェブ検索と音声
+# ウェブ検索
 TAVILY_API_KEY=tvly-...
-STT_MODEL=whisper-1
 
 # PDF処理
 PDF_RAG_TOKENS=6000

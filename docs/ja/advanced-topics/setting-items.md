@@ -98,6 +98,8 @@ end
 - `reasoning_effort` - サポートされているモデルの推論強度を制御。利用可能な値はモデルによって異なります（例：一部のモデルでは "low", "high"）
 - `models` - 利用可能なモデルリストを上書き
 - `jupyter` - Jupyterノートブックアクセスを有効化（Serverモードでは`ALLOW_JUPYTER_IN_SERVER_MODE=true`を設定しない限り無効）
+- `reachable_skills` - 会話の流れに応じてアプリがオンデマンドで獲得できるツールグループを宣言（`tools`ブロックの外、アプリレベルに記述）。`reachable_skills :safe`は読み取り専用の安全なグループ一式に展開されます。[ツールグループ](./tool-groups.md)を参照
+- `compaction` - サーバーサイドの会話コンパクション（対応するAPIを持つプロバイダーで有効）を制御（アプリレベルに記述）。OpenAIアプリではこのディレクティブがなくてもデフォルトのしきい値で有効です。`compaction false`でオプトアウト、`compaction do ... end`ブロック内の`compact_threshold`でトリガーしきい値をカスタマイズできます
 
 !> **重要**: `jupyter`機能はUIの機能を有効にするだけです。実際のJupyter機能を使用するには、アプリで対応するツール定義（`run_jupyter`、`create_jupyter_notebook`など）を実装する必要があります。例については、Jupyter Notebookアプリの実装を参照してください。
 
@@ -108,9 +110,10 @@ end
 - 各プロバイダーのAPIキー（OpenAI、Claude、Geminiなど）
 - Tavilyウェブ検索用APIキー
 - シンタックスハイライトテーマ
-- 音声認識モデル選択
 
 設定はアプリケーション起動時に読み込まれ、セッション間で保持されます。
+
+音声認識（STT）モデルは、設定パネルやMDSLファイルではなく、Web UIの**Speech**パネルで選択します。選択内容はブラウザのクッキーに保存されます。
 
 
 ## 完全な例

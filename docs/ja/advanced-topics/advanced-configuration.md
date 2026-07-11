@@ -21,7 +21,7 @@
 
 ### 再ビルド処理
 
-オプションの保存は自動的に再ビルドをトリガーしません。準備ができたら、メインコンソールから**Rebuild**を実行してPythonイメージを更新してください。
+オプションの保存は自動的に再ビルドをトリガーしません。準備ができたら、アプリメニューから**アクション → Pythonコンテナビルド**を実行してPythonイメージを更新してください。
 
 更新はアトミックです（ビルド → 検証 → 成功時のみ昇格）。進捗とログはメインコンソールに表示されます。実行ごとのサマリーとヘルスチェックはログと一緒に書き込まれます。
 
@@ -91,13 +91,7 @@ PY
 
 ### プローブ調整
 
-`~/monadic/config/env`でヘルスプローブの動作を調整できます：
-
-```
-# ヘルスプローブウィンドウ
-START_HEALTH_TRIES=20
-START_HEALTH_INTERVAL=2
-```
+ヘルスプローブの動作は`~/monadic/config/env`の`START_HEALTH_TRIES`と`START_HEALTH_INTERVAL`で調整できます。下記の[環境変数](#environment-variables)を参照してください。
 
 ## 依存関係を認識したRuby再ビルド :id=ruby-rebuild
 
@@ -107,11 +101,7 @@ RubyはGem依存関係の指紋（`Gemfile` + `monadic.gemspec`のSHA256）が�
 
 ### クリーン再ビルドの強制
 
-トラブルシューティング用にクリーン再ビルドを強制するには、`~/monadic/config/env`に設定：
-
-```
-FORCE_RUBY_REBUILD_NO_CACHE=true
-```
+トラブルシューティング用には、`~/monadic/config/env`の`FORCE_RUBY_REBUILD_NO_CACHE`でクリーン再ビルドを強制できます。下記の[環境変数](#environment-variables)を参照してください。
 
 ## ビルドログ :id=build-logs
 
@@ -195,4 +185,4 @@ MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
 ```
 
-完全な設定リファレンスについては[設定項目](setting-items.md)を参照してください。
+環境変数の完全な一覧は[設定リファレンス](/ja/reference/configuration.md)を参照してください。

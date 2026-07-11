@@ -101,6 +101,8 @@ end
 - `reasoning_effort` - Control reasoning intensity for supported models. Available values depend on the model (e.g., "low", "high" for some models)
 - `models` - Override available model list
 - `jupyter` - Enable Jupyter notebook access (disabled in Server Mode unless `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
+- `reachable_skills` - Declare tool groups the app is allowed to acquire on demand during a conversation (written at the app level, outside the `tools` block). `reachable_skills :safe` expands to the curated set of read-only safe groups. See [Tool Groups](./tool-groups.md)
+- `compaction` - Control server-side conversation compaction for providers whose APIs support it (written at the app level). OpenAI apps use the default threshold even without this directive; `compaction false` opts out, and a `compaction do ... end` block with `compact_threshold` sets a custom trigger threshold
 
 !> **Important:** The `jupyter` feature only enables the UI capability. Actual Jupyter functionality requires implementing corresponding tool definitions (such as `run_jupyter`, `create_jupyter_notebook`, etc.) in your app. See the Jupyter Notebook app implementation for examples.
 
@@ -111,9 +113,10 @@ These are configured in the Monadic Chat settings panel, not in MDSL files:
 - API keys for various providers (OpenAI, Claude, Gemini, etc.)
 - Tavily API key for web search
 - Syntax highlighting theme
-- Speech-to-text model selection
 
 Settings are loaded at application startup and persist between sessions.
+
+The speech-to-text model is selected in the **Speech** panel of the web UI (not in the settings panel or MDSL files); the selection is stored in a browser cookie.
 
 ## Complete Example
 

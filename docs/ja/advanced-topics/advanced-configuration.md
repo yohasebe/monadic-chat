@@ -9,7 +9,7 @@
 ### 利用可能なオプション
 
 - **LaTeX**（TeX Live + CJK付き）: Concept Visualizer / Syntax Treeで日本語/中国語/韓国語サポートを有効化（OpenAIまたはAnthropicキーが必要）
-- **Pythonライブラリ（CPU）**: `nltk`、`spacy`、`scikit-learn`、`gensim`、`librosa`、`transformers`
+- **Pythonライブラリ（CPU）**: `nltk`、`spacy`、`gensim`、`mediapipe`、`transformers`（`librosa`/`madmom`はMusicグループとして提供。`scikit-learn`はベースイメージに含まれます。オプション一覧は[設定リファレンス](/ja/reference/configuration.md)の表を参照）
 - **ツール**: ImageMagick（`convert`/`mogrify`）
 
 ### パネルの動作

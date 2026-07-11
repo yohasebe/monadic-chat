@@ -16,7 +16,7 @@ Your Monadic Chat user directory (`~/monadic/`) contains:
 │   ├── apps/         # Your custom apps go here
 │   ├── scripts/      # Your custom scripts
 │   └── help/         # Help system documents
-└── logs/             # Application logs
+└── log/              # Application logs
 ```
 
 ## Creating Custom Apps
@@ -68,7 +68,7 @@ You can use these as examples for your own apps.
 
 ## Logs and Debugging
 
-- Application logs: `~/monadic/logs/`
+- Application logs: `~/monadic/log/`
 - Enable "Extra Logging" in Console Panel for detailed logs
 - Use `puts` statements in Ruby code for debugging
 

@@ -41,7 +41,7 @@ Here is the processing flow in the Knowledge Base import pipeline:
    - Vectors are L2-normalized so cosine similarity reduces to a dot product
 
 3. **Vector Storage**:
-   - Each chunk becomes a Qdrant point under the `library_turns` collection, with the embedding as the vector and `{conversation_id, visibility, turn_idx, text, ...}` as payload
+   - Each chunk becomes a Qdrant point under the `library_turns` collection, with the embedding as the vector and `{conversation_id, scope_app, turn_idx, text, ...}` as payload
    - A conversation-level point lives in the `library_summaries` collection with title, source, content_type, and a placeholder summary embedding, enabling document-level cascade retrieval
 
 4. **Retrieval Process**:
@@ -54,15 +54,15 @@ Here is the processing flow in the Knowledge Base import pipeline:
 
 Qdrant organises data into named collections. Monadic Chat uses the following:
 
-- **`library_summaries`** — One point per conversation/document. Payload: `{conversation_id, visibility, content_type, source, title, language, license, topics, messages, participants, ...}`. Used as the cascade entry point for retrieval and as the source-of-truth for the Knowledge Base browse list.
-- **`library_turns`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{conversation_id, visibility, turn_idx, speaker_id, text, ...}`. Main RAG retrieval unit consumed by the `library_search` tool.
+- **`library_summaries`** — One point per conversation/document. Payload: `{conversation_id, scope_app, content_type, source, title, language, license, topics, messages, participants, ...}`. Used as the cascade entry point for retrieval and as the source-of-truth for the Knowledge Base browse list.
+- **`library_turns`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{conversation_id, scope_app, turn_idx, speaker_id, text, ...}`. Main RAG retrieval unit consumed by the `library_search` tool.
 - **`help_docs` / `help_items`** — Points for the Monadic Help documentation index. Built into the Ruby image at packaging time and loaded once on first start.
 
 All collections use 768-dimensional vectors with cosine distance and HNSW indexing for fast filtered search.
 
-## Visibility Filtering :id=visibility
+## Scope Filtering :id=visibility
 
-Library entries carry a `visibility` payload of either `personal` or `shareable`. The Knowledge Base UI sees both, while the cross-app `library_search` tool only returns `shareable` entries. This replaces the previous per-app PDF isolation model — the Library is project-wide and gates external access through the visibility flag rather than separate physical databases.
+Library entries carry a `scope_app` payload — either an app + provider class name (e.g. `ChatOpenAI`) or the literal `Global` sentinel. The Knowledge Base UI sees every entry regardless of scope, while retrieval filters on `scope_app IN [current app, "Global"]`: app-scoped entries are retrievable only from the app + provider they were saved in, and `Global` entries are retrievable from every app via the `library_search` tool. This replaces the previous per-app PDF isolation model — the Library is project-wide, and cross-app access is opted into per entry via the `Global` scope (see the [scope model](/basic-usage/basic-apps.md#knowledge-base) in Basic Apps).
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 
@@ -70,7 +70,7 @@ The Knowledge Base app uses this system to provide unified content Q&A:
 
 1. Users save the current chat session or click **Import file** in the Browse modal
 2. The system extracts, chunks, embeds, and stores the content (PDFs via pdfplumber, Office via python-docx/openpyxl/python-pptx, Markdown/code directly)
-3. Users ask questions about the content; other apps can ask too via `library_search` when the user has flipped the entry to `shareable`
+3. Users ask questions about the content; other apps can ask too via `library_search` when the user has flipped the entry to `Global`
 4. The system retrieves the most relevant chunks using a cascade query (summaries → turns) over the Qdrant collections above
 5. Retrieved chunks are passed to the LLM to ground its answer
 

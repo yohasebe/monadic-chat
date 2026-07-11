@@ -9,7 +9,7 @@ From the app menu **Actions → Install Options…**, you can choose optional co
 ### Available Options
 
 - **LaTeX** (with TeX Live + CJK): Enables Concept Visualizer / Syntax Tree with built-in Japanese/Chinese/Korean support (requires OpenAI or Anthropic key)
-- **Python libraries (CPU)**: `nltk`, `spacy`, `scikit-learn`, `gensim`, `librosa`, `transformers`
+- **Python libraries (CPU)**: `nltk`, `spacy`, `gensim`, `mediapipe`, `transformers` (plus `librosa`/`madmom` via the Music group; `scikit-learn` is part of the base image — see the option table in the [Configuration Reference](/reference/configuration.md))
 - **Tools**: ImageMagick (`convert`/`mogrify`)
 
 ### Panel Behavior

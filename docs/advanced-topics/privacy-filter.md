@@ -18,7 +18,7 @@ The Privacy container is built and started automatically with the rest of Monadi
 
 To enable masking for non-English content, turn on additional languages:
 
-1. Open **Settings → Install Options**.
+1. Open **Actions → Install Options**.
 2. Locate the **Privacy Filter — Additional Languages** section.
 3. Check the languages you want from German (de), Spanish (es), French (fr), Italian (it), Japanese (ja), Dutch (nl), Portuguese (pt), Chinese (zh). English is always present and cannot be unchecked.
 4. Click **Save**. No rebuild is involved — a running Privacy container is restarted with the new language set automatically. If the Monadic Chat server is currently running, restart it (Stop/Start) so the per-session toggle recognizes the newly enabled languages.
@@ -39,7 +39,7 @@ When the toggle is disabled, hovering over it shows the reason:
 
 - *This app does not support Privacy Filter.* — The app's MDSL does not declare a `privacy` block.
 - *Privacy Filter is disabled.* — `PRIVACY_FILTER=false` is set in the environment, so the Privacy container was not started.
-- *Privacy Filter is not installed for this language. Install via Settings → Install Options.* — The sidebar's conversation_language is not among the currently enabled Presidio languages. Enable the language in Settings → Install Options (applies on save), or change the conversation_language to one that is enabled.
+- *Privacy Filter is not installed for this language. Install via Install Options.* — The sidebar's conversation_language is not among the currently enabled Presidio languages. Enable the language in Actions → Install Options (applies on save), or change the conversation_language to one that is enabled.
 
 ## Language Selection
 
@@ -158,7 +158,6 @@ The Privacy Filter is enabled in the MDSL definitions of these apps:
 - Chat Plus
 - Translate
 - Second Opinion
-- Chat
 
 Other apps do not declare `privacy do` and the toggle stays disabled. Apps that primarily generate code, media, or speech were excluded because masking would interfere with their core output (placeholders inside generated code, for example, would not be useful).
 
@@ -175,7 +174,7 @@ Settings stored in `~/monadic/config/env`:
 | Variable | Values | Default | Description |
 |---|---|---|---|
 | `PRIVACY_FILTER` | `true` / `false` | `true` | Runtime gate. Set to `false` to skip starting the privacy container at startup; the toggle becomes disabled until restored to `true`. |
-| `PRIVACY_LANGS` | comma-separated language codes | `en` | Languages the privacy server loads at startup (all models are included in the image). English is mandatory and prepended automatically. The preferred edit path is Settings → Install Options → "Privacy Filter — Additional Languages"; advanced users can edit the env file directly. Supported codes: `en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`. |
+| `PRIVACY_LANGS` | comma-separated language codes | `en` | Languages the privacy server loads at startup (all models are included in the image). English is mandatory and prepended automatically. The preferred edit path is Actions → Install Options → "Privacy Filter — Additional Languages"; advanced users can edit the env file directly. Supported codes: `en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`. |
 | `PRIVACY_DEV_PORT` | port number | `8001` | Used in development mode only to expose the privacy container's HTTP port to the host. |
 
-Changes to `PRIVACY_LANGS` made through Settings → Install Options apply on save (a running privacy container is restarted automatically). If you edit the env file directly, restart Monadic Chat so the new value takes effect. After changing `PRIVACY_FILTER`, restart Monadic Chat (no rebuild required).
+Changes to `PRIVACY_LANGS` made through Actions → Install Options apply on save (a running privacy container is restarted automatically). If you edit the env file directly, restart Monadic Chat so the new value takes effect. After changing `PRIVACY_FILTER`, restart Monadic Chat (no rebuild required).

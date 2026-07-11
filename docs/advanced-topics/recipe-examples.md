@@ -577,7 +577,7 @@ Many common tools are already implemented in `lib/monadic/app.rb` and don't need
 
 ## Troubleshooting
 
-- **Empty tools blocks**: Even if using only standard tools, include an empty `tools do end` block
+- **Empty tools blocks**: Do not leave an empty `tools do end` block — it can cause "Maximum function call depth exceeded" errors. Either define the tools the app actually uses or omit the block entirely (see the [Monadic DSL Reference](/advanced-topics/monadic_dsl.md))
 - **Menu grouping issues**: Check that app name matches class name exactly
 - **Missing models**: Ensure helper's `list_models` uses `$MODELS` cache
 - **Tool not found**: Verify the `*_tools.rb` file exists and module is included

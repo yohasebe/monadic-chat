@@ -72,7 +72,7 @@ After voice input, a `p-value` indicating the confidence of the voice input is d
 
 ## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 
-Select the Speech-to-Text model in the console settings. Available models include OpenAI and Gemini options.
+Select the Speech-to-Text model in the web UI's Speech Settings panel. Models are available from multiple providers — see the [Speech Settings Panel](/basic-usage/web-interface.md) for the current roster (each option is enabled when its provider's API key is verified).
 
 ## Realtime Streaming Transcription :id=realtime-streaming-transcription
 

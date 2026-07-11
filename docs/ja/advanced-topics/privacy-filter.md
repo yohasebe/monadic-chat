@@ -18,7 +18,7 @@
 
 英語以外のコンテンツに対するマスキングを有効にするには、追加言語をオンにします:
 
-1. **Settings → Install Options** を開きます。
+1. **Actions → Install Options** を開きます。
 2. **Privacy Filter — Additional Languages** セクションを探します。
 3. ドイツ語 (de)、スペイン語 (es)、フランス語 (fr)、イタリア語 (it)、日本語 (ja)、オランダ語 (nl)、ポルトガル語 (pt)、中国語 (zh) から必要な言語にチェックを入れます。英語は常に有効で外せません。
 4. **Save** をクリックします。リビルドは不要です — プライバシーコンテナが起動中であれば新しい言語セットで自動的に再起動されます。Monadic Chat のサーバーが稼働中の場合は、セッションごとのトグルが新しい言語を認識できるよう、サーバーを再起動（Stop/Start）してください。
@@ -39,7 +39,7 @@
 
 - *This app does not support Privacy Filter.* — アプリの MDSL に `privacy` ブロックが宣言されていません。
 - *Privacy Filter is disabled.* — 環境変数 `PRIVACY_FILTER=false` が設定されており、プライバシーコンテナが起動していません。
-- *Privacy Filter is not installed for this language. Install via Settings → Install Options.* — サイドバーで指定されている `conversation_language` が、現在有効化されている Presidio 対応言語に含まれていません。Settings → Install Options で対象言語を有効化するか（保存時に反映されます）、conversation_language を有効な言語に切り替えてください。
+- *Privacy Filter is not installed for this language. Install via Install Options.* — サイドバーで指定されている `conversation_language` が、現在有効化されている Presidio 対応言語に含まれていません。Actions → Install Options で対象言語を有効化するか（保存時に反映されます）、conversation_language を有効な言語に切り替えてください。
 
 ## 言語の選択
 
@@ -158,7 +158,6 @@ Privacy Filter が有効なセッションで `library_search` が呼ばれた�
 - Chat Plus
 - Translate
 - Second Opinion
-- Chat
 
 その他のアプリは `privacy do` を宣言していないため、トグルは無効のままです。コードやメディア、音声生成を主目的とするアプリは除外されています。生成されたコード内にプレースホルダーが残るなど、本来の出力にマスキングが干渉してしまうためです。
 
@@ -175,7 +174,7 @@ Privacy Filter が有効なセッションで `library_search` が呼ばれた�
 | 変数 | 値 | デフォルト | 説明 |
 |---|---|---|---|
 | `PRIVACY_FILTER` | `true` / `false` | `true` | 実行時ゲート。`false` に設定するとプライバシーコンテナは起動しません。`true` に戻すまでトグルは無効化されます。 |
-| `PRIVACY_LANGS` | カンマ区切りの言語コード | `en` | プライバシーサーバーが起動時に読み込む言語（すべてのモデルはイメージに含まれています）。英語は必須で先頭に自動付与されます。推奨される編集経路は Settings → Install Options → "Privacy Filter — Additional Languages"。高度なユーザは env ファイルを直接編集することも可能です。対応コード: `en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`。 |
+| `PRIVACY_LANGS` | カンマ区切りの言語コード | `en` | プライバシーサーバーが起動時に読み込む言語（すべてのモデルはイメージに含まれています）。英語は必須で先頭に自動付与されます。推奨される編集経路は Actions → Install Options → "Privacy Filter — Additional Languages"。高度なユーザは env ファイルを直接編集することも可能です。対応コード: `en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`。 |
 | `PRIVACY_DEV_PORT` | ポート番号 | `8001` | 開発モード時のみ、プライバシーコンテナの HTTP ポートをホストに公開する用途で使われます。 |
 
-Settings → Install Options から `PRIVACY_LANGS` を変更した場合は保存時に反映されます（起動中のプライバシーコンテナは自動的に再起動されます）。env ファイルを直接編集した場合は、Monadic Chat を再起動して新しい値を反映させてください。`PRIVACY_FILTER` を変更した場合は、Monadic Chat の再起動のみで反映されます（再ビルドは不要）。
+Actions → Install Options から `PRIVACY_LANGS` を変更した場合は保存時に反映されます（起動中のプライバシーコンテナは自動的に再起動されます）。env ファイルを直接編集した場合は、Monadic Chat を再起動して新しい値を反映させてください。`PRIVACY_FILTER` を変更した場合は、Monadic Chat の再起動のみで反映されます（再ビルドは不要）。

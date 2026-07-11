@@ -97,8 +97,8 @@ Monadic Chatの設定ファイルが保存されているフォルダを開き�
 **Open Log Folder** <br />
 Monadic Chatのログファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
 
-- `docker-build.log`: Dockerビルドのログファイル
-- `docker-startup.log`: Docker起動のログファイル
+- `docker_build.log`: Dockerビルドのログファイル
+- `docker_startup.log`: Docker起動のログファイル
 - `server.log`: Monadic Chatのサーバーログファイル
 - `command.log`: Monadic Chatのコマンド実行およびコード実行ログファイル
 - `jupyter.log`: Jupyterノートブックに追加されたセルのログファイル

@@ -41,7 +41,7 @@ Knowledge Base のインポートパイプラインの処理フローは以下�
    - ベクトルは L2 正規化されているため、コサイン類似度はドット積に簡約される
 
 3. **ベクトル格納**：
-   - 各チャンクは Qdrant の `library_turns` コレクションに 1 ポイントとして登録され、ベクトル本体と `{conversation_id, visibility, turn_idx, text, ...}` の payload を持つ
+   - 各チャンクは Qdrant の `library_turns` コレクションに 1 ポイントとして登録され、ベクトル本体と `{conversation_id, scope_app, turn_idx, text, ...}` の payload を持つ
    - 会話単位のポイントは `library_summaries` コレクションに格納され、title / source / content_type / placeholder summary 埋め込みを保持。ドキュメントレベルのカスケード検索の起点となる
 
 4. **検索プロセス**：
@@ -54,15 +54,15 @@ Knowledge Base のインポートパイプラインの処理フローは以下�
 
 Qdrant はデータを名前付きコレクションで管理します。Monadic Chat は次のコレクションを使用します：
 
-- **`library_summaries`** — 会話/ドキュメント 1 件につき 1 ポイント。Payload：`{conversation_id, visibility, content_type, source, title, language, license, topics, messages, participants, ...}`。検索カスケードの入口、Knowledge Base ブラウズリストの source-of-truth として使用。
-- **`library_turns`** — チャンク化された各テキストセグメントに 1 ポイント。ベクトル：チャンク埋め込み。Payload：`{conversation_id, visibility, turn_idx, speaker_id, text, ...}`。`library_search` ツールが利用するメインの RAG 検索単位。
+- **`library_summaries`** — 会話/ドキュメント 1 件につき 1 ポイント。Payload：`{conversation_id, scope_app, content_type, source, title, language, license, topics, messages, participants, ...}`。検索カスケードの入口、Knowledge Base ブラウズリストの source-of-truth として使用。
+- **`library_turns`** — チャンク化された各テキストセグメントに 1 ポイント。ベクトル：チャンク埋め込み。Payload：`{conversation_id, scope_app, turn_idx, speaker_id, text, ...}`。`library_search` ツールが利用するメインの RAG 検索単位。
 - **`help_docs` / `help_items`** — Monadic Help のドキュメントインデックス。Ruby イメージにパッケージビルド時に同梱され、初回起動時に Qdrant へロードされる。
 
 すべてのコレクションは 768 次元、コサイン距離、HNSW インデックス（フィルター付き高速検索対応）を使用します。
 
-## 可視性によるフィルタリング :id=visibility
+## スコープによるフィルタリング :id=visibility
 
-Library エントリは `personal` または `shareable` の `visibility` payload を持ちます。Knowledge Base UI は両方を表示しますが、アプリ横断的に呼ばれる `library_search` ツールは `shareable` のみを返します。これは旧 PDF Navigator 時代の「アプリ単位の物理隔離」モデルを置き換えるもので、プロジェクト全体で 1 つの Library を共有しつつ、外部アクセスを visibility フラグで制御します。
+Library エントリは `scope_app` payload を持ちます。値は「アプリ + プロバイダーのクラス名」（例: `ChatOpenAI`）またはリテラルの `Global` センチネルです。Knowledge Base UI はスコープに関係なくすべてのエントリを表示しますが、検索は `scope_app IN [現在のアプリ, "Global"]` でフィルターされます。アプリスコープのエントリは保存時と同じアプリ + プロバイダーからのみ検索可能で、`Global` エントリは `library_search` ツール経由で全アプリから検索可能です。これは旧 PDF Navigator 時代の「アプリ単位の物理隔離」モデルを置き換えるもので、プロジェクト全体で 1 つの Library を共有しつつ、アプリ横断アクセスはエントリ単位の `Global` スコープで opt-in します（[スコープモデル](/ja/basic-usage/basic-apps.md#knowledge-base)も参照）。
 
 ## Knowledge Base での使用 :id=use-in-knowledge-base
 
@@ -70,7 +70,7 @@ Knowledge Base アプリはこのシステムを使って統合的なコンテ�
 
 1. ユーザーが現在のチャットセッションを保存、または Browse モーダルの **Import file** をクリック
 2. システムが抽出・チャンク化・埋め込み・格納を実行（PDF は pdfplumber、Office は python-docx/openpyxl/python-pptx、Markdown とコードは直接読み込み）
-3. ユーザーが内容について質問。ユーザーが該当エントリを `shareable` にしておけば、他アプリも `library_search` 経由で同じ Library を参照可能
+3. ユーザーが内容について質問。ユーザーが該当エントリを `Global` にしておけば、他アプリも `library_search` 経由で同じ Library を参照可能
 4. summaries → turns のカスケード検索で関連チャンクを取得
 5. 取得したチャンクが LLM に渡され、それを根拠に回答が生成される
 

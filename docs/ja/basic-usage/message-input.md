@@ -76,7 +76,7 @@ Responses APIを使用するモデルでは、ローカルファイルのアッ�
 
 ## 音声認識モデルの選択 :id=speech-to-text-model-selection
 
-コンソール設定画面でSpeech-to-Textモデルを選択できます。OpenAIおよびGeminiのモデルが利用可能です。
+Web UIのSpeech Settingsパネルで音声認識モデルを選択できます。複数のプロバイダーのモデルが利用可能です。現在の一覧は[Speech Settingsパネル](/ja/basic-usage/web-interface.md)を参照してください（各モデルはプロバイダーのAPIキーが確認されると選択可能になります）。
 
 ## リアルタイムストリーミング音声認識 :id=realtime-streaming-transcription
 

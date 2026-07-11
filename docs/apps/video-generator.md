@@ -29,4 +29,4 @@ Some providers offer both fast and high-quality models. If you prefer higher qua
 - "Turn this image into a video of waves gently moving" → image-to-video generation
 - "Make the video more colorful" (after generating) → remix with modifications (supported by some providers)
 
-Video Generator is available with the providers indicated in the availability table.
+Video Generator is available with the providers indicated in the [availability table](../basic-usage/basic-apps.md#app-availability).

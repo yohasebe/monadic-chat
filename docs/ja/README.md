@@ -29,9 +29,25 @@ Monadic Chatの機能と組み込みアプリケーションの基本を学び�
 *   [メッセージ入力](/ja/basic-usage/message-input.md)
 *   [Workflow Viewer](/ja/basic-usage/workflow-viewer.md)
 *   [基本アプリ](/ja/basic-usage/basic-apps.md)
-*   [Auto Forge](/ja/apps/auto_forge.md)
 *   [PDFストレージ](/ja/basic-usage/pdf_storage.md)
 *   [シンタックスハイライト](/ja/basic-usage/syntax-highlighting.md)
+
+## アプリ
+
+組み込みアプリケーションごとの詳細ドキュメントです。
+
+*   [チャット・アシスタントアプリ](/ja/apps/chat-apps.md)
+*   [語学学習アプリ](/ja/apps/language-apps.md)
+*   [文章・ドキュメント作成アプリ](/ja/apps/writing-apps.md)
+*   [Image Generator](/ja/apps/image-generator.md)
+*   [Video Generator](/ja/apps/video-generator.md)
+*   [Music Generator](/ja/apps/music-generator.md)
+*   [図解・可視化アプリ](/ja/apps/diagram-apps.md)
+*   [Web・メディア分析アプリ](/ja/apps/analysis-apps.md)
+*   [Knowledge Base](/ja/apps/knowledge-base.md)
+*   [コーディング・ノートブックアプリ](/ja/apps/coding-apps.md)
+*   [Music Lab と Music Analyst](/ja/apps/music-apps.md)
+*   [AutoForge / Artifact Builder](/ja/apps/auto_forge.md)
 
 ## Docker連携
 

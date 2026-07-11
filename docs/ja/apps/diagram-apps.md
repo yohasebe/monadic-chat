@@ -21,7 +21,7 @@
 - `http://localhost:7900` を別ブラウザで開く（またはElectronのnoVNCメニューを使用する）と、図がリアルタイムで描画される様子を確認できます
 - すべてのプレビュー画像は共有フォルダに `mermaid_preview_[タイムスタンプ].png` として保存されます
 
-Mermaid Grapherの対応プロバイダーは冒頭の表を参照してください。
+Mermaid Grapherの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## DrawIO Grapher
@@ -43,7 +43,7 @@ Draw.io ダイアグラムを作成するためのアプリケーションです
 - `http://localhost:7900` を別ブラウザで開く（またはElectronのnoVNCメニューを使用する）と、図がリアルタイムで描画される様子を確認できます
 - すべてのプレビュー画像は共有フォルダに `drawio_preview_[タイムスタンプ].png` として保存されます
 
-DrawIO Grapherの対応プロバイダーは冒頭の表を参照してください。
+DrawIO Grapherの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Syntax Tree
@@ -59,7 +59,7 @@ DrawIO Grapherの対応プロバイダーは冒頭の表を参照してくださ
 生成された樹形図は透明背景のSVG画像として表示されます。
 
 
-Syntax Treeの対応プロバイダーは冒頭の表を参照してください。
+Syntax Treeの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Concept Visualizer :id=concept-visualizer
@@ -78,4 +78,4 @@ LaTeX/TikZを使用して、様々な概念や関係性を図式化するアプ�
 
 生成された図は編集可能なSVG画像として共有フォルダに保存され、ベクターグラフィックエディタでさらに修正することができます。
 
-Concept Visualizerの対応プロバイダーは冒頭の表を参照してください。
+Concept Visualizerの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

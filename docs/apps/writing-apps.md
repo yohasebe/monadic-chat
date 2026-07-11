@@ -16,7 +16,7 @@ Co-write a novel with the assistant. The story unfolds based on your prompts, ma
 Draft emails in collaboration with the assistant. The AI will draft emails based on your requests and specifications.
 
 
-Mail Composer supports each provider shown in the availability table.
+Mail Composer supports each provider shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Speech Draft Helper

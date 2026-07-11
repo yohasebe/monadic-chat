@@ -6,7 +6,7 @@ After starting the server and selecting an app and configuring it, click the `St
 
 Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via Speech-to-Text API and displayed in the text area.
 
-?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the System Settings. These are enabled by default in the [Voice Chat](./basic-apps.md#voice-chat) app.
+?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the System Settings. These are enabled by default in the [Voice Chat](../apps/chat-apps.md#voice-chat) app.
 
 ?> The `Role` selector is used to select the role of the message. Normally, select `User`, but by selecting `Assistant` or `System`, you can add or modify the context of the chat. For more information, see the [FAQ](../faq/faq-user-interface.md).
 

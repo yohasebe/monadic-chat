@@ -29,7 +29,7 @@ For live browser viewing, you can ask the AI to use non-headless mode. This enab
 - `"Search for 'monadic chat' on Google"` - AI navigates and interacts with the page
 - `"Take mobile screenshots of https://example.com"` - Uses mobile viewport preset
 
-Web Insight is available with the providers marked in the availability table.
+Web Insight is available with the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Video Describer

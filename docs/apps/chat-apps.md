@@ -10,7 +10,7 @@ Start a standard conversation with the AI, which will respond to your text with 
 
 You can also use the `From URL` feature to extract content from any website using Selenium-based web scraping, regardless of the provider.
 
-Availability for this app follows the provider table at the top of this page.
+Availability for this app follows the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) table.
 
 
 ## Chat Plus
@@ -33,7 +33,7 @@ Chat with the AI using your voice. This app uses your provider's speech recognit
 
 While you speak, a visual waveform is displayed; after you stop, a confidence score (p-value) for the speech recognition result is shown — see [Speech Input](../basic-usage/message-input.md#speech-input) for details.
 
-Voice Chat supports the same providers indicated in the availability table. You can freely mix any chat provider with any available TTS provider — for example, using Claude for the conversation while xAI Grok handles the voice. For speech input/output settings, see [Speech Settings Panel](../basic-usage/web-interface.md#speech-settings-panel).
+Voice Chat supports the same providers indicated in the [availability table](../basic-usage/basic-apps.md#app-availability). You can freely mix any chat provider with any available TTS provider — for example, using Claude for the conversation while xAI Grok handles the voice. For speech input/output settings, see [Speech Settings Panel](../basic-usage/web-interface.md#speech-settings-panel).
 
 **Expressive Speech**: When you enable Auto Speech and pick a compatible TTS provider, a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown, and the assistant's replies gain expressive audio cues (pauses, laughter, voice directives) that never surface in the chat transcript. The mechanism is chosen automatically per provider — see [Speech Settings Panel](../basic-usage/web-interface.md#speech-settings-panel) for how each provider implements it.
 
@@ -60,7 +60,7 @@ Explore math-related questions and answers. The app uses [KaTeX](https://katex.o
 
 Get a second opinion on any answer to ensure accuracy and gain diverse perspectives. First, ask your question to get an initial response. Then, ask the app to "double-check this answer," and it will consult a different AI provider to review and comment on the first response.
 
-Second Opinion is available wherever the provider table lists support.
+Second Opinion is available wherever the [availability table](../basic-usage/basic-apps.md#app-availability) lists support.
 
 
 ## Research Assistant
@@ -69,7 +69,7 @@ Second Opinion is available wherever the provider table lists support.
 
 Accelerate your academic and scientific research with an intelligent assistant. This app uses powerful web search capabilities to retrieve and analyze information from online sources. Use it to find current information, verify facts, and research topics comprehensively, receiving reliable insights, summaries, and explanations to advance your work.
 
-Research Assistant availability matches the provider table above. Whether web search uses a provider's native search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities); Selenium-based URL content extraction is available for all providers.
+Research Assistant availability matches the [availability table](../basic-usage/basic-apps.md#app-availability). Whether web search uses a provider's native search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities); Selenium-based URL content extraction is available for all providers.
 
 > **Note**: Gemini Research Assistant uses an internal web search agent (`gemini_web_search`) instead of native Google Search grounding. This enables web search to work alongside file operations and progress tracking, working around certain Gemini API limitations.
 

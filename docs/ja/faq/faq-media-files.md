@@ -18,7 +18,7 @@
 
 ##### Q: PDFの内容について AI エージェントに質問することはできますか？ :id=pdf-content-questions
 
-**A**: はい、いくつかのやり方があります。[`Knowledge Base`](../basic-usage/basic-apps.md#knowledge-base) アプリでは **Import file** から PDF をプロジェクト全体のベクトルデータベースに取り込み、RAG（Retrieval-Augmented Generation）の手法で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) アプリでは、PDF ファイルを Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
+**A**: はい、いくつかのやり方があります。[`Knowledge Base`](../apps/knowledge-base.md) アプリでは **Import file** から PDF をプロジェクト全体のベクトルデータベースに取り込み、RAG（Retrieval-Augmented Generation）の手法で AI に回答させることができます。[`Code Interpreter`](../apps/coding-apps.md#code-interpreter) アプリでは、PDF ファイルを Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
 
 また、Anthropic Claude、OpenAI、または Google Gemini のビジョン機能対応モデルを用いたアプリでは、テキスト入力ボックスの下にある `Image` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。このボタンは、対応モデルを使用している場合に動的にPDFアップロードを許可します。詳しくは [PDF のアップロード](../basic-usage/message-input.md#pdf-のアップロード)を参照してください。
 

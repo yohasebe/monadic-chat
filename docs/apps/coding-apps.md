@@ -12,7 +12,7 @@ Let the AI create and execute Python code in a sandboxed Docker environment. Any
 
 When the code generates plot images, the AI can visually verify the rendered output to detect issues such as garbled text, overlapping labels, or data inconsistencies, and automatically fix and re-execute the code if needed.
 
-Code Interpreter availability matches the provider table.
+Code Interpreter availability matches the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Coding Assistant
@@ -29,7 +29,7 @@ Work with an AI assistant that functions as a professional software engineer. It
 
 ?> **Note:** Code Interpreter can execute Python code, while Coding Assistant specializes in code generation and file operations without code execution.
 
-Coding Assistant supports the providers indicated in the availability table.
+Coding Assistant supports the providers indicated in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Jupyter Notebook :id=jupyter-notebook
@@ -43,4 +43,4 @@ Let the AI create Jupyter Notebooks, add cells, and execute code based on your r
 
 ?> **Note:** For Server Mode restrictions, see [JupyterLab - Server Mode Restrictions](../docker-integration/jupyterlab.md#server-mode-restrictions).
 
-Jupyter Notebook is available for the providers shown in the availability table.
+Jupyter Notebook is available for the providers shown in the [availability table](../basic-usage/basic-apps.md#app-availability).

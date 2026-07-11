@@ -62,7 +62,7 @@ All collections use 768-dimensional vectors with cosine distance and HNSW indexi
 
 ## Scope Filtering :id=visibility
 
-Library entries carry a `scope_app` payload — either an app + provider class name (e.g. `ChatOpenAI`) or the literal `Global` sentinel. The Knowledge Base UI sees every entry regardless of scope, while retrieval filters on `scope_app IN [current app, "Global"]`: app-scoped entries are retrievable only from the app + provider they were saved in, and `Global` entries are retrievable from every app via the `library_search` tool. This replaces the previous per-app PDF isolation model — the Library is project-wide, and cross-app access is opted into per entry via the `Global` scope (see the [scope model](/basic-usage/basic-apps.md#knowledge-base) in Basic Apps).
+Library entries carry a `scope_app` payload — either an app + provider class name (e.g. `ChatOpenAI`) or the literal `Global` sentinel. The Knowledge Base UI sees every entry regardless of scope, while retrieval filters on `scope_app IN [current app, "Global"]`: app-scoped entries are retrievable only from the app + provider they were saved in, and `Global` entries are retrievable from every app via the `library_search` tool. This replaces the previous per-app PDF isolation model — the Library is project-wide, and cross-app access is opted into per entry via the `Global` scope (see the [scope model](/apps/knowledge-base.md) on the Knowledge Base page).
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 

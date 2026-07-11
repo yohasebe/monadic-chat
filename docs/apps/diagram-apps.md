@@ -22,7 +22,7 @@ Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply 
 - Open `http://localhost:7900` in a separate browser window (or use the noVNC menu item in Electron) to watch diagrams render live
 - All preview images are saved as `mermaid_preview_[timestamp].png` in your shared folder
 
-Mermaid Grapher supports each provider shown in the availability table.
+Mermaid Grapher supports each provider shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## DrawIO Grapher
@@ -44,7 +44,7 @@ Create Draw.io diagrams by describing your requirements. The agent generates Dra
 - Open `http://localhost:7900` in a separate browser window (or use the noVNC menu item in Electron) to watch diagrams render live
 - All preview images are saved as `drawio_preview_[timestamp].png` in your shared folder
 
-DrawIO Grapher is available for the providers marked in the availability table. File generation fidelity depends on each provider's tooling support.
+DrawIO Grapher is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability). File generation fidelity depends on each provider's tooling support.
 
 
 ## Syntax Tree
@@ -60,7 +60,7 @@ Generate linguistic syntax trees from sentences in multiple languages. The app a
 The generated syntax trees are displayed as SVG images with transparent backgrounds.
 
 
-Syntax Tree availability matches the provider table.
+Syntax Tree availability matches the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Concept Visualizer :id=concept-visualizer
@@ -78,4 +78,4 @@ Visualize concepts and relationships by describing them in natural language. The
 
 The generated diagrams are saved to your shared folder and can be modified in any vector graphics editor.
 
-Concept Visualizer supports the providers listed in the availability table.
+Concept Visualizer supports the providers listed in the [availability table](../basic-usage/basic-apps.md#app-availability).

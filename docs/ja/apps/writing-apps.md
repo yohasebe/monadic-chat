@@ -16,7 +16,7 @@
 アシスタントと共同でメールの草稿を作成するためのアプリケーションです。ユーザーの要望や指定に応じて、アシスタントがメールの草稿を作成します。
 
 
-Mail Composerの対応プロバイダーは冒頭の表を参照してください。
+Mail Composerの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Speech Draft Helper

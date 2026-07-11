@@ -20,4 +20,4 @@ Generate music from text descriptions using Google's Lyria 3. Describe the genre
 - "Create an upbeat lo-fi hip hop instrumental with mellow piano" → fast instrumental clip
 - "Write a 2-minute indie folk song about a long road trip, with gentle vocals" → full song with lyrics
 
-Music Generator is available with the providers indicated in the availability table.
+Music Generator is available with the providers indicated in the [availability table](../basic-usage/basic-apps.md#app-availability).

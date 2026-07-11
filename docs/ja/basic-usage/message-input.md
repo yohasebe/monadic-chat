@@ -8,7 +8,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 テキストエリアにメッセージを入力し、`Send` ボタンをクリックすると、メッセージが送信されます。音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了すると、Speech-to-Text API を通じて音声がテキストに変換され、テキストエリアに表示されます。
 
-?> 音声入力と音声合成を使って AI エージェントとのチャットをスムーズに行うためには、System Settings画面で `Auto Speech` と `Easy Submit` をオンにしておくと便利です。[Voice Chat](./basic-apps.md#voice-chat)アプリではこれらがデフォルトで有効になっています。
+?> 音声入力と音声合成を使って AI エージェントとのチャットをスムーズに行うためには、System Settings画面で `Auto Speech` と `Easy Submit` をオンにしておくと便利です。[Voice Chat](../apps/chat-apps.md#voice-chat)アプリではこれらがデフォルトで有効になっています。
 
 ?> `Role` セレクタは、メッセージの役割を選択するためのものです。通常は `User` を選択しますが、`Assistant` や `System` を選択することで、チャットのコンテクストを追加・加工することができます。詳しくは [FAQ](../faq/faq-user-interface.md) を参照してください。
 

@@ -29,7 +29,7 @@ AIにページ操作を依頼すると、Seleniumコンテナ内でヘッドレ�
 - `"Googleで'monadic chat'を検索して"` - AIがページを操作
 - `"https://example.com のモバイル版スクリーンショットを撮って"` - モバイルビューポートプリセットを使用
 
-Web Insightの対応プロバイダーは冒頭の表を参照してください。
+Web Insightの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Video Describer

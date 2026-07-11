@@ -29,9 +29,25 @@ Learn the fundamentals of using Monadic Chat's features and built-in application
 *   [Message Input](/basic-usage/message-input.md)
 *   [Workflow Viewer](/basic-usage/workflow-viewer.md)
 *   [Basic Apps](/basic-usage/basic-apps.md)
-*   [Auto Forge](/apps/auto_forge.md)
 *   [PDF Storage](/basic-usage/pdf_storage.md)
 *   [Syntax Highlighting](/basic-usage/syntax-highlighting.md)
+
+## Apps
+
+Detailed documentation for each of the built-in applications.
+
+*   [Chat & Assistant Apps](/apps/chat-apps.md)
+*   [Language Learning Apps](/apps/language-apps.md)
+*   [Writing & Document Apps](/apps/writing-apps.md)
+*   [Image Generator](/apps/image-generator.md)
+*   [Video Generator](/apps/video-generator.md)
+*   [Music Generator](/apps/music-generator.md)
+*   [Diagram & Visualization Apps](/apps/diagram-apps.md)
+*   [Web & Media Analysis Apps](/apps/analysis-apps.md)
+*   [Knowledge Base](/apps/knowledge-base.md)
+*   [Coding & Notebook Apps](/apps/coding-apps.md)
+*   [Music Lab & Music Analyst](/apps/music-apps.md)
+*   [AutoForge / Artifact Builder](/apps/auto_forge.md)
 
 ## Docker Integration
 

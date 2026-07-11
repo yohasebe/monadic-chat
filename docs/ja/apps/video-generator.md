@@ -29,4 +29,4 @@
 - 「この画像を波が穏やかに動く動画に変換して」 → 画像から動画生成
 - 「動画をもっとカラフルにして」（生成後） → Remix機能で修正（一部プロバイダーのみ対応）
 
-Video Generatorの対応プロバイダーは冒頭の表を参照してください。
+Video Generatorの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

@@ -14,7 +14,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 コードがプロット画像を生成した場合、AIは描画結果を視覚的に検証し、文字化け、ラベルの重なり、データの不整合などの問題を検出して、必要に応じてコードを自動修正・再実行します。
 
-Code Interpreterの対応プロバイダーは冒頭の表を参照してください。
+Code Interpreterの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Coding Assistant
@@ -32,7 +32,7 @@ Code Interpreterの対応プロバイダーは冒頭の表を参照してくだ�
 ?> **注意:** Code InterpreterアプリはPythonコードを実行できますが、Coding Assistantアプリはコード生成とファイル操作に特化しており、コードの実行は行いません。
 
 
-Coding Assistantの対応プロバイダーは冒頭の表を参照してください。
+Coding Assistantの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Jupyter Notebook :id=jupyter-notebook
@@ -46,4 +46,4 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 ?> **注意:** サーバーモードでの制約については、[JupyterLab - Server モードでの制限](../docker-integration/jupyterlab.md#server-mode-restrictions)を参照してください。
 
-Jupyter Notebookの対応プロバイダーは冒頭の表を参照してください。
+Jupyter Notebookの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

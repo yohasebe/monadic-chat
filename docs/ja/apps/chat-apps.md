@@ -10,7 +10,7 @@
 
 また、メッセージ入力エリアの`URLから読込`機能により、プロバイダーに関係なく、Seleniumベースのスクレイピングで任意のURLのコンテンツを抽出できます。
 
-本アプリの対応プロバイダーはページ冒頭の表を参照してください。
+本アプリの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Chat Plus
@@ -33,7 +33,7 @@ Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの�
 
 音声入力中は波形が表示され、入力終了後には認識の「確からしさ」を示すp-value（0〜1の値）が表示されます。詳細は[音声入力](../basic-usage/message-input.md#speech-input)を参照してください。
 
-Voice Chatの対応プロバイダーは冒頭の表を参照してください。チャットプロバイダーとTTSプロバイダーの組み合わせは自由です（例: Claudeで会話しながらxAI Grokで音声出力）。音声入出力の設定については[音声設定パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
+Voice Chatの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。チャットプロバイダーとTTSプロバイダーの組み合わせは自由です（例: Claudeで会話しながらxAI Grokで音声出力）。音声入出力の設定については[音声設定パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 
 **Expressive Speech**: Auto Speech をオンにし、対応する TTS プロバイダーを選択すると、Text-to-Speech Provider ドロップダウンの下に✨ **Expressive Speech** バッジが表示され、アシスタントの応答に表情豊かな音声表現（間・笑い・発話指示など）が加わります。これらはチャット履歴のテキストには一切現れません。仕組みはプロバイダーごとに自動選択されます — 各プロバイダーの実装方式については[音声設定パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 
@@ -60,7 +60,7 @@ AIチャットボットが [KaTeX](https://katex.org/) の数式表記を用い�
 
 このアプリは2段階の相談プロセスを提供します。**ステップ1**: 質問をすると、AIから初期回答を受け取ります。**ステップ2**: 「セカンドオピニオンを求める」「別の視点で確認して」などのフレーズで検証を依頼すると、別のAIプロバイダーが初期回答をレビューしコメントします。これにより、回答の正確性を確保し、複雑なトピックについて多様な視点を得ることができます。
 
-Second Opinionアプリの対応状況は冒頭の表を参照してください。
+Second Opinionアプリの対応状況は[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Research Assistant
@@ -69,7 +69,7 @@ Second Opinionアプリの対応状況は冒頭の表を参照してください
 
 アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、強力なウェブ検索機能を持つインテリジェントな研究アシスタントとして機能します。オンラインソースから情報を取得・分析し、最新情報の検索、事実の検証、トピックの包括的な調査を支援します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、あなたの探究を進めます。
 
-Research Assistantの対応プロバイダーは冒頭の表を参照してください。Web検索でネイティブ検索とTavily API（`TAVILY_API_KEY`が必要）のどちらが使われるかは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)のとおりです。SeleniumベースのURLコンテンツ抽出は全プロバイダーで利用できます。
+Research Assistantの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。Web検索でネイティブ検索とTavily API（`TAVILY_API_KEY`が必要）のどちらが使われるかは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)のとおりです。SeleniumベースのURLコンテンツ抽出は全プロバイダーで利用できます。
 
 > **注意**: GeminiのResearch Assistantは、ネイティブGoogle検索グラウンディングの代わりに内部ウェブ検索エージェント（`gemini_web_search`）を使用します。これにより、GeminiのAPI制限を回避し、ウェブ検索とファイル操作・プログレストラッキングを同時に利用できます。
 

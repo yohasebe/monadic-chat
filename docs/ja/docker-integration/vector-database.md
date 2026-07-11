@@ -62,7 +62,7 @@ Qdrant はデータを名前付きコレクションで管理します。Monadic
 
 ## スコープによるフィルタリング :id=visibility
 
-Library エントリは `scope_app` payload を持ちます。値は「アプリ + プロバイダーのクラス名」（例: `ChatOpenAI`）またはリテラルの `Global` センチネルです。Knowledge Base UI はスコープに関係なくすべてのエントリを表示しますが、検索は `scope_app IN [現在のアプリ, "Global"]` でフィルターされます。アプリスコープのエントリは保存時と同じアプリ + プロバイダーからのみ検索可能で、`Global` エントリは `library_search` ツール経由で全アプリから検索可能です。これは旧 PDF Navigator 時代の「アプリ単位の物理隔離」モデルを置き換えるもので、プロジェクト全体で 1 つの Library を共有しつつ、アプリ横断アクセスはエントリ単位の `Global` スコープで opt-in します（[スコープモデル](/ja/basic-usage/basic-apps.md#knowledge-base)も参照）。
+Library エントリは `scope_app` payload を持ちます。値は「アプリ + プロバイダーのクラス名」（例: `ChatOpenAI`）またはリテラルの `Global` センチネルです。Knowledge Base UI はスコープに関係なくすべてのエントリを表示しますが、検索は `scope_app IN [現在のアプリ, "Global"]` でフィルターされます。アプリスコープのエントリは保存時と同じアプリ + プロバイダーからのみ検索可能で、`Global` エントリは `library_search` ツール経由で全アプリから検索可能です。これは旧 PDF Navigator 時代の「アプリ単位の物理隔離」モデルを置き換えるもので、プロジェクト全体で 1 つの Library を共有しつつ、アプリ横断アクセスはエントリ単位の `Global` スコープで opt-in します（Knowledge Base ページの[スコープモデル](/ja/apps/knowledge-base.md)も参照）。
 
 ## Knowledge Base での使用 :id=use-in-knowledge-base
 

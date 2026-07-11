@@ -18,7 +18,7 @@ You can also click the `Speech Input` button to use voice input. Speech input us
 
 ##### Q: Can I ask the AI agent about the contents of a PDF? :id=pdf-content-questions
 
-**A**: Yes, there are several ways to do this. In the [`Knowledge Base`](../basic-usage/basic-apps.md#knowledge-base) app you can use **Import file** to ingest the PDF into the project-wide vector database and have the AI answer using RAG (Retrieval-Augmented Generation). In the [`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) app you can also convert the PDF to Markdown programmatically and have the AI agent read the content so you can ask questions about it.
+**A**: Yes, there are several ways to do this. In the [`Knowledge Base`](../apps/knowledge-base.md) app you can use **Import file** to ingest the PDF into the project-wide vector database and have the AI answer using RAG (Retrieval-Augmented Generation). In the [`Code Interpreter`](../apps/coding-apps.md#code-interpreter) app you can also convert the PDF to Markdown programmatically and have the AI agent read the content so you can ask questions about it.
 
 In apps that use vision-capable models from Anthropic Claude, OpenAI, or Google Gemini, you can click the `Image` button below the text input box to upload a PDF file directly and ask the AI agent about its contents. The button dynamically allows PDF uploads when using models that support this feature. For more information, see [Uploading PDFs](../basic-usage/message-input.md#uploading-pdfs).
 

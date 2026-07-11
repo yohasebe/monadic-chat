@@ -24,7 +24,7 @@
     }
     
     // Fall back to localStorage or default if server theme not available
-    const storedTheme = serverTheme || localStorage.getItem('rouge_theme') || 'pastie:light';
+    const storedTheme = serverTheme || localStorage.getItem('rouge_theme') || 'github:light';
     
     // Store the theme in localStorage for future reference
     if (!localStorage.getItem('rouge_theme')) {

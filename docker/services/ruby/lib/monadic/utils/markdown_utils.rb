@@ -755,7 +755,7 @@ module StringUtils
       html = convert_fenced_code_html(html)
 
       # Get theme settings
-      theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
+      theme_mode = CONFIG["ROUGE_THEME"] || "github:light"
       theme, mode = theme_mode.split(":")
       mode = mode || "light"
 
@@ -803,7 +803,7 @@ module StringUtils
       html = convert_fenced_code_html(html)
 
       # Get theme settings
-      theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
+      theme_mode = CONFIG["ROUGE_THEME"] || "github:light"
       theme, mode = theme_mode.split(":")
       mode = mode || "light"
 

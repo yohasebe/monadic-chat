@@ -27,7 +27,9 @@ Learn the fundamentals of using Monadic Chat's features and built-in application
 *   [Console Panel](/basic-usage/console-panel.md)
 *   [Web Interface](/basic-usage/web-interface.md)
 *   [Message Input](/basic-usage/message-input.md)
+*   [Workflow Viewer](/basic-usage/workflow-viewer.md)
 *   [Basic Apps](/basic-usage/basic-apps.md)
+*   [Auto Forge](/apps/auto_forge.md)
 *   [PDF Storage](/basic-usage/pdf_storage.md)
 *   [Syntax Highlighting](/basic-usage/syntax-highlighting.md)
 
@@ -52,11 +54,14 @@ Explore advanced configurations, app development, and integration possibilities.
 *   [Monadic DSL Reference](/advanced-topics/monadic_dsl.md)
 *   [Application Setting Items](/advanced-topics/setting-items.md)
 *   [Recipe Examples](/advanced-topics/recipe-examples.md)
+*   [Tool Groups](/advanced-topics/tool-groups.md)
 *   [Monadic Mode](/advanced-topics/monadic-mode.md)
+*   [Session Context](/advanced-topics/session-context.md)
 *   [Adding Docker Containers](/advanced-topics/adding-containers.md)
 *   [Using Ollama](/advanced-topics/ollama.md)
 *   [Help System Configuration](/advanced-topics/help-system.md)
 *   [MCP Integration](/advanced-topics/mcp-integration.md)
+*   [Privacy Filter](/advanced-topics/privacy-filter.md)
 
 ## Reference
 

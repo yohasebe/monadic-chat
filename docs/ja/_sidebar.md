@@ -12,6 +12,7 @@
     - [メッセージ入力](/ja/basic-usage/message-input.md)
     - [Workflow Viewer](/ja/basic-usage/workflow-viewer.md)
     - [基本アプリ](/ja/basic-usage/basic-apps.md)
+    - [Auto Forge](/ja/apps/auto_forge.md)
     - [PDFストレージ](/ja/basic-usage/pdf_storage.md)
     - [シンタックスハイライト](/ja/basic-usage/syntax-highlighting.md)
 
@@ -31,7 +32,9 @@
     - [Monadic DSLリファレンス](/ja/advanced-topics/monadic_dsl.md)
     - [アプリの設定項目](/ja/advanced-topics/setting-items.md)
     - [レシピ・ファイルの例](/ja/advanced-topics/recipe-examples.md)
+    - [ツールグループ](/ja/advanced-topics/tool-groups.md)
     - [Monadicモード](/ja/advanced-topics/monadic-mode.md)
+    - [セッションコンテキスト](/ja/advanced-topics/session-context.md)
     - [Dockerコンテナの追加](/ja/advanced-topics/adding-containers.md)
     - [Ollamaの利用](/ja/advanced-topics/ollama.md)
     - [ヘルプシステムの設定](/ja/advanced-topics/help-system.md)

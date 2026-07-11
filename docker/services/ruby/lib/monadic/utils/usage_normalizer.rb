@@ -82,6 +82,14 @@ module Monadic
         end
       end
 
+      # Surface real provider usage for the Conduit query path (thread-local,
+      # read+cleared by Conduit#execute_query). Non-breaking; never raises.
+      # Every vendor helper calls this at its non-streaming parse point
+      # instead of hand-rolling the thread-local assignment.
+      def self.capture(provider, raw)
+        Thread.current[:conduit_provider_usage] = (extract(provider, raw) rescue nil)
+      end
+
       def self.build(input: nil, output: nil, reasoning: nil, cached: nil, total: nil)
         total ||= ([input, output].compact.empty? ? nil : [input, output].compact.sum)
         { input: input, output: output, reasoning: reasoning, cached: cached, total: total }

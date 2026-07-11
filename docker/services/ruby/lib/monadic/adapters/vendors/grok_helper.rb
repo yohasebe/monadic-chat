@@ -931,10 +931,7 @@ module GrokHelper
       begin
         parsed = JSON.parse(res.body.to_s)
         return parsed.to_s unless parsed.is_a?(Hash)
-        # Real provider usage for the Conduit query path (thread-local; read+
-        # cleared by Conduit#execute_query). Non-breaking; never raises.
-        Thread.current[:conduit_provider_usage] =
-          (Monadic::Utils::UsageNormalizer.extract("grok", parsed) rescue nil)
+        Monadic::Utils::UsageNormalizer.capture("grok", parsed)
 
         output = parsed["output"] || []
 

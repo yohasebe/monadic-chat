@@ -920,10 +920,7 @@ module GeminiHelper
       # Process successful response
       if response.status.success?
         parsed_response = JSON.parse(response.body)
-        # Real provider usage for the Conduit query path (thread-local; read+
-        # cleared by Conduit#execute_query). Non-breaking; never raises.
-        Thread.current[:conduit_provider_usage] =
-          (Monadic::Utils::UsageNormalizer.extract("gemini", parsed_response) rescue nil)
+        Monadic::Utils::UsageNormalizer.capture("gemini", parsed_response)
 
         # Debug logging for second opinion
         Monadic::Utils::ExtraLogger.log_json("GeminiHelper send_query: Full response structure", parsed_response)

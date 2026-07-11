@@ -199,10 +199,7 @@ module MistralHelper
           {"message" => response.body.to_s}
         end
         
-        # Real provider usage for the Conduit query path (thread-local; read+
-        # cleared by Conduit#execute_query). Non-breaking; never raises.
-        Thread.current[:conduit_provider_usage] =
-          (Monadic::Utils::UsageNormalizer.extract("mistral", parsed_response) rescue nil)
+        Monadic::Utils::UsageNormalizer.capture("mistral", parsed_response)
 
         # Standard OpenAI-compatible format
         if parsed_response["choices"] &&

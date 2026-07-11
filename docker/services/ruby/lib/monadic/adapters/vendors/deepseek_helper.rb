@@ -130,10 +130,7 @@ module DeepSeekHelper
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
-        # Real provider usage for the Conduit query path (thread-local; read+
-        # cleared by Conduit#execute_query). Non-breaking; never raises.
-        Thread.current[:conduit_provider_usage] =
-          (Monadic::Utils::UsageNormalizer.extract("deepseek", parsed_response) rescue nil)
+        Monadic::Utils::UsageNormalizer.capture("deepseek", parsed_response)
         message = parsed_response.dig("choices", 0, "message") || {}
         content = message["content"]
         # Note: in Ruby, `"" || "fallback"` returns "" because empty strings

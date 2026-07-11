@@ -302,10 +302,7 @@ module OllamaHelper
 
     if res&.status&.success?
       parsed = JSON.parse(res.body)
-      # Real provider usage for the Conduit query path (thread-local; read+
-      # cleared by Conduit#execute_query). Non-breaking; never raises.
-      Thread.current[:conduit_provider_usage] =
-        (Monadic::Utils::UsageNormalizer.extract("ollama", parsed) rescue nil)
+      Monadic::Utils::UsageNormalizer.capture("ollama", parsed)
       parsed.dig("message", "content")
     else
       error = begin

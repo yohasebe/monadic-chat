@@ -314,10 +314,7 @@ module CohereHelper
       begin
         body_text = response.body.to_s
         result = JSON.parse(body_text)
-        # Real provider usage for the Conduit query path (thread-local; read+
-        # cleared by Conduit#execute_query). Non-breaking; never raises.
-        Thread.current[:conduit_provider_usage] =
-          (Monadic::Utils::UsageNormalizer.extract("cohere", result) rescue nil)
+        Monadic::Utils::UsageNormalizer.capture("cohere", result)
         
         # Check for tool calls in the response (Cohere v2 API format)
         if result["message"] && result["message"]["tool_calls"] && result["message"]["tool_calls"].any?

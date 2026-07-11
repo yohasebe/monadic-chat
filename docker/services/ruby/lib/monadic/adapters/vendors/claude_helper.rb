@@ -298,10 +298,7 @@ module ClaudeHelper
     if res && res.status && res.status.success?
       begin
         parsed_response = JSON.parse(res.body)
-        # Surface real provider usage for the Conduit query path (thread-local,
-        # read+cleared by Conduit#execute_query). Non-breaking; never raises.
-        Thread.current[:conduit_provider_usage] =
-          (Monadic::Utils::UsageNormalizer.extract("anthropic", parsed_response) rescue nil)
+        Monadic::Utils::UsageNormalizer.capture("anthropic", parsed_response)
 
         # Check for tool calls in the response (Anthropic uses type: "tool_use")
         if parsed_response["content"] && parsed_response["content"].is_a?(Array)

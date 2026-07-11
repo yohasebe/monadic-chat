@@ -119,4 +119,45 @@ RSpec.describe Monadic::Utils::UsageNormalizer do
       expect(described_class.extract('openai', raw)).to include(input: 120, output: 30, total: 150)
     end
   end
+
+  describe '.capture' do
+    after { Thread.current[:conduit_provider_usage] = nil }
+
+    it 'stores the normalized usage in the Conduit thread-local' do
+      raw = { 'usage' => { 'prompt_tokens' => 10, 'completion_tokens' => 5 } }
+      described_class.capture('openai', raw)
+      expect(Thread.current[:conduit_provider_usage]).to include(input: 10, output: 5, total: 15)
+    end
+
+    it 'never raises and stores nil when extraction blows up' do
+      allow(described_class).to receive(:extract).and_raise(StandardError, 'boom')
+      expect { described_class.capture('openai', {}) }.not_to raise_error
+      expect(Thread.current[:conduit_provider_usage]).to be_nil
+    end
+  end
+
+  # Invariant: every vendor helper surfaces usage through the shared
+  # capture method — no helper may hand-roll the thread-local assignment
+  # (the pre-consolidation idiom this replaced), and no non-streaming
+  # send_query path may silently drop usage capture.
+  describe 'vendor helper capture invariant' do
+    vendor_dir = File.expand_path('../../../lib/monadic/adapters/vendors', __dir__)
+
+    # Helpers that are not LLM chat providers and therefore have no
+    # provider usage to capture (add here deliberately, not by accident)
+    non_llm_helpers = %w[tavily_helper.rb]
+
+    Dir.glob(File.join(vendor_dir, '*_helper.rb')).sort.each do |path|
+      helper = File.basename(path)
+      next if non_llm_helpers.include?(helper)
+
+      it "#{helper} uses UsageNormalizer.capture and not a hand-rolled thread-local" do
+        source = File.read(path)
+        expect(source).to include('UsageNormalizer.capture('),
+          "#{helper} should surface provider usage via UsageNormalizer.capture"
+        expect(source).not_to include('Thread.current[:conduit_provider_usage]'),
+          "#{helper} must not assign the Conduit usage thread-local directly"
+      end
+    end
+  end
 end

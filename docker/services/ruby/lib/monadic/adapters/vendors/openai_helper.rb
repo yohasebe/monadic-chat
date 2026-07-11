@@ -297,11 +297,7 @@ module OpenAIHelper
       # Properly read response body content
       response_body = res.body.respond_to?(:read) ? res.body.read : res.body.to_s
       parsed_response = JSON.parse(response_body)
-      # Surface real provider token usage for the Conduit query path. Thread-local
-      # (read + cleared by Conduit#execute_query) so send_query's return contract
-      # is unchanged and other callers are unaffected. Never let it raise.
-      Thread.current[:conduit_provider_usage] =
-        (Monadic::Utils::UsageNormalizer.extract("openai", parsed_response) rescue nil)
+      Monadic::Utils::UsageNormalizer.capture("openai", parsed_response)
       message = parsed_response.dig("choices", 0, "message")
 
       # Check for tool calls in the response

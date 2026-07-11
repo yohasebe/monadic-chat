@@ -8,7 +8,7 @@
 
 ##### Q: Python コンテナに新たなプログラムやライブラリを追加するにはどうすればいいですか？ :id=adding-python-libraries
 
-**A**: 設定フォルダ（`~/monadic/config/`）に `pysetup.sh` スクリプトを作成して、Monadic Chat の環境構築時にライブラリをインストールできます。[ライブラリの追加](../docker-integration/python-container.md#ライブラリの追加) および [`pysetup.sh` の利用](../docker-integration/python-container.md#pysetupsh-の利用) を参照してください。
+**A**: 設定フォルダ（`~/monadic/config/`）に `pysetup.sh` スクリプトを作成して、Monadic Chat の環境構築時にライブラリをインストールできます。詳細は[Pythonコンテナ](../docker-integration/python-container.md)の「追加ライブラリ（pysetup.sh）」を参照してください。
 
 ---
 

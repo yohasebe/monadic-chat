@@ -8,7 +8,7 @@
 
 ##### Q: How can I add new programs or libraries to the Python container? :id=adding-python-libraries
 
-**A**: You can create a `pysetup.sh` script in the config folder (`~/monadic/config/`) to install libraries during the Monadic Chat environment setup. See [Adding Programs and Libraries](../docker-integration/python-container.md#adding-programs-and-libraries) and [Usage of pysetup.sh](../docker-integration/python-container.md#usage-of-pysetupsh) for more information.
+**A**: You can create a `pysetup.sh` script in the config folder (`~/monadic/config/`) to install libraries during the Monadic Chat environment setup. See [Adding libraries with pysetup.sh](../docker-integration/python-container.md#adding-libraries-with-pysetupsh) for more information.
 
 ---
 

@@ -41,3 +41,9 @@
 ##### Q: When I access localhost:4567 in the browser, it shows "Not Secure". Is this a security concern? :id=localhost-security-warning
 
 **A**: This application is secure because the server only accepts connections from `localhost` (`127.0.0.1`). The "Not Secure" warning shown in your browser is not a concern for this local connection.
+
+---
+
+##### Q: After clicking Stop, the web UI briefly shows "Connecting…" or "Connection lost". Is something wrong? :id=stop-connecting-flicker
+
+**A**: No. When you stop Monadic Chat intentionally, the embedded browser suppresses reconnection attempts and the console status shows "Stopped" during shutdown. If a tab was left open in an external browser, it may keep trying to reconnect — simply reload it after the next Start.

@@ -151,29 +151,17 @@ In server mode:
 
 ### Multi-Tab Session Management
 
-Monadic Chat supports opening multiple browser tabs simultaneously with intelligent session sharing:
+Monadic Chat supports opening multiple browser tabs simultaneously. Each tab is an independent conversation session:
 
 **Session Isolation:**
-- Each browser session (browser + profile + mode) has a unique session ID stored in cookies
-- All tabs within the same browser session share the same conversation state
-- Different browsers, browser profiles, or incognito/private modes create separate sessions
-- In server mode, each user's session is completely isolated from other users
+- Each tab has a unique tab ID (kept in `sessionStorage`) that identifies its WebSocket session on the server
+- Conversation state — messages, app selection, and parameter changes — is per tab and never leaks into other tabs
+- Reloading a tab keeps its session; opening a new tab starts a fresh one
+- Different browsers, browser profiles, incognito/private windows, and devices are likewise separate sessions
+- In server mode, each connected client's sessions are isolated from other clients
 
-**Session Sharing Examples:**
-- ✅ Same browser, multiple tabs → **Shared session** (changes sync across tabs)
-- ✅ Same browser, multiple windows → **Shared session**
-- ❌ Chrome + Firefox on same device → **Separate sessions**
-- ❌ Normal mode + Incognito mode → **Separate sessions**
-- ❌ Different devices (PC + smartphone) → **Separate sessions**
-- ❌ Different browser profiles → **Separate sessions**
-
-**Synchronized Data:**
-- Active app selection (new tabs automatically select the current app)
-- Model and parameter settings (when sent via Start/Send buttons)
-- Conversation messages and edits
-- Message deletions and modifications
-
-**Note:** Parameter changes in the UI are local until you click Start or Send, at which point they sync to all tabs in the same session.
+**Shared per browser:**
+- Preferences stored in cookies (such as UI language and voice settings) are shared by all tabs in the same browser profile
 
 See [Server Mode Architecture](../docker-integration/basic-architecture.md#server-mode) for more details.
 

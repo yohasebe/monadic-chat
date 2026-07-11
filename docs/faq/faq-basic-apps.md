@@ -45,7 +45,7 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 **A**: Check the following:
 
 1. Make sure Docker Desktop is running.
-2. Ensure that the necessary ports (4567, 5433, 8889) are not already in use by other applications.
+2. Ensure that the necessary ports (4567, 3100, 8889, 4444, 5900, 7900) are not already in use by other applications.
 3. Look at the console output for any error messages.
 4. Try restarting the application or rebuilding the containers from the console.
 
@@ -76,7 +76,7 @@ Note that this doesn't delete any saved files in the shared folder or reset conf
 
 ##### Q: Can I have multiple conversations in parallel? :id=multiple-conversations
 
-**A**: Monadic Chat supports one conversation at a time. However, you can save and export conversations, and switch between different applications to work on different topics.
+**A**: Yes. Each browser tab is an independent conversation session, so you can open multiple tabs and run different apps or topics in parallel. You can also save and export conversations to revisit them later.
 
 ---
 

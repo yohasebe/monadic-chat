@@ -69,7 +69,7 @@ Privacy Filter 機能が使用するDockerイメージおよびコンテナ（`m
 ドキュメントファイルからのテキスト抽出に使用するDockerイメージおよびコンテナ（`monadic-chat-extractor-container`）を構築します。
 
 **JupyterLab を開始** <br />
-JupyterLabを起動します。JupyterLabは[http://localhost:8889](http://localhost:8889)でアクセスできます。
+JupyterLabを[http://localhost:8889](http://localhost:8889)で起動します。詳細は[JupyterLabとの連携](../docker-integration/jupyterlab.md)を参照してください。
 
 **JupyterLab を停止** <br />
 JupyterLabを停止します。
@@ -78,7 +78,7 @@ JupyterLabを停止します。
 ドキュメント DB（保存された会話・PDF・Knowledge Base エントリすべて）を共有フォルダ内の tarball から取り込みます。実行前に、現在の DB を上書きすることを警告する確認ダイアログが表示されます。受け入れられるファイル名は `monadic-qdrant.tar.gz`（平文）または `monadic-qdrant.tar.gz.enc`（暗号化、エクスポート時のパスフレーズを入力するよう促されます）です。
 
 **ドキュメント DB をエクスポート** <br />
-ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **Encrypt and Export**（デフォルト — パスフレーズを尋ね、AES-256-GCM ストリーミング暗号化で `monadic-qdrant.tar.gz.enc` を書き出します）と **Export Plain**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。保存済みの会話・PDF が平文で含まれることを強く警告）。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。
+ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **Encrypt and Export**（デフォルト — パスフレーズを尋ね、`monadic-qdrant.tar.gz.enc` を書き出します）と **Export Plain**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。保存済みの会話・PDF が平文で含まれることを強く警告）。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。暗号化フォーマットとインポート／復号の挙動の詳細は [Privacy Filter](../advanced-topics/privacy-filter.md#document-db-export-import) を参照してください。
 
 ### Open メニュー
 
@@ -91,11 +91,7 @@ Monadic Chatをデフォルトブラウザで開きます。アクセスURL: [ht
 noVNCビューアウィンドウを開き、Seleniumコンテナ内で動作しているブラウザの画面を表示します。Web自動操作の様子をリアルタイムで確認（および操作）できます。Monadic Chatの実行中に利用できます。
 
 **Open Shared Folder** <br />
-ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。
-
-- `apps`: 追加アプリケーションを格納するフォルダ
-- `helpers`: アプリで使用される関数を含むヘルパーファイルを格納するフォルダ
-- `scripts`: コンテナ内で実行可能なスクリプトを格納するフォルダ
+ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポート、追加アプリの導入に使用します。フォルダ構成と各サブフォルダ（`apps`、`helpers`、`scripts`）の役割については[共有フォルダ](../docker-integration/shared-folder.md)を参照してください。
 
 **Open Config Folder** <br />
 Monadic Chatの設定ファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
@@ -200,7 +196,7 @@ DeepSeek APIキーを入力します。APIキーは[https://platform.deepseek.co
 ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声モデルを使用するためのものです。APIキーは[https://elevenlabs.io/developers](https://elevenlabs.io/developers)から取得できます。
 
 **TAVILY_API_KEY** <br />
-Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) ネイティブ検索機能を持たないプロバイダー（Mistral、Cohere、DeepSeek、Ollama）でのWeb検索機能。APIキーは[https://tavily.com/](https://tavily.com/)から取得できます。
+Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（Seleniumの代替）、2) ネイティブ検索機能を持たないプロバイダーでのWeb検索機能 — 対象プロバイダーは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。APIキーは[https://tavily.com/](https://tavily.com/)から取得できます。
 
 <!-- SCREENSHOT: 設定パネル。Voice & Audioセクションを表示し、TTS Dictionary File PathとAuto TTS Max Bytesの入力フィールドを含む -->
 

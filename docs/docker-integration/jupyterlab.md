@@ -40,31 +40,22 @@ In Standalone Mode, all Jupyter features are fully available:
 - The `Jupyter Notebook` app is available in the application menu
 - AI agents can create, modify, and execute Jupyter notebooks
 
-### Server Mode Restrictions
+### Server Mode Restrictions :id=server-mode-restrictions
 
-When running Monadic Chat in Server Mode, Jupyter features are disabled by default for security reasons:
+When running Monadic Chat in [Server Mode](basic-architecture.md#server-standalone-modes), Jupyter features are disabled by default: **Jupyter apps are hidden** from the application menu. Server Mode allows network access from multiple devices, and Jupyter permits arbitrary code execution with full access to the shared folder — a dangerous combination when untrusted users can reach the server.
 
-- **Jupyter apps are hidden** from the application menu in Server Mode
-- To enable Jupyter in Server Mode, set the configuration variable: `ALLOW_JUPYTER_IN_SERVER_MODE=true` in `~/monadic/config/env`
-- Server Mode allows network access from multiple devices
-- JupyterLab is tied to the shared folder, which poses security risks if accessed by untrusted users
-- We strongly recommend using Server Mode only in trusted environments
-- **WARNING**: Enabling Jupyter in Server Mode allows arbitrary code execution with full access to the shared folder
-
-To enable Jupyter apps in Server Mode, add the following to your `~/monadic/config/env` file:
+To enable Jupyter apps in Server Mode anyway, add the following to your `~/monadic/config/env` file:
 ```
 ALLOW_JUPYTER_IN_SERVER_MODE=true
 ```
 
-These restrictions exist because Jupyter allows arbitrary code execution, which can be dangerous in multi-user environments.
+!> **WARNING**: Enable this only in trusted environments — anyone who can reach the server can then execute arbitrary code with full access to the shared folder.
 
 ## Tips for Using JupyterLab
 
 - **Working Directory**: JupyterLab starts with `/monadic/data` as the working directory
 - **Persistent Storage**: All files saved in `/monadic/data` persist across container restarts
-- **Python Packages**: Additional packages can be installed in notebook cells:
-  - `!uv pip install --no-cache package_name` (recommended)
-  - `!pip install package_name`
+- **Python Packages**: Additional packages can be installed in notebook cells with `!uv pip install --no-cache package_name`. For persistent installs that survive rebuilds, see [Python Container](python-container.md)
 - **Terminal Access**: Use the Terminal in JupyterLab to access the Python container directly
 
 

@@ -12,7 +12,7 @@ In apps that can execute code (e.g., Code Interpreter app), you can read files f
 
 During the execution of some processes on the AI agent side (using function calling, for example), intermediate files may be saved in the Shared Folder. It is recommended to periodically check and delete unnecessary files.
 
-When you use the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch JupyterLab, it starts with `/monadic/data` as the home directory. This allows you to access files in the Shared Folder within JupyterLab as well.
+JupyterLab also starts with `/monadic/data` as its home directory, so the Shared Folder is accessible there as well — see [JupyterLab Integration](./jupyterlab.md).
 
 ## The `${SHARED}` Variable
 

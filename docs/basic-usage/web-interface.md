@@ -29,11 +29,11 @@ In external browser mode, Monadic Chat launches your default web browser and con
 Runs locally on a single device for personal use.
 
 **Server Mode**<br />
-Allows multiple devices on the local network to connect to the same Monadic Chat instance. The interface adapts to different screen sizes. Jupyter Notebook functionality is disabled by default for security reasons.
+Allows multiple devices on the local network to connect to the same Monadic Chat instance. The interface adapts to different screen sizes. Jupyter Notebook functionality is disabled by default for security reasons (see [JupyterLab - Server Mode Restrictions](../docker-integration/jupyterlab.md#server-mode-restrictions) for the opt-in exception).
 
 Server Mode requires authentication for non-loopback (LAN) clients. When the mode is first enabled, Monadic Chat generates a random 256-bit token in `~/monadic/config/env` (`MONADIC_AUTH_TOKEN`) and the host console displays the full shareable URL — e.g. `http://192.168.1.50:4567/?monadic_auth=<token>`. Anyone using that URL on the LAN authenticates on the first request, the token is set as a cookie, and subsequent navigations work without echoing it in the URL. Loopback (127.0.0.1) requests from the host machine bypass authentication so the local Electron webview always works. To rotate the token, delete `MONADIC_AUTH_TOKEN` from the env file and restart Monadic Chat.
 
-Configure the application mode in the Console Settings panel.
+Configure the application mode in the Console Settings panel. For the architectural differences between the two modes (network bindings, container hosting, session isolation), see [Basic Architecture](../docker-integration/basic-architecture.md#server-standalone-modes).
 
 ## Language Settings :id=language-settings
 
@@ -155,7 +155,16 @@ Save the current conversation as a PDF file with syntax highlighting and formatt
 Select your preferred speech-to-text model. Available options include OpenAI, Gemini, ElevenLabs, Cohere, Mistral, and xAI models.
 
 **Text-to-Speech Provider**<br />
-Select the provider for speech synthesis (OpenAI, ElevenLabs, Gemini, Mistral, xAI Grok, or Web Speech API). When Auto Speech is enabled and the selected provider supports inline speech markers (xAI Grok, ElevenLabs v3, Gemini TTS), a ✨ **Expressive Speech** badge appears beneath this dropdown. While the badge is active, the assistant's replies may include natural expressive cues (pauses, laughter, whispered asides) that the voice engine interprets as audio — they do not appear in the written transcript.
+Select the provider for speech synthesis (OpenAI, ElevenLabs, Gemini, Mistral, xAI Grok, or Web Speech API).
+
+**Expressive Speech**<br />
+When Auto Speech is enabled and the selected TTS provider supports Expressive Speech, a ✨ **Expressive Speech** badge appears beneath the provider dropdown. Three mechanisms are supported, chosen automatically by the selected provider:
+
+- **Inline markers** (xAI Grok, ElevenLabs v3): the assistant weaves short markers (brief pauses, laughter, a whispered aside) into the text, and the TTS engine interprets them as stage directions. The markers never surface in the chat transcript — only their audio effect does.
+- **Instruction mode** (the OpenAI TTS model with instruction support): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
+- **Hybrid mode** (Gemini TTS): Gemini supports both of the above simultaneously. The assistant may use inline markers, a voice directive, or both, and Google's engine interprets the combination. Everything except the spoken reply is stripped from the transcript.
+
+Hover the badge for a tooltip that describes the active mechanism. Turning off Auto Speech, or switching to a TTS provider without Expressive Speech support, silently disables the feature.
 
 **Text-to-Speech Voice**<br />
 Select the voice for speech synthesis. Available voices depend on the selected provider.

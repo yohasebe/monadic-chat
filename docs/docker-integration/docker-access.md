@@ -51,16 +51,12 @@ This list shows the containers common to most setups; see [Basic Architecture](b
 
 ## JupyterLab
 
-By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you can start JupyterLab, which will launch with `/monadic/data` as the current directory on the Python container. By clicking `Terminal` on the JupyterLab Launcher screen, you can access the Python container.
-
-<!-- SCREENSHOT: JupyterLab terminal window showing command prompt at /monadic/data directory -->
+The `Actions/Start JupyterLab` menu starts JupyterLab on the Python container with `/monadic/data` as the current directory; clicking `Terminal` on the JupyterLab Launcher screen gives you shell access to the container. See [JupyterLab Integration](jupyterlab.md) for details.
 
 ## Common Use Cases
 
 ### Python Container
-- Install additional Python packages:
-  - `uv pip install --no-cache package_name` (recommended)
-  - `pip install package_name`
+- Install additional Python packages: `uv pip install --no-cache package_name` (for persistent installs, see [Python Container](python-container.md))
 - Access shared data: `cd /monadic/data`
 - Run Python scripts: `python /monadic/data/scripts/my_script.py`
 

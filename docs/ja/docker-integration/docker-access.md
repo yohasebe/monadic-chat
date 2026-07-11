@@ -51,16 +51,12 @@ Monadic Chatを起動すると、各コンテナの利用可能性がメイン�
 
 ## JupyterLab
 
-Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用してJupyterLabを起動すると、Pythonコンテナ上の`/monadic/data`をカレントディレクトリとしてJupyterLabが起動します。JupyterLabのLauncher画面で`Terminal`をクリックすると、Pythonコンテナにアクセスできます。
-
-<!-- SCREENSHOT: JupyterLabターミナル - JupyterLabインターフェース内でTerminalが開かれ、Pythonコンテナのシェルプロンプトが表示されている様子 -->
+`Actions/Start JupyterLab`メニューを使用すると、Pythonコンテナ上の`/monadic/data`をカレントディレクトリとしてJupyterLabが起動します。JupyterLabのLauncher画面で`Terminal`をクリックすると、Pythonコンテナにアクセスできます。詳細は[JupyterLabとの連携](jupyterlab.md)を参照してください。
 
 ## 一般的な使用例
 
 ### Pythonコンテナ
-- 追加のPythonパッケージをインストール:
-  - `uv pip install --no-cache package_name` (推奨)
-  - `pip install package_name`
+- 追加のPythonパッケージをインストール: `uv pip install --no-cache package_name`（永続的なインストール方法は[Pythonコンテナ](python-container.md)を参照）
 - 共有データにアクセス: `cd /monadic/data`
 - Pythonスクリプトを実行: `python /monadic/data/scripts/my_script.py`
 

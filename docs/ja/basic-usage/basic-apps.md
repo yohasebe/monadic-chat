@@ -89,7 +89,7 @@ PF で保護された会話を残したい場合は **Privacy Export** (暗号�
 
 両列とも空欄になっているアプリは artifact 中心の生成系で、生成された出力 (画像・動画・図・文書など) 自体に価値があり会話本文ではありません。artifact を保管するにはカードの **Copy** / **Download** ボタンや共有フォルダを使ってください。周囲のチャットには retrieval 価値がないため KB 保存はあえて提供していません。
 
-## プロバイダー機能概要
+## プロバイダー機能概要 :id=provider-capabilities
 
 | プロバイダー | ビジョンサポート | ツール/関数呼び出し | Web検索 |
 |----------|----------------|----------------------|---------|
@@ -108,9 +108,7 @@ PF で保護された会話を残したい場合は **Privacy Export** (暗号�
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-標準的なチャットアプリケーションです。ユーザーが入力したテキストに対して、AIが適切な絵文字とともに応答します。Web検索機能は以下の方法で利用できます：
-- **ネイティブ検索**: OpenAI、Claude、Gemini、Grokは組み込みのWeb検索機能を使用（対応アプリでデフォルト有効）
-- **Tavily検索**: Mistral、Cohere、DeepSeek、Ollamaは設定ファイルに`TAVILY_API_KEY`を追加することでTavily APIを使用
+標準的なチャットアプリケーションです。ユーザーが入力したテキストに対して、AIが適切な絵文字とともに応答します。ツール/関数呼び出しに対応したモデルではWeb検索も利用できます。各プロバイダーが組み込みのネイティブ検索とTavily API（`TAVILY_API_KEY`が必要）のどちらを使用するかは、[プロバイダー機能概要の表](#provider-capabilities)を参照してください。
 
 また、メッセージ入力エリアの`URLから読込`機能により、プロバイダーに関係なく、Seleniumベースのスクレイピングで任意のURLのコンテンツを抽出できます。
 
@@ -135,21 +133,11 @@ Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの�
 
 選択したプロバイダーの音声認識APIで音声入力を行い、音声設定パネルで選択したText-to-Speechプロバイダーで音声出力を行う、音声チャットアプリケーションです。出力の既定はブラウザ内蔵のWeb Speech APIで、APIキーは不要です。代わりにプロバイダーのTTSエンジン（OpenAI、ElevenLabs、Gemini、Mistral、xAI Grok）を選択することもできます。初期プロンプトは基本的にChatアプリと同じです。
 
-<!-- SCREENSHOT: 音声入力中の画面 - Speech Inputボタンの代わりにStopボタンが表示され、音声波形が動いている様子 -->
-
-音声入力中は波形が表示されます。プロバイダー/モデルによっては、音声入力が終了すると、認識の「確からしさ」を示すp-value（0〜1の値）が表示されます。
-
-<!-- SCREENSHOT: 音声入力後のp-value表示 - テキストエリア上部に「p-value: 0.95」などの信頼度スコアが表示されている様子 -->
+音声入力中は波形が表示され、入力終了後には認識の「確からしさ」を示すp-value（0〜1の値）が表示されます。詳細は[音声入力](./message-input.md#speech-input)を参照してください。
 
 Voice Chatの対応プロバイダーは冒頭の表を参照してください。チャットプロバイダーとTTSプロバイダーの組み合わせは自由です（例: Claudeで会話しながらxAI Grokで音声出力）。音声入出力の設定については[音声設定パネル](./web-interface.md#speech-settings-panel)を参照してください。
 
-**Expressive Speech**: Auto Speech をオンにし、対応する TTS プロバイダーを選択すると、Text-to-Speech Provider ドロップダウンの下に✨ **Expressive Speech** バッジが表示されます。プロバイダーに応じて 3 種類の仕組みが自動的に選択されます。
-
-- **インラインマーカー方式** (xAI Grok / ElevenLabs v3): アシスタントが応答テキスト内に短いマーカー（短い間・笑い・ささやく一言など）を織り交ぜ、TTS エンジンがそれをステージ指示として解釈します。マーカーはチャット履歴には一切現れず、音声の抑揚としてのみ反映されます。
-- **インストラクションモード** (発話指示に対応した OpenAI の TTS モデル): アシスタントが応答本文とは別に、声質・テンポ・感情・発音・間取りなどの発話方針を送出します。OpenAI TTS はその指示を「読み上げず」に参考にして本文を発話します。指示文はチャット履歴にも画面にも現れず、内容に合った表情豊かな音声のみが再生されます。
-- **ハイブリッド方式** (Gemini TTS): Gemini は上記 2 つを同時にサポートします。アシスタントはインラインマーカー、発話方針、またはその両方を自由に組み合わせて送出でき、Google のエンジンがそれぞれを解釈します。応答本文以外はすべてチャット履歴から剥がされます。
-
-バッジにマウスオーバーすると、現在有効な仕組みの説明がツールチップで表示されます。Auto Speech をオフにするか、Expressive Speech 非対応の TTS プロバイダーへ切り替えると、この機能は自動的に無効になります。
+**Expressive Speech**: Auto Speech をオンにし、対応する TTS プロバイダーを選択すると、Text-to-Speech Provider ドロップダウンの下に✨ **Expressive Speech** バッジが表示され、アシスタントの応答に表情豊かな音声表現（間・笑い・発話指示など）が加わります。これらはチャット履歴のテキストには一切現れません。仕組みはプロバイダーごとに自動選択されます — 各プロバイダーの実装方式については[音声設定パネル](./web-interface.md#speech-settings-panel)を参照してください。
 
 
 ### Wikipedia
@@ -183,10 +171,7 @@ Second Opinionアプリの対応状況は冒頭の表を参照してください
 
 アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、強力なウェブ検索機能を持つインテリジェントな研究アシスタントとして機能します。オンラインソースから情報を取得・分析し、最新情報の検索、事実の検証、トピックの包括的な調査を支援します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、あなたの探究を進めます。
 
-Research Assistantの対応プロバイダーは冒頭の表を参照してください。Web検索機能：
-- **ネイティブ検索**: OpenAI、Claude、Gemini、Grok（常に利用可能）
-- **Tavily検索**: Mistral、Cohere、DeepSeek、Ollama（`TAVILY_API_KEY`が必要）
-- **URLコンテンツ抽出**: 任意のURLからコンテンツを取得するSeleniumベースのスクレイピング（全プロバイダーで利用可能）
+Research Assistantの対応プロバイダーは冒頭の表を参照してください。Web検索でネイティブ検索とTavily API（`TAVILY_API_KEY`が必要）のどちらが使われるかは[プロバイダー機能概要の表](#provider-capabilities)のとおりです。SeleniumベースのURLコンテンツ抽出は全プロバイダーで利用できます。
 
 > **注意**: GeminiのResearch Assistantは、ネイティブGoogle検索グラウンディングの代わりに内部ウェブ検索エージェント（`gemini_web_search`）を使用します。これにより、GeminiのAPI制限を回避し、ウェブ検索とファイル操作・プログレストラッキングを同時に利用できます。
 
@@ -484,7 +469,7 @@ Knowledge Base は従来の PDF Navigator と Content Reader を置き換える�
 |---|---|---|
 | Markdown | `.md`, `.markdown`, `.mdx` | YAML フロントマターはメタデータに昇格、ATX 見出しでセクション分割 |
 | ソースコード | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql` ほか | トップレベルの `def`/`class`/`func` などをチャンク境界とみなす。プログラミング言語は topic に記録 |
-| PDF | `.pdf` | テキストと表を抽出して Markdown 化。Knowledge Base Quality Pack がインストールされている場合は Docling ベースの extractor コンテナ（レイアウト解析 + OCR）、それ以外は Python コンテナ内の pdfplumber で処理。PDF メタデータの title が会話タイトルになる |
+| PDF | `.pdf` | テキストと表を抽出して Markdown 化。Knowledge Base Quality Pack がインストールされている場合はレイアウト解析 + OCR 付きの抽出になる。PDF メタデータの title が会話タイトルになる |
 | Office | `.docx`, `.xlsx`, `.pptx` | Word の段落、Excel のシート、PowerPoint のスライド単位でチャンク化。Browse モーダルではフォーマット別アイコン (Word / Excel / PowerPoint) で表示 |
 
 **スコープ (scope) モデル:**
@@ -502,7 +487,7 @@ Knowledge Base は従来の PDF Navigator と Content Reader を置き換える�
 - **Privacy Filter との互換性** — Privacy Filter が有効なセッションでは、`library_search` が返すスニペットも同じ Privacy Pipeline でマスクされてから LLM に渡されます。Knowledge Base に平文で保存された PII が retrieval 経由で漏出しません。
 - **Knowledge Base アクセスバッジ** — セッションが実際に Library を参照する状態のとき、会話ヘッダーに緑の「Knowledge Base」バッジが表示されます。retrieval トグルが ON のとき、および Knowledge Base アプリ自体（専用ツールで常にフルアクセス）が対象です。
 
-?> Knowledge Base はローカル埋め込み (`multilingual-e5-base`) と Qdrant ベクトルストアを使用します。インポートは Python コンテナ内で実行されます (pdfplumber / python-docx / openpyxl / python-pptx)。Knowledge Base Quality Pack がインストールされている場合、PDF は代わりに extractor コンテナ (Docling + OCR) で処理されます。アップロードしたファイルは追跡用に `~/monadic/data/library/imports/` にも保存されます。ストレージ内部の詳細は[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
+?> Knowledge Base はローカル埋め込み (`multilingual-e5-base`) と Qdrant ベクトルストアを使用します — インポートにも検索にも外部 API キーは不要です。抽出・チャンク化・ストレージの内部詳細は[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
 
 
 ## コード生成 :id=code-generation
@@ -549,7 +534,7 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
 <br /><br /><!-- SCREENSHOT: Actionsメニュー - Start JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
 
-?> **注意:** サーバーモードでの制約については、[Web Interface - Server Mode](./web-interface.md#server-mode)を参照してください。
+?> **注意:** サーバーモードでの制約については、[JupyterLab - Server モードでの制限](../docker-integration/jupyterlab.md#server-mode-restrictions)を参照してください。
 
 Jupyter Notebookの対応プロバイダーは冒頭の表を参照してください。
 

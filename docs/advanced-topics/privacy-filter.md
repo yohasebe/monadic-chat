@@ -101,7 +101,7 @@ The Web Speech API path (browser-native synthesis) goes through the same sanitiz
 
 ## Knowledge Base Save and Search
 
-Privacy Filter and Knowledge Base save are **mutually exclusive at the app level**. Privacy-aware apps (Chat Plus, Mail Composer, Translate, Second Opinion) cannot save to the Knowledge Base — the Save button stays visible but is disabled with a tooltip explaining why, mirroring how the Privacy Filter session toggle is shown disabled on apps that don't support it. Conversational apps with retrieval value (Chat, Research Assistant, etc.) cannot enable the Privacy Filter. Artifact-centric apps (image / video / diagram / document generators) support neither feature; the artifact lives in `~/monadic/data/` and the Knowledge Base panel is hidden entirely for these apps. See the [App Allocation table](../basic-usage/basic-apps.md#privacy-kb-by-app) for the complete list.
+Privacy Filter and Knowledge Base save are **mutually exclusive at the app level** — see [Privacy Filter and Knowledge Base by App](../basic-usage/basic-apps.md#privacy-kb-by-app) for the three-group allocation rationale and the complete table. In privacy-aware apps the Save button stays visible but is disabled with a tooltip explaining why, mirroring how the Privacy Filter session toggle is shown disabled on apps that don't support it; in artifact-centric apps the Knowledge Base panel is hidden entirely.
 
 To preserve a conversation handled in a privacy-aware app, use **Privacy Export** (encryption + optional masked-only mode) — see the section below.
 
@@ -137,7 +137,7 @@ Passphrase requirements: minimum 8 characters and the confirmation field must ma
 
 To re-open an encrypted export, use the **Import** button and enter the passphrase when prompted. The registry is restored alongside the conversation so subsequent messages continue to mask consistently.
 
-## Document DB Export and Import (Actions menu)
+## Document DB Export and Import (Actions menu) :id=document-db-export-import
 
 The **Actions → Export Document DB** and **Actions → Import Document DB** menu items operate on the entire qdrant volume — every saved conversation, PDF, and Knowledge Base entry. Both items now show a confirmation dialog before proceeding.
 

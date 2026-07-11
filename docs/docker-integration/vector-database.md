@@ -69,7 +69,7 @@ Library entries carry a `scope_app` payload — either an app + provider class n
 The Knowledge Base app uses this system to provide unified content Q&A:
 
 1. Users save the current chat session or click **Import file** in the Browse modal
-2. The system extracts, chunks, embeds, and stores the content (PDFs via the Extractor container when the Knowledge Base Quality Pack is installed, pdfplumber otherwise; Office via python-docx/openpyxl/python-pptx; Markdown/code directly)
+2. The system extracts, chunks, embeds, and stores the content, following the [processing flow](#technical-implementation) above
 3. Users ask questions about the content; other apps can ask too via `library_search` when the user has flipped the entry to `Global`
 4. The system retrieves the most relevant chunks using a cascade query (summaries → turns) over the Qdrant collections above
 5. Retrieved chunks are passed to the LLM to ground its answer
@@ -78,12 +78,4 @@ Imported files are also persisted under `~/monadic/data/library/imports/` for tr
 
 ## Use in Monadic Help :id=use-in-monadic-help
 
-The Monadic Help app uses the same Qdrant + embeddings stack but reads from the `help_docs` and `help_items` collections, which are pre-built at packaging time:
-
-1. During the Monadic Chat build, all documentation files are processed and embedded
-2. The result is shipped inside the Ruby image as a JSON dump (`help_data/help_db.json`)
-3. On first start, Monadic Chat loads the dump into Qdrant once
-4. When users ask questions, the same query/passage embedding workflow finds the relevant documentation snippets
-5. Those snippets are passed to the LLM to generate the answer
-
-Because both embedding inference and storage are local, the help system works without any provider API key.
+The Monadic Help app uses the same Qdrant + embeddings stack but reads from the `help_docs` and `help_items` collections, which are pre-built from the documentation at packaging time, shipped inside the Ruby image as a JSON dump, and loaded into Qdrant once on first start. Because both embedding inference and storage are local, help search works without any provider API key. For the build pipeline, runtime bootstrap, and configuration variables, see the [Help System](../advanced-topics/help-system.md) documentation.

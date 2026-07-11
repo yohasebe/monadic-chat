@@ -39,31 +39,22 @@ Standalone モードでは、すべてのJupyter機能が完全に利用可能�
 - アプリケーションメニューに`Jupyter Notebook`アプリが表示される
 - AIエージェントがJupyterノートブックの作成、変更、実行を行える
 
-### Server モードでの制限
+### Server モードでの制限 :id=server-mode-restrictions
 
-Monadic ChatをServer モードで実行する場合、セキュリティ上の理由からJupyter機能はデフォルトで無効化されています：
+Monadic Chatを[Server モード](basic-architecture.md#server-standalone-modes)で実行する場合、Jupyter機能はデフォルトで無効化され、**Jupyterアプリはアプリケーションメニューから非表示**になります。Server モードでは複数のデバイスからのネットワークアクセスが可能であり、Jupyterは共有フォルダへの完全なアクセス権限を持つ任意のコード実行を許すため、信頼できないユーザーがサーバーに到達できる環境では危険な組み合わせになるからです。
 
-- **Jupyterアプリはアプリケーションメニューから非表示**になります
-- Server モードでJupyterを有効にするには、設定変数を設定: `~/monadic/config/env`に`ALLOW_JUPYTER_IN_SERVER_MODE=true`
-- Server モードでは複数のデバイスからのネットワークアクセスが可能
-- JupyterLabは共有フォルダと結びついており、信頼できないユーザーがアクセスするとセキュリティリスクとなる
-- Server モードは信頼された環境でのみ使用することを強く推奨
-- **警告**: Server モードでJupyterを有効にすると、共有フォルダへの完全なアクセス権限で任意のコード実行が許可されます
-
-Server モードでJupyterアプリを有効にする方法、`~/monadic/config/env`ファイルに以下を追加：
+それでもServer モードでJupyterアプリを有効にするには、`~/monadic/config/env`ファイルに以下を追加してください：
 ```
 ALLOW_JUPYTER_IN_SERVER_MODE=true
 ```
 
-これらの制限は、Jupyterが任意のコード実行を許可するため、マルチユーザー環境では危険となる可能性があるためです。
+!> **警告**: この設定は信頼された環境でのみ有効にしてください。サーバーに到達できる全員が、共有フォルダへの完全なアクセス権限で任意のコードを実行できるようになります。
 
 ## JupyterLab使用のヒント
 
 - **作業ディレクトリ**: JupyterLabは`/monadic/data`を作業ディレクトリとして起動します
 - **永続的ストレージ**: `/monadic/data`に保存されたすべてのファイルはコンテナの再起動後も保持されます
-- **Pythonパッケージ**: ノートブックのセルで追加パッケージをインストールできます:
-  - `!uv pip install --no-cache package_name` (推奨)
-  - `!pip install package_name`
+- **Pythonパッケージ**: ノートブックのセルで `!uv pip install --no-cache package_name` により追加パッケージをインストールできます。再ビルド後も保持される永続的なインストール方法は[Pythonコンテナ](python-container.md)を参照してください
 - **ターミナルアクセス**: JupyterLabのTerminalを使用してPythonコンテナに直接アクセスできます
 
 

@@ -66,7 +66,7 @@
 - 2〜5個の独立したサブタスクを別々のAPI呼び出しで並列実行
 - 各サブエージェントはテキストのみの呼び出しとして実行され、結果が収集・統合される
 - UIでWeb検索トグルが有効な場合、サブエージェントの**Web検索**をサポート
-- Web検索はプロバイダー固有のメカニズム（OpenAI/Grok Responses API、Geminiグラウンディング、Claudeサーバーサイド検索）を使用し、ネイティブ検索のないプロバイダー（Mistral、Cohere、DeepSeek）にはTavily APIをフォールバックとして使用
+- Web検索はプロバイダーのネイティブメカニズムを使用し、ネイティブ検索のないプロバイダーにはTavily APIをフォールバックとして使用 — [プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
 - テンポラリカードUIでリアルタイムに進捗表示
 
 **このツールを使用するアプリ**: Research Assistant（全プロバイダー）
@@ -125,7 +125,7 @@ SeleniumコンテナはMonadic Chatの起動時に自動で起動します。バ
 2. ツールグループが自動的に利用可能になる
 
 #### Web検索（4ツール）
-**必要条件**: `TAVILY_API_KEY`が設定済み（ネイティブWeb検索を持つプロバイダーは自社APIで検索を実行）
+**必要条件**: ネイティブWeb検索を持たないプロバイダーでは`TAVILY_API_KEY`が必要 — [プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
 
 - プロバイダーに応じた方法（ネイティブまたはTavily）でのWeb検索
 - URLからコンテンツを取得し共有フォルダに保存

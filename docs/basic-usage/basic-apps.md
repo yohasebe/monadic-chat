@@ -89,7 +89,7 @@ To preserve a PF-protected conversation, use **Privacy Export** (encrypted, opti
 
 A blank cell in **both** columns indicates an artifact-centric app where the generated output (image, video, diagram, document, etc.) is the value, not the conversation. Use the per-card **Copy** / **Download** controls or the shared folder to retain artifacts; KB save is intentionally not available because the surrounding chat does not carry retrieval value.
 
-## Provider Capabilities Overview
+## Provider Capabilities Overview :id=provider-capabilities
 
 | Provider | Vision Support | Tool/Function Calling | Web Search |
 |----------|----------------|----------------------|------------|
@@ -108,9 +108,7 @@ A blank cell in **both** columns indicates an artifact-centric app where the gen
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-Start a standard conversation with the AI, which will respond to your text with appropriate emojis. For complex questions, web search is available for models that support tool/function calling:
-- **Native Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search capabilities (enabled by default).
-- **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when configured (requires a `TAVILY_API_KEY`).
+Start a standard conversation with the AI, which will respond to your text with appropriate emojis. For complex questions, web search is available for models that support tool/function calling — whether a provider uses its built-in search or the Tavily API (requires a `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](#provider-capabilities).
 
 You can also use the `From URL` feature to extract content from any website using Selenium-based web scraping, regardless of the provider.
 
@@ -135,23 +133,11 @@ Engage in a "monadic" chat that reveals the AI's thought process. As the AI resp
 
 Chat with the AI using your voice. This app uses your provider's speech recognition API for voice input, and the text-to-speech provider selected in the Speech Settings panel for voice output. The browser's built-in Web Speech API is the default output option and requires no API key; provider TTS engines (OpenAI, ElevenLabs, Gemini, Mistral, xAI Grok) can be selected instead. The initial prompt is the same as the standard Chat app, and you can use different AI models for responses.
 
-While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
+While you speak, a visual waveform is displayed; after you stop, a confidence score (p-value) for the speech recognition result is shown — see [Speech Input](./message-input.md#speech-input) for details.
 
 Voice Chat supports the same providers indicated in the availability table. You can freely mix any chat provider with any available TTS provider — for example, using Claude for the conversation while xAI Grok handles the voice. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
-**Expressive Speech**: When you enable Auto Speech and pick a compatible TTS provider, a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown. Three mechanisms are supported, chosen automatically by the selected provider:
-
-- **Inline markers** (xAI Grok, ElevenLabs v3): the assistant weaves short markers (brief pauses, laughter, a whispered aside) into the text, and the TTS engine interprets them as stage directions. The markers never surface in the chat transcript — only their audio effect does.
-- **Instruction mode** (the OpenAI TTS model with instruction support): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The OpenAI TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
-- **Hybrid mode** (Gemini TTS): Gemini supports both of the above simultaneously. The assistant may use inline markers, a voice directive, or both, and Google's engine interprets the combination. Everything except the spoken reply is stripped from the transcript.
-
-Hover the badge for a tooltip that describes the active mechanism. Turning off Auto Speech, or switching to a TTS provider without Expressive Speech support, silently disables the feature.
-
-<!-- SCREENSHOT: Voice input interface showing waveform animation while speaking -->
-
-The voice input feature displays a visual waveform while you speak. After stopping, it shows a confidence score (p-value) indicating the accuracy of speech recognition.
-
-<!-- SCREENSHOT: Voice input after stopping, showing transcribed text with p-value confidence score -->
+**Expressive Speech**: When you enable Auto Speech and pick a compatible TTS provider, a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown, and the assistant's replies gain expressive audio cues (pauses, laughter, voice directives) that never surface in the chat transcript. The mechanism is chosen automatically per provider — see [Speech Settings Panel](./web-interface.md#speech-settings-panel) for how each provider implements it.
 
 
 ### Wikipedia
@@ -185,10 +171,7 @@ Second Opinion is available wherever the provider table lists support.
 
 Accelerate your academic and scientific research with an intelligent assistant. This app uses powerful web search capabilities to retrieve and analyze information from online sources. Use it to find current information, verify facts, and research topics comprehensively, receiving reliable insights, summaries, and explanations to advance your work.
 
-Research Assistant availability matches the provider table above. Web search capabilities:
-- **Native Search**: OpenAI, Claude, Gemini, Grok (always available)
-- **Tavily Search**: Mistral, Cohere, DeepSeek, Ollama (requires `TAVILY_API_KEY`)
-- **URL Content Extraction**: Selenium-based web scraping for fetching content from any URL (available for all providers)
+Research Assistant availability matches the provider table above. Whether web search uses a provider's native search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](#provider-capabilities); Selenium-based URL content extraction is available for all providers.
 
 > **Note**: Gemini Research Assistant uses an internal web search agent (`gemini_web_search`) instead of native Google Search grounding. This enables web search to work alongside file operations and progress tracking, working around certain Gemini API limitations.
 
@@ -491,7 +474,7 @@ The Knowledge Base replaces the previous PDF Navigator and Content Reader apps. 
 |---|---|---|
 | Markdown | `.md`, `.markdown`, `.mdx` | YAML frontmatter is promoted into metadata; ATX headings drive section boundaries. |
 | Source code | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql`, and others | Top-level `def`/`class`/`func`/etc. mark chunk boundaries. The programming language is recorded as a topic. |
-| PDF | `.pdf` | Text and tables are extracted and serialised as Markdown — via the Docling-based extractor container (layout-aware, with OCR) when the Knowledge Base Quality Pack is installed, otherwise via pdfplumber in the Python container. PDF metadata title becomes the conversation title. |
+| PDF | `.pdf` | Text and tables are extracted and serialised as Markdown — with layout-aware extraction and OCR when the Knowledge Base Quality Pack is installed. PDF metadata title becomes the conversation title. |
 | Office | `.docx`, `.xlsx`, `.pptx` | Word paragraphs, Excel sheets, and PowerPoint slides each become a chunk. The Browse modal shows a per-format icon (Word / Excel / PowerPoint). |
 
 **Scope model:**
@@ -509,7 +492,7 @@ Each entry is scoped either to a specific app + provider (e.g. `Chat (OpenAI)`) 
 - **Privacy Filter compatibility** — when Privacy Filter is active, snippets returned by `library_search` are masked through the same Privacy Pipeline before they reach the LLM, so PII stored unmasked in the Knowledge Base does not leak via retrieval.
 - **Knowledge Base access badge** — the conversation header shows a green "Knowledge Base" badge whenever the session reads from the Library: when the retrieval toggle is on, and always in the Knowledge Base app itself (which has full access via its own tools).
 
-?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (pdfplumber / python-docx / openpyxl / python-pptx); with the Knowledge Base Quality Pack installed, PDFs are processed by the extractor container (Docling with OCR) instead. Imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
+?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store — no external API key is needed for import or search. For the extraction, chunking, and storage internals, see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
 
 ## Code Generation :id=code-generation
@@ -553,7 +536,7 @@ Let the AI create Jupyter Notebooks, add cells, and execute code based on your r
 ?> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br /><!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
 
-?> **Note:** For Server Mode restrictions, see [Web Interface - Server Mode](./web-interface.md#server-mode).
+?> **Note:** For Server Mode restrictions, see [JupyterLab - Server Mode Restrictions](../docker-integration/jupyterlab.md#server-mode-restrictions).
 
 Jupyter Notebook is available for the providers shown in the availability table.
 

@@ -66,7 +66,7 @@ These tool groups are always available and don't require additional setup:
 - Dispatch 2-5 independent sub-tasks to run in parallel via separate API calls
 - Each sub-agent runs as a text-only call; results are collected and synthesized
 - Supports **web search** for sub-agents when the Web Search toggle is enabled in the UI
-- Web search uses provider-native mechanisms (OpenAI/Grok Responses API, Gemini grounding, Claude server-side search) or Tavily API as a fallback for providers without native search (Mistral, Cohere, DeepSeek)
+- Web search uses the provider's native mechanism, or the Tavily API for providers without native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
 - Progress displayed in real-time via the temporary card UI
 
 **Apps using this**: Research Assistant (all providers)
@@ -125,7 +125,7 @@ image is missing, run **Actions → Build All** to download it.
 2. The tool group will become available automatically
 
 #### Web Search (4 tools)
-**Requires**: `TAVILY_API_KEY` configured (providers with native web search perform searches through their own APIs)
+**Requires**: `TAVILY_API_KEY` for providers without native web search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
 
 - Search the web using the provider-appropriate method (native or Tavily)
 - Fetch content from URLs and save it to the shared folder

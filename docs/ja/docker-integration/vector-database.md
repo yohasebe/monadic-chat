@@ -69,7 +69,7 @@ Library エントリは `scope_app` payload を持ちます。値は「アプリ
 Knowledge Base アプリはこのシステムを使って統合的なコンテンツ Q&A を提供します：
 
 1. ユーザーが現在のチャットセッションを保存、または Browse モーダルの **Import file** をクリック
-2. システムが抽出・チャンク化・埋め込み・格納を実行（PDF は Knowledge Base Quality Pack インストール時は Extractor コンテナ経由・未インストール時は pdfplumber、Office は python-docx/openpyxl/python-pptx、Markdown とコードは直接読み込み）
+2. システムが抽出・チャンク化・埋め込み・格納を実行（上記の[処理フロー](#technical-implementation)に従う）
 3. ユーザーが内容について質問。ユーザーが該当エントリを `Global` にしておけば、他アプリも `library_search` 経由で同じ Library を参照可能
 4. summaries → turns のカスケード検索で関連チャンクを取得
 5. 取得したチャンクが LLM に渡され、それを根拠に回答が生成される
@@ -78,12 +78,4 @@ Knowledge Base アプリはこのシステムを使って統合的なコンテ�
 
 ## Monadic Help での使用 :id=use-in-monadic-help
 
-Monadic Help アプリは同じ Qdrant + embeddings スタックを利用しますが、`help_docs` / `help_items` コレクションを参照します。これらはパッケージビルド時に事前構築されます：
-
-1. Monadic Chat のビルド時に、ドキュメントファイルをすべて処理して埋め込みを計算
-2. 結果は JSON ダンプ（`help_data/help_db.json`）として Ruby イメージに同梱される
-3. 初回起動時、Monadic Chat はそのダンプを Qdrant に 1 度だけロードする
-4. ユーザー質問時には、同じ query/passage 埋め込みフローで関連ドキュメントを検索
-5. ヒットした内容を LLM に渡して回答を生成
-
-埋め込み推論もストレージもローカルで完結するため、ヘルプシステムは外部プロバイダの API キーがなくても動作します。
+Monadic Help アプリは同じ Qdrant + embeddings スタックを利用しますが、`help_docs` / `help_items` コレクションを参照します。これらはパッケージビルド時にドキュメントから事前構築され、JSON ダンプとして Ruby イメージに同梱され、初回起動時に 1 度だけ Qdrant にロードされます。埋め込み推論もストレージもローカルで完結するため、ヘルプ検索は外部プロバイダの API キーがなくても動作します。ビルドパイプライン・起動時のブートストラップ・設定変数の詳細は[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。

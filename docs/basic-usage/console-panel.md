@@ -68,7 +68,7 @@ Build the Docker image and container (`monadic-chat-privacy-container`) used by 
 Build the Docker image and container (`monadic-chat-extractor-container`) used for extracting text from document files.
 
 **Start JupyterLab** <br />
-Launch JupyterLab. It can be accessed at [http://localhost:8889](http://localhost:8889)
+Launch JupyterLab at [http://localhost:8889](http://localhost:8889). See [JupyterLab Integration](../docker-integration/jupyterlab.md) for details.
 
 
 **Stop JupyterLab** <br />
@@ -78,7 +78,7 @@ Stop JupyterLab.
 Import the entire Document DB (saved conversations, PDFs, and Knowledge Base entries) from a previously exported tarball in the shared folder. A confirmation dialog warns that importing OVERWRITES the current database. The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time).
 
 **Export Document DB** <br />
-Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase, writes `monadic-qdrant.tar.gz.enc` with AES-256-GCM streaming encryption) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every saved conversation and PDF travels in cleartext). Use the encrypted form for any export that may leave your machine.
+Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase and writes `monadic-qdrant.tar.gz.enc`) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every saved conversation and PDF travels in cleartext). Use the encrypted form for any export that may leave your machine. For the encryption format and import/decryption behavior, see [Privacy Filter](../advanced-topics/privacy-filter.md#document-db-export-import).
 
 ### Open Menu
 
@@ -91,11 +91,7 @@ Open the default browser to access Monadic Chat at [http://localhost:4567](http:
 Open a noVNC viewer window that shows the screen of the browser running inside the Selenium container. This lets you watch (and interact with) web automation in real time. Available while Monadic Chat is running.
 
 **Open Shared Folder** <br />
-Open the folder shared between the host and Docker containers. It can be used for importing and exporting files. It is also used when installing additional apps. The following folders are included:
-
-- `apps`: Folder for storing additional applications.
-- `helpers`: Folder for storing helper files containing functions used by apps.
-- `scripts`: Folder for storing executable scripts that can be run within containers.
+Open the folder shared between the host and Docker containers. It can be used for importing and exporting files, and when installing additional apps. See [Shared Folder](../docker-integration/shared-folder.md) for the folder layout and the role of each subfolder (`apps`, `helpers`, `scripts`).
 
 **Open Config Folder** <br />
 Open the `~/monadic/config` folder. This folder contains configuration files for Monadic Chat. The following files are included:
@@ -200,7 +196,7 @@ Enter your DeepSeek API key. This key is required to use the DeepSeek models. It
 Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers](https://elevenlabs.io/developers).
 
 **TAVILY_API_KEY** <br />
-Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature as an alternative to Selenium, and 2) For web search functionality in apps using providers without native search (Mistral, Cohere, DeepSeek, Ollama). It can be obtained from [https://tavily.com/](https://tavily.com/).
+Enter your Tavily API key. This key is used for two purposes: 1) the "From URL" feature as an alternative to Selenium, and 2) web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). It can be obtained from [https://tavily.com/](https://tavily.com/).
 
 <!-- SCREENSHOT: Settings panel showing Voice & Audio section with TTS Dictionary File Path input field and Auto TTS Max Bytes input -->
 

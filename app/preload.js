@@ -102,8 +102,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for settings load event from the main process
   onLoadSettings: (callback) => ipcRenderer.on('load-settings', callback),
 
-  // Save settings to the main process
-  saveSettings: (data) => ipcRenderer.send('save-settings', data),
+  // Save settings to the main process; resolves to { success } once the
+  // env file write has actually completed (or failed)
+  saveSettings: (data) => ipcRenderer.invoke('save-settings', data),
 
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),

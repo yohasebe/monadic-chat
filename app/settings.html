@@ -128,6 +128,13 @@
       color: #fff;
     }
 
+    /* Shown when the main process reports the env file write failed —
+       the form stays dirty so the user can retry. */
+    #save-settings-btn.save-failed {
+      background-color: #dc3545;
+      color: #fff;
+    }
+
     /* ─── Content Area ─── */
     #settings-content {
       background-color: #ffffff;
@@ -1260,7 +1267,7 @@
       });
 
       // ─── Save Handler ───
-      document.getElementById('settings-form').addEventListener('submit', (event) => {
+      document.getElementById('settings-form').addEventListener('submit', async (event) => {
         event.preventDefault();
 
         const distributedMode = document.getElementById('distributed-mode').value;
@@ -1302,11 +1309,30 @@
           PRIVACY_LANGS: collectPrivacyLangs()
         };
 
-        window.electronAPI.saveSettings(data);
-
-        // Show save confirmation on the button itself (icon + color only)
         const saveBtn = document.getElementById('save-settings-btn');
         const saveIcon = saveBtn.querySelector('i');
+        saveBtn.disabled = true;
+        let saveResult;
+        try {
+          saveResult = await window.electronAPI.saveSettings(data);
+        } catch (error) {
+          saveResult = { success: false };
+        } finally {
+          saveBtn.disabled = false;
+        }
+
+        if (!saveResult || !saveResult.success) {
+          // Nothing was written — keep the dirty state so the user can retry
+          saveBtn.classList.add('save-failed');
+          saveIcon.className = 'fas fa-triangle-exclamation';
+          setTimeout(() => {
+            saveBtn.classList.remove('save-failed');
+            saveIcon.className = 'fas fa-save';
+          }, 2500);
+          return;
+        }
+
+        // Show save confirmation on the button itself (icon + color only)
         saveBtn.classList.add('saved');
         saveIcon.className = 'fas fa-check';
         setTimeout(() => {

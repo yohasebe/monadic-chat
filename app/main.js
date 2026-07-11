@@ -3636,9 +3636,10 @@ function writeEnvFile(envPath, envConfig) {
 
     try {
         fs.writeFileSync(envPath, envContent);
-        // console.log('Settings saved successfully to', envPath);
+        return true;
     } catch (error) {
         console.error('Error saving settings:', error);
+        return false;
     }
 }
 
@@ -3972,12 +3973,14 @@ function saveSettings(data) {
         // Override existing settings with new data (empty string values are included)
         Object.assign(envConfig, data);
         // Write the updated configuration back to the file
-        writeEnvFile(envPath, envConfig);
+        const written = writeEnvFile(envPath, envConfig);
 
         // Apply language changes to running privacy/extractor containers
         // (runtime env refresh — no rebuild involved).
         refreshServiceContainersForLangChange(prevLangs, envConfig);
+        return written;
     }
+    return false;
 }
 
 function loadSettings() {
@@ -4073,16 +4076,22 @@ ipcMain.on('change-ui-language', (_event, language) => {
   }
 });
 
-// Handle settings save from settings window
-ipcMain.on('save-settings', (_event, data) => {
+// Handle settings save from settings window. Returns { success } so the
+// renderer only shows the saved state once the env file is actually written.
+ipcMain.handle('save-settings', (_event, data) => {
   // Check if interface language has changed
   const envPath = getEnvPath();
   const oldConfig = envPath ? readEnvFile(envPath) : {};
   const uiLanguage = data.UI_LANGUAGE;
   const oldUiLanguage = oldConfig.UI_LANGUAGE;
   const languageChanged = uiLanguage && uiLanguage !== oldUiLanguage;
-  
-  saveSettings(data);
+
+  let saved = false;
+  try {
+    saved = saveSettings(data);
+  } catch (error) {
+    console.error('Error saving settings:', error);
+  }
 
   // Rebuild the menu so settings-driven enable rules (e.g. PRIVACY_FILTER)
   // pick up the new env values without requiring a UI language change.
@@ -4185,10 +4194,12 @@ ipcMain.on('save-settings', (_event, data) => {
     `);
     
     // Send language change event
-    mainWindow.webContents.send('interface-language-changed', { 
-      language: uiLanguage 
+    mainWindow.webContents.send('interface-language-changed', {
+      language: uiLanguage
     });
   }
+
+  return { success: saved };
 });
 
 // This is the main entry point for app initialization

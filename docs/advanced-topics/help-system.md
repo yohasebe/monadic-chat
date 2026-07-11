@@ -12,7 +12,7 @@ The help system uses a local sentence-transformer model (`multilingual-e5-base`)
 - **Multilingual**: `multilingual-e5-base` handles English, Japanese, and many other languages with comparable quality
 - **Multi-chunk Retrieval**: Returns multiple relevant sections per result for comprehensive answers
 - **Prebuilt JSON dump**: The help database is generated at packaging time and shipped inside the Ruby image, so it is searchable on first start
-- **Internal docs toggle**: When `DEBUG_MODE=true`, internal documentation under `docs_dev/` is also indexed
+- **Internal docs toggle**: Internal documentation under `docs_dev/` is always included in the database, but it appears in search results only when `DEBUG_MODE=true`
 
 ## Requirements :id=requirements
 

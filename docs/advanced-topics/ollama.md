@@ -71,7 +71,7 @@ The following capabilities are detected:
 | Capability | Description | Example Models |
 |------------|-------------|----------------|
 | **vision** | Image input support (multimodal) | `qwen3-vl:*`, `llava`, `llama3.2-vision` |
-| **tools** | Function calling for tool-enabled apps (Chat Plus, Coding Assistant) | `qwen3-vl:*`, `qwen3:*`, `llama3.1`, `mistral` |
+| **tools** | Function calling for tool-enabled apps (Coding Assistant, Knowledge Base) | `qwen3-vl:*`, `qwen3:*`, `llama3.1`, `mistral` |
 | **thinking** | Streaming reasoning output via Ollama's `think` parameter | `qwen3-vl:*-thinking`, `qwen3:*-thinking`, `deepseek-r1:*` |
 | **structured output** | JSON schema-constrained generation (supported by all models) | all |
 
@@ -87,7 +87,7 @@ If Ollama is temporarily unavailable when Monadic Chat starts, the system falls 
 
 ## Recommended Models for Tool Calling
 
-Most Monadic Chat features (web search, file operations, agentic workflows, structured tool dispatch) require a model with the `tools` capability. When you select an Ollama model whose `/api/show` capabilities list omits `tools`, the sidebar shows a yellow **No tool calling** indicator and Coding Assistant / Mail Composer / Chat Plus / Second Opinion / Voice Chat tool features will not work.
+Most Monadic Chat features (web search, file operations, agentic workflows, structured tool dispatch) require a model with the `tools` capability. When you select an Ollama model whose `/api/show` capabilities list omits `tools`, the sidebar shows a yellow **No tool calling** indicator and the tool features of Coding Assistant, Mail Composer, and Knowledge Base will not work.
 
 The following families ship with tool calling and fit comfortably in 16 GB unified memory at Q4 quantization. Sizes are approximate VRAM footprint after quantization; consult `ollama show <model>` for authoritative numbers.
 
@@ -110,11 +110,12 @@ The following apps are available in the Ollama group:
 |-----|-------------|
 | **Chat** | General conversational AI assistant. Supports text and images. |
 | **Coding Assistant** | Programming help with code suggestions and explanations. Supports file operations in the shared folder. |
+| **Knowledge Base** | Manage conversations and documents stored in the project-wide Knowledge Base: search, sharing across apps, and importing external content. |
 | **Language Practice** | Language conversation practice with grammar corrections. |
 | **Mail Composer** | Email drafting assistance with tone customization. Supports file operations in the shared folder. |
 | **Voice Chat** | Conversational AI with voice input and output support. |
 
-Coding Assistant and Mail Composer use tool calling for file operations. These apps require a model with the `tools` capability (see [Model Capabilities](#model-capabilities)). Chat additionally supports image input when a vision-capable model is selected.
+Coding Assistant and Mail Composer use tool calling for file operations, and Knowledge Base uses it for Library operations. These apps require a model with the `tools` capability (see [Model Capabilities](#model-capabilities)). Chat additionally supports image input when a vision-capable model is selected.
 
 ## Technical Details
 

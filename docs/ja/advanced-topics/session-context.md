@@ -114,12 +114,12 @@ end
 
 | アプリ | コンテキストフィールド |
 |-------|----------------------|
-| **Chat Plus** | Topics, People, Notes（デフォルトスキーマ） |
-| **Research Assistant** | Topics, People, Notes（デフォルトスキーマ） |
-| **Math Tutor** | Topics, People, Notes（デフォルトスキーマ） |
-| **Novel Writer** | Topics, People, Notes（デフォルトスキーマ） |
-| **Voice Interpreter** | Topics, People, Notes（デフォルトスキーマ） |
-| **Language Practice Plus** | Target Language, Language Advice, Summary |
+| **Chat Plus** | Topics, People, Notes |
+| **Research Assistant** | Topics, Findings, Sources |
+| **Math Tutor** | Concepts, Formulas, Tips |
+| **Novel Writer** | Characters, Plot, Settings |
+| **Voice Interpreter** | Languages, Phrases, Notes |
+| **Language Practice Plus** | Vocabulary, Grammar, Tips |
 
 ## プロバイダーサポート
 
@@ -228,7 +228,7 @@ end
 
 1. **`monadic: true`を確認**：アプリで機能が有効になっているか確認
 2. **APIキーを確認**：抽出エージェントは同じプロバイダーのAPIにアクセスする必要がある
-3. **プロバイダーを確認**：一部のローカルモデル（Ollama）は抽出に使用できない場合がある
+3. **プロバイダーを確認**：Ollamaの場合、抽出はローカルモデル（設定済みのデフォルト、なければインストール済みの最初のモデル）で実行される。Ollamaが起動しており、モデルが1つ以上インストールされていることを確認
 4. **ログを有効化**：`~/monadic/config/env` で `EXTRA_LOGGING=true` を設定して抽出ログを確認
 
 ### 空のフィールド

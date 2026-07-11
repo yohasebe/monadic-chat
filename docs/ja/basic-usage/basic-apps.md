@@ -133,7 +133,7 @@ Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの�
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-選択したプロバイダーの音声認識APIとブラウザの音声合成APIを組み合わせ、音声でチャットを行えるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。
+選択したプロバイダーの音声認識APIで音声入力を行い、音声設定パネルで選択したText-to-Speechプロバイダーで音声出力を行う、音声チャットアプリケーションです。出力の既定はブラウザ内蔵のWeb Speech APIで、APIキーは不要です。代わりにプロバイダーのTTSエンジン（OpenAI、ElevenLabs、Gemini、Mistral、xAI Grok）を選択することもできます。初期プロンプトは基本的にChatアプリと同じです。
 
 <!-- SCREENSHOT: 音声入力中の画面 - Speech Inputボタンの代わりにStopボタンが表示され、音声波形が動いている様子 -->
 
@@ -146,7 +146,7 @@ Voice Chatの対応プロバイダーは冒頭の表を参照してください�
 **Expressive Speech**: Auto Speech をオンにし、対応する TTS プロバイダーを選択すると、Text-to-Speech Provider ドロップダウンの下に✨ **Expressive Speech** バッジが表示されます。プロバイダーに応じて 3 種類の仕組みが自動的に選択されます。
 
 - **インラインマーカー方式** (xAI Grok / ElevenLabs v3): アシスタントが応答テキスト内に短いマーカー（短い間・笑い・ささやく一言など）を織り交ぜ、TTS エンジンがそれをステージ指示として解釈します。マーカーはチャット履歴には一切現れず、音声の抑揚としてのみ反映されます。
-- **インストラクションモード** (OpenAI `gpt-4o-mini-tts`): アシスタントが応答本文とは別に、声質・テンポ・感情・発音・間取りなどの発話方針を送出します。OpenAI TTS はその指示を「読み上げず」に参考にして本文を発話します。指示文はチャット履歴にも画面にも現れず、内容に合った表情豊かな音声のみが再生されます。
+- **インストラクションモード** (発話指示に対応した OpenAI の TTS モデル): アシスタントが応答本文とは別に、声質・テンポ・感情・発音・間取りなどの発話方針を送出します。OpenAI TTS はその指示を「読み上げず」に参考にして本文を発話します。指示文はチャット履歴にも画面にも現れず、内容に合った表情豊かな音声のみが再生されます。
 - **ハイブリッド方式** (Gemini TTS): Gemini は上記 2 つを同時にサポートします。アシスタントはインラインマーカー、発話方針、またはその両方を自由に組み合わせて送出でき、Google のエンジンがそれぞれを解釈します。応答本文以外はすべてチャット履歴から剥がされます。
 
 バッジにマウスオーバーすると、現在有効な仕組みの説明がツールチップで表示されます。Auto Speech をオフにするか、Expressive Speech 非対応の TTS プロバイダーへ切り替えると、この機能は自動的に無効になります。
@@ -484,7 +484,7 @@ Knowledge Base は従来の PDF Navigator と Content Reader を置き換える�
 |---|---|---|
 | Markdown | `.md`, `.markdown`, `.mdx` | YAML フロントマターはメタデータに昇格、ATX 見出しでセクション分割 |
 | ソースコード | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql` ほか | トップレベルの `def`/`class`/`func` などをチャンク境界とみなす。プログラミング言語は topic に記録 |
-| PDF | `.pdf` | pdfplumber でテキストと表を抽出し Markdown 化。PDF メタデータの title が会話タイトルになる |
+| PDF | `.pdf` | テキストと表を抽出して Markdown 化。Knowledge Base Quality Pack がインストールされている場合は Docling ベースの extractor コンテナ（レイアウト解析 + OCR）、それ以外は Python コンテナ内の pdfplumber で処理。PDF メタデータの title が会話タイトルになる |
 | Office | `.docx`, `.xlsx`, `.pptx` | Word の段落、Excel のシート、PowerPoint のスライド単位でチャンク化。Browse モーダルではフォーマット別アイコン (Word / Excel / PowerPoint) で表示 |
 
 **スコープ (scope) モデル:**
@@ -500,8 +500,9 @@ Knowledge Base は従来の PDF Navigator と Content Reader を置き換える�
 - **Conversation Viewer** — 行をクリックすると全メッセージの逐語表示。システムプロンプトは `<details>` で折り畳み済みで開きます。
 - **RAG オプトイン (セッション単位)** — 任意のチャットセッションで **Use Knowledge Base for retrieval** トグルを ON にすると、LLM が応答中に `library_search` を呼び出せます。検索カスケードは現在アクティブなアプリのスコープフィルター (`scope_app IN [current_app, "Global"]`) を適用します。デフォルト OFF、最初のメッセージ送信でセッション中はロックされます。トグルの状態はセッションを跨いで永続化されるので、毎回切り替える必要はありません。
 - **Privacy Filter との互換性** — Privacy Filter が有効なセッションでは、`library_search` が返すスニペットも同じ Privacy Pipeline でマスクされてから LLM に渡されます。Knowledge Base に平文で保存された PII が retrieval 経由で漏出しません。
+- **Knowledge Base アクセスバッジ** — セッションが実際に Library を参照する状態のとき、会話ヘッダーに緑の「Knowledge Base」バッジが表示されます。retrieval トグルが ON のとき、および Knowledge Base アプリ自体（専用ツールで常にフルアクセス）が対象です。
 
-?> Knowledge Base はローカル埋め込み (`multilingual-e5-base`) と Qdrant ベクトルストアを使用します。インポートは Python コンテナ内で実行され (pdfplumber / python-docx / openpyxl / python-pptx)、アップロードしたファイルは追跡用に `~/monadic/data/library/imports/` にも保存されます。ストレージ内部の詳細は[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
+?> Knowledge Base はローカル埋め込み (`multilingual-e5-base`) と Qdrant ベクトルストアを使用します。インポートは Python コンテナ内で実行されます (pdfplumber / python-docx / openpyxl / python-pptx)。Knowledge Base Quality Pack がインストールされている場合、PDF は代わりに extractor コンテナ (Docling + OCR) で処理されます。アップロードしたファイルは追跡用に `~/monadic/data/library/imports/` にも保存されます。ストレージ内部の詳細は[ベクトルデータベース](../docker-integration/vector-database.md)のドキュメントを参照してください。
 
 
 ## コード生成 :id=code-generation
@@ -518,7 +519,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 コードがプロット画像を生成した場合、AIは描画結果を視覚的に検証し、文字化け、ラベルの重なり、データの不整合などの問題を検出して、必要に応じてコードを自動修正・再実行します。
 
-Code Interpreterの対応プロバイダーは冒頭の表を参照してください。プロバイダーによってツール呼び出しの仕様が異なるため、動作に差異が生じる場合があります。
+Code Interpreterの対応プロバイダーは冒頭の表を参照してください。
 
 
 ### Coding Assistant
@@ -594,7 +595,7 @@ Auto Forgeの対応プロバイダーは冒頭の表を参照してください�
 - **アルゴリズムメロディ**: コードスケール理論、ユークリッドリズム、コンターシェイピングによる自動メロディ生成（lyrical、rhythmic、jazz、latin、gentleの5スタイル）
 - **ギター特有パターン**: ボサノバ・アルペジオ、ロック・パワーコード、バラード・フィンガーピッキング
 - **ウォーキングベース**: クロマティック・アプローチノート付きジャズ・ウォーキングベース、ボサノバ2ビートフィール
-- **包括的な音楽理論**: 46種のコード、15種のスケール、全チャーチモード、スラッシュコード、エンハーモニック・スペリング対応
+- **包括的な音楽理論**: 46種のコード、メジャー・マイナー・ペンタトニック・ブルースなど各種スケール、全チャーチモード、スラッシュコード、エンハーモニック・スペリング対応
 
 音声分析にはオプションの**音声分析**パッケージ（librosa + madmom）が必要です。**Actions → Install Options**で有効化し、Pythonコンテナを再ビルドしてください。
 

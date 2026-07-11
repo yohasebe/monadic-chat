@@ -26,7 +26,7 @@
 
 ##### Q: What is Gemini TTS and how does it differ from other providers? :id=gemini-tts-overview
 
-**A**: Gemini TTS is Google's text-to-speech service using Gemini's Flash and Pro TTS models with 30 unique voices and support for 24 languages. It requires a Gemini API key and supports both real-time streaming for interactive conversations and audio file generation through the Speech Draft Helper app (outputs LINEAR16 PCM audio at 24kHz).
+**A**: Gemini TTS is Google's text-to-speech service using Gemini's Flash and Pro TTS models with 30 unique voices and support for 24 languages. It requires a Gemini API key and supports both spoken chat responses and audio file generation through the Speech Draft Helper app (outputs LINEAR16 PCM audio at 24kHz).
 
 ---
 

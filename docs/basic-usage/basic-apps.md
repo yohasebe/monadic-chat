@@ -133,7 +133,7 @@ Engage in a "monadic" chat that reveals the AI's thought process. As the AI resp
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-Chat with the AI using your voice. This app uses your provider's speech recognition API and your browser's speech synthesis API to create a voice-based conversation. The initial prompt is the same as the standard Chat app, and you can use different AI models for responses. A modern web browser that supports the Text to Speech API (like Google Chrome or Microsoft Edge) is required.
+Chat with the AI using your voice. This app uses your provider's speech recognition API for voice input, and the text-to-speech provider selected in the Speech Settings panel for voice output. The browser's built-in Web Speech API is the default output option and requires no API key; provider TTS engines (OpenAI, ElevenLabs, Gemini, Mistral, xAI Grok) can be selected instead. The initial prompt is the same as the standard Chat app, and you can use different AI models for responses.
 
 While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
 
@@ -142,7 +142,7 @@ Voice Chat supports the same providers indicated in the availability table. You 
 **Expressive Speech**: When you enable Auto Speech and pick a compatible TTS provider, a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown. Three mechanisms are supported, chosen automatically by the selected provider:
 
 - **Inline markers** (xAI Grok, ElevenLabs v3): the assistant weaves short markers (brief pauses, laughter, a whispered aside) into the text, and the TTS engine interprets them as stage directions. The markers never surface in the chat transcript — only their audio effect does.
-- **Instruction mode** (OpenAI `gpt-4o-mini-tts`): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The OpenAI TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
+- **Instruction mode** (the OpenAI TTS model with instruction support): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The OpenAI TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
 - **Hybrid mode** (Gemini TTS): Gemini supports both of the above simultaneously. The assistant may use inline markers, a voice directive, or both, and Google's engine interprets the combination. Everything except the spoken reply is stripped from the transcript.
 
 Hover the badge for a tooltip that describes the active mechanism. Turning off Auto Speech, or switching to a TTS provider without Expressive Speech support, silently disables the feature.
@@ -243,57 +243,31 @@ Co-write a novel with the assistant. The story unfolds based on your prompts, ma
 
 ### Image Generator
 
-
-
-
-
 ![Image Generator app icon](../assets/icons/image-generator.png ':size=40')
-
-
-
-
 
 Generate images from text descriptions. Image Generator is available with OpenAI, Google Gemini, and xAI (Grok). With providers that support advanced image workflows, you can perform three main operations:
 
-
-
-
-
 1.  **Image Generation**: Create new images from text.
-
 
 2.  **Image Editing**: Modify existing images using text prompts. The system automatically uses images you upload or images generated in the current conversation for editing.
 
-
 3.  **Image Variation**: Generate alternative versions of an existing image, automatically referencing the latest image in the conversation.
-
-
-
-
 
 With supported models, the image editing feature allows you to:
 
-
 - Automatically use an existing image from the conversation as a base (latest uploaded or generated)
-
 
 - Provide text instructions for the changes (prompt-based editing)
 
-
 - Customize output options including:
-
 
   - Image size and quality
 
-
   - Output format (PNG, JPEG, WebP)
-
 
   - Background transparency
 
-
   - Compression level
-
 
 ### Image Editing
 
@@ -517,7 +491,7 @@ The Knowledge Base replaces the previous PDF Navigator and Content Reader apps. 
 |---|---|---|
 | Markdown | `.md`, `.markdown`, `.mdx` | YAML frontmatter is promoted into metadata; ATX headings drive section boundaries. |
 | Source code | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql`, and others | Top-level `def`/`class`/`func`/etc. mark chunk boundaries. The programming language is recorded as a topic. |
-| PDF | `.pdf` | Text and tables are extracted via pdfplumber and serialised as Markdown. PDF metadata title becomes the conversation title. |
+| PDF | `.pdf` | Text and tables are extracted and serialised as Markdown — via the Docling-based extractor container (layout-aware, with OCR) when the Knowledge Base Quality Pack is installed, otherwise via pdfplumber in the Python container. PDF metadata title becomes the conversation title. |
 | Office | `.docx`, `.xlsx`, `.pptx` | Word paragraphs, Excel sheets, and PowerPoint slides each become a chunk. The Browse modal shows a per-format icon (Word / Excel / PowerPoint). |
 
 **Scope model:**
@@ -533,8 +507,9 @@ Each entry is scoped either to a specific app + provider (e.g. `Chat (OpenAI)`) 
 - **Conversation Viewer** — clicking a row opens a verbatim playback of every message, with system prompts collapsed behind a `<details>` block.
 - **RAG opt-in (per session)** — the **Use Knowledge Base for retrieval** toggle in any chat session lets the LLM call `library_search` while answering. The cascade applies the active app's scope filter (`scope_app IN [current_app, "Global"]`). Off by default; locks for the duration of the session once you send the first message. The toggle preference is persisted across sessions so you don't have to flip it every time.
 - **Privacy Filter compatibility** — when Privacy Filter is active, snippets returned by `library_search` are masked through the same Privacy Pipeline before they reach the LLM, so PII stored unmasked in the Knowledge Base does not leak via retrieval.
+- **Knowledge Base access badge** — the conversation header shows a green "Knowledge Base" badge whenever the session reads from the Library: when the retrieval toggle is on, and always in the Knowledge Base app itself (which has full access via its own tools).
 
-?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (pdfplumber / python-docx / openpyxl / python-pptx); imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
+?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store. Imports run inside the Python container (pdfplumber / python-docx / openpyxl / python-pptx); with the Knowledge Base Quality Pack installed, PDFs are processed by the extractor container (Docling with OCR) instead. Imported files are also persisted under `~/monadic/data/library/imports/` for traceability. For storage internals see the [Vector Database](../docker-integration/vector-database.md) documentation.
 
 
 ## Code Generation :id=code-generation
@@ -549,7 +524,7 @@ Let the AI create and execute Python code in a sandboxed Docker environment. Any
 
 When the code generates plot images, the AI can visually verify the rendered output to detect issues such as garbled text, overlapping labels, or data inconsistencies, and automatically fix and re-execute the code if needed.
 
-Code Interpreter availability matches the provider table. Provider tool-calling specifications may vary, which can affect behavior.
+Code Interpreter availability matches the provider table.
 
 
 ### Coding Assistant
@@ -624,7 +599,7 @@ An interactive lab for learning music theory hands-on: play chords, scales, inte
 - **Algorithmic melody**: Generate melodies automatically using chord-scale theory, Euclidean rhythms, and contour shaping (lyrical, rhythmic, jazz, latin, gentle styles)
 - **Guitar-specific patterns**: Bossa nova arpeggios, rock power chords, ballad fingerpicking
 - **Walking bass**: Jazz walking bass with chromatic approach notes, bossa 2-beat feel
-- **Comprehensive music theory**: 46 chord types, 15 scales, all church modes, slash chords, enharmonic spelling
+- **Comprehensive music theory**: 46 chord types; major, minor, pentatonic, blues, and other scales; all church modes; slash chords; enharmonic spelling
 
 Audio analysis requires the optional **Audio Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
 

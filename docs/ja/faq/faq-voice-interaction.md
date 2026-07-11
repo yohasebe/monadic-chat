@@ -41,7 +41,7 @@
 
 ##### Q: Gemini TTSとは何ですか？他のプロバイダーとの違いは？ :id=gemini-tts-overview
 
-**A**: Gemini TTSはGoogleのテキスト読み上げサービスで、GeminiのFlashおよびPro TTSモデルを使用し、30種類のユニークな音声と24言語をサポートしています。Gemini APIキーが必要で、対話型会話用のリアルタイムストリーミングとSpeech Draft Helperアプリを通じたオーディオファイル生成（24kHz LINEAR16 PCM形式）の両方をサポートしています。
+**A**: Gemini TTSはGoogleのテキスト読み上げサービスで、GeminiのFlashおよびPro TTSモデルを使用し、30種類のユニークな音声と24言語をサポートしています。Gemini APIキーが必要で、チャット応答の音声再生とSpeech Draft Helperアプリを通じたオーディオファイル生成（24kHz LINEAR16 PCM形式）の両方をサポートしています。
 
 ---
 

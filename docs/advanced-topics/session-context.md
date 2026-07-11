@@ -114,12 +114,12 @@ The following built-in apps use Session Context:
 
 | App | Context Fields |
 |-----|----------------|
-| **Chat Plus** | Topics, People, Notes (default schema) |
-| **Research Assistant** | Topics, People, Notes (default schema) |
-| **Math Tutor** | Topics, People, Notes (default schema) |
-| **Novel Writer** | Topics, People, Notes (default schema) |
-| **Voice Interpreter** | Topics, People, Notes (default schema) |
-| **Language Practice Plus** | Target Language, Language Advice, Summary |
+| **Chat Plus** | Topics, People, Notes |
+| **Research Assistant** | Topics, Findings, Sources |
+| **Math Tutor** | Concepts, Formulas, Tips |
+| **Novel Writer** | Characters, Plot, Settings |
+| **Voice Interpreter** | Languages, Phrases, Notes |
+| **Language Practice Plus** | Vocabulary, Grammar, Tips |
 
 ## Provider Support
 
@@ -228,7 +228,7 @@ Context updates are sent via WebSocket with the message type `context_update`:
 
 1. **Check `monadic: true`**: Ensure the feature is enabled in your app
 2. **Check API Key**: The extraction agent needs access to the same provider's API
-3. **Check Provider**: Some local models (Ollama) may not be available for extraction
+3. **Check Provider**: For Ollama, extraction runs on a local model (the configured default, or the first installed model as a fallback) — ensure Ollama is running and at least one model is installed
 4. **Enable Logging**: Set `EXTRA_LOGGING=true` in `~/monadic/config/env` to see extraction logs
 
 ### Empty Fields

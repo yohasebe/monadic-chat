@@ -211,7 +211,7 @@ When `debug_application` is used for web apps, you receive:
 
 AutoForge supports multiple providers:
 - **OpenAI Auto Forge**: Uses OpenAI's orchestration and code generation models.
-- **Claude Auto Forge**: Uses Claude's orchestration and code generation models via the Claude Responses API.
+- **Claude Auto Forge**: Uses Claude's orchestration and code generation models via the Anthropic Messages API.
 - **Grok Auto Forge**: Uses xAI's orchestration and code generation models.
 
 All variants broadcast long-running progress updates to the streaming temp card so you can track generation without monitoring the status bar.
@@ -219,10 +219,9 @@ All variants broadcast long-running progress updates to the streaming temp card 
 ### Grok-Specific Characteristics
 
 Grok's code generation model excels at:
-- **Fast Iteration**: Quick generation with 92 tokens/sec throughput
+- **Fast Iteration**: Quick generation suited to rapid build-and-revise cycles
 - **Front-End Development**: HTML/CSS/JavaScript, SVG graphics, animations
 - **Modern CSS**: Grid, Flexbox, CSS variables
-- **Cost Efficiency**: 6-7x cheaper than OpenAI Code
 
 Grok's code generation model is optimized for:
 - Smaller, focused tasks with iterative development

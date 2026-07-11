@@ -25,7 +25,7 @@ In Monadic Chat, you can develop AI chatbot applications using original system p
 
 **Tool Requirements**:
 - All tools mentioned in system prompts must have corresponding `define_tool` blocks
-- Use consistent parameter names: `fetch_text_from_file` uses `:file`, `fetch_text_from_pdf` uses `:pdf`
+- Use consistent parameter names: `fetch_text_from_file`, `fetch_text_from_pdf`, and `fetch_text_from_office` all take `:file`
 - Empty `tools do` blocks can cause "Maximum function call depth exceeded" errors
 
 ### Benefits of MDSL Format
@@ -371,7 +371,7 @@ The following helper modules are available for use in your apps:
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
 
-?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, `MistralHelper`, `GeminiHelper`, `GrokHelper`, and `DeepSeekHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Function calling support varies by provider - check the specific provider's documentation for limitations.
+?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, `MistralHelper`, `GeminiHelper`, `GrokHelper`, `DeepSeekHelper`, and `OllamaHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Function calling support varies by provider - check the specific provider's documentation for limitations.
 
 !> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed in the console. App loading errors are shown when starting the server with details about which apps failed to load and why.
 
@@ -415,7 +415,7 @@ To define Ruby methods that the AI agent can use:
 -   The system ensures `session` data is isolated for each user and conversation.
 
 The tool definition format varies slightly among providers:
-- All providers: Support up to 20 function calls
+- Function limits: Most providers allow up to 20 function calls per turn (Mistral allows 30); see each helper's `MAX_FUNC_CALLS`
 - Code execution: All providers use `run_code` for code execution
 - Array parameters: OpenAI requires `items` property
 
@@ -431,7 +431,7 @@ send_command(command: "ls",container: "python", success_with_output: "Linux `ls`
 
 As an example, the above command executes the `ls` command in the `python` container and displays the message "Linux ls command executed successfully" when the command is executed successfully. If the `success` argument is omitted, the message "Command has been executed" is displayed, and if the `success_with_output` argument is omitted, the message "Command has been executed with the following output: " is displayed.
 
-?> It is possible to set up a recipe file so that the AI agent can use the `send_command` method directly. However, it is recommended to create a wrapper method in the recipe file and call the `send_command` method from there, implementing necessary error handling procedures. The `MonadicApp` class provides a wrapper method called `run_command` that works similarly to `send_command` but returns a specific message if any arguments are missing. It is recommended to use `run_command` instead of `send_command` directly in your recipe files.
+?> It is possible to set up a recipe file so that the AI agent can use the `send_command` method directly. However, it is recommended to define a wrapper (facade) method in the tools file and call `send_command` from there, validating the arguments and handling errors before invoking it. This way the AI agent receives a clear error message instead of a container-level failure when an argument is missing.
 
 
 ### Execute Program Code

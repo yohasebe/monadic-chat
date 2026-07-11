@@ -53,7 +53,7 @@ app "AppNameProvider" do  # Rubyクラス名と正確に一致する必要があ
   # icon "fa-regular fa-envelope"     # スタイル接頭辞付きの完全なFontAwesomeクラス
   # icon "<i class='fas fa-code'></i>" # カスタムHTMLはそのまま保持されます
   
-  # 利用可能なアイコンは次をご覧ください: https://fontawesome.com/v5/search?ic=free
+  # 利用可能なアイコンは次をご覧ください: https://fontawesome.com/v6/search?ic=free
 
   display_name "アプリケーション名"    # UI上に表示される名前
   
@@ -69,6 +69,11 @@ llm do
   model "<model-id>"  # モデル名
   temperature 0.7  # レスポンスのランダム性 (0.0-1.0)
   max_tokens 4000  # 最大レスポンス長
+  reasoning_effort "high"  # 推論対応モデルでの推論の深さ
+                           # （例: "low"、"medium"、"high"。省略時は
+                           # "none" = 推論無効）
+  context_size 25  # モデルに送信する直近メッセージ数
+                   # （クライアント側スライディングウィンドウ。UIの既定値になる）
 end
 ```
 
@@ -180,7 +185,7 @@ end
 # プロバイダー固有の機能:
 features do
   pdf_vector_storage true # PDFアップロードとRAG（検索拡張生成）を有効にする
-  toggle true             # メタ情報やツール使用の折りたたみセクションを有効にする（主にClaudeアプリ向け）
+  toggle true             # アシスタントメッセージ内の <div class='toggle'> ブロックを折りたたみ（表示/非表示）セクションとして描画する
   jupyter true            # Jupyterノートブックインターフェースへのアクセスを有効にする
   image_generation true   # AI画像生成 - サポート値: true、"upload_only"、false
   monadic true            # Session Stateアプリでは必須 - ツールによるコンテキスト管理を有効化
@@ -222,19 +227,25 @@ import_shared_tools :python_execution, visibility: "always"
 import_shared_tools :web_automation, visibility: "conditional"
 ```
 
-**利用可能なツールグループ**:
-- `:file_operations` - ファイル書き込み、一覧表示、削除（3ツール）
-- `:file_reading` - テキスト、PDF、Officeファイル読み込み（3ツール）
-- `:python_execution` - Pythonコード実行（4ツール）
-- `:jupyter_operations` - Jupyterノートブック管理（12ツール）
-- `:web_automation` - Webスクレイピング、スクリーンショット（4ツール、Seleniumが必要）
-- `:video_analysis_openai` - 動画分析（1ツール、OpenAI APIキーが必要）
+**利用可能なツールグループ**: ツールグループは共有ツールレジストリ（`lib/monadic/shared_tools/registry.rb`）で定義されています。グループの完全な一覧、含まれるツール、利用可能条件については[ツールグループ](tool-groups.md)を参照してください。
 
 **可視性モード**:
 - `always`: ツールグループは常に利用可能
 - `conditional`: ツールグループの可用性は実行時条件に依存（例：Seleniumコンテナが実行中）
 
-各ツールグループの詳細については、[ツールグループ](tool-groups.md)を参照してください。
+#### 動的スキル（reachable_skills）
+
+すべてのツールグループを最初からインポートする代わりに、`reachable_skills` を使って「会話の流れに応じて獲得できる」グループを宣言できます。これらのグループは、モデルが `request_tool` で名前を指定して要求するまで隠されたままです：
+
+```ruby
+# 会話で必要になったときに解除できるグループ
+reachable_skills :web_search_tools, :image_analysis
+
+# または、読み取り専用の安全なグループ群を1行でまとめて指定
+reachable_skills :safe
+```
+
+`reachable_skills :group_a, :group_b` は各グループを `visibility: "conditional"` でインポートするのと同等ですが、意図をより明確に表現します。詳細は[ツールグループ](tool-groups.md)の「動的スキル」の節を参照してください。
 
 #### カスタムツールの定義
 
@@ -267,6 +278,18 @@ tools do
     parameter :filename, "string", "分析するファイル名", required: true
   end
 end
+```
+
+### 6. コンテキストコンパクション
+
+OpenAIモデルで動作するアプリでは、`compaction` ブロックによりサーバー側の会話コンパクション（Responses API）を制御できます。標準の閾値でデフォルト有効なので、閾値をカスタマイズするか無効化する場合にのみ宣言します：
+
+```ruby
+compaction do
+  compact_threshold 180_000   # カスタムトークン閾値
+end
+
+compaction false              # 無効化 — context_size のスライディングウィンドウのみに依存
 ```
 
 ## アプリケーション例
@@ -640,7 +663,7 @@ DSLは異なるAIプロバイダーに対して適切な関数定義形式に自
 
 - OpenAI: `type: "function"`構造を使用してOpenAIの関数呼び出し形式に変換
 - Anthropic: `input_schema`プロパティを持つClaudeのツール形式に適応
-- Cohere: Cohereのコマンドモデルの`parameter_definitions`形式にマッピング
+- Cohere: OpenAIスタイルの`type: "function"`形式（JSON Schemaの`parameters`オブジェクト）を使用
 - Mistral: Mistralの関数呼び出しAPIに対応したフォーマット
 - Gemini: `function_declarations`構造を使用してGoogle Geminiモデル向けに構造化
 - DeepSeek: DeepSeekの関数呼び出し形式に変換
@@ -648,7 +671,7 @@ DSLは異なるAIプロバイダーに対して適切な関数定義形式に自
 
 この自動変換により、DSLでツール定義を一度記述するだけで、手動変換なしに異なるプロバイダー間で動作させることができます。
 
-**FontAwesomeアイコンについての注意**: `icon`メソッドを使用してアイコンを指定する場合、FontAwesome 5 Freeの任意のアイコン名を使用できます。利用可能なアイコンは https://fontawesome.com/v5/search?ic=free で確認できます。システムは「brain」のような単純な名前を自動的に適切なスタイルの正しいHTMLに変換します。
+**Font Awesomeアイコンについての注意**: `icon`メソッドを使用してアイコンを指定する場合、Font Awesome 6 Freeの任意のアイコン名を使用できます。利用可能なアイコンは https://fontawesome.com/v6/search?ic=free で確認できます。システムは「brain」のような単純な名前を自動的に適切なスタイルの正しいHTMLに変換します。
 
 ## デバッグとテスト
 
@@ -659,11 +682,11 @@ DSLアプリのトラブルシューティング時には、次の点を確認�
 3. 適切に書式設定されたツール定義
 4. 選択した機能とプロバイダー機能の互換性
 
-アプリの読み込みに失敗した場合、エラーログは`~/monadic/data/error.log`に保存されます。
+アプリの読み込みに失敗した場合、起動時にエラーが収集され、失敗した各アプリとその理由がサーバーコンソールに表示されます。
 
 ## デバッグのヒント
 
-- アプリ読み込みエラーは`~/monadic/data/error.log`を確認
+- アプリ読み込みエラーは起動時のサーバーコンソール出力を確認
 - アプリ名がクラス名と正確に一致しているか確認
 - プロバイダーに適したモード設定を確認
 - 詳細なデバッグ出力には`EXTRA_LOGGING=true`を使用
@@ -703,7 +726,7 @@ end
 
 ### プロバイダー固有の考慮事項
 
-- **関数制限**: すべてのプロバイダーが会話ターンあたり最大20回までの関数呼び出しをサポート
+- **関数制限**: ほとんどのプロバイダーは会話ターンあたり最大20回の関数呼び出しを許可（Mistralは30回）。正確な上限は各プロバイダーヘルパーの`MAX_FUNC_CALLS`定数で定義されています
 - **コード実行**: すべてのプロバイダーが`run_code`を使用してコード実行
 - **配列パラメータ**: OpenAIは配列に`items`プロパティが必要
 - **エラー防止**: 組み込みのエラーパターン検出が無限リトライループを防止

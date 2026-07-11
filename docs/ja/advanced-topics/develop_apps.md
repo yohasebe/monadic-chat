@@ -22,7 +22,7 @@ Monadic Chatでは、**MDSL（Monadic Domain Specific Language）形式**でア�
 
 **ツール要件**:
 - システムプロンプトで言及されるすべてのツールには対応する`define_tool`ブロックが必要
-- 一貫したパラメータ名を使用: `fetch_text_from_file`は`:file`、`fetch_text_from_pdf`は`:pdf`を使用
+- 一貫したパラメータ名を使用: `fetch_text_from_file`、`fetch_text_from_pdf`、`fetch_text_from_office`はいずれも`:file`を使用
 - 空の`tools do`ブロックは「Maximum function call depth exceeded」エラーの原因となることがあります
 
 ### MDSL形式のメリット
@@ -403,7 +403,7 @@ end
 
 どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
 
-?> `OpenAIHelper`、`ClaudeHelper`、`CohereHelper`、`MistralHelper`、`GeminiHelper`、`GrokHelper`、`DeepSeekHelper`では "function calling" や "tool use" の機能を使うことができます（[関数・ツールの呼び出し](#calling-functions-in-the-app)を参照）。関数呼び出しのサポートはプロバイダーによって異なります - 制限については各プロバイダーのドキュメントを確認してください。
+?> `OpenAIHelper`、`ClaudeHelper`、`CohereHelper`、`MistralHelper`、`GeminiHelper`、`GrokHelper`、`DeepSeekHelper`、`OllamaHelper`では "function calling" や "tool use" の機能を使うことができます（[関数・ツールの呼び出し](#calling-functions-in-the-app)を参照）。関数呼び出しのサポートはプロバイダーによって異なります - 制限については各プロバイダーのドキュメントを確認してください。
 
 !> レシピファイルがRubyスクリプトとして有効ではなく、エラーが発生する場合、Monadic Chatが起動せず、エラーメッセージがコンソールに表示されます。アプリの読み込みエラーは、サーバー起動時にどのアプリがなぜ読み込みに失敗したかの詳細とともに表示されます。
 
@@ -445,7 +445,7 @@ AIエージェントが使用できるRubyメソッドを定義するには：
 3. メソッドシグネチャがツール定義と一致することを確認
 
 ツール定義の形式はプロバイダーによってわずかに異なります：
-- すべてのプロバイダー: 最大20回の関数呼び出しをサポート
+- 関数呼び出し回数の上限: ほとんどのプロバイダーは1ターンあたり最大20回（Mistralは30回）。各ヘルパーの`MAX_FUNC_CALLS`を参照
 - コード実行: すべてのプロバイダーがコード実行に`run_code`を使用
 - 配列パラメータ: OpenAIは`items`プロパティが必要
 
@@ -461,7 +461,7 @@ send_command(command: "ls", container: "python", success_with_output: "Linux ls 
 
 例として、上記のコードはPythonコンテナ内で`ls`コマンドを実行し、その結果を返します。`command`引数は実行するコマンドを指定します。`container`引数はコマンドを実行するコンテナを略記で指定します。`python`と指定した場合は`monadic-chat-python-container`を指定することになります。`success`引数と`success_with_output`引数はコマンドの実行が成功した場合に、コマンドの実行結果の文字列の前に挿入するメッセージを指定します。成功時のメッセージは省略可能ですが、適切なメッセージを指定することで、AIエージェントがコマンドの実行結果を正しく解釈できるようになります。`success`引数が省略されたときは "Command has been executed" というメッセージが表示されます。`success_with_output`引数を省略した場合は"Command has been executed with the following output: "というメッセージが表示されます。
 
-?> AIエージェントに直接`send_command`を呼び出すように設定することも可能ですが、適切にエラー処理を行うため、ツールファイル内にRubyでラッパーメソッドを作成し、ファサードパターンを使用することをお勧めします。`MonadicApp`クラスには`run_command`というラッパーメソッドが用意されており、引数が不足している場合に特定のメッセージを返します。ツールファイルで`run_command`を使用することを推奨します。
+?> AIエージェントに直接`send_command`を呼び出すように設定することも可能ですが、ツールファイル内にラッパー（ファサード）メソッドを定義し、引数の検証とエラー処理を行ってから`send_command`を呼び出すことをお勧めします。こうすることで、引数が不足している場合でもコンテナレベルの失敗ではなく、明確なエラーメッセージをAIエージェントに返せます。
 
 ### プログラム・コードの実行
 
@@ -493,7 +493,7 @@ The code has been executed successfully; File(s) generated: NEW_FILE; Output: OU
 
 生成されたファイルの情報を正しく得ることで、AIエージェントはさらにそれらを用いた処理を続けて行うことができます。
 
-?> `send_code`をAIエージェントから直接呼び出すように設定すると、AIエージェントが必須の引数のいずれかを指定しない場合にコンテナ内でエラーが発生します。そのため、`send_command`を呼び出す際には、エラー処理を適切に行うようにしてください。`MonadicApp`クラスには、`run_command`というラッパーメソッドが用意されており、使用方法は`send_command`と同様ですが、引数が足りない場合にメッセージを返すようになっています。
+?> `send_code`をAIエージェントから直接呼び出すように設定すると、AIエージェントが必須の引数のいずれかを指定しない場合にコンテナ内でエラーが発生します。そのため、ラッパー（ファサード）メソッドを作成し、エラー処理を適切に行うことをお勧めします。
 
 ## 関数・ツール内でのLLMの使用
 

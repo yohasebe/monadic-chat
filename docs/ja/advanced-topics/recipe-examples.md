@@ -2,6 +2,8 @@
 
 このページでは、MDSL（Monadic Domain Specific Language）形式を使用したさまざまなタイプのMonadic Chatアプリの例を提供します。すべてのアプリはファサードパターンに従い、ツール実装は別の`*_tools.rb`ファイルに配置されます。
 
+このページの例は、MDSLのパターンを示すための自己完結型のサンプルです。現行の本番レシピ（共有定数、`context_schema`、`import_shared_tools`を使用）については、`docker/services/ruby/apps/`内のアプリ実装を参照してください。
+
 ## 重要な命名規則
 
 !> **重要:** MDSLアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`には対応する`class ChatOpenAI < MonadicApp`が必要です。これによりメニューのグループ化と機能が正しく動作します。
@@ -29,7 +31,9 @@ end
 ```
 
 <details>
-<summary>完全な例（math_tutor_openai.mdsl）</summary>
+<summary>完全な例: Math Tutor（説明用サンプル）</summary>
+
+以下は自己完結型の説明用サンプルです。出荷されているMath Tutorアプリはその後進化しています（共有定数、`context_schema`、`import_shared_tools`）。現行のレシピは`docker/services/ruby/apps/math_tutor/`を参照してください。
 
 ```ruby
 app "MathTutorOpenAI" do
@@ -237,9 +241,9 @@ app "WikipediaOpenAI" do
   PROMPT
 
   tools do
-    define_tool "search_wikipedia", "Wikipediaで記事を検索" do
-      parameter :query, "string", "検索クエリ", required: true
-      parameter :lang, "string", "言語コード（デフォルト: ja）"
+    define_tool "search_wikipedia", "Wikimedia APIでWikipedia記事を検索" do
+      parameter :search_query, "string", "Wikipediaの検索クエリ", required: true
+      parameter :language_code, "string", "Wikipediaの言語コード（デフォルト: 'en'）", required: false
     end
   end
 end
@@ -250,7 +254,7 @@ end
 
 ```ruby
 module WikipediaTools
-  def search_wikipedia(query:, lang: "ja")
+  def search_wikipedia(search_query:, language_code: "en")
     # 実装をここに記述
   end
 end
@@ -268,7 +272,7 @@ class WikipediaOpenAI < MonadicApp
   include OpenAIHelper
   
   # Tool method implementation placeholder
-  def search_wikipedia(query:)
+  def search_wikipedia(search_query:, language_code: "en")
     # This would be implemented in the actual app
   end
 end
@@ -286,7 +290,9 @@ Monadicモードを使用すると、アプリはJSON形式のレスポンスを
 - モデルからのJSON形式のレスポンスが必要
 
 <details>
-<summary>例：Novel Writer（novel_writer_openai.mdsl）</summary>
+<summary>例：Novel Writer（説明用サンプル）</summary>
+
+以下は自己完結型の説明用サンプルです。出荷されているNovel Writerアプリはその後進化しています。現行のレシピは`docker/services/ruby/apps/novel_writer/`を参照してください。
 
 ```ruby
 app "NovelWriterOpenAI" do

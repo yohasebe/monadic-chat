@@ -1,12 +1,12 @@
 # Recipe File Examples
 
-This page provides examples of different types of Monadic Chat apps using the MDSL (Monadic Domain Specific Language) format. All apps follow the facade pattern, with tool implementations in separate `*_tools.rb` files.
+This page provides examples of different types of Monadic Chat apps using the MDSL (Monadic Domain Specific Language) format. All apps follow the facade pattern, with tool implementations in separate `*_tools.rb` files — see [Always Use Facade Pattern](./develop_apps.md#always-use-facade-pattern) for the pattern explanation and canonical template.
 
 The examples on this page are self-contained illustrations of MDSL patterns. For the current production recipes (which use shared constants, `context_schema`, and `import_shared_tools`), see the app implementations in `docker/services/ruby/apps/`.
 
 ## Important Naming Convention
 
-!> **Critical:** The MDSL app name must match the Ruby class name exactly. For example, `app "ChatOpenAI"` must have a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
+!> **Critical:** The MDSL app name must match the Ruby class name exactly (e.g., `app "ChatOpenAI"` ↔ `class ChatOpenAI < MonadicApp`). For naming conventions and file structure patterns, see [Developing Apps](./develop_apps.md#file-structure-patterns).
 
 ## Simple Apps
 

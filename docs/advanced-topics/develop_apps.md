@@ -187,50 +187,21 @@ end
 
 ### Model Specification for Custom Apps
 
-**Recommendation**: Custom apps should use environment variables for model specification to respect user preferences and ensure future compatibility.
-
-**Why Use ENV.fetch for Custom Apps:**
+**Recommendation**: Custom apps should use environment variables for model specification, so user preferences in `~/monadic/config/env` are respected and no hardcoded model names go stale:
 
 ```ruby
 llm do
   provider "openai"
-  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Recommended for custom apps
+  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
 end
 ```
-
-**Benefits:**
-- ✅ **User control**: Users can customize models via `~/monadic/config/env`
-- ✅ **Automatic fallback**: Uses `providerDefaults` from `model_spec.js` when ENV variable not set
-- ✅ **Future-proof**: No hardcoded model names that become outdated
-- ✅ **Consistency**: Matches system-wide model preferences
-
-**Configuration Priority:**
-
-Model values are resolved in this order:
-1. Explicit MDSL value (if provided)
-2. Environment variable from `~/monadic/config/env`
-3. Provider defaults from `providerDefaults` in `model_spec.js` (SSOT)
-4. Hardcoded fallback
-
-**Alternative: Multiple Model Options**
-
-For apps that need specific model choices:
-
-```ruby
-llm do
-  provider "openai"
-  model ["<model-1>", "<model-2>", "<model-3>"]  # Users select from dropdown
-end
-```
-
-**Standard vs Custom Apps:**
 
 | App Type | Recommended Approach | Reason |
 |----------|---------------------|--------|
 | Standard apps (`docker/services/ruby/apps/`) | Explicit model names | Stability and predictability |
 | Custom apps (`~/monadic/data/apps/`) | `ENV.fetch()` | Flexibility and user control |
 
-For more details, see the [Model Specification Best Practices](monadic_dsl.md#model-specification-best-practices) section in the Monadic DSL documentation.
+For the full resolution order (MDSL value > ENV variable > `providerDefaults` > hardcoded fallback), multiple-model dropdowns, and the per-provider environment variable list, see [Model Specification Best Practices](monadic_dsl.md#model-specification-best-practices) in the Monadic DSL documentation.
 
 ### Ensure Session Safety
 
@@ -414,10 +385,7 @@ To define Ruby methods that the AI agent can use:
 -   Use it to store and retrieve conversation-specific, non-persistent state (e.g., `session[:last_image_filename] = "image.png"`).
 -   The system ensures `session` data is isolated for each user and conversation.
 
-The tool definition format varies slightly among providers:
-- Function limits: Most providers allow up to 20 function calls per turn (Mistral allows 30); see each helper's `MAX_FUNC_CALLS`
-- Code execution: All providers use `run_code` for code execution
-- Array parameters: OpenAI requires `items` property
+The tool definition format and per-turn function-call limits vary slightly among providers — see [Provider-Specific Considerations](monadic_dsl.md#provider-specific-considerations) in the Monadic DSL reference.
 
 ### Execute Commands or Shell Scripts
 

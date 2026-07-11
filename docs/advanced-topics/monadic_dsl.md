@@ -373,15 +373,7 @@ Tools in Monadic Chat must be explicitly defined in MDSL files. Each tool defini
 
 #### File Structure
 
-Standard Monadic Chat file naming conventions:
-
-```text
-apps/app_name/
-├── app_name_constants.rb    # Optional: Shared constants (ICON, DESCRIPTION, etc.)
-├── app_name_tools.rb        # Tool method implementations
-├── app_name_provider.mdsl   # MDSL interface (e.g., app_name_openai.mdsl)
-└── app_name_provider.mdsl   # Additional provider versions
-```
+Tool implementations live in a companion `*_tools.rb` file alongside the app's `.mdsl` files. For the standard directory layouts and file naming conventions, see [File Structure Patterns](develop_apps.md#file-structure-patterns) in the Developing Apps guide.
 
 **For Shared Tool Groups**:
 
@@ -435,113 +427,33 @@ Tool implementation in MDSL follows a structured approach using the facade patte
 1. **Tool Definition**: Tools must be defined explicitly in the MDSL file
 2. **Tool Implementation**: Implement methods in a companion `*_tools.rb` file using the facade pattern
 
-#### Recommended: Facade Pattern
-
-Create your MDSL file with explicit tool definitions:
+A minimal example — the tool is declared in the MDSL file, and a facade method in the companion tools file validates input and handles errors:
 
 ```ruby
-# mermaid_grapher_openai.mdsl
-app "MermaidGrapherOpenAI" do
-  description "Create diagrams using mermaid.js syntax"
-  icon "diagram"
-  display_name "Mermaid Grapher"
-  
-  system_prompt <<~PROMPT
-    You help visualize data using mermaid.js.
-    Use the mermaid_documentation function to get syntax examples.
-  PROMPT
-  
-  llm do
-    provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
-    temperature 0.0
-  end
-  
-  features do
-    mermaid true
-  end
-  
-  tools do
-    define_tool "mermaid_documentation", "Get mermaid.js syntax documentation" do
-      parameter :diagram_type, "string", "Type of diagram (graph, sequence, flowchart, etc.)", required: true
-    end
+# my_app_openai.mdsl (excerpt)
+tools do
+  define_tool "mermaid_documentation", "Get mermaid.js syntax documentation" do
+    parameter :diagram_type, "string", "Type of diagram (graph, sequence, flowchart, etc.)", required: true
   end
 end
 ```
 
-Then create a tools file with facade methods:
-
 ```ruby
-# mermaid_grapher_tools.rb
-class MermaidGrapherOpenAI < MonadicApp
+# my_app_tools.rb
+class MyAppOpenAI < MonadicApp
   # Facade method with validation and error handling
   def mermaid_documentation(diagram_type: "graph")
-    raise ArgumentError, "diagram_type is required" if diagram_type.nil? || diagram_type.empty?
-    
-    begin
-      result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
-      { success: true, content: result }
-    rescue => e
-      { success: false, error: e.message }
-    end
+    raise ArgumentError, "diagram_type is required" if diagram_type.to_s.empty?
+
+    result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
+    { success: true, content: result }
+  rescue => e
+    { success: false, error: e.message }
   end
 end
 ```
 
-#### Using Helper Modules with Facade Pattern
-
-For shared functionality across providers:
-
-```ruby
-# wikipedia_openai.mdsl
-app "WikipediaOpenAI" do
-  description "Search Wikipedia articles"
-  icon "fa-brands fa-wikipedia-w"
-  display_name "Wikipedia"
-  
-  system_prompt <<~PROMPT
-    Use search_wikipedia to find information.
-  PROMPT
-  
-  llm do
-    provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
-    temperature 0.3
-  end
-  
-  features do
-    group "OpenAI"
-  end
-  
-  include_modules ["WikipediaHelper"]
-  
-  tools do
-    # Auto-completed from wikipedia_tools.rb
-  end
-end
-```
-
-Create a tools file with facade methods that wrap the helper:
-
-```ruby
-# wikipedia_tools.rb
-class WikipediaOpenAI < MonadicApp
-  include WikipediaHelper
-  
-  # Facade method with validation
-  def search_wikipedia(search_query: "", language_code: "en")
-    raise ArgumentError, "search_query is required" if search_query.empty?
-    
-    begin
-      # Call the helper module method
-      super(search_query: search_query, language_code: language_code)
-    rescue => e
-      { error: e.message }
-    end
-  end
-end
-```
-
+For the full pattern explanation and the canonical implementation template — including wrapping helper modules imported via `include_modules` — see [Always Use Facade Pattern](develop_apps.md#always-use-facade-pattern) in the Developing Apps guide. For complete worked examples (such as a Wikipedia app whose facade method wraps a helper module), see [Recipe Examples](recipe-examples.md).
 
 ### Session State Apps
 
@@ -652,16 +564,7 @@ context_schema do
 end
 ```
 
-#### Session State vs Session Context
-
-| Feature | Session State | Session Context |
-|---------|---------------|-----------------|
-| **Mechanism** | Explicit tool calls (`load_context`, `save_context`) | Automatic background extraction |
-| **Control** | Full control over when/what to save | Automatic after each response |
-| **Configuration** | Tool definitions | `context_schema` block |
-| **Use Case** | Complex state management | Simple context tracking |
-
-Both features require `monadic true` and can be used together in the same app.
+Session State (explicit tool calls) and Session Context (automatic extraction) both require `monadic true` and can be used together in the same app. For a side-by-side comparison of the two mechanisms and the related terminology, see the [Terminology Guide](monadic-mode.md#terminology-guide) in the Monadic Mode documentation.
 
 ### Provider-Specific Adapters
 

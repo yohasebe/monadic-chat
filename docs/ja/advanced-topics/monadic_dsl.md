@@ -364,15 +364,7 @@ Monadic Chatのツールは、MDSLファイルで明示的に定義する必要�
 
 #### ファイル構成
 
-標準的なMonadic Chatのファイル命名規則：
-
-```text
-apps/app_name/
-├── app_name_constants.rb    # オプション: 共有定数 (ICON, DESCRIPTION など)
-├── app_name_tools.rb        # ツールメソッドの実装
-├── app_name_provider.mdsl   # MDSLインターフェース (例: app_name_openai.mdsl)
-└── app_name_provider.mdsl   # 追加プロバイダーバージョン
-```
+ツール実装は、アプリの`.mdsl`ファイルと同じディレクトリに置くコンパニオンの`*_tools.rb`ファイルに記述します。標準的なディレクトリ構成とファイル命名規則については、アプリ開発ガイドの[ファイル構成パターン](develop_apps.md#ファイル構成パターン)を参照してください。
 
 **共有ツールグループの場合**:
 
@@ -426,116 +418,33 @@ MDSLでのツール実装は、ファサードパターンを使用した構造�
 1. **ツールの定義**: ツールはMDSLファイルで明示的に定義する必要があります
 2. **ツールの実装**: ファサードパターンを使用してコンパニオン`*_tools.rb`ファイルにメソッドを実装します
 
-#### 推奨: ファサードパターン
-
-ツール定義を含むMDSLファイルを作成：
+最小の例 — ツールをMDSLファイルで宣言し、コンパニオンのツールファイル内のファサードメソッドで入力検証とエラーハンドリングを行います：
 
 ```ruby
-# mermaid_grapher_openai.mdsl
-app "MermaidGrapherOpenAI" do
-  description "mermaid.js構文を使用して図を作成する"
-  icon "diagram"
-  display_name "Mermaid Grapher"
-  
-  system_prompt <<~PROMPT
-    mermaid.jsを使用してデータを視覚化するのを手伝います。
-    構文例を取得するにはmermaid_documentation関数を使用してください。
-  PROMPT
-  
-  llm do
-    provider "openai"
-    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
-    temperature 0.0
-  end
-
-  features do
-    mermaid true
-  end
-  
-  tools do
-    define_tool "mermaid_documentation", "mermaid.jsの構文ドキュメントを取得" do
-      parameter :diagram_type, "string", "図のタイプ（graph、sequence、flowchartなど）", required: true
-    end
+# my_app_openai.mdsl（抜粋）
+tools do
+  define_tool "mermaid_documentation", "mermaid.jsの構文ドキュメントを取得" do
+    parameter :diagram_type, "string", "図のタイプ（graph、sequence、flowchartなど）", required: true
   end
 end
 ```
 
-ファサードメソッドを含むツールファイルを作成：
-
 ```ruby
-# mermaid_grapher_tools.rb
-class MermaidGrapherOpenAI < MonadicApp
+# my_app_tools.rb
+class MyAppOpenAI < MonadicApp
   # 検証とエラーハンドリング付きファサードメソッド
   def mermaid_documentation(diagram_type: "graph")
-    raise ArgumentError, "diagram_type is required" if diagram_type.nil? || diagram_type.empty?
-    
-    begin
-      result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
-      { success: true, content: result }
-    rescue => e
-      { success: false, error: e.message }
-    end
+    raise ArgumentError, "diagram_type is required" if diagram_type.to_s.empty?
+
+    result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
+    { success: true, content: result }
+  rescue => e
+    { success: false, error: e.message }
   end
 end
 ```
 
-#### ファサードパターンを使用したヘルパーモジュール
-
-プロバイダー間で共有されるカスタム機能の場合：
-
-```ruby
-# wikipedia_openai.mdsl
-app "WikipediaOpenAI" do
-  description "Wikipedia記事を検索"
-  icon "fa-brands fa-wikipedia-w"
-  display_name "Wikipedia"
-  
-  system_prompt <<~PROMPT
-    情報を検索するにはsearch_wikipediaを使用してください。
-  PROMPT
-  
-  llm do
-    provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # providerDefaultsにフォールバック
-    temperature 0.0
-  end
-
-  features do
-    group "OpenAI"
-  end
-  
-  include_modules ["WikipediaHelper"]
-  
-  tools do
-    define_tool "search_wikipedia", "Wikipedia記事を検索" do
-      parameter :search_query, "string", "検索クエリ", required: true
-      parameter :language_code, "string", "言語コード（デフォルト: en）", required: false
-    end
-  end
-end
-```
-
-ヘルパーをラップするファサードメソッドを含むツールファイルを作成：
-
-```ruby
-# wikipedia_tools.rb
-class WikipediaOpenAI < MonadicApp
-  include WikipediaHelper
-  
-  # 検証付きファサードメソッド
-  def search_wikipedia(search_query: "", language_code: "en")
-    raise ArgumentError, "search_query is required" if search_query.empty?
-    
-    begin
-      # ヘルパーモジュールメソッドを呼び出す
-      super(search_query: search_query, language_code: language_code)
-    rescue => e
-      { error: e.message }
-    end
-  end
-end
-```
-
+パターンの詳しい解説と標準実装テンプレート（検証、エラーハンドリング、`include_modules`でインポートしたヘルパーモジュールのラップを含む）については、アプリ開発ガイドの[常にファサードパターンを使用](develop_apps.md#常にファサードパターンを使用)を参照してください。完成した実例（ヘルパーモジュールをファサードメソッドでラップするWikipediaアプリなど）は[レシピファイルの例](recipe-examples.md)を参照してください。
 
 ### Session Stateアプリ
 
@@ -646,16 +555,7 @@ context_schema do
 end
 ```
 
-#### Session State vs セッションコンテキスト
-
-| 機能 | Session State | セッションコンテキスト |
-|------|---------------|----------------------|
-| **メカニズム** | 明示的なツール呼び出し（`load_context`, `save_context`） | 自動バックグラウンド抽出 |
-| **制御** | いつ何を保存するかを完全制御 | 各応答後に自動 |
-| **設定** | ツール定義 | `context_schema`ブロック |
-| **ユースケース** | 複雑な状態管理 | シンプルなコンテキスト追跡 |
-
-両機能とも`monadic true`が必要で、同じアプリで併用できます。
+Session State（明示的なツール呼び出し）とセッションコンテキスト（自動抽出）は、いずれも`monadic true`が必要で、同じアプリで併用できます。両メカニズムと関連用語の対照比較については、Monadicモードのドキュメントの[用語ガイド](monadic-mode.md#用語ガイド)を参照してください。
 
 ### プロバイダー固有のアダプター
 

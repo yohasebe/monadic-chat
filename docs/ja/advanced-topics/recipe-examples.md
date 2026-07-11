@@ -1,12 +1,12 @@
 # レシピファイルの例
 
-このページでは、MDSL（Monadic Domain Specific Language）形式を使用したさまざまなタイプのMonadic Chatアプリの例を提供します。すべてのアプリはファサードパターンに従い、ツール実装は別の`*_tools.rb`ファイルに配置されます。
+このページでは、MDSL（Monadic Domain Specific Language）形式を使用したさまざまなタイプのMonadic Chatアプリの例を提供します。すべてのアプリはファサードパターンに従い、ツール実装は別の`*_tools.rb`ファイルに配置されます。パターンの解説と標準テンプレートは[常にファサードパターンを使用](./develop_apps.md#常にファサードパターンを使用)を参照してください。
 
 このページの例は、MDSLのパターンを示すための自己完結型のサンプルです。現行の本番レシピ（共有定数、`context_schema`、`import_shared_tools`を使用）については、`docker/services/ruby/apps/`内のアプリ実装を参照してください。
 
 ## 重要な命名規則
 
-!> **重要:** MDSLアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`には対応する`class ChatOpenAI < MonadicApp`が必要です。これによりメニューのグループ化と機能が正しく動作します。
+!> **重要:** MDSLアプリ名はRubyクラス名と正確に一致する必要があります（例: `app "ChatOpenAI"` ↔ `class ChatOpenAI < MonadicApp`）。命名規則とファイル構成パターンについては[アプリの開発](./develop_apps.md#ファイル構成パターン)を参照してください。
 
 ## シンプルなアプリ
 

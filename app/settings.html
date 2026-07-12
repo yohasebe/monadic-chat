@@ -122,16 +122,20 @@
 
     /* Brief acknowledgement after a successful save — stays in the
        primary blue family rather than flashing green so the colour stays
-       consistent with the policy (blue = confirm/save). */
+       consistent with the policy (blue = confirm/save). Desaturated
+       relative to the Bootstrap default so the transient flash sits
+       comfortably in the app's muted grey palette. */
     #save-settings-btn.saved {
-      background-color: #0a58ca;
+      background-color: #3b639b;
       color: #fff;
     }
 
     /* Shown when the main process reports the env file write failed —
-       the form stays dirty so the user can retry. */
+       the form stays dirty so the user can retry. Muted brick red
+       (not Bootstrap's vivid #dc3545) for the same palette reason;
+       the triangle icon carries the error semantics. */
     #save-settings-btn.save-failed {
-      background-color: #dc3545;
+      background-color: #a94442;
       color: #fff;
     }
 

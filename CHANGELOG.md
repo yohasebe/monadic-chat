@@ -1,3 +1,10 @@
+- [July, 2026] 1.0.0-beta.28
+  - **Settings are confirmed saved before the check mark appears**: the Save button in the Settings window now shows its success state only after the settings file has actually been written. If the write fails, the button shows a warning state and the form stays marked as unsaved so you can retry, and "Save and Close" / action shortcuts keep the window open on a failed save instead of closing as if it had succeeded.
+  - **Clearer empty state for speech-to-text**: when no provider with a speech-to-text model has an API key configured, the Speech-to-Text Model selector now shows "No STT models available (API key required)" instead of displaying a model name that cannot actually be used.
+  - **PDF export shows progress**: the PDF Export button now shows a spinner and is disabled while the printable view is being prepared, so a large conversation no longer looks unresponsive between the click and the print dialog.
+  - **Consistent default syntax-highlighting theme**: the default code theme is now `github:light` everywhere, including when running the server outside the desktop app (it previously fell back to a different theme in that mode).
+  - **Documentation refresh**: the in-app Help database and the online documentation have been substantially revised for accuracy and reorganized — the app catalog is now split into per-category pages, a new Providers & Models reference page was added, and numerous outdated or duplicated descriptions were corrected.
+
 - [July, 2026] 1.0.0-beta.27
   - **Image fidelity control for analyze_image**: the image-analysis skill accepts an optional detail level (`original`, `auto`, `high`, `low`) — ask the AI to examine a shared-folder image at original fidelity when fine text or diagram details matter. Chat-attached images are downscaled in the browser before sending, so full-resolution analysis goes through the shared folder (now documented).
   - **Knowledge Base access badge**: the conversation header now shows a "Knowledge Base" badge whenever the session actually reads from the Library — retrieval toggled on, or the Knowledge Base app itself (which always has full access).

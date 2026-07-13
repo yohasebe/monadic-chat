@@ -3,15 +3,20 @@
 # GitHub Release Management Tasks
 namespace :release do
   desc "Build, package, and create a new GitHub release"
-  task :github, [:version, :prerelease] do |_t, args|
+  task :github, [:version, :prerelease, :target] do |_t, args|
     version = args[:version] || get_current_version
     prerelease = args[:prerelease] == 'true'
-    
+    # Optional commit-ish (SHA/branch/tag) the release tag is created at. When
+    # omitted, `gh release create` places the tag at the remote default
+    # branch's HEAD — which can point at the WRONG tree if the built artifacts
+    # came from a different commit. Pass the exact release commit to be safe.
+    target = args[:target]
+
     if version.nil?
       puts "Error: Version required. Use rake release:github[version] or ensure version.rb contains a valid version."
       exit 1
     end
-    
+
     prerelease_flag = prerelease ? "--prerelease" : ""
     
     puts "Preparing GitHub release for version #{version} (#{prerelease ? 'prerelease' : 'stable'})"
@@ -106,15 +111,19 @@ namespace :release do
       exit 1
     end
     
-    # Check for and include YML files for auto-updates
+    # Check for and include YML files for auto-updates. Exclude
+    # builder-debug.yml — it is electron-builder's debug dump, not an
+    # auto-update manifest, and must not be attached (the release ships the 5
+    # latest-*.yml manifests only).
     puts "Searching for auto-update YML files in dist directory..."
-    Dir.glob("dist/*.yml").each do |yml_path|
+    update_ymls = Dir.glob("dist/*.yml").reject { |f| File.basename(f) == "builder-debug.yml" }
+    update_ymls.each do |yml_path|
       yml_file = File.basename(yml_path)
       release_assets << yml_path
       puts "Found YML asset for auto-update: #{yml_path}"
     end
-    
-    if Dir.glob("dist/*.yml").empty?
+
+    if update_ymls.empty?
       puts "Warning: No auto-update YML files found in dist directory."
       puts "Auto-updates may not work correctly without these files."
       puts "Consider rebuilding with: rake build"
@@ -136,9 +145,13 @@ namespace :release do
         "\"#{asset.gsub('"', '\\"')}\""
       end.join(' ')
       
+      # Pin the tag to the intended release commit when a target is given, so
+      # the tag never lands on a stale default-branch HEAD.
+      target_arg = target && !target.to_s.strip.empty? ? "--target #{target}" : ""
+
       # Create the release command
-      release_cmd = "gh release create v#{version} #{escaped_assets} --title 'Monadic Chat #{version}' --notes-file #{release_notes_file} #{prerelease_arg}"
-      
+      release_cmd = "gh release create v#{version} #{escaped_assets} --title 'Monadic Chat #{version}' --notes-file #{release_notes_file} #{prerelease_arg} #{target_arg}".squeeze(" ").strip
+
       # If it's a draft, add the draft flag
       if ENV['DRAFT'] == 'true'
         release_cmd += " --draft"
@@ -262,8 +275,8 @@ namespace :release do
         end
       end
       
-      # Also include all YML files
-      files_to_update.concat(Dir.glob("dist/*.yml"))
+      # Also include all auto-update YML files (excluding the debug dump)
+      files_to_update.concat(Dir.glob("dist/*.yml").reject { |f| File.basename(f) == "builder-debug.yml" })
     else
       # Custom patterns provided by user
       patterns = file_patterns.split(/\s+/)

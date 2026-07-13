@@ -121,9 +121,27 @@ gh release create v<version> <assets...> \
   [--prerelease]        # SEE §7 — this flag's presence is a release-type decision, not a default
 ```
 
-`rake release:github[<version>,<prerelease?>]` automates asset discovery +
-`gh release create`; it reads the CHANGELOG section for notes. Read §7 before
-choosing the prerelease argument.
+`rake release:github[<version>,<prerelease?>,<target>]` automates asset
+discovery (exactly the 11 assets — `builder-debug.yml` is excluded) +
+`gh release create`, reading the CHANGELOG section for notes. Pass the third
+arg `<target>` (a commit SHA) so the tag is created at the exact release
+commit instead of the remote default-branch HEAD. Read §7 before choosing the
+prerelease argument.
+
+```bash
+# Move main to the release tree, then release the same commit:
+NEW=$(git commit-tree origin/dev^{tree} -p origin/main -m "Release v<version>")
+git push origin "$NEW:main"
+rake "release:github[<version>,true,$NEW]"     # true = prerelease (betas); OMIT for v1.0 stable — see §7
+```
+
+Ordering note: pushing the new `version.rb` to `main` makes the in-app update
+check (which reads `version.rb` from `main`) advertise the new version. If the
+GitHub release is not yet published, a user who checks in that window is
+offered a download that 404s. Keep the `push main` → `release:github` steps
+back-to-back (seconds apart). For a higher-traffic release (v1.0), prefer
+publishing the release first (create+push the tag at `$NEW`, run
+`release:github`), then fast-forward `main` to `$NEW`.
 
 ## 7. Release channel / prerelease flag — READ BEFORE PUBLISHING
 

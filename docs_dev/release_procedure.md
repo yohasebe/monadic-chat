@@ -12,8 +12,11 @@ personal memory. It has been followed without incident for beta.24–beta.27.
 - macOS on Apple Silicon (the only supported build host for the mac artifact).
 - `gh` CLI installed and authenticated (`gh auth status`).
 - Apple notarization credentials configured (see `docs_dev/notarize-dmg-fix-2026-04.md`).
-- Windows signing is done on a separate Parallels VM — see
-  `docs_dev/electron-build.md`; the mac host builds mac + linux.
+- Windows Authenticode signing runs automatically during `rake build` via a
+  Parallels Windows VM (electron-builder's `win.signtoolOptions` points at the
+  cert in the VM's store; a VM window opens on its own while signing). The mac
+  host drives mac + linux + the VM-signed win artifacts — no separate manual
+  Windows step. Verify after building (see §8). See `docs_dev/electron-build.md`.
 - A clean working tree on the branch you intend to release from (usually `dev`).
 
 ## 1. Bump the version (single source of truth)
@@ -187,7 +190,33 @@ That auto-derivation splits users into two paths:
       (the beta→stable path) BEFORE announcing — auto-update bugs are not
       self-healing.
 
-## 8. Post-publish verification
+## 8. Verify the build before publishing
+
+Run these on the mac host after `rake build`:
+
+```bash
+ruby scripts/verify_release_manifests.rb                       # sha512/size match, all one version
+xcrun stapler validate "dist/Monadic.Chat-<version>-arm64.dmg" # notarized + stapled
+zipinfo "dist/Monadic.Chat-<version>-arm64.zip" | grep -c '^l' # framework symlinks preserved (>0; beta.19 guard)
+```
+
+Note: use `zipinfo` (or `ditto`), NOT `unzip -l | grep '->'`, to detect zip
+symlinks — `unzip -l` does not show the arrow notation and will read as 0.
+
+Verify Windows signing on the mac host (no `osslsigncode`/`signtool` needed —
+parse the PE certificate table; a non-empty Security directory = signed):
+
+```bash
+python3 - "dist/Monadic.Chat.Setup.<version>.exe" <<'PY'
+import sys,struct
+d=open(sys.argv[1],'rb').read(); pe=struct.unpack_from('<I',d,0x3C)[0]
+opt=pe+24; p=struct.unpack_from('<H',d,opt)[0]==0x20b; dd=opt+(112 if p else 96)
+off,size=struct.unpack_from('<II',d,dd+32)
+print("SIGNED" if size>0 and b'Yoichiro Hasebe' in d[off:off+size] else "NOT SIGNED", "cert bytes:", size)
+PY
+```
+
+## 9. Post-publish verification
 
 - Real-machine smoke test of the packaged build: launch → containers start →
   one round-trip chat per provider → quit → all containers stop (the standard

@@ -46,6 +46,28 @@ RUN_API=true PROVIDERS=openai,gemini rake spec_api:all
 API_LOG=true RUN_API=true rake spec_api:smoke
 ```
 
+### `file_importer_spec.rb` PDF extractor dispatch fails locally (environment-dependent, NOT a regression)
+
+`spec/unit/library/file_importer_spec.rb` — the example "invokes the python
+extractor and dispatches to PdfImporter" — can fail on a developer machine
+while passing in CI.
+
+- **Cause**: the example expects the PDF import to fall through to
+  `run_python_extractor`. That path is taken only when the extractor
+  (Knowledge Base Quality Pack) service is unavailable. In CI no extractor
+  container is running, so the example passes. On a local dev box where the
+  extractor container *is* up, `build_conversation` routes through the
+  extractor service (`extract_via_service`) instead, and the container cannot
+  read the host-side temp file the spec writes — the request 404s and the
+  `have_received(:run_python_extractor)` assertion does not match.
+- **Status**: known, environment-dependent, verified NOT a regression. CI stays
+  green (this is the single expected failure when running the full unit suite
+  locally with the extractor container running — e.g. 4978/4983 → 1 failure).
+- **Action**: none required for release. If you want a clean local run, stop
+  the extractor container first, or run the suite in an environment matching
+  CI. Do not "fix" it by mutating the assertion — the spec is correct for the
+  CI environment it gates.
+
 ### WebSocket connection issues
 1. Check Ruby server is running: `ps aux | grep thin`
 2. Verify port 4567 is accessible: `curl localhost:4567/health`

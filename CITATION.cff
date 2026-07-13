@@ -1,0 +1,32 @@
+# Citation metadata for Monadic Chat.
+# Update `version` and `date-released` at each release (see docs_dev/release_procedure.md).
+# A Zenodo DOI will be added under `doi:` when minted for the v1.0.0 tag.
+cff-version: 1.2.0
+message: "If you use Monadic Chat in your research, please cite it as below."
+title: "Monadic Chat"
+abstract: >-
+  Monadic Chat is a locally hosted web application for building and running
+  AI chatbots that operate across multiple LLM providers within a reproducible,
+  Docker-isolated Linux environment. It supports tool use, code execution, a
+  local PDF/document knowledge base, voice interaction, image/video/audio
+  analysis and generation, structured (monadic) conversation context, and
+  AI-to-AI conversations, making it usable both as an application platform and
+  as a framework for language research and education.
+type: software
+authors:
+  - family-names: "Hasebe"
+    given-names: "Yoichiro"
+    email: "yohasebe@gmail.com"
+repository-code: "https://github.com/yohasebe/monadic-chat"
+url: "https://yohasebe.github.io/monadic-chat/"
+license: Apache-2.0
+version: "1.0.0-beta.27"
+date-released: "2026-07-10"
+keywords:
+  - large-language-models
+  - multi-provider
+  - reproducible-research
+  - docker
+  - retrieval-augmented-generation
+  - conversational-ai
+  - language-education

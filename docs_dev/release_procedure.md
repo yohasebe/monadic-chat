@@ -19,18 +19,26 @@ personal memory. It has been followed without incident for beta.24–beta.27.
 ## 1. Bump the version (single source of truth)
 
 Version lives in **`docker/services/ruby/lib/monadic/version.rb`** (`VERSION = "..."`)
-and must be mirrored in **`package.json`**. `docker/monadic.sh` reads `version.rb`
-at runtime, so no manual edit there.
+and must be mirrored in **`package.json`**, **`package-lock.json`** (root
+`version` and `packages[""].version`), and **`CITATION.cff`** (`version` +
+`date-released`). `docker/monadic.sh` reads `version.rb` at runtime, so no
+manual edit there.
 
-```bash
-rake update_version[<old>,<new>]   # updates version.rb + package.json + docs references
-```
+`rake update_version[<old>,<new>]` bumps `version.rb` + `package.json`, but be
+aware of two caveats and prefer editing by hand when they apply:
+- It does NOT touch `package-lock.json` or `CITATION.cff` — update those
+  manually.
+- Its CHANGELOG step *relabels* the current-month top entry rather than adding
+  a new one. If the top entry is an already-published release, do not use it —
+  add a fresh CHANGELOG section by hand (see step 2).
 
-Verify both files agree:
+Verify all agree:
 
 ```bash
 grep 'VERSION = ' docker/services/ruby/lib/monadic/version.rb
 node -e "console.log(require('./package.json').version)"
+node -e "const p=require('./package-lock.json'); console.log(p.version, p.packages[''].version)"
+ruby -ryaml -e "puts YAML.load_file('CITATION.cff')['version']"
 ```
 
 ## 2. CHANGELOG entry

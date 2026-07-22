@@ -795,10 +795,14 @@ module GeminiHelper
       body["generationConfig"]["temperature"] = options["temperature"]
     end
 
-    # For thinking models, configure appropriate parameter
+    # For thinking models, configure appropriate parameter.
+    # The API field is generationConfig.thinkingConfig.thinkingLevel; the older
+    # generationConfig.thinking.level shorthand is rejected ("Unknown name
+    # 'thinking'") by every Gemini 3 model. "none" is already filtered out above.
     if thinking_level
-      body["generationConfig"]["thinking"] = {
-        "level" => thinking_level
+      body["generationConfig"]["thinkingConfig"] = {
+        "thinkingLevel" => thinking_level,
+        "includeThoughts" => false
       }
     elsif is_thinking_model
       # For models with thinking budget (configure via reasoning_effort)

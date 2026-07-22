@@ -13,14 +13,14 @@ RSpec.describe AudioAnalysisAgent do
     context 'guards' do
       it 'errors when GEMINI_API_KEY is missing' do
         stub_const("CONFIG", {})
-        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.5-flash")
+        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.6-flash")
         expect(result).to match(/GEMINI_API_KEY not configured/)
       end
 
       it 'errors when the file does not exist' do
         allow(File).to receive(:exist?).and_call_original
         allow(File).to receive(:exist?).with(audio_path).and_return(false)
-        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.5-flash")
+        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.6-flash")
         expect(result).to match(/Audio file not found/)
       end
     end
@@ -41,10 +41,10 @@ RSpec.describe AudioAnalysisAgent do
           "Great expressive performance."
         end
 
-        result = described_class.analyze(audio_path: audio_path, prompt: "Critique it.", model: "gemini-3.5-flash")
+        result = described_class.analyze(audio_path: audio_path, prompt: "Critique it.", model: "gemini-3.6-flash")
 
         expect(result).to eq("Great expressive performance.")
-        expect(captured[:uri]).to include("models/gemini-3.5-flash:generateContent")
+        expect(captured[:uri]).to include("models/gemini-3.6-flash:generateContent")
         parts = captured[:body][:contents][0][:parts]
         expect(parts[0][:inline_data][:mime_type]).to eq("audio/mpeg")
         expect(parts[0][:inline_data][:data]).to eq(Base64.strict_encode64("RAWBYTES"))
@@ -63,7 +63,7 @@ RSpec.describe AudioAnalysisAgent do
           "ok"
         end
 
-        described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.5-flash")
+        described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.6-flash")
         expect(captured[:body]).not_to have_key(:generationConfig)
       end
     end
@@ -76,7 +76,7 @@ RSpec.describe AudioAnalysisAgent do
         allow(described_class).to receive(:prepare_audio).with(audio_path).and_return([audio_path, "audio/mpeg", nil])
         allow(File).to receive(:size).with(audio_path).and_return(described_class::MAX_INLINE_BYTES + 1)
 
-        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.5-flash")
+        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.6-flash")
         expect(result).to match(/too large to analyze/i)
       end
     end

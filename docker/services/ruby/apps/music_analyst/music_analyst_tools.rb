@@ -15,8 +15,8 @@ require_relative "../../lib/monadic/agents/audio_analysis_agent"
 # included into the Gemini variant — Provider Independence is preserved.
 module MusicAnalystTools
   # Fallback Gemini model for qualitative critique when the SSOT default is
-  # unavailable. Must support audio input; gemini-3.5-flash does.
-  CRITIQUE_MODEL_FALLBACK = "gemini-3.5-flash"
+  # unavailable. Must support audio input; gemini-3.6-flash does.
+  CRITIQUE_MODEL_FALLBACK = "gemini-3.6-flash"
 
   # critique_audio is for real audio only; MIDI has no waveform to "listen" to.
   CRITIQUE_AUDIO_EXTS = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze

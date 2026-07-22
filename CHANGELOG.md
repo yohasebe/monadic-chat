@@ -1,3 +1,6 @@
+- [July, 2026] 1.0.0-beta.29
+  - **Gemini 3.6 Flash and 3.5 Flash-Lite support**: Google's latest Gemini models are available across the app. `gemini-3.6-flash` (1M-token context, 64K output, vision, web search, PDF) is now the default Gemini chat, vision, and audio model — a reasoning Flash that always thinks, with a low/high reasoning-effort selector. `gemini-3.5-flash-lite` is available as the fast, low-cost option. Sessions and apps pinned to the previous `gemini-3.5-flash` or `gemini-3.1-flash-lite` migrate automatically to their successors.
+
 - [July, 2026] 1.0.0-beta.28
   - **Settings are confirmed saved before the check mark appears**: the Save button in the Settings window now shows its success state only after the settings file has actually been written. If the write fails, the button shows a warning state and the form stays marked as unsaved so you can retry, and "Save and Close" / action shortcuts keep the window open on a failed save instead of closing as if it had succeeded.
   - **Clearer empty state for speech-to-text**: when no provider with a speech-to-text model has an API key configured, the Speech-to-Text Model selector now shows "No STT models available (API key required)" instead of displaying a model name that cannot actually be used.

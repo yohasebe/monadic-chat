@@ -96,8 +96,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.anthropic.chat[0]).toBe('claude-sonnet-5');
     });
 
-    it('gemini chat default is gemini-3.5-flash', () => {
-      expect(providerDefaults.gemini.chat[0]).toBe('gemini-3.5-flash');
+    it('gemini chat default is gemini-3.6-flash', () => {
+      expect(providerDefaults.gemini.chat[0]).toBe('gemini-3.6-flash');
     });
 
     it('xai code default is grok-build-0.1', () => {

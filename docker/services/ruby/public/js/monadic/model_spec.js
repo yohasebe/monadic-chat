@@ -570,7 +570,33 @@ const modelSpec = {
   },
   // Gemini models
   // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
-  // Stable alias of the gemini-3-flash-preview line.
+  // gemini-3.6-flash — reasoning Flash (thinking is always on and cannot be
+  // disabled; thinkingBudget:0 is rejected by the API). Shares the thinking-level
+  // shape of gemini-3.1-pro-preview: level-based reasoning driven through
+  // thinkingBudget presets, can_disable:false.
+  "gemini-3.6-flash": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "high"], "low"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "high"], "low"],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": false,
+      "presets": {
+        "low": 8000,
+        "high": 20000
+      }
+    },
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
+  // Stable alias of the gemini-3-flash-preview line. Superseded by
+  // gemini-3.6-flash (default since beta.29); kept for pinned sessions.
   "gemini-3.5-flash": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
@@ -590,7 +616,9 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "successor": "gemini-3.6-flash"
   },
   "gemini-3-flash-preview": {
     "context_window" : [1048576],
@@ -614,7 +642,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-25",
-    "successor": "gemini-3.5-flash"
+    "successor": "gemini-3.6-flash"
   },
   "gemini-3.1-pro-preview": {
     "context_window" : [1048576],
@@ -658,7 +686,10 @@ const modelSpec = {
     "supports_pdf": true,
     "ui_hidden": true
   },
-  "gemini-3.1-flash-lite": {
+  // gemini-3.5-flash-lite — fastest, lowest-cost 3.5 model. Thinking is off by
+  // default; positive thinkingBudget presets are accepted, thinkingBudget:0 is
+  // rejected (guarded because "none" is nulled before budget computation).
+  "gemini-3.5-flash-lite": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "thinking_budget": {
@@ -678,6 +709,30 @@ const modelSpec = {
     "vision_capability": true,
     "supports_web_search": true,
     "supports_pdf": true
+  },
+  // Superseded by gemini-3.5-flash-lite; kept for pinned sessions.
+  "gemini-3.1-flash-lite": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "default_disabled": true,
+      "presets": {
+        "none": 0,
+        "low": 512,
+        "medium": 8000,
+        "high": 20000
+      }
+    },
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "deprecated": true,
+    "successor": "gemini-3.5-flash-lite"
   },
   // Gemini 3.1 Flash Image (Nano Banana 2) — image generation + video-to-image, GA 2026-05-28
   "gemini-3.1-flash-image": {
@@ -711,7 +766,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-07-22",
-    "successor": "gemini-3.1-flash-lite"
+    "successor": "gemini-3.5-flash-lite"
   },
   "gemini-2.5-flash": {
     "context_window" : [1048576],
@@ -735,7 +790,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-17",
-    "successor": "gemini-3.5-flash"
+    "successor": "gemini-3.6-flash"
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],
@@ -1199,9 +1254,9 @@ const providerDefaults = {
     "vision": ["claude-haiku-4-5-20251001"]
   },
   "gemini": {
-    "chat": ["gemini-3.5-flash", "gemini-3.1-pro-preview"],
-    "vision": ["gemini-3.5-flash"],
-    "audio_transcription": ["gemini-3.5-flash"],
+    "chat": ["gemini-3.6-flash", "gemini-3.1-pro-preview"],
+    "vision": ["gemini-3.6-flash"],
+    "audio_transcription": ["gemini-3.6-flash"],
     "image": ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "music": ["lyria-3-pro-preview", "lyria-3-clip-preview"],

@@ -113,7 +113,7 @@ app "ImageGeneratorGemini" do
 
   llm do
     provider "gemini"
-    model ["gemini-3.5-flash"]
+    model ["gemini-3.6-flash"]
     context_size 10
   end
 

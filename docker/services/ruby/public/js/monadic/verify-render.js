@@ -109,7 +109,13 @@ function renderVerifyConfidence(data) {
   if (data.judge_error) bodyHtml += '<div class="verify-row verify-error"><small>' + esc(data.judge_error) + '</small></div>';
 
   panel.classList.add('verify-result--' + esc(conf));
-  panel.innerHTML = header + '<div class="verify-body">' + bodyHtml + '</div>';
+  // Member answers are other models' raw output rendered through
+  // MarkdownRenderer — sanitize the assembled panel HTML before the
+  // innerHTML sink (DOMPurify; fails closed when unavailable).
+  const panelHtml = header + '<div class="verify-body">' + bodyHtml + '</div>';
+  panel.innerHTML = typeof window.sanitizeModelHtml === 'function'
+    ? window.sanitizeModelHtml(panelHtml)
+    : window.escapeHtml(panelHtml);
 
   // At-a-glance chip in the card header so the verdict is visible without
   // expanding (clicking it toggles the detail panel).

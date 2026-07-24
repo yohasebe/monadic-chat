@@ -4,9 +4,42 @@
  * Pure string manipulation utilities extracted from utilities.js.
  */
 
-const { removeCode, removeMarkdown, removeEmojis, convertString } = require('../../docker/services/ruby/public/js/monadic/text-utils');
+const { escapeHtml, removeCode, removeMarkdown, removeEmojis, convertString } = require('../../docker/services/ruby/public/js/monadic/text-utils');
 
 describe('text-utils', () => {
+  describe('escapeHtml (canonical)', () => {
+    it('escapes all 5 HTML metacharacters including both quotes', () => {
+      expect(escapeHtml('&<>"\'')).toBe('&amp;&lt;&gt;&quot;&#039;');
+    });
+
+    it('is safe in attribute contexts (quotes escaped)', () => {
+      expect(escapeHtml('"><img src=x>')).toBe('&quot;&gt;&lt;img src=x&gt;');
+    });
+
+    it('returns empty string for null/undefined', () => {
+      expect(escapeHtml(null)).toBe('');
+      expect(escapeHtml(undefined)).toBe('');
+    });
+
+    it('stringifies non-string input', () => {
+      expect(escapeHtml(42)).toBe('42');
+    });
+
+    it('leaves safe strings unchanged', () => {
+      expect(escapeHtml('hello world')).toBe('hello world');
+    });
+
+    it('does not double-escape existing entities beyond & (by design)', () => {
+      // & is escaped first, so pre-escaped input becomes double-escaped —
+      // callers must pass raw text, matching every pre-consolidation copy.
+      expect(escapeHtml('&lt;')).toBe('&amp;lt;');
+    });
+
+    it('is exported to window for module delegation', () => {
+      expect(window.escapeHtml).toBe(escapeHtml);
+    });
+  });
+
   describe('removeCode', () => {
     it('removes fenced code blocks', () => {
       const text = 'Some text ```code here``` and more text';

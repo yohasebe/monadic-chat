@@ -36,6 +36,12 @@ const FILES = [
   "js/monadic/lazy-loader.js",
   "js/monadic/syntax-highlight.js",
   "js/monadic/tts-tag-sanitizer.js",
+  // text-utils.js defines the canonical window.escapeHtml and must precede
+  // every consumer (markdown-renderer.js, card-renderer.js, ...).
+  // html-sanitizer.js defines window.sanitizeModelHtml (DOMPurify wrapper)
+  // and must precede card-renderer.js / ws-message-renderer.js.
+  "js/monadic/text-utils.js",
+  "js/monadic/html-sanitizer.js",
   "js/monadic/markdown-renderer.js",
   "js/monadic/storage-helper.js",
   "js/monadic/theme-manager.js",
@@ -51,7 +57,6 @@ const FILES = [
   "js/monadic/card-renderer.js",
   "js/monadic/session_state.js",
   "js/monadic/model_utils.js",
-  "js/monadic/text-utils.js",
   "js/monadic/cookie-utils.js",
   "js/monadic/model-capabilities.js",
   "js/monadic/json-tree-toggle.js",

@@ -19,19 +19,13 @@
 
 /**
  * HTML-encode unsafe strings to prevent XSS.
+ * Delegates to the canonical implementation in text-utils.js (loaded
+ * earlier in the bundle) so there is a single SSOT for escaping.
  * @param {string} unsafe - Input string
  * @returns {string} Escaped HTML
  */
 function escapeHtml(unsafe) {
-  if (unsafe === null || unsafe === undefined) {
-    return "";
-  }
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return window.escapeHtml(unsafe);
 }
 
 // Count distinct providers that have an API key configured, from the SSOT
@@ -86,10 +80,15 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
     if (html.indexOf('<') === -1 && html.indexOf('>') === -1) {
       replaced_html = escapeHtml(html).replace(/\n/g, "<br>");
     } else {
+      // System messages containing markup pass through raw by design
+      // (app-generated error/info cards). Not model-controlled, so the
+      // DOMPurify step below is skipped for this role.
       replaced_html = html;
     }
   } else {
-    replaced_html = html;
+    // Central sanitization point for model-controlled HTML (DOMPurify).
+    // Fails closed (full escaping) when DOMPurify is unavailable.
+    replaced_html = window.sanitizeModelHtml(html);
   }
 
   // Cache-bust images
@@ -140,8 +139,8 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
       if (maskImage) {
         renderedImages.push(
           '<div class="mask-overlay-container mb-3">' +
-          '<img class="base-image" alt="' + image.title + '" src="' + image.data + '" />' +
-          '<img class="mask-overlay" alt="' + maskImage.title + '" src="' + (maskImage.display_data || maskImage.data) + '" style="opacity: 0.6;" />' +
+          '<img class="base-image" alt="' + escapeHtml(image.title) + '" src="' + image.data + '" />' +
+          '<img class="mask-overlay" alt="' + escapeHtml(maskImage.title) + '" src="' + (maskImage.display_data || maskImage.data) + '" style="opacity: 0.6;" />' +
           '<div class="mask-overlay-label">MASK</div>' +
           '</div>'
         );
@@ -149,21 +148,21 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
         renderedImages.push(
           '<div class="pdf-preview mb-3">' +
           '<i class="fas fa-file-pdf text-danger"></i>' +
-          '<span class="ms-2">' + image.title + '</span>' +
+          '<span class="ms-2">' + escapeHtml(image.title) + '</span>' +
           '</div>'
         );
       } else {
         renderedImages.push(
-          '<img class="base64-image mb-3" src="' + image.data + '" alt="' + image.title + '" style="max-width: 100%; height: auto;" />'
+          '<img class="base64-image mb-3" src="' + image.data + '" alt="' + escapeHtml(image.title) + '" style="max-width: 100%; height: auto;" />'
         );
       }
     });
 
     maskImages.forEach(function(mask) {
-      if (!renderedImages.some(function(html) { return html.includes('alt="' + mask.title + '"'); })) {
+      if (!renderedImages.some(function(html) { return html.includes('alt="' + escapeHtml(mask.title) + '"'); })) {
         if (!imageMap.has(mask.mask_for)) {
           renderedImages.push(
-            '<img class="base64-image mb-3" src="' + (mask.display_data || mask.data) + '" alt="' + mask.title + '" style="max-width: 100%; height: auto;" />'
+            '<img class="base64-image mb-3" src="' + (mask.display_data || mask.data) + '" alt="' + escapeHtml(mask.title) + '" style="max-width: 100%; height: auto;" />'
           );
         }
       }
@@ -276,8 +275,10 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   return card;
 }
 
-// Export for browser environment
-window.escapeHtml = escapeHtml;
+// Export for browser environment.
+// NOTE: window.escapeHtml is owned by text-utils.js (loaded earlier); this
+// module only delegates to it and must not re-export its local delegate
+// onto window (that would shadow the canonical implementation).
 window.createCard = createCard;
 
 // Support for Jest testing environment (CommonJS)

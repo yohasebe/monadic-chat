@@ -145,13 +145,11 @@
 
   // ─── DOM helpers ─────────────────────────────────────────────────────
 
+  // Delegates to the canonical implementation in text-utils.js
+  // (window.escapeHtml). Same semantics as the former local copy:
+  // null/undefined → "", escapes & < > " '.
   function escapeHtml(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return window.escapeHtml(value == null ? '' : value);
   }
 
   // Provider class-suffixes used to split app class names back into a

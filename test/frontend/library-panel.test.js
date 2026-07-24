@@ -32,7 +32,9 @@ describe('library-panel module', () => {
   describe('escapeHtml', () => {
     it('escapes &, <, >, ", \' so HTML cannot be injected', () => {
       const out = lib.escapeHtml('<script>alert("x")</script>&\'');
-      expect(out).toBe('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;&amp;&#39;');
+      // Canonical implementation (text-utils.js) emits &#039; for single
+      // quotes; the former local copy emitted &#39;. Same rendered output.
+      expect(out).toBe('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;&amp;&#039;');
     });
 
     it('coerces null / undefined into the empty string', () => {

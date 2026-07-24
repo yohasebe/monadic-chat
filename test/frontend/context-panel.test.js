@@ -342,9 +342,10 @@ describe('ContextPanel Tests', () => {
     test('should escape HTML entities', () => {
       expect(window.ContextPanel.escapeHtml('<script>')).toBe('&lt;script&gt;');
       expect(window.ContextPanel.escapeHtml('&')).toBe('&amp;');
-      // Note: Double quotes are not escaped in text content (only needed in attributes)
-      // The escapeHtml function uses textContent/innerHTML which is correct for text nodes
-      expect(window.ContextPanel.escapeHtml('"')).toBe('"');
+      // Canonical implementation (text-utils.js) also escapes quotes:
+      // renderField interpolates into data-key="..." (attribute context),
+      // where unescaped quotes are an injection vector.
+      expect(window.ContextPanel.escapeHtml('"')).toBe('&quot;');
     });
 
     test('should handle normal text', () => {

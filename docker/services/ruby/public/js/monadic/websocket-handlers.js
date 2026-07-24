@@ -49,10 +49,13 @@ function renderThinkingBlock(thinkingContent, title = null) {
   }
   const blockId = 'thinking-' + Math.random().toString(36).substr(2, 9);
 
-  // Use Bootstrap card style with subtle, blended design
+  // Use Bootstrap card style with subtle, blended design.
+  // The header carries no inline onclick: DOMPurify strips inline handlers,
+  // so expansion is driven by the delegated click listener registered at
+  // the bottom of this file (data-thinking-block marks the target).
   return `
     <div class="card mt-3 thinking-block" id="${blockId}">
-      <div class="card-header p-2 ps-3 thinking-block-header" onclick="toggleThinkingBlock('${blockId}')" style="cursor: pointer;">
+      <div class="card-header p-2 ps-3 thinking-block-header" style="cursor: pointer;">
         <div class="fs-6 card-title mb-0 text-muted d-flex align-items-center">
           <i class="fas fa-chevron-right thinking-block-icon me-2"></i>
           <i class="fas fa-brain me-2"></i>
@@ -84,15 +87,37 @@ function toggleThinkingBlock(blockId) {
 // Make toggleThinkingBlock globally accessible
 window.toggleThinkingBlock = toggleThinkingBlock;
 
+// Event delegation for thinking-block headers (replaces the inline onclick
+// that DOMPurify strips from sanitized card HTML). Toggles the closest
+// .thinking-block directly, so no block-id round-trip is needed. The flag
+// guard keeps repeated module evaluation (e.g. Jest resetModules) from
+// stacking duplicate listeners that would toggle twice per click.
+if (typeof document !== 'undefined' && document.addEventListener &&
+    typeof window !== 'undefined' && !window.__thinkingBlockDelegationInstalled) {
+  window.__thinkingBlockDelegationInstalled = true;
+  document.addEventListener('click', function(event) {
+    var header = event.target && typeof event.target.closest === 'function'
+      ? event.target.closest('.thinking-block-header')
+      : null;
+    if (!header) return;
+    var block = header.closest('.thinking-block');
+    if (block) {
+      block.classList.toggle('expanded');
+    }
+  });
+}
+
 /**
- * Escapes HTML special characters to prevent XSS
+ * Escapes HTML special characters to prevent XSS.
+ * Delegates to the canonical implementation in text-utils.js
+ * (window.escapeHtml, loaded earlier in the bundle). The canonical version
+ * also escapes quotes, which is strictly safer than the previous
+ * textContent-based variant; both return "" for null input.
  * @param {string} text - Text to escape
  * @returns {string} - Escaped text
  */
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return window.escapeHtml(text);
 }
 
 /**

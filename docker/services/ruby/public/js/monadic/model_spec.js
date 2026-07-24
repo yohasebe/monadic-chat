@@ -373,7 +373,35 @@ const modelSpec = {
     "structured_output": true,
     "structured_output_mode": "json_schema",
     "beta_flags": [],
-    "unavailable_fallback": "claude-opus-4-8"
+    "unavailable_fallback": "claude-opus-5"
+  },
+  // Claude Opus 5 — for complex agentic coding and enterprise work.
+  // Capabilities verified identical to claude-sonnet-5 via the Models API
+  // (effort low..max, adaptive thinking only, context management incl. compact,
+  // structured outputs, PDF/image input). Same price tier as Opus 4.8.
+  "claude-opus-5": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
   },
   "claude-opus-4-8": {
     "context_window" : [1, 1000000],

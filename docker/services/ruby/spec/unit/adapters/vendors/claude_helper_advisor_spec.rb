@@ -8,9 +8,9 @@ require_relative '../../../../lib/monadic/dsl/configurations'
 # See docs_dev/provider_specific_features.md for the policy context.
 RSpec.describe 'Claude Advisor Tool integration' do
   describe MonadicDSL::AdvisorToolConfiguration do
-    it 'uses claude-opus-4-8 as the default advisor model' do
+    it 'uses claude-opus-5 as the default advisor model' do
       cfg = described_class.new
-      expect(cfg.to_hash).to eq(model: 'claude-opus-4-8')
+      expect(cfg.to_hash).to eq(model: 'claude-opus-5')
     end
 
     it 'supports custom model, max_uses, and caching' do
@@ -143,11 +143,11 @@ RSpec.describe 'Claude Advisor Tool integration' do
       expect(advisor_entries.length).to eq(1)
     end
 
-    it 'defaults to claude-opus-4-8 when model is missing' do
+    it 'defaults to claude-opus-5 when model is missing' do
       stub_app_with_settings(advisor_tool: { max_uses: 2 })
       body = {}
       helper.pub_add_claude_advisor_tool(body, app_name)
-      expect(body['tools'].first['model']).to eq('claude-opus-4-8')
+      expect(body['tools'].first['model']).to eq('claude-opus-5')
     end
   end
 

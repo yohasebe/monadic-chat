@@ -490,9 +490,9 @@ module MonadicDSL
 
     # Advisor Tool opt-in (Anthropic Advisor Tool beta).
     # Usage:
-    #   advisor_tool  # enable with defaults (claude-opus-4-8)
+    #   advisor_tool  # enable with defaults (claude-opus-5)
     #   advisor_tool do
-    #     model    "claude-opus-4-8"
+    #     model    "claude-opus-5"
     #     max_uses 3
     #     caching  true
     #   end

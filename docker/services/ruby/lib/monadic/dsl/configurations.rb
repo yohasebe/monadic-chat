@@ -64,7 +64,7 @@ module MonadicDSL
   # See docs_dev/provider_specific_features.md and the Anthropic documentation:
   # https://docs.claude.com/en/docs/agents-and-tools/tool-use/advisor-tool
   class AdvisorToolConfiguration
-    DEFAULT_MODEL = "claude-opus-4-8".freeze
+    DEFAULT_MODEL = "claude-opus-5".freeze
 
     def initialize
       @config = { model: DEFAULT_MODEL }

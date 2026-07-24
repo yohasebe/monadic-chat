@@ -709,7 +709,7 @@ module ClaudeHelper
     advisor_cfg = claude_advisor_settings(app)
     return unless advisor_cfg
 
-    model_value  = advisor_cfg[:model]    || advisor_cfg["model"]    || "claude-opus-4-8"
+    model_value  = advisor_cfg[:model]    || advisor_cfg["model"]    || "claude-opus-5"
     max_uses_val = advisor_cfg[:max_uses] || advisor_cfg["max_uses"]
     caching_val  = advisor_cfg[:caching]  || advisor_cfg["caching"]
 

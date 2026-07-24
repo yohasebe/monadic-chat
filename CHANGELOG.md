@@ -1,4 +1,5 @@
 - [July, 2026] 1.0.0-beta.29
+  - **Claude Opus 5 support**: Anthropic's new model for complex agentic coding is available across the app (1M-token context, 128K output, vision, web search, PDF, adaptive thinking with low/medium/high/xhigh/max effort). Claude apps that previously used Opus 4.8 for their advisor and code-generation roles — Code Interpreter, Coding Assistant, Jupyter Notebook, AutoForge, Math Tutor, Concept Visualizer, DrawIO Grapher, Chat Plus, Language Practice Plus — now use Opus 5 at the same price. Claude Sonnet 5 remains the default chat model, and Opus 4.8 stays selectable.
   - **Gemini 3.6 Flash and 3.5 Flash-Lite support**: Google's latest Gemini models are available across the app. `gemini-3.6-flash` (1M-token context, 64K output, vision, web search, PDF) is now the default Gemini chat, vision, and audio model — a reasoning Flash that always thinks, with a low/high reasoning-effort selector. `gemini-3.5-flash-lite` is available as the fast, low-cost option. Sessions and apps pinned to the previous `gemini-3.5-flash` or `gemini-3.1-flash-lite` migrate automatically to their successors.
 
 - [July, 2026] 1.0.0-beta.28

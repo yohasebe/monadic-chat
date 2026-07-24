@@ -60,6 +60,9 @@ jobs:
       - name: Documentation links resolve
         run: ruby scripts/lint/check_docs_links.rb
 
+      - name: Top-level same-name window-delegation wrappers
+        run: ruby scripts/lint/check_global_shadow_delegation.rb
+
       - name: Lint self-check (rules still detect their target patterns)
         run: ruby scripts/lint/spec/check_self_test.rb
 

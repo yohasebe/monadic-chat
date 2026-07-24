@@ -201,6 +201,28 @@ with_temp_file(ws_fixture, ws_body) do
 end
 
 # ---------------------------------------------------------------------------
+# 6. check_global_shadow_delegation.rb — must flag a top-level same-name
+#    wrapper delegating to window (infinite recursion in classic scripts).
+# ---------------------------------------------------------------------------
+section 'check_global_shadow_delegation.rb'
+shadow_fixture = FIXTURES[:js]
+shadow_body = <<~JS
+  // Lint fixture: top-level same-name delegation wrapper (classic-script
+  // shadowing → infinite recursion at runtime).
+  function shadowedHelper(text) {
+    return window.shadowedHelper(text);
+  }
+JS
+with_temp_file(shadow_fixture, shadow_body) do
+  stdout, _stderr, status = run_lint('check_global_shadow_delegation.rb')
+  assert(
+    'detects top-level same-name window-delegation wrapper',
+    !status.success? && stdout.include?(shadow_fixture.relative_path_from(ROOT).to_s),
+    "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+end
+
+# ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------
 puts ''

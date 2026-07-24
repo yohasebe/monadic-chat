@@ -59,6 +59,14 @@ namespace :lint do
     end
   end
 
+  desc 'Check for top-level same-name window-delegation wrappers (classic-script shadowing)'
+  task :global_shadow_delegation do
+    Dir.chdir(PROJECT_ROOT) do
+      system('ruby scripts/lint/check_global_shadow_delegation.rb') ||
+        abort('Global shadow delegation lint failed: a top-level function/var wrapper overwrites the window global it delegates to (infinite recursion). Call window.NAME(...) directly instead.')
+    end
+  end
+
   desc "Verify each anti-pattern lint still detects its target via temp fixture"
   task :self_check do
     Dir.chdir(PROJECT_ROOT) do
@@ -68,5 +76,5 @@ namespace :lint do
   end
 
   desc "Run every anti-pattern lint rule plus the self-check meta-test"
-  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :self_check]
+  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :self_check]
 end

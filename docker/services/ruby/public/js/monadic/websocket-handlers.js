@@ -37,7 +37,7 @@ function renderThinkingMarkdown(thinkingContent) {
   } catch (_) {
     // fall through to the escaped-text fallback
   }
-  return escapeHtml(text).replace(/\n/g, '<br>');
+  return window.escapeHtml(text).replace(/\n/g, '<br>');
 }
 
 function renderThinkingBlock(thinkingContent, title = null) {
@@ -107,18 +107,11 @@ if (typeof document !== 'undefined' && document.addEventListener &&
   });
 }
 
-/**
- * Escapes HTML special characters to prevent XSS.
- * Delegates to the canonical implementation in text-utils.js
- * (window.escapeHtml, loaded earlier in the bundle). The canonical version
- * also escapes quotes, which is strictly safer than the previous
- * textContent-based variant; both return "" for null input.
- * @param {string} text - Text to escape
- * @returns {string} - Escaped text
- */
-function escapeHtml(text) {
-  return window.escapeHtml(text);
-}
+// HTML escaping delegates to the canonical window.escapeHtml (text-utils.js).
+// NOTE: never re-declare a top-level `function escapeHtml` here — in classic
+// scripts that declaration IS window.escapeHtml, so a delegating wrapper
+// overwrites the canonical implementation with itself and recurses infinitely
+// (RangeError: Maximum call stack size exceeded on every render).
 
 /**
  * Handles combined fragment with audio messages (optimized for auto_speech)

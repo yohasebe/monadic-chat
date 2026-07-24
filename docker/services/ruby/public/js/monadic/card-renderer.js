@@ -17,16 +17,10 @@
 (function() {
 'use strict';
 
-/**
- * HTML-encode unsafe strings to prevent XSS.
- * Delegates to the canonical implementation in text-utils.js (loaded
- * earlier in the bundle) so there is a single SSOT for escaping.
- * @param {string} unsafe - Input string
- * @returns {string} Escaped HTML
- */
-function escapeHtml(unsafe) {
-  return window.escapeHtml(unsafe);
-}
+// HTML escaping delegates to the canonical window.escapeHtml (text-utils.js).
+// NOTE: never re-declare a top-level `function escapeHtml` here — in classic
+// scripts that declaration IS window.escapeHtml, so a delegating wrapper
+// overwrites the canonical implementation with itself and recurses infinitely.
 
 // Count distinct providers that have an API key configured, from the SSOT
 // payload (/api/ai_user_defaults, cached on window.aiUserDefaults). Used to
@@ -78,7 +72,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   var replaced_html;
   if (role === "system") {
     if (html.indexOf('<') === -1 && html.indexOf('>') === -1) {
-      replaced_html = escapeHtml(html).replace(/\n/g, "<br>");
+      replaced_html = window.escapeHtml(html).replace(/\n/g, "<br>");
     } else {
       // System messages containing markup pass through raw by design
       // (app-generated error/info cards). Not model-controlled, so the
@@ -139,8 +133,8 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
       if (maskImage) {
         renderedImages.push(
           '<div class="mask-overlay-container mb-3">' +
-          '<img class="base-image" alt="' + escapeHtml(image.title) + '" src="' + image.data + '" />' +
-          '<img class="mask-overlay" alt="' + escapeHtml(maskImage.title) + '" src="' + (maskImage.display_data || maskImage.data) + '" style="opacity: 0.6;" />' +
+          '<img class="base-image" alt="' + window.escapeHtml(image.title) + '" src="' + image.data + '" />' +
+          '<img class="mask-overlay" alt="' + window.escapeHtml(maskImage.title) + '" src="' + (maskImage.display_data || maskImage.data) + '" style="opacity: 0.6;" />' +
           '<div class="mask-overlay-label">MASK</div>' +
           '</div>'
         );
@@ -148,21 +142,21 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
         renderedImages.push(
           '<div class="pdf-preview mb-3">' +
           '<i class="fas fa-file-pdf text-danger"></i>' +
-          '<span class="ms-2">' + escapeHtml(image.title) + '</span>' +
+          '<span class="ms-2">' + window.escapeHtml(image.title) + '</span>' +
           '</div>'
         );
       } else {
         renderedImages.push(
-          '<img class="base64-image mb-3" src="' + image.data + '" alt="' + escapeHtml(image.title) + '" style="max-width: 100%; height: auto;" />'
+          '<img class="base64-image mb-3" src="' + image.data + '" alt="' + window.escapeHtml(image.title) + '" style="max-width: 100%; height: auto;" />'
         );
       }
     });
 
     maskImages.forEach(function(mask) {
-      if (!renderedImages.some(function(html) { return html.includes('alt="' + escapeHtml(mask.title) + '"'); })) {
+      if (!renderedImages.some(function(html) { return html.includes('alt="' + window.escapeHtml(mask.title) + '"'); })) {
         if (!imageMap.has(mask.mask_for)) {
           renderedImages.push(
-            '<img class="base64-image mb-3" src="' + (mask.display_data || mask.data) + '" alt="' + escapeHtml(mask.title) + '" style="max-width: 100%; height: auto;" />'
+            '<img class="base64-image mb-3" src="' + (mask.display_data || mask.data) + '" alt="' + window.escapeHtml(mask.title) + '" style="max-width: 100%; height: auto;" />'
           );
         }
       }
@@ -197,7 +191,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   var verifyTip = (configuredProviderCount >= 2)
     ? getTranslation('ui.verify.tip', 'Cross-checks this answer against your other configured providers.')
     : getTranslation('ui.verify.tipSingle', "Add a second provider's API key for a cross-provider check (with one provider it is a weaker self-consistency check).");
-  var verifyTitle = escapeHtml(verifyLabel + ' — ' + verifyTip);
+  var verifyTitle = window.escapeHtml(verifyLabel + ' — ' + verifyTip);
   var verifyBar = (role === "assistant")
     ? '<div class="verify-bar"><span class="func-verify" title="' + verifyTitle + '">' +
       '<i class="fas fa-check-double"></i> ' + verifyLabel + '</span></div>'

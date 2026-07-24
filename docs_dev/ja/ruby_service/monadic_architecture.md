@@ -245,6 +245,6 @@ end
 
 ## 参考文献
 
-- [Monadicモード（ユーザードキュメント）](../../docs/ja/advanced-topics/monadic-mode.md)
-- [MDSLリファレンス](../../docs/ja/advanced-topics/monadic_dsl.md)
-- [ツールグループ](../../docs/ja/advanced-topics/tool-groups.md)
+- [Monadicモード（ユーザードキュメント）](../../../docs/ja/advanced-topics/monadic-mode.md)
+- [MDSLリファレンス](../../../docs/ja/advanced-topics/monadic_dsl.md)
+- [ツールグループ](../../../docs/ja/advanced-topics/tool-groups.md)

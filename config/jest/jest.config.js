@@ -8,13 +8,27 @@ const defaultConfig = {
   rootDir: path.resolve(__dirname, '../..'),
   testEnvironment: 'jsdom',
   testMatch: ['**/test/**/*.test.js'],
-  collectCoverage: false, // Temporarily disable coverage to avoid minimatch error
+  collectCoverage: false, // Off by default; use `npm run test:coverage`
+  // The babel/istanbul provider breaks because package.json overrides pin
+  // glob/minimatch to v10, which test-exclude cannot consume. V8 coverage
+  // does not use test-exclude, so it works with the overrides in place.
+  coverageProvider: 'v8',
   collectCoverageFrom: [
     'docker/services/ruby/public/js/monadic/**/*.js',
     'docker/services/ruby/public/js/monadic.js',
     '!**/node_modules/**'
   ],
   coverageDirectory: 'coverage',
+  // Conservative floor: ~10 points below the measured baseline
+  // (35.36 stmts / 66.57 branch / 72.3 funcs / 35.36 lines as of 2026-07).
+  coverageThreshold: {
+    global: {
+      statements: 25,
+      branches: 56,
+      functions: 62,
+      lines: 25
+    }
+  },
   transform: {},
   testPathIgnorePatterns: ['/node_modules/'],
   setupFilesAfterEnv: ['<rootDir>/test/setup.js'],

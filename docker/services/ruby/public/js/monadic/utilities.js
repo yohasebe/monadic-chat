@@ -117,13 +117,14 @@ function updateAppSelectIcon(appValue) {
   // setCookie, getCookie, setCookieValues → extracted to cookie-utils.js
 
 function listModels(models, openai = false) {
-  // Speech models (STT/TTS/realtime transcription) are selected in the Speech
-  // Settings panel, never in the chat-model selector — drop them here so an
-  // API-sourced list can't leak e.g. gpt-realtime-whisper into the dropdown.
+  // Speech models (STT/TTS/realtime transcription) and music-generation
+  // models are selected in dedicated panels/tools, never in the chat-model
+  // selector — drop them here so an API-sourced list can't leak e.g.
+  // gpt-realtime-whisper into the dropdown.
   models = models.filter(function (m) {
     const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
     if (!spec) return true;
-    return !(spec.stt_capability || spec.tts_capability || spec.supports_realtime_streaming);
+    return !(spec.stt_capability || spec.tts_capability || spec.music_capability || spec.supports_realtime_streaming);
   });
 
   // Array of patterns to identify different model types

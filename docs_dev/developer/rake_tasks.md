@@ -164,7 +164,8 @@ rake spec_unit        # Unit tests only (fast, no dependencies)
 rake spec_integration # Integration tests (requires containers)
 rake spec_system      # System tests (MDSL validation)
 rake spec_docker      # Docker infrastructure tests
-rake spec_e2e         # End-to-end tests (requires API keys)
+rake spec_e2e:jupyter_notebook  # E2E: Jupyter local ops
+rake spec_e2e:monadic_context   # E2E: Monadic context display
 
 # Code quality checks
 rake rubocop          # Ruby code style
@@ -184,21 +185,12 @@ rake jstest           # JavaScript tests (Jest)
 
 ### E2E Testing
 
-The `rake spec_e2e` task provides comprehensive end-to-end testing:
+The `spec_e2e` Rake namespace provides end-to-end testing:
 
 ```bash
-# Test all providers
-rake spec_e2e
-
 # Test specific workflows
-rake spec_e2e:chat
-rake spec_e2e:code_interpreter
 rake spec_e2e:jupyter_notebook
-rake spec_e2e:voice_chat
-
-# Test specific provider
-rake spec_e2e:code_interpreter_provider[openai]
-rake spec_e2e:code_interpreter_provider[claude]
+rake spec_e2e:monadic_context
 ```
 
 **Features**:

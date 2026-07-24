@@ -395,11 +395,7 @@ function attachEventListeners(card) {
       // Backend derives the question + answer from the session by mid, so we
       // only send the message id (server-side history is the source of truth).
       if (typeof window.verifyUIStart === 'function') window.verifyUIStart(mid);
-      if (typeof window.safeWsSend === 'function') {
-        window.safeWsSend({ message: "VERIFY_CONFIDENCE", mid: mid });
-      } else if (typeof ws !== 'undefined' && ws) {
-        ws.send(JSON.stringify({ message: "VERIFY_CONFIDENCE", mid: mid }));
-      }
+      window.safeWsSend({ message: "VERIFY_CONFIDENCE", mid: mid });
       return;
     }
 

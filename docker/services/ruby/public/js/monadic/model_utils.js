@@ -355,7 +355,7 @@ function filterToLatestVersions(models) {
  * Policy (documented in docs_dev/developer/model_spec_vocabulary.md):
  *  1. requires_confirmation: true  → always excluded (expensive / special models)
  *  2. tool_capability: false       → excluded
- *  3. Non-chat modality (TTS / embedding) → excluded from chat dropdowns
+ *  3. Non-chat modality (TTS / music / embedding) → excluded from chat dropdowns
  *
  * @param {Array}  models      - Array of model name strings
  * @param {String} providerKey - Normalized provider key (e.g. "openai", "anthropic")
@@ -372,8 +372,9 @@ function filterModelsForAllMode(models, providerKey) {
     // Exclude models requiring confirmation (expensive / special)
     if (ms.requires_confirmation === true) return false;
 
-    // Exclude non-chat modalities (TTS / embedding)
+    // Exclude non-chat modalities (TTS / music / embedding)
     if (ms.tts_capability === true) return false;
+    if (ms.music_capability === true) return false;
     if (ms.embedding_dimensions != null) return false;
 
     // Exclude models without tool capability

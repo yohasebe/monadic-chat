@@ -1217,6 +1217,22 @@ const modelSpec = {
   "gpt-realtime-whisper": {
     "stt_capability": true,
     "supports_realtime_streaming": true
+  },
+
+  // -------------------------------------------------------------------------
+  // Music model metadata (Music generation capability SSOT)
+  //
+  // These models are resolved inside the generation tool from
+  // providerDefaults.gemini.music (see gemini_helper.rb
+  // generate_music_with_lyria), never via a chat dropdown. The
+  // `music_capability` flag keeps them out of chat model selectors
+  // (utilities.js listModels, model_utils.js filterModelsForAllMode).
+  // -------------------------------------------------------------------------
+  "lyria-3-pro-preview": {
+    "music_capability": true
+  },
+  "lyria-3-clip-preview": {
+    "music_capability": true
   }
 }
 

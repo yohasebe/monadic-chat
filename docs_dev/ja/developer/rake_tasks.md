@@ -155,7 +155,8 @@ rake spec
 rake spec_unit        # ユニットテストのみ（高速）
 rake spec_integration # 統合テスト
 rake spec_system      # システムテスト（MDSL検証）
-rake spec_e2e         # エンドツーエンドテスト（サーバー起動が必要）
+rake spec_e2e:jupyter_notebook  # E2E: Jupyterローカル操作
+rake spec_e2e:monadic_context   # E2E: Monadicコンテキスト表示
 
 # Rubyコードスタイルチェック
 rake rubocop
@@ -173,7 +174,15 @@ rake test
 
 ### E2Eテスト
 
-`rake spec_e2e`タスクは包括的なエンドツーエンドテストを提供します：
+`spec_e2e` Rake名前空間はエンドツーエンドテストを提供します：
+
+```bash
+# 特定のワークフローをテスト
+rake spec_e2e:jupyter_notebook
+rake spec_e2e:monadic_context
+```
+
+**特徴**：
 - Dockerコンテナが動作していることを確認
 - サーバーが起動していない場合は自動的に起動
 - 設定されたすべてのプロバイダーでWebSocketベースのテストを実行

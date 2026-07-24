@@ -218,7 +218,7 @@ When adding Research Assistant for a new provider, consider:
 
 ## Related Documentation
 
-- [DeepSeek Architecture](./vendors/deepseek_architecture.md) - DSML parsing and auto-retry
-- [Thinking/Reasoning Display](./thinking_reasoning_display.md) - Reasoning content handling
-- [Monadic Architecture](./monadic_architecture.md) - Session state management
-- [Web Search Integration](../basic-usage/basic-apps.md#research-assistant) - User documentation
+- [DeepSeek Architecture](../vendors/deepseek_architecture.md) - DSML parsing and auto-retry
+- [Thinking/Reasoning Display](../thinking_reasoning_display.md) - Reasoning content handling
+- [Monadic Architecture](../monadic_architecture.md) - Session state management
+- [Web Search Integration](../../../docs/basic-usage/basic-apps.md#chat-assistant-apps) - User documentation

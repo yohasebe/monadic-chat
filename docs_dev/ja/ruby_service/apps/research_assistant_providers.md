@@ -221,4 +221,4 @@ end
 - [DeepSeek アーキテクチャ](../vendors/deepseek_architecture.md) - DSMLパースと自動リトライ
 - [思考/推論表示](../thinking_reasoning_display.md) - 推論コンテンツ処理
 - [Monadicアーキテクチャ](../monadic_architecture.md) - セッション状態管理
-- [ウェブ検索統合](../../basic-usage/basic-apps.md#research-assistant) - ユーザードキュメント
+- [ウェブ検索統合](../../../../docs/ja/basic-usage/basic-apps.md#チャットアシスタントアプリ) - ユーザードキュメント

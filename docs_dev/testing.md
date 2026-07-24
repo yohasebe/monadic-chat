@@ -6,26 +6,26 @@ This project ships multiple test categories. Goals, locations, and commands:
 
 - Unit (`spec/unit`):
   - Scope: small utilities, adapters behavior without external side effects.
-  - Command: `rake spec_unit` or `rake spec` (runs all ruby test suites).
+  - Command: `rake spec` (runs all Ruby test suites) or `bundle exec rspec spec/unit` from `docker/services/ruby/` (see CONTRIBUTING.md).
 
 - Integration (`spec/integration`):
   - Scope: app helpers, provider integrations, and real API workflows.
-  - Real-API subsets live under `spec/integration/api_smoke`, `spec/integration/api_media`, and `spec/integration/provider_matrix`.
+  - Real-API subsets live under `spec/integration/api_media` and `spec/integration/provider_matrix` (API-gated specs also live directly in `spec/integration`).
   - Commands (Rake):
     - `rake test` — Run all tests (Ruby + JavaScript + Python, no API)
     - `rake test:all[standard]` — Comprehensive test suite (Ruby + API + JS + Python)
     - `rake test:all[full]` — Full test suite including media tests (image/video/audio)
-    - Legacy commands:
-      - `RUN_API=true rake spec_api:smoke` — non‑media real API smoke across providers
-      - `RUN_API=true RUN_MEDIA=true rake spec_api:media` — media (image/voice) tests
-      - `RUN_API=true rake spec_api:matrix` — minimal matrix across providers
-      - `RUN_API=true rake spec_api:all` — all non‑media API tests (+ optional matrix)
+    - API-focused commands:
+      - `rake spec_api:media` — media (image/video/voice) tests; sets `RUN_API`/`RUN_MEDIA` itself
+      - `rake matrix[openai,anthropic]` — provider matrix tests (`spec/integration/provider_matrix`; all configured providers when no argument is given)
+      - `cd docker/services/ruby && RUN_API=true bundle exec rspec spec/integration` — API-gated integration specs directly
 
 - System (`spec/system`):
   - Scope: server endpoints and high‑level behavior without live external APIs.
 
 - E2E (`spec/e2e`):
   - Scope: UI/server wiring and local workflows only (no real provider API by default).
+  - Commands: `rake spec_e2e:jupyter_notebook` and `rake spec_e2e:monadic_context` (specs live in `docker/services/ruby/spec/e2e/`).
   - `RUN_API_E2E=true` can enable API calls, but real API coverage is intentionally moved to `spec_api` to reduce flakiness.
 
 ## Principles
@@ -175,34 +175,29 @@ Mocks can't detect:
 
 #### 3. Test Level Strategy (Depth vs Cost)
 
-**ENV-Driven Execution Modes**:
+**Execution Modes (by cost/depth)**:
 
 ```bash
-# LEVEL_1: Smoke tests (fast, cheap)
+# Smoke pass (fast, cheap): single-provider matrix run
 # - Basic connectivity
 # - Simple text generation
-# - ~$0.10 per run
-TEST_LEVEL=1 RUN_API=true rake spec_api:smoke
+rake matrix[openai]
 
-# LEVEL_2: Functional tests (moderate)
+# Functional pass (moderate): API-gated integration specs
 # - Tool calling
 # - Multi-modal inputs
 # - Streaming responses
-# - ~$1.50 per run
-TEST_LEVEL=2 RUN_API=true rake spec_api:all
+cd docker/services/ruby && RUN_API=true bundle exec rspec spec/integration
 
-# LEVEL_3: Edge cases (comprehensive, expensive)
-# - Large context windows
-# - Complex tool chains
-# - Error recovery scenarios
-# - ~$5.00 per run
-TEST_LEVEL=3 RUN_API=true rake spec_api:all
+# Full pass (comprehensive, expensive)
+# - Everything above plus media generation (image/video/voice)
+rake test:all[full]
 ```
 
 **Use Cases**:
-- **CI/CD**: LEVEL_1 on every commit
-- **Pre-release**: LEVEL_2 before merging to main
-- **Nightly builds**: LEVEL_3 comprehensive validation
+- **CI/CD**: smoke pass on every commit
+- **Pre-release**: functional pass before merging to main
+- **Nightly builds**: full pass (including media)
 
 #### 4. Parallelism and Rate Limiting
 
@@ -283,14 +278,14 @@ end
 
 **Selective Execution**:
 ```bash
-# Test specific provider
-PROVIDERS=openai RUN_API=true rake spec_api:smoke
+# Test specific providers
+rake matrix[openai,anthropic]
 
-# Test specific capability across providers
-rspec spec/integration/api_smoke/vision_spec.rb
+# Run all API-gated integration specs (from docker/services/ruby)
+RUN_API=true bundle exec rspec spec/integration
 
-# Test single app type
-rspec spec/integration/api_smoke/tool_calling_spec.rb
+# Run a single spec file
+RUN_API=true bundle exec rspec spec/integration/grok_tool_calling_spec.rb
 ```
 
 ### Cost Optimization Strategies
@@ -299,10 +294,10 @@ rspec spec/integration/api_smoke/tool_calling_spec.rb
 
 ```bash
 # Run cheapest tests first (fail fast)
-rake spec_api:smoke  # $0.10
+rake matrix[openai]
 
-# Only run expensive tests when smoke passes
-rake spec_api:all    # $1.50
+# Only run expensive media tests when the cheap pass succeeds
+rake spec_api:media
 ```
 
 #### 2. Model Selection
@@ -337,7 +332,7 @@ after(:all) { cleanup_shared_resources }
 #### 1. Enable Detailed Logging
 
 ```bash
-API_LOG=true EXTRA_LOGGING=true RUN_API=true rake spec_api:smoke
+API_LOG=true EXTRA_LOGGING=true rake matrix[openai]
 ```
 
 #### 2. Check Cost Log
@@ -349,13 +344,13 @@ cat ~/monadic/log/test_api_costs.json | jq '.providers'
 #### 3. Run Single Provider
 
 ```bash
-PROVIDERS=openai RUN_API=true rspec spec/integration/api_smoke/basic_spec.rb
+rake matrix[openai]
 ```
 
 #### 4. Increase Timeout
 
 ```bash
-API_TIMEOUT=120 RUN_API=true rake spec_api:smoke
+API_TIMEOUT=120 rake spec_api:media
 ```
 
 #### 5. Review Test Artifacts
@@ -441,15 +436,15 @@ The `ProviderMatrixHelper` applies conservative heuristics so that a single deve
 
 All values can be overridden per provider (for example `API_TIMEOUT_COHERE=120` or `API_RATE_QPS_OPENAI=0.25`). When the provider‑specific variable is absent, the helper falls back to the global knob (`API_TIMEOUT`, `API_MAX_RETRIES`, `API_RATE_QPS`, `API_RETRY_BASE`) and finally to the defaults above.
 
-### Running the smoke suite manually
+### Running API tests manually
 
 1. Export the API keys you intend to exercise in `~/monadic/config/env` (missing keys cause the helper to `skip`).
 2. Optionally narrow the providers via `PROVIDERS=openai,anthropic` or adjust per‑provider pacing (`API_TIMEOUT_<PROVIDER>`, etc.).
 3. Execute the suite:
    ```bash
-   RUN_API=true rake spec_api:all
+   rake matrix
    ```
-   For a faster pass, scope to a subset (e.g., `rake spec_api:smoke`).
+   For a faster pass, scope to specific providers (e.g., `rake matrix[openai,anthropic]`).
 4. Review `./tmp/test_results/latest_compact.md` for a concise summary. Re-run failed providers individually if a transient error is suspected.
 
 ## Result Summaries

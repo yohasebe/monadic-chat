@@ -6,26 +6,26 @@
 
 - ユニット（`spec/unit`）：
   - スコープ：小さなユーティリティ、外部副作用なしのアダプター動作。
-  - コマンド：`rake spec_unit`または`rake spec`（すべてのRubyテストスイートを実行）。
+  - コマンド：`rake spec`（すべてのRubyテストスイートを実行）、または`docker/services/ruby/`から`bundle exec rspec spec/unit`（CONTRIBUTING.md参照）。
 
 - 統合（`spec/integration`）：
   - スコープ：アプリヘルパー、プロバイダー統合、実際のAPIワークフロー。
-  - 実APIサブセットは`spec/integration/api_smoke`、`spec/integration/api_media`、`spec/integration/provider_matrix`配下にあります。
+  - 実APIサブセットは`spec/integration/api_media`と`spec/integration/provider_matrix`配下にあります（APIゲート付きスペックは`spec/integration`直下にも存在）。
   - コマンド（Rake）：
     - `rake test` — すべてのテストを実行（Ruby + JavaScript + Python、APIなし）
     - `rake test:all[standard]` — 包括的なテストスイート（Ruby + API + JS + Python）
     - `rake test:all[full]` — メディアテスト含む完全テストスイート（画像/動画/音声）
-    - レガシーコマンド：
-      - `RUN_API=true rake spec_api:smoke` — プロバイダー全体の非メディア実APIスモーク
-      - `RUN_API=true RUN_MEDIA=true rake spec_api:media` — メディア（画像/音声）テスト
-      - `RUN_API=true rake spec_api:matrix` — プロバイダー全体の最小マトリックス
-      - `RUN_API=true rake spec_api:all` — すべての非メディアAPIテスト（+ オプションのマトリックス）
+    - API関連コマンド：
+      - `rake spec_api:media` — メディア（画像/動画/音声）テスト（`RUN_API`/`RUN_MEDIA`は自動設定）
+      - `rake matrix[openai,anthropic]` — プロバイダーマトリックステスト（`spec/integration/provider_matrix`。引数なしで設定済み全プロバイダー）
+      - `cd docker/services/ruby && RUN_API=true bundle exec rspec spec/integration` — APIゲート付き統合スペックの直接実行
 
 - システム（`spec/system`）：
   - スコープ：ライブ外部APIなしのサーバーエンドポイントと高レベル動作。
 
 - E2E（`spec/e2e`）：
   - スコープ：UI/サーバー配線とローカルワークフローのみ（デフォルトで実プロバイダーAPIなし）。
+  - コマンド：`rake spec_e2e:jupyter_notebook`と`rake spec_e2e:monadic_context`（スペックは`docker/services/ruby/spec/e2e/`に配置）。
   - `RUN_API_E2E=true`でAPI呼び出しを有効化できますが、実APIカバレッジは脆弱性を減らすために意図的に`spec_api`に移動されています。
 
 ## 原則
@@ -51,15 +51,15 @@
 
 すべての値はプロバイダーごとに上書きできます（例：`API_TIMEOUT_COHERE=120`または`API_RATE_QPS_OPENAI=0.25`）。プロバイダー固有の変数が存在しない場合、ヘルパーはグローバルノブ（`API_TIMEOUT`、`API_MAX_RETRIES`、`API_RATE_QPS`、`API_RETRY_BASE`）にフォールバックし、最終的に上記のデフォルトを使用します。
 
-### スモークスイートの手動実行
+### APIテストの手動実行
 
 1. `~/monadic/config/env`で実行するAPIキーをエクスポート（キーが欠落しているとヘルパーが`skip`します）。
 2. オプションで`PROVIDERS=openai,anthropic`でプロバイダーを絞り込むか、プロバイダーごとのペーシングを調整（`API_TIMEOUT_<PROVIDER>`など）。
 3. スイートを実行：
    ```bash
-   RUN_API=true rake spec_api:all
+   rake matrix
    ```
-   より高速なパスには、サブセットにスコープ（例：`rake spec_api:smoke`）。
+   より高速なパスには、プロバイダーを絞り込む（例：`rake matrix[openai,anthropic]`）。
 4. 簡潔な要約については`./tmp/test_runs/latest_compact.md`をレビュー。一時的なエラーが疑われる場合は、失敗したプロバイダーを個別に再実行。
 
 ## 結果要約

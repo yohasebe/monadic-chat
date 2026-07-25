@@ -38,6 +38,13 @@ All test results are saved to a unified directory per test run:
 - **Symlink to latest run**:
   - `tmp/test_results/latest/` → points to most recent test run directory
 
+- **Retention**: every rspec invocation creates one run directory, so
+  `spec/support/test_run_dir.rb` prunes on each run and keeps only the newest
+  **20**. Override with `TEST_RESULTS_KEEP=<n>`; `TEST_RESULTS_KEEP=0` disables
+  pruning entirely. Only entries named exactly `YYYYMMDD_HHMMSS` are ever
+  removed — the `latest` symlink and any other file or folder you park in
+  `tmp/test_results/` are left alone.
+
 - **Simple test run** (`rake test`):
   ```
   tmp/test_results/test_<timestamp>/

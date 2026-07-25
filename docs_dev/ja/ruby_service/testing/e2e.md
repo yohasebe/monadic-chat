@@ -24,18 +24,16 @@ e2e/
 
 ## テストの実行
 
-### すべてのE2Eテスト（実際のAPIなし）
+### 特定のE2Eテスト（リポジトリルートから実行）
 ```bash
-rake spec_e2e  # 実際のプロバイダーAPIにヒットしない
+rake spec_e2e:jupyter_notebook   # Jupyterローカル操作（実際のAPIなし）
+rake spec_e2e:monadic_context    # Monadic JSON表示（モックレスポンス）
 ```
 
-### 特定のアプリテスト
+### すべてのE2Eテスト（実際のAPIなし）
 ```bash
-rake spec_e2e:chat              # Chatアプリのみ
-rake spec_e2e:code_interpreter   # すべてのCode Interpreterテスト
-rake spec_e2e:image_generator    # Image Generatorのみ
-rake spec_e2e:pdf_navigator      # PDF Navigatorのみ
-rake spec_e2e:help              # Monadic Helpのみ
+cd docker/services/ruby
+./spec/e2e/run_e2e_tests.sh all  # 実際のプロバイダーAPIにヒットしない
 ```
 
 実際のAPIプロバイダーテストは spec_api タスクにあります。例：

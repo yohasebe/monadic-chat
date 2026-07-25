@@ -1042,9 +1042,9 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "analyzes audio with Gemini and charges the budget" do
       allow(described_class).to receive(:resolve_shared_path).with("song.mp3").and_return("/data/song.mp3")
-      allow(described_class).to receive(:audio_analyze_model).and_return("gemini-3.5-flash")
+      allow(described_class).to receive(:audio_analyze_model).and_return("gemini-3.6-flash")
       expect(AudioAnalysisAgent).to receive(:analyze)
-        .with(audio_path: "/data/song.mp3", prompt: "critique", model: "gemini-3.5-flash")
+        .with(audio_path: "/data/song.mp3", prompt: "critique", model: "gemini-3.6-flash")
         .and_return("A lively swing performance.")
       result = described_class.call("monadic_analyze_audio", { "prompt" => "critique", "path" => "song.mp3" })
       expect(result[:success]).to be true
@@ -1055,7 +1055,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "maps an ERROR string to a structured failure" do
       allow(described_class).to receive(:resolve_shared_path).and_return("/data/x.mp3")
-      allow(described_class).to receive(:audio_analyze_model).and_return("gemini-3.5-flash")
+      allow(described_class).to receive(:audio_analyze_model).and_return("gemini-3.6-flash")
       allow(AudioAnalysisAgent).to receive(:analyze).and_return("ERROR: Audio file not found: x.mp3")
       result = described_class.call("monadic_analyze_audio", { "prompt" => "p", "path" => "x.mp3" })
       expect(result[:success]).to be false

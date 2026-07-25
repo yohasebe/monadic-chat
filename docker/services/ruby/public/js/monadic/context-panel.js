@@ -494,14 +494,17 @@ const ContextPanel = {
   },
 
   /**
-   * Escape HTML to prevent XSS
+   * Escape HTML to prevent XSS.
+   * Delegates to the canonical implementation in text-utils.js
+   * (window.escapeHtml). Unlike the former textContent-based copy, the
+   * canonical version also escapes quotes, which is required here:
+   * data-key="${this.escapeHtml(...)}" (renderField) is an attribute
+   * context. null input returns "" (textContent semantics).
    * @param {string} str - The string to escape
    * @returns {string} Escaped string
    */
   escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
+    return window.escapeHtml(str);
   },
 };
 

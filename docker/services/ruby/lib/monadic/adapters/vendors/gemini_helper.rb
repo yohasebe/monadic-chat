@@ -795,10 +795,14 @@ module GeminiHelper
       body["generationConfig"]["temperature"] = options["temperature"]
     end
 
-    # For thinking models, configure appropriate parameter
+    # For thinking models, configure appropriate parameter.
+    # The API field is generationConfig.thinkingConfig.thinkingLevel; the older
+    # generationConfig.thinking.level shorthand is rejected ("Unknown name
+    # 'thinking'") by every Gemini 3 model. "none" is already filtered out above.
     if thinking_level
-      body["generationConfig"]["thinking"] = {
-        "level" => thinking_level
+      body["generationConfig"]["thinkingConfig"] = {
+        "thinkingLevel" => thinking_level,
+        "includeThoughts" => false
       }
     elsif is_thinking_model
       # For models with thinking budget (configure via reasoning_effort)
@@ -945,7 +949,9 @@ module GeminiHelper
 
               # Check for function calls (tool invocations)
               if part["functionCall"]
-                function_calls << part["functionCall"]
+                fc = part["functionCall"].dup
+                fc["_thoughtSignature"] = part["thoughtSignature"] if part["thoughtSignature"]
+                function_calls << fc
               # Handle both part["text"] and part itself being a hash with "text" key
               elsif part["text"]
                 text_parts << part["text"]
@@ -1238,6 +1244,7 @@ module GeminiHelper
       session[:gemini_jupyter_retried] = nil  # Allow retry on each new user turn
       session[:parallel_dispatch_called] = nil
       session[:images_injected_this_turn] = Set.new
+      session[:gemini_thinking] = nil  # Reset cross-round reasoning accumulator
       # Clear tool_results from previous turn to prevent stale data affecting termination logic
       session[:parameters]["tool_results"] = []
     end
@@ -1392,16 +1399,35 @@ module GeminiHelper
     )
 
     if role == "tool"
-      # Add tool results as function responses to continue the conversation
-      # Gemini API requires functionResponse format, not plain text
+      # Reconstruct the assistant's functionCall turn before the results. Gemini 3
+      # requires the model turn holding the functionCall (with its thoughtSignature)
+      # to immediately precede the tool results; the results go under role "user"
+      # (role "function" is accepted by 2.5 but rejected by Gemini 3 models).
+      fc_parts = obj["tool_results"].filter_map { |result|
+        fc = result["functionCall"]
+        next unless fc
+        part = { "functionCall" => fc }
+        part["thoughtSignature"] = result["thoughtSignature"] if result["thoughtSignature"]
+        part
+      }
+      if fc_parts.any?
+        last = body["contents"].last
+        if last && last["role"] == "model"
+          # Merge into the existing model turn (keeps role alternation valid)
+          (last["parts"] ||= []).concat(fc_parts)
+        else
+          body["contents"] << { "role" => "model", "parts" => fc_parts }
+        end
+      end
+
+      # Add tool results as functionResponse parts under role "user"
       parts = obj["tool_results"].map { |result|
         result["functionResponse"] ? { "functionResponse" => result["functionResponse"] } : nil
       }.compact
 
       if parts.any?
-        # Add tool results with role "function" (Gemini's expected format for function responses)
         body["contents"] << {
-          "role" => "function",
+          "role" => "user",
           "parts" => parts
         }
       end
@@ -1744,6 +1770,11 @@ module GeminiHelper
       body["generationConfig"]["temperature"] = temperature if temperature
       body["generationConfig"]["maxOutputTokens"] = max_tokens if max_tokens
 
+      # Surface the model's reasoning in the UI when "Show Thinking" is on.
+      # Defaults to on; only an explicit false disables it. The streaming
+      # handler emits parts with thought == true as "thinking" fragments.
+      include_thoughts = ![false, "false"].include?(obj["show_thinking"])
+
       # Thinking level (Gemini 3)
       if thinking_level
         model_for_budget = model_name || obj["model"]
@@ -1757,7 +1788,7 @@ module GeminiHelper
 
         body["generationConfig"]["thinkingConfig"] = {
           "thinkingBudget" => budget_tokens,
-          "includeThoughts" => false
+          "includeThoughts" => include_thoughts
         }
       # Thinking budget (for models with thinking_budget support)
       elsif is_thinking_model && reasoning_effort
@@ -1798,7 +1829,7 @@ module GeminiHelper
 
         body["generationConfig"]["thinkingConfig"] = {
           "thinkingBudget" => budget_tokens,
-          "includeThoughts" => false
+          "includeThoughts" => include_thoughts
         }
       end
     end
@@ -2487,7 +2518,13 @@ module GeminiHelper
 
               elsif part["functionCall"]
 
-                tool_calls << part["functionCall"]
+                fc = part["functionCall"].dup
+                # Gemini 3 returns a thoughtSignature as a sibling of functionCall.
+                # It must be echoed back verbatim on the reconstructed model turn or
+                # the follow-up request is rejected. Carried on an internal key so
+                # name/args consumers are unaffected.
+                fc["_thoughtSignature"] = part["thoughtSignature"] if part["thoughtSignature"]
+                tool_calls << fc
                 res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                 block&.call res
               end
@@ -2567,6 +2604,16 @@ module GeminiHelper
     end
 
     if tool_calls.any?
+      # Preserve this round's reasoning across the tool round(s). Gemini streams
+      # its thinking summary BEFORE the tool call, but the final message is built
+      # in the post-tool round, so accumulate here to keep the persistent Thinking
+      # panel after tool use (e.g. Knowledge Base / library search). Mirrors the
+      # Grok/DeepSeek session-reasoning pattern.
+      if thinking_parts.any?
+        prior = session[:gemini_thinking].to_s
+        session[:gemini_thinking] = prior.empty? ? thinking_parts.join("") : (prior + "\n\n" + thinking_parts.join(""))
+      end
+
       context = []
 
       if result
@@ -2708,12 +2755,18 @@ module GeminiHelper
         }.compact
       end
       
-      # Don't add thinking content to final response 
-      # (it's already been streamed to the user during processing)
-      # This prevents duplicate display of thinking content
-      # if thinking_parts.any?
-      #   response_data["choices"][0]["message"]["thinking"] = thinking_parts.join("\n")
-      # end
+      # Attach the reasoning summary to the final message so the completed bubble
+      # keeps a collapsible "Thinking Process" panel (unified with other providers
+      # via renderThinkingBlock). The live-streamed fragments are replaced by this
+      # final panel, so there is no duplicate display. Merge reasoning accumulated
+      # across earlier tool rounds (session[:gemini_thinking]) with this round's
+      # own thinking so the panel survives tool use (Knowledge Base / tools).
+      own_thinking = thinking_parts.join("")
+      accumulated_thinking = session[:gemini_thinking].to_s
+      merged_thinking = [accumulated_thinking, own_thinking].reject { |s| s.strip.empty? }.join("\n\n")
+      unless merged_thinking.strip.empty?
+        response_data["choices"][0]["message"]["thinking"] = merged_thinking
+      end
       
       [response_data]
     else
@@ -3121,6 +3174,14 @@ module GeminiHelper
         tool_result_content = new_results.to_s.strip
       end
 
+      # Carry the reasoning trace through the tool-result assembly so the final
+      # card keeps its Thinking panel (this path drops everything but "content").
+      # new_results already merged the pre-tool + post-tool thinking; fall back to
+      # the session accumulator if it did not.
+      tool_result_thinking = (new_results.is_a?(Array) && new_results[0].is_a?(Hash)) ?
+        new_results.dig(0, "choices", 0, "message", "thinking").to_s : ""
+      tool_result_thinking = session[:gemini_thinking].to_s if tool_result_thinking.strip.empty?
+
       # Special handling for Math Tutor run_code results
       if (session[:parameters]["app_name"].to_s.include?("MathTutor") ||
           session[:parameters]["display_name"].to_s.include?("Math Tutor")) &&
@@ -3245,7 +3306,9 @@ module GeminiHelper
         end
       end
 
-      [{ "choices" => [{ "message" => { "content" => final_result } }] }]
+      final_message = { "content" => final_result }
+      final_message["thinking"] = tool_result_thinking unless tool_result_thinking.strip.empty?
+      [{ "choices" => [{ "message" => final_message }] }]
     rescue StandardError => e
       result_text = result.join("").strip
       result_text = "" if result_text.include?("No response was received")
@@ -3338,6 +3401,8 @@ module GeminiHelper
                   "content" => content
                 }
               },
+              "functionCall" => { "name" => function_name, "args" => tool_call["args"] || {} },
+              "thoughtSignature" => tool_call["_thoughtSignature"],
               "call_depth" => call_depth
             }
             next
@@ -3352,6 +3417,8 @@ module GeminiHelper
                 "content" => content
               }
             },
+            "functionCall" => { "name" => function_name, "args" => tool_call["args"] || {} },
+            "thoughtSignature" => tool_call["_thoughtSignature"],
             "call_depth" => call_depth  # Track call_depth to prevent duplicates within same turn
           }
 

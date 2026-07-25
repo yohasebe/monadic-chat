@@ -4,7 +4,7 @@
 
 ## コンテンツ
 
-- [Anthropic/Claude アーキテクチャ](anthropic_architecture.md) - Claude統合の設計決定と実装パターン
+- [Anthropic/Claude アーキテクチャ（英語）](../../../ruby_service/vendors/anthropic_architecture.md) - Claude統合の設計決定と実装パターン
   - ハードコードされた動作パターンとその根拠
   - SSOT移行状況
   - APIリクエスト形式とストリーミング
@@ -31,4 +31,4 @@
 
 - [SSOT正規化](../../ssot_normalization_and_accessors.md) - 全プロバイダーのSingle Source of Truth戦略
 - [モデルスペック語彙](../../developer/model_spec_vocabulary.md) - モデル機能の正規語彙
-- [ベンダーヘルパー](../../../docker/services/ruby/lib/monadic/adapters/vendors/) - 実装コード
+- [ベンダーヘルパー](../../../../docker/services/ruby/lib/monadic/adapters/vendors/) - 実装コード

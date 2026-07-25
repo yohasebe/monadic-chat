@@ -72,7 +72,7 @@ This document defines the canonical property names used across providers in `mod
   - Cohere-specific. When `true`, a reasoning model handles the native Cohere v2 multi-turn tool flow with reasoning on, so `cohere_helper`'s single-text flattening workaround (needed by `command-a-reasoning`) is bypassed. Set on models verified to keep the native message array (e.g., North Mini Code). Absent/false → the flattening workaround applies.
 
 - unavailable_fallback: string
-  - A model id to transparently retry on when this model returns a 404 not_found. Used for temporarily-paused models whose API contract is identical to the fallback (e.g., `claude-fable-5` → `claude-opus-4-8` while Fable 5 access is paused). The vendor helper swaps the model id and reuses the request body verbatim; when the original model returns, the 404 stops and it is used again with no change. See `claude_helper.rb`.
+  - A model id to transparently retry on when this model returns a 404 not_found. Used for temporarily-paused models whose API contract is identical to the fallback (e.g., `claude-fable-5` → `claude-opus-5` while Fable 5 access is paused). The vendor helper swaps the model id and reuses the request body verbatim; when the original model returns, the 404 stops and it is used again with no change. See `claude_helper.rb`.
 
 ## Alias Normalization
 

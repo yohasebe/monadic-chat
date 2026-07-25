@@ -49,8 +49,8 @@ RSpec.describe 'ClaudeHelper model unavailable fallback' do
     body = { 'model' => 'claude-fable-5', 'messages' => [], 'max_tokens' => 16 }
     result = run(body, {})
 
-    expect(calls).to eq(['claude-fable-5', 'claude-opus-4-8'])
-    expect(body['model']).to eq('claude-opus-4-8') # body reused, only model swapped
+    expect(calls).to eq(['claude-fable-5', 'claude-opus-5'])
+    expect(body['model']).to eq('claude-opus-5') # body reused, only model swapped
     expect(result).to eq([:processed])
   end
 
@@ -66,7 +66,7 @@ RSpec.describe 'ClaudeHelper model unavailable fallback' do
 
     info = notices.select { |m| m['type'] == 'system_info' }
     expect(info.size).to eq(1)
-    expect(info.first['content']).to include('claude-fable-5').and include('claude-opus-4-8')
+    expect(info.first['content']).to include('claude-fable-5').and include('claude-opus-5')
   end
 
   it 'does not recurse when the fallback model itself is not found' do
@@ -79,14 +79,14 @@ RSpec.describe 'ClaudeHelper model unavailable fallback' do
     result = run({ 'model' => 'claude-fable-5', 'messages' => [], 'max_tokens' => 16 }, {})
 
     # one swap only: fable-5 -> opus-4-8, then give up (opus has no fallback)
-    expect(calls).to eq(['claude-fable-5', 'claude-opus-4-8'])
+    expect(calls).to eq(['claude-fable-5', 'claude-opus-5'])
     expect(result.first['type']).to eq('error')
   end
 
   it 'surfaces the error unchanged for a model without an unavailable_fallback' do
     allow(helper).to receive(:post_json_with_retries).and_return(response(404, not_found_body))
 
-    result = run({ 'model' => 'claude-opus-4-8', 'messages' => [], 'max_tokens' => 16 }, {})
+    result = run({ 'model' => 'claude-opus-5', 'messages' => [], 'max_tokens' => 16 }, {})
 
     expect(result.first['type']).to eq('error')
   end

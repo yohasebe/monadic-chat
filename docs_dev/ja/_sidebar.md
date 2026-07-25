@@ -28,7 +28,7 @@
   * [Auto Forge内部実装](/ja/auto_forge_internals.md)
   * [Substitution Pipeline（置換パイプライン）](/ja/substitution_pipeline.md)
   * [SSOT正規化](/ja/ssot_normalization_and_accessors.md)
-  * [SSOT機能概要](/ja/ssot_capabilities_and_model_spec.md)
+  * [SSOT機能概要（英語）](/ssot_capabilities_and_model_spec.md)
   * [アプリの分離とセッション安全性](/ja/app_isolation_and_session_safety.md)
 
 * 💻 フロントエンド

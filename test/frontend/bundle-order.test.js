@@ -95,4 +95,46 @@ describe('bundle order invariants', () => {
   test('debug-config.js stays at index 0 (loaded first for early flag access)', () => {
     expect(files[0]).toBe('js/debug-config.js');
   });
+
+  test('text-utils.js (canonical escapeHtml) precedes every delegating consumer', () => {
+    const helperIdx = files.indexOf('js/monadic/text-utils.js');
+    expect(helperIdx).toBeGreaterThanOrEqual(0);
+
+    // These modules delegate their escaping to window.escapeHtml, which
+    // text-utils.js defines at load time.
+    const consumers = [
+      'js/monadic/html-sanitizer.js',
+      'js/monadic/markdown-renderer.js',
+      'js/monadic/card-renderer.js',
+      'js/monadic/library-panel.js',
+      'js/monadic/websocket-handlers.js',
+      'js/monadic/ws-privacy-handler.js',
+      'js/monadic/ws-message-renderer.js',
+      'js/monadic/context-panel.js',
+      'js/monadic/pdf_export.js'
+    ];
+
+    consumers.forEach(consumer => {
+      const consumerIdx = files.indexOf(consumer);
+      expect(consumerIdx).toBeGreaterThan(-1);
+      expect(consumerIdx).toBeGreaterThan(helperIdx);
+    });
+  });
+
+  test('html-sanitizer.js (window.sanitizeModelHtml) precedes its innerHTML-sink consumers', () => {
+    const helperIdx = files.indexOf('js/monadic/html-sanitizer.js');
+    expect(helperIdx).toBeGreaterThanOrEqual(0);
+
+    const consumers = [
+      'js/monadic/card-renderer.js',
+      'js/monadic/ws-message-renderer.js',
+      'js/monadic/verify-render.js'
+    ];
+
+    consumers.forEach(consumer => {
+      const consumerIdx = files.indexOf(consumer);
+      expect(consumerIdx).toBeGreaterThan(-1);
+      expect(consumerIdx).toBeGreaterThan(helperIdx);
+    });
+  });
 });

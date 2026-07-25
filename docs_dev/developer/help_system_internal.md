@@ -345,4 +345,4 @@ jq '.[].is_internal' docker/services/pgvector/help_data/help_docs.json | sort -u
 - [Help System Documentation](../../docs/advanced-topics/help-system.md) - Public documentation
 - [ProcessDocumentation source](../../docker/services/ruby/scripts/utilities/process_documentation.rb)
 - [HelpEmbeddings source](../../docker/services/ruby/lib/monadic/utils/help_embeddings.rb)
-- [Export script source](../../docker/services/ruby/scripts/utilities/export_help_database_docker.rb)
+- [help:export task source](../../rakelib/help.rake)

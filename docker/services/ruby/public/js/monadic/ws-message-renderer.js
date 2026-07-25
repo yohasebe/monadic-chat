@@ -264,8 +264,12 @@ function handleEditSuccess(data) {
 
   // Update the HTML content
   if (data.html) {
-    // Update the card with the HTML from server
-    cardTextEl.innerHTML = data.html;
+    // Update the card with the HTML from server.
+    // Server-rendered HTML bypasses the client MarkdownRenderer, so it is
+    // sanitized here (DOMPurify; fails closed when unavailable).
+    cardTextEl.innerHTML = typeof window.sanitizeModelHtml === 'function'
+      ? window.sanitizeModelHtml(data.html)
+      : window.escapeHtml(data.html);
 
     // Apply renderers to the updated content
     if (window.MarkdownRenderer) {
@@ -307,8 +311,8 @@ function handleEditSuccess(data) {
           // This image has a mask - render as overlay
           image_data += `
             <div class="mask-overlay-container mb-3">
-              <img class='base-image' alt='${image.title}' src='${image.data}' />
-              <img class='mask-overlay' alt='${maskImage.title}' src='${maskImage.display_data || maskImage.data}' style="opacity: 0.6;" />
+              <img class='base-image' alt='${window.escapeHtml(image.title)}' src='${image.data}' />
+              <img class='mask-overlay' alt='${window.escapeHtml(maskImage.title)}' src='${maskImage.display_data || maskImage.data}' style="opacity: 0.6;" />
               <div class="mask-overlay-label">MASK</div>
             </div>
           `;
@@ -317,13 +321,13 @@ function handleEditSuccess(data) {
           image_data += `
             <div class="pdf-preview mb-3">
               <i class="fas fa-file-pdf text-danger"></i>
-              <span class="ms-2">${image.title}</span>
+              <span class="ms-2">${window.escapeHtml(image.title)}</span>
             </div>
           `;
         } else {
           // Regular image without mask
           image_data += `
-            <img class='base64-image mb-3' src='${image.data}' alt='${image.title}' style='max-width: 100%; height: auto;' />
+            <img class='base64-image mb-3' src='${image.data}' alt='${window.escapeHtml(image.title)}' style='max-width: 100%; height: auto;' />
           `;
         }
       });
@@ -332,7 +336,7 @@ function handleEditSuccess(data) {
       maskImages.forEach(mask => {
         if (!imageMap.has(mask.mask_for)) {
           image_data += `
-            <img class='base64-image mb-3' src='${mask.display_data || mask.data}' alt='${mask.title}' style='max-width: 100%; height: auto;' />
+            <img class='base64-image mb-3' src='${mask.display_data || mask.data}' alt='${window.escapeHtml(mask.title)}' style='max-width: 100%; height: auto;' />
           `;
         }
       });

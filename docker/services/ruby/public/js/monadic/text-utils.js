@@ -2,6 +2,7 @@
  * Text Utility Functions for Monadic Chat
  *
  * Pure string manipulation helpers used across the application:
+ * - escapeHtml: HTML-encode unsafe strings (canonical implementation)
  * - removeCode: Strip code blocks, script/style/img tags
  * - removeMarkdown: Remove markdown formatting characters
  * - removeEmojis: Remove emoji characters
@@ -11,6 +12,26 @@
  */
 (function() {
 'use strict';
+
+/**
+ * HTML-encode unsafe strings to prevent XSS. Canonical implementation —
+ * all other modules delegate to this one via window.escapeHtml.
+ * Escapes all five HTML metacharacters (including both quotes) so the
+ * result is safe in text AND attribute contexts. null/undefined → "".
+ * @param {string} unsafe - Input string
+ * @returns {string} Escaped HTML
+ */
+function escapeHtml(unsafe) {
+  if (unsafe === null || unsafe === undefined) {
+    return "";
+  }
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 /**
  * Remove code blocks, script/style tags, and img tags from text.
@@ -58,6 +79,7 @@ function convertString(str) {
 }
 
 // Export for browser environment
+window.escapeHtml = escapeHtml;
 window.removeCode = removeCode;
 window.removeMarkdown = removeMarkdown;
 window.removeEmojis = removeEmojis;
@@ -65,6 +87,6 @@ window.convertString = convertString;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { removeCode, removeMarkdown, removeEmojis, convertString };
+  module.exports = { escapeHtml, removeCode, removeMarkdown, removeEmojis, convertString };
 }
 })();

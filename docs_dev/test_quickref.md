@@ -159,14 +159,14 @@ rake test:profile[my_custom]
 ```bash
 # DON'T USE THESE ANYMORE
 RUN_API=true PROVIDERS=openai,anthropic rake spec_api:smoke
-ENV['API_TIMEOUT']=120 rake spec_e2e:chat
+ENV['API_TIMEOUT']=120 rake spec_e2e:jupyter_notebook
 ```
 
 ✅ **New style** (simple, declarative):
 ```bash
 # USE THESE INSTEAD
 rake test:profile[smoke]
-rake test:run[e2e,"suite=chat,timeout=120"]
+rake test:run[e2e,"timeout=120"]
 ```
 
 ### Migration Guide

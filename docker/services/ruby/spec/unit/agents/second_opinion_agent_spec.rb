@@ -58,7 +58,7 @@ RSpec.describe SecondOpinionAgent do
       it "uses correct default models for each provider" do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-5")
         expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.6-terra")
-        expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3.5-flash")
+        expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3.6-flash")
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.5")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-medium-3-5")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-plus-05-2026")

@@ -216,8 +216,12 @@ describe('card-renderer', () => {
 
   // ── window exports ──────────────────────────────────────
   describe('exports', () => {
-    it('exports escapeHtml to window', () => {
-      expect(window.escapeHtml).toBe(escapeHtml);
+    it('delegates escapeHtml to the canonical implementation (text-utils.js)', () => {
+      // window.escapeHtml is owned by text-utils.js; card-renderer only
+      // delegates, so identity with its local delegate no longer holds.
+      const canonical = require('../../docker/services/ruby/public/js/monadic/text-utils').escapeHtml;
+      expect(window.escapeHtml).toBe(canonical);
+      expect(escapeHtml('&<>"\'')).toBe(canonical('&<>"\''));
     });
 
     it('exports createCard to window', () => {

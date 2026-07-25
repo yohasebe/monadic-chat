@@ -291,8 +291,25 @@
       var containerId = 'diagram-' + index;
       var wrapper = document.createElement('div');
       wrapper.className = 'diagram-wrapper';
-      wrapper.innerHTML = '<div class="diagram" id="' + containerId + '"><mermaid>' + sanitizedMermaidText + '</mermaid></div>' +
-        '<div class="error-message" id="error-' + containerId + '" style="display: none;"></div>';
+
+      // Build the <mermaid> element via DOM APIs with textContent so the
+      // (entity-unescaped) diagram source can never be parsed as HTML —
+      // the previous innerHTML interpolation was an injection path for
+      // markup smuggled inside a mermaid code block.
+      var diagramDiv = document.createElement('div');
+      diagramDiv.className = 'diagram';
+      diagramDiv.id = containerId;
+      var mermaidEl = document.createElement('mermaid');
+      mermaidEl.textContent = sanitizedMermaidText;
+      diagramDiv.appendChild(mermaidEl);
+      wrapper.appendChild(diagramDiv);
+
+      var errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.id = 'error-' + containerId;
+      errorDiv.style.display = 'none';
+      wrapper.appendChild(errorDiv);
+
       mermaidDom.parentNode.insertBefore(wrapper, mermaidDom.nextSibling);
 
       try {
@@ -303,10 +320,16 @@
       } catch (error) {
         var errorElement = wrapper.querySelector('#error-' + containerId);
         if (errorElement) {
-          errorElement.innerHTML = '<div class="alert alert-danger">' +
-            '<strong>Mermaid Syntax Error:</strong><br>' +
-            error.message +
-            '</div>';
+          // error.message derives from the (model-influenced) diagram
+          // source — build via DOM/textContent, never innerHTML.
+          var alertDiv = document.createElement('div');
+          alertDiv.className = 'alert alert-danger';
+          var strong = document.createElement('strong');
+          strong.textContent = 'Mermaid Syntax Error:';
+          alertDiv.appendChild(strong);
+          alertDiv.appendChild(document.createElement('br'));
+          alertDiv.appendChild(document.createTextNode(error.message));
+          errorElement.appendChild(alertDiv);
           $show(errorElement);
         }
         var diagramEl = wrapper.querySelector('.diagram');

@@ -197,3 +197,17 @@ global.navigator.clipboard = {
 
 // Common global state
 global.mids = new Set();
+
+// Load the canonical escapeHtml (text-utils.js) and the DOMPurify wrapper
+// (html-sanitizer.js) so modules that delegate to window.escapeHtml /
+// window.sanitizeModelHtml behave under Jest exactly as in the browser
+// bundle, where these files load first. DOMPurify is bound to the real
+// jsdom window (document.defaultView), not the mock window object above.
+try {
+  const createDOMPurify = require('../docker/services/ruby/public/vendor/js/purify.min.js');
+  global.window.DOMPurify = createDOMPurify(document.defaultView);
+} catch (e) {
+  // Vendor file missing: html-sanitizer fails closed (full escaping).
+}
+require('../docker/services/ruby/public/js/monadic/text-utils.js');
+require('../docker/services/ruby/public/js/monadic/html-sanitizer.js');

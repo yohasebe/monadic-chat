@@ -188,139 +188,20 @@ namespace :spec_system do
 end
 
 # E2E tests for specific apps/features
+# Note: only targets handled by the case statement in
+# docker/services/ruby/spec/e2e/run_e2e_tests.sh are defined here.
 namespace :spec_e2e do
-  desc "Run E2E tests for Chat app"
-  task :chat do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh chat"
-    end
-  end
-  
-  desc "Run E2E tests for Code Interpreter"
-  task :code_interpreter do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh code_interpreter"
-    end
-  end
-  
-  desc "Run E2E tests for Image Generator"
-  task :image_generator do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh image_generator"
-    end
-  end
-  
-  desc "Run E2E tests for Monadic Help"
-  task :help do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh help"
-    end
-  end
-  
-  desc "Run E2E tests for Code Interpreter with a specific provider"
-  task :code_interpreter_provider, [:provider] do |t, args|
-    provider = args[:provider]
-    unless provider
-      puts "Error: Provider must be specified"
-      puts "Usage: rake spec_e2e:code_interpreter_provider[openai]"
-      puts "Available providers: openai, claude, gemini, grok, mistral, cohere, deepseek"
-      exit 1
-    end
-    
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh code_interpreter_provider #{provider}"
-    end
-  end
-  
-  desc "Run E2E tests for Ollama provider"
-  task :ollama do
-    # Check if native Ollama is running
-    ollama_ok = system("curl -sf http://localhost:11434/ > /dev/null 2>&1")
-
-    unless ollama_ok
-      puts "\n" + "="*60
-      puts "Ollama is not running"
-      puts "="*60
-      puts "\nPlease install and start Ollama before running tests."
-      puts "\nInstall Ollama: https://ollama.com/download"
-      puts "\nAfter installing, start it and pull a model:"
-      puts "  ollama pull qwen3:4b"
-      puts "="*60 + "\n"
-      exit 0
-    end
-
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh ollama"
-    end
-  end
-  
-  desc "Run E2E tests for Research Assistant"
-  task :research_assistant do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh research_assistant"
-    end
-  end
-  
-  desc "Run E2E tests for Web Insight"
-  task :web_insight do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh web_insight"
-    end
-  end
-  
-  desc "Run E2E tests for Mermaid Grapher"
-  task :mermaid_grapher do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh mermaid_grapher"
-    end
-  end
-  
-  desc "Run E2E tests for Voice Chat"
-  task :voice_chat do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh voice_chat"
-    end
-  end
-  
-  desc "Run E2E tests for Coding Assistant"
-  task :coding_assistant do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh coding_assistant"
-    end
-  end
-  
-  desc "Run E2E tests for Second Opinion"
-  task :second_opinion do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh second_opinion"
-    end
-  end
-  
   desc "Run E2E tests for Jupyter Notebook"
   task :jupyter_notebook do
     Dir.chdir("docker/services/ruby") do
       sh "./spec/e2e/run_e2e_tests.sh jupyter_notebook"
     end
   end
-  
-  desc "Run E2E tests for Chat Export/Import functionality"
-  task :chat_export_import do
+
+  desc "Run E2E tests for Monadic context display"
+  task :monadic_context do
     Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh chat_export_import"
-    end
-  end
-  
-  desc "Run E2E tests for Chat Plus Monadic functionality"
-  task :chat_plus_monadic_test do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh chat_plus_monadic_test"
-    end
-  end
-  
-  desc "Run E2E tests for web search functionality"
-  task :websearch do
-    Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh websearch"
+      sh "./spec/e2e/run_e2e_tests.sh monadic_context"
     end
   end
 end
@@ -534,13 +415,13 @@ end
 
 # Test summary utilities
 namespace :test_summary do
-  desc "Print a concise summary from the latest tmp/test_runs/*/rspec_report.json"
+  desc "Print a concise summary from the latest tmp/test_results/*/rspec_report.json"
   task :latest do
     require 'json'
     require 'time'
-    base = File.expand_path('tmp/test_runs', PROJECT_ROOT)
+    base = File.expand_path('tmp/test_results', PROJECT_ROOT)
     unless Dir.exist?(base)
-      puts "No test_runs directory found at #{base}"
+      puts "No test_results directory found at #{base}"
       next
     end
     # Find latest directory by timestamp
@@ -558,7 +439,7 @@ namespace :test_summary do
     require 'json'
     path = args[:json_path]
     unless path && File.exist?(path)
-      puts "Provide a valid path: rake test_summary:path[./tmp/test_runs/<ts>/rspec_report.json]"
+      puts "Provide a valid path: rake test_summary:path[./tmp/test_results/<ts>/rspec_report.json]"
       next
     end
     print_summary_from(path)

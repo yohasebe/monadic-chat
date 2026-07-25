@@ -1612,8 +1612,8 @@
     <script src="vendor/js/bootstrap.bundle.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js';this.integrity='sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI';this.crossOrigin='anonymous';"></script>
 
     <!-- Opus Media Recorder (local or CDN) -->
-    <script src="vendor/js/OpusMediaRecorder.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js';"></script>
-    <script src="vendor/js/encoderWorker.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js';"></script>
+    <script src="vendor/js/OpusMediaRecorder.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js';this.integrity='sha384-KEPotIMa1pCJPGpB2Ne2MC7IQNb1lzy+4/KjSzoZwYOCQ7HQWzJYmsqz4DCtJIOn';this.crossOrigin='anonymous';"></script>
+    <script src="vendor/js/encoderWorker.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js';this.integrity='sha384-0r5IaHLEfuBCet94qHf6cCx/mt2U3SL8Cg++YUZOn9lhz9GLp145pEFq1nKGx1Jq';this.crossOrigin='anonymous';"></script>
 
     <!-- KaTeX (local or CDN) -->
     <script>
@@ -1623,7 +1623,7 @@
       if (typeof module !== 'undefined') { module = undefined; }
       if (typeof exports !== 'undefined') { exports = undefined; }
     </script>
-    <script src="vendor/js/katex.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js';"></script>
+    <script src="vendor/js/katex.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js';this.integrity='sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6';this.crossOrigin='anonymous';"></script>
     <script>
       // Restore module/exports after KaTeX has loaded as browser global
       if (typeof _savedModule !== 'undefined') { module = _savedModule; }
@@ -1631,10 +1631,15 @@
     </script>
     
     <!-- markdown-it (local or CDN) — always needed for message rendering -->
-    <script src="vendor/js/markdown-it.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+    <script src="vendor/js/markdown-it.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js';this.integrity='sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
 
     <!-- highlight.js (local or CDN) — always needed for code blocks -->
-    <script src="vendor/js/highlight.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+    <script src="vendor/js/highlight.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js';this.integrity='sha384-GdEWAbCjn+ghjX0gLx7/N1hyTVmPAjdC2OvoAA0RyNcAOhqwtT8qnbCxWle2+uJX';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+
+    <!-- DOMPurify (local or CDN) — sanitizes model-controlled HTML before
+         innerHTML sinks (see js/monadic/html-sanitizer.js). Must load before
+         the app bundle below. -->
+    <script src="vendor/js/purify.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/dompurify@3.4.12/dist/purify.min.js';this.integrity='sha384-piCcpDdJ7qVeK4Tv8Z6Hpcr3ZBIgP16TxQTPVfsLFdZ5uDgwc3Y8Ho7oUnqf12qu';this.crossOrigin='anonymous';"></script>
 
     <!-- Mermaid (~2.5 MB), ABCjs (~472 KB), maxGraph (~608 KB) are lazy-loaded -->
     <!-- on first use via LazyLoader. See js/monadic/lazy-loader.js -->

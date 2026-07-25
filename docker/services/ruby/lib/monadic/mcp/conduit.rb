@@ -1440,7 +1440,7 @@ module Monadic
 
       # ---- Audio analysis (qualitative, Gemini) --------------------------
 
-      AUDIO_ANALYZE_FALLBACK_MODEL = "gemini-3.5-flash"
+      AUDIO_ANALYZE_FALLBACK_MODEL = "gemini-3.6-flash"
 
       def handle_analyze_audio(arguments)
         prompt = (arguments["prompt"] || arguments[:prompt]).to_s

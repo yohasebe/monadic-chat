@@ -169,12 +169,13 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
-      - name: Fetch renderer vendor assets (markdown-it, katex)
+      - name: Fetch renderer vendor assets (markdown-it, katex, dompurify)
         continue-on-error: true
         run: |
           mkdir -p docker/services/ruby/public/vendor/js
           curl -fsSL https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js -o docker/services/ruby/public/vendor/js/markdown-it.min.js || echo "markdown-it fetch failed; renderer tests will skip"
           curl -fsSL https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js -o docker/services/ruby/public/vendor/js/katex.min.js || echo "katex fetch failed; renderer tests will skip"
+          curl -fsSL https://cdn.jsdelivr.net/npm/dompurify@3.4.12/dist/purify.min.js -o docker/services/ruby/public/vendor/js/purify.min.js || echo "dompurify fetch failed; sanitizer tests will skip / fail closed"
 
       - name: Run jest
         run: npm test

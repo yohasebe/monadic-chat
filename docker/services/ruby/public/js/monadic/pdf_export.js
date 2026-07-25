@@ -25,12 +25,14 @@
   }
 
   /**
-   * Escape HTML special characters
+   * Escape HTML special characters.
+   * Delegates to the canonical implementation in text-utils.js
+   * (window.escapeHtml). The canonical version also escapes quotes —
+   * strictly safer than the former textContent-based copy, and identical
+   * for the text contexts used here.
    */
   function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return window.escapeHtml(text);
   }
 
   /**

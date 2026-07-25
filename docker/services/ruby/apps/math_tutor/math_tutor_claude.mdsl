@@ -7,7 +7,7 @@ app "MathTutorClaude" do
   
   llm do
     provider "anthropic"
-    model "claude-opus-4-8"
+    model "claude-opus-5"
     reasoning_effort "none"  # Disabled for math rendering compatibility
     temperature 0.0
     context_size 25

@@ -373,7 +373,35 @@ const modelSpec = {
     "structured_output": true,
     "structured_output_mode": "json_schema",
     "beta_flags": [],
-    "unavailable_fallback": "claude-opus-4-8"
+    "unavailable_fallback": "claude-opus-5"
+  },
+  // Claude Opus 5 — for complex agentic coding and enterprise work.
+  // Capabilities verified identical to claude-sonnet-5 via the Models API
+  // (effort low..max, adaptive thinking only, context management incl. compact,
+  // structured outputs, PDF/image input). Same price tier as Opus 4.8.
+  "claude-opus-5": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
   },
   "claude-opus-4-8": {
     "context_window" : [1, 1000000],
@@ -570,7 +598,33 @@ const modelSpec = {
   },
   // Gemini models
   // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
-  // Stable alias of the gemini-3-flash-preview line.
+  // gemini-3.6-flash — reasoning Flash (thinking is always on and cannot be
+  // disabled; thinkingBudget:0 is rejected by the API). Shares the thinking-level
+  // shape of gemini-3.1-pro-preview: level-based reasoning driven through
+  // thinkingBudget presets, can_disable:false.
+  "gemini-3.6-flash": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "high"], "low"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "high"], "low"],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": false,
+      "presets": {
+        "low": 8000,
+        "high": 20000
+      }
+    },
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
+  // Stable alias of the gemini-3-flash-preview line. Superseded by
+  // gemini-3.6-flash (default since beta.29); kept for pinned sessions.
   "gemini-3.5-flash": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
@@ -590,7 +644,9 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "successor": "gemini-3.6-flash"
   },
   "gemini-3-flash-preview": {
     "context_window" : [1048576],
@@ -614,7 +670,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-25",
-    "successor": "gemini-3.5-flash"
+    "successor": "gemini-3.6-flash"
   },
   "gemini-3.1-pro-preview": {
     "context_window" : [1048576],
@@ -658,7 +714,10 @@ const modelSpec = {
     "supports_pdf": true,
     "ui_hidden": true
   },
-  "gemini-3.1-flash-lite": {
+  // gemini-3.5-flash-lite — fastest, lowest-cost 3.5 model. Thinking is off by
+  // default; positive thinkingBudget presets are accepted, thinkingBudget:0 is
+  // rejected (guarded because "none" is nulled before budget computation).
+  "gemini-3.5-flash-lite": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "thinking_budget": {
@@ -678,6 +737,30 @@ const modelSpec = {
     "vision_capability": true,
     "supports_web_search": true,
     "supports_pdf": true
+  },
+  // Superseded by gemini-3.5-flash-lite; kept for pinned sessions.
+  "gemini-3.1-flash-lite": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "default_disabled": true,
+      "presets": {
+        "none": 0,
+        "low": 512,
+        "medium": 8000,
+        "high": 20000
+      }
+    },
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "deprecated": true,
+    "successor": "gemini-3.5-flash-lite"
   },
   // Gemini 3.1 Flash Image (Nano Banana 2) — image generation + video-to-image, GA 2026-05-28
   "gemini-3.1-flash-image": {
@@ -711,7 +794,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-07-22",
-    "successor": "gemini-3.1-flash-lite"
+    "successor": "gemini-3.5-flash-lite"
   },
   "gemini-2.5-flash": {
     "context_window" : [1048576],
@@ -735,7 +818,7 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-17",
-    "successor": "gemini-3.5-flash"
+    "successor": "gemini-3.6-flash"
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],
@@ -1162,6 +1245,22 @@ const modelSpec = {
   "gpt-realtime-whisper": {
     "stt_capability": true,
     "supports_realtime_streaming": true
+  },
+
+  // -------------------------------------------------------------------------
+  // Music model metadata (Music generation capability SSOT)
+  //
+  // These models are resolved inside the generation tool from
+  // providerDefaults.gemini.music (see gemini_helper.rb
+  // generate_music_with_lyria), never via a chat dropdown. The
+  // `music_capability` flag keeps them out of chat model selectors
+  // (utilities.js listModels, model_utils.js filterModelsForAllMode).
+  // -------------------------------------------------------------------------
+  "lyria-3-pro-preview": {
+    "music_capability": true
+  },
+  "lyria-3-clip-preview": {
+    "music_capability": true
   }
 }
 
@@ -1199,9 +1298,9 @@ const providerDefaults = {
     "vision": ["claude-haiku-4-5-20251001"]
   },
   "gemini": {
-    "chat": ["gemini-3.5-flash", "gemini-3.1-pro-preview"],
-    "vision": ["gemini-3.5-flash"],
-    "audio_transcription": ["gemini-3.5-flash"],
+    "chat": ["gemini-3.6-flash", "gemini-3.1-pro-preview"],
+    "vision": ["gemini-3.6-flash"],
+    "audio_transcription": ["gemini-3.6-flash"],
     "image": ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "music": ["lyria-3-pro-preview", "lyria-3-clip-preview"],

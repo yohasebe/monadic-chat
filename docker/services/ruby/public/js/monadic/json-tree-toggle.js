@@ -164,6 +164,25 @@ document.addEventListener('DOMContentLoaded', function() {
   updateItemStates();
 });
 
+// Event delegation for JSON tree headers. The generated markup used to
+// carry inline onclick='toggleItem(this)', but inline handlers are stripped
+// by DOMPurify (see html-sanitizer.js); a delegated listener keeps the
+// toggle working on sanitized HTML. Routed through window.toggleItem at
+// click time so the monadic-improvements.js wrapper (empty-object guard)
+// still applies. The flag guard keeps repeated module evaluation (e.g.
+// Jest resetModules) from stacking duplicate listeners.
+if (!window.__jsonTreeDelegationInstalled) {
+  window.__jsonTreeDelegationInstalled = true;
+  document.addEventListener('click', function(event) {
+    var header = event.target && typeof event.target.closest === 'function'
+      ? event.target.closest('.json-header')
+      : null;
+    if (header && typeof window.toggleItem === 'function') {
+      window.toggleItem(header);
+    }
+  });
+}
+
 // Export for browser environment
 window.toggleItem = toggleItem;
 window.updateItemStates = updateItemStates;

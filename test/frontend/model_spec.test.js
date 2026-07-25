@@ -104,6 +104,21 @@ describe('Model Specification', () => {
       expect(model.vision_capability).toBe(true);
     });
 
+    it('should have 1M context for Claude Opus 5', () => {
+      const model = modelSpec['claude-opus-5'];
+      expect(model.context_window).toEqual([1, 1000000]);
+      expect(model.max_output_tokens).toEqual([[1, 128000], 128000]);
+      expect(model.beta_flags).toEqual([]);
+    });
+
+    it('should give Claude Opus 5 the adaptive-thinking contract (no extended thinking)', () => {
+      const model = modelSpec['claude-opus-5'];
+      expect(model.supports_adaptive_thinking).toBe(true);
+      expect(model.rejects_sampling_params).toBe(true);
+      expect(model.reasoning_effort[0]).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+      expect(model.supports_context_management).toBe(true);
+    });
+
     it('should have 1M context for Claude Opus 4.8', () => {
       const model = modelSpec['claude-opus-4-8'];
       expect(model.context_window).toEqual([1, 1000000]);
@@ -128,7 +143,7 @@ describe('Model Specification', () => {
 
     it('should not have structured_output_beta on GA models', () => {
       // These models have structured outputs GA (Jan 29, 2026)
-      const gaModels = ['claude-opus-4-8', 'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'];
+      const gaModels = ['claude-opus-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'];
       gaModels.forEach(modelName => {
         const model = modelSpec[modelName];
         if (model) {

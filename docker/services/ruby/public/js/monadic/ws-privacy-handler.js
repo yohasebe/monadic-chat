@@ -136,13 +136,12 @@
     window.safeWsSend({ message: 'PRIVACY_REGISTRY' });
   }
 
+  // Delegates to the canonical implementation in text-utils.js
+  // (window.escapeHtml). The String() coercion preserves the previous
+  // null/undefined → "null"/"undefined" stringification behavior of the
+  // former local copy (registry fields should not silently render "").
   function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return window.escapeHtml(String(s));
   }
 
   // Dedicated reply for PRIVACY_TOGGLE round-trips. Carries the

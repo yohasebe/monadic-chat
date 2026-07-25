@@ -84,3 +84,38 @@ describe('renderThinkingMarkdown fallback without markdown-it', () => {
     expect(handlers.renderThinkingMarkdown(undefined)).toBe('');
   });
 });
+
+// Thinking-block headers carry no inline onclick (DOMPurify strips inline
+// handlers from sanitized card HTML); expansion is driven by the delegated
+// click listener websocket-handlers.js installs at load time.
+describe('thinking block header delegation', () => {
+  let handlers;
+  beforeEach(() => { handlers = loadHandlers({ withMarkdownIt: false }); });
+
+  it('renderThinkingBlock emits no inline onclick handler', () => {
+    const block = handlers.renderThinkingBlock('content', 'Thinking Process');
+    expect(block).not.toContain('onclick');
+    expect(block).toContain('thinking-block-header');
+  });
+
+  it('clicking the header toggles .expanded on the block', () => {
+    document.body.innerHTML = handlers.renderThinkingBlock('content', 'Thinking Process');
+    const block = document.querySelector('.thinking-block');
+    const header = document.querySelector('.thinking-block-header');
+
+    expect(block.classList.contains('expanded')).toBe(false);
+    header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(block.classList.contains('expanded')).toBe(true);
+    header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(block.classList.contains('expanded')).toBe(false);
+  });
+
+  it('clicking a child element inside the header also toggles', () => {
+    document.body.innerHTML = handlers.renderThinkingBlock('content', 'Thinking Process');
+    const block = document.querySelector('.thinking-block');
+    const icon = document.querySelector('.thinking-block-header .fa-brain');
+
+    icon.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(block.classList.contains('expanded')).toBe(true);
+  });
+});

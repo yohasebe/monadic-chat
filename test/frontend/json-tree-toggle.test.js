@@ -132,4 +132,54 @@ describe('json-tree-toggle', () => {
       expect(typeof applyCollapseStates).toBe('function');
     });
   });
+
+  // The generated JSON-tree markup carries no inline onclick (DOMPurify
+  // strips inline handlers); a document-level delegated listener installed
+  // by json-tree-toggle.js must route .json-header clicks to toggleItem.
+  describe('delegated .json-header click handling', () => {
+    it('toggles the item when the header is clicked', () => {
+      const { item, header, content, chevron } = createJsonItem('test', 1, true);
+      document.body.appendChild(item);
+
+      header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      expect(content.style.display).toBe('block');
+      expect(chevron.classList.contains('fa-chevron-down')).toBe(true);
+    });
+
+    it('toggles when a child element inside the header is clicked', () => {
+      const { item, header, chevron } = createJsonItem('test', 1, true);
+      document.body.appendChild(item);
+
+      const icon = header.querySelector('i');
+      icon.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      expect(chevron.classList.contains('fa-chevron-down')).toBe(true);
+    });
+
+    it('ignores clicks outside .json-header', () => {
+      const { item, content } = createJsonItem('test', 1, true);
+      document.body.appendChild(item);
+
+      content.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      // Content of a collapsed item stays collapsed (no toggle fired).
+      expect(content.style.display).toBe('none');
+    });
+
+    it('routes through window.toggleItem so wrappers (monadic-improvements) apply', () => {
+      const { item, header } = createJsonItem('test', 1, true);
+      document.body.appendChild(item);
+
+      const spy = jest.fn();
+      const original = window.toggleItem;
+      window.toggleItem = spy;
+      try {
+        header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(spy).toHaveBeenCalledWith(header);
+      } finally {
+        window.toggleItem = original;
+      }
+    });
+  });
 });

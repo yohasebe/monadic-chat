@@ -35,7 +35,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'returns the first model for gemini chat' do
-      expect(described_class.get_provider_default("gemini", "chat")).to eq("gemini-3.5-flash")
+      expect(described_class.get_provider_default("gemini", "chat")).to eq("gemini-3.6-flash")
     end
 
     it 'returns the first model for xai code' do

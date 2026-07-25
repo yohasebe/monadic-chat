@@ -26,15 +26,14 @@ e2e/
 
 ### All E2E Tests (no real API)
 ```bash
-rake spec_e2e  # Does not hit real provider APIs
+cd docker/services/ruby
+./spec/e2e/run_e2e_tests.sh all  # Does not hit real provider APIs
 ```
 
-### Specific App Tests
+### Specific E2E Tests (run from the repository root)
 ```bash
-rake spec_e2e:chat              # Chat app only
-rake spec_e2e:code_interpreter   # All Code Interpreter tests
-rake spec_e2e:image_generator    # Image Generator only
-rake spec_e2e:help              # Monadic Help only
+rake spec_e2e:jupyter_notebook   # Jupyter local ops (no real API)
+rake spec_e2e:monadic_context    # Monadic JSON display (mock responses)
 ```
 
 Real API provider tests live in spec_api tasks. Examples:

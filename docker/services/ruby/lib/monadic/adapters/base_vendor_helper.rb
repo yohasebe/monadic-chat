@@ -1,5 +1,6 @@
-require_relative "../utils/http_client"
 # frozen_string_literal: true
+
+require_relative "../utils/http_client"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns

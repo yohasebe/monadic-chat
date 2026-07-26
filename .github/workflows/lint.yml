@@ -63,6 +63,9 @@ jobs:
       - name: Top-level same-name window-delegation wrappers
         run: ruby scripts/lint/check_global_shadow_delegation.rb
 
+      - name: Outbound HTTP calls have timeouts
+        run: ruby scripts/lint/check_http_timeout.rb
+
       - name: Lint self-check (rules still detect their target patterns)
         run: ruby scripts/lint/spec/check_self_test.rb
 

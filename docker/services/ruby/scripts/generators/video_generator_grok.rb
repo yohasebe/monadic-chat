@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require_relative "../../lib/monadic/utils/http_client"
 require "http"
 require "json"
 require "optparse"
@@ -177,7 +178,7 @@ begin
     "Authorization" => "Bearer #{api_key}"
   }
 
-  response = HTTP.headers(headers).post(url, json: payload)
+  response = Monadic::Utils::HttpClient.generation.headers(headers).post(url, json: payload)
 
   if response.status.code >= 400
     error_body = JSON.parse(response.body.to_s) rescue { "error" => { "message" => response.body.to_s } }
@@ -202,7 +203,7 @@ begin
     attempts += 1
 
     status_url = "https://api.x.ai/v1/videos/#{request_id}"
-    status_response = HTTP.headers(headers).get(status_url)
+    status_response = Monadic::Utils::HttpClient.rest.headers(headers).get(status_url)
 
     if status_response.status.code >= 400
       puts JSON.generate({ success: false, error: "Failed to check video status" })
@@ -224,7 +225,7 @@ begin
         exit 1
       end
 
-      video_response = HTTP.follow.get(video_url)
+      video_response = Monadic::Utils::HttpClient.download.follow.get(video_url)
 
       if video_response.status.code >= 400
         puts JSON.generate({ success: false, error: "Failed to download video" })

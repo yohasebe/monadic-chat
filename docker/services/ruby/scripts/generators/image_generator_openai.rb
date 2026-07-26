@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require_relative "../../lib/monadic/utils/http_client"
 require "base64"
 require "http"
 require "json"
@@ -235,7 +236,7 @@ def generate_image(options, num_retrials = 3)
       
       puts "Sending request to generate image with prompt: #{options[:prompt]}" if options[:verbose]
       puts "Request body: #{body.to_json}" if options[:verbose]
-      res = HTTP.headers(headers).post(url, json: body)
+      res = Monadic::Utils::HttpClient.generation.headers(headers).post(url, json: body)
       
     when "edit"
       url = "https://api.openai.com/v1/images/edits"
@@ -279,7 +280,7 @@ def generate_image(options, num_retrials = 3)
           "Content-Type": "application/json",
           Authorization: "Bearer #{api_key}"
         }
-        res = HTTP.headers(headers).post(url, json: body)
+        res = Monadic::Utils::HttpClient.generation.headers(headers).post(url, json: body)
       else
         # Multipart mode: upload local files directly
         form = {}
@@ -341,7 +342,7 @@ def generate_image(options, num_retrials = 3)
           end
         end
 
-        res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
+        res = Monadic::Utils::HttpClient.generation.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
       end
     end
     

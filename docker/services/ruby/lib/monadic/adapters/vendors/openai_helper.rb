@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../utils/http_client"
 require 'cgi'
 require 'fileutils'
 require 'base64'
@@ -3029,7 +3030,7 @@ module OpenAIHelper
     }
     
     target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
-    http = HTTP.headers(headers)
+    http = Monadic::Utils::HttpClient.rest.headers(headers)
     
     begin
       res = http.get(target_uri)
@@ -3052,7 +3053,7 @@ module OpenAIHelper
     }
     
     target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
-    http = HTTP.headers(headers)
+    http = Monadic::Utils::HttpClient.rest.headers(headers)
     
     begin
       res = http.delete(target_uri)
@@ -3071,7 +3072,7 @@ module OpenAIHelper
     }
     
     target_uri = "#{API_ENDPOINT}/responses/#{response_id}/cancel"
-    http = HTTP.headers(headers)
+    http = Monadic::Utils::HttpClient.rest.headers(headers)
     
     begin
       res = http.post(target_uri)
@@ -3103,7 +3104,7 @@ module OpenAIHelper
     target_uri = "#{API_ENDPOINT}/responses/#{response_id}/input_items"
     target_uri += "?#{query_string}" unless query_string.empty?
     
-    http = HTTP.headers(headers)
+    http = Monadic::Utils::HttpClient.rest.headers(headers)
     
     begin
       res = http.get(target_uri)

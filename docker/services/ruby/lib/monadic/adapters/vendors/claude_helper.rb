@@ -1,3 +1,4 @@
+require_relative "../../utils/http_client"
 require 'fileutils'
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
@@ -2018,7 +2019,7 @@ module ClaudeHelper
     }
 
     target_uri = "#{API_ENDPOINT}/files/#{file_id}/content"
-    http = HTTP.headers(headers)
+    http = Monadic::Utils::HttpClient.download.headers(headers)
 
     begin
       res = http.get(target_uri)

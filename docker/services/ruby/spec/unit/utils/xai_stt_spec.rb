@@ -61,7 +61,11 @@ RSpec.describe "xAI STT Integration" do
         fake_response
       end
 
-      allow(HTTP).to receive(:headers) do |headers|
+      # stt_utils builds the client through the shared timeout helper, so the
+      # seam is HttpClient.generation rather than a bare HTTP.headers call.
+      timed_client = double("timed_client")
+      allow(Monadic::Utils::HttpClient).to receive(:generation).and_return(timed_client)
+      allow(timed_client).to receive(:headers) do |headers|
         captured[:headers] = headers
         http_chain
       end
@@ -90,7 +94,8 @@ RSpec.describe "xAI STT Integration" do
         captured_body = opts[:body]
         fake_response
       end
-      allow(HTTP).to receive(:headers).and_return(http_chain)
+      allow(Monadic::Utils::HttpClient).to receive(:generation)
+        .and_return(double("timed_client", headers: http_chain))
 
       host.xai_stt_api_request("blob", "wav", "auto", "xai-stt")
 
@@ -108,7 +113,8 @@ RSpec.describe "xAI STT Integration" do
       http_chain = double
       allow(http_chain).to receive(:timeout).and_return(http_chain)
       allow(http_chain).to receive(:post).and_return(fake_response)
-      allow(HTTP).to receive(:headers).and_return(http_chain)
+      allow(Monadic::Utils::HttpClient).to receive(:generation)
+        .and_return(double("timed_client", headers: http_chain))
 
       result = host.xai_stt_api_request("blob", "mp3", "en", "xai-stt")
       expect(result["type"]).to eq("error")

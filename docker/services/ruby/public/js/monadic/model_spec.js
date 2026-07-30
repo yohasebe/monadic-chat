@@ -1254,6 +1254,14 @@ const modelSpec = {
   // over the OpenAI Realtime API — gated by `supports_speech_to_speech`.
   // The Ruby accessor (`ModelSpec.supports_speech_to_speech?`) reads this
   // flag to gate the STS path.
+  //
+  // Selector behaviour differs from the speech flags above. An STS model IS
+  // the conversation model for an STS session, so it stays selectable in the
+  // curated list (an app declaring one in MDSL is opting into STS on purpose)
+  // and is dropped only from show-all — i.e. model_utils.js
+  // filterModelsForAllMode excludes it, utilities.js listModels does not.
+  // Excluding it in listModels made the STS path unreachable, since the
+  // curated list never passes through filterModelsForAllMode.
   // -------------------------------------------------------------------------
   "gpt-realtime-2.1": {
     "supports_speech_to_speech": true

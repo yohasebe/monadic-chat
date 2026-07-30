@@ -117,19 +117,22 @@ function updateAppSelectIcon(appValue) {
   // setCookie, getCookie, setCookieValues → extracted to cookie-utils.js
 
 function listModels(models, openai = false) {
-  // Speech models (STT/TTS/realtime transcription, speech-to-speech) and
-  // music-generation models are selected in dedicated panels/tools, never in
-  // the chat-model selector — drop them here so an API-sourced list can't leak
-  // e.g. gpt-realtime-whisper into the dropdown.
+  // Speech models (STT/TTS/realtime transcription) and music-generation
+  // models are selected in dedicated panels/tools, never in the chat-model
+  // selector — drop them here so an API-sourced list can't leak e.g.
+  // gpt-realtime-whisper into the dropdown.
   //
-  // Speech-to-speech models are excluded for the same reason plus a sharper
-  // one: they only work through the STS bridge, so picking one for an ordinary
-  // chat app would fail at request time with nothing on screen explaining why.
+  // Speech-to-speech is deliberately NOT in this list. An STS model *is* the
+  // conversation model for an STS session, so an app that declares one in
+  // MDSL must be able to offer it. Excluding it here would also strip it from
+  // the curated list (which never passes through filterModelsForAllMode),
+  // making the STS path unreachable. The show-all exclusion lives in
+  // filterModelsForAllMode instead.
   models = models.filter(function (m) {
     const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
     if (!spec) return true;
     return !(spec.stt_capability || spec.tts_capability || spec.music_capability ||
-             spec.supports_realtime_streaming || spec.supports_speech_to_speech);
+             spec.supports_realtime_streaming);
   });
 
   // Array of patterns to identify different model types

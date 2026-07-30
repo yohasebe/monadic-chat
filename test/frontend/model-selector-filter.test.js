@@ -16,6 +16,7 @@
  */
 
 const { listModels } = require('../../docker/services/ruby/public/js/monadic/utilities');
+const { filterModelsForAllMode } = require('../../docker/services/ruby/public/js/monadic/model_utils');
 
 function withSpec(spec) {
   window.modelSpec = spec;
@@ -45,8 +46,7 @@ describe('chat model dropdown filter', () => {
       'STT': { stt_capability: true },
       'TTS': { tts_capability: true },
       'music generation': { music_capability: true },
-      'realtime transcription': { supports_realtime_streaming: true },
-      'speech-to-speech': { supports_speech_to_speech: true }
+      'realtime transcription': { supports_realtime_streaming: true }
     };
 
     Object.entries(cases).forEach(([label, spec]) => {
@@ -61,20 +61,6 @@ describe('chat model dropdown filter', () => {
     });
   });
 
-  // Regression: gpt-realtime-2.1 carries supports_speech_to_speech and nothing
-  // else, so every other clause in the filter passes it through.
-  it('drops a speech-to-speech model whose spec has no other capability flag', () => {
-    withSpec({
-      'gpt-5.6-terra': {},
-      'gpt-realtime-2.1': { supports_speech_to_speech: true }
-    });
-
-    const html = listModels(['gpt-5.6-terra', 'gpt-realtime-2.1'], true);
-
-    expect(html).toContain('gpt-5.6-terra');
-    expect(html).not.toContain('gpt-realtime-2.1');
-  });
-
   it('drops them in the OpenAI grouped layout too', () => {
     withSpec({ 'gpt-realtime-whisper': { supports_realtime_streaming: true } });
 
@@ -82,8 +68,51 @@ describe('chat model dropdown filter', () => {
   });
 
   it('returns an empty selector when every candidate was filtered out', () => {
+    withSpec({ 'gpt-realtime-whisper': { supports_realtime_streaming: true } });
+
+    expect(listModels(['gpt-realtime-whisper'])).not.toContain('gpt-realtime-whisper');
+  });
+});
+
+/**
+ * Speech-to-speech sits on the other side of the line from the models above.
+ *
+ * An STS model IS the conversation model for an STS session, so an app that
+ * declares one in MDSL has to be able to offer it. Excluding it in listModels
+ * also stripped it from the curated list — which never passes through
+ * filterModelsForAllMode — and that made the STS path unreachable: the server
+ * gates on session.parameters.model being an STS model, and no route could
+ * ever set it. The exclusion therefore belongs to show-all only.
+ */
+describe('speech-to-speech model availability', () => {
+  afterEach(() => {
+    delete window.modelSpec;
+  });
+
+  it('stays selectable through listModels so a declaring app can offer it', () => {
     withSpec({ 'gpt-realtime-2.1': { supports_speech_to_speech: true } });
 
-    expect(listModels(['gpt-realtime-2.1'])).not.toContain('gpt-realtime-2.1');
+    expect(listModels(['gpt-realtime-2.1'])).toContain('gpt-realtime-2.1');
+  });
+
+  it('is excluded from the show-all list', () => {
+    withSpec({
+      'gpt-5.6-terra': {},
+      'gpt-realtime-2.1': { supports_speech_to_speech: true }
+    });
+
+    const result = filterModelsForAllMode(['gpt-5.6-terra', 'gpt-realtime-2.1'], 'openai');
+
+    expect(result).toContain('gpt-5.6-terra');
+    expect(result).not.toContain('gpt-realtime-2.1');
+  });
+
+  it('survives the curated path end to end', () => {
+    withSpec({ 'gpt-realtime-2.1': { supports_speech_to_speech: true } });
+
+    // Curated mode returns MDSL models without passing them through
+    // filterModelsForAllMode, so listModels is the only place that could
+    // have dropped them.
+    expect(listModels(['gpt-realtime-2.1'], true)).toContain('gpt-realtime-2.1');
   });
 });

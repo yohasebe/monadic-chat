@@ -1344,6 +1344,13 @@ function doResetActions(resetToDefaultApp = false) {
     ContextPanel.resetContext();
   }
 
+  // The speech-to-speech cost readout is per-conversation. This is the live
+  // reset path — ws-audio-queue.js's resetSessionState also clears it but has
+  // no callers, so wiring only there left the figure carrying over.
+  if (window.WsStsUsage && typeof window.WsStsUsage.reset === 'function') {
+    window.WsStsUsage.reset();
+  }
+
   currentPdfData = null;
   
   // Delay resetParams to ensure LOAD response is processed first

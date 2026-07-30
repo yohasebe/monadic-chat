@@ -138,3 +138,100 @@ describe('isRealtimeSttEnabled (capability gate)', () => {
     expect(window.SttGate.isRealtimeSttEnabled).toBe(SttGate.isRealtimeSttEnabled);
   });
 });
+
+/**
+ * The speech-to-speech gate reads the CHAT model, not the STT model.
+ *
+ * This distinction is the whole point: the server routes AUDIO_CHUNK to the
+ * STS bridge based on the chat model (websocket.rb route_audio_mode), so the
+ * client must stream chunks whenever an STS chat model is selected — even
+ * when the STT model is a batch one. Gating streaming on the STT model alone
+ * left STS unreachable: recording sent a one-shot AUDIO, the transcript went
+ * through the ordinary chat pipeline, and the realtime-only model failed at
+ * request time.
+ */
+describe('isStsModelSelected (speech-to-speech gate)', () => {
+  let SttGate;
+
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <select id="model">
+        <option value="gpt-5.6-terra" selected>GPT-5.6 Terra</option>
+        <option value="gpt-realtime-2.1">GPT Realtime 2.1</option>
+      </select>
+      <select id="stt-model">
+        <option value="whisper-1" selected>Whisper-1</option>
+      </select>
+    `;
+    window.modelSpec = {
+      'gpt-realtime-2.1': { supports_speech_to_speech: true },
+      'gpt-5.6-terra': {}
+    };
+
+    jest.resetModules();
+    delete window.SttGate;
+    SttGate = require(STT_GATE_PATH);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    delete window.modelSpec;
+    delete window.SttGate;
+  });
+
+  it('returns true when the chat model declares supports_speech_to_speech', () => {
+    document.getElementById('model').value = 'gpt-realtime-2.1';
+    expect(SttGate.isStsModelSelected()).toBe(true);
+  });
+
+  it('returns false for an ordinary chat model', () => {
+    document.getElementById('model').value = 'gpt-5.6-terra';
+    expect(SttGate.isStsModelSelected()).toBe(false);
+  });
+
+  it('ignores the STT model selection entirely', () => {
+    // Batch STT model selected; STS must still be detected from the chat model.
+    document.getElementById('model').value = 'gpt-realtime-2.1';
+    document.getElementById('stt-model').value = 'whisper-1';
+    expect(SttGate.isStsModelSelected()).toBe(true);
+  });
+
+  it('returns false when the model element is missing', () => {
+    document.body.innerHTML = '';
+    expect(SttGate.isStsModelSelected()).toBe(false);
+  });
+
+  it('returns false when modelSpec is unavailable', () => {
+    delete window.modelSpec;
+    document.getElementById('model').value = 'gpt-realtime-2.1';
+    expect(SttGate.isStsModelSelected()).toBe(false);
+  });
+});
+
+/**
+ * Source-level guard: recording.js must consult the STS gate in its capture
+ * branch chooser. A behavioural test cannot cover this (recording.js attaches
+ * DOM listeners at top level and cannot be required under jsdom), and this is
+ * exactly the call-site-stops-calling failure that hid the interrupted-badge
+ * bug.
+ */
+describe('recording.js consults the STS gate', () => {
+  const fs = require('fs');
+  const RECORDING = fs.readFileSync(
+    path.resolve(__dirname, '../../docker/services/ruby/public/js/monadic/recording.js'), 'utf8'
+  );
+
+  it('branches on isStsModelSelected in beginCapture', () => {
+    expect(RECORDING).toMatch(/isStsModelSelected/);
+  });
+
+  it('does not fall back to batch capture in STS mode', () => {
+    // The STS branch must return before reaching startAudioCapture: batch
+    // capture cannot reach the STS bridge, so a silent fallback would strand
+    // the user on a broken path (and violate the no-silent-fallback rule).
+    const stsBranch = RECORDING.match(/if \(stsMode\) \{[\s\S]*?\n\s*\}/);
+    expect(stsBranch).toBeTruthy();
+    expect(stsBranch[0]).toContain('return');
+    expect(stsBranch[0]).not.toContain('startAudioCapture');
+  });
+});

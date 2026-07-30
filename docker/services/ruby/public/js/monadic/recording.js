@@ -471,13 +471,33 @@ voiceButton.addEventListener("click", function () {
     // microphone permission is settled in the Electron branch — same
     // semantics as the legacy `startAudioCapture()` it replaces.
     const beginCapture = function () {
-      if (isRealtimeSttEnabled()) {
+      // A speech-to-speech chat model needs chunked streaming regardless of
+      // the STT model selection: the server routes AUDIO_CHUNK to the STS
+      // bridge based on the chat model. Falling back to the one-shot AUDIO
+      // path would transcribe via batch STT and then submit the text to a
+      // realtime-only model, which fails at request time.
+      const stsMode = !!(window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
+        && window.SttGate.isStsModelSelected());
+
+      if (stsMode || isRealtimeSttEnabled()) {
         startAudioStream().catch(function (err) {
+          teardownStreamingSession();
+          clearPartialOverlay();
+          if (stsMode) {
+            // No silent fallback for STS (UI honesty): batch capture cannot
+            // reach the STS bridge, so degrading quietly would strand the
+            // user on a broken path with no explanation.
+            console.error('[STS] startAudioStream failed:', err);
+            const stsFailedText = getTranslation('ui.messages.stsStreamStartFailed', 'Speech-to-speech audio capture failed. Check microphone access, or switch to a non-realtime model.');
+            setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${stsFailedText}`, 'error');
+            const failSpinner = $id("monadic-spinner");
+            $hide(failSpinner);
+            isListening = false;
+            return;
+          }
           console.warn('[STT realtime] startAudioStream failed, falling back to batch:', err);
           const fallbackText = getTranslation('ui.messages.sttRealtimeFallback', 'Realtime STT unavailable; falling back to standard mode');
           setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${fallbackText}`, 'warning');
-          teardownStreamingSession();
-          clearPartialOverlay();
           startAudioCapture();
         });
       } else {

@@ -42,6 +42,13 @@ module SttNoiseBenchmark
     class Rest < Base
       include InteractionUtils
 
+      # The OpenAI branch of stt_api_request reads its key from Sinatra's
+      # `settings` (stt_utils.rb:584) while every other vendor reads CONFIG
+      # directly. Supplying a stand-in keeps this engine on the shipped code
+      # path; without it the OpenAI models raise NoMethodError and every cell
+      # in their column silently becomes an error row.
+      Settings = Struct.new(:api_key)
+
       def initialize(name:, model:, lang: 'en', rate: 16_000)
         super(name: name)
         @model = model
@@ -53,13 +60,31 @@ module SttNoiseBenchmark
         @rate
       end
 
+      def settings
+        @settings ||= Settings.new(openai_api_key)
+      end
+
       def transcribe(samples, rate)
+        raise 'OPENAI_API_KEY is not set' if openai_model? && openai_api_key.to_s.empty?
+
         wav = Corpus.wav_bytes(samples, rate)
         result = stt_api_request(wav, 'wav', @lang, @model)
 
         raise "#{@model}: #{result['content']}" if result.is_a?(Hash) && result['type'] == 'error'
 
         (result.is_a?(Hash) ? result['text'] : result).to_s
+      end
+
+      private
+
+      # stt_api_request routes by model-id prefix; anything it does not
+      # recognise falls through to the OpenAI branch.
+      def openai_model?
+        !@model.to_s.start_with?('gemini-', 'scribe', 'cohere-transcribe', 'voxtral', 'xai-stt')
+      end
+
+      def openai_api_key
+        ENV['OPENAI_API_KEY'] || (defined?(CONFIG) ? CONFIG['OPENAI_API_KEY'] : nil)
       end
     end
 
@@ -96,19 +121,31 @@ module SttNoiseBenchmark
         raise 'OPENAI_API_KEY not set' if api_key.nil? || api_key.empty?
 
         transcript = nil
-        Sync do
+        Sync do |task|
           endpoint = Async::HTTP::Endpoint.parse(URL, alpn_protocols: ['http/1.1'])
-          Async::WebSocket::Client.connect(endpoint, headers: { 'Authorization' => "Bearer #{api_key}" }) do |conn|
-            conn.write(session_update_payload(rate).to_json)
-            conn.flush
 
-            wait_for(conn, 'session.updated')
-            append_audio(conn, samples)
-            conn.write({ type: 'input_audio_buffer.commit' }.to_json)
-            conn.flush
+          # The whole exchange runs under one budget. Checking a deadline
+          # between reads is not enough: `conn.read` blocks, so a socket that
+          # is held open without ever answering would stall the entire run
+          # rather than producing a "no response" cell.
+          task.with_timeout(@timeout) do
+            Async::WebSocket::Client.connect(endpoint, headers: { 'Authorization' => "Bearer #{api_key}" }) do |conn|
+              conn.write(session_update_payload(rate).to_json)
+              conn.flush
 
-            transcript = collect_transcript(conn)
+              wait_for(conn, 'session.updated')
+              append_audio(conn, samples)
+              conn.write({ type: 'input_audio_buffer.commit' }.to_json)
+              conn.flush
+
+              transcript = collect_transcript(conn)
+            end
           end
+        rescue Async::TimeoutError
+          # A silent engine is a result, not a harness failure: an empty
+          # transcript scores as 100% WER with 0 words returned, which the
+          # report renders distinctly from a fluent wrong answer.
+          transcript = nil
         end
         transcript.to_s
       end

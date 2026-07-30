@@ -11,6 +11,14 @@ require_relative 'lib/speech_source'
 # Scoring and mixing are pinned separately in wer_spec.rb / corpus_spec.rb,
 # which run unconditionally — those are the parts that have to be right for a
 # published number to mean anything.
+# Excluded by tag unless explicitly enabled. This is the load-bearing gate:
+# spec_helper.rb copies ~/monadic/config/env into ENV, so a user who keeps
+# RUN_API=true there would otherwise satisfy the first `skip` without ever
+# asking for a billed run.
+RSpec.configure do |config|
+  config.filter_run_excluding :stt_noise_benchmark unless ENV['RUN_STT_NOISE_BENCH'] == 'true'
+end
+
 RSpec.describe 'STT noise benchmark', :stt_noise_benchmark do
   before(:all) do
     skip 'RUN_API not enabled' unless ENV['RUN_API'] == 'true'

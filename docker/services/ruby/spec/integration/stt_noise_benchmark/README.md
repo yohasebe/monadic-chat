@@ -31,22 +31,42 @@ Five conditions, applied to the same clean clip:
 | `babble_+5dB` | overlapping speech | +5 dB |
 | `babble_0dB` | overlapping speech | 0 dB |
 
-Noise is generated from a seeded PRNG and mixed by measured RMS, so a run on
-one machine is byte-identical to a run on another. `corpus_spec.rb` verifies
-this by measuring the SNR back out of the mixture at four levels.
+**Noise generation and mixing are deterministic**: a seeded PRNG plus mixing by
+measured RMS, so the same speech input degrades identically on any machine.
+`corpus_spec.rb` verifies this by measuring the SNR back out of the mixture at
+four levels.
+
+**The speech itself is not.** No reference WAV is committed (see
+[Speech source](#speech-source)); by default the clip is synthesised locally by
+macOS `say`, whose output can differ across OS versions and voice packs. Two
+runs on the same machine are comparable; runs on different machines are only
+comparable if both point `STT_BENCH_SPEECH_WAV` at the same file. Treat
+cross-machine numbers as indicative unless the audio is pinned.
 
 ## Running it
 
-The measurement calls provider APIs and is billed. It is gated twice:
+The measurement calls provider APIs and is billed. It is gated three ways:
 
 ```bash
 cd docker/services/ruby
 RUN_API=true RUN_STT_NOISE_BENCH=true bundle exec rspec spec/integration/stt_noise_benchmark/
 ```
 
-Without both switches the measurement is skipped, while the scoring and mixing
-specs still run — those are the parts that have to be correct for any published
-number to mean anything, so they are pinned in CI.
+1. `RUN_STT_NOISE_BENCH` gates an RSpec **tag exclusion**, so without it the
+   example is filtered out before it runs
+2. `RUN_API` — the project-wide switch for provider-calling specs
+3. `RUN_STT_NOISE_BENCH` again, as an in-example `skip`
+
+The tag exclusion is the load-bearing one. `spec/spec_helper.rb` copies
+`~/monadic/config/env` into `ENV`, so a maintainer who keeps `RUN_API=true`
+there would satisfy an env check without ever asking for a billed run.
+
+Without the switches the measurement is skipped while `wer_spec.rb`,
+`corpus_spec.rb` and `report_spec.rb` still run — those are the parts that have
+to be correct for any published number to mean anything. They call no APIs and
+are listed explicitly in the `rspec-integration` CI job
+(`.github/workflows/specs.yml`), which runs named files rather than the whole
+directory.
 
 Results are written to `tmp/stt_noise_benchmark/<timestamp>/` as `result.json`
 (full transcripts) and `result.md` (the table).
@@ -72,9 +92,14 @@ that reads exactly like an API bug. The voice is pinned for this reason.
 
 | engine | transport | status |
 |---|---|---|
-| `xai-stt` | REST | ✅ reference line — batch transcriber, stayed accurate in every condition |
-| `gpt-4o-mini-transcribe` | REST | ✅ |
-| `gpt-realtime-whisper` | WebSocket | ✅ realtime transcription intent |
+| `xai-stt` | REST | reference line — batch transcriber, stayed accurate in every condition |
+| `gpt-4o-mini-transcribe` | REST | wired |
+| `gpt-realtime-whisper` | WebSocket | wired (realtime transcription intent) |
+
+"wired" means the adapter is implemented and its gates are in place. **None of
+the three has been executed end to end since the harness was formalised** — the
+2026-07-27 numbers below came from ad-hoc scripts, not this code. Treat the
+first billed run as a shakedown of the harness as much as of the engines.
 
 REST engines go through the application's own `InteractionUtils#stt_api_request`
 rather than a private reimplementation, so the benchmark measures the code that

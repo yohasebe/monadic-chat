@@ -96,6 +96,9 @@ jobs:
             output=$(bundle exec rspec \
               spec/integration/json_route_contract_spec.rb \
               spec/integration/library_import_contract_spec.rb \
+              spec/integration/stt_noise_benchmark/wer_spec.rb \
+              spec/integration/stt_noise_benchmark/corpus_spec.rb \
+              spec/integration/stt_noise_benchmark/report_spec.rb \
               --format progress 2>&1)
             code=$?
             set -e

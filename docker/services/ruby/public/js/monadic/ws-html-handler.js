@@ -210,7 +210,21 @@ function _handleAssistantRole(data, html, moreComing) {
   // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
   const discourseEl = $id('discourse');
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
-  window.appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
+  let badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+
+  // A speech-to-speech turn cut short by barge-in carries the transcript the
+  // model had produced so far. Saying so on the card matters: the text reads
+  // as a complete answer otherwise, and the user cannot tell that the rest
+  // was never spoken.
+  if (data["content"]["interrupted"]) {
+    const label = typeof webUIi18n !== 'undefined'
+      ? webUIi18n.t('ui.messages.responseInterrupted')
+      : 'Interrupted';
+    badge += " <span class='badge bg-secondary ms-1 align-middle'>" +
+             "<i class='fas fa-hand'></i> " + window.escapeHtml(label) + "</span>";
+  }
+
+  window.appendCard("assistant", badge, html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
   if (moreComing) {
     // Keep input disabled and streaming state active

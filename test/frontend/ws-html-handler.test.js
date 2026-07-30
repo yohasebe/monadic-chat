@@ -207,6 +207,27 @@ describe('ws-html-handler', () => {
       );
     });
 
+    // A speech-to-speech turn cut short by barge-in carries only the text the
+    // model had produced before it was stopped. Without a marker the card
+    // reads as a complete answer and the user cannot tell the rest was never
+    // spoken — the same UI-honesty rule that forbids silent fallback.
+    it('marks a card the server flagged as interrupted', () => {
+      handlers.handleHtml({
+        ...assistantData,
+        content: { ...assistantData.content, interrupted: true }
+      });
+
+      const badge = window.appendCard.mock.calls[0][1];
+      expect(badge).toContain('Assistant');
+      expect(badge).toMatch(/interrupted/i);
+    });
+
+    it('leaves an ordinary card unmarked', () => {
+      handlers.handleHtml(assistantData);
+
+      expect(window.appendCard.mock.calls[0][1]).not.toMatch(/interrupted/i);
+    });
+
     it('resets streaming state on final message', () => {
       handlers.handleHtml(assistantData);
       expect(window.UIState.set).toHaveBeenCalledWith('streamingResponse', false);

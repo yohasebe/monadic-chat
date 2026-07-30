@@ -1286,6 +1286,23 @@ document.addEventListener("DOMContentLoaded", function () {
         // app load, by which point the provider select and SSOT defaults are
         // ready, so this self-heals the badge. No-op on failure.
         if (typeof setAiUserBadge === 'function') setAiUserBadge();
+
+        // Selecting a speech-to-speech model changes more than quality: audio
+        // is rerouted through the STS bridge, and in the current slice web
+        // search and typed messages do not work in that mode. The dropdown
+        // label marks the entry "(realtime)", and this notice spells out what
+        // the mark means at the moment it starts to matter. Derived via the
+        // gate — SttGate.isStsModelSelected() is the only client-side reader
+        // of the capability for behavioural decisions.
+        if (window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
+            && window.SttGate.isStsModelSelected()) {
+          const stsNotice = typeof webUIi18n !== 'undefined'
+            ? webUIi18n.t('ui.messages.stsModeNotice')
+            : 'Realtime voice model: conversation runs over the speech-to-speech bridge. Web search and typed messages are not available in this mode.';
+          if (typeof setAlert === 'function') {
+            setAlert(`<i class='fas fa-microphone-lines'></i> ${stsNotice}`, 'info');
+          }
+        }
       });
     }
 

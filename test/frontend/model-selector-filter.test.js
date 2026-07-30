@@ -115,4 +115,22 @@ describe('speech-to-speech model availability', () => {
     // have dropped them.
     expect(listModels(['gpt-realtime-2.1'], true)).toContain('gpt-realtime-2.1');
   });
+
+  // Picking an STS model is a mode switch (different transport, no web
+  // search, no typed input in the current slice), so the entry must be
+  // visibly marked — an unlabelled id would hide the mode change behind
+  // what looks like a quality choice.
+  it('labels the dropdown entry "(realtime)" while keeping the bare id as value', () => {
+    withSpec({
+      'gpt-5.6-terra': {},
+      'gpt-realtime-2.1': { supports_speech_to_speech: true }
+    });
+
+    const html = listModels(['gpt-5.6-terra', 'gpt-realtime-2.1']);
+
+    expect(html).toContain('>gpt-realtime-2.1 (realtime)<');
+    expect(html).toContain('value="gpt-realtime-2.1"');
+    // Ordinary models stay unlabelled.
+    expect(html).toContain('>gpt-5.6-terra<');
+  });
 });

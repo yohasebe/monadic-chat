@@ -171,6 +171,17 @@ function listModels(models, openai = false) {
   // Sort GPT-4 models alphabetically
   gpt4Models.sort((a, b) => a.localeCompare(b));
 
+  // A speech-to-speech model is a mode switch, not a quality choice: picking
+  // one reroutes audio through the STS bridge and (in the current slice)
+  // drops web search and typed input. An unmarked id in the list would hide
+  // that, so the label says so. The option VALUE stays the bare model id —
+  // params, gates and specs all key on it.
+  const optionFor = function (model, extraAttrs) {
+    const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[model] : null;
+    const label = (spec && spec.supports_speech_to_speech) ? `${model} (realtime)` : model;
+    return `<option value="${model}"${extraAttrs || ''}>${label}</option>`;
+  };
+
   // Generate options based on the value of openai
   let modelOptions = [];
 
@@ -178,38 +189,26 @@ function listModels(models, openai = false) {
     // Include GPT-5 section at the top if GPT-5 models are available
     if (gpt5Models.length > 0) {
       modelOptions.push('<option disabled>──GPT-5──</option>');
-      modelOptions.push(...gpt5Models.map(model =>
-        `<option value="${model}" data-model-type="reasoning">${model}</option>`
-      ));
+      modelOptions.push(...gpt5Models.map(model => optionFor(model, ' data-model-type="reasoning"')));
     }
 
     // Include GPT-4 models
     if (gpt4Models.length > 0) {
       modelOptions.push('<option disabled>──GPT-4──</option>');
-      modelOptions.push(...gpt4Models.map(model =>
-        `<option value="${model}">${model}</option>`
-      ));
+      modelOptions.push(...gpt4Models.map(model => optionFor(model)));
     }
 
     // Include other models (o1, o3, codex, etc.)
     if (otherModels.length > 0) {
       modelOptions.push('<option disabled>──Other Models──</option>');
-      modelOptions.push(...otherModels.map(model =>
-        `<option value="${model}">${model}</option>`
-      ));
+      modelOptions.push(...otherModels.map(model => optionFor(model)));
     }
   } else {
     // Exclude dummy options when openai is false
     modelOptions = [
-      ...gpt5Models.map(model =>
-        `<option value="${model}">${model}</option>`
-      ),
-      ...gpt4Models.map(model =>
-        `<option value="${model}">${model}</option>`
-      ),
-      ...otherModels.map(model =>
-        `<option value="${model}">${model}</option>`
-      )
+      ...gpt5Models.map(model => optionFor(model)),
+      ...gpt4Models.map(model => optionFor(model)),
+      ...otherModels.map(model => optionFor(model))
     ];
   }
 

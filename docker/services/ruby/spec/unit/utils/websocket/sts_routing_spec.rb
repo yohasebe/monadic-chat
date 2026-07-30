@@ -236,4 +236,47 @@ RSpec.describe "WebSocketHelper STS audio routing" do
       expect { call_update_params(plain_host, session, { "model" => "gpt-5.6-terra" }) }.not_to raise_error
     end
   end
+
+  # Defense in depth: an STS realtime model must never reach the normal
+  # chat-completions pipeline (raw provider 404). handle_ws_streaming
+  # answers with a friendly error before doing any work.
+  describe "normal-pipeline STS model guard (handle_ws_streaming)" do
+    let(:plain_host) do
+      Class.new do
+        include WebSocketHelper
+      end.new
+    end
+
+    it "rejects an STS model with a friendly error and does not start a turn" do
+      h = plain_host
+      broadcasts = []
+      allow(h).to receive(:send_or_broadcast) { |msg, *_| broadcasts << JSON.parse(msg) }
+
+      session = { parameters: {}, messages: [] }
+      result = h.send(:handle_ws_streaming, nil,
+                      { "message" => "hello", "model" => "gpt-realtime-2.1" }, session, nil)
+
+      expect(result).to be_nil
+      expect(broadcasts.length).to eq(1)
+      expect(broadcasts.first["type"]).to eq("error")
+      expect(broadcasts.first["content"]).to include("voice-only")
+      expect(session[:messages]).to be_empty
+    end
+
+    it "does not guard a normal chat model (guard is a no-op for non-STS models)" do
+      h = plain_host
+      broadcasts = []
+      allow(h).to receive(:send_or_broadcast) { |msg, *_| broadcasts << JSON.parse(msg) }
+      # Stop right after the guard: the rest of the pipeline is out of scope
+      # here, so make the first downstream step explode into a sentinel.
+      allow(h).to receive(:initialize_token_counting) { raise StopIteration }
+
+      session = { parameters: {}, messages: [] }
+      expect do
+        h.send(:handle_ws_streaming, nil,
+               { "message" => "hello", "model" => "gpt-5.6-terra" }, session, nil)
+      end.to raise_error(StopIteration)
+      expect(broadcasts).to be_empty
+    end
+  end
 end

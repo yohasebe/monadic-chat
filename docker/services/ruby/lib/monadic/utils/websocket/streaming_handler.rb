@@ -198,6 +198,22 @@ module WebSocketHelper
 
     session[:parameters].merge! obj
 
+    # Guard: STS realtime models are voice-only — they have no chat
+    # completions endpoint, so any normal-pipeline entry that still routes
+    # one here (typed text, initiate_from_assistant, AI User, import
+    # continuation, ...) would die on a raw provider 404. Answer with a
+    # friendly error instead. One server-side guard covers all entries.
+    current_model = session[:parameters]["model"].to_s
+    if defined?(Monadic::Utils::ModelSpec) &&
+       Monadic::Utils::ModelSpec.supports_speech_to_speech?(current_model)
+      send_or_broadcast({
+        "type" => "error",
+        "content" => "This model is voice-only (speech-to-speech). " \
+                     "Please use the microphone to talk with it."
+      }.to_json, ws_session_id)
+      return nil
+    end
+
     # Start background token counting for the user message immediately
     message_text = obj["message"].to_s
     if !message_text.empty?

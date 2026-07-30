@@ -647,6 +647,11 @@ module WebSocketHelper
       }
       session[:messages] ||= []
       session[:messages] << user_message_data
+      # Deliver the user card so the utterance shows up in the timeline: in
+      # STS mode the client no longer echoes the transcript as a typed
+      # message, so the server must send the card itself (rendered via the
+      # client's user-role html path).
+      send_or_broadcast({ "type" => "html", "content" => user_message_data }.to_json, ws_session_id)
       turn[:user_msg_ref] = user_message_data if turn
       sync_session_state!
     end

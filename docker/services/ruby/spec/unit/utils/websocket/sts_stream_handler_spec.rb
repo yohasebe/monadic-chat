@@ -293,9 +293,14 @@ RSpec.describe "WebSocketHelper STS bridge" do
       expect(user_msgs.first).to include("text" => "hi there", "app_name" => "VoiceChatOpenAI", "active" => true)
       expect(user_msgs.first["mid"]).to match(/\A[0-9a-f]{8}\z/)
 
-      # order gate: the buffered fragment went out AFTER the stt message
+      # order gate: the buffered fragment went out AFTER the stt message,
+      # and the user card html goes out BETWEEN stt and the assistant
+      # fragments (stt → user card → assistant fragments).
       types = payloads.map { |p| p["type"] }
-      expect(types.index("stt")).to be < types.index("fragment")
+      expect(types.index("stt")).to be < types.index("html")
+      expect(types.index("html")).to be < types.index("fragment")
+      user_card = payloads.find { |p| p["type"] == "html" }
+      expect(user_card["content"]).to include("role" => "user", "text" => "hi there")
       expect(payloads.find { |p| p["type"] == "fragment" }["content"]).to eq("assistant chunk")
     end
 
@@ -415,7 +420,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
         host.send(:sts_reader_loop, conn, state, "ws-test")
 
         types = parsed_broadcasts(host).map { |p| p["type"] }
-        expect(types).to eq(%w[stt fragment fragment])
+        expect(types).to eq(%w[stt html fragment fragment])
         expect(turn[:gate_open]).to be(true)
         expect(turn[:gate_timer]).to be_nil # timer disarmed on completed
       end

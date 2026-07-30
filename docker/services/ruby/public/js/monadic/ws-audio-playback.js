@@ -73,6 +73,11 @@
     // PCM playback uses an AudioBufferSourceNode, not an <audio> element, so it
     // is not covered by activeAudioElements above.
     stopPCMPlayback();
+
+    // Streaming STS playback keeps its own scheduled sources. Resolved at call
+    // time because ws-sts-playback.js loads after this file.
+    const sts = window.WsStsPlayback;
+    if (sts && typeof sts.stopAll === 'function') sts.stopAll();
   }
 
   // ── stopPCMPlayback ────────────────────────────────────────────────

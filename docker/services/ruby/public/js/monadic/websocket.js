@@ -720,6 +720,32 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // Speech-to-speech audio arrives as ~100ms deltas and is scheduled
+      // ahead of time rather than queued; see ws-sts-playback.js.
+      case "sts_audio_delta": {
+        const sts = window.WsStsPlayback;
+        if (sts && typeof sts.handleStsAudioDelta === 'function') {
+          sts.handleStsAudioDelta(data);
+        }
+        break;
+      }
+
+      case "sts_audio_done": {
+        const sts = window.WsStsPlayback;
+        if (sts && typeof sts.handleStsAudioDone === 'function') {
+          sts.handleStsAudioDone(data);
+        }
+        break;
+      }
+
+      case "sts_audio_cancelled": {
+        const sts = window.WsStsPlayback;
+        if (sts && typeof sts.handleStsAudioCancelled === 'function') {
+          sts.handleStsAudioCancelled(data);
+        }
+        break;
+      }
+
       case "tts_progress": {
         const tth = window.WsTTSHandler;
         if (tth && typeof tth.handleTTSProgress === 'function') {

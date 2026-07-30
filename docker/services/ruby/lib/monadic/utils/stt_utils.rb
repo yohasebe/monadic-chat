@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "./http_client"
 require 'json'
 require 'base64'
 require 'tempfile'
@@ -183,7 +182,7 @@ module InteractionUtils
       options["language"] = lang_code if lang_code && lang_code != "auto"
 
       form_data = HTTP::FormData.create(options)
-      response = Monadic::Utils::HttpClient.generation.headers(
+      response = HTTP.headers(
         "Authorization" => "Bearer #{api_key}",
         "Content-Type" => form_data.content_type
       ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
@@ -249,7 +248,7 @@ module InteractionUtils
       }
 
       form_data = HTTP::FormData.create(options)
-      response = Monadic::Utils::HttpClient.generation.headers(
+      response = HTTP.headers(
         "Authorization" => "Bearer #{api_key}",
         "Content-Type" => form_data.content_type
       ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
@@ -335,7 +334,7 @@ module InteractionUtils
 
       form_data = HTTP::FormData.create(options)
 
-      response = Monadic::Utils::HttpClient.generation.headers(
+      response = HTTP.headers(
         "xi-api-key" => api_key,
         "Content-Type" => form_data.content_type
       ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
@@ -447,7 +446,7 @@ module InteractionUtils
 
       form_data = HTTP::FormData.create(options)
 
-      response = Monadic::Utils::HttpClient.generation.headers(
+      response = HTTP.headers(
         "Authorization" => "Bearer #{api_key}",
         "Content-Type" => form_data.content_type
       ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
@@ -581,7 +580,7 @@ module InteractionUtils
 
       options["language"] = lang_code if lang_code
       form_data = HTTP::FormData.create(options)
-      response = Monadic::Utils::HttpClient.generation.headers(
+      response = HTTP.headers(
         "Authorization" => "Bearer #{settings.api_key}",
         "Content-Type" => form_data.content_type
       ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(url, body: form_data.to_s)

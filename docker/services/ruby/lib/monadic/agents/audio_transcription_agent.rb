@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../utils/http_client"
 require "base64"
 require "http"
 require_relative "../utils/environment"
@@ -162,7 +161,7 @@ module AudioTranscriptionAgent
 
     retries = 0
     begin
-      res = Monadic::Utils::HttpClient.generation.headers(
+      res = HTTP.headers(
         "Content-Type" => form.content_type,
         "Authorization" => "Bearer #{api_key}"
       ).timeout(

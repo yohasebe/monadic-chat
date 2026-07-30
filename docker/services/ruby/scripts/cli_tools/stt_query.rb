@@ -4,7 +4,6 @@
 $LOAD_PATH.unshift('/monadic/lib') if File.directory?('/monadic/lib')
 $LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(File.expand_path('../../lib', __dir__))
 
-require_relative "../../lib/monadic/utils/http_client"
 require "securerandom"
 require "base64"
 require "http"
@@ -58,7 +57,7 @@ def stt_api_request(audiofile, response_format = "text", lang_code = nil, model 
     end
 
     form_data = HTTP::FormData.create(options)
-    response = Monadic::Utils::HttpClient.generation.headers(
+    response = HTTP.headers(
       "Content-Type": form_data.content_type,
       Authorization: "Bearer #{api_key}"
     ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(url, body: form_data.to_s)

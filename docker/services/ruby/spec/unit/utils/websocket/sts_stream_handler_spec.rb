@@ -748,6 +748,57 @@ RSpec.describe "WebSocketHelper STS bridge" do
     end
   end
 
+  describe "reconnect backoff (healthy-session reset)" do
+    it "gives up after STS_MAX_RECONNECTS when connections die before the healthy threshold" do
+      stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test" })
+      stub_const("WebSocketHelper::STS_HEALTHY_SESSION_SECONDS", 3600) # unreachable here
+      calls = 0
+      sleeps = []
+      allow(host).to receive(:sts_connect_and_run) do
+        calls += 1
+        raise StandardError, "flap"
+      end
+      allow(host).to receive(:sleep) { |d| sleeps << d }
+
+      state = fresh_state
+      host.session[:_sts] = state
+      Async { host.send(:run_sts_bridge!, state, "ws-test") }.wait
+
+      expect(calls).to eq(WebSocketHelper::STS_MAX_RECONNECTS + 1)
+      expect(sleeps).to eq([1, 2, 3])
+      errors = parsed_broadcasts(host).select { |p| p["type"] == "error" }
+      expect(errors.last["content"]).to include("lost")
+    end
+
+    it "resets the backoff only for sessions that lived past the healthy threshold" do
+      stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test" })
+      stub_const("WebSocketHelper::STS_HEALTHY_SESSION_SECONDS", 0) # any handshake counts
+      calls = 0
+      sleeps = []
+      allow(host).to receive(:sts_connect_and_run) do |state, _, _|
+        calls += 1
+        state[:session_ready] = true # handshake completed
+        # Stop the bridge TASK (not `throw` — UncaughtThrowError is a
+        # StandardError and would be swallowed by the loop's own rescue,
+        # turning the test into an infinite loop).
+        Async::Task.current.stop if calls > WebSocketHelper::STS_MAX_RECONNECTS + 2
+        raise StandardError, "flap"
+      end
+      allow(host).to receive(:sleep) { |d| sleeps << d }
+
+      state = fresh_state
+      host.session[:_sts] = state
+      Async { host.send(:run_sts_bridge!, state, "ws-test") }.wait
+
+      # Exceeded the nominal cap WITHOUT giving up → the counter kept
+      # resetting (constant 1s backoff, no exhaustion error).
+      expect(calls).to eq(WebSocketHelper::STS_MAX_RECONNECTS + 3)
+      expect(sleeps.uniq).to eq([1])
+      exhaustion = parsed_broadcasts(host).select { |p| p["type"] == "error" && p["content"].include?("lost") }
+      expect(exhaustion).to be_empty
+    end
+  end
+
   describe "full bridge (Async::WebSocket::Client.connect mocked, no network)" do
     it "runs chunk → session.updated → commit → upstream events end to end" do
       stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test" })

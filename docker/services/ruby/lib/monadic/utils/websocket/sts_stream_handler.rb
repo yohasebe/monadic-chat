@@ -64,6 +64,12 @@ module WebSocketHelper
   # Upstream reconnect attempts before giving up and surfacing an error.
   STS_MAX_RECONNECTS = 3
 
+  # A reconnected session must live at least this long (with the handshake
+  # completed) to count as healthy and reset the reconnect backoff.
+  # Resetting on handshake alone would flap forever under conditions that
+  # kill the socket right after session.updated (quota, network policy).
+  STS_HEALTHY_SESSION_SECONDS = 60
+
   # Audio token rates used for the per-turn cost ESTIMATE (USD per 1M
   # tokens). NOTE: text tokens inside the same usage object are billed at
   # different (lower) rates, so this is an estimate, not an invoice figure.
@@ -206,6 +212,7 @@ module WebSocketHelper
 
       attempts = 0
       loop do
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         begin
           sts_connect_and_run(state, ws_session_id, api_key)
         rescue StandardError => e
@@ -213,15 +220,17 @@ module WebSocketHelper
             "[STS session=#{ws_session_id}] connection error: #{e.class}: #{e.message}"
           end
         end
+        lived = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
 
         # :abort is barge-in and never reaches here (the writer stays in its
         # loop), so any return means the upstream socket went away.
         #
-        # A connection that completed its handshake counts as healthy: reset
-        # the backoff so a long-lived bridge is not killed by CUMULATIVE
-        # failures spread over hours. Failures before `session.updated`
-        # still count.
-        attempts = 0 if state[:session_ready]
+        # Healthy = handshake completed AND the connection actually lived a
+        # while: only then does the backoff reset, so a long-lived bridge is
+        # not killed by cumulative failures spread over hours. Resetting on
+        # handshake alone would loop forever (1s backoff, cap never reached,
+        # nothing surfaced) when the socket dies right after session.updated.
+        attempts = 0 if state[:session_ready] && lived >= STS_HEALTHY_SESSION_SECONDS
         attempts += 1
         if attempts > STS_MAX_RECONNECTS
           Monadic::Utils::ExtraLogger.log do

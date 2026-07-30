@@ -216,6 +216,53 @@ describe('barge-in', () => {
     expect(source.onended).toBeNull();
   });
 
+  // The server sends `turn_id: turn && turn[:id]`, so an id-less turn is a
+  // real case, not a defensive hypothetical.
+  describe('unidentified turns (turn_id null)', () => {
+    it('plays audio that arrives without a turn id', () => {
+      expect(Sts.scheduleChunk(null, chunkBytes(100), SAMPLE_RATE)).toBe(true);
+      expect(ctx.createdSources).toHaveLength(1);
+    });
+
+    it('cancelling an unidentified turn stops what is already scheduled', () => {
+      Sts.scheduleChunk(null, chunkBytes(100), SAMPLE_RATE);
+
+      Sts.cancelTurn(null);
+
+      expect(ctx.createdSources[0].stop).toHaveBeenCalled();
+    });
+
+    it('does not deafen every later unidentified turn', () => {
+      Sts.scheduleChunk(null, chunkBytes(100), SAMPLE_RATE);
+      Sts.cancelTurn(null);
+
+      // Two unnamed turns are indistinguishable, so remembering the first as
+      // cancelled would silently drop this one forever.
+      expect(Sts.scheduleChunk(null, chunkBytes(100), SAMPLE_RATE)).toBe(true);
+    });
+
+    it('treats undefined and empty string the same as null', () => {
+      expect(Sts.scheduleChunk(undefined, chunkBytes(100), SAMPLE_RATE)).toBe(true);
+      expect(Sts.scheduleChunk('', chunkBytes(100), SAMPLE_RATE)).toBe(true);
+      expect(Sts.getActiveTurnId()).toBeNull();
+    });
+
+    it('still discards late deltas for a named cancelled turn', () => {
+      Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+      Sts.cancelTurn('t1');
+
+      expect(Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE)).toBe(false);
+    });
+
+    it('accepts a numeric turn id without treating it as a different turn', () => {
+      Sts.scheduleChunk(7, chunkBytes(100), SAMPLE_RATE);
+      Sts.scheduleChunk('7', chunkBytes(100), SAMPLE_RATE);
+
+      const [a, b] = ctx.createdSources;
+      expect(b.startedAt).toBeCloseTo(a.startedAt + 0.1, 6);
+    });
+  });
+
   it('stopAll stops sources across all turns', () => {
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
     Sts.scheduleChunk('t2', chunkBytes(100), SAMPLE_RATE);

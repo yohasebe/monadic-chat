@@ -46,11 +46,24 @@
   // Turn ids whose remaining deltas must be dropped, newest last.
   const cancelledTurns = [];
 
+  // The server sends `turn_id: turn && turn[:id]`, so it can legitimately be
+  // null when a turn ended before an id existed. A missing id is treated as
+  // "unidentified" rather than as the literal key null: two unidentified turns
+  // are indistinguishable, so remembering one as cancelled would silently
+  // discard every later unidentified turn as well.
+  function normalizeTurnId(turnId) {
+    return (turnId === null || turnId === undefined || turnId === '') ? null : String(turnId);
+  }
+
   function isCancelled(turnId) {
+    if (turnId === null) return false;
     return cancelledTurns.indexOf(turnId) !== -1;
   }
 
   function rememberCancelled(turnId) {
+    // Cannot discard future deltas for a turn we cannot name; stopping what is
+    // already scheduled is the most that can be done honestly.
+    if (turnId === null) return;
     if (isCancelled(turnId)) return;
     cancelledTurns.push(turnId);
     while (cancelledTurns.length > MAX_REMEMBERED_TURNS) cancelledTurns.shift();
@@ -140,7 +153,8 @@
    * @param {number} sampleRate - Sample rate of pcmBytes (e.g. 24000).
    * @returns {boolean} true if scheduled, false if dropped.
    */
-  function scheduleChunk(turnId, pcmBytes, sampleRate) {
+  function scheduleChunk(rawTurnId, pcmBytes, sampleRate) {
+    const turnId = normalizeTurnId(rawTurnId);
     if (isCancelled(turnId)) return false;
     if (!pcmBytes || pcmBytes.length < 2) return false;
 
@@ -148,7 +162,9 @@
     if (!ctx) return false;
 
     // A new turn starts its own timeline; do not inherit the previous one's
-    // tail, which may be in the past by now.
+    // tail, which may be in the past by now. Two unidentified turns compare
+    // equal here and so share a timeline — harmless, because the underrun
+    // re-prime below moves a stale anchor forward anyway.
     if (turnId !== activeTurnId) {
       activeTurnId = turnId;
       nextStartTime = 0;
@@ -194,13 +210,14 @@
   }
 
   // ── Turn lifecycle ─────────────────────────────────────────────────
-  function finishTurn(turnId) {
+  function finishTurn(rawTurnId) {
     // Scheduled audio plays out; only the timeline anchor is released so the
     // next turn starts fresh.
-    if (turnId === activeTurnId) activeTurnId = null;
+    if (normalizeTurnId(rawTurnId) === activeTurnId) activeTurnId = null;
   }
 
-  function cancelTurn(turnId) {
+  function cancelTurn(rawTurnId) {
+    const turnId = normalizeTurnId(rawTurnId);
     rememberCancelled(turnId);
     stopSources(turnId);
     if (turnId === activeTurnId) {
@@ -254,7 +271,7 @@
     getNextStartTime: function() { return nextStartTime; },
     getActiveTurnId: function() { return activeTurnId; },
     getScheduledCount: function(turnId) {
-      const set = scheduledSources.get(turnId);
+      const set = scheduledSources.get(normalizeTurnId(turnId));
       return set ? set.size : 0;
     }
   };

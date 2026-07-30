@@ -38,7 +38,8 @@ RSpec.describe 'STT noise benchmark', :stt_noise_benchmark do
       speech: speech,
       speech_rate: rate,
       truth: truth,
-      babble_speakers: speakers
+      babble_speakers: speakers,
+      speech_source: ENV['STT_BENCH_SPEECH_WAV'] || "macOS say (#{SttNoiseBenchmark::SpeechSource::DEFAULT_VOICE})"
     )
     result = runner.run
 

@@ -91,8 +91,11 @@ module SttNoiseBenchmark
     end
 
     # ── Noise ────────────────────────────────────────────────────────
-    # Seeded so the same condition is byte-identical across runs.
-    def white_noise(length, seed: 20260727)
+    # Seeded so the same condition is byte-identical across runs. The seed is
+    # recorded in the results file so a later run can be compared honestly.
+    DEFAULT_NOISE_SEED = 20_260_727
+
+    def white_noise(length, seed: DEFAULT_NOISE_SEED)
       rng = Random.new(seed)
       Array.new(length) { ((rng.rand - 0.5) * 2 * 8000).round }
     end
@@ -100,7 +103,7 @@ module SttNoiseBenchmark
     # Babble: overlapping speech, the condition that separates engines that
     # omit from engines that fabricate. Built by summing shifted copies of the
     # supplied speaker samples, so it needs real speech as raw material.
-    def babble_noise(length, speakers, seed: 20260727)
+    def babble_noise(length, speakers, seed: DEFAULT_NOISE_SEED)
       raise ArgumentError, 'babble needs at least one speaker track' if speakers.empty?
 
       rng = Random.new(seed)
@@ -120,10 +123,16 @@ module SttNoiseBenchmark
     # ── Mixing ───────────────────────────────────────────────────────
     # Scale `noise` so that the mixture sits at `snr_db` relative to `speech`,
     # then add. Returns clipped 16-bit samples.
+    #
+    # The speech term is measured over the ACTIVE region only. A clip carries
+    # leading and trailing silence, and averaging that in lowers the apparent
+    # speech level — the mixture would then be quieter than the label claims,
+    # i.e. every engine would be scored on easier audio than the table says.
+    # Noise is stationary, so its level is measured over the whole clip.
     def mix_at_snr(speech, noise, snr_db)
       return speech.dup if noise.empty?
 
-      speech_rms = rms(speech)
+      speech_rms = active_rms(speech)
       noise_rms = rms(noise)
       return speech.dup if speech_rms.zero? || noise_rms.zero?
 
@@ -139,6 +148,24 @@ module SttNoiseBenchmark
       return 0.0 if samples.empty?
 
       Math.sqrt(samples.sum { |s| s.to_f * s } / samples.length)
+    end
+
+    # Fraction of peak amplitude below which a sample counts as silence.
+    # Deliberately crude: this only has to exclude the quiet head and tail of
+    # a clip, not perform voice activity detection.
+    ACTIVE_THRESHOLD = 0.05
+
+    # RMS over samples above the silence floor, falling back to the whole clip
+    # when nothing clears it (e.g. a synthetic tone at constant low level).
+    def active_rms(samples)
+      return 0.0 if samples.empty?
+
+      peak = samples.max_by(&:abs).abs
+      return 0.0 if peak.zero?
+
+      floor = peak * ACTIVE_THRESHOLD
+      active = samples.select { |s| s.abs >= floor }
+      active.empty? ? rms(samples) : rms(active)
     end
 
     def clamp16(value)

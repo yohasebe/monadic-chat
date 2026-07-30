@@ -109,9 +109,24 @@ RSpec.describe SttNoiseBenchmark::Corpus do
         mixed = described_class.mix_at_snr(speech, noise, target_db)
         residual = Array.new(speech.length) { |i| mixed[i] - speech[i] }
 
-        measured = 20 * Math.log10(described_class.rms(speech) / described_class.rms(residual))
+        measured = 20 * Math.log10(described_class.active_rms(speech) / described_class.rms(residual))
         expect(measured).to be_within(0.5).of(target_db)
       end
+    end
+
+    # A clip with silent head and tail must land at the labelled SNR over the
+    # part that carries speech. Measuring the speech level across the silence
+    # would inflate the noise gain and make the audio harder than the label —
+    # every published number would then describe a condition nobody chose.
+    it 'labels SNR against the speech, not the silence around it' do
+      speech = Array.new(6000, 0) + tone(length: 12_000) + Array.new(6000, 0)
+      noise = described_class.white_noise(speech.length)
+
+      mixed = described_class.mix_at_snr(speech, noise, 0)
+      residual = Array.new(speech.length) { |i| mixed[i] - speech[i] }
+
+      measured = 20 * Math.log10(described_class.active_rms(speech) / described_class.rms(residual))
+      expect(measured).to be_within(0.5).of(0)
     end
 
     it 'returns the speech untouched when there is no noise' do
@@ -125,6 +140,31 @@ RSpec.describe SttNoiseBenchmark::Corpus do
       mixed = described_class.mix_at_snr(speech, noise, 0)
       expect(mixed.max).to be <= 32_767
       expect(mixed.min).to be >= -32_768
+    end
+  end
+
+  describe '.active_rms' do
+    it 'ignores the silent head and tail' do
+      speech = tone(length: 12_000)
+      padded = Array.new(6000, 0) + speech + Array.new(6000, 0)
+
+      expect(described_class.active_rms(padded))
+        .to be_within(1.0).of(described_class.active_rms(speech))
+    end
+
+    it 'is lower than whole-clip RMS is, for a padded clip' do
+      padded = Array.new(6000, 0) + tone(length: 12_000) + Array.new(6000, 0)
+
+      expect(described_class.rms(padded)).to be < described_class.active_rms(padded)
+    end
+
+    it 'falls back to the whole clip when nothing clears the floor' do
+      flat = Array.new(1000, 100)
+      expect(described_class.active_rms(flat)).to be_within(1.0).of(100)
+    end
+
+    it 'is zero for silence' do
+      expect(described_class.active_rms(Array.new(1000, 0))).to eq(0.0)
     end
   end
 

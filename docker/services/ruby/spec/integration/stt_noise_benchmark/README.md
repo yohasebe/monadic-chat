@@ -34,7 +34,13 @@ Five conditions, applied to the same clean clip:
 **Noise generation and mixing are deterministic**: a seeded PRNG plus mixing by
 measured RMS, so the same speech input degrades identically on any machine.
 `corpus_spec.rb` verifies this by measuring the SNR back out of the mixture at
-four levels.
+four levels. The seed is recorded in `result.json`.
+
+SNR is labelled against the **speech-active** part of the clip, not the whole
+file. Averaging the silent head and tail into the speech level would understate
+it, so the mixer would add less noise than the label claims and every engine
+would be scored on easier audio than the table says. The silence floor is 5% of
+peak amplitude (`Corpus::ACTIVE_THRESHOLD`, also recorded in `result.json`).
 
 **The speech itself is not.** No reference WAV is committed (see
 [Speech source](#speech-source)); by default the clip is synthesised locally by
@@ -69,7 +75,26 @@ are listed explicitly in the `rspec-integration` CI job
 directory.
 
 Results are written to `tmp/stt_noise_benchmark/<timestamp>/` as `result.json`
-(full transcripts) and `result.md` (the table).
+and `result.md` (the table). `result.json` carries a `metadata` block —
+timestamps, noise seed, silence threshold, speech source, engine model ids and
+rates — because a WER figure whose subject is unrecorded cannot be compared
+with a later run.
+
+### How long it takes
+
+Each cell prints progress as it runs. Budget generously:
+
+- **REST cells** go through the application's own retry loop
+  (`InteractionUtils::MAX_RETRIES = 10`, `RETRY_DELAY = 2`, 60s read timeout).
+  A provider that is timing out rather than refusing can therefore hold a
+  single cell for **~10 minutes**. That retry policy is shipped behaviour and
+  is deliberately not overridden here — the benchmark measures the product.
+- **WebSocket cells** are capped at 60s each by the engine's own timeout.
+
+With the default three engines and five conditions that is 15 cells: a couple
+of minutes when providers are healthy, potentially over an hour in the
+pathological case. The per-cell log line is what distinguishes "slow" from
+"hung".
 
 ### Speech source
 

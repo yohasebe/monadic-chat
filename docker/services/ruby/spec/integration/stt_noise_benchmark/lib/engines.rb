@@ -15,10 +15,13 @@ module SttNoiseBenchmark
   module Engines
     # Every engine answers #name, #native_rate and #transcribe(samples, rate).
     class Base
-      attr_reader :name
+      # `model` is reported in the results metadata: a WER table whose subject
+      # is unrecorded cannot be compared with a later run.
+      attr_reader :name, :model
 
-      def initialize(name:)
+      def initialize(name:, model: nil)
         @name = name
+        @model = model
       end
 
       # Rate the engine wants its audio at. The corpus is resampled per engine
@@ -50,8 +53,7 @@ module SttNoiseBenchmark
       Settings = Struct.new(:api_key)
 
       def initialize(name:, model:, lang: 'en', rate: 16_000)
-        super(name: name)
-        @model = model
+        super(name: name, model: model)
         @lang = lang
         @rate = rate
       end
@@ -106,8 +108,7 @@ module SttNoiseBenchmark
       APPEND_CHUNK_BYTES = 32_000 # ~0.66s of 24kHz PCM16 per frame
 
       def initialize(name:, model: 'gpt-realtime-whisper', lang: 'en', timeout: 60)
-        super(name: name)
-        @model = model
+        super(name: name, model: model)
         @lang = lang
         @timeout = timeout
       end

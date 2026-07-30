@@ -523,6 +523,31 @@ describe('WebSocket Handlers', () => {
       expect(result).toBe(false);
     });
 
+    // Speech-to-speech: the server has already taken the turn (appended the
+    // user message, generating the reply). Filling the textarea and clicking
+    // send would submit the transcript a SECOND time through the ordinary
+    // pipeline, where a realtime-only model 404s. This is the client half of
+    // integration gap #4.
+    it('neither fills the textarea nor auto-submits in STS mode', () => {
+      const msgEl = document.getElementById('message');
+      msgEl.value = '';
+      document.getElementById('check-easy-submit').checked = true;
+      const clickSpy = jest.spyOn(document.getElementById('send'), 'click');
+
+      window.SttGate = { isStsModelSelected: () => true };
+      try {
+        const result = handlers.handleSTTMessage({ type: 'stt', content: 'spoken words', logprob: 0.9 });
+        expect(result).toBe(true);
+      } finally {
+        delete window.SttGate;
+      }
+
+      expect(msgEl.value).toBe('');
+      expect(clickSpy).not.toHaveBeenCalled();
+      // Controls still recover — the turn continues server-side.
+      expect(document.getElementById('send').disabled).toBe(false);
+    });
+
     it('should handle STT messages with auto-submit enabled', () => {
       const msgEl = document.getElementById('message');
       msgEl.value = '';

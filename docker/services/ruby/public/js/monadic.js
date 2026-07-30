@@ -3204,9 +3204,23 @@ document.addEventListener("DOMContentLoaded", function () {
       enterConversationMode();
       $show($id("discourse"));
 
+      // Assistant-initiated greetings go through the ordinary chat pipeline
+      // (params without `message` → handle_ws_streaming → a fresh LLM call),
+      // which a realtime-only STS model cannot serve — the request 404s
+      // before the user has said a word. In STS mode the conversation starts
+      // with the user's speech instead; say so rather than failing silently.
+      const stsInitiate = !!(window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
+        && window.SttGate.isStsModelSelected());
+      if (stsInitiate && ($id("initiate-from-assistant") || {}).checked && messages.length === 0) {
+        const speakFirst = typeof webUIi18n !== 'undefined'
+          ? webUIi18n.t('ui.messages.stsSpeakToStart')
+          : 'Realtime voice model: press the microphone and speak to start the conversation.';
+        setAlert(`<i class='fas fa-microphone-lines'></i> ${speakFirst}`, 'info');
+      }
+
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
       // This prevents auto-generation when importing conversations
-      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
+      if (!stsInitiate && ($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
         $show($id("temp-card"));
         $hide($id("user-panel"));
         $show($id("monadic-spinner")); // Show spinner for initial assistant message

@@ -90,4 +90,24 @@ describe('speech-to-speech mode is derived at a single point per side', () => {
     expect(recording).not.toContain('supports_speech_to_speech');
     expect(monadic).not.toContain('supports_speech_to_speech');
   });
+
+  // Every route into the ordinary chat pipeline must be gated in STS mode —
+  // a realtime-only model 404s there. Gap #1 was the dropdown, #2 the
+  // capture transport, #4a the assistant-initiated greeting and #4b the
+  // easy-submit after `stt`. Each entry point that consults the gate is
+  // pinned here so a refactor cannot silently drop one.
+  it('ordinary-pipeline entry points consult the gate', () => {
+    const monadic = fs.readFileSync(
+      path.join(ROOT, 'docker/services/ruby/public/js/monadic.js'), 'utf8');
+    const wsHandlers = fs.readFileSync(
+      path.join(ROOT, 'docker/services/ruby/public/js/monadic/websocket-handlers.js'), 'utf8');
+    const sessionHandler = fs.readFileSync(
+      path.join(ROOT, 'docker/services/ruby/public/js/monadic/ws-session-handler.js'), 'utf8');
+
+    // (#4a) assistant-initiated greeting is skipped in STS mode
+    expect(monadic).toMatch(/!stsInitiate && \(\$id\("initiate-from-assistant"\)/);
+    // (#4b) stt transcript neither fills the textarea nor easy-submits
+    expect(wsHandlers).toMatch(/isStsModelSelected/);
+    expect(sessionHandler).toMatch(/isStsModelSelected/);
+  });
 });

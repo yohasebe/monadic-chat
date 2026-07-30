@@ -738,13 +738,22 @@ function handleSampleSuccess(data) {
  */
 function handleSTTMessage(data) {
   if (data && data.type === 'stt') {
+    // Speech-to-speech turns are completed SERVER-side: the STS bridge has
+    // already appended the user message to the session and is generating the
+    // assistant reply. Here the transcript is display feedback only — writing
+    // it into the textarea and easy-submitting would send it a SECOND time
+    // through the ordinary chat pipeline, where a realtime-only model fails
+    // with a 404. Derived via the gate (single-point rule).
+    const stsMode = !!(window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
+      && window.SttGate.isStsModelSelected());
+
     // Update message input with transcribed text.
     // Skip the append when the caller (Realtime STT path in
     // ws-session-handler.js#handleSTT) has already written the final
     // transcript into the textarea — without this guard the value
     // would receive the same content twice. The flag is opt-in so the
     // legacy batch path is unaffected.
-    if (!data._alreadyAppended) {
+    if (!data._alreadyAppended && !stsMode) {
       const msgEl = $id('message');
       if (msgEl) msgEl.value = (msgEl.value || '') + ' ' + data.content;
     }
@@ -770,9 +779,10 @@ function handleSTTMessage(data) {
       $hide(spinnerEl);
     }
 
-    // Auto submit if enabled
+    // Auto submit if enabled — never in STS mode, where the server has
+    // already taken the turn (see stsMode above).
     const easySubmitEl = $id('check-easy-submit');
-    if (easySubmitEl && easySubmitEl.checked) {
+    if (easySubmitEl && easySubmitEl.checked && !stsMode) {
       const sendEl = $id('send');
       if (sendEl) sendEl.click();
     }

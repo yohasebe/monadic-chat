@@ -169,7 +169,26 @@ module WebSocketHelper
 
     sanitized["app_name"] = sanitized["app_name"].to_s if sanitized.key?("app_name")
 
+    # STS bridge lifecycle: the bridge pins model/voice/instructions at
+    # creation time, so a change in any of them (or leaving the STS model
+    # entirely) must tear it down. Otherwise the old bridge keeps its
+    # upstream socket and semaphore slot until the WebSocket closes
+    # (STS_MAX_CONCURRENT tabs would exhaust the cap). The bridge is
+    # rebuilt lazily on the next AUDIO_CHUNK with the new params.
+    sts_bridge_stale =
+      (new_app && current_app && new_app != current_app) ||
+      (sanitized.key?("model") && session[:parameters]["model"] != sanitized["model"]) ||
+      (sanitized.key?("tts_voice") && session[:parameters]["tts_voice"] != sanitized["tts_voice"])
+
     session[:parameters].merge!(sanitized)
+
+    if sts_bridge_stale && session[:_sts]
+      Monadic::Utils::ExtraLogger.log do
+        "[WebSocket] Params changed (app/model/voice) - tearing down STS bridge " \
+        "(rebuilt on next audio input)"
+      end
+      teardown_sts_session(session)
+    end
 
     sync_session_state!
 

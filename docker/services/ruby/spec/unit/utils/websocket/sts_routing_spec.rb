@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'json'
 require_relative '../../../../lib/monadic/utils/websocket'
+require_relative '../../../../lib/monadic/utils/container_dependencies'
 
 # Unit tests for the STS (speech-to-speech) audio routing decision in
 # WebSocketHelper (websocket.rb). The STS bridge itself
@@ -172,6 +173,67 @@ RSpec.describe "WebSocketHelper STS audio routing" do
              sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
       expect(h.calls).to eq([:handle_sts_audio_chunk])
       expect(writes.size).to eq(1)
+    end
+  end
+
+  # UPDATE_PARAMS must tear the STS bridge down when app/model/voice
+  # changes; otherwise the old bridge holds its upstream socket and
+  # semaphore slot until the WebSocket closes.
+  describe "UPDATE_PARAMS STS bridge teardown" do
+    let(:plain_host) do
+      Class.new do
+        include WebSocketHelper
+      end.new
+    end
+
+    def sts_fake_state
+      {
+        cmd_queue: Async::Queue.new,
+        ready: Async::Condition.new,
+        bridge_task: double(:bridge_task, stop: nil)
+      }
+    end
+
+    def call_update_params(h, session, params)
+      allow(h).to receive(:sync_session_state!)
+      allow(h).to receive(:send_or_broadcast)
+      h.send(:handle_ws_update_params, nil, { "params" => params }, session)
+    end
+
+    def sts_session_with_bridge(model: "gpt-realtime-2.1")
+      { parameters: { "app_name" => "VoiceChatOpenAI", "model" => model },
+        _sts: sts_fake_state }
+    end
+
+    it "tears the bridge down when the model changes" do
+      session = sts_session_with_bridge
+      call_update_params(plain_host, session, { "model" => "gpt-5.6-terra" })
+      expect(session[:_sts]).to be_nil
+    end
+
+    it "tears the bridge down when the voice changes (bridge pins voice at creation)" do
+      session = sts_session_with_bridge
+      call_update_params(plain_host, session, { "tts_voice" => "nova" })
+      expect(session[:_sts]).to be_nil
+    end
+
+    it "tears the bridge down when the app changes (instructions change)" do
+      allow(Monadic::Utils::ContainerDependencies).to receive(:ensure_services_async)
+      session = sts_session_with_bridge
+      call_update_params(plain_host, session, { "app_name" => "ChatOpenAI" })
+      expect(session[:_sts]).to be_nil
+    end
+
+    it "keeps the bridge when the update touches none of app/model/voice" do
+      session = sts_session_with_bridge
+      state = session[:_sts]
+      call_update_params(plain_host, session, { "some_other" => "x" })
+      expect(session[:_sts]).to equal(state)
+    end
+
+    it "no-ops when no bridge exists" do
+      session = { parameters: { "app_name" => "VoiceChatOpenAI", "model" => "gpt-realtime-2.1" } }
+      expect { call_update_params(plain_host, session, { "model" => "gpt-5.6-terra" }) }.not_to raise_error
     end
   end
 end

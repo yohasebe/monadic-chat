@@ -441,6 +441,32 @@ RSpec.describe "WebSocketHelper STS bridge" do
         expect(turn[:gate_open]).to be(true)
       end
     end
+
+    it "stops the previous turn's gate timer when a new turn starts (no cross-turn fragment leak)" do
+      host = build_host(params: { "app_name" => "VoiceChatOpenAI" })
+      state = fresh_state
+      stub_const("WebSocketHelper::STS_GATE_TIMEOUT", 0.05)
+
+      Async do |task|
+        turn_a = host.send(:sts_start_new_turn, state, "tid-A", "ws-test")
+        conn_a = StsFakeConn.new([
+                                   { type: "response.output_audio_transcript.delta", delta: "OLD" }.to_json
+                                 ])
+        host.send(:sts_reader_loop, conn_a, state, "ws-test")
+        expect(turn_a[:pending_fragments]).not_to be_empty
+
+        # Barge-in → quick re-commit: turn B replaces A before A's timer fires.
+        turn_b = host.send(:sts_start_new_turn, state, "tid-B", "ws-test")
+        expect(turn_a[:gate_timer]).to be_nil
+
+        task.sleep(0.12) # well past A's would-be timeout
+
+        # A's buffered fragment must never reach the client (B's own timer
+        # may still open B's empty gate — that is harmless and unrelated).
+        fragments = parsed_broadcasts(host).select { |p| p["type"] == "fragment" }
+        expect(fragments).to be_empty
+      end
+    end
   end
 
   describe "barge-in abort" do
@@ -498,6 +524,34 @@ RSpec.describe "WebSocketHelper STS bridge" do
 
     it "no-ops cleanly when no bridge state exists" do
       expect { build_host.handle_sts_audio_abort(nil, {}) }.not_to raise_error
+    end
+
+    it "disarms the gate timer and drops gated fragments on interrupted finalization" do
+      host = build_host(params: { "app_name" => "VoiceChatOpenAI" })
+      state = fresh_state
+      stub_const("WebSocketHelper::STS_GATE_TIMEOUT", 0.05)
+
+      Async do |task|
+        turn = host.send(:sts_start_new_turn, state, "tid-int", "ws-test")
+        conn = StsFakeConn.new([
+                                 { type: "response.output_audio_transcript.delta", delta: "held" }.to_json
+                               ])
+        host.send(:sts_reader_loop, conn, state, "ws-test")
+        expect(turn[:pending_fragments]).not_to be_empty
+        turn[:assistant_transcript] << "partial"
+
+        host.send(:sts_finalize_interrupted_turn, state, turn, "ws-test")
+        expect(turn[:gate_timer]).to be_nil
+        expect(turn[:pending_fragments]).to be_empty
+
+        task.sleep(0.12) # past the disarmed timer's would-be fire time
+
+        fragments = parsed_broadcasts(host).select { |p| p["type"] == "fragment" }
+        expect(fragments).to be_empty
+        html = parsed_broadcasts(host).find { |p| p["type"] == "html" }
+        expect(html["content"]["interrupted"]).to be(true)
+        expect(html["content"]["text"]).to include("partial")
+      end
     end
   end
 
@@ -640,6 +694,35 @@ RSpec.describe "WebSocketHelper STS bridge" do
       acct = host.send(:sts_usage_accounting, nil)
       expect(acct).to eq(audio_input_tokens: 0, audio_output_tokens: 0,
                          cached_tokens: 0, estimated_cost_usd: 0.0)
+    end
+
+    it "attaches server-computed accounting to sts_audio_done (rates stay server-side)" do
+      state = fresh_state
+      state[:turn] = fresh_turn("tid-acct")
+      payload = {
+        "response" => {
+          "usage" => {
+            "input_token_details" => {
+              "audio_tokens" => 1_000_000,
+              "cached_tokens_details" => { "audio_tokens" => 400 }
+            },
+            "output_token_details" => { "audio_tokens" => 500_000 }
+          }
+        }
+      }
+
+      host.send(:sts_handle_response_done, state, payload, "ws-test")
+
+      done = parsed_broadcasts(host).find { |p| p["type"] == "sts_audio_done" }
+      expect(done["turn_id"]).to eq("tid-acct")
+      expect(done["usage"]).to be_a(Hash)
+      expect(done["accounting"]).to include(
+        "audio_input_tokens" => 1_000_000,
+        "audio_output_tokens" => 500_000,
+        "cached_tokens" => 400
+      )
+      # Upper bound: cached input is still priced at the full rate (32+32=64).
+      expect(done["accounting"]["estimated_cost_usd"]).to be_within(0.0001).of(64.0)
     end
   end
 

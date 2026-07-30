@@ -216,6 +216,12 @@ module WebSocketHelper
 
         # :abort is barge-in and never reaches here (the writer stays in its
         # loop), so any return means the upstream socket went away.
+        #
+        # A connection that completed its handshake counts as healthy: reset
+        # the backoff so a long-lived bridge is not killed by CUMULATIVE
+        # failures spread over hours. Failures before `session.updated`
+        # still count.
+        attempts = 0 if state[:session_ready]
         attempts += 1
         if attempts > STS_MAX_RECONNECTS
           Monadic::Utils::ExtraLogger.log do
@@ -553,6 +559,16 @@ module WebSocketHelper
   # --- Turn lifecycle --------------------------------------------------------
 
   def sts_start_new_turn(state, turn_id, ws_session_id)
+    # Stop the previous turn's gate timer before replacing it: the timer's
+    # closure captures the OLD turn, so a still-armed timer would flush the
+    # old turn's buffered fragments into the new turn's card when it fires
+    # (mixed-turn text leak on a quick barge-in → re-commit).
+    previous = state[:turn]
+    if previous && previous[:gate_timer]
+      previous[:gate_timer].stop
+      previous[:gate_timer] = nil
+    end
+
     turn = {
       id: turn_id,
       user_partial: +"",
@@ -657,13 +673,22 @@ module WebSocketHelper
     send_or_broadcast({
       "type" => "sts_audio_done",
       "turn_id" => turn && turn[:id],
-      "usage" => usage
+      "usage" => usage,
+      # Cost accounting computed SERVER-side so the rate constants stay
+      # single-sourced here; the client only displays (marked "estimate").
+      "accounting" => accounting
     }.to_json, ws_session_id)
   end
 
   # Usage accounting (task #10): extract audio/cached token counts from a
   # realtime `usage` object and compute a cost ESTIMATE. Text tokens in the
   # same usage object are billed at different rates, so this is an estimate.
+  #
+  # NOTE on estimate DIRECTION: cached audio input would be billed at a far
+  # lower cached-input rate, but we price ALL input at the full rate. The
+  # estimate is therefore an UPPER BOUND that overestimates on cache-heavy
+  # (long) sessions. `cached_tokens` is included in the breakdown so the
+  # display side can phrase accordingly ("estimate (upper bound)").
   def sts_usage_accounting(usage)
     usage = {} unless usage.is_a?(Hash)
     input_details = usage["input_token_details"] || {}
@@ -693,6 +718,13 @@ module WebSocketHelper
     return if turn[:assistant_finalized]
     transcript = turn[:assistant_transcript].to_s
     return if transcript.strip.empty?
+
+    # The interrupted card carries the full accumulated transcript, so any
+    # still-gated fragments are superseded by it: stop the gate timer and
+    # drop the buffer instead of letting it fire into the NEXT turn's card.
+    turn[:gate_timer]&.stop
+    turn[:gate_timer] = nil
+    turn[:pending_fragments].clear
 
     sts_send_assistant_card(turn, transcript, ws_session_id, interrupted: true)
   end

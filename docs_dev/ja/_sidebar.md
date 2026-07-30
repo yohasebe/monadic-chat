@@ -42,7 +42,6 @@
   * [Pythonサービス](/ja/python_service/)
 
 * 🔌 外部API
-  * [外部API統合](/ja/external_apis/)
 
 * 🖥️ Electron
   * [Electronパス](/ja/electron-paths.md)

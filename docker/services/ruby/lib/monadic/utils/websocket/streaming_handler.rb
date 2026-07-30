@@ -203,9 +203,10 @@ module WebSocketHelper
     # one here (typed text, initiate_from_assistant, AI User, import
     # continuation, ...) would die on a raw provider 404. Answer with a
     # friendly error instead. One server-side guard covers all entries.
-    current_model = session[:parameters]["model"].to_s
-    if defined?(Monadic::Utils::ModelSpec) &&
-       Monadic::Utils::ModelSpec.supports_speech_to_speech?(current_model)
+    # Derived via the session gate (single-point rule: sts_session_capable?
+    # is the one server-side reader of the capability; the invariant test
+    # fails on any new direct read of the flag).
+    if sts_session_capable?(session)
       send_or_broadcast({
         "type" => "error",
         "content" => "This model is voice-only (speech-to-speech). " \

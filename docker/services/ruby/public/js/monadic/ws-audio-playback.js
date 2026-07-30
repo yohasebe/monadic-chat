@@ -69,6 +69,27 @@
         iosAudioElement.onerror = null;
       } catch (e) { /* ignore */ }
     }
+
+    // PCM playback uses an AudioBufferSourceNode, not an <audio> element, so it
+    // is not covered by activeAudioElements above.
+    stopPCMPlayback();
+  }
+
+  // ── stopPCMPlayback ────────────────────────────────────────────────
+  // Stops the AudioBufferSourceNode started by playPCMAudio(). The onended
+  // handler is detached first so the queue is not advanced by a stop request
+  // (onended fires on stop() as well as on natural completion).
+  function stopPCMPlayback() {
+    const source = window._currentPCMSource;
+    window._currentPCMSource = null;
+    if (!source) return;
+    try {
+      source.onended = null;
+      source.stop();
+    } catch (e) {
+      // stop() throws if the source was never started or already stopped.
+      console.warn("[Audio] Error stopping PCM source:", e);
+    }
   }
 
   // ── initializeMediaSourceForAudio ──────────────────────────────────
@@ -581,6 +602,7 @@
   const ns = {
     registerAudioElement: registerAudioElement,
     stopAllActiveAudio: stopAllActiveAudio,
+    stopPCMPlayback: stopPCMPlayback,
     initializeMediaSourceForAudio: initializeMediaSourceForAudio,
     resetAudioElements: resetAudioElements,
     playAudioDirectly: playAudioDirectly,

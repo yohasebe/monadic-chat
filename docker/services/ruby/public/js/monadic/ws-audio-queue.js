@@ -15,7 +15,8 @@
   let isProcessingAudioQueue = false;
   let currentAudioSequenceId = null;
   let currentSegmentAudio = null;
-  let currentPCMSource = null;
+  // PCM playback state lives in ws-audio-playback.js (window._currentPCMSource);
+  // stop it via Playback.stopPCMPlayback() rather than tracking it here.
 
   // ── Sequence state ─────────────────────────────────────────────────
   let nextExpectedSequence = 1;
@@ -406,12 +407,7 @@
     }
     window._currentSegmentAudio = null;
 
-    if (currentPCMSource) {
-      try { currentPCMSource.stop(); currentPCMSource = null; } catch (e) {
-        console.warn("Error stopping PCM source:", e);
-      }
-    }
-    window._currentPCMSource = null;
+    // PCM playback is stopped by stopAllActiveAudio() above.
 
     const pb = window.WsAudioPlayback || {};
     if (pb.setIosAudioBuffer) pb.setIosAudioBuffer([]);

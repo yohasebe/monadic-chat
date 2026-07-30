@@ -75,6 +75,12 @@ RSpec.describe Monadic::Library::FileImporter do
     end
 
     before do
+      # Force the pdfplumber fallback path so this describe is hermetic:
+      # import_pdf prefers the extractor SERVICE whenever it is reachable,
+      # and on machines where the container happens to be up the real
+      # service would be called with a host-side temp path it cannot see
+      # (404), making the test environment-dependent.
+      allow(described_class).to receive(:extractor_service_available?).and_return(false)
       allow(described_class).to receive(:run_python_extractor).and_return(fake_pdf_json)
     end
 

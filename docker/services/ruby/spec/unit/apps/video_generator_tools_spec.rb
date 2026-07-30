@@ -87,15 +87,4 @@ RSpec.describe "VideoGeneratorTools" do
       end
     end
   end
-
-  describe "Session state integration" do
-    # These tests verify the session state behavior but require actual API calls
-    # Run with RUN_API=true for full integration testing
-
-    it "VideoGeneratorGemini session handling" do
-      skip "Requires RUN_API=true for API integration tests" unless ENV["RUN_API"]
-
-      # Test that session[:gemini_last_video_filename] is properly set after video generation
-    end
-  end
 end

@@ -735,6 +735,10 @@ window.loadedApp = "Chat";
         if (sts && typeof sts.handleStsAudioDone === 'function') {
           sts.handleStsAudioDone(data);
         }
+        const stsUsage = window.WsStsUsage;
+        if (stsUsage && typeof stsUsage.handleStsAudioDone === 'function') {
+          stsUsage.handleStsAudioDone(data);
+        }
         break;
       }
 

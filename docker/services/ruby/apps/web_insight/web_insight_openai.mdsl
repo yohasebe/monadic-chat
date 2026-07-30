@@ -105,7 +105,7 @@ app "WebInsightOpenAI" do
 
   llm do
     provider "openai"
-    model ["gpt-5.4", "gpt-5.4-mini", "gpt-5.2", "gpt-5.1"]
+    model Monadic::Utils::ModelSpec.get_provider_models("openai", "chat")
     temperature 0.0
   end
 

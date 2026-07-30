@@ -3211,7 +3211,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // with the user's speech instead; say so rather than failing silently.
       const stsInitiate = !!(window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
         && window.SttGate.isStsModelSelected());
-      if (stsInitiate && ($id("initiate-from-assistant") || {}).checked && messages.length === 0) {
+      if (stsInitiate && messages.length === 0) {
         const speakFirst = typeof webUIi18n !== 'undefined'
           ? webUIi18n.t('ui.messages.stsSpeakToStart')
           : 'Realtime voice model: press the microphone and speak to start the conversation.';

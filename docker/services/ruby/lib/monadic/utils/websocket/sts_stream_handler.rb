@@ -90,11 +90,20 @@ module WebSocketHelper
     @sts_semaphore ||= Async::Semaphore.new(STS_MAX_CONCURRENT)
   end
 
-  # True when the session's current model supports speech-to-speech.
-  # `session` is the Rack session hash (keys may be symbol or string).
-  def sts_session_capable?(sess)
-    params = (sess[:parameters] || sess["parameters"] || {}) if sess.is_a?(Hash)
-    model = params && (params["model"] || params[:model])
+  # True when the current model supports speech-to-speech.
+  # `sess` is the session hash; `obj`, when given, is the inbound audio
+  # message and may carry a `chat_model` hint (see route_audio_mode) that
+  # takes precedence over the session parameters — the session copy can be
+  # stale when the UPDATE_PARAMS broadcast was silently dropped.
+  # Duck-typed session access (`respond_to?(:[])`) mirrors
+  # BaseVendorHelper#privacy_enabled_for?: production Rack sessions are not
+  # Hash subclasses but do support `[]`.
+  def sts_session_capable?(sess, obj = nil)
+    model = obj.respond_to?(:[]) ? (obj["chat_model"] || obj[:chat_model]) : nil
+    if model.to_s.strip.empty? && sess.respond_to?(:[])
+      params = sess[:parameters] || sess["parameters"] || {}
+      model = params.respond_to?(:[]) ? (params["model"] || params[:model]) : nil
+    end
     return false if model.nil? || model.to_s.strip.empty?
 
     Monadic::Utils::ModelSpec.supports_speech_to_speech?(model)
@@ -165,7 +174,8 @@ module WebSocketHelper
     return state if state && state[:cmd_queue] && state[:bridge_task] && !state[:bridge_task].finished?
 
     params = get_session_params
-    model = (params["model"] || params[:model]).to_s
+    hint = obj.respond_to?(:[]) ? (obj["chat_model"] || obj[:chat_model]).to_s : ""
+    model = hint.strip.empty? ? (params["model"] || params[:model]).to_s : hint
     model = REALTIME_STS_DEFAULT_MODEL if model.strip.empty?
     voice = (params["tts_voice"] || params[:tts_voice]).to_s
     voice = REALTIME_STS_DEFAULT_VOICE if voice.strip.empty?

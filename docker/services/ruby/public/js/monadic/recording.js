@@ -306,7 +306,14 @@ async function startAudioStream() {
         message: 'AUDIO_CHUNK',
         content: base64,
         stt_model: sttModel,
-        lang_code: langCode
+        lang_code: langCode,
+        // Routing hint: the server decides STT-vs-STS per audio message, and
+        // deriving that from session parameters alone races the UPDATE_PARAMS
+        // broadcast (which drops silently while the socket is not OPEN or a
+        // suppression window is active). Carrying the chat model here makes
+        // the routing input deterministic; the server still capability-checks
+        // it against model_spec before switching pipelines.
+        chat_model: currentChatModel()
       });
     } catch (err) {
       console.warn('[STT realtime] AUDIO_CHUNK send failed:', err);
@@ -579,7 +586,7 @@ voiceButton.addEventListener("click", function () {
       // wait for the backend to emit the `stt` event (handled by existing
       // handleSTT in ws-session-handler.js). No blob is read here.
       try {
-        window.safeWsSend({ message: 'AUDIO_COMMIT' });
+        window.safeWsSend({ message: 'AUDIO_COMMIT', chat_model: currentChatModel() });
       } catch (err) {
         console.warn('[STT realtime] AUDIO_COMMIT send failed:', err);
       }
@@ -749,7 +756,7 @@ voiceButton.addEventListener("click", function () {
       // When server-side VAD lands in Phase 2 this branch becomes
       // ceremonial — OpenAI commits on its own EoS. For Phase 1 we keep
       // semantics conservative (no auto-commit on silence).
-      try { window.safeWsSend({ message: 'AUDIO_ABORT' }); }
+      try { window.safeWsSend({ message: 'AUDIO_ABORT', chat_model: currentChatModel() }); }
       catch (err) { console.warn('[STT realtime] AUDIO_ABORT send failed:', err); }
       teardownStreamingSession();
       clearPartialOverlay();

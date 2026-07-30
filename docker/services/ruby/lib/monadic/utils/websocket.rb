@@ -317,7 +317,7 @@ module WebSocketHelper
   # AUDIO_ABORT) to either the STS bridge or the legacy realtime-STT
   # handlers, based on route_audio_mode.
   private def route_audio_event(connection, session, obj, sts_handler:, fallback:)
-    case route_audio_mode(session)
+    case route_audio_mode(session, obj)
     when :sts
       send(sts_handler, connection, obj)
     when :privacy_blocked
@@ -336,8 +336,14 @@ module WebSocketHelper
   #   :privacy_blocked — model is STS-capable but the Privacy Filter is on;
   #                      raw audio must not be sent to the provider
   #   :stt             — default realtime-STT transcription path
-  private def route_audio_mode(session)
-    return :stt unless sts_session_capable?(session)
+  # `obj` (the inbound audio message) may carry a `chat_model` routing hint.
+  # Deciding from session parameters alone races the client's UPDATE_PARAMS
+  # broadcast, which is dropped silently while the socket is not OPEN or a
+  # suppression window is active — the hint makes the decision input
+  # deterministic. The hint is still capability-checked against model_spec,
+  # so a client cannot switch pipelines with an arbitrary value.
+  private def route_audio_mode(session, obj = nil)
+    return :stt unless sts_session_capable?(session, obj)
 
     sts_privacy_active?(session) ? :privacy_blocked : :sts
   end

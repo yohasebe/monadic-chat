@@ -30,7 +30,7 @@ RSpec.describe "WebSocketHelper STS audio routing" do
         @calls = []
       end
 
-      def sts_session_capable?(_session)
+      def sts_session_capable?(_session, _obj = nil)
         @sts_capable
       end
 
@@ -278,5 +278,73 @@ RSpec.describe "WebSocketHelper STS audio routing" do
       end.to raise_error(StopIteration)
       expect(broadcasts).to be_empty
     end
+  end
+end
+
+# The chat_model hint on inbound audio messages. Routing from session
+# parameters alone races the client's UPDATE_PARAMS broadcast (silently
+# dropped while the socket is not OPEN or a suppression window is active):
+# in that state the session still holds the previous chat model, every chunk
+# routes to the legacy STT bridge, and the user's STT model — possibly a
+# non-OpenAI one — gets sent to the OpenAI realtime endpoint. Observed live
+# as "Realtime STT: Invalid value: 'coh...026'".
+RSpec.describe 'sts_session_capable? chat_model hint' do
+  let(:harness) do
+    Class.new do
+      include WebSocketHelper
+      public :sts_session_capable?
+    end.new
+  end
+
+  before do
+    allow(Monadic::Utils::ModelSpec).to receive(:supports_speech_to_speech?) do |model|
+      model == 'gpt-realtime-2.1'
+    end
+  end
+
+  it 'routes to STS on the hint even when the session copy is stale' do
+    session = { parameters: { 'model' => 'gpt-5.6-terra' } }
+    obj = { 'chat_model' => 'gpt-realtime-2.1' }
+
+    expect(harness.sts_session_capable?(session, obj)).to be true
+  end
+
+  it 'capability-checks the hint rather than trusting it' do
+    session = { parameters: { 'model' => 'gpt-5.6-terra' } }
+    obj = { 'chat_model' => 'gpt-5.6-terra' }
+
+    expect(harness.sts_session_capable?(session, obj)).to be false
+  end
+
+  it 'falls back to session parameters when no hint is present' do
+    session = { parameters: { 'model' => 'gpt-realtime-2.1' } }
+
+    expect(harness.sts_session_capable?(session, {})).to be true
+    expect(harness.sts_session_capable?(session)).to be true
+  end
+
+  it 'ignores a blank hint' do
+    session = { parameters: { 'model' => 'gpt-realtime-2.1' } }
+
+    expect(harness.sts_session_capable?(session, { 'chat_model' => ' ' })).to be true
+  end
+
+  # Production Rack sessions (SecureSessionHash) are not Hash subclasses but
+  # do support []. The gate must duck-type, mirroring
+  # BaseVendorHelper#privacy_enabled_for? — an is_a?(Hash) check passes every
+  # plain-Hash spec fixture while silently disabling the feature in
+  # production.
+  it 'reads a Hash-like session object that is not a Hash' do
+    session_like = Class.new do
+      def initialize(params) = @params = params
+      def [](key) = key.to_s == 'parameters' || key == :parameters ? @params : nil
+    end.new({ 'model' => 'gpt-realtime-2.1' })
+
+    expect(harness.sts_session_capable?(session_like)).to be true
+  end
+
+  it 'returns false for a session that does not respond to []' do
+    expect(harness.sts_session_capable?(nil)).to be false
+    expect(harness.sts_session_capable?(:not_a_session)).to be false
   end
 end

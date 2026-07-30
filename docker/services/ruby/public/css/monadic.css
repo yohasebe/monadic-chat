@@ -6146,6 +6146,26 @@ i.fas.fa-bolt,
   margin-right: 4px;
 }
 
+/* Speech-to-speech session cost readout. Sits next to the privacy indicator
+   and follows its shape; hidden via inline style="display:none" until the
+   first STS turn completes. Deliberately low-contrast: it is a standing
+   reference figure, not an alert. */
+.sts-usage-indicator {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78em;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  background-color: #f1f3f5;
+  color: #6c757d;
+}
+.sts-usage-indicator i {
+  margin-right: 4px;
+}
+
 /* Privacy Filter auto-detected language badge — appears next to the
    indicator label when LanguageDetector has locked the session to a
    reliable detection (auto mode only). The badge inherits the host

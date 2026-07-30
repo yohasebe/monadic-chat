@@ -23,6 +23,10 @@
 
   let sessionCostUsd = 0;
   let turnCount = 0;
+  // Whether any turn actually reported a usable cost. Without this a session
+  // whose accounting never arrived would read "$0.00", i.e. free — the one
+  // thing a cost readout must never imply by accident.
+  let hasCostData = false;
 
   function indicator() {
     return document.getElementById('sts-usage-indicator');
@@ -52,10 +56,16 @@
 
     const label = t('ui.messages.stsEstimatedCost', 'Estimated cost (upper bound)');
     el.style.display = '';
-    el.className = 'sts-usage-indicator';
+    // Keep the layout class the markup was created with; replacing className
+    // outright would drop the navbar spacing.
+    el.className = 'me-2 sts-usage-indicator';
     el.setAttribute('title', label);
+
+    // "—" rather than "$0.00" when nothing usable was reported: an unknown
+    // charge and a zero charge must not look the same.
+    const amount = hasCostData ? formatUsd(sessionCostUsd) : '—';
     el.innerHTML = "<i class='fas fa-microphone-lines'></i> " +
-                   window.escapeHtml(formatUsd(sessionCostUsd)) +
+                   window.escapeHtml(amount) +
                    " <span class='text-secondary'>" + window.escapeHtml(t('ui.messages.stsEstimateShort', 'est.')) + "</span>";
   }
 
@@ -67,7 +77,10 @@
     if (!accounting) return;
 
     const cost = Number(accounting.estimated_cost_usd);
-    if (Number.isFinite(cost) && cost >= 0) sessionCostUsd += cost;
+    if (Number.isFinite(cost) && cost >= 0) {
+      sessionCostUsd += cost;
+      hasCostData = true;
+    }
     turnCount += 1;
     render();
   }
@@ -77,9 +90,13 @@
     record(data.accounting);
   }
 
+  // Called when the conversation is cleared. The figure is per-conversation,
+  // not per-page: leaving it standing after a reset would attribute the old
+  // conversation's spend to the new one.
   function reset() {
     sessionCostUsd = 0;
     turnCount = 0;
+    hasCostData = false;
     render();
   }
 

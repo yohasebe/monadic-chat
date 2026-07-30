@@ -444,6 +444,12 @@
       Playback.resetAudioElements();
     }
 
+    // The speech-to-speech cost readout is per-conversation; carrying it over
+    // would attribute the previous conversation's spend to the new one.
+    // Resolved at call time because ws-sts-usage.js loads after this file.
+    const stsUsage = window.WsStsUsage;
+    if (stsUsage && typeof stsUsage.reset === 'function') stsUsage.reset();
+
     window.autoSpeechActive = false;
     window.autoPlayAudio = false;
     window.ttsPlaybackStarted = false;

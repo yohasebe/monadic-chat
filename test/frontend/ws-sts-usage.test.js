@@ -64,6 +64,28 @@ describe('accumulation', () => {
     expect(indicator().style.display).not.toBe('none');
   });
 
+  // An unknown charge and a zero charge must not look the same — showing
+  // "$0.00" for missing accounting would read as "this was free".
+  it('shows an unknown amount as — rather than $0.00', () => {
+    Usage.record({ audio_input_tokens: 97 }); // no estimated_cost_usd
+
+    expect(indicator().innerHTML).toContain('—');
+    expect(indicator().innerHTML).not.toContain('$0.00');
+  });
+
+  it('shows a genuine zero as $0.00', () => {
+    Usage.record({ estimated_cost_usd: 0 });
+
+    expect(indicator().innerHTML).toContain('$0.00');
+  });
+
+  it('keeps the navbar spacing class when rendering', () => {
+    Usage.record({ estimated_cost_usd: 0.02 });
+
+    expect(indicator().className).toContain('me-2');
+    expect(indicator().className).toContain('sts-usage-indicator');
+  });
+
   it('ignores a malformed cost rather than poisoning the total with NaN', () => {
     Usage.record({ estimated_cost_usd: 0.04 });
     Usage.record({ estimated_cost_usd: 'not a number' });

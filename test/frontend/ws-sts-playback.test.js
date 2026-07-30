@@ -109,6 +109,28 @@ describe('scheduling', () => {
     expect(ctx.createdSources[0].connect).toHaveBeenCalledWith(ctx.destination);
   });
 
+  // The chunk payloads elsewhere in this file are silence, so a decoder that
+  // mangled sign or byte order would still schedule correctly-sized buffers
+  // and every timing assertion would pass while the audio came out as noise.
+  it('decodes PCM16 little-endian samples to the right float values', () => {
+    const written = [];
+    ctx.createBuffer = (channels, length, sampleRate) => {
+      const data = new Float32Array(length);
+      written.push({ data, sampleRate });
+      return { getChannelData: () => data };
+    };
+
+    // 0x0000 = 0, 0x7FFF = max positive, 0x8000 = min negative, 0xFFFF = -1
+    const bytes = new Uint8Array([0x00, 0x00, 0xff, 0x7f, 0x00, 0x80, 0xff, 0xff]);
+    Sts.scheduleChunk('t1', bytes, SAMPLE_RATE);
+
+    const samples = written[0].data;
+    expect(samples[0]).toBeCloseTo(0, 6);
+    expect(samples[1]).toBeCloseTo(32767 / 32768, 6);
+    expect(samples[2]).toBeCloseTo(-1.0, 6);
+    expect(samples[3]).toBeCloseTo(-1 / 32768, 6);
+  });
+
   it('ignores empty or undersized payloads', () => {
     expect(Sts.scheduleChunk('t1', new Uint8Array(0), SAMPLE_RATE)).toBe(false);
     expect(Sts.scheduleChunk('t1', new Uint8Array(1), SAMPLE_RATE)).toBe(false);

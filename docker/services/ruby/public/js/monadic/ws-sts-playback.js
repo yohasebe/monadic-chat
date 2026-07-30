@@ -193,13 +193,16 @@
     const earliest = ctx.currentTime + LEAD_IN_SEC;
     const startAt = nextStartTime > earliest ? nextStartTime : earliest;
 
-    trackSource(turnId, source);
     try {
       source.start(startAt);
     } catch (e) {
+      // Track only after a successful start: a source that never started
+      // cannot be stopped, so registering it first would leave an entry that
+      // throws on every later cancel.
       console.error("[STS] Failed to start audio source:", e);
       return false;
     }
+    trackSource(turnId, source);
     nextStartTime = startAt + (samples.length / sampleRate);
 
     if (typeof window.setTtsPlaybackStarted === 'function') {

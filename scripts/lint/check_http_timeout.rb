@@ -44,23 +44,46 @@ HTTP_CALL_RE = /\bHTTP\.(headers|get|post|put|patch|delete|follow|via|auth|basic
 
 # Collect the whole method chain starting at `idx`.
 #
-# A fixed N-line lookahead is wrong here: it swallows a `.timeout(` belonging
-# to an unrelated statement a few lines down and silently clears a real
-# violation. Follow the chain instead — Ruby leading-dot continuation, or a
-# line left open by a trailing dot / paren / comma.
+# Two earlier attempts got this wrong and both directions hurt:
+#   - a fixed N-line lookahead swallowed a `.timeout(` from an unrelated
+#     statement further down and cleared a real violation (false negative);
+#   - "continue while the next line starts with a dot" stopped at a line
+#     beginning with a closing bracket, which is exactly how a multi-line
+#     argument list continues into the timeout call (false positive):
+#
+#       response = HTTP.headers(
+#         "Authorization" => ...,
+#         "Content-Type"  => ...
+#       ).timeout(connect: ..., write: ..., read: ...)
+#        .post(url, body: ...)
+#
+# So track bracket depth: while the statement still has an unclosed bracket we
+# are inside it, and once it closes we keep going only for genuine chain
+# continuation (leading dot, or a line left open by a trailing dot/comma/backslash).
 def chain_text(lines, idx)
   text = +lines[idx].to_s
+  depth = bracket_delta(lines[idx])
   j = idx
   while j + 1 < lines.length
-    current = lines[j].rstrip
     nxt = lines[j + 1]
-    continues = nxt.lstrip.start_with?('.') ||
-                current.end_with?('.', '(', ',', '\\')
+    inside = depth > 0
+    continues = inside ||
+                nxt.lstrip.start_with?('.', ')', ']', '}') ||
+                lines[j].rstrip.end_with?('.', ',', '\\')
     break unless continues
     text << nxt
+    depth += bracket_delta(nxt)
     j += 1
   end
   text
+end
+
+# Net bracket balance of a line, ignoring brackets inside strings/comments well
+# enough for this purpose.
+def bracket_delta(line)
+  code = line.sub(/#.*\z/, '')
+  code = code.gsub(/"(?:[^"\\]|\\.)*"/, '""').gsub(/'(?:[^'\\]|\\.)*'/, "''")
+  code.count('([{') - code.count(')]}')
 end
 
 def each_target_file

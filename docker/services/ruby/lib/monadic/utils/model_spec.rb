@@ -188,6 +188,14 @@ module Monadic
           get_model_property(model_name, "supports_realtime_streaming") == true
         end
 
+        # True when the model runs a full speech-to-speech (STS) session over
+        # the OpenAI Realtime API. Gates the STS path so realtime-only models
+        # are never routed through the ordinary text-chat pipeline. Today only
+        # `gpt-realtime-2.1`.
+        def supports_speech_to_speech?(model_name)
+          get_model_property(model_name, "supports_speech_to_speech") == true
+        end
+
         def vision_capability?(model_name)
           prop = get_model_property(model_name, "vision_capability")
           prop.nil? ? true : !!prop

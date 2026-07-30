@@ -1248,6 +1248,18 @@ const modelSpec = {
   },
 
   // -------------------------------------------------------------------------
+  // STS model metadata (Speech-to-Speech realtime capability SSOT)
+  //
+  // Entries only exist for models that run a full speech-to-speech session
+  // over the OpenAI Realtime API — gated by `supports_speech_to_speech`.
+  // The Ruby accessor (`ModelSpec.supports_speech_to_speech?`) reads this
+  // flag to gate the STS path.
+  // -------------------------------------------------------------------------
+  "gpt-realtime-2.1": {
+    "supports_speech_to_speech": true
+  },
+
+  // -------------------------------------------------------------------------
   // Music model metadata (Music generation capability SSOT)
   //
   // These models are resolved inside the generation tool from

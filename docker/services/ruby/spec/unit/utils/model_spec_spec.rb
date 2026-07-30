@@ -24,4 +24,18 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(described_class.deprecated?('nonexistent-model')).to be false
     end
   end
+
+  describe '.supports_speech_to_speech?' do
+    it 'returns true for STS realtime models' do
+      expect(described_class.supports_speech_to_speech?('gpt-realtime-2.1')).to be true
+    end
+
+    it 'returns false for normal chat models' do
+      expect(described_class.supports_speech_to_speech?('gpt-5')).to be false
+    end
+
+    it 'returns false for unknown models' do
+      expect(described_class.supports_speech_to_speech?('nonexistent-model')).to be false
+    end
+  end
 end

@@ -29,6 +29,7 @@ require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
 require_relative 'websocket/privacy_handler'
 require_relative 'websocket/verify_handler'
+require_relative 'websocket/sts_stream_handler'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
@@ -241,11 +242,17 @@ module WebSocketHelper
         when "AUDIO"
           handle_audio_message(connection, obj)
         when "AUDIO_CHUNK"
-          handle_audio_chunk(connection, obj)
+          route_audio_event(connection, session, obj,
+                            sts_handler: :handle_sts_audio_chunk,
+                            fallback: :handle_audio_chunk)
         when "AUDIO_COMMIT"
-          handle_audio_commit(connection, obj)
+          route_audio_event(connection, session, obj,
+                            sts_handler: :handle_sts_audio_commit,
+                            fallback: :handle_audio_commit)
         when "AUDIO_ABORT"
-          handle_audio_abort(connection, obj)
+          route_audio_event(connection, session, obj,
+                            sts_handler: :handle_sts_audio_abort,
+                            fallback: :handle_audio_abort)
         when "UPDATE_LANGUAGE"
           handle_ws_update_language(connection, obj, session)
         when "STOP_TTS"
@@ -269,6 +276,11 @@ module WebSocketHelper
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Error in message loop: #{e.class}: #{e.message}\n#{e.backtrace.first(5).join("\n")}" }
     ensure
+      # Tear down any live STS bridge so the upstream OpenAI socket does not
+      # outlive the client connection (the STT bridge dies with its writer;
+      # the STS bridge is long-lived by design, so it needs an explicit stop).
+      teardown_sts_session(session) if session
+
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Connection closed for session #{ws_session_id}" }
@@ -297,6 +309,75 @@ module WebSocketHelper
     connection.flush
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[WebSocket] Error sending to client: #{e.message}" }
+  end
+
+  # --- STS (speech-to-speech) audio routing ---------------------------------
+
+  # Route one inbound audio control message (AUDIO_CHUNK / AUDIO_COMMIT /
+  # AUDIO_ABORT) to either the STS bridge or the legacy realtime-STT
+  # handlers, based on route_audio_mode.
+  private def route_audio_event(connection, session, obj, sts_handler:, fallback:)
+    case route_audio_mode(session)
+    when :sts
+      send(sts_handler, connection, obj)
+    when :privacy_blocked
+      notify_sts_privacy_blocked(connection, session)
+    else
+      send(fallback, connection, obj)
+    end
+  end
+
+  # Decide where inbound voice audio goes for this session. Shared by all
+  # three audio dispatch branches.
+  #
+  # Returns one of:
+  #   :sts             — current model has the supports_speech_to_speech
+  #                      capability; audio goes to the STS bridge
+  #   :privacy_blocked — model is STS-capable but the Privacy Filter is on;
+  #                      raw audio must not be sent to the provider
+  #   :stt             — default realtime-STT transcription path
+  private def route_audio_mode(session)
+    return :stt unless sts_session_capable?(session)
+
+    sts_privacy_active?(session) ? :privacy_blocked : :sts
+  end
+
+  # Privacy Filter "currently enabled" check for STS routing. Mirrors the
+  # two-gate activation in BaseVendorHelper#privacy_enabled_for?: the app
+  # must declare `privacy do; enabled true; end` in MDSL AND the user must
+  # have opted in via the session toggle (PRIVACY_TOGGLE sets
+  # session[:_privacy_session_enabled] only after a container health probe,
+  # so the key alone is backend-authoritative for the toggle half).
+  private def sts_privacy_active?(session)
+    return false unless session.respond_to?(:[])
+    return false unless session[:_privacy_session_enabled] == true
+
+    params = session[:parameters] || session["parameters"]
+    params = {} unless params.respond_to?(:[])
+    app_name = params["app_name"] || params[:app_name]
+    app_settings = (defined?(APPS) && app_name && APPS[app_name]) ? APPS[app_name].settings : nil
+    return false unless app_settings
+
+    privacy = app_settings[:privacy] || app_settings["privacy"]
+    return false unless privacy
+
+    (privacy[:enabled] || privacy["enabled"]) == true
+  end
+
+  # Notify the user that STS is unavailable while the Privacy Filter is on.
+  # Sent only once per session (tracked via :_sts_privacy_notice_sent) so a
+  # stream of AUDIO_CHUNKs does not spam one error per chunk.
+  private def notify_sts_privacy_blocked(connection, session)
+    return if session[:_sts_privacy_notice_sent]
+
+    session[:_sts_privacy_notice_sent] = true
+    send_to_client(connection, {
+      "type" => "error",
+      "content" => "Speech-to-speech mode sends raw audio directly to the provider " \
+                   "and is unavailable while the Privacy Filter is on. " \
+                   "Disable the Privacy Filter or choose a model without " \
+                   "speech-to-speech support to use voice input."
+    })
   end
 
   # Handle MCP configuration update

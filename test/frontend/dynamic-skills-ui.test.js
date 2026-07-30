@@ -30,12 +30,11 @@ describe('OpenAI model selector (utilities.js listModels)', () => {
     });
   });
 
-  it('filters speech models (STT/TTS/realtime) out of the chat selector', () => {
-    const fn = UTIL.match(/function listModels\([\s\S]{0,700}/)[0];
-    expect(fn).toMatch(/stt_capability/);
-    expect(fn).toMatch(/tts_capability/);
-    expect(fn).toMatch(/supports_realtime_streaming/);
-  });
+  // The speech-model filter is covered behaviourally in
+  // model-selector-filter.test.js, which calls the real listModels. The
+  // source-text version that used to live here matched the first 700
+  // characters of the function and broke when a comment was added above the
+  // filter — it tracked the file's layout, not its behaviour.
 });
 
 describe('Workflow Viewer dynamic-skill reflection', () => {

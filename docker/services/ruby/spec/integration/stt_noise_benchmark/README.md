@@ -118,7 +118,7 @@ that reads exactly like an API bug. The voice is pinned for this reason.
 | engine | transport | status |
 |---|---|---|
 | `xai-stt` | REST | reference line — batch transcriber, stayed accurate in every condition |
-| `gpt-4o-mini-transcribe` | REST | wired |
+| `gpt-4o-mini-transcribe-2025-12-15` | REST | wired |
 | `gpt-realtime-whisper` | WebSocket | wired (realtime transcription intent) |
 
 "wired" means the adapter is implemented and its gates are in place. **None of

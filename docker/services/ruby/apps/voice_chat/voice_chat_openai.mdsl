@@ -50,6 +50,10 @@ app "VoiceChatOpenAI" do
   llm do
     provider "openai"
     reasoning_effort "none"
+    # Mirrors providerDefaults.chat (keep in sync) + the STS realtime model.
+    # gpt-realtime-2.1 has supports_speech_to_speech: selecting it routes
+    # audio through the STS bridge instead of the STT→LLM→TTS pipeline.
+    model ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1", "gpt-realtime-2.1"]
   end
   
   display_name "Voice Chat"

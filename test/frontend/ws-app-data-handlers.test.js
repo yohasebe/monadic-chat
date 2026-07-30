@@ -493,6 +493,9 @@ describe('ws-app-data-handlers', () => {
       global.params = {};
       global.setAutoSpeechSuppressed = jest.fn();
       global.getModelsForApp = jest.fn().mockReturnValue(['gpt-4o', 'gpt-4o-mini']);
+      // Provided by model_utils.js in the bundle (loads before this module —
+      // pinned in bundle-order.test.js); stubbed here like getModelsForApp.
+      global.appOffersSpeechToSpeech = jest.fn().mockReturnValue(false);
       global.listModels = jest.fn().mockReturnValue('<option value="gpt-4o">gpt-4o</option>');
       global.getDefaultModelForApp = jest.fn().mockReturnValue('gpt-4o');
       global.getProviderFromGroup = jest.fn().mockReturnValue('OpenAI');

@@ -2586,7 +2586,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (models.length > 0) {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
-      let modelList = listModels(models, openai);
+      let modelList = listModels(models, openai, { allowSpeechToSpeech: appOffersSpeechToSpeech(apps[appValue]) });
       { const el = $id("model"); if (el) el.innerHTML = modelList; }
 
       // Use shared utility function to get default model

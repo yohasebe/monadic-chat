@@ -977,7 +977,7 @@ function handleParametersMessage(data) {
 
   if (currentApp) {
     let openai = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
-    let modelList = listModels(models, openai);
+    let modelList = listModels(models, openai, { allowSpeechToSpeech: appOffersSpeechToSpeech(currentApp) });
     const modelSelect = $id("model");
     if (modelSelect) modelSelect.innerHTML = modelList;
   }

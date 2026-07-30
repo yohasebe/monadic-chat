@@ -79,6 +79,15 @@ RSpec.describe 'MDSL apps computing model lists from providerDefaults' do
     it 'keeps the speech-to-speech model selectable' do
       expect(settings[:models]).to include('gpt-realtime-2.1')
     end
+
+    # The frontend drops STS models from every dropdown unless the app
+    # declares this flag (the server auto-fills `models` from the provider
+    # API list for apps that declare none, so presence in the list proves
+    # nothing). Listing the model without the flag makes STS silently
+    # unreachable again.
+    it 'declares the speech_to_speech opt-in the dropdown filter requires' do
+      expect(settings[:speech_to_speech]).to be true
+    end
   end
 
   # The point of computing the list is that a new provider default reaches

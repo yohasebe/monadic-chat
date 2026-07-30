@@ -16,7 +16,7 @@
  */
 
 const { listModels } = require('../../docker/services/ruby/public/js/monadic/utilities');
-const { filterModelsForAllMode } = require('../../docker/services/ruby/public/js/monadic/model_utils');
+const { filterModelsForAllMode, appOffersSpeechToSpeech } = require('../../docker/services/ruby/public/js/monadic/model_utils');
 
 function withSpec(spec) {
   window.modelSpec = spec;
@@ -75,27 +75,47 @@ describe('chat model dropdown filter', () => {
 });
 
 /**
- * Speech-to-speech sits on the other side of the line from the models above.
+ * Speech-to-speech availability is an APP decision, not a list decision.
  *
- * An STS model IS the conversation model for an STS session, so an app that
- * declares one in MDSL has to be able to offer it. Excluding it in listModels
- * also stripped it from the curated list — which never passes through
- * filterModelsForAllMode — and that made the STS path unreachable: the server
- * gates on session.parameters.model being an STS model, and no route could
- * ever set it. The exclusion therefore belongs to show-all only.
+ * Two failed designs bracket this one. Excluding STS unconditionally in
+ * listModels made the path unreachable (the curated list never passes
+ * through filterModelsForAllMode, so even a declaring app lost the entry).
+ * Including it unconditionally leaked it into every app: the server
+ * auto-fills `models` from the provider's API list for apps that declare
+ * none (dsl.rb model_list_code), so gpt-realtime-2.1 appeared in Chat and
+ * selecting it failed with a 404 — realtime models are not chat models.
+ *
+ * Hence the explicit opt-in: MDSL `speech_to_speech true` →
+ * opts.allowSpeechToSpeech. Presence in the models array proves nothing.
  */
 describe('speech-to-speech model availability', () => {
+  const STS = { allowSpeechToSpeech: true };
+
   afterEach(() => {
     delete window.modelSpec;
   });
 
-  it('stays selectable through listModels so a declaring app can offer it', () => {
-    withSpec({ 'gpt-realtime-2.1': { supports_speech_to_speech: true } });
+  // The regression that shipped: an API-sourced list containing the STS
+  // model reached an ordinary chat app's dropdown.
+  it('drops STS models by default even when the API list contains them', () => {
+    withSpec({
+      'gpt-5.6-terra': {},
+      'gpt-realtime-2.1': { supports_speech_to_speech: true }
+    });
 
-    expect(listModels(['gpt-realtime-2.1'])).toContain('gpt-realtime-2.1');
+    const html = listModels(['gpt-5.6-terra', 'gpt-realtime-2.1'], true);
+
+    expect(html).toContain('gpt-5.6-terra');
+    expect(html).not.toContain('gpt-realtime-2.1');
   });
 
-  it('is excluded from the show-all list', () => {
+  it('offers STS models when the app opted in', () => {
+    withSpec({ 'gpt-realtime-2.1': { supports_speech_to_speech: true } });
+
+    expect(listModels(['gpt-realtime-2.1'], true, STS)).toContain('gpt-realtime-2.1');
+  });
+
+  it('is excluded from the show-all list regardless of opt-in', () => {
     withSpec({
       'gpt-5.6-terra': {},
       'gpt-realtime-2.1': { supports_speech_to_speech: true }
@@ -107,13 +127,12 @@ describe('speech-to-speech model availability', () => {
     expect(result).not.toContain('gpt-realtime-2.1');
   });
 
-  it('survives the curated path end to end', () => {
-    withSpec({ 'gpt-realtime-2.1': { supports_speech_to_speech: true } });
-
-    // Curated mode returns MDSL models without passing them through
-    // filterModelsForAllMode, so listModels is the only place that could
-    // have dropped them.
-    expect(listModels(['gpt-realtime-2.1'], true)).toContain('gpt-realtime-2.1');
+  it('reads the MDSL speech_to_speech flag through appOffersSpeechToSpeech', () => {
+    expect(appOffersSpeechToSpeech({ speech_to_speech: true })).toBe(true);
+    expect(appOffersSpeechToSpeech({ speech_to_speech: 'true' })).toBe(true);
+    expect(appOffersSpeechToSpeech({ speech_to_speech: false })).toBe(false);
+    expect(appOffersSpeechToSpeech({})).toBe(false);
+    expect(appOffersSpeechToSpeech(null)).toBe(false);
   });
 
   // Picking an STS model is a mode switch (different transport, no web
@@ -126,11 +145,40 @@ describe('speech-to-speech model availability', () => {
       'gpt-realtime-2.1': { supports_speech_to_speech: true }
     });
 
-    const html = listModels(['gpt-5.6-terra', 'gpt-realtime-2.1']);
+    const html = listModels(['gpt-5.6-terra', 'gpt-realtime-2.1'], false, STS);
 
     expect(html).toContain('>gpt-realtime-2.1 (realtime)<');
     expect(html).toContain('value="gpt-realtime-2.1"');
     // Ordinary models stay unlabelled.
     expect(html).toContain('>gpt-5.6-terra<');
+  });
+});
+
+/**
+ * Source guard: every dropdown population site must pass the app's opt-in.
+ * A site calling listModels without it silently reverts that dropdown to
+ * "drop STS always", which is exactly how the reachability gap looked.
+ */
+describe('dropdown call sites pass the opt-in', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const read = (rel) => fs.readFileSync(path.resolve(__dirname, '../..', rel), 'utf8');
+
+  const sites = {
+    'utilities.js': 'docker/services/ruby/public/js/monadic/utilities.js',
+    'monadic.js': 'docker/services/ruby/public/js/monadic.js',
+    'ws-app-data-handlers.js': 'docker/services/ruby/public/js/monadic/ws-app-data-handlers.js'
+  };
+
+  Object.entries(sites).forEach(([label, rel]) => {
+    it(`${label} passes allowSpeechToSpeech to every listModels call`, () => {
+      const src = read(rel);
+      // Match listModels invocations (not the function definition).
+      const calls = src.match(/listModels\((?!models, openai = false)[^)]*\)/g) || [];
+      expect(calls.length).toBeGreaterThan(0);
+      calls.forEach(call => {
+        expect(call).toContain('allowSpeechToSpeech');
+      });
+    });
   });
 });

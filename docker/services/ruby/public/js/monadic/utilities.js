@@ -116,21 +116,25 @@ function updateAppSelectIcon(appValue) {
 
   // setCookie, getCookie, setCookieValues → extracted to cookie-utils.js
 
-function listModels(models, openai = false) {
+function listModels(models, openai = false, opts = {}) {
   // Speech models (STT/TTS/realtime transcription) and music-generation
   // models are selected in dedicated panels/tools, never in the chat-model
   // selector — drop them here so an API-sourced list can't leak e.g.
   // gpt-realtime-whisper into the dropdown.
   //
-  // Speech-to-speech is deliberately NOT in this list. An STS model *is* the
-  // conversation model for an STS session, so an app that declares one in
-  // MDSL must be able to offer it. Excluding it here would also strip it from
-  // the curated list (which never passes through filterModelsForAllMode),
-  // making the STS path unreachable. The show-all exclusion lives in
-  // filterModelsForAllMode instead.
+  // Speech-to-speech models are dropped too UNLESS the app opted in
+  // (opts.allowSpeechToSpeech, from the MDSL `speech_to_speech` flag). The
+  // opt-in has to come from the app, not the list: the server auto-fills
+  // `models` from the provider's API list for apps that declare none
+  // (dsl.rb model_list_code), so an STS id being present proves nothing —
+  // dropping it unconditionally made STS unreachable in Voice Chat, and
+  // keeping it unconditionally leaked it into Chat, where selecting it
+  // fails at request time (realtime models are not chat models).
+  const allowSts = opts.allowSpeechToSpeech === true;
   models = models.filter(function (m) {
     const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
     if (!spec) return true;
+    if (spec.supports_speech_to_speech) return allowSts;
     return !(spec.stt_capability || spec.tts_capability || spec.music_capability ||
              spec.supports_realtime_streaming);
   });
@@ -544,7 +548,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
         const modelsForApp = typeof getModelsForApp === 'function' ? getModelsForApp(apps[targetApp], showAllModels) : [];
         if (modelsForApp.length === 0) return;
         const isOpenAIGroup = (apps[targetApp]["group"] || "").toLowerCase() === "openai";
-        const markup = typeof listModels === 'function' ? listModels(modelsForApp, isOpenAIGroup) : "";
+        const markup = typeof listModels === 'function'
+          ? listModels(modelsForApp, isOpenAIGroup, { allowSpeechToSpeech: appOffersSpeechToSpeech(apps[targetApp]) })
+          : "";
         if (markup) {
           modelSelect.innerHTML = markup;
         }
@@ -1662,7 +1668,7 @@ document.addEventListener("DOMContentLoaded", function() {
       const currentModel = rdModelEl ? rdModelEl.value : null;
       const models = getModelsForApp(currentApp, showAll);
       const openai = (currentApp["group"] || "").toLowerCase() === "openai";
-      if (rdModelEl) rdModelEl.innerHTML = listModels(models, openai);
+      if (rdModelEl) rdModelEl.innerHTML = listModels(models, openai, { allowSpeechToSpeech: appOffersSpeechToSpeech(currentApp) });
 
       // Restore previous model selection if available in new list
       if (rdModelEl) {

@@ -65,5 +65,12 @@ app "VoiceChatOpenAI" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
+    # Opt-in to offering speech-to-speech models in the model selector.
+    # Capability lives in model_spec (supports_speech_to_speech); this flag is
+    # the app-level "use it" half of the two-layer rule. Without it the
+    # frontend drops STS models from the dropdown — including the ones the
+    # server auto-injects into `models` from the provider's API list — so a
+    # realtime-only model can never be picked in an app that cannot run it.
+    speech_to_speech true
   end
 end

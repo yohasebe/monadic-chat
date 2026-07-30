@@ -143,6 +143,19 @@ describe('bundle order invariants', () => {
     });
   });
 
+  // Dropdown call sites reference appOffersSpeechToSpeech (model_utils.js)
+  // at render time; if a consumer ever moved above it, every dropdown would
+  // throw on population.
+  test('model_utils.js precedes the dropdown call sites', () => {
+    const helperIdx = files.indexOf('js/monadic/model_utils.js');
+    expect(helperIdx).toBeGreaterThanOrEqual(0);
+
+    ['js/monadic/utilities.js', 'js/monadic/ws-app-data-handlers.js', 'js/monadic.js'].forEach(consumer => {
+      const idx = files.indexOf(consumer);
+      expect(idx).toBeGreaterThan(helperIdx);
+    });
+  });
+
   test('ws-sts-playback.js precedes ws-sts-usage.js and both follow ws-audio-playback.js', () => {
     const playbackIdx = files.indexOf('js/monadic/ws-audio-playback.js');
     const stsIdx = files.indexOf('js/monadic/ws-sts-playback.js');

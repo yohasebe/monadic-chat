@@ -392,6 +392,24 @@ function filterModelsForAllMode(models, providerKey) {
 }
 
 /**
+ * Whether an app has opted into offering speech-to-speech models.
+ *
+ * The capability (`supports_speech_to_speech`) lives in model_spec; this is
+ * the app-level "use it" half of the two-layer rule, declared in MDSL as
+ * `speech_to_speech true`. The distinction matters because the server
+ * auto-fills `models` from the provider's API list for apps that declare
+ * none (dsl.rb model_list_code) — so "the model is in appConfig.models"
+ * proves nothing about intent, and an explicit flag is the only way to
+ * tell an app that can run an STS session from one that just received the
+ * full model list.
+ */
+function appOffersSpeechToSpeech(appConfig) {
+  if (!appConfig) return false;
+  const v = appConfig["speech_to_speech"];
+  return v === true || v === "true";
+}
+
+/**
  * Get all available models for a given app, considering provider-specific behavior.
  *
  * When showAll is false (default), returns the curated list:
@@ -517,5 +535,5 @@ function getDefaultModelForApp(appConfig, availableModels) {
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor, isModelUiHidden, filterModelsForAllMode };
+  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor, isModelUiHidden, filterModelsForAllMode, appOffersSpeechToSpeech };
 }

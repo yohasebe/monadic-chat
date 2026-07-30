@@ -269,14 +269,44 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   return card;
 }
 
+/**
+ * Build the role label shown at the top of an assistant card.
+ *
+ * This exists because the same markup was previously inlined at three call
+ * sites (the live WebSocket path, its fallback, and session restore). When
+ * the "interrupted" marker was added it landed in one of them, so the flag
+ * rendered in tests and never in the product.
+ *
+ * @param {Object} [content] - the message content hash from the server
+ * @returns {string} badge markup
+ */
+function assistantBadge(content) {
+  let badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> " +
+              "<span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+
+  // A speech-to-speech turn cut short by barge-in carries only the text the
+  // model produced before it was stopped. Saying so on the card matters: the
+  // text reads as a complete answer otherwise, and the user cannot tell that
+  // the rest was never spoken.
+  if (content && content.interrupted) {
+    const label = (typeof webUIi18n !== 'undefined')
+      ? webUIi18n.t('ui.messages.responseInterrupted')
+      : 'Interrupted';
+    badge += " <span class='badge bg-secondary ms-1 align-middle'>" +
+             "<i class='fas fa-hand'></i> " + window.escapeHtml(label) + "</span>";
+  }
+  return badge;
+}
+
 // Export for browser environment.
 // NOTE: window.escapeHtml is owned by text-utils.js (loaded earlier); this
 // module only delegates to it and must not re-export its local delegate
 // onto window (that would shadow the canonical implementation).
 window.createCard = createCard;
+window.assistantBadge = assistantBadge;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { escapeHtml, createCard };
+  module.exports = { escapeHtml, createCard, assistantBadge };
 }
 })();

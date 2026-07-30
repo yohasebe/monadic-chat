@@ -91,6 +91,10 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+// card-renderer.js owns window.assistantBadge and precedes this module in the
+// bundle (scripts/build_js_bundle.mjs), so loading it here matches production
+// rather than stubbing the helper away.
+require('../../docker/services/ruby/public/js/monadic/card-renderer');
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-html-handler');
 
 describe('ws-html-handler', () => {

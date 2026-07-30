@@ -564,7 +564,7 @@ function handleHtmlMessage(data, createCardFunc) {
         const discourseEl = $id('discourse');
         const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
         createCardFunc('assistant',
-                     '<span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>',
+                     window.assistantBadge(data.content),
                      finalHtml,
                      data.content.lang,
                      data.content.mid,

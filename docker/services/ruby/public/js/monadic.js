@@ -511,7 +511,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (msg.role === 'user') {
             badge = "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>";
           } else if (msg.role === 'assistant') {
-            badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+            badge = window.assistantBadge(msg);
           } else if (msg.role === 'system') {
             badge = "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>";
           }

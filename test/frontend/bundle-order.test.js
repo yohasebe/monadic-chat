@@ -121,6 +121,41 @@ describe('bundle order invariants', () => {
     });
   });
 
+  // The assistant card label was previously inlined at three call sites, so an
+  // "interrupted" marker added to one of them never reached the product. It
+  // now lives in card-renderer.js, which makes the load order load-bearing:
+  // the consumers call window.assistantBadge at render time and would throw if
+  // it were not defined yet.
+  test('card-renderer.js (window.assistantBadge) precedes its consumers', () => {
+    const helperIdx = files.indexOf('js/monadic/card-renderer.js');
+    expect(helperIdx).toBeGreaterThanOrEqual(0);
+
+    const consumers = [
+      'js/monadic/ws-html-handler.js',
+      'js/monadic/websocket-handlers.js',
+      'js/monadic.js'
+    ];
+
+    consumers.forEach(consumer => {
+      const consumerIdx = files.indexOf(consumer);
+      expect(consumerIdx).toBeGreaterThan(-1);
+      expect(consumerIdx).toBeGreaterThan(helperIdx);
+    });
+  });
+
+  test('ws-sts-playback.js precedes ws-sts-usage.js and both follow ws-audio-playback.js', () => {
+    const playbackIdx = files.indexOf('js/monadic/ws-audio-playback.js');
+    const stsIdx = files.indexOf('js/monadic/ws-sts-playback.js');
+    const usageIdx = files.indexOf('js/monadic/ws-sts-usage.js');
+
+    // ws-audio-playback's stopAllActiveAudio resolves window.WsStsPlayback at
+    // call time, so it may load first; the STS modules must not precede it in
+    // a way that inverts the documented relationship.
+    expect(playbackIdx).toBeGreaterThanOrEqual(0);
+    expect(stsIdx).toBeGreaterThan(playbackIdx);
+    expect(usageIdx).toBeGreaterThan(stsIdx);
+  });
+
   test('html-sanitizer.js (window.sanitizeModelHtml) precedes its innerHTML-sink consumers', () => {
     const helperIdx = files.indexOf('js/monadic/html-sanitizer.js');
     expect(helperIdx).toBeGreaterThanOrEqual(0);

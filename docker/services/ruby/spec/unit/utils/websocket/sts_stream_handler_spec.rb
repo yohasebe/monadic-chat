@@ -563,6 +563,59 @@ RSpec.describe "WebSocketHelper STS bridge" do
     end
   end
 
+  describe "initiate_from_assistant (STS_INITIATE)" do
+    it "sends response.create with greeting instructions and opens the gate immediately" do
+      host = build_host(params: { "app_name" => "VoiceChatOpenAI" })
+      state = fresh_state
+      state[:session_ready] = true
+      state[:seeded] = true
+      state[:bridge_task] = double(:bridge_task, finished?: false)
+      host.session[:_sts] = state
+
+      conn = StsFakeConn.new
+      Async do |task|
+        writer = task.async { host.send(:sts_writer_loop, conn, state, "ws-test") }
+        host.handle_sts_initiate(nil, {})
+        task.sleep(0.02)
+        state[:cmd_queue].enqueue(nil)
+        writer.wait
+      end
+
+      create = conn.parsed_writes.find { |w| w["type"] == "response.create" }
+      expect(create["response"]["instructions"]).to eq(WebSocketHelper::STS_INITIATE_INSTRUCTIONS)
+      # No input_audio_buffer.commit: an initiated turn carries no user audio
+      expect(conn.parsed_writes.none? { |w| w["type"] == "input_audio_buffer.commit" }).to be(true)
+
+      turn = state[:turn]
+      expect(turn).not_to be_nil
+      expect(turn[:gate_open]).to be(true)
+      expect(turn[:gate_timer]).to be_nil # disarmed by the immediate open
+
+      # An initiated turn has no user utterance: nothing is persisted as user
+      user_msgs = host.session[:messages].select { |m| m["role"] == "user" }
+      expect(user_msgs).to be_empty
+    end
+
+    it "streams the assistant greeting as fragments without an stt message" do
+      host = build_host(params: { "app_name" => "VoiceChatOpenAI" })
+      state = fresh_state
+      Async do |_task|
+        turn = host.send(:sts_start_new_turn, state, "tid-init", "ws-test")
+        host.send(:sts_open_gate, turn, "ws-test", reason: "initiate")
+        conn = StsFakeConn.new([
+                                 { type: "response.output_audio_transcript.delta", delta: "Hi! " }.to_json,
+                                 { type: "response.output_audio_transcript.delta", delta: "Nice to meet you." }.to_json,
+                                 { type: "response.output_audio_transcript.done", transcript: "Hi! Nice to meet you." }.to_json
+                               ])
+        host.send(:sts_reader_loop, conn, state, "ws-test")
+
+        types = parsed_broadcasts(host).map { |p| p["type"] }
+        expect(types).to eq(%w[fragment fragment html])
+        expect(host.session[:messages].last).to include("role" => "assistant", "text" => "Hi! Nice to meet you.")
+      end
+    end
+  end
+
   describe "writer: hold-chunks-until-session.updated then flush" do
     it "buffers appends until seeded, then flushes in order after the seed" do
       host = build_host(params: { "app_name" => "VoiceChatOpenAI" })

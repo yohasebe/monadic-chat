@@ -253,6 +253,11 @@ module WebSocketHelper
           route_audio_event(connection, session, obj,
                             sts_handler: :handle_sts_audio_abort,
                             fallback: :handle_audio_abort)
+        when "STS_INITIATE"
+          # initiate_from_assistant for STS sessions: the client signals
+          # initiation with this message instead of driving the normal
+          # pipeline (which would 404 on a realtime-only model).
+          route_sts_initiate(connection, session, obj)
         when "UPDATE_LANGUAGE"
           handle_ws_update_language(connection, obj, session)
         when "STOP_TTS"
@@ -324,6 +329,24 @@ module WebSocketHelper
       notify_sts_privacy_blocked(connection, session)
     else
       send(fallback, connection, obj)
+    end
+  end
+
+  # Route an STS_INITIATE message (initiate_from_assistant in STS mode).
+  # Same capability + privacy gates as the audio path; silently ignored
+  # outside STS sessions (a stray client should not crash anything).
+  private def route_sts_initiate(connection, session, obj)
+    unless sts_session_capable?(session, obj)
+      Monadic::Utils::ExtraLogger.log do
+        "[WebSocket] STS_INITIATE ignored (session is not STS-capable)"
+      end
+      return
+    end
+
+    if sts_privacy_active?(session)
+      notify_sts_privacy_blocked(connection, session)
+    else
+      handle_sts_initiate(connection, obj)
     end
   end
 

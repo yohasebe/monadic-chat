@@ -69,6 +69,12 @@ module WebSocketHelper
   # Upstream reconnect attempts before giving up and surfacing an error.
   STS_MAX_RECONNECTS = 3
 
+  # Instruction sent with response.create for initiate_from_assistant in
+  # STS mode: asks the model to open the conversation. The app's system
+  # prompt (session instructions) still governs style and language.
+  STS_INITIATE_INSTRUCTIONS =
+    "Greet the user briefly and start the conversation, following your system instructions.".freeze
+
   # A reconnected session must live at least this long (with the handshake
   # completed) to count as healthy and reset the reconnect backoff.
   # Resetting on handshake alone would flap forever under conditions that
@@ -151,6 +157,20 @@ module WebSocketHelper
     state[:abort_seq] = (state[:abort_seq] || 0) + 1
     state[:ready].signal
     state[:cmd_queue].enqueue([:abort])
+  end
+
+  # Entry point for initiate_from_assistant in STS mode. Driving the normal
+  # pipeline would 404 on a realtime-only model, so the client signals
+  # initiation with STS_INITIATE instead; the bridge then asks the model to
+  # greet (response.create with instructions). Same defensive surface as a
+  # bare commit: with no bridge state there is nothing to do.
+  def handle_sts_initiate(_connection, obj)
+    state = ensure_sts_state!(obj)
+    queue = state[:cmd_queue]
+    return unless queue
+
+    # Fresh turn id per initiation; the writer stamps it on the new turn.
+    queue.enqueue([:initiate, SecureRandom.hex(8)])
   end
 
   # Tear down the STS bridge for a session whose client WebSocket has closed.
@@ -454,6 +474,24 @@ module WebSocketHelper
         conn.write({ type: "response.create" }.to_json)
         conn.flush
         sts_start_new_turn(state, payload, ws_session_id)
+      when :initiate
+        next unless sts_wait_for_ready(state, ws_session_id)
+        unless state[:seeded]
+          sts_seed_history(conn, state, ws_session_id)
+          state[:seeded] = true
+        end
+        sts_flush_pending_appends(conn, pending)
+        turn = sts_start_new_turn(state, payload, ws_session_id)
+        # Initiated turns have no user utterance, so there is no stt card
+        # to order fragments against: open the gate at once (this also
+        # disarms the gate timer, which would otherwise hold fragments for
+        # STS_GATE_TIMEOUT seconds).
+        sts_open_gate(turn, ws_session_id, reason: "initiate")
+        conn.write({
+          type: "response.create",
+          response: { instructions: STS_INITIATE_INSTRUCTIONS }
+        }.to_json)
+        conn.flush
       when :abort
         Monadic::Utils::ExtraLogger.log { "[STS session=#{ws_session_id}] barge-in (response.cancel)" }
         if state[:session_ready]

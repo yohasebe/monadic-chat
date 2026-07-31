@@ -45,6 +45,10 @@ RSpec.describe "WebSocketHelper STS audio routing" do
       def handle_sts_audio_abort(_connection, _obj)
         @calls << :handle_sts_audio_abort
       end
+
+      def handle_sts_initiate(_connection, _obj)
+        @calls << :handle_sts_initiate
+      end
     end
   end
 
@@ -277,6 +281,32 @@ RSpec.describe "WebSocketHelper STS audio routing" do
                { "message" => "hello", "model" => "gpt-5.6-terra" }, session, nil)
       end.to raise_error(StopIteration)
       expect(broadcasts).to be_empty
+    end
+  end
+
+  # STS_INITIATE routing: capability + privacy gates, ignored outside STS.
+  describe "STS_INITIATE routing (route_sts_initiate)" do
+    it "routes to handle_sts_initiate in an STS session" do
+      h = host.new(sts_capable: true)
+      h.send(:route_sts_initiate, connection, make_session(privacy_toggle: false), obj)
+      expect(h.calls).to eq([:handle_sts_initiate])
+    end
+
+    it "is ignored outside STS sessions (no call, no error)" do
+      h = host.new(sts_capable: false)
+      expect do
+        h.send(:route_sts_initiate, connection, make_session(privacy_toggle: false), obj)
+      end.not_to raise_error
+      expect(h.calls).to be_empty
+      expect(writes).to be_empty
+    end
+
+    it "emits the privacy notice instead of initiating when privacy is on" do
+      stub_apps(privacy_enabled: true)
+      h = host.new(sts_capable: true)
+      h.send(:route_sts_initiate, connection, make_session(privacy_toggle: true), obj)
+      expect(h.calls).to be_empty
+      expect(writes.size).to eq(1)
     end
   end
 end

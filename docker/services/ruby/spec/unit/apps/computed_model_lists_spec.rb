@@ -64,29 +64,21 @@ RSpec.describe 'MDSL apps computing model lists from providerDefaults' do
       expect(Object.const_defined?('VoiceChatOpenAI')).to be true
     end
 
-    it 'offers the provider defaults plus the speech-to-speech model' do
-      expect(settings[:models]).to eq(openai_chat_models + ['gpt-realtime-2.1'])
+    # App-separation design (2026-07-31): realtime speech-to-speech models
+    # belong exclusively to the Live Conversation app. Voice Chat is the
+    # conventional STT→LLM→TTS pipeline and must never offer an STS model —
+    # the five integration gaps of the integrated design all started here.
+    it 'offers exactly the provider default chat models — no STS model' do
+      expect(settings[:models]).to eq(openai_chat_models)
+      expect(settings[:models]).not_to include('gpt-realtime-2.1')
     end
 
-    # STS is opt-in: it must be reachable from the dropdown but never the
-    # model a user lands on by simply opening Voice Chat, since it routes
-    # audio through a different (and far more expensive) pipeline.
-    it 'does not default to the speech-to-speech model' do
+    it 'defaults to the first provider default' do
       expect(settings[:model]).to eq(openai_chat_models.first)
-      expect(settings[:model]).not_to eq('gpt-realtime-2.1')
     end
 
-    it 'keeps the speech-to-speech model selectable' do
-      expect(settings[:models]).to include('gpt-realtime-2.1')
-    end
-
-    # The frontend drops STS models from every dropdown unless the app
-    # declares this flag (the server auto-fills `models` from the provider
-    # API list for apps that declare none, so presence in the list proves
-    # nothing). Listing the model without the flag makes STS silently
-    # unreachable again.
-    it 'declares the speech_to_speech opt-in the dropdown filter requires' do
-      expect(settings[:speech_to_speech]).to be true
+    it 'does not declare the speech_to_speech app flag' do
+      expect(settings[:speech_to_speech]).to be_nil
     end
   end
 

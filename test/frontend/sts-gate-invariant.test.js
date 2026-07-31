@@ -78,35 +78,32 @@ describe('speech-to-speech mode is derived at a single point per side', () => {
   });
 
   it('behavioural call sites go through the gate, not the raw flag', () => {
-    // recording.js decides capture transport; monadic.js decides the mode
-    // notice. Both must consult the gate so the derivation cannot fork again.
+    // Under the Live Conversation design (STS = dedicated app), the primary
+    // wall is app separation: STS models never appear in ordinary apps'
+    // selectors. The remaining gate consumers are defense-in-depth:
+    // recording.js (capture transport) and the stt-message guards below.
+    // monadic.js no longer consults the gate — its mode-switch branches were
+    // retired with the integrated design.
     const recording = fs.readFileSync(
       path.join(ROOT, 'docker/services/ruby/public/js/monadic/recording.js'), 'utf8');
     const monadic = fs.readFileSync(
       path.join(ROOT, 'docker/services/ruby/public/js/monadic.js'), 'utf8');
 
     expect(recording).toMatch(/SttGate\.isStsModelSelected/);
-    expect(monadic).toMatch(/SttGate\.isStsModelSelected/);
     expect(recording).not.toContain('supports_speech_to_speech');
     expect(monadic).not.toContain('supports_speech_to_speech');
   });
 
-  // Every route into the ordinary chat pipeline must be gated in STS mode —
-  // a realtime-only model 404s there. Gap #1 was the dropdown, #2 the
-  // capture transport, #4a the assistant-initiated greeting and #4b the
-  // easy-submit after `stt`. Each entry point that consults the gate is
-  // pinned here so a refactor cannot silently drop one.
-  it('ordinary-pipeline entry points consult the gate', () => {
-    const monadic = fs.readFileSync(
-      path.join(ROOT, 'docker/services/ruby/public/js/monadic.js'), 'utf8');
+  // Defense-in-depth: even though ordinary apps can no longer select STS
+  // models, the stt-message consumers keep their guards so a Live
+  // Conversation turn's transcript can never leak into the textarea /
+  // easy-submit path of the ordinary pipeline.
+  it('stt-message consumers keep their STS guards', () => {
     const wsHandlers = fs.readFileSync(
       path.join(ROOT, 'docker/services/ruby/public/js/monadic/websocket-handlers.js'), 'utf8');
     const sessionHandler = fs.readFileSync(
       path.join(ROOT, 'docker/services/ruby/public/js/monadic/ws-session-handler.js'), 'utf8');
 
-    // (#4a) assistant-initiated greeting is skipped in STS mode
-    expect(monadic).toMatch(/!stsInitiate && \(\$id\("initiate-from-assistant"\)/);
-    // (#4b) stt transcript neither fills the textarea nor easy-submits
     expect(wsHandlers).toMatch(/isStsModelSelected/);
     expect(sessionHandler).toMatch(/isStsModelSelected/);
   });

@@ -1287,22 +1287,6 @@ document.addEventListener("DOMContentLoaded", function () {
         // ready, so this self-heals the badge. No-op on failure.
         if (typeof setAiUserBadge === 'function') setAiUserBadge();
 
-        // Selecting a speech-to-speech model changes more than quality: audio
-        // is rerouted through the STS bridge, and in the current slice web
-        // search and typed messages do not work in that mode. The dropdown
-        // label marks the entry "(realtime)", and this notice spells out what
-        // the mark means at the moment it starts to matter. Derived via the
-        // gate — SttGate.isStsModelSelected() is the only client-side reader
-        // of the capability for behavioural decisions.
-        if (window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
-            && window.SttGate.isStsModelSelected()) {
-          const stsNotice = typeof webUIi18n !== 'undefined'
-            ? webUIi18n.t('ui.messages.stsModeNotice')
-            : 'Realtime voice model: conversation runs over the speech-to-speech bridge. Web search and typed messages are not available in this mode.';
-          if (typeof setAlert === 'function') {
-            setAlert(`<i class='fas fa-microphone-lines'></i> ${stsNotice}`, 'info');
-          }
-        }
       });
     }
 
@@ -3204,23 +3188,12 @@ document.addEventListener("DOMContentLoaded", function () {
       enterConversationMode();
       $show($id("discourse"));
 
-      // Assistant-initiated greetings go through the ordinary chat pipeline
-      // (params without `message` → handle_ws_streaming → a fresh LLM call),
-      // which a realtime-only STS model cannot serve — the request 404s
-      // before the user has said a word. In STS mode the conversation starts
-      // with the user's speech instead; say so rather than failing silently.
-      const stsInitiate = !!(window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
-        && window.SttGate.isStsModelSelected());
-      if (stsInitiate && messages.length === 0) {
-        const speakFirst = typeof webUIi18n !== 'undefined'
-          ? webUIi18n.t('ui.messages.stsSpeakToStart')
-          : 'Realtime voice model: press the microphone and speak to start the conversation.';
-        setAlert(`<i class='fas fa-microphone-lines'></i> ${speakFirst}`, 'info');
-      }
-
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
       // This prevents auto-generation when importing conversations
-      if (!stsInitiate && ($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
+      // (Realtime speech-to-speech models never reach this flow: they exist
+      // only in the dedicated Live Conversation app, which has its own
+      // Start mechanism over the STS bridge.)
+      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
         $show($id("temp-card"));
         $hide($id("user-panel"));
         $show($id("monadic-spinner")); // Show spinner for initial assistant message

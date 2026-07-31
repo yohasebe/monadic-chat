@@ -159,6 +159,60 @@ module WebSocketHelper
     state[:cmd_queue].enqueue([:abort])
   end
 
+  # VAD configuration for the continuous session. Reads optional MDSL feature
+  # keys from the app settings so noise-sensitive deployments can tune turn
+  # segmentation (our own bench measured babble keeping the default VAD from
+  # ever closing a turn). Only explicitly-set keys are sent.
+  def sts_vad_config
+    cfg = { type: "server_vad" }
+    settings = sts_app_settings
+    if settings
+      { threshold: :sts_vad_threshold,
+        prefix_padding_ms: :sts_vad_prefix_ms,
+        silence_duration_ms: :sts_vad_silence_ms }.each do |api_key, mdsl_key|
+        value = settings[mdsl_key] || settings[mdsl_key.to_s]
+        cfg[api_key] = value if value
+      end
+    end
+    cfg
+  end
+
+  def sts_app_settings
+    params = get_session_params
+    app_name = params["app_name"] || params[:app_name]
+    return nil unless defined?(APPS) && app_name && APPS[app_name]
+
+    APPS[app_name].settings
+  rescue StandardError
+    nil
+  end
+
+  # Start a Live Conversation session. `greet` asks the assistant to open the
+  # conversation (fresh sessions); resumes seed silently and wait listening.
+  def handle_sts_start(_connection, obj)
+    state = ensure_sts_state!(obj)
+    queue = state[:cmd_queue]
+    return unless queue
+
+    greet = obj["greet"] == true || obj["greet"] == "true"
+    queue.enqueue([:start, greet])
+  end
+
+  # Stop a Live Conversation session: finalize any in-flight turn as
+  # interrupted (its card carries the transcript so far), notify the client,
+  # and tear the bridge down. The next Start rebuilds from session[:messages].
+  def handle_sts_stop(_connection, _obj)
+    sess = session
+    state = sess[:_sts]
+    ws_session_id = Thread.current[:websocket_session_id]
+    if state && (turn = state[:turn])
+      sts_finalize_interrupted_turn(state, turn, ws_session_id)
+      sts_notify_cancelled(turn, ws_session_id)
+    end
+    teardown_sts_session(sess)
+    send_or_broadcast({ "type" => "sts_session", "state" => "stopped" }.to_json, ws_session_id)
+  end
+
   # Entry point for initiate_from_assistant in STS mode. Driving the normal
   # pipeline would 404 on a realtime-only model, so the client signals
   # initiation with STS_INITIATE instead; the bridge then asks the model to
@@ -285,6 +339,7 @@ module WebSocketHelper
         # before any further audio is appended.
         state[:session_ready] = false
         state[:seeded] = false
+        send_or_broadcast({ "type" => "sts_session", "state" => "reconnecting" }.to_json, ws_session_id)
         Monadic::Utils::ExtraLogger.log do
           "[STS session=#{ws_session_id}] upstream disconnected; rebuilding session (attempt #{attempts}/#{STS_MAX_RECONNECTS})"
         end
@@ -323,10 +378,12 @@ module WebSocketHelper
   def build_sts_session_update_payload(state)
     audio_input = {
       format: { type: "audio/pcm", rate: REALTIME_STS_SAMPLE_RATE },
-      # Client-driven turns: the browser decides when a turn ends
-      # (AUDIO_COMMIT), so server VAD must be off. Explicit null — under
-      # session.update's sparse-merge semantics omitting the key is a no-op.
-      turn_detection: nil,
+      # Continuous conversation: the server VAD segments turns, auto-creates
+      # responses and auto-cancels them on barge-in (create_response /
+      # interrupt_response default to true — live-probed 2026-07-31).
+      # Tunable per app via MDSL features (sts_vad_* keys); omitted keys use
+      # the API defaults (threshold 0.5 / prefix 300ms / silence 500ms).
+      turn_detection: sts_vad_config,
       transcription: { model: REALTIME_STS_TRANSCRIPTION_MODEL }
     }
 
@@ -375,9 +432,35 @@ module WebSocketHelper
       when "session.updated"
         state[:session_ready] = true
         state[:ready].signal
+        # Single source for the client's "live" state — also covers the
+        # transparent reconnect path (reconnecting → started again).
+        send_or_broadcast({ "type" => "sts_session", "state" => "started" }.to_json, ws_session_id)
         # Seed (or re-seed after rebuild) before any audio append: the
         # writer processes :seed in queue order and no-ops if already seeded.
         state[:cmd_queue].enqueue([:seed])
+      when "input_audio_buffer.speech_started"
+        # The user started talking. Two jobs:
+        # 1. Barge-in: if the assistant is mid-response, upstream will cancel
+        #    it (interrupt_response default) — but its cancelled event arrives
+        #    AFTER this one, and the new turn replaces state[:turn]. Finalize
+        #    the interrupted card NOW while the reference is still in hand
+        #    (both finalize and notify are idempotent, so the later
+        #    response.cancelled event is a harmless no-op).
+        # 2. Open a new turn so the incoming utterance's transcription deltas
+        #    have a home (they can arrive before response.created).
+        if (turn = state[:turn]) && !turn[:assistant_finalized] && turn[:gate_open]
+          sts_finalize_interrupted_turn(state, turn, ws_session_id)
+          sts_notify_cancelled(turn, ws_session_id)
+        end
+        sts_start_new_turn(state, SecureRandom.hex(8), ws_session_id)
+        send_or_broadcast({ "type" => "sts_vad", "event" => "speech_started" }.to_json, ws_session_id)
+      when "input_audio_buffer.speech_stopped"
+        send_or_broadcast({ "type" => "sts_vad", "event" => "speech_stopped" }.to_json, ws_session_id)
+      when "response.created"
+        # With server VAD the turn normally exists already (opened at
+        # speech_started); a response arriving with no turn (e.g. an
+        # upstream-initiated one) still needs a home for its fragments.
+        sts_start_new_turn(state, SecureRandom.hex(8), ws_session_id) unless state[:turn]
       when "conversation.item.input_audio_transcription.delta"
         delta = payload["delta"].to_s
         next if delta.empty?
@@ -474,24 +557,32 @@ module WebSocketHelper
         conn.write({ type: "response.create" }.to_json)
         conn.flush
         sts_start_new_turn(state, payload, ws_session_id)
-      when :initiate
+      when :start
+        # Live Conversation session start. Ready + seed, tell the client the
+        # session is live, and greet only when asked (fresh conversation).
+        # With no greeting the VAD simply starts listening — the first
+        # user utterance opens the first turn via upstream events.
         next unless sts_wait_for_ready(state, ws_session_id)
         unless state[:seeded]
           sts_seed_history(conn, state, ws_session_id)
           state[:seeded] = true
         end
-        sts_flush_pending_appends(conn, pending)
-        turn = sts_start_new_turn(state, payload, ws_session_id)
-        # Initiated turns have no user utterance, so there is no stt card
-        # to order fragments against: open the gate at once (this also
-        # disarms the gate timer, which would otherwise hold fragments for
-        # STS_GATE_TIMEOUT seconds).
-        sts_open_gate(turn, ws_session_id, reason: "initiate")
-        conn.write({
-          type: "response.create",
-          response: { instructions: STS_INITIATE_INSTRUCTIONS }
-        }.to_json)
-        conn.flush
+        if payload # greet flag
+          turn = sts_start_new_turn(state, SecureRandom.hex(8), ws_session_id)
+          # Greeting turns have no user utterance, so there is no stt card
+          # to order fragments against: open the gate at once (this also
+          # disarms the gate timer).
+          sts_open_gate(turn, ws_session_id, reason: "greet")
+          conn.write({
+            type: "response.create",
+            response: { instructions: STS_INITIATE_INSTRUCTIONS }
+          }.to_json)
+          conn.flush
+        end
+      when :initiate
+        # Legacy alias for [:start, true] (kept so the message type remains
+        # honored; Live Conversation clients send STS_START).
+        state[:cmd_queue].enqueue([:start, true])
       when :abort
         Monadic::Utils::ExtraLogger.log { "[STS session=#{ws_session_id}] barge-in (response.cancel)" }
         if state[:session_ready]

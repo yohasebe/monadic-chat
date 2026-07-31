@@ -285,17 +285,17 @@ RSpec.describe "WebSocketHelper STS audio routing" do
   end
 
   # STS_INITIATE routing: capability + privacy gates, ignored outside STS.
-  describe "STS_INITIATE routing (route_sts_initiate)" do
+  describe "STS control routing (route_sts_control)" do
     it "routes to handle_sts_initiate in an STS session" do
       h = host.new(sts_capable: true)
-      h.send(:route_sts_initiate, connection, make_session(privacy_toggle: false), obj)
+      h.send(:route_sts_control, connection, make_session(privacy_toggle: false), obj, handler: :handle_sts_initiate)
       expect(h.calls).to eq([:handle_sts_initiate])
     end
 
     it "is ignored outside STS sessions (no call, no error)" do
       h = host.new(sts_capable: false)
       expect do
-        h.send(:route_sts_initiate, connection, make_session(privacy_toggle: false), obj)
+        h.send(:route_sts_control, connection, make_session(privacy_toggle: false), obj, handler: :handle_sts_initiate)
       end.not_to raise_error
       expect(h.calls).to be_empty
       expect(writes).to be_empty
@@ -304,7 +304,7 @@ RSpec.describe "WebSocketHelper STS audio routing" do
     it "emits the privacy notice instead of initiating when privacy is on" do
       stub_apps(privacy_enabled: true)
       h = host.new(sts_capable: true)
-      h.send(:route_sts_initiate, connection, make_session(privacy_toggle: true), obj)
+      h.send(:route_sts_control, connection, make_session(privacy_toggle: true), obj, handler: :handle_sts_initiate)
       expect(h.calls).to be_empty
       expect(writes.size).to eq(1)
     end
@@ -376,5 +376,59 @@ RSpec.describe 'sts_session_capable? chat_model hint' do
   it 'returns false for a session that does not respond to []' do
     expect(harness.sts_session_capable?(nil)).to be false
     expect(harness.sts_session_capable?(:not_a_session)).to be false
+  end
+end
+
+# STS_START / STS_STOP routing (Live Conversation session lifecycle).
+RSpec.describe 'STS_START / STS_STOP routing' do
+  let(:calls) { [] }
+
+  let(:harness) do
+    made = calls
+    Class.new do
+      include WebSocketHelper
+      public :route_sts_control
+      attr_accessor :session
+
+      define_method(:handle_sts_start) { |_c, obj| made << [:start, obj['greet']] }
+      define_method(:handle_sts_stop)  { |_c, _o| made << [:stop] }
+      define_method(:notify_sts_privacy_blocked) { |_c, _s| made << [:privacy_blocked] }
+      def sts_privacy_active?(_s) = false
+    end.new
+  end
+
+  before do
+    allow(Monadic::Utils::ModelSpec).to receive(:supports_speech_to_speech?) do |m|
+      m == 'gpt-realtime-2.1'
+    end
+  end
+
+  it 'routes STS_START with the greet flag when the session is capable' do
+    harness.session = { parameters: { 'model' => 'gpt-realtime-2.1' } }
+    harness.route_sts_control(nil, harness.session,
+                              { 'message' => 'STS_START', 'greet' => true,
+                                'chat_model' => 'gpt-realtime-2.1' },
+                              handler: :handle_sts_start)
+
+    expect(calls).to eq([[:start, true]])
+  end
+
+  it 'ignores STS_START outside STS sessions' do
+    harness.session = { parameters: { 'model' => 'gpt-5.6-terra' } }
+    expect {
+      harness.route_sts_control(nil, harness.session,
+                                { 'message' => 'STS_START' }, handler: :handle_sts_start)
+    }.not_to raise_error
+    expect(calls).to be_empty
+  end
+
+  # Stopping must always work: it is routed WITHOUT the capability gate
+  # (websocket.rb calls handle_sts_stop directly) and is a no-op without a
+  # bridge — pinned in the handler specs. Here we pin the routing shape.
+  it 'STS_STOP is dispatched without a capability gate' do
+    src = File.read(File.expand_path('../../../../lib/monadic/utils/websocket.rb', __dir__))
+    stop_case = src[/when "STS_STOP".*?when "/m]
+    expect(stop_case).to include('handle_sts_stop(connection, obj)')
+    expect(stop_case).not_to include('route_sts_control')
   end
 end

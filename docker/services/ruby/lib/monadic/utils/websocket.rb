@@ -253,11 +253,18 @@ module WebSocketHelper
           route_audio_event(connection, session, obj,
                             sts_handler: :handle_sts_audio_abort,
                             fallback: :handle_audio_abort)
+        when "STS_START"
+          # Live Conversation session start (greet flag decides whether the
+          # assistant opens the conversation). Same gates as the audio path.
+          route_sts_control(connection, session, obj, handler: :handle_sts_start)
+        when "STS_STOP"
+          # Explicit stop: finalize the in-flight turn and tear the bridge
+          # down. No capability gate — stopping must always work, and it is
+          # a no-op when no bridge exists.
+          handle_sts_stop(connection, obj)
         when "STS_INITIATE"
-          # initiate_from_assistant for STS sessions: the client signals
-          # initiation with this message instead of driving the normal
-          # pipeline (which would 404 on a realtime-only model).
-          route_sts_initiate(connection, session, obj)
+          # Legacy alias for STS_START with greet (kept honored).
+          route_sts_control(connection, session, obj, handler: :handle_sts_initiate)
         when "UPDATE_LANGUAGE"
           handle_ws_update_language(connection, obj, session)
         when "STOP_TTS"
@@ -332,13 +339,13 @@ module WebSocketHelper
     end
   end
 
-  # Route an STS_INITIATE message (initiate_from_assistant in STS mode).
-  # Same capability + privacy gates as the audio path; silently ignored
-  # outside STS sessions (a stray client should not crash anything).
-  private def route_sts_initiate(connection, session, obj)
+  # Route an STS control message (STS_START / STS_INITIATE). Same capability
+  # + privacy gates as the audio path; silently ignored outside STS sessions
+  # (a stray client should not crash anything).
+  private def route_sts_control(connection, session, obj, handler:)
     unless sts_session_capable?(session, obj)
       Monadic::Utils::ExtraLogger.log do
-        "[WebSocket] STS_INITIATE ignored (session is not STS-capable)"
+        "[WebSocket] #{obj['message']} ignored (session is not STS-capable)"
       end
       return
     end
@@ -346,7 +353,7 @@ module WebSocketHelper
     if sts_privacy_active?(session)
       notify_sts_privacy_blocked(connection, session)
     else
-      handle_sts_initiate(connection, obj)
+      send(handler, connection, obj)
     end
   end
 

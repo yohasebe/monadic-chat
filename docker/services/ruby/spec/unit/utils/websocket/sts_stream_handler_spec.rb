@@ -195,11 +195,12 @@ RSpec.describe "WebSocketHelper STS bridge" do
       expect(session_cfg).not_to have_key(:modalities)
     end
 
-    it "pins input audio to audio/pcm @ 24kHz with client-driven turns" do
+    it "pins input audio to audio/pcm @ 24kHz with server-VAD turns" do
       audio_in = session_cfg[:audio][:input]
       expect(audio_in[:format]).to eq({ type: "audio/pcm", rate: 24_000 })
-      expect(audio_in.key?(:turn_detection)).to be(true)
-      expect(audio_in[:turn_detection]).to be_nil
+      # Continuous mode: the server VAD segments turns (create_response /
+      # interrupt_response default to true upstream — live-probed).
+      expect(audio_in[:turn_detection]).to eq({ type: "server_vad" })
     end
 
     it "enables input audio transcription with gpt-4o-transcribe" do
@@ -977,5 +978,179 @@ RSpec.describe 'STS voice whitelist' do
       st = state_for({ 'model' => 'gpt-realtime-2.1', 'tts_voice' => v })
       expect(st[:voice]).to eq(v)
     end
+  end
+end
+
+# ── Live Conversation continuous mode ────────────────────────────────────────
+# The VAD-driven pieces: session start/stop handlers, per-app VAD tuning, and
+# the reader's reaction to upstream speech events (turn creation, native
+# barge-in finalization, state relays). Upstream is always faked.
+RSpec.describe 'WebSocketHelper STS continuous mode' do
+  let(:sent) { [] }
+
+  let(:harness) do
+    msgs = sent
+    Class.new do
+      include WebSocketHelper
+      attr_accessor :session
+      public :sts_vad_config, :handle_sts_start, :handle_sts_stop,
+             :sts_reader_loop, :ensure_sts_state!
+
+      define_method(:send_or_broadcast) { |json, _sid| msgs << JSON.parse(json) }
+      def get_session_params = session[:parameters]
+      def sync_session_state!; end
+      def detect_language(_t) = 'en'
+    end.new
+  end
+
+  before do
+    harness.session = { parameters: { 'app_name' => 'LiveConversationOpenAI',
+                                      'model' => 'gpt-realtime-2.1' }, messages: [] }
+    allow(Thread.current).to receive(:[]).and_call_original
+  end
+
+  describe '#sts_vad_config' do
+    it 'defaults to bare server_vad (API defaults for tuning keys)' do
+      stub_const('APPS', {})
+      expect(harness.sts_vad_config).to eq({ type: 'server_vad' })
+    end
+
+    it 'passes through MDSL tuning keys when the app declares them' do
+      app = double('app', settings: { sts_vad_silence_ms: 800, 'sts_vad_threshold' => 0.7 })
+      stub_const('APPS', { 'LiveConversationOpenAI' => app })
+
+      cfg = harness.sts_vad_config
+      expect(cfg[:silence_duration_ms]).to eq(800)
+      expect(cfg[:threshold]).to eq(0.7)
+      expect(cfg[:type]).to eq('server_vad')
+    end
+  end
+
+  describe '#handle_sts_start' do
+    it 'enqueues :start with the greet flag' do
+      queue = Async::Queue.new
+      harness.session[:_sts] = { cmd_queue: queue,
+                                 bridge_task: double(finished?: false) }
+
+      harness.handle_sts_start(nil, { 'greet' => true, 'chat_model' => 'gpt-realtime-2.1' })
+
+      Sync { expect(queue.dequeue).to eq([:start, true]) }
+    end
+
+    it 'treats a missing greet flag as false (resume: no greeting)' do
+      queue = Async::Queue.new
+      harness.session[:_sts] = { cmd_queue: queue,
+                                 bridge_task: double(finished?: false) }
+
+      harness.handle_sts_start(nil, { 'chat_model' => 'gpt-realtime-2.1' })
+
+      Sync { expect(queue.dequeue).to eq([:start, false]) }
+    end
+  end
+
+  describe '#handle_sts_stop' do
+    it 'finalizes the in-flight turn, tears down, and reports stopped' do
+      turn = { id: 't1', assistant_transcript: +'partial words', assistant_finalized: false,
+               cancel_notified: false, gate_timer: nil, pending_fragments: [], gate_open: true,
+               user_partial: +'', user_msg_ref: nil }
+      queue = Async::Queue.new
+      task = double('task', finished?: false, stop: nil)
+      harness.session[:_sts] = { cmd_queue: queue, bridge_task: task, turn: turn,
+                                 ready: Async::Condition.new }
+
+      Sync { harness.handle_sts_stop(nil, {}) }
+
+      types = sent.map { |m| m['type'] }
+      expect(types).to include('html')                 # interrupted card
+      expect(types).to include('sts_audio_cancelled')  # client discards audio
+      expect(types.last).to eq('sts_session')
+      expect(sent.last['state']).to eq('stopped')
+      expect(harness.session[:_sts]).to be_nil         # torn down
+    end
+
+    it 'is a safe no-op without a bridge (still reports stopped)' do
+      expect { Sync { harness.handle_sts_stop(nil, {}) } }.not_to raise_error
+      expect(sent.last).to eq({ 'type' => 'sts_session', 'state' => 'stopped' })
+    end
+  end
+
+  describe 'reader VAD events' do
+    def run_reader(events, state)
+      conn = Class.new do
+        def initialize(frames) = @frames = frames
+        def read = @frames.shift
+        def write(_b); end
+        def flush; end
+      end.new(events.map(&:to_json))
+      Sync { harness.sts_reader_loop(conn, state, 'sid') }
+    end
+
+    let(:base_state) do
+      { session_ready: true, ready: Async::Condition.new, turn: nil,
+        cmd_queue: Async::Queue.new }
+    end
+
+    it 'opens a turn and relays speech_started' do
+      run_reader([{ type: 'input_audio_buffer.speech_started' }], base_state)
+
+      expect(base_state[:turn]).not_to be_nil
+      expect(sent).to include({ 'type' => 'sts_vad', 'event' => 'speech_started' })
+    end
+
+    it 'relays speech_stopped' do
+      run_reader([{ type: 'input_audio_buffer.speech_stopped' }], base_state)
+
+      expect(sent).to include({ 'type' => 'sts_vad', 'event' => 'speech_stopped' })
+    end
+
+    # Native barge-in: the user talks over the assistant. Upstream will cancel
+    # the response, but its event arrives after speech_started has replaced
+    # state[:turn] — so the interrupted card must be finalized here, while the
+    # old turn is still in hand.
+    it 'finalizes the interrupted assistant turn at speech_started (barge-in)' do
+      old_turn = { id: 'old', assistant_transcript: +'I was saying', assistant_finalized: false,
+                   cancel_notified: false, gate_timer: nil, pending_fragments: [],
+                   gate_open: true, user_partial: +'', user_msg_ref: nil }
+      state = base_state.merge(turn: old_turn)
+
+      run_reader([{ type: 'input_audio_buffer.speech_started' }], state)
+
+      types = sent.map { |m| m['type'] }
+      expect(types).to include('html')                # interrupted card
+      expect(types).to include('sts_audio_cancelled')
+      cancelled = sent.find { |m| m['type'] == 'sts_audio_cancelled' }
+      expect(cancelled['turn_id']).to eq('old')
+      expect(state[:turn][:id]).not_to eq('old')      # fresh turn opened
+    end
+
+    it 'reports started on session.updated (single source, covers reconnect)' do
+      run_reader([{ type: 'session.updated' }], base_state)
+
+      expect(sent).to include({ 'type' => 'sts_session', 'state' => 'started' })
+    end
+
+    it 'opens a turn on response.created only when none exists' do
+      run_reader([{ type: 'response.created' }], base_state)
+      first = base_state[:turn]
+      expect(first).not_to be_nil
+
+      run_reader([{ type: 'response.created' }], base_state)
+      expect(base_state[:turn]).to equal(first)
+    end
+  end
+end
+
+# Wire-level tools invariant: whatever the app loader injects into
+# settings[:tools], the realtime session config must never carry a tools key
+# (Live Conversation is a no-tools app family by design).
+RSpec.describe 'STS session config carries no tools' do
+  it 'build_sts_session_update_payload has no tools key' do
+    harness = Class.new do
+      include WebSocketHelper
+      public :build_sts_session_update_payload
+      def get_session_params = {}
+    end.new
+    payload = harness.build_sts_session_update_payload({ voice: 'marin', instructions: '' })
+    expect(payload[:session]).not_to have_key(:tools)
   end
 end

@@ -47,6 +47,11 @@ module WebSocketHelper
   REALTIME_STS_URL = "wss://api.openai.com/v1/realtime"
   REALTIME_STS_DEFAULT_MODEL = "gpt-realtime-2.1"
   REALTIME_STS_DEFAULT_VOICE = "alloy"
+  # Voices the realtime API accepts (live-probed 2026-07-31). This is NOT the
+  # TTS voice list: reusing params["tts_voice"] verbatim broke session setup
+  # for any TTS-only voice ("Invalid value: 'nova'"), and the failure only
+  # missed earlier testing because 'coral' happens to exist in both sets.
+  REALTIME_STS_VOICES = %w[alloy ash ballad coral echo sage shimmer verse marin cedar].freeze
   # Input-side transcription runs on a dedicated transcribe model so the
   # user transcript (stt_partial / stt) streams independently of the
   # speech-to-speech model's own output.
@@ -178,7 +183,12 @@ module WebSocketHelper
     model = hint.strip.empty? ? (params["model"] || params[:model]).to_s : hint
     model = REALTIME_STS_DEFAULT_MODEL if model.strip.empty?
     voice = (params["tts_voice"] || params[:tts_voice]).to_s
-    voice = REALTIME_STS_DEFAULT_VOICE if voice.strip.empty?
+    unless REALTIME_STS_VOICES.include?(voice)
+      Monadic::Utils::ExtraLogger.log do
+        "[STS] tts_voice #{voice.inspect} is not a realtime voice; using #{REALTIME_STS_DEFAULT_VOICE}"
+      end unless voice.strip.empty?
+      voice = REALTIME_STS_DEFAULT_VOICE
+    end
     instructions = params["initial_prompt"] || params[:initial_prompt]
 
     state = {
@@ -302,7 +312,12 @@ module WebSocketHelper
 
     session_cfg = {
       type: "realtime",
-      modalities: %w[audio text],
+      # GA name (live-probed 2026-07-31): the legacy `modalities` key is now
+      # rejected as an unknown parameter — its acceptance on 2026-07-30 was
+      # the tail of a rolling deployment. Transcript events
+      # (output_audio_transcript.*) accompany audio output regardless, so
+      # audio-only is the right setting here.
+      output_modalities: %w[audio],
       audio: {
         input: audio_input,
         output: {

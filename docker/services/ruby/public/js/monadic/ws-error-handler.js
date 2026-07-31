@@ -149,6 +149,29 @@ function handleError(data) {
       window.UIState.set('isStreaming', false);
     }
 
+    // Voice-capture recovery. A turn that dies between AUDIO_COMMIT and its
+    // `stt`/audio events (observed live: the upstream realtime session hits
+    // its 60-minute cap) leaves the mic UI on "Processing speech..." with the
+    // auto-speech watchdogs armed — one of them re-shows the spinner after
+    // the generic reset above has hidden it. Disarm them and hide the
+    // spinner LAST, so an upstream failure cannot strand the UI.
+    window.autoSpeechActive = false;
+    window.autoPlayAudio = false;
+    if (window.autoTTSSpinnerTimeout) {
+      clearTimeout(window.autoTTSSpinnerTimeout);
+      window.autoTTSSpinnerTimeout = null;
+    }
+    if (typeof window.setTextResponseCompleted === 'function') window.setTextResponseCompleted(true);
+    if (typeof window.setTtsPlaybackStarted === 'function') window.setTtsPlaybackStarted(true);
+    const micSpinner = $id('monadic-spinner');
+    $hide(micSpinner);
+    const micAmplitude = $id('amplitude');
+    $hide(micAmplitude);
+    const micMsg = $id('message');
+    if (micMsg && micMsg.dataset.originalPlaceholder) {
+      micMsg.setAttribute('placeholder', micMsg.dataset.originalPlaceholder);
+    }
+
     // Set focus back to input field
     setInputFocus();
   }

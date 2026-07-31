@@ -188,8 +188,11 @@ RSpec.describe "WebSocketHelper STS bridge" do
       expect(session_cfg[:type]).to eq("realtime")
     end
 
-    it "requests audio+text modalities" do
-      expect(session_cfg[:modalities]).to eq(%w[audio text])
+    it "requests audio output via the GA output_modalities key" do
+      # The legacy `modalities` key is rejected by the GA API ("Unknown
+      # parameter") — its earlier acceptance was a rolling-deployment tail.
+      expect(session_cfg[:output_modalities]).to eq(%w[audio])
+      expect(session_cfg).not_to have_key(:modalities)
     end
 
     it "pins input audio to audio/pcm @ 24kHz with client-driven turns" do
@@ -810,7 +813,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
       host = build_host(params: {
                           "model" => "gpt-realtime-2.1",
                           "app_name" => "VoiceChatOpenAI",
-                          "tts_voice" => "nova",
+                          "tts_voice" => "marin", # realtime-only voice: proves pass-through survives the whitelist
                           "context_size" => "10"
                         })
       conn = StsBlockingConn.new
@@ -832,7 +835,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
         expect(captured[:url]).to include("model=gpt-realtime-2.1")
         expect(captured[:headers]["Authorization"]).to eq("Bearer sk-test")
         update = conn.parsed_writes.find { |w| w["type"] == "session.update" }
-        expect(update.dig("session", "audio", "output", "voice")).to eq("nova")
+        expect(update.dig("session", "audio", "output", "voice")).to eq("marin")
 
         # chunk held until session.updated
         expect(conn.parsed_writes.none? { |w| w["type"] == "input_audio_buffer.append" }).to be(true)
@@ -869,6 +872,57 @@ RSpec.describe "WebSocketHelper STS bridge" do
 
         state[:bridge_task]&.stop
       end
+    end
+  end
+end
+
+# Realtime voices are a different vocabulary from the TTS voices, so the
+# session state must never carry a TTS-only voice into session.update —
+# OpenAI rejects it ("Invalid value: 'nova'") and the bridge dies on setup.
+# 'coral' existing in both sets is what let earlier testing miss this.
+RSpec.describe 'STS voice whitelist' do
+  let(:harness) do
+    Class.new do
+      include WebSocketHelper
+      attr_accessor :session
+      public :ensure_sts_state!
+      def get_session_params = session[:parameters]
+    end.new
+  end
+
+  before do
+    harness.session = { parameters: params }
+    allow(harness).to receive(:run_sts_bridge!) # do not open a real bridge
+    allow(Async).to receive(:call) if defined?(Async)
+  end
+
+  def state_for(params_hash)
+    harness.session = { parameters: params_hash }
+    allow(Thread.current).to receive(:[]).and_call_original
+    harness.ensure_sts_state!({})
+  end
+
+  let(:params) { { 'model' => 'gpt-realtime-2.1' } }
+
+  it 'keeps a voice the realtime API supports' do
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'tts_voice' => 'coral' })
+    expect(st[:voice]).to eq('coral')
+  end
+
+  it 'falls back to the default for a TTS-only voice' do
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'tts_voice' => 'nova' })
+    expect(st[:voice]).to eq(WebSocketHelper::REALTIME_STS_DEFAULT_VOICE)
+  end
+
+  it 'falls back to the default when no voice is set' do
+    st = state_for({ 'model' => 'gpt-realtime-2.1' })
+    expect(st[:voice]).to eq(WebSocketHelper::REALTIME_STS_DEFAULT_VOICE)
+  end
+
+  it 'every whitelisted voice passes through unchanged' do
+    WebSocketHelper::REALTIME_STS_VOICES.each do |v|
+      st = state_for({ 'model' => 'gpt-realtime-2.1', 'tts_voice' => v })
+      expect(st[:voice]).to eq(v)
     end
   end
 end

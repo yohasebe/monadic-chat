@@ -80,6 +80,7 @@ const FILES = [
   "js/monadic/ws-audio-queue.js",
   "js/monadic/ws-sts-playback.js",
   "js/monadic/ws-sts-usage.js",
+  "js/monadic/live-conversation.js",
   "js/monadic/ws-ui-helpers.js",
   "js/monadic/ws-app-data-handlers.js",
   "js/monadic/ws-message-renderer.js",

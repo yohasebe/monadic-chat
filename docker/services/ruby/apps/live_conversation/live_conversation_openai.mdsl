@@ -1,0 +1,43 @@
+app "LiveConversationOpenAI" do
+  description do
+    en <<~TEXT
+    Experimental continuous voice conversation over OpenAI Realtime (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Audio is sent directly to the provider (Privacy Filter does not apply); roughly $6/hour with the default model. No tools or text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    ja <<~TEXT
+    OpenAI Realtime（speech-to-speech）による実験的な連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。既定モデルで目安 $6/時。ツール・テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "comments"
+
+  display_name "Live Conversation"
+
+  system_prompt <<~PROMPT
+  You are a friendly conversation partner speaking with the user by voice.
+  Keep responses short and natural for speech — usually one or two sentences.
+  Follow the user's language. Do not use markdown, lists, or code in your
+  speech; talk the way a person talks.
+  PROMPT
+
+  llm do
+    provider "openai"
+    model ["gpt-realtime-2.1"]
+  end
+
+  features do
+    # Declares this as a speech-to-speech app: the frontend switches to the
+    # Live Conversation UI (Start/Stop, no text input) and the model list is
+    # pinned to the MDSL declaration above (show-all is ignored — mixing STS
+    # and non-STS models in one selector is what sank the integrated design).
+    speech_to_speech true
+    # Honored as the greeting toggle: ON = the assistant greets when a fresh
+    # conversation starts; OFF = start listening silently. On resume
+    # (messages present) there is never a greeting.
+    initiate_from_assistant true
+    # Conversations save to the Library like any app (Stop → save/load), but
+    # the search TOOL is suppressed: this is a no-tools app and nothing can
+    # reach the realtime session anyway (wire invariant in the handler spec).
+    library_search false
+    disabled !CONFIG["OPENAI_API_KEY"]
+  end
+end

@@ -156,6 +156,13 @@ describe('bundle order invariants', () => {
     });
   });
 
+  test('live-conversation.js precedes monadic.js (setAppMode is called on app change)', () => {
+    const lcIdx = files.indexOf('js/monadic/live-conversation.js');
+    const monadicIdx = files.indexOf('js/monadic.js');
+    expect(lcIdx).toBeGreaterThanOrEqual(0);
+    expect(monadicIdx).toBeGreaterThan(lcIdx);
+  });
+
   test('ws-sts-playback.js precedes ws-sts-usage.js and both follow ws-audio-playback.js', () => {
     const playbackIdx = files.indexOf('js/monadic/ws-audio-playback.js');
     const stsIdx = files.indexOf('js/monadic/ws-sts-playback.js');

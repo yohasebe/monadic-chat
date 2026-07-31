@@ -182,3 +182,33 @@ describe('dropdown call sites pass the opt-in', () => {
     });
   });
 });
+
+/**
+ * Speech-to-speech APPS pin their selector to the MDSL list: show-all would
+ * merge ordinary chat models into the dropdown, and mixing STS and non-STS
+ * models in one selector is exactly what sank the integrated design.
+ */
+describe('speech-to-speech app model list pinning', () => {
+  const { getModelsForApp } = require('../../docker/services/ruby/public/js/monadic/model_utils');
+
+  afterEach(() => { delete window.modelSpec; });
+
+  const lcApp = {
+    group: 'OpenAI',
+    speech_to_speech: true,
+    models: JSON.stringify(['gpt-realtime-2.1'])
+  };
+
+  it('returns exactly the MDSL list in curated mode', () => {
+    withSpec({ 'gpt-realtime-2.1': { supports_speech_to_speech: true } });
+    expect(getModelsForApp(lcApp, false)).toEqual(['gpt-realtime-2.1']);
+  });
+
+  it('ignores show-all — no ordinary chat models leak in', () => {
+    withSpec({
+      'gpt-5.6-terra': {},
+      'gpt-realtime-2.1': { supports_speech_to_speech: true }
+    });
+    expect(getModelsForApp(lcApp, true)).toEqual(['gpt-realtime-2.1']);
+  });
+});

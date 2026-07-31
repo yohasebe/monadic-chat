@@ -6511,3 +6511,29 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-chip.verify-badge--low { background: var(--bdg-red-bg); color: var(--bdg-red-fg); border-color: var(--bdg-red-bd); }
 .verify-badge--unknown, .verify-badge--unavailable,
 .verify-chip.verify-badge--unknown, .verify-chip.verify-badge--unavailable { background: var(--bdg-grey-bg); color: var(--bdg-grey-fg); border-color: var(--bdg-grey-bd); }
+
+/* ── Live Conversation (speech-to-speech app family) ────────────────────
+   body.lc-app    : current app declares `speech_to_speech true`
+   body.lc-locked : a conversation is active — cards are content-final per
+                    turn, but editing is unlocked only after Stop. */
+.lc-app #user-panel > .row {
+  display: none !important;
+}
+#lc-panel { display: none; }
+.lc-app #lc-panel { display: block; }
+
+.lc-locked #discourse .card .func-edit,
+.lc-locked #discourse .card .func-delete,
+.lc-locked #discourse .card .func-play,
+.lc-locked #discourse .card .func-stop {
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* Live user transcript preview (replaced by the server-rendered user card
+   when the turn's transcription completes). */
+.lc-user-temp .lc-user-temp-text {
+  color: var(--bs-secondary-color, #6c757d);
+  font-style: italic;
+  min-height: 1.2em;
+}

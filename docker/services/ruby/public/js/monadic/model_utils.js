@@ -421,6 +421,17 @@ function appOffersSpeechToSpeech(appConfig) {
  * @returns {Array} Array of model names
  */
 function getModelsForApp(appConfig, showAll) {
+  // Speech-to-speech apps pin their selector to the MDSL list. Show-all
+  // would merge ordinary chat models into the dropdown — and mixing STS and
+  // non-STS models in one selector is exactly what sank the integrated
+  // design (five integration gaps).
+  if (appConfig && (appConfig["speech_to_speech"] === true || appConfig["speech_to_speech"] === "true")) {
+    try {
+      const pinned = JSON.parse(appConfig["models"] || "[]");
+      if (Array.isArray(pinned) && pinned.length > 0) return pinned;
+    } catch (_) { /* fall through to the normal path */ }
+  }
+
   if (!appConfig) return [];
   if (showAll === undefined) showAll = false;
 

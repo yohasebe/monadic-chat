@@ -727,6 +727,10 @@ window.loadedApp = "Chat";
         if (sts && typeof sts.handleStsAudioDelta === 'function') {
           sts.handleStsAudioDelta(data);
         }
+        const lcDelta = window.LiveConversation;
+        if (lcDelta && typeof lcDelta.onAssistantAudio === 'function') {
+          lcDelta.onAssistantAudio();
+        }
         break;
       }
 
@@ -739,6 +743,10 @@ window.loadedApp = "Chat";
         if (stsUsage && typeof stsUsage.handleStsAudioDone === 'function') {
           stsUsage.handleStsAudioDone(data);
         }
+        const lcDone = window.LiveConversation;
+        if (lcDone && typeof lcDone.onAssistantAudioEnd === 'function') {
+          lcDone.onAssistantAudioEnd();
+        }
         break;
       }
 
@@ -747,6 +755,23 @@ window.loadedApp = "Chat";
         if (sts && typeof sts.handleStsAudioCancelled === 'function') {
           sts.handleStsAudioCancelled(data);
         }
+        const lcCancel = window.LiveConversation;
+        if (lcCancel && typeof lcCancel.onAssistantAudioEnd === 'function') {
+          lcCancel.onAssistantAudioEnd();
+        }
+        break;
+      }
+
+      // Live Conversation state relays (see live-conversation.js).
+      case "sts_vad": {
+        const lcVad = window.LiveConversation;
+        if (lcVad && typeof lcVad.onStsVad === 'function') lcVad.onStsVad(data);
+        break;
+      }
+
+      case "sts_session": {
+        const lcSession = window.LiveConversation;
+        if (lcSession && typeof lcSession.onStsSession === 'function') lcSession.onStsSession(data);
         break;
       }
 
@@ -892,6 +917,8 @@ window.loadedApp = "Chat";
         break;
       }
       case "stt": {
+        const lcStt = window.LiveConversation;
+        if (lcStt && typeof lcStt.onStt === 'function') lcStt.onStt(data);
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleSTT === 'function') {
           wsh.handleSTT(data);
@@ -899,6 +926,8 @@ window.loadedApp = "Chat";
         break;
       }
       case "stt_partial": {
+        const lcSttP = window.LiveConversation;
+        if (lcSttP && typeof lcSttP.onSttPartial === 'function') lcSttP.onSttPartial(data);
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleSTTPartial === 'function') {
           wsh.handleSTTPartial(data);

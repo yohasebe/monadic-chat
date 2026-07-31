@@ -2564,6 +2564,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // of carrying over the previous app's dropdown value. Consumed once.
     window.pendingAppReasoningContent = apps[appValue]["reasoning_content"] || null;
 
+    // Live Conversation apps swap the input panel for Start/Stop controls.
+    if (window.LiveConversation && typeof window.LiveConversation.setAppMode === 'function') {
+      window.LiveConversation.setAppMode(apps[appValue]);
+    }
+
     // Use shared utility function to get models for the app
     const showAll = ($id("show-all-models") || {}).checked;
     let models = getModelsForApp(apps[appValue], showAll);

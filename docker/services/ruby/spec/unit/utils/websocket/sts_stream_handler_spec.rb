@@ -1753,8 +1753,18 @@ RSpec.describe 'xAI realtime provider profile' do
       expect(session_cfg[:instructions]).to include('Japanese')
     end
 
-    it 'carries no tools key (no-tools app family, xAI side too)' do
+    it 'carries no tools key by default (search is opt-in)' do
       expect(session_cfg).not_to have_key(:tools)
+    end
+
+    it 'injects ONLY server-side search tools when websearch is on (phase-4 boundary: no function tools ever)' do
+      on = harness.build_sts_session_update_payload(
+        { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+          instructions: '', websearch: true }
+      )
+      tools = on.dig(:session, :tools)
+      expect(tools).to eq([{ type: 'web_search' }, { type: 'x_search' }])
+      expect(tools.map { |t| t[:type] }).not_to include('function')
     end
 
     it 'omits the language hint in auto mode' do
@@ -2046,8 +2056,16 @@ RSpec.describe 'Gemini Live provider' do
       expect(text).to include('Japanese')
     end
 
-    it 'carries no tools key' do
+    it 'carries no tools key by default (search is opt-in)' do
       expect(payload[:setup]).not_to have_key(:tools)
+    end
+
+    it 'injects google_search when websearch is on (no function tools ever)' do
+      on = harness.build_sts_session_update_payload(
+        { provider: 'gemini', model: 'gemini-3.1-flash-live-preview',
+          voice: 'Kore', instructions: '', websearch: true }
+      )
+      expect(on.dig(:setup, :tools)).to eq([{ google_search: {} }])
     end
   end
 
@@ -2288,7 +2306,7 @@ RSpec.describe 'STS session config carries no tools' do
     expect(payload.dig(:session, :audio, :input, :noise_reduction)).to eq({ type: 'near_field' })
   end
 
-  it 'build_sts_session_update_payload has no tools key' do
+  it 'build_sts_session_update_payload has no tools key (OpenAI: never, even with websearch on)' do
     harness = Class.new do
       include WebSocketHelper
       public :build_sts_session_update_payload
@@ -2296,6 +2314,8 @@ RSpec.describe 'STS session config carries no tools' do
     end.new
     payload = harness.build_sts_session_update_payload({ voice: 'marin', instructions: '' })
     expect(payload[:session]).not_to have_key(:tools)
+    on = harness.build_sts_session_update_payload({ voice: 'marin', instructions: '', websearch: true })
+    expect(on[:session]).not_to have_key(:tools)
   end
 end
 

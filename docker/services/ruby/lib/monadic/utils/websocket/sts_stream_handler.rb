@@ -496,6 +496,7 @@ module WebSocketHelper
       provider: provider,
       voice: voice,
       speed: speed,
+      websearch: params["websearch"] == true || params["websearch"] == "true",
       instructions: instructions,
       language: language,
       turn: nil
@@ -723,6 +724,15 @@ module WebSocketHelper
     }
     session_cfg[:instructions] = instructions unless instructions.empty?
 
+    # Native server-side search (live-probed 2026-08-01: tools accepted and
+    # echoed; a search surfaces as response.function_call_arguments.* events
+    # that the reader safely ignores). Opt-in only (billing) and ONLY these
+    # server-executed tools — function-type tools are never injected
+    # (phase-4 boundary: they need new reader machinery).
+    if state[:websearch]
+      session_cfg[:tools] = [{ type: "web_search" }, { type: "x_search" }]
+    end
+
     { type: "session.update", session: session_cfg }
   end
 
@@ -746,6 +756,13 @@ module WebSocketHelper
       outputAudioTranscription: {}
     }
     setup[:systemInstruction] = { parts: [{ text: instructions }] } unless instructions.empty?
+
+    # Google Search grounding (live-probed 2026-08-01: accepted in setup and
+    # the model answers current-info queries in AUDIO mode). Opt-in only
+    # (5,000 free prompts/month, then $14/1K queries). NOTE: the stream
+    # delivers NO groundingMetadata in audio mode, so sources cannot be
+    # shown to the user — recorded in the design memo.
+    setup[:tools] = [{ google_search: {} }] if state[:websearch]
 
     vad = {}
     settings = sts_app_settings

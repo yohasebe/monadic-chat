@@ -110,17 +110,29 @@
       '<label for="lc-speed-range" class="text-secondary small me-2" id="lc-speed-label"></label>' +
       '<input type="range" id="lc-speed-range" min="0.25" max="1.5" step="0.05" value="1.0" style="width: 90px;">' +
       '<span id="lc-speed-value" class="text-secondary small ms-1">1.0</span>' +
+      '</span>' +
+      '<span id="lc-websearch-wrap" class="text-secondary small align-items-center ms-3" style="display:none !important;">' +
+      '<input type="checkbox" id="lc-websearch-toggle" class="form-check-input me-1">' +
+      '<label for="lc-websearch-toggle" class="text-secondary small me-1" id="lc-websearch-label"></label>' +
+      '<span id="lc-websearch-note" class="text-secondary small"></span>' +
       '</span>';
     panel.appendChild(row);
 
     $id('lc-voice-label').textContent = t('ui.messages.lcVoice', 'Voice');
     $id('lc-voice-note').textContent = t('ui.messages.lcVoiceNextStart', '(applies from the next Start)');
     $id('lc-speed-label').textContent = t('ui.messages.lcSpeed', 'Speed');
+    $id('lc-websearch-label').textContent = t('ui.messages.lcWebsearch', 'Web search');
 
     $on($id('lc-voice-select'), 'change', function() {
       if (typeof params !== 'undefined') {
         params['sts_voice'] = $id('lc-voice-select').value;
         if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_voice_change');
+      }
+    });
+    $on($id('lc-websearch-toggle'), 'change', function() {
+      if (typeof params !== 'undefined') {
+        params['websearch'] = $id('lc-websearch-toggle').checked;
+        if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('websearch_toggle');
       }
     });
     $on($id('lc-speed-range'), 'change', function() {
@@ -167,6 +179,27 @@
       const s = (typeof params !== 'undefined' && params['sts_speed']) || '1.0';
       $id('lc-speed-range').value = s;
       $id('lc-speed-value').textContent = s;
+    }
+
+    // Native search toggle (xAI/Gemini only — model_spec capability gate,
+    // same shape as the speed control). Default OFF (billing); the note is
+    // provider-specific honesty about cost.
+    const wsWrap = $id('lc-websearch-wrap');
+    if (wsWrap) {
+      const wsCapable = spec.sts_websearch_capability === true;
+      if (wsCapable) {
+        wsWrap.style.removeProperty('display');
+        wsWrap.style.setProperty('display', 'flex');
+        const provider = spec.sts_provider;
+        $id('lc-websearch-note').textContent = provider === 'gemini'
+          ? t('ui.messages.lcWebsearchCostGemini', '(free monthly quota, then paid)')
+          : t('ui.messages.lcWebsearchCostXai', '(may incur additional charges)');
+        $id('lc-websearch-toggle').checked =
+          typeof params !== 'undefined' &&
+          (params['websearch'] === true || params['websearch'] === 'true');
+      } else {
+        wsWrap.style.setProperty('display', 'none', 'important');
+      }
     }
   }
 

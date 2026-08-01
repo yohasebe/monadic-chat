@@ -694,3 +694,81 @@ describe('voice and speed controls', () => {
     expect(document.getElementById('lc-speed-value').textContent).toBe('1.25');
   });
 });
+
+describe('websearch toggle (native search, capability-gated)', () => {
+  const wsSpec = {
+    'gpt-realtime-2.1': {
+      supports_speech_to_speech: true,
+      sts_provider: 'openai',
+      sts_voice: 'alloy',
+      sts_voices: ['alloy']
+    },
+    'grok-voice-think-fast-2.0': {
+      supports_speech_to_speech: true,
+      sts_provider: 'xai',
+      sts_voice: 'eve',
+      sts_voices: ['eve'],
+      sts_websearch_capability: true
+    },
+    'gemini-3.1-flash-live-preview': {
+      supports_speech_to_speech: true,
+      sts_provider: 'gemini',
+      sts_voice: 'Kore',
+      sts_voices: ['Kore'],
+      sts_websearch_capability: true
+    }
+  };
+
+  beforeEach(() => {
+    window.modelSpec = wsSpec;
+    window.params = {};
+    window.broadcastParamsUpdate = jest.fn();
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.modelSpec;
+    delete window.params;
+    delete window.broadcastParamsUpdate;
+  });
+
+  const wrap = () => document.getElementById('lc-websearch-wrap');
+  const toggle = () => document.getElementById('lc-websearch-toggle');
+  const setModel = (m) => {
+    const el = document.getElementById('model');
+    el.replaceChildren(new Option(m, m, true, true));
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+  };
+
+  it('is hidden for OpenAI (no sts_websearch_capability) and shown for xAI/Gemini', () => {
+    expect(wrap().style.display).toBe('none');
+
+    setModel('grok-voice-think-fast-2.0');
+    expect(wrap().style.display).toBe('flex');
+    expect(document.getElementById('lc-websearch-note').textContent).toMatch(/additional charges/i);
+
+    setModel('gemini-3.1-flash-live-preview');
+    expect(wrap().style.display).toBe('flex');
+    expect(document.getElementById('lc-websearch-note').textContent).toMatch(/free monthly quota/i);
+  });
+
+  it('defaults to OFF (cost safety) even when the capability exists', () => {
+    setModel('grok-voice-think-fast-2.0');
+    expect(toggle().checked).toBe(false);
+  });
+
+  it('reflects params.websearch when set', () => {
+    window.params['websearch'] = true;
+    setModel('grok-voice-think-fast-2.0');
+    expect(toggle().checked).toBe(true);
+  });
+
+  it('writes params.websearch and broadcasts on change', () => {
+    setModel('grok-voice-think-fast-2.0');
+    toggle().checked = true;
+    toggle().dispatchEvent(new Event('change', { bubbles: true }));
+    expect(window.params['websearch']).toBe(true);
+    expect(window.broadcastParamsUpdate).toHaveBeenCalledWith('websearch_toggle');
+  });
+});

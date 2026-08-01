@@ -696,7 +696,7 @@
 
       let text = markdown;
 
-      // 0a. Vocabulary substitution tokens (${TOKEN}, TOKEN = UPPER_CASE) をプレースホルダーに
+      // 0a. Protect vocabulary substitution tokens (${TOKEN}, TOKEN = UPPER_CASE) behind placeholders
       // Must run BEFORE math extraction so the token's `$` is never paired as a
       // KaTeX inline-math delimiter. Restored to the literal `${TOKEN}` AFTER all
       // other placeholder restorations so the vocabulary DOM walker can decorate it.
@@ -726,7 +726,7 @@
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(\\*)(?!\\*)', 'g'), '$1\u200B$2');
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(_)(?!_)', 'g'), '$1\u200B$2');
 
-      // 1. Math block expressions (KaTeX) をプレースホルダーに
+      // 1. Protect math block expressions (KaTeX) behind placeholders
       const mathBlocks = [];
       text = text.replace(/\$\$([\s\S]+?)\$\$/g, (match, content) => {
         const index = mathBlocks.length;
@@ -734,7 +734,7 @@
         return `MATH_BLOCK_PLACEHOLDER_${index}`;
       });
 
-      // 2. Math inline expressions (KaTeX) をプレースホルダーに
+      // 2. Protect math inline expressions (KaTeX) behind placeholders
       const mathInline = [];
       text = text.replace(/\$(.+?)\$/g, (match, content) => {
         const index = mathInline.length;
@@ -742,7 +742,7 @@
         return `MATH_INLINE_PLACEHOLDER_${index}`;
       });
 
-      // 3. ABC notation をプレースホルダーに
+      // 3. Protect ABC notation behind placeholders
       const abcBlocks = [];
       text = text.replace(/```abc\n([\s\S]+?)```/g, (match, content) => {
         const index = abcBlocks.length;
@@ -750,7 +750,7 @@
         return `ABC_BLOCK_PLACEHOLDER_${index}`;
       });
 
-      // 4. Mermaid diagrams をプレースホルダーに
+      // 4. Protect Mermaid diagrams behind placeholders
       const mermaidBlocks = [];
       text = text.replace(/```mermaid\n([\s\S]+?)```/g, (match, content) => {
         const index = mermaidBlocks.length;
@@ -758,7 +758,7 @@
         return `MERMAID_BLOCK_PLACEHOLDER_${index}`;
       });
 
-      // 5. DrawIO diagrams をプレースホルダーに
+      // 5. Protect DrawIO diagrams behind placeholders
       const drawioBlocks = [];
       // 5a. Fenced code blocks: ```drawio ... ``` (case-insensitive, flexible whitespace)
       text = text.replace(/```[Dd]raw[Ii][Oo]\s*\n([\s\S]+?)```/g, (match, content) => {
@@ -774,10 +774,10 @@
         return `DRAWIO_BLOCK_PLACEHOLDER_${index}`;
       });
 
-      // 5. markdown-it で Markdown → HTML 変換
+      // 5. Convert Markdown to HTML with markdown-it
       let html = md.render(text);
 
-      // 6-9. プレースホルダーを復元（KaTeX でレンダリング済み HTML に直接置換）
+      // 6-9. Restore placeholders (replacing directly with KaTeX-rendered HTML)
       var katexMacros = { "\\R": "\\mathbb{R}", "\\N": "\\mathbb{N}", "\\Z": "\\mathbb{Z}", "\\Q": "\\mathbb{Q}", "\\C": "\\mathbb{C}" };
       mathBlocks.forEach((content, index) => {
         var rendered;
@@ -833,7 +833,7 @@
         );
       });
 
-      // 10. Vocabulary tokens を元の literal `${TOKEN}` に復元
+      // 10. Restore vocabulary tokens to their literal `${TOKEN}` form
       // Done LAST so the returned HTML contains the literal text the vocabulary
       // DOM walker (ws-vocabulary-handler.js) looks for and decorates.
       vocabTokens.forEach((original, index) => {

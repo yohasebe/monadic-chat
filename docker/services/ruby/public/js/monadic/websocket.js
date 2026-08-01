@@ -1179,8 +1179,8 @@ window.loadedApp = "Chat";
         window.LiveConversation.isActive()) {
       window.LiveConversation.stopConversation();
     }
-    // Show message based on current mode: if Stop操作による明示停止（silentモード）なら"Stopped"、
-    // それ以外は通常の Connection lost を案内
+    // Show a mode-appropriate message: an explicit Stop (silent mode) reads
+    // as "Stopped"; anything else gets the usual "Connection lost" notice
     if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
       const stoppedText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.stopped') : 'Stopped';
       setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");

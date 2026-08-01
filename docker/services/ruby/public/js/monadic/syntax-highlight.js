@@ -25,7 +25,7 @@
           hljs.highlightElement(block);
         } catch (err) {
           console.error('Failed to highlight code block:', err);
-          // Error時も素のコードは表示される
+          // The plain code still renders even when highlighting errors out
         }
       });
     },

@@ -87,6 +87,89 @@
     renderControls();
   }
 
+  // ── Voice / speed controls (LC-specific, NOT part of HIDDEN_IN_LC) ──
+  // Voice lists come from model_spec (SSOT: sts_voices / sts_voice); the
+  // selector writes params.sts_voice and the change applies from the next
+  // Start (the bridge pins voice at creation). sts_speed exists only for
+  // providers whose spec marks sts_speed_capability (OpenAI) — it is never
+  // offered, let alone sent, for others.
+  function ensureVoiceControls() {
+    const panel = $id('lc-panel');
+    if (!panel || $id('lc-voice-select')) return;
+    const row = document.createElement('div');
+    row.className = 'd-flex align-items-center mt-2 flex-wrap';
+    row.innerHTML =
+      '<label for="lc-voice-select" class="text-secondary small me-2" id="lc-voice-label"></label>' +
+      '<select id="lc-voice-select" class="form-select form-select-sm" style="max-width: 160px;"></select>' +
+      '<span id="lc-voice-note" class="text-secondary small ms-2"></span>' +
+      // NO d-flex here: Bootstrap's .d-flex is `display:flex !important`
+      // and would beat the inline `display:none` used to hide this wrap on
+      // xAI/Gemini (the same trap as the AI User row). Visibility is
+      // driven exclusively by renderVoiceControls via setProperty.
+      '<span id="lc-speed-wrap" class="text-secondary small align-items-center ms-3" style="display:none !important;">' +
+      '<label for="lc-speed-range" class="text-secondary small me-2" id="lc-speed-label"></label>' +
+      '<input type="range" id="lc-speed-range" min="0.25" max="1.5" step="0.05" value="1.0" style="width: 90px;">' +
+      '<span id="lc-speed-value" class="text-secondary small ms-1">1.0</span>' +
+      '</span>';
+    panel.appendChild(row);
+
+    $id('lc-voice-label').textContent = t('ui.messages.lcVoice', 'Voice');
+    $id('lc-voice-note').textContent = t('ui.messages.lcVoiceNextStart', '(applies from the next Start)');
+    $id('lc-speed-label').textContent = t('ui.messages.lcSpeed', 'Speed');
+
+    $on($id('lc-voice-select'), 'change', function() {
+      if (typeof params !== 'undefined') {
+        params['sts_voice'] = $id('lc-voice-select').value;
+        if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_voice_change');
+      }
+    });
+    $on($id('lc-speed-range'), 'change', function() {
+      const v = parseFloat($id('lc-speed-range').value);
+      $id('lc-speed-value').textContent = String(v);
+      if (typeof params !== 'undefined') {
+        params['sts_speed'] = String(v);
+        if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_speed_change');
+      }
+    });
+  }
+
+  function renderVoiceControls() {
+    const modelEl = $id('model');
+    const model = modelEl ? modelEl.value : null;
+    const spec = (window.modelSpec && model) ? (window.modelSpec[model] || {}) : {};
+    const sel = $id('lc-voice-select');
+    if (!sel) return;
+
+    const voices = Array.isArray(spec.sts_voices) ? spec.sts_voices : [];
+    const current = (typeof params !== 'undefined' && params['sts_voice']) || spec.sts_voice || voices[0] || '';
+    sel.replaceChildren();
+    voices.forEach(function(v) {
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      if (v === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    const wrap = $id('lc-speed-wrap');
+    const speedCapable = spec.sts_speed_capability === true;
+    if (wrap) {
+      if (speedCapable) {
+        wrap.style.removeProperty('display');
+        wrap.style.setProperty('display', 'flex');
+      } else {
+        // 'important' is load-bearing: without it, an important stylesheet
+        // declaration could resurrect the control on non-capable providers.
+        wrap.style.setProperty('display', 'none', 'important');
+      }
+    }
+    if (speedCapable) {
+      const s = (typeof params !== 'undefined' && params['sts_speed']) || '1.0';
+      $id('lc-speed-range').value = s;
+      $id('lc-speed-value').textContent = s;
+    }
+  }
+
   function renderControls() {
     const label = $id('lc-toggle-label');
     const btn = $id('lc-toggle');
@@ -142,6 +225,8 @@
     if (on) {
       ensurePanel();
       ensureIntroCard();
+      ensureVoiceControls();
+      renderVoiceControls();
       // Hiding the toggles is not enough: a checked auto-speech carried over
       // from another app would TTS the assistant card on top of the realtime
       // audio (double speech), and easy-submit belongs to the typed pipeline.

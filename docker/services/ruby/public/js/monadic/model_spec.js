@@ -1242,23 +1242,42 @@ const modelSpec = {
   // from model-name prefixes.
   "gpt-realtime-2.1": {
     "supports_speech_to_speech": true,
-    "sts_provider": "openai"
+    "sts_provider": "openai",
+    "sts_voice": "alloy",
+    "sts_voices": ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"],
+    "sts_speed_capability": true
   },
 
   // xAI realtime speech-to-speech (wss://api.x.ai/v1/realtime). Note: the
   // server silently substitutes think-fast-1.0 for unknown model names, so
   // the STS bridge validates the session's model echo and stops on mismatch.
+  // Voices: 26 IDs validated against the TTS REST API 2026-08-01 (the
+  // realtime endpoint itself accepts any string silently, so names come
+  // from the shared TTS voice registry).
   "grok-voice-think-fast-2.0": {
     "supports_speech_to_speech": true,
-    "sts_provider": "xai"
+    "sts_provider": "xai",
+    "sts_voice": "eve",
+    "sts_voices": ["ara", "rex", "sal", "eve", "leo",
+                   "carina", "zagan", "helix", "orion", "luna", "iris", "altair",
+                   "zenith", "perseus", "helios", "lux", "kepler", "rigel", "cosmo",
+                   "celeste", "ursa", "sirius", "lumen", "castor", "naksh", "atlas"]
   },
 
   // Gemini Live (BidiGenerateContent). Input 16kHz / output 24kHz;
   // transcription is incremental both ways; 15-minute session cap
   // (reconnect re-seeds from the canon).
+  // Voices: all 30 prebuilt names accepted via Live setup 2026-08-01.
   "gemini-3.1-flash-live-preview": {
     "supports_speech_to_speech": true,
-    "sts_provider": "gemini"
+    "sts_provider": "gemini",
+    "sts_voice": "Kore",
+    "sts_voices": ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",
+                   "Aoede", "Callirrhoe", "Autonoe", "Enceladus", "Iapetus",
+                   "Umbriel", "Algieba", "Despina", "Erinome", "Algenib",
+                   "Rasalgethi", "Laomedeia", "Achernar", "Alnilam", "Schedar",
+                   "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+                   "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
   },
 
   // -------------------------------------------------------------------------

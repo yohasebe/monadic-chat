@@ -1713,7 +1713,10 @@ RSpec.describe 'xAI realtime provider profile' do
     profile = WebSocketHelper::STS_PROVIDER_PROFILES['xai']
     expect(profile[:url]).to eq('wss://api.x.ai/v1/realtime')
     expect(profile[:api_key_env]).to eq('XAI_API_KEY')
-    expect(profile[:voices]).to eq(%w[eve ara rex sal leo])
+    # 26 IDs (5 original + 21 added 2026-07), validated against TTS REST
+    # 2026-08-01. The profile list is the fallback for model_spec sts_voices.
+    expect(profile[:voices].size).to eq(26)
+    expect(profile[:voices]).to include('eve', 'ara', 'rex', 'sal', 'leo', 'luna', 'atlas')
     expect(profile[:model_mismatch_fatal]).to be true
   end
 
@@ -2326,5 +2329,132 @@ RSpec.describe 'STS session config carries the conversation language' do
 
     expect(payload.dig(:session, :audio, :input, :transcription)).not_to have_key(:language)
     expect(payload.dig(:session, :instructions)).to include('LANGUAGE MATCHING')
+  end
+end
+
+RSpec.describe 'STS voice SSOT resolution (model_spec → profile fallback)' do
+  let(:harness) do
+    Class.new do
+      include WebSocketHelper
+      attr_accessor :session
+      public :ensure_sts_state!
+      def get_session_params = session[:parameters]
+    end.new
+  end
+
+  before do
+    allow(harness).to receive(:run_sts_bridge!)
+    allow(Thread.current).to receive(:[]).and_call_original
+  end
+
+  def state_for(params_hash)
+    harness.session = { parameters: params_hash }
+    harness.ensure_sts_state!({})
+  end
+
+  it 'sts_voice (LC selector) wins over the legacy tts_voice key' do
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'sts_voice' => 'marin', 'tts_voice' => 'coral' })
+    expect(st[:voice]).to eq('marin')
+  end
+
+  it 'reads the candidate list from model_spec before the profile constant' do
+    allow(Monadic::Utils::ModelSpec).to receive(:get_model_property) do |_model, prop|
+      next ['alpha'] if prop == 'sts_voices'
+      next 'alpha' if prop == 'sts_voice'
+      nil
+    end
+    st = state_for({ 'model' => 'gpt-realtime-2.1' })
+    expect(st[:voice]).to eq('alpha')
+  end
+
+  it 'falls back to the profile constant when model_spec has no sts_voices' do
+    allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).and_return(nil)
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'sts_voice' => 'marin' })
+    expect(st[:voice]).to eq('marin')
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'sts_voice' => 'not-a-voice' })
+    expect(st[:voice]).to eq(WebSocketHelper::REALTIME_STS_DEFAULT_VOICE)
+  end
+
+  it 'accepts the expanded xAI voice registry (26) and defaults to eve' do
+    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_voice' => 'luna' })
+    expect(st[:voice]).to eq('luna')
+    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_voice' => 'bogus' })
+    expect(st[:voice]).to eq('eve')
+  end
+
+  it 'accepts the expanded Gemini voice registry (30) and defaults to Kore' do
+    st = state_for({ 'model' => 'gemini-3.1-flash-live-preview', 'sts_voice' => 'Aoede' })
+    expect(st[:voice]).to eq('Aoede')
+    st = state_for({ 'model' => 'gemini-3.1-flash-live-preview', 'sts_voice' => 'bogus' })
+    expect(st[:voice]).to eq('Kore')
+  end
+end
+
+RSpec.describe 'STS speed (OpenAI only)' do
+  let(:harness) do
+    Class.new do
+      include WebSocketHelper
+      attr_accessor :session
+      public :ensure_sts_state!, :build_sts_session_update_payload
+      def get_session_params = session[:parameters]
+    end.new
+  end
+
+  before do
+    allow(harness).to receive(:run_sts_bridge!)
+    allow(Thread.current).to receive(:[]).and_call_original
+  end
+
+  def state_for(params_hash)
+    harness.session = { parameters: params_hash }
+    harness.ensure_sts_state!({})
+  end
+
+  it 'carries a valid sts_speed for OpenAI into state and the payload' do
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'sts_speed' => '1.25' })
+    expect(st[:speed]).to eq(1.25)
+    payload = harness.build_sts_session_update_payload(st)
+    expect(payload.dig(:session, :audio, :output, :speed)).to eq(1.25)
+  end
+
+  it 'clamps out-of-range speed to 0.25-1.5' do
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'sts_speed' => '9.9' })
+    expect(st[:speed]).to eq(1.5)
+    st = state_for({ 'model' => 'gpt-realtime-2.1', 'sts_speed' => '0.01' })
+    expect(st[:speed]).to eq(0.25)
+  end
+
+  it 'omits speed entirely for xAI and Gemini (never sent)' do
+    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_speed' => '1.25' })
+    expect(st[:speed]).to be_nil
+    st = state_for({ 'model' => 'gemini-3.1-flash-live-preview', 'sts_speed' => '1.25' })
+    expect(st[:speed]).to be_nil
+  end
+
+  it 'omits speed when unset (no key in the payload output)' do
+    st = state_for({ 'model' => 'gpt-realtime-2.1' })
+    expect(st[:speed]).to be_nil
+    payload = harness.build_sts_session_update_payload(st)
+    expect(payload.dig(:session, :audio, :output).key?(:speed)).to be(false)
+  end
+end
+
+RSpec.describe 'STS voice data consistency (model_spec ↔ profile fallback)' do
+  {
+    'gpt-realtime-2.1' => 'openai',
+    'grok-voice-think-fast-2.0' => 'xai',
+    'gemini-3.1-flash-live-preview' => 'gemini'
+  }.each do |model, provider|
+    it "#{provider}: model_spec sts_voices matches the profile fallback, default is a member" do
+      spec_voices = Monadic::Utils::ModelSpec.get_model_property(model, 'sts_voices')
+      profile = WebSocketHelper::STS_PROVIDER_PROFILES[provider]
+
+      expect(spec_voices).to be_a(Array)
+      expect(spec_voices).to eq(profile[:voices])
+
+      spec_default = Monadic::Utils::ModelSpec.get_model_property(model, 'sts_voice')
+      expect(spec_voices).to include(spec_default)
+      expect(spec_default).to eq(profile[:default_voice])
+    end
   end
 end

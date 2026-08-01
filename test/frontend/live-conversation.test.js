@@ -615,3 +615,82 @@ describe('status line', () => {
     expect(status()).toMatch(/listening/i);
   });
 });
+
+describe('voice and speed controls', () => {
+  const stsSpec = {
+    'gpt-realtime-2.1': {
+      supports_speech_to_speech: true,
+      sts_provider: 'openai',
+      sts_voice: 'alloy',
+      sts_voices: ['alloy', 'marin', 'cedar'],
+      sts_speed_capability: true
+    },
+    'grok-voice-think-fast-2.0': {
+      supports_speech_to_speech: true,
+      sts_provider: 'xai',
+      sts_voice: 'eve',
+      sts_voices: ['eve', 'ara', 'luna']
+    }
+  };
+
+  beforeEach(() => {
+    window.modelSpec = stsSpec;
+    window.params = {};
+    window.broadcastParamsUpdate = jest.fn();
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.modelSpec;
+    delete window.params;
+    delete window.broadcastParamsUpdate;
+  });
+
+  const select = () => document.getElementById('lc-voice-select');
+
+  it('populates the selector from model_spec sts_voices with the spec default selected', () => {
+    expect(select()).not.toBeNull();
+    expect([...select().options].map(o => o.value)).toEqual(['alloy', 'marin', 'cedar']);
+    expect(select().value).toBe('alloy');
+  });
+
+  it('prefers params.sts_voice over the spec default', () => {
+    window.params['sts_voice'] = 'marin';
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(select().value).toBe('marin');
+  });
+
+  it('shows the applies-from-next-Start note', () => {
+    expect(document.getElementById('lc-voice-note').textContent).toMatch(/next Start/);
+  });
+
+  it('writes params.sts_voice and broadcasts on change', () => {
+    select().value = 'cedar';
+    select().dispatchEvent(new Event('change', { bubbles: true }));
+    expect(window.params['sts_voice']).toBe('cedar');
+    expect(window.broadcastParamsUpdate).toHaveBeenCalledWith('sts_voice_change');
+  });
+
+  it('shows the speed control only for sts_speed_capability models', () => {
+    const wrap = document.getElementById('lc-speed-wrap');
+    expect(wrap.style.display).not.toBe('none');
+
+    const modelEl = document.getElementById('model');
+    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(document.getElementById('lc-speed-wrap').style.display).toBe('none');
+    expect([...select().options].map(o => o.value)).toEqual(['eve', 'ara', 'luna']);
+    expect(select().value).toBe('eve');
+  });
+
+  it('writes params.sts_speed and broadcasts on speed change', () => {
+    const range = document.getElementById('lc-speed-range');
+    range.value = '1.25';
+    range.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(window.params['sts_speed']).toBe('1.25');
+    expect(window.broadcastParamsUpdate).toHaveBeenCalledWith('sts_speed_change');
+    expect(document.getElementById('lc-speed-value').textContent).toBe('1.25');
+  });
+});

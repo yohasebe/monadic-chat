@@ -103,7 +103,10 @@ module WebSocketHelper
   #   * usage is {} — billing is per session minute, estimated by duration
   XAI_REALTIME_STS_URL = "wss://api.x.ai/v1/realtime"
   XAI_REALTIME_STS_DEFAULT_MODEL = "grok-voice-think-fast-2.0"
-  XAI_REALTIME_STS_VOICES = %w[eve ara rex sal leo].freeze
+  XAI_REALTIME_STS_VOICES = %w[ara rex sal eve leo
+                               carina zagan helix orion luna iris altair
+                               zenith perseus helios lux kepler rigel cosmo
+                               celeste ursa sirius lumen castor naksh atlas].freeze
   XAI_REALTIME_STS_DEFAULT_VOICE = "eve"
   # $4.80/hour (xAI pricing), billed per session minute — idle time included.
   XAI_STS_RATE_PER_MINUTE = 0.08
@@ -142,7 +145,12 @@ module WebSocketHelper
       api_key_env: "GEMINI_API_KEY",
       auth: :query_key,
       default_model: "gemini-3.1-flash-live-preview",
-      voices: %w[Kore Puck Charon Aoede Fenrir Leda Orus Zephyr].freeze,
+      voices: %w[Zephyr Puck Charon Kore Fenrir Leda Orus
+                 Aoede Callirrhoe Autonoe Enceladus Iapetus
+                 Umbriel Algieba Despina Erinome Algenib
+                 Rasalgethi Laomedeia Achernar Alnilam Schedar
+                 Gacrux Pulcherrima Achird Zubenelgenubi
+                 Vindemiatrix Sadachbia Sadaltager Sulafat].freeze,
       default_voice: "Kore",
       input_rate: 16_000,
       model_mismatch_fatal: false
@@ -445,16 +453,38 @@ module WebSocketHelper
     end
     provider = sts_provider_for(model)
     profile = STS_PROVIDER_PROFILES[provider]
-    voice = (params["tts_voice"] || params[:tts_voice]).to_s
-    unless profile[:voices].include?(voice)
+    # Voice resolution (SSOT order): model_spec sts_voices is the canonical
+    # list, profile constants are the fallback; model_spec sts_voice is the
+    # canonical default, profile default_voice the fallback. `sts_voice`
+    # (LC selector) wins over the legacy `tts_voice` (TTS panel) value.
+    candidates = Monadic::Utils::ModelSpec.get_model_property(model, "sts_voices")
+    candidates = profile[:voices] unless candidates.is_a?(Array) && !candidates.empty?
+    voice = (params["sts_voice"] || params[:sts_voice] ||
+             params["tts_voice"] || params[:tts_voice]).to_s
+    unless candidates.include?(voice)
       Monadic::Utils::ExtraLogger.log do
-        "[STS] tts_voice #{voice.inspect} is not a #{provider} realtime voice; using #{profile[:default_voice]}"
+        "[STS] voice #{voice.inspect} is not a #{provider} realtime voice; using the default"
       end unless voice.strip.empty?
-      voice = profile[:default_voice]
+      default = Monadic::Utils::ModelSpec.get_model_property(model, "sts_voice")
+      default = profile[:default_voice] unless default.is_a?(String) && candidates.include?(default)
+      voice = default
     end
     instructions = params["initial_prompt"] || params[:initial_prompt]
     language = (params["conversation_language"] || params[:conversation_language]).to_s
     language = "auto" if language.strip.empty?
+
+    # OpenAI-only: playback speed (0.25-1.5, spec-verified). Carried only
+    # for providers whose model_spec marks sts_speed_capability; never sent
+    # to xAI/Gemini (their setup would reject or ignore it silently).
+    speed = nil
+    if provider == "openai" &&
+       Monadic::Utils::ModelSpec.get_model_property(model, "sts_speed_capability") == true
+      raw_speed = (params["sts_speed"] || params[:sts_speed]).to_s
+      unless raw_speed.strip.empty?
+        val = raw_speed.to_f
+        speed = val.clamp(0.25, 1.5) if val.positive?
+      end
+    end
 
     state = {
       cmd_queue: Async::Queue.new,
@@ -465,6 +495,7 @@ module WebSocketHelper
       model: model,
       provider: provider,
       voice: voice,
+      speed: speed,
       instructions: instructions,
       language: language,
       turn: nil
@@ -631,7 +662,10 @@ module WebSocketHelper
         output: {
           format: { type: "audio/pcm", rate: REALTIME_STS_SAMPLE_RATE },
           voice: state[:voice]
-        }
+          # audio.output.speed is GA-accepted (live-probed 2026-08-01: echo
+          # speed=1.3 on a 1.3 request). OpenAI-only by construction
+          # (state[:speed] is nil for other providers).
+        }.tap { |out| out[:speed] = state[:speed] if state[:speed] }
       }
     }
     # The conversation-language preference travels inside instructions —

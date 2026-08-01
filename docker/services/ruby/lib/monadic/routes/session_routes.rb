@@ -210,7 +210,12 @@ post "/load" do
           Monadic::Utils::ExtraLogger.log { "[Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}" }
         end
 
-        # Process messages
+        # Process messages.
+        # A live speech-to-speech bridge must not survive the canon being
+        # replaced: it keeps the upstream socket billing, and its Stop-time
+        # merge span would point into the OLD canon and fold the imported
+        # history (same invariant as RESET's teardown).
+        WebSocketHelper.teardown_sts_session_for(session) if defined?(WebSocketHelper)
         app_name = json_data["parameters"]["app_name"]
         session[:messages] = json_data["messages"].uniq.map do |msg|
           # Skip invalid messages

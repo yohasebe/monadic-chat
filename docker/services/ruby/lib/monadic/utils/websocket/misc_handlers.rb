@@ -354,6 +354,14 @@ module WebSocketHelper
   end
 
   private def handle_ws_reset(session)
+    # A live speech-to-speech bridge must not survive Reset: it would keep
+    # the upstream socket (and billing) alive against a cleared canon, and
+    # keep speaking into a conversation that no longer exists.
+    if session[:_sts]
+      teardown_sts_session(session)
+      send_or_broadcast({ "type" => "sts_session", "state" => "stopped" }.to_json,
+                        Thread.current[:websocket_session_id])
+    end
     session[:messages].clear
     session[:parameters].clear
     session[:progressive_tools]&.clear  # Reset Progressive Tool Disclosure state

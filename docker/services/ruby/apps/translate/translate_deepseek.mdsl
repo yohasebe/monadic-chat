@@ -109,7 +109,7 @@ app "TranslateDeepSeek" do
 
   llm do
     provider "deepseek"
-    model ["deepseek-v4-pro", "deepseek-v4-flash"]
+    model ["deepseek-v4-flash", "deepseek-v4-pro"]
     # Default reasoning OFF: with thinking on, the multi-step monadic JSON +
     # session-state tool flow degrades over multiple turns. Users can still
     # turn it on via the On/Off toggle (the 2-state DeepSeek toggle has no

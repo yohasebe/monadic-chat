@@ -108,6 +108,12 @@ module WebSocketHelper
                                zenith perseus helios lux kepler rigel cosmo
                                celeste ursa sirius lumen castor naksh atlas].freeze
   XAI_REALTIME_STS_DEFAULT_VOICE = "eve"
+
+  # Gemini session continuity tuning (values probe-validated 2026-08-01).
+  # 20k trigger engages compression well before the 15-minute audio-session
+  # cap (~50k tokens at native-audio rates); tunable via MDSL keys later.
+  STS_GEMINI_COMPRESSION_TRIGGER_TOKENS = "20000"
+  STS_GEMINI_COMPRESSION_TARGET_TOKENS = "10000"
   # $4.80/hour (xAI pricing), billed per session minute — idle time included.
   XAI_STS_RATE_PER_MINUTE = 0.08
 
@@ -576,6 +582,7 @@ module WebSocketHelper
         # before any further audio is appended.
         state[:session_ready] = false
         state[:seeded] = false
+        state[:go_away] = false
         # Per-minute estimate: the dead-session gap up to this point must not
         # ride on the next accounting mark (review P3-3). Handshake time of
         # the new session still counts — small and genuinely billed.
@@ -763,6 +770,21 @@ module WebSocketHelper
     # delivers NO groundingMetadata in audio mode, so sources cannot be
     # shown to the user — recorded in the design memo.
     setup[:tools] = [{ google_search: {} }] if state[:websearch]
+
+    # Session continuity (live-probed 2026-08-01: both fields accepted, and
+    # a resume with a captured handle preserved context across connections —
+    # verified with a cross-connection memory check). Compression engages
+    # only past the trigger, so it is inert in short sessions. Resumption
+    # is an IMPROVEMENT on top of the passive canon re-seed: when a handle
+    # exists the bridge tries it first, and any failure falls back to the
+    # seed path (handle is cleared on upstream error).
+    setup[:contextWindowCompression] = {
+      triggerTokens: STS_GEMINI_COMPRESSION_TRIGGER_TOKENS,
+      slidingWindow: { targetTokens: STS_GEMINI_COMPRESSION_TARGET_TOKENS }
+    }
+    setup[:sessionResumption] =
+      state[:resumption_handle] ? { handle: state[:resumption_handle] } : {}
+    state[:resume_attempted] = true if state[:resumption_handle]
 
     vad = {}
     settings = sts_app_settings
@@ -954,6 +976,10 @@ module WebSocketHelper
       end
       end
       break if state[:fatal]
+      # goAway = the server announced an imminent close (Gemini only):
+      # break out now so the outer loop rebuilds immediately (with the
+      # resumption handle when present) instead of waiting for the drop.
+      break if state[:go_away]
     end
   rescue Async::Stop
     # writer requested stop; not an error
@@ -1138,13 +1164,41 @@ module WebSocketHelper
     events = []
 
     events << { "type" => "session.updated" } if payload["setupComplete"]
+    if payload["setupComplete"] && state[:resume_attempted]
+      # Resume accepted: upstream context is already intact, so mark the
+      # bridge seeded and skip the canon re-seed for this connection.
+      state[:resumed] = true
+      state[:seeded] = true
+      state[:resume_attempted] = false
+    end
     g[:usage] = payload["usageMetadata"] if payload["usageMetadata"]
 
-    sc = payload["serverContent"]
+    # Session resumption handle (live-probed 2026-08-01: shape
+    # {newHandle, resumable}). Captured per connection; the next rebuild
+    # tries it first. Lives in state, so it dies naturally with the bridge
+    # (Stop/RESET/teardown) — constraint: no persistence beyond that.
+    if (update = payload["sessionResumptionUpdate"]) && update["newHandle"].to_s != ""
+      state[:resumption_handle] = update["newHandle"]
+    end
+
+    # goAway (docs-based, NOT wire-probed — it only fires near the ~10 min
+    # connection cap): treat as an early close notice and rebuild NOW via
+    # the existing passive path (resume handle if any, else canon re-seed).
+    # No internal event; the reader loop breaks on this flag, the writer
+    # stops, and the outer bridge loop reconnects immediately.
+    state[:go_away] = true if payload["goAway"]
+
     if payload["error"]
       err = payload["error"]
       events << { "type" => "error", "error" => { "message" => err["message"] || err.inspect } }
+      # A failed resume (stale/expired handle, or setup rejected) must not
+      # retry the same handle forever: drop it so the next rebuild takes
+      # the canon re-seed path (passive fallback is always preserved).
+      state[:resumption_handle] = nil
+      state[:resume_attempted] = false
     end
+
+    sc = payload["serverContent"]
     return events unless sc
 
     # Barge-in: Gemini flags the aborted generation instead of emitting a

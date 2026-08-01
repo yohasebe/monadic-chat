@@ -2478,3 +2478,85 @@ RSpec.describe 'STS voice data consistency (model_spec ↔ profile fallback)' do
     end
   end
 end
+
+RSpec.describe 'Gemini session continuity (compression + resumption + goAway)' do
+  let(:harness) do
+    Class.new do
+      include WebSocketHelper
+      public :build_sts_session_update_payload, :sts_translate_gemini
+    end.new
+  end
+
+  let(:state) { { provider: 'gemini', model: 'gemini-3.1-flash-live-preview',
+                  voice: 'Kore', instructions: '', language: 'auto' } }
+
+  it 'adds compression and an empty sessionResumption by default' do
+    stub_const('APPS', {})
+    payload = harness.build_sts_session_update_payload(state)
+    expect(payload.dig(:setup, :contextWindowCompression, :triggerTokens))
+      .to eq(WebSocketHelper::STS_GEMINI_COMPRESSION_TRIGGER_TOKENS)
+    expect(payload.dig(:setup, :sessionResumption)).to eq({})
+  end
+
+  it 'sends the stored handle and marks the attempt when one exists' do
+    stub_const('APPS', {})
+    st = state.merge(resumption_handle: 'H-123')
+    payload = harness.build_sts_session_update_payload(st)
+    expect(payload.dig(:setup, :sessionResumption)).to eq({ handle: 'H-123' })
+    expect(st[:resume_attempted]).to be(true)
+  end
+
+  it 'never sends continuity fields on the OpenAI payload' do
+    stub_const('APPS', {})
+    payload = harness.build_sts_session_update_payload(
+      { provider: 'openai', model: 'gpt-realtime-2.1', voice: 'marin',
+        instructions: '', language: 'auto', resumption_handle: 'H-123' }
+    )
+    expect(payload[:session]).not_to have_key(:contextWindowCompression)
+    expect(payload[:session]).not_to have_key(:sessionResumption)
+  end
+
+  it 'captures sessionResumptionUpdate into state' do
+    harness.sts_translate_gemini(state, { 'sessionResumptionUpdate' => { 'newHandle' => 'H-9', 'resumable' => true } })
+    expect(state[:resumption_handle]).to eq('H-9')
+  end
+
+  it 'marks resumed+seeded on setupComplete after a resume attempt (skips canon re-seed)' do
+    state[:resume_attempted] = true
+    harness.sts_translate_gemini(state, { 'setupComplete' => {} })
+    expect(state[:resumed]).to be(true)
+    expect(state[:seeded]).to be(true)
+    expect(state[:resume_attempted]).to be(false)
+  end
+
+  it 'sets go_away on a goAway frame without emitting internal events' do
+    events = harness.sts_translate_gemini(state, { 'goAway' => { 'timeLeft' => '30s' } })
+    expect(state[:go_away]).to be(true)
+    expect(events).to be_empty
+  end
+
+  it 'drops the handle and the attempt on error (fallback to canon re-seed)' do
+    state[:resumption_handle] = 'H-STALE'
+    state[:resume_attempted] = true
+    harness.sts_translate_gemini(state, { 'error' => { 'message' => 'handle expired' } })
+    expect(state[:resumption_handle]).to be_nil
+    expect(state[:resume_attempted]).to be(false)
+  end
+end
+
+RSpec.describe 'xAI payload has no continuity fields (symmetric with the OpenAI pin)' do
+  it 'omits contextWindowCompression and sessionResumption even with a handle in state' do
+    harness = Class.new do
+      include WebSocketHelper
+      public :build_sts_session_update_payload
+      def get_session_params = {}
+    end.new
+    stub_const('APPS', {})
+    payload = harness.build_sts_session_update_payload(
+      { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+        instructions: '', language: 'auto', resumption_handle: 'H-123' }
+    )
+    expect(payload[:session]).not_to have_key(:contextWindowCompression)
+    expect(payload[:session]).not_to have_key(:sessionResumption)
+  end
+end

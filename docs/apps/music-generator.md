@@ -8,6 +8,7 @@ Generate music from text descriptions using Google's Lyria 3. Describe the genre
 -   **Full songs**: The default model (Lyria 3 Pro) creates tracks up to roughly two to three minutes, with vocals and lyrics when you request them.
 -   **Fast instrumental clips**: A 30-second clip model is available for quick instrumental sketches, loops, and background ideas.
 -   **Lyrics display**: When a track includes vocals, the generated lyrics are shown alongside the audio player.
+-   **Image-to-music (optional)**: Attach an image (up to 10) with your request and its mood, colors, and subject influence the composition — no extra step needed.
 
 **Usage:**
 1. Describe the music you want, including genre, mood, instrumentation, and tempo. For a vocal track, include the lyrics or the theme to sing about.
@@ -19,5 +20,6 @@ Generate music from text descriptions using Google's Lyria 3. Describe the genre
 **Example requests:**
 - "Create an upbeat lo-fi hip hop instrumental with mellow piano" → fast instrumental clip
 - "Write a 2-minute indie folk song about a long road trip, with gentle vocals" → full song with lyrics
+- Attach a sunset photo and ask "Turn this scene into a quiet piano piece" → image-inspired instrumental
 
 Music Generator is available with the providers indicated in the [availability table](../basic-usage/basic-apps.md#app-availability).

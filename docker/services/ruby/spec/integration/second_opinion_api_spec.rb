@@ -69,7 +69,7 @@ RSpec.describe 'SecondOpinionAgent API Integration', :api, :integration do
     },
     'deepseek' => {
       api_key_env: 'DEEPSEEK_API_KEY',
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-flash',
       description: 'DeepSeek'
     }
   }.freeze

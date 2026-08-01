@@ -7,8 +7,8 @@ require 'monadic/utils/mdsl_validator'
 #
 # Context: DeepSeek V4 exposes two INDEPENDENT reasoning controls in its model
 # spec — reasoning_content ("disabled"/"enabled", the On/Off toggle) and
-# reasoning_effort ("high"/"max", the depth used when thinking is on). Older
-# DeepSeek models (deepseek-chat) expose neither. The validator must accept
+# reasoning_effort ("high"/"max", the depth used when thinking is on). The
+# retired pre-V4 generation exposed only the former. The validator must accept
 # valid values for each, flag invalid values as errors, and warn (not error)
 # when a model simply doesn't support the parameter. An earlier version
 # rejected reasoning_effort on DeepSeek outright, which was wrong for V4.
@@ -48,15 +48,22 @@ RSpec.describe Monadic::Utils::MDSLValidator do
       expect(result[:errors]).to be_empty
     end
 
-    it 'warns (not errors) when a legacy model lacks reasoning_effort in its spec' do
-      # deepseek-chat has reasoning_content but no reasoning_effort.
-      result = validate({ reasoning_effort: 'low' }, 'deepseek-chat')
+    # The retired 2026-07-24 generation (deepseek-chat) had reasoning_content
+    # but no reasoning_effort; its entries are gone from model_spec, so the
+    # shape is pinned via a stub — the validator behavior (warn, not error)
+    # must survive for any future model with that spec shape.
+    it 'warns (not errors) when a model lacks reasoning_effort in its spec' do
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_spec)
+        .with('deepseek-legacy-shape').and_return({ 'reasoning_content' => %w[disabled enabled] })
+      result = validate({ reasoning_effort: 'low' }, 'deepseek-legacy-shape')
       expect(result[:errors]).to be_empty
       expect(result[:warnings]).to include(a_string_matching(/doesn't support reasoning_effort/))
     end
 
-    it 'still accepts reasoning_content on a legacy model that supports it' do
-      result = validate({ reasoning_content: 'disabled' }, 'deepseek-chat')
+    it 'still accepts reasoning_content on a model whose spec carries only that key' do
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_spec)
+        .with('deepseek-legacy-shape').and_return({ 'reasoning_content' => %w[disabled enabled] })
+      result = validate({ reasoning_content: 'disabled' }, 'deepseek-legacy-shape')
       expect(result[:errors]).to be_empty
     end
 

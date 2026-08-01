@@ -256,7 +256,7 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is Python?",
           agent_response: "Python is a high-level programming language",
           provider: "deepseek",
-          model: "deepseek-chat"
+          model: "deepseek-v4-flash"
         )
         
         expect(result[:comments]).to be_a(String)

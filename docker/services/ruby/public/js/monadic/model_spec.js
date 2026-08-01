@@ -1104,33 +1104,6 @@ const modelSpec = {
     "reasoning_content": ["disabled", "enabled"],
     "reasoning_effort": ["high", "max"]
   },
-  // Legacy models (sunset 2026-07-24, successor: deepseek-v4-flash)
-  "deepseek-chat": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "reasoning_content": ["disabled", "enabled"],
-    "deprecated": true,
-    "sunset_date": "2026-07-24",
-    "successor": "deepseek-v4-flash"
-  },
-  "deepseek-reasoner": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 64000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "reasoning_content": ["disabled", "enabled"],
-    "tool_capability": true,
-    "deprecated": true,
-    "sunset_date": "2026-07-24",
-    "successor": "deepseek-v4-flash"
-  },
   // Ollama models (local inference)
   // NOTE: Ollama model capabilities are normally fetched dynamically via
   // /api/ollama/models (see model_loader.js). This static entry exists only

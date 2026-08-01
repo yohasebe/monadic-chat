@@ -108,7 +108,8 @@ module DeepSeekHelper
     # the entire max_tokens budget on chain-of-thought and leave content empty.
     # send_query is a non-streaming probe (used by SecondOpinion / AI User /
     # ContextExtractor) that wants the final answer directly, so disable
-    # thinking explicitly. Legacy models (deepseek-chat / deepseek-reasoner)
+    # thinking explicitly. The retired pre-V4 generation (API shut down
+    # 2026-07-24; ids kept here only for backward-compat branches)
     # are unaffected.
     if model.to_s.include?("deepseek-v4")
       body["thinking"] = { "type" => "disabled" }

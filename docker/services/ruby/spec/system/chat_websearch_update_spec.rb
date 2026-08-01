@@ -99,7 +99,7 @@ RSpec.describe "Chat Apps Web Search Update", type: :system do
     when "mistral" then "mistral-large-latest"
     when "cohere" then "command-a-reasoning-08-2025"
     when "grok" then "grok-4-fast-reasoning"
-    when "deepseek" then "deepseek-chat"
+    when "deepseek" then "deepseek-v4-flash"
     when "ollama" then "llama3.3"
     else "gpt-4.1-mini"
     end

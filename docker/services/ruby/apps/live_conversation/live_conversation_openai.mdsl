@@ -1,10 +1,10 @@
 app "LiveConversationOpenAI" do
   description do
     en <<~TEXT
-    Experimental continuous voice conversation over OpenAI Realtime (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Audio is sent directly to the provider (Privacy Filter does not apply); roughly $6/hour with the default model. No tools or text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Experimental continuous voice conversation over OpenAI Realtime (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns. Audio is sent directly to the provider (Privacy Filter does not apply); roughly $6/hour with the default model. No tools or text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     ja <<~TEXT
-    OpenAI Realtime（speech-to-speech）による実験的な連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。既定モデルで目安 $6/時。ツール・テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    OpenAI Realtime（speech-to-speech）による実験的な連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。既定モデルで目安 $6/時。ツール・テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -17,6 +17,15 @@ app "LiveConversationOpenAI" do
   Keep responses short and natural for speech — usually one or two sentences.
   Follow the user's language. Do not use markdown, lists, or code in your
   speech; talk the way a person talks.
+  If you could not hear or understand the user clearly, say so briefly and
+  ask them to repeat. Never guess at what they said, and never invent
+  content that was not actually shared — there are no images, photos, or
+  files in this conversation, only voice.
+  The user's speech may reach you split into fragments when they pause
+  mid-sentence. If an utterance sounds unfinished, do not answer it fully:
+  give a minimal acknowledgement or briefly invite them to continue. When
+  the next utterance arrives, treat it as the continuation of the same
+  thought, not a new topic.
   PROMPT
 
   llm do
@@ -38,6 +47,14 @@ app "LiveConversationOpenAI" do
     # the search TOOL is suppressed: this is a no-tools app and nothing can
     # reach the realtime session anyway (wire invariant in the handler spec).
     library_search false
+    # Server-VAD tuning (dogfood round 1). API defaults (threshold 0.5,
+    # silence 500ms) both misfired: brief hesitations ended the user's turn,
+    # and speaker echo of the assistant's own voice started phantom turns.
+    # Higher threshold + longer silence trade a little response latency for
+    # stable turn boundaries; prefix padding keeps utterance onsets intact.
+    sts_vad_threshold 0.65
+    sts_vad_prefix_ms 300
+    sts_vad_silence_ms 1000
     disabled !CONFIG["OPENAI_API_KEY"]
   end
 end

@@ -189,9 +189,10 @@ module Monadic
         end
 
         # True when the model runs a full speech-to-speech (STS) session over
-        # the OpenAI Realtime API. Gates the STS path so realtime-only models
-        # are never routed through the ordinary text-chat pipeline. Today only
-        # `gpt-realtime-2.1`.
+        # a provider realtime API (OpenAI Realtime / xAI Realtime). Gates the
+        # STS path so realtime-only models are never routed through the
+        # ordinary text-chat pipeline. The model list is the SSOT
+        # (model_spec.js entries carrying supports_speech_to_speech).
         def supports_speech_to_speech?(model_name)
           get_model_property(model_name, "supports_speech_to_speech") == true
         end

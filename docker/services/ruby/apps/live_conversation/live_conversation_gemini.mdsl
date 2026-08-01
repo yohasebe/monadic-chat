@@ -1,0 +1,56 @@
+app "LiveConversationGemini" do
+  description do
+    en <<~TEXT
+    Experimental continuous voice conversation over the Gemini Live API (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns. Audio is sent directly to the provider (Privacy Filter does not apply). Sessions are capped at 15 minutes upstream; the conversation reconnects and continues from its saved history. No tools or text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    ja <<~TEXT
+    Gemini Live API（speech-to-speech）による実験的な連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。上流セッションは15分で上限に達し、保存済み履歴から自動再接続して継続します。ツール・テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "comments"
+
+  display_name "Live Conversation"
+
+  system_prompt <<~PROMPT
+  You are a friendly conversation partner speaking with the user by voice.
+  Keep responses short and natural for speech — usually one or two sentences.
+  Follow the user's language. Do not use markdown, lists, or code in your
+  speech; talk the way a person talks.
+  If you could not hear or understand the user clearly, say so briefly and
+  ask them to repeat. Never guess at what they said, and never invent
+  content that was not actually shared — there are no images, photos, or
+  files in this conversation, only voice.
+  The user's speech may reach you split into fragments when they pause
+  mid-sentence. If an utterance sounds unfinished, do not answer it fully:
+  give a minimal acknowledgement or briefly invite them to continue. When
+  the next utterance arrives, treat it as the continuation of the same
+  thought, not a new topic.
+  PROMPT
+
+  llm do
+    provider "gemini"
+    model ["gemini-3.1-flash-live-preview"]
+  end
+
+  features do
+    # Declares this as a speech-to-speech app: the frontend switches to the
+    # Live Conversation UI (Start/Stop, no text input) and the model list is
+    # pinned to the MDSL declaration above (show-all is ignored).
+    speech_to_speech true
+    # Greeting toggle: ON = the assistant greets when a fresh conversation
+    # starts; OFF = start listening silently. Resume never greets.
+    initiate_from_assistant true
+    # No-tools app family; the wire invariant (no tools key in the realtime
+    # session config) is pinned in the handler spec.
+    library_search false
+    # Gemini Live consumes 16kHz input (output stays 24kHz); the client
+    # capture worklet reads this and resamples accordingly.
+    sts_input_rate 16000
+    # VAD tuning (Gemini maps silence/prefix onto automaticActivityDetection;
+    # threshold has no Gemini equivalent and is simply not sent).
+    sts_vad_silence_ms 1000
+    sts_vad_prefix_ms 300
+    disabled !CONFIG["GEMINI_API_KEY"]
+  end
+end

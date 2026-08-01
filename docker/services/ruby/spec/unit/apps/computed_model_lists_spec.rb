@@ -82,6 +82,43 @@ RSpec.describe 'MDSL apps computing model lists from providerDefaults' do
     end
   end
 
+  # Mirror pin for the Gemini side (same rationale as the xAI mirror below).
+  context 'VoiceChatGemini' do
+    before { load_app('voice_chat/voice_chat_gemini.mdsl') }
+
+    let(:settings) { settings_for('VoiceChatGemini') }
+    let(:gemini_chat_models) { Monadic::Utils::ModelSpec.get_provider_models('gemini', 'chat') }
+
+    it 'offers exactly the provider default chat models — no STS model' do
+      expect(settings[:models]).to eq(gemini_chat_models)
+      expect(settings[:models]).not_to include('gemini-3.1-flash-live-preview')
+    end
+
+    it 'does not declare the speech_to_speech app flag' do
+      expect(settings[:speech_to_speech]).to be_nil
+    end
+  end
+
+  # Mirror pin for the xAI side: with grok-voice models now in model_spec,
+  # the same wall must hold for Voice Chat Grok (structurally the computed
+  # list cannot include an STS model, but the OpenAI side is pinned — keep
+  # the guard symmetric so a future list-source change fails loudly).
+  context 'VoiceChatGrok' do
+    before { load_app('voice_chat/voice_chat_grok.mdsl') }
+
+    let(:settings) { settings_for('VoiceChatGrok') }
+    let(:xai_chat_models) { Monadic::Utils::ModelSpec.get_provider_models('xai', 'chat') }
+
+    it 'offers exactly the provider default chat models — no STS model' do
+      expect(settings[:models]).to eq(xai_chat_models)
+      expect(settings[:models]).not_to include('grok-voice-think-fast-2.0')
+    end
+
+    it 'does not declare the speech_to_speech app flag' do
+      expect(settings[:speech_to_speech]).to be_nil
+    end
+  end
+
   # The point of computing the list is that a new provider default reaches
   # these apps without anyone editing them.
   it 'tracks providerDefaults rather than a copy of it' do

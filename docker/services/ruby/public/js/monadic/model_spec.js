@@ -1251,7 +1251,8 @@ const modelSpec = {
   // STS model metadata (Speech-to-Speech realtime capability SSOT)
   //
   // Entries only exist for models that run a full speech-to-speech session
-  // over the OpenAI Realtime API — gated by `supports_speech_to_speech`.
+  // over a provider realtime API (OpenAI Realtime / xAI Realtime) — gated
+  // by `supports_speech_to_speech`.
   // The Ruby accessor (`ModelSpec.supports_speech_to_speech?`) reads this
   // flag to gate the STS path.
   //
@@ -1263,8 +1264,28 @@ const modelSpec = {
   // Excluding it in listModels made the STS path unreachable, since the
   // curated list never passes through filterModelsForAllMode.
   // -------------------------------------------------------------------------
+  // sts_provider selects the server-side bridge profile (connection facts,
+  // payload dialect, accounting) — data-driven so the bridge never guesses
+  // from model-name prefixes.
   "gpt-realtime-2.1": {
-    "supports_speech_to_speech": true
+    "supports_speech_to_speech": true,
+    "sts_provider": "openai"
+  },
+
+  // xAI realtime speech-to-speech (wss://api.x.ai/v1/realtime). Note: the
+  // server silently substitutes think-fast-1.0 for unknown model names, so
+  // the STS bridge validates the session's model echo and stops on mismatch.
+  "grok-voice-think-fast-2.0": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "xai"
+  },
+
+  // Gemini Live (BidiGenerateContent). Input 16kHz / output 24kHz;
+  // transcription is incremental both ways; 15-minute session cap
+  // (reconnect re-seeds from the canon).
+  "gemini-3.1-flash-live-preview": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "gemini"
   },
 
   // -------------------------------------------------------------------------

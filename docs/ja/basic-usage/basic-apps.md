@@ -16,6 +16,7 @@
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Live Conversation | ✅ | | | | ✅ | ✅ | | |
 | Wikipedia | ✅ | | | | | | | |
 | Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -57,6 +58,7 @@ PF で保護された会話を残したい場合は **Privacy Export** (暗号�
 | Chat | | ✅ |
 | Chat Plus | ✅ | |
 | Voice Chat | | ✅ |
+| Live Conversation | | ✅ |
 | Wikipedia | | ✅ |
 | Math Tutor | | ✅ |
 | Second Opinion | ✅ | |
@@ -113,6 +115,7 @@ PF で保護された会話を残したい場合は **Privacy Export** (暗号�
 - Chat
 - Chat Plus
 - Voice Chat
+- Live Conversation
 - Wikipedia
 - Math Tutor
 - Second Opinion

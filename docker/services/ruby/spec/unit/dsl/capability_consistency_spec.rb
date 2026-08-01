@@ -38,7 +38,7 @@ APPS_DIR = File.expand_path('../../../apps', __dir__)
 Dir["#{APPS_DIR}/**/*.rb"].sort.each do |f|
   begin
     require f
-  rescue Exception # rubocop:disable Lint/RescueException
+  rescue Exception
     # silently skip — load_errors spec will surface MDSL-level failures
   end
 end
@@ -46,9 +46,9 @@ end
 ALL_MDSL_FILES = Dir["#{APPS_DIR}/**/*.mdsl"].sort.freeze
 
 # Hand-maintained allocation of every MDSL into one of four capability
-# groups. Sizes are sanity-pinned: 25 + 56 + 27 + 26 = 134 (one entry
-# per file under apps/). When you add a new MDSL, append it to the
-# right list — the spec will tell you which one is wrong.
+# groups. Sizes are sanity-pinned (the counts in the shared examples are
+# the SSOT — the spec tells you which list is wrong when a new MDSL is
+# added without registering it here).
 PF_ONLY_MDSLS = %w[
   chat_plus/chat_plus_claude.mdsl
   chat_plus/chat_plus_cohere.mdsl
@@ -135,6 +135,8 @@ KB_SEARCH_MDSLS = %w[
 
 KB_SAVE_ONLY_MDSLS = %w[
   live_conversation/live_conversation_openai.mdsl
+  live_conversation/live_conversation_grok.mdsl
+  live_conversation/live_conversation_gemini.mdsl
   code_interpreter/code_interpreter_claude.mdsl
   code_interpreter/code_interpreter_cohere.mdsl
   code_interpreter/code_interpreter_deepseek.mdsl
@@ -210,7 +212,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
         else
           @load_errors[path] = 'no settings on returned object'
         end
-      rescue Exception => e # rubocop:disable Lint/RescueException
+      rescue Exception => e
         @load_errors[path] = "#{e.class}: #{e.message[0, 120]}"
       end
     end
@@ -304,7 +306,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     {
       'PF only'      => [PF_ONLY_MDSLS, 25],
       'KB search'    => [KB_SEARCH_MDSLS, 53],
-      'KB save only' => [KB_SAVE_ONLY_MDSLS, 28],
+      'KB save only' => [KB_SAVE_ONLY_MDSLS, 30],
       'Neither'      => [NEITHER_MDSLS, 27]
     }.each do |label, (list, expected_size)|
       it "#{label}: list size is #{expected_size}" do

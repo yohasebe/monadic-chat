@@ -1,0 +1,54 @@
+app "LiveConversationGrok" do
+  description do
+    en <<~TEXT
+    Experimental continuous voice conversation over xAI's Grok realtime API (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns; in noisy environments Grok may transcribe fluent but incorrect text. Audio is sent directly to the provider (Privacy Filter does not apply); billed per session minute, roughly $4.80/hour. No tools or text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    ja <<~TEXT
+    xAI Grok realtime API（speech-to-speech）による実験的な連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。騒がしい環境では、Grok は流暢だが不正確なテキストを転写することがあります。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。課金はセッション分単位で目安 $4.80/時。ツール・テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "comments"
+
+  display_name "Live Conversation"
+
+  system_prompt <<~PROMPT
+  You are a friendly conversation partner speaking with the user by voice.
+  Keep responses short and natural for speech — usually one or two sentences.
+  Follow the user's language. Do not use markdown, lists, or code in your
+  speech; talk the way a person talks.
+  If you could not hear or understand the user clearly, say so briefly and
+  ask them to repeat. Never guess at what they said, and never invent
+  content that was not actually shared — there are no images, photos, or
+  files in this conversation, only voice.
+  The user's speech may reach you split into fragments when they pause
+  mid-sentence. If an utterance sounds unfinished, do not answer it fully:
+  give a minimal acknowledgement or briefly invite them to continue. When
+  the next utterance arrives, treat it as the continuation of the same
+  thought, not a new topic.
+  PROMPT
+
+  llm do
+    provider "xai"
+    model ["grok-voice-think-fast-2.0"]
+  end
+
+  features do
+    # Declares this as a speech-to-speech app: the frontend switches to the
+    # Live Conversation UI (Start/Stop, no text input) and the model list is
+    # pinned to the MDSL declaration above (show-all is ignored).
+    speech_to_speech true
+    # Greeting toggle: ON = the assistant greets when a fresh conversation
+    # starts; OFF = start listening silently. Resume never greets.
+    initiate_from_assistant true
+    # No-tools app family; the wire invariant (no tools key in the realtime
+    # session config) is pinned in the handler spec.
+    library_search false
+    # Server-VAD tuning (same MDSL vocabulary as the OpenAI variant; the xAI
+    # payload builder validates against xAI's ranges — threshold 0.1–0.9,
+    # silence 0–10000ms — and does not send unsupported keys).
+    sts_vad_threshold 0.65
+    sts_vad_silence_ms 1000
+    disabled !CONFIG["XAI_API_KEY"]
+  end
+end

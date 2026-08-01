@@ -127,9 +127,12 @@ function listModels(models, openai = false, opts = {}) {
   // opt-in has to come from the app, not the list: the server auto-fills
   // `models` from the provider's API list for apps that declare none
   // (dsl.rb model_list_code), so an STS id being present proves nothing —
-  // dropping it unconditionally made STS unreachable in Voice Chat, and
-  // keeping it unconditionally leaked it into Chat, where selecting it
-  // fails at request time (realtime models are not chat models).
+  // keeping it unconditionally once leaked gpt-realtime-2.1 into Chat,
+  // where selecting it fails at request time (realtime models are not chat
+  // models). Speech-to-speech apps (Live Conversation) normally bypass this
+  // function entirely — getModelsForApp pins their list — so the opt-in
+  // path here is defense in depth for any call site that still routes an
+  // STS app's list through listModels.
   const allowSts = opts.allowSpeechToSpeech === true;
   models = models.filter(function (m) {
     const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
@@ -990,6 +993,17 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
   }
 
+  // Speech-to-speech app mode must track EVERY path that applies params —
+  // the app-change handler alone missed the reload-with-session restore
+  // ("continue session"), which loads params without a change event and
+  // left the Live Conversation UI unapplied (dogfood round 3).
+  if (window.LiveConversation && typeof window.LiveConversation.setAppMode === 'function') {
+    const lcAppName = params["app_name"];
+    window.LiveConversation.setAppMode(
+      (typeof apps !== 'undefined' && lcAppName && apps[lcAppName]) ? apps[lcAppName] : params
+    );
+  }
+
   // Reset the flag after loading is complete
   window.isLoadingParams = false;
   if (window.logTL) window.logTL('loadParams_exit', { calledFor });
@@ -1328,6 +1342,15 @@ function resetEvent(_event, resetToDefaultApp = false) {
 
 // Function to handle the actual reset logic
 function doResetActions(resetToDefaultApp = false) {
+  // Reset must end a running Live Conversation first: otherwise the mic
+  // keeps streaming and the server bridge keeps billing against a canon
+  // that is about to be cleared. (The server tears its side down on RESET
+  // too; this releases the client's mic/audio and unlocks the cards.)
+  if (window.LiveConversation && window.LiveConversation.isActive &&
+      window.LiveConversation.isActive()) {
+    window.LiveConversation.stopConversation();
+  }
+
   // Store the current app selection before reset
   const drApps = $id("apps");
   const currentApp = resetToDefaultApp ? null : (drApps ? drApps.value : null);

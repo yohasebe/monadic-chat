@@ -3194,11 +3194,17 @@ document.addEventListener("DOMContentLoaded", function () {
       $show($id("discourse"));
 
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
-      // This prevents auto-generation when importing conversations
-      // (Realtime speech-to-speech models never reach this flow: they exist
-      // only in the dedicated Live Conversation app, which has its own
-      // Start mechanism over the STS bridge.)
-      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
+      // This prevents auto-generation when importing conversations.
+      // Speech-to-speech apps are excluded EXPLICITLY: they declare
+      // initiate_from_assistant too (it is their greeting toggle), but their
+      // greeting runs over the STS bridge from the Live Conversation Start
+      // button. Driving the normal pipeline here hits the server's
+      // voice-only guard and opens the session with an error card.
+      const lcModeActive = !!(window.LiveConversation &&
+        typeof window.LiveConversation.isLcMode === 'function' &&
+        window.LiveConversation.isLcMode());
+      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 &&
+          !shouldSkipAssistant && !lcModeActive) {
         $show($id("temp-card"));
         $hide($id("user-panel"));
         $show($id("monadic-spinner")); // Show spinner for initial assistant message

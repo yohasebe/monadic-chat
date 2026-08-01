@@ -196,6 +196,32 @@ describe('turn boundaries', () => {
     expect(ctx.createdSources[0].stop).not.toHaveBeenCalled();
     expect(Sts.getActiveTurnId()).toBeNull();
   });
+
+  // Mono-voice invariant (dogfood round 1): the upstream can move to a new
+  // response without ever emitting a cancellation we can attribute, and the
+  // old turn's scheduled tail then talked over the new answer. The turn
+  // switch itself must silence every other turn.
+  it('a new turn silences the previous turn\'s scheduled tail', () => {
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+
+    Sts.scheduleChunk('t2', chunkBytes(100), SAMPLE_RATE);
+
+    expect(ctx.createdSources[0].stop).toHaveBeenCalled();
+    expect(ctx.createdSources[1].stop).toHaveBeenCalled();
+    expect(ctx.createdSources[2].stop).not.toHaveBeenCalled();
+    expect(Sts.getScheduledCount('t1')).toBe(0);
+  });
+
+  it('isPlaying reflects whether any turn still has scheduled sources', () => {
+    expect(Sts.isPlaying()).toBe(false);
+
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    expect(Sts.isPlaying()).toBe(true);
+
+    Sts.stopAll();
+    expect(Sts.isPlaying()).toBe(false);
+  });
 });
 
 describe('barge-in', () => {

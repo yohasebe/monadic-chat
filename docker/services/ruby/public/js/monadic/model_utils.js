@@ -377,11 +377,12 @@ function filterModelsForAllMode(models, providerKey) {
     if (ms.music_capability === true) return false;
     if (ms.embedding_dimensions != null) return false;
 
-    // Speech-to-speech models only work through the STS bridge, so picking one
-    // for an ordinary chat app fails at request time with nothing on screen
-    // explaining why. They stay available in curated mode (an app that
-    // declares one in MDSL is opting into STS on purpose) — this exclusion is
-    // show-all only, which is why it lives here rather than in listModels.
+    // Speech-to-speech models only work through the STS bridge, so picking
+    // one in an ordinary chat app fails at request time with nothing on
+    // screen explaining why. Speech-to-speech APPS never reach this filter —
+    // getModelsForApp pins their selector to the MDSL list before show-all
+    // merging — so this exclusion only protects ordinary apps' show-all
+    // lists, which is why it lives here rather than in listModels.
     if (ms.supports_speech_to_speech === true) return false;
 
     // Exclude models without tool capability

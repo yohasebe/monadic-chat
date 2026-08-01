@@ -502,6 +502,16 @@ window.loadedApp = "Chat";
     const discourseEl = $id("discourse");
     if (discourseEl) discourseEl.appendChild(htmlElement);
 
+    // Live Conversation: keep the streaming surfaces (assistant temp-card,
+    // live user transcript) BELOW every finalized card, and follow the
+    // newest content when auto-scroll is on. Cards can land while a stream
+    // is still open (order-gate timeout, barge-in), which otherwise leaves
+    // the in-progress card stranded above newer cards.
+    if (document.body.classList.contains('lc-app') &&
+        window.LiveConversation && typeof window.LiveConversation.onCardAppended === 'function') {
+      window.LiveConversation.onCardAppended();
+    }
+
     // Defer applyRenderers to ensure DOM is fully ready
     if (window.MarkdownRenderer) {
       setTimeout(() => {
@@ -772,6 +782,14 @@ window.loadedApp = "Chat";
       case "sts_session": {
         const lcSession = window.LiveConversation;
         if (lcSession && typeof lcSession.onStsSession === 'function') lcSession.onStsSession(data);
+        break;
+      }
+
+      // In-place refresh of an interrupted card's text (late transcript.done
+      // carries fuller text than the barge-in freeze point).
+      case "sts_card_text": {
+        const lcCard = window.LiveConversation;
+        if (lcCard && typeof lcCard.onCardText === 'function') lcCard.onCardText(data);
         break;
       }
 
@@ -1152,6 +1170,14 @@ window.loadedApp = "Chat";
     if (window.UIState) {
       window.UIState.set('wsConnected', false);
       window.UIState.set('wsReconnecting', true);
+    }
+    // A Live Conversation cannot survive the client socket: the audio path
+    // is gone and a transparent resume would silently drop whatever was
+    // said meanwhile. End it honestly; the user re-Starts (seeding rebuilds
+    // context from the saved messages).
+    if (window.LiveConversation && window.LiveConversation.isActive &&
+        window.LiveConversation.isActive()) {
+      window.LiveConversation.stopConversation();
     }
     // Show message based on current mode: if Stop操作による明示停止（silentモード）なら"Stopped"、
     // それ以外は通常の Connection lost を案内

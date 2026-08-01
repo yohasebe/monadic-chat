@@ -13,16 +13,19 @@
  * module only accumulates and formats — duplicating the rates here would mean
  * a price change silently updating one side and not the other.
  *
- * The figure is an UPPER BOUND. The server prices all audio input at the full
- * rate even though cached input bills far lower, so a long session is
- * overestimated rather than under. The label says so; a cost readout that
- * might understate would be worse than none.
+ * Labeling depends on the provider's billing basis (accounting.billing_basis):
+ *   - token-based (OpenAI): the figure is an UPPER BOUND — all audio input is
+ *     priced at the full rate even though cached input bills far lower.
+ *   - per_minute (xAI): the figure is an ESTIMATE, not a bound — the tail
+ *     between the last response and Stop is not captured, so it can
+ *     understate slightly. The label must not promise "upper bound" there.
  */
 (function() {
   "use strict";
 
   let sessionCostUsd = 0;
   let turnCount = 0;
+  let perMinuteBilling = false;
   // Whether any turn actually reported a usable cost. Without this a session
   // whose accounting never arrived would read "$0.00", i.e. free — the one
   // thing a cost readout must never imply by accident.
@@ -54,7 +57,9 @@
       return;
     }
 
-    const label = t('ui.messages.stsEstimatedCost', 'Estimated cost (upper bound)');
+    const label = perMinuteBilling
+      ? t('ui.messages.stsEstimatedCostPerMinute', 'Estimated cost (per-minute billing)')
+      : t('ui.messages.stsEstimatedCost', 'Estimated cost (upper bound)');
     el.style.display = '';
     // Keep the layout class the markup was created with; replacing className
     // outright would drop the navbar spacing.
@@ -77,10 +82,13 @@
     if (!accounting) return;
 
     const cost = Number(accounting.estimated_cost_usd);
-    if (Number.isFinite(cost) && cost >= 0) {
+    // Unpriced providers (Gemini Live: token counts but no pinned audio
+    // rate) get NO cost line — a fabricated figure is worse than none.
+    if (accounting.billing_basis !== 'unpriced' && Number.isFinite(cost) && cost >= 0) {
       sessionCostUsd += cost;
       hasCostData = true;
     }
+    if (accounting.billing_basis === 'per_minute') perMinuteBilling = true;
     turnCount += 1;
     render();
   }

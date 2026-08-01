@@ -107,4 +107,46 @@ describe('speech-to-speech mode is derived at a single point per side', () => {
     expect(wsHandlers).toMatch(/isStsModelSelected/);
     expect(sessionHandler).toMatch(/isStsModelSelected/);
   });
+
+  // The LC-hidden UI surface is tracked in two places (HIDDEN_IN_LC in JS,
+  // .lc-app rules in CSS) against ids that live in index.erb. Dogfood
+  // showed what a skew costs (cached CSS vs fresh JS); this pins the three
+  // sources to each other so an addition to one cannot silently miss the
+  // others.
+  it('HIDDEN_IN_LC ids exist in index.erb and are covered by .lc-app CSS', () => {
+    const lc = fs.readFileSync(
+      path.join(ROOT, 'docker/services/ruby/public/js/monadic/live-conversation.js'), 'utf8');
+    const erb = fs.readFileSync(
+      path.join(ROOT, 'docker/services/ruby/views/index.erb'), 'utf8');
+    const css = fs.readFileSync(
+      path.join(ROOT, 'docker/services/ruby/public/css/monadic.css'), 'utf8');
+
+    const listMatch = lc.match(/const HIDDEN_IN_LC = \[([\s\S]*?)\];/);
+    expect(listMatch).not.toBeNull();
+    const ids = Array.from(listMatch[1].matchAll(/'([^']+)'/g)).map(m => m[1]);
+    expect(ids.length).toBeGreaterThanOrEqual(13);
+
+    ids.forEach(id => {
+      // The element must exist in the shipped markup…
+      expect(erb).toContain('id="' + id + '"');
+      // …and the CSS fallback must cover it inside an .lc-app rule.
+      expect(css).toMatch(new RegExp('\\.lc-app #' + id + '\\b'));
+    });
+  });
+
+  // The standard initiate_from_assistant flow drives the normal pipeline
+  // (params without `message` → handle_ws_streaming). Live Conversation
+  // apps declare the same flag as their greeting toggle, but their greeting
+  // runs over the STS bridge — if the standard branch fires too, the
+  // session opens with the server's voice-only error card (dogfood round
+  // 2). Pin the suppression at the source so a refactor cannot drop it.
+  it('the standard initiate flow is suppressed in Live Conversation mode', () => {
+    const monadic = fs.readFileSync(
+      path.join(ROOT, 'docker/services/ruby/public/js/monadic.js'), 'utf8');
+
+    const branch = monadic.match(/const lcModeActive[\s\S]{0,600}?!lcModeActive\)/);
+    expect(branch).not.toBeNull();
+    expect(branch[0]).toMatch(/isLcMode/);
+    expect(branch[0]).toMatch(/initiate-from-assistant/);
+  });
 });

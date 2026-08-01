@@ -165,7 +165,16 @@
     // tail, which may be in the past by now. Two unidentified turns compare
     // equal here and so share a timeline — harmless, because the underrun
     // re-prime below moves a stale anchor forward anyway.
+    //
+    // Mono-voice invariant: only one assistant turn may be audible at a
+    // time. A turn switch without an explicit cancel happens whenever the
+    // upstream moved on without emitting a cancellation we could attribute
+    // (observed in dogfood as two responses talking over each other), so
+    // the switch itself silences every other turn's scheduled tail.
     if (turnId !== activeTurnId) {
+      Array.from(scheduledSources.keys()).forEach(function(id) {
+        if (id !== turnId) stopSources(id);
+      });
       activeTurnId = turnId;
       nextStartTime = 0;
     }
@@ -270,6 +279,11 @@
     handleStsAudioDelta: handleStsAudioDelta,
     handleStsAudioDone: handleStsAudioDone,
     handleStsAudioCancelled: handleStsAudioCancelled,
+    // True while any turn still has scheduled/playing sources. Used by the
+    // Live Conversation echo gate (mic chunks are energy-gated while the
+    // assistant is audible) — arrival-time flags are wrong for this because
+    // deltas arrive faster than realtime and playback outlives them.
+    isPlaying: function() { return scheduledSources.size > 0; },
     // Diagnostics / tests
     getNextStartTime: function() { return nextStartTime; },
     getActiveTurnId: function() { return activeTurnId; },

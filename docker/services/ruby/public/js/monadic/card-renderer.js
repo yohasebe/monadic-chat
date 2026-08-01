@@ -192,7 +192,12 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
     ? getTranslation('ui.verify.tip', 'Cross-checks this answer against your other configured providers.')
     : getTranslation('ui.verify.tipSingle', "Add a second provider's API key for a cross-provider check (with one provider it is a weaker self-consistency check).");
   var verifyTitle = window.escapeHtml(verifyLabel + ' — ' + verifyTip);
-  var verifyBar = (role === "assistant")
+  // Live Conversation cards carry no verify bar: second-opinion verification
+  // targets the typed pipeline's request shape, and a realtime speech
+  // transcript is not a verifiable answer. Decided at render time (not CSS)
+  // so it holds regardless of stylesheet state.
+  var inLiveConversation = document.body.classList.contains('lc-app');
+  var verifyBar = (role === "assistant" && !inLiveConversation)
     ? '<div class="verify-bar"><span class="func-verify" title="' + verifyTitle + '">' +
       '<i class="fas fa-check-double"></i> ' + verifyLabel + '</span></div>'
     : '';
@@ -292,7 +297,10 @@ function assistantBadge(content) {
     const label = (typeof webUIi18n !== 'undefined')
       ? webUIi18n.t('ui.messages.responseInterrupted')
       : 'Interrupted';
-    badge += " <span class='badge bg-secondary ms-1 align-middle'>" +
+    // mc-badge (the app's muted badge vocabulary — soft grey fill, quiet
+    // text, dark-mode aware) instead of Bootstrap's solid bg-secondary,
+    // which read too loud next to the card header.
+    badge += " <span class='mc-badge mc-badge--grey ms-1 align-middle'>" +
              "<i class='fas fa-hand'></i> " + window.escapeHtml(label) + "</span>";
   }
   return badge;

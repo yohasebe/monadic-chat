@@ -6519,8 +6519,56 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .lc-app #user-panel > .row {
   display: none !important;
 }
+/* The AI User strip is a flex div, not a .row — hide it explicitly
+   (its typed-pipeline Run makes no sense against a realtime bridge). */
+.lc-app #ai-user-row {
+  display: none !important;
+}
 #lc-panel { display: none; }
 .lc-app #lc-panel { display: block; }
+
+/* Settings that have no effect in a speech-to-speech app are hidden, not
+   disabled: auto speech / easy submit belong to the typed pipeline, and the
+   whole Speech panel (STT model, TTS provider/voice) is bypassed — audio
+   flows through the realtime bridge in both directions. The Interaction
+   panel stays: "Start from assistant" is the greeting toggle. */
+.lc-app #auto-speech-form,
+.lc-app #easy-submit-form,
+.lc-app #voice-panel {
+  display: none !important;
+}
+
+/* Model-parameter surface that a realtime session does not consume: web
+   search (no tools), math rendering (speech, not markup), reasoning
+   effort / thinking display (not exposed by the realtime API), sampling
+   parameters, context/token caps (seeding does not consult them yet), and
+   show-all (the model list is pinned to the MDSL declaration). */
+.lc-app #websearch-form,
+.lc-app #math-form,
+.lc-app #reasoning-effort-container,
+.lc-app #thinking-display-container,
+.lc-app #model_parameters,
+.lc-app #context-size-col,
+.lc-app #max-tokens-col,
+.lc-app #show-all-models-form {
+  display: none !important;
+}
+
+/* The typed pipeline's status spinner ("Thinking…" etc.) is driven by
+   fragment/html arrival and flickers meaninglessly against a realtime
+   stream — Live Conversation has its own #lc-status line. !important wins
+   over the JS show/hide sites, which set inline display="". */
+.lc-app #monadic-spinner {
+  display: none !important;
+}
+
+/* Second-opinion verification targets the typed pipeline's request shape;
+   a realtime speech transcript is not a verifiable answer. The AI User /
+   status sidebar is likewise typed-pipeline surface. */
+.lc-app #discourse .verify-bar,
+.lc-app #ai-status-panel {
+  display: none !important;
+}
 
 .lc-locked #discourse .card .func-edit,
 .lc-locked #discourse .card .func-delete,
@@ -6528,6 +6576,44 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .lc-locked #discourse .card .func-stop {
   pointer-events: none;
   opacity: 0.35;
+}
+
+/* Live Conversation toggle. A hue of its own: this button opens a LIVE
+   audio channel, not a typed submit — so it must not read as the confirm
+   blue (btn-primary) or the destructive red. Violet is otherwise unused in
+   the button palette; tones are desaturated because full-strength Bootstrap
+   colors read too vivid against the muted grey UI palette
+   (#e5e5ea/#f8f9fa). While live, the hue shifts to a muted brick with a
+   soft pulse — "recording" without alarm-red urgency. */
+.btn-lc {
+  background-color: #6d5fa8;
+  border-color: #6d5fa8;
+  color: #fff;
+}
+.btn-lc:hover, .btn-lc:focus {
+  background-color: #5d5090;
+  border-color: #5d5090;
+  color: #fff;
+}
+.btn-lc.btn-lc-live {
+  background-color: #a94442;
+  border-color: #a94442;
+  animation: lc-live-pulse 2s ease-in-out infinite;
+}
+.btn-lc.btn-lc-live:hover, .btn-lc.btn-lc-live:focus {
+  background-color: #8f3a38;
+  border-color: #8f3a38;
+}
+@keyframes lc-live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(169, 68, 66, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(169, 68, 66, 0); }
+}
+
+/* Usage note shown while the conversation is empty (explicit Start/Stop
+   is unlike the typed apps). Dashed border = ephemeral, not a message. */
+.lc-intro-card {
+  border-style: dashed;
+  background: transparent;
 }
 
 /* Live user transcript preview (replaced by the server-rendered user card

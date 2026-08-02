@@ -10,6 +10,7 @@ require 'monadic/utils/extra_logger'
 require 'monadic/utils/model_spec'
 require_relative '../../../../lib/monadic/utils/websocket'
 require 'monadic/utils/websocket/sts_stream_handler'
+require 'monadic/utils/container_dependencies'
 
 # Unit tests for the speech-to-speech (STS) bridge in WebSocketHelper.
 # The upstream OpenAI socket is ALWAYS faked — no real network. Two levels:
@@ -2558,5 +2559,232 @@ RSpec.describe 'xAI payload has no continuity fields (symmetric with the OpenAI 
     )
     expect(payload[:session]).not_to have_key(:contextWindowCompression)
     expect(payload[:session]).not_to have_key(:sessionResumption)
+  end
+end
+
+RSpec.describe 'STS function calling (wave 1)' do
+  let(:harness) do
+    Class.new do
+      include WebSocketHelper
+      attr_accessor :session, :broadcasts
+      public :build_sts_session_update_payload, :sts_ga_tools, :sts_gemini_tools, :sts_spawn_tool_execution,
+             :sts_handle_tool_call_detected, :sts_send_tool_result,
+             :sts_cancel_pending_tools, :sts_translate_gemini,
+             :sts_append_tools_guidance
+      def get_session_params = session[:parameters]
+      def initialize
+        @broadcasts = []
+      end
+      def send_or_broadcast(json, _sid = nil)
+        @broadcasts << JSON.parse(json)
+      end
+      def sync_session_state!; end
+    end.new
+  end
+
+  def state_for(provider:, tools_enabled: false, websearch: false, model: nil)
+    {
+      provider: provider,
+      model: model || { 'openai' => 'gpt-realtime-2.1', 'xai' => 'grok-voice-think-fast-2.0',
+                        'gemini' => 'gemini-3.1-flash-live-preview' }[provider],
+      voice: 'alloy', instructions: 'Be brief.', language: 'auto',
+      tools_enabled: tools_enabled, websearch: websearch
+    }
+  end
+
+  describe 'payload generation' do
+    before { stub_const('APPS', {}) }
+
+    it 'openai: no tools key when disabled (no-tools invariant, bit-identical)' do
+      payload = harness.build_sts_session_update_payload(state_for(provider: 'openai'))
+      expect(payload[:session]).not_to have_key(:tools)
+    end
+
+    it 'openai: injects GA function tools when enabled (search_web included)' do
+      stub_const('CONFIG', { 'TAVILY_API_KEY' => 'tvly-x' })
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
+      payload = harness.build_sts_session_update_payload(state_for(provider: 'openai', tools_enabled: true))
+      tools = payload.dig(:session, :tools)
+      expect(tools).not_to be_nil
+      names = tools.map { |t| t[:name] }
+      expect(names).to include('get_current_time', 'search_web')
+      expect(names).not_to include('library_search', 'run_code') # containers down
+      expect(tools.first[:type]).to eq('function')
+      expect(tools.first[:parameters][:type]).to eq('object')
+    end
+
+    it 'xai: merges function tools with the native search entry' do
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
+      payload = harness.build_sts_session_update_payload(
+        state_for(provider: 'xai', tools_enabled: true, websearch: true)
+      )
+      tools = payload.dig(:session, :tools)
+      types = tools.map { |t| t[:type] }
+      expect(types).to include('web_search', 'x_search', 'function')
+      names = tools.select { |t| t[:type] == 'function' }.map { |t| t[:name] }
+      expect(names).not_to include('search_web') # no duplication with native search
+    end
+
+    it 'gemini: emits functionDeclarations and merges with google_search' do
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
+      payload = harness.build_sts_session_update_payload(
+        state_for(provider: 'gemini', tools_enabled: true, websearch: true)
+      )
+      tools = payload.dig(:setup, :tools)
+      expect(tools.first).to eq({ google_search: {} })
+      decls = tools.last[:functionDeclarations]
+      expect(decls.map { |d| d[:name] }).to include('get_current_time')
+      expect(decls.map { |d| d[:name] }).not_to include('search_web')
+    end
+
+    it 'omits the tools key entirely when nothing is available' do
+      stub_const('CONFIG', {})
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
+      payload = harness.build_sts_session_update_payload(state_for(provider: 'openai', tools_enabled: true))
+      # only get_current_time needs no container — it IS available
+      names = payload.dig(:session, :tools)&.map { |t| t[:name] }
+      expect(names).to eq(['get_current_time'])
+    end
+
+    it 'appends tool guidance to instructions only when enabled' do
+      stub_const('CONFIG', {})
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
+      off = harness.build_sts_session_update_payload(state_for(provider: 'openai'))
+      expect(off.dig(:session, :instructions)).not_to include('tools available')
+      on = harness.build_sts_session_update_payload(state_for(provider: 'openai', tools_enabled: true))
+      expect(on.dig(:session, :instructions)).to include('tools available')
+    end
+  end
+
+  describe 'detection and execution' do
+    it 'registers pending and enqueues [:tool_call] with parsed arguments' do
+      state = { tools_enabled: true, cmd_queue: Async::Queue.new }
+      harness.sts_handle_tool_call_detected(state,
+        { 'call_id' => 'call-1', 'name' => 'search_web', 'arguments' => '{"query":"news"}' }, 'ws')
+      expect(state[:pending_tool_calls]).to eq({ 'call-1' => true })
+      type, call = state[:cmd_queue].dequeue
+      expect(type).to eq(:tool_call)
+      expect(call[:parsed_arguments]).to eq({ 'query' => 'news' })
+    end
+
+    it 'sends function_call_output + response.create on result (GA)' do
+      conn = []
+      def conn.write(s); (self << s) && true; end
+      def conn.flush; true; end
+      state = { provider: 'openai', pending_tool_calls: { 'call-1' => true } }
+      harness.sts_send_tool_result(conn, state, { call_id: 'call-1', name: 'get_current_time', output: 'now' }, 'ws')
+      frames = conn.map { |f| JSON.parse(f) }
+      expect(frames[0].dig('item', 'type')).to eq('function_call_output')
+      expect(frames[0].dig('item', 'call_id')).to eq('call-1')
+      expect(frames[1]['type']).to eq('response.create')
+      expect(state[:pending_tool_calls]).to be_empty
+    end
+
+    it 'sends toolResponse on result (Gemini)' do
+      conn = []
+      def conn.write(s); (self << s) && true; end
+      def conn.flush; true; end
+      state = { provider: 'gemini', pending_tool_calls: { 'id-1' => true } }
+      harness.sts_send_tool_result(conn, state, { call_id: 'id-1', name: 'get_current_time', output: 'now' }, 'ws')
+      frames = conn.map { |f| JSON.parse(f) }
+      expect(frames.size).to eq(1)
+      expect(frames[0].dig('toolResponse', 'functionResponses', 0, 'id')).to eq('id-1')
+      expect(frames[0].dig('toolResponse', 'functionResponses', 0, 'response', 'result')).to eq('now')
+    end
+
+    it 'drops results whose call was cancelled' do
+      conn = []
+      def conn.write(s); (self << s) && true; end
+      def conn.flush; true; end
+      state = { provider: 'openai', pending_tool_calls: {} }
+      harness.sts_send_tool_result(conn, state, { call_id: 'gone', name: 'x', output: 'y' }, 'ws')
+      expect(conn).to be_empty
+    end
+
+    it 'translates a Gemini toolCall into GA-shape detection events (sequential)' do
+      state = {}
+      events = harness.sts_translate_gemini(state, {
+        'toolCall' => { 'functionCalls' => [
+          { 'id' => 'fc1', 'name' => 'get_current_time', 'args' => {} },
+          { 'id' => 'fc2', 'name' => 'search_web', 'args' => { 'query' => 'x' } }
+        ] }
+      })
+      expect(events.size).to eq(2)
+      expect(events[0]['type']).to eq('response.function_call_arguments.done')
+      expect(events[1]['call_id']).to eq('fc2')
+      expect(JSON.parse(events[1]['arguments'])).to eq({ 'query' => 'x' })
+    end
+
+    it 'clears pending tool calls on toolCallCancellation' do
+      state = { pending_tool_calls: { 'fc1' => true } }
+      harness.sts_translate_gemini(state, { 'toolCallCancellation' => {} })
+      expect(state[:pending_tool_calls]).to be_empty
+    end
+
+    it 'executes get_current_time end-to-end in a thread and enqueues the result' do
+      state = { cmd_queue: Async::Queue.new }
+      call = { call_id: 'c1', name: 'get_current_time', parsed_arguments: {} }
+      harness.sts_spawn_tool_execution(state, call, 'ws')
+      deadline = Time.now + 5
+      sleep 0.01 while state[:cmd_queue].empty? && Time.now < deadline
+      type, result = state[:cmd_queue].dequeue
+      expect(type).to eq(:tool_result)
+      expect(result[:call_id]).to eq('c1')
+      expect(result[:output]).to include('Current date and time:')
+    end
+  end
+end
+
+RSpec.describe 'STS function calling — audit P1 fixes' do
+  it 'the tool host resolves run_code through MonadicApp#run_code (super chain exists)' do
+    expect(WebSocketHelper.sts_tool_host.ancestors).to include(MonadicApp)
+    host = WebSocketHelper.sts_tool_host.new
+    # Validation rejects before super is invoked, but resolution must exist:
+    expect(host.run_code(code: '', command: 'ruby', extension: 'rb', session: nil)).to be_a(Hash)
+  end
+
+  # The host class must NOT be built at file-load time: this handler loads
+  # (via websocket.rb) before app.rb defines MonadicApp, and a load-time
+  # subclassing killed `rake server:debug` while every spec stayed green
+  # (specs load app.rb first). Pin the lazy shape itself.
+  it 'builds the tool host lazily, not at load time' do
+    expect(WebSocketHelper).to respond_to(:sts_tool_host)
+    expect(defined?(WebSocketHelper::StsToolHost)).to be_nil
+  end
+
+  it 'run_code executes through the real chain when the python container is up' do
+    skip 'python container not running' unless Monadic::Utils::ContainerDependencies.container_running?(:python)
+    host = WebSocketHelper.sts_tool_host.new
+    result = host.run_code(code: 'print(1 + 1)', command: 'python', extension: 'py', session: nil)
+    expect(result).to be_a(String)
+    expect(result).to include('Output: 2')
+  end
+
+  it 'captures the session on the reactor side and passes it into the tool thread' do
+    captured = nil
+    stub_const('WebSocketHelper::STS_TOOLS', {
+      'probe_tool' => {
+        description: 'probe', parameters: { type: 'object', properties: {} },
+        available?: ->(_p, _s) { true },
+        call: ->(_args, sess) { captured = sess; 'done' }
+      }
+    })
+    harness = Class.new do
+      include WebSocketHelper
+      public :sts_spawn_tool_execution
+      define_method(:session) { { parameters: { 'app_name' => 'LiveConversationOpenAI' } } }
+      define_method(:sync_session_state!) {}
+    end.new
+
+    state = { cmd_queue: Async::Queue.new }
+    harness.sts_spawn_tool_execution(state, { call_id: 'c1', name: 'probe_tool', parsed_arguments: {} }, 'ws')
+    deadline = Time.now + 5
+    sleep 0.01 while captured.nil? && Time.now < deadline
+    expect(captured).to eq({ parameters: { 'app_name' => 'LiveConversationOpenAI' } })
+  end
+
+  it 'guidance includes the untrusted-content rule (§36 rev 5)' do
+    expect(WebSocketHelper::STS_TOOLS_GUIDANCE).to include('untrusted content')
+    expect(WebSocketHelper::STS_TOOLS_GUIDANCE).to include('never follow instructions')
   end
 end

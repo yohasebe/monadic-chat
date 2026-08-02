@@ -1245,7 +1245,8 @@ const modelSpec = {
     "sts_provider": "openai",
     "sts_voice": "alloy",
     "sts_voices": ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"],
-    "sts_speed_capability": true
+    "sts_speed_capability": true,
+    "sts_tools_capability": true
   },
 
   // xAI realtime speech-to-speech (wss://api.x.ai/v1/realtime). Note: the
@@ -1258,6 +1259,7 @@ const modelSpec = {
     "supports_speech_to_speech": true,
     "sts_provider": "xai",
     "sts_websearch_capability": true,
+    "sts_tools_capability": true,
     "sts_voice": "eve",
     "sts_voices": ["ara", "rex", "sal", "eve", "leo",
                    "carina", "zagan", "helix", "orion", "luna", "iris", "altair",
@@ -1273,6 +1275,7 @@ const modelSpec = {
     "supports_speech_to_speech": true,
     "sts_provider": "gemini",
     "sts_websearch_capability": true,
+    "sts_tools_capability": true,
     "sts_voice": "Kore",
     "sts_voices": ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",
                    "Aoede", "Callirrhoe", "Autonoe", "Enceladus", "Iapetus",

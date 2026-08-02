@@ -358,8 +358,15 @@ describe('stop', () => {
 
 describe('live user transcript (temp card)', () => {
   beforeEach(async () => {
+    // The temp card belongs to CARD view; the default live view renders
+    // user speech into its own current zone instead.
+    window.params = { sts_card_view: true };
     LC.setAppMode(lcApp);
     await LC.startConversation();
+  });
+
+  afterEach(() => {
+    delete window.params;
   });
 
   it('renders partials into a temp card and clears it on the final transcript', () => {
@@ -389,18 +396,21 @@ describe('intro card + trailing action icon + idle auto-stop', () => {
     jest.useRealTimers();
   });
 
-  it('shows the usage note while the conversation is empty and removes it on Start', async () => {
+  it('shows the panel instruction while the conversation is empty and hides it on Start', async () => {
     LC.setAppMode(lcApp);
-    expect(document.getElementById('lc-intro')).not.toBeNull();
+    const el = document.getElementById('lc-instruction');
+    expect(el).not.toBeNull();
+    expect(el.style.display).not.toBe('none');
+    expect(el.textContent.length).toBeGreaterThan(0);
 
     await LC.startConversation();
-    expect(document.getElementById('lc-intro')).toBeNull();
+    expect(el.style.display).toBe('none');
   });
 
-  it('shows no intro when the conversation already has messages', () => {
+  it('shows no instruction when the conversation already has messages', () => {
     window.messages = [{ role: 'user', text: 'earlier' }];
     LC.setAppMode(lcApp);
-    expect(document.getElementById('lc-intro')).toBeNull();
+    expect(document.getElementById('lc-instruction').style.display).toBe('none');
   });
 
   it('renders the ACTION icon after the label: play idle, stop while live', async () => {
@@ -478,6 +488,7 @@ describe('streaming-surface ordering + auto-scroll (onCardAppended)', () => {
   });
 
   it('keeps the live user transcript below the temp-card (interrupting speech is newer)', async () => {
+    window.params = { sts_card_view: true }; // lc-user-temp exists only in card view
     await LC.startConversation();
     LC.onSttPartial({ content: 'user is talking' }); // creates #lc-user-temp
     discourse().insertAdjacentHTML('afterbegin', '<div id="temp-card" class="card" style=""></div>');
@@ -487,6 +498,7 @@ describe('streaming-surface ordering + auto-scroll (onCardAppended)', () => {
 
     const ids = Array.from(discourse().children).map(el => el.id);
     expect(ids).toEqual(['finalized', 'temp-card', 'lc-user-temp']);
+    delete window.params;
   });
 
   it('does not resurrect a hidden temp-card', () => {
@@ -661,10 +673,6 @@ describe('voice and speed controls', () => {
     expect(select().value).toBe('marin');
   });
 
-  it('shows the applies-from-next-Start note', () => {
-    expect(document.getElementById('lc-voice-note').textContent).toMatch(/next Start/);
-  });
-
   it('writes params.sts_voice and broadcasts on change', () => {
     select().value = 'cedar';
     select().dispatchEvent(new Event('change', { bubbles: true }));
@@ -746,11 +754,13 @@ describe('websearch toggle (native search, capability-gated)', () => {
 
     setModel('grok-voice-think-fast-2.0');
     expect(wrap().style.display).toBe('flex');
-    expect(document.getElementById('lc-websearch-note').textContent).toMatch(/additional charges/i);
+    // xAI cost note removed (user decision)
+    expect(document.getElementById('lc-websearch-note').textContent).toBe('');
 
     setModel('gemini-3.1-flash-live-preview');
     expect(wrap().style.display).toBe('flex');
-    expect(document.getElementById('lc-websearch-note').textContent).toMatch(/free monthly quota/i);
+    // Gemini keeps only the sources-not-shown caveat (ToS)
+    expect(document.getElementById('lc-websearch-note').textContent).toMatch(/sources not shown/i);
   });
 
   it('defaults to OFF (cost safety) even when the capability exists', () => {
@@ -770,5 +780,329 @@ describe('websearch toggle (native search, capability-gated)', () => {
     toggle().dispatchEvent(new Event('change', { bubbles: true }));
     expect(window.params['websearch']).toBe(true);
     expect(window.broadcastParamsUpdate).toHaveBeenCalledWith('websearch_toggle');
+  });
+});
+
+describe('live view (non-card display, default during active)', () => {
+  beforeEach(() => {
+    window.params = {};
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+  });
+
+  const start = async () => { await LC.startConversation(); };
+  const discourse = () => document.getElementById('discourse');
+  const lv = () => document.getElementById('lc-liveview');
+  const prevText = () => document.querySelector('#lc-live-prev .lc-live-text').textContent;
+  const curText = () => document.querySelector('#lc-live-current .lc-live-text').textContent;
+
+  it('hides discourse and shows the 2-zone live view while active (default)', async () => {
+    await start();
+    expect(discourse().style.display).toBe('none');
+    expect(lv().style.display).toBe('block');
+  });
+
+  it('fills current zone with user partial, then promotes it when assistant streams', async () => {
+    await start();
+    LC.onSttPartial({ content: 'hello there' });
+    expect(curText()).toBe('hello there');
+
+    LC.onAssistantFragment({ content: 'Hi! ', is_first: true });
+    expect(prevText()).toBe('hello there');
+    expect(curText()).toBe('Hi! ');
+
+    LC.onAssistantFragment({ content: 'nice to meet you.' });
+    expect(curText()).toBe('Hi! nice to meet you.');
+  });
+
+  it('promotes the assistant turn to prev on the next user utterance', async () => {
+    await start();
+    LC.onSttPartial({ content: 'q1' });
+    LC.onAssistantFragment({ content: 'a1', is_first: true });
+    LC.onSttPartial({ content: 'q2' });
+    expect(prevText()).toBe('a1');
+    expect(curText()).toBe('q2');
+  });
+
+  it('restores discourse on Stop (always returns to the card list)', async () => {
+    await start();
+    expect(discourse().style.display).toBe('none');
+    LC.stopConversation();
+    expect(discourse().style.display).not.toBe('none');
+    expect(lv().style.display).toBe('none');
+  });
+
+  it('restores discourse on _reset', async () => {
+    await start();
+    LC._reset();
+    expect(discourse().style.display).not.toBe('none');
+  });
+
+  it('keeps discourse visible in card view (sts_card_view on)', async () => {
+    window.params['sts_card_view'] = true;
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    await start();
+    expect(discourse().style.display).not.toBe('none');
+    expect(lv().style.display).toBe('none');
+  });
+
+  it('switches immediately when the card view toggle changes', async () => {
+    await start();
+    const toggle = document.getElementById('lc-cardview-toggle');
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(discourse().style.display).not.toBe('none');
+    expect(window.params['sts_card_view']).toBe(true);
+  });
+
+  it('updates the assistant zone on sts_card_text (interrupted card refresh)', async () => {
+    await start();
+    LC.onAssistantFragment({ content: 'partial ans', is_first: true });
+    // sts_card_text requires the real card to exist (it always does in prod)
+    discourse().insertAdjacentHTML('beforeend',
+      '<div class="card" id="mid-x"><div class="card-text">partial ans</div></div>');
+    LC.onCardText({ mid: 'mid-x', content: 'partial answer in full' });
+    expect(curText()).toBe('partial answer in full');
+  });
+
+  it('suppresses the user temp card while live view is active', async () => {
+    await start();
+    LC.onSttPartial({ content: 'hi' });
+    expect(document.getElementById('lc-user-temp')).toBeNull();
+  });
+});
+
+describe('live view empty-transcript guard', () => {
+  beforeEach(() => {
+    window.params = {};
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+  });
+
+  it('does not promote or bubble on blank stt (hallucination suppression)', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'assistant talking', is_first: true });
+    const before = document.querySelector('#lc-live-current .lc-live-text').textContent;
+
+    // Server sends blank stt when it suppresses a hallucinated transcript:
+    // the assistant zone must stay put and no empty You bubble may appear.
+    LC.onStt({ content: '' });
+    LC.onSttPartial({ content: '' });
+
+    expect(document.querySelector('#lc-live-current .lc-live-text').textContent).toBe(before);
+    expect(document.querySelector('#lc-live-prev .lc-live-text').textContent).toBe('');
+  });
+});
+
+describe('panel layout and model-ready re-render', () => {
+  beforeEach(() => {
+    window.modelSpec = {
+      'gpt-realtime-2.1': { supports_speech_to_speech: true, sts_provider: 'openai',
+                            sts_voice: 'alloy', sts_voices: ['alloy'] },
+      'grok-voice-think-fast-2.0': { supports_speech_to_speech: true, sts_provider: 'xai',
+                            sts_voice: 'eve', sts_voices: ['eve', 'luna'] }
+    };
+    window.params = {};
+  });
+
+  afterEach(() => {
+    delete window.modelSpec;
+    delete window.params;
+  });
+
+  it('decomposes the toggle: app label is plain text, the button holds only the action', () => {
+    LC.setAppMode(lcApp);
+    const btn = document.getElementById('lc-toggle');
+    expect(btn.querySelector('.fa-tower-broadcast')).toBeNull();
+    expect(document.getElementById('lc-app-label')).not.toBeNull();
+    expect(document.getElementById('lc-app-label').textContent.length).toBeGreaterThan(0);
+    // action icon stays inside the button
+    expect(btn.querySelector('#lc-action-icon')).not.toBeNull();
+  });
+
+  it('places the voice-controls row above the Start/Stop button row', () => {
+    LC.setAppMode(lcApp);
+    const panel = document.getElementById('lc-panel');
+    const rows = [...panel.children].map(el => el.id || el.className);
+    const controlsIdx = rows.indexOf('lc-controls-row');
+    const buttonRowIdx = rows.findIndex((_, i) =>
+      panel.children[i].contains(document.getElementById('lc-toggle')));
+    expect(controlsIdx).toBeGreaterThanOrEqual(0);
+    expect(controlsIdx).toBeLessThan(buttonRowIdx);
+  });
+
+  it('re-populates the voice selector when the model select changes after load', () => {
+    // Start with an EMPTY model select (async dropdown not built yet)
+    const modelEl = document.getElementById('model');
+    modelEl.replaceChildren();
+    LC.setAppMode(lcApp);
+    expect(document.getElementById('lc-voice-select').options.length).toBe(0);
+
+    // Dropdown is built later → change event re-renders
+    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.dispatchEvent(new Event('change', { bubbles: true }));
+    const sel = document.getElementById('lc-voice-select');
+    expect([...sel.options].map(o => o.value)).toEqual(['eve', 'luna']);
+  });
+});
+
+describe('live view resume-swap (late stt_partial during assistant stream)', () => {
+  beforeEach(() => {
+    window.params = {};
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+  });
+
+  const curText = () => document.querySelector('#lc-live-current .lc-live-text').textContent;
+  const prevText = () => document.querySelector('#lc-live-prev .lc-live-text').textContent;
+
+  it('keeps the full assistant text when a late stt_partial interleaves mid-stream', async () => {
+    await LC.startConversation();
+    LC.onStt({ content: 'user question' });
+    LC.onAssistantFragment({ content: 'Sorry, that ', is_first: true });
+    LC.onAssistantFragment({ content: 'sounded ' });
+
+    // late partial for the SAME user utterance mid-stream (server sends
+    // cumulative partials while the assistant is already answering)
+    LC.onSttPartial({ content: 'user question' });
+    LC.onAssistantFragment({ content: 'a bit cut off.' });
+
+    expect(curText()).toBe('Sorry, that sounded a bit cut off.');
+  });
+
+  it('resets accumulation on a real barge-in (is_first of the new response)', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'first answer ', is_first: true });
+    LC.onSttPartial({ content: 'interrupt!' });
+    LC.onAssistantFragment({ content: 'second answer', is_first: true });
+    expect(curText()).toBe('second answer');
+  });
+
+  it('keeps the interleaved user text in prev after the swap', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'assistant ', is_first: true });
+    LC.onSttPartial({ content: 'user text' });
+    LC.onAssistantFragment({ content: 'continues' });
+    expect(curText()).toBe('assistant continues');
+    expect(prevText()).toBe('user text');
+  });
+});
+
+describe('websearch toggle mirrors into the standard #websearch checkbox', () => {
+  const wsSpec = {
+    'grok-voice-think-fast-2.0': {
+      supports_speech_to_speech: true, sts_provider: 'xai',
+      sts_voice: 'eve', sts_voices: ['eve'], sts_websearch_capability: true
+    }
+  };
+
+  beforeEach(() => {
+    // the standard (hidden in LC) checkbox that sanitizeParamsForSync reads
+    document.body.insertAdjacentHTML('beforeend',
+      '<input type="checkbox" id="websearch">');
+    window.modelSpec = wsSpec;
+    window.params = {};
+    window.broadcastParamsUpdate = jest.fn();
+    const modelEl = document.getElementById('model');
+    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    document.getElementById('websearch').remove();
+    delete window.modelSpec;
+    delete window.params;
+    delete window.broadcastParamsUpdate;
+  });
+
+  it('mirrors the LC toggle state so sanitize keeps websearch=true', () => {
+    const toggle = document.getElementById('lc-websearch-toggle');
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(window.params['websearch']).toBe(true);
+    // sanitizeParamsForSync reads THIS checkbox as the source of truth —
+    // without the mirror it would overwrite the broadcast with false.
+    expect(document.getElementById('websearch').checked).toBe(true);
+  });
+
+  it('renders params.websearch=true into BOTH checkboxes at load', () => {
+    window.params['websearch'] = true;
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(document.getElementById('lc-websearch-toggle').checked).toBe(true);
+    expect(document.getElementById('websearch').checked).toBe(true);
+  });
+
+  it('mirrors BEFORE broadcasting so the toggle\'s own broadcast carries true', () => {
+    // Order matters: sanitizeParamsForSync (called inside the broadcast)
+    // reads the standard checkbox. Mirroring after the broadcast would make
+    // the toggle's own UPDATE_PARAMS carry the stale false, the server echo
+    // then rolls params back, and a toggle→Start flow opens the STS session
+    // without tools (the audit-caught ordering regression).
+    let checkedAtBroadcast = null;
+    window.broadcastParamsUpdate = jest.fn(() => {
+      checkedAtBroadcast = document.getElementById('websearch').checked;
+    });
+
+    const toggle = document.getElementById('lc-websearch-toggle');
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(window.broadcastParamsUpdate).toHaveBeenCalled();
+    expect(checkedAtBroadcast).toBe(true);
+  });
+});
+
+describe('tools toggle (function calling wave 1)', () => {
+  const toolsSpec = {
+    'gpt-realtime-2.1': { supports_speech_to_speech: true, sts_provider: 'openai',
+                          sts_voice: 'alloy', sts_voices: ['alloy'], sts_tools_capability: true }
+  };
+
+  beforeEach(() => {
+    window.modelSpec = toolsSpec;
+    window.params = {};
+    window.broadcastParamsUpdate = jest.fn();
+    const modelEl = document.getElementById('model');
+    modelEl.replaceChildren(new Option('gpt-realtime-2.1', 'gpt-realtime-2.1', true, true));
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.modelSpec;
+    delete window.params;
+    delete window.broadcastParamsUpdate;
+  });
+
+  it('shows the toggle for sts_tools_capability models, default OFF, with next-Start note', () => {
+    const wrap = document.getElementById('lc-tools-wrap');
+    expect(wrap.style.display).toBe('flex');
+    expect(document.getElementById('lc-tools-toggle').checked).toBe(false);
+  });
+
+  it('writes params.sts_tools and broadcasts on change', () => {
+    const toggle = document.getElementById('lc-tools-toggle');
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(window.params['sts_tools']).toBe(true);
+    expect(window.broadcastParamsUpdate).toHaveBeenCalledWith('sts_tools_toggle');
+  });
+
+  it('reflects params.sts_tools when set', () => {
+    window.params['sts_tools'] = true;
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(document.getElementById('lc-tools-toggle').checked).toBe(true);
   });
 });

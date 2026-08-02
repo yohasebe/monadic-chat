@@ -6623,3 +6623,24 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   font-style: italic;
   min-height: 1.2em;
 }
+
+/* Live Conversation live view (non-card 2-zone display) */
+.lc-live-zone {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--bs-border-color, #dee2e6);
+  margin-bottom: 0.5rem;
+}
+.lc-live-zone .lc-live-role {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color, #6c757d);
+  margin-bottom: 0.15rem;
+}
+.lc-live-prev {
+  opacity: 0.65;
+}
+#lc-live-current {
+  border-left-color: #6d5fa8;
+}
+#lc-live-current .lc-live-text {
+  font-size: 1.05rem;
+}

@@ -1154,6 +1154,13 @@ window.loadedApp = "Chat";
         if (wsd && typeof wsd.handleDefaultMessage === 'function') {
           wsd.handleDefaultMessage(data);
         }
+        // Live Conversation live view: assistant streaming mirrors into the
+        // 2-zone display (inert unless LC live view is active — the module
+        // gates internally). Existing temp-card path is untouched.
+        if (data["type"] === "fragment" && window.LiveConversation &&
+            typeof window.LiveConversation.onAssistantFragment === 'function') {
+          window.LiveConversation.onAssistantFragment(data);
+        }
       }
     }
   }

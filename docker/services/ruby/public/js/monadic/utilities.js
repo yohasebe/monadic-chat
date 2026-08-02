@@ -1002,6 +1002,12 @@ window.loadParams = function(params, calledFor = "loadParams") {
     window.LiveConversation.setAppMode(
       (typeof apps !== 'undefined' && lcAppName && apps[lcAppName]) ? apps[lcAppName] : params
     );
+    // The model dropdown is built asynchronously — setAppMode may run before
+    // #model holds the app's model, leaving the STS voice selector empty.
+    // Re-render once params (and the dropdown) are complete.
+    if (typeof window.LiveConversation.refreshControls === 'function') {
+      window.LiveConversation.refreshControls();
+    }
   }
 
   // Reset the flag after loading is complete

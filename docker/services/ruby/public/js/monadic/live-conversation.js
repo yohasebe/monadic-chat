@@ -71,12 +71,15 @@
     // keeps it visually distinct from the primary/confirm blue.
     const panel = document.createElement('div');
     panel.id = 'lc-panel';
-    panel.className = 'py-2';
+    panel.className = 'py-3';
     panel.innerHTML =
-      '<div class="d-flex align-items-center">' +
+      '<div id="lc-instruction" class="text-secondary mb-3" style="display:none !important;"></div>' +
+      '<div id="lc-controls-row" class="d-flex align-items-center flex-wrap mb-3"></div>' +
+      '<div class="d-flex align-items-center mt-1">' +
+      '<span class="me-3"><i class="fas fa-tower-broadcast me-1"></i><span id="lc-app-label"></span></span>' +
       '<button id="lc-toggle" class="btn btn-sm btn-lc text-nowrap" type="button">' +
-      '<i class="fas fa-tower-broadcast me-2"></i><span id="lc-toggle-label"></span>' +
-      '<i id="lc-action-icon" class="fas fa-play ms-2"></i></button>' +
+      '<span id="lc-toggle-label"></span>' +
+      '<i id="lc-action-icon" class="fas fa-play ms-1"></i></button>' +
       '<div id="lc-status" class="text-secondary small ms-3"></div>' +
       '</div>';
     userPanel.prepend(panel);
@@ -95,33 +98,43 @@
   // offered, let alone sent, for others.
   function ensureVoiceControls() {
     const panel = $id('lc-panel');
-    if (!panel || $id('lc-voice-select')) return;
-    const row = document.createElement('div');
-    row.className = 'd-flex align-items-center mt-2 flex-wrap';
-    row.innerHTML =
-      '<label for="lc-voice-select" class="text-secondary small me-2" id="lc-voice-label"></label>' +
+    const controlsRow = $id('lc-controls-row');
+    if (!panel || !controlsRow || $id('lc-voice-select')) return;
+    // The voice/speed/websearch/cardview row lives in #lc-controls-row,
+    // ABOVE the Start/Stop button (layout request).
+    controlsRow.innerHTML =
+      '<label for="lc-voice-select" class="text-secondary me-2" id="lc-voice-label"></label>' +
       '<select id="lc-voice-select" class="form-select form-select-sm" style="max-width: 160px;"></select>' +
-      '<span id="lc-voice-note" class="text-secondary small ms-2"></span>' +
       // NO d-flex here: Bootstrap's .d-flex is `display:flex !important`
       // and would beat the inline `display:none` used to hide this wrap on
       // xAI/Gemini (the same trap as the AI User row). Visibility is
       // driven exclusively by renderVoiceControls via setProperty.
-      '<span id="lc-speed-wrap" class="text-secondary small align-items-center ms-3" style="display:none !important;">' +
-      '<label for="lc-speed-range" class="text-secondary small me-2" id="lc-speed-label"></label>' +
+      '<span id="lc-speed-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
+      '<label for="lc-speed-range" class="text-secondary me-2" id="lc-speed-label"></label>' +
       '<input type="range" id="lc-speed-range" min="0.25" max="1.5" step="0.05" value="1.0" style="width: 90px;">' +
       '<span id="lc-speed-value" class="text-secondary small ms-1">1.0</span>' +
       '</span>' +
-      '<span id="lc-websearch-wrap" class="text-secondary small align-items-center ms-3" style="display:none !important;">' +
+      '<span id="lc-websearch-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
       '<input type="checkbox" id="lc-websearch-toggle" class="form-check-input me-1">' +
-      '<label for="lc-websearch-toggle" class="text-secondary small me-1" id="lc-websearch-label"></label>' +
+      '<label for="lc-websearch-toggle" class="text-secondary me-1" id="lc-websearch-label"></label>' +
       '<span id="lc-websearch-note" class="text-secondary small"></span>' +
+      '</span>' +
+      '<span id="lc-cardview-wrap" class="text-secondary align-items-center ms-3">' +
+      '<input type="checkbox" id="lc-cardview-toggle" class="form-check-input me-1">' +
+      '<label for="lc-cardview-toggle" class="text-secondary" id="lc-cardview-label"></label>' +
+      '</span>' +
+      '<span id="lc-tools-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
+      '<input type="checkbox" id="lc-tools-toggle" class="form-check-input me-1">' +
+      '<label for="lc-tools-toggle" class="text-secondary" id="lc-tools-label"></label>' +
       '</span>';
-    panel.appendChild(row);
+
+    $id('lc-app-label').textContent = currentAppDisplayName();
 
     $id('lc-voice-label').textContent = t('ui.messages.lcVoice', 'Voice');
-    $id('lc-voice-note').textContent = t('ui.messages.lcVoiceNextStart', '(applies from the next Start)');
     $id('lc-speed-label').textContent = t('ui.messages.lcSpeed', 'Speed');
     $id('lc-websearch-label').textContent = t('ui.messages.lcWebsearch', 'Web search');
+    $id('lc-cardview-label').textContent = t('ui.messages.lcCardView', 'Card view');
+    $id('lc-tools-label').textContent = t('ui.messages.lcTools', 'Tools');
 
     $on($id('lc-voice-select'), 'change', function() {
       if (typeof params !== 'undefined') {
@@ -129,10 +142,37 @@
         if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_voice_change');
       }
     });
+    // Re-render when the model select is (re)built: at setAppMode time the
+    // async dropdown may not hold the LC model yet, leaving the voice
+    // selector empty (bug: OpenAI/Gemini never populated on first load).
+    const modelEl = $id('model');
+    if (modelEl) $on(modelEl, 'change', renderVoiceControls);
     $on($id('lc-websearch-toggle'), 'change', function() {
+      const checked = $id('lc-websearch-toggle').checked;
+      // Mirror into the standard #websearch checkbox BEFORE broadcasting:
+      // sanitizeParamsForSync treats the DOM checkbox as the source of truth,
+      // so the broadcast fired below reads it — mirroring after would make
+      // the toggle's own broadcast carry the stale false (LC hides that
+      // checkbox, so nothing else maintains it — dogfood: toggle never
+      // reached the server).
+      const std = $id('websearch');
+      if (std) std.checked = checked;
       if (typeof params !== 'undefined') {
-        params['websearch'] = $id('lc-websearch-toggle').checked;
+        params['websearch'] = checked;
         if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('websearch_toggle');
+      }
+    });
+    $on($id('lc-cardview-toggle'), 'change', function() {
+      if (typeof params !== 'undefined') {
+        params['sts_card_view'] = $id('lc-cardview-toggle').checked;
+        if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_card_view_toggle');
+      }
+      applyViewMode();
+    });
+    $on($id('lc-tools-toggle'), 'change', function() {
+      if (typeof params !== 'undefined') {
+        params['sts_tools'] = $id('lc-tools-toggle').checked;
+        if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_tools_toggle');
       }
     });
     $on($id('lc-speed-range'), 'change', function() {
@@ -151,6 +191,9 @@
     const spec = (window.modelSpec && model) ? (window.modelSpec[model] || {}) : {};
     const sel = $id('lc-voice-select');
     if (!sel) return;
+
+    const appLabel = $id('lc-app-label');
+    if (appLabel) appLabel.textContent = currentAppDisplayName();
 
     const voices = Array.isArray(spec.sts_voices) ? spec.sts_voices : [];
     const current = (typeof params !== 'undefined' && params['sts_voice']) || spec.sts_voice || voices[0] || '';
@@ -191,24 +234,169 @@
         wsWrap.style.removeProperty('display');
         wsWrap.style.setProperty('display', 'flex');
         const provider = spec.sts_provider;
+        // Cost note: xAI shows none (user decision); Gemini shows only the
+        // sources-not-shown caveat (ToS-driven, kept) — the cost part was
+        // dropped by user decision too.
         $id('lc-websearch-note').textContent = provider === 'gemini'
-          ? t('ui.messages.lcWebsearchCostGemini', '(free monthly quota, then paid)')
-          : t('ui.messages.lcWebsearchCostXai', '(may incur additional charges)');
+          ? t('ui.messages.lcWebsearchCostGemini', '(sources not shown)')
+          : '';
         $id('lc-websearch-toggle').checked =
           typeof params !== 'undefined' &&
           (params['websearch'] === true || params['websearch'] === 'true');
+        // Keep the standard #websearch checkbox in sync at render time too,
+        // so ANY broadcastParamsUpdate (not just the toggle's) carries the
+        // LC value instead of being clobbered to false by sanitize.
+        const stdCb = $id('websearch');
+        if (stdCb) stdCb.checked = $id('lc-websearch-toggle').checked;
       } else {
         wsWrap.style.setProperty('display', 'none', 'important');
       }
     }
+
+    // Tools toggle (function calling wave 1): capability-gated like the
+    // search toggle, default OFF. Available on all three providers.
+    const toolsWrap = $id('lc-tools-wrap');
+    if (toolsWrap) {
+      const toolsCapable = spec.sts_tools_capability === true;
+      if (toolsCapable) {
+        toolsWrap.style.removeProperty('display');
+        toolsWrap.style.setProperty('display', 'flex');
+        $id('lc-tools-toggle').checked =
+          typeof params !== 'undefined' &&
+          (params['sts_tools'] === true || params['sts_tools'] === 'true');
+      } else {
+        toolsWrap.style.setProperty('display', 'none', 'important');
+      }
+    }
+
+    const cv = $id('lc-cardview-toggle');
+    if (cv) {
+      cv.checked = typeof params !== 'undefined' &&
+        (params['sts_card_view'] === true || params['sts_card_view'] === 'true');
+    }
+  }
+
+  // ── Live view (non-card, default during active conversation) ──────
+  // A pure DISPLAY alternative to the card stream: #discourse is hidden
+  // and two zones show the previous partner utterance and the in-flight
+  // one. Canon and card accumulation are UNCHANGED — Stop always
+  // returns to the normal (merged) card list. All display switches use
+  // setProperty('important') because Bootstrap utilities beat plain
+  // inline styles (the d-flex trap).
+  let livePrev = { role: null, text: '' };
+  let liveCurrent = { role: null, text: '' };
+
+  function cardViewEnabled() {
+    return typeof params !== 'undefined' &&
+      (params['sts_card_view'] === true || params['sts_card_view'] === 'true');
+  }
+
+  function liveViewWanted() {
+    return lcMode && active && !cardViewEnabled();
+  }
+
+  function ensureLiveView() {
+    if ($id('lc-liveview')) return;
+    const discourse = $id('discourse');
+    if (!discourse || !discourse.parentNode) return;
+    const lv = document.createElement('div');
+    lv.id = 'lc-liveview';
+    lv.style.setProperty('display', 'none', 'important');
+    lv.innerHTML =
+      '<div id="lc-live-prev" class="lc-live-zone lc-live-prev">' +
+      '<div class="lc-live-role"></div><div class="lc-live-text"></div></div>' +
+      '<div id="lc-live-current" class="lc-live-zone">' +
+      '<div class="lc-live-role"></div><div class="lc-live-text"></div></div>';
+    discourse.parentNode.insertBefore(lv, discourse);
+  }
+
+  function applyViewMode() {
+    const discourse = $id('discourse');
+    ensureLiveView();
+    const lv = $id('lc-liveview');
+    if (!discourse || !lv) return;
+    if (liveViewWanted()) {
+      discourse.style.setProperty('display', 'none', 'important');
+      lv.style.removeProperty('display');
+      lv.style.setProperty('display', 'block');
+      renderLiveView();
+    } else {
+      lv.style.setProperty('display', 'none', 'important');
+      discourse.style.removeProperty('display');
+    }
+  }
+
+  function zoneText(role) {
+    return role === 'user'
+      ? t('ui.messages.lcRoleUser', 'You')
+      : t('ui.messages.lcRoleAssistant', 'Assistant');
+  }
+
+  function renderZone(zone, entry) {
+    const roleEl = zone.querySelector('.lc-live-role');
+    const textEl = zone.querySelector('.lc-live-text');
+    if (roleEl) roleEl.textContent = entry.role ? zoneText(entry.role) : '';
+    if (textEl) textEl.textContent = entry.text || '';
+  }
+
+  function renderLiveView() {
+    const prev = $id('lc-live-prev');
+    const cur = $id('lc-live-current');
+    if (prev) renderZone(prev, livePrev);
+    if (cur) renderZone(cur, liveCurrent);
+  }
+
+  // Replace semantics (each stt_partial / stt carries the whole utterance
+  // so far); a role change promotes the finished side to prev.
+  function liveSet(role, text) {
+    if (liveCurrent.role && liveCurrent.role !== role) livePromote();
+    liveCurrent = { role: role, text: text };
+    if (liveViewWanted()) renderLiveView();
+  }
+
+  // Append semantics for assistant streaming fragments; is_first starts a
+  // fresh accumulation (barge-in / new response).
+  function liveAppend(role, delta, isFirst) {
+    if (isFirst) {
+      // A genuinely new response (or a barge-in restart): reset accumulation.
+      if (liveCurrent.role && liveCurrent.role !== role) livePromote();
+      liveCurrent = { role: role, text: delta };
+    } else if (liveCurrent.role === role) {
+      liveCurrent.text += delta;
+    } else if (livePrev.role === role && livePrev.text !== '') {
+      // Resume-swap: a LATE stt_partial for the utterance already on record
+      // briefly promoted the in-flight assistant stream to prev (dogfood:
+      // assistant text lost its beginning). The response is still in
+      // flight — swap prev back into current and keep accumulating instead
+      // of restarting from this fragment. The interleaved user text moves
+      // to prev, so nothing is lost.
+      const resumed = { role: role, text: livePrev.text + delta };
+      livePrev = { role: liveCurrent.role, text: liveCurrent.text };
+      liveCurrent = resumed;
+    } else {
+      if (liveCurrent.role) livePromote();
+      liveCurrent = { role: role, text: delta };
+    }
+    if (liveViewWanted()) renderLiveView();
+  }
+
+  function livePromote() {
+    if (liveCurrent.role) livePrev = { role: liveCurrent.role, text: liveCurrent.text };
+    liveCurrent = { role: null, text: '' };
+  }
+
+  function liveReset() {
+    livePrev = { role: null, text: '' };
+    liveCurrent = { role: null, text: '' };
   }
 
   function renderControls() {
     const label = $id('lc-toggle-label');
     const btn = $id('lc-toggle');
     if (!label || !btn) return;
-    // Leading icon = app identity (broadcast tower, constant); trailing
-    // icon = the ACTION this press performs (play/stop), after the label.
+    // The button carries only the ACTION (start/stop label + trailing
+    // action icon); the app identity (tower + name) is the plain-text
+    // lc-app-label next to it (layout request).
     const action = $id('lc-action-icon');
     if (active) {
       label.textContent = t('ui.messages.lcStop', 'End live conversation');
@@ -227,10 +415,18 @@
   }
 
   // ── App-mode switch ────────────────────────────────────────────────
+  let currentAppConfig = null;
+
+  function currentAppDisplayName() {
+    return (currentAppConfig && (currentAppConfig.display_name || currentAppConfig.app_name)) ||
+      'Live Conversation';
+  }
+
   function setAppMode(appConfig) {
     const on = !!(appConfig && (appConfig.speech_to_speech === true || appConfig.speech_to_speech === 'true'));
     if (lcMode && !on && active) stopConversation();
     lcMode = on;
+    if (on) currentAppConfig = appConfig;
     const rate = parseInt(appConfig && appConfig.sts_input_rate, 10);
     captureRate = (Number.isFinite(rate) && rate > 0) ? rate : DEFAULT_REALTIME_RATE;
     const idleSec = parseInt(appConfig && appConfig.sts_idle_stop_seconds, 10);
@@ -257,7 +453,7 @@
     });
     if (on) {
       ensurePanel();
-      ensureIntroCard();
+      renderInstruction();
       ensureVoiceControls();
       renderVoiceControls();
       // Hiding the toggles is not enough: a checked auto-speech carried over
@@ -271,38 +467,26 @@
         }
       });
     }
+    applyViewMode();
   }
 
-  // ── Intro card ─────────────────────────────────────────────────────
-  // Client-only usage note shown while the conversation is still empty:
-  // this app needs an EXPLICIT Start (and Stop) press, unlike the typed
-  // apps where the input box invites action by itself. Never part of the
-  // canon — removed the moment the conversation begins.
-  function ensureIntroCard() {
-    if (!lcMode) return;
-    if ($id('lc-intro')) return;
-    if ((window.messages || []).length > 0) return;
-    const discourse = $id('discourse');
-    if (!discourse || discourse.querySelector('.card')) return;
-    const el = document.createElement('div');
-    el.id = 'lc-intro';
-    el.className = 'card mt-3 lc-intro-card';
-    const body = document.createElement('div');
-    body.className = 'card-body text-secondary';
-    const p = document.createElement('p');
-    p.className = 'mb-0';
-    p.textContent = t('ui.messages.lcIntro',
-      'Press "Start live conversation" to begin. Speaking then continues hands-free — ' +
-      'turns are detected automatically. Press "End live conversation" to finish. ' +
-      'Headphones are recommended.');
-    body.appendChild(p);
-    el.appendChild(body);
-    discourse.appendChild(el);
-  }
-
-  function removeIntroCard() {
-    const el = $id('lc-intro');
-    if (el) { try { el.remove(); } catch (_) { /* noop */ } }
+  // ── Panel instruction ──────────────────────────────────────────────
+  // Client-only usage note pinned ABOVE the Start button (the old
+  // discourse card was invisible in the session-start flow — dogfood).
+  // Shown only while the conversation is empty; never part of the canon.
+  function renderInstruction() {
+    const el = $id('lc-instruction');
+    if (!el) return;
+    const show = lcMode && !active && (window.messages || []).length === 0;
+    if (show) {
+      el.textContent = t('ui.messages.lcIntro',
+        'Press "Start live conversation" to begin. Speaking then continues hands-free — ' +
+        'turns are detected automatically. Press "End live conversation" to finish. ' +
+        'Headphones are recommended.');
+      el.style.removeProperty('display');
+    } else {
+      el.style.setProperty('display', 'none', 'important');
+    }
   }
 
   // ── Idle auto-stop ─────────────────────────────────────────────────
@@ -437,6 +621,8 @@
     renderControls();
     setStatus(t('ui.messages.lcConnecting', 'Connecting…'));
     lockCards(true);
+    liveReset();
+    applyViewMode();
 
     let cap;
     try {
@@ -473,7 +659,7 @@
     }
     capture = cap;
 
-    removeIntroCard();
+    renderInstruction();
     startIdleWatch();
     window.safeWsSend({ message: 'STS_START', chat_model: chatModel, greet: greet });
   }
@@ -491,6 +677,7 @@
     renderControls();
     setStatus('');
     lockCards(false);
+    applyViewMode(); // always returns to the normal (merged) card list
   }
 
   // ── Card locking ───────────────────────────────────────────────────
@@ -508,6 +695,7 @@
   // card when the turn's transcription completes.
   function ensureUserTemp() {
     if (userTempEl && userTempEl.isConnected) return userTempEl;
+    if (liveViewWanted()) return null; // live view renders user speech itself
     const discourse = $id('discourse');
     if (!discourse) return null;
     userTempEl = document.createElement('div');
@@ -530,6 +718,14 @@
   function onSttPartial(data) {
     if (!lcMode || !active) return;
     noteActivity();
+    if (liveViewWanted()) {
+      // Empty carries no bubble: the server sends blank stt when it
+      // suppresses a hallucinated transcript, and a blank must neither
+      // promote the assistant zone nor draw an empty You bubble.
+      const text = (data && data.content) || '';
+      if (text.trim() !== '') liveSet('user', text);
+      return;
+    }
     const el = ensureUserTemp();
     if (!el) return;
     const textEl = el.querySelector('.lc-user-temp-text');
@@ -537,8 +733,14 @@
     scrollLatestIntoView();
   }
 
-  function onStt(_data) {
+  function onStt(data) {
     if (!lcMode) return;
+    if (liveViewWanted()) {
+      // Same empty-guard as onSttPartial (hallucination-suppressed blank).
+      const text = (data && data.content) || '';
+      if (text.trim() !== '') liveSet('user', text);
+      return;
+    }
     // The finalized user card arrives from the server as html; the live
     // preview has served its purpose.
     removeUserTemp();
@@ -636,6 +838,17 @@
     const p = document.createElement('p');
     p.textContent = text;
     body.replaceChildren(p);
+    // Mirror into the live view's assistant zone (interrupted card refresh).
+    if (livePrev.role === 'assistant') { livePrev.text = text; }
+    if (liveCurrent.role === 'assistant') { liveCurrent.text = text; }
+    if (liveViewWanted()) renderLiveView();
+  }
+
+  // Assistant streaming hook (called from websocket.js on each fragment).
+  // is_first marks the first fragment of a response so accumulation restarts.
+  function onAssistantFragment(data) {
+    if (!liveViewWanted()) return;
+    liveAppend('assistant', (data && data.content) || '', !!(data && data.is_first));
   }
 
   function onAssistantAudio() {
@@ -661,6 +874,8 @@
     onStsSession: onStsSession,
     onCardText: onCardText,
     onCardAppended: onCardAppended,
+    onAssistantFragment: onAssistantFragment,
+    refreshControls: renderVoiceControls,
     onAssistantAudio: onAssistantAudio,
     onAssistantAudioEnd: onAssistantAudioEnd,
     isActive: function() { return active; },
@@ -672,8 +887,9 @@
       capture = null; active = false; lcMode = false; assistantTalking = false;
       stopIdleWatch();
       removeUserTemp();
-      removeIntroCard();
       idleStopMs = DEFAULT_IDLE_STOP_MS;
+      liveReset();
+      applyViewMode(); // restore discourse on teardown paths too
       document.body.classList.remove('lc-app', 'lc-locked');
     }
   };

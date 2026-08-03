@@ -123,9 +123,15 @@ function handlePastMessages(data) {
       case "assistant": {
         // Increment turn count for this assistant message
         assistantTurnCount++;
+        // assistantBadge(content) renders the same base badge as the literal
+        // default below, PLUS any markers the canon carries (interrupted,
+        // tools_used) — without it, LOAD silently dropped Live Conversation
+        // badges even though the flags persist in the canon (§37-3).
         const badge =
           msg.badge ||
-          "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+          (typeof window.assistantBadge === 'function'
+            ? window.assistantBadge(msg)
+            : "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>");
         const assistantCard = createCard(
           "assistant",
           badge,
@@ -146,6 +152,13 @@ function handlePastMessages(data) {
         }
         if (window.MarkdownRenderer) {
           window.MarkdownRenderer.applyRenderers(assistantCard[0] || assistantCard);
+        }
+        // §37-3: position-aware tool badges (LC fold/merge canon carries
+        // tools_used entries with `at` = paragraph index). Inserted AFTER
+        // applyRenderers so post-processing cannot wipe them; entries
+        // without `at` are skipped (header badge only — backward compat).
+        if (typeof window.insertInlineToolBadge === 'function') {
+          window.insertInlineToolBadge(assistantCard[0] || assistantCard, msg.tools_used);
         }
         break;
       }

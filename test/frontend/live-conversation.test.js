@@ -53,6 +53,12 @@ afterEach(() => {
   delete window.messages;
   delete window.setAlert;
   delete window.LiveConversation;
+  // startConversation sets this global (§37-7). Leaving it set would leak a
+  // "the user already interacted" state into whatever suite runs next — the
+  // test-isolation defect class this repo has been bitten by before.
+  delete window.userHasInteractedInTab;
+  delete window.responseStarted;
+  delete window.streamingResponse;
   document.body.className = '';
 });
 
@@ -152,6 +158,15 @@ describe('start', () => {
 
     const start = sent.find(m => m.message === 'STS_START');
     expect(start).toEqual({ message: 'STS_START', chat_model: 'gpt-realtime-2.1', greet: true });
+  });
+
+  // §37-7: the app-switch reset confirmation keys on userHasInteractedInTab,
+  // which only the TEXT submit paths set — a voice-only session left it
+  // false and the switch wiped the conversation without asking.
+  it('marks the tab as user-interacted (voice conversation is a user action)', async () => {
+    delete window.userHasInteractedInTab; // an earlier start in this file set it
+    await LC.startConversation();
+    expect(window.userHasInteractedInTab).toBe(true);
   });
 
   // Resume-vs-fresh is decided SERVER-side against the canonical
@@ -682,7 +697,9 @@ describe('voice and speed controls', () => {
 
   it('shows the speed control only for sts_speed_capability models', () => {
     const wrap = document.getElementById('lc-speed-wrap');
-    expect(wrap.style.display).not.toBe('none');
+    // inline-flex, not flex: a block-level flex next to the plain-inline
+    // cardview wrap shifts the baseline (dogfood: misaligned checkboxes).
+    expect(wrap.style.display).toBe('inline-flex');
 
     const modelEl = document.getElementById('model');
     modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
@@ -703,85 +720,6 @@ describe('voice and speed controls', () => {
   });
 });
 
-describe('websearch toggle (native search, capability-gated)', () => {
-  const wsSpec = {
-    'gpt-realtime-2.1': {
-      supports_speech_to_speech: true,
-      sts_provider: 'openai',
-      sts_voice: 'alloy',
-      sts_voices: ['alloy']
-    },
-    'grok-voice-think-fast-2.0': {
-      supports_speech_to_speech: true,
-      sts_provider: 'xai',
-      sts_voice: 'eve',
-      sts_voices: ['eve'],
-      sts_websearch_capability: true
-    },
-    'gemini-3.1-flash-live-preview': {
-      supports_speech_to_speech: true,
-      sts_provider: 'gemini',
-      sts_voice: 'Kore',
-      sts_voices: ['Kore'],
-      sts_websearch_capability: true
-    }
-  };
-
-  beforeEach(() => {
-    window.modelSpec = wsSpec;
-    window.params = {};
-    window.broadcastParamsUpdate = jest.fn();
-    LC.setAppMode(lcApp);
-  });
-
-  afterEach(() => {
-    delete window.modelSpec;
-    delete window.params;
-    delete window.broadcastParamsUpdate;
-  });
-
-  const wrap = () => document.getElementById('lc-websearch-wrap');
-  const toggle = () => document.getElementById('lc-websearch-toggle');
-  const setModel = (m) => {
-    const el = document.getElementById('model');
-    el.replaceChildren(new Option(m, m, true, true));
-    LC.setAppMode(normalApp);
-    LC.setAppMode(lcApp);
-  };
-
-  it('is hidden for OpenAI (no sts_websearch_capability) and shown for xAI/Gemini', () => {
-    expect(wrap().style.display).toBe('none');
-
-    setModel('grok-voice-think-fast-2.0');
-    expect(wrap().style.display).toBe('flex');
-    // xAI cost note removed (user decision)
-    expect(document.getElementById('lc-websearch-note').textContent).toBe('');
-
-    setModel('gemini-3.1-flash-live-preview');
-    expect(wrap().style.display).toBe('flex');
-    // Gemini keeps only the sources-not-shown caveat (ToS)
-    expect(document.getElementById('lc-websearch-note').textContent).toMatch(/sources not shown/i);
-  });
-
-  it('defaults to OFF (cost safety) even when the capability exists', () => {
-    setModel('grok-voice-think-fast-2.0');
-    expect(toggle().checked).toBe(false);
-  });
-
-  it('reflects params.websearch when set', () => {
-    window.params['websearch'] = true;
-    setModel('grok-voice-think-fast-2.0');
-    expect(toggle().checked).toBe(true);
-  });
-
-  it('writes params.websearch and broadcasts on change', () => {
-    setModel('grok-voice-think-fast-2.0');
-    toggle().checked = true;
-    toggle().dispatchEvent(new Event('change', { bubbles: true }));
-    expect(window.params['websearch']).toBe(true);
-    expect(window.broadcastParamsUpdate).toHaveBeenCalledWith('websearch_toggle');
-  });
-});
 
 describe('live view (non-card display, default during active)', () => {
   beforeEach(() => {
@@ -953,7 +891,7 @@ describe('panel layout and model-ready re-render', () => {
   });
 });
 
-describe('live view resume-swap (late stt_partial during assistant stream)', () => {
+describe('live view zone discipline (§37-6: partial stream lags the response)', () => {
   beforeEach(() => {
     window.params = {};
     LC.setAppMode(lcApp);
@@ -966,14 +904,14 @@ describe('live view resume-swap (late stt_partial during assistant stream)', () 
   const curText = () => document.querySelector('#lc-live-current .lc-live-text').textContent;
   const prevText = () => document.querySelector('#lc-live-prev .lc-live-text').textContent;
 
-  it('keeps the full assistant text when a late stt_partial interleaves mid-stream', async () => {
+  it('keeps the full assistant text when a late partial of a FINALIZED utterance arrives', async () => {
     await LC.startConversation();
     LC.onStt({ content: 'user question' });
     LC.onAssistantFragment({ content: 'Sorry, that ', is_first: true });
     LC.onAssistantFragment({ content: 'sounded ' });
 
-    // late partial for the SAME user utterance mid-stream (server sends
-    // cumulative partials while the assistant is already answering)
+    // Late partial for the SAME finalized utterance mid-stream — a prefix
+    // of the final, so it is display-only noise and must not move zones.
     LC.onSttPartial({ content: 'user question' });
     LC.onAssistantFragment({ content: 'a bit cut off.' });
 
@@ -988,81 +926,57 @@ describe('live view resume-swap (late stt_partial during assistant stream)', () 
     expect(curText()).toBe('second answer');
   });
 
-  it('keeps the interleaved user text in prev after the swap', async () => {
+  // The measured dogfood round 6 path: the response starts BEFORE the
+  // transcription finishes streaming, so fragments and partials interleave.
+  // A resume-swap per fragment ping-ponged the same utterance between zones.
+  it('does not ping-pong when fragments interleave an in-flight partial stream', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'ちょっと調', is_first: true });
+    LC.onSttPartial({ content: '今日' });
+    LC.onSttPartial({ content: '今日の天気は' });
+    LC.onAssistantFragment({ content: 'べ' }); // fragment mid-partial-stream
+    LC.onSttPartial({ content: '今日の天気はどうなる' });
+    LC.onAssistantFragment({ content: 'るから、' });
+
+    // Mid-stream (before the final): the user's LIVE transcript stays in
+    // current and the response accumulates in prev — the old resume-swap
+    // moved the partial to prev on every fragment, flickering the same
+    // utterance between zones.
+    expect(curText()).toBe('今日の天気はどうなる');
+    expect(prevText()).toBe('ちょっと調べるから、');
+
+    LC.onStt({ content: '今日の天気はどうなるだろう。' });
+    LC.onAssistantFragment({ content: '午後の様子を' });
+
+    // After the final: the finalized user text takes prev (resume-swap)
+    // and the response continues in current.
+    expect(curText()).toBe('ちょっと調べるから、午後の様子を');
+    expect(prevText()).toBe('今日の天気はどうなるだろう。');
+  });
+
+  it('keeps the interleaved FINAL user text in prev after the swap', async () => {
     await LC.startConversation();
     LC.onAssistantFragment({ content: 'assistant ', is_first: true });
     LC.onSttPartial({ content: 'user text' });
+    LC.onStt({ content: 'user text' }); // final — now the swap may happen
     LC.onAssistantFragment({ content: 'continues' });
     expect(curText()).toBe('assistant continues');
     expect(prevText()).toBe('user text');
   });
-});
 
-describe('websearch toggle mirrors into the standard #websearch checkbox', () => {
-  const wsSpec = {
-    'grok-voice-think-fast-2.0': {
-      supports_speech_to_speech: true, sts_provider: 'xai',
-      sts_voice: 'eve', sts_voices: ['eve'], sts_websearch_capability: true
-    }
-  };
-
-  beforeEach(() => {
-    // the standard (hidden in LC) checkbox that sanitizeParamsForSync reads
-    document.body.insertAdjacentHTML('beforeend',
-      '<input type="checkbox" id="websearch">');
-    window.modelSpec = wsSpec;
-    window.params = {};
-    window.broadcastParamsUpdate = jest.fn();
-    const modelEl = document.getElementById('model');
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
-    LC.setAppMode(lcApp);
-  });
-
-  afterEach(() => {
-    document.getElementById('websearch').remove();
-    delete window.modelSpec;
-    delete window.params;
-    delete window.broadcastParamsUpdate;
-  });
-
-  it('mirrors the LC toggle state so sanitize keeps websearch=true', () => {
-    const toggle = document.getElementById('lc-websearch-toggle');
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event('change', { bubbles: true }));
-
-    expect(window.params['websearch']).toBe(true);
-    // sanitizeParamsForSync reads THIS checkbox as the source of truth —
-    // without the mirror it would overwrite the broadcast with false.
-    expect(document.getElementById('websearch').checked).toBe(true);
-  });
-
-  it('renders params.websearch=true into BOTH checkboxes at load', () => {
-    window.params['websearch'] = true;
-    LC.setAppMode(normalApp);
-    LC.setAppMode(lcApp);
-    expect(document.getElementById('lc-websearch-toggle').checked).toBe(true);
-    expect(document.getElementById('websearch').checked).toBe(true);
-  });
-
-  it('mirrors BEFORE broadcasting so the toggle\'s own broadcast carries true', () => {
-    // Order matters: sanitizeParamsForSync (called inside the broadcast)
-    // reads the standard checkbox. Mirroring after the broadcast would make
-    // the toggle's own UPDATE_PARAMS carry the stale false, the server echo
-    // then rolls params back, and a toggle→Start flow opens the STS session
-    // without tools (the audit-caught ordering regression).
-    let checkedAtBroadcast = null;
-    window.broadcastParamsUpdate = jest.fn(() => {
-      checkedAtBroadcast = document.getElementById('websearch').checked;
-    });
-
-    const toggle = document.getElementById('lc-websearch-toggle');
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event('change', { bubbles: true }));
-
-    expect(window.broadcastParamsUpdate).toHaveBeenCalled();
-    expect(checkedAtBroadcast).toBe(true);
+  it('never shows the same utterance in both zones (invariant b belt)', async () => {
+    await LC.startConversation();
+    LC.onStt({ content: 'same words' });
+    LC.onAssistantFragment({ content: 'reply ', is_first: true });
+    // A late re-stream must not resurrect the utterance in current while
+    // it sits in prev.
+    LC.onSttPartial({ content: 'same words' });
+    const prevRole = document.querySelector('#lc-live-prev .lc-live-role').textContent;
+    const curRole = document.querySelector('#lc-live-current .lc-live-role').textContent;
+    expect(prevRole === curRole && prevText() !== '').toBe(false);
   });
 });
+
 
 describe('tools toggle (function calling wave 1)', () => {
   const toolsSpec = {
@@ -1087,7 +1001,7 @@ describe('tools toggle (function calling wave 1)', () => {
 
   it('shows the toggle for sts_tools_capability models, default OFF, with next-Start note', () => {
     const wrap = document.getElementById('lc-tools-wrap');
-    expect(wrap.style.display).toBe('flex');
+    expect(wrap.style.display).toBe('inline-flex');
     expect(document.getElementById('lc-tools-toggle').checked).toBe(false);
   });
 
@@ -1104,5 +1018,417 @@ describe('tools toggle (function calling wave 1)', () => {
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(document.getElementById('lc-tools-toggle').checked).toBe(true);
+  });
+});
+
+describe('tool-use visibility in the live view (§37-5)', () => {
+  beforeEach(() => {
+    window.params = {};
+    window.insertInlineToolBadge =
+      require('../../docker/services/ruby/public/js/monadic/card-renderer').insertInlineToolBadge;
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+    delete window.insertInlineToolBadge;
+  });
+
+  it('anchors the tool badge at the paragraph boundary of the answer', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running' });
+    LC.onToolCall({ name: 'search_web', status: 'done' });
+    LC.onAssistantFragment({ content: 'The answer is 42.', is_first: true });
+
+    const text = document.querySelector('#lc-live-current .lc-live-text');
+    const paras = text.querySelectorAll(':scope > p');
+    // Same semantics as the folded card: one accumulation, "\n\n" paragraphs.
+    expect(paras.length).toBe(2);
+    expect(paras[0].textContent).toBe('Let me check.');
+    expect(paras[1].textContent).toBe('The answer is 42.');
+    const badge = text.querySelector('.lc-tools-badge');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toContain('search_web');
+    expect(badge.nextElementSibling).toBe(paras[1]);
+  });
+
+  it('anchors sequential calls of one exchange at the same boundary', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'One moment.', is_first: true });
+    LC.onToolCall({ name: 'get_current_time', status: 'running' });
+    LC.onToolCall({ name: 'get_current_time', status: 'done' });
+    LC.onToolCall({ name: 'search_web', status: 'running' });
+    LC.onToolCall({ name: 'search_web', status: 'error' });
+    LC.onAssistantFragment({ content: 'Combined answer.', is_first: true });
+
+    const text = document.querySelector('#lc-live-current .lc-live-text');
+    const badges = text.querySelectorAll('.lc-tools-badge');
+    expect(badges.length).toBe(2);
+    expect(badges[0].textContent).toContain('get_current_time');
+    expect(badges[1].textContent).toContain('search_web');
+    expect(badges[1].className).toContain('mc-badge--red'); // error status
+    expect(text.querySelectorAll(':scope > p').length).toBe(2);
+  });
+
+  it('discards the pending anchor when the next response is not the tool answer (barge-in)', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running' });
+    // The user barges in before the tool's answer arrives.
+    LC.onStt({ content: 'wait, never mind' });
+    LC.onAssistantFragment({ content: 'Sure, what else?', is_first: true });
+
+    const text = document.querySelector('#lc-live-current .lc-live-text');
+    expect(text.querySelector('.lc-tools-badge')).toBeNull();
+    expect(text.textContent).not.toContain('Let me check.');
+  });
+
+  it('no longer shows a tool chip on the role label (superseded by inline badges)', async () => {
+    await LC.startConversation();
+    LC.onToolCall({ name: 'run_code', status: 'running' });
+    LC.onAssistantFragment({ content: 'checking', is_first: false });
+    const role = document.querySelector('#lc-live-current .lc-live-role').textContent;
+    expect(role).not.toContain('run_code');
+  });
+
+  it('shows "Using …" in the status line while running', async () => {
+    await LC.startConversation();
+    LC.onToolCall({ name: 'get_current_time', status: 'running' });
+    expect(document.getElementById('lc-status').textContent).toContain('get_current_time');
+  });
+});
+
+describe('running tool badge spins until done (§37-12)', () => {
+  beforeEach(() => {
+    window.params = {};
+    window.insertInlineToolBadge =
+      require('../../docker/services/ruby/public/js/monadic/card-renderer').insertInlineToolBadge;
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+    delete window.insertInlineToolBadge;
+  });
+
+  const curZone = () => document.querySelector('#lc-live-current .lc-live-text');
+  const badges = () => curZone().querySelectorAll('.lc-tools-badge');
+
+  it('draws the badge immediately at running with a spinning icon', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+
+    expect(badges().length).toBe(1);
+    expect(badges()[0].textContent).toContain('search_web');
+    expect(badges()[0].querySelector('i').className).toContain('fa-spin');
+    // positioned at the boundary (before the paragraph the answer will start)
+    expect(badges()[0].nextElementSibling).toBeNull();
+  });
+
+  it('done removes the spin WITHOUT adding a second badge', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+
+    expect(badges().length).toBe(1);
+    expect(badges()[0].querySelector('i').className).not.toContain('fa-spin');
+    expect(badges()[0].className).toContain('mc-badge--grey');
+  });
+
+  it('error turns the badge red and stops the spin', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
+    LC.onToolCall({ name: 'run_code', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'run_code', status: 'error', call_id: 'c1' });
+
+    expect(badges().length).toBe(1);
+    expect(badges()[0].className).toContain('mc-badge--red');
+    expect(badges()[0].querySelector('i').className).not.toContain('fa-spin');
+  });
+
+  it('a repeated running with the same call_id never duplicates the badge', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'One moment.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+
+    expect(badges().length).toBe(1);
+  });
+
+  it('concurrent same-name calls transition independently by call_id', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Checking both.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c2' });
+    expect(badges().length).toBe(2);
+
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    const icons = [...badges()].map((b) => b.querySelector('i').className);
+    const spinning = icons.filter((c) => c.includes('fa-spin'));
+    expect(spinning.length).toBe(1); // only c2 still running
+  });
+
+  it('the answer anchor flips the running badge status instead of duplicating it', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    LC.onAssistantFragment({ content: 'The answer is 42.', is_first: true });
+
+    expect(badges().length).toBe(1);
+    expect(badges()[0].querySelector('i').className).not.toContain('fa-spin');
+    const paras = curZone().querySelectorAll(':scope > p');
+    expect(paras.length).toBe(2);
+    expect(badges()[0].nextElementSibling).toBe(paras[1]);
+  });
+});
+
+
+describe('tool-bridged fold client behavior (§37-2)', () => {
+  beforeEach(() => {
+    window.params = {};
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+  });
+
+  it('renders the tools badge onto the pre-existing card when sts_card_text carries tools_used', async () => {
+    await LC.startConversation();
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-header"><div class="card-title">Assistant</div></div>' +
+      '<div class="card-body"><div class="card-text">Let me check…</div></div></div>');
+
+    LC.onCardText({ mid: 'm1', content: 'Let me check… The answer is 42.',
+                    tools_used: [{ name: 'search_web', status: 'done' }] });
+
+    const badge = document.querySelector('#m1 .card-title .lc-tools-badge');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toContain('search_web');
+    expect(document.querySelector('#m1 .card-text').textContent).toContain('The answer is 42.');
+
+    // second arrival must not duplicate the badge
+    LC.onCardText({ mid: 'm1', content: 'Let me check… The answer is 42. Extended now.',
+                    tools_used: [{ name: 'search_web', status: 'done' }] });
+    expect(document.querySelectorAll('#m1 .lc-tools-badge').length).toBe(1);
+  });
+
+  it('removes the temp-card when its content is folded into the card', async () => {
+    await LC.startConversation();
+    const discourse = document.getElementById('discourse');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-body"><div class="card-text">Let me check…</div></div></div>');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div id="temp-card" class="card">The answer is 42.</div>');
+
+    LC.onCardText({ mid: 'm1', content: 'Let me check… The answer is 42.' });
+
+    expect(document.getElementById('temp-card')).toBeNull();
+  });
+
+  it('keeps the temp-card when its content is NOT part of the update', async () => {
+    await LC.startConversation();
+    const discourse = document.getElementById('discourse');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-body"><div class="card-text">a</div></div></div>');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div id="temp-card" class="card">unrelated ongoing stream</div>');
+
+    LC.onCardText({ mid: 'm1', content: 'ab' });
+    expect(document.getElementById('temp-card')).not.toBeNull();
+  });
+});
+
+describe('streaming indicator reset on Stop (§37-5)', () => {
+  beforeEach(() => {
+    window.params = {};
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+    delete window.responseStarted;
+    delete window.streamingResponse;
+  });
+
+  it('clears the typed pipeline streaming flags and shows READY when RESPONDING was up', async () => {
+    await LC.startConversation();
+    window.responseStarted = true;
+    window.streamingResponse = true;
+
+    LC.stopConversation();
+
+    expect(window.responseStarted).toBe(false);
+    expect(window.streamingResponse).toBe(false);
+    expect(window.setAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Ready for input'), 'success');
+  });
+
+  it('does not manufacture a READY alert when nothing was responding', async () => {
+    await LC.startConversation();
+    window.responseStarted = false;
+    window.streamingResponse = false;
+    window.setAlert.mockClear();
+
+    LC.stopConversation();
+
+    expect(window.setAlert).not.toHaveBeenCalledWith(
+      expect.stringContaining('Ready for input'), 'success');
+  });
+
+  it('resets the indicators on a server-side stop too', async () => {
+    await LC.startConversation();
+    window.responseStarted = true;
+    window.streamingResponse = true;
+
+    LC.onStsSession({ state: 'stopped' });
+
+    expect(window.responseStarted).toBe(false);
+    expect(window.streamingResponse).toBe(false);
+  });
+});
+
+describe('single folded card with positioned badges (§37-3)', () => {
+  beforeEach(() => {
+    window.params = {};
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+    delete window.insertInlineToolBadge;
+  });
+
+  it('splits folded text into paragraphs and delegates positioned badges', async () => {
+    window.insertInlineToolBadge = jest.fn();
+    await LC.startConversation();
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-header"><div class="card-title">Assistant</div></div>' +
+      '<div class="card-body"><div class="card-text">Let me check…</div></div></div>');
+
+    const toolsUsed = [{ name: 'search_web', status: 'done', at: 1 }];
+    LC.onCardText({ mid: 'm1', content: 'Let me check…\n\nThe answer is 42.', tools_used: toolsUsed });
+
+    const paras = document.querySelectorAll('#m1 .card-text > p');
+    expect(paras.length).toBe(2);
+    expect(paras[0].textContent).toBe('Let me check…');
+    expect(paras[1].textContent).toBe('The answer is 42.');
+    // §37-4: positioned entries render INLINE only — no header badge.
+    expect(document.querySelector('#m1 .card-title .lc-tools-badge')).toBeNull();
+    // positioned badges delegated with the card and the raw entries
+    expect(window.insertInlineToolBadge).toHaveBeenCalledWith(
+      document.getElementById('m1'), toolsUsed);
+  });
+
+  it('renders a header badge for UNPOSITIONED entries only (mixed data, §37-4)', async () => {
+    window.insertInlineToolBadge = jest.fn();
+    await LC.startConversation();
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-header"><div class="card-title">Assistant</div></div>' +
+      '<div class="card-body"><div class="card-text">Checking…</div></div></div>');
+
+    // Merge canon can be mixed: the predecessor's own entry kept no `at`,
+    // the folded-in fragment's entry is positioned.
+    LC.onCardText({ mid: 'm1', content: 'Checking…\n\nDone.',
+                    tools_used: [{ name: 'get_current_time', status: 'done' },
+                                 { name: 'search_web', status: 'done', at: 1 }] });
+
+    const header = document.querySelector('#m1 .card-title .lc-tools-badge');
+    expect(header).not.toBeNull();
+    expect(header.textContent).toContain('get_current_time');
+    expect(header.textContent).not.toContain('search_web'); // inline's job
+    // Both entries still go to the inline helper (it skips the at-less one).
+    expect(window.insertInlineToolBadge).toHaveBeenCalledWith(
+      document.getElementById('m1'),
+      [{ name: 'get_current_time', status: 'done' },
+       { name: 'search_web', status: 'done', at: 1 }]);
+  });
+
+  it('Stop removes a temp-card whose content was folded into a finalized card (ghost)', async () => {
+    await LC.startConversation();
+    const discourse = document.getElementById('discourse');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-body"><div class="card-text">Let me check… The answer is 42.</div></div></div>');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div id="temp-card" class="card"><div class="card-header">Assistant</div>' +
+      '<div class="card-body"><div class="card-text">The answer is 42.</div></div></div>');
+
+    LC.stopConversation();
+    expect(document.getElementById('temp-card')).toBeNull();
+  });
+
+  it('Stop keeps a temp-card whose content is in NO card (unfinished response)', async () => {
+    await LC.startConversation();
+    const discourse = document.getElementById('discourse');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-body"><div class="card-text">finalized</div></div></div>');
+    discourse.insertAdjacentHTML('beforeend',
+      '<div id="temp-card" class="card"><div class="card-body"><div class="card-text">still streaming</div></div></div>');
+
+    LC.stopConversation();
+    expect(document.getElementById('temp-card')).not.toBeNull();
+  });
+
+  it('Stop removes an empty temp-card shell', async () => {
+    await LC.startConversation();
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div id="temp-card" class="card"><div class="card-body"><div class="card-text"></div></div></div>');
+
+    LC.stopConversation();
+    expect(document.getElementById('temp-card')).toBeNull();
+  });
+});
+
+describe('thinking display stays hidden in LC (dogfood: capability $show race)', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const utilsSrc = fs.readFileSync(
+    path.join(__dirname, '../../docker/services/ruby/public/js/monadic/utilities.js'), 'utf8');
+  const cssSrc = fs.readFileSync(
+    path.join(__dirname, '../../docker/services/ruby/public/css/monadic.css'), 'utf8');
+
+  it('the capability $show path is guarded by lc-app (JS layer)', () => {
+    // The $show call for #thinking-display-container must only fire when the
+    // body is NOT in lc-app mode — realtime models emit no reasoning, so
+    // showing the toggle in LC is a UI lie.
+    expect(utilsSrc).toMatch(
+      /spec\["supports_thinking"\]\s*&&\s*!document\.body\.classList\.contains\('lc-app'\)/);
+  });
+
+  // Root cause (browser-measured, §37-4): for !important declarations the
+  // cascade-layer order REVERSES — an unlayered .lc-app rule loses to
+  // Bootstrap's vendor-layer .d-flex{display:flex !important}. The fix
+  // declares lc-overrides BEFORE vendor and puts the hiding rules inside it.
+  it('lc-overrides is declared before vendor (important inversion)', () => {
+    expect(cssSrc).toMatch(/@layer lc-overrides, vendor,/);
+  });
+
+  // The statement in monadic.css is NOT enough: layer order is fixed by the
+  // FIRST statement the browser sees, and vendor-layers.css (loaded earlier)
+  // creates `vendor` via @import layer(vendor). A later statement can only
+  // APPEND unknown names, so lc-overrides landed after utilities — last for
+  // important, i.e. still losing to .d-flex. Browser-measured: the toggle
+  // only disappeared once the order was declared here, ahead of the imports.
+  it('vendor-layers.css declares the order before it creates the vendor layer', () => {
+    const vendorSrc = fs.readFileSync(
+      path.join(__dirname, '../../docker/services/ruby/public/css/vendor-layers.css'), 'utf8');
+    const stmt = vendorSrc.indexOf('@layer lc-overrides, vendor,');
+    const firstImport = vendorSrc.indexOf('@import');
+    expect(stmt).toBeGreaterThan(-1);
+    expect(stmt).toBeLessThan(firstImport);
+  });
+
+  it('the LC hiding rules live inside @layer lc-overrides', () => {
+    const block = cssSrc.match(/@layer lc-overrides \{([\s\S]*?)\n\} \/\* end @layer lc-overrides \*\//);
+    expect(block).not.toBeNull();
+    expect(block[1]).toMatch(/\.lc-app #thinking-display-container/);
+    // All HIDDEN_IN_LC surfaces ride the same layer (the .d-flex trap is
+    // not specific to the thinking toggle).
+    expect(block[1]).toMatch(/\.lc-app #websearch-form/);
+    expect(block[1]).toMatch(/\.lc-app #model_parameters/);
   });
 });

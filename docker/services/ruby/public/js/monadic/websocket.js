@@ -772,6 +772,15 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // Tool-use visibility (function calling wave 1, design §37).
+      case "sts_tool_call": {
+        const lcTool = window.LiveConversation;
+        if (lcTool && typeof lcTool.onToolCall === 'function') {
+          lcTool.onToolCall(data);
+        }
+        break;
+      }
+
       // Live Conversation state relays (see live-conversation.js).
       case "sts_vad": {
         const lcVad = window.LiveConversation;

@@ -246,6 +246,11 @@ post "/load" do
           # Add optional fields if present
           message_obj["thinking"] = msg["thinking"] if msg["thinking"]
           message_obj["images"] = msg["images"] if msg["images"]
+          # Preserve display metadata (badge sources): interrupted markers
+          # and tools_used from speech-to-speech turns (import dropped them,
+          # silently losing the badges on round-trip).
+          message_obj["interrupted"] = true if msg["interrupted"]
+          message_obj["tools_used"] = msg["tools_used"] if msg["tools_used"].is_a?(Array)
           message_obj
         end.compact # Remove nil values from invalid messages
 

@@ -303,7 +303,72 @@ function assistantBadge(content) {
     badge += " <span class='mc-badge mc-badge--grey ms-1 align-middle'>" +
              "<i class='fas fa-hand'></i> " + window.escapeHtml(label) + "</span>";
   }
+
+  // Tools used in a speech-to-speech turn (function calling wave 1): the
+  // server attaches them to the card as tools_used metadata. Entries WITH a
+  // paragraph position (`at`) render as INLINE badges at that boundary
+  // (insertInlineToolBadge, §37-3) — the header stays clean. Only entries
+  // WITHOUT a position (older canon, non-folded cards) fall back to this
+  // header badge, so no tool is ever invisible and none is shown twice
+  // (§37-4: the two render paths are exclusive per entry).
+  if (content && Array.isArray(content.tools_used) && content.tools_used.length > 0) {
+    const unpositioned = content.tools_used.filter((t) => !t || typeof t.at !== 'number');
+    if (unpositioned.length > 0) {
+      const names = [...new Set(unpositioned.map((t) => t.name))];
+      const hasError = unpositioned.some((t) => t.status === 'error');
+      const cls = hasError ? 'mc-badge--red' : 'mc-badge--grey';
+      badge += " <span class='mc-badge " + cls + " ms-1 align-middle'>" +
+               "<i class='fas fa-tools'></i> " + window.escapeHtml(names.join(', ')) + "</span>";
+    }
+  }
   return badge;
+}
+
+/**
+ * Insert a tool badge at a paragraph boundary inside a card body (§37-3).
+ *
+ * Live Conversation folds a tool-bridged exchange into ONE card whose
+ * paragraphs are joined by "\n\n"; each tools_used entry then carries
+ * `at` = the paragraph index where the tool call happened (= the bridge
+ * part's paragraph count). The badge is display-only: the canonical
+ * message text stays plain, and entries without `at` (older data, or the
+ * initial non-folded card) are skipped — the header badge covers those.
+ *
+ * Accepts either a CARD element (badges go into its .card-text) or a live
+ * view TEXT container (.lc-live-text, §37-5) directly.
+ *
+ * @param {HTMLElement} cardEl - the card element or .lc-live-text container
+ * @param {Array} toolsUsed - tools_used entries ({name, status, at?})
+ */
+function insertInlineToolBadge(cardEl, toolsUsed) {
+  if (!cardEl || !Array.isArray(toolsUsed) || toolsUsed.length === 0) return;
+  const isTextContainer = cardEl.classList && cardEl.classList.contains('lc-live-text');
+  const body = isTextContainer ? cardEl : cardEl.querySelector('.card-text');
+  if (!body) return;
+  toolsUsed.forEach(function(tool) {
+    if (!tool || typeof tool.at !== 'number') return;
+    const span = document.createElement('span');
+    // No ms-1/align-middle here: those belong to a badge sitting NEXT TO a
+    // card title. Between paragraphs the badge is its own block, where a
+    // left offset reads as a stray indent and vertical-align does nothing —
+    // spacing comes from the .lc-tools-badge rule in monadic.css instead.
+    span.className = 'mc-badge ' + (tool.status === 'error' ? 'mc-badge--red' : 'mc-badge--grey') +
+      ' lc-tools-badge';
+    // §37-12: a call still running spins its icon (the app's canonical busy
+    // indicator; reduce-motion coverage in monadic.css). done/error are
+    // static; error additionally turns the badge red.
+    span.innerHTML = "<i class='fas fa-tools" + (tool.status === 'running' ? ' fa-spin' : '') + "'></i> ";
+    span.appendChild(document.createTextNode(tool.name));
+    const paras = body.querySelectorAll(':scope > p');
+    const target = paras[tool.at];
+    if (target) {
+      body.insertBefore(span, target);
+    } else {
+      // Paragraph structure differs from the canon split (e.g. Markdown
+      // extras) — fall back to the end rather than dropping the badge.
+      body.appendChild(span);
+    }
+  });
 }
 
 // Export for browser environment.
@@ -312,9 +377,10 @@ function assistantBadge(content) {
 // onto window (that would shadow the canonical implementation).
 window.createCard = createCard;
 window.assistantBadge = assistantBadge;
+window.insertInlineToolBadge = insertInlineToolBadge;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { escapeHtml, createCard, assistantBadge };
+  module.exports = { escapeHtml, createCard, assistantBadge, insertInlineToolBadge };
 }
 })();

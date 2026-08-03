@@ -114,11 +114,6 @@
       '<input type="range" id="lc-speed-range" min="0.25" max="1.5" step="0.05" value="1.0" style="width: 90px;">' +
       '<span id="lc-speed-value" class="text-secondary small ms-1">1.0</span>' +
       '</span>' +
-      '<span id="lc-websearch-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
-      '<input type="checkbox" id="lc-websearch-toggle" class="form-check-input me-1">' +
-      '<label for="lc-websearch-toggle" class="text-secondary me-1" id="lc-websearch-label"></label>' +
-      '<span id="lc-websearch-note" class="text-secondary small"></span>' +
-      '</span>' +
       '<span id="lc-cardview-wrap" class="text-secondary align-items-center ms-3">' +
       '<input type="checkbox" id="lc-cardview-toggle" class="form-check-input me-1">' +
       '<label for="lc-cardview-toggle" class="text-secondary" id="lc-cardview-label"></label>' +
@@ -132,8 +127,11 @@
 
     $id('lc-voice-label').textContent = t('ui.messages.lcVoice', 'Voice');
     $id('lc-speed-label').textContent = t('ui.messages.lcSpeed', 'Speed');
-    $id('lc-websearch-label').textContent = t('ui.messages.lcWebsearch', 'Web search');
-    $id('lc-cardview-label').textContent = t('ui.messages.lcCardView', 'Card view');
+    // The label names the SCOPE of the setting ("while talking"), not just
+    // the mode: the toggle only governs the in-conversation display, and a
+    // bare "Card view" read as broken once the session ended, where cards
+    // are the only display there is (dogfood).
+    $id('lc-cardview-label').textContent = t('ui.messages.lcCardView', 'Cards while talking');
     $id('lc-tools-label').textContent = t('ui.messages.lcTools', 'Tools');
 
     $on($id('lc-voice-select'), 'change', function() {
@@ -147,21 +145,6 @@
     // selector empty (bug: OpenAI/Gemini never populated on first load).
     const modelEl = $id('model');
     if (modelEl) $on(modelEl, 'change', renderVoiceControls);
-    $on($id('lc-websearch-toggle'), 'change', function() {
-      const checked = $id('lc-websearch-toggle').checked;
-      // Mirror into the standard #websearch checkbox BEFORE broadcasting:
-      // sanitizeParamsForSync treats the DOM checkbox as the source of truth,
-      // so the broadcast fired below reads it — mirroring after would make
-      // the toggle's own broadcast carry the stale false (LC hides that
-      // checkbox, so nothing else maintains it — dogfood: toggle never
-      // reached the server).
-      const std = $id('websearch');
-      if (std) std.checked = checked;
-      if (typeof params !== 'undefined') {
-        params['websearch'] = checked;
-        if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('websearch_toggle');
-      }
-    });
     $on($id('lc-cardview-toggle'), 'change', function() {
       if (typeof params !== 'undefined') {
         params['sts_card_view'] = $id('lc-cardview-toggle').checked;
@@ -211,7 +194,10 @@
     if (wrap) {
       if (speedCapable) {
         wrap.style.removeProperty('display');
-        wrap.style.setProperty('display', 'flex');
+        // inline-flex, not flex: the sibling cardview wrap is a plain inline
+        // span, and a block-level flex next to it shifts the baseline
+        // (dogfood: vertically misaligned checkboxes).
+        wrap.style.setProperty('display', 'inline-flex');
       } else {
         // 'important' is load-bearing: without it, an important stylesheet
         // declaration could resurrect the control on non-capable providers.
@@ -224,43 +210,16 @@
       $id('lc-speed-value').textContent = s;
     }
 
-    // Native search toggle (xAI/Gemini only — model_spec capability gate,
-    // same shape as the speed control). Default OFF (billing); the note is
-    // provider-specific honesty about cost.
-    const wsWrap = $id('lc-websearch-wrap');
-    if (wsWrap) {
-      const wsCapable = spec.sts_websearch_capability === true;
-      if (wsCapable) {
-        wsWrap.style.removeProperty('display');
-        wsWrap.style.setProperty('display', 'flex');
-        const provider = spec.sts_provider;
-        // Cost note: xAI shows none (user decision); Gemini shows only the
-        // sources-not-shown caveat (ToS-driven, kept) — the cost part was
-        // dropped by user decision too.
-        $id('lc-websearch-note').textContent = provider === 'gemini'
-          ? t('ui.messages.lcWebsearchCostGemini', '(sources not shown)')
-          : '';
-        $id('lc-websearch-toggle').checked =
-          typeof params !== 'undefined' &&
-          (params['websearch'] === true || params['websearch'] === 'true');
-        // Keep the standard #websearch checkbox in sync at render time too,
-        // so ANY broadcastParamsUpdate (not just the toggle's) carries the
-        // LC value instead of being clobbered to false by sanitize.
-        const stdCb = $id('websearch');
-        if (stdCb) stdCb.checked = $id('lc-websearch-toggle').checked;
-      } else {
-        wsWrap.style.setProperty('display', 'none', 'important');
-      }
-    }
-
-    // Tools toggle (function calling wave 1): capability-gated like the
-    // search toggle, default OFF. Available on all three providers.
+    // Tools toggle (function calling wave 1): capability-gated, default
+    // OFF. Available on all three providers — the shared search_web tool
+    // covers web search everywhere (the native search toggles were removed
+    // as duplicates, 2026-08-03).
     const toolsWrap = $id('lc-tools-wrap');
     if (toolsWrap) {
       const toolsCapable = spec.sts_tools_capability === true;
       if (toolsCapable) {
         toolsWrap.style.removeProperty('display');
-        toolsWrap.style.setProperty('display', 'flex');
+        toolsWrap.style.setProperty('display', 'inline-flex'); // see lc-speed-wrap
         $id('lc-tools-toggle').checked =
           typeof params !== 'undefined' &&
           (params['sts_tools'] === true || params['sts_tools'] === 'true');
@@ -283,8 +242,13 @@
   // returns to the normal (merged) card list. All display switches use
   // setProperty('important') because Bootstrap utilities beat plain
   // inline styles (the d-flex trap).
-  let livePrev = { role: null, text: '' };
-  let liveCurrent = { role: null, text: '' };
+  let livePrev = { role: null, text: '', badges: [] };
+  let liveCurrent = { role: null, text: '', badges: [] };
+  // Text of the last FINAL user transcript (stt). Partials are cumulative
+  // prefixes of their eventual final, so a partial that is a prefix of this
+  // is a late re-stream of an already-finalized utterance — display-only
+  // noise (dogfood round 6: the whole partial stream can lag the response).
+  let lastUserFinal = '';
 
   function cardViewEnabled() {
     return typeof params !== 'undefined' &&
@@ -332,62 +296,144 @@
       : t('ui.messages.lcRoleAssistant', 'Assistant');
   }
 
+  // Tool badges in the live view (§37-5): the same semantics as the folded
+  // card — a tool-bridged exchange accumulates as ONE text with "\n\n"
+  // paragraph breaks, and each tool badge anchors at the paragraph boundary
+  // where the call happened. Calls awaiting their answer's first fragment
+  // sit in liveToolPending; the boundary is only fixed then, because the
+  // bridge utterance keeps growing until the answer response starts.
+  // Badges live ON the zone entry so promotion to prev carries them along.
+  let liveToolPending = []; // [{name, status}]
+
   function renderZone(zone, entry) {
     const roleEl = zone.querySelector('.lc-live-role');
     const textEl = zone.querySelector('.lc-live-text');
-    if (roleEl) roleEl.textContent = entry.role ? zoneText(entry.role) : '';
-    if (textEl) textEl.textContent = entry.text || '';
+    if (roleEl) {
+      roleEl.textContent = entry.role ? zoneText(entry.role) : '';
+    }
+    if (textEl) {
+      // Paragraph split (§37-5): same "\n\n" semantics as the folded card.
+      const paras = String(entry.text || '').split('\n\n').map(function(para) {
+        const p = document.createElement('p');
+        p.textContent = para;
+        return p;
+      });
+      textEl.replaceChildren.apply(textEl, paras);
+      // Inline badges at the paragraph boundary — same helper as the card.
+      if (entry.role === 'assistant' && Array.isArray(entry.badges) && entry.badges.length > 0 &&
+          typeof window.insertInlineToolBadge === 'function') {
+        window.insertInlineToolBadge(textEl, entry.badges);
+      }
+    }
   }
 
   function renderLiveView() {
     const prev = $id('lc-live-prev');
     const cur = $id('lc-live-current');
-    if (prev) renderZone(prev, livePrev);
+    let prevEntry = livePrev;
+    // Invariant (b) (§37-6): never show one utterance in both zones — a
+    // same-role prev whose text is a prefix of (or equal to) the current
+    // zone's text is a stale copy, so the prev zone stays empty.
+    if (prevEntry.role && prevEntry.role === liveCurrent.role &&
+        liveCurrent.text.startsWith(prevEntry.text)) {
+      prevEntry = { role: null, text: '', badges: [] };
+    }
+    if (prev) renderZone(prev, prevEntry);
     if (cur) renderZone(cur, liveCurrent);
   }
 
   // Replace semantics (each stt_partial / stt carries the whole utterance
   // so far); a role change promotes the finished side to prev.
-  function liveSet(role, text) {
+  // isFinal marks the completed transcript (stt) vs a streaming partial.
+  function liveSet(role, text, isFinal) {
+    // Late-duplicate guard: a partial that is a prefix of the last FINAL
+    // transcript is a re-stream of that same (already shown) utterance.
+    // Acting on it would promote the in-flight assistant zone for no reason
+    // (the original resume-swap bug: assistant text lost its beginning).
+    if (role === 'user' && !isFinal && liveCurrent.role === 'assistant' &&
+        lastUserFinal && text && lastUserFinal.startsWith(text)) {
+      return;
+    }
     if (liveCurrent.role && liveCurrent.role !== role) livePromote();
-    liveCurrent = { role: role, text: text };
+    liveCurrent = { role: role, text: text, badges: [],
+                    final: role === 'user' ? !!isFinal : true };
+    if (role === 'user' && isFinal) lastUserFinal = text;
     if (liveViewWanted()) renderLiveView();
   }
 
   // Append semantics for assistant streaming fragments; is_first starts a
-  // fresh accumulation (barge-in / new response).
+  // fresh accumulation (barge-in / new response) — EXCEPT the first
+  // fragment of a tool's ANSWER, which continues the same accumulation as
+  // a new paragraph (mirroring the server-side fold).
   function liveAppend(role, delta, isFirst) {
     if (isFirst) {
-      // A genuinely new response (or a barge-in restart): reset accumulation.
-      if (liveCurrent.role && liveCurrent.role !== role) livePromote();
-      liveCurrent = { role: role, text: delta };
+      if (role === 'assistant' && liveToolPending.length > 0 &&
+          liveCurrent.role === 'assistant' && liveCurrent.text.trim() !== '') {
+        // Tool-bridged continuation (§37-5): the wire order is tool done →
+        // response.create → the answer's is_first. Anchor each pending call
+        // at the boundary (= the bridge paragraph count) and keep
+        // accumulating instead of resetting — otherwise the live view would
+        // show only the answer while the card shows the folded whole.
+        const at = liveCurrent.text.split('\n\n').length;
+        liveToolPending.forEach(function(p) {
+          // §37-12: a badge drawn when the call STARTED already sits at this
+          // boundary — update its status rather than adding a second badge.
+          const existing = p.call_id &&
+            liveCurrent.badges.find(function(b) { return b.call_id === p.call_id; });
+          if (existing) {
+            existing.status = p.status;
+          } else {
+            liveCurrent.badges.push({ name: p.name, status: p.status, at: at, call_id: p.call_id });
+          }
+        });
+        liveToolPending = [];
+        liveCurrent.text += '\n\n' + delta;
+      } else {
+        // Not the tool's answer (user barged in first, or an unrelated
+        // response): the anchor is lost, discard the pending calls.
+        liveToolPending = [];
+        if (liveCurrent.role && liveCurrent.role !== role) livePromote();
+        liveCurrent = { role: role, text: delta, badges: [] };
+      }
     } else if (liveCurrent.role === role) {
       liveCurrent.text += delta;
     } else if (livePrev.role === role && livePrev.text !== '') {
-      // Resume-swap: a LATE stt_partial for the utterance already on record
-      // briefly promoted the in-flight assistant stream to prev (dogfood:
-      // assistant text lost its beginning). The response is still in
-      // flight — swap prev back into current and keep accumulating instead
-      // of restarting from this fragment. The interleaved user text moves
-      // to prev, so nothing is lost.
-      const resumed = { role: role, text: livePrev.text + delta };
-      livePrev = { role: liveCurrent.role, text: liveCurrent.text };
-      liveCurrent = resumed;
+      if (liveCurrent.role === 'user' && !liveCurrent.final) {
+        // The partial stream of the CURRENT turn is still arriving (it lags
+        // the response — dogfood round 6). Moving a NON-FINAL user zone to
+        // prev would (a) put a partial in the final-only prev slot and
+        // (b) ping-pong on every fragment/partial pair. Instead the
+        // response keeps accumulating in prev and the user's transcript
+        // stays in current until its stt (final) lands.
+        livePrev.text += delta;
+      } else {
+        // Resume-swap: a LATE stt_partial for a FINALIZED utterance briefly
+        // promoted the in-flight assistant stream to prev (dogfood:
+        // assistant text lost its beginning). The response is still in
+        // flight — swap prev back into current and keep accumulating instead
+        // of restarting from this fragment. The interleaved user text moves
+        // to prev, so nothing is lost.
+        const resumed = { role: role, text: livePrev.text + delta, badges: livePrev.badges || [] };
+        livePrev = { role: liveCurrent.role, text: liveCurrent.text, badges: liveCurrent.badges || [] };
+        liveCurrent = resumed;
+      }
     } else {
       if (liveCurrent.role) livePromote();
-      liveCurrent = { role: role, text: delta };
+      liveCurrent = { role: role, text: delta, badges: [] };
     }
     if (liveViewWanted()) renderLiveView();
   }
 
   function livePromote() {
-    if (liveCurrent.role) livePrev = { role: liveCurrent.role, text: liveCurrent.text };
-    liveCurrent = { role: null, text: '' };
+    if (liveCurrent.role) livePrev = liveCurrent;
+    liveCurrent = { role: null, text: '', badges: [] };
   }
 
   function liveReset() {
-    livePrev = { role: null, text: '' };
-    liveCurrent = { role: null, text: '' };
+    livePrev = { role: null, text: '', badges: [] };
+    liveCurrent = { role: null, text: '', badges: [] };
+    liveToolPending = [];
+    lastUserFinal = '';
   }
 
   function renderControls() {
@@ -609,6 +655,14 @@
     if (active || !lcMode) return;
     const chatModel = currentChatModel();
 
+    // The app-switch reset confirmation keys on this flag ("the user built a
+    // conversation in this tab"), but it is only set by the TEXT submit
+    // paths — a voice-only Live Conversation never passes through them, so
+    // switching apps after a voice session wiped the conversation with no
+    // confirmation (§37-7). Starting a voice conversation is a user action
+    // too.
+    window.userHasInteractedInTab = true;
+
     // The greet flag carries only the toggle state. Whether this is a FRESH
     // conversation (greeting) or a resume (silent seeding) is decided
     // server-side against the canonical session[:messages] — the client-side
@@ -673,6 +727,8 @@
     const sts = window.WsStsPlayback;
     if (sts && typeof sts.stopAll === 'function') sts.stopAll();
     removeUserTemp();
+    removeAbsorbedTempCard();
+    resetStreamingIndicators();
     assistantTalking = false;
     renderControls();
     setStatus('');
@@ -714,6 +770,50 @@
     if (userTempEl) { try { userTempEl.remove(); } catch (_) { /* noop */ } userTempEl = null; }
   }
 
+  // Ghost suppression (§37-3): a streaming temp-card whose content was
+  // already folded into a finalized card must not linger as a display-only
+  // duplicate. A merged:false Stop skips the LOAD re-render that would
+  // otherwise clear it, so Stop itself removes it. Containment is checked
+  // against the card BODY (the temp-card header's "Assistant" label is not
+  // part of the streamed text). A temp-card with genuinely un-absorbed
+  // content (an unfinished response) stays — hiding it would lose text.
+  function removeAbsorbedTempCard() {
+    const temp = $id('temp-card');
+    if (!temp) return;
+    const tempBody = temp.querySelector('.card-text');
+    const tempText = ((tempBody ? tempBody.textContent : '') || '').trim();
+    if (!tempText) { temp.remove(); return; } // empty streaming shell
+    const discourse = $id('discourse');
+    if (!discourse) return;
+    const absorbed = Array.prototype.some.call(
+      discourse.querySelectorAll('.card:not(#temp-card) .card-text'),
+      function(el) { return (el.textContent || '').includes(tempText); }
+    );
+    if (absorbed) temp.remove();
+  }
+
+  // Streaming-indicator reset (§37-5): assistant text arrives as "fragment"
+  // messages, and the typed pipeline's fragment path sets the RESPONDING
+  // alert plus responseStarted/streamingResponse — flags only its own
+  // completion path clears. Stop (user, server-side, or mirrored) IS the
+  // end of the response cycle here, so clear them or the status corner
+  // stays "RESPONDING" after the conversation ended. The READY alert fires
+  // only when RESPONDING was actually up, so a silent Start→Stop does not
+  // manufacture a status change.
+  function resetStreamingIndicators() {
+    const wasResponding = window.responseStarted === true;
+    window.responseStarted = false;
+    window.streamingResponse = false;
+    if (window.UIState) {
+      window.UIState.set('streamingResponse', false);
+      window.UIState.set('isStreaming', false);
+    }
+    if (wasResponding && typeof setAlert === 'function') {
+      const readyText = t('ui.messages.readyForInput', 'Ready for input');
+      setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, 'success');
+    }
+  }
+
   // ── Inbound message hooks (wired from websocket.js) ────────────────
   function onSttPartial(data) {
     if (!lcMode || !active) return;
@@ -723,7 +823,7 @@
       // suppresses a hallucinated transcript, and a blank must neither
       // promote the assistant zone nor draw an empty You bubble.
       const text = (data && data.content) || '';
-      if (text.trim() !== '') liveSet('user', text);
+      if (text.trim() !== '') liveSet('user', text, false);
       return;
     }
     const el = ensureUserTemp();
@@ -738,7 +838,7 @@
     if (liveViewWanted()) {
       // Same empty-guard as onSttPartial (hallucination-suppressed blank).
       const text = (data && data.content) || '';
-      if (text.trim() !== '') liveSet('user', text);
+      if (text.trim() !== '') liveSet('user', text, true);
       return;
     }
     // The finalized user card arrives from the server as html; the live
@@ -834,21 +934,115 @@
     if (!body) return;
     // Mirror the server's grow-only rule as a client-side belt.
     if (text.length <= body.textContent.trim().length) return;
-    // textContent is inherently injection-safe — no escaping dependency.
-    const p = document.createElement('p');
-    p.textContent = text;
-    body.replaceChildren(p);
+    // Paragraph split (§37-3): folded text joins utterances with "\n\n" —
+    // render each as its own paragraph so position-aware tool badges can
+    // sit at the boundary. textContent is inherently injection-safe.
+    const paraEls = text.split('\n\n').map(function(para) {
+      const p = document.createElement('p');
+      p.textContent = para;
+      return p;
+    });
+    body.replaceChildren.apply(body, paraEls);
     // Mirror into the live view's assistant zone (interrupted card refresh).
     if (livePrev.role === 'assistant') { livePrev.text = text; }
-    if (liveCurrent.role === 'assistant') { liveCurrent.text = text; }
+    if (liveCurrent.role === 'assistant') {
+      liveCurrent.text = text;
+      // Positioned tool entries from the fold double as the live zone's
+      // badges (§37-5) — keeps the live view correct even when onToolCall
+      // anchoring missed (e.g. live view toggled on mid-exchange).
+      if (Array.isArray(data.tools_used)) {
+        liveCurrent.badges = data.tools_used.filter(function(tool) {
+          return tool && typeof tool.at === 'number';
+        });
+      }
+    }
     if (liveViewWanted()) renderLiveView();
+
+    // Tools used this turn (§37-2/§37-4): positioned entries (`at`) render
+    // as inline badges at the paragraph boundary via insertInlineToolBadge;
+    // entries WITHOUT a position (older canon) fall back to a single header
+    // badge — exclusive per entry, so no tool shows twice or vanishes.
+    if (Array.isArray(data.tools_used) && data.tools_used.length > 0) {
+      const unpositioned = data.tools_used.filter((t) => !t || typeof t.at !== 'number');
+      if (unpositioned.length > 0) {
+        const title = card.querySelector('.card-title');
+        if (title && !title.querySelector('.lc-tools-badge')) {
+          const names = [...new Set(unpositioned.map((t) => t.name))];
+          const hasError = unpositioned.some((t) => t.status === 'error');
+          const span = document.createElement('span');
+          span.className = 'mc-badge ' + (hasError ? 'mc-badge--red' : 'mc-badge--grey') +
+            ' ms-1 align-middle lc-tools-badge';
+          span.innerHTML = "<i class='fas fa-tools'></i> ";
+          span.appendChild(document.createTextNode(names.join(', ')));
+          title.appendChild(span);
+        }
+      }
+      // §37-3: entries with `at` get an inline badge at the paragraph
+      // boundary where the tool ran (display layer only; canon stays plain).
+      if (typeof window.insertInlineToolBadge === 'function') {
+        window.insertInlineToolBadge(card, data.tools_used);
+      }
+    }
+
+    // Duplicate suppression: the temp-card accumulates the same
+    // continuation fragments that were just folded into this card — when
+    // its content is contained in the folded text, it must not linger as
+    // a second, identical card (dogfood: two identical cards after Stop).
+    const temp = $id('temp-card');
+    if (temp) {
+      const tempBody = temp.querySelector('.card-text');
+      const tempText = ((tempBody ? tempBody.textContent : temp.textContent) || '').trim();
+      if (tempText && text.includes(tempText)) temp.remove();
+    }
   }
 
   // Assistant streaming hook (called from websocket.js on each fragment).
-  // is_first marks the first fragment of a response so accumulation restarts.
+  // is_first marks the first fragment of a response so accumulation restarts
+  // — except the first fragment of a tool's ANSWER, which liveAppend folds
+  // into the same zone as a new paragraph (see liveAppend).
   function onAssistantFragment(data) {
     if (!liveViewWanted()) return;
     liveAppend('assistant', (data && data.content) || '', !!(data && data.is_first));
+  }
+
+  // Tool-use visibility (§37/§37-12): running → status line + an immediate
+  // badge (spinning) at the current paragraph boundary; done/error → update
+  // THAT badge (spin off, red on error). The call_id correlates the two —
+  // a name alone is ambiguous when one response repeats a tool. The badge's
+  // `at` equals the anchor the answer's is_first would compute (the bridge
+  // utterance does not grow between the call and the answer), so the
+  // anchoring path only flips its status, never adds a second badge.
+  // liveToolPending (the fold-continuation decision) is a separate concern
+  // and unchanged.
+  function onToolCall(data) {
+    if (!lcMode || !active) return;
+    noteActivity();
+    const name = (data && data.name) || '';
+    if (!name) return;
+    const callId = (data && data.call_id) || '';
+    if (data.status === 'running') {
+      liveToolPending.push({ name: name, status: 'done', call_id: callId });
+      if (liveCurrent.role === 'assistant' && callId &&
+          !liveCurrent.badges.some(function(b) { return b.call_id === callId; })) {
+        liveCurrent.badges.push({
+          name: name, status: 'running', call_id: callId,
+          at: liveCurrent.text.split('\n\n').length
+        });
+      }
+      setStatus(t('ui.messages.lcToolUsing', 'Using {tool}…').replace('{tool}', name));
+    } else {
+      const newStatus = data.status === 'error' ? 'error' : 'done';
+      const entry = (callId && liveToolPending.find(function(p) { return p.call_id === callId; })) ||
+        liveToolPending.find(function(p) { return p.name === name; });
+      if (entry) entry.status = newStatus;
+      // The badge may live in either zone (promotion can have moved it).
+      [liveCurrent, livePrev].forEach(function(zone) {
+        const badge = callId && zone.badges &&
+          zone.badges.find(function(b) { return b.call_id === callId; });
+        if (badge) badge.status = newStatus;
+      });
+    }
+    if (liveViewWanted()) renderLiveView();
   }
 
   function onAssistantAudio() {
@@ -875,6 +1069,7 @@
     onCardText: onCardText,
     onCardAppended: onCardAppended,
     onAssistantFragment: onAssistantFragment,
+    onToolCall: onToolCall,
     refreshControls: renderVoiceControls,
     onAssistantAudio: onAssistantAudio,
     onAssistantAudioEnd: onAssistantAudioEnd,

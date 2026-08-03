@@ -71,11 +71,27 @@ module WebSocketHelper
   # Upstream reconnect attempts before giving up and surfacing an error.
   STS_MAX_RECONNECTS = 3
 
-  # Instruction sent with response.create for initiate_from_assistant in
-  # STS mode: asks the model to open the conversation. The app's system
-  # prompt (session instructions) still governs style and language.
+  # Instruction text sent with the greeting turn (initiate_from_assistant in
+  # STS mode): asks the model to open the conversation. Never sent alone —
+  # see sts_greeting_instructions.
   STS_INITIATE_INSTRUCTIONS =
     "Greet the user briefly and start the conversation, following your system instructions.".freeze
+
+  # GA's response.create REPLACES the session instructions for that response
+  # (it does not append). Sending only the English one-liner therefore drops
+  # the app system prompt — including the conversation-language directive —
+  # and the greeting comes out in English (dogfood). Build the greeting
+  # instructions from the SAME components as the session (app instructions +
+  # language prompt) plus the greeting request. Gemini has no response.create
+  # (its greeting is a clientContent user turn), but an English nudge can
+  # still pull the response language, so its nudge restates the language
+  # prompt — see the :start branch in the writer.
+  def sts_greeting_instructions(state)
+    language_prompt = Monadic::Utils::LanguageConfig
+                      .system_prompt_for_language(state[:language] || "auto").to_s
+    [state[:instructions].to_s, language_prompt, STS_INITIATE_INSTRUCTIONS]
+      .map(&:strip).reject(&:empty?).join("\n\n")
+  end
 
   # A reconnected session must live at least this long (with the handshake
   # completed) to count as healthy and reset the reconnect backoff.
@@ -161,9 +177,10 @@ module WebSocketHelper
         required: ["query"],
         additionalProperties: false
       },
-      # OpenAI only: xAI and Gemini have their own native search — offering
-      # Tavily there would duplicate (no-duplication principle).
-      available?: ->(provider, _session) { provider == "openai" && !CONFIG["TAVILY_API_KEY"].to_s.empty? },
+      # Available on every provider (user decision 2026-08-03: one toolset
+      # everywhere; the xAI/Gemini native search toggles were removed as
+      # duplicates). Requires only the Tavily key.
+      available?: ->(_provider, _session) { !CONFIG["TAVILY_API_KEY"].to_s.empty? },
       call: lambda { |args, _session|
         WebSocketHelper.sts_tool_host.new.search_web(query: args["query"].to_s,
                                    max_results: (args["max_results"] || 5).to_i)
@@ -242,8 +259,40 @@ module WebSocketHelper
     tools = sts_available_tools(state)
     return [] if tools.empty?
     [{ functionDeclarations: tools.map { |name, entry|
-      { name: name, description: entry[:description], parameters: entry[:parameters] }
+      decl = { name: name, description: entry[:description] }
+      decl[:parameters] = sts_gemini_schema_sanitize(entry[:parameters]) if entry[:parameters]
+      decl
     } }]
+  end
+
+  # Gemini accepts only a subset of OpenAPI schema. An unsupported key in
+  # function_declarations.parameters is a FATAL setup error, not a warning
+  # (live log 2026-08-03: "Unknown name additionalProperties" → 1007 close →
+  # reconnects exhausted). Strip `additionalProperties` recursively, and fold
+  # `default` into the property description (also unsupported). GA accepts
+  # full JSON Schema, so the shared STS_TOOLS table keeps both keys and only
+  # the Gemini projection passes through here.
+  def sts_gemini_schema_sanitize(schema)
+    case schema
+    when Hash
+      has_default = schema.key?("default") || schema.key?(:default)
+      default_value = schema.key?("default") ? schema["default"] : schema[:default]
+      out = {}
+      schema.each do |key, value|
+        next if key.to_s == "additionalProperties" || key.to_s == "default"
+
+        out[key] = sts_gemini_schema_sanitize(value)
+      end
+      if has_default
+        desc_key = out.key?("description") ? "description" : (:description if out.key?(:description))
+        out[desc_key] = "#{out[desc_key]} (default: #{default_value})" if desc_key
+      end
+      out
+    when Array
+      schema.map { |v| sts_gemini_schema_sanitize(v) }
+    else
+      schema
+    end
   end
 
   XAI_REALTIME_STS_DEFAULT_VOICE = "eve"
@@ -526,6 +575,10 @@ module WebSocketHelper
       prev = result.length > start ? result.last : nil
       prev_role = prev && (prev["role"] || prev[:role]).to_s
       if %w[user assistant].include?(role) && prev_role == role && prev.is_a?(Hash)
+        # Paragraph count of the predecessor BEFORE the join — the fragment
+        # being folded in starts at this index (used to position tools_used
+        # badges at the right paragraph boundary).
+        fragment_start = prev["text"].to_s.split("\n\n").length
         prev["text"] = [prev["text"].to_s, msg["text"].to_s].map(&:strip).reject(&:empty?).join("
 
 ")
@@ -535,6 +588,19 @@ module WebSocketHelper
           prev["interrupted"] = true
         else
           prev.delete("interrupted")
+        end
+        # tools_used is metadata, not text: UNION it across folded fragments
+        # so the merged card keeps every tool the turn used (a plain
+        # text+interrupted merge silently dropped the badge — dogfood).
+        # Each entry keeps its absolute paragraph position (`at`): entries
+        # that already carry one (fold path) pass through; new entries are
+        # positioned at the first paragraph of the fragment being folded in
+        # (= the predecessor's paragraph count BEFORE the join).
+        if msg["tools_used"].is_a?(Array) && !msg["tools_used"].empty?
+          positioned = msg["tools_used"].map do |tool|
+            tool.key?("at") ? tool : tool.merge("at" => fragment_start)
+          end
+          prev["tools_used"] = Array(prev["tools_used"]) + positioned
         end
         merged_any = true
       else
@@ -657,7 +723,6 @@ module WebSocketHelper
       provider: provider,
       voice: voice,
       speed: speed,
-      websearch: params["websearch"] == true || params["websearch"] == "true",
       tools_enabled: params["sts_tools"] == true || params["sts_tools"] == "true",
       instructions: instructions,
       language: language,
@@ -897,16 +962,10 @@ module WebSocketHelper
     }
     session_cfg[:instructions] = instructions unless instructions.empty?
 
-    # Native server-side search (live-probed 2026-08-01: tools accepted and
-    # echoed; a search surfaces as response.function_call_arguments.* events
-    # that the reader safely ignores). Opt-in only (billing) and ONLY these
-    # server-executed tools — function-type tools are never injected
-    # (phase-4 boundary: they need new reader machinery).
-    if state[:websearch]
-      session_cfg[:tools] = [{ type: "web_search" }, { type: "x_search" }]
-    end
     # Function calling (wave 1): same GA dialect as OpenAI (probe-verified
-    # 2026-08-02). Merged with the native search entry when both are on.
+    # 2026-08-02). The native web_search/x_search toggle was removed
+    # (2026-08-03, user decision): the shared search_web function tool
+    # covers web search on every provider.
     fc_tools = sts_ga_tools(state)
     session_cfg[:tools] = (session_cfg[:tools] || []) + fc_tools unless fc_tools.empty?
 
@@ -935,16 +994,10 @@ module WebSocketHelper
     }
     setup[:systemInstruction] = { parts: [{ text: instructions }] } unless instructions.empty?
 
-    # Google Search grounding (live-probed 2026-08-01: accepted in setup and
-    # the model answers current-info queries in AUDIO mode). Opt-in only
-    # (5,000 free prompts/month, then $14/1K queries). NOTE: the stream
-    # delivers NO groundingMetadata in audio mode, so sources cannot be
-    # shown to the user — recorded in the design memo.
-    setup[:tools] = [{ google_search: {} }] if state[:websearch]
-
     # Function calling (wave 1, probe-verified 2026-08-02 in AUDIO mode):
-    # functionDeclarations from the shared STS_TOOLS table, merged with the
-    # google_search entry when both are on.
+    # functionDeclarations from the shared STS_TOOLS table. The google_search
+    # grounding toggle was removed (2026-08-03, user decision): the shared
+    # search_web function tool covers web search on every provider.
     fc = sts_gemini_tools(state)
     setup[:tools] = (setup[:tools] || []) + fc unless fc.empty?
 
@@ -1061,6 +1114,10 @@ module WebSocketHelper
       when "input_audio_buffer.speech_stopped"
         send_or_broadcast({ "type" => "sts_vad", "event" => "speech_stopped" }.to_json, ws_session_id)
       when "response.created"
+        # §37-9c: the serialization belt — while a response is open, the
+        # tool path never sends response.create of its own (parked as debt
+        # and flushed on response.done).
+        state[:response_open] = true
         # A spontaneous response.create (greet / commit) is correlated with
         # the turn that requested it — the current turn may already belong
         # to the NEXT utterance by the time this event arrives (P2-1).
@@ -1251,16 +1308,23 @@ module WebSocketHelper
           sts_open_gate(turn, ws_session_id, reason: "greet")
           if (state[:provider] || "openai") == "gemini"
             # Gemini has no response.create; a turnComplete client turn
-            # asking for a greeting triggers generation. The nudge text
-            # stays upstream-only — the canon is untouched.
+            # asking for a greeting triggers generation. The nudge restates
+            # the language prompt so the English ask cannot pull the
+            # greeting's language away from the configured conversation
+            # language. The nudge text stays upstream-only — the canon is
+            # untouched.
+            nudge_language = Monadic::Utils::LanguageConfig
+                             .system_prompt_for_language(state[:language] || "auto").to_s
+            nudge = [nudge_language, STS_INITIATE_INSTRUCTIONS]
+                    .map(&:strip).reject(&:empty?).join("\n\n")
             conn.write({ clientContent: {
-              turns: [{ role: "user", parts: [{ text: STS_INITIATE_INSTRUCTIONS }] }],
+              turns: [{ role: "user", parts: [{ text: nudge }] }],
               turnComplete: true
             } }.to_json)
           else
             conn.write({
               type: "response.create",
-              response: { instructions: STS_INITIATE_INSTRUCTIONS }
+              response: { instructions: sts_greeting_instructions(state) }
             }.to_json)
           end
           conn.flush
@@ -1291,6 +1355,12 @@ module WebSocketHelper
         sts_spawn_tool_execution(state, payload, ws_session_id)
       when :tool_result
         sts_send_tool_result(conn, state, payload, ws_session_id)
+      when :tool_create_due
+        # §37-9c: a tool continuation was parked while a response was open;
+        # that response just closed. Re-run the full decision (batch /
+        # staleness / belt) — the turn may have moved on since the park.
+        (state[:tool_create_debt] || {}).delete(payload)
+        sts_maybe_create_tool_response(conn, state, payload)
       end
     end
   rescue StandardError => e
@@ -1336,6 +1406,47 @@ module WebSocketHelper
     end
     forward_sts_error("Speech-to-speech session setup timeout", ws_session_id)
     false
+  end
+
+  # §37-8: Gemini's input transcription arrives word-separated with spaces
+  # even for Japanese ("でも 最近 あの 辺 って"), which leaks into the canon
+  # and the live view (the OUTPUT transcription is fine — this is input-only).
+  # Normalize at the delta source so partials, finals, cards, and the saved
+  # history are all clean. A space is dropped only when one neighbor is CJK
+  # (Han/Hiragana/Katakana/full-width punctuation) and NEITHER neighbor is a
+  # Latin letter — so "大気 汚染" and "9 月" are joined, but "Hello 世界"
+  # and "the cat" keep their space. Consecutive spaces collapse into one
+  # decision; a pending space is held across delta boundaries so the
+  # decision always sees both neighbors.
+  STS_GEMINI_CJK_CHAR = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3000-\u303F\uFF01-\uFF60]/.freeze
+  STS_GEMINI_LATIN_CHAR = /[A-Za-z]/.freeze
+
+  def sts_gemini_normalize_input_spacing(g, text)
+    out = +""
+    prev = g[:in_tail]              # last non-space character emitted
+    pending = g[:in_pending_space]  # a space awaiting its right neighbor
+    text.each_char do |ch|
+      if ch == " "
+        pending = true
+        next
+      end
+      if pending
+        cjk = prev.to_s.match?(STS_GEMINI_CJK_CHAR) || ch.match?(STS_GEMINI_CJK_CHAR)
+        latin = prev.to_s.match?(STS_GEMINI_LATIN_CHAR) || ch.match?(STS_GEMINI_LATIN_CHAR)
+        # An empty `prev` means nothing has been emitted for this utterance
+        # yet, so the pending space is leading whitespace — never keep it
+        # (Gemini opens English deltas with " Hello", which would otherwise
+        # make every English utterance start with a space).
+        drop = (cjk && !latin) || prev.to_s.empty?
+        out << " " unless drop
+        pending = false
+      end
+      out << ch
+      prev = ch
+    end
+    g[:in_tail] = prev
+    g[:in_pending_space] = pending
+    out
   end
 
   # Provider event normalization. Non-Gemini payloads pass through
@@ -1391,19 +1502,23 @@ module WebSocketHelper
     # Function calling (probe-verified 2026-08-02 in AUDIO mode): Gemini's
     # toolCall maps onto the GA internal trigger so the shared detection
     # path handles all three providers. Calls are executed sequentially
-    # (design: one upstream frame may carry several).
+    # (design: one upstream frame may carry several). All calls in one
+    # toolCall frame share a synthetic response id — that frame IS the batch
+    # (§37-9 P2: its functionResponses go back in ONE toolResponse).
     if (calls = payload.dig("toolCall", "functionCalls")) && !calls.empty?
+      batch_rid = "gtc-#{g[:toolcall_seq] = (g[:toolcall_seq] || 0) + 1}"
       calls.each do |fc|
         events << { "type" => "response.function_call_arguments.done",
+                    "response_id" => batch_rid,
                     "call_id" => fc["id"].to_s,
                     "name" => fc["name"].to_s,
                     "arguments" => (fc["args"] || {}).to_json }
       end
     end
     # The model cancelled a pending call (e.g. after a barge-in): drop the
-    # pending marker so a late result is discarded.
+    # pending markers (and any create debt) so a late result is discarded.
     if payload["toolCallCancellation"]
-      state[:pending_tool_calls] = {}
+      sts_cancel_pending_tools(state)
     end
 
     sc = payload["serverContent"]
@@ -1436,9 +1551,16 @@ module WebSocketHelper
         events << { "type" => "input_audio_buffer.speech_started" }
         g[:item_id] = "gitem-#{g[:item_seq] += 1}"
         g[:closed_without_response] = false
+        # A new utterance must not inherit the spacing context of the last
+        # one (§37-8 normalizer state).
+        g[:in_tail] = nil
+        g[:in_pending_space] = false
       end
-      events << { "type" => "conversation.item.input_audio_transcription.delta",
-                  "item_id" => g[:item_id], "delta" => in_text }
+      delta = sts_gemini_normalize_input_spacing(g, in_text)
+      unless delta.empty?
+        events << { "type" => "conversation.item.input_audio_transcription.delta",
+                    "item_id" => g[:item_id], "delta" => delta }
+      end
     end
 
     audio_parts = (sc.dig("modelTurn", "parts") || []).filter_map { |p| p.dig("inlineData", "data") }
@@ -1829,7 +1951,14 @@ module WebSocketHelper
     # at (audio deltas run ahead of transcript deltas), so update the
     # existing card's text in place — dogfood showed cards cut mid-word
     # while the heard audio ran further.
-    return sts_update_interrupted_card(turn, payload, ws_session_id) if turn[:assistant_finalized]
+    if turn[:assistant_finalized]
+      if state[:tool_continuation_turn] && turn.equal?(state[:tool_continuation_turn])
+        # Tool-bridged fold (§37-2): the post-tool answer APPENDS to the
+        # bridge card instead of replacing it or becoming a second card.
+        return sts_fold_tool_continuation(state, turn, payload, ws_session_id)
+      end
+      return sts_update_interrupted_card(turn, payload, ws_session_id)
+    end
 
     transcript = payload["transcript"].to_s
     transcript = turn[:assistant_transcript].dup if transcript.empty?
@@ -1837,11 +1966,21 @@ module WebSocketHelper
     # Make sure any still-gated fragments go out (in order) before the
     # final card supersedes them.
     sts_open_gate(turn, ws_session_id, reason: "done")
-    sts_send_assistant_card(turn, transcript, ws_session_id,
+    sts_send_assistant_card(state, turn, transcript, ws_session_id,
                             interrupted: turn[:interrupted] == true)
   end
 
   def sts_handle_response_done(state, payload, ws_session_id)
+    # §37-9c: the response closed — open the belt, and if tool
+    # continuations were parked while it was open, wake the writer to flush
+    # each completed batch (upstream writes stay in the writer thread).
+    state[:response_open] = false
+    (state[:tool_create_debt] || {}).each_key do |rid|
+      batch = (state[:pending_tool_calls] || {})[rid]
+      next if batch && !batch.empty?
+
+      state[:cmd_queue]&.enqueue([:tool_create_due, rid])
+    end
     turn = sts_turn_for_response(state, payload)
     # THE GA cancel path (live-probed 2026-08-01): response.cancel answers
     # with response.done status="cancelled" and NO response.cancelled event
@@ -1967,7 +2106,7 @@ module WebSocketHelper
     turn[:gate_timer] = nil
     turn[:pending_fragments].clear
 
-    sts_send_assistant_card(turn, transcript, ws_session_id, interrupted: true)
+    sts_send_assistant_card(state, turn, transcript, ws_session_id, interrupted: true)
   end
 
   # ── Function calling execution (wave 1) ────────────────────────────
@@ -1990,10 +2129,29 @@ module WebSocketHelper
         {}
       end
 
-    (state[:pending_tool_calls] ||= {})[call_id] = true
-    queue.enqueue([:tool_call, { call_id: call_id, name: name,
+    # (§37-9a) Batch tracking, keyed by RESPONSE ID: upstream can open a NEW
+    # response while a previous batch's tools are still executing (xAI
+    # create_response on user speech — dogfood P2). A flat set merged the
+    # two batches and the second batch's create was then swallowed by the
+    # first batch's stale turn guard. Each batch owns its turn, completes
+    # independently, and creates independently.
+    rid = payload["response_id"].to_s
+    rid = state[:turn][:response_id].to_s if rid.empty? && state[:turn] && state[:turn][:response_id]
+    rid = "unknown" if rid.empty?
+    batches = (state[:pending_tool_calls] ||= {})
+    batch = (batches[rid] ||= {})
+    turns = (state[:tool_batch_turns] ||= {})
+    turns[rid] = state[:turn] if batch.empty?
+    batch[call_id] = true
+    queue.enqueue([:tool_call, { rid: rid, call_id: call_id, name: name,
                                  arguments: payload["arguments"].to_s,
                                  parsed_arguments: parsed }])
+    # Tool-use visibility (design §37): tell the client a tool started. The
+    # call_id lets the client match done/error to the same badge even when
+    # one response carries several calls with the same name (§37-12).
+    send_or_broadcast({ "type" => "sts_tool_call", "name" => name, "status" => "running",
+                        "call_id" => call_id }.to_json,
+                      ws_session_id)
     Monadic::Utils::ExtraLogger.log do
       "[STS session=#{ws_session_id}] tool call detected: #{name} (#{call_id})"
     end
@@ -2012,7 +2170,8 @@ module WebSocketHelper
       # Dead-bridge guard: the queue may be gone (teardown) by the time a
       # slow tool returns — never enqueue into it.
       if queue && state[:cmd_queue].equal?(queue)
-        queue.enqueue([:tool_result, { call_id: call[:call_id], name: call[:name], output: output }])
+        queue.enqueue([:tool_result, { rid: call[:rid], call_id: call[:call_id],
+                                       name: call[:name], output: output }])
       end
     rescue StandardError
       nil
@@ -2035,25 +2194,46 @@ module WebSocketHelper
 
   # Cancel all in-flight tool calls (barge-in / response cancelled /
   # upstream disconnect / rebuild): results arriving later are dropped.
+  # The create debts go with them — a cancelled batch must never resume.
   def sts_cancel_pending_tools(state)
     state[:pending_tool_calls] = {}
+    state[:tool_create_debt] = {}
+    state[:tool_batch_turns] = {}
+    state[:gemini_tool_outputs] = {}
   end
 
   def sts_send_tool_result(conn, state, result, ws_session_id)
-    pending = state[:pending_tool_calls] || {}
-    return unless pending.delete(result[:call_id]) # dropped when cancelled
+    rid = result[:rid].to_s
+    rid = "unknown" if rid.empty?
+    batches = state[:pending_tool_calls] || {}
+    batch = batches[rid]
+    return unless batch && batch.delete(result[:call_id]) # dropped when cancelled
+
+    batches.delete(rid) if batch.empty?
+
+    # Tool-use visibility: report the outcome and remember it for the NEXT
+    # assistant card (attached as tools_used metadata — display info, never
+    # part of the message text). call_id correlates with the running
+    # broadcast (§37-12).
+    status = result[:output].to_s.start_with?("❌") ? "error" : "done"
+    (state[:tools_used_since_card] ||= []) << { "name" => result[:name], "status" => status }
+    send_or_broadcast({ "type" => "sts_tool_call", "name" => result[:name], "status" => status,
+                        "call_id" => result[:call_id] }.to_json,
+                      ws_session_id)
 
     if (state[:provider] || "openai") == "gemini"
-      conn.write({
-        toolResponse: {
-          functionResponses: [{
-            id: result[:call_id],
-            name: result[:name],
-            response: { result: result[:output].to_s }
-          }]
-        }
-      }.to_json)
-      conn.flush
+      # §37-9 P2: ONE toolResponse frame per batch — all functionResponses
+      # of one toolCall go together, sent when the last result arrives (one
+      # frame per result could trigger one generation per result, the same
+      # double-answer defect as GA's create-per-result).
+      outputs = (state[:gemini_tool_outputs] ||= {})[rid] ||= []
+      outputs << { id: result[:call_id], name: result[:name],
+                   response: { result: result[:output].to_s } }
+      unless batches[rid]
+        conn.write({ toolResponse: { functionResponses: outputs } }.to_json)
+        conn.flush
+        state[:gemini_tool_outputs].delete(rid)
+      end
     else
       conn.write({
         type: "conversation.item.create",
@@ -2064,18 +2244,98 @@ module WebSocketHelper
         }
       }.to_json)
       conn.flush
-      conn.write({ type: "response.create" }.to_json)
-      conn.flush
+      # §37-9: ONE response.create per batch, not per result (dogfood: two
+      # calls in one response produced two overlapping spoken answers).
+      sts_maybe_create_tool_response(conn, state, rid)
     end
     Monadic::Utils::ExtraLogger.log do
       "[STS session=#{ws_session_id}] tool result sent upstream: #{result[:name]} (#{result[:call_id]})"
     end
   end
 
+  # §37-9 response.create decision for ONE batch, gated three ways:
+  #  (a) batch: only when the LAST result of the batch has gone out —
+  #      GA expects one create per function_call_output group.
+  #  (b) staleness: if a new user turn owns the bridge now, the batch's
+  #      answer is stale — the output stays in context (the model uses it in
+  #      the reply to the user's NEW utterance) but we do not generate one
+  #      of our own. A missing batch turn (never registered) means legacy
+  #      state: allow.
+  #  (c) serialization belt: while a response is open we never create — the
+  #      create is parked as debt and flushed when a response closes
+  #      (see sts_handle_response_done / the :tool_create_due writer branch).
+  def sts_maybe_create_tool_response(conn, state, rid)
+    batch = (state[:pending_tool_calls] || {})[rid]
+    return if batch && !batch.empty? # (a)
+    if state[:response_open]
+      (state[:tool_create_debt] ||= {})[rid] = true # (c)
+      return
+    end
+    batch_turn = (state[:tool_batch_turns] || {})[rid]
+    return if batch_turn && !state[:turn].equal?(batch_turn) # (b)
+
+    (state[:tool_batch_turns] || {}).delete(rid)
+    sts_create_tool_continuation(conn, state)
+  end
+
+  def sts_create_tool_continuation(conn, state)
+    conn.write({ type: "response.create" }.to_json)
+    conn.flush
+    state[:tool_create_debt] = false
+    # Tool-bridged fold (§37-2): the response we just asked for is the
+    # CONTINUATION of the turn that produced the bridge card. The next
+    # transcript.done must append to that card (not replace it, not open
+    # a new card) so the turn stays one card with the tools attached.
+    # Scoped to the TURN, not a bare boolean: if the continuation dies
+    # without a transcript (barge-in before any words), a bare flag would
+    # linger and mis-fold a LATER turn's late transcript into the wrong
+    # card (audit). A turn-scoped marker can only ever fold into the turn
+    # that actually owns the tool call.
+    state[:tool_continuation_turn] = state[:turn]
+  end
+
   def sts_notify_cancelled(turn, ws_session_id)
     return if turn[:cancel_notified]
     turn[:cancel_notified] = true
     send_or_broadcast({ "type" => "sts_audio_cancelled", "turn_id" => turn[:id] }.to_json, ws_session_id)
+  end
+
+  # Tool-bridged fold (§37-2): a tool result made us response.create a
+  # CONTINUATION of the turn that produced the bridge card. The post-tool
+  # answer is appended to that card as a NEW PARAGRAPH (§37-3 — the bridge
+  # utterance really was spoken, so canon honesty keeps it, but the two
+  # utterances are distinct paragraphs), tools_used are persisted into the
+  # canon entry AND streamed to the client with the text update, and no
+  # second card is ever created for the continuation.
+  def sts_fold_tool_continuation(state, turn, payload, ws_session_id)
+    state[:tool_continuation_turn] = nil
+    msg = turn[:assistant_msg]
+    return unless msg
+
+    addition = payload["transcript"].to_s.strip
+    return if addition.empty?
+
+    # The continuation starts a NEW paragraph (§37-3): the bridge text and
+    # the answer are separate paragraphs in the single folded card. The
+    # tools badge sits at that boundary — `at` is the paragraph index where
+    # the continuation begins (= bridge paragraph count).
+    bridge_paragraphs = msg["text"].to_s.split("\n\n").length
+    msg["text"] = [msg["text"].to_s, addition].reject(&:empty?).join("\n\n")
+    if state[:tools_used_since_card] && !state[:tools_used_since_card].empty?
+      # UNION, not assignment: a turn that folds more than once (multi-tool
+      # chain) must keep the earlier folds' entries — the merge path already
+      # unions, and an assignment here silently dropped batch one (audit).
+      positioned = state[:tools_used_since_card].map do |tool|
+        tool.merge("at" => bridge_paragraphs)
+      end
+      msg["tools_used"] = Array(msg["tools_used"]) + positioned
+      state[:tools_used_since_card] = []
+    end
+    sync_session_state!
+
+    out = { "type" => "sts_card_text", "mid" => msg["mid"], "content" => msg["text"] }
+    out["tools_used"] = msg["tools_used"] if msg["tools_used"]
+    send_or_broadcast(out.to_json, ws_session_id)
   end
 
   # A late transcript.done for an already-finalized (interrupted) turn
@@ -2088,21 +2348,51 @@ module WebSocketHelper
     return unless msg
 
     full = payload["transcript"].to_s.strip
-    return if full.empty? || full.length <= msg["text"].to_s.length
+    return if full.empty?
 
-    msg["text"] = full
+    # §37-11: one response can carry MORE THAN ONE spoken message (log
+    # 2026-08-03, session 1541a03f). Replacing whenever the new text is
+    # longer threw the first message away when the second was unrelated.
+    # Decide by CONTENT relationship:
+    #   new text STARTS WITH the old → same utterance, more complete
+    #     (audio deltas run ahead of transcript deltas) → replace.
+    #   otherwise → a genuinely different message → APPEND as a new
+    #     paragraph (same semantics as the tool-bridged fold: what was
+    #     actually spoken and the card stay in agreement — canon honesty).
+    # The length rule applies only to the prefix path — a different message
+    # is appended regardless of which is longer. Either way no new card is
+    # created (one turn = one card).
+    old = msg["text"].to_s
+    # A prefix of what's already shown is strictly older information
+    # (a stale/duplicate done) — ignore it; the card never shrinks.
+    return if old.start_with?(full)
+
+    if full.start_with?(old)
+      return if full.length <= old.length
+
+      msg["text"] = full
+    else
+      # A repeat of the message already appended (xAI re-sends the same
+      # `.completed` for one item on the input side, so an output-side
+      # repeat is not unthinkable) would otherwise duplicate the paragraph.
+      # Only the LAST paragraph is compared: the same sentence spoken again
+      # in a LATER message is still appended, as it should be.
+      return if old.split("\n\n").last == full
+
+      msg["text"] = [old, full].reject(&:empty?).join("\n\n")
+    end
     sync_session_state!
     send_or_broadcast({
       "type" => "sts_card_text",
       "mid" => msg["mid"],
-      "content" => full
+      "content" => msg["text"]
     }.to_json, ws_session_id)
   end
 
   # Assistant card via the same path/shape as the normal pipeline
   # (html_handler.rb's handle_ws_html): an html message whose content hash
   # doubles as the session[:messages] entry.
-  def sts_send_assistant_card(turn, text, ws_session_id, interrupted:)
+  def sts_send_assistant_card(state, turn, text, ws_session_id, interrupted:)
     params = get_session_params
     new_data = {
       "mid" => SecureRandom.hex(4),
@@ -2114,6 +2404,13 @@ module WebSocketHelper
       "active" => true
     }
     new_data["interrupted"] = true if interrupted
+    # Tool-use visibility: attach tools used since the last card as metadata
+    # (display info only — never part of the message text, so the canon is
+    # untouched). Cleared once attached so the next card starts fresh.
+    if state[:tools_used_since_card] && !state[:tools_used_since_card].empty?
+      new_data["tools_used"] = state[:tools_used_since_card]
+      state[:tools_used_since_card] = []
+    end
 
     # Finalize BEFORE broadcasting: a concurrent event arriving mid-send
     # must already see the turn as finalized (review P3-2).

@@ -6660,3 +6660,14 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 #lc-live-current .lc-live-text {
   font-size: 1.05rem;
 }
+
+/* A tools badge inserted BETWEEN paragraphs (Live Conversation, §37-3) is
+   its own block, not part of a text run: it needs symmetric breathing room
+   in the paragraph gap instead of the inline offset a title badge uses.
+   Without this the badge crowds the paragraph below it and reads as
+   vertically misaligned (dogfood). Title badges are unaffected — they live
+   in .card-title, which this selector does not match. */
+.card-text > .lc-tools-badge,
+.lc-live-text > .lc-tools-badge {
+  margin: 0.4rem 0 0.55rem;
+}

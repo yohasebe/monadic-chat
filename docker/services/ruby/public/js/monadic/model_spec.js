@@ -1258,7 +1258,6 @@ const modelSpec = {
   "grok-voice-think-fast-2.0": {
     "supports_speech_to_speech": true,
     "sts_provider": "xai",
-    "sts_websearch_capability": true,
     "sts_tools_capability": true,
     "sts_voice": "eve",
     "sts_voices": ["ara", "rex", "sal", "eve", "leo",
@@ -1274,7 +1273,6 @@ const modelSpec = {
   "gemini-3.1-flash-live-preview": {
     "supports_speech_to_speech": true,
     "sts_provider": "gemini",
-    "sts_websearch_capability": true,
     "sts_tools_capability": true,
     "sts_voice": "Kore",
     "sts_voices": ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",

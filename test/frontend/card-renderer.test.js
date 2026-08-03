@@ -18,7 +18,7 @@ const realDateNow = Date.now;
 global.Date.now = jest.fn().mockReturnValue(99999);
 
 // Load module under test
-const { escapeHtml, createCard } = require('../../docker/services/ruby/public/js/monadic/card-renderer');
+const { escapeHtml, createCard, insertInlineToolBadge } = require('../../docker/services/ruby/public/js/monadic/card-renderer');
 
 afterAll(() => {
   global.Date.now = realDateNow;
@@ -226,6 +226,77 @@ describe('card-renderer', () => {
 
     it('exports createCard to window', () => {
       expect(window.createCard).toBe(createCard);
+    });
+
+    it('exports insertInlineToolBadge to window', () => {
+      expect(window.insertInlineToolBadge).toBe(insertInlineToolBadge);
+    });
+  });
+
+  // ── insertInlineToolBadge (§37-3) ────────────────────────
+  describe('insertInlineToolBadge', () => {
+    function cardWithParas(texts) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const body = document.createElement('div');
+      body.className = 'card-text';
+      texts.forEach((t) => {
+        const p = document.createElement('p');
+        p.textContent = t;
+        body.appendChild(p);
+      });
+      card.appendChild(body);
+      return card;
+    }
+
+    it('inserts the badge before the paragraph at the `at` index', () => {
+      const card = cardWithParas(['Let me check…', 'The answer is 42.']);
+      insertInlineToolBadge(card, [{ name: 'search_web', status: 'done', at: 1 }]);
+
+      const body = card.querySelector('.card-text');
+      const badge = body.querySelector('.lc-tools-badge');
+      expect(badge).not.toBeNull();
+      expect(badge.textContent).toContain('search_web');
+      const paras = body.querySelectorAll(':scope > p');
+      expect(badge.nextElementSibling).toBe(paras[1]);
+      // grey (non-error) styling
+      expect(badge.className).toContain('mc-badge--grey');
+    });
+
+    it('uses the red badge for a failed tool', () => {
+      const card = cardWithParas(['a', 'b']);
+      insertInlineToolBadge(card, [{ name: 'run_code', status: 'error', at: 1 }]);
+      expect(card.querySelector('.lc-tools-badge').className).toContain('mc-badge--red');
+    });
+
+    it('skips entries without `at` (header badge covers those — backward compat)', () => {
+      const card = cardWithParas(['a', 'b']);
+      insertInlineToolBadge(card, [{ name: 'search_web', status: 'done' }]);
+      expect(card.querySelector('.lc-tools-badge')).toBeNull();
+    });
+
+    it('falls back to appending at the end when the paragraph index is out of range', () => {
+      const card = cardWithParas(['only one']);
+      insertInlineToolBadge(card, [{ name: 'search_web', status: 'done', at: 5 }]);
+      const body = card.querySelector('.card-text');
+      const badge = body.querySelector('.lc-tools-badge');
+      expect(badge).not.toBeNull();
+      expect(body.lastElementChild).toBe(badge);
+    });
+
+    it('treats the tool name as text, never markup', () => {
+      const card = cardWithParas(['a', 'b']);
+      insertInlineToolBadge(card, [{ name: '<img src=x>', status: 'done', at: 1 }]);
+      expect(card.querySelector('.lc-tools-badge img')).toBeNull();
+      expect(card.querySelector('.lc-tools-badge').textContent).toContain('<img src=x>');
+    });
+
+    it('no-ops on missing card / empty tools', () => {
+      expect(() => insertInlineToolBadge(null, [{ name: 'x', at: 0 }])).not.toThrow();
+      const card = cardWithParas(['a']);
+      insertInlineToolBadge(card, []);
+      insertInlineToolBadge(card, null);
+      expect(card.querySelector('.lc-tools-badge')).toBeNull();
     });
   });
 });

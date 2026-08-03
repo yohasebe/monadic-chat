@@ -103,3 +103,47 @@ describe('call sites use the shared badge', () => {
     expect(`createCardFunc('assistant', window.assistantBadge(c), html)`).not.toMatch(literalBadgeArg);
   });
 });
+
+describe('assistantBadge tools_used badge (function calling wave 1)', () => {
+  it('renders a subtle badge with tool names and red on error', () => {
+    const badge = assistantBadge({
+      role: 'assistant', text: 'hi',
+      tools_used: [{ name: 'get_current_time', status: 'done' }]
+    });
+    expect(badge).toContain('fa-tools');
+    expect(badge).toContain('get_current_time');
+    expect(badge).toContain('mc-badge--grey');
+
+    const errBadge = assistantBadge({
+      role: 'assistant', text: 'hi',
+      tools_used: [{ name: 'run_code', status: 'error' }]
+    });
+    expect(errBadge).toContain('mc-badge--red');
+  });
+
+  it('renders no tools badge when tools_used is absent or empty', () => {
+    expect(assistantBadge({ role: 'assistant', text: 'hi' })).not.toContain('fa-tools');
+    expect(assistantBadge({ role: 'assistant', text: 'hi', tools_used: [] })).not.toContain('fa-tools');
+  });
+
+  // §37-4: positioned entries render inline (insertInlineToolBadge) — the
+  // header badge is a fallback for entries WITHOUT a position, exclusive
+  // per entry so no tool shows twice or vanishes.
+  it('renders no header badge when every entry has a paragraph position (at)', () => {
+    const badge = assistantBadge({
+      role: 'assistant', text: 'hi',
+      tools_used: [{ name: 'search_web', status: 'done', at: 1 }]
+    });
+    expect(badge).not.toContain('fa-tools');
+  });
+
+  it('mixed data: the header badge lists only the unpositioned entries', () => {
+    const badge = assistantBadge({
+      role: 'assistant', text: 'hi',
+      tools_used: [{ name: 'get_current_time', status: 'done' },
+                   { name: 'search_web', status: 'done', at: 1 }]
+    });
+    expect(badge).toContain('get_current_time');
+    expect(badge).not.toContain('search_web');
+  });
+});

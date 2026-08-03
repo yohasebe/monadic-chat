@@ -6632,6 +6632,15 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   background: transparent;
 }
 
+/* Speech highlight (§37-13C): the sentence the assistant is speaking right
+   now, driven by the playback clock. A quiet tint of the existing blue
+   badge family — visible at a glance, never a loud selection color. */
+.lc-speaking {
+  background: var(--bdg-blue-bg);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--bdg-blue-bg);
+}
+
 /* Live user transcript preview (replaced by the server-rendered user card
    when the turn's transcription completes). */
 .lc-user-temp .lc-user-temp-text {
@@ -6667,7 +6676,19 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    Without this the badge crowds the paragraph below it and reads as
    vertically misaligned (dogfood). Title badges are unaffected — they live
    in .card-title, which this selector does not match. */
-.card-text > .lc-tools-badge,
-.lc-live-text > .lc-tools-badge {
+.card-text > .lc-tools-badge {
   margin: 0.4rem 0 0.55rem;
+}
+
+/* In the live view the badge reads vertically off-center — but the
+   asymmetry is NOT a margin problem (browser-measured, §37-15): as an
+   inline-level box the badge sits in an anonymous line box whose strut
+   adds ~6px above it that no margin can remove. Making it block-level
+   (flex + max-content) kills the line box; the gap above then comes
+   entirely from the preceding paragraph's margin-bottom, matching the
+   paragraph rhythm. The card side keeps its own paragraph-margin system. */
+.lc-live-text > .lc-tools-badge {
+  display: flex;
+  width: max-content;
+  margin: 0 0 1rem;
 }

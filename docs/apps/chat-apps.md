@@ -48,9 +48,11 @@ Three variants are available, one per provider: OpenAI, xAI Grok, and Google Gem
 
 **How it works**: Click `Start` to open the conversation, then speak naturally — the end of each utterance is detected automatically (voice activity detection) and the turn proceeds on its own. Click `End` to close the session. There is no text input in this app. Headphones are recommended: with speakers, the assistant's voice feeds back into the microphone and can trigger unintended turns.
 
-**Voice and speed**: Pick the assistant's voice from the selector in the app's control row (the Speech Settings panel's TTS settings do not apply here). The number of available voices is 10 for OpenAI (default: alloy), 26 for xAI (default: eve), and 30 for Gemini (default: Kore). A playback speed slider (0.25–1.5) is available for OpenAI only.
+**Voice and speed**: Pick the assistant's voice from the selector in the app's control row (the Speech Settings panel's TTS settings do not apply here). The number of available voices is 10 for OpenAI (default: alloy), 26 for xAI (default: eve), and 30 for Gemini (default: Kore). A playback speed slider (0.25–1.5) is available for OpenAI only. The chosen voice is remembered per provider and restored the next time you open the app.
 
 **Display**: During a conversation, the default live view shows two zones — the partner's previous utterance and the one in progress. Check `Cards while talking` to use the conventional stacked cards during the conversation instead. The setting applies only while a session is running: once it ends, the display always returns to the card list, where the conversation can be edited, saved, and loaded like any other.
+
+In the live view the sentence the assistant is currently speaking is highlighted, so you can follow the voice in the text — useful when the reply is long, since the text arrives well ahead of the audio. The highlight follows the audio itself, pauses while a tool is running, and stops where the speech stopped if you interrupt. It is not shown in the card display.
 
 **Tools** (off by default): Enable the `Tools` toggle to let the assistant call tools during the conversation: current time, Python code execution, Knowledge Base search, and web search (web search requires a `TAVILY_API_KEY`). Python and Knowledge Base are available only while their respective containers are running. A turn that used tools stays on a single card, with a 🛠 badge naming the tool at the paragraph boundary where it was called (red on failure); the status line shows "Using ..." while a call runs.
 

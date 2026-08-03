@@ -710,6 +710,64 @@ describe('voice and speed controls', () => {
     expect(select().value).toBe('eve');
   });
 
+  // §37-14A: the voice choice is remembered per provider in a cookie
+  // (sets are disjoint), restored only when the value is still offered.
+  describe('voice cookie', () => {
+    let store;
+    beforeEach(() => {
+      store = {};
+      window.setCookie = jest.fn((k, v) => { store[k] = v; });
+      window.getCookie = jest.fn((k) => store[k]);
+    });
+    afterEach(() => {
+      delete window.setCookie;
+      delete window.getCookie;
+    });
+
+    it('saves the choice under a per-provider key on change', () => {
+      select().value = 'cedar';
+      select().dispatchEvent(new Event('change', { bubbles: true }));
+      expect(window.setCookie).toHaveBeenCalledWith('lc-voice-openai', 'cedar', 30);
+    });
+
+    it('restores the remembered voice when it is still offered', () => {
+      store['lc-voice-openai'] = 'marin';
+      LC.setAppMode(normalApp);
+      LC.setAppMode(lcApp);
+      expect(select().value).toBe('marin');
+    });
+
+    it('ignores a remembered voice the current model does not offer', () => {
+      store['lc-voice-openai'] = 'retired-voice';
+      LC.setAppMode(normalApp);
+      LC.setAppMode(lcApp);
+      expect(select().value).toBe('alloy'); // spec default, not the stale value
+    });
+
+    it('uses a different key per provider (no cross-provider bleed)', () => {
+      store['lc-voice-xai'] = 'luna';
+      const modelEl = document.getElementById('model');
+      modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+      LC.setAppMode(normalApp);
+      LC.setAppMode(lcApp);
+      expect(select().value).toBe('luna');
+    });
+
+    // Switching provider leaves the PREVIOUS provider's voice in params.
+    // Trusting the param unchecked would beat this provider's remembered
+    // voice and then be rejected server-side (the lists share no ids).
+    it('ignores a session param voice that this provider does not offer', () => {
+      window.params['sts_voice'] = 'sage';      // an OpenAI voice
+      store['lc-voice-xai'] = 'luna';           // what the user picked on xAI
+      const modelEl = document.getElementById('model');
+      modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+      LC.setAppMode(normalApp);
+      LC.setAppMode(lcApp);
+      expect(select().value).toBe('luna');
+      expect(window.params['sts_voice']).toBe('luna'); // param realigned
+    });
+  });
+
   it('writes params.sts_speed and broadcasts on speed change', () => {
     const range = document.getElementById('lc-speed-range');
     range.value = '1.25';
@@ -1138,6 +1196,21 @@ describe('running tool badge spins until done (§37-12)', () => {
     expect(badges()[0].className).toContain('mc-badge--grey');
   });
 
+  // The GLYPH carries the state, not just the motion: a running call shows
+  // the app's busy spinner, a finished one the tool icon. A spinning wrench
+  // read as decoration rather than progress (user choice, dogfood).
+  it('swaps the busy spinner glyph for the tool glyph when the call finishes', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    expect(badges()[0].querySelector('i').className).toContain('fa-spinner');
+    expect(badges()[0].querySelector('i').className).not.toContain('fa-tools');
+
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    expect(badges()[0].querySelector('i').className).toContain('fa-tools');
+    expect(badges()[0].querySelector('i').className).not.toContain('fa-spinner');
+  });
+
   it('error turns the badge red and stops the spin', async () => {
     await LC.startConversation();
     LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
@@ -1183,6 +1256,60 @@ describe('running tool badge spins until done (§37-12)', () => {
     const paras = curZone().querySelectorAll(':scope > p');
     expect(paras.length).toBe(2);
     expect(badges()[0].nextElementSibling).toBe(paras[1]);
+  });
+
+  // §37-14B: the running badge's `at` was fixed when the call started, but
+  // the boundary only settles when the answer begins (the bridge can gain
+  // paragraphs meanwhile) — the anchor refreshes it instead of leaving the
+  // badge behind the answer.
+  it('moves the running badge to the settled boundary when the answer begins', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check.', is_first: true, segment_id: 'r1' });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    expect(badges().length).toBe(1);
+
+    // The bridge text gains a paragraph before the answer (e.g. a §37-11
+    // second message folded into the same card).
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-header"><div class="card-title"></div></div>' +
+      '<div class="card-body"><div class="card-text">Let me check.</div></div></div>');
+    LC.onCardText({ mid: 'm1', content: 'Let me check.\n\nMore bridge text.' });
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    LC.onAssistantFragment({ content: 'The answer.', is_first: true, segment_id: 'r2' });
+
+    expect(badges().length).toBe(1); // still one badge — updated, not duplicated
+    const paras = curZone().querySelectorAll(':scope > p');
+    expect(paras.length).toBe(3);
+    expect(badges()[0].nextElementSibling).toBe(paras[2]);
+  });
+
+  // §37-13A: Gemini finalizes the user turn only when the model starts
+  // answering, so during the call the current zone is still USER — the
+  // badge needs an empty assistant zone, and the answer must continue in
+  // that same zone after the late user-final shuffles the zones around.
+  it('gemini path: badge shows while the user zone is current, and the answer continues in the badge zone', async () => {
+    await LC.startConversation();
+    LC.onSttPartial({ content: '明日の天気は？' });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+
+    // The badge is visible NOW, in a freshly opened empty assistant zone.
+    expect(document.querySelector('#lc-live-current .lc-live-role').textContent).toContain('Assistant');
+    expect(badges().length).toBe(1);
+    expect(badges()[0].querySelector('i').className).toContain('fa-spin');
+
+    // Gemini order: the user-final lands before the answer (zone shuffle).
+    LC.onStt({ content: '明日の天気は？' });
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    LC.onAssistantFragment({ content: '明日は晴れです。', is_first: true });
+
+    // The answer continues in the badge zone (no duplicate, no spin).
+    const curRole = document.querySelector('#lc-live-current .lc-live-role').textContent;
+    expect(curRole).toContain('Assistant');
+    expect(badges().length).toBe(1);
+    expect(badges()[0].querySelector('i').className).not.toContain('fa-spin');
+    expect(curZone().textContent).toContain('明日は晴れです。');
+    // The user's finalized utterance sits in prev, not lost.
+    expect(document.querySelector('#lc-live-prev .lc-live-text').textContent).toBe('明日の天気は？');
   });
 });
 
@@ -1430,5 +1557,113 @@ describe('thinking display stays hidden in LC (dogfood: capability $show race)',
     // not specific to the thinking toggle).
     expect(block[1]).toMatch(/\.lc-app #websearch-form/);
     expect(block[1]).toMatch(/\.lc-app #model_parameters/);
+  });
+});
+
+describe('speech highlight (§37-13C)', () => {
+  beforeEach(() => {
+    window.params = {};
+    window.insertInlineToolBadge =
+      require('../../docker/services/ruby/public/js/monadic/card-renderer').insertInlineToolBadge;
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+    delete window.insertInlineToolBadge;
+    delete window.WsStsPlayback;
+  });
+
+  const speakingSpan = () => document.querySelector('#lc-live-current .lc-speaking');
+
+  it('marks the sentence under the playback position', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'こんにちは。', is_first: true, segment_id: 'r1' });
+    LC.onAssistantFragment({ content: '元気ですか。', segment_id: 'r1' });
+    window.WsStsPlayback = { getPlaybackPosition: () => ({ segmentId: 'r1', offset: 5, total: 10 }) };
+
+    LC._tickHighlight();
+    expect(speakingSpan()).not.toBeNull();
+    expect(speakingSpan().textContent).toBe('元気ですか。');
+  });
+
+  // `total` is the audio SCHEDULED so far and deltas outrun playback ~3-5x
+  // (measured), so early in a response the fraction is inflated; as more
+  // audio lands it drops and a raw mapping would walk the highlight BACK
+  // over text already spoken. Speech only moves forward, so the highlight
+  // must too — within a segment.
+  it('never moves the highlight backward as the audio timeline grows', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: '一つ目。二つ目。三つ目。', is_first: true, segment_id: 'r1' });
+    let pos = { segmentId: 'r1', offset: 1, total: 2 }; // only 2s scheduled yet
+    window.WsStsPlayback = { getPlaybackPosition: () => pos };
+    LC._tickHighlight();
+    expect(speakingSpan().textContent).toBe('二つ目。');
+
+    pos = { segmentId: 'r1', offset: 1, total: 20 }; // timeline filled in
+    LC._tickHighlight();
+    expect(speakingSpan().textContent).toBe('二つ目。'); // not back to 一つ目
+
+    pos = { segmentId: 'r1', offset: 18, total: 20 };
+    LC._tickHighlight();
+    expect(speakingSpan().textContent).toBe('三つ目。'); // forward still works
+  });
+
+  it('starts a fresh floor for the next response', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: '一つ目。二つ目。', is_first: true, segment_id: 'r1' });
+    window.WsStsPlayback = { getPlaybackPosition: () => ({ segmentId: 'r1', offset: 9, total: 10 }) };
+    LC._tickHighlight();
+    expect(speakingSpan().textContent).toBe('二つ目。');
+
+    // A NEW response (barge-in or next turn): the floor must not carry over.
+    LC.onAssistantFragment({ content: 'あたらしい。つぎの。', is_first: true, segment_id: 'r2' });
+    window.WsStsPlayback = { getPlaybackPosition: () => ({ segmentId: 'r2', offset: 1, total: 10 }) };
+    LC._tickHighlight();
+    expect(speakingSpan().textContent).toBe('あたらしい。');
+  });
+
+  it('freezes on the last sentence during silence (no playback position)', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: '一つ目。二つ目。', is_first: true, segment_id: 'r1' });
+    let pos = { segmentId: 'r1', offset: 1, total: 10 };
+    window.WsStsPlayback = { getPlaybackPosition: () => pos };
+    LC._tickHighlight();
+    expect(speakingSpan().textContent).toBe('一つ目。');
+
+    pos = null; // tool running / silence: nothing audible
+    LC._tickHighlight();
+    expect(speakingSpan().textContent).toBe('一つ目。'); // frozen, not cleared
+  });
+
+  it('maps a tool-bridged answer into its own segment, not the bridge', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'つなぎ。', is_first: true, segment_id: 'r1' });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    LC.onAssistantFragment({ content: '回答です。', is_first: true, segment_id: 'r2' });
+
+    window.WsStsPlayback = { getPlaybackPosition: () => ({ segmentId: 'r2', offset: 1, total: 4 }) };
+    LC._tickHighlight();
+    expect(speakingSpan()).not.toBeNull();
+    expect(speakingSpan().textContent).toBe('回答です。');
+  });
+
+  it('does not highlight in card view', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'テスト。', is_first: true, segment_id: 'r1' });
+    window.params['sts_card_view'] = true;
+    window.WsStsPlayback = { getPlaybackPosition: () => ({ segmentId: 'r1', offset: 1, total: 2 }) };
+
+    LC._tickHighlight();
+    expect(speakingSpan()).toBeNull();
+  });
+
+  it('keeps the highlight out when the audio is for an unknown segment (freeze)', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: '一つ目。', is_first: true, segment_id: 'r1' });
+    window.WsStsPlayback = { getPlaybackPosition: () => ({ segmentId: 'rX', offset: 0, total: 1 }) };
+    LC._tickHighlight();
+    expect(speakingSpan()).toBeNull();
   });
 });

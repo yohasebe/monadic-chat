@@ -137,6 +137,16 @@
     $on($id('lc-voice-select'), 'change', function() {
       if (typeof params !== 'undefined') {
         params['sts_voice'] = $id('lc-voice-select').value;
+        // §37-14A: remember the choice per provider in a cookie (same
+        // pattern as the TTS voice) — the voice sets are disjoint
+        // (10/26/30), so a shared key would fall back to the default on
+        // every provider switch.
+        const modelElNow = $id('model');
+        const specNow = (window.modelSpec && modelElNow && modelElNow.value)
+          ? (window.modelSpec[modelElNow.value] || {}) : {};
+        if (typeof setCookie === 'function' && specNow.sts_provider) {
+          setCookie('lc-voice-' + specNow.sts_provider, params['sts_voice'], 30);
+        }
         if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_voice_change');
       }
     });
@@ -179,7 +189,33 @@
     if (appLabel) appLabel.textContent = currentAppDisplayName();
 
     const voices = Array.isArray(spec.sts_voices) ? spec.sts_voices : [];
-    const current = (typeof params !== 'undefined' && params['sts_voice']) || spec.sts_voice || voices[0] || '';
+    // §37-14A: resolve the voice in order — session param, the remembered
+    // cookie for THIS provider (only if the value is still offered by the
+    // current model: model changes and retired voices must not resurrect
+    // it), then the model_spec default.
+    // EVERY candidate is checked against the current model's voice list,
+    // the session param included: switching provider leaves the previous
+    // provider's voice in params (the lists share no names — 10/26/30
+    // distinct ids), and an unchecked param would win over this provider's
+    // remembered voice and then be rejected server-side anyway.
+    const offered = function(v) { return !!v && voices.indexOf(v) !== -1; };
+    let current = '';
+    const fromParams = (typeof params !== 'undefined' && params['sts_voice']) || '';
+    if (offered(fromParams)) current = fromParams;
+    if (!current && typeof getCookie === 'function' && spec.sts_provider) {
+      const remembered = getCookie('lc-voice-' + spec.sts_provider);
+      if (offered(remembered)) current = remembered;
+    }
+    if (!current) current = spec.sts_voice || voices[0] || '';
+    // Realign the session param ONLY when we overrode a value this provider
+    // cannot use — Start sends params.sts_voice, so leaving the foreign
+    // value there would make the UI show one voice and the session speak
+    // another. Writing it unconditionally would be worse: the default would
+    // stick into params on first render and no remembered cookie could ever
+    // win again (caught by the cookie-restore spec).
+    if (typeof params !== 'undefined' && fromParams && !offered(fromParams) && current) {
+      params['sts_voice'] = current;
+    }
     sel.replaceChildren();
     voices.forEach(function(v) {
       const opt = document.createElement('option');
@@ -305,7 +341,7 @@
   // Badges live ON the zone entry so promotion to prev carries them along.
   let liveToolPending = []; // [{name, status}]
 
-  function renderZone(zone, entry) {
+  function renderZone(zone, entry, highlightChar) {
     const roleEl = zone.querySelector('.lc-live-role');
     const textEl = zone.querySelector('.lc-live-text');
     if (roleEl) {
@@ -313,12 +349,20 @@
     }
     if (textEl) {
       // Paragraph split (§37-5): same "\n\n" semantics as the folded card.
-      const paras = String(entry.text || '').split('\n\n').map(function(para) {
-        const p = document.createElement('p');
-        p.textContent = para;
-        return p;
+      // The CURRENT zone may also carry the speech-highlight span (§37-13C).
+      const paras = String(entry.text || '').split('\n\n');
+      textEl.replaceChildren();
+      let offset = 0;
+      paras.forEach(function(para) {
+        if (highlightChar !== null && highlightChar !== undefined) {
+          appendParagraphWithHighlight(textEl, para, offset, highlightChar);
+        } else {
+          const p = document.createElement('p');
+          p.textContent = para;
+          textEl.appendChild(p);
+        }
+        offset += para.length + 2;
       });
-      textEl.replaceChildren.apply(textEl, paras);
       // Inline badges at the paragraph boundary — same helper as the card.
       if (entry.role === 'assistant' && Array.isArray(entry.badges) && entry.badges.length > 0 &&
           typeof window.insertInlineToolBadge === 'function') {
@@ -339,7 +383,8 @@
       prevEntry = { role: null, text: '', badges: [] };
     }
     if (prev) renderZone(prev, prevEntry);
-    if (cur) renderZone(cur, liveCurrent);
+    if (cur) renderZone(cur, liveCurrent,
+      liveCurrent.role === 'assistant' ? lastHighlightChar : null);
   }
 
   // Replace semantics (each stt_partial / stt carries the whole utterance
@@ -358,6 +403,10 @@
     liveCurrent = { role: role, text: text, badges: [],
                     final: role === 'user' ? !!isFinal : true };
     if (role === 'user' && isFinal) lastUserFinal = text;
+    // A new current zone invalidates the segment map and the highlight.
+    liveSegments = [];
+    lastHighlightChar = null;
+    highlightSegmentId = null;
     if (liveViewWanted()) renderLiveView();
   }
 
@@ -365,37 +414,79 @@
   // fresh accumulation (barge-in / new response) — EXCEPT the first
   // fragment of a tool's ANSWER, which continues the same accumulation as
   // a new paragraph (mirroring the server-side fold).
-  function liveAppend(role, delta, isFirst) {
+  //
+  // segmentId (§37-13C) marks the upstream response this text belongs to;
+  // liveSegments records where each segment starts in the zone text so the
+  // speech highlight can map playback time onto characters.
+  let liveSegments = [];       // [{id, startChar}]
+  let lastHighlightChar = null; // freeze target during silence / barge-in
+  let highlightSegmentId = null; // segment the floor above belongs to
+
+  function noteSegment(segmentId, startChar, reset) {
+    if (!segmentId) return;
+    if (reset) liveSegments = [];
+    const last = liveSegments[liveSegments.length - 1];
+    if (!last || last.id !== segmentId) {
+      liveSegments.push({ id: segmentId, startChar: startChar });
+    }
+  }
+
+  function liveAppend(role, delta, isFirst, segmentId) {
     if (isFirst) {
-      if (role === 'assistant' && liveToolPending.length > 0 &&
-          liveCurrent.role === 'assistant' && liveCurrent.text.trim() !== '') {
+      // §37-13A: the tool-continuation zone can also sit in PREV — on
+      // Gemini the late user-final arrives between the call and the answer
+      // and promotes the badge-only zone out of current. Pull it back so
+      // the answer continues in the zone that holds the badges.
+      let zone = null;
+      if (role === 'assistant' && liveToolPending.length > 0) {
+        if (liveCurrent.role === 'assistant' &&
+            (liveCurrent.text.trim() !== '' || liveCurrent.badges.length > 0)) {
+          zone = liveCurrent;
+        } else if (livePrev.role === 'assistant' && livePrev.badges.length > 0 &&
+                   livePrev.text.trim() === '') {
+          zone = livePrev;
+          livePrev = liveCurrent.role ? liveCurrent : { role: null, text: '', badges: [] };
+          liveCurrent = zone;
+        }
+      }
+      if (zone) {
         // Tool-bridged continuation (§37-5): the wire order is tool done →
         // response.create → the answer's is_first. Anchor each pending call
         // at the boundary (= the bridge paragraph count) and keep
         // accumulating instead of resetting — otherwise the live view would
         // show only the answer while the card shows the folded whole.
-        const at = liveCurrent.text.split('\n\n').length;
+        const hasText = zone.text.trim() !== '';
+        const at = hasText ? zone.text.split('\n\n').length : 0;
         liveToolPending.forEach(function(p) {
           // §37-12: a badge drawn when the call STARTED already sits at this
           // boundary — update its status rather than adding a second badge.
+          // §37-14B: its `at` was fixed when the call started, but the live
+          // view appends the answer to the SAME paragraph first, so the
+          // paragraph count only settles now — refresh the position too.
           const existing = p.call_id &&
-            liveCurrent.badges.find(function(b) { return b.call_id === p.call_id; });
+            zone.badges.find(function(b) { return b.call_id === p.call_id; });
           if (existing) {
             existing.status = p.status;
+            existing.at = at;
           } else {
-            liveCurrent.badges.push({ name: p.name, status: p.status, at: at, call_id: p.call_id });
+            zone.badges.push({ name: p.name, status: p.status, at: at, call_id: p.call_id });
           }
         });
         liveToolPending = [];
-        liveCurrent.text += '\n\n' + delta;
+        noteSegment(segmentId, hasText ? zone.text.length + 2 : 0, false);
+        zone.text = hasText ? zone.text + '\n\n' + delta : delta;
       } else {
         // Not the tool's answer (user barged in first, or an unrelated
         // response): the anchor is lost, discard the pending calls.
         liveToolPending = [];
         if (liveCurrent.role && liveCurrent.role !== role) livePromote();
+        noteSegment(segmentId, 0, true);
+        lastHighlightChar = null; // a new response starts a new highlight
+        highlightSegmentId = null;
         liveCurrent = { role: role, text: delta, badges: [] };
       }
     } else if (liveCurrent.role === role) {
+      noteSegment(segmentId, liveCurrent.text.length, false);
       liveCurrent.text += delta;
     } else if (livePrev.role === role && livePrev.text !== '') {
       if (liveCurrent.role === 'user' && !liveCurrent.final) {
@@ -416,9 +507,11 @@
         const resumed = { role: role, text: livePrev.text + delta, badges: livePrev.badges || [] };
         livePrev = { role: liveCurrent.role, text: liveCurrent.text, badges: liveCurrent.badges || [] };
         liveCurrent = resumed;
+        noteSegment(segmentId, 0, false);
       }
     } else {
       if (liveCurrent.role) livePromote();
+      noteSegment(segmentId, 0, true);
       liveCurrent = { role: role, text: delta, badges: [] };
     }
     if (liveViewWanted()) renderLiveView();
@@ -434,6 +527,9 @@
     liveCurrent = { role: null, text: '', badges: [] };
     liveToolPending = [];
     lastUserFinal = '';
+    liveSegments = [];
+    lastHighlightChar = null;
+    highlightSegmentId = null;
   }
 
   function renderControls() {
@@ -715,6 +811,7 @@
 
     renderInstruction();
     startIdleWatch();
+    startHighlightWatch();
     window.safeWsSend({ message: 'STS_START', chat_model: chatModel, greet: greet });
   }
 
@@ -722,6 +819,7 @@
     if (!active) return;
     active = false;
     stopIdleWatch();
+    stopHighlightWatch();
     try { window.safeWsSend({ message: 'STS_STOP' }); } catch (_) { /* socket may be gone */ }
     if (capture) { try { capture.stop(); } catch (_) { /* noop */ } capture = null; }
     const sts = window.WsStsPlayback;
@@ -1002,7 +1100,124 @@
   // into the same zone as a new paragraph (see liveAppend).
   function onAssistantFragment(data) {
     if (!liveViewWanted()) return;
-    liveAppend('assistant', (data && data.content) || '', !!(data && data.is_first));
+    liveAppend('assistant', (data && data.content) || '', !!(data && data.is_first),
+               data && data.segment_id);
+  }
+
+  // ── Speech highlight (§37-13C) ──────────────────────────────────────
+  // Driven ONLY by the playback clock (WsStsPlayback.getPlaybackPosition) —
+  // provider timing is never consulted. A SEGMENT is one upstream response
+  // (a tool-bridged turn is two: bridge, silence, answer); the silence
+  // between segments covers no playback range, so the highlight cannot
+  // advance through it. Within a segment the position maps linearly onto
+  // the segment's characters and the sentence containing that character is
+  // marked. Live view only; card view never highlights.
+  let highlightTimer = null;
+
+  function startHighlightWatch() {
+    stopHighlightWatch();
+    highlightTimer = setInterval(tickHighlight, 250);
+  }
+
+  function stopHighlightWatch() {
+    if (highlightTimer) { clearInterval(highlightTimer); highlightTimer = null; }
+  }
+
+  // Split `text` into sentence ranges [start, end). Delimiters follow the
+  // transcript conventions of all three providers; a paragraph break also
+  // ends a sentence (so a sentence never spans paragraphs).
+  function sentenceRanges(text) {
+    const ranges = [];
+    const re = /[^。！？!?\n]+[。！？!?]?|[^\n]/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      if (m[0].length > 0 && m[0].trim().length > 0) ranges.push([m.index, m.index + m[0].length]);
+    }
+    if (ranges.length === 0 && text.length > 0) ranges.push([0, text.length]);
+    return ranges;
+  }
+
+  // Map a playback position onto a character offset in the current zone.
+  function highlightCharFor(pos) {
+    if (!pos || liveCurrent.role !== 'assistant') return null;
+    const text = liveCurrent.text;
+    if (!text) return null;
+    let segIndex = -1;
+    for (let i = liveSegments.length - 1; i >= 0; i--) {
+      if (liveSegments[i].id === pos.segmentId) { segIndex = i; break; }
+    }
+    if (segIndex < 0) return null; // audio for text we have not seen — freeze
+    const start = liveSegments[segIndex].startChar;
+    const end = segIndex + 1 < liveSegments.length
+      ? liveSegments[segIndex + 1].startChar : text.length;
+    const span = Math.max(end - start, 1);
+    const fraction = pos.total > 0 ? Math.min(Math.max(pos.offset / pos.total, 0), 1) : 0;
+    return Math.min(start + Math.floor(fraction * span), end - 1);
+  }
+
+  function tickHighlight() {
+    if (!liveViewWanted() || liveCurrent.role !== 'assistant') return;
+    const pb = window.WsStsPlayback;
+    if (!pb || typeof pb.getPlaybackPosition !== 'function') return;
+    const pos = pb.getPlaybackPosition();
+    const char = pos ? highlightCharFor(pos) : null;
+    // pos null (silence / barge-in): keep the last position — freeze.
+    //
+    // Monotonic within a segment: `total` is the audio SCHEDULED so far, and
+    // deltas arrive ~3-5x faster than playback (measured), so early in a
+    // response the denominator is far too small and the fraction too large.
+    // As more audio lands, total grows and a raw fraction would move the
+    // highlight BACKWARD — visible as a jump back over text already spoken.
+    // Speech only moves forward, so the highlight only moves forward too;
+    // the reset points (new response / new zone) clear the floor.
+    if (char !== null) {
+      const seg = pos && pos.segmentId;
+      if (seg !== highlightSegmentId) {
+        highlightSegmentId = seg;
+        lastHighlightChar = char;
+      } else {
+        lastHighlightChar = lastHighlightChar === null
+          ? char : Math.max(lastHighlightChar, char);
+      }
+    }
+    if (lastHighlightChar === null) return;
+    renderLiveView();
+  }
+
+  // Wrap the sentence containing `charPos` in a .lc-speaking span during
+  // paragraph construction (called from renderZone for the CURRENT zone).
+  function appendParagraphWithHighlight(body, para, paraStart, charPos) {
+    const ranges = sentenceRanges(para);
+    let target = null;
+    for (let i = 0; i < ranges.length; i++) {
+      const s = paraStart + ranges[i][0];
+      const e = paraStart + ranges[i][1];
+      if (charPos >= s && charPos < e) { target = [ranges[i][0], ranges[i][1]]; break; }
+    }
+    const p = document.createElement('p');
+    if (!target) {
+      p.textContent = para;
+    } else {
+      p.appendChild(document.createTextNode(para.slice(0, target[0])));
+      const span = document.createElement('span');
+      span.className = 'lc-speaking';
+      span.textContent = para.slice(target[0], target[1]);
+      p.appendChild(span);
+      p.appendChild(document.createTextNode(para.slice(target[1])));
+    }
+    body.appendChild(p);
+  }
+
+  // Find a tool badge by call_id in either zone (promotion can move it).
+  function findToolBadge(callId) {
+    if (!callId) return null;
+    const zones = [liveCurrent, livePrev];
+    for (let i = 0; i < zones.length; i++) {
+      const badge = zones[i].badges &&
+        zones[i].badges.find(function(b) { return b.call_id === callId; });
+      if (badge) return badge;
+    }
+    return null;
   }
 
   // Tool-use visibility (§37/§37-12): running → status line + an immediate
@@ -1022,11 +1237,19 @@
     const callId = (data && data.call_id) || '';
     if (data.status === 'running') {
       liveToolPending.push({ name: name, status: 'done', call_id: callId });
-      if (liveCurrent.role === 'assistant' && callId &&
-          !liveCurrent.badges.some(function(b) { return b.call_id === callId; })) {
+      if (callId && !findToolBadge(callId)) {
+        // §37-13A: Gemini finalizes the user turn only when the model starts
+        // answering, so during the call the current zone is still USER —
+        // there is no assistant zone to hold the badge (OpenAI/xAI open one
+        // with a bridge utterance). Open an empty assistant zone for the
+        // badge alone; the answer continues into this same zone.
+        if (liveCurrent.role !== 'assistant') {
+          if (liveCurrent.role) livePromote();
+          liveCurrent = { role: 'assistant', text: '', badges: [] };
+        }
         liveCurrent.badges.push({
           name: name, status: 'running', call_id: callId,
-          at: liveCurrent.text.split('\n\n').length
+          at: liveCurrent.text.trim() !== '' ? liveCurrent.text.split('\n\n').length : 0
         });
       }
       setStatus(t('ui.messages.lcToolUsing', 'Using {tool}…').replace('{tool}', name));
@@ -1036,11 +1259,8 @@
         liveToolPending.find(function(p) { return p.name === name; });
       if (entry) entry.status = newStatus;
       // The badge may live in either zone (promotion can have moved it).
-      [liveCurrent, livePrev].forEach(function(zone) {
-        const badge = callId && zone.badges &&
-          zone.badges.find(function(b) { return b.call_id === callId; });
-        if (badge) badge.status = newStatus;
-      });
+      const badge = findToolBadge(callId);
+      if (badge) badge.status = newStatus;
     }
     if (liveViewWanted()) renderLiveView();
   }
@@ -1081,12 +1301,17 @@
       if (capture) { try { capture.stop(); } catch (_) { /* noop */ } }
       capture = null; active = false; lcMode = false; assistantTalking = false;
       stopIdleWatch();
+      stopHighlightWatch();
       removeUserTemp();
       idleStopMs = DEFAULT_IDLE_STOP_MS;
       liveReset();
       applyViewMode(); // restore discourse on teardown paths too
       document.body.classList.remove('lc-app', 'lc-locked');
-    }
+    },
+    // §37-13C test seams
+    _tickHighlight: tickHighlight,
+    _highlightCharFor: highlightCharFor,
+    _liveSegments: function() { return liveSegments; }
   };
 
   window.LiveConversation = ns;

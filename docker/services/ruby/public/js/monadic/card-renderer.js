@@ -354,10 +354,14 @@ function insertInlineToolBadge(cardEl, toolsUsed) {
     // spacing comes from the .lc-tools-badge rule in monadic.css instead.
     span.className = 'mc-badge ' + (tool.status === 'error' ? 'mc-badge--red' : 'mc-badge--grey') +
       ' lc-tools-badge';
-    // §37-12: a call still running spins its icon (the app's canonical busy
-    // indicator; reduce-motion coverage in monadic.css). done/error are
-    // static; error additionally turns the badge red.
-    span.innerHTML = "<i class='fas fa-tools" + (tool.status === 'running' ? ' fa-spin' : '') + "'></i> ";
+    // §37-12: a call still running shows the app's canonical busy glyph
+    // (fa-spinner + fa-spin, as used for Saving/Importing/Loading; the
+    // reduce-motion carve-out lives in monadic.css). Once it finishes the
+    // icon becomes the tool glyph — a spinning wrench read as decoration
+    // rather than progress, so the glyph itself carries the state.
+    // error additionally turns the badge red.
+    const icon = tool.status === 'running' ? 'fa-spinner fa-spin' : 'fa-tools';
+    span.innerHTML = "<i class='fas " + icon + "'></i> ";
     span.appendChild(document.createTextNode(tool.name));
     const paras = body.querySelectorAll(':scope > p');
     const target = paras[tool.at];

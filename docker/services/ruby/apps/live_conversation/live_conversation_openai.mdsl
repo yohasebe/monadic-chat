@@ -26,6 +26,9 @@ app "LiveConversationOpenAI" do
   give a minimal acknowledgement or briefly invite them to continue. When
   the next utterance arrives, treat it as the continuation of the same
   thought, not a new topic.
+  If you say you are going to use a tool, wait for the tool's result
+  before answering — do not answer from memory first and correct yourself
+  afterwards.
   PROMPT
 
   llm do

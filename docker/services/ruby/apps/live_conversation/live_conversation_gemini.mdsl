@@ -1,10 +1,10 @@
 app "LiveConversationGemini" do
   description do
     en <<~TEXT
-    Experimental continuous voice conversation over the Gemini Live API (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns. Audio is sent directly to the provider (Privacy Filter does not apply). Sessions are capped at 15 minutes upstream; the conversation reconnects and continues from its saved history. No tools or text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Continuous voice conversation over the Gemini Live API (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns. Audio is sent directly to the provider (Privacy Filter does not apply), and a running cost estimate is shown while the session is open. Sessions are capped at 15 minutes upstream; the conversation reconnects and continues from its saved history. Tools (current time, Python code, Knowledge Base search, web search) are available when you switch them on; there is no text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     ja <<~TEXT
-    Gemini Live API（speech-to-speech）による実験的な連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。上流セッションは15分で上限に達し、保存済み履歴から自動再接続して継続します。ツール・テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Gemini Live API（speech-to-speech）による連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。セッション中は料金の目安が画面に表示されます。上流セッションは15分で上限に達し、保存済み履歴から自動再接続して継続します。ツール（現在時刻・Python コード実行・Knowledge Base 検索・ウェブ検索）は、オンにしたときのみ使えます。テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -41,8 +41,11 @@ app "LiveConversationGemini" do
     # Greeting toggle: ON = the assistant greets when a fresh conversation
     # starts; OFF = start listening silently. Resume never greets.
     initiate_from_assistant true
-    # No-tools app family; the wire invariant (no tools key in the realtime
-    # session config) is pinned in the handler spec.
+    # The Library search TOOL is suppressed here: Live Conversation tools are
+    # opt-in through the app's own Tools toggle (library_search is offered
+    # there), and with the toggle off the realtime session config carries no
+    # tools key at all — that wire invariant is pinned in the handler spec.
+    # Conversations still save to the Library like any app.
     library_search false
     # Gemini Live consumes 16kHz input (output stays 24kHz); the client
     # capture worklet reads this and resamples accordingly.

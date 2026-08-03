@@ -64,6 +64,8 @@ Click the `From URL` button to enter a URL. The content at that URL is loaded in
 
 To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Speech-to-Text API and displayed in the text area.
 
+[Live Conversation](../apps/chat-apps.md#live-conversation) does not use this path: it has neither text input nor a Speech Input button — the microphone streams continuously while the session is open.
+
 <!-- SCREENSHOT: Message input area during voice recording showing animated waveform and Stop button -->
 
 After voice input, a `p-value` indicating the confidence of the voice input is displayed. The `p-value` is an indicator of the confidence of the voice input, expressed in the range from 0 to 1. The closer the `p-value` is to 1, the higher the confidence of the voice input.
@@ -89,7 +91,7 @@ A streaming mode is available for the `GPT Realtime Whisper ⚡` entry in the Sp
 
 **Cost note.** Realtime transcription is billed per audio minute by OpenAI. Refer to OpenAI's pricing page for current rates. The non-streaming STT models on the dropdown use OpenAI's batch transcription pricing, which is typically lower per minute.
 
-**Provider support.** Realtime streaming transcription is currently available only via OpenAI, which is the only supported provider with a transcription-only realtime API. Other STT models on the dropdown continue to use the batch path.
+**Provider support.** Realtime streaming transcription is currently available only via OpenAI, which is the only supported provider with a transcription-only realtime API. Other STT models on the dropdown continue to use the batch path. This transcription feature is separate from the speech-to-speech conversation in [Live Conversation](../apps/chat-apps.md#live-conversation), which is available for OpenAI, xAI, and Gemini.
 
 !> **Privacy Filter interaction.** Audio captured by Speech Input is transmitted to OpenAI for transcription before any Privacy Filter masking applies. Privacy Filter operates on the **text** sent to the LLM after transcription completes — it does not mask the audio itself. If your audio contains personally identifiable information that you do not want to send to OpenAI, type the message instead of dictating it.
 

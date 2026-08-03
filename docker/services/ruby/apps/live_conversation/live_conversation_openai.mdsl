@@ -1,10 +1,10 @@
 app "LiveConversationOpenAI" do
   description do
     en <<~TEXT
-    Experimental continuous voice conversation over OpenAI Realtime (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns. Audio is sent directly to the provider (Privacy Filter does not apply); roughly $6/hour with the default model. No tools or text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Continuous voice conversation over OpenAI Realtime (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns. Audio is sent directly to the provider (Privacy Filter does not apply), and a running cost estimate is shown while the session is open. Tools (current time, Python code, Knowledge Base search, web search) are available when you switch them on; there is no text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     ja <<~TEXT
-    OpenAI Realtime（speech-to-speech）による実験的な連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。既定モデルで目安 $6/時。ツール・テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    OpenAI Realtime（speech-to-speech）による連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。セッション中は料金の目安が画面に表示されます。ツール（現在時刻・Python コード実行・Knowledge Base 検索・ウェブ検索）はオンにしたときのみ使えます。テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -44,8 +44,10 @@ app "LiveConversationOpenAI" do
     # (messages present) there is never a greeting.
     initiate_from_assistant true
     # Conversations save to the Library like any app (Stop → save/load), but
-    # the search TOOL is suppressed: this is a no-tools app and nothing can
-    # reach the realtime session anyway (wire invariant in the handler spec).
+    # the search TOOL is suppressed here: Live Conversation tools are opt-in
+    # through the app's own Tools toggle (library_search is offered there),
+    # and with the toggle off the realtime session config carries no tools
+    # key at all (wire invariant in the handler spec).
     library_search false
     # Server-VAD tuning (dogfood round 1). API defaults (threshold 0.5,
     # silence 500ms) both misfired: brief hesitations ended the user's turn,

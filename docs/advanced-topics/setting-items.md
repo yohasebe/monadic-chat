@@ -77,6 +77,17 @@ All settings in the features block are optional:
 - `abc` - Enable ABC music notation
 - `math` - Enable LaTeX math rendering
 
+#### Speech-to-Speech
+These apply to Live Conversation apps, which stream the microphone to a provider's realtime API instead of using the text input panel:
+- `speech_to_speech` - Turn the app into a speech-to-speech app (Start/Stop controls replace text input)
+- `sts_input_rate` - Microphone sample rate in Hz (default 24000; Gemini Live consumes 16000)
+- `sts_vad_threshold` - Voice-activity detection sensitivity, 0.0-1.0 (higher is less sensitive to background noise)
+- `sts_vad_prefix_ms` - Audio kept before speech starts, in milliseconds
+- `sts_vad_silence_ms` - Silence that ends a turn, in milliseconds
+- `sts_idle_stop_seconds` - Stop the session after this much inactivity (default 180; 0 disables)
+
+Omitted `sts_vad_*` keys fall back to the provider's defaults, and not every provider honors every key (xAI ignores `sts_vad_prefix_ms`).
+
 #### Context Management
 - `context_size` - Number of previous messages to include
 - `monadic` - Enable JSON-based state management (available across providers with varying capabilities)

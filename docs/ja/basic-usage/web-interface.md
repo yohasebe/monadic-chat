@@ -57,7 +57,7 @@ Monadic Chatは2つの異なるブラウザモードでWebインターフェー�
 高度な思考をサポートするモデルの推論深度を調整します。セレクターは各プロバイダーの用語に適応します（OpenAI: Reasoning Effort、Anthropic: Thinking Level、Google: Thinking Mode、xAI: Reasoning Effort、DeepSeek: Reasoning Mode）。
 
 **Show Thinking** <br />
-モデルの思考（reasoning）の過程を、各応答内の折りたたみ可能な「Thinking Process」パネルとして表示するかどうかを切り替えます。このトグルは思考をサポートするモデルでのみ表示され、推論コントロールと連動します。推論の深さが「None」の状態でオンにすると、そのモデルの最も低い思考レベルまで自動的に引き上げられ、逆に「None」に戻すとトグルはオフになります。
+モデルの思考（reasoning）の過程を、各応答内の折りたたみ可能な「Thinking Process」パネルとして表示するかどうかを切り替えます。このトグルは思考をサポートするモデルでのみ表示され、推論コントロールと連動します。推論の深さが「None」の状態でオンにすると、そのモデルの最も低い思考レベルまで自動的に引き上げられ、逆に「None」に戻すとトグルはオフになります。[Live Conversation](../apps/chat-apps.md#live-conversation) ではこのトグルは表示されません（リアルタイムモデルは推論過程を出力しないため）。
 
 **Max Output Tokens** <br />
 APIレスポンスの最大トークン数を制限します。
@@ -87,7 +87,7 @@ AIユーザー機能のプロバイダーを選択します。この機能は人
 会話を始める時にアシスタント側が最初のメッセージを発します。
 
 **Chat Interaction Controls**<br />
-音声ベースの会話のためのオプションです。`toggle all`リンクをクリックすると、すべてのオプションを一度に有効/無効にできます。
+音声ベースの会話のためのオプションです。`toggle all`リンクをクリックすると、すべてのオプションを一度に有効/無効にできます。[Live Conversation](../apps/chat-apps.md#live-conversation) ではこれらのコントロールは非表示になります（音声はアプリ自身が管理するため）。
 
 **Auto speech**<br />
 アシスタントの応答を合成音声で自動的に読み上げます。
@@ -96,10 +96,10 @@ AIユーザー機能のプロバイダーを選択します。この機能は人
 Sendボタンをクリックせずに、Enterキーでメッセージを送信します。
 
 **Web検索**<br />
-AIが最新情報を検索できるようにします。ツール/関数呼び出しをサポートするモデルで利用可能です。
+AIが最新情報を検索できるようにします。ツール/関数呼び出しをサポートするモデルで利用可能です。[Live Conversation](../apps/chat-apps.md#live-conversation) では、このチェックボックスではなくアプリの「ツール」トグルに含まれる形で使います（既定はオフ）。
 
 **セッションインジケーターバッジ**<br />
-セッション中、会話のヘッダーには現在有効な機能を示すバッジが表示されます: Web検索、数式レンダリング、現在の推論の深さ、そしてKnowledge Baseです。Knowledge Baseバッジは、セッションが実際にKnowledge Baseを読み取る場合 — つまり「Use Knowledge Base for retrieval」トグルがオンのとき、またはKnowledge Baseアプリ自体（常にフルアクセス権を持ちます）を選択しているとき — に表示されます。
+セッション中、会話のヘッダーには現在有効な機能を示すバッジが表示されます: Web検索、数式レンダリング、現在の推論の深さ、そしてKnowledge Baseです。Knowledge Baseバッジは、セッションが実際にKnowledge Baseを読み取る場合 — つまり「Use Knowledge Base for retrieval」トグルがオンのとき、またはKnowledge Baseアプリ自体（常にフルアクセス権を持ちます）を選択しているとき — に表示されます。[Live Conversation](../apps/chat-apps.md#live-conversation) ではこれらの設定の一部にUIがないため、対応するバッジも表示されません。
 
 **Start Session / Continue Session** <br />
 新しいチャットを開始するか、現在の会話を続けます。
@@ -159,6 +159,8 @@ AIが最新情報を検索できるようにします。ツール/関数呼び�
 音声設定パネルでは、音声認識と音声合成の設定を行うことができます。
 
 !> 音声機能を使用するには、Google Chrome、Microsoft Edge、またはSafariブラウザを使用する必要があります。
+
+このパネルは [Live Conversation](../apps/chat-apps.md#live-conversation) では使われません。同アプリにはコントロール行に独自の音声・速度セレクターがあります。
 
 **Speech-to-Text Model**<br />
 音声認識に使用するモデルを選択します。OpenAI、Gemini、ElevenLabs、Cohere、Mistral、xAIのモデルが利用可能です。

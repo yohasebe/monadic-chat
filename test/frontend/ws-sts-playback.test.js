@@ -387,3 +387,46 @@ describe('integration with existing stop paths', () => {
     expect(Sts.getActiveTurnId()).toBeNull();
   });
 });
+
+describe('segment timelines (§37-13C)', () => {
+  it('records the segment range and reports the position inside it', () => {
+    ctx.currentTime = 0;
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'resp-1');
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'resp-1');
+
+    // two 100ms chunks starting at 0.16 → range [0.16, 0.36)
+    ctx.currentTime = 0.26;
+    const pos = Sts.getPlaybackPosition();
+    expect(pos.segmentId).toBe('resp-1');
+    expect(pos.offset).toBeCloseTo(0.1, 5);
+    expect(pos.total).toBeCloseTo(0.2, 5);
+  });
+
+  it('returns null in the silence between segments (nothing covers the clock)', () => {
+    ctx.currentTime = 0;
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'resp-1');
+
+    ctx.currentTime = 5; // far past the segment's end
+    expect(Sts.getPlaybackPosition()).toBeNull();
+  });
+
+  it('reports the later segment when several are scheduled', () => {
+    ctx.currentTime = 0;
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'resp-1');
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'resp-2');
+
+    ctx.currentTime = 0.3; // inside resp-2's range [0.26, 0.36)
+    const pos = Sts.getPlaybackPosition();
+    expect(pos.segmentId).toBe('resp-2');
+    expect(pos.offset).toBeCloseTo(0.04, 5);
+  });
+
+  it('drops the segment timelines of a cancelled turn (barge-in freeze)', () => {
+    ctx.currentTime = 0;
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'resp-1');
+
+    Sts.cancelTurn('t1');
+    ctx.currentTime = 0.2;
+    expect(Sts.getPlaybackPosition()).toBeNull();
+  });
+});

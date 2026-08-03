@@ -1171,11 +1171,12 @@ module WebSocketHelper
         next unless turn
         turn[:assistant_transcript] << delta
         if turn[:gate_open]
-          sts_send_fragment(turn, delta, ws_session_id)
+          sts_send_fragment(turn, delta, ws_session_id, payload["response_id"])
         else
           # Order gate (task #6): hold assistant text until the user's
-          # final stt message has been delivered.
-          turn[:pending_fragments] << delta
+          # final stt message has been delivered. The response id rides
+          # along so the flush can mark the fragment's segment (§37-13C).
+          turn[:pending_fragments] << [delta, payload["response_id"]]
         end
       when "response.output_audio_transcript.done"
         sts_handle_assistant_transcript_done(state, payload, ws_session_id)
@@ -1185,6 +1186,7 @@ module WebSocketHelper
         send_or_broadcast({
           "type" => "sts_audio_delta",
           "turn_id" => turn[:id],
+          "segment_id" => payload["response_id"],
           "content" => payload["delta"].to_s,
           "sample_rate" => REALTIME_STS_SAMPLE_RATE
         }.to_json, ws_session_id)
@@ -1832,8 +1834,8 @@ module WebSocketHelper
 
     pending = turn[:pending_fragments]
     return if pending.empty?
-    pending.each do |delta|
-      sts_send_fragment(turn, delta, ws_session_id)
+    pending.each do |delta, segment_id|
+      sts_send_fragment(turn, delta, ws_session_id, segment_id)
     end
     pending.clear
   end
@@ -1843,8 +1845,11 @@ module WebSocketHelper
   # temp-card to the bottom of the discourse only on that flag, and STS
   # fragments without it left the in-progress card stranded ABOVE the newer
   # user card (dogfood round 6 ordering complaint).
-  def sts_send_fragment(turn, delta, ws_session_id)
+  def sts_send_fragment(turn, delta, ws_session_id, segment_id = nil)
     msg = { "type" => "fragment", "content" => delta }
+    # §37-13C: the segment (= upstream response) this text belongs to — the
+    # live view's speech highlight maps playback time onto text per segment.
+    msg["segment_id"] = segment_id if segment_id
     unless turn[:fragment_sent]
       turn[:fragment_sent] = true
       msg["is_first"] = true

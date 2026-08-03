@@ -3381,3 +3381,65 @@ RSpec.describe 'STS tool response.create batching (§37-9)' do
     expect(state[:gemini_tool_outputs]).to eq({})
   end
 end
+
+# §37-13C: fragments and audio deltas carry the upstream response id as
+# segment_id so the client's speech highlight can map playback time onto
+# text per segment (tool-bridge silence is not covered by any segment).
+RSpec.describe 'STS segment ids on fragments and audio deltas (§37-13C)' do
+  let(:host) do
+    Class.new do
+      include WebSocketHelper
+      attr_reader :session, :broadcasts
+      def initialize
+        @session = { parameters: {}, messages: [] }
+        @broadcasts = []
+      end
+      def send_or_broadcast(payload, _sid) = (@broadcasts << JSON.parse(payload))
+      def sync_session_state!; end
+      def detect_language(_t) = 'en'
+    end.new
+  end
+
+  def run_reader(events, state)
+    conn = Class.new do
+      def initialize(frames) = @frames = frames
+      def read = @frames.shift
+      def write(_b); end
+      def flush; end
+    end.new(events.map(&:to_json))
+    Sync { host.send(:sts_reader_loop, conn, state, "sid") }
+  end
+
+  def bare_turn(gate_open: true)
+    { id: 't1', user_partial: +'', assistant_transcript: +'', gate_open: gate_open,
+      pending_fragments: [], user_msg_ref: nil, assistant_finalized: false,
+      cancel_notified: false, gate_timer: nil }
+  end
+
+  it 'marks fragments and audio deltas with the response segment id' do
+    turn = bare_turn
+    state = { turn: turn, responses: { 'resp-1' => turn } }
+    run_reader([
+      { type: 'response.output_audio_transcript.delta', response_id: 'resp-1', delta: 'Hello. ' },
+      { type: 'response.output_audio.delta', response_id: 'resp-1', delta: 'QUJD' }
+    ], state)
+
+    frag = host.broadcasts.find { |m| m['type'] == 'fragment' }
+    expect(frag['segment_id']).to eq('resp-1')
+    audio = host.broadcasts.find { |m| m['type'] == 'sts_audio_delta' }
+    expect(audio['segment_id']).to eq('resp-1')
+  end
+
+  it 'keeps the segment id through the order gate buffer' do
+    turn = bare_turn(gate_open: false)
+    state = { turn: turn, responses: { 'resp-1' => turn } }
+    run_reader([
+      { type: 'response.output_audio_transcript.delta', response_id: 'resp-1', delta: 'Held. ' }
+    ], state)
+    expect(host.broadcasts.none? { |m| m['type'] == 'fragment' }).to be(true)
+
+    host.send(:sts_open_gate, turn, 'sid', reason: 'test')
+    frag = host.broadcasts.find { |m| m['type'] == 'fragment' }
+    expect(frag['segment_id']).to eq('resp-1')
+  end
+end

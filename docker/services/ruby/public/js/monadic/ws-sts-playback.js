@@ -40,6 +40,15 @@
   let nextStartTime = 0;
   let activeTurnId = null;
 
+  // §37-13C speech highlight: per-SEGMENT (= upstream response) playback
+  // ranges on the audio clock. The live view maps the current position to
+  // the currently spoken sentence; silence between segments (tool calls)
+  // is simply not covered by any range, so the highlight cannot advance
+  // through it.
+  // segmentId -> { turnId, start, end } (AudioContext seconds; end moves as
+  // more chunks of the segment are scheduled ahead).
+  const segmentTimelines = new Map();
+
   // turnId -> Set of AudioBufferSourceNode still scheduled or playing.
   const scheduledSources = new Map();
 
@@ -151,9 +160,11 @@
    * @param {string} turnId - Response turn this chunk belongs to.
    * @param {Uint8Array} pcmBytes - PCM16 mono little-endian samples.
    * @param {number} sampleRate - Sample rate of pcmBytes (e.g. 24000).
+   * @param {string} [segmentId] - Upstream response id (§37-13C); defaults
+   *   to turnId so single-response turns need no special handling.
    * @returns {boolean} true if scheduled, false if dropped.
    */
-  function scheduleChunk(rawTurnId, pcmBytes, sampleRate) {
+  function scheduleChunk(rawTurnId, pcmBytes, sampleRate, segmentId) {
     const turnId = normalizeTurnId(rawTurnId);
     if (isCancelled(turnId)) return false;
     if (!pcmBytes || pcmBytes.length < 2) return false;
@@ -214,6 +225,15 @@
     trackSource(turnId, source);
     nextStartTime = startAt + (samples.length / sampleRate);
 
+    // §37-13C: extend the segment's playback range on the audio clock.
+    const segId = (segmentId === null || segmentId === undefined || segmentId === '')
+      ? turnId : String(segmentId);
+    if (segId !== null) {
+      const seg = segmentTimelines.get(segId) || { turnId: turnId, start: startAt, end: startAt };
+      seg.end = startAt + (samples.length / sampleRate);
+      segmentTimelines.set(segId, seg);
+    }
+
     if (typeof window.setTtsPlaybackStarted === 'function') {
       window.setTtsPlaybackStarted(true);
       if (typeof window.checkAndHideSpinner === 'function') window.checkAndHideSpinner();
@@ -232,6 +252,9 @@
     const turnId = normalizeTurnId(rawTurnId);
     rememberCancelled(turnId);
     stopSources(turnId);
+    segmentTimelines.forEach(function(seg, segId) {
+      if (seg.turnId === turnId) segmentTimelines.delete(segId);
+    });
     if (turnId === activeTurnId) {
       activeTurnId = null;
       nextStartTime = 0;
@@ -241,8 +264,27 @@
   function stopAll() {
     Array.from(scheduledSources.keys()).forEach(stopSources);
     scheduledSources.clear();
+    segmentTimelines.clear();
     activeTurnId = null;
     nextStartTime = 0;
+  }
+
+  // §37-13C: what is audible RIGHT NOW, as a segment-local playback
+  // position. Returns null during silence (nothing scheduled covers the
+  // clock — e.g. while a tool runs), which the caller treats as "freeze,
+  // do not advance". offset/total are seconds within the segment's
+  // scheduled range; total grows as chunks arrive ahead of realtime.
+  function getPlaybackPosition() {
+    const ctx = window.audioCtx;
+    if (!ctx) return null;
+    const now = ctx.currentTime;
+    let best = null;
+    segmentTimelines.forEach(function(seg, segId) {
+      if (now >= seg.start && now < seg.end && (!best || seg.start > best.start)) {
+        best = { segmentId: segId, offset: now - seg.start, total: seg.end - seg.start, start: seg.start };
+      }
+    });
+    return best;
   }
 
   // ── WebSocket message handlers ─────────────────────────────────────
@@ -256,7 +298,7 @@
       return false;
     }
     const sampleRate = Number(data.sample_rate) || 24000;
-    return scheduleChunk(data.turn_id, bytes, sampleRate);
+    return scheduleChunk(data.turn_id, bytes, sampleRate, data.segment_id);
   }
 
   function handleStsAudioDone(data) {
@@ -279,6 +321,7 @@
     handleStsAudioDelta: handleStsAudioDelta,
     handleStsAudioDone: handleStsAudioDone,
     handleStsAudioCancelled: handleStsAudioCancelled,
+    getPlaybackPosition: getPlaybackPosition,
     // True while any turn still has scheduled/playing sources. Used by the
     // Live Conversation echo gate (mic chunks are energy-gated while the
     // assistant is audible) — arrival-time flags are wrong for this because

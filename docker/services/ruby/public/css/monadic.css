@@ -1,8 +1,13 @@
 /* ============================================ */
 /* CSS Layer Order Declaration */
-/* Later layers override earlier layers without needing !important */
+/* Later layers override earlier layers without needing !important.
+   For !important declarations the order REVERSES: the EARLIER layer wins.
+   lc-overrides sits before vendor so Live Conversation's display:none
+   !important rules beat Bootstrap's vendor-layer .d-flex{display:flex
+   !important} (unlayered !important loses to ANY layered !important —
+   that inversion is what let the thinking toggle survive in LC). */
 /* ============================================ */
-@layer vendor, base, components, dark-theme, responsive, utilities;
+@layer lc-overrides, vendor, base, components, dark-theme, responsive, utilities;
 
 /* ============================================ */
 /* Base Layer: Variables, resets, accessibility */
@@ -6516,6 +6521,15 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    body.lc-app    : current app declares `speech_to_speech true`
    body.lc-locked : a conversation is active — cards are content-final per
                     turn, but editing is unlocked only after Stop. */
+/* All LC hiding rules live in the lc-overrides layer (declared BEFORE
+   vendor at the top of this file). Their display:none !important must beat
+   Bootstrap's vendor-layer utilities — .d-flex{display:flex !important}
+   otherwise wins, because for !important the layer order reverses and any
+   layered !important beats an unlayered one. This was the root cause of
+   the thinking toggle staying visible in LC (dogfood, browser-measured).
+   Plain inline display from JS $hide/$show also loses to these rules;
+   the JS-side none!important enforcement stays as a second layer. */
+@layer lc-overrides {
 .lc-app #user-panel > .row {
   display: none !important;
 }
@@ -6524,8 +6538,6 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .lc-app #ai-user-row {
   display: none !important;
 }
-#lc-panel { display: none; }
-.lc-app #lc-panel { display: block; }
 
 /* Settings that have no effect in a speech-to-speech app are hidden, not
    disabled: auto speech / easy submit belong to the typed pipeline, and the
@@ -6569,6 +6581,10 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .lc-app #ai-status-panel {
   display: none !important;
 }
+} /* end @layer lc-overrides */
+
+#lc-panel { display: none; }
+.lc-app #lc-panel { display: block; }
 
 .lc-locked #discourse .card .func-edit,
 .lc-locked #discourse .card .func-delete,

@@ -845,7 +845,12 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // NOT for OpenAI reasoning_effort models (no display control API)
     const thinkingContainer = $id("thinking-display-container");
     const showThinkingCb = $id("show-thinking");
-    if (spec["supports_thinking"]) {
+    // Never resurrect it in Live Conversation: realtime models emit no
+    // reasoning, and the capability check runs after HIDDEN_IN_LC hid it —
+    // a plain $show would strip the inline none!important and let the
+    // toggle leak back in (dogfood). The .lc-app CSS rule is the second
+    // layer of the same guard (house pattern: belt and suspenders).
+    if (spec["supports_thinking"] && !document.body.classList.contains('lc-app')) {
       $show(thinkingContainer);
       // Restore from params if available, default to unchecked (thinking off).
       // Users can opt in via the toggle; default off avoids slow responses

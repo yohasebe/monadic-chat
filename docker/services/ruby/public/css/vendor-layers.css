@@ -1,4 +1,17 @@
 /* Vendor CSS wrapped in @layer for proper cascade control */
 /* This allows custom CSS in higher layers to override vendor styles without !important */
+
+/* Layer ORDER is fixed by the FIRST statement the browser sees, and this
+   file is loaded before monadic.css. A later `@layer` statement can only
+   append names that do not exist yet — so declaring the order in
+   monadic.css alone appended `lc-overrides` AFTER utilities instead of
+   before vendor. That matters only for !important declarations, whose
+   layer precedence is REVERSED (earlier layer wins, and unlayered loses to
+   every layer): with lc-overrides last, Bootstrap's vendor-layer
+   .d-flex{display:flex !important} beat Live Conversation's
+   display:none !important and the thinking toggle stayed visible
+   (dogfood, browser-measured). Keep this statement first. */
+@layer lc-overrides, vendor, base, components, dark-theme, responsive, utilities;
+
 @import url("../vendor/css/bootstrap.min.css") layer(vendor);
 @import url("../vendor/css/abcjs-audio.min.css") layer(vendor);

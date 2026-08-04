@@ -383,6 +383,9 @@ RSpec.describe "WebSocketHelper STS bridge" do
     it "maps response.cancelled to sts_audio_cancelled and finalizes the partial card as interrupted" do
       turn = fresh_turn("tid9")
       turn[:assistant_transcript] << "partial answer"
+      # §39: the card exists only when the response was actually SPOKEN —
+      # mark an audio frame as having arrived for this turn.
+      turn[:spoken_response_ids] = { "r" => true }
       state[:turn] = turn
       run_reader(host, state, [{ type: "response.cancelled" }])
 
@@ -491,6 +494,8 @@ RSpec.describe "WebSocketHelper STS bridge" do
       state[:seeded] = true
       turn = fresh_turn("tid-abort")
       turn[:assistant_transcript] << "partial"
+      # §39: an interrupted card requires a spoken response (audio frame).
+      turn[:spoken_response_ids] = { "r" => true }
       state[:turn] = turn
       host.session[:_sts] = state
 
@@ -553,6 +558,8 @@ RSpec.describe "WebSocketHelper STS bridge" do
         host.send(:sts_reader_loop, conn, state, "ws-test")
         expect(turn[:pending_fragments]).not_to be_empty
         turn[:assistant_transcript] << "partial"
+        # §39: the interrupted card exists only for a SPOKEN response.
+        turn[:spoken_response_ids] = { "r" => true }
 
         host.send(:sts_finalize_interrupted_turn, state, turn, "ws-test")
         expect(turn[:gate_timer]).to be_nil
@@ -1326,7 +1333,7 @@ RSpec.describe 'WebSocketHelper STS continuous mode' do
     it 'finalizes the in-flight turn, tears down, and reports stopped' do
       turn = { id: 't1', assistant_transcript: +'partial words', assistant_finalized: false,
                cancel_notified: false, gate_timer: nil, pending_fragments: [], gate_open: true,
-               user_partial: +'', user_msg_ref: nil }
+               user_partial: +'', user_msg_ref: nil, spoken_response_ids: { 'r' => true } }
       queue = Async::Queue.new
       task = double('task', finished?: false, stop: nil)
       harness.session[:_sts] = { cmd_queue: queue, bridge_task: task, turn: turn,
@@ -1522,7 +1529,7 @@ A classic indeed.")
       old_turn = { id: 'old', assistant_transcript: +'I was saying', assistant_finalized: false,
                    cancel_notified: false, gate_timer: nil, pending_fragments: [],
                    gate_open: true, user_partial: +'', user_msg_ref: nil,
-                   response_id: 'resp-old' }
+                   response_id: 'resp-old', spoken_response_ids: { 'resp-old' => true } }
       state = base_state.merge(turn: old_turn, responses: { 'resp-old' => old_turn })
 
       run_reader([{ type: 'input_audio_buffer.speech_started' }], state)
@@ -1542,7 +1549,7 @@ A classic indeed.")
       old_turn = { id: 'old', assistant_transcript: +'gated words', assistant_finalized: false,
                    cancel_notified: false, gate_timer: nil, pending_fragments: ['gated words'],
                    gate_open: false, user_partial: +'', user_msg_ref: nil,
-                   response_id: 'resp-old' }
+                   response_id: 'resp-old', spoken_response_ids: { 'resp-old' => true } }
       state = base_state.merge(turn: old_turn, responses: { 'resp-old' => old_turn })
 
       run_reader([{ type: 'input_audio_buffer.speech_started' }], state)
@@ -1643,6 +1650,7 @@ A classic indeed.")
     it 'treats response.done(status=cancelled) as the cancellation signal' do
       state = base_state
       run_reader([{ type: 'response.created', response: { id: 'resp-1' } },
+                  { type: 'response.output_audio.delta', response_id: 'resp-1', delta: 'QUJD' },
                   { type: 'response.output_audio_transcript.delta', response_id: 'resp-1',
                     delta: 'partial words' },
                   { type: 'response.done',
@@ -1667,6 +1675,7 @@ A classic indeed.")
     it 'does not re-emit a card when transcript.done follows a finalized turn' do
       state = base_state
       run_reader([{ type: 'response.created', response: { id: 'resp-1' } },
+                  { type: 'response.output_audio.delta', response_id: 'resp-1', delta: 'QUJD' },
                   { type: 'response.output_audio_transcript.delta', response_id: 'resp-1',
                     delta: 'partial' },
                   { type: 'input_audio_buffer.speech_started' },
@@ -1683,6 +1692,7 @@ A classic indeed.")
     it 'updates the interrupted card text from the late transcript.done' do
       state = base_state
       run_reader([{ type: 'response.created', response: { id: 'resp-1' } },
+                  { type: 'response.output_audio.delta', response_id: 'resp-1', delta: 'QUJD' },
                   { type: 'response.output_audio_transcript.delta', response_id: 'resp-1',
                     delta: 'partial answ' },
                   { type: 'input_audio_buffer.speech_started' },
@@ -1702,10 +1712,12 @@ A classic indeed.")
     # Review P2-3: a barge-in before any transcript arrived leaves nothing
     # to put on a card, but the turn IS interrupted — the late
     # transcript.done must carry the interrupted marker, not masquerade as
-    # a completed turn.
+    # a completed turn. (The model DID speak — audio ran ahead of the
+    # transcript — so under §39 the card exists and carries the marker.)
     it 'marks the late-done card interrupted when the barge-in preceded any transcript' do
       state = base_state
       run_reader([{ type: 'response.created', response: { id: 'resp-1' } },
+                  { type: 'response.output_audio.delta', response_id: 'resp-1', delta: 'QUJD' },
                   { type: 'input_audio_buffer.speech_started' },
                   { type: 'response.output_audio_transcript.done', response_id: 'resp-1',
                     transcript: 'what the model had generated' }], state)
@@ -3012,13 +3024,13 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
 
   it 'folds the post-tool answer into the bridge card (append + tools_used persist + stream)' do
     msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'Let me check…', 'active' => true }
-    turn = { assistant_msg: msg, assistant_finalized: true }
+    turn = { assistant_msg: msg, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     state = { tool_continuation_turn: turn,
               tools_used_since_card: [{ 'name' => 'search_web', 'status' => 'done' }] }
     harness.session[:_sts] = state
     harness.session[:messages] = [msg]
 
-    harness.sts_fold_tool_continuation(state, turn, { 'transcript' => 'Tomorrow in Osaka will be sunny.' }, 'ws')
+    harness.sts_fold_tool_continuation(state, turn, { 'response_id' => 'resp-1', 'transcript' => 'Tomorrow in Osaka will be sunny.' }, 'ws')
 
     # §37-3: the continuation starts a NEW paragraph, and each tools_used
     # entry carries `at` = the paragraph index where the tool ran (= the
@@ -3039,17 +3051,17 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
   # earlier tools' badges vanished from the final card).
   it 'unions tools_used across repeated folds of the same turn' do
     msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'Checking…', 'active' => true }
-    turn = { assistant_msg: msg, assistant_finalized: true }
+    turn = { assistant_msg: msg, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     state = { tool_continuation_turn: turn,
               tools_used_since_card: [{ 'name' => 'get_current_time', 'status' => 'done' }] }
     harness.session[:_sts] = state
     harness.session[:messages] = [msg]
 
-    harness.sts_fold_tool_continuation(state, turn, { 'transcript' => 'It is noon.' }, 'ws')
+    harness.sts_fold_tool_continuation(state, turn, { 'response_id' => 'resp-1', 'transcript' => 'It is noon.' }, 'ws')
 
     state[:tool_continuation_turn] = turn
     state[:tools_used_since_card] = [{ 'name' => 'search_web', 'status' => 'done' }]
-    harness.sts_fold_tool_continuation(state, turn, { 'transcript' => 'And it is sunny.' }, 'ws')
+    harness.sts_fold_tool_continuation(state, turn, { 'response_id' => 'resp-1', 'transcript' => 'And it is sunny.' }, 'ws')
 
     expect(msg['text']).to eq("Checking…\n\nIt is noon.\n\nAnd it is sunny.")
     expect(msg['tools_used']).to eq([
@@ -3060,22 +3072,22 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
 
   it 'routes transcript.done to the fold ONLY for the marked turn, else to the replace path' do
     msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'bridge', 'active' => true }
-    turn = { assistant_msg: msg, assistant_finalized: true }
+    turn = { assistant_msg: msg, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     state = { tool_continuation_turn: turn,
               tools_used_since_card: [{ 'name' => 'search_web', 'status' => 'done' }] }
     harness.session[:_sts] = state
     harness.session[:messages] = [msg]
     allow(harness).to receive(:sts_turn_for_response).and_return(turn)
 
-    harness.sts_handle_assistant_transcript_done(state, { 'transcript' => 'answer' }, 'ws')
+    harness.sts_handle_assistant_transcript_done(state, { 'response_id' => 'resp-1', 'transcript' => 'answer' }, 'ws')
     expect(msg['text']).to eq("bridge\n\nanswer")
 
     # done for a DIFFERENT finalized turn → the interrupted-card path (not
     # the fold). Unrelated content is APPENDED as a new paragraph (§37-11).
     msg2 = { 'mid' => 'm2', 'role' => 'assistant', 'text' => 'x', 'active' => true }
-    turn2 = { assistant_msg: msg2, assistant_finalized: true }
+    turn2 = { assistant_msg: msg2, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     allow(harness).to receive(:sts_turn_for_response).and_return(turn2)
-    harness.sts_handle_assistant_transcript_done(state, { 'transcript' => 'longer replacement' }, 'ws')
+    harness.sts_handle_assistant_transcript_done(state, { 'response_id' => 'resp-1', 'transcript' => 'longer replacement' }, 'ws')
     expect(msg2['text']).to eq("x\n\nlonger replacement")
   end
 
@@ -3085,10 +3097,10 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
   # message is appended as a new paragraph instead of replacing the first.
   it 'replaces when the late transcript extends the same utterance (prefix)' do
     msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'partial answ', 'active' => true }
-    turn = { assistant_msg: msg, assistant_finalized: true }
+    turn = { assistant_msg: msg, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     harness.session[:messages] = [msg]
 
-    harness.sts_update_interrupted_card(turn, { 'transcript' => 'partial answer, full sentence.' }, 'ws')
+    harness.sts_update_interrupted_card(turn, { 'response_id' => 'resp-1', 'transcript' => 'partial answer, full sentence.' }, 'ws')
 
     expect(msg['text']).to eq('partial answer, full sentence.')
     out = harness.sent.find { |m| m['type'] == 'sts_card_text' }
@@ -3098,10 +3110,10 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
   it 'appends as a new paragraph when the late transcript is a different message' do
     msg = { 'mid' => 'm1', 'role' => 'assistant',
             'text' => '少しだけ時間がかかるから、夕方以降の天気を調べてから話すね。', 'active' => true }
-    turn = { assistant_msg: msg, assistant_finalized: true }
+    turn = { assistant_msg: msg, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     harness.session[:messages] = [msg]
 
-    harness.sts_update_interrupted_card(turn, { 'transcript' => 'どこの天気を知りたいのか教えてもらえる？' }, 'ws')
+    harness.sts_update_interrupted_card(turn, { 'response_id' => 'resp-1', 'transcript' => 'どこの天気を知りたいのか教えてもらえる？' }, 'ws')
 
     expect(msg['text']).to eq("少しだけ時間がかかるから、夕方以降の天気を調べてから話すね。\n\nどこの天気を知りたいのか教えてもらえる？")
     out = harness.sent.find { |m| m['type'] == 'sts_card_text' }
@@ -3115,11 +3127,11 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
   # side, so an output-side repeat is not unthinkable).
   it 'does not append the same message twice' do
     msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'first message', 'active' => true }
-    turn = { assistant_msg: msg, assistant_finalized: true }
+    turn = { assistant_msg: msg, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     harness.session[:messages] = [msg]
 
-    harness.sts_update_interrupted_card(turn, { 'transcript' => 'second message' }, 'ws')
-    harness.sts_update_interrupted_card(turn, { 'transcript' => 'second message' }, 'ws')
+    harness.sts_update_interrupted_card(turn, { 'response_id' => 'resp-1', 'transcript' => 'second message' }, 'ws')
+    harness.sts_update_interrupted_card(turn, { 'response_id' => 'resp-1', 'transcript' => 'second message' }, 'ws')
 
     expect(msg['text']).to eq("first message\n\nsecond message")
   end
@@ -3132,13 +3144,14 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
     bridge_msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'bridge', 'active' => true }
     bridge_turn = { assistant_msg: bridge_msg, assistant_finalized: true }
     other_msg = { 'mid' => 'm2', 'role' => 'assistant', 'text' => 'part', 'active' => true }
-    other_turn = { assistant_msg: other_msg, assistant_finalized: true }
+    other_turn = { assistant_msg: other_msg, assistant_finalized: true,
+                   spoken_response_ids: { 'resp-1' => true } }
     state = { tool_continuation_turn: bridge_turn, tools_used_since_card: [] }
     harness.session[:_sts] = state
     harness.session[:messages] = [bridge_msg, other_msg]
     allow(harness).to receive(:sts_turn_for_response).and_return(other_turn)
 
-    harness.sts_handle_assistant_transcript_done(state, { 'transcript' => 'partial words full' }, 'ws')
+    harness.sts_handle_assistant_transcript_done(state, { 'response_id' => 'resp-1', 'transcript' => 'partial words full' }, 'ws')
 
     expect(other_msg['text']).to eq('partial words full') # replaced, not appended
     expect(bridge_msg['text']).to eq('bridge')            # untouched
@@ -3479,5 +3492,257 @@ RSpec.describe 'STS segment ids on fragments and audio deltas (§37-13C)' do
     host.send(:sts_open_gate, turn, 'sid', reason: 'test')
     frag = host.broadcasts.find { |m| m['type'] == 'fragment' }
     expect(frag['segment_id']).to eq('resp-1')
+  end
+end
+
+# §39: a transcript fragment can exist without a single audio frame (the
+# model's cut-off thought — the log shows audio_out=0). A response that was
+# never heard must never become a card; the card must match what was
+# actually said. The marker is a per-turn SET of response ids with audio.
+RSpec.describe 'STS zero-audio responses never become cards (§39)' do
+  let(:host) do
+    Class.new do
+      include WebSocketHelper
+      attr_reader :session, :broadcasts
+      public :sts_finalize_interrupted_turn, :sts_update_interrupted_card, :sts_reader_loop
+      def initialize
+        @session = { parameters: { 'app_name' => 'LiveConversationOpenAI' }, messages: [] }
+        @broadcasts = []
+      end
+      def send_or_broadcast(payload, _sid) = (@broadcasts << JSON.parse(payload))
+      def sync_session_state!; end
+      def detect_language(_t) = 'en'
+      def get_session_params = session[:parameters]
+    end.new
+  end
+
+  def run_reader(events, state)
+    conn = Class.new do
+      def initialize(frames) = @frames = frames
+      def read = @frames.shift
+      def write(_b); end
+      def flush; end
+    end.new(events.map(&:to_json))
+    Sync { host.sts_reader_loop(conn, state, 'sid') }
+  end
+
+  def bare_turn(overrides = {})
+    { id: 't1', user_partial: +'', assistant_transcript: +'', gate_open: true,
+      pending_fragments: [], user_msg_ref: nil, assistant_finalized: false,
+      cancel_notified: false, gate_timer: nil, spoken_response_ids: nil,
+      response_id: 'resp-1' }.merge(overrides)
+  end
+
+  it '(a/b/c) no card when transcript deltas arrived but no audio frame did' do
+    turn = bare_turn(gate_timer: double(stop: nil),
+                     assistant_transcript: +'そう言ってく',
+                     pending_fragments: [['そう言ってく', 'resp-1']])
+    state = { turn: turn, responses: { 'resp-1' => turn } }
+
+    host.sts_finalize_interrupted_turn(state, turn, 'sid')
+
+    # (a) no card…
+    expect(host.broadcasts.none? { |m| m['type'] == 'html' }).to be(true)
+    # (b) …but the turn is still marked interrupted (no dressing up later)
+    expect(turn[:interrupted]).to be(true)
+    # (c) and the gate state is cleared FIRST, so nothing leaks into the
+    # next turn's card
+    expect(turn[:gate_timer]).to be_nil
+    expect(turn[:pending_fragments]).to be_empty
+  end
+
+  it 'creates the interrupted card when at least one audio frame arrived (control)' do
+    turn = bare_turn(assistant_transcript: +'そう言ってく',
+                     spoken_response_ids: { 'resp-1' => true })
+    state = { turn: turn, responses: {} }
+
+    host.sts_finalize_interrupted_turn(state, turn, 'sid')
+
+    card = host.broadcasts.find { |m| m['type'] == 'html' }
+    expect(card).not_to be_nil
+    expect(card.dig('content', 'interrupted')).to be(true)
+    expect(card.dig('content', 'text')).to eq('そう言ってく')
+  end
+
+  it 'does not append a late transcript from an unspoken response to the card' do
+    msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'spoken part', 'active' => true }
+    turn = bare_turn(assistant_msg: msg, assistant_finalized: true,
+                     spoken_response_ids: { 'resp-1' => true })
+    host.session[:messages] = [msg]
+
+    host.sts_update_interrupted_card(turn,
+      { 'response_id' => 'resp-2', 'transcript' => 'unspoken continuation' }, 'sid')
+
+    expect(msg['text']).to eq('spoken part')
+    expect(host.broadcasts.none? { |m| m['type'] == 'sts_card_text' }).to be(true)
+  end
+
+  # sts_turn_for_response treats a missing response id as "the current
+  # turn". The §39 guard must use the SAME granularity: dropping the update
+  # whenever the id is absent would silently disable in-place card
+  # extension for any dialect that omits it.
+  it 'still extends the card when the event carries no response id but the turn was spoken' do
+    msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'spoken part', 'active' => true }
+    turn = bare_turn(assistant_msg: msg, assistant_finalized: true,
+                     spoken_response_ids: { 'resp-1' => true })
+    host.session[:messages] = [msg]
+
+    host.sts_update_interrupted_card(turn, { 'transcript' => 'spoken part, extended' }, 'sid')
+
+    expect(msg['text']).to eq('spoken part, extended')
+  end
+
+  it 'suppresses an id-less update when the turn never produced audio' do
+    msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'spoken part', 'active' => true }
+    turn = bare_turn(assistant_msg: msg, assistant_finalized: true)
+    host.session[:messages] = [msg]
+
+    host.sts_update_interrupted_card(turn, { 'transcript' => 'never heard' }, 'sid')
+
+    expect(msg['text']).to eq('spoken part')
+  end
+
+  it 'reader path: barge-in after transcript-only deltas produces no card' do
+    turn = bare_turn
+    state = { session_ready: true, ready: Async::Condition.new, turn: turn,
+              responses: { 'resp-1' => turn }, cmd_queue: Async::Queue.new }
+
+    run_reader([
+      { type: 'response.output_audio_transcript.delta', response_id: 'resp-1', delta: 'そう言ってく' },
+      { type: 'input_audio_buffer.speech_started' },
+      { type: 'response.done', response: { id: 'resp-1', status: 'cancelled' } }
+    ], state)
+
+    expect(host.broadcasts.none? { |m| m['type'] == 'html' }).to be(true)
+    expect(turn[:interrupted]).to be(true)
+  end
+
+  it 'reader path: the audio delta itself is what marks the response spoken' do
+    turn = bare_turn(assistant_finalized: true)
+    state = { session_ready: true, ready: Async::Condition.new, turn: turn,
+              responses: { 'resp-1' => turn }, cmd_queue: Async::Queue.new }
+
+    run_reader([
+      { type: 'response.output_audio.delta', response_id: 'resp-1', delta: 'QUJD' }
+    ], state)
+
+    expect(turn[:spoken_response_ids]).to eq({ 'resp-1' => true })
+  end
+end
+
+# §39 follow-up: the late transcript.done after a zero-audio barge-in must
+# not resurrect the response as a card on the done path either.
+RSpec.describe 'STS zero-audio late done stays silent (§39 done path)' do
+  let(:host) do
+    Class.new do
+      include WebSocketHelper
+      attr_reader :session, :broadcasts
+      public :sts_reader_loop
+      def initialize
+        @session = { parameters: { 'app_name' => 'LiveConversationOpenAI' }, messages: [] }
+        @broadcasts = []
+      end
+      def send_or_broadcast(payload, _sid) = (@broadcasts << JSON.parse(payload))
+      def sync_session_state!; end
+      def detect_language(_t) = 'en'
+      def get_session_params = session[:parameters]
+    end.new
+  end
+
+  def run_reader(events, state)
+    conn = Class.new do
+      def initialize(frames) = @frames = frames
+      def read = @frames.shift
+      def write(_b); end
+      def flush; end
+    end.new(events.map(&:to_json))
+    Sync { host.sts_reader_loop(conn, state, 'sid') }
+  end
+
+  it 'barge-in then late transcript.done for a zero-audio response: no card, no flush' do
+    turn = { id: 't1', user_partial: +'', assistant_transcript: +'そう言ってく',
+             gate_open: false, pending_fragments: [['そう言ってく', 'resp-1']],
+             user_msg_ref: nil, assistant_finalized: false, cancel_notified: false,
+             gate_timer: nil, spoken_response_ids: nil, response_id: 'resp-1' }
+    state = { session_ready: true, ready: Async::Condition.new, turn: turn,
+              responses: { 'resp-1' => turn }, cmd_queue: Async::Queue.new }
+
+    run_reader([
+      { type: 'input_audio_buffer.speech_started' }, # barge-in: finalize (zero-audio → no card)
+      { type: 'response.output_audio_transcript.done', response_id: 'resp-1',
+        transcript: 'そう言ってくれてありがとう' }
+    ], state)
+
+    expect(host.broadcasts.none? { |m| m['type'] == 'html' }).to be(true)
+    expect(host.broadcasts.none? { |m| m['type'] == 'fragment' }).to be(true)
+    expect(turn[:pending_fragments]).to be_empty
+  end
+end
+
+# §39 fold path: a continuation cancelled before its first audio frame
+# takes the fold route for its late done (the turn is already finalized).
+# The unspoken text must not fold in, but the tool badge stays — the tool
+# genuinely ran.
+RSpec.describe 'STS fold suppresses unspoken continuation text (§39)' do
+  let(:harness) do
+    Class.new do
+      include WebSocketHelper
+      attr_accessor :session
+      public :sts_fold_tool_continuation
+      def get_session_params = { 'app_name' => 'LiveConversationOpenAI' }
+      def initialize
+        @sent = []
+      end
+      attr_reader :sent
+      def send_or_broadcast(json, _sid = nil)
+        @sent << JSON.parse(json)
+      end
+      def sync_session_state!; end
+      def session
+        @session ||= { parameters: { 'app_name' => 'LiveConversationOpenAI' } }
+      end
+    end.new
+  end
+
+  def setup_fold(spoken:)
+    msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'Let me check…', 'active' => true }
+    turn = { assistant_msg: msg, assistant_finalized: true,
+             spoken_response_ids: spoken }
+    state = { tool_continuation_turn: turn,
+              tools_used_since_card: [{ 'name' => 'search_web', 'status' => 'done' }] }
+    harness.session[:_sts] = state
+    harness.session[:messages] = [msg]
+    [msg, turn]
+  end
+
+  it 'suppresses the unspoken text but keeps the tool badge' do
+    msg, turn = setup_fold(spoken: { 'resp-1' => true })
+    harness.sts_fold_tool_continuation(harness.session[:_sts], turn,
+      { 'response_id' => 'resp-2', 'transcript' => 'unspoken answer' }, 'ws')
+
+    expect(msg['text']).to eq('Let me check…') # no unspoken text folded in
+    expect(msg['tools_used']).to eq([{ 'name' => 'search_web', 'status' => 'done', 'at' => 1 }])
+    out = harness.sent.find { |m| m['type'] == 'sts_card_text' }
+    expect(out['content']).to eq('Let me check…')
+    expect(out['tools_used']).to eq(msg['tools_used']) # badge still streams
+  end
+
+  it 'suppresses everything when nothing was ever spoken (id-less, empty set)' do
+    msg, turn = setup_fold(spoken: {})
+    harness.session[:_sts][:tools_used_since_card] = [] # no badge to attach either
+    harness.sts_fold_tool_continuation(harness.session[:_sts], turn,
+      { 'transcript' => 'unspoken answer' }, 'ws')
+
+    expect(msg['text']).to eq('Let me check…')
+    expect(msg).not_to have_key('tools_used')
+    expect(harness.sent).to be_empty
+  end
+
+  it 'folds normally for an id-less done when the turn WAS spoken (resolver parity)' do
+    msg, turn = setup_fold(spoken: { 'resp-1' => true })
+    harness.sts_fold_tool_continuation(harness.session[:_sts], turn,
+      { 'transcript' => 'spoken answer' }, 'ws')
+
+    expect(msg['text']).to eq("Let me check…\n\nspoken answer")
   end
 end

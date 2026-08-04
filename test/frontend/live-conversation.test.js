@@ -1344,6 +1344,30 @@ describe('tool-bridged fold client behavior (§37-2)', () => {
     expect(document.querySelectorAll('#m1 .lc-tools-badge').length).toBe(1);
   });
 
+  // §39: a suppressed (unspoken) continuation arrives as tools_used with
+  // UNCHANGED text. The grow path used to wipe the body before re-inserting
+  // badges, so re-sent entries could not pile up; the badge-only path has no
+  // such wipe, and the server re-sends the UNION on every fold.
+  it('does not duplicate inline badges when a badge-only update repeats', async () => {
+    await LC.startConversation();
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-header"><div class="card-title">Assistant</div></div>' +
+      '<div class="card-body"><div class="card-text">Let me check…</div></div></div>');
+
+    // The inline badge renderer lives in card-renderer.js, which this suite
+    // does not load — wire the real one up so the badge path is exercised.
+    const prevInsert = window.insertInlineToolBadge;
+    window.insertInlineToolBadge =
+      require('../../docker/services/ruby/public/js/monadic/card-renderer.js').insertInlineToolBadge;
+
+    const tools = [{ name: 'run_code', status: 'done', at: 1 }];
+    LC.onCardText({ mid: 'm1', content: 'Let me check…', tools_used: tools });
+    LC.onCardText({ mid: 'm1', content: 'Let me check…', tools_used: tools });
+
+    expect(document.querySelectorAll('#m1 .card-text .lc-tools-badge').length).toBe(1);
+    window.insertInlineToolBadge = prevInsert;
+  });
+
   it('removes the temp-card when its content is folded into the card', async () => {
     await LC.startConversation();
     const discourse = document.getElementById('discourse');
@@ -1781,5 +1805,47 @@ describe('turn detection selector (§37-16)', () => {
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(sel().value).toBe('medium');
+  });
+});
+
+describe('badge-only card text update (§39 suppress path)', () => {
+  beforeEach(() => {
+    window.params = {};
+    window.insertInlineToolBadge =
+      require('../../docker/services/ruby/public/js/monadic/card-renderer').insertInlineToolBadge;
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.params;
+    delete window.insertInlineToolBadge;
+  });
+
+  it('renders the badge even when the text does not grow', async () => {
+    await LC.startConversation();
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-header"><div class="card-title">Assistant</div></div>' +
+      '<div class="card-body"><div class="card-text">Let me check…</div></div></div>');
+
+    // §39: the unspoken continuation was suppressed server-side, so the
+    // update carries the SAME text plus only the tool badge.
+    LC.onCardText({ mid: 'm1', content: 'Let me check…',
+                    tools_used: [{ name: 'search_web', status: 'done', at: 1 }] });
+
+    const badge = document.querySelector('#m1 .card-text .lc-tools-badge');
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toContain('search_web');
+    // text unchanged (no paragraph rebuild on the suppress path)
+    expect(document.querySelector('#m1 .card-text').textContent).toContain('Let me check…');
+    expect(document.querySelector('#m1 .card-text').textContent).not.toContain('unspoken');
+  });
+
+  it('still ignores a no-growth update with no tools', async () => {
+    await LC.startConversation();
+    document.getElementById('discourse').insertAdjacentHTML('beforeend',
+      '<div class="card" id="m1"><div class="card-body"><div class="card-text">same text</div></div></div>');
+
+    LC.onCardText({ mid: 'm1', content: 'same text' });
+    expect(document.querySelector('#m1 .lc-tools-badge')).toBeNull();
   });
 });

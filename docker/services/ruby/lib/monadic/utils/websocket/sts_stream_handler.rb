@@ -1205,6 +1205,12 @@ module WebSocketHelper
       when "response.output_audio.delta"
         turn = sts_turn_for_response(state, payload)
         next unless turn
+        # §39: mark the response as actually SPOKEN. A transcript fragment
+        # can exist without a single audio frame (the model's cut-off
+        # thought — the log shows audio_out=0 for exactly such a response),
+        # and a response that was never heard must never become a card.
+        rid = payload["response_id"].to_s
+        (turn[:spoken_response_ids] ||= {})[rid] = true unless rid.empty?
         send_or_broadcast({
           "type" => "sts_audio_delta",
           "turn_id" => turn[:id],
@@ -1783,7 +1789,11 @@ module WebSocketHelper
       user_msg_ref: nil,
       assistant_finalized: false,
       cancel_notified: false,
-      gate_timer: nil
+      gate_timer: nil,
+      # §39: response ids that produced at least one audio frame. A turn
+      # spans several responses (tool continuation), so this is a SET, not
+      # a boolean — the zero-audio card rule keys on it.
+      spoken_response_ids: nil
     }
     state[:turn] = turn
 
@@ -1990,6 +2000,19 @@ module WebSocketHelper
     transcript = payload["transcript"].to_s
     transcript = turn[:assistant_transcript].dup if transcript.empty?
 
+    # §39: a response that was never SPOKEN (no audio frame ever arrived)
+    # must not produce a card on this path either — this is the late-done
+    # leg of the exact dogfood sequence (barge-in, then transcript.done for
+    # a zero-audio response). Suppress the gated flush too: those fragments
+    # were never heard. Gate state is still cleared so nothing leaks into
+    # the next turn.
+    if turn[:interrupted] && (turn[:spoken_response_ids] || {}).empty?
+      turn[:gate_timer]&.stop
+      turn[:gate_timer] = nil
+      turn[:pending_fragments].clear
+      return
+    end
+
     # Make sure any still-gated fragments go out (in order) before the
     # final card supersedes them.
     sts_open_gate(turn, ws_session_id, reason: "done")
@@ -2123,16 +2146,28 @@ module WebSocketHelper
     # turn IS interrupted — a late transcript.done must not dress it up as a
     # completed turn (review P2-3).
     turn[:interrupted] = true
-    transcript = turn[:assistant_transcript].to_s
-    return if transcript.strip.empty?
 
-    # The interrupted card carries the full accumulated transcript, so any
-    # still-gated fragments are superseded by it: stop the gate timer and
-    # drop the buffer instead of letting it fire into the NEXT turn's card.
+    # Stop the gate timer and drop the buffer FIRST, on every exit path:
+    # a still-armed timer or leftover buffer would flush this turn's
+    # fragments into the NEXT turn's card (§39 ordering constraint — the
+    # zero-audio early return below must not skip this).
     turn[:gate_timer]&.stop
     turn[:gate_timer] = nil
     turn[:pending_fragments].clear
 
+    transcript = turn[:assistant_transcript].to_s
+    return if transcript.strip.empty?
+
+    # §39: never spoken = never a card. A transcript fragment can arrive
+    # without a single audio frame (the model's cut-off thought — the log
+    # shows audio_out=0 for exactly such a response), and a card must match
+    # what was actually said. The set is response-scoped because a turn can
+    # span several responses (tool continuation).
+    return if (turn[:spoken_response_ids] || {}).empty?
+
+    # The interrupted card carries the full accumulated transcript, so any
+    # still-gated fragments are superseded by it (the buffer is already
+    # dropped above).
     sts_send_assistant_card(state, turn, transcript, ws_session_id, interrupted: true)
   end
 
@@ -2334,20 +2369,33 @@ module WebSocketHelper
   # utterances are distinct paragraphs), tools_used are persisted into the
   # canon entry AND streamed to the client with the text update, and no
   # second card is ever created for the continuation.
+  #
+  # §39: the continuation can be cancelled before it utters a single frame
+  # (barge-in while the tool ran) — a finalized turn takes the fold path
+  # for its late done, and without a guard the UNSPOKEN answer would be
+  # folded into the card. Suppress the text then, but keep the tools_used
+  # badge: the tool genuinely ran and that fact belongs on the card.
   def sts_fold_tool_continuation(state, turn, payload, ws_session_id)
     state[:tool_continuation_turn] = nil
     msg = turn[:assistant_msg]
     return unless msg
 
     addition = payload["transcript"].to_s.strip
-    return if addition.empty?
+
+    # §39: id resolution mirrors sts_update_interrupted_card (response_id →
+    # response.id; no id → judge at turn granularity).
+    spoken = turn[:spoken_response_ids] || {}
+    rid = (payload["response_id"] || payload.dig("response", "id")).to_s
+    suppress_text = addition.empty? || (rid.empty? ? spoken.empty? : !spoken[rid])
 
     # The continuation starts a NEW paragraph (§37-3): the bridge text and
     # the answer are separate paragraphs in the single folded card. The
     # tools badge sits at that boundary — `at` is the paragraph index where
-    # the continuation begins (= bridge paragraph count).
+    # the continuation begins (= bridge paragraph count). Computed BEFORE
+    # the join.
     bridge_paragraphs = msg["text"].to_s.split("\n\n").length
-    msg["text"] = [msg["text"].to_s, addition].reject(&:empty?).join("\n\n")
+    msg["text"] = [msg["text"].to_s, addition].reject(&:empty?).join("\n\n") unless suppress_text
+    attached = false
     if state[:tools_used_since_card] && !state[:tools_used_since_card].empty?
       # UNION, not assignment: a turn that folds more than once (multi-tool
       # chain) must keep the earlier folds' entries — the merge path already
@@ -2357,7 +2405,11 @@ module WebSocketHelper
       end
       msg["tools_used"] = Array(msg["tools_used"]) + positioned
       state[:tools_used_since_card] = []
+      attached = true
     end
+    # Nothing changed: unspoken text suppressed and no new badge to attach.
+    return if suppress_text && !attached
+
     sync_session_state!
 
     out = { "type" => "sts_card_text", "mid" => msg["mid"], "content" => msg["text"] }
@@ -2373,6 +2425,18 @@ module WebSocketHelper
   def sts_update_interrupted_card(turn, payload, ws_session_id)
     msg = turn[:assistant_msg]
     return unless msg
+
+    # §39: a late transcript.done from a response that was never SPOKEN
+    # (no audio frame ever arrived for its response id) must not grow the
+    # card either — the card shows what was actually said.
+    spoken = turn[:spoken_response_ids] || {}
+    # Read the id exactly as sts_turn_for_response does, and treat "no id"
+    # the same way it does: the event belongs to the CURRENT turn, so fall
+    # back to turn granularity. Dropping the update outright would silently
+    # disable the in-place card extension for any dialect that omits the
+    # id — the very case the resolver's fallback exists for.
+    rid = (payload["response_id"] || payload.dig("response", "id")).to_s
+    return if rid.empty? ? spoken.empty? : !spoken[rid]
 
     full = payload["transcript"].to_s.strip
     return if full.empty?

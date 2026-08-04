@@ -1122,37 +1122,53 @@
     if (!card) return;
     const body = card.querySelector('.card-text');
     if (!body) return;
-    // Mirror the server's grow-only rule as a client-side belt.
-    if (text.length <= body.textContent.trim().length) return;
-    // Paragraph split (§37-3): folded text joins utterances with "\n\n" —
-    // render each as its own paragraph so position-aware tool badges can
-    // sit at the boundary. textContent is inherently injection-safe.
-    const paraEls = text.split('\n\n').map(function(para) {
-      const p = document.createElement('p');
-      p.textContent = para;
-      return p;
-    });
-    body.replaceChildren.apply(body, paraEls);
-    // Mirror into the live view's assistant zone (interrupted card refresh).
-    if (livePrev.role === 'assistant') { livePrev.text = text; }
-    if (liveCurrent.role === 'assistant') {
-      liveCurrent.text = text;
-      // Positioned tool entries from the fold double as the live zone's
-      // badges (§37-5) — keeps the live view correct even when onToolCall
-      // anchoring missed (e.g. live view toggled on mid-exchange).
-      if (Array.isArray(data.tools_used)) {
+    const hasTools = Array.isArray(data.tools_used) && data.tools_used.length > 0;
+    const grows = text.length > body.textContent.trim().length;
+    // Mirror the server's grow-only rule as a client-side belt — for the
+    // TEXT only. A badge-carrying update is processed even without growth
+    // (§39: a suppressed unspoken continuation can arrive as tools_used
+    // alone, and the badge must still render).
+    if (!grows && !hasTools) return;
+    if (grows) {
+      // Paragraph split (§37-3): folded text joins utterances with "\n\n" —
+      // render each as its own paragraph so position-aware tool badges can
+      // sit at the boundary. textContent is inherently injection-safe.
+      const paraEls = text.split('\n\n').map(function(para) {
+        const p = document.createElement('p');
+        p.textContent = para;
+        return p;
+      });
+      body.replaceChildren.apply(body, paraEls);
+      // Mirror into the live view's assistant zone (interrupted card refresh).
+      if (livePrev.role === 'assistant') { livePrev.text = text; }
+      if (liveCurrent.role === 'assistant') {
+        liveCurrent.text = text;
+        // Positioned tool entries from the fold double as the live zone's
+        // badges (§37-5) — keeps the live view correct even when onToolCall
+        // anchoring missed (e.g. live view toggled on mid-exchange).
+        if (Array.isArray(data.tools_used)) {
+          liveCurrent.badges = data.tools_used.filter(function(tool) {
+            return tool && typeof tool.at === 'number';
+          });
+        }
+      }
+      if (liveViewWanted()) renderLiveView();
+    } else if (hasTools) {
+      // No text growth, but the badge set may have changed (§39 suppress
+      // path) — keep the live zone's badges in sync too.
+      if (liveCurrent.role === 'assistant') {
         liveCurrent.badges = data.tools_used.filter(function(tool) {
           return tool && typeof tool.at === 'number';
         });
+        if (liveViewWanted()) renderLiveView();
       }
     }
-    if (liveViewWanted()) renderLiveView();
 
     // Tools used this turn (§37-2/§37-4): positioned entries (`at`) render
     // as inline badges at the paragraph boundary via insertInlineToolBadge;
     // entries WITHOUT a position (older canon) fall back to a single header
     // badge — exclusive per entry, so no tool shows twice or vanishes.
-    if (Array.isArray(data.tools_used) && data.tools_used.length > 0) {
+    if (hasTools) {
       const unpositioned = data.tools_used.filter((t) => !t || typeof t.at !== 'number');
       if (unpositioned.length > 0) {
         const title = card.querySelector('.card-title');
@@ -1169,7 +1185,12 @@
       }
       // §37-3: entries with `at` get an inline badge at the paragraph
       // boundary where the tool ran (display layer only; canon stays plain).
+      // Clear the previous inline badges first: the server re-sends the
+      // UNION of tools_used on every fold, and only the growth path rebuilds
+      // the body — a badge-only update (§39 suppressed continuation) would
+      // otherwise append the same badge again on each arrival.
       if (typeof window.insertInlineToolBadge === 'function') {
+        body.querySelectorAll(':scope > .lc-tools-badge').forEach(function(el) { el.remove(); });
         window.insertInlineToolBadge(card, data.tools_used);
       }
     }

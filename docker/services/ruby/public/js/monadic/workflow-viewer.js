@@ -1469,7 +1469,42 @@ const WorkflowViewer = (function () {
       if (typeof window.maxgraph === 'undefined' && window.LazyLoader) {
         try { await window.LazyLoader.maxgraph(); } catch (e) { /* ignore */ }
       }
-      if (typeof window.maxgraph === 'undefined') { console.warn('[WorkflowViewer] maxGraph not loaded'); return; }
+      if (typeof window.maxgraph === 'undefined') {
+        console.warn('[WorkflowViewer] maxGraph not loaded');
+        // §38d: surface the failure and offer a retry — this used to return
+        // silently with initialised=false and no way forward (a rejected
+        // LazyLoader promise was also cached forever; see lazy-loader.js).
+        var errContainer = $id('workflow-viewer-container');
+        if (errContainer) {
+          var tFn = function (key, fallback) {
+            if (typeof i18next !== 'undefined' && i18next.t) {
+              var v = i18next.t(key);
+              if (v && v !== key) return v;
+            }
+            return fallback;
+          };
+          errContainer.innerHTML = '';
+          var msg = document.createElement('div');
+          msg.className = 'wv-load-error';
+          var msgText = document.createElement('span');
+          msgText.textContent = tFn('ui.workflowViewerLoadFailed',
+            'Failed to load the workflow viewer.');
+          var retryBtn = document.createElement('button');
+          retryBtn.className = 'btn btn-sm btn-secondary ms-2';
+          retryBtn.textContent = tFn('ui.workflowViewerRetry', 'Retry');
+          var selfRetry = this;
+          retryBtn.addEventListener('click', function () {
+            // Clear the error before retrying — a successful init does not
+            // wipe the container, so the message would linger otherwise.
+            if (msg.parentNode) msg.parentNode.removeChild(msg);
+            selfRetry.init();
+          });
+          msg.appendChild(msgText);
+          msg.appendChild(retryBtn);
+          errContainer.appendChild(msg);
+        }
+        return;
+      }
       Graph = window.maxgraph.Graph;
       HierarchicalLayout = window.maxgraph.HierarchicalLayout;
       Rectangle = window.maxgraph.Rectangle;

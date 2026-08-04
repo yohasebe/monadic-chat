@@ -26,7 +26,7 @@ window.LazyLoader = (function () {
   function _load(key, local, cdn) {
     if (_cache[key]) return _cache[key];
 
-    _cache[key] = new Promise((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = local;
       script.onerror = function () {
@@ -41,6 +41,14 @@ window.LazyLoader = (function () {
       script.onload = resolve;
       document.head.appendChild(script);
     });
+
+    // A cached REJECTION would veto every later attempt forever — with no
+    // CDN fallback (maxgraph) that is a permanent dead end (§38). Evict
+    // failures so the next call retries the network.
+    promise.catch(function () {
+      if (_cache[key] === promise) delete _cache[key];
+    });
+    _cache[key] = promise;
 
     return _cache[key];
   }

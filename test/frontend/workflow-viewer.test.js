@@ -254,6 +254,30 @@ describe('WorkflowViewer', () => {
       expect(spy).toHaveBeenCalledWith('[WorkflowViewer] Panel not found');
       spy.mockRestore();
     });
+
+    // §38d: a failed maxgraph load used to leave an empty frame with no
+    // way forward. Now the container shows an error with a retry button.
+    test('shows an error with a working retry button when maxGraph fails to load', async () => {
+      delete window.WorkflowViewer;
+      delete window.maxgraph;
+      setupDOM();
+      const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      loadWorkflowViewer();
+      await window.WorkflowViewer.init();
+
+      const err = document.querySelector('#workflow-viewer-container .wv-load-error');
+      expect(err).not.toBeNull();
+      const btn = err.querySelector('button');
+      expect(btn.textContent).toBe('Retry');
+
+      // Retry succeeds once maxgraph is available again — and the error
+      // is cleared first so it cannot linger under the graph.
+      setupMaxgraphMock();
+      btn.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(document.querySelector('#workflow-viewer-container .wv-load-error')).toBeNull();
+      spy.mockRestore();
+    });
   });
 
   describe('isOpen', () => {

@@ -3679,6 +3679,65 @@ RSpec.describe 'STS zero-audio late done stays silent (§39 done path)' do
   end
 end
 
+# §39 residual-risk detector: a SPOKEN assistant card emitted before its own
+# user card (transcription.completed lag) is logged — observation only, so
+# dogfood can measure whether a card-ordering gate is ever worth building.
+RSpec.describe 'STS card-before-user-card detector (§39 observation)' do
+  let(:host) do
+    Class.new do
+      include WebSocketHelper
+      attr_reader :session, :broadcasts
+      public :sts_send_assistant_card
+      def initialize
+        @session = { parameters: { 'app_name' => 'LiveConversationOpenAI' }, messages: [] }
+        @broadcasts = []
+      end
+      def send_or_broadcast(payload, _sid) = (@broadcasts << JSON.parse(payload))
+      def sync_session_state!; end
+      def detect_language(_t) = 'en'
+      def get_session_params = session[:parameters]
+    end.new
+  end
+
+  def bare_turn(overrides = {})
+    { id: 't1', user_partial: +'', assistant_transcript: +'', gate_open: true,
+      pending_fragments: [], user_msg_ref: nil, assistant_finalized: false,
+      cancel_notified: false, gate_timer: nil, spoken_response_ids: nil }.merge(overrides)
+  end
+
+  def logged_lines
+    lines = []
+    allow(Monadic::Utils::ExtraLogger).to receive(:log) { |msg, &blk| lines << (blk ? blk.call : msg) }
+    yield
+    lines.compact
+  end
+
+  it 'logs when the user spoke but their card has not been emitted yet' do
+    turn = bare_turn(user_partial: +'大丈夫ですから')
+    lines = logged_lines do
+      host.sts_send_assistant_card({}, turn, 'reply', 'sid', interrupted: false)
+    end
+    expect(lines.any? { |l| l.include?('assistant card emitted before user card') }).to be(true)
+    # Observation only: the card itself still goes out unchanged.
+    expect(host.broadcasts.any? { |m| m['type'] == 'html' }).to be(true)
+  end
+
+  it 'stays silent on the greeting turn (no user utterance at all)' do
+    lines = logged_lines do
+      host.sts_send_assistant_card({}, bare_turn, 'greeting', 'sid', interrupted: false)
+    end
+    expect(lines.none? { |l| l.include?('assistant card emitted before user card') }).to be(true)
+  end
+
+  it 'stays silent when the user card already exists' do
+    turn = bare_turn(user_partial: +'spoken', user_msg_ref: { 'mid' => 'u1' })
+    lines = logged_lines do
+      host.sts_send_assistant_card({}, turn, 'reply', 'sid', interrupted: false)
+    end
+    expect(lines.none? { |l| l.include?('assistant card emitted before user card') }).to be(true)
+  end
+end
+
 # §39 fold path: a continuation cancelled before its first audio frame
 # takes the fold route for its late done (the turn is already finalized).
 # The unspoken text must not fold in, but the tool badge stays — the tool

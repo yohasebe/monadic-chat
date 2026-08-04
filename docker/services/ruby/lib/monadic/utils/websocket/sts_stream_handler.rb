@@ -2503,6 +2503,21 @@ module WebSocketHelper
       state[:tools_used_since_card] = []
     end
 
+    # §39 residual-risk detector (observation only, no behavior change):
+    # the user's transcription.completed lags response start by ~200-400ms,
+    # so a SPOKEN assistant card can still land before its own user card
+    # and render above it. Zero occurrences in dogfood so far — this line
+    # exists to measure whether an ordering gate for cards is ever worth
+    # its complexity. Remove or act on it once dogfood has spoken.
+    # Guarded on evidence of user speech (partial text or a bound item):
+    # the greeting turn has no user utterance at all, and logging it would
+    # drown the signal in one false positive per session.
+    if turn[:user_msg_ref].nil? && (!turn[:user_partial].to_s.empty? || turn[:item_id])
+      Monadic::Utils::ExtraLogger.log do
+        "[STS session=#{ws_session_id}] assistant card emitted before user card (turn=#{turn[:id]} interrupted=#{interrupted})"
+      end
+    end
+
     # Finalize BEFORE broadcasting: a concurrent event arriving mid-send
     # must already see the turn as finalized (review P3-2).
     turn[:assistant_finalized] = true

@@ -467,18 +467,40 @@ module WebSocketHelper
   # keys from the app settings so noise-sensitive deployments can tune turn
   # segmentation (our own bench measured babble keeping the default VAD from
   # ever closing a turn). Only explicitly-set keys are sent.
+  #
+  # §37-16: the OpenAI Live Conversation variant lets the USER pick the turn
+  # detection from a selector — params win over MDSL (which stays the
+  # default), and every value is allowlist-validated so a stale or foreign
+  # param never reaches the wire.
   def sts_vad_config
     settings = sts_app_settings
+    # Same tolerance as sts_app_settings (its rescue returns nil): a session
+    # that cannot answer params must fall back to MDSL/API defaults, not
+    # crash the payload build.
+    params = begin
+      get_session_params || {}
+    rescue StandardError
+      {}
+    end
+
+    vad_type = (params["sts_vad_type"] || params[:sts_vad_type]).to_s
+    vad_type = "" unless %w[server_vad semantic_vad].include?(vad_type)
+    if vad_type.empty? && settings
+      vad_type = (settings[:sts_vad_type] || settings["sts_vad_type"]).to_s
+    end
+    eagerness = (params["sts_vad_eagerness"] || params[:sts_vad_eagerness]).to_s
+    eagerness = "" unless %w[low medium high auto].include?(eagerness)
+    if eagerness.empty? && settings
+      eagerness = (settings[:sts_vad_eagerness] || settings["sts_vad_eagerness"]).to_s
+      eagerness = "" unless %w[low medium high auto].include?(eagerness)
+    end
 
     # semantic_vad waits for semantic completion instead of a fixed silence
     # window — the right tool when hesitation pauses cause false turn ends.
-    # Opt-in per app via MDSL (sts_vad_type "semantic_vad"); default stays
-    # server_vad.
-    vad_type = settings && (settings[:sts_vad_type] || settings["sts_vad_type"]).to_s
+    # Numeric server_vad keys are never mixed in (the early return below).
     if vad_type == "semantic_vad"
       cfg = { type: "semantic_vad" }
-      eagerness = (settings[:sts_vad_eagerness] || settings["sts_vad_eagerness"]).to_s
-      cfg[:eagerness] = eagerness if %w[low medium high auto].include?(eagerness)
+      cfg[:eagerness] = eagerness unless eagerness.empty?
       return cfg
     end
 

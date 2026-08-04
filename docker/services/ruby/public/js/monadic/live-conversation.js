@@ -121,6 +121,23 @@
       '<span id="lc-tools-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
       '<input type="checkbox" id="lc-tools-toggle" class="form-check-input me-1">' +
       '<label for="lc-tools-toggle" class="text-secondary" id="lc-tools-label"></label>' +
+      '</span>' +
+      // Turn-detection selector (§37-16): ONE folded control — separate
+      // type/eagerness controls would show eagerness for a mode that does
+      // not use it. Capability-gated to OpenAI (semantic_vad + eagerness
+      // support, live-probed). Labels name WHAT is judged, never API terms.
+      '<span id="lc-turn-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
+      // text-nowrap: this label is the longest in the row, and without it the
+      // label itself breaks mid-word ("ターン / 判定") once the row fills up.
+      // The row already wraps as a whole (flex-wrap), so the control moves to
+      // the next line instead — which reads correctly.
+      '<label for="lc-turn-select" class="text-secondary text-nowrap me-2" id="lc-turn-label"></label>' +
+      '<select id="lc-turn-select" class="form-select form-select-sm" style="max-width: 200px;">' +
+      '<option value="" id="lc-turn-opt-silence"></option>' +
+      '<option value="low" id="lc-turn-opt-low"></option>' +
+      '<option value="medium" id="lc-turn-opt-medium"></option>' +
+      '<option value="high" id="lc-turn-opt-high"></option>' +
+      '</select>' +
       '</span>';
 
     $id('lc-app-label').textContent = currentAppDisplayName();
@@ -133,6 +150,11 @@
     // are the only display there is (dogfood).
     $id('lc-cardview-label').textContent = t('ui.messages.lcCardView', 'Cards while talking');
     $id('lc-tools-label').textContent = t('ui.messages.lcTools', 'Tools');
+    $id('lc-turn-label').textContent = t('ui.messages.lcTurnDetection', 'Turn detection');
+    $id('lc-turn-opt-silence').textContent = t('ui.messages.lcTurnSilence', 'By silence (default)');
+    $id('lc-turn-opt-low').textContent = t('ui.messages.lcTurnLow', 'By meaning — patient');
+    $id('lc-turn-opt-medium').textContent = t('ui.messages.lcTurnMedium', 'By meaning — balanced');
+    $id('lc-turn-opt-high').textContent = t('ui.messages.lcTurnHigh', 'By meaning — quick');
 
     $on($id('lc-voice-select'), 'change', function() {
       if (typeof params !== 'undefined') {
@@ -166,6 +188,28 @@
       if (typeof params !== 'undefined') {
         params['sts_tools'] = $id('lc-tools-toggle').checked;
         if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_tools_toggle');
+      }
+    });
+    $on($id('lc-turn-select'), 'change', function() {
+      if (typeof params !== 'undefined') {
+        const v = $id('lc-turn-select').value;
+        // §37-16: one folded control drives BOTH wire keys; the silence
+        // choice removes them so the MDSL default applies again.
+        if (v === '') {
+          delete params['sts_vad_type'];
+          delete params['sts_vad_eagerness'];
+        } else {
+          params['sts_vad_type'] = 'semantic_vad';
+          params['sts_vad_eagerness'] = v;
+        }
+        // Remember like the voice (per-provider key — §37-14A pattern).
+        const modelElNow = $id('model');
+        const specNow = (window.modelSpec && modelElNow && modelElNow.value)
+          ? (window.modelSpec[modelElNow.value] || {}) : {};
+        if (typeof setCookie === 'function' && specNow.sts_provider) {
+          setCookie('lc-turn-' + specNow.sts_provider, v, 30);
+        }
+        if (typeof window.broadcastParamsUpdate === 'function') window.broadcastParamsUpdate('sts_vad_turn_change');
       }
     });
     $on($id('lc-speed-range'), 'change', function() {
@@ -261,6 +305,54 @@
           (params['sts_tools'] === true || params['sts_tools'] === 'true');
       } else {
         toolsWrap.style.setProperty('display', 'none', 'important');
+      }
+    }
+
+    // Turn-detection selector (§37-16): capability-gated to providers whose
+    // semantic mode is probe-verified (OpenAI only). Restore order: session
+    // params (validated) → remembered cookie (validated) → silence default.
+    const turnWrap = $id('lc-turn-wrap');
+    if (turnWrap) {
+      const turnCapable = spec.sts_semantic_vad_capability === true;
+      if (turnCapable) {
+        turnWrap.style.removeProperty('display');
+        turnWrap.style.setProperty('display', 'inline-flex'); // see lc-speed-wrap
+        const CHOICES = ['', 'low', 'medium', 'high'];
+        const pType = (typeof params !== 'undefined' && params['sts_vad_type']) || '';
+        const pEager = (typeof params !== 'undefined' && params['sts_vad_eagerness']) || '';
+        let choice = '';
+        if (pType === 'semantic_vad' && CHOICES.indexOf(pEager) > 0) {
+          choice = pEager;
+        } else if (!pType && typeof getCookie === 'function' && spec.sts_provider) {
+          const remembered = getCookie('lc-turn-' + spec.sts_provider);
+          if (remembered !== null && remembered !== undefined &&
+              CHOICES.indexOf(remembered) !== -1) {
+            choice = remembered;
+          }
+        }
+        $id('lc-turn-select').value = choice;
+        // Restoring from the cookie fires no `change`, so the params the
+        // bridge actually reads stayed empty and the session fell back to
+        // the MDSL default — the UI showed a setting that was not in
+        // effect (dogfood: selector said "by meaning" while the wire
+        // carried server_vad). Write the restored choice through.
+        if (typeof params !== 'undefined') {
+          if (choice === '') {
+            delete params['sts_vad_type'];
+            delete params['sts_vad_eagerness'];
+          } else {
+            params['sts_vad_type'] = 'semantic_vad';
+            params['sts_vad_eagerness'] = choice;
+          }
+        }
+      } else {
+        // A provider without the capability must not carry a stale semantic
+        // choice into its session either.
+        if (typeof params !== 'undefined') {
+          delete params['sts_vad_type'];
+          delete params['sts_vad_eagerness'];
+        }
+        turnWrap.style.setProperty('display', 'none', 'important');
       }
     }
 

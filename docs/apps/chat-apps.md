@@ -48,7 +48,9 @@ Three variants are available, one per provider: OpenAI, xAI Grok, and Google Gem
 
 **How it works**: Click `Start` to open the conversation, then speak naturally — the end of each utterance is detected automatically (voice activity detection) and the turn proceeds on its own. Click `End` to close the session. There is no text input in this app. Headphones are recommended: with speakers, the assistant's voice feeds back into the microphone and can trigger unintended turns.
 
-**Voice and speed**: Pick the assistant's voice from the selector in the app's control row (the Speech Settings panel's TTS settings do not apply here). The number of available voices is 10 for OpenAI (default: alloy), 26 for xAI (default: eve), and 30 for Gemini (default: Kore). A playback speed slider (0.25–1.5) is available for OpenAI only. The chosen voice is remembered per provider and restored the next time you open the app.
+**Voice and speed**: Pick the assistant's voice from the selector in the app's control row (the Speech Settings panel's TTS settings do not apply here). The number of available voices is 10 for OpenAI (default: alloy), 26 for xAI (default: eve), and 30 for Gemini (default: Kore). A playback speed slider (0.25–1.5) is available for OpenAI only. Your voice choice is remembered per provider.
+
+**Turn detection** (OpenAI variant only): Choose how the end of your utterance is decided. The default judges by silence; the "by meaning" modes (patient / balanced / quick) ask the model to wait until your point sounds complete instead. How much difference this makes depends on the language and on how you speak, so try both. The choice is remembered and applies from the next session.
 
 **Display**: During a conversation, the default live view shows two zones — the partner's previous utterance and the one in progress. Check `Cards while talking` to use the conventional stacked cards during the conversation instead. The setting applies only while a session is running: once it ends, the display always returns to the card list, where the conversation can be edited, saved, and loaded like any other.
 

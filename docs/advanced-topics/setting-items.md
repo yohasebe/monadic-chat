@@ -84,9 +84,11 @@ These apply to Live Conversation apps, which stream the microphone to a provider
 - `sts_vad_threshold` - Voice-activity detection sensitivity, 0.0-1.0 (higher is less sensitive to background noise)
 - `sts_vad_prefix_ms` - Audio kept before speech starts, in milliseconds
 - `sts_vad_silence_ms` - Silence that ends a turn, in milliseconds
+- `sts_vad_type` - Turn-detection mode: `server_vad` (default, silence-based) or `semantic_vad` (waits for semantic completion; OpenAI only)
+- `sts_vad_eagerness` - How quickly `semantic_vad` ends a turn: `low`, `medium`, `high`, or `auto` (OpenAI only; ignored otherwise)
 - `sts_idle_stop_seconds` - Stop the session after this much inactivity (default 180; 0 disables)
 
-Omitted `sts_vad_*` keys fall back to the provider's defaults, and not every provider honors every key (xAI ignores `sts_vad_prefix_ms`).
+Omitted `sts_vad_*` keys fall back to the provider's defaults, and not every provider honors every key (xAI ignores `sts_vad_prefix_ms`). The OpenAI Live Conversation variant also exposes `sts_vad_type`/`sts_vad_eagerness` to the user as a turn-detection selector — a value chosen there overrides the MDSL default for the next session.
 
 #### Context Management
 - `context_size` - Number of previous messages to include

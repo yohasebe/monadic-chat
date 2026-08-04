@@ -1193,6 +1193,44 @@ RSpec.describe 'WebSocketHelper STS continuous mode' do
 
       expect(harness.sts_vad_config).to eq({ type: 'server_vad' })
     end
+
+    it 'lets session params override the MDSL vad type (§37-16)' do
+      app = double('app', settings: { sts_vad_silence_ms: 800 })
+      stub_const('APPS', { 'LiveConversationOpenAI' => app })
+      harness.session[:parameters]['sts_vad_type'] = 'semantic_vad'
+      harness.session[:parameters]['sts_vad_eagerness'] = 'high'
+
+      cfg = harness.sts_vad_config
+      expect(cfg).to eq({ type: 'semantic_vad', eagerness: 'high' })
+    end
+
+    it 'never mixes server_vad numeric keys into a semantic selection' do
+      app = double('app', settings: { sts_vad_silence_ms: 800, sts_vad_threshold: 0.7 })
+      stub_const('APPS', { 'LiveConversationOpenAI' => app })
+      harness.session[:parameters]['sts_vad_type'] = 'semantic_vad'
+
+      cfg = harness.sts_vad_config
+      expect(cfg[:type]).to eq('semantic_vad')
+      expect(cfg).not_to have_key(:silence_duration_ms)
+      expect(cfg).not_to have_key(:threshold)
+    end
+
+    it 'falls back to the MDSL default when params are invalid' do
+      app = double('app', settings: { sts_vad_type: 'semantic_vad', sts_vad_eagerness: 'low' })
+      stub_const('APPS', { 'LiveConversationOpenAI' => app })
+      harness.session[:parameters]['sts_vad_type'] = 'bogus'
+      harness.session[:parameters]['sts_vad_eagerness'] = 'bogus'
+
+      expect(harness.sts_vad_config).to eq({ type: 'semantic_vad', eagerness: 'low' })
+    end
+
+    it 'does not send eagerness with server_vad' do
+      stub_const('APPS', {})
+      harness.session[:parameters]['sts_vad_type'] = 'server_vad'
+      harness.session[:parameters]['sts_vad_eagerness'] = 'low'
+
+      expect(harness.sts_vad_config).to eq({ type: 'server_vad' })
+    end
   end
 
   describe '#handle_sts_start' do

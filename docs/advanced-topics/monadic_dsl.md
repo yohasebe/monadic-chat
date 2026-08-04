@@ -214,13 +214,21 @@ features do
                           # Higher = less sensitive to background noise
   sts_vad_prefix_ms 300   # Audio kept before speech starts, in milliseconds
   sts_vad_silence_ms 1000 # Silence that ends a turn, in milliseconds
+  sts_vad_type "semantic_vad"   # Turn-detection mode. Default: "server_vad"
+                                # (silence-based). "semantic_vad" waits for
+                                # semantic completion (OpenAI only)
+  sts_vad_eagerness "low"       # How quickly semantic_vad ends a turn:
+                                # low / medium / high / auto (OpenAI only)
   sts_idle_stop_seconds 180 # Stop the session after this much inactivity.
                             # Default: 180. Set 0 to disable
 end
 ```
 
 Omitted `sts_vad_*` keys fall back to the provider's own defaults, and not
-every provider honors every key (xAI ignores `sts_vad_prefix_ms`).
+every provider honors every key (xAI ignores `sts_vad_prefix_ms`). The
+OpenAI Live Conversation variant also lets the user choose
+`sts_vad_type`/`sts_vad_eagerness` from a turn-detection selector, and a
+chosen value overrides the MDSL default from the next session.
 
 #### Autonomy Levels
 

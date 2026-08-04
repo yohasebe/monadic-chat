@@ -1667,3 +1667,119 @@ describe('speech highlight (§37-13C)', () => {
     expect(speakingSpan()).toBeNull();
   });
 });
+
+describe('turn detection selector (§37-16)', () => {
+  const vadSpec = {
+    'gpt-realtime-2.1': {
+      supports_speech_to_speech: true,
+      sts_provider: 'openai',
+      sts_voice: 'alloy',
+      sts_voices: ['alloy'],
+      sts_semantic_vad_capability: true
+    },
+    'grok-voice-think-fast-2.0': {
+      supports_speech_to_speech: true,
+      sts_provider: 'xai',
+      sts_voice: 'eve',
+      sts_voices: ['eve']
+    }
+  };
+
+  let store;
+  beforeEach(() => {
+    store = {};
+    window.setCookie = jest.fn((k, v) => { store[k] = v; });
+    window.getCookie = jest.fn((k) => store[k]);
+    window.modelSpec = vadSpec;
+    window.params = {};
+    window.broadcastParamsUpdate = jest.fn();
+    LC.setAppMode(lcApp);
+  });
+
+  afterEach(() => {
+    delete window.setCookie;
+    delete window.getCookie;
+    delete window.modelSpec;
+    delete window.params;
+    delete window.broadcastParamsUpdate;
+  });
+
+  const wrap = () => document.getElementById('lc-turn-wrap');
+  const sel = () => document.getElementById('lc-turn-select');
+
+  it('shows the selector only for sts_semantic_vad_capability models', () => {
+    expect(wrap().style.display).toBe('inline-flex');
+
+    const modelEl = document.getElementById('model');
+    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(wrap().style.display).toBe('none');
+  });
+
+  it('writes both wire keys and remembers the choice on change', () => {
+    sel().value = 'low';
+    sel().dispatchEvent(new Event('change', { bubbles: true }));
+    expect(window.params['sts_vad_type']).toBe('semantic_vad');
+    expect(window.params['sts_vad_eagerness']).toBe('low');
+    expect(window.setCookie).toHaveBeenCalledWith('lc-turn-openai', 'low', 30);
+    expect(window.broadcastParamsUpdate).toHaveBeenCalledWith('sts_vad_turn_change');
+  });
+
+  it('the silence choice removes the wire keys (MDSL default applies)', () => {
+    window.params['sts_vad_type'] = 'semantic_vad';
+    window.params['sts_vad_eagerness'] = 'low';
+    sel().value = '';
+    sel().dispatchEvent(new Event('change', { bubbles: true }));
+    expect(window.params['sts_vad_type']).toBeUndefined();
+    expect(window.params['sts_vad_eagerness']).toBeUndefined();
+  });
+
+  it('restores the remembered choice from the cookie', () => {
+    store['lc-turn-openai'] = 'high';
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(sel().value).toBe('high');
+  });
+
+  // Restoring sets no `change` event, so the params the BRIDGE reads stayed
+  // empty and the session silently fell back to the MDSL default: the UI
+  // claimed "by meaning" while the wire carried server_vad (dogfood). The
+  // selector's displayed value and the value that ships must never diverge.
+  it('writes the restored choice into params, not just the selector', () => {
+    store['lc-turn-openai'] = 'low';
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(sel().value).toBe('low');
+    expect(window.params['sts_vad_type']).toBe('semantic_vad');
+    expect(window.params['sts_vad_eagerness']).toBe('low');
+  });
+
+  it('clears a stale semantic choice for a provider without the capability', () => {
+    window.params['sts_vad_type'] = 'semantic_vad';
+    window.params['sts_vad_eagerness'] = 'low';
+    const modelEl = document.getElementById('model');
+    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(wrap().style.display).toBe('none');
+    expect(window.params['sts_vad_type']).toBeUndefined();
+    expect(window.params['sts_vad_eagerness']).toBeUndefined();
+  });
+
+  it('ignores a cookie value that is not one of the four choices', () => {
+    store['lc-turn-openai'] = 'bogus';
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(sel().value).toBe('');
+  });
+
+  it('session params win over the cookie', () => {
+    store['lc-turn-openai'] = 'low';
+    window.params['sts_vad_type'] = 'semantic_vad';
+    window.params['sts_vad_eagerness'] = 'medium';
+    LC.setAppMode(normalApp);
+    LC.setAppMode(lcApp);
+    expect(sel().value).toBe('medium');
+  });
+});

@@ -1246,6 +1246,7 @@ const modelSpec = {
     "sts_voice": "alloy",
     "sts_voices": ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"],
     "sts_speed_capability": true,
+    "sts_semantic_vad_capability": true,
     "sts_tools_capability": true
   },
 

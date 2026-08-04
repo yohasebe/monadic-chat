@@ -207,6 +207,10 @@ features do
                           # 値が大きいほど環境音に反応しにくい
   sts_vad_prefix_ms 300   # 発話開始前に保持する音声の長さ（ミリ秒）
   sts_vad_silence_ms 1000 # ターンの終わりと判定する無音の長さ（ミリ秒）
+  sts_vad_type "semantic_vad"   # ターン判定方式。既定: "server_vad"（無音ベース）。
+                                # "semantic_vad" は意味の完結を待つ（OpenAI のみ）
+  sts_vad_eagerness "low"       # semantic_vad がターンを閉じる速さ:
+                                # low / medium / high / auto（OpenAI のみ）
   sts_idle_stop_seconds 180 # 無操作がこの秒数続いたらセッションを自動停止。
                             # 既定: 180。0 で無効化
 end
@@ -214,6 +218,9 @@ end
 
 `sts_vad_*` は省略するとプロバイダ既定値が使われます。またすべてのプロバイダが
 すべてのキーを解釈するわけではありません（xAI は `sts_vad_prefix_ms` を無視します）。
+OpenAI 変種の Live Conversation では、ユーザーがターン判定セレクタから
+`sts_vad_type` / `sts_vad_eagerness` を選ぶこともでき、選択した値は次のセッションで
+MDSL の既定より優先されます。
 
 #### 自律レベル
 

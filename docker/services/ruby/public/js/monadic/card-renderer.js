@@ -345,26 +345,40 @@ function insertInlineToolBadge(cardEl, toolsUsed) {
   const isTextContainer = cardEl.classList && cardEl.classList.contains('lc-live-text');
   const body = isTextContainer ? cardEl : cardEl.querySelector('.card-text');
   if (!body) return;
+  // §40: consecutive calls at the SAME boundary merge into ONE badge —
+  // a batch (one response emitting several calls) otherwise stacked one
+  // badge per call, which read as noise (dogfood: search_web twice).
+  // Merging is a render concern only: the underlying entries stay separate
+  // so call_id status correlation keeps working.
+  const groups = new Map(); // at → [tool, ...] in arrival order
   toolsUsed.forEach(function(tool) {
     if (!tool || typeof tool.at !== 'number') return;
+    if (!groups.has(tool.at)) groups.set(tool.at, []);
+    groups.get(tool.at).push(tool);
+  });
+  groups.forEach(function(tools, at) {
+    const names = [...new Set(tools.map(function(t) { return t.name; }))];
+    // Worst status wins: any error turns the badge red; any still-running
+    // call keeps the spinner going.
+    const anyError = tools.some(function(t) { return t.status === 'error'; });
+    const anyRunning = tools.some(function(t) { return t.status === 'running'; });
     const span = document.createElement('span');
     // No ms-1/align-middle here: those belong to a badge sitting NEXT TO a
     // card title. Between paragraphs the badge is its own block, where a
     // left offset reads as a stray indent and vertical-align does nothing —
     // spacing comes from the .lc-tools-badge rule in monadic.css instead.
-    span.className = 'mc-badge ' + (tool.status === 'error' ? 'mc-badge--red' : 'mc-badge--grey') +
+    span.className = 'mc-badge ' + (anyError ? 'mc-badge--red' : 'mc-badge--grey') +
       ' lc-tools-badge';
     // §37-12: a call still running shows the app's canonical busy glyph
     // (fa-spinner + fa-spin, as used for Saving/Importing/Loading; the
     // reduce-motion carve-out lives in monadic.css). Once it finishes the
     // icon becomes the tool glyph — a spinning wrench read as decoration
     // rather than progress, so the glyph itself carries the state.
-    // error additionally turns the badge red.
-    const icon = tool.status === 'running' ? 'fa-spinner fa-spin' : 'fa-tools';
+    const icon = anyRunning ? 'fa-spinner fa-spin' : 'fa-tools';
     span.innerHTML = "<i class='fas " + icon + "'></i> ";
-    span.appendChild(document.createTextNode(tool.name));
+    span.appendChild(document.createTextNode(names.join(', ')));
     const paras = body.querySelectorAll(':scope > p');
-    const target = paras[tool.at];
+    const target = paras[at];
     if (target) {
       body.insertBefore(span, target);
     } else {

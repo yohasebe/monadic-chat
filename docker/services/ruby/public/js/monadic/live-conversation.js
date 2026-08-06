@@ -370,8 +370,8 @@
   // returns to the normal (merged) card list. All display switches use
   // setProperty('important') because Bootstrap utilities beat plain
   // inline styles (the d-flex trap).
-  let livePrev = { role: null, text: '', badges: [] };
-  let liveCurrent = { role: null, text: '', badges: [] };
+  let livePrev = { role: null, text: '', badges: [], segments: [] };
+  let liveCurrent = { role: null, text: '', badges: [], segments: [] };
   // Text of the last FINAL user transcript (stt). Partials are cumulative
   // prefixes of their eventual final, so a partial that is a prefix of this
   // is a late re-stream of an already-finalized utterance — display-only
@@ -472,7 +472,7 @@
     // zone's text is a stale copy, so the prev zone stays empty.
     if (prevEntry.role && prevEntry.role === liveCurrent.role &&
         liveCurrent.text.startsWith(prevEntry.text)) {
-      prevEntry = { role: null, text: '', badges: [] };
+      prevEntry = { role: null, text: '', badges: [], segments: [] };
     }
     if (prev) renderZone(prev, prevEntry);
     if (cur) renderZone(cur, liveCurrent,
@@ -492,11 +492,12 @@
       return;
     }
     if (liveCurrent.role && liveCurrent.role !== role) livePromote();
-    liveCurrent = { role: role, text: text, badges: [],
+    liveCurrent = { role: role, text: text, badges: [], segments: [],
                     final: role === 'user' ? !!isFinal : true };
     if (role === 'user' && isFinal) lastUserFinal = text;
-    // A new current zone invalidates the segment map and the highlight.
-    liveSegments = [];
+    // A new current zone starts with a fresh segment map; the assistant
+    // zone that was just promoted KEEPS its map (segments live on the zone
+    // — §40), so a resume-swap can restore the highlight afterwards.
     lastHighlightChar = null;
     highlightSegmentId = null;
     if (liveViewWanted()) renderLiveView();
@@ -505,45 +506,49 @@
   // Append semantics for assistant streaming fragments; is_first starts a
   // fresh accumulation (barge-in / new response) — EXCEPT the first
   // fragment of a tool's ANSWER, which continues the same accumulation as
-  // a new paragraph (mirroring the server-side fold).
+  // a new paragraph (mirroring the server-side fold). The server marks
+  // that fragment with tool_break (§40): is_first is turn-scoped upstream,
+  // so a tool continuation — same turn, new response — carries is_first on
+  // NO provider, and inferring the boundary here proved wrong in dogfood
+  // (badge at the bottom, bridge and answer run together).
   //
   // segmentId (§37-13C) marks the upstream response this text belongs to;
-  // liveSegments records where each segment starts in the zone text so the
-  // speech highlight can map playback time onto characters.
-  let liveSegments = [];       // [{id, startChar}]
+  // each zone carries its own segment map (`segments`, §40) recording where
+  // each segment starts in the zone text, so the speech highlight survives
+  // the zone being promoted to prev and swapped back.
   let lastHighlightChar = null; // freeze target during silence / barge-in
   let highlightSegmentId = null; // segment the floor above belongs to
 
-  function noteSegment(segmentId, startChar, reset) {
-    if (!segmentId) return;
-    if (reset) liveSegments = [];
-    const last = liveSegments[liveSegments.length - 1];
+  function noteSegment(zone, segmentId, startChar) {
+    if (!segmentId || !zone) return;
+    if (!Array.isArray(zone.segments)) zone.segments = [];
+    const last = zone.segments[zone.segments.length - 1];
     if (!last || last.id !== segmentId) {
-      liveSegments.push({ id: segmentId, startChar: startChar });
+      zone.segments.push({ id: segmentId, startChar: startChar });
     }
   }
 
-  function liveAppend(role, delta, isFirst, segmentId) {
-    if (isFirst) {
+  function liveAppend(role, delta, isFirst, segmentId, toolBreak) {
+    if (isFirst || (toolBreak && role === 'assistant')) {
       // §37-13A: the tool-continuation zone can also sit in PREV — on
       // Gemini the late user-final arrives between the call and the answer
       // and promotes the badge-only zone out of current. Pull it back so
       // the answer continues in the zone that holds the badges.
       let zone = null;
-      if (role === 'assistant' && liveToolPending.length > 0) {
+      if (role === 'assistant' && (liveToolPending.length > 0 || toolBreak)) {
         if (liveCurrent.role === 'assistant' &&
             (liveCurrent.text.trim() !== '' || liveCurrent.badges.length > 0)) {
           zone = liveCurrent;
         } else if (livePrev.role === 'assistant' && livePrev.badges.length > 0 &&
                    livePrev.text.trim() === '') {
           zone = livePrev;
-          livePrev = liveCurrent.role ? liveCurrent : { role: null, text: '', badges: [] };
+          livePrev = liveCurrent.role ? liveCurrent
+            : { role: null, text: '', badges: [], segments: [] };
           liveCurrent = zone;
         }
       }
       if (zone) {
-        // Tool-bridged continuation (§37-5): the wire order is tool done →
-        // response.create → the answer's is_first. Anchor each pending call
+        // Tool-bridged continuation (§37-5/§40): anchor each pending call
         // at the boundary (= the bridge paragraph count) and keep
         // accumulating instead of resetting — otherwise the live view would
         // show only the answer while the card shows the folded whole.
@@ -552,8 +557,7 @@
         liveToolPending.forEach(function(p) {
           // §37-12: a badge drawn when the call STARTED already sits at this
           // boundary — update its status rather than adding a second badge.
-          // §37-14B: its `at` was fixed when the call started, but the live
-          // view appends the answer to the SAME paragraph first, so the
+          // §37-14B: its `at` was fixed when the call started, but the
           // paragraph count only settles now — refresh the position too.
           const existing = p.call_id &&
             zone.badges.find(function(b) { return b.call_id === p.call_id; });
@@ -565,20 +569,20 @@
           }
         });
         liveToolPending = [];
-        noteSegment(segmentId, hasText ? zone.text.length + 2 : 0, false);
+        noteSegment(zone, segmentId, hasText ? zone.text.length + 2 : 0);
         zone.text = hasText ? zone.text + '\n\n' + delta : delta;
       } else {
         // Not the tool's answer (user barged in first, or an unrelated
         // response): the anchor is lost, discard the pending calls.
         liveToolPending = [];
         if (liveCurrent.role && liveCurrent.role !== role) livePromote();
-        noteSegment(segmentId, 0, true);
         lastHighlightChar = null; // a new response starts a new highlight
         highlightSegmentId = null;
-        liveCurrent = { role: role, text: delta, badges: [] };
+        liveCurrent = { role: role, text: delta, badges: [], segments: [] };
+        noteSegment(liveCurrent, segmentId, 0);
       }
     } else if (liveCurrent.role === role) {
-      noteSegment(segmentId, liveCurrent.text.length, false);
+      noteSegment(liveCurrent, segmentId, liveCurrent.text.length);
       liveCurrent.text += delta;
     } else if (livePrev.role === role && livePrev.text !== '') {
       if (liveCurrent.role === 'user' && !liveCurrent.final) {
@@ -588,6 +592,7 @@
         // (b) ping-pong on every fragment/partial pair. Instead the
         // response keeps accumulating in prev and the user's transcript
         // stays in current until its stt (final) lands.
+        noteSegment(livePrev, segmentId, livePrev.text.length);
         livePrev.text += delta;
       } else {
         // Resume-swap: a LATE stt_partial for a FINALIZED utterance briefly
@@ -595,31 +600,38 @@
         // assistant text lost its beginning). The response is still in
         // flight — swap prev back into current and keep accumulating instead
         // of restarting from this fragment. The interleaved user text moves
-        // to prev, so nothing is lost.
-        const resumed = { role: role, text: livePrev.text + delta, badges: livePrev.badges || [] };
-        livePrev = { role: liveCurrent.role, text: liveCurrent.text, badges: liveCurrent.badges || [] };
+        // to prev, so nothing is lost. The zone brings its segment map with
+        // it (§40), so a new segment starting here anchors at the RESUMED
+        // text's end — not at 0, which mapped the highlight onto text that
+        // was already spoken.
+        const base = livePrev.text.length;
+        const resumed = { role: role, text: livePrev.text + delta,
+                          badges: livePrev.badges || [],
+                          segments: livePrev.segments || [] };
+        livePrev = { role: liveCurrent.role, text: liveCurrent.text,
+                     badges: liveCurrent.badges || [],
+                     segments: liveCurrent.segments || [] };
         liveCurrent = resumed;
-        noteSegment(segmentId, 0, false);
+        noteSegment(liveCurrent, segmentId, base);
       }
     } else {
       if (liveCurrent.role) livePromote();
-      noteSegment(segmentId, 0, true);
-      liveCurrent = { role: role, text: delta, badges: [] };
+      liveCurrent = { role: role, text: delta, badges: [], segments: [] };
+      noteSegment(liveCurrent, segmentId, 0);
     }
     if (liveViewWanted()) renderLiveView();
   }
 
   function livePromote() {
     if (liveCurrent.role) livePrev = liveCurrent;
-    liveCurrent = { role: null, text: '', badges: [] };
+    liveCurrent = { role: null, text: '', badges: [], segments: [] };
   }
 
   function liveReset() {
-    livePrev = { role: null, text: '', badges: [] };
-    liveCurrent = { role: null, text: '', badges: [] };
+    livePrev = { role: null, text: '', badges: [], segments: [] };
+    liveCurrent = { role: null, text: '', badges: [], segments: [] };
     liveToolPending = [];
     lastUserFinal = '';
-    liveSegments = [];
     lastHighlightChar = null;
     highlightSegmentId = null;
   }
@@ -1214,7 +1226,7 @@
   function onAssistantFragment(data) {
     if (!liveViewWanted()) return;
     liveAppend('assistant', (data && data.content) || '', !!(data && data.is_first),
-               data && data.segment_id);
+               data && data.segment_id, !!(data && data.tool_break));
   }
 
   // ── Speech highlight (§37-13C) ──────────────────────────────────────
@@ -1255,14 +1267,15 @@
     if (!pos || liveCurrent.role !== 'assistant') return null;
     const text = liveCurrent.text;
     if (!text) return null;
+    const segs = liveCurrent.segments || [];
     let segIndex = -1;
-    for (let i = liveSegments.length - 1; i >= 0; i--) {
-      if (liveSegments[i].id === pos.segmentId) { segIndex = i; break; }
+    for (let i = segs.length - 1; i >= 0; i--) {
+      if (segs[i].id === pos.segmentId) { segIndex = i; break; }
     }
     if (segIndex < 0) return null; // audio for text we have not seen — freeze
-    const start = liveSegments[segIndex].startChar;
-    const end = segIndex + 1 < liveSegments.length
-      ? liveSegments[segIndex + 1].startChar : text.length;
+    const start = segs[segIndex].startChar;
+    const end = segIndex + 1 < segs.length
+      ? segs[segIndex + 1].startChar : text.length;
     const span = Math.max(end - start, 1);
     const fraction = pos.total > 0 ? Math.min(Math.max(pos.offset / pos.total, 0), 1) : 0;
     return Math.min(start + Math.floor(fraction * span), end - 1);
@@ -1424,7 +1437,7 @@
     // §37-13C test seams
     _tickHighlight: tickHighlight,
     _highlightCharFor: highlightCharFor,
-    _liveSegments: function() { return liveSegments; }
+    _liveSegments: function() { return liveCurrent.segments || []; }
   };
 
   window.LiveConversation = ns;

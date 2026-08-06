@@ -1793,7 +1793,10 @@ module WebSocketHelper
       # §39: response ids that produced at least one audio frame. A turn
       # spans several responses (tool continuation), so this is a SET, not
       # a boolean — the zero-audio card rule keys on it.
-      spoken_response_ids: nil
+      spoken_response_ids: nil,
+      # §40: the response id text fragments have been sent for; a change
+      # within the turn marks the tool-continuation boundary (tool_break).
+      fragment_rid: nil
     }
     state[:turn] = turn
 
@@ -1885,6 +1888,19 @@ module WebSocketHelper
     unless turn[:fragment_sent]
       turn[:fragment_sent] = true
       msg["is_first"] = true
+    end
+    # §40: is_first is turn-scoped, so the first fragment of a tool
+    # continuation (same turn, NEW response) carries no boundary signal at
+    # all — the client's paragraph/badge anchoring never fired and the live
+    # view ran the bridge and the answer together with the badge at the
+    # bottom (dogfood 2026-08-05). A response change within one turn IS the
+    # tool boundary (that is the only way a turn spans responses), so mark
+    # it explicitly instead of leaving the client to guess.
+    if segment_id
+      if turn[:fragment_rid] && turn[:fragment_rid] != segment_id && !msg["is_first"]
+        msg["tool_break"] = true
+      end
+      turn[:fragment_rid] = segment_id
     end
     send_or_broadcast(msg.to_json, ws_session_id)
   end

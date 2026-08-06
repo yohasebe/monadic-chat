@@ -3630,6 +3630,49 @@ RSpec.describe 'STS zero-audio responses never become cards (§39)' do
   end
 end
 
+# §40: is_first is turn-scoped, so the first fragment of a tool
+# continuation (same turn, NEW response) carried no boundary signal — the
+# client could not anchor the paragraph break or the badge. The response-id
+# change within a turn IS the tool boundary; the server marks it.
+RSpec.describe 'STS tool continuation fragments carry tool_break (§40)' do
+  let(:host) do
+    Class.new do
+      include WebSocketHelper
+      attr_reader :broadcasts
+      public :sts_send_fragment
+      def initialize = @broadcasts = []
+      def send_or_broadcast(payload, _sid) = (@broadcasts << JSON.parse(payload))
+    end.new
+  end
+
+  def fragments = host.broadcasts.select { |m| m['type'] == 'fragment' }
+
+  it 'marks the first fragment of a NEW response within the turn, and only that one' do
+    turn = { fragment_sent: false, fragment_rid: nil }
+    host.sts_send_fragment(turn, 'bridge a', 'sid', 'resp-1')
+    host.sts_send_fragment(turn, 'bridge b', 'sid', 'resp-1')
+    host.sts_send_fragment(turn, 'answer a', 'sid', 'resp-2')
+    host.sts_send_fragment(turn, 'answer b', 'sid', 'resp-2')
+
+    expect(fragments.map { |f| f['is_first'] }).to eq([true, nil, nil, nil])
+    expect(fragments.map { |f| f['tool_break'] }).to eq([nil, nil, true, nil])
+  end
+
+  it 'never marks tool_break on the turn-opening fragment even without a prior rid' do
+    turn = { fragment_sent: false, fragment_rid: nil }
+    host.sts_send_fragment(turn, 'first', 'sid', 'resp-1')
+    expect(fragments.first['tool_break']).to be_nil
+  end
+
+  it 'a second continuation (multi-tool chain) marks its own boundary too' do
+    turn = { fragment_sent: false, fragment_rid: nil }
+    host.sts_send_fragment(turn, 'bridge', 'sid', 'resp-1')
+    host.sts_send_fragment(turn, 'answer', 'sid', 'resp-2')
+    host.sts_send_fragment(turn, 'more', 'sid', 'resp-3')
+    expect(fragments.map { |f| f['tool_break'] }).to eq([nil, true, true])
+  end
+end
+
 # §39 follow-up: the late transcript.done after a zero-audio barge-in must
 # not resurrect the response as a card on the done path either.
 RSpec.describe 'STS zero-audio late done stays silent (§39 done path)' do

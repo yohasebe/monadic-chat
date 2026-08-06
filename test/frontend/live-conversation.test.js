@@ -1121,12 +1121,74 @@ describe('tool-use visibility in the live view (§37-5)', () => {
     LC.onAssistantFragment({ content: 'Combined answer.', is_first: true });
 
     const text = document.querySelector('#lc-live-current .lc-live-text');
+    // §40: calls at the SAME boundary merge into one badge — unique names
+    // joined, worst status (the error) coloring the whole badge.
     const badges = text.querySelectorAll('.lc-tools-badge');
-    expect(badges.length).toBe(2);
+    expect(badges.length).toBe(1);
     expect(badges[0].textContent).toContain('get_current_time');
-    expect(badges[1].textContent).toContain('search_web');
-    expect(badges[1].className).toContain('mc-badge--red'); // error status
+    expect(badges[0].textContent).toContain('search_web');
+    expect(badges[0].className).toContain('mc-badge--red'); // any error → red
     expect(text.querySelectorAll(':scope > p').length).toBe(2);
+  });
+
+  // §40: on every provider the tool continuation is the SAME turn, so its
+  // first fragment carries no is_first — the server marks it tool_break
+  // instead. Without handling it, the answer ran into the bridge paragraph
+  // and the badge fell to the bottom (dogfood 2026-08-05, OpenAI).
+  it('tool_break anchors the paragraph break and badge without is_first', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Let me check the forecast.', is_first: true, segment_id: 'r1' });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    LC.onAssistantFragment({ content: 'Tomorrow looks sunny.', tool_break: true, segment_id: 'r2' });
+
+    const text = document.querySelector('#lc-live-current .lc-live-text');
+    const paras = text.querySelectorAll(':scope > p');
+    expect(paras.length).toBe(2);
+    expect(paras[0].textContent).toBe('Let me check the forecast.');
+    expect(paras[1].textContent).toBe('Tomorrow looks sunny.');
+    const badge = text.querySelector('.lc-tools-badge');
+    expect(badge).not.toBeNull();
+    expect(badge.nextElementSibling).toBe(paras[1]);
+    // The segment map records the continuation at the POST-break offset, so
+    // the speech highlight maps r2's playback onto r2's characters.
+    const segs = LC._liveSegments();
+    expect(segs).toEqual([
+      { id: 'r1', startChar: 0 },
+      { id: 'r2', startChar: 'Let me check the forecast.'.length + 2 }
+    ]);
+  });
+
+  // §40: the segment map lives ON the zone, so the promote → resume-swap
+  // round trip (a late user final landing mid-stream) no longer wipes it —
+  // that wipe is what killed the speech highlight in dogfood.
+  it('the segment map survives a late user final promoting the zone', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'First part of the reply. ', is_first: true, segment_id: 'r1' });
+    // Late user final: promotes the in-flight assistant zone to prev.
+    LC.onStt({ content: 'the user utterance' });
+    // The stream resumes: resume-swap pulls the zone back with its map.
+    LC.onAssistantFragment({ content: 'Second part.', segment_id: 'r1' });
+
+    const segs = LC._liveSegments();
+    expect(segs).toEqual([{ id: 'r1', startChar: 0 }]);
+    const text = document.querySelector('#lc-live-current .lc-live-text');
+    expect(text.textContent).toContain('First part of the reply. Second part.');
+  });
+
+  it('a new segment starting right after a resume-swap anchors at the resumed end, not 0', async () => {
+    await LC.startConversation();
+    LC.onAssistantFragment({ content: 'Bridge before swap.', is_first: true, segment_id: 'r1' });
+    LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
+    LC.onStt({ content: 'late user final' });
+    // The continuation's first fragment arrives while the zone sits in prev:
+    // resume-swap restores it, and r2 must map to the APPENDED text.
+    LC.onAssistantFragment({ content: 'Continuation.', segment_id: 'r2' });
+
+    const segs = LC._liveSegments();
+    expect(segs[segs.length - 1]).toEqual(
+      { id: 'r2', startChar: 'Bridge before swap.'.length });
   });
 
   it('discards the pending anchor when the next response is not the tool answer (barge-in)', async () => {
@@ -1231,17 +1293,22 @@ describe('running tool badge spins until done (§37-12)', () => {
     expect(badges().length).toBe(1);
   });
 
-  it('concurrent same-name calls transition independently by call_id', async () => {
+  it('concurrent same-name calls render as ONE badge that spins until the last finishes', async () => {
     await LC.startConversation();
     LC.onAssistantFragment({ content: 'Checking both.', is_first: true });
     LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
     LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c2' });
-    expect(badges().length).toBe(2);
+    // §40: same boundary, same name → merged into one badge. The entries
+    // stay separate underneath (call_id correlation), only the render merges.
+    expect(badges().length).toBe(1);
+    expect(badges()[0].querySelector('i').className).toContain('fa-spin');
 
     LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c1' });
-    const icons = [...badges()].map((b) => b.querySelector('i').className);
-    const spinning = icons.filter((c) => c.includes('fa-spin'));
-    expect(spinning.length).toBe(1); // only c2 still running
+    // c2 still running → the merged badge keeps spinning (worst status wins).
+    expect(badges()[0].querySelector('i').className).toContain('fa-spin');
+
+    LC.onToolCall({ name: 'search_web', status: 'done', call_id: 'c2' });
+    expect(badges()[0].querySelector('i').className).not.toContain('fa-spin');
   });
 
   it('the answer anchor flips the running badge status instead of duplicating it', async () => {

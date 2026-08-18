@@ -1650,8 +1650,7 @@ module WebSocketHelper
   end
 
   def forward_sts_error(message, ws_session_id)
-    payload = { "type" => "error", "content" => message }.to_json
-    send_or_broadcast(payload, ws_session_id)
+    send_error(message, ws_session_id)
   end
 
   # --- Session bootstrap helpers -------------------------------------------

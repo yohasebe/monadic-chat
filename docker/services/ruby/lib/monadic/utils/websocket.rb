@@ -7,6 +7,7 @@ require 'async'
 require 'async/queue'
 require 'async/websocket/adapters/rack'
 require 'twitter_cldr'
+require_relative 'error_formatter'
 require_relative '../agents/ai_user_agent'
 require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
@@ -322,7 +323,43 @@ module WebSocketHelper
     end
   end
 
+  # The ONE way to deliver an error to the client. Provider error text carries
+  # account identifiers (xAI names the team UUID, Google the project number,
+  # OpenAI the organization), and an error shown in the chat is saved with the
+  # conversation and travels with any export — so the identifiers are scrubbed
+  # here, once, instead of at every call site. The untouched text still goes to
+  # the EXTRA_LOGGING trace, which stays on the user's own machine.
+  #
+  # Building `{"type" => "error"}` inline elsewhere bypasses this and is pinned
+  # against by spec/unit/utils/websocket/error_send_boundary_spec.rb.
+  # content is usually a message string, but some callers send a structured
+  # payload (an i18n key plus details), so scrubbing walks strings wherever
+  # they sit rather than stringifying the whole thing.
+  def send_error(content, session_id = Thread.current[:websocket_session_id], extra = {})
+    scrubbed = scrub_error_content(content)
+    if scrubbed != content
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] error text scrubbed before delivery; raw: #{content.inspect}" }
+    end
+    payload = { "type" => "error", "content" => scrubbed }.merge(extra)
+    send_or_broadcast(payload.to_json, session_id)
+  end
+
+  def scrub_error_content(content)
+    case content
+    when String then Monadic::Utils::ErrorFormatter.scrub_identifiers(content)
+    when Hash then content.transform_values { |v| scrub_error_content(v) }
+    when Array then content.map { |v| scrub_error_content(v) }
+    else content
+    end
+  end
+
+  # The pre-session delivery path (no session id yet). Error payloads get the
+  # same scrubbing as send_error — this is the second and last way an error
+  # reaches the client, so both are covered without touching call sites.
   def send_to_client(connection, message_hash)
+    if message_hash.is_a?(Hash) && message_hash["type"] == "error"
+      message_hash = message_hash.merge("content" => scrub_error_content(message_hash["content"]))
+    end
     connection.write(message_hash.to_json)
     connection.flush
   rescue StandardError => e

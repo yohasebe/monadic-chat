@@ -56,11 +56,7 @@ module WebSocketHelper
 
     # Check if there are enough messages for AI User to work with
     if session[:messages].nil? || session[:messages].size < 2
-      error_msg = {
-        "type" => "error",
-        "content" => "ai_user_requires_conversation"
-      }.to_json
-      send_or_broadcast(error_msg, ws_session_id)
+      send_error("ai_user_requires_conversation", ws_session_id)
       return
     end
 
@@ -83,8 +79,7 @@ module WebSocketHelper
 
       # Handle result
       if result["type"] == "error"
-        error_result = { "type" => "error", "content" => result["content"] }.to_json
-        send_or_broadcast(error_result, ws_session_id)
+        send_error(result["content"], ws_session_id)
       else
         # Send response to client
         ai_user_msg = { "type" => "ai_user", "content" => result["content"] }.to_json
@@ -95,8 +90,7 @@ module WebSocketHelper
       end
     rescue StandardError => e
       # Error handling
-      rescue_error = { "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } }.to_json
-      send_or_broadcast(rescue_error, ws_session_id)
+      send_error({ "key" => "ai_user_error", "details" => e.message }, ws_session_id)
     end
   end
 
@@ -300,8 +294,7 @@ module WebSocketHelper
       puts e.backtrace
 
       # Inform the client
-      error_message = { "type" => "error", "content" => "error_processing_sample" }.to_json
-      send_or_broadcast(error_message, ws_session_id)
+      send_error("error_processing_sample", ws_session_id)
     end
   end
 

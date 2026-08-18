@@ -13,8 +13,7 @@ module WebSocketHelper
     ws_session_id = Thread.current[:websocket_session_id]
 
     if obj["content"].nil?
-      error_message = { "type" => "error", "content" => "voice_input_empty" }.to_json
-      send_or_broadcast(error_message, ws_session_id)
+      send_error("voice_input_empty", ws_session_id)
       return
     end
 
@@ -51,13 +50,11 @@ module WebSocketHelper
       res = stt_api_request(blob, format, lang_code, model)
 
       if res["text"] && res["text"] == ""
-        empty_error = { "type" => "error", "content" => "text_input_empty" }.to_json
-        send_or_broadcast(empty_error, ws_session_id)
+        send_error("text_input_empty", ws_session_id)
       elsif res["type"] && res["type"] == "error"
         # Include format information in error message for debugging
         error_content = "#{res["content"]} (using format: #{format}, model: #{model})"
-        api_error = { "type" => "error", "content" => error_content }.to_json
-        send_or_broadcast(api_error, ws_session_id)
+        send_error(error_content, ws_session_id)
       else
         send_transcription_result(connection, res, model)
       end
@@ -66,11 +63,7 @@ module WebSocketHelper
       log_error("Error processing transcription", e)
 
       # Send a generic error message to the client
-      rescue_error = {
-        "type" => "error",
-        "content" => "An error occurred while processing your audio"
-      }.to_json
-      send_or_broadcast(rescue_error, ws_session_id)
+      send_error("An error occurred while processing your audio", ws_session_id)
     end
   end
 

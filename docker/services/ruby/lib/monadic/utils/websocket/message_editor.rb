@@ -188,7 +188,7 @@ module WebSocketHelper
       sync_session_state!
     else
       # Message not found - send error to session only
-      send_or_broadcast({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json, ws_session_id)
+      send_error("message_not_found_for_editing", ws_session_id)
     end
   end
   

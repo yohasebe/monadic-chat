@@ -33,6 +33,10 @@ RSpec.describe "image_generator_grok.rb minimal tests" do
   # would parse ARGV and exit) and pin that identifiers do not survive.
   describe "account id scrubbing" do
     let(:scrubber) do
+      # The script delegates to the shared ErrorFormatter; load that, then
+      # lift the script's own method out (running the file would parse ARGV
+      # and exit). This pins the delegation, not a second implementation.
+      require_relative "../../../../lib/monadic/utils/error_formatter"
       src = File.read(script_path)[/def scrub_account_ids.*?^end/m]
       raise "scrub_account_ids not found in script" unless src
 
@@ -44,7 +48,7 @@ RSpec.describe "image_generator_grok.rb minimal tests" do
             "00000000-1111-2222-3333-444444444444 does not have access to it."
       out = scrubber.scrub_account_ids(msg)
       expect(out).not_to include("00000000-1111-2222-3333-444444444444")
-      expect(out).to include("[id]")
+      expect(out).to include(Monadic::Utils::ErrorFormatter::REDACTION)
       # The rest of the message still explains what went wrong.
       expect(out).to include("does not have access")
     end

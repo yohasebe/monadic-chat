@@ -207,11 +207,8 @@ module WebSocketHelper
     # is the one server-side reader of the capability; the invariant test
     # fails on any new direct read of the flag).
     if sts_session_capable?(session)
-      send_or_broadcast({
-        "type" => "error",
-        "content" => "This model is voice-only (speech-to-speech). " \
-                     "Please use the microphone to talk with it."
-      }.to_json, ws_session_id)
+      send_error("This model is voice-only (speech-to-speech). " \
+                 "Please use the microphone to talk with it.", ws_session_id)
       return nil
     end
 
@@ -307,8 +304,7 @@ module WebSocketHelper
       unless app_obj
         error_msg = "App '#{app_name}' not found in APPS"
         puts "[ERROR] #{error_msg}"
-        error_message = { "type" => "error", "content" => error_msg }.to_json
-        send_or_broadcast(error_message, ws_session_id)
+        send_error(error_msg, ws_session_id)
         next
       end
 
@@ -333,8 +329,7 @@ module WebSocketHelper
 
         if fragment["type"] == "error"
           error_content = fragment["content"] || fragment.to_s
-          fragment_error = { "type" => "error", "content" => error_content }.to_json
-          send_or_broadcast(fragment_error, ws_session_id)
+          send_error(error_content, ws_session_id)
           break
         elsif fragment["type"] == "clear_fragments"
           # Clear server-side buffers before post-tool response streaming
@@ -515,8 +510,7 @@ module WebSocketHelper
                          else
                            "API Error: " + response.to_s
                          end
-          api_error_message = { "type" => "error", "content" => error_content }.to_json
-          send_or_broadcast(api_error_message, ws_session_id)
+          send_error(error_content, ws_session_id)
         else
           # Debug logging for response structure (only with EXTRA_LOGGING)
           Monadic::Utils::ExtraLogger.log { "WebSocket response structure:\nResponse class: #{response.class}\nResponse keys: #{response.is_a?(Hash) ? response.keys.inspect : 'N/A'}\nHas choices?: #{response.is_a?(Hash) ? response.key?("choices") : 'N/A'}\nResponse: #{response.inspect[0..500]}..." }
@@ -557,8 +551,7 @@ module WebSocketHelper
           # If still no content found
           if raw_content.nil?
             Monadic::Utils::ExtraLogger.log { "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." }
-            content_error = { "type" => "error", "content" => "content_not_found" }.to_json
-            send_or_broadcast(content_error, ws_session_id)
+            send_error("content_not_found", ws_session_id)
             break
           end
           # Privacy Filter: restore <<TYPE_N>> placeholders before the message

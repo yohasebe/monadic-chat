@@ -194,15 +194,13 @@ module WebSocketHelper
           # Forward error to frontend so user sees what went wrong
           error_content = res_hash&.dig("content") || "Unknown TTS error"
           puts "[TTS] Single request failed: #{error_content}"
-          error_message = { "type" => "error", "content" => error_content }.to_json
-          send_or_broadcast(error_message, ws_session_id)
+          send_error(error_content, ws_session_id)
         end
       rescue StandardError => e
         puts "[TTS] Single request exception: #{e.message}"
         Monadic::Utils::ExtraLogger.log { "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" }
         # Forward exception as error to frontend
-        error_message = { "type" => "error", "content" => "TTS error: #{e.message}" }.to_json
-        send_or_broadcast(error_message, ws_session_id)
+        send_error("TTS error: #{e.message}", ws_session_id)
       end
 
       # Send completion message

@@ -7,6 +7,7 @@ require "optparse"
 require "securerandom"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 require_relative "../../lib/monadic/utils/model_spec"
+require_relative "../../lib/monadic/utils/error_formatter"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -42,7 +43,7 @@ end
 # identifier is scrubbed before it leaves the script; the EXTRA_LOGGING trace
 # keeps the untouched text for debugging.
 def scrub_account_ids(text)
-  text.to_s.gsub(/\h{8}-\h{4}-\h{4}-\h{4}-\h{12}/, "[id]")
+  Monadic::Utils::ErrorFormatter.scrub_identifiers(text)
 end
 
 # Determine MIME type from file extension

@@ -8,6 +8,7 @@ require "fileutils"
 require "open3"
 require "openssl"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/error_formatter"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -462,7 +463,11 @@ def process_generation_response(response, prompt, aspect_ratio, params)
   else
     begin
       error_response = JSON.parse(response.body)
-      error_msg = error_response.dig("error", "message") || "Error with API response"
+      # Gemini errors name the Google Cloud project; this message is returned
+      # to the model and saved with the conversation (see ErrorFormatter).
+      error_msg = Monadic::Utils::ErrorFormatter.scrub_identifiers(
+        error_response.dig("error", "message") || "Error with API response"
+      )
       STDERR.puts "API error: #{error_msg}"
       
       return { 

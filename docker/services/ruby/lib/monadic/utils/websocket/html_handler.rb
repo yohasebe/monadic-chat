@@ -101,8 +101,7 @@ module WebSocketHelper
 
         if content["finish_reason"] && content["finish_reason"] == "safety"
           ws_session_id = Thread.current[:websocket_session_id]
-          safety_error = { "type" => "error", "content" => "api_stopped_safety" }.to_json
-          send_or_broadcast(safety_error, ws_session_id)
+          send_error("api_stopped_safety", ws_session_id)
         end
 
         # Extract ABC blocks before markdown processing (they're already HTML)
@@ -309,8 +308,7 @@ module WebSocketHelper
       rescue StandardError => e
         STDERR.puts "Error processing request: #{e.message}"
         ws_session_id = Thread.current[:websocket_session_id]
-        error_message = { "type" => "error", "content" => "something_went_wrong" }.to_json
-        send_or_broadcast(error_message, ws_session_id)
+        send_error("something_went_wrong", ws_session_id)
       end
     end
   end

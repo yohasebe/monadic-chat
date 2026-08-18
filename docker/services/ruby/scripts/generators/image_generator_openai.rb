@@ -7,6 +7,7 @@ require "json"
 require "optparse"
 require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/error_formatter"
 
 begin
   require_relative "../../lib/monadic/utils/model_spec"
@@ -403,7 +404,11 @@ def generate_image(options, num_retrials = 3)
     else
       begin
         error_response = JSON.parse(res.body.to_s)
-        error_msg = error_response.dig('error', 'message') || "Error with API response: #{res.status}"
+        # Provider error text names the organization/project; this line becomes
+        # the tool result and is saved with the conversation (see ErrorFormatter).
+        error_msg = Monadic::Utils::ErrorFormatter.scrub_identifiers(
+          error_response.dig('error', 'message') || "Error with API response: #{res.status}"
+        )
         puts "ERROR: #{error_msg}"
         puts "Response body: #{res.body}" if options[:verbose]
       rescue JSON::ParserError

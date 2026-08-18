@@ -1050,6 +1050,23 @@ const modelSpec = {
   // ~$0.50 cached per 1M (long-context tier ~doubles above the 200K threshold).
   // presence_penalty / frequency_penalty omitted to match the grok-4.3
   // sampling-restriction posture. Verified against the live xAI API 2026-07-09.
+  // grok-4.6 — current xAI flagship. Same base pricing as grok-4.5, but
+  // cached input costs more ($0.50/$1.00 vs $0.30/$0.60), so a cache-heavy
+  // workload is not automatically cheaper on the newer model. It has no
+  // alias: "grok-4.6-latest" fails rather than resolving.
+  "grok-4.6": {
+    "context_window" : [1, 500000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true,
+    "structured_output": true
+  },
   "grok-4.5": {
     "context_window" : [1, 500000],
     "max_output_tokens" : [1, 32768],
@@ -1356,10 +1373,13 @@ const providerDefaults = {
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },
   "xai": {
-    "chat": ["grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
-    "code": ["grok-build-0.1", "grok-4.5", "grok-4.3"],
-    "vision": ["grok-4.5", "grok-4.3"],
-    "image": ["grok-imagine-image"],
+    "chat": ["grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
+    "code": ["grok-build-0.1", "grok-4.6", "grok-4.5", "grok-4.3"],
+    "vision": ["grok-4.6", "grok-4.5", "grok-4.3"],
+    // Image models, cheapest first ($0.02 / $0.04 / $0.05 per image); the
+    // first is the default. These have no catalog entries, so this list is
+    // the only SSOT for which image models exist.
+    "image": ["grok-imagine-image", "grok-imagine-image-2.0", "grok-imagine-image-quality"],
     // text-to-video default. Image-to-video is routed to grok-imagine-video-1.5
     // in scripts/generators/video_generator_grok.rb (i2v-only, native audio,
     // higher quality; v1.5 rejects text-only requests).

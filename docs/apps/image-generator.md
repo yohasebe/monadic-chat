@@ -40,3 +40,7 @@ For example, after generating an image, you can say:
 The model interprets your instructions and applies changes to the entire image contextually. You can also upload an image and provide editing instructions to modify it.
 
 All generated images are saved in the `Shared Folder` and also displayed in the chat.
+
+## Image Quality (xAI)
+
+The xAI variant uses its standard image model by default. Ask for higher quality — for example "generate this at higher quality" — and it switches to one of the more expensive models for that request. If the requested model is not available on your account, the image is generated with the standard model instead and the reply says so, rather than failing.

@@ -19,6 +19,32 @@ rescue
   nil
 end
 
+# Selectable image models (SSOT: providerDefaults.xai.image).
+def grok_image_models
+  Monadic::Utils::ModelSpec.get_provider_models("xai", "image") || []
+rescue
+  []
+end
+
+# Unknown or blank input resolves to the default, so a stale or hallucinated
+# model name never reaches the API.
+def resolve_grok_image_model(requested)
+  name = requested.to_s.strip
+  return default_grok_image_model if name.empty?
+  return name if grok_image_models.include?(name)
+
+  warn "Unknown image model #{name.inspect}; using the default" if ENV["EXTRA_LOGGING"]
+  default_grok_image_model
+end
+
+# xAI error text names the account's team UUID when a model is not enabled for
+# it. This message reaches the chat and is saved with the conversation, so the
+# identifier is scrubbed before it leaves the script; the EXTRA_LOGGING trace
+# keeps the untouched text for debugging.
+def scrub_account_ids(text)
+  text.to_s.gsub(/\h{8}-\h{4}-\h{4}-\h{4}-\h{12}/, "[id]")
+end
+
 # Determine MIME type from file extension
 def get_mime_type(file_path)
   case File.extname(file_path).downcase
@@ -73,6 +99,10 @@ OptionParser.new do |opts|
   opts.on("-i", "--image IMAGE", "Image file path for editing (can be specified multiple times, max 3)") do |img|
     options[:images] << img
   end
+
+  opts.on("-m", "--model MODEL", "Image model to use (defaults to the provider default)") do |model|
+    options[:model] = model
+  end
 end.parse!
 
 # Validate required arguments
@@ -91,7 +121,8 @@ if options[:images].size > 3
   exit 1
 end
 
-def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [], num_retrials: 3)
+def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [], model: nil, num_retrials: 3)
+  model ||= default_grok_image_model
   begin
     api_key = File.read("/monadic/config/env").split("\n").find do |line|
       line.start_with?("XAI_API_KEY")
@@ -114,7 +145,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
     when "generate"
       url = "https://api.x.ai/v1/images/generations"
       body = {
-        model: default_grok_image_model,
+        model: model,
         prompt: prompt,
         n: 1,
         response_format: "b64_json"
@@ -124,7 +155,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
     when "edit"
       url = "https://api.x.ai/v1/images/edits"
       body = {
-        model: default_grok_image_model,
+        model: model,
         prompt: prompt,
         n: 1,
         response_format: "b64_json"
@@ -183,15 +214,34 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
 
     { original_prompt: prompt, revised_prompt: revised_prompt, success: true, filename: filename }
   else
-    begin
+    error_msg = begin
       error_response = JSON.parse(res.body)
-      error_msg = error_response.is_a?(Hash) && error_response['error'] ?
-                 (error_response['error']['message'] rescue "Error with API response") :
-                 "Error with API response: #{error_response.to_s[0..100]}"
-      return { original_prompt: prompt, success: false, message: error_msg }
+      if error_response.is_a?(Hash) && error_response['error']
+        (error_response['error']['message'] rescue "Error with API response")
+      else
+        "Error with API response: #{error_response.to_s[0..100]}"
+      end
     rescue JSON::ParserError
-      return { original_prompt: prompt, success: false, message: "Error parsing API response" }
+      "Error parsing API response"
     end
+
+    # Whether a model is available to this account can only be learned by
+    # asking: the API answers "does not exist OR you have no access" as one
+    # error. Retry once with the default so a bad choice degrades to a working
+    # image. The model != fallback guard also stops the retry from recursing.
+    fallback = default_grok_image_model
+    if fallback && model != fallback
+      warn "Image model #{model.inspect} failed (#{error_msg}); retrying with #{fallback.inspect}" if ENV["EXTRA_LOGGING"]
+      retried = generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio,
+                               images: images, model: fallback, num_retrials: 0)
+      if retried.is_a?(Hash) && retried[:success]
+        retried[:fallback_from] = model
+        retried[:message] = "Requested model #{model} was unavailable; generated with #{fallback} instead."
+        return retried
+      end
+    end
+
+    return { original_prompt: prompt, success: false, message: scrub_account_ids(error_msg) }
   end
 rescue StandardError => e
   error_msg = "Error: #{e.message}"
@@ -201,11 +251,13 @@ rescue StandardError => e
   num_retrials -= 1
   if num_retrials.positive?
     sleep 1
-    return generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, images: images, num_retrials: num_retrials)
+    return generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, images: images,
+                          model: model, num_retrials: num_retrials)
   else
     return { original_prompt: prompt, success: false, message: "Error: Image operation failed after multiple attempts." }
   end
 end
 
-res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio], images: options[:images])
+res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio],
+                     images: options[:images], model: resolve_grok_image_model(options[:model]))
 puts JSON.pretty_generate(res)

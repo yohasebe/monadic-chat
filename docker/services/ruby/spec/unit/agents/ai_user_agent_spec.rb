@@ -339,7 +339,7 @@ RSpec.describe AIUserAgent do
       providers_and_defaults = {
         "gemini" => "gemini-3.6-flash",
         "mistral" => "mistral-medium-3-5",
-        "grok" => "grok-4.5",
+        "grok" => "grok-4.6",
         "deepseek" => "deepseek-v4-flash",
         "cohere" => "command-a-plus-05-2026"
       }

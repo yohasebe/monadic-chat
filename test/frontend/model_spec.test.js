@@ -33,6 +33,37 @@ describe('Model Specification', () => {
     expect(modelSpec['grok-4.3']).toBeDefined();
   });
 
+  describe('xAI Models', () => {
+    it('catalogs grok-4.6 with vision and reasoning', () => {
+      const m = modelSpec['grok-4.6'];
+      expect(m).toBeDefined();
+      // Live probe (2026-08): text+image in, reasoning_effort accepted.
+      expect(m.vision_capability).toBe(true);
+      expect(m.tool_capability).toBe(true);
+      expect(m.reasoning_effort).toBeDefined();
+      expect(m.context_window[1]).toBe(500000);
+    });
+
+    it('defaults chat and vision to grok-4.6', () => {
+      const d = modelSpec.providerDefaults.xai;
+      expect(d.chat[0]).toBe('grok-4.6');
+      expect(d.vision[0]).toBe('grok-4.6');
+      // The previous flagship stays selectable rather than being dropped.
+      expect(d.chat).toContain('grok-4.5');
+    });
+
+    it('lists the selectable image models cheapest-first', () => {
+      // Image models have no catalog entries, so this list is the only SSOT
+      // for which ones exist; the generator validates against it.
+      const image = modelSpec.providerDefaults.xai.image;
+      expect(image[0]).toBe('grok-imagine-image');
+      expect(image).toEqual(expect.arrayContaining([
+        'grok-imagine-image-2.0', 'grok-imagine-image-quality'
+      ]));
+      image.forEach((id) => expect(modelSpec[id]).toBeUndefined());
+    });
+  });
+
   describe('OpenAI Models', () => {
     it('should have correct parameters for GPT-5.4 model', () => {
       const model = modelSpec['gpt-5.4'];

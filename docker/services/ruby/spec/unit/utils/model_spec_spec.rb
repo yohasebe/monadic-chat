@@ -38,4 +38,24 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(described_class.supports_speech_to_speech?('nonexistent-model')).to be false
     end
   end
+
+  # The Ruby side must agree with model_spec.js on the xAI defaults; the two
+  # stacks read the same file, so a drift here means the accessor broke.
+  describe 'xAI provider defaults' do
+    it 'resolves grok-4.6 as the chat and vision default' do
+      expect(described_class.get_provider_default('xai', 'chat')).to eq('grok-4.6')
+      expect(described_class.default_vision_model('xai')).to eq('grok-4.6')
+    end
+
+    it 'exposes the selectable image models with the cheapest as default' do
+      models = described_class.get_provider_models('xai', 'image')
+      expect(models.first).to eq('grok-imagine-image')
+      expect(models).to include('grok-imagine-image-2.0', 'grok-imagine-image-quality')
+      expect(described_class.default_image_model('xai')).to eq('grok-imagine-image')
+    end
+
+    it 'catalogs grok-4.6 as vision-capable' do
+      expect(described_class.get_model_property('grok-4.6', 'vision_capability')).to be true
+    end
+  end
 end

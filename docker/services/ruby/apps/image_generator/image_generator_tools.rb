@@ -434,10 +434,25 @@ class ImageGeneratorGrok < MonadicApp
   # @param images [Array<String>] Array of image filenames for editing (max 3)
   # @param session [Object] Session object (automatically provided)
   # @return [String] Generated image information from the script
-  def generate_image_with_grok(operation: "generate", prompt:, aspect_ratio: nil, images: nil, session: nil)
+  def generate_image_with_grok(operation: "generate", prompt:, aspect_ratio: nil, images: nil, image_model: nil, session: nil)
     # Input validation
     raise ArgumentError, "Invalid operation" unless %w[generate edit].include?(operation)
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
+
+    # Image model choice (SSOT: providerDefaults.xai.image). An unknown name is
+    # dropped rather than raised — losing the whole request over a stale name is
+    # worse than using the default.
+    if image_model && !image_model.to_s.strip.empty?
+      known = begin
+        Monadic::Utils::ModelSpec.get_provider_models("xai", "image") || []
+      rescue StandardError
+        []
+      end
+      unless known.include?(image_model.to_s)
+        Monadic::Utils::ExtraLogger.log { "Grok Image: unknown image_model #{image_model.inspect}; using provider default" }
+        image_model = nil
+      end
+    end
 
     # Early check: edit requires either images or session to resolve images from
     if operation == "edit" && (images.nil? || images.empty?) && session.nil?
@@ -504,7 +519,8 @@ class ImageGeneratorGrok < MonadicApp
     end
 
     # Call the method from MediaGenerationHelper (via MonadicHelper)
-    result_json = super(prompt: prompt, aspect_ratio: aspect_ratio, operation: operation, images: resolved_images)
+    result_json = super(prompt: prompt, aspect_ratio: aspect_ratio, operation: operation,
+                        images: resolved_images, image_model: image_model)
 
     # Parse result and store filename if successful (for continuous reference)
     if session

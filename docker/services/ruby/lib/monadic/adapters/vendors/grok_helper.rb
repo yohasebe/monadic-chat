@@ -434,13 +434,15 @@ module GrokHelper
           candidates = spec.keys.select do |m|
             m.start_with?("grok-") && Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") == true
           end
-          vision_model = if candidates.include?("grok-4.5")
-                           "grok-4.5"
-                         elsif candidates.include?("grok-4.3")
-                           "grok-4.3"
-                         else
-                           candidates.first
-                         end
+          # Preference order mirrors providerDefaults.xai.vision; the literal
+          # list is the fallback for when the spec cannot be read.
+          preferred = begin
+            Monadic::Utils::ModelSpec.get_provider_models("xai", "vision") || []
+          rescue StandardError
+            []
+          end
+          preferred = %w[grok-4.6 grok-4.5 grok-4.3] if preferred.empty?
+          vision_model = preferred.find { |m| candidates.include?(m) } || candidates.first
         rescue StandardError
           vision_model = nil
         end

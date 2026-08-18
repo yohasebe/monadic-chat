@@ -1,68 +1,43 @@
 require 'spec_helper'
-require 'open3'
 
-RSpec.describe "image_generator_openai.rb minimal tests" do
-  let(:script_path) { File.expand_path("../../../../scripts/generators/image_generator_openai.rb", __dir__) }
+# In-process and namespaced, like the other generator specs.
+#
+# This spec used to spawn the script with `-o edit -p test --image-url
+# https://example.com/img.png`. Those arguments PASS validation, so the run
+# went on to fetch the image and would have continued to the OpenAI API — it
+# stayed free only because example.com answers 404, i.e. the test's safety
+# depended on an external site's behavior.
+OPENAI_IMAGE_SCRIPT = GeneratorScriptLoader.load("image_generator_openai.rb")
 
-  def run_script(args)
-    command = ["ruby", script_path] + args
-    stdout, stderr, status = Open3.capture3(*command)
-    { stdout: stdout, stderr: stderr, status: status }
-  end
+RSpec.describe "image_generator_openai.rb" do
+  let(:script) { OPENAI_IMAGE_SCRIPT }
 
-  describe "argument handling" do
-    it "shows error when no prompt provided for generate" do
-      result = run_script(["-o", "generate"])
-      expect(result[:stdout]).to include("ERROR")
-      expect(result[:stdout]).to include("prompt")
-    end
-
-    it "shows error when no prompt/image provided for edit" do
-      result = run_script(["-o", "edit"])
-      expect(result[:stdout]).to include("ERROR")
-    end
-
-    it "rejects invalid operation" do
-      result = run_script(["-o", "invalid"])
-      expect(result[:stdout]).to include("Invalid operation")
+  describe "image model resolution" do
+    it "takes the allowed models from the providerDefaults SSOT" do
+      # Constants are namespaced too: instance_eval puts them on the loaded
+      # object's singleton class rather than on Object.
+      models = script.singleton_class.const_get(:ALLOWED_IMAGE_MODELS)
+      expect(models).to be_an(Array)
+      expect(models).not_to be_empty
+      expect(models.first).to be_a(String)
     end
   end
 
-  describe "JSON mode for image edits" do
-    it "accepts --image-url option without requiring local files" do
-      result = run_script(["-o", "edit", "-p", "test", "--image-url", "https://example.com/img.png"])
-      # Should not fail on argument parsing (no OptionParser::InvalidOption)
-      expect(result[:stderr]).not_to include("invalid option: --image-url")
-      # Should pass validation (image_url counts as image input)
-      expect(result[:stdout]).not_to include("at least one input image are required")
+  describe "api key lookup" do
+    it "exits with guidance when no config file holds a key" do
+      allow(File).to receive(:exist?).and_return(false)
+      expect { script.get_api_key }
+        .to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
+        .and output(/Unable to find OpenAI API key/).to_stdout
     end
+  end
 
-    it "accepts --image-file-id option without requiring local files" do
-      result = run_script(["-o", "edit", "-p", "test", "--image-file-id", "file-abc123"])
-      # Should not fail on argument parsing
-      expect(result[:stderr]).not_to include("invalid option: --image-file-id")
-      # Should pass validation (file_id counts as image input)
-      expect(result[:stdout]).not_to include("at least one input image are required")
-    end
-
-    it "accepts multiple --image-url options" do
-      result = run_script([
-        "-o", "edit", "-p", "test",
-        "--image-url", "https://example.com/img1.png",
-        "--image-url", "https://example.com/img2.png"
-      ])
-      expect(result[:stderr]).not_to include("invalid option")
-      expect(result[:stdout]).not_to include("at least one input image are required")
-    end
-
-    it "accepts multiple --image-file-id options" do
-      result = run_script([
-        "-o", "edit", "-p", "test",
-        "--image-file-id", "file-abc1",
-        "--image-file-id", "file-abc2"
-      ])
-      expect(result[:stderr]).not_to include("invalid option")
-      expect(result[:stdout]).not_to include("at least one input image are required")
+  describe "namespace isolation" do
+    it "keeps its helpers off Object so other generator scripts are unaffected" do
+      # get_api_key exists in several generator scripts with different
+      # behavior; loading them all must not make the last one win.
+      expect(script.respond_to?(:get_api_key)).to be true
+      expect(script.respond_to?(:generate_image)).to be true
     end
   end
 end

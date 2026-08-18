@@ -76,50 +76,52 @@ def resolve_image_path(filename)
   nil
 end
 
-# Parse command line arguments
-options = { operation: "generate", images: [] }
-OptionParser.new do |opts|
-  opts.banner = "Usage: image_generator_grok.rb [options]"
+# Parse command line arguments. Kept as a function (with the invocation behind
+# a __FILE__ guard at the bottom) so specs can require this file and exercise
+# the pieces in-process instead of spawning the script — spawning is what let a
+# unit test reach the real API and bill for an image.
+def parse_options(argv)
+  options = { operation: "generate", images: [] }
+  OptionParser.new do |opts|
+    opts.banner = "Usage: image_generator_grok.rb [options]"
 
-  opts.on("-p", "--prompt PROMPT", "The prompt to generate/edit an image") do |prompt|
-    options[:prompt] = prompt
-  end
-
-  opts.on("-o", "--operation OPERATION", "Operation: generate, edit") do |op|
-    options[:operation] = op
-    unless %w[generate edit].include?(op)
-      puts "ERROR: Invalid operation '#{op}'. Must be 'generate' or 'edit'."
-      exit 1
+    opts.on("-p", "--prompt PROMPT", "The prompt to generate/edit an image") do |prompt|
+      options[:prompt] = prompt
     end
-  end
 
-  opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)") do |ratio|
-    options[:aspect_ratio] = ratio
-  end
+    opts.on("-o", "--operation OPERATION", "Operation: generate, edit") do |op|
+      options[:operation] = op
+      unless %w[generate edit].include?(op)
+        puts "ERROR: Invalid operation '#{op}'. Must be 'generate' or 'edit'."
+        exit 1
+      end
+    end
 
-  opts.on("-i", "--image IMAGE", "Image file path for editing (can be specified multiple times, max 3)") do |img|
-    options[:images] << img
-  end
+    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)") do |ratio|
+      options[:aspect_ratio] = ratio
+    end
 
-  opts.on("-m", "--model MODEL", "Image model to use (defaults to the provider default)") do |model|
-    options[:model] = model
-  end
-end.parse!
+    opts.on("-i", "--image IMAGE", "Image file path for editing (can be specified multiple times, max 3)") do |img|
+      options[:images] << img
+    end
 
-# Validate required arguments
-unless options[:prompt]
-  puts "ERROR: A prompt is required. Use -p or --prompt to specify the prompt."
-  exit 1
+    opts.on("-m", "--model MODEL", "Image model to use (defaults to the provider default)") do |model|
+      options[:model] = model
+    end
+  end.parse!(argv)
+  options
 end
 
-if options[:operation] == "edit" && options[:images].empty?
-  puts "ERROR: At least one image is required for edit operation. Use -i or --image."
-  exit 1
-end
+# Returns nil when the options are usable, or the error message to print.
+def validate_options(options)
+  return "ERROR: A prompt is required. Use -p or --prompt to specify the prompt." unless options[:prompt]
 
-if options[:images].size > 3
-  puts "ERROR: Maximum 3 images allowed for xAI edit API."
-  exit 1
+  if options[:operation] == "edit" && options[:images].empty?
+    return "ERROR: At least one image is required for edit operation. Use -i or --image."
+  end
+  return "ERROR: Maximum 3 images allowed for xAI edit API." if options[:images].size > 3
+
+  nil
 end
 
 def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [], model: nil, num_retrials: 3)
@@ -259,6 +261,14 @@ rescue StandardError => e
   end
 end
 
-res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio],
-                     images: options[:images], model: resolve_grok_image_model(options[:model]))
-puts JSON.pretty_generate(res)
+if __FILE__ == $PROGRAM_NAME
+  options = parse_options(ARGV)
+  if (message = validate_options(options))
+    puts message
+    exit 1
+  end
+
+  res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio],
+                       images: options[:images], model: resolve_grok_image_model(options[:model]))
+  puts JSON.pretty_generate(res)
+end

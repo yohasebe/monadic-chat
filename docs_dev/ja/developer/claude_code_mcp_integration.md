@@ -9,7 +9,7 @@
 ```
 Claude Code（stdioトランスポート）
     ↓
-mcp_stdio_wrapper.rb（stdio → HTTPブリッジ）
+mcp_stdio_bridge.rb（stdio → HTTPブリッジ）
     ↓
 Monadic Chat MCPサーバー（HTTP JSON-RPC 2.0）
     ↓
@@ -60,7 +60,7 @@ end
 - MCP関連の出力は`rake server:debug`ターミナルを確認
 - `[MCP] Starting MCP Server on port 3100 in worker process <PID>...`メッセージを探す
 
-### 2. Stdioラッパー（`~/monadic/scripts/mcp_stdio_wrapper.rb`）
+### 2. Stdioブリッジ（`docker/services/ruby/scripts/mcp_stdio_bridge.rb`）
 
 **目的：**
 トランスポートプロトコルの不一致をブリッジ：
@@ -140,7 +140,7 @@ npm start  # Electronアプリ
 ```bash
 claude mcp add --scope user --transport stdio monadic-chat \
   --env DEBUG=true \
-  -- ruby /Users/yohasebe/monadic/scripts/mcp_stdio_wrapper.rb
+  -- ruby /path/to/monadic-chat/docker/services/ruby/scripts/mcp_stdio_bridge.rb
 ```
 
 **設定の保存場所：**
@@ -280,8 +280,8 @@ claude mcp remove monadic-chat -s user
 
 **Claude Codeで"Server not connected"：**
 - Monadic Chatサーバーが実行中か確認：`curl http://localhost:3100/health`
-- ラッパースクリプトが存在するか確認：`ls -la ~/monadic/scripts/mcp_stdio_wrapper.rb`
-- ラッパーの権限を確認：`chmod +x ~/monadic/scripts/mcp_stdio_wrapper.rb`
+- ブリッジスクリプトが存在するか確認：`ls -la docker/services/ruby/scripts/mcp_stdio_bridge.rb`
+- ブリッジの権限を確認：`chmod +x docker/services/ruby/scripts/mcp_stdio_bridge.rb`
 
 **"No tools available"：**
 - アプリが設定で無効化されていないか確認

@@ -9,7 +9,7 @@ This document describes the technical implementation of MCP integration between 
 ```
 Claude Code (stdio transport)
     ↓
-mcp_stdio_wrapper.rb (stdio → HTTP bridge)
+mcp_stdio_bridge.rb (stdio → HTTP bridge)
     ↓
 Monadic Chat MCP Server (HTTP JSON-RPC 2.0)
     ↓
@@ -60,7 +60,7 @@ end
 - Check `rake server:debug` terminal for MCP-related output
 - Look for `[MCP] Starting MCP Server on port 3100 in worker process <PID>...` message
 
-### 2. Stdio Wrapper (`~/monadic/scripts/mcp_stdio_wrapper.rb`)
+### 2. Stdio Bridge (`docker/services/ruby/scripts/mcp_stdio_bridge.rb`)
 
 **Purpose:**
 Bridges the transport protocol mismatch:
@@ -140,7 +140,7 @@ npm start  # Electron app
 ```bash
 claude mcp add --scope user --transport stdio monadic-chat \
   --env DEBUG=true \
-  -- ruby /Users/yohasebe/monadic/scripts/mcp_stdio_wrapper.rb
+  -- ruby /path/to/monadic-chat/docker/services/ruby/scripts/mcp_stdio_bridge.rb
 ```
 
 **Configuration stored in:**
@@ -280,8 +280,8 @@ claude mcp remove monadic-chat -s user
 
 **"Server not connected" in Claude Code:**
 - Check Monadic Chat server is running: `curl http://localhost:3100/health`
-- Verify wrapper script exists: `ls -la ~/monadic/scripts/mcp_stdio_wrapper.rb`
-- Check wrapper permissions: `chmod +x ~/monadic/scripts/mcp_stdio_wrapper.rb`
+- Verify the bridge script exists: `ls -la docker/services/ruby/scripts/mcp_stdio_bridge.rb`
+- Check bridge permissions: `chmod +x docker/services/ruby/scripts/mcp_stdio_bridge.rb`
 
 **"No tools available":**
 - Check app is not disabled in settings

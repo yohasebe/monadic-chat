@@ -20,8 +20,8 @@ authors:
 repository-code: "https://github.com/yohasebe/monadic-chat"
 url: "https://yohasebe.github.io/monadic-chat/"
 license: Apache-2.0
-version: "1.0.0-beta.29"
-date-released: "2026-07-25"
+version: 1.0.0-beta.30
+date-released: '2026-08-21'
 keywords:
   - large-language-models
   - multi-provider

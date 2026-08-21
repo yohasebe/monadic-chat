@@ -524,10 +524,11 @@ module GeminiHelper
 
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list
+  # Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live model
+  # list (verified 2026-08-22), so the imagen4* keys were removed: leaving them
+  # here kept a route that could only ever fail. generate_image_with_imagen_direct
+  # stays for the /predict shape in case a future Imagen returns.
   IMAGE_GENERATION_MODELS = {
-    "imagen4" => "imagen-4.0-generate-001",
-    "imagen4-ultra" => "imagen-4.0-ultra-generate-001",
-    "imagen4-fast" => "imagen-4.0-fast-generate-001",
     # Gemini 3 Image (GA, v1beta generateContent) — Nano Banana 2 / Pro
     "gemini-3.1-flash-image" => "gemini-3.1-flash-image",
     "gemini-3-pro-image" => "gemini-3-pro-image",
@@ -535,7 +536,6 @@ module GeminiHelper
     "gemini-3.1-flash-image-preview" => "gemini-3.1-flash-image",
     "gemini-3-pro-image-preview" => "gemini-3-pro-image"
   }.freeze
-  IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODELS["imagen4-fast"]  # Default to fast model
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   
@@ -4240,8 +4240,11 @@ module GeminiHelper
   end
 
 
-  # Direct Imagen API implementation (supports imagen3, imagen4, imagen4-ultra, imagen4-fast)
-  def generate_image_with_imagen_direct(prompt:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT", model: "imagen4-fast")
+  # Direct Imagen API implementation (the /predict shape, as opposed to the
+  # conversational generateContent path). No Imagen model is currently reachable
+  # — 4.0 sunset on 2026-08-17 — so this is dormant and `model` has no default:
+  # a caller must name the model it means, rather than inheriting a dead one.
+  def generate_image_with_imagen_direct(prompt:, model:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT")
     require 'net/http'
     require 'json'
     require 'base64'

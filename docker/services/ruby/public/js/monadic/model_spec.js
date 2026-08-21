@@ -1375,7 +1375,10 @@ const providerDefaults = {
     "chat": ["gemini-3.6-flash", "gemini-3.1-pro-preview"],
     "vision": ["gemini-3.6-flash"],
     "audio_transcription": ["gemini-3.6-flash"],
-    "image": ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
+    // Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live
+    // model list (verified 2026-08-22), so only the conversational image
+    // models remain.
+    "image": ["gemini-3.1-flash-image", "gemini-3-pro-image"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "music": ["lyria-3-pro-preview", "lyria-3-clip-preview"],
     "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]

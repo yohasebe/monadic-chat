@@ -33,13 +33,15 @@ RSpec.describe GrokCompaction do
 
   # Register a fake app exposing settings["compaction"].
   def register_app(name, compaction_setting)
-    Object.const_set(:APPS, {}) unless Object.const_defined?(:APPS)
     APPS[name] = Struct.new(:settings).new({ 'compaction' => compaction_setting })
   end
 
+  # stub_const, NOT `APPS.clear`: clearing mutated the REAL global that
+  # TestAppLoader had populated (and memoization never repopulates), which
+  # made later specs in the same run skip with "<App> not loaded" —
+  # a seed-dependent pending flake (reproduced with --seed 53864).
   before do
-    Object.const_set(:APPS, {}) unless Object.const_defined?(:APPS)
-    APPS.clear
+    stub_const('APPS', {})
   end
 
   describe '#grok_compaction_threshold' do

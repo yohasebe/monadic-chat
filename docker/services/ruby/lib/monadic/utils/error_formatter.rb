@@ -14,7 +14,32 @@ module Monadic
       TOOL_ERROR = "Tool Execution Error"
       UNKNOWN_ERROR = "Unknown Error"
 
+      # Account identifiers that providers embed in their error text. These
+      # reach the chat, are saved with the conversation, and travel with any
+      # export — so they are replaced before the message leaves the server.
+      # Each provider names something different, which is why this lives in one
+      # place: xAI names the team UUID, Google the project number, OpenAI the
+      # organization, and several APIs attach a request id.
+      IDENTIFIER_PATTERNS = [
+        /\h{8}-\h{4}-\h{4}-\h{4}-\h{12}/,             # UUID (xAI team, Azure ids)
+        /\borg-[A-Za-z0-9]{8,}/,                      # OpenAI organization
+        /\bproj_[A-Za-z0-9]{8,}/,                     # OpenAI project
+        /\bre[qs]_[A-Za-z0-9]{8,}/,                   # request / response ids
+        /\bprojects?[\/ ][0-9]{6,}/i,                 # Google Cloud project number
+        /\buser-[A-Za-z0-9]{16,}/                     # OpenAI end-user id
+      ].freeze
+
+      REDACTION = "[redacted]"
+
       class << self
+        # Replace account identifiers in provider error text. Returns the input
+        # unchanged when it carries none, so ordinary messages stay readable.
+        def scrub_identifiers(text)
+          return text if text.nil?
+
+          IDENTIFIER_PATTERNS.reduce(text.to_s) { |acc, re| acc.gsub(re, REDACTION) }
+        end
+
         # Format error with consistent structure
         # @param category [String] Error category (use constants above)
         # @param message [String] Error message

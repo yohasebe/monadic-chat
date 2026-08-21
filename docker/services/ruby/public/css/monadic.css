@@ -1,8 +1,13 @@
 /* ============================================ */
 /* CSS Layer Order Declaration */
-/* Later layers override earlier layers without needing !important */
+/* Later layers override earlier layers without needing !important.
+   For !important declarations the order REVERSES: the EARLIER layer wins.
+   lc-overrides sits before vendor so Live Conversation's display:none
+   !important rules beat Bootstrap's vendor-layer .d-flex{display:flex
+   !important} (unlayered !important loses to ANY layered !important —
+   that inversion is what let the thinking toggle survive in LC). */
 /* ============================================ */
-@layer vendor, base, components, dark-theme, responsive, utilities;
+@layer lc-overrides, vendor, base, components, dark-theme, responsive, utilities;
 
 /* ============================================ */
 /* Base Layer: Variables, resets, accessibility */
@@ -6146,6 +6151,26 @@ i.fas.fa-bolt,
   margin-right: 4px;
 }
 
+/* Speech-to-speech session cost readout. Sits next to the privacy indicator
+   and follows its shape; hidden via inline style="display:none" until the
+   first STS turn completes. Deliberately low-contrast: it is a standing
+   reference figure, not an alert. */
+.sts-usage-indicator {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78em;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  background-color: #f1f3f5;
+  color: #6c757d;
+}
+.sts-usage-indicator i {
+  margin-right: 4px;
+}
+
 /* Privacy Filter auto-detected language badge — appears next to the
    indicator label when LanguageDetector has locked the session to a
    reliable detection (auto mode only). The badge inherits the host
@@ -6491,3 +6516,179 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-chip.verify-badge--low { background: var(--bdg-red-bg); color: var(--bdg-red-fg); border-color: var(--bdg-red-bd); }
 .verify-badge--unknown, .verify-badge--unavailable,
 .verify-chip.verify-badge--unknown, .verify-chip.verify-badge--unavailable { background: var(--bdg-grey-bg); color: var(--bdg-grey-fg); border-color: var(--bdg-grey-bd); }
+
+/* ── Live Conversation (speech-to-speech app family) ────────────────────
+   body.lc-app    : current app declares `speech_to_speech true`
+   body.lc-locked : a conversation is active — cards are content-final per
+                    turn, but editing is unlocked only after Stop. */
+/* All LC hiding rules live in the lc-overrides layer (declared BEFORE
+   vendor at the top of this file). Their display:none !important must beat
+   Bootstrap's vendor-layer utilities — .d-flex{display:flex !important}
+   otherwise wins, because for !important the layer order reverses and any
+   layered !important beats an unlayered one. This was the root cause of
+   the thinking toggle staying visible in LC (dogfood, browser-measured).
+   Plain inline display from JS $hide/$show also loses to these rules;
+   the JS-side none!important enforcement stays as a second layer. */
+@layer lc-overrides {
+.lc-app #user-panel > .row {
+  display: none !important;
+}
+/* The AI User strip is a flex div, not a .row — hide it explicitly
+   (its typed-pipeline Run makes no sense against a realtime bridge). */
+.lc-app #ai-user-row {
+  display: none !important;
+}
+
+/* Settings that have no effect in a speech-to-speech app are hidden, not
+   disabled: auto speech / easy submit belong to the typed pipeline, and the
+   whole Speech panel (STT model, TTS provider/voice) is bypassed — audio
+   flows through the realtime bridge in both directions. The Interaction
+   panel stays: "Start from assistant" is the greeting toggle. */
+.lc-app #auto-speech-form,
+.lc-app #easy-submit-form,
+.lc-app #voice-panel {
+  display: none !important;
+}
+
+/* Model-parameter surface that a realtime session does not consume: web
+   search (no tools), math rendering (speech, not markup), reasoning
+   effort / thinking display (not exposed by the realtime API), sampling
+   parameters, context/token caps (seeding does not consult them yet), and
+   show-all (the model list is pinned to the MDSL declaration). */
+.lc-app #websearch-form,
+.lc-app #math-form,
+.lc-app #reasoning-effort-container,
+.lc-app #thinking-display-container,
+.lc-app #model_parameters,
+.lc-app #context-size-col,
+.lc-app #max-tokens-col,
+.lc-app #show-all-models-form {
+  display: none !important;
+}
+
+/* The typed pipeline's status spinner ("Thinking…" etc.) is driven by
+   fragment/html arrival and flickers meaninglessly against a realtime
+   stream — Live Conversation has its own #lc-status line. !important wins
+   over the JS show/hide sites, which set inline display="". */
+.lc-app #monadic-spinner {
+  display: none !important;
+}
+
+/* Second-opinion verification targets the typed pipeline's request shape;
+   a realtime speech transcript is not a verifiable answer. The AI User /
+   status sidebar is likewise typed-pipeline surface. */
+.lc-app #discourse .verify-bar,
+.lc-app #ai-status-panel {
+  display: none !important;
+}
+} /* end @layer lc-overrides */
+
+#lc-panel { display: none; }
+.lc-app #lc-panel { display: block; }
+
+.lc-locked #discourse .card .func-edit,
+.lc-locked #discourse .card .func-delete,
+.lc-locked #discourse .card .func-play,
+.lc-locked #discourse .card .func-stop {
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* Live Conversation toggle. A hue of its own: this button opens a LIVE
+   audio channel, not a typed submit — so it must not read as the confirm
+   blue (btn-primary) or the destructive red. Violet is otherwise unused in
+   the button palette; tones are desaturated because full-strength Bootstrap
+   colors read too vivid against the muted grey UI palette
+   (#e5e5ea/#f8f9fa). While live, the hue shifts to a muted brick with a
+   soft pulse — "recording" without alarm-red urgency. */
+.btn-lc {
+  background-color: #6d5fa8;
+  border-color: #6d5fa8;
+  color: #fff;
+}
+.btn-lc:hover, .btn-lc:focus {
+  background-color: #5d5090;
+  border-color: #5d5090;
+  color: #fff;
+}
+.btn-lc.btn-lc-live {
+  background-color: #a94442;
+  border-color: #a94442;
+  animation: lc-live-pulse 2s ease-in-out infinite;
+}
+.btn-lc.btn-lc-live:hover, .btn-lc.btn-lc-live:focus {
+  background-color: #8f3a38;
+  border-color: #8f3a38;
+}
+@keyframes lc-live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(169, 68, 66, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(169, 68, 66, 0); }
+}
+
+/* Usage note shown while the conversation is empty (explicit Start/Stop
+   is unlike the typed apps). Dashed border = ephemeral, not a message. */
+.lc-intro-card {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* Speech highlight (§37-13C): the sentence the assistant is speaking right
+   now, driven by the playback clock. A quiet tint of the existing blue
+   badge family — visible at a glance, never a loud selection color. */
+.lc-speaking {
+  background: var(--bdg-blue-bg);
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--bdg-blue-bg);
+}
+
+/* Live user transcript preview (replaced by the server-rendered user card
+   when the turn's transcription completes). */
+.lc-user-temp .lc-user-temp-text {
+  color: var(--bs-secondary-color, #6c757d);
+  font-style: italic;
+  min-height: 1.2em;
+}
+
+/* Live Conversation live view (non-card 2-zone display) */
+.lc-live-zone {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--bs-border-color, #dee2e6);
+  margin-bottom: 0.5rem;
+}
+.lc-live-zone .lc-live-role {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color, #6c757d);
+  margin-bottom: 0.15rem;
+}
+.lc-live-prev {
+  opacity: 0.65;
+}
+#lc-live-current {
+  border-left-color: #6d5fa8;
+}
+#lc-live-current .lc-live-text {
+  font-size: 1.05rem;
+}
+
+/* A tools badge inserted BETWEEN paragraphs (Live Conversation, §37-3) is
+   its own block, not part of a text run: it needs symmetric breathing room
+   in the paragraph gap instead of the inline offset a title badge uses.
+   Without this the badge crowds the paragraph below it and reads as
+   vertically misaligned (dogfood). Title badges are unaffected — they live
+   in .card-title, which this selector does not match. */
+.card-text > .lc-tools-badge {
+  margin: 0.4rem 0 0.55rem;
+}
+
+/* In the live view the badge reads vertically off-center — but the
+   asymmetry is NOT a margin problem (browser-measured, §37-15): as an
+   inline-level box the badge sits in an anonymous line box whose strut
+   adds ~6px above it that no margin can remove. Making it block-level
+   (flex + max-content) kills the line box; the gap above then comes
+   entirely from the preceding paragraph's margin-bottom, matching the
+   paragraph rhythm. The card side keeps its own paragraph-margin system. */
+.lc-live-text > .lc-tools-badge {
+  display: flex;
+  width: max-content;
+  margin: 0 0 1rem;
+}

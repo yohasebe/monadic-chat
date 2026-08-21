@@ -90,12 +90,13 @@ module MonadicHelper
   end
 
 
-  def generate_image_with_grok(prompt: "", aspect_ratio: nil, operation: "generate", images: nil)
+  def generate_image_with_grok(prompt: "", aspect_ratio: nil, operation: "generate", images: nil, image_model: nil)
     require 'json'
 
     parts = ["image_generator_grok.rb", "-p", Shellwords.shellescape(prompt)]
     parts << "-o" << Shellwords.shellescape(operation) if operation && operation != "generate"
     parts << "-a" << Shellwords.shellescape(aspect_ratio) if aspect_ratio
+    parts << "-m" << Shellwords.shellescape(image_model) if image_model && !image_model.to_s.strip.empty?
     if images.is_a?(Array)
       images.each { |img| parts << "-i" << Shellwords.shellescape(img) }
     end

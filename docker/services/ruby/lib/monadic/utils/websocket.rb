@@ -7,6 +7,7 @@ require 'async'
 require 'async/queue'
 require 'async/websocket/adapters/rack'
 require 'twitter_cldr'
+require_relative 'error_formatter'
 require_relative '../agents/ai_user_agent'
 require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
@@ -29,6 +30,7 @@ require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
 require_relative 'websocket/privacy_handler'
 require_relative 'websocket/verify_handler'
+require_relative 'websocket/sts_stream_handler'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
@@ -219,6 +221,12 @@ module WebSocketHelper
             session[:parameters] ||= {}
             session[:parameters]["ui_language"] = obj["ui_language"]
           end
+          # LOAD re-derives the UI from the canon; a live STS bridge across
+          # that is incoherent (and its merge span may predate the reload).
+          # Every legitimate LOAD sender has already ended the conversation
+          # client-side, so this is a no-op there — it exists for the import
+          # / stray-tab paths (review round 4, P1).
+          teardown_sts_session(session)
           handle_load_message(connection)
         when "DELETE"
           handle_delete_message(connection, obj)
@@ -241,11 +249,29 @@ module WebSocketHelper
         when "AUDIO"
           handle_audio_message(connection, obj)
         when "AUDIO_CHUNK"
-          handle_audio_chunk(connection, obj)
+          route_audio_event(connection, session, obj,
+                            sts_handler: :handle_sts_audio_chunk,
+                            fallback: :handle_audio_chunk)
         when "AUDIO_COMMIT"
-          handle_audio_commit(connection, obj)
+          route_audio_event(connection, session, obj,
+                            sts_handler: :handle_sts_audio_commit,
+                            fallback: :handle_audio_commit)
         when "AUDIO_ABORT"
-          handle_audio_abort(connection, obj)
+          route_audio_event(connection, session, obj,
+                            sts_handler: :handle_sts_audio_abort,
+                            fallback: :handle_audio_abort)
+        when "STS_START"
+          # Live Conversation session start (greet flag decides whether the
+          # assistant opens the conversation). Same gates as the audio path.
+          route_sts_control(connection, session, obj, handler: :handle_sts_start)
+        when "STS_STOP"
+          # Explicit stop: finalize the in-flight turn and tear the bridge
+          # down. No capability gate — stopping must always work, and it is
+          # a no-op when no bridge exists.
+          handle_sts_stop(connection, obj)
+        when "STS_INITIATE"
+          # Legacy alias for STS_START with greet (kept honored).
+          route_sts_control(connection, session, obj, handler: :handle_sts_initiate)
         when "UPDATE_LANGUAGE"
           handle_ws_update_language(connection, obj, session)
         when "STOP_TTS"
@@ -269,6 +295,11 @@ module WebSocketHelper
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Error in message loop: #{e.class}: #{e.message}\n#{e.backtrace.first(5).join("\n")}" }
     ensure
+      # Tear down any live STS bridge so the upstream OpenAI socket does not
+      # outlive the client connection (the STT bridge dies with its writer;
+      # the STS bridge is long-lived by design, so it needs an explicit stop).
+      teardown_sts_session(session) if session
+
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Connection closed for session #{ws_session_id}" }
@@ -292,11 +323,140 @@ module WebSocketHelper
     end
   end
 
+  # The ONE way to deliver an error to the client. Provider error text carries
+  # account identifiers (xAI names the team UUID, Google the project number,
+  # OpenAI the organization), and an error shown in the chat is saved with the
+  # conversation and travels with any export — so the identifiers are scrubbed
+  # here, once, instead of at every call site. The untouched text still goes to
+  # the EXTRA_LOGGING trace, which stays on the user's own machine.
+  #
+  # Building `{"type" => "error"}` inline elsewhere bypasses this and is pinned
+  # against by spec/unit/utils/websocket/error_send_boundary_spec.rb.
+  # content is usually a message string, but some callers send a structured
+  # payload (an i18n key plus details), so scrubbing walks strings wherever
+  # they sit rather than stringifying the whole thing.
+  def send_error(content, session_id = Thread.current[:websocket_session_id], extra = {})
+    scrubbed = scrub_error_content(content)
+    if scrubbed != content
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] error text scrubbed before delivery; raw: #{content.inspect}" }
+    end
+    payload = { "type" => "error", "content" => scrubbed }.merge(extra)
+    send_or_broadcast(payload.to_json, session_id)
+  end
+
+  def scrub_error_content(content)
+    case content
+    when String then Monadic::Utils::ErrorFormatter.scrub_identifiers(content)
+    when Hash then content.transform_values { |v| scrub_error_content(v) }
+    when Array then content.map { |v| scrub_error_content(v) }
+    else content
+    end
+  end
+
+  # The pre-session delivery path (no session id yet). Error payloads get the
+  # same scrubbing as send_error — this is the second and last way an error
+  # reaches the client, so both are covered without touching call sites.
   def send_to_client(connection, message_hash)
+    if message_hash.is_a?(Hash) && message_hash["type"] == "error"
+      message_hash = message_hash.merge("content" => scrub_error_content(message_hash["content"]))
+    end
     connection.write(message_hash.to_json)
     connection.flush
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[WebSocket] Error sending to client: #{e.message}" }
+  end
+
+  # --- STS (speech-to-speech) audio routing ---------------------------------
+
+  # Route one inbound audio control message (AUDIO_CHUNK / AUDIO_COMMIT /
+  # AUDIO_ABORT) to either the STS bridge or the legacy realtime-STT
+  # handlers, based on route_audio_mode.
+  private def route_audio_event(connection, session, obj, sts_handler:, fallback:)
+    case route_audio_mode(session, obj)
+    when :sts
+      send(sts_handler, connection, obj)
+    when :privacy_blocked
+      notify_sts_privacy_blocked(connection, session)
+    else
+      send(fallback, connection, obj)
+    end
+  end
+
+  # Route an STS control message (STS_START / STS_INITIATE). Same capability
+  # + privacy gates as the audio path; silently ignored outside STS sessions
+  # (a stray client should not crash anything).
+  private def route_sts_control(connection, session, obj, handler:)
+    unless sts_session_capable?(session, obj)
+      Monadic::Utils::ExtraLogger.log do
+        "[WebSocket] #{obj['message']} ignored (session is not STS-capable)"
+      end
+      return
+    end
+
+    if sts_privacy_active?(session)
+      notify_sts_privacy_blocked(connection, session)
+    else
+      send(handler, connection, obj)
+    end
+  end
+
+  # Decide where inbound voice audio goes for this session. Shared by all
+  # three audio dispatch branches.
+  #
+  # Returns one of:
+  #   :sts             — current model has the supports_speech_to_speech
+  #                      capability; audio goes to the STS bridge
+  #   :privacy_blocked — model is STS-capable but the Privacy Filter is on;
+  #                      raw audio must not be sent to the provider
+  #   :stt             — default realtime-STT transcription path
+  # `obj` (the inbound audio message) may carry a `chat_model` routing hint.
+  # Deciding from session parameters alone races the client's UPDATE_PARAMS
+  # broadcast, which is dropped silently while the socket is not OPEN or a
+  # suppression window is active — the hint makes the decision input
+  # deterministic. The hint is still capability-checked against model_spec,
+  # so a client cannot switch pipelines with an arbitrary value.
+  private def route_audio_mode(session, obj = nil)
+    return :stt unless sts_session_capable?(session, obj)
+
+    sts_privacy_active?(session) ? :privacy_blocked : :sts
+  end
+
+  # Privacy Filter "currently enabled" check for STS routing. Mirrors the
+  # two-gate activation in BaseVendorHelper#privacy_enabled_for?: the app
+  # must declare `privacy do; enabled true; end` in MDSL AND the user must
+  # have opted in via the session toggle (PRIVACY_TOGGLE sets
+  # session[:_privacy_session_enabled] only after a container health probe,
+  # so the key alone is backend-authoritative for the toggle half).
+  private def sts_privacy_active?(session)
+    return false unless session.respond_to?(:[])
+    return false unless session[:_privacy_session_enabled] == true
+
+    params = session[:parameters] || session["parameters"]
+    params = {} unless params.respond_to?(:[])
+    app_name = params["app_name"] || params[:app_name]
+    app_settings = (defined?(APPS) && app_name && APPS[app_name]) ? APPS[app_name].settings : nil
+    return false unless app_settings
+
+    privacy = app_settings[:privacy] || app_settings["privacy"]
+    return false unless privacy
+
+    (privacy[:enabled] || privacy["enabled"]) == true
+  end
+
+  # Notify the user that STS is unavailable while the Privacy Filter is on.
+  # Sent only once per session (tracked via :_sts_privacy_notice_sent) so a
+  # stream of AUDIO_CHUNKs does not spam one error per chunk.
+  private def notify_sts_privacy_blocked(connection, session)
+    return if session[:_sts_privacy_notice_sent]
+
+    session[:_sts_privacy_notice_sent] = true
+    send_to_client(connection, {
+      "type" => "error",
+      "content" => "Speech-to-speech mode sends raw audio directly to the provider " \
+                   "and is unavailable while the Privacy Filter is on. " \
+                   "Disable the Privacy Filter or choose a model without " \
+                   "speech-to-speech support to use voice input."
+    })
   end
 
   # Handle MCP configuration update

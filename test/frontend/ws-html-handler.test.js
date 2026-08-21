@@ -91,6 +91,10 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+// card-renderer.js owns window.assistantBadge and precedes this module in the
+// bundle (scripts/build_js_bundle.mjs), so loading it here matches production
+// rather than stubbing the helper away.
+require('../../docker/services/ruby/public/js/monadic/card-renderer');
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-html-handler');
 
 describe('ws-html-handler', () => {
@@ -205,6 +209,27 @@ describe('ws-html-handler', () => {
         [],
         expect.any(Number)
       );
+    });
+
+    // A speech-to-speech turn cut short by barge-in carries only the text the
+    // model had produced before it was stopped. Without a marker the card
+    // reads as a complete answer and the user cannot tell the rest was never
+    // spoken — the same UI-honesty rule that forbids silent fallback.
+    it('marks a card the server flagged as interrupted', () => {
+      handlers.handleHtml({
+        ...assistantData,
+        content: { ...assistantData.content, interrupted: true }
+      });
+
+      const badge = window.appendCard.mock.calls[0][1];
+      expect(badge).toContain('Assistant');
+      expect(badge).toMatch(/interrupted/i);
+    });
+
+    it('leaves an ordinary card unmarked', () => {
+      handlers.handleHtml(assistantData);
+
+      expect(window.appendCard.mock.calls[0][1]).not.toMatch(/interrupted/i);
     });
 
     it('resets streaming state on final message', () => {

@@ -502,6 +502,16 @@ window.loadedApp = "Chat";
     const discourseEl = $id("discourse");
     if (discourseEl) discourseEl.appendChild(htmlElement);
 
+    // Live Conversation: keep the streaming surfaces (assistant temp-card,
+    // live user transcript) BELOW every finalized card, and follow the
+    // newest content when auto-scroll is on. Cards can land while a stream
+    // is still open (order-gate timeout, barge-in), which otherwise leaves
+    // the in-progress card stranded above newer cards.
+    if (document.body.classList.contains('lc-app') &&
+        window.LiveConversation && typeof window.LiveConversation.onCardAppended === 'function') {
+      window.LiveConversation.onCardAppended();
+    }
+
     // Defer applyRenderers to ensure DOM is fully ready
     if (window.MarkdownRenderer) {
       setTimeout(() => {
@@ -720,6 +730,78 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // Speech-to-speech audio arrives as ~100ms deltas and is scheduled
+      // ahead of time rather than queued; see ws-sts-playback.js.
+      case "sts_audio_delta": {
+        const sts = window.WsStsPlayback;
+        if (sts && typeof sts.handleStsAudioDelta === 'function') {
+          sts.handleStsAudioDelta(data);
+        }
+        const lcDelta = window.LiveConversation;
+        if (lcDelta && typeof lcDelta.onAssistantAudio === 'function') {
+          lcDelta.onAssistantAudio();
+        }
+        break;
+      }
+
+      case "sts_audio_done": {
+        const sts = window.WsStsPlayback;
+        if (sts && typeof sts.handleStsAudioDone === 'function') {
+          sts.handleStsAudioDone(data);
+        }
+        const stsUsage = window.WsStsUsage;
+        if (stsUsage && typeof stsUsage.handleStsAudioDone === 'function') {
+          stsUsage.handleStsAudioDone(data);
+        }
+        const lcDone = window.LiveConversation;
+        if (lcDone && typeof lcDone.onAssistantAudioEnd === 'function') {
+          lcDone.onAssistantAudioEnd();
+        }
+        break;
+      }
+
+      case "sts_audio_cancelled": {
+        const sts = window.WsStsPlayback;
+        if (sts && typeof sts.handleStsAudioCancelled === 'function') {
+          sts.handleStsAudioCancelled(data);
+        }
+        const lcCancel = window.LiveConversation;
+        if (lcCancel && typeof lcCancel.onAssistantAudioEnd === 'function') {
+          lcCancel.onAssistantAudioEnd();
+        }
+        break;
+      }
+
+      // Tool-use visibility (function calling wave 1, design §37).
+      case "sts_tool_call": {
+        const lcTool = window.LiveConversation;
+        if (lcTool && typeof lcTool.onToolCall === 'function') {
+          lcTool.onToolCall(data);
+        }
+        break;
+      }
+
+      // Live Conversation state relays (see live-conversation.js).
+      case "sts_vad": {
+        const lcVad = window.LiveConversation;
+        if (lcVad && typeof lcVad.onStsVad === 'function') lcVad.onStsVad(data);
+        break;
+      }
+
+      case "sts_session": {
+        const lcSession = window.LiveConversation;
+        if (lcSession && typeof lcSession.onStsSession === 'function') lcSession.onStsSession(data);
+        break;
+      }
+
+      // In-place refresh of an interrupted card's text (late transcript.done
+      // carries fuller text than the barge-in freeze point).
+      case "sts_card_text": {
+        const lcCard = window.LiveConversation;
+        if (lcCard && typeof lcCard.onCardText === 'function') lcCard.onCardText(data);
+        break;
+      }
+
       case "tts_progress": {
         const tth = window.WsTTSHandler;
         if (tth && typeof tth.handleTTSProgress === 'function') {
@@ -862,6 +944,8 @@ window.loadedApp = "Chat";
         break;
       }
       case "stt": {
+        const lcStt = window.LiveConversation;
+        if (lcStt && typeof lcStt.onStt === 'function') lcStt.onStt(data);
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleSTT === 'function') {
           wsh.handleSTT(data);
@@ -869,6 +953,8 @@ window.loadedApp = "Chat";
         break;
       }
       case "stt_partial": {
+        const lcSttP = window.LiveConversation;
+        if (lcSttP && typeof lcSttP.onSttPartial === 'function') lcSttP.onSttPartial(data);
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleSTTPartial === 'function') {
           wsh.handleSTTPartial(data);
@@ -1077,6 +1163,13 @@ window.loadedApp = "Chat";
         if (wsd && typeof wsd.handleDefaultMessage === 'function') {
           wsd.handleDefaultMessage(data);
         }
+        // Live Conversation live view: assistant streaming mirrors into the
+        // 2-zone display (inert unless LC live view is active — the module
+        // gates internally). Existing temp-card path is untouched.
+        if (data["type"] === "fragment" && window.LiveConversation &&
+            typeof window.LiveConversation.onAssistantFragment === 'function') {
+          window.LiveConversation.onAssistantFragment(data);
+        }
       }
     }
   }
@@ -1094,8 +1187,16 @@ window.loadedApp = "Chat";
       window.UIState.set('wsConnected', false);
       window.UIState.set('wsReconnecting', true);
     }
-    // Show message based on current mode: if Stop操作による明示停止（silentモード）なら"Stopped"、
-    // それ以外は通常の Connection lost を案内
+    // A Live Conversation cannot survive the client socket: the audio path
+    // is gone and a transparent resume would silently drop whatever was
+    // said meanwhile. End it honestly; the user re-Starts (seeding rebuilds
+    // context from the saved messages).
+    if (window.LiveConversation && window.LiveConversation.isActive &&
+        window.LiveConversation.isActive()) {
+      window.LiveConversation.stopConversation();
+    }
+    // Show a mode-appropriate message: an explicit Stop (silent mode) reads
+    // as "Stopped"; anything else gets the usual "Connection lost" notice
     if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
       const stoppedText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.stopped') : 'Stopped';
       setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");

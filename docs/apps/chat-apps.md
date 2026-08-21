@@ -37,6 +37,31 @@ Voice Chat supports the same providers indicated in the [availability table](../
 
 **Expressive Speech**: When you enable Auto Speech and pick a compatible TTS provider, a small ✨ **Expressive Speech** badge appears under the Text-to-Speech Provider dropdown, and the assistant's replies gain expressive audio cues (pauses, laughter, voice directives) that never surface in the chat transcript. The mechanism is chosen automatically per provider — see [Speech Settings Panel](../basic-usage/web-interface.md#speech-settings-panel) for how each provider implements it.
 
+For a continuous, hands-free conversation that streams audio directly to the provider's realtime speech-to-speech API, see [Live Conversation](#live-conversation) below.
+
+
+## Live Conversation :id=live-conversation
+
+Talk with the AI in a continuous, hands-free voice conversation. Unlike [Voice Chat](#voice-chat) — which runs speech recognition, the language model, and speech synthesis as three separate steps — Live Conversation streams audio directly to the provider's realtime speech-to-speech API, so responses start sooner and the exchange flows without button presses.
+
+Three variants are available, one per provider: OpenAI, xAI Grok, and Google Gemini. A variant can be selected only when its provider's API key is configured.
+
+**How it works**: Click `Start` to open the conversation, then speak naturally — the end of each utterance is detected automatically (voice activity detection) and the turn proceeds on its own. Click `End` to close the session. There is no text input in this app. Headphones are recommended: with speakers, the assistant's voice feeds back into the microphone and can trigger unintended turns.
+
+**Voice and speed**: Pick the assistant's voice from the selector in the app's control row (the Speech Settings panel's TTS settings do not apply here). The number of available voices is 10 for OpenAI (default: alloy), 26 for xAI (default: eve), and 30 for Gemini (default: Kore). A playback speed slider (0.25–1.5) is available for OpenAI only. Your voice choice is remembered per provider.
+
+**Turn detection** (OpenAI variant only): Choose how the end of your utterance is decided. The default judges by silence; the "by meaning" modes (patient / balanced / quick) ask the model to wait until your point sounds complete instead. How much difference this makes depends on the language and on how you speak, so try both. The choice is remembered and applies from the next session.
+
+**Display**: During a conversation, the default live view shows two zones — the partner's previous utterance and the one in progress. Check `Cards while talking` to use the conventional stacked cards during the conversation instead. The setting applies only while a session is running: once it ends, the display always returns to the card list, where the conversation can be edited, saved, and loaded like any other.
+
+In the live view the sentence the assistant is currently speaking is highlighted, so you can follow the voice in the text — useful when the reply is long, since the text arrives well ahead of the audio. The highlight follows the audio itself, pauses while a tool is running, and stops where the speech stopped if you interrupt. It is not shown in the card display.
+
+**Tools** (off by default): Enable the `Tools` toggle to let the assistant call tools during the conversation: current time, Python code execution, Knowledge Base search, and web search (web search requires a `TAVILY_API_KEY`). Python and Knowledge Base are available only while their respective containers are running. A turn that used tools stays on a single card, with a 🛠 badge naming the tool at the paragraph boundary where it was called (red on failure); the status line shows "Using ..." while a call runs.
+
+**Session behavior**: The conversation stops automatically after a period of silence (default: 3 minutes). Gemini sessions have a 15-minute connection limit; when it is reached, the app reconnects automatically and the conversation continues. The Privacy Filter does not apply — audio reaches the provider directly. The conversation is saved to the Knowledge Base. Thinking-process display is not available, because realtime models do not emit a reasoning trace.
+
+**Cost**: While connected, billing accrues during silent time as well. Approximate rates: OpenAI ~$6/hour, xAI ~$4.80/hour, Gemini ~$1.38/hour (estimates — refer to each provider's pricing page for current rates). A running cost estimate for the session is shown at the top of the window. This readout is specific to Live Conversation: it is the only app whose charges keep accruing while nobody is speaking, so the total is kept in view rather than left to be discovered afterwards.
+
 
 ## Wikipedia
 

@@ -293,10 +293,46 @@ function getDefaultModel(provider, category = 'chat') {
   return defaults[provider][category][0];
 }
 
+/**
+ * Restore the genuine binary globals for the current test file.
+ *
+ * test/setup.js stubs `Uint8Array`, `atob` and `btoa` globally
+ * (`global.Uint8Array = jest.fn()` etc.). That is fine for suites that only
+ * pass byte arrays around as opaque values, but it silently corrupts any test
+ * that does real binary work: `new Uint8Array(n).length` is `undefined`, so
+ * sample counts become NaN and buffers come out empty — the assertions still
+ * pass while measuring nothing.
+ *
+ * Call this from a suite that decodes base64 or computes audio durations.
+ * Returns a restore function; the caller is responsible for putting the stubs
+ * back so sibling suites keep the setup.js behaviour they expect.
+ *
+ * @returns {Function} restore - puts the stubbed globals back
+ */
+function useRealBinaryGlobals() {
+  const RealUint8Array = Object.getPrototypeOf(Buffer.prototype).constructor;
+  const stubbed = {
+    Uint8Array: global.Uint8Array,
+    atob: global.atob,
+    btoa: global.btoa
+  };
+
+  global.Uint8Array = RealUint8Array;
+  global.atob = (b64) => Buffer.from(b64, 'base64').toString('binary');
+  global.btoa = (bin) => Buffer.from(bin, 'binary').toString('base64');
+
+  return function restore() {
+    global.Uint8Array = stubbed.Uint8Array;
+    global.atob = stubbed.atob;
+    global.btoa = stubbed.btoa;
+  };
+}
+
 // Expose utilities for tests
 module.exports = {
   createWebSocketMock,
   createWindowMock,
   setupTestEnvironment,
-  getDefaultModel
+  getDefaultModel,
+  useRealBinaryGlobals
 };

@@ -1,11 +1,13 @@
 #!/usr/bin/env ruby
 
+require_relative "../../lib/monadic/utils/http_client"
 require "base64"
 require "http"
 require "json"
 require "optparse"
 require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/error_formatter"
 
 begin
   require_relative "../../lib/monadic/utils/model_spec"
@@ -30,118 +32,131 @@ end
 
 ALLOWED_IMAGE_MODELS = resolve_openai_image_models
 
-# Parse command line arguments
+if __FILE__ == $PROGRAM_NAME
+  # CLI entry only. Behind a __FILE__ guard so specs can require this file and
+  # exercise its functions in-process; spawning the script is what let a unit
+  # test reach the real API and bill for an image.
+  # Parse command line arguments
 
-options = {
-  operation: "generate",
-  model: ALLOWED_IMAGE_MODELS.first,
-  size: "1024x1024",
-  quality: "auto",
-  output_format: "png",
-  background: "auto",
-  n: 1
-}
+  options = {
+    operation: "generate",
+    model: ALLOWED_IMAGE_MODELS.first,
+    size: "1024x1024",
+    quality: "auto",
+    output_format: "png",
+    background: "auto",
+    n: 1
+  }
 
-parser = OptionParser.new do |opts|
-  opts.banner = "Usage: image_generator_openai.rb [options]"
+  parser = OptionParser.new do |opts|
+    opts.banner = "Usage: image_generator_openai.rb [options]"
 
-  opts.on("-o", "--operation OPERATION", "Operation: generate, edit") do |op|
-    options[:operation] = op
-    unless %w[generate edit].include?(op)
-      puts "ERROR: Invalid operation. Allowed operations are generate, edit."
+    opts.on("-o", "--operation OPERATION", "Operation: generate, edit") do |op|
+      options[:operation] = op
+      unless %w[generate edit].include?(op)
+        puts "ERROR: Invalid operation. Allowed operations are generate, edit."
+        exit
+      end
+    end
+
+    opts.on("-m", "--model MODEL", "Model: #{ALLOWED_IMAGE_MODELS.join(', ')}") do |model|
+      options[:model] = model
+      unless ALLOWED_IMAGE_MODELS.include?(model)
+        puts "ERROR: Invalid model. Allowed models are #{ALLOWED_IMAGE_MODELS.join(', ')}."
+        exit
+      end
+    end
+
+    opts.on("-p", "--prompt PROMPT", "The prompt to generate an image for") do |prompt|
+      options[:prompt] = prompt
+    end
+
+    opts.on("-i", "--image IMAGE", "Input image(s) for edit or variation operations") do |image|
+      options[:images] ||= []
+      options[:images] << image
+    end
+
+    opts.on("--mask MASK", "Mask image for edit operation") do |mask|
+      options[:mask] = mask
+    end
+  
+    opts.on("--original-name NAME", "Original filename for preserving names (especially for mask images)") do |name|
+      options[:original_image_name] = name
+    end
+
+    opts.on("-s", "--size SIZE", "Image size (256x256, 512x512, 1024x1024, 1024x1536, 1536x1024, 1792x1024, 1024x1792, auto)") do |size|
+      options[:size] = size
+    end
+
+    opts.on("-q", "--quality QUALITY", "Image quality") do |quality|
+      options[:quality] = quality
+    end
+
+    opts.on("-f", "--format FORMAT", "Output format (png, jpeg, webp)") do |format|
+      options[:output_format] = format
+    end
+
+    opts.on("-b", "--background BACKGROUND", "Background (transparent, opaque, auto)") do |bg|
+      options[:background] = bg
+    end
+
+    opts.on("--compression COMPRESSION", "Compression level for jpeg/webp (0-100)") do |comp|
+      options[:output_compression] = comp.to_i
+    end
+  
+    opts.on("--fidelity FIDELITY", "Input fidelity for edits (high/low)") do |fidelity|
+      options[:input_fidelity] = fidelity
+    end
+
+    opts.on("-n", "--count COUNT", "Number of images to generate") do |count|
+      options[:n] = count.to_i
+    end
+
+    opts.on("--image-url URL", "Image URL for JSON-based edit (can be specified multiple times)") do |url|
+      options[:image_urls] ||= []
+      options[:image_urls] << url
+    end
+
+    opts.on("--image-file-id FILE_ID", "OpenAI file ID for JSON-based edit (can be specified multiple times)") do |file_id|
+      options[:image_file_ids] ||= []
+      options[:image_file_ids] << file_id
+    end
+
+    opts.on("--verbose", "Enable verbose output") do
+      options[:verbose] = true
+    end
+  end.parse!
+
+
+  # gpt-image-2 quality options
+  # SSOT: imageGenerationOptions.openai.quality. Falls back to the literal set
+  # only if the spec cannot be read, so a bad spec cannot reject every value.
+  allowed_quality = begin
+    q = Monadic::Utils::ModelSpec.image_options("openai", "quality")
+    q.empty? ? %w[low medium high auto] : q
+  rescue StandardError
+    %w[low medium high auto]
+  end
+  unless allowed_quality.include?(options[:quality])
+    puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
+    options[:quality] = "auto"
+  end
+
+  # Validate required options based on operation
+
+  case options[:operation]
+  when "generate"
+    unless options[:prompt]
+      puts "ERROR: A prompt is required for generate operation. Use -p or --prompt."
       exit
     end
-  end
-
-  opts.on("-m", "--model MODEL", "Model: #{ALLOWED_IMAGE_MODELS.join(', ')}") do |model|
-    options[:model] = model
-    unless ALLOWED_IMAGE_MODELS.include?(model)
-      puts "ERROR: Invalid model. Allowed models are #{ALLOWED_IMAGE_MODELS.join(', ')}."
+  when "edit"
+    has_images = options[:images] || options[:image_urls] || options[:image_file_ids]
+    unless options[:prompt] && has_images
+      puts "ERROR: A prompt and at least one input image are required for edit operation."
+      puts "Provide images via -i (file path), --image-url (URL), or --image-file-id (file ID)."
       exit
     end
-  end
-
-  opts.on("-p", "--prompt PROMPT", "The prompt to generate an image for") do |prompt|
-    options[:prompt] = prompt
-  end
-
-  opts.on("-i", "--image IMAGE", "Input image(s) for edit or variation operations") do |image|
-    options[:images] ||= []
-    options[:images] << image
-  end
-
-  opts.on("--mask MASK", "Mask image for edit operation") do |mask|
-    options[:mask] = mask
-  end
-  
-  opts.on("--original-name NAME", "Original filename for preserving names (especially for mask images)") do |name|
-    options[:original_image_name] = name
-  end
-
-  opts.on("-s", "--size SIZE", "Image size (256x256, 512x512, 1024x1024, 1024x1536, 1536x1024, 1792x1024, 1024x1792, auto)") do |size|
-    options[:size] = size
-  end
-
-  opts.on("-q", "--quality QUALITY", "Image quality") do |quality|
-    options[:quality] = quality
-  end
-
-  opts.on("-f", "--format FORMAT", "Output format (png, jpeg, webp)") do |format|
-    options[:output_format] = format
-  end
-
-  opts.on("-b", "--background BACKGROUND", "Background (transparent, opaque, auto)") do |bg|
-    options[:background] = bg
-  end
-
-  opts.on("--compression COMPRESSION", "Compression level for jpeg/webp (0-100)") do |comp|
-    options[:output_compression] = comp.to_i
-  end
-  
-  opts.on("--fidelity FIDELITY", "Input fidelity for edits (high/low)") do |fidelity|
-    options[:input_fidelity] = fidelity
-  end
-
-  opts.on("-n", "--count COUNT", "Number of images to generate") do |count|
-    options[:n] = count.to_i
-  end
-
-  opts.on("--image-url URL", "Image URL for JSON-based edit (can be specified multiple times)") do |url|
-    options[:image_urls] ||= []
-    options[:image_urls] << url
-  end
-
-  opts.on("--image-file-id FILE_ID", "OpenAI file ID for JSON-based edit (can be specified multiple times)") do |file_id|
-    options[:image_file_ids] ||= []
-    options[:image_file_ids] << file_id
-  end
-
-  opts.on("--verbose", "Enable verbose output") do
-    options[:verbose] = true
-  end
-end.parse!
-
-
-# gpt-image-2 quality options
-unless %w[low medium high auto].include?(options[:quality])
-  puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
-  options[:quality] = "auto"
-end
-
-# Validate required options based on operation
-
-case options[:operation]
-when "generate"
-  unless options[:prompt]
-    puts "ERROR: A prompt is required for generate operation. Use -p or --prompt."
-    exit
-  end
-when "edit"
-  has_images = options[:images] || options[:image_urls] || options[:image_file_ids]
-  unless options[:prompt] && has_images
-    puts "ERROR: A prompt and at least one input image are required for edit operation."
-    puts "Provide images via -i (file path), --image-url (URL), or --image-file-id (file ID)."
-    exit
   end
 end
 
@@ -235,7 +250,7 @@ def generate_image(options, num_retrials = 3)
       
       puts "Sending request to generate image with prompt: #{options[:prompt]}" if options[:verbose]
       puts "Request body: #{body.to_json}" if options[:verbose]
-      res = HTTP.headers(headers).post(url, json: body)
+      res = Monadic::Utils::HttpClient.generation.headers(headers).post(url, json: body)
       
     when "edit"
       url = "https://api.openai.com/v1/images/edits"
@@ -279,7 +294,7 @@ def generate_image(options, num_retrials = 3)
           "Content-Type": "application/json",
           Authorization: "Bearer #{api_key}"
         }
-        res = HTTP.headers(headers).post(url, json: body)
+        res = Monadic::Utils::HttpClient.generation.headers(headers).post(url, json: body)
       else
         # Multipart mode: upload local files directly
         form = {}
@@ -341,7 +356,7 @@ def generate_image(options, num_retrials = 3)
           end
         end
 
-        res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
+        res = Monadic::Utils::HttpClient.generation.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
       end
     end
     
@@ -402,7 +417,11 @@ def generate_image(options, num_retrials = 3)
     else
       begin
         error_response = JSON.parse(res.body.to_s)
-        error_msg = error_response.dig('error', 'message') || "Error with API response: #{res.status}"
+        # Provider error text names the organization/project; this line becomes
+        # the tool result and is saved with the conversation (see ErrorFormatter).
+        error_msg = Monadic::Utils::ErrorFormatter.scrub_identifiers(
+          error_response.dig('error', 'message') || "Error with API response: #{res.status}"
+        )
         puts "ERROR: #{error_msg}"
         puts "Response body: #{res.body}" if options[:verbose]
       rescue JSON::ParserError
@@ -444,19 +463,21 @@ def generate_image(options, num_retrials = 3)
   end
 end
 
-# Execute the operation and print the result
+if __FILE__ == $PROGRAM_NAME
+  # Execute the operation and print the result
 
-result = generate_image(options)
-puts JSON.pretty_generate(result)
+  result = generate_image(options)
+  puts JSON.pretty_generate(result)
 
-if result[:success]
-  puts "\nOperation completed successfully!"
-  puts "Original prompt: #{result[:original_prompt]}"
+  if result[:success]
+    puts "\nOperation completed successfully!"
+    puts "Original prompt: #{result[:original_prompt]}"
   
-  result[:images].each do |img|
-    puts "Saved file: #{img[:path]}"
-    puts "Revised prompt: #{img[:revised_prompt]}" if img[:revised_prompt]
+    result[:images].each do |img|
+      puts "Saved file: #{img[:path]}"
+      puts "Revised prompt: #{img[:revised_prompt]}" if img[:revised_prompt]
+    end
+  else
+    puts "\nOperation failed: #{result[:message]}"
   end
-else
-  puts "\nOperation failed: #{result[:message]}"
 end

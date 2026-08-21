@@ -210,7 +210,7 @@ function _handleAssistantRole(data, html, moreComing) {
   // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
   const discourseEl = $id('discourse');
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
-  window.appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
+  window.appendCard("assistant", window.assistantBadge(data["content"]), html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
   if (moreComing) {
     // Keep input disabled and streaming state active

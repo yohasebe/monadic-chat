@@ -10,7 +10,7 @@ $MODELS = {
   mistral: ["mistral-large"],
   cohere: ["command"],
   ollama: ["llama2"],
-  deepseek: ["deepseek-chat"],
+  deepseek: ["deepseek-v4-flash"],
   grok: ["grok-1"]
 }
 

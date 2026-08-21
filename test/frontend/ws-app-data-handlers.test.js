@@ -421,6 +421,47 @@ describe('ws-app-data-handlers', () => {
       expect(appsSelect.options.length).toBeGreaterThan(0);
     });
 
+    // §38: no path that assigns #apps.value fires 'change', and the
+    // viewer's own fallbacks all miss when the app list arrives late
+    // (server restart + hard reload) — leaving an empty frame. The handler
+    // must notify the viewer explicitly at the end of APPS processing with
+    // the settled value. This pins the NORMAL initial load (no session
+    // restore; the browser's auto-selection makes shouldSetApp false, the
+    // exact path the shouldSetApp-scoped fix missed).
+    it('notifies the Workflow Viewer with the settled app after APPS processing', () => {
+      window.WorkflowViewer = { loadApp: jest.fn() };
+      const data = {
+        version: '1.0.0',
+        docker: true,
+        content: {
+          ChatOpenAI: { app_name: 'ChatOpenAI', display_name: 'Chat', group: 'OpenAI', icon: '💬' }
+        }
+      };
+
+      handlers.handleAppsMessage(data);
+
+      expect(document.getElementById('apps').value).toBe('ChatOpenAI');
+      expect(window.WorkflowViewer.loadApp).toHaveBeenCalledWith('ChatOpenAI');
+      // Pin the BRANCH, not just the outcome: window.lastApp is assigned
+      // only inside the shouldSetApp block, so its absence proves the
+      // notification fired on the path where that block is skipped — the
+      // one a shouldSetApp-scoped notification cannot reach.
+      expect(window.lastApp).toBeFalsy();
+      delete window.WorkflowViewer;
+    });
+
+    it('still processes APPS when WorkflowViewer is absent', () => {
+      const data = {
+        version: '1.0.0',
+        docker: true,
+        content: {
+          ChatOpenAI: { app_name: 'ChatOpenAI', display_name: 'Chat', group: 'OpenAI', icon: '💬' }
+        }
+      };
+      expect(() => handlers.handleAppsMessage(data)).not.toThrow();
+      expect(document.getElementById('apps').value).toBe('ChatOpenAI');
+    });
+
     it('skips apps with missing display name', () => {
       const data = {
         version: '1.0.0',
@@ -493,6 +534,9 @@ describe('ws-app-data-handlers', () => {
       global.params = {};
       global.setAutoSpeechSuppressed = jest.fn();
       global.getModelsForApp = jest.fn().mockReturnValue(['gpt-4o', 'gpt-4o-mini']);
+      // Provided by model_utils.js in the bundle (loads before this module —
+      // pinned in bundle-order.test.js); stubbed here like getModelsForApp.
+      global.appOffersSpeechToSpeech = jest.fn().mockReturnValue(false);
       global.listModels = jest.fn().mockReturnValue('<option value="gpt-4o">gpt-4o</option>');
       global.getDefaultModelForApp = jest.fn().mockReturnValue('gpt-4o');
       global.getProviderFromGroup = jest.fn().mockReturnValue('OpenAI');
@@ -599,5 +643,60 @@ describe('ws-app-data-handlers', () => {
       expect(typeof window.WsAppDataHandlers.handleAppsMessage).toBe('function');
       expect(typeof window.WsAppDataHandlers.handleParametersMessage).toBe('function');
     });
+  });
+});
+
+describe('§38c: multiple APPS within one timeout window', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    const mk = (id, tag = 'div') => { const el = document.createElement(tag); el.id = id; document.body.appendChild(el); return el; };
+    mk('monadic-version-number');
+    mk('apps', 'select');
+    mk('custom-apps-dropdown');
+    mk('base-app-title');
+    mk('base-app-icon');
+    mk('base-app-desc');
+    ['monadic-badge', 'websearch-badge', 'tools-badge', 'math-badge'].forEach((id) => mk(id));
+    mk('show-all-models', 'input').type = 'checkbox';
+    mk('model', 'select');
+    mk('model-selected');
+    const startBtn = mk('start', 'button');
+    startBtn.focus = jest.fn();
+    global.getCookie = jest.fn().mockReturnValue(null);
+    window.apps = {};
+    window.originalParams = {};
+    window.stop_apps_trigger = false;
+    window.appsMessageCount = 0;
+    window.logTL = jest.fn();
+    window.lastApp = null;
+    window.isRestoringSession = false;
+    window.isImporting = false;
+    window.initialAppLoaded = false;
+    window.pendingParameters = null;
+    window.defaultApp = 'ChatOpenAI';
+    window.setBaseAppDescription = jest.fn();
+    window.updateAppBadges = jest.fn();
+    window.proceedWithAppChange = jest.fn();
+    window.updateAvailableProviders = jest.fn();
+    window.loadParams = jest.fn();
+    global.resetParams = jest.fn();
+  });
+
+  it('the second timeout still proceeds when two APPS messages land within 150ms', async () => {
+    const data = {
+      version: '1.0.0', docker: true,
+      content: { ChatOpenAI: { app_name: 'ChatOpenAI', display_name: 'Chat', group: 'OpenAI', icon: 'x' } }
+    };
+    handlers.handleAppsMessage(data);
+    handlers.handleAppsMessage(data); // WS reconnect can deliver APPS twice
+
+    // The fire-time count===1 guard (old) made BOTH 150ms timers see
+    // count===2 and skip. The initialAppLoaded-centric guard lets the
+    // first fired timer proceed — logTL proves it ran the proceed branch.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(window.logTL).toHaveBeenCalledWith(
+      'proceedWithAppChange_on_first_selected', { app: 'ChatOpenAI' });
+    expect(window.proceedWithAppChange).toHaveBeenCalledWith('ChatOpenAI');
+    expect(window.initialAppLoaded).toBe(true);
   });
 });

@@ -244,3 +244,43 @@ describe('ws-error-handler', () => {
     });
   });
 });
+
+/**
+ * Voice-capture recovery on error.
+ *
+ * Observed live: an STS turn that dies between AUDIO_COMMIT and its stt/audio
+ * events (upstream realtime session hits its 60-minute cap) left the mic UI
+ * stranded on "Processing speech..." — the generic reset hid the spinner but
+ * an armed auto-speech watchdog re-showed it. The error path must disarm the
+ * watchdogs and hide the spinner last.
+ */
+describe('handleError voice-capture recovery', () => {
+  beforeEach(() => {
+    const spinner = document.createElement('div');
+    spinner.id = 'monadic-spinner';
+    document.body.appendChild(spinner);
+    const amp = document.createElement('div');
+    amp.id = 'amplitude';
+    document.body.appendChild(amp);
+    window.autoSpeechActive = true;
+    window.autoPlayAudio = true;
+    window.autoTTSSpinnerTimeout = setTimeout(() => {}, 60000);
+  });
+
+  afterEach(() => {
+    ['monadic-spinner', 'amplitude'].forEach(id => document.getElementById(id)?.remove());
+    delete window.autoSpeechActive;
+    delete window.autoPlayAudio;
+    if (window.autoTTSSpinnerTimeout) { clearTimeout(window.autoTTSSpinnerTimeout); delete window.autoTTSSpinnerTimeout; }
+  });
+
+  it('disarms auto-speech watchdogs and hides the spinner', () => {
+    handlers.handleError({ type: 'error', content: 'Speech-to-speech: session expired' });
+
+    expect(window.autoSpeechActive).toBe(false);
+    expect(window.autoPlayAudio).toBe(false);
+    expect(window.autoTTSSpinnerTimeout).toBeNull();
+    expect(document.getElementById('monadic-spinner').style.display).toBe('none');
+    expect(document.getElementById('amplitude').style.display).toBe('none');
+  });
+});

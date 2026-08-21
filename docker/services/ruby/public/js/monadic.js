@@ -511,7 +511,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (msg.role === 'user') {
             badge = "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>";
           } else if (msg.role === 'assistant') {
-            badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+            badge = window.assistantBadge(msg);
           } else if (msg.role === 'system') {
             badge = "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>";
           }
@@ -1286,6 +1286,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // app load, by which point the provider select and SSOT defaults are
         // ready, so this self-heals the badge. No-op on failure.
         if (typeof setAiUserBadge === 'function') setAiUserBadge();
+
       });
     }
 
@@ -2563,13 +2564,18 @@ document.addEventListener("DOMContentLoaded", function () {
     // of carrying over the previous app's dropdown value. Consumed once.
     window.pendingAppReasoningContent = apps[appValue]["reasoning_content"] || null;
 
+    // Live Conversation apps swap the input panel for Start/Stop controls.
+    if (window.LiveConversation && typeof window.LiveConversation.setAppMode === 'function') {
+      window.LiveConversation.setAppMode(apps[appValue]);
+    }
+
     // Use shared utility function to get models for the app
     const showAll = ($id("show-all-models") || {}).checked;
     let models = getModelsForApp(apps[appValue], showAll);
 
     if (models.length > 0) {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
-      let modelList = listModels(models, openai);
+      let modelList = listModels(models, openai, { allowSpeechToSpeech: appOffersSpeechToSpeech(apps[appValue]) });
       { const el = $id("model"); if (el) el.innerHTML = modelList; }
 
       // Use shared utility function to get default model
@@ -3188,8 +3194,17 @@ document.addEventListener("DOMContentLoaded", function () {
       $show($id("discourse"));
 
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
-      // This prevents auto-generation when importing conversations
-      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 && !shouldSkipAssistant) {
+      // This prevents auto-generation when importing conversations.
+      // Speech-to-speech apps are excluded EXPLICITLY: they declare
+      // initiate_from_assistant too (it is their greeting toggle), but their
+      // greeting runs over the STS bridge from the Live Conversation Start
+      // button. Driving the normal pipeline here hits the server's
+      // voice-only guard and opens the session with an error card.
+      const lcModeActive = !!(window.LiveConversation &&
+        typeof window.LiveConversation.isLcMode === 'function' &&
+        window.LiveConversation.isLcMode());
+      if (($id("initiate-from-assistant") || {}).checked && messages.length === 0 &&
+          !shouldSkipAssistant && !lcModeActive) {
         $show($id("temp-card"));
         $hide($id("user-panel"));
         $show($id("monadic-spinner")); // Show spinner for initial assistant message

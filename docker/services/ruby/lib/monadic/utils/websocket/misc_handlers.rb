@@ -56,11 +56,7 @@ module WebSocketHelper
 
     # Check if there are enough messages for AI User to work with
     if session[:messages].nil? || session[:messages].size < 2
-      error_msg = {
-        "type" => "error",
-        "content" => "ai_user_requires_conversation"
-      }.to_json
-      send_or_broadcast(error_msg, ws_session_id)
+      send_error("ai_user_requires_conversation", ws_session_id)
       return
     end
 
@@ -83,8 +79,7 @@ module WebSocketHelper
 
       # Handle result
       if result["type"] == "error"
-        error_result = { "type" => "error", "content" => result["content"] }.to_json
-        send_or_broadcast(error_result, ws_session_id)
+        send_error(result["content"], ws_session_id)
       else
         # Send response to client
         ai_user_msg = { "type" => "ai_user", "content" => result["content"] }.to_json
@@ -95,8 +90,7 @@ module WebSocketHelper
       end
     rescue StandardError => e
       # Error handling
-      rescue_error = { "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } }.to_json
-      send_or_broadcast(rescue_error, ws_session_id)
+      send_error({ "key" => "ai_user_error", "details" => e.message }, ws_session_id)
     end
   end
 
@@ -169,7 +163,26 @@ module WebSocketHelper
 
     sanitized["app_name"] = sanitized["app_name"].to_s if sanitized.key?("app_name")
 
+    # STS bridge lifecycle: the bridge pins model/voice/instructions at
+    # creation time, so a change in any of them (or leaving the STS model
+    # entirely) must tear it down. Otherwise the old bridge keeps its
+    # upstream socket and semaphore slot until the WebSocket closes
+    # (STS_MAX_CONCURRENT tabs would exhaust the cap). The bridge is
+    # rebuilt lazily on the next AUDIO_CHUNK with the new params.
+    sts_bridge_stale =
+      (new_app && current_app && new_app != current_app) ||
+      (sanitized.key?("model") && session[:parameters]["model"] != sanitized["model"]) ||
+      (sanitized.key?("tts_voice") && session[:parameters]["tts_voice"] != sanitized["tts_voice"])
+
     session[:parameters].merge!(sanitized)
+
+    if sts_bridge_stale && session[:_sts]
+      Monadic::Utils::ExtraLogger.log do
+        "[WebSocket] Params changed (app/model/voice) - tearing down STS bridge " \
+        "(rebuilt on next audio input)"
+      end
+      teardown_sts_session(session)
+    end
 
     sync_session_state!
 
@@ -281,8 +294,7 @@ module WebSocketHelper
       puts e.backtrace
 
       # Inform the client
-      error_message = { "type" => "error", "content" => "error_processing_sample" }.to_json
-      send_or_broadcast(error_message, ws_session_id)
+      send_error("error_processing_sample", ws_session_id)
     end
   end
 
@@ -335,6 +347,14 @@ module WebSocketHelper
   end
 
   private def handle_ws_reset(session)
+    # A live speech-to-speech bridge must not survive Reset: it would keep
+    # the upstream socket (and billing) alive against a cleared canon, and
+    # keep speaking into a conversation that no longer exists.
+    if session[:_sts]
+      teardown_sts_session(session)
+      send_or_broadcast({ "type" => "sts_session", "state" => "stopped" }.to_json,
+                        Thread.current[:websocket_session_id])
+    end
     session[:messages].clear
     session[:parameters].clear
     session[:progressive_tools]&.clear  # Reset Progressive Tool Disclosure state

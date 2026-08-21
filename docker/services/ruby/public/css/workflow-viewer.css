@@ -228,6 +228,18 @@
   cursor: grabbing;
 }
 
+/* --- Load error (§38d): shown when maxgraph fails to load, with a retry --- */
+.wv-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 1rem;
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 /* --- Panel Footer --- */
 .wv-panel-footer {
   display: flex;

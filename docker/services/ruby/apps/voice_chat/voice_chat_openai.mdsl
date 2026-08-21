@@ -50,6 +50,10 @@ app "VoiceChatOpenAI" do
   llm do
     provider "openai"
     reasoning_effort "none"
+    # Follow providerDefaults.chat automatically (computed at app load).
+    # Realtime speech-to-speech models are deliberately NOT offered here:
+    # they belong to the dedicated Live Conversation app.
+    model Monadic::Utils::ModelSpec.get_provider_models("openai", "chat")
   end
   
   display_name "Voice Chat"

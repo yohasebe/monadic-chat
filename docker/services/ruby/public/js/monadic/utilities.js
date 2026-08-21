@@ -116,15 +116,30 @@ function updateAppSelectIcon(appValue) {
 
   // setCookie, getCookie, setCookieValues → extracted to cookie-utils.js
 
-function listModels(models, openai = false) {
+function listModels(models, openai = false, opts = {}) {
   // Speech models (STT/TTS/realtime transcription) and music-generation
   // models are selected in dedicated panels/tools, never in the chat-model
   // selector — drop them here so an API-sourced list can't leak e.g.
   // gpt-realtime-whisper into the dropdown.
+  //
+  // Speech-to-speech models are dropped too UNLESS the app opted in
+  // (opts.allowSpeechToSpeech, from the MDSL `speech_to_speech` flag). The
+  // opt-in has to come from the app, not the list: the server auto-fills
+  // `models` from the provider's API list for apps that declare none
+  // (dsl.rb model_list_code), so an STS id being present proves nothing —
+  // keeping it unconditionally once leaked gpt-realtime-2.1 into Chat,
+  // where selecting it fails at request time (realtime models are not chat
+  // models). Speech-to-speech apps (Live Conversation) normally bypass this
+  // function entirely — getModelsForApp pins their list — so the opt-in
+  // path here is defense in depth for any call site that still routes an
+  // STS app's list through listModels.
+  const allowSts = opts.allowSpeechToSpeech === true;
   models = models.filter(function (m) {
     const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
     if (!spec) return true;
-    return !(spec.stt_capability || spec.tts_capability || spec.music_capability || spec.supports_realtime_streaming);
+    if (spec.supports_speech_to_speech) return allowSts;
+    return !(spec.stt_capability || spec.tts_capability || spec.music_capability ||
+             spec.supports_realtime_streaming);
   });
 
   // Array of patterns to identify different model types
@@ -163,6 +178,17 @@ function listModels(models, openai = false) {
   // Sort GPT-4 models alphabetically
   gpt4Models.sort((a, b) => a.localeCompare(b));
 
+  // A speech-to-speech model is a mode switch, not a quality choice: picking
+  // one reroutes audio through the STS bridge and (in the current slice)
+  // drops web search and typed input. An unmarked id in the list would hide
+  // that, so the label says so. The option VALUE stays the bare model id —
+  // params, gates and specs all key on it.
+  const optionFor = function (model, extraAttrs) {
+    const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[model] : null;
+    const label = (spec && spec.supports_speech_to_speech) ? `${model} (realtime)` : model;
+    return `<option value="${model}"${extraAttrs || ''}>${label}</option>`;
+  };
+
   // Generate options based on the value of openai
   let modelOptions = [];
 
@@ -170,38 +196,26 @@ function listModels(models, openai = false) {
     // Include GPT-5 section at the top if GPT-5 models are available
     if (gpt5Models.length > 0) {
       modelOptions.push('<option disabled>──GPT-5──</option>');
-      modelOptions.push(...gpt5Models.map(model =>
-        `<option value="${model}" data-model-type="reasoning">${model}</option>`
-      ));
+      modelOptions.push(...gpt5Models.map(model => optionFor(model, ' data-model-type="reasoning"')));
     }
 
     // Include GPT-4 models
     if (gpt4Models.length > 0) {
       modelOptions.push('<option disabled>──GPT-4──</option>');
-      modelOptions.push(...gpt4Models.map(model =>
-        `<option value="${model}">${model}</option>`
-      ));
+      modelOptions.push(...gpt4Models.map(model => optionFor(model)));
     }
 
     // Include other models (o1, o3, codex, etc.)
     if (otherModels.length > 0) {
       modelOptions.push('<option disabled>──Other Models──</option>');
-      modelOptions.push(...otherModels.map(model =>
-        `<option value="${model}">${model}</option>`
-      ));
+      modelOptions.push(...otherModels.map(model => optionFor(model)));
     }
   } else {
     // Exclude dummy options when openai is false
     modelOptions = [
-      ...gpt5Models.map(model =>
-        `<option value="${model}">${model}</option>`
-      ),
-      ...gpt4Models.map(model =>
-        `<option value="${model}">${model}</option>`
-      ),
-      ...otherModels.map(model =>
-        `<option value="${model}">${model}</option>`
-      )
+      ...gpt5Models.map(model => optionFor(model)),
+      ...gpt4Models.map(model => optionFor(model)),
+      ...otherModels.map(model => optionFor(model))
     ];
   }
 
@@ -537,7 +551,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
         const modelsForApp = typeof getModelsForApp === 'function' ? getModelsForApp(apps[targetApp], showAllModels) : [];
         if (modelsForApp.length === 0) return;
         const isOpenAIGroup = (apps[targetApp]["group"] || "").toLowerCase() === "openai";
-        const markup = typeof listModels === 'function' ? listModels(modelsForApp, isOpenAIGroup) : "";
+        const markup = typeof listModels === 'function'
+          ? listModels(modelsForApp, isOpenAIGroup, { allowSpeechToSpeech: appOffersSpeechToSpeech(apps[targetApp]) })
+          : "";
         if (markup) {
           modelSelect.innerHTML = markup;
         }
@@ -829,7 +845,12 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // NOT for OpenAI reasoning_effort models (no display control API)
     const thinkingContainer = $id("thinking-display-container");
     const showThinkingCb = $id("show-thinking");
-    if (spec["supports_thinking"]) {
+    // Never resurrect it in Live Conversation: realtime models emit no
+    // reasoning, and the capability check runs after HIDDEN_IN_LC hid it —
+    // a plain $show would strip the inline none!important and let the
+    // toggle leak back in (dogfood). The .lc-app CSS rule is the second
+    // layer of the same guard (house pattern: belt and suspenders).
+    if (spec["supports_thinking"] && !document.body.classList.contains('lc-app')) {
       $show(thinkingContainer);
       // Restore from params if available, default to unchecked (thinking off).
       // Users can opt in via the toggle; default off avoids slow responses
@@ -974,6 +995,23 @@ window.loadParams = function(params, calledFor = "loadParams") {
           guardDropdown.disabled = false;
         }
       }
+    }
+  }
+
+  // Speech-to-speech app mode must track EVERY path that applies params —
+  // the app-change handler alone missed the reload-with-session restore
+  // ("continue session"), which loads params without a change event and
+  // left the Live Conversation UI unapplied (dogfood round 3).
+  if (window.LiveConversation && typeof window.LiveConversation.setAppMode === 'function') {
+    const lcAppName = params["app_name"];
+    window.LiveConversation.setAppMode(
+      (typeof apps !== 'undefined' && lcAppName && apps[lcAppName]) ? apps[lcAppName] : params
+    );
+    // The model dropdown is built asynchronously — setAppMode may run before
+    // #model holds the app's model, leaving the STS voice selector empty.
+    // Re-render once params (and the dropdown) are complete.
+    if (typeof window.LiveConversation.refreshControls === 'function') {
+      window.LiveConversation.refreshControls();
     }
   }
 
@@ -1315,6 +1353,15 @@ function resetEvent(_event, resetToDefaultApp = false) {
 
 // Function to handle the actual reset logic
 function doResetActions(resetToDefaultApp = false) {
+  // Reset must end a running Live Conversation first: otherwise the mic
+  // keeps streaming and the server bridge keeps billing against a canon
+  // that is about to be cleared. (The server tears its side down on RESET
+  // too; this releases the client's mic/audio and unlocks the cards.)
+  if (window.LiveConversation && window.LiveConversation.isActive &&
+      window.LiveConversation.isActive()) {
+    window.LiveConversation.stopConversation();
+  }
+
   // Store the current app selection before reset
   const drApps = $id("apps");
   const currentApp = resetToDefaultApp ? null : (drApps ? drApps.value : null);
@@ -1334,6 +1381,13 @@ function doResetActions(resetToDefaultApp = false) {
   // Reset Context Panel for monadic apps
   if (typeof ContextPanel !== "undefined" && ContextPanel.resetContext) {
     ContextPanel.resetContext();
+  }
+
+  // The speech-to-speech cost readout is per-conversation. This is the live
+  // reset path — ws-audio-queue.js's resetSessionState also clears it but has
+  // no callers, so wiring only there left the figure carrying over.
+  if (window.WsStsUsage && typeof window.WsStsUsage.reset === 'function') {
+    window.WsStsUsage.reset();
   }
 
   currentPdfData = null;
@@ -1648,7 +1702,7 @@ document.addEventListener("DOMContentLoaded", function() {
       const currentModel = rdModelEl ? rdModelEl.value : null;
       const models = getModelsForApp(currentApp, showAll);
       const openai = (currentApp["group"] || "").toLowerCase() === "openai";
-      if (rdModelEl) rdModelEl.innerHTML = listModels(models, openai);
+      if (rdModelEl) rdModelEl.innerHTML = listModels(models, openai, { allowSpeechToSpeech: appOffersSpeechToSpeech(currentApp) });
 
       // Restore previous model selection if available in new list
       if (rdModelEl) {

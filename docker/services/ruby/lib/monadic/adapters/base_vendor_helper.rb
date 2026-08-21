@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../utils/http_client"
+
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns
 # (timeouts, model cache) to reduce boilerplate across providers.
@@ -116,7 +118,7 @@ module BaseVendorHelper
         return fallback_proc.call if api_key.nil? || api_key.to_s.strip.empty?
 
         target_uri = "#{vendor_mod.const_get(:API_ENDPOINT)}#{path_builder.call(api_key)}"
-        http = HTTP.headers(headers_builder.call(api_key))
+        http = Monadic::Utils::HttpClient.rest.headers(headers_builder.call(api_key))
 
         begin
           res = http.get(target_uri)

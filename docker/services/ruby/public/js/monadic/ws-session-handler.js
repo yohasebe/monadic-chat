@@ -252,10 +252,19 @@ function handleSTT(data) {
   const messageElRT = $id('message');
   const overlayRT = $id('message-partial-overlay');
   if (messageElRT && overlayRT && overlayRT.classList.contains('is-active')) {
-    const finalText = (data && typeof data.content === 'string') ? data.content : '';
-    const existing = messageElRT.value;
-    const sep = (existing.length > 0 && !/\s$/.test(existing)) ? ' ' : '';
-    messageElRT.value = existing + sep + finalText;
+    // In a speech-to-speech session the transcript is display feedback, not
+    // input: the server has already taken the turn, so the text must not
+    // land in the textarea (it would invite a duplicate submission through
+    // the ordinary pipeline). partialConsumed is still set so the delegate
+    // does not append it either.
+    const stsModeRT = !!(window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
+      && window.SttGate.isStsModelSelected());
+    if (!stsModeRT) {
+      const finalText = (data && typeof data.content === 'string') ? data.content : '';
+      const existing = messageElRT.value;
+      const sep = (existing.length > 0 && !/\s$/.test(existing)) ? ' ' : '';
+      messageElRT.value = existing + sep + finalText;
+    }
     partialConsumed = true;
     clearSTTPartialOverlay();
   }

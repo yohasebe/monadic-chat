@@ -195,8 +195,32 @@ features do
                           # 厳密な出力形式（JSON生成アプリなど）を持つアプリで、
                           # 音声マーカー指示の追加挿入がシステムプロンプトと衝突する場合に使用。
                           # 未指定時: Auto Speech がオンかつマーカー対応 TTS プロバイダー選択時に自動発動。
+
+  # speech-to-speech（Live Conversation 系）。speech_to_speech を宣言すると、
+  # テキスト入力パネルが開始/終了ボタンに置き換わり、マイク音声がプロバイダの
+  # realtime API へ直接ストリーミングされます。利用者向けの挙動は
+  # 「チャット・アシスタントアプリ」の Live Conversation 節を参照してください。
+  speech_to_speech true   # このアプリを speech-to-speech アプリにする
+  sts_input_rate 16000    # マイクのサンプルレート（Hz）。既定: 24000
+                          # （Gemini Live は 16000）
+  sts_vad_threshold 0.65  # 音声区間検出の感度（0.0〜1.0）。
+                          # 値が大きいほど環境音に反応しにくい
+  sts_vad_prefix_ms 300   # 発話開始前に保持する音声の長さ（ミリ秒）
+  sts_vad_silence_ms 1000 # ターンの終わりと判定する無音の長さ（ミリ秒）
+  sts_vad_type "semantic_vad"   # ターン判定方式。既定: "server_vad"（無音ベース）。
+                                # "semantic_vad" は意味の完結を待つ（OpenAI のみ）
+  sts_vad_eagerness "low"       # semantic_vad がターンを閉じる速さ:
+                                # low / medium / high / auto（OpenAI のみ）
+  sts_idle_stop_seconds 180 # 無操作がこの秒数続いたらセッションを自動停止。
+                            # 既定: 180。0 で無効化
 end
 ```
+
+`sts_vad_*` は省略するとプロバイダ既定値が使われます。またすべてのプロバイダが
+すべてのキーを解釈するわけではありません（xAI は `sts_vad_prefix_ms` を無視します）。
+OpenAI 変種の Live Conversation では、ユーザーがターン判定セレクタから
+`sts_vad_type` / `sts_vad_eagerness` を選ぶこともでき、選択した値は次のセッションで
+MDSL の既定より優先されます。
 
 #### 自律レベル
 

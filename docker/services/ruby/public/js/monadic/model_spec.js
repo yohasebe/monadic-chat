@@ -1050,6 +1050,23 @@ const modelSpec = {
   // ~$0.50 cached per 1M (long-context tier ~doubles above the 200K threshold).
   // presence_penalty / frequency_penalty omitted to match the grok-4.3
   // sampling-restriction posture. Verified against the live xAI API 2026-07-09.
+  // grok-4.6 — current xAI flagship. Same base pricing as grok-4.5, but
+  // cached input costs more ($0.50/$1.00 vs $0.30/$0.60), so a cache-heavy
+  // workload is not automatically cheaper on the newer model. It has no
+  // alias: "grok-4.6-latest" fails rather than resolving.
+  "grok-4.6": {
+    "context_window" : [1, 500000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true,
+    "structured_output": true
+  },
   "grok-4.5": {
     "context_window" : [1, 500000],
     "max_output_tokens" : [1, 32768],
@@ -1104,32 +1121,25 @@ const modelSpec = {
     "reasoning_content": ["disabled", "enabled"],
     "reasoning_effort": ["high", "max"]
   },
-  // Legacy models (sunset 2026-07-24, successor: deepseek-v4-flash)
-  "deepseek-chat": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 8192],
+  // DeepSeek's only vision model. The "-exp" is the vendor's own marker for an
+  // experimental release, so it is offered for image input but kept out of the
+  // chat default. Live probe: reads images correctly, calls tools, and honors
+  // the same V4 thinking controls as the text models — which matters, because
+  // it reasons by default and would otherwise spend the whole token budget on
+  // a trace and return empty content. Limits mirror deepseek-v4-flash, its base
+  // model; the vision guide documents only the image limits (JPEG/PNG/GIF/WebP,
+  // user messages only).
+  "deepseek-v4-flash-vision-exp": {
+    "context_window" : [1, 1000000],
+    "max_output_tokens" : [1, 384000],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
+    "vision_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "deprecated": true,
-    "sunset_date": "2026-07-24",
-    "successor": "deepseek-v4-flash"
-  },
-  "deepseek-reasoner": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 64000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "reasoning_content": ["disabled", "enabled"],
-    "tool_capability": true,
-    "deprecated": true,
-    "sunset_date": "2026-07-24",
-    "successor": "deepseek-v4-flash"
+    "reasoning_effort": ["high", "max"]
   },
   // Ollama models (local inference)
   // NOTE: Ollama model capabilities are normally fetched dynamically via
@@ -1248,6 +1258,70 @@ const modelSpec = {
   },
 
   // -------------------------------------------------------------------------
+  // STS model metadata (Speech-to-Speech realtime capability SSOT)
+  //
+  // Entries only exist for models that run a full speech-to-speech session
+  // over a provider realtime API (OpenAI Realtime / xAI Realtime) — gated
+  // by `supports_speech_to_speech`.
+  // The Ruby accessor (`ModelSpec.supports_speech_to_speech?`) reads this
+  // flag to gate the STS path.
+  //
+  // Selector behaviour differs from the speech flags above. An STS model IS
+  // the conversation model for an STS session, so it stays selectable in the
+  // curated list (an app declaring one in MDSL is opting into STS on purpose)
+  // and is dropped only from show-all — i.e. model_utils.js
+  // filterModelsForAllMode excludes it, utilities.js listModels does not.
+  // Excluding it in listModels made the STS path unreachable, since the
+  // curated list never passes through filterModelsForAllMode.
+  // -------------------------------------------------------------------------
+  // sts_provider selects the server-side bridge profile (connection facts,
+  // payload dialect, accounting) — data-driven so the bridge never guesses
+  // from model-name prefixes.
+  "gpt-realtime-2.1": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "openai",
+    "sts_voice": "alloy",
+    "sts_voices": ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"],
+    "sts_speed_capability": true,
+    "sts_semantic_vad_capability": true,
+    "sts_tools_capability": true
+  },
+
+  // xAI realtime speech-to-speech (wss://api.x.ai/v1/realtime). Note: the
+  // server silently substitutes think-fast-1.0 for unknown model names, so
+  // the STS bridge validates the session's model echo and stops on mismatch.
+  // Voices: 26 IDs validated against the TTS REST API 2026-08-01 (the
+  // realtime endpoint itself accepts any string silently, so names come
+  // from the shared TTS voice registry).
+  "grok-voice-think-fast-2.0": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "xai",
+    "sts_tools_capability": true,
+    "sts_voice": "eve",
+    "sts_voices": ["ara", "rex", "sal", "eve", "leo",
+                   "carina", "zagan", "helix", "orion", "luna", "iris", "altair",
+                   "zenith", "perseus", "helios", "lux", "kepler", "rigel", "cosmo",
+                   "celeste", "ursa", "sirius", "lumen", "castor", "naksh", "atlas"]
+  },
+
+  // Gemini Live (BidiGenerateContent). Input 16kHz / output 24kHz;
+  // transcription is incremental both ways; 15-minute session cap
+  // (reconnect re-seeds from the canon).
+  // Voices: all 30 prebuilt names accepted via Live setup 2026-08-01.
+  "gemini-3.1-flash-live-preview": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "gemini",
+    "sts_tools_capability": true,
+    "sts_voice": "Kore",
+    "sts_voices": ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",
+                   "Aoede", "Callirrhoe", "Autonoe", "Enceladus", "Iapetus",
+                   "Umbriel", "Algieba", "Despina", "Erinome", "Algenib",
+                   "Rasalgethi", "Laomedeia", "Achernar", "Alnilam", "Schedar",
+                   "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+                   "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
+  },
+
+  // -------------------------------------------------------------------------
   // Music model metadata (Music generation capability SSOT)
   //
   // These models are resolved inside the generation tool from
@@ -1319,10 +1393,13 @@ const providerDefaults = {
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },
   "xai": {
-    "chat": ["grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
-    "code": ["grok-build-0.1", "grok-4.5", "grok-4.3"],
-    "vision": ["grok-4.5", "grok-4.3"],
-    "image": ["grok-imagine-image"],
+    "chat": ["grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
+    "code": ["grok-build-0.1", "grok-4.6", "grok-4.5", "grok-4.3"],
+    "vision": ["grok-4.6", "grok-4.5", "grok-4.3"],
+    // Image models, cheapest first ($0.02 / $0.04 / $0.05 per image); the
+    // first is the default. These have no catalog entries, so this list is
+    // the only SSOT for which image models exist.
+    "image": ["grok-imagine-image", "grok-imagine-image-2.0", "grok-imagine-image-quality"],
     // text-to-video default. Image-to-video is routed to grok-imagine-video-1.5
     // in scripts/generators/video_generator_grok.rb (i2v-only, native audio,
     // higher quality; v1.5 rejects text-only requests).
@@ -1331,7 +1408,10 @@ const providerDefaults = {
     "audio_transcription": ["xai-stt"]
   },
   "deepseek": {
-    "chat": ["deepseek-v4-flash", "deepseek-v4-pro"]
+    "chat": ["deepseek-v4-flash", "deepseek-v4-pro"],
+    // Vision only: the model is experimental, so it is reached by attaching an
+    // image (the helper swaps to it) rather than by being a chat default.
+    "vision": ["deepseek-v4-flash-vision-exp"]
   },
   "ollama": {
     "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]
@@ -1342,10 +1422,49 @@ const providerDefaults = {
   }
 };
 
+// What each provider's image generation accepts, per parameter.
+//
+// The MDSL tool definitions read these instead of repeating them: an enum
+// copied into a tool definition drifts silently when the provider's models
+// change, and the model then picks a value that the API rejects. That is not
+// hypothetical — the OpenAI tool advertised the DALL·E-era sizes 256x256 and
+// 512x512 and the qualities "standard" and "hd" long after DALL·E was removed
+// (2026-05-12), and every one of them answered 400 on a live probe.
+//
+// Values verified against the live API on 2026-08-21. `seed` is documented in
+// OpenAI's image guide but rejected as an unknown parameter, so it is absent.
+const imageGenerationOptions = {
+  "openai": {
+    // Constraints behind the list: max edge 3840, multiples of 16, ratio <= 3:1,
+    // 655,360-8,294,400 total pixels — which is why the small legacy sizes fail.
+    // Larger sizes cost proportionally more output tokens.
+    "size": ["auto", "1024x1024", "1536x1024", "1024x1536", "1792x1024", "1024x1792",
+             "2048x2048", "2048x1152", "3840x2160", "2160x3840"],
+    "quality": ["auto", "low", "medium", "high"],
+    "output_format": ["png", "jpeg", "webp"],
+    // transparent requires png or webp; entered preview 2026-08-20.
+    "background": ["auto", "transparent", "opaque"],
+    "input_fidelity": ["low", "high"]
+  },
+  "xai": {
+    "aspect_ratio": ["1:1", "16:9", "9:16", "4:3", "3:4"]
+  },
+  "gemini": {
+    // The conversational image models, which are a different set from
+    // providerDefaults.gemini.image (that list drives the Imagen path).
+    // Both verified present in the live model list on 2026-08-21.
+    "model": ["gemini-3.1-flash-image", "gemini-3-pro-image"]
+    // aspect_ratio is deliberately absent: the accepted set has not been
+    // verified against the API, and turning free-form prose into an enum
+    // would remove ratios the model may well accept.
+  }
+};
+
 // Expose modelSpec globally for browser environment
 if (typeof window !== 'undefined') {
   window.modelSpec = modelSpec;
   window.providerDefaults = providerDefaults;
+  window.imageGenerationOptions = imageGenerationOptions;
 }
 
 // Support for Jest testing environment (CommonJS)
@@ -1354,6 +1473,11 @@ if (typeof module !== 'undefined' && module.exports) {
   // Non-enumerable so Object.keys(module.exports) still returns only model names
   Object.defineProperty(module.exports, 'providerDefaults', {
     value: providerDefaults,
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(module.exports, 'imageGenerationOptions', {
+    value: imageGenerationOptions,
     enumerable: false,
     configurable: true
   });

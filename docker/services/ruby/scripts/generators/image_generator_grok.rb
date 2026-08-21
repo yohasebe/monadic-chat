@@ -7,6 +7,7 @@ require "optparse"
 require "securerandom"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 require_relative "../../lib/monadic/utils/model_spec"
+require_relative "../../lib/monadic/utils/error_formatter"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -17,6 +18,32 @@ def default_grok_image_model
   Monadic::Utils::ModelSpec.default_image_model("xai")
 rescue
   nil
+end
+
+# Selectable image models (SSOT: providerDefaults.xai.image).
+def grok_image_models
+  Monadic::Utils::ModelSpec.get_provider_models("xai", "image") || []
+rescue
+  []
+end
+
+# Unknown or blank input resolves to the default, so a stale or hallucinated
+# model name never reaches the API.
+def resolve_grok_image_model(requested)
+  name = requested.to_s.strip
+  return default_grok_image_model if name.empty?
+  return name if grok_image_models.include?(name)
+
+  warn "Unknown image model #{name.inspect}; using the default" if ENV["EXTRA_LOGGING"]
+  default_grok_image_model
+end
+
+# xAI error text names the account's team UUID when a model is not enabled for
+# it. This message reaches the chat and is saved with the conversation, so the
+# identifier is scrubbed before it leaves the script; the EXTRA_LOGGING trace
+# keeps the untouched text for debugging.
+def scrub_account_ids(text)
+  Monadic::Utils::ErrorFormatter.scrub_identifiers(text)
 end
 
 # Determine MIME type from file extension
@@ -49,49 +76,56 @@ def resolve_image_path(filename)
   nil
 end
 
-# Parse command line arguments
-options = { operation: "generate", images: [] }
-OptionParser.new do |opts|
-  opts.banner = "Usage: image_generator_grok.rb [options]"
+# Parse command line arguments. Kept as a function (with the invocation behind
+# a __FILE__ guard at the bottom) so specs can require this file and exercise
+# the pieces in-process instead of spawning the script — spawning is what let a
+# unit test reach the real API and bill for an image.
+def parse_options(argv)
+  options = { operation: "generate", images: [] }
+  OptionParser.new do |opts|
+    opts.banner = "Usage: image_generator_grok.rb [options]"
 
-  opts.on("-p", "--prompt PROMPT", "The prompt to generate/edit an image") do |prompt|
-    options[:prompt] = prompt
-  end
-
-  opts.on("-o", "--operation OPERATION", "Operation: generate, edit") do |op|
-    options[:operation] = op
-    unless %w[generate edit].include?(op)
-      puts "ERROR: Invalid operation '#{op}'. Must be 'generate' or 'edit'."
-      exit 1
+    opts.on("-p", "--prompt PROMPT", "The prompt to generate/edit an image") do |prompt|
+      options[:prompt] = prompt
     end
-  end
 
-  opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)") do |ratio|
-    options[:aspect_ratio] = ratio
-  end
+    opts.on("-o", "--operation OPERATION", "Operation: generate, edit") do |op|
+      options[:operation] = op
+      unless %w[generate edit].include?(op)
+        puts "ERROR: Invalid operation '#{op}'. Must be 'generate' or 'edit'."
+        exit 1
+      end
+    end
 
-  opts.on("-i", "--image IMAGE", "Image file path for editing (can be specified multiple times, max 3)") do |img|
-    options[:images] << img
-  end
-end.parse!
+    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)") do |ratio|
+      options[:aspect_ratio] = ratio
+    end
 
-# Validate required arguments
-unless options[:prompt]
-  puts "ERROR: A prompt is required. Use -p or --prompt to specify the prompt."
-  exit 1
+    opts.on("-i", "--image IMAGE", "Image file path for editing (can be specified multiple times, max 3)") do |img|
+      options[:images] << img
+    end
+
+    opts.on("-m", "--model MODEL", "Image model to use (defaults to the provider default)") do |model|
+      options[:model] = model
+    end
+  end.parse!(argv)
+  options
 end
 
-if options[:operation] == "edit" && options[:images].empty?
-  puts "ERROR: At least one image is required for edit operation. Use -i or --image."
-  exit 1
+# Returns nil when the options are usable, or the error message to print.
+def validate_options(options)
+  return "ERROR: A prompt is required. Use -p or --prompt to specify the prompt." unless options[:prompt]
+
+  if options[:operation] == "edit" && options[:images].empty?
+    return "ERROR: At least one image is required for edit operation. Use -i or --image."
+  end
+  return "ERROR: Maximum 3 images allowed for xAI edit API." if options[:images].size > 3
+
+  nil
 end
 
-if options[:images].size > 3
-  puts "ERROR: Maximum 3 images allowed for xAI edit API."
-  exit 1
-end
-
-def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [], num_retrials: 3)
+def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [], model: nil, num_retrials: 3)
+  model ||= default_grok_image_model
   begin
     api_key = File.read("/monadic/config/env").split("\n").find do |line|
       line.start_with?("XAI_API_KEY")
@@ -114,7 +148,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
     when "generate"
       url = "https://api.x.ai/v1/images/generations"
       body = {
-        model: default_grok_image_model,
+        model: model,
         prompt: prompt,
         n: 1,
         response_format: "b64_json"
@@ -124,7 +158,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
     when "edit"
       url = "https://api.x.ai/v1/images/edits"
       body = {
-        model: default_grok_image_model,
+        model: model,
         prompt: prompt,
         n: 1,
         response_format: "b64_json"
@@ -183,15 +217,34 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
 
     { original_prompt: prompt, revised_prompt: revised_prompt, success: true, filename: filename }
   else
-    begin
+    error_msg = begin
       error_response = JSON.parse(res.body)
-      error_msg = error_response.is_a?(Hash) && error_response['error'] ?
-                 (error_response['error']['message'] rescue "Error with API response") :
-                 "Error with API response: #{error_response.to_s[0..100]}"
-      return { original_prompt: prompt, success: false, message: error_msg }
+      if error_response.is_a?(Hash) && error_response['error']
+        (error_response['error']['message'] rescue "Error with API response")
+      else
+        "Error with API response: #{error_response.to_s[0..100]}"
+      end
     rescue JSON::ParserError
-      return { original_prompt: prompt, success: false, message: "Error parsing API response" }
+      "Error parsing API response"
     end
+
+    # Whether a model is available to this account can only be learned by
+    # asking: the API answers "does not exist OR you have no access" as one
+    # error. Retry once with the default so a bad choice degrades to a working
+    # image. The model != fallback guard also stops the retry from recursing.
+    fallback = default_grok_image_model
+    if fallback && model != fallback
+      warn "Image model #{model.inspect} failed (#{error_msg}); retrying with #{fallback.inspect}" if ENV["EXTRA_LOGGING"]
+      retried = generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio,
+                               images: images, model: fallback, num_retrials: 0)
+      if retried.is_a?(Hash) && retried[:success]
+        retried[:fallback_from] = model
+        retried[:message] = "Requested model #{model} was unavailable; generated with #{fallback} instead."
+        return retried
+      end
+    end
+
+    return { original_prompt: prompt, success: false, message: scrub_account_ids(error_msg) }
   end
 rescue StandardError => e
   error_msg = "Error: #{e.message}"
@@ -201,11 +254,21 @@ rescue StandardError => e
   num_retrials -= 1
   if num_retrials.positive?
     sleep 1
-    return generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, images: images, num_retrials: num_retrials)
+    return generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, images: images,
+                          model: model, num_retrials: num_retrials)
   else
     return { original_prompt: prompt, success: false, message: "Error: Image operation failed after multiple attempts." }
   end
 end
 
-res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio], images: options[:images])
-puts JSON.pretty_generate(res)
+if __FILE__ == $PROGRAM_NAME
+  options = parse_options(ARGV)
+  if (message = validate_options(options))
+    puts message
+    exit 1
+  end
+
+  res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio],
+                       images: options[:images], model: resolve_grok_image_model(options[:model]))
+  puts JSON.pretty_generate(res)
+end

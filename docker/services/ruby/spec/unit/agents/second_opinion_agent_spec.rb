@@ -59,7 +59,7 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-5")
         expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.6-terra")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3.6-flash")
-        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.5")
+        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.6")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-medium-3-5")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-plus-05-2026")
         expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
@@ -256,7 +256,7 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is Python?",
           agent_response: "Python is a high-level programming language",
           provider: "deepseek",
-          model: "deepseek-chat"
+          model: "deepseek-v4-flash"
         )
         
         expect(result[:comments]).to be_a(String)

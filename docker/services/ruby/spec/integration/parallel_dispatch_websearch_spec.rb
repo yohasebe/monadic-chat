@@ -195,7 +195,7 @@ RSpec.describe "ParallelDispatch Web Search Integration", :integration do
         result = app.openai_compat_sub_call(
           "https://api.deepseek.com/chat/completions",
           CONFIG["DEEPSEEK_API_KEY"],
-          "deepseek-chat",
+          "deepseek-v4-flash",
           enriched,
           timeout
         )

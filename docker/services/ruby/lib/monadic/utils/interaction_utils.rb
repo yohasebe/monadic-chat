@@ -2,6 +2,7 @@ require 'json'
 require 'base64'
 require_relative 'ssl_configuration'
 require_relative 'extra_logger'
+require_relative 'error_formatter'
 require_relative 'tts_utils'
 require_relative 'stt_utils'
 require_relative 'tavily_utils'
@@ -78,7 +79,10 @@ module InteractionUtils
       error_parts << "(Raw: #{error_data.to_s.slice(0, 200)}#{error_data.to_s.length > 200 ? '...' : ''})"
     end
 
-    error_parts.join(" ")
+    # Consumers outside the websocket layer (stt_utils, provider helpers that
+    # format before returning) do not pass through send_error, so the same
+    # scrubbing is applied here — the identifiers are the provider's, not ours.
+    Monadic::Utils::ErrorFormatter.scrub_identifiers(error_parts.join(" "))
   end
 
   private

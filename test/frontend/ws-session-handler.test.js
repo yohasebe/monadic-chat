@@ -293,6 +293,29 @@ describe('ws-session-handler', () => {
       expect(overlay.children.length).toBe(0);
     });
 
+    // In a speech-to-speech session the server has already taken the turn:
+    // the transcript is display feedback, and writing it into the textarea
+    // invites a duplicate submission through the ordinary pipeline, where a
+    // realtime-only model 404s.
+    it('handleSTT keeps the transcript out of the textarea in STS mode', () => {
+      var overlay = document.getElementById('message-partial-overlay');
+      var messageEl = document.getElementById('message');
+      messageEl.value = 'typed by user';
+
+      handlers.handleSTTPartial({ content: 'live partial' });
+      window.SttGate = { isStsModelSelected: () => true };
+      try {
+        handlers.handleSTT({ content: 'spoken words', logprob: 0.9 });
+      } finally {
+        delete window.SttGate;
+      }
+
+      // Typed text preserved, spoken transcript NOT appended.
+      expect(messageEl.value).toBe('typed by user');
+      // Overlay still torn down — the live feedback ends with the turn.
+      expect(overlay.classList.contains('is-active')).toBe(false);
+    });
+
     it('handleSTT preserves text the user typed during streaming', () => {
       var overlay = document.getElementById('message-partial-overlay');
       var messageEl = document.getElementById('message');

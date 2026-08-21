@@ -106,23 +106,6 @@ RSpec.describe "ImageGeneratorTools" do
     end
   end
 
-  describe "Session state integration" do
-    # These tests verify the session state behavior but require actual API calls
-    # Run with RUN_API=true for full integration testing
-
-    it "ImageGeneratorOpenAI session handling" do
-      skip "Requires RUN_API=true for API integration tests" unless ENV["RUN_API"]
-    end
-
-    it "ImageGeneratorGemini session handling" do
-      skip "Requires RUN_API=true for API integration tests" unless ENV["RUN_API"]
-    end
-
-    it "ImageGeneratorGrok session handling" do
-      skip "Requires RUN_API=true for API integration tests" unless ENV["RUN_API"]
-    end
-  end
-
   describe "ImageGeneratorGrok auto-attach" do
     let(:app) { ImageGeneratorGrok.new }
     let(:shared_folder) { Monadic::Utils::Environment.shared_volume }

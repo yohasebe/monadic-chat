@@ -1,3 +1,4 @@
+require_relative "../../utils/http_client"
 require 'fileutils'
 require 'securerandom'
 require_relative "../../utils/interaction_utils"
@@ -544,6 +545,22 @@ module ClaudeHelper
     # Advisor Tool beta header (auto-added when the app opts in via MDSL advisor_tool block)
     advisor_settings = claude_advisor_settings(app)
     beta_flags << "advisor-tool-2026-03-01" if advisor_settings
+
+    # Mid-conversation tool changes: keeps the prompt cache alive when the
+    # visible tool set changes between turns. Progressive tool disclosure
+    # (conditional tool groups, dynamically unlocked skills) rewrites `tools`
+    # mid-session, and without this the whole cached prefix is re-written on
+    # that turn. Sent for every Claude model rather than gated in model_spec
+    # because it applies provider-wide, like the advisor header above.
+    #
+    # Verified 2026-07-25 against every Claude model in the catalog: with the
+    # header a tool change reads the prefix from cache instead of recreating
+    # it (Sonnet 5: cache_creation 4912 -> 0, cache_read 0 -> 4912). Anthropic
+    # documents it for Opus 5 / Opus 4.8 / Fable 5 only; the others accept and
+    # honor it today. Models that do not support it ignore the header (no
+    # error), so if coverage is ever narrowed this silently reverts to the
+    # previous cache-invalidating behavior — no breakage, just lost savings.
+    beta_flags << "mid-conversation-tool-changes-2026-07-01"
 
     beta_flags.uniq!
     headers["anthropic-beta"] = beta_flags.join(",") if beta_flags.any?
@@ -2002,7 +2019,7 @@ module ClaudeHelper
     }
 
     target_uri = "#{API_ENDPOINT}/files/#{file_id}/content"
-    http = HTTP.headers(headers)
+    http = Monadic::Utils::HttpClient.download.headers(headers)
 
     begin
       res = http.get(target_uri)

@@ -223,6 +223,37 @@ with_temp_file(shadow_fixture, shadow_body) do
 end
 
 # ---------------------------------------------------------------------------
+# 7. check_http_timeout.rb — must flag an outbound http gem call whose chain
+#    carries no timeout (the gem has no default, so the thread hangs forever).
+#    The fixture also pins that a `.timeout(` belonging to a LATER, unrelated
+#    statement does not clear the earlier violation.
+# ---------------------------------------------------------------------------
+section 'check_http_timeout.rb'
+http_fixture = FIXTURES[:ruby]
+http_body = <<~'RUBY'
+  # Lint fixture: untimed outbound HTTP call.
+  module LintHttpFixture
+    def untimed(url, headers, body)
+      HTTP.headers(headers).post(url, json: body)
+    end
+
+    def timed(url, headers, body)
+      HTTP.headers(headers)
+          .timeout(connect: 30, read: 120, write: 60)
+          .post(url, json: body)
+    end
+  end
+RUBY
+with_temp_file(http_fixture, http_body) do
+  stdout, _stderr, status = run_lint('check_http_timeout.rb')
+  assert(
+    'detects an outbound HTTP call with no timeout in its chain',
+    !status.success? && stdout.include?(http_fixture.relative_path_from(ROOT).to_s),
+    "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+end
+
+# ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------
 puts ''

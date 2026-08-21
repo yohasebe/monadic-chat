@@ -16,6 +16,7 @@ The table below shows which apps are available for which AI model providers.
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Live Conversation | ✅ | | | | ✅ | ✅ | | |
 | Wikipedia | ✅ | | | | | | | |
 | Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -57,6 +58,7 @@ To preserve a PF-protected conversation, use **Privacy Export** (encrypted, opti
 | Chat | | ✅ |
 | Chat Plus | ✅ | |
 | Voice Chat | | ✅ |
+| Live Conversation | | ✅ |
 | Wikipedia | | ✅ |
 | Math Tutor | | ✅ |
 | Second Opinion | ✅ | |
@@ -99,7 +101,7 @@ A blank cell in **both** columns indicates an artifact-centric app where the gen
 | Mistral | ✅ | ✅ | ✅ Tavily |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ Native |
-| DeepSeek | ❌ | ✅ | ✅ Tavily |
+| DeepSeek | ✅ | ✅ | ✅ Tavily |
 | Ollama | Model-dependent | Model-dependent | ✅ Tavily |
 
 ## App Categories
@@ -113,6 +115,7 @@ General-purpose conversation apps, from standard and voice chat to math tutoring
 - Chat
 - Chat Plus
 - Voice Chat
+- Live Conversation
 - Wikipedia
 - Math Tutor
 - Second Opinion

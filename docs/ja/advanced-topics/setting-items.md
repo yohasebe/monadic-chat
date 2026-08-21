@@ -74,6 +74,19 @@ featuresブロック内のすべての設定はオプションです：
 - `abc` - ABC音楽記譜法を有効化
 - `math` - LaTeX数式レンダリングを有効化
 
+#### speech-to-speech
+テキスト入力パネルの代わりにマイク音声をプロバイダの realtime API へ直接ストリーミングする Live Conversation 系アプリ向けの設定です:
+- `speech_to_speech` - このアプリを speech-to-speech アプリにする（テキスト入力が開始/終了ボタンに置き換わる）
+- `sts_input_rate` - マイクのサンプルレート（Hz、既定 24000。Gemini Live は 16000）
+- `sts_vad_threshold` - 音声区間検出の感度（0.0〜1.0、値が大きいほど環境音に反応しにくい）
+- `sts_vad_prefix_ms` - 発話開始前に保持する音声の長さ（ミリ秒）
+- `sts_vad_silence_ms` - ターンの終わりと判定する無音の長さ（ミリ秒）
+- `sts_vad_type` - ターン判定方式: `server_vad`（既定・無音ベース）または `semantic_vad`（意味の完結を待つ。OpenAI のみ）
+- `sts_vad_eagerness` - `semantic_vad` がターンを閉じる速さ: `low`、`medium`、`high`、`auto`（OpenAI のみ。それ以外では無視）
+- `sts_idle_stop_seconds` - 無操作がこの秒数続いたらセッションを自動停止（既定 180、0 で無効）
+
+`sts_vad_*` は省略するとプロバイダ既定値が使われます。またすべてのプロバイダがすべてのキーを解釈するわけではありません（xAI は `sts_vad_prefix_ms` を無視します）。OpenAI 変種の Live Conversation では `sts_vad_type` / `sts_vad_eagerness` をユーザーがターン判定セレクタから選ぶこともでき、選択した値は次のセッションで MDSL の既定より優先されます。
+
 #### コンテキスト管理
 - `context_size` - 含める過去のメッセージ数
 - `monadic` - JSONベースの状態管理を有効化（複数プロバイダーで利用可能、機能は異なる）

@@ -723,7 +723,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
     it "routes DeepSeek to tavily_prefetch + openai_compat when websearch: true" do
       expect(app).to receive(:tavily_prefetch_and_inject).with("test").and_return("enriched")
       expect(app).to receive(:openai_compat_sub_call).and_return("result")
-      app.sub_agent_api_call("deepseek-chat", "test", deepseek_cfg, 120, websearch: true)
+      app.sub_agent_api_call("deepseek-v4-flash", "test", deepseek_cfg, 120, websearch: true)
     end
 
     it "routes Cohere to tavily_prefetch + cohere_sub_call when websearch: true" do

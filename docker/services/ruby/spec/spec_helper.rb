@@ -143,6 +143,7 @@ require_relative 'support/custom_retry'
 # Load Docker container manager for automatic container startup
 require_relative 'support/docker_container_manager'
 require_relative 'support/text_response_assertions'
+require_relative 'support/generator_script_loader'
 
 # Load summary formatter (for compact summaries and artifacts)
 begin

@@ -712,10 +712,14 @@ function handleAppsMessage(data) {
           isImporting: window.isImporting,
           isRestoringSession: window.isRestoringSession,
           isImportingNotRestoring,
-          willProceed: (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring)
+          willProceed: (!importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring)
         });
-        // Skip during import (when NOT restoring session), but allow during session restoration
-        if (!fromParamUpdate && window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
+        // Skip during import (when NOT restoring session), but allow during session restoration.
+        // initialAppLoaded is the real guard: a count===1 check read at fire
+        // time breaks when a WS reconnect delivers APPS twice within 150ms —
+        // both timers then see count===2 and BOTH skip, leaving the app
+        // (and the workflow viewer) uninitialized (§38 root-cause candidate).
+        if (!fromParamUpdate && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
           const sel = currentAppsVal;
           if (sel) {
             window.logTL && window.logTL('proceedWithAppChange_on_first_selected', { app: sel });
@@ -801,6 +805,22 @@ function handleAppsMessage(data) {
       }
     }
   }
+  // Notify the Workflow Viewer of the SETTLED app (§38). No path that
+  // assigns #apps.value fires 'change', and on the failing path (server
+  // restart + hard reload: WS reconnect late, asset cache busted) every
+  // fallback window — the viewer's init snapshot, its setDisplayMode rAF,
+  // and shouldSetApp above (false when the browser's auto-selection counts
+  // as a valid selection) — closes before the app list exists. Notifying
+  // here, once per APPS message with the final value, covers all of them;
+  // loadApp dedups by currentApp, so this cannot double-fetch against
+  // proceedWithAppChange/monadic.js or the change listener in utilities.js.
+  // Never a synthetic 'change' dispatch: heavy listeners (the app-switch
+  // confirmation) would misfire.
+  if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.loadApp &&
+      appsSelect && appsSelect.value) {
+    WorkflowViewer.loadApp(appsSelect.value);
+  }
+
   // Sync apps object back to window
   window.apps = apps;
 }
@@ -977,7 +997,7 @@ function handleParametersMessage(data) {
 
   if (currentApp) {
     let openai = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
-    let modelList = listModels(models, openai);
+    let modelList = listModels(models, openai, { allowSpeechToSpeech: appOffersSpeechToSpeech(currentApp) });
     const modelSelect = $id("model");
     if (modelSelect) modelSelect.innerHTML = modelList;
   }

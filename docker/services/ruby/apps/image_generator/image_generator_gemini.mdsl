@@ -146,7 +146,7 @@ app "ImageGeneratorGemini" do
 
     define_tool "generate_image_with_gemini", "Generate or edit images with Google's Gemini 3 Image models (Nano Banana 2 Flash or Nano Banana Pro). Supports text-to-image, image editing, and video-to-image. Uploaded images and videos are automatically retrieved from session. The orchestrator must select a model per the MODEL SELECTION rules in the system prompt (ask the user when no prior choice exists)." do
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: true
-      parameter :model, "string", "Image generation model: 'gemini-3.1-flash-image' (Flash / Nano Banana 2 — fast, creative) or 'gemini-3-pro-image' (Pro / Nano Banana Pro — high quality, better identity preservation)", required: true, enum: ["gemini-3.1-flash-image", "gemini-3-pro-image"]
+      parameter :model, "string", "Image generation model: 'gemini-3.1-flash-image' (Flash / Nano Banana 2 — fast, creative) or 'gemini-3-pro-image' (Pro / Nano Banana Pro — high quality, better identity preservation)", required: true, enum: Monadic::Utils::ModelSpec.image_options("gemini", "model")
       parameter :aspect_ratio, "string", "Optional aspect ratio (e.g., 16:9, 1:1, 4:5)", required: false
       parameter :image_size, "string", "Optional resolution (1K, 2K, 4K)", required: false
       parameter :session, "object", "Session object (automatically provided, contains uploaded images and videos)", required: false

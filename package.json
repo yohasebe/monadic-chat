@@ -1,7 +1,7 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
-  "version": "1.0.0-beta.29",
+  "version": "1.0.0-beta.30",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "app/main.js",
   "scripts": {
@@ -167,8 +167,12 @@
   "overrides": {
     "semver": "^7.5.3",
     "minimatch": "^10.2.1",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^4.3.1",
     "glob": "^10.5.0",
-    "@xmldom/xmldom": "^0.8.13"
+    "@xmldom/xmldom": "^0.8.13",
+    "ip-address": "^10.3.1",
+    "brace-expansion": "^5.0.9",
+    "fast-uri": "^3.1.5",
+    "undici": "^6.28.0"
   }
 }

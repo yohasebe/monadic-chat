@@ -306,7 +306,14 @@ async function startAudioStream() {
         message: 'AUDIO_CHUNK',
         content: base64,
         stt_model: sttModel,
-        lang_code: langCode
+        lang_code: langCode,
+        // Routing hint: the server decides STT-vs-STS per audio message, and
+        // deriving that from session parameters alone races the UPDATE_PARAMS
+        // broadcast (which drops silently while the socket is not OPEN or a
+        // suppression window is active). Carrying the chat model here makes
+        // the routing input deterministic; the server still capability-checks
+        // it against model_spec before switching pipelines.
+        chat_model: currentChatModel()
       });
     } catch (err) {
       console.warn('[STT realtime] AUDIO_CHUNK send failed:', err);
@@ -471,13 +478,33 @@ voiceButton.addEventListener("click", function () {
     // microphone permission is settled in the Electron branch — same
     // semantics as the legacy `startAudioCapture()` it replaces.
     const beginCapture = function () {
-      if (isRealtimeSttEnabled()) {
+      // A speech-to-speech chat model needs chunked streaming regardless of
+      // the STT model selection: the server routes AUDIO_CHUNK to the STS
+      // bridge based on the chat model. Falling back to the one-shot AUDIO
+      // path would transcribe via batch STT and then submit the text to a
+      // realtime-only model, which fails at request time.
+      const stsMode = !!(window.SttGate && typeof window.SttGate.isStsModelSelected === 'function'
+        && window.SttGate.isStsModelSelected());
+
+      if (stsMode || isRealtimeSttEnabled()) {
         startAudioStream().catch(function (err) {
+          teardownStreamingSession();
+          clearPartialOverlay();
+          if (stsMode) {
+            // No silent fallback for STS (UI honesty): batch capture cannot
+            // reach the STS bridge, so degrading quietly would strand the
+            // user on a broken path with no explanation.
+            console.error('[STS] startAudioStream failed:', err);
+            const stsFailedText = getTranslation('ui.messages.stsStreamStartFailed', 'Speech-to-speech audio capture failed. Check microphone access, or switch to a non-realtime model.');
+            setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${stsFailedText}`, 'error');
+            const failSpinner = $id("monadic-spinner");
+            $hide(failSpinner);
+            isListening = false;
+            return;
+          }
           console.warn('[STT realtime] startAudioStream failed, falling back to batch:', err);
           const fallbackText = getTranslation('ui.messages.sttRealtimeFallback', 'Realtime STT unavailable; falling back to standard mode');
           setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${fallbackText}`, 'warning');
-          teardownStreamingSession();
-          clearPartialOverlay();
           startAudioCapture();
         });
       } else {
@@ -559,7 +586,7 @@ voiceButton.addEventListener("click", function () {
       // wait for the backend to emit the `stt` event (handled by existing
       // handleSTT in ws-session-handler.js). No blob is read here.
       try {
-        window.safeWsSend({ message: 'AUDIO_COMMIT' });
+        window.safeWsSend({ message: 'AUDIO_COMMIT', chat_model: currentChatModel() });
       } catch (err) {
         console.warn('[STT realtime] AUDIO_COMMIT send failed:', err);
       }
@@ -729,7 +756,7 @@ voiceButton.addEventListener("click", function () {
       // When server-side VAD lands in Phase 2 this branch becomes
       // ceremonial — OpenAI commits on its own EoS. For Phase 1 we keep
       // semantics conservative (no auto-commit on silence).
-      try { window.safeWsSend({ message: 'AUDIO_ABORT' }); }
+      try { window.safeWsSend({ message: 'AUDIO_ABORT', chat_model: currentChatModel() }); }
       catch (err) { console.warn('[STT realtime] AUDIO_ABORT send failed:', err); }
       teardownStreamingSession();
       clearPartialOverlay();

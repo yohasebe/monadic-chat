@@ -67,6 +67,14 @@ namespace :lint do
     end
   end
 
+  desc 'Check for outbound http gem calls with no timeout (the gem has no default)'
+  task :http_timeout do
+    Dir.chdir(PROJECT_ROOT) do
+      system('ruby scripts/lint/check_http_timeout.rb') ||
+        abort('HTTP timeout lint failed: the http gem has no default timeout, so a silent peer hangs the thread forever. Build the client through Monadic::Utils::HttpClient (rest/generation/streaming/download).')
+    end
+  end
+
   desc "Verify each anti-pattern lint still detects its target via temp fixture"
   task :self_check do
     Dir.chdir(PROJECT_ROOT) do
@@ -76,5 +84,5 @@ namespace :lint do
   end
 
   desc "Run every anti-pattern lint rule plus the self-check meta-test"
-  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :self_check]
+  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :http_timeout, :self_check]
 end

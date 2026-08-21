@@ -55,7 +55,7 @@ Select the AI model to use. Available models depend on the selected app. Depreca
 Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
 
 **Show Thinking** <br />
-Show or hide the model's thinking/reasoning trace as a collapsible "Thinking Process" panel in each response. The toggle appears only for models that support thinking, and it is linked with the reasoning control: turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, and setting the effort back to "None" turns the toggle off.
+Show or hide the model's thinking/reasoning trace as a collapsible "Thinking Process" panel in each response. The toggle appears only for models that support thinking, and it is linked with the reasoning control: turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, and setting the effort back to "None" turns the toggle off. In [Live Conversation](../apps/chat-apps.md#live-conversation) this toggle is not shown, because realtime models do not emit a reasoning trace.
 
 **Max Output Tokens** <br />
 Limit the maximum number of tokens in the API response.
@@ -85,7 +85,7 @@ Select a provider for the AI User feature, which automatically generates follow-
 The assistant makes the first message when starting a conversation.
 
 **Chat Interaction Controls**<br />
-Options for voice-based conversations. Click the `toggle all` link to enable or disable all options at once.
+Options for voice-based conversations. Click the `toggle all` link to enable or disable all options at once. These controls are hidden in [Live Conversation](../apps/chat-apps.md#live-conversation), which manages audio itself.
 
 **Auto speech**<br />
 Automatically read the assistant's response aloud using synthesized speech.
@@ -94,10 +94,10 @@ Automatically read the assistant's response aloud using synthesized speech.
 Press Enter to send messages without clicking the Send button.
 
 **Web Search**<br />
-Allow the AI to search the web for current information. Available for models that support tool/function calling.
+Allow the AI to search the web for current information. Available for models that support tool/function calling. In [Live Conversation](../apps/chat-apps.md#live-conversation), web search is part of the app's own Tools toggle instead (off by default).
 
 **Session Indicator Badges**<br />
-During a session, the conversation header shows badges for the features currently in effect: Web Search, Math rendering, the current reasoning effort, and Knowledge Base. The Knowledge Base badge appears whenever the session actually reads from the Knowledge Base — that is, when the "Use Knowledge Base for retrieval" toggle is on, or when the Knowledge Base app itself is selected (it always has full access).
+During a session, the conversation header shows badges for the features currently in effect: Web Search, Math rendering, the current reasoning effort, and Knowledge Base. The Knowledge Base badge appears whenever the session actually reads from the Knowledge Base — that is, when the "Use Knowledge Base for retrieval" toggle is on, or when the Knowledge Base app itself is selected (it always has full access). In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
 
 **Start Session / Continue Session** <br />
 Start a new chat or continue your current conversation.
@@ -150,6 +150,8 @@ Save the current conversation as a PDF file with syntax highlighting and formatt
 <!-- SCREENSHOT: Speech settings panel showing Speech-to-Text model selector, Text-to-Speech provider and voice dropdowns, and TTS speed slider -->
 
 !> **Note:** To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
+
+This panel is not used in [Live Conversation](../apps/chat-apps.md#live-conversation) — that app has its own voice and speed selectors in its control row.
 
 **Speech-to-Text Model**<br />
 Select your preferred speech-to-text model. Available options include OpenAI, Gemini, ElevenLabs, Cohere, Mistral, and xAI models.

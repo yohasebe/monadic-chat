@@ -1,0 +1,65 @@
+app "LiveConversationOpenAI" do
+  description do
+    en <<~TEXT
+    Continuous voice conversation over OpenAI Realtime (speech-to-speech). Press Start and talk — turns are detected automatically until you press Stop. Headphones are recommended: with speakers, the assistant's voice can leak into the microphone and trigger false turns. Audio is sent directly to the provider (Privacy Filter does not apply), and a running cost estimate is shown while the session is open. Tools (current time, Python code, Knowledge Base search, web search) are available when you switch them on; there is no text input. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    ja <<~TEXT
+    OpenAI Realtime（speech-to-speech）による連続音声会話。Start を押して話しかけると、Stop までターンが自動で続きます。ヘッドホンの使用を推奨します（スピーカーだとアシスタントの音声がマイクに回り込み、誤ってターンが始まることがあります）。音声はプロバイダに直接送信されます（Privacy Filter 非対応）。セッション中は料金の目安が画面に表示されます。ツール（現在時刻・Python コード実行・Knowledge Base 検索・ウェブ検索）はオンにしたときのみ使えます。テキスト入力はありません。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=live-conversation" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "comments"
+
+  display_name "Live Conversation"
+
+  system_prompt <<~PROMPT
+  You are a friendly conversation partner speaking with the user by voice.
+  Keep responses short and natural for speech — usually one or two sentences.
+  Follow the user's language. Do not use markdown, lists, or code in your
+  speech; talk the way a person talks.
+  If you could not hear or understand the user clearly, say so briefly and
+  ask them to repeat. Never guess at what they said, and never invent
+  content that was not actually shared — there are no images, photos, or
+  files in this conversation, only voice.
+  The user's speech may reach you split into fragments when they pause
+  mid-sentence. If an utterance sounds unfinished, do not answer it fully:
+  give a minimal acknowledgement or briefly invite them to continue. When
+  the next utterance arrives, treat it as the continuation of the same
+  thought, not a new topic.
+  If you say you are going to use a tool, wait for the tool's result
+  before answering — do not answer from memory first and correct yourself
+  afterwards.
+  PROMPT
+
+  llm do
+    provider "openai"
+    model ["gpt-realtime-2.1"]
+  end
+
+  features do
+    # Declares this as a speech-to-speech app: the frontend switches to the
+    # Live Conversation UI (Start/Stop, no text input) and the model list is
+    # pinned to the MDSL declaration above (show-all is ignored — mixing STS
+    # and non-STS models in one selector is what sank the integrated design).
+    speech_to_speech true
+    # Honored as the greeting toggle: ON = the assistant greets when a fresh
+    # conversation starts; OFF = start listening silently. On resume
+    # (messages present) there is never a greeting.
+    initiate_from_assistant true
+    # Conversations save to the Library like any app (Stop → save/load), but
+    # the search TOOL is suppressed here: Live Conversation tools are opt-in
+    # through the app's own Tools toggle (library_search is offered there),
+    # and with the toggle off the realtime session config carries no tools
+    # key at all (wire invariant in the handler spec).
+    library_search false
+    # Server-VAD tuning (dogfood round 1). API defaults (threshold 0.5,
+    # silence 500ms) both misfired: brief hesitations ended the user's turn,
+    # and speaker echo of the assistant's own voice started phantom turns.
+    # Higher threshold + longer silence trade a little response latency for
+    # stable turn boundaries; prefix padding keeps utterance onsets intact.
+    sts_vad_threshold 0.65
+    sts_vad_prefix_ms 300
+    sts_vad_silence_ms 1000
+    disabled !CONFIG["OPENAI_API_KEY"]
+  end
+end

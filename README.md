@@ -83,7 +83,7 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 - **🤖 Multi-Provider Support**: OpenAI, Claude, Gemini, Mistral, Cohere, xAI, DeepSeek, and Ollama
 - **🐧 Real Linux Environment**: AI agents can execute code, install packages, persist files, and maintain continuous context across turns in actual Docker containers.
 - **💬 Advanced Conversation Management**: Edit, export/import, and track conversation history with structured context
-- **🎙️ Voice Interaction**: Text-to-speech and speech-to-text with multiple providers and speaker diarization
+- **🎙️ Voice Interaction**: Text-to-speech and speech-to-text with multiple providers and speaker diarization, plus continuous speech-to-speech conversation (Live Conversation) over the OpenAI, xAI Grok, and Google Gemini realtime APIs
 - **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models, with intelligent session-based continuity for effortless iterative editing and remixing of generated content.
 - **📄 PDF Knowledge Base**: Store and query documents locally with Qdrant + on-device embeddings — no API key required
 - **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, and Grok
@@ -92,7 +92,7 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 
 ### Featured Applications
 
-Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · PDF Navigator · Image Generator · Music Generator · Language Practice
+Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Live Conversation · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · PDF Navigator · Image Generator · Music Generator · Language Practice
 
 📖 **Full list and details**: [Basic Apps](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps) (30+ apps)
 

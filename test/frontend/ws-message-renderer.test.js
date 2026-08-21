@@ -168,6 +168,43 @@ describe('ws-message-renderer', () => {
       const addedMid = global.mids.add.mock.calls[0][0];
       expect(addedMid).toMatch(/^restored-/);
     });
+
+    // §37-3: Live Conversation markers (interrupted / tools_used) persist in
+    // the canon but are not part of msg.badge — rebuilding the badge through
+    // assistantBadge is what keeps them visible across a LOAD re-render.
+    it('builds assistant badges via assistantBadge so canon markers survive LOAD', () => {
+      window.assistantBadge = jest.fn().mockReturnValue('ASSISTANT_BADGE');
+
+      handlers.handlePastMessages({
+        content: [{ role: 'assistant', text: 'x', mid: 'a-9', interrupted: true }]
+      });
+
+      expect(window.assistantBadge).toHaveBeenCalledWith(
+        expect.objectContaining({ mid: 'a-9', interrupted: true }));
+      expect(global.createCard.mock.calls[0][1]).toBe('ASSISTANT_BADGE');
+
+      delete window.assistantBadge;
+    });
+
+    it('passes tools_used to insertInlineToolBadge for assistant messages', () => {
+      window.insertInlineToolBadge = jest.fn();
+      const toolsUsed = [{ name: 'search_web', status: 'done', at: 1 }];
+
+      handlers.handlePastMessages({
+        content: [{ role: 'assistant', text: 'a\n\nb', mid: 'a-10', tools_used: toolsUsed }]
+      });
+
+      expect(window.insertInlineToolBadge).toHaveBeenCalledWith(expect.anything(), toolsUsed);
+
+      delete window.insertInlineToolBadge;
+    });
+
+    it('renders fine without insertInlineToolBadge (older bundles)', () => {
+      expect('insertInlineToolBadge' in window).toBe(false);
+      expect(() => handlers.handlePastMessages({
+        content: [{ role: 'assistant', text: 'x', mid: 'a-11' }]
+      })).not.toThrow();
+    });
   });
 
   describe('handleEditSuccess', () => {

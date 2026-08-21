@@ -61,6 +61,27 @@ function isRealtimeSttEnabled() {
   catch (_) { return false; }
 }
 
+// ─── Speech-to-speech session gate ───
+//
+// True when the selected CHAT model runs a speech-to-speech session
+// (`supports_speech_to_speech` in model_spec.js). Distinct from
+// isRealtimeSttEnabled(), which gates on the STT model: an STS session
+// streams AUDIO_CHUNK regardless of which STT model is selected, because
+// the server routes those chunks to the STS bridge based on the chat
+// model (websocket.rb route_audio_mode) and never consults the STT
+// setting. Gating streaming on the STT model alone left STS unreachable
+// for anyone whose STT model happened to be a batch one — the recording
+// path sent a one-shot AUDIO, the transcript went through the ordinary
+// chat pipeline, and the realtime-only model failed at request time.
+function isStsModelSelected() {
+  const modelEl = (typeof $id === 'function') ? $id('model') : document.getElementById('model');
+  const model = modelEl ? modelEl.value : '';
+  if (!model) return false;
+  return !!(typeof window !== 'undefined' && window.modelSpec
+    && window.modelSpec[model]
+    && window.modelSpec[model].supports_speech_to_speech);
+}
+
 // ─── STT select empty state ───
 //
 // Every #stt-model option ships disabled and is enabled per verified
@@ -121,7 +142,7 @@ if (typeof document !== 'undefined') {
   }
 }
 
-const SttGate = { isRealtimeSttEnabled, updateSttEmptyState, initSttEmptyStateObserver };
+const SttGate = { isRealtimeSttEnabled, isStsModelSelected, updateSttEmptyState, initSttEmptyStateObserver };
 
 if (typeof window !== 'undefined') {
   window.SttGate = SttGate;

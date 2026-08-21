@@ -192,7 +192,12 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
     ? getTranslation('ui.verify.tip', 'Cross-checks this answer against your other configured providers.')
     : getTranslation('ui.verify.tipSingle', "Add a second provider's API key for a cross-provider check (with one provider it is a weaker self-consistency check).");
   var verifyTitle = window.escapeHtml(verifyLabel + ' — ' + verifyTip);
-  var verifyBar = (role === "assistant")
+  // Live Conversation cards carry no verify bar: second-opinion verification
+  // targets the typed pipeline's request shape, and a realtime speech
+  // transcript is not a verifiable answer. Decided at render time (not CSS)
+  // so it holds regardless of stylesheet state.
+  var inLiveConversation = document.body.classList.contains('lc-app');
+  var verifyBar = (role === "assistant" && !inLiveConversation)
     ? '<div class="verify-bar"><span class="func-verify" title="' + verifyTitle + '">' +
       '<i class="fas fa-check-double"></i> ' + verifyLabel + '</span></div>'
     : '';
@@ -269,14 +274,131 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   return card;
 }
 
+/**
+ * Build the role label shown at the top of an assistant card.
+ *
+ * This exists because the same markup was previously inlined at three call
+ * sites (the live WebSocket path, its fallback, and session restore). When
+ * the "interrupted" marker was added it landed in one of them, so the flag
+ * rendered in tests and never in the product.
+ *
+ * @param {Object} [content] - the message content hash from the server
+ * @returns {string} badge markup
+ */
+function assistantBadge(content) {
+  let badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> " +
+              "<span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+
+  // A speech-to-speech turn cut short by barge-in carries only the text the
+  // model produced before it was stopped. Saying so on the card matters: the
+  // text reads as a complete answer otherwise, and the user cannot tell that
+  // the rest was never spoken.
+  if (content && content.interrupted) {
+    const label = (typeof webUIi18n !== 'undefined')
+      ? webUIi18n.t('ui.messages.responseInterrupted')
+      : 'Interrupted';
+    // mc-badge (the app's muted badge vocabulary — soft grey fill, quiet
+    // text, dark-mode aware) instead of Bootstrap's solid bg-secondary,
+    // which read too loud next to the card header.
+    badge += " <span class='mc-badge mc-badge--grey ms-1 align-middle'>" +
+             "<i class='fas fa-hand'></i> " + window.escapeHtml(label) + "</span>";
+  }
+
+  // Tools used in a speech-to-speech turn (function calling wave 1): the
+  // server attaches them to the card as tools_used metadata. Entries WITH a
+  // paragraph position (`at`) render as INLINE badges at that boundary
+  // (insertInlineToolBadge, §37-3) — the header stays clean. Only entries
+  // WITHOUT a position (older canon, non-folded cards) fall back to this
+  // header badge, so no tool is ever invisible and none is shown twice
+  // (§37-4: the two render paths are exclusive per entry).
+  if (content && Array.isArray(content.tools_used) && content.tools_used.length > 0) {
+    const unpositioned = content.tools_used.filter((t) => !t || typeof t.at !== 'number');
+    if (unpositioned.length > 0) {
+      const names = [...new Set(unpositioned.map((t) => t.name))];
+      const hasError = unpositioned.some((t) => t.status === 'error');
+      const cls = hasError ? 'mc-badge--red' : 'mc-badge--grey';
+      badge += " <span class='mc-badge " + cls + " ms-1 align-middle'>" +
+               "<i class='fas fa-tools'></i> " + window.escapeHtml(names.join(', ')) + "</span>";
+    }
+  }
+  return badge;
+}
+
+/**
+ * Insert a tool badge at a paragraph boundary inside a card body (§37-3).
+ *
+ * Live Conversation folds a tool-bridged exchange into ONE card whose
+ * paragraphs are joined by "\n\n"; each tools_used entry then carries
+ * `at` = the paragraph index where the tool call happened (= the bridge
+ * part's paragraph count). The badge is display-only: the canonical
+ * message text stays plain, and entries without `at` (older data, or the
+ * initial non-folded card) are skipped — the header badge covers those.
+ *
+ * Accepts either a CARD element (badges go into its .card-text) or a live
+ * view TEXT container (.lc-live-text, §37-5) directly.
+ *
+ * @param {HTMLElement} cardEl - the card element or .lc-live-text container
+ * @param {Array} toolsUsed - tools_used entries ({name, status, at?})
+ */
+function insertInlineToolBadge(cardEl, toolsUsed) {
+  if (!cardEl || !Array.isArray(toolsUsed) || toolsUsed.length === 0) return;
+  const isTextContainer = cardEl.classList && cardEl.classList.contains('lc-live-text');
+  const body = isTextContainer ? cardEl : cardEl.querySelector('.card-text');
+  if (!body) return;
+  // §40: consecutive calls at the SAME boundary merge into ONE badge —
+  // a batch (one response emitting several calls) otherwise stacked one
+  // badge per call, which read as noise (dogfood: search_web twice).
+  // Merging is a render concern only: the underlying entries stay separate
+  // so call_id status correlation keeps working.
+  const groups = new Map(); // at → [tool, ...] in arrival order
+  toolsUsed.forEach(function(tool) {
+    if (!tool || typeof tool.at !== 'number') return;
+    if (!groups.has(tool.at)) groups.set(tool.at, []);
+    groups.get(tool.at).push(tool);
+  });
+  groups.forEach(function(tools, at) {
+    const names = [...new Set(tools.map(function(t) { return t.name; }))];
+    // Worst status wins: any error turns the badge red; any still-running
+    // call keeps the spinner going.
+    const anyError = tools.some(function(t) { return t.status === 'error'; });
+    const anyRunning = tools.some(function(t) { return t.status === 'running'; });
+    const span = document.createElement('span');
+    // No ms-1/align-middle here: those belong to a badge sitting NEXT TO a
+    // card title. Between paragraphs the badge is its own block, where a
+    // left offset reads as a stray indent and vertical-align does nothing —
+    // spacing comes from the .lc-tools-badge rule in monadic.css instead.
+    span.className = 'mc-badge ' + (anyError ? 'mc-badge--red' : 'mc-badge--grey') +
+      ' lc-tools-badge';
+    // §37-12: a call still running shows the app's canonical busy glyph
+    // (fa-spinner + fa-spin, as used for Saving/Importing/Loading; the
+    // reduce-motion carve-out lives in monadic.css). Once it finishes the
+    // icon becomes the tool glyph — a spinning wrench read as decoration
+    // rather than progress, so the glyph itself carries the state.
+    const icon = anyRunning ? 'fa-spinner fa-spin' : 'fa-tools';
+    span.innerHTML = "<i class='fas " + icon + "'></i> ";
+    span.appendChild(document.createTextNode(names.join(', ')));
+    const paras = body.querySelectorAll(':scope > p');
+    const target = paras[at];
+    if (target) {
+      body.insertBefore(span, target);
+    } else {
+      // Paragraph structure differs from the canon split (e.g. Markdown
+      // extras) — fall back to the end rather than dropping the badge.
+      body.appendChild(span);
+    }
+  });
+}
+
 // Export for browser environment.
 // NOTE: window.escapeHtml is owned by text-utils.js (loaded earlier); this
 // module only delegates to it and must not re-export its local delegate
 // onto window (that would shadow the canonical implementation).
 window.createCard = createCard;
+window.assistantBadge = assistantBadge;
+window.insertInlineToolBadge = insertInlineToolBadge;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { escapeHtml, createCard };
+  module.exports = { escapeHtml, createCard, assistantBadge, insertInlineToolBadge };
 }
 })();

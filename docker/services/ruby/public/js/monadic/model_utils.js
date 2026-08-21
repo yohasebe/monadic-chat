@@ -377,11 +377,37 @@ function filterModelsForAllMode(models, providerKey) {
     if (ms.music_capability === true) return false;
     if (ms.embedding_dimensions != null) return false;
 
+    // Speech-to-speech models only work through the STS bridge, so picking
+    // one in an ordinary chat app fails at request time with nothing on
+    // screen explaining why. Speech-to-speech APPS never reach this filter —
+    // getModelsForApp pins their selector to the MDSL list before show-all
+    // merging — so this exclusion only protects ordinary apps' show-all
+    // lists, which is why it lives here rather than in listModels.
+    if (ms.supports_speech_to_speech === true) return false;
+
     // Exclude models without tool capability
     if (ms.tool_capability === false) return false;
 
     return true;
   });
+}
+
+/**
+ * Whether an app has opted into offering speech-to-speech models.
+ *
+ * The capability (`supports_speech_to_speech`) lives in model_spec; this is
+ * the app-level "use it" half of the two-layer rule, declared in MDSL as
+ * `speech_to_speech true`. The distinction matters because the server
+ * auto-fills `models` from the provider's API list for apps that declare
+ * none (dsl.rb model_list_code) — so "the model is in appConfig.models"
+ * proves nothing about intent, and an explicit flag is the only way to
+ * tell an app that can run an STS session from one that just received the
+ * full model list.
+ */
+function appOffersSpeechToSpeech(appConfig) {
+  if (!appConfig) return false;
+  const v = appConfig["speech_to_speech"];
+  return v === true || v === "true";
 }
 
 /**
@@ -396,6 +422,17 @@ function filterModelsForAllMode(models, providerKey) {
  * @returns {Array} Array of model names
  */
 function getModelsForApp(appConfig, showAll) {
+  // Speech-to-speech apps pin their selector to the MDSL list. Show-all
+  // would merge ordinary chat models into the dropdown — and mixing STS and
+  // non-STS models in one selector is exactly what sank the integrated
+  // design (five integration gaps).
+  if (appConfig && (appConfig["speech_to_speech"] === true || appConfig["speech_to_speech"] === "true")) {
+    try {
+      const pinned = JSON.parse(appConfig["models"] || "[]");
+      if (Array.isArray(pinned) && pinned.length > 0) return pinned;
+    } catch (_) { /* fall through to the normal path */ }
+  }
+
   if (!appConfig) return [];
   if (showAll === undefined) showAll = false;
 
@@ -510,5 +547,5 @@ function getDefaultModelForApp(appConfig, availableModels) {
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor, isModelUiHidden, filterModelsForAllMode };
+  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor, isModelUiHidden, filterModelsForAllMode, appOffersSpeechToSpeech };
 }

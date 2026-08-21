@@ -129,7 +129,15 @@ if __FILE__ == $PROGRAM_NAME
 
 
   # gpt-image-2 quality options
-  unless %w[low medium high auto].include?(options[:quality])
+  # SSOT: imageGenerationOptions.openai.quality. Falls back to the literal set
+  # only if the spec cannot be read, so a bad spec cannot reject every value.
+  allowed_quality = begin
+    q = Monadic::Utils::ModelSpec.image_options("openai", "quality")
+    q.empty? ? %w[low medium high auto] : q
+  rescue StandardError
+    %w[low medium high auto]
+  end
+  unless allowed_quality.include?(options[:quality])
     puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
     options[:quality] = "auto"
   end

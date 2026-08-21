@@ -1422,10 +1422,49 @@ const providerDefaults = {
   }
 };
 
+// What each provider's image generation accepts, per parameter.
+//
+// The MDSL tool definitions read these instead of repeating them: an enum
+// copied into a tool definition drifts silently when the provider's models
+// change, and the model then picks a value that the API rejects. That is not
+// hypothetical — the OpenAI tool advertised the DALL·E-era sizes 256x256 and
+// 512x512 and the qualities "standard" and "hd" long after DALL·E was removed
+// (2026-05-12), and every one of them answered 400 on a live probe.
+//
+// Values verified against the live API on 2026-08-21. `seed` is documented in
+// OpenAI's image guide but rejected as an unknown parameter, so it is absent.
+const imageGenerationOptions = {
+  "openai": {
+    // Constraints behind the list: max edge 3840, multiples of 16, ratio <= 3:1,
+    // 655,360-8,294,400 total pixels — which is why the small legacy sizes fail.
+    // Larger sizes cost proportionally more output tokens.
+    "size": ["auto", "1024x1024", "1536x1024", "1024x1536", "1792x1024", "1024x1792",
+             "2048x2048", "2048x1152", "3840x2160", "2160x3840"],
+    "quality": ["auto", "low", "medium", "high"],
+    "output_format": ["png", "jpeg", "webp"],
+    // transparent requires png or webp; entered preview 2026-08-20.
+    "background": ["auto", "transparent", "opaque"],
+    "input_fidelity": ["low", "high"]
+  },
+  "xai": {
+    "aspect_ratio": ["1:1", "16:9", "9:16", "4:3", "3:4"]
+  },
+  "gemini": {
+    // The conversational image models, which are a different set from
+    // providerDefaults.gemini.image (that list drives the Imagen path).
+    // Both verified present in the live model list on 2026-08-21.
+    "model": ["gemini-3.1-flash-image", "gemini-3-pro-image"]
+    // aspect_ratio is deliberately absent: the accepted set has not been
+    // verified against the API, and turning free-form prose into an enum
+    // would remove ratios the model may well accept.
+  }
+};
+
 // Expose modelSpec globally for browser environment
 if (typeof window !== 'undefined') {
   window.modelSpec = modelSpec;
   window.providerDefaults = providerDefaults;
+  window.imageGenerationOptions = imageGenerationOptions;
 }
 
 // Support for Jest testing environment (CommonJS)
@@ -1434,6 +1473,11 @@ if (typeof module !== 'undefined' && module.exports) {
   // Non-enumerable so Object.keys(module.exports) still returns only model names
   Object.defineProperty(module.exports, 'providerDefaults', {
     value: providerDefaults,
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(module.exports, 'imageGenerationOptions', {
+    value: imageGenerationOptions,
     enumerable: false,
     configurable: true
   });

@@ -459,7 +459,15 @@ class ImageGeneratorGrok < MonadicApp
       return "❌ Image file not found for editing. Please upload an image or generate one first."
     end
 
-    if aspect_ratio && !%w[1:1 16:9 9:16 4:3 3:4].include?(aspect_ratio)
+    # SSOT: imageGenerationOptions.xai.aspect_ratio (same list the MDSL enum
+    # offers), with the literal set as the fallback if the spec is unreadable.
+    allowed_ratios = begin
+      r = Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")
+      r.empty? ? %w[1:1 16:9 9:16 4:3 3:4] : r
+    rescue StandardError
+      %w[1:1 16:9 9:16 4:3 3:4]
+    end
+    if aspect_ratio && !allowed_ratios.include?(aspect_ratio)
       raise ArgumentError, "Invalid aspect_ratio: #{aspect_ratio}. Must be one of: 1:1, 16:9, 9:16, 4:3, 3:4"
     end
 

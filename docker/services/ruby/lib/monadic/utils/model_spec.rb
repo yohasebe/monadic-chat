@@ -405,6 +405,34 @@ module Monadic
           @provider_defaults = {}
         end
 
+        # --- Image generation parameter vocabularies ---
+
+        # What a provider's image generation accepts for one parameter, e.g.
+        # image_options("openai", "size"). MDSL tool definitions call this
+        # instead of listing the values themselves: a copied enum drifts when
+        # the provider's models change and the model then picks a value the API
+        # rejects (the OpenAI tool offered DALL-E sizes for months after DALL-E
+        # was removed). Returns [] when unknown, so a caller that guards on
+        # empty keeps working if the vocabulary is missing.
+        def image_options(provider, parameter)
+          opts = load_image_generation_options
+          entry = opts[normalize_provider_key(provider)]
+          return [] unless entry
+
+          Array(entry[parameter.to_s])
+        end
+
+        def load_image_generation_options
+          return @image_generation_options if @image_generation_options
+
+          js_content = read_model_spec_js
+          @image_generation_options =
+            js_content ? extract_js_object(js_content, "imageGenerationOptions") : {}
+        rescue StandardError => e
+          puts "Warning: Failed to load imageGenerationOptions: #{e.message}"
+          @image_generation_options = {}
+        end
+
         # Get the default model (first in list) for a provider and category
         def get_provider_default(provider, category = "chat")
           models = get_provider_models(provider, category)
@@ -461,6 +489,7 @@ module Monadic
         def reload!
           @spec = nil
           @provider_defaults = nil
+          @image_generation_options = nil
           remove_instance_variable(:@js_content) if defined?(@js_content)
           nil
         end

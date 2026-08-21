@@ -137,8 +137,8 @@ app "ImageGeneratorGrok" do
     define_tool "generate_image_with_grok", "Generate or edit images using xAI's Grok Imagine model." do
       parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: true, enum: ["generate", "edit"]
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: true
-      parameter :aspect_ratio, "string", "Aspect ratio for the image. One of: '1:1' (default), '16:9', '9:16', '4:3', '3:4'.", required: false
-      parameter :image_model, "string", "Image model to use. Omit for the standard model; pass 'grok-imagine-image-2.0' or 'grok-imagine-image-quality' only when the user asks for higher quality (they cost more per image). An unavailable model falls back to the standard one.", required: false, enum: ["grok-imagine-image", "grok-imagine-image-2.0", "grok-imagine-image-quality"]
+      parameter :aspect_ratio, "string", "Aspect ratio for the image (default '1:1').", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")
+      parameter :image_model, "string", "Image model to use. Omit for the standard (cheapest) model; pass a later one only when the user asks for higher quality, since they cost more per image. An unavailable model falls back to the standard one.", required: false, enum: Monadic::Utils::ModelSpec.get_provider_models("xai", "image")
       parameter :images, "array", "Array of image filenames for editing (max 3)", required: false, items: {
         type: "string",
         description: "Image filename"

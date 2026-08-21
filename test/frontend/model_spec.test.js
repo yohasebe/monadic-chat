@@ -33,6 +33,35 @@ describe('Model Specification', () => {
     expect(modelSpec['grok-4.3']).toBeDefined();
   });
 
+  // The vocabularies the image tools' enums are built from. Kept here as well
+  // as in Ruby because both stacks read the same file — a change that breaks
+  // one should break the other.
+  describe('Image generation options', () => {
+    it('offers OpenAI only sizes the API still accepts', () => {
+      const sizes = modelSpec.imageGenerationOptions.openai.size;
+      // 256x256 and 512x512 are below gpt-image-2's minimum pixel budget and
+      // answer 400; they were advertised long after DALL-E was removed.
+      expect(sizes).not.toContain('256x256');
+      expect(sizes).not.toContain('512x512');
+      expect(sizes).toEqual(expect.arrayContaining(['1024x1024', '2048x2048']));
+    });
+
+    it('offers OpenAI only gpt-image-2 quality values', () => {
+      // "standard" and "hd" are DALL-E 3 values.
+      expect(modelSpec.imageGenerationOptions.openai.quality.sort())
+        .toEqual(['auto', 'high', 'low', 'medium']);
+    });
+
+    it('keeps the Gemini image models separate from the Imagen list', () => {
+      const conversational = modelSpec.imageGenerationOptions.gemini.model;
+      expect(conversational).toEqual(['gemini-3.1-flash-image', 'gemini-3-pro-image']);
+      // providerDefaults.gemini.image drives the Imagen path and is a different set.
+      expect(modelSpec.providerDefaults.gemini.image).toEqual(
+        expect.arrayContaining(['imagen-4.0-generate-001'])
+      );
+    });
+  });
+
   describe('DeepSeek Models', () => {
     it('catalogs the vision model as seeing and tool-capable', () => {
       const m = modelSpec['deepseek-v4-flash-vision-exp'];

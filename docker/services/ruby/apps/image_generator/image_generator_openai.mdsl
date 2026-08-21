@@ -70,7 +70,7 @@ app "ImageGeneratorOpenAI" do
 
     PARAMETERS:
     - model: always "gpt-image-2" (the only supported OpenAI image model)
-    - size: 1024x1024 (default), 1536x1024, 1024x1536
+    - size: 1024x1024 (default), 1536x1024, 1024x1536; larger sizes up to 3840x2160 are available but cost proportionally more, so use them only when asked
     - quality: auto (default), high, medium, low (use medium/low for faster, more economical generations)
     - background: auto (default), transparent, opaque
 
@@ -141,12 +141,12 @@ app "ImageGeneratorOpenAI" do
       }
       parameter :mask, "string", "Mask image filename for precise editing control", required: false
       parameter :n, "integer", "Number of images to generate (1-4)", required: false
-      parameter :size, "string", "Image dimensions (validate against model capabilities)", required: false, enum: ["256x256", "512x512", "1024x1024", "1024x1536", "1536x1024", "1792x1024", "1024x1792"]
-      parameter :quality, "string", "Image quality level", required: false, enum: ["standard", "hd", "low", "medium", "high", "auto"]
-      parameter :output_format, "string", "Output image format", required: false, enum: ["png", "webp", "jpeg"]
-      parameter :background, "string", "Background setting (GPT Image models only)", required: false, enum: ["transparent", "opaque", "auto"]
+      parameter :size, "string", "Image dimensions. Larger sizes cost proportionally more.", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "size")
+      parameter :quality, "string", "Image quality level", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "quality")
+      parameter :output_format, "string", "Output image format", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "output_format")
+      parameter :background, "string", "Background setting; transparent requires png or webp", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "background")
       parameter :output_compression, "integer", "Compression level for JPEG/WEBP (1-100, never use with PNG)", required: false
-      parameter :input_fidelity, "string", "How closely to match the original image in edits (GPT Image models only)", required: false, enum: ["high", "low"]
+      parameter :input_fidelity, "string", "How closely to match the original image in edits", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "input_fidelity")
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 

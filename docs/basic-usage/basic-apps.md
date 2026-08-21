@@ -101,7 +101,7 @@ A blank cell in **both** columns indicates an artifact-centric app where the gen
 | Mistral | ✅ | ✅ | ✅ Tavily |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ Native |
-| DeepSeek | ❌ | ✅ | ✅ Tavily |
+| DeepSeek | ✅ | ✅ | ✅ Tavily |
 | Ollama | Model-dependent | Model-dependent | ✅ Tavily |
 
 ## App Categories

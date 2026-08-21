@@ -1121,6 +1121,26 @@ const modelSpec = {
     "reasoning_content": ["disabled", "enabled"],
     "reasoning_effort": ["high", "max"]
   },
+  // DeepSeek's only vision model. The "-exp" is the vendor's own marker for an
+  // experimental release, so it is offered for image input but kept out of the
+  // chat default. Live probe: reads images correctly, calls tools, and honors
+  // the same V4 thinking controls as the text models — which matters, because
+  // it reasons by default and would otherwise spend the whole token budget on
+  // a trace and return empty content. Limits mirror deepseek-v4-flash, its base
+  // model; the vision guide documents only the image limits (JPEG/PNG/GIF/WebP,
+  // user messages only).
+  "deepseek-v4-flash-vision-exp": {
+    "context_window" : [1, 1000000],
+    "max_output_tokens" : [1, 384000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_content": ["disabled", "enabled"],
+    "reasoning_effort": ["high", "max"]
+  },
   // Ollama models (local inference)
   // NOTE: Ollama model capabilities are normally fetched dynamically via
   // /api/ollama/models (see model_loader.js). This static entry exists only
@@ -1388,7 +1408,10 @@ const providerDefaults = {
     "audio_transcription": ["xai-stt"]
   },
   "deepseek": {
-    "chat": ["deepseek-v4-flash", "deepseek-v4-pro"]
+    "chat": ["deepseek-v4-flash", "deepseek-v4-pro"],
+    // Vision only: the model is experimental, so it is reached by attaching an
+    // image (the helper swaps to it) rather than by being a chat default.
+    "vision": ["deepseek-v4-flash-vision-exp"]
   },
   "ollama": {
     "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]

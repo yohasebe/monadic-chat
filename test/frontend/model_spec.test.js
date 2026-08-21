@@ -33,6 +33,23 @@ describe('Model Specification', () => {
     expect(modelSpec['grok-4.3']).toBeDefined();
   });
 
+  describe('DeepSeek Models', () => {
+    it('catalogs the vision model as seeing and tool-capable', () => {
+      const m = modelSpec['deepseek-v4-flash-vision-exp'];
+      expect(m).toBeDefined();
+      expect(m.vision_capability).toBe(true);
+      expect(m.tool_capability).toBe(true);
+      // It reasons by default; the thinking control is what makes it usable.
+      expect(m.reasoning_content).toContain('disabled');
+    });
+
+    it('offers vision without making the experimental model a chat default', () => {
+      const d = modelSpec.providerDefaults.deepseek;
+      expect(d.vision).toEqual(['deepseek-v4-flash-vision-exp']);
+      expect(d.chat).not.toContain('deepseek-v4-flash-vision-exp');
+    });
+  });
+
   describe('xAI Models', () => {
     it('catalogs grok-4.6 with vision and reasoning', () => {
       const m = modelSpec['grok-4.6'];

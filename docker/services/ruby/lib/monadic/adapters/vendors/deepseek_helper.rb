@@ -282,6 +282,7 @@ module DeepSeekHelper
     needs_json_prompt = is_json  # Only json mode needs JSON format, not monadic
 
     system_message_modified = false
+    messages_containing_img = false
     body["messages"] = context.compact.map do |msg|
       if !system_message_modified && msg["role"] == "system"
         system_message_modified = true
@@ -292,7 +293,25 @@ module DeepSeekHelper
         content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if needs_json_prompt
         { "role" => msg["role"], "content" => content }
       else
-        { "role" => msg["role"], "content" => msg["text"] }
+        # Images are attached only to user messages: DeepSeek answers 400 for an
+        # image in a system or assistant message. Non-image attachments (PDFs
+        # arrive in the same array) are skipped — the vision model accepts JPEG,
+        # PNG, GIF and WebP only. Everything else keeps the plain-string content
+        # the text models have always been sent.
+        images = msg["role"] == "user" ? deepseek_supported_images(msg["images"]) : []
+        if images.empty?
+          { "role" => msg["role"], "content" => msg["text"] }
+        else
+          messages_containing_img = true
+          content = [{ "type" => "text", "text" => msg["text"] }]
+          images.each do |img|
+            content << {
+              "type" => "image_url",
+              "image_url" => { "url" => img["data"], "detail" => "high" }
+            }
+          end
+          { "role" => msg["role"], "content" => content }
+        end
       end
     end
 
@@ -303,6 +322,8 @@ module DeepSeekHelper
         "content" => "Please proceed according to your system instructions and introduce yourself."
       }
     end
+
+    switch_to_deepseek_vision_model(body, &block) if messages_containing_img
 
     configure_deepseek_tools(body, app, obj, websearch, session)
 
@@ -315,7 +336,9 @@ module DeepSeekHelper
     if role == "tool"
       body["messages"] += obj["function_returns"]
     elsif role == "user" && !is_initial_greeting
-      body["messages"].last["content"] += "\n\n" + APPS[app].settings["prompt_suffix"] if APPS[app].settings["prompt_suffix"]
+      if (suffix = APPS[app].settings["prompt_suffix"])
+        append_deepseek_prompt_suffix(body["messages"].last, suffix)
+      end
     end
 
     configure_deepseek_reasoning(body, obj, is_json, role)
@@ -678,6 +701,72 @@ module DeepSeekHelper
       body.delete("tools")
       body.delete("tool_choice")
     end
+  end
+
+  # The content is an Array when the message carries images, and `Array += String`
+  # raises — so the suffix goes onto the text part instead of the content itself.
+  def append_deepseek_prompt_suffix(message, suffix)
+    return if message.nil? || suffix.to_s.empty?
+
+    content = message["content"]
+    if content.is_a?(Array)
+      text_part = content.find { |part| part["type"] == "text" }
+      if text_part
+        text_part["text"] = "#{text_part['text']}\n\n#{suffix}"
+      else
+        content.unshift({ "type" => "text", "text" => suffix })
+      end
+    else
+      message["content"] = "#{content}\n\n#{suffix}"
+    end
+    message
+  end
+
+  # DeepSeek's vision model reads JPEG, PNG, GIF and WebP. The attachment array
+  # also carries PDFs, which would 400, so they are dropped here rather than at
+  # the API.
+  DEEPSEEK_IMAGE_TYPES = %w[image/jpeg image/png image/gif image/webp].freeze
+
+  def deepseek_supported_images(images)
+    return [] unless images.is_a?(Array)
+
+    images.select do |img|
+      next false unless img.is_a?(Hash) && img["data"].to_s.start_with?("data:", "http")
+
+      type = img["type"].to_s.downcase
+      # An entry with no declared type is assumed to be an image: that is what
+      # the uploader produces for ordinary image files.
+      type.empty? || DEEPSEEK_IMAGE_TYPES.include?(type)
+    end
+  end
+
+  # Images only work on the vision model, which is NOT the chat default (it is
+  # experimental). Swap for this request when the selected model cannot see,
+  # mirroring the Grok helper's behavior so the user is told what happened.
+  def switch_to_deepseek_vision_model(body, &block)
+    original_model = body["model"]
+    current_vision = begin
+      Monadic::Utils::ModelSpec.get_model_property(original_model, "vision_capability") == true
+    rescue StandardError
+      false
+    end
+    return if current_vision
+
+    vision_model = begin
+      (Monadic::Utils::ModelSpec.get_provider_models("deepseek", "vision") || []).first
+    rescue StandardError
+      nil
+    end
+    return if vision_model.nil? || vision_model == original_model
+
+    body["model"] = vision_model
+    Monadic::Utils::ExtraLogger.log do
+      "[DeepSeek] switched #{original_model} -> #{vision_model} for image input"
+    end
+    block&.call({
+      "type" => "system_info",
+      "content" => "Model automatically switched from #{original_model} to #{vision_model} for image processing capability."
+    })
   end
 
   def configure_deepseek_reasoning(body, obj, is_json, role)

@@ -492,12 +492,19 @@ module ProviderMatrixHelper
       when 'gemini'
         api_key = ENV['GEMINI_API_KEY']
         raise 'GEMINI_API_KEY not set' unless api_key && !api_key.empty?
-        # Use Imagen 4 fast model as default in GeminiHelper
-        model = 'imagen-4.0-fast-generate-001'
-        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:predict?key=#{api_key}")
+        # Imagen 4.0 sunset on 2026-08-17 and its :predict endpoint now 404s, so
+        # this exercises the conversational image model that the app actually
+        # uses. Taken from the SSOT rather than written out, so the next model
+        # change does not leave this helper calling a retired endpoint again.
+        model = begin
+          Monadic::Utils::ModelSpec.default_image_model('gemini')
+        rescue StandardError
+          nil
+        end || 'gemini-3.1-flash-image'
+        uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}")
         body = {
-          instances: [{ prompt: prompt }],
-          parameters: { sampleCount: 1, aspectRatio: '1:1', personGeneration: 'ALLOW_ADULT' }
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: %w[IMAGE] }
         }
         res = request_with_retry do
           http = Net::HTTP.new(uri.host, uri.port)
@@ -512,11 +519,13 @@ module ProviderMatrixHelper
         raise res unless res.is_a?(Net::HTTPResponse)
         raise "HTTP #{res.code}: #{res.body[0,200]}" unless res.is_a?(Net::HTTPSuccess)
         data = JSON.parse(res.body) rescue {}
-        pred = data['predictions']&.first
-        if pred && pred['bytesBase64Encoded']
-          return { bytes: Base64.decode64(pred['bytesBase64Encoded']) }
+        inline = data.dig('candidates', 0, 'content', 'parts')
+                     &.map { |part| part['inlineData'] || part['inline_data'] }
+                     &.compact&.first
+        if inline && inline['data']
+          return { bytes: Base64.decode64(inline['data']) }
         else
-          raise 'Unexpected Imagen response'
+          raise 'Unexpected Gemini image response'
         end
       when 'xai', 'grok'
         api_key = ENV['XAI_API_KEY']

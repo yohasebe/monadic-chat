@@ -691,7 +691,9 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "stt_capability": true,
+    "stt_provider": "gemini"
   },
   "gemini-3.1-pro-preview-customtools": {
     "context_window" : [1048576],
@@ -818,7 +820,8 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-17",
-    "successor": "gemini-3.6-flash"
+    "successor": "gemini-3.6-flash",
+    "stt_provider": "gemini"
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],
@@ -1246,11 +1249,20 @@ const modelSpec = {
   // -------------------------------------------------------------------------
   // STT model metadata (Speech-to-Text capability SSOT)
   //
-  // Entries only exist for models that need a capability flag beyond
-  // "appears in providerDefaults.audio_transcription". Today that means
-  // streaming-capable models — gated by `supports_realtime_streaming`.
-  // The frontend gate (`recording.js`) and the Ruby accessor
-  // (`ModelSpec.supports_realtime_streaming?`) both read this flag.
+  // Entries exist for models that need metadata beyond "appears in
+  // providerDefaults.audio_transcription":
+  //
+  //   stt_provider               which API transcribes this model. The Ruby
+  //                              dispatcher (`stt_api_request`), the frontend
+  //                              gate (`stt-gate.js`) and the transcription
+  //                              agent all read it instead of matching on the
+  //                              model name. Omitted means OpenAI.
+  //   supports_realtime_streaming  eligible for the realtime STT path.
+  //
+  // Model names are not a reliable substitute: `gemini-3.5-transcribe` shares
+  // the `gemini-` prefix with the models handled by `gemini_stt_api_request`
+  // but needs the Interactions API, and prefix matching sends it to a path
+  // that returns an empty transcript with no error.
   // -------------------------------------------------------------------------
   "gpt-realtime-whisper": {
     "stt_capability": true,
@@ -1298,6 +1310,26 @@ const modelSpec = {
     "sts_provider": "xai",
     "sts_tools_capability": true,
     "sts_voice": "eve",
+  "scribe_v2": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
+  },
+  "scribe_v1_experimental": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
+  },
+  "cohere-transcribe-03-2026": {
+    "stt_capability": true,
+    "stt_provider": "cohere"
+  },
+  "voxtral-mini-transcribe-2507": {
+    "stt_capability": true,
+    "stt_provider": "mistral"
+  },
+  "xai-stt": {
+    "stt_capability": true,
+    "stt_provider": "xai"
+  },
     "sts_voices": ["ara", "rex", "sal", "eve", "leo",
                    "carina", "zagan", "helix", "orion", "luna", "iris", "altair",
                    "zenith", "perseus", "helios", "lux", "kepler", "rigel", "cosmo",

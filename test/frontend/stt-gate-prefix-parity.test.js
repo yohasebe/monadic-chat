@@ -3,13 +3,17 @@
  *
  * The realtime STT path is OpenAI-only. stt-gate.js keeps a denylist
  * (NON_OPENAI_STT_PREFIXES) of provider prefixes that must NEVER be routed to
- * the realtime WebSocket — it is the negation of the batch router in
- * stt_utils.rb, which routes each `model.start_with?("<prefix>")` to that
- * provider's own batch endpoint.
+ * the realtime WebSocket — it is the negation of the Ruby name fallback in
+ * model_spec.rb (`stt_provider_from_name`), which maps each
+ * `model.start_with?("<prefix>")` to that provider's own batch endpoint.
  *
- * These two lists live in different files AND different languages, so they can
- * silently drift: add a new non-OpenAI STT provider to the Ruby batch router
- * but forget the JS gate, and selecting that model with a stale
+ * Both lists are fallbacks: a model declaring `stt_provider` in model_spec.js
+ * is routed by that declaration on either side, and the names are consulted
+ * only for models with no declaration. The fallbacks still have to agree.
+ *
+ * They live in different files AND different languages, so they can silently
+ * drift: add a new non-OpenAI STT provider to the Ruby fallback but forget the
+ * JS gate, and selecting an undeclared model of that provider with a stale
  * `localStorage.stt_realtime='1'` back door would send its model value to
  * OpenAI's realtime endpoint → the exact "Realtime STT: Invalid value" bug this
  * guard exists to prevent, now for a brand-new provider. Lock them together.
@@ -20,7 +24,7 @@ const path = require('path');
 
 const REPO_ROOT = path.join(__dirname, '..', '..');
 const STT_GATE = path.join(REPO_ROOT, 'docker/services/ruby/public/js/monadic/stt-gate.js');
-const STT_UTILS = path.join(REPO_ROOT, 'docker/services/ruby/lib/monadic/utils/stt_utils.rb');
+const STT_NAME_FALLBACK = path.join(REPO_ROOT, 'docker/services/ruby/lib/monadic/utils/model_spec.rb');
 
 function gateDenylistPrefixes() {
   const src = fs.readFileSync(STT_GATE, 'utf8');
@@ -36,10 +40,10 @@ function gateDenylistPrefixes() {
 }
 
 function batchRouterPrefixes() {
-  const src = fs.readFileSync(STT_UTILS, 'utf8');
+  const src = fs.readFileSync(STT_NAME_FALLBACK, 'utf8');
   const prefixes = [];
-  // Match every `model.start_with?("<prefix>")` — in stt_utils.rb these are
-  // exclusively the non-OpenAI provider routing checks in the batch router.
+  // Match every `model.start_with?("<prefix>")` — in model_spec.rb these are
+  // exclusively the non-OpenAI provider checks in stt_provider_from_name.
   const re = /model\.start_with\?\(\s*['"]([^'"]+)['"]\s*\)/g;
   let hit;
   while ((hit = re.exec(src)) !== null) {

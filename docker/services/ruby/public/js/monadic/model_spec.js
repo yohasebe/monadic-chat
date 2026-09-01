@@ -343,13 +343,45 @@ const modelSpec = {
     "supports_pdf_upload": false
   },
   // Anthropic models
-  // Fable 5 is Anthropic's top tier (above Opus). Same API contract as Opus
+  // Fable is Anthropic's top tier (above Opus). Same API contract as Opus
   // 4.7/4.8 — adaptive thinking only, rejects sampling params, effort
-  // [low..max]. The one Fable-5-specific breaking change (an explicit
-  // thinking {type:"disabled"} returns 400) needs no handling here: the Claude
-  // helper omits the thinking param entirely when reasoning is off rather than
-  // sending "disabled". Premium-priced ($10/$50 per MTok, 2x Opus) so it stays
-  // out of providerDefaults — opt-in via the model dropdown only.
+  // [low..max]. Premium-priced ($10/$50 per MTok, 2x Opus) so both Fable
+  // models stay out of providerDefaults — opt-in via the model dropdown only.
+  //
+  // Fable 5.1 succeeds Fable 5 at the same price. Two flags drive its
+  // differences, both verified live on 2026-09-02 (Fable 5 has neither):
+  //   rejects_forced_tool_choice  tool_choice "any"/"tool" return 400
+  //   thinking_block_binding      a thinking block is bound to the prefix
+  //                               that produced it, so replaying one after
+  //                               system/tools/messages changed is a 400
+  // Fable 5 stays selectable; Anthropic has announced no sunset.
+  "claude-fable-5-1": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "rejects_forced_tool_choice": true,
+    "thinking_block_binding": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": [],
+    "unavailable_fallback": "claude-opus-5"
+  },
   "claude-fable-5": {
     "context_window" : [1, 1000000],
     "api_version": "2023-06-01",
@@ -621,7 +653,9 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "stt_capability": true,
+    "stt_provider": "gemini"
   },
   // Stable alias of the gemini-3-flash-preview line. Superseded by
   // gemini-3.6-flash (default since beta.29); kept for pinned sessions.
@@ -691,9 +725,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true,
-    "stt_capability": true,
-    "stt_provider": "gemini"
+    "supports_pdf": true
   },
   "gemini-3.1-pro-preview-customtools": {
     "context_window" : [1048576],
@@ -1268,6 +1300,26 @@ const modelSpec = {
     "stt_capability": true,
     "supports_realtime_streaming": true
   },
+  "scribe_v2": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
+  },
+  "scribe_v1_experimental": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
+  },
+  "cohere-transcribe-03-2026": {
+    "stt_capability": true,
+    "stt_provider": "cohere"
+  },
+  "voxtral-mini-transcribe-2507": {
+    "stt_capability": true,
+    "stt_provider": "mistral"
+  },
+  "xai-stt": {
+    "stt_capability": true,
+    "stt_provider": "xai"
+  },
 
   // -------------------------------------------------------------------------
   // STS model metadata (Speech-to-Speech realtime capability SSOT)
@@ -1310,26 +1362,6 @@ const modelSpec = {
     "sts_provider": "xai",
     "sts_tools_capability": true,
     "sts_voice": "eve",
-  "scribe_v2": {
-    "stt_capability": true,
-    "stt_provider": "elevenlabs"
-  },
-  "scribe_v1_experimental": {
-    "stt_capability": true,
-    "stt_provider": "elevenlabs"
-  },
-  "cohere-transcribe-03-2026": {
-    "stt_capability": true,
-    "stt_provider": "cohere"
-  },
-  "voxtral-mini-transcribe-2507": {
-    "stt_capability": true,
-    "stt_provider": "mistral"
-  },
-  "xai-stt": {
-    "stt_capability": true,
-    "stt_provider": "xai"
-  },
     "sts_voices": ["ara", "rex", "sal", "eve", "leo",
                    "carina", "zagan", "helix", "orion", "luna", "iris", "altair",
                    "zenith", "perseus", "helios", "lux", "kepler", "rigel", "cosmo",

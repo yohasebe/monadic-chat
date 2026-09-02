@@ -1300,6 +1300,50 @@ const modelSpec = {
     "stt_capability": true,
     "supports_realtime_streaming": true
   },
+  // OpenAI retires whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe and
+  // gpt-4o-transcribe-diarize on 2027-02-26 (announced 2026-08-26); all four
+  // were still live on 2026-09-02. gpt-transcribe replaces the first three on
+  // /v1/audio/transcriptions — verified to accept response_format "json" with
+  // logprobs and a language hint, which is everything this codebase asks of
+  // them. It does NOT accept "diarized_json", and gpt-live-transcribe has no
+  // batch endpoint at all, so speaker diarization has no successor yet: the
+  // diarize entry below carries the sunset date without one, and stays
+  // selectable until a replacement exists.
+  "gpt-transcribe": {
+    "stt_capability": true
+  },
+  // Streaming counterpart of gpt-transcribe. Accepted by realtime sessions
+  // only ("Invalid URL" on /v1/audio/transcriptions), so it is not offered in
+  // the batch selector.
+  "gpt-live-transcribe": {
+    "stt_capability": true,
+    "supports_realtime_streaming": true
+  },
+  "gpt-4o-mini-transcribe-2025-12-15": {
+    "stt_capability": true,
+    "deprecated": true,
+    "sunset_date": "2027-02-26",
+    "successor": "gpt-transcribe"
+  },
+  "gpt-4o-transcribe": {
+    "stt_capability": true,
+    "deprecated": true,
+    "sunset_date": "2027-02-26",
+    "successor": "gpt-transcribe"
+  },
+  "whisper-1": {
+    "stt_capability": true,
+    "deprecated": true,
+    "sunset_date": "2027-02-26",
+    "successor": "gpt-transcribe"
+  },
+  // No successor: gpt-transcribe rejects diarized_json and gpt-live-transcribe
+  // has no batch endpoint. Left un-deprecated so it stays selectable — hiding
+  // it would remove speaker diarization with nothing to migrate to.
+  "gpt-4o-transcribe-diarize": {
+    "stt_capability": true,
+    "sunset_date": "2027-02-26"
+  },
   "scribe_v2": {
     "stt_capability": true,
     "stt_provider": "elevenlabs"
@@ -1426,7 +1470,7 @@ const providerDefaults = {
     "chat": ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
     "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
     "vision": ["gpt-5.6-luna", "gpt-5.4-mini"],
-    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
+    "audio_transcription": ["gpt-transcribe"],
     "image": ["gpt-image-2"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },

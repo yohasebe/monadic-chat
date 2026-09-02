@@ -15,12 +15,17 @@ RSpec.describe 'STT provider routing' do
 
   # The models offered by the Speech-to-Text selector in views/index.erb.
   # Read from the view so the list cannot drift away from what users see.
-  def self.dropdown_stt_models
+  def self.stt_select_options
     view = File.expand_path('../../../views/index.erb', __dir__)
     section = File.read(view)[/<select[^>]*id="stt-model".*?<\/select>/m]
     raise 'stt-model select not found in views/index.erb' unless section
 
-    section.scan(/<option[^>]*value="([^"]+)"/).flatten.reject(&:empty?)
+    section.scan(/<option[^>]*id="([^"]+)"[^>]*value="([^"]+)"/)
+           .reject { |_id, value| value.empty? }
+  end
+
+  def self.dropdown_stt_models
+    stt_select_options.map(&:last)
   end
 
   describe 'every model in the Speech-to-Text selector' do
@@ -38,6 +43,48 @@ RSpec.describe 'STT provider routing' do
         expect(InteractionUtils::STT_PROVIDER_REQUEST_METHODS).to have_key(provider),
           "#{model} declares stt_provider #{provider.inspect}, which no request method serves. " \
           'Add it to InteractionUtils::STT_PROVIDER_REQUEST_METHODS.'
+      end
+    end
+  end
+
+  # Every option in the selector ships `disabled` and is enabled per verified
+  # API key by id, from three lists in ws-connection-handler.js. The lists are
+  # written out by hand, so an option added or renamed in the view is simply
+  # never enabled — the model becomes unselectable with no error anywhere.
+  # (That is what happened when gpt-transcribe replaced the retired
+  # gpt-4o-* entries.) Lock the OpenAI lists to the view.
+  describe 'the OpenAI option ids in ws-connection-handler.js' do
+    openai_option_ids = stt_select_options
+                        .select { |_id, value| MS.stt_provider(value) == 'openai' }
+                        .map(&:first)
+
+    let(:id_lists) do
+      js = File.read(File.expand_path('../../../public/js/monadic/ws-connection-handler.js', __dir__))
+      js.scan(/\[((?:\s*"openai-stt-[^"]+",?)+)\]/).flatten
+        .map { |list| list.scan(/"([^"]+)"/).flatten }
+    end
+
+    it 'finds the three enable/disable lists' do
+      expect(id_lists.size).to eq(3)
+    end
+
+    openai_option_ids.each do |option_id|
+      it "covers #{option_id} in every list" do
+        id_lists.each_with_index do |list, i|
+          expect(list).to include(option_id),
+            "list #{i + 1} in ws-connection-handler.js omits #{option_id}, so that option " \
+            'stays disabled even when the OpenAI key is verified.'
+        end
+      end
+    end
+
+    all_option_ids = stt_select_options.map(&:first)
+
+    it 'names no id the selector does not have' do
+      all_ids = all_option_ids
+      id_lists.flatten.uniq.each do |listed|
+        expect(all_ids).to include(listed),
+          "ws-connection-handler.js enables #{listed}, which views/index.erb no longer defines."
       end
     end
   end

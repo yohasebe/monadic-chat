@@ -121,7 +121,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_audio_model returns the audio_transcription default' do
-      expect(described_class.default_audio_model("openai")).to eq("gpt-4o-mini-transcribe-2025-12-15")
+      expect(described_class.default_audio_model("openai")).to eq("gpt-transcribe")
     end
 
     it '.default_image_model returns the image default' do

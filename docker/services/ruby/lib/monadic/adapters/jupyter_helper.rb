@@ -919,8 +919,8 @@ module MonadicHelper
     # Ensure filename has .ipynb extension
     filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
     
-    # Resolve to the per-environment shared volume so users on dev mode
-    # whose home dir is not /Users/yohasebe can still restart kernels.
+    # Resolve to the per-environment shared volume so dev-mode users can
+    # restart kernels whatever their home directory is.
     shared_volume = Monadic::Utils::Environment.data_path
     full_path = File.join(shared_volume, filename_with_ext)
     

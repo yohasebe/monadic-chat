@@ -60,6 +60,20 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(Monadic::Utils::ModelSpec.thinking_display_default_omitted?("claude-fable-5")).to be true
     end
 
+    # Fable 5.1 keeps the Fable 5 contract and adds two restrictions the
+    # helper must honor: forced tool_choice is a 400, and replayed thinking
+    # blocks are bound to their prefix. Fable 5 has neither.
+    it "detects the Fable 5.1 contract and its two additions" do
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-fable-5-1")).to be true
+      expect(Monadic::Utils::ModelSpec.rejects_sampling_params?("claude-fable-5-1")).to be true
+      expect(Monadic::Utils::ModelSpec.thinking_display_default_omitted?("claude-fable-5-1")).to be true
+      expect(Monadic::Utils::ModelSpec.rejects_forced_tool_choice?("claude-fable-5-1")).to be true
+      expect(Monadic::Utils::ModelSpec.thinking_block_binding?("claude-fable-5-1")).to be true
+
+      expect(Monadic::Utils::ModelSpec.rejects_forced_tool_choice?("claude-fable-5")).to be false
+      expect(Monadic::Utils::ModelSpec.thinking_block_binding?("claude-fable-5")).to be false
+    end
+
     it "returns false for adaptive thinking on older Claude models" do
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-haiku-4-5-20251001")).to be false
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-sonnet-4-5-20250929")).to be false

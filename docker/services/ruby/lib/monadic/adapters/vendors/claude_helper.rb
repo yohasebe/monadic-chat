@@ -435,6 +435,23 @@ module ClaudeHelper
     system_prompts
   end
 
+  # Log thinking blocks the API dropped from the replayed history (Claude Fable
+  # 5.1 block binding). Nothing to do when the field is absent (no beta) or
+  # empty (history intact). Entries with an unfamiliar type or reason are
+  # logged as-is: later checks add values.
+  private def log_claude_input_transformations(transformations)
+    return unless transformations.is_a?(Array) && !transformations.empty?
+
+    Monadic::Utils::ExtraLogger.log do
+      lines = transformations.map do |t|
+        next t.inspect unless t.is_a?(Hash)
+
+        "#{t["type"]} at #{t["path"]} (#{t["reason"]})"
+      end
+      "[Claude] input_transformations: #{lines.join("; ")}"
+    end
+  end
+
   # Configure thinking mode parameters (budget_tokens, adaptive effort, max_tokens).
   # Returns a config hash: { thinking_enabled, budget_tokens, adaptive_effort, max_tokens }.
   private def configure_claude_thinking(obj, model, user_max_tokens, app)
@@ -562,6 +579,11 @@ module ClaudeHelper
     # previous cache-invalidating behavior — no breakage, just lost savings.
     beta_flags << "mid-conversation-tool-changes-2026-07-01"
 
+    # Thinking block binding (Claude Fable 5.1). The header is what permits
+    # `thinking.block_binding` in the body (set below) and adds
+    # `input_transformations` to responses so dropped blocks are visible.
+    beta_flags << "thinking-binding-controls-2026-08-01" if Monadic::Utils::ModelSpec.thinking_block_binding?(model)
+
     beta_flags.uniq!
     headers["anthropic-beta"] = beta_flags.join(",") if beta_flags.any?
 
@@ -649,6 +671,18 @@ module ClaudeHelper
     else
       body["temperature"] = temperature if temperature && !rejects_sampling
       body["max_tokens"] = thinking_config[:max_tokens] if thinking_config[:max_tokens]
+    end
+
+    # Thinking block binding: a replayed thinking block is rejected once the
+    # system prompt, tools or earlier messages changed under it. Reachable
+    # here because a dynamically loaded skill rewrites `tools` inside a turn's
+    # tool loop, which replays those blocks. "drop_block" degrades to a
+    # dropped block instead of a 400; set explicitly because the default
+    # differs by account age. Thinking is always on for these models, so the
+    # added {type: "adaptive"} changes nothing else.
+    if Monadic::Utils::ModelSpec.thinking_block_binding?(model)
+      body["thinking"] ||= { "type" => "adaptive" }
+      body["thinking"]["block_binding"] = { "prefix_mismatch_behavior" => "drop_block" }
     end
 
     # Skills container
@@ -881,7 +915,15 @@ module ClaudeHelper
             body["tool_choice"] = { "type" => "auto", "disable_parallel_tool_use" => true }
           end
         elsif tool_capable || has_websearch
-          tool_choice_value = { "type" => "any" }
+          # Forced tool use ("any") is a 400 on models that declare
+          # rejects_forced_tool_choice (Claude Fable 5.1). Those models think
+          # before every response, so "auto" plus the tool instructions in the
+          # system prompt is the documented replacement. This branch is
+          # reached on such a model only when the helper's own thinking flag
+          # is off (monadic structured outputs, effort "none"); the model
+          # thinks regardless.
+          forced = Monadic::Utils::ModelSpec.rejects_forced_tool_choice?(body["model"]) ? "auto" : "any"
+          tool_choice_value = { "type" => forced }
           # When the Advisor Tool is enabled, disable parallel tool use so the
           # advisor's guidance can influence the next decision rather than
           # racing in parallel with tool calls whose results it cannot see.
@@ -1317,6 +1359,13 @@ module ClaudeHelper
                 usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
                 usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
               end
+              # Present only under the thinking-binding-controls beta. A
+              # non-empty array means the API dropped replayed thinking blocks:
+              # "prefix_binding_mismatch" says the history changed under them
+              # (a tools rewrite mid tool-loop, an edited turn), and
+              # "model_binding_mismatch" says the conversation switched models.
+              # Logged so the three-step migration check has something to read.
+              log_claude_input_transformations(json.dig("message", "input_transformations"))
             elsif json.dig("type") == "message_delta"
               usage = json["usage"]
               if usage

@@ -79,7 +79,7 @@ app "VideoDescriberApp" do
   end
 
   agents do
-    speech_to_text model: "gpt-4o-mini-transcribe-2025-12-15"
+    speech_to_text model: "gpt-transcribe"
   end
 
   display_name "Video Describer"

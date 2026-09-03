@@ -52,13 +52,17 @@ describe('Model Specification', () => {
         .toEqual(['auto', 'high', 'low', 'medium']);
     });
 
-    it('keeps the Gemini image models separate from the Imagen list', () => {
+    it('offers no Gemini image model that the API has retired', () => {
+      // Imagen 4.0 sunset on 2026-08-17 and is gone from the live model list,
+      // so both the tool's enum and providerDefaults carry only the
+      // conversational image models. They coincide today; they are separate
+      // keys because the Imagen path uses a different endpoint shape and may
+      // diverge again if a future Imagen ships.
       const conversational = modelSpec.imageGenerationOptions.gemini.model;
       expect(conversational).toEqual(['gemini-3.1-flash-image', 'gemini-3-pro-image']);
-      // providerDefaults.gemini.image drives the Imagen path and is a different set.
-      expect(modelSpec.providerDefaults.gemini.image).toEqual(
-        expect.arrayContaining(['imagen-4.0-generate-001'])
-      );
+      modelSpec.providerDefaults.gemini.image.forEach((id) => {
+        expect(id).not.toMatch(/^imagen-/);
+      });
     });
   });
 

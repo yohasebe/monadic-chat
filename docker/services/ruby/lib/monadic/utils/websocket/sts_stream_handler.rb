@@ -57,7 +57,10 @@ module WebSocketHelper
   # Input-side transcription runs on a dedicated transcribe model so the
   # user transcript (stt_partial / stt) streams independently of the
   # speech-to-speech model's own output.
-  REALTIME_STS_TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
+  # gpt-4o-transcribe is retired on 2027-02-26. gpt-transcribe is the
+  # documented replacement for final transcripts of committed realtime turns,
+  # and a realtime session accepts it in this slot (live-probed 2026-09-02).
+  REALTIME_STS_TRANSCRIPTION_MODEL = "gpt-transcribe"
   REALTIME_STS_COMMIT_TIMEOUT = 15 # seconds — bound the wait for session.updated
   REALTIME_STS_SAMPLE_RATE = 24_000
 

@@ -4080,8 +4080,20 @@ document.addEventListener("DOMContentLoaded", function () {
   window.originalParams = {};
   resetParams();
 
-  // Restore STT model from cookie
-  const savedSTTModel = getCookie("stt-model");
+  // Restore STT model from cookie. The cookie lives for 30 days, so it can
+  // name a model that has since been deprecated and dropped from the list —
+  // assigning it would leave the select on its placeholder. Migrate through
+  // the successor first, the same way saved sessions do.
+  const savedSTTModel = (function() {
+    const saved = getCookie("stt-model");
+    if (!saved) return saved;
+    if (typeof isModelDeprecated !== "function" || !isModelDeprecated(saved)) return saved;
+    const successor = typeof getModelSuccessor === "function" ? getModelSuccessor(saved) : null;
+    if (!successor) return saved;
+    console.warn(`[STT] Model "${saved}" is deprecated, migrating to successor "${successor}"`);
+    setCookie("stt-model", successor, 30);
+    return successor;
+  })();
   if (savedSTTModel) {
     { const el = $id("stt-model"); if (el) el.value = savedSTTModel; }
     params["stt_model"] = savedSTTModel;

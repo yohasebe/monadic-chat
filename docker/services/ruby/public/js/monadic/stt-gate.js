@@ -10,12 +10,11 @@
  *
  * Realtime STT is an OpenAI-only WebSocket transcription path. Its
  * endpoint rejects any non-OpenAI model value (e.g. ElevenLabs
- * "scribe_v2" → 400 "Invalid value"). Non-OpenAI STT models are
- * identified by the same provider-routing prefixes the batch router
- * uses (stt_utils.rb: gemini-/scribe/cohere-transcribe/voxtral/xai-stt)
- * and must ALWAYS use the batch path — never realtime, not even via the
- * debug back door. Batch STT routes by provider, so every TTS/STT
- * combination works as long as the provider's API key is present.
+ * "scribe_v2" → 400 "Invalid value"), so a model belonging to another
+ * provider must ALWAYS use the batch path — never realtime, not even
+ * via the debug back door. Which provider owns a model comes from its
+ * `stt_provider` declaration in model_spec.js, the same source the Ruby
+ * batch router reads.
  *
  * Decision policy (single source of truth):
  *   0. If the selected STT model is not an OpenAI STT model, return
@@ -34,14 +33,20 @@
 (function() {
 'use strict';
 
-// Provider-routing prefixes for NON-OpenAI STT models. Mirrors the
-// batch router in stt_utils.rb. A model matching any of these is served
-// by its own provider's batch endpoint and can never use the
-// OpenAI-only realtime WebSocket path.
+// Provider-routing prefixes for NON-OpenAI STT models. Used only for models
+// that carry no `stt_provider` declaration in model_spec.js — a user-defined
+// model, or a provider variant selected before its catalog entry lands. Kept
+// in step with the Ruby fallback (`ModelSpec.stt_provider_from_name`) by
+// test/frontend/stt-gate-prefix-parity.test.js.
 const NON_OPENAI_STT_PREFIXES = ['gemini-', 'scribe', 'cohere-transcribe', 'voxtral', 'xai-stt'];
 
+// A declaration in model_spec.js wins over the model's name; see the STT
+// metadata section there for why the name alone cannot decide this.
 function isOpenAiSttModel(model) {
   if (!model) return false;
+  const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[model] : null;
+  const declared = spec && spec.stt_provider;
+  if (typeof declared === 'string' && declared) return declared === 'openai';
   return !NON_OPENAI_STT_PREFIXES.some(function(prefix) { return model.indexOf(prefix) === 0; });
 }
 

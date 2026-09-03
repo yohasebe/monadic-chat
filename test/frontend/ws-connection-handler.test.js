@@ -25,10 +25,9 @@ beforeEach(() => {
   createDOMElement('option', 'openai-tts-4o');
   createDOMElement('option', 'openai-tts');
   createDOMElement('option', 'openai-tts-hd');
-  createDOMElement('option', 'openai-stt-4o-mini');
-  createDOMElement('option', 'openai-stt-4o');
+  createDOMElement('option', 'openai-stt-transcribe');
   createDOMElement('option', 'openai-stt-4o-diarize');
-  createDOMElement('option', 'openai-stt-whisper');
+  createDOMElement('option', 'openai-stt-realtime-whisper');
 
   // stt-model select with options
   const sttModel = createDOMElement('select', 'stt-model');
@@ -102,13 +101,13 @@ describe('ws-connection-handler', () => {
     });
 
     it('enables OpenAI STT models', () => {
-      document.getElementById('openai-stt-4o-mini').disabled = true;
-      document.getElementById('openai-stt-4o').disabled = true;
+      document.getElementById('openai-stt-transcribe').disabled = true;
+      document.getElementById('openai-stt-4o-diarize').disabled = true;
 
       handlers.handleTokenVerified({ token: 'sk-test', ai_user_initial_prompt: '' });
 
-      expect(document.getElementById('openai-stt-4o-mini').disabled).toBe(false);
-      expect(document.getElementById('openai-stt-4o').disabled).toBe(false);
+      expect(document.getElementById('openai-stt-transcribe').disabled).toBe(false);
+      expect(document.getElementById('openai-stt-4o-diarize').disabled).toBe(false);
     });
 
     it('sets default STT model from providerDefaults', () => {
@@ -157,8 +156,8 @@ describe('ws-connection-handler', () => {
     it('disables OpenAI STT models', () => {
       handlers.handleOpenAIAPIError({});
 
-      expect(document.getElementById('openai-stt-4o').disabled).toBe(true);
-      expect(document.getElementById('openai-stt-whisper').disabled).toBe(true);
+      expect(document.getElementById('openai-stt-transcribe').disabled).toBe(true);
+      expect(document.getElementById('openai-stt-4o-diarize').disabled).toBe(true);
     });
 
     it('shows cannot connect warning', () => {
@@ -187,7 +186,7 @@ describe('ws-connection-handler', () => {
       handlers.handleTokenNotVerified({});
 
       expect(document.getElementById('openai-tts-4o').disabled).toBe(true);
-      expect(document.getElementById('openai-stt-4o-mini').disabled).toBe(true);
+      expect(document.getElementById('openai-stt-transcribe').disabled).toBe(true);
     });
 
     it('shows token not set warning', () => {

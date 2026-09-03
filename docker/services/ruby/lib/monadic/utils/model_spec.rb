@@ -188,6 +188,32 @@ module Monadic
           get_model_property(model_name, "supports_realtime_streaming") == true
         end
 
+        # Which provider API transcribes this STT model, from the
+        # `stt_provider` declaration in model_spec.js (which documents why the
+        # model name is not a usable substitute). Falls back to the name, then
+        # to "openai".
+        def stt_provider(model_name)
+          declared = get_model_property(model_name, "stt_provider")
+          return declared.to_s if declared.is_a?(String) && !declared.empty?
+
+          stt_provider_from_name(model_name)
+        end
+
+        # Fallback for a model with no declaration: a user-defined entry in
+        # ~/monadic/config/models.json, or a provider variant selected before
+        # its catalog entry lands. Locked to the frontend gate's copy by
+        # test/frontend/stt-gate-prefix-parity.test.js.
+        def stt_provider_from_name(model_name)
+          model = model_name.to_s
+          return "gemini" if model.start_with?("gemini-")
+          return "elevenlabs" if model.start_with?("scribe")
+          return "cohere" if model.start_with?("cohere-transcribe")
+          return "mistral" if model.start_with?("voxtral")
+          return "xai" if model.start_with?("xai-stt")
+
+          "openai"
+        end
+
         # True when the model runs a full speech-to-speech (STS) session over
         # a provider realtime API (OpenAI Realtime / xAI Realtime). Gates the
         # STS path so realtime-only models are never routed through the
@@ -297,6 +323,22 @@ module Monadic
         # Currently applies to Claude Opus 4.7+.
         def thinking_display_default_omitted?(model_name)
           get_model_property(model_name, "thinking_display_default_omitted") == true
+        end
+
+        # True when the model returns 400 on a forced tool_choice ("any" or
+        # "tool"). Claude Fable 5.1 introduced this; the helper sends "auto"
+        # instead and relies on the prompt to steer tool use.
+        def rejects_forced_tool_choice?(model_name)
+          get_model_property(model_name, "rejects_forced_tool_choice") == true
+        end
+
+        # True when the model binds each thinking block to the exact request
+        # prefix that produced it and rejects a replay after that prefix
+        # changed (Claude Fable 5.1). The helper opts such models into
+        # "drop_block" under the thinking-binding-controls beta so a changed
+        # prefix degrades to a dropped block instead of a 400.
+        def thinking_block_binding?(model_name)
+          get_model_property(model_name, "thinking_block_binding") == true
         end
 
         def supports_thinking_level?(model_name)

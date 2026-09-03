@@ -204,8 +204,11 @@ RSpec.describe "WebSocketHelper STS bridge" do
       expect(audio_in[:turn_detection]).to eq({ type: "server_vad" })
     end
 
-    it "enables input audio transcription with gpt-4o-transcribe" do
-      expect(session_cfg[:audio][:input][:transcription][:model]).to eq("gpt-4o-transcribe")
+    # gpt-4o-transcribe is retired on 2027-02-26; gpt-transcribe is the
+    # documented replacement for final transcripts of committed realtime
+    # turns, and the realtime session accepts it (live-probed 2026-09-02).
+    it "enables input audio transcription with gpt-transcribe" do
+      expect(session_cfg[:audio][:input][:transcription][:model]).to eq("gpt-transcribe")
     end
 
     it "pins output audio to audio/pcm @ 24kHz and carries the voice" do

@@ -343,13 +343,45 @@ const modelSpec = {
     "supports_pdf_upload": false
   },
   // Anthropic models
-  // Fable 5 is Anthropic's top tier (above Opus). Same API contract as Opus
+  // Fable is Anthropic's top tier (above Opus). Same API contract as Opus
   // 4.7/4.8 — adaptive thinking only, rejects sampling params, effort
-  // [low..max]. The one Fable-5-specific breaking change (an explicit
-  // thinking {type:"disabled"} returns 400) needs no handling here: the Claude
-  // helper omits the thinking param entirely when reasoning is off rather than
-  // sending "disabled". Premium-priced ($10/$50 per MTok, 2x Opus) so it stays
-  // out of providerDefaults — opt-in via the model dropdown only.
+  // [low..max]. Premium-priced ($10/$50 per MTok, 2x Opus) so both Fable
+  // models stay out of providerDefaults — opt-in via the model dropdown only.
+  //
+  // Fable 5.1 succeeds Fable 5 at the same price. Two flags drive its
+  // differences, both verified live on 2026-09-02 (Fable 5 has neither):
+  //   rejects_forced_tool_choice  tool_choice "any"/"tool" return 400
+  //   thinking_block_binding      a thinking block is bound to the prefix
+  //                               that produced it, so replaying one after
+  //                               system/tools/messages changed is a 400
+  // Fable 5 stays selectable; Anthropic has announced no sunset.
+  "claude-fable-5-1": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "rejects_forced_tool_choice": true,
+    "thinking_block_binding": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": [],
+    "unavailable_fallback": "claude-opus-5"
+  },
   "claude-fable-5": {
     "context_window" : [1, 1000000],
     "api_version": "2023-06-01",
@@ -621,7 +653,9 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "stt_capability": true,
+    "stt_provider": "gemini"
   },
   // Stable alias of the gemini-3-flash-preview line. Superseded by
   // gemini-3.6-flash (default since beta.29); kept for pinned sessions.
@@ -818,7 +852,8 @@ const modelSpec = {
     "supports_pdf": true,
     "deprecated": true,
     "sunset_date": "2026-06-17",
-    "successor": "gemini-3.6-flash"
+    "successor": "gemini-3.6-flash",
+    "stt_provider": "gemini"
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],
@@ -1246,15 +1281,88 @@ const modelSpec = {
   // -------------------------------------------------------------------------
   // STT model metadata (Speech-to-Text capability SSOT)
   //
-  // Entries only exist for models that need a capability flag beyond
-  // "appears in providerDefaults.audio_transcription". Today that means
-  // streaming-capable models — gated by `supports_realtime_streaming`.
-  // The frontend gate (`recording.js`) and the Ruby accessor
-  // (`ModelSpec.supports_realtime_streaming?`) both read this flag.
+  // Entries exist for models that need metadata beyond "appears in
+  // providerDefaults.audio_transcription":
+  //
+  //   stt_provider               which API transcribes this model. The Ruby
+  //                              dispatcher (`stt_api_request`), the frontend
+  //                              gate (`stt-gate.js`) and the transcription
+  //                              agent all read it instead of matching on the
+  //                              model name. Omitted means OpenAI.
+  //   supports_realtime_streaming  eligible for the realtime STT path.
+  //
+  // Model names are not a reliable substitute: `gemini-3.5-transcribe` shares
+  // the `gemini-` prefix with the models handled by `gemini_stt_api_request`
+  // but needs the Interactions API, and prefix matching sends it to a path
+  // that returns an empty transcript with no error.
   // -------------------------------------------------------------------------
   "gpt-realtime-whisper": {
     "stt_capability": true,
     "supports_realtime_streaming": true
+  },
+  // OpenAI retires whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe and
+  // gpt-4o-transcribe-diarize on 2027-02-26 (announced 2026-08-26); all four
+  // were still live on 2026-09-02. gpt-transcribe replaces the first three on
+  // /v1/audio/transcriptions — verified to accept response_format "json" with
+  // logprobs and a language hint, which is everything this codebase asks of
+  // them. It does NOT accept "diarized_json", and gpt-live-transcribe has no
+  // batch endpoint at all, so speaker diarization has no successor yet: the
+  // diarize entry below carries the sunset date without one, and stays
+  // selectable until a replacement exists.
+  "gpt-transcribe": {
+    "stt_capability": true
+  },
+  // Streaming counterpart of gpt-transcribe. Accepted by realtime sessions
+  // only ("Invalid URL" on /v1/audio/transcriptions), so it is not offered in
+  // the batch selector.
+  "gpt-live-transcribe": {
+    "stt_capability": true,
+    "supports_realtime_streaming": true
+  },
+  "gpt-4o-mini-transcribe-2025-12-15": {
+    "stt_capability": true,
+    "deprecated": true,
+    "sunset_date": "2027-02-26",
+    "successor": "gpt-transcribe"
+  },
+  "gpt-4o-transcribe": {
+    "stt_capability": true,
+    "deprecated": true,
+    "sunset_date": "2027-02-26",
+    "successor": "gpt-transcribe"
+  },
+  "whisper-1": {
+    "stt_capability": true,
+    "deprecated": true,
+    "sunset_date": "2027-02-26",
+    "successor": "gpt-transcribe"
+  },
+  // No successor: gpt-transcribe rejects diarized_json and gpt-live-transcribe
+  // has no batch endpoint. Left un-deprecated so it stays selectable — hiding
+  // it would remove speaker diarization with nothing to migrate to.
+  "gpt-4o-transcribe-diarize": {
+    "stt_capability": true,
+    "sunset_date": "2027-02-26"
+  },
+  "scribe_v2": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
+  },
+  "scribe_v1_experimental": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
+  },
+  "cohere-transcribe-03-2026": {
+    "stt_capability": true,
+    "stt_provider": "cohere"
+  },
+  "voxtral-mini-transcribe-2507": {
+    "stt_capability": true,
+    "stt_provider": "mistral"
+  },
+  "xai-stt": {
+    "stt_capability": true,
+    "stt_provider": "xai"
   },
 
   // -------------------------------------------------------------------------
@@ -1362,7 +1470,7 @@ const providerDefaults = {
     "chat": ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
     "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
     "vision": ["gpt-5.6-luna", "gpt-5.4-mini"],
-    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
+    "audio_transcription": ["gpt-transcribe"],
     "image": ["gpt-image-2"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
@@ -1375,7 +1483,10 @@ const providerDefaults = {
     "chat": ["gemini-3.6-flash", "gemini-3.1-pro-preview"],
     "vision": ["gemini-3.6-flash"],
     "audio_transcription": ["gemini-3.6-flash"],
-    "image": ["gemini-3.1-flash-image", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
+    // Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live
+    // model list (verified 2026-08-22), so only the conversational image
+    // models remain.
+    "image": ["gemini-3.1-flash-image", "gemini-3-pro-image"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "music": ["lyria-3-pro-preview", "lyria-3-clip-preview"],
     "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]

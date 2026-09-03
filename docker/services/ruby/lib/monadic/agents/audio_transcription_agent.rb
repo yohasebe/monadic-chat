@@ -25,6 +25,21 @@ module AudioTranscriptionAgent
     Monadic::Utils::ModelSpec.default_audio_model(canonical) if canonical
   end
 
+  # The Web UI STT selection reaches this agent as `model`, but the provider
+  # is resolved from the app's chat provider, so the two can disagree — a
+  # Gemini app with Whisper selected, or a Claude app (which falls back to
+  # OpenAI) with a Gemini model selected. Send the selection only to the
+  # provider that owns it; otherwise use that provider's default.
+  def self.model_for(provider, requested)
+    return audio_model_for(provider) if requested.nil? || requested.to_s.strip.empty?
+
+    canonical = AUDIO_PROVIDER_MAP[provider]
+    return audio_model_for(provider) unless canonical
+    return requested if Monadic::Utils::ModelSpec.stt_provider(requested) == canonical
+
+    audio_model_for(provider)
+  end
+
   AUDIO_API_KEYS = {
     "openai" => "OPENAI_API_KEY",
     "google" => "GEMINI_API_KEY"
@@ -83,10 +98,11 @@ module AudioTranscriptionAgent
     # 5. Call provider-specific transcription API
     case provider
     when "openai"
-      stt_model = model || AudioTranscriptionAgent.audio_model_for("openai")
+      stt_model = AudioTranscriptionAgent.model_for("openai", model)
       transcribe_openai(path, stt_model, api_key, response_format, lang_code)
     when "google"
-      transcribe_gemini(path, AudioTranscriptionAgent.audio_model_for("google"), api_key, lang_code)
+      stt_model = AudioTranscriptionAgent.model_for("google", model)
+      transcribe_gemini(path, stt_model, api_key, lang_code)
     end
   rescue => e
     "ERROR: Audio transcription failed: #{e.message}"

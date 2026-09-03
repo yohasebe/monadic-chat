@@ -524,10 +524,11 @@ module GeminiHelper
 
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list
+  # Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live model
+  # list (verified 2026-08-22), so the imagen4* keys were removed: leaving them
+  # here kept a route that could only ever fail. generate_image_with_imagen_direct
+  # stays for the /predict shape in case a future Imagen returns.
   IMAGE_GENERATION_MODELS = {
-    "imagen4" => "imagen-4.0-generate-001",
-    "imagen4-ultra" => "imagen-4.0-ultra-generate-001",
-    "imagen4-fast" => "imagen-4.0-fast-generate-001",
     # Gemini 3 Image (GA, v1beta generateContent) — Nano Banana 2 / Pro
     "gemini-3.1-flash-image" => "gemini-3.1-flash-image",
     "gemini-3-pro-image" => "gemini-3-pro-image",
@@ -535,7 +536,6 @@ module GeminiHelper
     "gemini-3.1-flash-image-preview" => "gemini-3.1-flash-image",
     "gemini-3-pro-image-preview" => "gemini-3-pro-image"
   }.freeze
-  IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODELS["imagen4-fast"]  # Default to fast model
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   
@@ -4017,8 +4017,10 @@ module GeminiHelper
         return generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size, session: session)
       end
 
-      # If Imagen model is selected for generation, use direct API implementation
-      # Supports: imagen3, imagen4, imagen4-ultra, imagen4-fast
+      # The :predict path, used when the selected model is one this helper maps.
+      # Since Imagen 4.0 sunset (2026-08-17) the map holds only conversational
+      # models, which take the generateContent branch above — so this is
+      # effectively dormant until an Imagen-style model returns.
       if IMAGE_GENERATION_MODELS.key?(model) && operation == "generate"
         return generate_image_with_imagen_direct(prompt: prompt, model: model)
       end
@@ -4240,8 +4242,11 @@ module GeminiHelper
   end
 
 
-  # Direct Imagen API implementation (supports imagen3, imagen4, imagen4-ultra, imagen4-fast)
-  def generate_image_with_imagen_direct(prompt:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT", model: "imagen4-fast")
+  # Direct Imagen API implementation (the /predict shape, as opposed to the
+  # conversational generateContent path). No Imagen model is currently reachable
+  # — 4.0 sunset on 2026-08-17 — so this is dormant and `model` has no default:
+  # a caller must name the model it means, rather than inheriting a dead one.
+  def generate_image_with_imagen_direct(prompt:, model:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT")
     require 'net/http'
     require 'json'
     require 'base64'
@@ -4266,10 +4271,11 @@ module GeminiHelper
         }
       }
 
-      # Resolve model name
-      # Supports: imagen3, imagen4, imagen4-ultra, imagen4-fast
-      # Defaults to imagen4-fast for best performance
-      image_model = IMAGE_GENERATION_MODELS[model] || IMAGE_GENERATION_MODEL
+      # Resolve model name. No default: IMAGE_GENERATION_MODEL used to fill in
+      # here and pointed at imagen4-fast, which sunset on 2026-08-17 — falling
+      # back to a retired model only turned a clear "unknown model" into a 404.
+      # An unrecognized name is passed through so the API names it in the error.
+      image_model = IMAGE_GENERATION_MODELS[model] || model
       # system_info: Using image_model #{image_model} for generation
 
       # Make API request to Imagen
@@ -4299,7 +4305,7 @@ module GeminiHelper
             # Save the generated image
             image_data = Base64.decode64(prediction["bytesBase64Encoded"])
             timestamp = Time.now.to_i
-            # Use model parameter for filename (e.g., imagen4-fast, imagen3, etc.)
+            # Name the file after the model that produced it.
             model_prefix = model.gsub('-', '_')
             filename = "#{model_prefix}_#{timestamp}_0_#{aspect_ratio.gsub(':', 'x')}.png"
             filepath = File.join(shared_folder, filename)

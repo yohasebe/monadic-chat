@@ -661,7 +661,7 @@ voiceButton.addEventListener("click", function () {
             const sttModelEl = $id("stt-model");
             let stt_model = (sttModelEl ? sttModelEl.value : '')
               || window.providerDefaults?.openai?.audio_transcription?.[0]
-              || "gpt-4o-mini-transcribe-2025-12-15";
+              || "gpt-transcribe";
 
             // Extract format from the MIME type
             let format = "webm"; // Default fallback

@@ -7,6 +7,19 @@ require 'tempfile'
 require_relative 'extra_logger'
 
 module InteractionUtils
+  # Which request method serves each STT provider. Providers absent from this
+  # table (today only "openai") are handled by the inline path at the end of
+  # `stt_api_request`. The provider itself comes from model_spec.js via
+  # `ModelSpec.stt_provider`, so adding a model means adding an SSOT entry
+  # rather than another branch here.
+  STT_PROVIDER_REQUEST_METHODS = {
+    "gemini" => :gemini_stt_api_request,
+    "elevenlabs" => :elevenlabs_stt_api_request,
+    "cohere" => :cohere_stt_api_request,
+    "mistral" => :mistral_stt_api_request,
+    "xai" => :xai_stt_api_request
+  }.freeze
+
   # Convert audio blob to a supported format via ffmpeg if needed.
   # Returns [upload_tempfile, converted_tempfile_or_nil].
   # Caller must close/unlink both files in ensure block.
@@ -509,34 +522,22 @@ module InteractionUtils
     end.join("\n")
   end
 
+  # Provider that owns an STT model, per model_spec.js. Falls back to "openai"
+  # when ModelSpec is unavailable (some specs load this module standalone).
+  def stt_provider_for(model)
+    return "openai" unless defined?(Monadic::Utils::ModelSpec)
+
+    Monadic::Utils::ModelSpec.stt_provider(model)
+  end
+
   def stt_api_request(blob, format, lang_code, model = nil)
     model ||= if defined?(Monadic::Utils::ModelSpec)
                  Monadic::Utils::ModelSpec.default_audio_model("openai")
                end
-    # Route to Gemini API if model starts with "gemini-"
-    if model.start_with?("gemini-")
-      return gemini_stt_api_request(blob, format, lang_code, model)
-    end
-
-    # Route to ElevenLabs API if model starts with "scribe"
-    if model.start_with?("scribe")
-      return elevenlabs_stt_api_request(blob, format, lang_code, model)
-    end
-
-    # Route to Cohere API if model starts with "cohere-transcribe"
-    if model.start_with?("cohere-transcribe")
-      return cohere_stt_api_request(blob, format, lang_code, model)
-    end
-
-    # Route to Mistral API if model starts with "voxtral"
-    if model.start_with?("voxtral")
-      return mistral_stt_api_request(blob, format, lang_code, model)
-    end
-
-    # Route to xAI API if model starts with "xai-stt"
-    if model.start_with?("xai-stt")
-      return xai_stt_api_request(blob, format, lang_code, model)
-    end
+    # Route on the provider the model declares in model_spec.js. Anything
+    # without a declaration falls through to the OpenAI path below.
+    request_method = STT_PROVIDER_REQUEST_METHODS[stt_provider_for(model)]
+    return send(request_method, blob, format, lang_code, model) if request_method
 
     lang_code = nil if lang_code == "auto"
 

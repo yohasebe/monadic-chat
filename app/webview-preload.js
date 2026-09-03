@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer, clipboard } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Trusted origins for clipboard access (internal Web UI only)
 const trustedHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
@@ -26,17 +26,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   revealPath: (p) => { if (p) ipcRenderer.send('reveal-path', String(p)); },
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
-  // Clipboard access
+  // Clipboard access. Electron 44 removed the `clipboard` module from
+  // renderer processes, preload scripts included, so these go through the
+  // main process. Reading returns a promise: the synchronous IPC that would
+  // preserve the old signature blocks the renderer, and its one caller (the
+  // Ctrl+V handler below) can await instead.
   readClipboard: () => {
     if (isTrustedOrigin()) {
-      return clipboard.readText();
+      return ipcRenderer.invoke('clipboard-read-text');
     }
     console.warn('[clipboard] Blocked read from untrusted origin:', window.location && window.location.href);
-    return '';
+    return Promise.resolve('');
   },
   writeClipboard: (text) => {
     if (isTrustedOrigin()) {
-      clipboard.writeText(text != null ? String(text) : '');
+      ipcRenderer.send('clipboard-write-text', text != null ? String(text) : '');
       return true;
     }
     console.warn('[clipboard] Blocked write from untrusted origin:', window.location && window.location.href);
@@ -261,7 +265,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
   // Explicitly enable standard keyboard shortcuts for common operations
-  document.addEventListener('keydown', (event) => {
+  document.addEventListener('keydown', async (event) => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
     
@@ -275,7 +279,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       } else if (event.key === 'v') {
         // Paste
-        const clipText = window.electronAPI.readClipboard();
+        const clipText = await window.electronAPI.readClipboard();
         if (clipText && document.activeElement) {
           // For input fields and textareas
           if (document.activeElement.tagName === 'INPUT' || 

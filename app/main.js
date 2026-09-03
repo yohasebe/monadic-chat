@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor, clipboard } = require('electron');
 const updater = require('./updater');
 const { injectUpdateButton } = require('./update-ui');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
@@ -4023,6 +4023,27 @@ ipcMain.on('open-external-url', (_event, url) => {
 // Explorer / file-manager), cross-platform via Electron `shell`. A directory
 // opens directly; a file is revealed in its containing folder. Best-effort:
 // invalid/missing paths are ignored rather than surfaced as errors.
+// Clipboard bridge for the webview preload. Electron 44 removed the
+// `clipboard` module from renderer processes, so the preload asks the main
+// process instead. Origin is checked on the preload side, which knows the
+// page's own location; these handlers only move the text.
+ipcMain.handle('clipboard-read-text', () => {
+  try {
+    return clipboard.readText();
+  } catch (e) {
+    return '';
+  }
+});
+
+ipcMain.on('clipboard-write-text', (_event, text) => {
+  try {
+    clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));
+  } catch (e) {
+    // Writing to the clipboard is best-effort; a failure must not take the
+    // main process down.
+  }
+});
+
 ipcMain.on('reveal-path', (_event, targetPath) => {
   try {
     if (typeof targetPath !== 'string' || targetPath.trim() === '') return;

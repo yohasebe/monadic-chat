@@ -188,6 +188,30 @@ module Monadic
           get_model_property(model_name, "supports_realtime_streaming") == true
         end
 
+        # Follow a deprecated model to the successor the catalog names for it,
+        # so a value saved before the model was retired still resolves to
+        # something that answers. Returns the model unchanged when it is not
+        # deprecated or names no successor; follows a chain of successors, and
+        # stops rather than loop if the catalog ever points one at itself.
+        #
+        # The frontend migrates its own saved selections when it loads, but
+        # values also reach the server without passing through that code (a
+        # session parameter read by another component, a client that skips the
+        # dropdown), so the resolution belongs here too.
+        def resolve_deprecated_model(model_name)
+          seen = []
+          current = model_name.to_s
+          while get_model_property(current, "deprecated") == true
+            successor = get_model_property(current, "successor")
+            break unless successor.is_a?(String) && !successor.empty?
+            break if seen.include?(successor)
+
+            seen << current
+            current = successor
+          end
+          current
+        end
+
         # Which provider API transcribes this STT model, from the
         # `stt_provider` declaration in model_spec.js (which documents why the
         # model name is not a usable substitute). Falls back to the name, then

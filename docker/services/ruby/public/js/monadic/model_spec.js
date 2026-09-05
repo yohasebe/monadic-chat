@@ -185,6 +185,29 @@ const modelSpec = {
   // mode) is additionally accepted and echoed by all three models; "ultra" is
   // rejected (ChatGPT-side only), so it is intentionally absent here.
   // -------------------------------------------------------------------------
+  // GPT-6 Astra — OpenAI's frontier model. Four restrictions, all verified
+  // live on 2026-09-05:
+  //   * reasoning effort accepts low..max only; "none" and "minimal" 400
+  //   * temperature and top_p are rejected outright
+  //   * function tools require the Responses API — Chat Completions returns
+  //     "Function tools with reasoning_effort are not supported"; api_type
+  //     below already routes there
+  //   * logprobs unsupported
+  // Priced above the 5.6 family ($10/$50 per MTok, doubled past 272K input),
+  // so it stays out of providerDefaults — opt-in via the model dropdown.
+  "gpt-6-astra": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
   "gpt-5.6-sol": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],

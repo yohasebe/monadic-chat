@@ -39,6 +39,60 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(Monadic::Utils::ModelSpec.responses_api?(model)).to be true
     end
 
+    # The catalog carries two spellings: OpenAI, Cohere and Mistral entries
+    # declare `supports_structured_output`, Anthropic and xAI the bare
+    # `structured_output` the accessor reads. Before normalization the accessor
+    # answered false for the whole first group, and did so silently — an absent
+    # property looks the same as a declared false.
+    describe "structured output alias" do
+      it "resolves the supports_ spelling" do
+        %w[gpt-6-astra gpt-5.6-sol command-a-plus-05-2026 mistral-medium-3-5].each do |model|
+          expect(Monadic::Utils::ModelSpec.supports_structured_outputs?(model)).to be(true),
+            "#{model} declares supports_structured_output but the accessor says false"
+        end
+      end
+
+      it "still resolves the bare spelling" do
+        %w[claude-opus-5 grok-4.6].each do |model|
+          expect(Monadic::Utils::ModelSpec.supports_structured_outputs?(model)).to be true
+        end
+      end
+
+      it "leaves every declaring model resolvable" do
+        missed = Monadic::Utils::ModelSpec.load_spec.select do |model, props|
+          props.is_a?(Hash) && props["supports_structured_output"] == true &&
+            !Monadic::Utils::ModelSpec.supports_structured_outputs?(model)
+        end
+
+        expect(missed.keys).to be_empty
+      end
+
+      it "does not invent support for models that declare neither" do
+        # load_spec returns the normalized copy, so asking it which models
+        # "declare" a key would be asking after the very step under test — a
+        # normalization that fills the key in for everyone would empty this
+        # collection and pass on nothing. Read the catalog source instead.
+        source = File.read(
+          File.expand_path("../../public/js/monadic/model_spec.js", __dir__)
+        )
+
+        undeclared = Monadic::Utils::ModelSpec.load_spec.keys.reject do |model|
+          entry = source[/^  "#{Regexp.escape(model)}":\s*\{.*?^  \},/m]
+          entry && entry.include?("structured_output")
+        end
+
+        expect(undeclared).not_to be_empty,
+          "no model lacks the declaration, so this example checks nothing"
+
+        invented = undeclared.select do |model|
+          Monadic::Utils::ModelSpec.supports_structured_outputs?(model)
+        end
+
+        expect(invented).to be_empty,
+          "#{invented.inspect} report structured output support without declaring it"
+      end
+    end
+
     it "detects adaptive thinking support for Opus 4.6" do
       expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-8")).to be true
     end

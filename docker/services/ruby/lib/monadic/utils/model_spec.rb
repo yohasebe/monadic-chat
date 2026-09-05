@@ -630,6 +630,18 @@ module Monadic
               props["api_type"] = "responses"
             end
 
+            # supports_structured_output -> structured_output
+            #
+            # Two spellings are in the catalog: OpenAI, Cohere and Mistral
+            # entries use the `supports_` form, Anthropic and xAI the bare one.
+            # `supports_structured_outputs?` reads the bare name, so without
+            # this it answers false for every model in the first group — and
+            # answers it silently, since a missing property is indistinguishable
+            # from a declared false.
+            if props.key?("supports_structured_output") && !props.key?("structured_output")
+              props["structured_output"] = !!props["supports_structured_output"]
+            end
+
             # For UI clarity: if supports_pdf is true but supports_pdf_upload is explicitly false for some providers,
             # keep as-is. Do not auto-populate supports_pdf_upload to avoid changing behavior.
           end

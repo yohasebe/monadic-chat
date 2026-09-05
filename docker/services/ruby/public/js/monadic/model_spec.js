@@ -62,7 +62,7 @@ const modelSpec = {
   "gpt-5.3-codex": {
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
-    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "low"],
     "tool_capability": true,
     "vision_capability": true,
     "api_type": "responses",
@@ -211,7 +211,7 @@ const modelSpec = {
   "gpt-5.6-sol": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
-    "reasoning_effort": [["none", "minimal", "low", "medium", "high", "xhigh", "max"], "none"],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh", "max"], "none"],
     "tool_capability": true,
     "vision_capability": true,
     "verbosity": [["low", "medium", "high"], "medium"],
@@ -225,7 +225,7 @@ const modelSpec = {
   "gpt-5.6-terra": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
-    "reasoning_effort": [["none", "minimal", "low", "medium", "high", "xhigh", "max"], "none"],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh", "max"], "none"],
     "tool_capability": true,
     "vision_capability": true,
     "verbosity": [["low", "medium", "high"], "medium"],
@@ -239,7 +239,7 @@ const modelSpec = {
   "gpt-5.6-luna": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
-    "reasoning_effort": [["none", "minimal", "low", "medium", "high", "xhigh", "max"], "none"],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh", "max"], "none"],
     "tool_capability": true,
     "vision_capability": true,
     "verbosity": [["low", "medium", "high"], "medium"],

@@ -1,6 +1,7 @@
 require 'spec_helper'
 require 'base64'
 require 'digest'
+require 'fileutils'
 require 'open3'
 require 'tmpdir'
 
@@ -122,41 +123,89 @@ RSpec.describe "scripts/verify_release_manifests.rb" do
   # that the patcher and verifier do not cover reaches the updater unchecked,
   # and electron-updater on a prerelease asks for a `beta-*` channel before
   # falling back to `latest-*` — so a stray beta manifest would be preferred
-  # over the one that carries the macOS floor. This pins publish scope to
-  # verified scope rather than trusting the two lists to stay aligned.
-  context "what gets published against what gets verified" do
+  # over the one that carries the macOS floor.
+  #
+  # These run the selection the release task uses, over real directories. The
+  # expected names are written out here rather than read from the module, so
+  # the two cannot be wrong together.
+  context "choosing what to publish" do
+    let(:selector) do
+      path = File.expand_path("../../../../../../scripts/release_manifest_set.rb", __dir__)
+      expect(File.exist?(path)).to be(true), "release_manifest_set.rb not found at #{path}"
+      require path
+      ReleaseManifestSet
+    end
+
+    let(:full_set) do
+      %w[latest.yml latest-mac.yml latest-mac-arm64.yml latest-linux.yml latest-linux-arm64.yml]
+    end
+
+    def dist_with(names)
+      dir = Dir.mktmpdir("release_set")
+      names.each { |n| File.write(File.join(dir, n), "version: 1.0.0-beta.32\n") }
+      yield dir
+    ensure
+      FileUtils.remove_entry(dir) if dir
+    end
+
+    it "returns every manifest the release ships" do
+      dist_with(full_set) do |dist|
+        paths, error = selector.select(dist)
+
+        expect(error).to be_nil
+        expect(paths.map { |p| File.basename(p) }).to match_array(full_set)
+      end
+    end
+
+    it "ignores electron-builder's debug dump" do
+      dist_with(full_set + %w[builder-debug.yml]) do |dist|
+        paths, error = selector.select(dist)
+
+        expect(error).to be_nil
+        expect(paths.map { |p| File.basename(p) }).not_to include("builder-debug.yml")
+      end
+    end
+
+    it "refuses a channel manifest nothing patched or verified" do
+      # electron-updater on a prerelease asks for this one first, and it would
+      # carry no macOS floor.
+      dist_with(full_set + %w[beta-mac.yml]) do |dist|
+        paths, error = selector.select(dist)
+
+        expect(error).to include("beta-mac.yml")
+        expect(paths).to be_empty
+      end
+    end
+
+    it "refuses a set that is missing a platform" do
+      # Publishing the rest would look complete while leaving that platform
+      # with no update path.
+      dist_with(full_set - %w[latest-mac.yml]) do |dist|
+        paths, error = selector.select(dist)
+
+        expect(error).to include("latest-mac.yml")
+        expect(paths).to be_empty
+      end
+    end
+  end
+
+  # The selection above is only half of the guarantee: the task must also run
+  # the verifier over the files it is about to attach. `rake release:github`
+  # skips the build when the packages already exist, so without this a stale
+  # dist would be published unchecked.
+  context "the release task" do
     let(:release_rake) do
       File.read(File.expand_path("../../../../../../rakelib/release.rake", __dir__))
     end
 
-    let(:published_manifests) do
-      block = release_rake[/expected_update_manifests = %w\[(.*?)\]/m, 1]
-      expect(block).to be_a(String), "the publish allow list has moved or been renamed"
-      block.split
+    it "selects through the module rather than a glob" do
+      expect(release_rake).to include("ReleaseManifestSet.select")
+      expect(release_rake).not_to include('Dir.glob("dist/*.yml")')
     end
 
-    it "publishes only manifests the patcher and verifier glob covers" do
-      # Both scripts select `latest*.yml`; a published name outside that shape
-      # is never patched and never checked.
-      expect(published_manifests).to all(start_with("latest"))
-      expect(published_manifests).not_to be_empty
-    end
-
-    it "still selects on that shape in both scripts" do
-      # Positive control for the assertion above: if either script widened or
-      # renamed its selection, "starts with latest" would stop meaning
-      # "covered".
-      %w[patch_release_manifests.rb verify_release_manifests.rb].each do |name|
-        source = File.read(File.expand_path("../../../../../../scripts/#{name}", __dir__))
-        expect(source).to include("glob('latest*.yml')"), "#{name} no longer selects latest*.yml"
-      end
-    end
-
-    it "names every platform the release ships" do
-      expect(published_manifests).to contain_exactly(
-        "latest.yml", "latest-mac.yml", "latest-mac-arm64.yml",
-        "latest-linux.yml", "latest-linux-arm64.yml"
-      )
+    it "stops when verification fails" do
+      expect(release_rake).to include('system("ruby", "scripts/verify_release_manifests.rb")')
+      expect(release_rake).to match(/verification failed; nothing was published/)
     end
   end
 end

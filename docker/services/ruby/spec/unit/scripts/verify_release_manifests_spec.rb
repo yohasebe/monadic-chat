@@ -27,18 +27,26 @@ RSpec.describe "scripts/verify_release_manifests.rb" do
     File.read(patcher)[/MAC_MINIMUM_DARWIN_VERSION\s*=\s*'([^']+)'/, 1]
   end
 
+  # The release this checkout builds. Written into the fixtures so they stay
+  # valid across version bumps.
+  let(:release_version) do
+    path = File.expand_path("../../../lib/monadic/version.rb", __dir__)
+    File.read(path)[/VERSION = "([^"]+)"/, 1]
+  end
+
   before { expect(File.exist?(script_path)).to be(true), "verifier not found at #{script_path}" }
 
   def run_verifier(dist)
     Open3.capture3("ruby", script_path, dist.to_s)
   end
 
-  def write_mac_manifest(dist, floor:, filename: "latest-mac.yml", files: :default)
+  def write_mac_manifest(dist, floor:, filename: "latest-mac.yml", files: :default,
+                         version: release_version, artifact_version: nil)
     payload = "bytes"
-    artifact = "Monadic.Chat-1.0.0-beta.32-arm64.zip"
+    artifact = "Monadic.Chat-#{artifact_version || version}-arm64.zip"
     File.binwrite(File.join(dist, artifact), payload)
 
-    lines = ["version: 1.0.0-beta.32"]
+    lines = ["version: #{version}"]
     lines << "minimumSystemVersion: #{floor}" if floor
     lines << "files:"
     if files == :default
@@ -119,6 +127,47 @@ RSpec.describe "scripts/verify_release_manifests.rb" do
       end
     end
   end
+  # sha512 and size only prove a manifest matches a file that is present, and
+  # dist keeps the previous release's artifacts. A manifest a failed build left
+  # behind therefore points at real files with correct hashes — and its macOS
+  # floor is correct too, since the previous release wrote one. Without a
+  # version check every gate here passes on the wrong release.
+  context "which release the manifest describes" do
+    VERSION_REASON = 'manifest is not for this release'
+    ARTIFACT_REASON = 'referenced artifact is not from this release'
+
+    it "accepts a manifest for the version being built" do
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor)
+        _stdout, stderr, = run_verifier(dist)
+
+        expect(stderr).not_to include(VERSION_REASON)
+        expect(stderr).not_to include(ARTIFACT_REASON)
+      end
+    end
+
+    it "rejects one left behind by the previous release" do
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor, version: "1.0.0-beta.1")
+        _stdout, stderr, status = run_verifier(dist)
+
+        expect(stderr).to include(VERSION_REASON)
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it "rejects one pointing at the previous release's artifacts" do
+      # The header can be rewritten while the entries still name old files.
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor, artifact_version: "1.0.0-beta.1")
+        _stdout, stderr, status = run_verifier(dist)
+
+        expect(stderr).to include(ARTIFACT_REASON)
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+  end
+
   # The publish step attaches update manifests by name. Anything it attaches
   # that the patcher and verifier do not cover reaches the updater unchecked,
   # and electron-updater on a prerelease asks for a `beta-*` channel before

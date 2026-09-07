@@ -116,6 +116,37 @@ end
 # refuses the update on an older OS, and the check runs on the version the
 # user already has — so a build that drops OS support must announce it here,
 # not only in the new app's Info.plist.
+# Every manifest must describe this release. sha512/size only prove a manifest
+# matches *some* file that is present, and a dist directory keeps the previous
+# release's artifacts, so a stale manifest left behind by a failed build points
+# at real files with correct hashes and passes every check below.
+version_rb = Pathname.new(File.expand_path('../docker/services/ruby/lib/monadic/version.rb', __dir__))
+expected_version = version_rb.exist? ? version_rb.read[/VERSION = "([^"]+)"/, 1] : nil
+
+if expected_version.nil?
+  mismatches << { yml: '(version.rb)', url: 'VERSION',
+                  reason: 'could not read the release version',
+                  declared: '-', actual: '-' }
+else
+  manifests.each do |yml|
+    data = YAML.safe_load(yml.read, permitted_classes: [Time], aliases: false)
+    rel = yml.relative_path_from(dist).to_s
+
+    if data['version'].to_s != expected_version
+      mismatches << { yml: rel, url: '(manifest)', reason: 'manifest is not for this release',
+                      declared: expected_version, actual: data['version'].inspect }
+    end
+
+    Array(data['files']).each do |entry|
+      next if entry['url'].to_s.include?(expected_version)
+
+      mismatches << { yml: rel, url: entry['url'].to_s,
+                      reason: 'referenced artifact is not from this release',
+                      declared: expected_version, actual: entry['url'].to_s }
+    end
+  end
+end
+
 # Read the expected floor from the script that writes it, so the value is
 # stated once. Checking only the shape (three integers) would accept `13.0.0`
 # — the macOS number written where the Darwin number belongs — and that

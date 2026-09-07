@@ -184,17 +184,39 @@ post "/load" do
         # Restore monadic_state if present in import data (for Session State mechanism)
         if json_data["monadic_state"]
           # Convert string keys to symbols for consistency
+          # Only namespaces shaped like {key => {data, version, updated_at}}
+          # are app state. A file written before the export separated the
+          # Context Panel's structures out can carry those here instead, and
+          # reading ["data"] from an Integer or Array raised, which failed the
+          # whole import. Skip what does not fit and let session_context below
+          # restore the panel.
           session[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
-            result[app_key] = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
+            next unless app_data.is_a?(Hash)
+
+            entries = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
+              next unless state_entry.is_a?(Hash) && state_entry.key?("data")
+
               app_result[state_key] = {
                 data: state_entry["data"],
                 version: state_entry["version"].to_i,
                 updated_at: state_entry["updated_at"]
               }
             end
+            result[app_key] = entries unless entries.empty?
           end
 
           Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}" }
+        end
+
+        # Files written before the export separated them carry the panel under
+        # monadic_state instead. Read it from there when the dedicated field is
+        # absent, so an older export still restores its context.
+        legacy_state = json_data["monadic_state"]
+        if !json_data["session_context"] && legacy_state.is_a?(Hash)
+          legacy_context = legacy_state["conversation_context"]
+          json_data["session_context"] = legacy_context if legacy_context.is_a?(Hash)
+          legacy_schema = legacy_state["context_schema"]
+          json_data["context_schema"] ||= legacy_schema if legacy_schema
         end
 
         # Restore session_context if present in import data (for Session Context feature)

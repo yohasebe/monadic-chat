@@ -164,8 +164,11 @@ module WebSocketHelper
     # contains real PII. If there is no registry (privacy filter was off),
     # "masked" is equivalent to "restored" — there are no placeholders to
     # apply, so the original text passes through unchanged.
+    parameters = privacy_export_parameters(session)
+
     if content_kind == "masked" && !registry.empty?
       messages = privacy_remask_messages(messages, registry)
+      parameters = privacy_remask_parameters(parameters, registry)
       registry_to_export = {}
     else
       registry_to_export = registry
@@ -176,12 +179,9 @@ module WebSocketHelper
 
     # Include parameters + monadic_state alongside messages so the export
     # round-trips a full session (matches the historical local export shape).
-    # Strip initiate_from_assistant to prevent automatic assistant turn on
-    # import (parity with the legacy frontend export path).
-    parameters = session[:parameters].is_a?(Hash) ? session[:parameters].dup : {}
-    parameters.delete("initiate_from_assistant")
-    parameters.delete(:initiate_from_assistant)
+    # `parameters` was assembled and remasked above, alongside the messages.
     monadic_state = privacy_export_monadic_state(session)
+    session_context = privacy_export_session_context(session)
     # Dynamic-skill unlock state, so an imported session restores the skills the
     # model had acquired (reproducibility). This is the ACTIVE export path
     # (the frontend $id("save") handler delegates here), so progressive_tools
@@ -204,6 +204,7 @@ module WebSocketHelper
         "parameters" => parameters
       }
       payload["monadic_state"] = monadic_state if monadic_state
+      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
@@ -213,6 +214,7 @@ module WebSocketHelper
       payload = { "parameters" => parameters, "messages" => messages }
       payload["registry"] = registry_to_export unless registry_to_export.empty?
       payload["monadic_state"] = monadic_state if monadic_state
+      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       content = JSON.pretty_generate(payload)
     end
@@ -264,14 +266,77 @@ module WebSocketHelper
     end
   end
 
-  # Strip privacy-internal fields from messages so the export only contains
-  # the user-visible conversation. We deliberately keep mid/role/text/app_name.
+  # Parameters carried by a shared export. `parameters` holds free text the
+  # user wrote (initial_prompt) and text the run produced (tool_results,
+  # tool_calls_message), so a shared copy needs the same treatment as the
+  # message bodies: an allow list, then the same remasking.
+  #
+  # initiate_from_assistant is excluded on purpose — importing it would start
+  # an assistant turn by itself (parity with the legacy frontend export).
+  PRIVACY_EXPORT_PARAMETER_KEYS = %w[
+    app_name display_name model models provider
+    temperature max_tokens reasoning_effort
+    initial_prompt tools ui_language stt_model tts_voice
+  ].freeze
+
+  # Parameter values that are free text and must be remasked, not just copied.
+  PRIVACY_REMASK_PARAMETER_KEYS = %w[initial_prompt].freeze
+
+  private def privacy_export_parameters(session)
+    source = session[:parameters].is_a?(Hash) ? session[:parameters] : {}
+    source.each_with_object({}) do |(k, v), acc|
+      acc[k.to_s] = v if PRIVACY_EXPORT_PARAMETER_KEYS.include?(k.to_s)
+    end
+  end
+
+  # Apply the registry to the free-text parameters, mirroring the message
+  # bodies so a masked export is masked everywhere it carries prose.
+  private def privacy_remask_parameters(parameters, registry)
+    return parameters if registry.empty? || !parameters.is_a?(Hash)
+
+    sorted = registry.sort_by { |_, v| -v.to_s.length }
+    parameters.each_with_object(parameters.dup) do |(k, v), acc|
+      next unless PRIVACY_REMASK_PARAMETER_KEYS.include?(k.to_s) && v.is_a?(String)
+
+      masked = v.dup
+      sorted.each { |placeholder, original| masked.gsub!(original.to_s, placeholder.to_s) }
+      acc[k] = masked
+    end
+  end
+
+  # Keys a shared export may carry. An allow list rather than a deny list: a
+  # message picks up display metadata as features are added (privacy entity
+  # tracking, vocabulary resolution), and a deny list ships each new one until
+  # someone remembers to exclude it. Two of the keys already present are
+  # unshareable — `privacy_known_entities` is the placeholder-to-original
+  # table the masking exists to withhold, and `vocabulary_map` resolves to
+  # paths on the exporting machine.
+  #
+  # Adding a key here means asserting it is safe to hand to someone else.
+  # Derived from both sides of the round trip: the keys the streaming handler
+  # writes into session[:messages], and the keys the import route reads back
+  # (session_routes.rb). Dropping one the importer reads would break the round
+  # trip; listing one that is never written is dead weight.
+  PRIVACY_EXPORT_MESSAGE_KEYS = %w[
+    mid role text app_name type lang html active
+    thinking tokens images image
+    interrupted tools_used verify
+  ].freeze
+
+  # Reduce messages to the shared-export schema. Anything not named above is
+  # dropped, including the privacy-internal `_privacy*` fields this used to
+  # name explicitly.
   private def privacy_clean_messages(messages)
     messages.map do |m|
       next m unless m.is_a?(Hash)
-      m.reject { |k, _| k.to_s.start_with?("_privacy") }
+      m.select { |k, _| PRIVACY_EXPORT_MESSAGE_KEYS.include?(k.to_s) }
     end
   end
+
+  # Free-text fields a message can carry. Masking only `text` left the
+  # detected values in the others: reasoning quotes the conversation, and the
+  # rendered HTML is built from the restored body.
+  PRIVACY_REMASK_MESSAGE_FIELDS = %w[text thinking html].freeze
 
   # Substitute original values back to placeholders for masked_only export.
   # Sort registry by value length descending to avoid partial-match issues
@@ -280,12 +345,18 @@ module WebSocketHelper
     return messages if registry.empty?
     sorted = registry.sort_by { |_, v| -v.to_s.length }
     messages.map do |m|
-      next m unless m.is_a?(Hash) && m["text"].is_a?(String)
-      text = m["text"].dup
-      sorted.each do |placeholder, original|
-        text.gsub!(original.to_s, placeholder.to_s)
+      next m unless m.is_a?(Hash)
+
+      remasked = PRIVACY_REMASK_MESSAGE_FIELDS.each_with_object({}) do |field, acc|
+        value = m[field]
+        next unless value.is_a?(String)
+
+        masked = value.dup
+        sorted.each { |placeholder, original| masked.gsub!(original.to_s, placeholder.to_s) }
+        acc[field] = masked
       end
-      m.merge("text" => text)
+
+      remasked.empty? ? m : m.merge(remasked)
     end
   end
 
@@ -293,14 +364,49 @@ module WebSocketHelper
   # /monadic_state HTTP endpoint shape (used by the legacy local export) so
   # exports remain round-trippable through the existing import path. Returns
   # nil when there is no monadic_state to include.
+  # Keys that sit alongside the app namespaces in session[:monadic_state] but
+  # hold something else. `conversation_context` and `context_schema` are the
+  # Context Panel's own structures; `privacy` is the registry, which RD-1 says
+  # is never persisted.
+  #
+  # The import route reads each app namespace as {key => {data, version,
+  # updated_at}} and applies ["data"] to every value, so emitting the panel's
+  # plain hash here made the import raise. It has its own field on the wire —
+  # `session_context` — which the import route already restores; this exports
+  # into that field rather than leaving the mechanism unwired.
+  PRIVACY_STATE_RESERVED_KEYS = %w[privacy conversation_context context_schema].freeze
+
   private def privacy_export_monadic_state(session)
     state = session[:monadic_state]
     return nil unless state.is_a?(Hash)
     serializable = state.each_with_object({}) do |(app_key, app_data), result|
-      next if app_key == :privacy || app_key == "privacy"  # RD-1: never persist
-      result[app_key.to_s] = app_data
+      next if PRIVACY_STATE_RESERVED_KEYS.include?(app_key.to_s)
+      next unless app_data.is_a?(Hash)
+
+      # Only namespaces whose entries carry the state envelope round-trip.
+      entries = app_data.select do |_key, entry|
+        entry.is_a?(Hash) && (entry.key?(:data) || entry.key?("data"))
+      end
+      next if entries.empty?
+
+      result[app_key.to_s] = entries
     end
     serializable.empty? ? nil : serializable
+  end
+
+  # The Context Panel's structures, exported under the field names the import
+  # route reads (`session_context` / `context_schema`).
+  private def privacy_export_session_context(session)
+    state = session[:monadic_state]
+    return {} unless state.is_a?(Hash)
+
+    context = state[:conversation_context] || state["conversation_context"]
+    schema = state[:context_schema] || state["context_schema"]
+
+    {}.tap do |out|
+      out["session_context"] = context if context.is_a?(Hash) && !context.empty?
+      out["context_schema"] = schema if schema
+    end
   end
 
   # Build a non-secret header for the envelope. Stays in plaintext so users

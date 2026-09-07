@@ -534,6 +534,11 @@ module InteractionUtils
     model ||= if defined?(Monadic::Utils::ModelSpec)
                  Monadic::Utils::ModelSpec.default_audio_model("openai")
                end
+    # A selection saved before a model was retired still arrives here; send the
+    # successor the catalog names rather than the name the provider dropped.
+    if defined?(Monadic::Utils::ModelSpec)
+      model = Monadic::Utils::ModelSpec.resolve_deprecated_model(model)
+    end
     # Route on the provider the model declares in model_spec.js. Anything
     # without a declaration falls through to the OpenAI path below.
     request_method = STT_PROVIDER_REQUEST_METHODS[stt_provider_for(model)]

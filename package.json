@@ -1,7 +1,7 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
-  "version": "1.0.0-beta.31",
+  "version": "1.0.0-beta.32",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "app/main.js",
   "scripts": {
@@ -40,7 +40,7 @@
     "@jest/globals": "^30.2.0",
     "@maxgraph/core": "^0.22.0",
     "cross-env": "^7.0.3",
-    "electron": "^39.8.6",
+    "electron": "^44.1.1",
     "electron-builder": "^26.7.0",
     "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
@@ -52,7 +52,6 @@
     "ws": "^8.20.1"
   },
   "build": {
-    "electronVersion": "39.2.7",
     "asar": true,
     "appId": "com.yohasebe.monadic",
     "publish": [
@@ -84,7 +83,8 @@
             "monadic"
           ]
         }
-      ]
+      ],
+      "minimumSystemVersion": "13.0"
     },
     "extraResources": [
       {

@@ -5,7 +5,7 @@
 - **Docker Desktop**: Recent version recommended
 - **Memory**: At least 8GB RAM (16GB recommended)
 - **Storage**: Sufficient free disk space for Docker images and user data
-- **macOS**: Apple Silicon (M1 or later) required. Intel Macs are not supported.
+- **macOS**: macOS 13 (Ventura) or later on Apple Silicon (M1 or later). Intel Macs are not supported.
 
 ## Basic Steps :id=basic-steps
 
@@ -13,7 +13,7 @@
 
 ### **macOS**
 
-> **Note**: macOS requires Apple Silicon (M1 or later). Intel Macs are not supported.
+> **Note**: macOS requires version 13 (Ventura) or later on Apple Silicon (M1 or later). Intel Macs are not supported.
 
 1. **Install Docker Desktop for Mac**
 

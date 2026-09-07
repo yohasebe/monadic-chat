@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor, clipboard } = require('electron');
 const updater = require('./updater');
 const { injectUpdateButton } = require('./update-ui');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
@@ -4023,6 +4023,33 @@ ipcMain.on('open-external-url', (_event, url) => {
 // Explorer / file-manager), cross-platform via Electron `shell`. A directory
 // opens directly; a file is revealed in its containing folder. Best-effort:
 // invalid/missing paths are ignored rather than surfaced as errors.
+// Clipboard bridge for the webview preload. Electron 44 removed the
+// `clipboard` module from renderer processes, so the preload asks the main
+// process instead. Origin is checked on the preload side, which knows the
+// page's own location; these handlers only move the text.
+// Electron 44 also made these return promises, so a synchronous try/catch
+// never sees a rejection — measured on 44.1.1, where a failing readText
+// rejects rather than throwing. Await them and catch that instead. On
+// Electron 39 the same code works: awaiting a plain string is a no-op.
+ipcMain.handle('clipboard-read-text', async () => {
+  try {
+    return await clipboard.readText();
+  } catch (e) {
+    return '';
+  }
+});
+
+// Answers when the write has actually happened, so the preload can report a
+// failure rather than assuming success.
+ipcMain.handle('clipboard-write-text', async (_event, text) => {
+  try {
+    await clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));
+    return true;
+  } catch (e) {
+    return false;
+  }
+});
+
 ipcMain.on('reveal-path', (_event, targetPath) => {
   try {
     if (typeof targetPath !== 'string' || targetPath.trim() === '') return;

@@ -17,12 +17,30 @@ namespace :help do
     'docker/services/ruby/help_data/help_db.json', PROJECT_ROOT
   )
 
-  # Ensure the embeddings_service container is up before invoking the script.
-  # Returns true if it was newly started (so the caller knows to stop it),
-  # or false if it was already running.
+  # Ensure the embeddings_service container is reachable before invoking the
+  # script. Returns true if it was newly started (so the caller knows to stop
+  # it), or false if it was already usable.
+  #
+  # Reachability, not the container's existence, is what decides: the app
+  # installed on this machine starts the same container in production mode,
+  # where port 8002 stays inside the Docker network. Treating a running
+  # container as usable sent the script straight into a connection refused.
+  def embeddings_service_reachable?
+    system('curl -sf http://localhost:8002/v1/health >/dev/null 2>&1')
+  end
+
   def ensure_embeddings_service
+    return false if embeddings_service_reachable?
+
     if system("docker ps --format '{{.Names}}' | grep -q '^monadic-chat-embeddings-container$'")
-      return false
+      raise <<~MSG
+        The embeddings container is running but port 8002 is not reachable.
+
+        It was most likely started by the installed Monadic Chat app, which
+        keeps the port inside the Docker network. Quit the app (or stop that
+        container) and run this task again so it can start the container with
+        the port exposed.
+      MSG
     end
 
     puts 'Starting embeddings container...'

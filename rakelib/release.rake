@@ -111,22 +111,28 @@ namespace :release do
       exit 1
     end
     
-    # Check for and include YML files for auto-updates. Exclude
-    # builder-debug.yml — it is electron-builder's debug dump, not an
-    # auto-update manifest, and must not be attached (the release ships the 5
-    # latest-*.yml manifests only).
-    puts "Searching for auto-update YML files in dist directory..."
-    update_ymls = Dir.glob("dist/*.yml").reject { |f| File.basename(f) == "builder-debug.yml" }
-    update_ymls.each do |yml_path|
-      yml_file = File.basename(yml_path)
-      release_assets << yml_path
-      puts "Found YML asset for auto-update: #{yml_path}"
-    end
+    # Attach the auto-update manifests by name rather than by glob, and stop
+    # if the set is not exactly the one the patch/verify scripts cover. See
+    # scripts/release_manifest_set.rb for why the glob was not safe.
+    require_relative "../scripts/release_manifest_set"
 
-    if update_ymls.empty?
-      puts "Warning: No auto-update YML files found in dist directory."
-      puts "Auto-updates may not work correctly without these files."
-      puts "Consider rebuilding with: rake build"
+    puts "Collecting auto-update YML files from dist directory..."
+    update_ymls, manifest_error = ReleaseManifestSet.select("dist")
+    if manifest_error
+      puts "Error: #{manifest_error}"
+      exit 1
+    end
+    update_ymls.each { |yml_path| puts "Found YML asset for auto-update: #{yml_path}" }
+    release_assets.concat(update_ymls)
+
+    # Verify the files that are about to be published, not a previous run's
+    # dist. When every package already exists the build step above is skipped,
+    # so without this the task would happily attach manifests whose hashes
+    # drifted or whose macOS floor was lost.
+    puts "Verifying the manifests against the artifacts being published..."
+    unless system("ruby", "scripts/verify_release_manifests.rb")
+      puts "Error: manifest verification failed; nothing was published."
+      exit 1
     end
     
     puts "Total assets for release: #{release_assets.length}"
@@ -275,8 +281,16 @@ namespace :release do
         end
       end
       
-      # Also include all auto-update YML files (excluding the debug dump)
-      files_to_update.concat(Dir.glob("dist/*.yml").reject { |f| File.basename(f) == "builder-debug.yml" })
+      # Auto-update manifests go through the same selection as release:github:
+      # uploading one that nothing patched or verified is the same hazard here,
+      # and this task replaces assets on an already-published release.
+      require_relative "../scripts/release_manifest_set"
+      manifests, manifest_error = ReleaseManifestSet.select("dist")
+      if manifest_error
+        puts "Error: #{manifest_error}"
+        exit 1
+      end
+      files_to_update.concat(manifests)
     else
       # Custom patterns provided by user
       patterns = file_patterns.split(/\s+/)

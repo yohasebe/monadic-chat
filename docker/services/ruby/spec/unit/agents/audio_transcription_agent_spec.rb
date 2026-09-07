@@ -57,10 +57,24 @@ RSpec.describe AudioTranscriptionAgent do
       end
 
       it 'passes custom model when specified' do
+        agent.audio_transcription_agent(audio_path: "/test/audio.mp3", model: "gpt-transcribe")
+        expect(agent).to have_received(:transcribe_openai).with(
+          "/test/audio.mp3",
+          "gpt-transcribe",
+          "test-openai-key",
+          "text",
+          nil
+        )
+      end
+
+      it 'sends the successor when the requested model has been retired' do
+        # whisper-1 retires on 2027-02-26. A selection saved before then still
+        # arrives here, so the agent resolves it rather than passing on a name
+        # the provider has dropped.
         agent.audio_transcription_agent(audio_path: "/test/audio.mp3", model: "whisper-1")
         expect(agent).to have_received(:transcribe_openai).with(
           "/test/audio.mp3",
-          "whisper-1",
+          "gpt-transcribe",
           "test-openai-key",
           "text",
           nil

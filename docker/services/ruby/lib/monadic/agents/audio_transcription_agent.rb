@@ -35,7 +35,10 @@ module AudioTranscriptionAgent
 
     canonical = AUDIO_PROVIDER_MAP[provider]
     return audio_model_for(provider) unless canonical
-    return requested if Monadic::Utils::ModelSpec.stt_provider(requested) == canonical
+
+    # A selection saved before a model was retired resolves to its successor.
+    resolved = Monadic::Utils::ModelSpec.resolve_deprecated_model(requested)
+    return resolved if Monadic::Utils::ModelSpec.stt_provider(resolved) == canonical
 
     audio_model_for(provider)
   end

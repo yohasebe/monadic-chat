@@ -35,35 +35,34 @@ RSpec.describe "Vendor Helper Consistency" do
   end
 
   describe "Tool argument parsing" do
-    it "all vendor helpers handle empty string arguments correctly" do
-      vendor_modules.each do |vendor_module|
-        next unless vendor_module.instance_methods.include?(:process_functions)
-        
-        # Create a test class that includes the vendor module
-        test_class = Class.new do
-          include vendor_module
-          
-          # Mock methods that vendor helpers might need
-          def self.capture_command(cmd); ["", "", OpenStruct.new(success?: true)]; end
-          def CONFIG; {}; end
-          def APPS; {}; end
-          def MonadicApp; OpenStruct.new(EXTRA_LOG_FILE: "/tmp/test.log"); end
-        end
-        
-        instance = test_class.new
-        
-        # Test empty string handling if the module has a method for parsing arguments
-        if instance.respond_to?(:parse_tool_arguments, true)
-          result = instance.send(:parse_tool_arguments, "")
-          expect(result).to eq({})
-          
-          result = instance.send(:parse_tool_arguments, "   ")
-          expect(result).to eq({})
-        end
+    # This used to call `parse_tool_arguments`, which no method in any helper
+    # answers to — the guard skipped every module and the example asserted
+    # nothing while passing. Best-of-Breed means the parsers are not named
+    # alike (OpenAI has parse_function_call_arguments, Gemini
+    # prepare_gemini_tool_arguments, Cohere inlines JSON.parse), so the
+    # contract is checked against the entry point that exists rather than by
+    # requiring a shared name.
+    it "OpenAI's parser turns blank arguments into an empty hash" do
+      helper = Class.new { include OpenAIHelper }.new
+
+      expect(helper).to respond_to(:parse_function_call_arguments),
+                        "the parser has been renamed; update this example to the new entry point"
+
+      ["", "   ", nil].each do |blank|
+        expect(helper.parse_function_call_arguments(blank)).to eq({}),
+                                                               "blank arguments (#{blank.inspect}) should parse to {}"
       end
     end
+
+    it "OpenAI's parser still reads well-formed arguments" do
+      # Positive control: without this, a parser that returned {} for
+      # everything would satisfy the example above.
+      helper = Class.new { include OpenAIHelper }.new
+
+      expect(helper.parse_function_call_arguments('{"city":"Kyoto"}')).to eq("city" => "Kyoto")
+    end
   end
-  
+
   describe "Array field validation" do
     it "all vendor helpers validate images field is an array" do
       vendor_helpers.each do |helper|

@@ -106,6 +106,8 @@ module WebSocketHelper
     return state if state && state[:cmd_queue] && state[:bridge_task] && !state[:bridge_task].finished?
 
     model = (obj["stt_model"].to_s.strip.empty? ? nil : obj["stt_model"]) || REALTIME_STT_DEFAULT_MODEL
+    # As in the batch path: a saved selection can name a retired model.
+    model = Monadic::Utils::ModelSpec.resolve_deprecated_model(model)
     lang  = obj["lang_code"].to_s
     lang  = nil if lang.empty? || lang == "auto"
 

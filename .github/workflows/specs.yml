@@ -163,6 +163,13 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # The macOS update-floor test runs the release manifest patcher and
+      # feeds its output to electron-updater, so this job needs Ruby as well.
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+
       - name: Install dependencies
         # Jest runs frontend JS in jsdom and never launches Electron, so skip
         # the Electron binary download. It is the one network dependency in

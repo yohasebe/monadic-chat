@@ -5,6 +5,9 @@
 # Intentionally NOT listed:
 # - docker/monadic.sh reads the version dynamically from version.rb at
 #   runtime (no hardcoded version to check).
+# - docs/_coverpage.md (EN/JA) no longer carries a version string. Listing
+#   them made the check report two failures on every release, which is how
+#   a real failure — installation.md — went unnoticed among them.
 #
 # installation.md (EN/JA) IS listed. It used to link to
 # github.com/.../releases/latest, which GitHub resolves to the newest
@@ -19,8 +22,6 @@ def version_files
     "./docker/services/ruby/lib/monadic/version.rb",
     "./package.json",
     "./package-lock.json",
-    "./docs/_coverpage.md",
-    "./docs/ja/_coverpage.md",
     "./docs/getting-started/installation.md",
     "./docs/ja/getting-started/installation.md"
   ]

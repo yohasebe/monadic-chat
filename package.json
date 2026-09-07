@@ -88,20 +88,12 @@
     },
     "extraResources": [
       {
-        "from": "./bin",
-        "to": "app/bin",
-        "filter": [
-          "**/*",
-          "!**/.*"
-        ]
+        "from": "./build/app-payload/bin",
+        "to": "app/bin"
       },
       {
-        "from": "./docker",
-        "to": "app/docker",
-        "filter": [
-          "**/*",
-          "!**/.*"
-        ]
+        "from": "./build/app-payload/docker",
+        "to": "app/docker"
       },
       {
         "from": "./LICENSE",

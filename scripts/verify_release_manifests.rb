@@ -25,6 +25,7 @@
 require 'digest'
 require 'pathname'
 require 'yaml'
+require 'json'
 
 dist = Pathname.new(ARGV[0] || File.expand_path('../dist', __dir__))
 unless dist.directory?
@@ -36,6 +37,30 @@ manifests = dist.glob('latest*.yml').sort
 if manifests.empty?
   warn "[verify_release_manifests] No latest*.yml manifests in #{dist}; nothing to verify."
   exit 1
+end
+
+# The Electron the packaged app actually contains, read from the framework
+# rather than inferred. Chromium versions and user-agent strings move with
+# Electron but are not the same number: Electron 39 ships Chromium 142 and
+# Electron 44 ships Chromium 152, so reading the browser version and mapping
+# it back is how a release went out on Electron 39 while its build had been
+# updated to 44.
+def packaged_electron_version(app_dir)
+  plist = app_dir.join('Contents/Frameworks/Electron Framework.framework/Resources/Info.plist')
+  return nil unless plist.exist?
+
+  out = `/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "#{plist}" 2>/dev/null`.strip
+  out.empty? ? nil : out
+end
+
+# The version npm resolved for this checkout, which is what the build should
+# have used. Compared against the framework above, not against the semver
+# range in package.json.
+def installed_electron_version(root)
+  pkg = root.join('node_modules/electron/package.json')
+  return nil unless pkg.exist?
+
+  JSON.parse(pkg.read)['version']
 end
 
 mismatches = []
@@ -80,8 +105,58 @@ manifests.each do |yml|
   end
 end
 
+# The macOS update floor. electron-updater reads this from the manifest and
+# refuses the update on an older OS, and the check runs on the version the
+# user already has — so a build that drops OS support must announce it here,
+# not only in the new app's Info.plist.
+mac_manifests = manifests.select { |m| m.basename.to_s.start_with?('latest-mac') }
+mac_manifests.each do |yml|
+  data = YAML.safe_load(yml.read, permitted_classes: [Time], aliases: false)
+  next if data['minimumSystemVersion'].to_s.match?(/\A\d+\.\d+\.\d+\z/)
+
+  mismatches << {
+    yml: yml.relative_path_from(dist).to_s,
+    url: '(manifest)',
+    reason: 'minimumSystemVersion missing or not a Darwin version',
+    declared: data['minimumSystemVersion'].inspect,
+    actual: 'expected e.g. 22.0.0 for macOS 13'
+  }
+end
+
+# The packaged Electron, compared against what npm resolved. A build config
+# that pins an old version, or a stale node_modules, silently ships the wrong
+# runtime; this is what let an Electron 39 build go out after the dependency
+# had been raised to 44.
+root = Pathname.new(File.expand_path('..', __dir__))
+expected_electron = installed_electron_version(root)
+app_dirs = dist.glob('mac*/*.app')
+
+if expected_electron.nil?
+  mismatches << { yml: '(node_modules)', url: 'electron',
+                  reason: 'electron is not installed; cannot verify what was packaged',
+                  declared: '-', actual: '-' }
+elsif app_dirs.empty?
+  puts "[verify_release_manifests] note: no packaged .app in #{dist}; skipped the Electron check."
+else
+  app_dirs.each do |app|
+    packaged = packaged_electron_version(app)
+    rel = app.relative_path_from(dist).to_s
+
+    if packaged.nil?
+      mismatches << { yml: rel, url: 'Electron Framework',
+                      reason: 'could not read the framework version',
+                      declared: expected_electron, actual: '-' }
+    elsif packaged != expected_electron
+      mismatches << { yml: rel, url: 'Electron Framework',
+                      reason: 'packaged Electron differs from the installed one',
+                      declared: expected_electron, actual: packaged }
+    end
+  end
+end
+
 if mismatches.empty?
   puts "[verify_release_manifests] OK: #{manifests.size} manifests verified, all entries match."
+  puts "[verify_release_manifests] Electron #{expected_electron} in #{app_dirs.size} packaged app(s); macOS floor declared in #{mac_manifests.size} manifest(s)."
   exit 0
 end
 

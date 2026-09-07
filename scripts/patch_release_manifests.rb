@@ -53,6 +53,33 @@ def patch_entry(content, url, sha512, size)
   content.sub(pattern, "\\1#{sha512}\\2#{size}")
 end
 
+# The macOS floor, as electron-updater compares it. `checkIfUpdateSupported`
+# reads `minimumSystemVersion` from the update manifest and compares it with
+# `os.release()`, which reports the Darwin version — macOS 13 is Darwin 22.
+# That is a different numbering from the app's own LSMinimumSystemVersion
+# (`13.0`, set from build.mac.minimumSystemVersion), so the two are written
+# separately and must not be copied from each other.
+#
+# electron-builder does not emit this field for the mac zip/dmg targets even
+# though builder-util-runtime's UpdateInfo declares it, so it is added here.
+# Without it, a machine running a macOS the new build no longer supports is
+# offered the update by its own installed updater — the check runs on the OLD
+# side, so shipping a corrected app is too late.
+MAC_MINIMUM_DARWIN_VERSION = '22.0.0' # macOS 13 Ventura
+
+def ensure_minimum_system_version(content, basename)
+  return [content, nil] unless basename.start_with?('latest-mac')
+  return [content, nil] if content.match?(/^minimumSystemVersion:/)
+
+  # Place it next to `version:` so the file stays readable.
+  patched = content.sub(/^(version:.*\n)/) do
+    "#{Regexp.last_match(1)}minimumSystemVersion: #{MAC_MINIMUM_DARWIN_VERSION}\n"
+  end
+  return [content, "#{basename}: could not place minimumSystemVersion"] if patched == content
+
+  [patched, nil]
+end
+
 changes = []
 failures = []
 
@@ -82,6 +109,13 @@ manifests.each do |yml|
     else
       failures << "#{yml.basename}: pattern not found for #{url} (yml structure changed?)"
     end
+  end
+
+  content, mac_failure = ensure_minimum_system_version(content, yml.basename.to_s)
+  if mac_failure
+    failures << mac_failure
+  elsif content != yml.read && content.match?(/^minimumSystemVersion:/)
+    changes << "#{yml.basename}: minimumSystemVersion set to #{MAC_MINIMUM_DARWIN_VERSION} (Darwin; macOS 13)"
   end
 
   yml.write(content) if content != yml.read

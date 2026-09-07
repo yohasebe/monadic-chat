@@ -52,7 +52,6 @@
     "ws": "^8.20.1"
   },
   "build": {
-    "electronVersion": "39.2.7",
     "asar": true,
     "appId": "com.yohasebe.monadic",
     "publish": [
@@ -84,7 +83,8 @@
             "monadic"
           ]
         }
-      ]
+      ],
+      "minimumSystemVersion": "13.0"
     },
     "extraResources": [
       {

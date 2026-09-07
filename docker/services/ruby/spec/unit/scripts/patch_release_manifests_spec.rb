@@ -138,6 +138,53 @@ RSpec.describe "scripts/patch_release_manifests.rb" do
     end
   end
 
+  context "the legacy top-level pair" do
+    # electron-builder writes `path:` / `sha512:` alongside `files:`, naming
+    # the same artifact as the first entry. Repackaging the mac zip changes
+    # those bytes after the manifest is written, so the top-level hash goes
+    # stale. Current updaters ignore it, but it is published, and a wrong hash
+    # there is indistinguishable from a real mismatch when auditing a release.
+    it "syncs it to the artifact it names" do
+      Dir.mktmpdir("patch_test") do |dist|
+        payload = "bytes"
+        make_artifact(dist, "Monadic.Chat-1.0.0-beta.16-arm64.zip", payload)
+        write_manifest(dist, "latest-mac.yml", entries: [{
+          url: "Monadic.Chat-1.0.0-beta.16-arm64.zip",
+          sha512: sha512_b64(payload),
+          size: payload.bytesize
+        }])
+        path = File.join(dist, "latest-mac.yml")
+        File.write(path, File.read(path).sub(/^sha512: .+$/, "sha512: staleHashFromBeforeRepackaging=="))
+
+        stdout, _stderr, status = run_patcher(dist)
+
+        expect(status.exitstatus).to eq(0)
+        expect(stdout).to include("top-level sha512 synced")
+        expect(File.read(path)).not_to include("staleHashFromBeforeRepackaging")
+        expect(File.read(path).scan(sha512_b64(payload)).size).to eq(2)
+      end
+    end
+
+    it "leaves it alone when it already matches" do
+      # Positive control: without this, "the stale hash is gone" would also
+      # pass on a patcher that rewrote the line on every run.
+      Dir.mktmpdir("patch_test") do |dist|
+        payload = "bytes"
+        make_artifact(dist, "Monadic.Chat-1.0.0-beta.16-arm64.zip", payload)
+        write_manifest(dist, "latest-mac.yml", entries: [{
+          url: "Monadic.Chat-1.0.0-beta.16-arm64.zip",
+          sha512: sha512_b64(payload),
+          size: payload.bytesize
+        }])
+
+        run_patcher(dist)
+        stdout, _stderr, = run_patcher(dist)
+
+        expect(stdout).not_to include("top-level sha512 synced")
+      end
+    end
+  end
+
   context "happy path — manifest drifted from shipped bytes" do
     it "patches sha512 and size to match the artifact" do
       Dir.mktmpdir("patch_test") do |dist|
@@ -152,7 +199,8 @@ RSpec.describe "scripts/patch_release_manifests.rb" do
         stdout, _stderr, status = run_patcher(dist)
         expect(status.exitstatus).to eq(0)
         # Two, not one: a mac manifest also gains its minimumSystemVersion line.
-        expect(stdout).to include("Patched 2 entries")
+        expect(stdout).to include("Patched 3 entries")
+        expect(stdout).to include("top-level sha512 synced")
         expect(stdout).to include("minimumSystemVersion set to")
 
         patched = YAML.safe_load_file(File.join(dist, "latest-mac.yml"))
@@ -259,7 +307,8 @@ RSpec.describe "scripts/patch_release_manifests.rb" do
         stdout, _stderr, status = run_patcher(dist)
         expect(status.exitstatus).to eq(0)
         # Two, not one: a mac manifest also gains its minimumSystemVersion line.
-        expect(stdout).to include("Patched 2 entries")
+        expect(stdout).to include("Patched 3 entries")
+        expect(stdout).to include("top-level sha512 synced")
         expect(stdout).to include("minimumSystemVersion set to")
 
         patched = YAML.safe_load_file(File.join(dist, "latest-mac.yml"))

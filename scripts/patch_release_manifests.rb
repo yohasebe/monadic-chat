@@ -132,6 +132,24 @@ manifests.each do |yml|
     end
   end
 
+  # electron-builder also writes a legacy `path:` / `sha512:` pair at the top
+  # level, describing the same artifact as the first `files` entry. Current
+  # updaters ignore it whenever `files` is populated, but it is published, and
+  # a hash there that no longer matches the shipped bytes reads as a real
+  # mismatch to anyone checking the release.
+  legacy_path = content[/^path: (.+)$/, 1]
+  if legacy_path
+    artifact = dist.join(legacy_path.strip)
+    if artifact.exist?
+      actual = [Digest::SHA512.digest(artifact.read)].pack('m0')
+      current = content[/^sha512: (.+)$/, 1]
+      if current && current.strip != actual
+        content = content.sub(/^sha512: .+$/, "sha512: #{actual}")
+        changes << "#{yml.basename}: top-level sha512 synced to #{legacy_path.strip}"
+      end
+    end
+  end
+
   content, mac_failure, mac_change = ensure_minimum_system_version(content, yml.basename.to_s)
   failures << mac_failure if mac_failure
   changes << mac_change if mac_change

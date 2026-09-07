@@ -92,6 +92,32 @@ RSpec.describe "scripts/patch_release_manifests.rb" do
       end
     end
 
+    it "corrects a floor written in macOS numbering instead of Darwin" do
+      # `13.0.0` looks like a floor for macOS 13 and survives any shape check,
+      # but electron-updater compares it against os.release() — a macOS 12
+      # machine reports Darwin 21.6.0, which is higher, so the update is
+      # offered to the systems the floor exists to stop. Leaving an existing
+      # value alone would ship that silently.
+      Dir.mktmpdir("patch_test") do |dist|
+        payload = "bytes"
+        make_artifact(dist, "Monadic.Chat-1.0.0-beta.16-arm64.dmg", payload)
+        write_manifest(dist, "latest-mac.yml", entries: [{
+          url: "Monadic.Chat-1.0.0-beta.16-arm64.dmg",
+          sha512: sha512_b64(payload),
+          size: payload.bytesize
+        }])
+        path = File.join(dist, "latest-mac.yml")
+        File.write(path, File.read(path).sub(/^version:.*\n/) { |v| "#{v}minimumSystemVersion: 13.0.0\n" })
+
+        stdout, _stderr, status = run_patcher(dist)
+
+        expect(status.exitstatus).to eq(0)
+        expect(stdout).to include("corrected from 13.0.0")
+        expect(File.read(path)).to include("minimumSystemVersion: 22.0.0")
+        expect(File.read(path).scan("minimumSystemVersion").size).to eq(1)
+      end
+    end
+
     it "does not add it twice" do
       Dir.mktmpdir("patch_test") do |dist|
         payload = "bytes"

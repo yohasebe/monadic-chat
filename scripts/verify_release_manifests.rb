@@ -69,6 +69,13 @@ manifests.each do |yml|
   data = YAML.safe_load(yml.read, permitted_classes: [Time], aliases: false)
   files = Array(data['files'])
 
+  # Every check below is per entry, so an empty list would assert nothing and
+  # still exit 0 — a manifest the updater cannot download from.
+  if files.empty?
+    mismatches << { yml: yml.relative_path_from(dist).to_s, url: '(manifest)',
+                    reason: 'no files entries', declared: '-', actual: '-' }
+  end
+
   files.each do |entry|
     url        = entry['url']
     declared   = entry['sha512']
@@ -109,17 +116,31 @@ end
 # refuses the update on an older OS, and the check runs on the version the
 # user already has — so a build that drops OS support must announce it here,
 # not only in the new app's Info.plist.
+# Read the expected floor from the script that writes it, so the value is
+# stated once. Checking only the shape (three integers) would accept `13.0.0`
+# — the macOS number written where the Darwin number belongs — and that
+# compares as lower than a macOS 12 machine's `21.6.0`, which is the exact
+# failure the floor exists to prevent.
+patcher_source = Pathname.new(File.expand_path('patch_release_manifests.rb', __dir__)).read
+expected_floor = patcher_source[/MAC_MINIMUM_DARWIN_VERSION\s*=\s*'([^']+)'/, 1]
+
+if expected_floor.nil?
+  mismatches << { yml: '(scripts)', url: 'patch_release_manifests.rb',
+                  reason: 'could not read MAC_MINIMUM_DARWIN_VERSION',
+                  declared: '-', actual: '-' }
+end
+
 mac_manifests = manifests.select { |m| m.basename.to_s.start_with?('latest-mac') }
 mac_manifests.each do |yml|
   data = YAML.safe_load(yml.read, permitted_classes: [Time], aliases: false)
-  next if data['minimumSystemVersion'].to_s.match?(/\A\d+\.\d+\.\d+\z/)
+  next if expected_floor && data['minimumSystemVersion'].to_s == expected_floor
 
   mismatches << {
     yml: yml.relative_path_from(dist).to_s,
     url: '(manifest)',
-    reason: 'minimumSystemVersion missing or not a Darwin version',
+    reason: 'minimumSystemVersion is not the Darwin version this release requires',
     declared: data['minimumSystemVersion'].inspect,
-    actual: 'expected e.g. 22.0.0 for macOS 13'
+    actual: "expected #{expected_floor.inspect}"
   }
 end
 
@@ -136,7 +157,16 @@ if expected_electron.nil?
                   reason: 'electron is not installed; cannot verify what was packaged',
                   declared: '-', actual: '-' }
 elsif app_dirs.empty?
-  puts "[verify_release_manifests] note: no packaged .app in #{dist}; skipped the Electron check."
+  # Skipping used to leave a clean exit 0 on a run that checked no runtime at
+  # all. When mac manifests are being published, the packaged app is the only
+  # place the shipped Electron can be read from, so its absence is a failure.
+  if mac_manifests.empty?
+    puts "[verify_release_manifests] note: no packaged .app in #{dist} and no mac manifests; skipped the Electron check."
+  else
+    mismatches << { yml: '(dist)', url: 'mac*/*.app',
+                    reason: 'mac manifests are present but no packaged app was found to read the Electron version from',
+                    declared: expected_electron, actual: 'none' }
+  end
 else
   app_dirs.each do |app|
     packaged = packaged_electron_version(app)

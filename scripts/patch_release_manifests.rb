@@ -67,17 +67,38 @@ end
 # side, so shipping a corrected app is too late.
 MAC_MINIMUM_DARWIN_VERSION = '22.0.0' # macOS 13 Ventura
 
+# Returns [content, failure, change]. An existing value is corrected rather
+# than trusted: a floor written in macOS numbering (`13.0`) instead of Darwin
+# numbering compares as *lower* than a macOS 12 machine's `21.6.0`, so the
+# guard reads as satisfied and the update goes out to the systems it was
+# meant to stop. Leaving whatever is already there would ship that silently.
 def ensure_minimum_system_version(content, basename)
-  return [content, nil] unless basename.start_with?('latest-mac')
-  return [content, nil] if content.match?(/^minimumSystemVersion:/)
+  return [content, nil, nil] unless basename.start_with?('latest-mac')
+
+  existing = content[/^minimumSystemVersion:[ \t]*(\S+)/, 1]
+
+  if existing
+    return [content, nil, nil] if existing == MAC_MINIMUM_DARWIN_VERSION
+
+    patched = content.sub(/^minimumSystemVersion:.*\n/,
+                          "minimumSystemVersion: #{MAC_MINIMUM_DARWIN_VERSION}\n")
+    if patched == content
+      return [content, "#{basename}: could not replace minimumSystemVersion #{existing}", nil]
+    end
+
+    return [patched, nil,
+            "#{basename}: minimumSystemVersion corrected from #{existing} to " \
+            "#{MAC_MINIMUM_DARWIN_VERSION} (Darwin; macOS 13)"]
+  end
 
   # Place it next to `version:` so the file stays readable.
   patched = content.sub(/^(version:.*\n)/) do
     "#{Regexp.last_match(1)}minimumSystemVersion: #{MAC_MINIMUM_DARWIN_VERSION}\n"
   end
-  return [content, "#{basename}: could not place minimumSystemVersion"] if patched == content
+  return [content, "#{basename}: could not place minimumSystemVersion", nil] if patched == content
 
-  [patched, nil]
+  [patched, nil,
+   "#{basename}: minimumSystemVersion set to #{MAC_MINIMUM_DARWIN_VERSION} (Darwin; macOS 13)"]
 end
 
 changes = []
@@ -111,12 +132,9 @@ manifests.each do |yml|
     end
   end
 
-  content, mac_failure = ensure_minimum_system_version(content, yml.basename.to_s)
-  if mac_failure
-    failures << mac_failure
-  elsif content != yml.read && content.match?(/^minimumSystemVersion:/)
-    changes << "#{yml.basename}: minimumSystemVersion set to #{MAC_MINIMUM_DARWIN_VERSION} (Darwin; macOS 13)"
-  end
+  content, mac_failure, mac_change = ensure_minimum_system_version(content, yml.basename.to_s)
+  failures << mac_failure if mac_failure
+  changes << mac_change if mac_change
 
   yml.write(content) if content != yml.read
 end

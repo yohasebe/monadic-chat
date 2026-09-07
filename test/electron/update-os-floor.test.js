@@ -103,21 +103,25 @@ describe('the manifest the release patcher actually produces', () => {
 
   const patchedManifest = (existingFloor) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'update-floor-'));
-    const artifact = 'Monadic.Chat-1.0.0-beta.32-arm64.zip';
-    const payload = Buffer.from('bytes');
-    fs.writeFileSync(path.join(dir, artifact), payload);
+    try {
+      const artifact = 'Monadic.Chat-1.0.0-beta.32-arm64.zip';
+      const payload = Buffer.from('bytes');
+      fs.writeFileSync(path.join(dir, artifact), payload);
 
-    const lines = ['version: 1.0.0-beta.32'];
-    if (existingFloor) lines.push(`minimumSystemVersion: ${existingFloor}`);
-    lines.push('files:');
-    lines.push(`  - url: ${artifact}`);
-    lines.push('    sha512: placeholder');
-    lines.push('    size: 0');
-    lines.push("releaseDate: '2026-09-07T00:00:00.000Z'");
-    fs.writeFileSync(path.join(dir, 'latest-mac.yml'), lines.join('\n') + '\n');
+      const lines = ['version: 1.0.0-beta.32'];
+      if (existingFloor) lines.push(`minimumSystemVersion: ${existingFloor}`);
+      lines.push('files:');
+      lines.push(`  - url: ${artifact}`);
+      lines.push('    sha512: placeholder');
+      lines.push('    size: 0');
+      lines.push("releaseDate: '2026-09-07T00:00:00.000Z'");
+      fs.writeFileSync(path.join(dir, 'latest-mac.yml'), lines.join('\n') + '\n');
 
-    execFileSync('ruby', [patcher, dir], { stdio: 'pipe' });
-    return yaml.load(fs.readFileSync(path.join(dir, 'latest-mac.yml'), 'utf8'));
+      execFileSync('ruby', [patcher, dir], { stdio: 'pipe' });
+      return yaml.load(fs.readFileSync(path.join(dir, 'latest-mac.yml'), 'utf8'));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   };
 
   afterEach(() => {

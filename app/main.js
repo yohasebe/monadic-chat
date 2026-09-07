@@ -4027,20 +4027,26 @@ ipcMain.on('open-external-url', (_event, url) => {
 // `clipboard` module from renderer processes, so the preload asks the main
 // process instead. Origin is checked on the preload side, which knows the
 // page's own location; these handlers only move the text.
-ipcMain.handle('clipboard-read-text', () => {
+// Electron 44 also made these return promises, so a synchronous try/catch
+// never sees a rejection — measured on 44.1.1, where a failing readText
+// rejects rather than throwing. Await them and catch that instead. On
+// Electron 39 the same code works: awaiting a plain string is a no-op.
+ipcMain.handle('clipboard-read-text', async () => {
   try {
-    return clipboard.readText();
+    return await clipboard.readText();
   } catch (e) {
     return '';
   }
 });
 
-ipcMain.on('clipboard-write-text', (_event, text) => {
+// Answers when the write has actually happened, so the preload can report a
+// failure rather than assuming success.
+ipcMain.handle('clipboard-write-text', async (_event, text) => {
   try {
-    clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));
+    await clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));
+    return true;
   } catch (e) {
-    // Writing to the clipboard is best-effort; a failure must not take the
-    // main process down.
+    return false;
   }
 });
 

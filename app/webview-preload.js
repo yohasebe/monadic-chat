@@ -38,13 +38,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     console.warn('[clipboard] Blocked read from untrusted origin:', window.location && window.location.href);
     return Promise.resolve('');
   },
+  // Returns a promise for the same reason readClipboard does: on Electron 44
+  // the main-process write is asynchronous, so answering `true` before it
+  // completes would report a success that had not happened.
   writeClipboard: (text) => {
     if (isTrustedOrigin()) {
-      ipcRenderer.send('clipboard-write-text', text != null ? String(text) : '');
-      return true;
+      return ipcRenderer.invoke('clipboard-write-text', text != null ? String(text) : '');
     }
     console.warn('[clipboard] Blocked write from untrusted origin:', window.location && window.location.href);
-    return false;
+    return Promise.resolve(false);
   },
   // Media permissions helper
   requestMediaPermissions: async () => {

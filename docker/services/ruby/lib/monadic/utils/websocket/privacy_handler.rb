@@ -181,6 +181,7 @@ module WebSocketHelper
     # round-trips a full session (matches the historical local export shape).
     # `parameters` was assembled and remasked above, alongside the messages.
     monadic_state = privacy_export_monadic_state(session)
+    session_context = privacy_export_session_context(session)
     # Dynamic-skill unlock state, so an imported session restores the skills the
     # model had acquired (reproducibility). This is the ACTIVE export path
     # (the frontend $id("save") handler delegates here), so progressive_tools
@@ -203,6 +204,7 @@ module WebSocketHelper
         "parameters" => parameters
       }
       payload["monadic_state"] = monadic_state if monadic_state
+      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
@@ -212,6 +214,7 @@ module WebSocketHelper
       payload = { "parameters" => parameters, "messages" => messages }
       payload["registry"] = registry_to_export unless registry_to_export.empty?
       payload["monadic_state"] = monadic_state if monadic_state
+      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       content = JSON.pretty_generate(payload)
     end
@@ -361,14 +364,49 @@ module WebSocketHelper
   # /monadic_state HTTP endpoint shape (used by the legacy local export) so
   # exports remain round-trippable through the existing import path. Returns
   # nil when there is no monadic_state to include.
+  # Keys that sit alongside the app namespaces in session[:monadic_state] but
+  # hold something else. `conversation_context` and `context_schema` are the
+  # Context Panel's own structures; `privacy` is the registry, which RD-1 says
+  # is never persisted.
+  #
+  # The import route reads each app namespace as {key => {data, version,
+  # updated_at}} and applies ["data"] to every value, so emitting the panel's
+  # plain hash here made the import raise. It has its own field on the wire —
+  # `session_context` — which the import route already restores; this exports
+  # into that field rather than leaving the mechanism unwired.
+  PRIVACY_STATE_RESERVED_KEYS = %w[privacy conversation_context context_schema].freeze
+
   private def privacy_export_monadic_state(session)
     state = session[:monadic_state]
     return nil unless state.is_a?(Hash)
     serializable = state.each_with_object({}) do |(app_key, app_data), result|
-      next if app_key == :privacy || app_key == "privacy"  # RD-1: never persist
-      result[app_key.to_s] = app_data
+      next if PRIVACY_STATE_RESERVED_KEYS.include?(app_key.to_s)
+      next unless app_data.is_a?(Hash)
+
+      # Only namespaces whose entries carry the state envelope round-trip.
+      entries = app_data.select do |_key, entry|
+        entry.is_a?(Hash) && (entry.key?(:data) || entry.key?("data"))
+      end
+      next if entries.empty?
+
+      result[app_key.to_s] = entries
     end
     serializable.empty? ? nil : serializable
+  end
+
+  # The Context Panel's structures, exported under the field names the import
+  # route reads (`session_context` / `context_schema`).
+  private def privacy_export_session_context(session)
+    state = session[:monadic_state]
+    return {} unless state.is_a?(Hash)
+
+    context = state[:conversation_context] || state["conversation_context"]
+    schema = state[:context_schema] || state["context_schema"]
+
+    {}.tap do |out|
+      out["session_context"] = context if context.is_a?(Hash) && !context.empty?
+      out["context_schema"] = schema if schema
+    end
   end
 
   # Build a non-secret header for the envelope. Stays in plaintext so users

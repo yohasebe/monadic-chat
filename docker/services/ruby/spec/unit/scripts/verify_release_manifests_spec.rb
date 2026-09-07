@@ -2,6 +2,7 @@ require 'spec_helper'
 require 'base64'
 require 'digest'
 require 'fileutils'
+require 'json'
 require 'open3'
 require 'tmpdir'
 
@@ -43,17 +44,22 @@ RSpec.describe "scripts/verify_release_manifests.rb" do
   def write_mac_manifest(dist, floor:, filename: "latest-mac.yml", files: :default,
                          version: release_version, artifact_version: nil)
     payload = "bytes"
-    artifact = "Monadic.Chat-#{artifact_version || version}-arm64.zip"
+    artifact = "Monadic.Chat-#{artifact_version || version}-arm64.dmg"
     File.binwrite(File.join(dist, artifact), payload)
+
+    digest = Base64.strict_encode64(Digest::SHA512.digest(payload))
 
     lines = ["version: #{version}"]
     lines << "minimumSystemVersion: #{floor}" if floor
     lines << "files:"
     if files == :default
       lines << "  - url: #{artifact}"
-      lines << "    sha512: #{Base64.strict_encode64(Digest::SHA512.digest(payload))}"
+      lines << "    sha512: #{digest}"
       lines << "    size: #{payload.bytesize}"
     end
+    # electron-builder also writes this legacy pair, naming the first entry.
+    lines << "path: #{artifact}"
+    lines << "sha512: #{digest}"
     lines << "releaseDate: '2026-09-07T00:00:00.000Z'"
     File.write(File.join(dist, filename), lines.join("\n") + "\n")
   end
@@ -104,6 +110,30 @@ RSpec.describe "scripts/verify_release_manifests.rb" do
     end
   end
 
+  context "the legacy top-level pair" do
+    it "is reported when it no longer matches the artifact it names" do
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor)
+        path = File.join(dist, "latest-mac.yml")
+        File.write(path, File.read(path).sub(/^sha512: .+$/, "sha512: staleHashFromBeforeRepackaging=="))
+
+        _stdout, stderr, status = run_verifier(dist)
+
+        expect(stderr).to include('the legacy top-level sha512 does not match')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it "is accepted when it matches" do
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor)
+        _stdout, stderr, = run_verifier(dist)
+
+        expect(stderr).not_to include('the legacy top-level sha512')
+      end
+    end
+  end
+
   context "a manifest that lists nothing" do
     it "is reported rather than passing every per-entry check vacuously" do
       Dir.mktmpdir("verify_test") do |dist|
@@ -116,13 +146,105 @@ RSpec.describe "scripts/verify_release_manifests.rb" do
     end
   end
 
-  context "nothing packaged to read the runtime from" do
+  context "nothing shipped to read the runtime from" do
     it "reports it instead of exiting 0 on a skipped check" do
+      # The build deletes the unpacked app before verifying, so the zip is the
+      # only place left that states which runtime ships. A run with mac
+      # manifests but no zip has checked nothing.
       Dir.mktmpdir("verify_test") do |dist|
         write_mac_manifest(dist, floor: expected_floor)
         _stdout, stderr, status = run_verifier(dist)
 
-        expect(stderr).to include('no packaged app was found')
+        expect(stderr).to include('the shipped zip is missing')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+  end
+
+  # Reading the plists needs PlistBuddy, which exists only on macOS. Release
+  # builds happen on macOS, so these run where the check matters; elsewhere the
+  # antecedent is genuinely absent rather than the assertions being skipped for
+  # convenience.
+  context "what the shipped zip declares", if: File.exist?("/usr/libexec/PlistBuddy") do
+    def write_zip(dist, artifact_name, electron:, os_floor:)
+      Dir.mktmpdir("zip_src") do |src|
+        fw = File.join(src, "Monadic Chat.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources")
+        app = File.join(src, "Monadic Chat.app/Contents")
+        FileUtils.mkdir_p(fw)
+        FileUtils.mkdir_p(app)
+        File.write(File.join(fw, "Info.plist"), plist("CFBundleVersion" => electron))
+        File.write(File.join(app, "Info.plist"), plist("LSMinimumSystemVersion" => os_floor))
+
+        zip = File.join(dist, artifact_name)
+        ok = system("zip", "-q", "-r", zip, "Monadic Chat.app", chdir: src)
+        raise "could not build the fixture zip" unless ok
+      end
+    end
+
+    def plist(pairs)
+      body = pairs.map { |k, v| "  <key>#{k}</key>\n  <string>#{v}</string>" }.join("\n")
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+        #{body}
+        </dict>
+        </plist>
+      XML
+    end
+
+    let(:installed_electron) do
+      path = File.expand_path("../../../../../../node_modules/electron/package.json", __dir__)
+      File.exist?(path) ? JSON.parse(File.read(path))["version"] : nil
+    end
+
+    let(:bundle_floor) do
+      path = File.expand_path("../../../../../../package.json", __dir__)
+      JSON.parse(File.read(path)).dig("build", "mac", "minimumSystemVersion")
+    end
+
+    it "accepts a zip carrying the installed runtime and the configured floor" do
+      skip "electron is not installed" unless installed_electron
+
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor)
+        write_zip(dist, "Monadic.Chat-#{release_version}-arm64.zip",
+                  electron: installed_electron, os_floor: bundle_floor)
+        _stdout, stderr, = run_verifier(dist)
+
+        expect(stderr).not_to include('the shipped runtime differs')
+        expect(stderr).not_to include('different macOS floor')
+      end
+    end
+
+    it "reports a zip built on the previous Electron" do
+      # This is the failure that shipped beta.31: the dependency had been
+      # raised while the build kept producing the old runtime.
+      skip "electron is not installed" unless installed_electron
+
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor)
+        write_zip(dist, "Monadic.Chat-#{release_version}-arm64.zip",
+                  electron: "39.2.7", os_floor: bundle_floor)
+        _stdout, stderr, status = run_verifier(dist)
+
+        expect(stderr).to include('the shipped runtime differs')
+        expect(stderr).to include('39.2.7')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it "reports a bundle declaring a macOS floor the build config does not" do
+      skip "electron is not installed" unless installed_electron
+
+      Dir.mktmpdir("verify_test") do |dist|
+        write_mac_manifest(dist, floor: expected_floor)
+        write_zip(dist, "Monadic.Chat-#{release_version}-arm64.zip",
+                  electron: installed_electron, os_floor: "12.0")
+        _stdout, stderr, status = run_verifier(dist)
+
+        expect(stderr).to include('different macOS floor')
         expect(status.exitstatus).to eq(1)
       end
     end

@@ -5,6 +5,9 @@
   - **GPT-6 Astra (opt-in)**: OpenAI's frontier model joins the model list. It is priced well above the GPT-5.6 family, so it stays off the defaults and is chosen from the model dropdown
   - **The reasoning effort choices now match what each OpenAI model accepts**: three models offered a level the API rejects, so picking it returned an error, and one model hid a level the API does accept
   - **A saved Speech-to-Text choice keeps working after the model retires**: the selection is stored for 30 days, and when the provider drops that model the request now goes out under its replacement instead of the name that no longer exists
+  - **The download links in the documentation point at the current release**: they used a URL that GitHub resolves to the newest non-prerelease, and every beta is published as a prerelease, so the documented download had been serving 1.0.0-beta.17 since June. Each link now names the release and the file for its platform
+  - **Linux install instructions match what is published**: the documentation asked for a `.deb` package, which this project has never shipped. It now describes the AppImage that the release actually contains
+  - **The application package no longer carries development leftovers**: benchmark logs, Python bytecode caches, test audio and test-run state from the build machine were being copied into the packaged app. The package is now assembled from a list of files rather than by copying the working directory and excluding a few names
   - **The build no longer fails when the app is already running**: regenerating the help database checked that the container existed rather than that it could be reached, and stopped with a connection error when the installed app had started it
 
 - [September, 2026] 1.0.0-beta.31

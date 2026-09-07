@@ -152,11 +152,17 @@ root = Pathname.new(File.expand_path('..', __dir__))
 expected_electron = installed_electron_version(root)
 app_dirs = dist.glob('mac*/*.app')
 
+# The two conditions below are independent facts about the run: what npm
+# resolved, and what the build produced. Reporting them in one if/elsif chain
+# meant a missing node_modules hid a missing app, so a run could be told about
+# one problem while silently not checking for the other.
 if expected_electron.nil?
   mismatches << { yml: '(node_modules)', url: 'electron',
                   reason: 'electron is not installed; cannot verify what was packaged',
                   declared: '-', actual: '-' }
-elsif app_dirs.empty?
+end
+
+if app_dirs.empty?
   # Skipping used to leave a clean exit 0 on a run that checked no runtime at
   # all. When mac manifests are being published, the packaged app is the only
   # place the shipped Electron can be read from, so its absence is a failure.
@@ -167,7 +173,7 @@ elsif app_dirs.empty?
                     reason: 'mac manifests are present but no packaged app was found to read the Electron version from',
                     declared: expected_electron, actual: 'none' }
   end
-else
+elsif expected_electron
   app_dirs.each do |app|
     packaged = packaged_electron_version(app)
     rel = app.relative_path_from(dist).to_s

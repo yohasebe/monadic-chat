@@ -151,6 +151,10 @@ RSpec.describe 'App Tool Method Availability' do
   end
 
   describe 'Agent Method Availability' do
+    # Reports only. The heuristic below cannot tell delegation from a missing
+    # include, so it prints candidates instead of failing — passing here is
+    # not evidence that every app's agent methods resolve. The Runtime Method
+    # Resolution group further down loads the classes and asserts.
     it 'validates apps using agents have access to agent methods' do
       errors = []
 

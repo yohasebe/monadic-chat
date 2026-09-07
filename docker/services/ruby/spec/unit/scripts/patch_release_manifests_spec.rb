@@ -46,6 +46,72 @@ RSpec.describe "scripts/patch_release_manifests.rb" do
     File.write(File.join(dist, filename), lines.join("\n") + "\n")
   end
 
+  context "macOS update floor" do
+    # electron-updater refuses an update when the manifest declares a
+    # minimumSystemVersion above the running OS, and it compares against
+    # os.release() — the Darwin version, not the macOS one. electron-builder
+    # does not write the field for the mac zip/dmg targets, so the patcher
+    # adds it. Without it, a machine on a macOS the new build dropped is
+    # offered the update by its own installed updater.
+    it "declares the floor on mac manifests" do
+      Dir.mktmpdir("patch_test") do |dist|
+        payload = "bytes"
+        make_artifact(dist, "Monadic.Chat-1.0.0-beta.16-arm64.dmg", payload)
+        write_manifest(dist, "latest-mac.yml", entries: [{
+          url: "Monadic.Chat-1.0.0-beta.16-arm64.dmg",
+          sha512: sha512_b64(payload),
+          size: payload.bytesize
+        }])
+
+        _stdout, _stderr, status = run_patcher(dist)
+        expect(status.exitstatus).to eq(0)
+
+        patched = YAML.safe_load_file(File.join(dist, "latest-mac.yml"))
+        expect(patched["minimumSystemVersion"]).to eq("22.0.0"),
+                                                   "expected the Darwin version for macOS 13, not the macOS one"
+      end
+    end
+
+    it "leaves other platforms alone" do
+      # Positive control for the branch: the field is meaningless outside mac,
+      # and adding it everywhere would be indistinguishable from adding it
+      # correctly if only mac were ever checked.
+      Dir.mktmpdir("patch_test") do |dist|
+        payload = "bytes"
+        make_artifact(dist, "Monadic.Chat.Setup.exe", payload)
+        write_manifest(dist, "latest.yml", entries: [{
+          url: "Monadic.Chat.Setup.exe",
+          sha512: sha512_b64(payload),
+          size: payload.bytesize
+        }])
+
+        run_patcher(dist)
+
+        patched = YAML.safe_load_file(File.join(dist, "latest.yml"))
+        expect(patched).not_to have_key("minimumSystemVersion")
+      end
+    end
+
+    it "does not add it twice" do
+      Dir.mktmpdir("patch_test") do |dist|
+        payload = "bytes"
+        make_artifact(dist, "Monadic.Chat-1.0.0-beta.16-arm64.dmg", payload)
+        write_manifest(dist, "latest-mac.yml", entries: [{
+          url: "Monadic.Chat-1.0.0-beta.16-arm64.dmg",
+          sha512: sha512_b64(payload),
+          size: payload.bytesize
+        }])
+
+        run_patcher(dist)
+        stdout, _stderr, status = run_patcher(dist)
+
+        expect(status.exitstatus).to eq(0)
+        expect(stdout).to include("already in sync")
+        expect(File.read(File.join(dist, "latest-mac.yml")).scan("minimumSystemVersion").size).to eq(1)
+      end
+    end
+  end
+
   context "happy path — manifest drifted from shipped bytes" do
     it "patches sha512 and size to match the artifact" do
       Dir.mktmpdir("patch_test") do |dist|
@@ -59,7 +125,9 @@ RSpec.describe "scripts/patch_release_manifests.rb" do
 
         stdout, _stderr, status = run_patcher(dist)
         expect(status.exitstatus).to eq(0)
-        expect(stdout).to include("Patched 1 entries")
+        # Two, not one: a mac manifest also gains its minimumSystemVersion line.
+        expect(stdout).to include("Patched 2 entries")
+        expect(stdout).to include("minimumSystemVersion set to")
 
         patched = YAML.safe_load_file(File.join(dist, "latest-mac.yml"))
         entry = patched["files"].first
@@ -164,7 +232,9 @@ RSpec.describe "scripts/patch_release_manifests.rb" do
 
         stdout, _stderr, status = run_patcher(dist)
         expect(status.exitstatus).to eq(0)
-        expect(stdout).to include("Patched 1 entries")
+        # Two, not one: a mac manifest also gains its minimumSystemVersion line.
+        expect(stdout).to include("Patched 2 entries")
+        expect(stdout).to include("minimumSystemVersion set to")
 
         patched = YAML.safe_load_file(File.join(dist, "latest-mac.yml"))
         dmg_entry = patched["files"].find { |e| e["url"].end_with?(".dmg") }

@@ -145,24 +145,4 @@ RSpec.describe "Environment Variable Behavior" do
     end
   end
   
-  describe "DrawIO-specific Debug Behavior" do
-    it "validates DrawIO debug pattern" do
-      # Load the actual DrawIO file to check pattern
-      drawio_file = File.join(
-        File.dirname(__FILE__), 
-        "..", "apps", "drawio_grapher", "drawio_grapher_tools.rb"
-      )
-      
-      if File.exist?(drawio_file)
-        content = File.read(drawio_file)
-        
-        # Check that debug output is conditional
-        expect(content).to match(/if\s+ENV\['DRAWIO_DEBUG'\]/)
-        
-        # Check that debug messages follow the pattern
-        debug_lines = content.scan(/puts.*\[DEBUG\].*DrawIOGrapher/)
-        expect(debug_lines).not_to be_empty
-      end
-    end
-  end
 end

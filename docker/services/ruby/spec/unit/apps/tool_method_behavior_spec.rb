@@ -325,15 +325,5 @@ RSpec.describe 'Tool Method Behavior' do
   describe 'Tool Return Value Consistency' do
     # Tools should return consistent structures
 
-    it 'format_tool_response helper returns Hash with expected keys' do
-      # Check if format_tool_response is available
-      # This is a common helper pattern in tools
-
-      # Example of expected tool response structure:
-      expected_keys = [:success, :message, :data]
-
-      # Tools should return structured responses, not raw strings
-      # This test documents the expected pattern
-    end
   end
 end

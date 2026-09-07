@@ -111,14 +111,33 @@ namespace :release do
       exit 1
     end
     
-    # Check for and include YML files for auto-updates. Exclude
-    # builder-debug.yml — it is electron-builder's debug dump, not an
-    # auto-update manifest, and must not be attached (the release ships the 5
-    # latest-*.yml manifests only).
+    # Attach the auto-update manifests by name rather than by glob. Only the
+    # `latest-*` manifests are patched (sha512/size, and the macOS floor) and
+    # verified, so publishing any other update manifest would put an
+    # unchecked one in front of the updater: electron-updater on a prerelease
+    # asks for the `beta-*` channel first and only falls back to `latest-*`.
+    # An unexpected file is a build-configuration change, so stop rather than
+    # ship it.
+    expected_update_manifests = %w[
+      latest.yml
+      latest-mac.yml
+      latest-mac-arm64.yml
+      latest-linux.yml
+      latest-linux-arm64.yml
+    ]
+
     puts "Searching for auto-update YML files in dist directory..."
-    update_ymls = Dir.glob("dist/*.yml").reject { |f| File.basename(f) == "builder-debug.yml" }
+    found_ymls = Dir.glob("dist/*.yml").map { |f| File.basename(f) } - ["builder-debug.yml"]
+    unexpected = found_ymls - expected_update_manifests
+    unless unexpected.empty?
+      puts "Error: unexpected update manifest(s) in dist: #{unexpected.join(', ')}"
+      puts "These are not patched or verified. Remove them, or extend the patch/verify"
+      puts "scripts and this list together."
+      exit 1
+    end
+
+    update_ymls = (found_ymls & expected_update_manifests).map { |f| File.join("dist", f) }
     update_ymls.each do |yml_path|
-      yml_file = File.basename(yml_path)
       release_assets << yml_path
       puts "Found YML asset for auto-update: #{yml_path}"
     end

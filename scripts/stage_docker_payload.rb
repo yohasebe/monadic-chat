@@ -52,12 +52,41 @@ SHIPPED_TREES = %w[docker bin].freeze
 # was staged and what shipped.
 GIT_BOOKKEEPING = %w[.gitkeep .gitignore .gitattributes].freeze
 
+# Tracked, shipped, and read by nothing. The packaged `docker/` tree exists to
+# be the build context for the Ruby image, and that image's .dockerignore
+# already excludes these, so they reach neither the container nor any runtime
+# path — they only make the download larger and make a test edit change the
+# shipped bytes. Kept in step with .dockerignore by a check below.
+EXCLUDED_FROM_PAYLOAD = [
+  %r{\Adocker/services/ruby/spec/},
+  %r{\Adocker/services/ruby/docs/}
+].freeze
+
 def tracked_paths
   out = `git -C "#{ROOT}" ls-files -z #{SHIPPED_TREES.join(' ')}`
   raise 'git ls-files failed' unless $?.success?
 
-  out.split("\0").reject(&:empty?).reject { |p| GIT_BOOKKEEPING.include?(File.basename(p)) }
+  out.split("\0").reject(&:empty?)
+     .reject { |p| GIT_BOOKKEEPING.include?(File.basename(p)) }
+     .reject { |p| EXCLUDED_FROM_PAYLOAD.any? { |re| p.match?(re) } }
 end
+
+# The exclusions above are only safe while the Ruby image also leaves these
+# out. If .dockerignore stopped excluding them the container build would need
+# them from the payload, and dropping them here would break it silently.
+def assert_dockerignore_agrees
+  ignore = ROOT.join('docker/services/ruby/.dockerignore')
+  return unless ignore.file?
+
+  entries = ignore.read.split("\n").map(&:strip).reject { |l| l.empty? || l.start_with?('#') }
+  %w[spec/ docs/].each do |dir|
+    next if entries.include?(dir)
+
+    abort "[stage_docker_payload] .dockerignore no longer excludes #{dir}, but the payload does.\n" \
+          '  Bring the two back in step before building.'
+  end
+end
+assert_dockerignore_agrees
 
 def build_product_paths
   REQUIRED_BUILD_PRODUCTS.flat_map do |pattern|

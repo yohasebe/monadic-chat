@@ -50,6 +50,29 @@ RSpec.describe 'the app payload allow list' do
       expect(source).to include("%w[.gitkeep .gitignore .gitattributes]")
     end
 
+    it 'leaves out the trees the shipped app never reads' do
+      # The packaged docker/ tree is the build context for the Ruby image and
+      # nothing else. That image's .dockerignore already drops spec/ and docs/,
+      # so shipping them only enlarges the download — and makes a test edit
+      # change the shipped bytes, which forces a rebuild to keep the tag and
+      # the artifacts in step.
+      expect(source).to include('docker/services/ruby/spec/')
+      # Naming the list is not enough — it has to be applied. Dropping the
+      # filtering line while leaving the constant behind would otherwise pass.
+      expect(source).to match(/\.reject \{ \|p\| EXCLUDED_FROM_PAYLOAD\.any\?/)
+    end
+
+    it 'refuses to run when .dockerignore stops agreeing' do
+      # Dropping these is only safe while the container build also excludes
+      # them. If that changed, the container would need them from the payload
+      # and the omission would break the build silently.
+      expect(source).to include('def assert_dockerignore_agrees')
+      expect(source).to include('no longer excludes')
+      # Defining the check and never calling it is the same defect in a
+      # different place.
+      expect(source).to match(/^assert_dockerignore_agrees$/)
+    end
+
     it 'fails when a named build product is missing' do
       # Shipping without the vendor assets or the help database would produce
       # an app that starts and then cannot render or answer.

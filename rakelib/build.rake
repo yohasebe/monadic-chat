@@ -69,6 +69,13 @@ namespace :build do
     # updates are a deliberate step (npm update + commit), not a
     # side effect of building.
     sh "npm ci"
+    # Assemble the payload that ships inside the app from an allow list.
+    # electron-builder points at build/app-payload, so whatever is not staged
+    # here cannot reach a release — the deny-list filter this replaces shipped
+    # every git-ignored file that happened to be in the tree.
+    puts "[setup_build_environment] Staging the app payload..."
+    sh "ruby scripts/stage_docker_payload.rb"
+
   end
 
   desc "Build Windows x64 package only"
@@ -141,6 +148,9 @@ namespace :build do
       sh "ruby scripts/patch_release_manifests.rb"
       sh "ruby scripts/verify_release_manifests.rb"
     end
+
+    puts "\n=== Verifying packaged payload ==="
+    sh "ruby scripts/verify_bundle_payload.rb"
   end
 
   desc "Build Linux x64 package only"
@@ -324,4 +334,9 @@ task :build do
     sh "ruby scripts/patch_release_manifests.rb"
     sh "ruby scripts/verify_release_manifests.rb"
   end
+
+  # Confirm the archives carry exactly the staged payload. The staging step
+  # decides what ships; this reads what actually shipped.
+  puts "\n=== Verifying packaged payload ==="
+  sh "ruby scripts/verify_bundle_payload.rb"
 end

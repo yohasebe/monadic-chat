@@ -134,6 +134,14 @@ namespace :release do
       puts "Error: manifest verification failed; nothing was published."
       exit 1
     end
+
+    # And that the archives carry only the payload that was staged. Releases
+    # beta.21 through beta.32 shipped git-ignored files this catches.
+    puts "Verifying the packaged payload against the staged allow list..."
+    unless system("ruby", "scripts/verify_bundle_payload.rb")
+      puts "Error: packaged payload verification failed; nothing was published."
+      exit 1
+    end
     
     puts "Total assets for release: #{release_assets.length}"
     

@@ -5,16 +5,25 @@
 # Intentionally NOT listed:
 # - docker/monadic.sh reads the version dynamically from version.rb at
 #   runtime (no hardcoded version to check).
-# - docs/getting-started/installation.md (EN/JA) links to
-#   github.com/.../releases/latest and carries no version literals.
+# - docs/_coverpage.md (EN/JA) no longer carries a version string. Listing
+#   them made the check report two failures on every release, which is how
+#   a real failure — installation.md — went unnoticed among them.
+#
+# installation.md (EN/JA) IS listed. It used to link to
+# github.com/.../releases/latest, which GitHub resolves to the newest
+# NON-prerelease — and every beta is published as a prerelease, so from
+# beta.18 onward that link kept serving beta.17 to anyone following the
+# documentation. Version-pinned asset URLs replace it: they have to be
+# updated here on every release, and a missed update shows up as a 404
+# rather than as a quietly outdated download.
 def version_files
   # Static files that always need version updates
   static_files = [
     "./docker/services/ruby/lib/monadic/version.rb",
     "./package.json",
     "./package-lock.json",
-    "./docs/_coverpage.md",
-    "./docs/ja/_coverpage.md"
+    "./docs/getting-started/installation.md",
+    "./docs/ja/getting-started/installation.md"
   ]
 
   # Return the files
@@ -122,6 +131,14 @@ def update_version_in_file(file, from_version, to_version)
     # For _coverpage.md, update the version in the header only
     updated_content = content.gsub(/<small><b>#{Regexp.escape(from_version)}<\/b><\/small>/, "<small><b>#{to_version}</b></small>")
   
+  when "installation.md"
+    # Download links point at the release assets by name, so both the tag in
+    # the URL and the version inside each filename move together.
+    # A plain String pattern is a literal match, which is what a version
+    # string needs. Passing Regexp.escape(...) here would search for the
+    # escaped text itself and silently match nothing.
+    updated_content = content.gsub(from_version, to_version)
+
   when "package.json"
     # For package.json, only update the main version field, not dependency versions
     updated_content = content.gsub(/^(\s*"version":\s*)"#{Regexp.escape(from_version)}"/, "\\1\"#{to_version}\"")

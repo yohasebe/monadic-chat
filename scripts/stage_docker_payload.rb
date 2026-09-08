@@ -45,11 +45,18 @@ REQUIRED_BUILD_PRODUCTS = [
 # The directories that ship inside the app, each mirrored under OUT by name.
 SHIPPED_TREES = %w[docker bin].freeze
 
+# Tracked, but only so that git keeps an otherwise-empty directory. They mean
+# nothing once the app is packaged, and electron-builder drops them by name
+# anyway (app-builder-lib's fileMatcher excludes .gitkeep alongside .DS_Store
+# and __pycache__), so staging them would guarantee a mismatch between what
+# was staged and what shipped.
+GIT_BOOKKEEPING = %w[.gitkeep .gitignore .gitattributes].freeze
+
 def tracked_paths
   out = `git -C "#{ROOT}" ls-files -z #{SHIPPED_TREES.join(' ')}`
   raise 'git ls-files failed' unless $?.success?
 
-  out.split("\0").reject(&:empty?)
+  out.split("\0").reject(&:empty?).reject { |p| GIT_BOOKKEEPING.include?(File.basename(p)) }
 end
 
 def build_product_paths

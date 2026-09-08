@@ -41,6 +41,15 @@ RSpec.describe 'the app payload allow list' do
       expect(source).to include("'docker/services/ruby/help_data/help_db.json'")
     end
 
+    it 'leaves out the files git keeps only to hold a directory' do
+      # electron-builder drops .gitkeep by name (app-builder-lib's fileMatcher
+      # excludes it alongside .DS_Store and __pycache__), so staging one would
+      # guarantee a staged-but-not-shipped mismatch on every build. They carry
+      # no meaning in a packaged app either way.
+      expect(source).to include('GIT_BOOKKEEPING')
+      expect(source).to include("%w[.gitkeep .gitignore .gitattributes]")
+    end
+
     it 'fails when a named build product is missing' do
       # Shipping without the vendor assets or the help database would produce
       # an app that starts and then cannot render or answer.

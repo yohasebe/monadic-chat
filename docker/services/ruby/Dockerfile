@@ -61,12 +61,15 @@ RUN echo "deb [arch=$(dpkg --print-architecture) \
          $(lsb_release -cs) stable" | \
          tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Refresh package list and install Docker components
-# Pin containerd.io to 1.7.x stable series to avoid transient repository issues
+# Install the Docker client only. This container drives the host's daemon
+# through the mounted /var/run/docker.sock (docker exec / ps / cp / compose),
+# so it needs neither the daemon (docker-ce) nor containerd. Installing them
+# only added a dependency pair that could fall out of step: containerd.io was
+# pinned to 1.7 while docker-ce was not, and once docker-ce began requiring
+# containerd 2.1.5 every uncached build of this image failed.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    containerd.io=1.7* \
-    docker-ce docker-ce-cli docker-compose-plugin && \
+    docker-ce-cli docker-compose-plugin && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

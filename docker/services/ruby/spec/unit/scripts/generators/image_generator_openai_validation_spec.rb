@@ -92,20 +92,35 @@ RSpec.describe "image_generator_openai request validation" do
     # methods on Object, so one example's definitions would rescue the next and
     # a broken definition order would stop failing after the first example.
     #
-    # `generate_image` is replaced by a recorder: what reaches it is the
-    # question, and nothing may leave the process. Asserting only the absence
-    # of an error message is not enough — a CLI that refused everything for an
-    # unrelated reason would satisfy that too.
+    # The HTTP client is replaced by a recorder in each example: what the CLI
+    # assembles is the question, and nothing may leave the process. Asserting
+    # only the absence of an error message is not enough — a CLI that refused
+    # everything for an unrelated reason would satisfy that too, which is what
+    # an earlier version of these examples allowed.
+
+    # The script reads its key from a config file, not from the environment, so
+    # a machine that happens to have one would pass here while CI and a fresh
+    # checkout would stop at the key instead of reaching the request. Answer for
+    # those two paths only; every other file lookup behaves normally.
+    CONFIG_PATHS = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"].freeze
+
+    before do
+      allow(File).to receive(:exist?).and_call_original
+      allow(File).to receive(:read).and_call_original
+      CONFIG_PATHS.each do |path|
+        allow(File).to receive(:exist?).with(path).and_return(true)
+        allow(File).to receive(:read).with(path).and_return("OPENAI_API_KEY=sk-test\n")
+      end
+    end
+
     def run_cli(*argv)
       script, output = GeneratorScriptLoader.run_cli("image_generator_openai.rb", argv)
       [script, output]
     end
 
-    # The CLI block calls generate_image at the very end, so the recorder has
-    # to be installed on the same object the block will use. instance_eval
-    # defines the script's methods as singletons, so redefining one afterwards
-    # is not possible before the run. Instead the request is reconstructed from
-    # the validator, and the outcome is read from stdout and the exit status.
+    # What the CLI printed. run_cli swallows the SystemExit a rejected request
+    # raises, so the outcome is read from this output and from whether the
+    # recorder saw a request at all.
     def cli_outcome(*argv)
       _script, output = run_cli(*argv)
       output

@@ -560,7 +560,7 @@ module Monadic
         # lists them (the first is the default). Callers that must reject an
         # unrecognised model need the whole list, not just the default.
         def provider_default_models(provider, category = "chat")
-          Array(load_provider_defaults.dig(normalize_provider_key(provider), category.to_s))
+          Array(get_provider_models(provider, category))
         end
 
         # Get the default model (first in list) for a provider and category

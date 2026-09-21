@@ -69,9 +69,9 @@ app "ImageGeneratorOpenAI" do
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETERS:
-    - model: "gpt-image-2" (default), "gpt-image-2.5-flare" or "gpt-image-2.5-sunburst". Use the model the user asks for; do not substitute another one.
+    - model: "gpt-image-2" (default), "gpt-image-2.5-flare" or "gpt-image-2.5-sunburst". Use the image model the user explicitly requested. Never change an explicitly requested model to satisfy a quality setting: if that model does not support the requested quality, explain the mismatch and ask the user to choose a supported quality or another model, and do not generate an image yet. When no image model was specified, use the default; if the user asks for a quality the default does not offer, pick a model that supports it and say which one you chose.
     - size: 1024x1024 (default), 1536x1024, 1024x1536; larger sizes up to 3840x2160 are available but cost proportionally more, so use them only when asked
-    - quality: auto (default), high, medium, low on every model; the 2.5 models also accept xhigh and max. Asking for xhigh or max on gpt-image-2 is rejected before the request is sent, so pick a 2.5 model when the user wants those. Use medium/low for faster, cheaper generations
+    - quality: auto (default), high, medium, low on every model; the 2.5 models also accept xhigh and max. An unsupported pairing is rejected before any request is sent. Use medium/low for faster, cheaper generations
     - background: auto (default), transparent, opaque
 
     RESULT DISPLAY:

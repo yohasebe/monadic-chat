@@ -49,7 +49,7 @@ def image_request_problem(options)
 
   # The catalog has to answer before anything is allowed through. Treating an
   # unreadable catalog as "no constraints" is the same mistake as guessing a
-  # vocabulary: it turns a broken spec into a request the API charges to reject.
+  # vocabulary: it turns a broken spec into a request the API will reject.
   offered = begin
     Monadic::Utils::ModelSpec.provider_default_models("openai", "image")
   rescue StandardError
@@ -477,8 +477,8 @@ def generate_image(options, num_retrials = 3)
       
       # A 4xx other than 429 means the request itself is wrong — an
       # unsupported quality, a bad size, a rejected prompt. Sending it again
-      # cannot change the answer, and each attempt is another billable call,
-      # so only retry what a retry could fix.
+      # cannot change the answer — repeating a request cannot fix its own
+      # parameters — so only retry what a retry could fix.
       retryable = res.status.to_i == 429 || res.status.to_i >= 500
 
       if retryable && num_retrials > 0

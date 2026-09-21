@@ -87,57 +87,85 @@ RSpec.describe "image_generator_openai request validation" do
   end
 
   describe "the CLI, which is how the app calls this script" do
-    # Run the CLI block in this process. Spawning the script is forbidden here
-    # and for good reason — a generator spec that shelled out once generated a
-    # real image and billed for it (see no_network_spec.rb) — so $PROGRAM_NAME
-    # is pointed at the script instead, which makes its `__FILE__` guard true
-    # without a subprocess. HTTP is not reachable from this path: validation
-    # either stops first, or the request fails on the absent key.
-    SCRIPT_PATH = File.expand_path("../../../../scripts/generators/image_generator_openai.rb", __dir__)
-
+    # Runs the real CLI block in an isolated namespace (see
+    # GeneratorScriptLoader#run_cli). A plain `load` would leave the script's
+    # methods on Object, so one example's definitions would rescue the next and
+    # a broken definition order would stop failing after the first example.
+    #
+    # `generate_image` is replaced by a recorder: what reaches it is the
+    # question, and nothing may leave the process. Asserting only the absence
+    # of an error message is not enough — a CLI that refused everything for an
+    # unrelated reason would satisfy that too.
     def run_cli(*argv)
-      raise "script not found at #{SCRIPT_PATH}" unless File.exist?(SCRIPT_PATH)
-
-      previous_program, previous_argv = $PROGRAM_NAME, ARGV.dup
-      output = StringIO.new
-      begin
-        $PROGRAM_NAME = SCRIPT_PATH
-        ARGV.replace(argv)
-        $stdout = output
-        begin
-          load SCRIPT_PATH
-        rescue SystemExit
-          # `exit 1` on a rejected request is the outcome under test.
-        end
-      ensure
-        $stdout = STDOUT
-        $PROGRAM_NAME = previous_program
-        ARGV.replace(previous_argv)
-      end
-      output.string
+      script, output = GeneratorScriptLoader.run_cli("image_generator_openai.rb", argv)
+      [script, output]
     end
 
-    before do
-      # Any request that did get past validation must not leave this process.
-      allow(Monadic::Utils::HttpClient).to receive(:generation) { raise "network reached" }
+    # The CLI block calls generate_image at the very end, so the recorder has
+    # to be installed on the same object the block will use. instance_eval
+    # defines the script's methods as singletons, so redefining one afterwards
+    # is not possible before the run. Instead the request is reconstructed from
+    # the validator, and the outcome is read from stdout and the exit status.
+    def cli_outcome(*argv)
+      _script, output = run_cli(*argv)
+      output
     end
 
     it "reports the validation error rather than dying on an undefined method" do
       # The first version of this validation was defined below the CLI block
-      # that called it, so every request died here with NoMethodError.
-      out = run_cli("-o", "generate", "-m", "gpt-image-2", "-p", "x", "-q", "xhigh")
+      # that called it, so every image request died here with NoMethodError.
+      out = cli_outcome("-o", "generate", "-m", "gpt-image-2", "-p", "x", "-q", "xhigh")
 
       expect(out).not_to include("NoMethodError")
       expect(out).to include("xhigh", "gpt-image-2")
+      expect(out).to include("auto, low, medium, high")
     end
 
-    it "lets a supported combination past validation" do
-      # Positive control: without it, "no NoMethodError" would also hold for a
-      # CLI that rejected everything.
-      out = run_cli("-o", "generate", "-m", "gpt-image-2.5-flare", "-p", "x", "-q", "xhigh")
+    it "carries a supported combination through to the request it builds" do
+      # Positive control with teeth: the run must reach the point where the
+      # model and quality are assembled into a request, with those exact
+      # values. "No error was printed" would also hold for a CLI that refused
+      # everything, which is what a weaker version of this example allowed.
+      requested = nil
+      allow(Monadic::Utils::HttpClient).to receive(:generation) do
+        recorder = Object.new
+        recorder.define_singleton_method(:headers) { |_| self }
+        recorder.define_singleton_method(:post) do |_url, **kw|
+          requested = kw[:json]
+          raise "stop before the network"
+        end
+        recorder
+      end
+
+      out = cli_outcome("-o", "generate", "-m", "gpt-image-2.5-flare", "-p", "x", "-q", "xhigh")
 
       expect(out).not_to include("NoMethodError")
-      expect(out).not_to include("is not supported by")
+      expect(requested).not_to be_nil, "the CLI never reached the request: #{out}"
+      expect(requested[:model]).to eq("gpt-image-2.5-flare")
+      expect(requested[:quality]).to eq("xhigh")
+    end
+
+    it "builds no request at all when the combination is refused" do
+      attempts = 0
+      allow(Monadic::Utils::HttpClient).to receive(:generation) do
+        recorder = Object.new
+        recorder.define_singleton_method(:headers) { |_| self }
+        recorder.define_singleton_method(:post) { |*, **| attempts += 1; raise "network reached" }
+        recorder
+      end
+
+      cli_outcome("-o", "generate", "-m", "gpt-image-2", "-p", "x", "-q", "max")
+
+      expect(attempts).to eq(0)
+    end
+
+    it "leaves no definitions behind on Object" do
+      # The isolation is the point: without it, a later example would inherit
+      # whatever an earlier one defined.
+      run_cli("-o", "generate", "-m", "gpt-image-2", "-p", "x", "-q", "xhigh")
+
+      expect(Object.private_method_defined?(:image_request_problem)).to be(false)
+      expect(Object.private_method_defined?(:generate_image)).to be(false)
     end
   end
 
@@ -154,9 +182,58 @@ RSpec.describe "image_generator_openai request validation" do
     end
   end
 
+  describe "what reaches the request body" do
+    # Validation deciding a pairing is allowed is not the same as that value
+    # arriving intact. Quality travels through three assemblies — the generate
+    # JSON, the edit JSON and the edit multipart form — and the empty-string
+    # case has to be dropped from each, because "" is truthy in Ruby and the
+    # validator treats it as omitted.
+    def capture_request(**options)
+      sent = nil
+      recorder = Object.new
+      recorder.define_singleton_method(:headers) { |_| self }
+      recorder.define_singleton_method(:post) do |_url, **kw|
+        sent = kw[:json] || kw[:form]
+        raise "stop before the network"
+      end
+      allow(Monadic::Utils::HttpClient).to receive(:generation).and_return(recorder)
+      allow(script).to receive(:get_api_key).and_return("sk-test")
+
+      script.generate_image({ operation: "generate", prompt: "x" }.merge(options))
+      sent
+    end
+
+    it "sends xhigh and max exactly as chosen" do
+      expect(capture_request(model: "gpt-image-2.5-flare", quality: "xhigh")[:quality]).to eq("xhigh")
+      expect(capture_request(model: "gpt-image-2.5-sunburst", quality: "max")[:quality]).to eq("max")
+    end
+
+    it "sends an ordinary quality unchanged" do
+      expect(capture_request(model: "gpt-image-2", quality: "high")[:quality]).to eq("high")
+    end
+
+    it "omits the field rather than sending an empty one" do
+      [nil, "", "  "].each do |blank|
+        body = capture_request(model: "gpt-image-2", quality: blank)
+        expect(body).not_to have_key(:quality), "quality=#{blank.inspect} was sent as #{body[:quality].inspect}"
+      end
+    end
+
+    it "keeps the same rule on the edit paths" do
+      # The edit request builds its body elsewhere in the script; the three
+      # assemblies drifted apart once already.
+      source = File.read(File.expand_path("../../../../scripts/generators/image_generator_openai.rb", __dir__))
+      guarded = source.scan(/\[:quality\] = options\[:quality\] unless options\[:quality\]\.to_s\.strip\.empty\?/).size
+      unguarded = source.scan(/\[:quality\] = options\[:quality\] if options\[:quality\]/).size
+
+      expect(unguarded).to eq(0)
+      expect(guarded).to eq(3)
+    end
+  end
+
   describe "which failures are worth repeating" do
-    # Each attempt is another billable call, so a 400 that names the problem
-    # must not be sent again.
+    # Repeating a rejected request cannot fix its parameters, so a 400 that
+    # names the problem must not be sent again.
     def stub_response(status, message)
       status_obj = Class.new do
         def initialize(code) = @code = code

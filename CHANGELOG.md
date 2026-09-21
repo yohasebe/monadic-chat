@@ -1,3 +1,14 @@
+- [September, 2026] 1.0.0-beta.35
+  - **The bundled help database carries only the published documentation**: it also held the project's internal developer notes. Search hid them, but they were in the file, so anyone who opened it could read them. The database is now built from the published documentation alone, and packaging stops if the database holds internal notes or names a file that is not part of the repository
+  - **The newest xAI and Google models are now the defaults**: chat and vision move to `grok-4.7`, and chat, vision and audio move to `gemini-3.8-flash`. Both are priced the same as the models they replace, and the previous models stay in the dropdown
+  - **The reasoning effort choices match what each model accepts**: the Grok models accept a deeper level than the list offered, and Gemini Flash accepts a middle level that was missing. Both are now selectable
+  - **Reasoning can actually be turned off on Gemini Flash**: choosing no reasoning still sent a small thinking allowance, because the model was recorded as unable to turn it off and the choice was discarded before it took effect. It now sends zero
+  - **Image settings follow the chosen model rather than the provider**: a request the selected model cannot accept is refused before it is sent, and the message names the values that model does accept. Previously it was sent and came back as a provider error
+  - **Two more OpenAI image models**: `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` join the image generator alongside `gpt-image-2`, and they accept higher quality levels than it does
+  - **xAI image generation gains a quality choice and eleven more aspect ratios**: the list offered five ratios where the API accepts sixteen, and quality could not be chosen at all. Editing now accepts up to five source images instead of three. The separate high-quality model is removed from the list, because from 2 November the provider serves it as the standard model at its lowest quality
+  - **Progress messages name this app's own code generators**: the messages shown while an application is being built said "OpenAI Code", "Claude Code" and "Grok Code", which read like the names of separate products. They now describe the coding agent each provider uses
+  - **Documentation corrections**: the public documentation carried settings, defaults and file names that no longer matched the application, and several links and in-page anchors pointed at pages or headings that no longer exist
+
 - [September, 2026] 1.0.0-beta.34
   - **The app starts again after updating to 1.0.0-beta.33**: building the Ruby container failed with an unmet dependency between two Docker packages, so the app could not start wherever that container had to be rebuilt. The container now installs only the Docker command-line client it actually uses to reach the host's Docker, which removes the conflicting packages and makes the image smaller
 

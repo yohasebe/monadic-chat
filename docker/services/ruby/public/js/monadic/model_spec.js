@@ -1494,7 +1494,10 @@ const providerDefaults = {
     "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
     "vision": ["gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],
-    "image": ["gpt-image-2"],
+    // First entry is the default. The 2.5 models are offered as choices; moving
+    // the default is a separate decision that needs a like-for-like comparison
+    // of speed, quality and token usage.
+    "image": ["gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   "anthropic": {
@@ -1574,7 +1577,24 @@ const imageGenerationOptions = {
     // Larger sizes cost proportionally more output tokens.
     "size": ["auto", "1024x1024", "1536x1024", "1024x1536", "1792x1024", "1024x1792",
              "2048x2048", "2048x1152", "3840x2160", "2160x3840"],
-    "quality": ["auto", "low", "medium", "high"],
+    // Quality is per model: gpt-image-2 rejects `xhigh` ("The model
+    // 'gpt-image-2' does not support quality 'xhigh'"), while the 2.5 models
+    // accept it and `max`. Verified against the live API on 2026-09-21.
+    // A model listed in providerDefaults.openai.image must appear here, and a
+    // model absent from this table is not resolvable — callers stop rather
+    // than guess. Parameters other than the ones named here fall through to
+    // the provider-level values above.
+    "models": {
+      "gpt-image-2": {
+        "quality": ["auto", "low", "medium", "high"]
+      },
+      "gpt-image-2.5-flare": {
+        "quality": ["auto", "low", "medium", "high", "xhigh", "max"]
+      },
+      "gpt-image-2.5-sunburst": {
+        "quality": ["auto", "low", "medium", "high", "xhigh", "max"]
+      }
+    },
     "output_format": ["png", "jpeg", "webp"],
     // transparent requires png or webp; entered preview 2026-08-20.
     "background": ["auto", "transparent", "opaque"],

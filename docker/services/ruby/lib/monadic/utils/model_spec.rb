@@ -480,12 +480,69 @@ module Monadic
         # rejects (the OpenAI tool offered DALL-E sizes for months after DALL-E
         # was removed). Returns [] when unknown, so a caller that guards on
         # empty keeps working if the vocabulary is missing.
-        def image_options(provider, parameter)
+        # `model:` resolves a parameter whose accepted values differ per model —
+        # OpenAI quality does: gpt-image-2 rejects `xhigh` while the 2.5 models
+        # accept it and `max`. Omitting `model:` resolves for the provider's
+        # default image model, so an existing caller keeps the behaviour it had.
+        #
+        # Three cases are kept distinct, because collapsing them is how a caller
+        # ends up sending a value the API rejects:
+        #   - the model defines the parameter  -> its own list
+        #   - the model omits the parameter    -> the provider-level list
+        #   - the model is unknown here        -> [] (do not fall back)
+        # The last one matters: guessing the default model's vocabulary for an
+        # unrecognised model would let a new or mistyped model through to a
+        # billed request.
+        def image_options(provider, parameter, model: nil)
           opts = load_image_generation_options
           entry = opts[normalize_provider_key(provider)]
           return [] unless entry
 
-          Array(entry[parameter.to_s])
+          models = entry["models"]
+          return Array(entry[parameter.to_s]) unless models.is_a?(Hash)
+
+          name = model || get_provider_default(provider, "image")
+          return [] if name.nil?
+
+          # An unrecognised model resolves to nothing even if the provider
+          # happens to define this parameter at its own level: the caller must
+          # stop rather than send a default vocabulary to a model nobody has
+          # checked. Returning the provider-level list here would make the
+          # refusal depend on that list being absent, which is not a guarantee.
+          per_model = models[name.to_s]
+          return [] if per_model.nil?
+
+          per_model.key?(parameter.to_s) ? Array(per_model[parameter.to_s]) : Array(entry[parameter.to_s])
+        end
+
+        # Every value any offered model accepts. Tool definitions need this:
+        # an MDSL enum is resolved once when the app loads, while the model is
+        # chosen per call, so neither the default model's list nor any single
+        # model's list describes what may legitimately be asked for. The
+        # combination is then checked against the chosen model before the
+        # request goes out — see image_option_supported?.
+        def image_tool_options(provider, parameter)
+          opts = load_image_generation_options
+          entry = opts[normalize_provider_key(provider)]
+          return [] unless entry
+
+          models = entry["models"]
+          return Array(entry[parameter.to_s]) unless models.is_a?(Hash)
+
+          offered = Array(load_provider_defaults.dig(normalize_provider_key(provider), "image"))
+          offered = models.keys if offered.empty?
+
+          offered.flat_map { |m| image_options(provider, parameter, model: m) }.uniq
+        end
+
+        # Whether one model accepts one value. Returns false for an unknown
+        # model rather than true, so the caller stops instead of paying for a
+        # request the API will reject.
+        def image_option_supported?(provider, parameter, value, model:)
+          allowed = image_options(provider, parameter, model: model)
+          return false if allowed.empty?
+
+          allowed.include?(value.to_s)
         end
 
         def load_image_generation_options
@@ -497,6 +554,13 @@ module Monadic
         rescue StandardError => e
           puts "Warning: Failed to load imageGenerationOptions: #{e.message}"
           @image_generation_options = {}
+        end
+
+        # Every model a provider offers for a category, in the order the catalog
+        # lists them (the first is the default). Callers that must reject an
+        # unrecognised model need the whole list, not just the default.
+        def provider_default_models(provider, category = "chat")
+          Array(load_provider_defaults.dig(normalize_provider_key(provider), category.to_s))
         end
 
         # Get the default model (first in list) for a provider and category

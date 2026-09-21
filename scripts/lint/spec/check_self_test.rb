@@ -33,10 +33,13 @@ RUBY_FIXTURE_DIR = ROOT.join('docker/services/ruby/lib/monadic')
 ROUTE_FIXTURE_DIR = ROOT.join('docker/services/ruby/lib/monadic/routes')
 JS_FIXTURE_DIR = ROOT.join('docker/services/ruby/public/js/monadic')
 
+DOCS_FIXTURE_DIR = ROOT.join('docs')
+
 FIXTURES = {
   ruby: RUBY_FIXTURE_DIR.join('_lint_self_check_fixture.rb'),
   route: ROUTE_FIXTURE_DIR.join('_lint_self_check_route.rb'),
-  js: JS_FIXTURE_DIR.join('_lint_self_check.js')
+  js: JS_FIXTURE_DIR.join('_lint_self_check.js'),
+  docs: DOCS_FIXTURE_DIR.join('_lint_self_check.md')
 }.freeze
 
 @results = []
@@ -250,6 +253,111 @@ with_temp_file(http_fixture, http_body) do
     'detects an outbound HTTP call with no timeout in its chain',
     !status.success? && stdout.include?(http_fixture.relative_path_from(ROOT).to_s),
     "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+end
+
+# ---------------------------------------------------------------------------
+section 'check_docs_links.rb'
+docs_fixture = FIXTURES[:docs]
+
+# A heading anchor is whatever docsify's slugify() produces, so the cases
+# below pin the parts that are easy to get wrong: an explicit :id= wins over
+# the heading text, and Japanese punctuation is kept rather than stripped.
+docs_body = <<~'MARKDOWN'
+  # Lint fixture
+
+  ## Known Good Heading :id=lint-self-check-good
+
+  ## 日本語の見出し（丸括弧）
+
+  - [resolves via the explicit id](#lint-self-check-good)
+  - [resolves via the Japanese slug](#日本語の見出し（丸括弧）)
+  - [does not resolve: id typo](#lint-self-check-typo)
+  - [does not resolve: parentheses dropped](#日本語の見出し丸括弧)
+MARKDOWN
+
+with_temp_file(docs_fixture, docs_body) do
+  stdout, _stderr, status = run_lint('check_docs_links.rb')
+  relative = docs_fixture.relative_path_from(ROOT).to_s
+
+  assert(
+    'detects a heading anchor that no heading produces',
+    !status.success? && stdout.include?('lint-self-check-typo'),
+    "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+  assert(
+    'applies docsify slug rules to non-ASCII headings',
+    stdout.include?('日本語の見出し丸括弧'),
+    "stdout:\n#{stdout}"
+  )
+  assert(
+    'accepts the anchors that do resolve',
+    !stdout.include?('lint-self-check-good') &&
+      !stdout.include?('#日本語の見出し（丸括弧）'),
+    "stdout:\n#{stdout}"
+  )
+  assert(
+    'reports the file the broken anchors live in',
+    stdout.include?(relative),
+    "stdout:\n#{stdout}"
+  )
+end
+
+# Links written as published-site URLs name files in docs/, so they are
+# resolved rather than skipped as external. Both spellings docsify accepts
+# for a heading anchor are covered.
+site_body = <<~'MARKDOWN'
+  # Lint fixture
+
+  ## Known Good Heading :id=lint-self-check-good
+
+  - [resolves](https://yohasebe.github.io/monadic-chat/#/_lint_self_check#lint-self-check-good)
+  - [resolves via ?id=](https://yohasebe.github.io/monadic-chat/#/_lint_self_check?id=lint-self-check-good)
+  - [missing page](https://yohasebe.github.io/monadic-chat/#/_lint_self_check_absent)
+  - [missing anchor](https://yohasebe.github.io/monadic-chat/#/_lint_self_check#lint-self-check-absent)
+MARKDOWN
+
+with_temp_file(docs_fixture, site_body) do
+  stdout, _stderr, status = run_lint('check_docs_links.rb')
+
+  assert(
+    'follows a published-site URL to a page that does not exist',
+    !status.success? && stdout.include?('_lint_self_check_absent'),
+    "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+  assert(
+    'checks the anchor of a published-site URL',
+    stdout.include?('lint-self-check-absent'),
+    "stdout:\n#{stdout}"
+  )
+  assert(
+    'accepts both the # and ?id= anchor spellings',
+    !stdout.include?('lint-self-check-good'),
+    "stdout:\n#{stdout}"
+  )
+end
+
+# An image written with no alt text is still a link to a file that has to
+# exist, so it must not fall outside the link pattern.
+image_body = <<~'MARKDOWN'
+  # Lint fixture
+
+  ![](./assets/images/monadic-chat-logo.png ':size=200')
+  ![](./assets/images/_lint_self_check_absent.png ':size=200')
+MARKDOWN
+
+with_temp_file(docs_fixture, image_body) do
+  stdout, _stderr, status = run_lint('check_docs_links.rb')
+
+  assert(
+    'detects an image with no alt text whose file is missing',
+    !status.success? && stdout.include?('_lint_self_check_absent.png'),
+    "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+  assert(
+    'accepts an image whose file is present',
+    !stdout.include?('monadic-chat-logo.png'),
+    "stdout:\n#{stdout}"
   )
 end
 

@@ -492,7 +492,7 @@ module Monadic
         #   - the model is unknown here        -> [] (do not fall back)
         # The last one matters: guessing the default model's vocabulary for an
         # unrecognised model would let a new or mistyped model through to a
-        # billed request.
+        # real request with a value nobody has checked against it.
         def image_options(provider, parameter, model: nil)
           opts = load_image_generation_options
           entry = opts[normalize_provider_key(provider)]

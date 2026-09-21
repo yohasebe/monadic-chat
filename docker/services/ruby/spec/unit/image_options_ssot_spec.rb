@@ -108,7 +108,7 @@ RSpec.describe "image generation options come from the SSOT" do
 
       it "answers nothing for a model it does not know" do
         # Falling back to the default model's vocabulary here is how a typo or
-        # a new model reaches a billed request with a value the API rejects.
+        # a new model reaches a real request with a value the API rejects.
         expect(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: "gpt-image-9"))
           .to eq([])
         expect(Monadic::Utils::ModelSpec.image_option_supported?("openai", "quality", "auto", model: "gpt-image-9"))

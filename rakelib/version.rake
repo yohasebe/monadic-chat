@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'date'
+
 # Define the list of files that should have consistent version numbers
 #
 # Intentionally NOT listed:
@@ -8,6 +10,11 @@
 # - docs/_coverpage.md (EN/JA) no longer carries a version string. Listing
 #   them made the check report two failures on every release, which is how
 #   a real failure — installation.md — went unnoticed among them.
+#
+# CITATION.cff IS listed. It was updated by hand until beta.30 and then stopped
+# being updated at all, drifting four releases behind — the predictable outcome
+# of a step that lives only in a procedure document. Whatever a release must
+# keep in step belongs in this list.
 #
 # installation.md (EN/JA) IS listed. It used to link to
 # github.com/.../releases/latest, which GitHub resolves to the newest
@@ -23,7 +30,8 @@ def version_files
     "./package.json",
     "./package-lock.json",
     "./docs/getting-started/installation.md",
-    "./docs/ja/getting-started/installation.md"
+    "./docs/ja/getting-started/installation.md",
+    "./CITATION.cff"
   ]
 
   # Return the files
@@ -131,6 +139,13 @@ def update_version_in_file(file, from_version, to_version)
     # For _coverpage.md, update the version in the header only
     updated_content = content.gsub(/<small><b>#{Regexp.escape(from_version)}<\/b><\/small>/, "<small><b>#{to_version}</b></small>")
   
+  when "CITATION.cff"
+    # Two fields move together: the version and the day it went out. The date
+    # is not derivable from the version, so it is taken from the clock — a
+    # release is published on the day it is built.
+    updated_content = content.gsub(/^(version:\s*)#{Regexp.escape(from_version)}\s*$/, "\\1#{to_version}")
+    updated_content = updated_content.gsub(/^(date-released:\s*).*$/, "\\1'#{Date.today.strftime('%Y-%m-%d')}'")
+
   when "installation.md"
     # Download links point at the release assets by name, so both the tag in
     # the URL and the version inside each filename move together.
@@ -294,6 +309,8 @@ task :update_version, [:from_version, :to_version] do |_t, args|
           version_found = content.include?("VERSION = \"#{from_version}\"")
         when "_coverpage.md"
           version_found = content.include?("<small><b>#{from_version}</b></small>")
+        when "CITATION.cff"
+          version_found = content.match?(/^version:\s*#{Regexp.escape(from_version)}\s*$/)
         when "package.json"
           version_found = content.include?("\"version\": \"#{from_version}\"")
         when "package-lock.json"

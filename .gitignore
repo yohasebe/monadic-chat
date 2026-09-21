@@ -143,3 +143,21 @@ research_notes/
 # (docs_dev/). Keeping these out of git prevents experimental noise
 # from polluting the production codebase.
 experiments/
+
+# Output from the image/video generator scripts. They write to the current
+# directory, so running one from inside the repository drops artefacts into the
+# source tree — where they are one `git add .` away from being published.
+# Names follow "<operation>_<model>_<timestamp>_<index>.<ext>" plus the mask
+# variant.
+generate_*_*.png
+generate_*_*.jpg
+generate_*_*.jpeg
+generate_*_*.webp
+edit_*_*.png
+edit_*_*.jpg
+edit_*_*.jpeg
+edit_*_*.webp
+mask__*_*.png
+mask__*_*.jpg
+mask__*_*.jpeg
+mask__*_*.webp

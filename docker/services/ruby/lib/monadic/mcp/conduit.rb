@@ -660,8 +660,8 @@ module Monadic
           },
           {
             name: "monadic_generate_code",
-            description: "Generate code with a provider's dedicated code agent (OpenAI Code, " \
-                         "Claude Code, or Grok Code). Give a `prompt` describing the task; " \
+            description: "Generate code with a provider's dedicated coding agent (OpenAI, " \
+                         "Claude, or Grok). Give a `prompt` describing the task; " \
                          "returns the generated code. Uses your own API keys; spends provider " \
                          "tokens (budget-gated). LONG-RUNNING (up to ~20 min for complex tasks) " \
                          "— run this via monadic_submit and poll, so it doesn't block the " \

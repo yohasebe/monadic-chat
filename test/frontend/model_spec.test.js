@@ -46,10 +46,35 @@ describe('Model Specification', () => {
       expect(sizes).toEqual(expect.arrayContaining(['1024x1024', '2048x2048']));
     });
 
-    it('offers OpenAI only gpt-image-2 quality values', () => {
+    // Quality is the one image parameter whose accepted values differ per
+    // model: gpt-image-2 answers "does not support quality 'xhigh'" while the
+    // 2.5 models generate (live probe, 2026-09-21). A provider-wide list
+    // cannot describe both, so the table is keyed by model — and there is no
+    // provider-level `quality` left to fall back to.
+    it('keys OpenAI quality by model rather than by provider', () => {
+      const openai = modelSpec.imageGenerationOptions.openai;
+      expect(openai.quality).toBeUndefined();
+      expect(Object.keys(openai.models).sort())
+        .toEqual(['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst']);
+    });
+
+    it('gives each OpenAI image model the qualities it accepts', () => {
+      const models = modelSpec.imageGenerationOptions.openai.models;
       // "standard" and "hd" are DALL-E 3 values.
-      expect(modelSpec.imageGenerationOptions.openai.quality.sort())
+      expect(models['gpt-image-2'].quality.slice().sort())
         .toEqual(['auto', 'high', 'low', 'medium']);
+      ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'].forEach((model) => {
+        expect(models[model].quality.slice().sort())
+          .toEqual(['auto', 'high', 'low', 'max', 'medium', 'xhigh']);
+      });
+    });
+
+    it('describes every OpenAI image model it offers', () => {
+      // A model in providerDefaults with no entry here resolves to no
+      // vocabulary, which the generator treats as "cannot validate".
+      const offered = modelSpec.providerDefaults.openai.image;
+      const described = Object.keys(modelSpec.imageGenerationOptions.openai.models);
+      offered.forEach((model) => expect(described).toContain(model));
     });
 
     it('offers no Gemini image model that the API has retired', () => {

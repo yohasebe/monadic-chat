@@ -2,9 +2,16 @@
 
 This is an internal-developer document describing the architecture and
 design decisions behind the Library subsystem. It complements
-`docs_dev/qdrant_embeddings_migration.md` (the migration that produced
-the Qdrant + multilingual-e5-base storage layer) and the user-facing
-description in `docs/basic-usage/basic-apps.md` (Knowledge Base section).
+`docs_dev/docker-architecture.md` (the Qdrant + embeddings container
+layout) and the user-facing description in
+`docs/basic-usage/basic-apps.md` (Knowledge Base section).
+
+The per-app PDF store shares the same collections (`pdf_docs`, `pdf_items`)
+and separates apps with an `app_key` payload filter rather than separate
+databases. The failure mode this design has to prevent is "a developer forgets
+the filter and data leaks across apps", so `Monadic::Pdf::Store` fixes the
+filter at construction time: every method on a Store instance carries it, and
+app code cannot bypass it without dropping down to `VectorStore` directly.
 
 ## Terminology
 

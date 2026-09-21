@@ -1,13 +1,13 @@
-# Claude Code MCP Integration (Internal)
+# MCP Stdio Client Integration (Internal)
 
 ## Overview
 
-This document describes the technical implementation of MCP integration between Claude Code and Monadic Chat's PGVector documentation database.
+This document describes the technical implementation behind connecting a stdio-only MCP client to Monadic Chat's Qdrant documentation database.
 
 ## Architecture
 
 ```
-Claude Code (stdio transport)
+MCP client (stdio transport)
     ↓
 mcp_stdio_bridge.rb (stdio → HTTP bridge)
     ↓
@@ -15,7 +15,7 @@ Monadic Chat MCP Server (HTTP JSON-RPC 2.0)
     ↓
 Monadic Help App Tools
     ↓
-PGVector Database (3072-dim embeddings)
+Qdrant collections (768-dim embeddings from the local embeddings service)
 ```
 
 ## Components
@@ -64,7 +64,7 @@ end
 
 **Purpose:**
 Bridges the transport protocol mismatch:
-- Claude Code: stdio (reads STDIN, writes STDOUT)
+- The client: stdio (reads STDIN, writes STDOUT)
 - Monadic Chat: HTTP (POST to /mcp endpoint)
 
 **Implementation:**
@@ -85,8 +85,8 @@ end
 ```
 
 **Environment Variables:**
-- `MCP_SERVER_URL`: Override default http://localhost:3100/mcp
-- `DEBUG=true`: Write debug logs to /tmp/mcp_wrapper.log
+- `MCP_SERVER_HOST`: Host to reach (default `127.0.0.1`)
+- `MCP_SERVER_PORT`: Port to reach (default `3100`)
 
 **Error Handling:**
 - JSON parse errors → -32700 (Parse error)
@@ -96,12 +96,12 @@ end
 ### 3. Monadic Help App (`docker/services/ruby/apps/monadic_help/`)
 
 **Exposed Tools:**
-1. `find_help_topics` - Semantic search with PGVector
+1. `find_help_topics` - Semantic search over the Qdrant help collections
 2. `get_help_document` - Retrieve full document by ID
 3. `list_help_sections` - List all sections
 4. `search_help_by_section` - Section-scoped search
 
-**PGVector Integration:**
+**Search Integration:**
 ```ruby
 def find_help_topics(text:, top_n: 10, chunks_per_result: nil, include_internal: nil)
   results = help_embeddings_db.find_closest_text_multi(
@@ -134,35 +134,26 @@ rake server:debug
 npm start  # Electron app
 ```
 
-### Client-Side (Claude Code)
+### Client-Side
 
-**Global configuration:**
+Register the bridge as a **command-based (stdio) MCP server**. Registration
+syntax varies between clients, so consult the client's own documentation; the
+command to run, with your host's Ruby, is:
+
 ```bash
-claude mcp add --scope user --transport stdio monadic-chat \
-  --env DEBUG=true \
-  -- ruby /path/to/monadic-chat/docker/services/ruby/scripts/mcp_stdio_bridge.rb
+ruby /path/to/monadic-chat/docker/services/ruby/scripts/mcp_stdio_bridge.rb
 ```
 
-**Configuration stored in:**
-- `~/.claude.json` (user scope)
-- Or `.claude/settings.local.json` (project scope)
+Clients that speak streamable-HTTP do not need the bridge at all and can point
+straight at `http://localhost:3100/mcp`.
 
-**Verification:**
-```bash
-# List configured servers
-claude mcp list
-
-# Check specific server details
-claude mcp get monadic-chat
-
-# Remove server if needed
-claude mcp remove monadic-chat -s user
-```
+Where the registration is stored, and how to list or remove it, is also
+client-specific.
 
 ## Tool Discovery Flow
 
-1. **Claude Code starts session**
-   - Launches stdio wrapper subprocess
+1. **The client starts a session**
+   - Launches the stdio bridge as a subprocess
    - Sends `initialize` request
 
 2. **Wrapper forwards to HTTP MCP server**
@@ -176,14 +167,14 @@ claude mcp remove monadic-chat -s user
    - Extracts tools from each app's settings
    - Formats tools for MCP protocol
 
-4. **Tool list returned to Claude Code**
+4. **Tool list returned to the client**
    - `MonadicHelpOpenAI__find_help_topics`
    - `MonadicHelpOpenAI__get_help_document`
    - etc.
 
 ## Tool Execution Flow
 
-1. **Claude Code decides to call tool**
+1. **The client decides to call a tool**
    - Based on user query analysis
    - Selects appropriate tool and arguments
 
@@ -209,9 +200,9 @@ claude mcp remove monadic-chat -s user
    - Converts arguments to symbol keys
    - Calls `app_instance.find_help_topics(**args)`
 
-4. **Tool executes against PGVector**
-   - Generates embedding for query text
-   - Searches PostgreSQL with pgvector extension
+4. **Tool executes against Qdrant**
+   - Embeds the query text via the local embeddings service
+   - Searches the `help_items` collection with a payload filter on `is_internal`
    - Returns top N results with similarity scores
 
 5. **Result formatted and returned**
@@ -247,9 +238,9 @@ claude mcp remove monadic-chat -s user
 
 ### Database Performance
 
-**PGVector Queries:**
-- Embedding generation: ~100ms (OpenAI API call)
-- Vector similarity search: ~10ms (indexed)
+**Search Queries:**
+- Embedding generation: local `embeddings_service` container (no provider API call)
+- Vector similarity search: Qdrant HNSW index
 - Total latency: ~150ms for typical search
 
 **Optimization Tips:**
@@ -278,7 +269,7 @@ claude mcp remove monadic-chat -s user
 
 ### Common Issues
 
-**"Server not connected" in Claude Code:**
+**"Server not connected" reported by the client:**
 - Check Monadic Chat server is running: `curl http://localhost:3100/health`
 - Verify the bridge script exists: `ls -la docker/services/ruby/scripts/mcp_stdio_bridge.rb`
 - Check bridge permissions: `chmod +x docker/services/ruby/scripts/mcp_stdio_bridge.rb`
@@ -335,7 +326,7 @@ curl -X POST http://localhost:3100/mcp \
 
 ### Why stdio Wrapper?
 
-Claude Code only supports stdio transport for MCP servers, while Monadic Chat's MCP server uses HTTP transport for these reasons:
+Some MCP clients speak only the stdio transport, while Monadic Chat's MCP server uses HTTP transport for these reasons:
 
 1. **Simplicity**: HTTP is stateless and easier to debug with curl
 2. **Web Compatibility**: Browser-based clients can use the same endpoint
@@ -359,47 +350,53 @@ The stdio wrapper is a thin bridge (< 100 lines) that adds minimal overhead.
 
 ### Standard Build (Development)
 
-The standard `rake help:build` command now includes internal documentation by default:
+`rake help:build` builds from `docs/` only — that is the dump that ships:
 
 ```bash
-# Build VectorDB with both public and internal docs
+# Build the VectorDB from public docs
 rake help:build
 
 # Or rebuild from scratch
 rake help:rebuild
+
+# Local development only: also index docs_dev/
+rake help:build_internal
 ```
 
 **What happens during build:**
-1. Processes `docs/` (public documentation)
-2. Processes `docs_dev/` (internal documentation)
-3. Stores both in local PGVector database with `is_internal` flag
-4. **Exports only public docs** for packaging (internal docs filtered out)
+1. Processes `docs/` (public documentation) with `is_internal=false`
+2. Processes `docs_dev/` (internal documentation) with `is_internal=true`,
+   but only under `help:build_internal`
+3. Writes the result to `help_data/help_db.json`
 
-### Export Safety Mechanism
+Both tasks write to the same path, so whichever ran last is the dump on disk.
 
-The export process (`export_help_database_docker.rb`) automatically filters internal documentation:
+### What ships
 
-```ruby
-# Line 146: Only export public documents
-SELECT * FROM help_docs WHERE is_internal = FALSE
+`help:build` passes `--public-only`, which overrides `DEBUG_MODE` — a developer
+environment cannot leak internal docs into a release dump. As a second line of
+defence, `scripts/help_dump_guard.rb` aborts packaging if the dump carries any
+`is_internal` point, and it runs on both packaging paths: from
+`scripts/stage_docker_payload.rb` on the Rake path, and from electron-builder's
+`beforePack` hook for the npm build scripts, which never invoke the stager.
+That catches the case where someone ran `help:build_internal` and then packaged
+with `SKIP_HELP_DB=true`.
 
-# Line 186: Only export public items
-SELECT hi.* FROM help_items hi
-JOIN help_docs hd ON hi.doc_id = hd.id
-WHERE hd.is_internal = FALSE
-```
+`is_internal` still acts as a Qdrant payload filter at **search** time, so on a
+dump built with `help:build_internal`:
 
-**Result:**
-- **Developers**: Local database contains all documentation
-- **End Users**: Packaged app contains only public documentation
-- **MCP Access**: Developers can search all docs, users can search only public docs
+- **Developers** (`DEBUG_MODE=true`): search returns both trees
+- **Everyone else**: search returns only `docs/` entries
+
+See [Internal Documentation in the Monadic Help Database](help_system_internal.md)
+for how to inspect a dump and what the distribution path actually does.
 
 ### Deprecated Task
 
-`rake help:build_dev` is now deprecated and redirects to `rake help:build`:
+`rake help:build_dev` is deprecated and redirects to `rake help:build_internal`:
 
 ```bash
-# This now shows a deprecation warning and calls rake help:build
+# This shows a deprecation warning and calls rake help:build_internal
 rake help:build_dev
 ```
 
@@ -407,7 +404,7 @@ rake help:build_dev
 
 1. **Latency**: stdio wrapper adds ~50ms overhead
 2. **No Streaming**: Results returned after completion only
-3. **Error Context**: Limited error details in Claude Code UI
+3. **Error Context**: How much error detail survives depends on the client
 4. **Cache Invalidation**: Manual restart required to clear tool cache
 
 ## Related Documentation
@@ -415,4 +412,4 @@ rake help:build_dev
 - **Public Documentation**: `docs/advanced-topics/mcp-integration.md`
 - **MCP Server Code**: `docker/services/ruby/lib/monadic/mcp/server.rb`
 - **Monadic Help App**: `docker/services/ruby/apps/monadic_help/`
-- **PGVector Integration**: `docs_dev/ruby_service/help_embeddings.md`
+- **Help embeddings**: `docker/services/ruby/lib/monadic/utils/help_embeddings.rb`

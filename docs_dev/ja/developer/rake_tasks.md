@@ -60,7 +60,7 @@ rake help:export
 rake help:stats
 ```
 
-**注意**: ヘルプデータベースタスクはpgvectorコンテナが実行中である必要があります。
+**注意**: ヘルプデータベースのタスクには qdrant と embeddings コンテナが必要です。`rake help:build` は embeddings コンテナが動いていなければ自分で起動します。
 
 ## アセット管理
 
@@ -129,12 +129,6 @@ UPDATE_CHANGELOG=true rake release:update_assets[version,file_patterns]
 - `DRYRUN=true` - バージョン更新をドライランモードで実行
 - `DRAFT=true` - GitHubリリースをドラフトとして作成
 - `UPDATE_CHANGELOG=true` - リリースアセット更新時にchangelogを更新
-
-### 開発環境
-
-Docker外で実行する場合、Rakefileは自動的に以下を設定します：
-- `POSTGRES_HOST=localhost`
-- `POSTGRES_PORT=5433` （ローカルPostgreSQLとの競合を回避）
 
 ### バージョン更新
 

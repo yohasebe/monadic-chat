@@ -18,8 +18,23 @@ included from `docker/services/compose.yml`):
 Native Ollama is not a container: the Ruby service reaches the host's
 Ollama via `host.docker.internal:11434`.
 
-PostgreSQL/PGVector was removed in beta.16 (replaced by Qdrant + the
-embeddings container). See `docs_dev/qdrant_embeddings_migration.md`.
+### Why storage and inference are separate containers
+
+`monadic-chat-qdrant-container` does storage only (the official Qdrant image,
+~80 MB). `monadic-chat-embeddings-container` does inference only (Python +
+sentence-transformers with `multilingual-e5-base` baked in, ~2.5 GB).
+
+Colocating the model with Qdrant would require a supervisor — Qdrant is Rust
+and the model runtime is Python — and would conflate stateful storage with
+stateless inference at the lifecycle level. The Privacy Filter established
+"stateless ML inference gets its own container" as the project-wide pattern,
+and this follows it.
+
+Both are base services rather than opt-in: the Help system depends on both, so
+help search would be broken out of the box otherwise. Privacy Filter stays
+separately gated because it adds ~1 GB and is genuinely optional. The
+embeddings image is large because the model is baked in at build time, which
+trades image size for avoiding a 30–60 second cold start on first use.
 
 ## Container Lifecycle
 

@@ -15,8 +15,8 @@ require_relative '../agents/grok_code_agent'
 
 module Monadic
   module MCP
-    # Monadic Conduit — the capability surface exposed to external agentic CLIs
-    # (e.g. Claude Code) over MCP.
+    # Monadic Conduit — the capability surface exposed to external MCP clients
+    # and agentic CLIs over MCP.
     #
     # Design principle (the "first principle"): Conduit does NOT re-publish the
     # app-specific tools (the former `app__tool` surface). It publishes a small,

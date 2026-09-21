@@ -50,7 +50,7 @@ DEBUG=true PROVIDERS=openai RUN_API=true bundle exec rspec spec/integration/prov
 | Jupyter | `jupyter_*.rb` | Notebook creation, execution, advanced features |
 | Voice | `voice_*.rb` | TTS/STT integration, voice chat |
 | Web | `selenium_*.rb` | Browser automation, web scraping |
-| Database | `pgvector_*.rb`, `embeddings_*.rb` | Vector DB, embeddings |
+| Database | `qdrant/`, `embeddings/`, `library/` | Vector DB, embeddings, Library |
 | WebSocket | `websocket_*.rb` | Real-time communication |
 
 ### API Tests (`api_media/`)

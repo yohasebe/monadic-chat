@@ -18,8 +18,23 @@ Monadic Chatは、異なる機能のために複数のDockerコンテナを使�
 ネイティブOllamaはコンテナではありません：Rubyサービスはホストの
 Ollamaに`host.docker.internal:11434`経由で接続します。
 
-PostgreSQL/PGVectorはbeta.16で削除されました（Qdrant + embeddings
-コンテナに置換）。`docs_dev/qdrant_embeddings_migration.md`を参照。
+### ストレージと推論を別コンテナにしている理由
+
+`monadic-chat-qdrant-container` はストレージ専用（Qdrant 公式イメージ、約80MB）、
+`monadic-chat-embeddings-container` は推論専用（Python + sentence-transformers に
+`multilingual-e5-base` を同梱、約2.5GB）です。
+
+モデルを Qdrant と同居させるとスーパーバイザーが必要になり（Qdrant は Rust、
+モデルランタイムは Python）、ステートフルなストレージとステートレスな推論を
+ライフサイクルの面で混ぜることになります。Privacy Filter で確立した
+「ステートレスな ML 推論は独立したコンテナにする」というプロジェクト共通の方針に
+従っています。
+
+どちらも opt-in ではなく base service です。ヘルプシステムが両方に依存するため、
+そうしないと初期状態でヘルプ検索が動きません。Privacy Filter が別扱いなのは、
+約1GB 増えるうえ本当に任意の機能だからです。embeddings イメージが大きいのは
+ビルド時にモデルを焼き込んでいるためで、初回利用時の30〜60秒のコールドスタートを
+避けるためにイメージサイズを代償にしています。
 
 ## コンテナのライフサイクル
 

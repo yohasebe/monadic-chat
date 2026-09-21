@@ -16,7 +16,7 @@ A model "diverges" when it forces bespoke handling in the helper code or produce
 |---|---|---|
 | OpenAI | `gpt-5.5` | Responses API, no sampling params, `reasoning_effort: [none, low, medium, high, xhigh]`, streaming. `gpt-5.4` family remains in the catalog as an architecturally clean subset (same spec, cheaper tier). |
 | Anthropic | `claude-opus-5` / `claude-sonnet-5` | Messages API, adaptive thinking only (`thinking.type: enabled` is rejected), effort via `output_config.effort`, no sampling params (Opus 4.8 / 4.7 retained in catalog as prior-generation architecturally-consistent peers) |
-| Google | `gemini-3.6-flash` (reasoning Flash; supersedes `gemini-3.5-flash`) | `generate_content`, thinking always on (thinking level, cannot disable) |
+| Google | `gemini-3.8-flash` (reasoning Flash; the 3.6 generation stays in the catalog) | `generate_content`, thinking level `low`/`medium`/`high`; thinking can be turned off with `thinkingBudget: 0` (measured 2026-09-22) |
 | xAI | `grok-4-1-fast-*` | `/v1/chat/completions`, reasoning toggle via model variant |
 | DeepSeek | `deepseek-v4-flash` | `/v1/chat/completions`, `thinking: { type, reasoning_effort }` object |
 

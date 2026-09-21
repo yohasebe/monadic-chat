@@ -68,8 +68,9 @@ app "ImageGeneratorGrok" do
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETERS:
-    - aspect_ratio: 1:1 (default), 16:9, 9:16, 4:3, 3:4
-    - Up to 3 images can be provided for editing
+    - aspect_ratio and quality: use the values listed in the tool schema
+    - Omit quality unless the user requests it (API default: auto)
+    - Up to 5 images can be provided for editing
 
     RESULT DISPLAY:
     Success (success=true with filename):
@@ -137,9 +138,10 @@ app "ImageGeneratorGrok" do
     define_tool "generate_image_with_grok", "Generate or edit images using xAI's Grok Imagine model." do
       parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: true, enum: ["generate", "edit"]
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: true
-      parameter :aspect_ratio, "string", "Aspect ratio for the image (default '1:1').", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")
+      parameter :aspect_ratio, "string", "Aspect ratio. Omit to use the API default.", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")
+      parameter :quality, "string", "Image quality. Omit to use the API default (auto).", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "quality")
       parameter :image_model, "string", "Image model to use. Omit for the standard (cheapest) model; pass a later one only when the user asks for higher quality, since they cost more per image. An unavailable model falls back to the standard one.", required: false, enum: Monadic::Utils::ModelSpec.get_provider_models("xai", "image")
-      parameter :images, "array", "Array of image filenames for editing (max 3)", required: false, items: {
+      parameter :images, "array", "Array of image filenames for editing (max 5)", required: false, items: {
         type: "string",
         description: "Image filename"
       }

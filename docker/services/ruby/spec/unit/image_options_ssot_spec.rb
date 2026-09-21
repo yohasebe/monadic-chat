@@ -131,6 +131,15 @@ RSpec.describe "image generation options come from the SSOT" do
       expect(per_model).not_to be_empty
     end
 
+    it "offers the measured xAI vocabulary for each selectable model" do
+      Monadic::Utils::ModelSpec.get_provider_models("xai", "image").each do |model|
+        expect(Monadic::Utils::ModelSpec.image_options("xai", "quality", model: model))
+          .to eq(%w[low medium high auto])
+        expect(Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio", model: model))
+          .to eq(%w[1:1 3:4 4:3 9:16 16:9 2:3 3:2 9:19.5 19.5:9 9:20 20:9 1:2 2:1 21:9 5:2 auto])
+      end
+    end
+
     it "leaves providers without per-model tables alone" do
       expect(Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")).not_to be_empty
       expect(Monadic::Utils::ModelSpec.image_options("gemini", "model")).not_to be_empty
@@ -190,6 +199,7 @@ RSpec.describe "image generation options come from the SSOT" do
 
     it "resolves the Grok enums to the SSOT values" do
       enums = enums_for("ImageGeneratorGrok")
+      expect(enums["quality"]).to eq(%w[low medium high auto])
       expect(enums["aspect_ratio"]).to eq(Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio"))
       expect(enums["image_model"]).to eq(Monadic::Utils::ModelSpec.get_provider_models("xai", "image"))
     end

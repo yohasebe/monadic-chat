@@ -97,11 +97,15 @@ def parse_options(argv)
       end
     end
 
-    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)") do |ratio|
+    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (see imageGenerationOptions.xai)") do |ratio|
       options[:aspect_ratio] = ratio
     end
 
-    opts.on("-i", "--image IMAGE", "Image file path for editing (can be specified multiple times, max 3)") do |img|
+    opts.on("-q", "--quality QUALITY", "Image quality (omitted: API default)") do |quality|
+      options[:quality] = quality
+    end
+
+    opts.on("-i", "--image IMAGE", "Image file path for editing (can be specified multiple times, max 5)") do |img|
       options[:images] << img
     end
 
@@ -119,12 +123,18 @@ def validate_options(options)
   if options[:operation] == "edit" && options[:images].empty?
     return "ERROR: At least one image is required for edit operation. Use -i or --image."
   end
-  return "ERROR: Maximum 3 images allowed for xAI edit API." if options[:images].size > 3
+  return "❌ Maximum 5 images allowed for xAI edit API." if options[:images].size > 5
 
   nil
 end
 
-def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [], model: nil, num_retrials: 3)
+def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: nil, images: [], model: nil, num_retrials: 3)
+  if images.size > 5
+    return { original_prompt: prompt, success: false, message: "❌ Maximum 5 images allowed for xAI edit API." }
+  end
+  if quality && !Monadic::Utils::ModelSpec.image_options("xai", "quality").include?(quality)
+    return { original_prompt: prompt, success: false, message: "❌ Invalid quality: #{quality}" }
+  end
   model ||= default_grok_image_model
   begin
     api_key = File.read("/monadic/config/env").split("\n").find do |line|
@@ -181,6 +191,8 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
       end
     end
 
+    body[:quality] = quality if quality
+
     puts "Sending #{operation} request with prompt: #{prompt}" if ENV["EXTRA_LOGGING"]
     res = HTTP.headers(headers).timeout(120).post(url, json: body)
   rescue HTTP::Error, HTTP::TimeoutError => e
@@ -235,7 +247,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, images: [],
     fallback = default_grok_image_model
     if fallback && model != fallback
       warn "Image model #{model.inspect} failed (#{error_msg}); retrying with #{fallback.inspect}" if ENV["EXTRA_LOGGING"]
-      retried = generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio,
+      retried = generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, quality: quality,
                                images: images, model: fallback, num_retrials: 0)
       if retried.is_a?(Hash) && retried[:success]
         retried[:fallback_from] = model
@@ -254,7 +266,7 @@ rescue StandardError => e
   num_retrials -= 1
   if num_retrials.positive?
     sleep 1
-    return generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, images: images,
+    return generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, quality: quality, images: images,
                           model: model, num_retrials: num_retrials)
   else
     return { original_prompt: prompt, success: false, message: "Error: Image operation failed after multiple attempts." }
@@ -268,7 +280,7 @@ if __FILE__ == $PROGRAM_NAME
     exit 1
   end
 
-  res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio],
+  res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio], quality: options[:quality],
                        images: options[:images], model: resolve_grok_image_model(options[:model]))
   puts JSON.pretty_generate(res)
 end

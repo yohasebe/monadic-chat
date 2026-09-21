@@ -3,6 +3,29 @@ require_relative "../../lib/monadic/utils/model_spec"
 
 RSpec.describe Monadic::Utils::ModelSpec do
   describe "normalization and accessors" do
+    it "exposes the measured Grok effort vocabulary without changing defaults" do
+      %w[grok-4.6 grok-4.7].each do |model|
+        expect(described_class.get_model_property(model, "reasoning_effort"))
+          .to eq([%w[low medium high xhigh], "low"])
+        expect(described_class.vision_capability?(model)).to be true
+      end
+      expect(described_class.get_provider_models("xai", "chat").first(2)).to eq(%w[grok-4.7 grok-4.6])
+    end
+
+    it "exposes Gemini medium and disable support with application budget limits" do
+      %w[gemini-3.6-flash gemini-3.8-flash].each do |model|
+        expect(described_class.get_model_property(model, "reasoning_effort"))
+          .to eq([%w[low medium high], "low"])
+        expect(described_class.get_model_property(model, "thinking_level"))
+          .to eq([%w[low medium high], "low"])
+        expect(described_class.get_thinking_budget(model)).to eq(
+          "min" => 128, "max" => 24576, "can_disable" => true,
+          "presets" => {"low" => 8000, "medium" => 14000, "high" => 20000})
+      end
+      expect(described_class.get_provider_models("gemini", "chat").first(2))
+        .to eq(%w[gemini-3.8-flash gemini-3.6-flash])
+    end
+
     it "normalizes reasoning_model to is_reasoning_model (Cohere)" do
       model = "command-a-reasoning-08-2025"
       # Cohere spec uses reasoning_model; normalization should expose is_reasoning_model

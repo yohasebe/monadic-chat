@@ -36,8 +36,8 @@ RSpec.describe "MonadicHelper media generation shell escaping" do
 
     it "passes the chosen image model through as -m" do
       helper.generate_image_with_grok(prompt: "test", operation: "generate",
-                                      image_model: "grok-imagine-image-quality")
-      expect(helper.last_command).to include("-m #{Shellwords.shellescape('grok-imagine-image-quality')}")
+                                      image_model: "grok-imagine-image-2.0")
+      expect(helper.last_command).to include("-m #{Shellwords.shellescape('grok-imagine-image-2.0')}")
     end
 
     it "omits -m entirely when no model is chosen so the script uses the provider default" do

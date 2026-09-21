@@ -652,24 +652,48 @@ const modelSpec = {
     "native_multiturn_reasoning": true
   },
   // Gemini models
-  // Gemini 3.5 Flash (GA, sustained frontier for agentic + coding tasks).
-  // gemini-3.6-flash — reasoning Flash (thinking is always on and cannot be
-  // disabled; thinkingBudget:0 is rejected by the API). Shares the thinking-level
-  // shape of gemini-3.1-pro-preview: level-based reasoning driven through
-  // thinkingBudget presets, can_disable:false.
+  // Thinking levels and budget-zero support verified against the live API
+  // on 2026-09-22. Budget bounds and presets are application choices, not
+  // the API's accepted range. The selected default effort remains low.
   "gemini-3.6-flash": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "high"], "low"],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
     "supports_thinking": true,
     "supports_thinking_level": true,
-    "thinking_level": [["low", "high"], "low"],
+    "thinking_level": [["low", "medium", "high"], "low"],
     "thinking_budget": {
       "min": 128,
       "max": 24576,
-      "can_disable": false,
+      "can_disable": true,
       "presets": {
         "low": 8000,
+        "medium": 14000,
+        "high": 20000
+      }
+    },
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "stt_capability": true,
+    "stt_provider": "gemini"
+  },
+  // Same measured limits and thinking controls; minimal is rejected.
+  "gemini-3.8-flash": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "medium", "high"], "low"],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "presets": {
+        "low": 8000,
+        "medium": 14000,
         "high": 20000
       }
     },
@@ -1108,16 +1132,32 @@ const modelSpec = {
   // ~$0.50 cached per 1M (long-context tier ~doubles above the 200K threshold).
   // presence_penalty / frequency_penalty omitted to match the grok-4.3
   // sampling-restriction posture. Verified against the live xAI API 2026-07-09.
-  // grok-4.6 — current xAI flagship. Same base pricing as grok-4.5, but
+  // grok-4.6 — xAI chat default. Same base pricing as grok-4.5, but
   // cached input costs more ($0.50/$1.00 vs $0.30/$0.60), so a cache-heavy
   // workload is not automatically cheaper on the newer model. It has no
   // alias: "grok-4.6-latest" fails rather than resolving.
+  // Effort vocabulary verified against the live API on 2026-09-22.
   "grok-4.6": {
     "context_window" : [1, 500000],
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true,
+    "structured_output": true
+  },
+  // Context, vision and effort verified on 2026-09-22. Other capabilities
+  // inherit the 4.6 contract; retain its application output cap of 32768.
+  "grok-4.7": {
+    "context_window" : [1, 500000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
     "tool_capability": true,
     "vision_capability": true,
     "websearch_capability": true,
@@ -1506,9 +1546,9 @@ const providerDefaults = {
     "vision": ["claude-haiku-4-5-20251001"]
   },
   "gemini": {
-    "chat": ["gemini-3.6-flash", "gemini-3.1-pro-preview"],
-    "vision": ["gemini-3.6-flash"],
-    "audio_transcription": ["gemini-3.6-flash"],
+    "chat": ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview"],
+    "vision": ["gemini-3.8-flash", "gemini-3.6-flash"],
+    "audio_transcription": ["gemini-3.8-flash", "gemini-3.6-flash"],
     // Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live
     // model list (verified 2026-08-22), so only the conversational image
     // models remain.
@@ -1530,13 +1570,13 @@ const providerDefaults = {
     "audio_transcription": ["voxtral-mini-transcribe-2507"]
   },
   "xai": {
-    "chat": ["grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
-    "code": ["grok-build-0.1", "grok-4.6", "grok-4.5", "grok-4.3"],
-    "vision": ["grok-4.6", "grok-4.5", "grok-4.3"],
-    // Image models, cheapest first ($0.02 / $0.04 / $0.05 per image); the
+    "chat": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
+    "code": ["grok-build-0.1", "grok-4.7", "grok-4.6", "grok-4.5", "grok-4.3"],
+    "vision": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.3"],
+    // Image models, cheapest first; the
     // first is the default. These have no catalog entries, so this list is
     // the only SSOT for which image models exist.
-    "image": ["grok-imagine-image", "grok-imagine-image-2.0", "grok-imagine-image-quality"],
+    "image": ["grok-imagine-image", "grok-imagine-image-2.0"],
     // text-to-video default. Image-to-video is routed to grok-imagine-video-1.5
     // in scripts/generators/video_generator_grok.rb (i2v-only, native audio,
     // higher quality; v1.5 rejects text-only requests).
@@ -1601,7 +1641,11 @@ const imageGenerationOptions = {
     "input_fidelity": ["low", "high"]
   },
   "xai": {
-    "aspect_ratio": ["1:1", "16:9", "9:16", "4:3", "3:4"]
+    // Verified against the live API on 2026-09-22. These request values are
+    // shared by the xAI image models, so no per-model table is needed.
+    "quality": ["low", "medium", "high", "auto"],
+    "aspect_ratio": ["1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2",
+                     "9:19.5", "19.5:9", "9:20", "20:9", "1:2", "2:1", "21:9", "5:2", "auto"]
   },
   "gemini": {
     // The conversational image models, which are a different set from

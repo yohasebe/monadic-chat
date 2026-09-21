@@ -69,9 +69,21 @@ RSpec.describe "ImageGeneratorTools" do
       expect(result).to include("Image file not found")
     end
 
+    it "passes quality and an expanded ratio through the app and shell helper" do
+      app = ImageGeneratorGrok.new
+      command = nil
+      allow(app).to receive(:send_command) do |**args|
+        command = Shellwords.split(args[:command])
+      end
+      app.generate_image_with_grok(prompt: "test", quality: "high", aspect_ratio: "21:9")
+      expect(command).not_to be_nil
+      expect(command[command.index("-q") + 1]).to eq("high")
+      expect(command[command.index("-a") + 1]).to eq("21:9")
+    end
+
     it "rejects invalid aspect_ratio" do
       app = ImageGeneratorGrok.new
-      result = app.generate_image_with_grok(operation: "generate", prompt: "test", aspect_ratio: "2:1")
+      result = app.generate_image_with_grok(operation: "generate", prompt: "test", aspect_ratio: "99:1")
       expect(result).to start_with("❌")
       expect(result).to include("Invalid aspect_ratio")
     end

@@ -37,6 +37,16 @@ describe('Model Specification', () => {
   // as in Ruby because both stacks read the same file — a change that breaks
   // one should break the other.
   describe('Image generation options', () => {
+    it('keeps the measured xAI vocabulary at provider level', () => {
+      const xai = modelSpec.imageGenerationOptions.xai;
+      expect(xai.models).toBeUndefined();
+      expect(xai.quality).toEqual(['low', 'medium', 'high', 'auto']);
+      expect(xai.aspect_ratio).toEqual([
+        '1:1', '3:4', '4:3', '9:16', '16:9', '2:3', '3:2', '9:19.5',
+        '19.5:9', '9:20', '20:9', '1:2', '2:1', '21:9', '5:2', 'auto'
+      ]);
+    });
+
     it('offers OpenAI only sizes the API still accepts', () => {
       const sizes = modelSpec.imageGenerationOptions.openai.size;
       // 256x256 and 512x512 are below gpt-image-2's minimum pixel budget and
@@ -108,6 +118,39 @@ describe('Model Specification', () => {
     });
   });
 
+  describe('September catalog refresh', () => {
+    it.each(['grok-4.6', 'grok-4.7'])('pins the offered effort and limits for %s', (name) => {
+      const m = modelSpec[name];
+      expect(m.reasoning_effort).toEqual([['low', 'medium', 'high', 'xhigh'], 'low']);
+      expect(m.context_window).toEqual([1, 500000]);
+      expect(m.max_output_tokens).toEqual([1, 32768]);
+      expect(m.vision_capability).toBe(true);
+    });
+
+    it.each(['gemini-3.6-flash', 'gemini-3.8-flash'])('pins thinking controls and limits for %s', (name) => {
+      const m = modelSpec[name];
+      expect(m.reasoning_effort).toEqual([['low', 'medium', 'high'], 'low']);
+      expect(m.thinking_level).toEqual([['low', 'medium', 'high'], 'low']);
+      expect(m.thinking_budget).toEqual({min: 128, max: 24576, can_disable: true,
+        presets: {low: 8000, medium: 14000, high: 20000}});
+      expect(m.context_window).toEqual([1048576]);
+      expect(m.max_output_tokens).toEqual([1, 65536]);
+    });
+
+    it('promotes the new models and keeps the previous ones selectable', () => {
+      const d = modelSpec.providerDefaults;
+      ['chat', 'vision'].forEach((kind) => {
+        expect(d.xai[kind].slice(0, 2)).toEqual(['grok-4.7', 'grok-4.6']);
+      });
+      // grok-build-0.1 is the dedicated code model and stays the code default.
+      expect(d.xai.code.slice(0, 2)).toEqual(['grok-build-0.1', 'grok-4.7']);
+      ['chat', 'vision', 'audio_transcription'].forEach((kind) => {
+        expect(d.gemini[kind].slice(0, 2)).toEqual(['gemini-3.8-flash', 'gemini-3.6-flash']);
+      });
+      expect(modelSpec['gemini-3.7-flash']).toBeUndefined();
+    });
+  });
+
   describe('xAI Models', () => {
     it('catalogs grok-4.6 with vision and reasoning', () => {
       const m = modelSpec['grok-4.6'];
@@ -119,11 +162,12 @@ describe('Model Specification', () => {
       expect(m.context_window[1]).toBe(500000);
     });
 
-    it('defaults chat and vision to grok-4.6', () => {
+    it('defaults chat and vision to grok-4.7', () => {
       const d = modelSpec.providerDefaults.xai;
-      expect(d.chat[0]).toBe('grok-4.6');
-      expect(d.vision[0]).toBe('grok-4.6');
-      // The previous flagship stays selectable rather than being dropped.
+      expect(d.chat[0]).toBe('grok-4.7');
+      expect(d.vision[0]).toBe('grok-4.7');
+      // The previous flagships stay selectable rather than being dropped.
+      expect(d.chat).toContain('grok-4.6');
       expect(d.chat).toContain('grok-4.5');
     });
 
@@ -132,9 +176,7 @@ describe('Model Specification', () => {
       // for which ones exist; the generator validates against it.
       const image = modelSpec.providerDefaults.xai.image;
       expect(image[0]).toBe('grok-imagine-image');
-      expect(image).toEqual(expect.arrayContaining([
-        'grok-imagine-image-2.0', 'grok-imagine-image-quality'
-      ]));
+      expect(image).toEqual(['grok-imagine-image', 'grok-imagine-image-2.0']);
       image.forEach((id) => expect(modelSpec[id]).toBeUndefined());
     });
   });

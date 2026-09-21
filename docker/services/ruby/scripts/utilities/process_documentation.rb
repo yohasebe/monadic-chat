@@ -13,6 +13,8 @@
 
 require 'fileutils'
 require 'json'
+require 'open3'
+require 'set'
 require 'digest'
 require 'time'
 
@@ -97,10 +99,30 @@ class ProcessDocumentation
 
   # ─── Document discovery ────────────────────────────────────────────────
 
+  # Only documents git tracks may go into the dump. The shipped beta.34 dump
+  # carried docs_dev/external_apis/README.md, which .gitignore excludes: the
+  # walk below reads the working tree, so being present on disk was enough to
+  # be indexed and packaged. Asking git instead keeps anything gitignored or
+  # merely untracked out of the index in the first place.
+  def tracked_files
+    @tracked_files ||= begin
+      out, status = Open3.capture2('git', '-C', PROJECT_ROOT, 'ls-files', '-z')
+      raise 'git ls-files failed; refusing to build a dump whose provenance is unknown' unless status.success?
+
+      out.split("\x00").reject(&:empty?).to_set
+    end
+  end
+
+  def tracked?(absolute_path)
+    tracked_files.include?(absolute_path.sub(PROJECT_ROOT + '/', ''))
+  end
+
   def process_root_docs
     %w[README.md CHANGELOG.md].each do |name|
       path = File.join(PROJECT_ROOT, name)
       next unless File.exist?(path)
+      next unless tracked?(path)
+
       puts "Processing root: #{name}"
       process_file_as_single_doc(path, name, name.sub('.md', ''), 'Overview')
     end
@@ -113,7 +135,13 @@ class ProcessDocumentation
     files.reject! { |f| f.include?('/node_modules/') || f.include?('/_') }
     files.reject! { |f| f.include?('/ja/') || f.include?('/zh/') || f.include?('/ko/') } if language == 'en'
 
-    files.each do |file_path|
+    skipped = files.reject { |f| tracked?(f) }
+    unless skipped.empty?
+      puts "Skipping #{skipped.size} untracked file(s) under #{base_path.sub(PROJECT_ROOT + '/', '')}/:"
+      skipped.first(10).each { |f| puts "  #{f.sub(PROJECT_ROOT + '/', '')}" }
+    end
+
+    (files - skipped).each do |file_path|
       relative = file_path.sub(base_path + '/', '')
       next if relative.start_with?('_') || relative == 'index.md'
       process_markdown_file(file_path, relative, language, is_internal: is_internal)

@@ -442,6 +442,25 @@ Dir.mktmpdir('help_dump_guard') do |tmp|
     problems.any? { |m| m.include?('_absent_page.md') }, problems.join("\n")
   )
 
+  # The beta.34 dump shipped docs_dev/external_apis/README.md, which .gitignore
+  # excludes but which sits in the working tree. Deciding membership by "the
+  # file is there" passed it; deciding by "git tracks it" does not. The fixture
+  # is created and removed here so the case holds on any checkout.
+  ignored_doc = ROOT.join('docs/_lint_self_check_untracked.md')
+  begin
+    ignored_doc.write("# untracked\n")
+    problems = check.call(help_dump_fixture(
+      docs: [help_doc_point('_lint_self_check_untracked.md')]
+    ))
+    assert(
+      'refuses a source file that git does not track, even though it exists',
+      problems.any? { |m| m.include?('_lint_self_check_untracked.md') },
+      "present=#{ignored_doc.file?} problems=#{problems.join("\n")}"
+    )
+  ensure
+    ignored_doc.delete if ignored_doc.exist?
+  end
+
   # Root README/CHANGELOG are stored bare with is_root_doc. Resolving them
   # under docs/ sends the changelog to docs/CHANGELOG.md, which only exists on
   # a case-insensitive filesystem -- green on macOS, red on CI.
@@ -459,6 +478,41 @@ Dir.mktmpdir('help_dump_guard') do |tmp|
     'refuses a docs-relative path whose case does not match the tree',
     problems.any? { |m| m.include?('CHANGELOG.md') }, problems.join("\n")
   )
+
+  # A text check would pass on any file that merely mentions git, so load the
+  # generator and ask it about a real untracked file. This is the root cause
+  # of the shipped dump: the walk read the working tree, so a gitignored
+  # document was indexed before any gate could see it.
+  generator_probe = <<~RUBY
+    src_path = File.expand_path('scripts/utilities/process_documentation.rb', Dir.pwd)
+    src = File.read(src_path).sub(/^if __FILE__ == \\$0.*\\z/m, '')
+    eval(src, TOPLEVEL_BINDING, src_path)
+    d = ProcessDocumentation.new
+    root = ProcessDocumentation::PROJECT_ROOT
+    probe = File.join(root, 'docs/_lint_self_check_untracked.md')
+    File.write(probe, "# untracked\n")
+    begin
+      puts "UNTRACKED=" + d.send(:tracked?, probe).to_s
+      puts "TRACKED=" + d.send(:tracked?, File.join(root, 'docs/advanced-topics/help-system.md')).to_s
+    ensure
+      File.delete(probe) if File.exist?(probe)
+    end
+  RUBY
+  probe_file = Pathname.new(Dir.tmpdir).join('_lint_generator_probe.rb')
+  begin
+    probe_file.write(generator_probe)
+    out, err, = Open3.capture3(
+      'bundle', 'exec', 'ruby', probe_file.to_s,
+      chdir: ROOT.join('docker/services/ruby').to_s
+    )
+    assert(
+      'the generator indexes only what git tracks',
+      out.include?('UNTRACKED=false') && out.include?('TRACKED=true'),
+      "stdout:\n#{out}\nstderr:\n#{err.lines.last(5).join}"
+    )
+  ensure
+    probe_file.delete if probe_file.exist?
+  end
 
   problems = check.call({})
   assert(

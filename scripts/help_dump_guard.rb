@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'open3'
 require 'pathname'
+require 'set'
 
 # Decides whether a help database dump is safe to ship.
 #
@@ -102,11 +104,42 @@ module HelpDumpGuard
   def stale_problems(collections, root)
     return [] unless collections.is_a?(Hash)
 
-    stale = source_paths(collections).reject { |rel| exists_exactly?(root, rel) }
+    sources = source_paths(collections)
+    return [] if sources.empty?
+
+    tracked = tracked_paths(root)
+    return ['cannot list the tracked documents with git, so the dump cannot be cleared'] if tracked.nil?
+
+    stale = sources.reject { |rel| tracked.include?(rel) && present?(root, rel) }
     return [] if stale.empty?
 
-    ["help dump names #{stale.size} document(s) that are not in the tree:\n    " +
+    ["help dump names #{stale.size} document(s) that git does not track:\n    " +
      stale.first(10).join("\n    ")]
+  end
+
+  # Membership is decided by git, not by the working tree. The shipped dump
+  # carried docs_dev/external_apis/README.md, which .gitignore excludes but
+  # which exists on disk — the generator read the working tree, so being
+  # present was enough. Asking git instead refuses anything gitignored or
+  # simply untracked, and git's paths are already case-exact, which the
+  # working tree is not on macOS.
+  def tracked_paths(root)
+    out, status = Open3.capture2(
+      'git', '-C', root.to_s, 'ls-files', '-z', '--', 'docs', 'README.md', 'CHANGELOG.md'
+    )
+    return nil unless status.success?
+
+    out.split("\x00").reject(&:empty?).to_set
+  rescue SystemCallError
+    nil
+  end
+
+  # A tracked path that was deleted from the working tree would still be
+  # listed by git while its content no longer exists, so require both.
+  def present?(root, rel)
+    Pathname(root.to_s).join(rel).file?
+  rescue SystemCallError
+    false
   end
 
   # Root documents (README.md, CHANGELOG.md) are stored with a bare file name
@@ -140,19 +173,6 @@ module HelpDumpGuard
 
     "docs/#{rel}"
   end
-
-  # `File.file?` is case-insensitive on macOS, so a dump naming
-  # `docs/CHANGELOG.md` would pass on a developer machine and then fail on a
-  # case-sensitive CI box. Compare against the directory entry instead, so the
-  # check gives the same answer everywhere.
-  def exists_exactly?(root, rel)
-    full = Pathname(root.to_s).join(rel)
-    return false unless full.file?
-
-    Dir.children(full.dirname).include?(full.basename.to_s)
-  rescue SystemCallError
-    false
-  end
 end
 
 if __FILE__ == $PROGRAM_NAME
@@ -160,9 +180,7 @@ if __FILE__ == $PROGRAM_NAME
   root = ARGV[1] || Dir.pwd
   abort 'usage: help_dump_guard.rb <help_db.json> [repo_root]' if dump.nil? || dump.empty?
 
-  unless File.file?(dump)
-    abort "[help_dump_guard] no dump at #{dump}"
-  end
+  abort "[help_dump_guard] no dump at #{dump}" unless File.file?(dump)
 
   found = HelpDumpGuard.problems(dump_path: dump, root: root)
   if found.empty?

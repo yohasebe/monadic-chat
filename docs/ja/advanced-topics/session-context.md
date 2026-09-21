@@ -17,7 +17,7 @@
 
 ### アーキテクチャ
 
-```
+```text
 ユーザーメッセージ → AIレスポンス → コンテキスト抽出エージェント → サイドバー更新
                                             ↓
                                      同じプロバイダーAPI
@@ -120,6 +120,11 @@ end
 | **Novel Writer** | Characters, Plot, Settings |
 | **Voice Interpreter** | Languages, Phrases, Notes |
 | **Language Practice Plus** | Vocabulary, Grammar, Tips |
+| **Translate** | Languages, Vocabulary, Notes |
+| **Jupyter Notebook** | Topics, Code, Notes |
+| **Image Generator** | Styles, Prompts, Notes |
+| **Video Generator** | Styles, Prompts, Notes |
+| **Music Generator** | Styles, Prompts, Notes |
 
 ## プロバイダーサポート
 

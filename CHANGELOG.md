@@ -389,7 +389,7 @@
     - Ensures consistent data flow: single JSON serialization at output stage
     - Updated tests to reflect implementation changes
 
-- [October 22, 2024] **v1.0.0 - First Stable Release** 🎉
+- [October 22, 2024] 1.0.0 - First Stable Release
   - **Production Ready**: Comprehensive testing with 317 passing tests
   - **Electron 38.3.0**: Updated to latest stable Electron for improved performance and security
   - **Enhanced Stability**: Fixed all test suite issues for reliable operation
@@ -668,7 +668,6 @@
 
 - [June, 2024] Recent Updates
   - **Beta Release**: First beta release for version 1.0.0
-  - **Important Changes**: See [documentation](https://yohasebe.github.io/monadic-chat/#/developer/breaking-changes) for migration guide
   - **New Apps**: Concept Visualizer (LaTeX/TikZ diagrams), Syntax Tree (linguistic analysis)
   - **Ollama Support**: Local LLM integration with automatic model management
   - **O3 Series Support**: OpenAI o3 and o3-pro models (o3-pro uses responses API)
@@ -766,7 +765,7 @@
   - Initial system prompt duplication issue fixed
   - TTS/STT support for Safari
   - Selenium image supported for both arm64 and amd64
-- [Jan, 2024] 0.9.37
+- [January, 2024] 0.9.37
   - Perplexity `sonar-reasoning` (DeepSeek) model supported
   - OpenAI o1 models supported
   - DeepSeek models supported
@@ -774,7 +773,7 @@
   - New folder structure for config/data/logs introduced
   - Perplexity models supported
   - Start-up time (after build) improved
-- [Dec, 2023] 0.9.30
+- [December, 2023] 0.9.30
   - "From URL" feature added
   - "From file" feature added (pdf, docx, pptx, xlsx, etc.)
   - xAI Grok models supported
@@ -786,7 +785,7 @@
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed
   - Role selection issue fixed
-- [Nov, 2023] 0.9.22
+- [November, 2023] 0.9.22
   - Rebuilding specific containers feature added
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook apps (for GPT and Claude) improved
@@ -798,30 +797,30 @@
   - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
   - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models
   - AI user feature improved
-- [Oct, 2023] 0.9.6
+- [October, 2023] 0.9.6
   - PyMuPDF4LLM integration
   - Anthropic's new sonnet model supported
   - Stability of code running and chart generation improved
-- [Sep, 2023] 0.9.2
+- [September, 2023] 0.9.2
   - Beta models (`o1-preview`, `o1-mini`) supported
   - Documentation renewed
   - Stability improvement
   - Better app development support
   - Many under-the-hood improvements
   - Documentation using Docsify released
-- [Aug, 2023] 0.8.11
+- [August, 2023] 0.8.11
   - App authoring format changed
   - Claude Jupyter Notebook app added
   - Math rendering improved
   - Second Opinion app added
   - PDF Document import/export feature
-- [Jul, 2023] 
+- [July, 2023]
   - Mistral AI (Chat and Code Interpreter) app added
   - Multiple images can be uploaded for image recognition
   - Continue button introduced
   - Jupyter Notebook app added
   - Browser auto open
-- [Jun, 2023] 
+- [June, 2023]
   - Linux (Ubuntu/Debian) installer released
   - App file name changed from monadic-chat to Monadic Chat
   - Settings menu added
@@ -835,22 +834,22 @@
   - Video Describer app added
 - [May, 2023] Talk to Claude/Cohere/Gemini apps added
   - Ruby/Python/PGVector/Selenium containers structure introduced
-- [Feb, 2023] Mermaid diagram support
+- [February, 2023] Mermaid diagram support
   - File reading feature
   - Stability improvement with several apps modified
-- [Jan, 2023] Default model set to `gpt-3.5-turbo-1106`
+- [January, 2023] Default model set to `gpt-3.5-turbo-1106`
   - OpenAI's January 2024 models supported
   - Mac/Win Monadic Chat Console UI improved
   - Image understanding feature
   - Voice Interpreter app added
   - More responsive text-to-speech in auto-speech mode
   - Language Practice Plus app updated
-- [Nov, 2023] Image generator app updated to support dall-e-3.
+- [November, 2023] Image generator app updated to support dall-e-3.
   - Speech-to-Text voice input is supported for Chrome/Edge/Safari.
   - Natural voice stream playback using OpenAI's text-to-speech API supported.
   - OpenAI's new models supported (0.3.0)
-- [Sep, 2023] Stability improvement with several apps modified
-- [Jul, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0).
+- [September, 2023] Stability improvement with several apps modified
+- [July, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0).
   - Image generation feature added.
   - The initial version of Monadic Chat (1.0.0) has been released.
   - The original command-line program renamed to [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository.

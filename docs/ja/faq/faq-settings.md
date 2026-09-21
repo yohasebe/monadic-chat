@@ -6,7 +6,7 @@
 
 商用のAPIを使いたくない場合は、Ollamaを使用してローカル言語モデルを実行できます：
 1. [https://ollama.com/download](https://ollama.com/download) からOllamaをインストール
-2. `ollama pull <model>` コマンドでモデルを取得（例：`ollama pull llama3.2`）
+2. `ollama pull <model>` コマンドでモデルを取得（例：`ollama pull gemma4:e4b`）
 3. Ollamaプロバイダーを選択してChatアプリを使用
 
 Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](../advanced-topics/ollama.md) を参照してください。
@@ -52,7 +52,7 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 - **NLTK**: ライブラリのみインストールされます。コーパスやデータセットはダウンロードされません。
 - **spaCy**: ライブラリのみインストールされます。言語モデル（例：`en_core_web_sm`）はダウンロードされません。
 
-データセットやモデルの取得には `~/monadic/config/pysetup.sh` を使用してください。例については[Pythonコンテナ](../docker-integration/python-container.md)の「追加ライブラリ（pysetup.sh）」を参照してください。
+データセットやモデルの取得には `~/monadic/config/pysetup.sh` を使用してください。例については[追加ライブラリ（pysetup.sh）](../docker-integration/python-container.md#adding-libraries-with-pysetupsh)を参照してください。
 
 ---
 

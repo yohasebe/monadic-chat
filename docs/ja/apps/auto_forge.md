@@ -123,7 +123,7 @@ CLIプロジェクトで利用可能。明確な価値を追加する場合に�
 
 ### ファイルストレージ
 プロジェクトは`~/monadic/data/auto_forge/`に以下の構造で保存されます：
-```
+```text
 auto_forge/
 ├── TodoApp_20250127_143022/
 │   └── index.html
@@ -197,14 +197,14 @@ Webアプリに対して`debug_application`を使用すると、以下が得ら�
 ### 一般的な問題
 
 1. **ファイルが生成されない**: コード生成モデルは、複雑なアプリで2〜5分かかることがあります。生成実行中、進捗状況がストリーミング一時カードに表示されます
-2. **Seleniumが利用できない**: Docker Seleniumコンテナが実行中であることを確認
+2. **Seleniumが利用できない**: Seleniumコンテナはアプリ起動時に立ち上がります。見当たらない場合はコンソールの起動エラーを確認してください
 3. **Unicode文字**: 特殊文字を含むプロジェクト名は完全にサポートされています
 4. **カスタムファイルリクエストが拒否される**: ファイル名がシンプル（ディレクトリなし）であることを確認し、必要なコンテンツを説明する明確な指示を含めてください
 
 ### エラーメッセージ
 
 - "Missing required parameters": すべての仕様フィールドが提供されていることを確認
-- "Selenium container is not running": Monadic Chat設定でSeleniumを有効化
+- "Selenium container is not running": Seleniumコンテナはアプリ起動時に立ち上がります。起動していない場合はMonadic Chatを再起動してください
 - "Project not found": list_projectsで正確なプロジェクト名を確認
 
 ## プロバイダーサポートと進捗更新

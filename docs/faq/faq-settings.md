@@ -6,7 +6,7 @@
 
 If you do not want to use commercial APIs, you can use Ollama to run local language models:
 1. Install Ollama from [https://ollama.com/download](https://ollama.com/download)
-2. Pull models using the `ollama pull <model>` command (e.g., `ollama pull llama3.2`)
+2. Pull models using the `ollama pull <model>` command (e.g., `ollama pull gemma4:e4b`)
 3. Use the Chat app with Ollama provider selected
 
 For detailed information on using Ollama with Monadic Chat, see [Using Ollama](/advanced-topics/ollama.md).

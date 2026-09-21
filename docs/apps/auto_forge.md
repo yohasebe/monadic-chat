@@ -123,7 +123,7 @@ Example (custom asset):
 
 ### File Storage
 Projects are stored in `~/monadic/data/auto_forge/` with the following structure:
-```
+```text
 auto_forge/
 ├── TodoApp_20250127_143022/
 │   └── index.html
@@ -197,14 +197,14 @@ When `debug_application` is used for web apps, you receive:
 ### Common Issues
 
 1. **Files Not Generated**: Code generation models can take 2-5 minutes for complex apps. Progress appears in the streaming temp card while generation runs.
-2. **Selenium Not Available**: Ensure Docker Selenium container is running
+2. **Selenium Not Available**: The Selenium container starts with the application — check the console for startup errors if it is missing
 3. **Unicode Characters**: Project names with special characters are fully supported
 4. **Custom file requests rejected**: Make sure the filename is simple (no directories) and include clear instructions describing the desired content.
 
 ### Error Messages
 
 - "Missing required parameters": Ensure all specification fields are provided
-- "Selenium container is not running": Enable Selenium in Monadic Chat settings
+- "Selenium container is not running": The Selenium container starts with the application; restart Monadic Chat if it is not running
 - "Project not found": Check the exact project name with list_projects
 
 ## Provider Support & Progress Updates

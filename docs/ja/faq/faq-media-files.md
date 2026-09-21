@@ -10,7 +10,7 @@
 
 - Code Interpreter<br />PythonスクリプトやCSVを含む各種のテキストファイル、Microsoft Officeファイル、オーディオファイル（MP3、WAV、M4A、その他の一般的な形式）
 - Knowledge Base<br />Browse モーダルの **Import file** ボタンから PDF / Microsoft Office (.docx / .xlsx / .pptx) / Markdown / ソースコードファイルをインポート可能
-- Video Description<br />動画ファイル（MP4、MOV、AVI、MKV、その他の一般的な形式）
+- Video Describer<br />動画ファイル（MP4、MOV、AVI、MKV、その他の一般的な形式）
 
 `Speech Input`ボタンをクリックして音声入力を行うこともできます。音声入力はSpeech-to-Text APIを使用しており、すべてのアプリで利用可能です。
 
@@ -20,5 +20,5 @@
 
 **A**: はい、いくつかのやり方があります。[`Knowledge Base`](../apps/knowledge-base.md) アプリでは **Import file** から PDF をプロジェクト全体のベクトルデータベースに取り込み、RAG（Retrieval-Augmented Generation）の手法で AI に回答させることができます。[`Code Interpreter`](../apps/coding-apps.md#code-interpreter) アプリでは、PDF ファイルを Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
 
-また、Anthropic Claude、OpenAI、または Google Gemini のビジョン機能対応モデルを用いたアプリでは、テキスト入力ボックスの下にある `Image` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。このボタンは、対応モデルを使用している場合に動的にPDFアップロードを許可します。詳しくは [PDF のアップロード](../basic-usage/message-input.md#pdf-のアップロード)を参照してください。
+また、Anthropic Claude、OpenAI、または Google Gemini のビジョン機能対応モデルを用いたアプリでは、テキスト入力ボックスの下にある `Image` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。このボタンは、対応モデルを使用している場合に動的にPDFアップロードを許可します。詳しくは [PDF のアップロード](../basic-usage/message-input.md#uploading-pdfs)を参照してください。
 

@@ -17,7 +17,7 @@ When enabled, Session Context automatically:
 
 ### Architecture
 
-```
+```text
 User Message → AI Response → Context Extractor Agent → Sidebar Update
                                       ↓
                                Same Provider API
@@ -120,6 +120,11 @@ The following built-in apps use Session Context:
 | **Novel Writer** | Characters, Plot, Settings |
 | **Voice Interpreter** | Languages, Phrases, Notes |
 | **Language Practice Plus** | Vocabulary, Grammar, Tips |
+| **Translate** | Languages, Vocabulary, Notes |
+| **Jupyter Notebook** | Topics, Code, Notes |
+| **Image Generator** | Styles, Prompts, Notes |
+| **Video Generator** | Styles, Prompts, Notes |
+| **Music Generator** | Styles, Prompts, Notes |
 
 ## Provider Support
 

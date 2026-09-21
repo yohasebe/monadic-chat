@@ -108,7 +108,7 @@ A blank cell in **both** columns indicates an artifact-centric app where the gen
 
 Each app is documented in detail on its own page. Follow the links below for descriptions, key features, and usage tips.
 
-### Chat & Assistant Apps
+### Chat & Assistant Apps :id=chat-assistant-apps
 
 General-purpose conversation apps, from standard and voice chat to math tutoring, second opinions, web-based research, and the built-in documentation assistant. See [Chat & Assistant Apps](../apps/chat-apps.md).
 
@@ -170,7 +170,7 @@ Capture and interact with web pages through a controlled browser, and analyze th
 
 ### Knowledge Base
 
-A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code) that every app can retrieve from. See [Knowledge Base](../apps/knowledge-base.md).
+A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or from every app once it is scoped `Global`. See [Knowledge Base](../apps/knowledge-base.md).
 
 ### Coding & Notebook Apps
 

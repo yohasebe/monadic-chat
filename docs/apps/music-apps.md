@@ -17,7 +17,7 @@ An interactive lab for learning music theory hands-on: play chords, scales, inte
 - **Walking bass**: Jazz walking bass with chromatic approach notes, bossa 2-beat feel
 - **Comprehensive music theory**: 46 chord types; major, minor, pentatonic, blues, and other scales; all church modes; slash chords; enharmonic spelling
 
-Audio analysis requires the optional **Audio Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
+Audio analysis requires the optional **Music Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
 
 Music Lab is available for OpenAI, Claude, Gemini, and Grok.
 
@@ -34,6 +34,6 @@ Evaluate a recorded performance from two complementary angles: objective measure
 
 The interpretive critique analyzes audio in mono at reduced bandwidth, so it does not judge audio fidelity, mix/mastering, or stereo imaging; exact tempo and key come from the objective feature analysis. Critique applies to real audio (mp3, wav, m4a, ogg, flac); MIDI files use objective analysis only.
 
-Objective feature analysis requires the optional **Audio Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
+Objective feature analysis requires the optional **Music Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
 
 Music Analyst is available for Gemini.

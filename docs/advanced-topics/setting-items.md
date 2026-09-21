@@ -40,6 +40,9 @@ end
 - `icon` - Icon identifier (Font Awesome class or built-in icon name)
 - `system_prompt` - The system instructions for the AI model
 
+### App-Level Optional Settings
+- `display_name` - Name shown in the UI (defaults to the app name). Written at the app level, alongside `description` and `icon`, not inside `features`
+
 ### LLM Configuration
 The `llm` block is required and contains:
 - `provider` - The AI provider (openai, claude, gemini, etc.)
@@ -58,7 +61,6 @@ The `llm` block is required and contains:
 All settings in the features block are optional:
 
 #### Display and Interaction
-- `display_name` - Name shown in the UI (defaults to app name)
 - `group` - Menu group name for organizing apps in the UI. By default, apps are automatically grouped by their provider (e.g., "OpenAI", "Anthropic"). You can override this to create custom groups, but it's recommended to keep the default provider-based grouping
 - `disabled` - Hide app from menu when true
 - `easy_submit` - Send messages with Enter key alone
@@ -129,7 +131,7 @@ These are configured in the Monadic Chat settings panel, not in MDSL files:
 
 Settings are loaded at application startup and persist between sessions.
 
-The speech-to-text model is selected in the **Speech** panel of the web UI (not in the settings panel or MDSL files); the selection is stored in a browser cookie.
+The speech-to-text model is selected in the **Speech Settings** panel of the web UI (not in the settings panel or MDSL files); the selection is stored in the browser's local storage.
 
 ## Complete Example
 

@@ -26,7 +26,7 @@ Vision・ツール呼び出し・Thinking を 1 つのモデルで扱いたい�
 ollama pull qwen3-vl:8b-thinking
 ```
 
-利用可能なモデルは [Ollama Library](https://ollama.com/library) で確認できます。Monadic Chat が各モデルの機能にどう適応するかは下記の[モデルの機能（Capabilities）](#モデルの機能capabilities)セクションを参照してください。
+利用可能なモデルは [Ollama Library](https://ollama.com/library) で確認できます。Monadic Chat が各モデルの機能にどう適応するかは下記の[モデルの機能（Capabilities）](#model-capabilities)セクションを参照してください。
 
 ### 3. Ollamaの起動
 
@@ -62,7 +62,7 @@ ollama rm <model-name>
 
 インストールしたモデルは、Ollamaアプリのモデル選択で自動的に利用可能になります。新しく追加したモデルがすぐに表示されない場合は、Webインターフェースをリロードしてください。
 
-## モデルの機能（Capabilities）
+## モデルの機能（Capabilities） :id=model-capabilities
 
 Monadic Chat は Ollama の `/api/show` エンドポイントに問い合わせて、各モデルがサポートする機能をランタイムで検出します。UIもこれに応じて自動的に変化します: Vision対応モデルを選択したときだけ画像アップロードボタンが出現し、推論を出力するモデルでのみ Thinking パネルが表示され、ツール利用アプリは関数呼び出し対応モデルに対してのみ tool 定義を送信します。
 
@@ -115,7 +115,7 @@ Ollamaグループでは以下のアプリが利用できます：
 | **Mail Composer** | トーン調整可能なメール作成支援。共有フォルダへのファイル操作もサポート。 |
 | **Voice Chat** | 音声入出力対応の会話AI。 |
 
-Coding Assistant と Mail Composer はファイル操作に、Knowledge Base は Library 操作にツール呼び出しを使用します。これらのアプリには `tools` capability を持つモデルが必要です（[モデルの機能（Capabilities）](#モデルの機能capabilities)を参照）。Chat は vision 対応モデルを選択した場合、追加で画像入力にも対応します。
+Coding Assistant と Mail Composer はファイル操作に、Knowledge Base は Library 操作にツール呼び出しを使用します。これらのアプリには `tools` capability を持つモデルが必要です（[モデルの機能（Capabilities）](#model-capabilities)を参照）。Chat は vision 対応モデルを選択した場合、追加で画像入力にも対応します。
 
 ## 技術詳細
 

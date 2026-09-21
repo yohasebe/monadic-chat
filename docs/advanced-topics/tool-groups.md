@@ -159,8 +159,6 @@ image is missing, run **Actions → Build All** to download it.
 
 ### Why Some Tools Are Unavailable
 
-Tools may be unavailable for several reasons:
-
 1. **Missing Containers**: Some tools require Docker containers (Selenium, Python) to be running
 2. **Missing API Keys**: Some tools require specific API keys to be configured
 3. **System Requirements**: Some tools may require specific system resources or dependencies
@@ -234,7 +232,7 @@ This keeps an app lean by default: only the groups the conversation actually nee
 
 If a tool group shows as unavailable even after starting the required containers:
 
-1. **Refresh the app list**: The UI checks availability every 10 seconds
+1. **Reload the web interface**: Tool availability is evaluated when the app list is built
 2. **Restart containers**: Stop and start the container from the Actions menu
 3. **Check container status**: Verify containers are running with `docker ps` (or the status messages in the console panel)
 4. **Check logs**: Container logs may show errors preventing startup

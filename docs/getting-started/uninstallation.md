@@ -26,11 +26,15 @@ The basic steps to uninstall Monadic Chat are as follows:
 
 1. Run `Remove Images/Containers/Data` from the menu. This will delete the Docker containers, images, and stored data (including PDF vector embeddings) shown below.
 2. Exit Monadic Chat.
-3. Run the following command in the terminal.
+3. Delete the AppImage file you downloaded.
+
+Monadic Chat ships as an AppImage, which is never installed into the system, so there is no package to remove:
 
 ```shell
-$ sudo apt remove monadic-chat
+$ rm monadic-chat_*.AppImage
 ```
+
+If your desktop environment offered to integrate the AppImage into your application menu, remove the entry it created (usually under `~/.local/share/applications/`).
 
 <!-- tabs:end -->
 
@@ -38,10 +42,15 @@ $ sudo apt remove monadic-chat
 
 ## User Data :id=user-data
 
-After uninstallation, your personal data and settings remain in the following directory:
-- `~/monadic/` (macOS/Linux) or `%USERPROFILE%\monadic\` (Windows)
+After uninstallation, your personal data and settings remain in two places:
 
-This includes your configuration files, chat logs, and any generated data. You can manually delete this directory if you want to completely remove all traces of Monadic Chat.
+- `~/monadic/` (macOS/Linux) or `%USERPROFILE%\monadic\` (Windows) — configuration files, chat logs, and generated data
+- The application's own storage (cookies, cached pages, window state):
+  - macOS: `~/Library/Application Support/Monadic Chat`
+  - Linux: `~/.config/Monadic Chat`
+  - Windows: `%APPDATA%\Monadic Chat`
+
+Delete both directories to remove every trace of Monadic Chat.
 
 ## Cleanup (Optional) :id=cleanup
 
@@ -64,11 +73,8 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `monadic-chat-selenium-container`
 - `monadic-chat-qdrant-container`
 - `monadic-chat-embeddings-container`
-- `monadic-chat-privacy-container` (only present if Privacy Filter is installed)
+- `monadic-chat-privacy-container` (present unless you set `PRIVACY_FILTER=false`)
 - `monadic-chat-extractor-container` (only present if the Knowledge Base Quality Pack is installed)
-- `monadic-chat-pgvector-container` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
-- `monadic-chat-web-container` (legacy)
-- `monadic-chat-container` (legacy)
 
 #### Images
 
@@ -77,18 +83,14 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `ghcr.io/yohasebe/monadic-embeddings`
 - `ghcr.io/yohasebe/monadic-qdrant`
 - `ghcr.io/yohasebe/monadic-selenium`
-- `ghcr.io/yohasebe/monadic-privacy` (only if Privacy Filter is installed)
+- `ghcr.io/yohasebe/monadic-privacy` (unless `PRIVACY_FILTER=false`)
 - `ghcr.io/yohasebe/monadic-extractor` (only if Knowledge Base Quality Pack is installed)
 - `ghcr.io/yohasebe/monadic-python` (prebuilt default Python image, present when no install options are selected or as a build cache)
-- `yohasebe/selenium`, `qdrant/qdrant` (images from versions before the ghcr.io unification)
-- `yohasebe/monadic-embeddings`, `yohasebe/monadic-privacy`, `yohasebe/monadic-extractor` (locally built images from versions before the ghcr.io prebuilt distribution)
-- `yohasebe/pgvector` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
 
 #### Volumes
 
 - `monadic-chat-qdrant-data`
 - `monadic-chat-embeddings-models`
-- `monadic-chat-pgvector-data` (only present on installs upgraded from 1.0.0-beta.14 or earlier)
 
 ### Manual Removal Commands :id=manual-removal-commands
 

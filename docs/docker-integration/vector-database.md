@@ -57,12 +57,13 @@ Qdrant organises data into named collections. Monadic Chat uses the following:
 - **`library_summaries`** — One point per conversation/document. Payload: `{conversation_id, scope_app, content_type, source, title, language, license, topics, messages, participants, ...}`. Used as the cascade entry point for retrieval and as the source-of-truth for the Knowledge Base browse list.
 - **`library_turns`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{conversation_id, scope_app, turn_idx, speaker_id, text, ...}`. Main RAG retrieval unit consumed by the `library_search` tool.
 - **`help_docs` / `help_items`** — Points for the Monadic Help documentation index. Built into the Ruby image at packaging time and loaded once on first start.
+- **`pdf_docs` / `pdf_items`** — Points for the [PDF Database](../basic-usage/pdf_storage.md), the per-app PDF store that is separate from the Library. Each entry carries an `app_key` payload field so an app sees only its own uploads.
 
 All collections use 768-dimensional vectors with cosine distance and HNSW indexing for fast filtered search.
 
 ## Scope Filtering :id=visibility
 
-Library entries carry a `scope_app` payload — either an app + provider class name (e.g. `ChatOpenAI`) or the literal `Global` sentinel. The Knowledge Base UI sees every entry regardless of scope, while retrieval filters on `scope_app IN [current app, "Global"]`: app-scoped entries are retrievable only from the app + provider they were saved in, and `Global` entries are retrievable from every app via the `library_search` tool. This replaces the previous per-app PDF isolation model — the Library is project-wide, and cross-app access is opted into per entry via the `Global` scope (see the [scope model](/apps/knowledge-base.md) on the Knowledge Base page).
+Library entries carry a `scope_app` payload — either an app + provider class name (e.g. `ChatOpenAI`) or the literal `Global` sentinel. The Knowledge Base UI sees every entry regardless of scope, while retrieval filters on `scope_app IN [current app, "Global"]`: app-scoped entries are retrievable only from the app + provider they were saved in, and `Global` entries are retrievable from every app via the `library_search` tool. The Library is project-wide, and cross-app access is opted into per entry via the `Global` scope (see the [scope model](/apps/knowledge-base.md) on the Knowledge Base page).
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 

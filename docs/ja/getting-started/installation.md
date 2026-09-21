@@ -56,8 +56,8 @@ PowerShellを管理者として開き、以下を実行：
 1. **Docker Desktop for Linuxのインストール**
 
 Dockerドキュメントを参照：
-- [Debian用](https://docs.docker.jp/desktop/install/debian.html)
-- [Ubuntu用](https://docs.docker.jp/desktop/install/ubuntu.html)
+- [Debian用](https://docs.docker.com/desktop/setup/install/linux/debian/)
+- [Ubuntu用](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
 
 2. **Monadic Chatのダウンロード**
 
@@ -81,7 +81,7 @@ FUSE 2 が入っていないディストリビューションでは、`sudo apt 
 インストール後、Monadic Chatを初めて起動すると：
 
 1. アプリケーションが自動的にDockerコンテナのビルドを開始します
-2. **初回セットアップ時間**: インターネット接続とシステム性能に依存してかなりの時間がかかる場合があります
+2. **初回セットアップ時間**: インターネット接続とシステム性能によって10〜30分程度
 3. **以降の起動**: 既存のコンテナが再利用されるため、格段に速くなります
 4. 使用したいAIサービスのAPIキーを設定で構成してください
 5. 準備が完了すると、ステータスインジケータが緑色になります

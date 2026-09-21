@@ -31,7 +31,7 @@ Monadic Chat can operate in two primary modes:
 - Each browser tab is an independent conversation session
 - Jupyter-related features are disabled for security reasons (see [JupyterLab - Server Mode Restrictions](jupyterlab.md#server-mode-restrictions) for the opt-in exception)
 
->! **Security Warning**: Server Mode requires an access token (`MONADIC_AUTH_TOKEN`); clients on other devices authenticate with a token URL, and requests without a valid token are rejected (see [Web Interface](../basic-usage/web-interface.md) for the authentication flow). The token gate is designed for trusted local networks — when exposing Monadic Chat to external networks, especially the internet, still add security layers such as firewalls, reverse proxies, and TLS.
+!> **Security Warning**: Server Mode requires an access token (`MONADIC_AUTH_TOKEN`); clients on other devices authenticate with a token URL, and requests without a valid token are rejected (see [Web Interface](../basic-usage/web-interface.md) for the authentication flow). The token gate is designed for trusted local networks — when exposing Monadic Chat to external networks, especially the internet, still add security layers such as firewalls, reverse proxies, and TLS.
 
 For details on multi-tab session management and session isolation, see [Advanced Configuration](../advanced-topics/advanced-configuration.md#server-mode).
 
@@ -181,11 +181,12 @@ When the application is updated, Monadic Chat intelligently determines which con
    - If no changes are detected, only the Ruby container is rebuilt
 
 This optimized rebuilding process saves time during updates when only Ruby code has changed, which is the most common update scenario.
+
 ## Orchestration Health & Auto-Recovery
 
 At startup, the Ruby control-plane coordinates services and verifies health. If it detects the control-plane is not yet ready to manage updated containers (e.g., after Python or user container builds), it performs a single, cache-friendly refresh of the Ruby container and continues startup. This is presented to the user as informational status (not a warning), followed by a green success when ready.
 
-Diagnostics
+### Diagnostics
 - The final startup summary lives in `~/monadic/log/docker_startup.log`.
 - When auto-refresh is invoked you will see: `Auto-rebuilt Ruby due to failed health probe`.
 - You can tune the probe with `START_HEALTH_TRIES` and `START_HEALTH_INTERVAL` in `~/monadic/config/env`.

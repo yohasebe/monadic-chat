@@ -56,8 +56,8 @@ Accept the service agreement and use recommended settings.
 1. **Install Docker Desktop for Linux**
 
 Refer to Docker documentation:
-- [For Debian](https://docs.docker.jp/desktop/install/debian.html)
-- [For Ubuntu](https://docs.docker.jp/desktop/install/ubuntu.html)
+- [For Debian](https://docs.docker.com/desktop/setup/install/linux/debian/)
+- [For Ubuntu](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
 
 2. **Download Monadic Chat**
 
@@ -81,7 +81,7 @@ If your distribution does not ship FUSE 2, either install it (`sudo apt install 
 After installation, when you first launch Monadic Chat:
 
 1. The application will start building Docker containers automatically
-2. **Initial setup time**: This can take significant time (varies based on internet connection and system performance)
+2. **Initial setup time**: 10-30 minutes depending on your internet connection and system performance
 3. **Subsequent startups**: Much faster as existing containers are reused
 4. Configure API keys in Settings for the AI services you want to use
 5. Once ready, the status indicator will turn green

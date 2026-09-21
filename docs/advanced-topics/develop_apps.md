@@ -4,13 +4,9 @@ In Monadic Chat, you can develop AI chatbot applications using original system p
 
 ?> **Important**: The app name in MDSL must match the Ruby class name exactly. For example, `app "ChatOpenAI"` requires a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
 
-## How to Add a Simple App
+## Developing Apps with MDSL :id=how-to-add-a-simple-app
 
-### MDSL Format (Primary Method)
-
-1. Create an MDSL (Monadic Domain Specific Language) file for the app.
-2. Save the MDSL file in the `apps` directory of the shared folder (`~/monadic/data/apps`).
-3. Restart Monadic Chat.
+Apps are defined in MDSL (Monadic Domain Specific Language) files.
 
 **Common App Patterns**:
 - **Facade Pattern**: Apps with `*_tools.rb` files using facade methods for all custom functionality (Recommended)
@@ -34,10 +30,6 @@ In Monadic Chat, you can develop AI chatbot applications using original system p
 2. **Provider support**: Easy to support multiple LLM providers
 3. **Maintainability**: Clean separation of configuration and logic
 4. **Consistency**: Unified app definition format
-
-### Basic MDSL Structure
-
-For detailed information on MDSL format, including all available blocks and settings, see [Monadic DSL Documentation](monadic_dsl.md).
 
 ### File Structure Patterns
 
@@ -64,6 +56,15 @@ apps/novel_writer/
 ├── novel_writer_openai.mdsl      # OpenAI MDSL definition
 └── novel_writer_claude.mdsl      # Claude MDSL definition
 ```
+
+### Support File Naming Conventions
+
+- **Tool implementation files**: `*_tools.rb` (e.g., `novel_writer_tools.rb`)
+- **Constants files**: `*_constants.rb` (e.g., `coding_assistant_constants.rb`)
+
+### Basic MDSL Structure
+
+For detailed information on MDSL format, including all available blocks and settings, see [Monadic DSL Documentation](monadic_dsl.md).
 
 ## Steps to Add an App
 
@@ -131,7 +132,6 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
   end
   
   system_prompt "You are a helpful assistant."
@@ -187,19 +187,18 @@ end
 
 ### Model Specification for Custom Apps
 
-**Recommendation**: Custom apps should use environment variables for model specification, so user preferences in `~/monadic/config/env` are respected and no hardcoded model names go stale:
+**Recommendation**: For custom apps that do not need a fixed model, omit `model` from the `llm` block to use the default model resolution:
 
 ```ruby
 llm do
   provider "openai"
-  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
 end
 ```
 
 | App Type | Recommended Approach | Reason |
 |----------|---------------------|--------|
 | Standard apps (`docker/services/ruby/apps/`) | Explicit model names | Stability and predictability |
-| Custom apps (`~/monadic/data/apps/`) | `ENV.fetch()` | Flexibility and user control |
+| Custom apps (`~/monadic/data/apps/`) | Omit `model` | Use the default model resolution |
 
 For the full resolution order (MDSL value > ENV variable > `providerDefaults` > hardcoded fallback), multiple-model dropdowns, and the per-provider environment variable list, see [Model Specification Best Practices](monadic_dsl.md#model-specification-best-practices) in the Monadic DSL documentation.
 

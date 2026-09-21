@@ -26,11 +26,15 @@ Monadic Chatをアンインストールする基本的な手順は以下の通�
 
 1. メニューの`Remove Images/Containers/Data`を実行します。これにより、下に示すDockerコンテナ、イメージ、および保存データ（PDFベクトル埋め込みを含む）が削除されます。
 2. Monadic Chatを終了します。
-3. ターミナルで以下のコマンドを実行します。
+3. ダウンロードした AppImage ファイルを削除します。
+
+Monadic Chat の Linux 版は AppImage で配布されており、システムにインストールされないため、削除すべきパッケージはありません：
 
 ```shell
-$ sudo apt remove monadic-chat
+$ rm monadic-chat_*.AppImage
 ```
+
+デスクトップ環境が AppImage をアプリケーションメニューに統合していた場合は、作成されたエントリ（通常は `~/.local/share/applications/` 配下）も削除してください。
 
 <!-- tabs:end -->
 
@@ -38,10 +42,15 @@ $ sudo apt remove monadic-chat
 
 ## ユーザーデータ :id=user-data
 
-アンインストール後も、個人データと設定は以下のディレクトリに残ります：
-- `~/monadic/` (macOS/Linux) または `%USERPROFILE%\monadic\` (Windows)
+アンインストール後も、個人データと設定は次の2箇所に残ります：
 
-これには設定ファイル、チャットログ、生成されたデータが含まれます。Monadic Chatの痕跡を完全に削除したい場合は、このディレクトリを手動で削除してください。
+- `~/monadic/` (macOS/Linux) または `%USERPROFILE%\monadic\` (Windows) — 設定ファイル、チャットログ、生成されたデータ
+- アプリ自身の保存領域（Cookie、キャッシュ、ウィンドウ状態）:
+  - macOS: `~/Library/Application Support/Monadic Chat`
+  - Linux: `~/.config/Monadic Chat`
+  - Windows: `%APPDATA%\Monadic Chat`
+
+痕跡を完全に削除するには、両方のディレクトリを削除してください。
 
 ## クリーンアップ（任意） :id=cleanup
 
@@ -64,11 +73,8 @@ Docker Desktopのメニューから `Troubleshoot` → `Clean/Purge data`を使�
 - `monadic-chat-selenium-container`
 - `monadic-chat-qdrant-container`
 - `monadic-chat-embeddings-container`
-- `monadic-chat-privacy-container`（Privacy Filter をインストールしている場合のみ）
+- `monadic-chat-privacy-container`（`PRIVACY_FILTER=false` にしていなければ存在します）
 - `monadic-chat-extractor-container`（Knowledge Base Quality Pack をインストールしている場合のみ）
-- `monadic-chat-pgvector-container`（1.0.0-beta.14 以前からアップグレードした場合のみ存在）
-- `monadic-chat-web-container` (レガシー)
-- `monadic-chat-container` (レガシー)
 
 #### イメージ
 
@@ -77,18 +83,14 @@ Docker Desktopのメニューから `Troubleshoot` → `Clean/Purge data`を使�
 - `ghcr.io/yohasebe/monadic-embeddings`
 - `ghcr.io/yohasebe/monadic-qdrant`
 - `ghcr.io/yohasebe/monadic-selenium`
-- `ghcr.io/yohasebe/monadic-privacy`（Privacy Filter インストール時のみ）
+- `ghcr.io/yohasebe/monadic-privacy`（`PRIVACY_FILTER=false` にしていない場合）
 - `ghcr.io/yohasebe/monadic-extractor`（Knowledge Base Quality Pack インストール時のみ）
 - `ghcr.io/yohasebe/monadic-python`（プリビルトのデフォルト Python イメージ。インストールオプション未選択時、またはビルドキャッシュとして存在）
-- `yohasebe/selenium`、`qdrant/qdrant`（ghcr.io 統一以前のバージョンのイメージ）
-- `yohasebe/monadic-embeddings`、`yohasebe/monadic-privacy`、`yohasebe/monadic-extractor`（ghcr.io プリビルト配布以前のバージョンでローカルビルドされたイメージ）
-- `yohasebe/pgvector`（1.0.0-beta.14 以前からアップグレードした場合のみ存在）
 
 #### ボリューム
 
 - `monadic-chat-qdrant-data`
 - `monadic-chat-embeddings-models`
-- `monadic-chat-pgvector-data`（1.0.0-beta.14 以前からアップグレードした場合のみ存在）
 
 ### 手動削除コマンド :id=manual-removal-commands
 

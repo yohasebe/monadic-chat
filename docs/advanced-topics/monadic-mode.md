@@ -63,7 +63,7 @@ Session State is implemented through:
 
 ### Tool Flow Example
 
-```
+```text
 User Message
     ↓
 load_context() → Retrieve existing state
@@ -115,7 +115,7 @@ end
 
 In the web interface, Session State context appears as:
 - Collapsible sections showing the context structure
-- Empty objects display as ": empty" for clarity
+- Fields with no value display as "no value"
 - Field labels are shown with increased font weight
 - The "monadic" badge indicates an app uses Session State
 

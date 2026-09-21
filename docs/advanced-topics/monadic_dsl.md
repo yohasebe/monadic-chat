@@ -17,7 +17,7 @@ Monadic Chat uses the **`.mdsl` format** (Monadic Domain Specific Language) for 
 A basic MDSL application definition looks like this:
 
 ```ruby
-app "AppNameProvider" do  # Follow the naming convention: AppName + Provider (e.g., ChatOpenAI, ResearchAssistantClaude)
+app "AppNameProvider" do  # Must match the Ruby class name exactly (e.g., ChatOpenAI)
   description "A brief description of what this application does"
   
   icon "fa-solid fa-icon-name"  # FontAwesome icon or custom HTML
@@ -58,10 +58,9 @@ app "AppNameProvider" do  # e.g., "ChatOpenAI", "CodingAssistantClaude", "Resear
   
   # For available icons, see: https://fontawesome.com/v6/search?ic=free
 
-  # App naming option:
-  display_name "Application Name"      # Name shown in the UI (required)
+  display_name "Application Name"      # Name shown in the UI
   
-  group "Category Name"  # Optional grouping for the UI
+  # group "Category Name"  # Set automatically from the provider - do not override unless needed
 end
 ```
 
@@ -115,26 +114,22 @@ end
 
 **Custom Apps (User-created apps in `~/monadic/data/apps/`)**
 
-Use environment variables for flexibility:
+If you do not need a fixed model, omit `model` from the `llm` block:
 
 ```ruby
 llm do
   provider "openai"
-  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Respects user preferences
 end
 ```
 
-- ✅ Users can customize via `~/monadic/config/env`
-- ✅ Automatically uses system defaults if ENV not set
-- ✅ Future-proof (no hardcoded model names)
-- ✅ Recommended for custom apps
+Model selection is delegated to the default resolution process. You do not need to maintain a model name in the app definition.
 
 **Configuration Priority**
 
 Model values are resolved in this order (highest to lowest):
 
 1. **Explicit MDSL value**: `model "<model-id>"` (highest priority)
-2. **Environment variable**: `ENV["OPENAI_DEFAULT_MODEL"]` from `~/monadic/config/env`
+2. **Environment variable**: `ENV["OPENAI_DEFAULT_MODEL"]` in the Ruby process
 3. **Provider defaults**: `providerDefaults` in `model_spec.js` (SSOT)
 4. **Hardcoded fallback**: Built-in default values
 
@@ -616,26 +611,18 @@ When troubleshooting DSL apps, check for:
 3. Properly formatted tool definitions
 4. Compatibility between selected features and provider capabilities
 
-When apps fail to load, the errors are collected at startup and printed to the server console, listing each failed app and the reason.
+When apps fail to load, the errors are collected at startup and printed to the server console, listing each failed app and the reason. Set `EXTRA_LOGGING=true` in the configuration for more detailed debug output.
 
 ## Best Practices
 
-1. Use descriptive names and clear instructions
-2. Keep system prompts focused on specific use cases
-3. Enable only the features your application needs
-4. Provide detailed parameter descriptions for tools
-5. Test thoroughly with different inputs
-6. Organize related apps into logical groups
-
-## Important Note
-
-**Important**: All apps must use the MDSL format.
-
-To create custom apps:
-
-1. Create a new `.mdsl` file for each provider
-2. Implement tools in a `*_tools.rb` file using the facade pattern
-3. Use `include_modules` for any helper modules
+1. **Prefer shared tools** - Use `import_shared_tools` for common functionality instead of duplicating code
+2. **Match the class name** - The app identifier must match the Ruby class name exactly
+3. **Use descriptive names** - Clear app and tool names make the application easier to use
+4. **Keep system prompts focused** - Write instructions specific to each use case
+5. **Enable only what you need** - Do not turn on features the application does not use
+6. **Test with the target provider** - Confirm compatibility with the LLM you selected
+7. **Organize apps logically** - Use `display_name` for consistent presentation in the UI
+8. **Check availability** - For conditional tools, make sure dependencies are met before use
 
 ## Common Issues and Solutions
 

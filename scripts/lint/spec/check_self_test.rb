@@ -362,6 +362,214 @@ with_temp_file(docs_fixture, image_body) do
 end
 
 # ---------------------------------------------------------------------------
+section 'help dump shipping gate'
+
+# The help dump is generated rather than tracked, so the only thing standing
+# between a developer dump and a release is this gate. It runs at build time,
+# never in CI, which is exactly the shape that rots unnoticed.
+#
+# These cases drive HelpDumpGuard against fixtures in a temporary directory.
+# Checking the real dump instead would make the whole section skip on a clean
+# checkout (the dump is generated) and would rewrite build output as a side
+# effect of running the tests.
+require 'json'
+require 'tmpdir'
+require_relative '../../help_dump_guard'
+
+# Shaped like what process_documentation.rb writes: every point carries an id,
+# a payload hash and a boolean is_internal.
+def help_item_point(id = 1, is_internal: false)
+  { 'id' => id, 'payload' => { 'text' => 'body', 'is_internal' => is_internal } }
+end
+
+def help_dump_fixture(docs: [], items: [help_item_point])
+  { 'collections' => { 'help_docs' => { 'points' => docs },
+                       'help_items' => { 'points' => items } } }
+end
+
+def help_doc_point(path, is_internal: false, root_doc: false, id: 1)
+  payload = { 'file_path' => path, 'is_internal' => is_internal }
+  payload['metadata'] = { 'is_root_doc' => true } if root_doc
+  { 'id' => id, 'payload' => payload }
+end
+
+# Every case names a file that really is (or really is not) in the tree, so the
+# fixtures stay honest about what the guard resolves paths against.
+Dir.mktmpdir('help_dump_guard') do |tmp|
+  dump = Pathname.new(tmp).join('help_db.json')
+  # A guard that raises is as broken as a guard that returns nothing, and a
+  # dead script reports neither. Turn the exception into a problem string that
+  # deliberately shares no wording with the real messages, so an assertion
+  # looking for specific wording still fails.
+  check = lambda do |data|
+    dump.write(JSON.generate(data))
+    begin
+      HelpDumpGuard.problems(dump_path: dump, root: ROOT)
+    rescue StandardError => e
+      ["guard raised #{e.class}: #{e.message}"]
+    end
+  end
+
+  real_doc = 'advanced-topics/help-system.md'
+
+  problems = check.call(help_dump_fixture(docs: [help_doc_point(real_doc)]))
+  assert('accepts a public-only help dump', problems.empty?, problems.join("\n"))
+
+  problems = check.call(help_dump_fixture(
+    docs: [help_doc_point(real_doc), help_doc_point('developer/notes.md', is_internal: true, id: 2)]
+  ))
+  assert(
+    'refuses a help dump whose help_docs carry internal documents',
+    problems.any? { |m| m.include?('internal point') }, problems.join("\n")
+  )
+
+  # Internal content can sit in help_items alone: the chunks ship the text even
+  # when no document-level point names the file.
+  problems = check.call(help_dump_fixture(
+    docs: [help_doc_point(real_doc)],
+    items: [help_item_point(2, is_internal: true)]
+  ))
+  assert(
+    'refuses a help dump whose internal content is only in help_items',
+    problems.any? { |m| m.include?('internal point') }, problems.join("\n")
+  )
+
+  problems = check.call(help_dump_fixture(
+    docs: [help_doc_point(real_doc), help_doc_point('basic-usage/_absent_page.md', id: 2)]
+  ))
+  assert(
+    'refuses a help dump that names a deleted document',
+    problems.any? { |m| m.include?('_absent_page.md') }, problems.join("\n")
+  )
+
+  # Root README/CHANGELOG are stored bare with is_root_doc. Resolving them
+  # under docs/ sends the changelog to docs/CHANGELOG.md, which only exists on
+  # a case-insensitive filesystem -- green on macOS, red on CI.
+  problems = check.call(help_dump_fixture(
+    docs: [help_doc_point('README.md', root_doc: true, id: 1),
+           help_doc_point('CHANGELOG.md', root_doc: true, id: 2)]
+  ))
+  assert(
+    'accepts root README and CHANGELOG stored with is_root_doc',
+    problems.empty?, problems.join("\n")
+  )
+
+  problems = check.call(help_dump_fixture(docs: [help_doc_point('CHANGELOG.md')]))
+  assert(
+    'refuses a docs-relative path whose case does not match the tree',
+    problems.any? { |m| m.include?('CHANGELOG.md') }, problems.join("\n")
+  )
+
+  problems = check.call({})
+  assert(
+    'refuses a dump with no collections',
+    problems.any? { |m| m.include?('collections') }, problems.join("\n")
+  )
+
+  problems = check.call(help_dump_fixture(docs: [help_doc_point(real_doc)], items: []))
+  assert(
+    'refuses a dump with an empty help_items collection',
+    problems.any? { |m| m.include?('help_items') }, problems.join("\n")
+  )
+
+  # A point the guard cannot read is a point it cannot clear for shipping.
+  # Skipping it would let a dump full of nulls look like a clean public dump.
+  problems = check.call(help_dump_fixture(docs: [nil], items: [nil]))
+  assert(
+    'refuses a dump whose points are null',
+    problems.any? { |m| m.include?('malformed') }, problems.join("\n")
+  )
+
+  problems = check.call(help_dump_fixture(docs: [{ 'id' => 1 }]))
+  assert(
+    'refuses a point with no payload',
+    problems.any? { |m| m.include?('malformed') }, problems.join("\n")
+  )
+
+  problems = check.call(help_dump_fixture(
+    docs: [{ 'id' => 1, 'payload' => { 'file_path' => real_doc, 'is_internal' => 'no' } }]
+  ))
+  assert(
+    'refuses a point whose is_internal is not a boolean',
+    problems.any? { |m| m.include?('malformed') }, problems.join("\n")
+  )
+
+  problems = check.call(
+    { 'collections' => { 'help_docs' => [], 'help_items' => { 'points' => [help_item_point] } } }
+  )
+  assert(
+    'reports a non-hash collection instead of raising',
+    problems.any? { |m| m.include?('help_docs') }, problems.join("\n")
+  )
+end
+
+# ---------------------------------------------------------------------------
+section 'before_pack.js (packaging entry point)'
+
+# electron-builder copies the staged payload via extraResources, so the npm
+# build scripts never run stage_docker_payload.rb. The hook is the only thing
+# checking the dump on that path.
+assert(
+  'npm packaging runs the help dump check via beforePack',
+  JSON.parse(ROOT.join('package.json').read).dig('build', 'beforePack').to_s
+      .include?('before_pack'),
+  'package.json build.beforePack does not point at the hook'
+)
+
+# Asserting that the file mentions the staged path only proves the wiring. Run
+# the hook against a fixture payload root so its resolve/reject behaviour is
+# checked too -- that is where a "missing dump is fine" branch would hide.
+def run_before_pack(payload_root)
+  # The heredoc interpolates, so the JS avoids backslash escapes entirely:
+  # a literal "\n" here would reach node as a real newline and break the script.
+  script = <<~JS
+    const hook = require(#{ROOT.join('scripts/before_pack.js').to_s.dump});
+    try {
+      hook.verifyStagedHelpDump(#{payload_root.to_s.dump}, #{ROOT.to_s.dump});
+      console.log('RESOLVED');
+    } catch (e) {
+      console.log('REJECTED: ' + String(e.message).split(String.fromCharCode(10)).join(' | '));
+    }
+  JS
+  stdout, stderr, status = Open3.capture3('node', '-e', script)
+  stdout.empty? ? "no output (exit=#{status.exitstatus})\nstderr:\n#{stderr}" : stdout
+end
+
+Dir.mktmpdir('before_pack') do |tmp|
+  staged = Pathname.new(tmp).join('build/app-payload/docker/services/ruby/help_data')
+  staged.mkpath
+  dump = staged.join('help_db.json')
+
+  # app-builder-lib's copyFiles only logs `file source doesn't exist` for a
+  # missing extraResources source, so an unstaged payload would otherwise
+  # produce an installer with no help database at all.
+  assert(
+    'the beforePack hook refuses a payload with no staged dump',
+    run_before_pack(tmp).include?('REJECTED'),
+    run_before_pack(tmp)
+  )
+
+  dump.write(JSON.generate(help_dump_fixture(
+    docs: [help_doc_point('advanced-topics/help-system.md')]
+  )))
+  assert(
+    'the beforePack hook accepts a staged public-only dump',
+    run_before_pack(tmp).include?('RESOLVED'),
+    run_before_pack(tmp)
+  )
+
+  dump.write(JSON.generate(help_dump_fixture(
+    docs: [help_doc_point('advanced-topics/help-system.md'),
+           help_doc_point('developer/notes.md', is_internal: true, id: 2)]
+  )))
+  assert(
+    'the beforePack hook refuses a staged dump carrying internal documents',
+    run_before_pack(tmp).include?('REJECTED'),
+    run_before_pack(tmp)
+  )
+end
+
+# ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------
 puts ''

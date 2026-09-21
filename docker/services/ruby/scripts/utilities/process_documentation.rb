@@ -51,8 +51,13 @@ class ProcessDocumentation
     @next_item_id = 1
   end
 
-  def process_all_docs(include_internal: false)
-    include_internal ||= (ENV['DEBUG_MODE'] == 'true')
+  # `public_only` is the shipping guarantee and wins over everything else.
+  # Without it, DEBUG_MODE in the build environment silently pulls docs_dev/
+  # into a dump that is then packaged, so the release build must pass it
+  # rather than merely omitting --include-internal.
+  def process_all_docs(include_internal: false, public_only: false)
+    include_internal = false if public_only
+    include_internal ||= (ENV['DEBUG_MODE'] == 'true') unless public_only
 
     puts 'Starting documentation processing...'
     puts "Docs path:           #{DOCS_PATH}"
@@ -244,6 +249,7 @@ class ProcessDocumentation
       'embedding_model' => EMBEDDING_MODEL_LABEL,
       'embedding_dimension' => Schema::EMBEDDING_DIMENSION,
       'exported_at' => Time.now.utc.iso8601,
+      'includes_internal' => @docs_points.any? { |p| p.dig('payload', 'is_internal') },
       'collections' => {
         Schema::HELP_DOCS  => { 'points' => @docs_points },
         Schema::HELP_ITEMS => { 'points' => @items_points }
@@ -352,6 +358,8 @@ class ProcessDocumentation
 end
 
 if __FILE__ == $0
-  include_internal = ARGV.include?('--include-internal')
-  ProcessDocumentation.new.process_all_docs(include_internal: include_internal)
+  ProcessDocumentation.new.process_all_docs(
+    include_internal: ARGV.include?('--include-internal'),
+    public_only: ARGV.include?('--public-only')
+  )
 end

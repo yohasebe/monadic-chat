@@ -12,7 +12,7 @@ The help system uses a local sentence-transformer model (`multilingual-e5-base`)
 - **Multilingual**: `multilingual-e5-base` handles English, Japanese, and many other languages with comparable quality
 - **Multi-chunk Retrieval**: Returns multiple relevant sections per result for comprehensive answers
 - **Prebuilt JSON dump**: The help database is generated at packaging time and shipped inside the Ruby image, so it is searchable on first start
-- **Internal docs toggle**: Internal documentation under `docs_dev/` is always included in the database, but it appears in search results only when `DEBUG_MODE=true`
+- **Public content only**: The shipped database is built from the public documentation. Developers can build a local database that also covers `docs_dev/` with `rake help:build_internal`
 
 ## Requirements :id=requirements
 
@@ -40,7 +40,7 @@ Both containers start automatically with Monadic Chat. The chat model used to ge
 Most users do not need to build the database manually — it is shipped prebuilt with each release. Developers can regenerate it:
 
 ```bash
-# Build help database from docs/* and docs_dev/*
+# Build the help database from docs/* (this is what ships)
 rake help:build
 
 # Rebuild from scratch (deletes existing dump first)
@@ -51,6 +51,10 @@ rake help:stats
 
 # Print the path of the database dump
 rake help:export
+
+# Developers only: also index docs_dev/*. The resulting dump is rejected
+# at packaging time and must not be shipped.
+rake help:build_internal
 ```
 
 The build pipeline starts the embeddings container if it is not already running, processes documentation files, and writes a JSON dump to `docker/services/ruby/help_data/help_db.json`. This dump is baked into the Ruby Docker image at build time.
@@ -124,15 +128,20 @@ HELP_CHUNKS_PER_RESULT=5
 
 ### Adding Documentation :id=adding-documentation
 
-1. Add or modify markdown files in the `docs/` directory (or `docs_dev/` for internal docs)
+1. Add or modify markdown files in the `docs/` directory
 2. Run `rake help:build` to regenerate the JSON dump
 3. Rebuild the Ruby container so the new dump is baked in
+
+Internal notes under `docs_dev/` are not part of the shipped database. To search
+them locally, build with `rake help:build_internal` instead — and note that the
+dump is only read when the Qdrant collections are empty, so an existing
+installation needs those two collections cleared before it picks up a new dump.
 
 ### Processing Details :id=processing-details
 
 - **Section parsing**: Markdown headings up to four levels deep are tracked, and chunks carry their hierarchical heading path
 - **Language filtering**: When processing English docs, files under `/ja/`, `/zh/`, `/ko/` are excluded so each language is built separately
-- **Internal docs**: `docs_dev/*.md` is included only when `--include-internal` is passed (the default for `rake help:build`)
+- **Internal docs**: `docs_dev/*.md` is included only by `rake help:build_internal`. `rake help:build` passes `--public-only`, which wins over `DEBUG_MODE` so a developer environment cannot leak internal docs into a release dump
 
 ## Performance Notes :id=performance-notes
 

@@ -1,348 +1,216 @@
-# Monadic Helpの内部ドキュメントサポート
+# ヘルプデータベース内の内部ドキュメント
 
 ## 概要
 
-Monadic Helpシステムは、`is_internal`フラグを通じて外部（公開）および内部（開発者専用）ドキュメントの両方をサポートします。この機能により、開発者は開発中に公開ユーザードキュメント（`docs/`）と並行して内部技術ドキュメント（`docs_dev/`）を検索できますが、内部ドキュメントが配布パッケージに含まれないことを保証します。
+Monadic Help のデータベースには、公開ドキュメント（`docs/`）と開発者向け内部
+ドキュメント（`docs_dev/`）の両方を入れられます。各ポイントには `is_internal`
+payload が付き、検索はこれでフィルタされます。
+
+出荷されるデータベースに入るのは**公開ドキュメントだけ**です（`docs/` と、
+ルートの `README.md`・`CHANGELOG.md`）。`rake help:build` は `--public-only` を
+渡し、`HelpDumpGuard` が内部ポイントを含むダンプの梱包を拒否します。拒否は
+`scripts/stage_docker_payload.rb` と、npm のビルドスクリプトが通る `beforePack`
+フックの両方から効きます。`docs_dev/` も検索したい開発者は
+`rake help:build_internal` で手元用のダンプを作ります。そのダンプは梱包しては
+いけません（してもゲートが止めます）。
 
 ## アーキテクチャ
 
-### データベーススキーマ
+### ストレージ
 
-`help_docs`と`help_items`の両テーブルに`is_internal`ブール列が含まれます：
+ヘルプインデックスは2つの Qdrant コレクションに入ります
+（`lib/monadic/vector_store/schema.rb`）。
 
-```sql
-CREATE TABLE help_docs (
-  ...
-  is_internal BOOLEAN DEFAULT FALSE,
-  ...
-);
+- `help_docs` — ドキュメントファイル1件につき1ポイント
+- `help_items` — チャンク化された断片1つにつき1ポイント
 
-CREATE TABLE help_items (
-  ...
-  is_internal BOOLEAN DEFAULT FALSE,
-  ...
-);
+どちらも payload に `is_internal` を持ちます。ベクトルは768次元・コサイン距離です。
 
--- 効率的なフィルタリングのためのインデックス
-CREATE INDEX idx_help_docs_is_internal ON help_docs(is_internal);
-CREATE INDEX idx_help_items_is_internal ON help_items(is_internal);
-```
+### ビルド
 
-### データフロー
-
-```
-┌─────────────────────────────────────────────────────┐
-│ 開発（DEBUG_MODE=true）                             │
-├─────────────────────────────────────────────────────┤
-│ docs/（45ファイル） → is_internal=false            │
-│ docs_dev/（154ファイル） → is_internal=true        │
-│                                                      │
-│ データベース：合計199ドキュメント                   │
-│ 検索：外部 + 内部の両方を返す                       │
-│ エクスポート：N/A（DEBUG_MODEではエクスポートなし） │
-└─────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────┐
-│ 本番（rake build）                                   │
-├─────────────────────────────────────────────────────┤
-│ docs/（45ファイル） → is_internal=false            │
-│                                                      │
-│ データベース：外部ドキュメントのみ45件              │
-│ 検索：外部ドキュメントのみを返す                    │
-│ エクスポート：is_internal=falseエントリのみ         │
-└─────────────────────────────────────────────────────┘
-```
-
-## 使用方法
-
-### 開発者向け
-
-#### 1. 内部ドキュメント付きヘルプデータベースのビルド
-
-```bash
-# オプション1：DEBUG_MODEを使用（自動）
-rake server:debug  # 内部ドキュメントを自動的に含める
-
-# オプション2：明示的ビルド
-rake help:build_dev
-```
-
-#### 2. 内部ドキュメントの検索
-
-`DEBUG_MODE=true`が設定されている場合、Monadic Helpは検索結果に内部ドキュメントを自動的に含めます：
+`scripts/utilities/process_documentation.rb` が両方のツリーを走査します。
 
 ```ruby
-# Monadic Helpアプリ内
-find_help_topics(text: "model spec vocabulary")
-# docs/とdocs_dev/の両方から結果を返す
-
-# Rubyコード内
-help_db.find_closest_text("SSOT pattern", include_internal: true)
-```
-
-#### 3. 内部ドキュメントが読み込まれていることを確認
-
-```bash
-# ヘルプデータベースに接続
-docker exec -it monadic-chat-pgvector-container psql -U postgres -d monadic_help
-
-# ドキュメント数を確認
-SELECT is_internal, COUNT(*) FROM help_docs GROUP BY is_internal;
-
-# 期待される出力：
-#  is_internal | count
-# -------------+-------
-#  f           |    45  -- 外部ドキュメント
-#  t           |   154  -- 内部ドキュメント
-```
-
-### 配布向け
-
-#### パッケージのビルド
-
-```bash
-# 標準ビルド（外部ドキュメントのみ）
-rake build
-
-# 内部ドキュメントを明示的にスキップ
-SKIP_INTERNAL_DOCS=true rake build
-```
-
-ビルドプロセス：
-1. `docs/`ディレクトリのみを処理（45ファイル）
-2. `is_internal=false`エントリのみをエクスポート
-3. パッケージに内部ドキュメントは含まれない
-4. ファイルサイズは最小限に保たれる
-
-#### エクスポートコンテンツの検証
-
-```bash
-# エクスポートされたファイルを確認
-cat docker/services/pgvector/help_data/metadata.json
-
-# エクスポートに内部ドキュメントがないことを確認
-docker exec -it monadic-chat-pgvector-container \
-  psql -U postgres -d monadic_help \
-  -c "SELECT COUNT(*) FROM help_docs WHERE is_internal = TRUE;"
-# エクスポートされたデータベースでは0を返すはず
-```
-
-## 実装詳細
-
-### ProcessDocumentation
-
-ドキュメントプロセッサーは`include_internal`パラメーターを受け入れます：
-
-```ruby
-class ProcessDocumentation
-  DOCS_PATH = ".../docs"
-  DOCS_DEV_PATH = ".../docs_dev"  # 追加
-
-  def process_all_docs(include_internal: false)
-    # DEBUG_MOードを自動検出
-    include_internal ||= (ENV['DEBUG_MODE'] == 'true')
-
-    # 常に外部ドキュメントを処理
-    process_language_docs("en", DOCS_PATH, is_internal: false)
-
-    # 条件付きで内部ドキュメントを処理
-    if include_internal
-      process_language_docs("en", DOCS_DEV_PATH, is_internal: true)
-    end
-  end
+process_language_docs('en', DOCS_PATH, is_internal: false)      # docs/
+if include_internal && Dir.exist?(DOCS_DEV_PATH)
+  process_language_docs('en', DOCS_DEV_PATH, is_internal: true) # docs_dev/
 end
 ```
 
-### 検索フィルタリング
-
-すべての検索メソッドは`DEBUG_MODE`を自動検出します：
+`include_internal` は3つの入力から、次の優先順位で決まります。
 
 ```ruby
-module MonadicHelpTools
-  def find_help_topics(text:, include_internal: nil)
-    # 明示的に指定されていない場合は自動検出
-    include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
+include_internal = false if public_only
+include_internal ||= (ENV['DEBUG_MODE'] == 'true') unless public_only
+```
 
-    results = help_embeddings_db.find_closest_text_multi(
-      text,
-      include_internal: include_internal
-    )
-  end
+`--public-only` がすべてに優先します。開発用シェルでは `DEBUG_MODE` が設定
+されていることが普通なので、明示的な上書きがないと、そこから走らせた出荷
+ビルドが黙って内部込みのダンプを作ってしまうためです。`--include-internal` を
+外すだけでは足りません。
+
+ダンプはどちらで生成されたかをメタデータに記録するので、全ポイントを走査せず
+に確認できます。
+
+```json
+{ "includes_internal": false }
+```
+
+結果は `docker/services/ruby/help_data/help_db.json` に書き出され、Ruby イメージ
+がこれを焼き込みます（`Dockerfile` の `COPY help_data/`）。
+
+### 検索
+
+`HelpEmbeddings#find_closest_text` が Qdrant の payload フィルタを適用します。
+
+```ruby
+def find_closest_text(text, top_n: 10, include_internal: false)
+  filter = include_internal ? nil : without_internal_filter
+  ...
 end
 
-class HelpEmbeddings
-  def find_closest_text(text, include_internal: false)
-    where_clause = include_internal ? "" : "WHERE hi.is_internal = FALSE"
-
-    conn.exec_params(<<~SQL, [embedding, top_n])
-      SELECT hi.*, hd.*
-      FROM help_items hi
-      JOIN help_docs hd ON hi.doc_id = hd.id
-      #{where_clause}
-      ORDER BY hi.embedding <=> $1::vector
-      LIMIT $2
-    SQL
-  end
+def without_internal_filter
+  { must: [{ key: 'is_internal', match: { value: false } }] }
 end
 ```
 
-### エクスポートプロセス
-
-エクスポートスクリプトは内部ドキュメントを明示的にフィルタリングします：
+フラグはリクエストごとに Monadic Help アプリが決めます
+（`apps/monadic_help/monadic_help_tools.rb`）。
 
 ```ruby
-class HelpDatabaseExporter
-  def export_data
-    # 外部ドキュメントのみをエクスポート
-    docs = conn.exec("SELECT * FROM help_docs WHERE is_internal = FALSE")
-
-    # 外部ドキュメントのアイテムのみをエクスポート
-    items = conn.exec(<<~SQL)
-      SELECT hi.* FROM help_items hi
-      JOIN help_docs hd ON hi.doc_id = hd.id
-      WHERE hd.is_internal = FALSE
-    SQL
-  end
-end
+include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
 ```
 
-## Rakeタスク
+`DEBUG_MODE` が参照されるのは呼び出し側が何も渡さなかったときだけで、明示的な
+`include_internal:` が優先されます。つまり `DEBUG_MODE=true` で動かしている
+開発者は既定で両方のツリーを検索対象にでき、それ以外は公開ドキュメントのみを
+検索します。
+
+## Rake タスク
+
+`rakelib/help.rake` で定義されています。
 
 ### help:build
-- **目的**：外部ドキュメントのみをビルド
-- **使用法**：`rake help:build`
-- **動作**：
-  - `docs/`ディレクトリを処理
-  - すべてのエントリに`is_internal=false`を設定
-  - ビルド後に自動的にエクスポート
-  - パッケージ作成のために`rake build`で使用
+`--public-only` を渡し、公開ドキュメントだけからダンプを再生成します。出荷
+ビルドが走らせるのはこちらです。ポート 8002 に到達できなければ embeddings
+コンテナを起動し、**このタスクが起動した場合にかぎり**終了後に停止します
+（`KEEP_VECTOR_SERVICES=true` のときは停止しません）。
 
-### help:build_dev
-- **目的**：開発用に外部 + 内部ドキュメントをビルド
-- **使用法**：`rake help:build_dev`
-- **動作**：
-  - `docs/`と`docs_dev/`の両方を処理
-  - `docs_dev/`エントリに`is_internal=true`を設定
-  - エクスポートしない（内部ドキュメントはローカルに留まる）
-  - `rake server:debug`によって自動的に呼び出される
+### help:build_internal
+同じですが `--include-internal` を渡すので `docs_dev/` も対象になります。
+手元の開発用のみ。生成されたダンプは梱包時に拒否されます。
+
+### help:rebuild
+既存のダンプを削除してから同じビルドを実行します。
+
+### help:stats
+現在のダンプの統計を表示します。
 
 ### help:export
-- **目的**：配布用にヘルプデータベースをエクスポート
-- **使用法**：`rake help:export`
-- **動作**：
-  - `is_internal=false`エントリのみをエクスポート
-  - `is_internal`列を持つschema.sqlを作成
-  - help_docs.jsonとhelp_items.jsonを生成
-  - `rake help:build`によって自動的に呼び出される
+ダンプのパスを表示し、ファイルがなければ非ゼロで終了します。変換やフィルタは
+行いません。
 
-## パフォーマンス考慮事項
+### help:build_dev
+非推奨。警告を出して `help:build_internal` にリダイレクトします。
 
-### データベースサイズ
+## 配布
 
-- **外部のみ**：約45ドキュメント、約500-1000アイテム
-- **外部 + 内部**：約199ドキュメント、約2000-4000アイテム（**4倍増加**）
+ダンプは2つの経路で利用者に届き、どちらもファイルをそのまま扱います。
 
-### ビルド時間
+- `scripts/stage_docker_payload.rb` が `REQUIRED_BUILD_PRODUCTS` に
+  `help_data/help_db.json` を列挙し、Electron パッケージへ staging します。
+- Ruby イメージがビルド時に `help_data/` をコピーします。
 
-- **外部のみ**（`rake build`）：約2-5分
-- **外部 + 内部**（`rake help:build_dev`）：約8-15分（**3-4倍遅い**）
+`rakelib/build.rake` は `SKIP_HELP_DB=true` のとき再生成を省略するため、その場合は
+ディスク上にあるダンプがそのまま出荷されます。梱包ゲートが守っているのはこの
+ケースです。規則は `scripts/help_dump_guard.rb` が持ち、梱包の経路が2つあるため
+2箇所から呼ばれます。
 
-### 検索パフォーマンス
+- `scripts/stage_docker_payload.rb` は staging 前にソースツリーのダンプを検査
+  します。Rake 経路がこちらです。
+- electron-builder の `beforePack` に登録した `scripts/before_pack.js` は、
+  `build/app-payload/` 配下の **staging 済み**のコピーを検査します。npm の
+  ビルドスクリプト（`npm run build:mac-arm64` など）は electron-builder を直接
+  起動し stager を呼ばないため、このフックがないと以前 staging された内容を、
+  あるいは何も梱包しないまま通してしまいます。app-builder-lib は
+  `extraResources` のコピー元が無いとき `file source doesn't exist` を警告する
+  だけだからです。したがって staging 済みダンプが無い場合もビルドを失敗させ、
+  ヘルプデータベースを欠いたインストーラを作らないようにしています。
 
-`is_internal`のインデックスにより、フィルタリングのパフォーマンス影響を最小限に抑えます：
+ゲートが拒否するのは、`is_internal` のポイントを含むダンプ、ツリーに存在しない
+ファイルを出所として持つダンプ、そして形式が読み取れないダンプです。空の
+コレクションや、id・payload ハッシュ・真偽値の `is_internal` を備えていない
+ポイントがこれにあたります。読み取れないポイントは出荷可否を判断できない
+ポイントなので、読み飛ばさずに拒否します。
+`help:build_internal` を走らせた後に `SKIP_HELP_DB=true` で梱包した開発者は、
+内部ダンプを出荷する前に止められます。
 
-```sql
--- インデックスを使用した高速クエリ
-SELECT * FROM help_docs WHERE is_internal = FALSE;
--- idx_help_docs_is_internalを使用
+### 既存インストールへの読み込み
+
+`lib/monadic/utils/help_embeddings_loader.rb` は**コレクションが空のときだけ**
+ダンプを読み込みます。
+
+```ruby
+unless db.data_loaded?
+  Monadic::Help::DumpLoader.load(store: db.store, path: dump_path)
+end
 ```
 
-## セキュリティ考慮事項
+`Monadic::Help::DumpLoader` は upsert のみで削除を行いません。したがって新しい
+ダンプを配っても既存インストールの内容は置き換わりません。「コレクションに
+データがある」という短絡と upsert の両方を、古いポイントが生き延びます。
+`HELP_DATA_DUMP` で別のパスを指しても同じ理由で読み込まれません。
 
-### 配布されるもの
+したがってコレクションの削除は作業の半分にすぎません。コンテナはダンプを自身の
+イメージ内から読むため、ホストでビルドしたばかりのダンプは、届けるまでコンテナに
+見えません。内部ダンプを手元で検索するには次の順で行います。
 
-✅ **パッケージに含まれる：**
-- `docs/`ディレクトリ（外部ドキュメント）
-- `is_internal=false`のみでエクスポートされたデータベース
+1. `rake help:build_internal` でビルドする。
+2. Ruby プロセスが読める場所へ届ける。Ruby イメージを再ビルドして
+   `COPY help_data/` に新しいファイルを拾わせるか、ファイルをコンテナに
+   マウントして `HELP_DATA_DUMP` をそのパスに向ける。
+3. Qdrant の `help_docs` と `help_items` コレクションを削除し、ローダーが
+   `data_loaded?` で短絡しないようにする。
+4. Ruby コンテナを**作り直し**てから `DEBUG_MODE=true` で検索する。再起動では
+   なく作り直しです。`docker restart` では古いイメージのままですし、新しい
+   マウントや `HELP_DATA_DUMP` はそれを付けて起動したコンテナにしか効きません。
 
-❌ **パッケージに含まれない：**
-- `docs_dev/`ディレクトリ
-- `is_internal=true`のデータベースエントリ
-- 開発者ノート、TODO、実装詳細
+手順 2 を飛ばすと、イメージに既に入っている同じ公開ダンプを読み直すだけに
+なります。Qdrant のボリューム全体を消さないでください。`library_*` と `pdf_*`
+コレクションには利用者のデータが入っています。
 
-### 検証
+## 設定
 
-リリース前に確認：
+| 変数 | 効果 |
+|---|---|
+| `DEBUG_MODE=true` | ビルド時に `docs_dev/` を含め（`--public-only` でない場合）、**かつ**検索でも返す |
+| `HELP_DATA_DUMP` | 起動時に読むダンプのパスを上書き |
+| `HELP_CHUNK_SIZE` | チャンクあたりの文字数（既定 3000） |
+| `HELP_OVERLAP_SIZE` | チャンク間のオーバーラップ（既定 500） |
+| `HELP_CHUNKS_PER_RESULT` | 検索結果1件あたりのチャンク数（既定 3） |
+| `KEEP_VECTOR_SERVICES=true` | ビルド後も embeddings コンテナを動かしたままにする |
+
+`DEBUG_MODE` はビルドへの取り込みと検索での可視性を兼ねています。ビルド側は
+`--public-only` が、検索側は明示的な `include_internal:` が上書きします。
+いずれにしても公開ダンプには返せる内部文書自体がないので、内部文書を検索したい
+開発者は、`help:build_internal` で作ったダンプをコンテナへ届け、そこから
+コレクションを読み直す必要があります
+（[既存インストールへの読み込み](#既存インストールへの読み込み)を参照）。
+
+## ダンプの中身を確認する
 
 ```bash
-# 1. エクスポートファイルサイズを確認（約1-5MBであるべき、10-20MBではない）
-ls -lh docker/services/pgvector/help_data/*.json
-
-# 2. エクスポートコンテンツを確認
-jq '. | length' docker/services/pgvector/help_data/help_docs.json
-# 約45を表示すべき、約199ではない
-
-# 3. エクスポートに内部フラグがないことを確認
-jq '.[].is_internal' docker/services/pgvector/help_data/help_docs.json | sort -u
-# 'false'またはnullのみを表示すべき、決して'true'ではない
+ruby -rjson -e '
+  d = JSON.parse(File.read("docker/services/ruby/help_data/help_db.json"))
+  d["collections"].each do |name, c|
+    n = c["points"].count { |p| p.dig("payload", "is_internal") }
+    puts format("%-12s %5d points, %5d internal", name, c["points"].size, n)
+  end'
 ```
 
-## トラブルシューティング
+## 関連
 
-### 検索に内部ドキュメントが表示されない
-
-**症状**：Monadic Helpが外部ドキュメントのみを返す
-
-**解決策**：
-1. DEBUG_MODEが設定されているか確認：`echo $DEBUG_MODE`（`true`であるべき）
-2. 内部ドキュメントがデータベースにあるか確認：
-   ```sql
-   SELECT COUNT(*) FROM help_docs WHERE is_internal = TRUE;
-   ```
-3. ヘルプデータベースを再ビルド：`rake help:build_dev`
-
-### 本番環境に内部ドキュメントが表示される
-
-**症状**：ユーザーが開発者ドキュメントを見たと報告
-
-**解決策**：
-1. エクスポートファイルを確認：`grep is_internal docker/services/pgvector/help_data/*.json`
-2. エクスポートを再ビルド：`rake help:build`（`help:build_dev`ではない）
-3. 本番環境に`DEBUG_MODE`がないことを確認
-
-### ビルド時間が長すぎる
-
-**症状**：`rake build`が15分以上かかる
-
-**解決策**：
-1. `docs_dev/`が処理されているか確認（処理されるべきではない）
-2. `SKIP_HELP_DB=true rake build`を使用してヘルプDBを完全にスキップ
-3. ビルドプロセスで`include_internal: false`を確認
-
-## ベストプラクティス
-
-### 開発者向け
-
-1. **開発には`rake server:debug`を使用** - 内部ドキュメントを自動的に含める
-2. **内部ドキュメントを整理して保持** - `docs_dev/`で明確なファイル構造を使用
-3. **内部機能をドキュメント化** - 技術実装ノートを`docs_dev/developer/`に追加
-
-### メンテナー向け
-
-1. **リリースには常に`rake build`を使用** - パッケージに`help:build_dev`を使用しない
-2. **エクスポートコンテンツを検証** - リリース前にファイルサイズと`is_internal`フラグを確認
-3. **docs_dev/を.gitignoreに入れない** - 内部ドキュメントはバージョン管理すべき
-4. **内部ドキュメントを定期的にレビュー** - 古いTODOと一時的なノートを削除
-
-### ドキュメント用
-
-1. **外部ドキュメント（`docs/`）**：エンドユーザー機能、安定したAPI、使用ガイド
-2. **内部ドキュメント（`docs_dev/`）**：実装詳細、アーキテクチャ決定、開発ワークフロー
-3. **一時的なノート（`tmp/memo/`）**：WIPアイテム、未解決の問題（ヘルプシステムにはない）
-
-## 参照
-
-- [ヘルプシステムドキュメント](../../../docs/ja/advanced-topics/help-system.md) - 公開ドキュメント
-- [ProcessDocumentationソース](../../../docker/services/ruby/scripts/utilities/process_documentation.rb)
-- [HelpEmbeddingsソース](../../../docker/services/ruby/lib/monadic/utils/help_embeddings.rb)
-- [help:exportタスクソース](../../../rakelib/help.rake)
+- [ヘルプシステム](../../../docs/ja/advanced-topics/help-system.md) — 公開ドキュメント
+- `docker/services/ruby/scripts/utilities/process_documentation.rb`
+- `docker/services/ruby/lib/monadic/utils/help_embeddings.rb`
+- `rakelib/help.rake`

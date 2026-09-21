@@ -108,6 +108,7 @@
       "app/**/*",
       "icons/**/*"
     ],
+    "beforePack": "scripts/before_pack.js",
     "afterSign": "scripts/notarize.js",
     "afterAllArtifactBuild": "scripts/notarize-dmg.js",
     "win": {

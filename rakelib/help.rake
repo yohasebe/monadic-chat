@@ -64,9 +64,13 @@ namespace :help do
     raise 'embeddings_service did not become ready in 60s'
   end
 
-  desc 'Build help database JSON dump from docs/* (includes internal docs)'
-  task :build do
+  # Shared builder. `mode` is either :public or :internal — it decides which
+  # flag the script gets, and the flag (not the absence of one) is what the
+  # shipping path relies on, because DEBUG_MODE would otherwise re-add
+  # docs_dev/ behind its back.
+  def run_help_build(mode)
     started = ensure_embeddings_service
+    flag = mode == :internal ? '--include-internal' : '--public-only'
     # The script depends on the `http` gem, which lives only in
     # docker/services/ruby/Gemfile (the project-root Gemfile is minimal).
     # with_unbundled_env clears the parent BUNDLE_GEMFILE so the inner
@@ -76,7 +80,7 @@ namespace :help do
     require 'bundler'
     Bundler.with_unbundled_env do
       Dir.chdir(File.expand_path('docker/services/ruby', PROJECT_ROOT)) do
-        sh "bundle exec ruby '#{HELP_BUILD_SCRIPT}' --include-internal"
+        sh "bundle exec ruby '#{HELP_BUILD_SCRIPT}' #{flag}"
       end
     end
     if started && ENV['KEEP_VECTOR_SERVICES'] != 'true'
@@ -86,10 +90,22 @@ namespace :help do
     end
   end
 
-  desc '[DEPRECATED] Use rake help:build instead'
+  desc 'Build help database JSON dump from docs/* (public documentation only)'
+  task :build do
+    run_help_build(:public)
+  end
+
+  desc 'Build help database JSON dump including docs_dev/* (developers only; never ship this dump)'
+  task :build_internal do
+    run_help_build(:internal)
+    warn '[help:build_internal] This dump contains internal docs and must not be packaged. ' \
+         'Run `rake help:build` before building a release.'
+  end
+
+  desc '[DEPRECATED] Use rake help:build_internal instead'
   task :build_dev do
-    warn '[help:build_dev] deprecated; redirecting to help:build.'
-    Rake::Task['help:build'].invoke
+    warn '[help:build_dev] deprecated; redirecting to help:build_internal.'
+    Rake::Task['help:build_internal'].invoke
   end
 
   desc 'Rebuild help database JSON dump from scratch'

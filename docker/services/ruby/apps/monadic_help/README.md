@@ -6,7 +6,8 @@ The Monadic Help system provides intelligent documentation search and assistance
 
 - **Storage**: Qdrant collections (`help_docs` for document-level entries, `help_items` for chunk-level entries) running in the `qdrant_service` container.
 - **Embeddings**: `intfloat/multilingual-e5-base` (768-dim, L2-normalised) served by the `embeddings_service` container. No external API key is required.
-- **Build pipeline**: `rake help:build` chunks Markdown files under `docs/` (and `docs_dev/` when called with `--include-internal`) and writes a JSON dump to `docker/services/ruby/help_data/help_db.json`. The dump is baked into the Ruby image; on first start, `Monadic::Help::DumpLoader` imports it into Qdrant.
+- **Build pipeline**: `rake help:build` chunks Markdown files under `docs/` and writes a JSON dump to `docker/services/ruby/help_data/help_db.json`. The dump is baked into the Ruby image; on first start, `Monadic::Help::DumpLoader` imports it into Qdrant.
+- **Public content only**: the shipped dump covers public documentation alone. `rake help:build_internal` adds `docs_dev/` for local use, and `HelpDumpGuard` refuses to package a dump that contains internal points — from both the Rake stager and electron-builder's `beforePack` hook.
 
 ## Features
 
@@ -27,7 +28,7 @@ The Monadic Help system provides intelligent documentation search and assistance
 ## Building the help database
 
 ```bash
-# Build dump from docs/* + docs_dev/* (full rebuild every time)
+# Build dump from docs/* (full rebuild every time). This is what ships.
 rake help:build
 
 # Drop the existing dump first, then build
@@ -35,9 +36,12 @@ rake help:rebuild
 
 # Show dump statistics (file path, embedding model, point counts per collection)
 rake help:stats
+
+# Developers only: also index docs_dev/*. Rejected at packaging time.
+rake help:build_internal
 ```
 
-The build script always processes the full corpus — there is no incremental skip path. Local CPU embedding of ~150 documents (~2,500 chunks) takes well under a minute on Apple Silicon, so the simplification is intentional.
+The build script always processes the full corpus — there is no incremental skip path. Embedding the whole corpus locally takes well under a minute, so the simplification is intentional.
 
 ## Search APIs (Ruby)
 

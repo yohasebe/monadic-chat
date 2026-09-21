@@ -29,7 +29,11 @@ class ImageGeneratorOpenAI < MonadicApp
   # @param mask [String] Mask image filename for precise editing
   # @param n [Integer] Number of images to generate (1-4)
   # @param size [String] Image dimensions
-  # @param quality [String] Image quality level ('standard' or 'hd')
+  # @param quality [String, nil] Image quality level. The accepted values differ
+  #   per model (gpt-image-2 takes auto/low/medium/high; the 2.5 models also
+  #   take xhigh/max), so they are resolved from the catalog rather than fixed
+  #   here. nil leaves the choice to the API's own default. The DALL-E terms
+  #   'standard' and 'hd' have not been accepted since that model was removed.
   # @param output_format [String] Output format ('png', 'webp', 'jpeg')
   # @param background [String] Background color for transparent images
   # @param output_compression [Integer] Compression level for JPEG (1-100)
@@ -37,7 +41,7 @@ class ImageGeneratorOpenAI < MonadicApp
   # @return [Hash] Generated image URLs and metadata
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil,
                                 mask: nil, n: 1, size: "1024x1024",
-                                quality: "standard", output_format: "png",
+                                quality: nil, output_format: "png",
                                 background: nil, output_compression: nil, input_fidelity: nil,
                                 session: nil)
     # Input validation

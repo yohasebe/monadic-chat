@@ -133,6 +133,55 @@ RSpec.describe Monadic::VectorStore::QdrantBackend do
     end
   end
 
+  describe '#collection_metadata' do
+    it 'reads config.metadata, not point payloads or root-level fields' do
+      expect(http_client).to receive(:get).with("#{endpoint}/collections/help_docs").and_return(
+        fake_response(body: '{"result":{"config":{"metadata":{"installation":{"state":"completed"}}}}}')
+      )
+      expect(backend.collection_metadata(name: 'help_docs')).to eq('installation' => { 'state' => 'completed' })
+    end
+
+    it 'distinguishes a missing collection from absent metadata' do
+      allow(http_client).to receive(:get).and_return(fake_response(status: 404))
+      expect(backend.collection_metadata(name: 'help_docs')).to be_nil
+      allow(http_client).to receive(:get).and_return(fake_response(body: '{"result":{"config":{}}}'))
+      expect(backend.collection_metadata(name: 'help_docs')).to eq({})
+    end
+
+    [401, 500, 503].each do |code|
+      it "raises on #{code} rather than reporting absence" do
+        allow(http_client).to receive(:get).and_return(fake_response(status: code))
+        expect { backend.collection_metadata(name: 'help_docs') }.to raise_error(Monadic::VectorStore::BackendError)
+      end
+    end
+
+    it 'raises on transport failure' do
+      allow(http_client).to receive(:get).and_raise(HTTP::Error, 'offline')
+      expect { backend.collection_metadata(name: 'help_docs') }.to raise_error(Monadic::VectorStore::BackendError)
+    end
+
+    ['{', '{}', '{"result":{"config":{"metadata":[]}}}'].each do |body|
+      it "rejects malformed metadata response #{body}" do
+        allow(http_client).to receive(:get).and_return(fake_response(body: body))
+        expect { backend.collection_metadata(name: 'help_docs') }.to raise_error(Monadic::VectorStore::BackendError)
+      end
+    end
+  end
+
+  describe '#update_collection_metadata' do
+    it 'PATCHes the collection metadata and requires confirmation' do
+      expect(http_client).to receive(:patch).with(
+        "#{endpoint}/collections/help_docs", json: { metadata: { 'installation' => { 'state' => 'completed' } } }
+      ).and_return(fake_response(body: '{"result":true}'))
+      expect(backend.update_collection_metadata(name: 'help_docs', metadata: { 'installation' => { 'state' => 'completed' } })).to be true
+    end
+
+    it 'rejects an unconfirmed update' do
+      allow(http_client).to receive(:patch).and_return(fake_response(body: '{"result":false}'))
+      expect { backend.update_collection_metadata(name: 'help_docs', metadata: {}) }.to raise_error(Monadic::VectorStore::BackendError)
+    end
+  end
+
   describe '#search' do
     it 'sends an unnamed vector when vector_name is nil' do
       expect(http_client).to receive(:post).with(

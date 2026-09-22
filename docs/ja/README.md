@@ -65,7 +65,7 @@ Monadic ChatがDockerをどのように活用して強力なAI環境を実現し
 高度な設定、アプリケーション開発、統合の可能性を探ります。
 
 *   [高度な設定](/ja/advanced-topics/advanced-configuration.md)
-*   [追加アプリの開発](/ja/advanced-topics/develop_apps.md)
+*   [アプリの開発](/ja/advanced-topics/develop_apps.md)
 *   [アプリ開発者のためのファイル構成](/ja/advanced-topics/code_structure.md)
 *   [Monadic DSLリファレンス](/ja/advanced-topics/monadic_dsl.md)
 *   [アプリケーション設定項目](/ja/advanced-topics/setting-items.md)

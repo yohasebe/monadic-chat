@@ -62,7 +62,7 @@ ollama rm <model-name>
 
 Models you install will be automatically available for selection in the Ollama apps. Reload the web interface if a newly added model does not appear immediately.
 
-## Model Capabilities
+## Model Capabilities :id=model-capabilities
 
 Monadic Chat detects each Ollama model's features at runtime by querying Ollama's `/api/show` endpoint. The UI adapts automatically: the image upload button appears only for vision-capable models, the thinking panel shows only for models that expose reasoning, and tool-using apps only send tool definitions to models that support function calling.
 

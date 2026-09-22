@@ -60,7 +60,7 @@ In the live view the sentence the assistant is currently speaking is highlighted
 
 **Session behavior**: The conversation stops automatically after a period of silence (default: 3 minutes). Gemini sessions have a 15-minute connection limit; when it is reached, the app reconnects automatically and the conversation continues. The Privacy Filter does not apply — audio reaches the provider directly. The conversation is saved to the Knowledge Base. Thinking-process display is not available, because realtime models do not emit a reasoning trace.
 
-**Cost**: While connected, billing accrues during silent time as well. Approximate rates: OpenAI ~$6/hour, xAI ~$4.80/hour, Gemini ~$1.38/hour (estimates — refer to each provider's pricing page for current rates). A running cost estimate for the session is shown at the top of the window. This readout is specific to Live Conversation: it is the only app whose charges keep accruing while nobody is speaking, so the total is kept in view rather than left to be discovered afterwards.
+**Cost**: While connected, billing accrues during silent time as well, and the rate differs considerably between providers — check each provider's pricing page before a long session. A running cost estimate based on actual usage is shown at the top of the window. This readout is specific to Live Conversation: it is the only app whose charges keep accruing while nobody is speaking, so the total is kept in view rather than left to be discovered afterwards.
 
 
 ## Wikipedia

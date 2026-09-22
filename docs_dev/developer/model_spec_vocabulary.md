@@ -190,7 +190,7 @@ const providerDefaults = {
 | Category | Usage |
 |---|---|
 | `chat` | General conversation, UI model dropdowns, MDSL defaults |
-| `code` | Code generation agents (OpenAI Code, Claude Code, Grok Code) |
+| `code` | Code generation agents (the OpenAI, Claude and Grok coding agents) |
 | `vision` | Image analysis agent |
 | `audio_transcription` | Audio transcription agent |
 | `image` | Image generation (OpenAI, Gemini, xAI) |

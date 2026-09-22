@@ -4,11 +4,9 @@ Monadic Chatでは、オリジナルのシステムプロンプトを用いたAI
 
 ?> **重要**: MDSLのアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`は対応する`class ChatOpenAI < MonadicApp`が必要です。これにより適切なメニューグループ化と機能が保証されます。
 
-## MDSL形式によるアプリ開発
+## MDSL形式によるアプリ開発 :id=how-to-add-a-simple-app
 
-Monadic Chatでは、**MDSL（Monadic Domain Specific Language）形式**でアプリを開発します。この宣言的な形式により、シンプルで保守しやすいアプリが作成できます。
-
-**重要**: すべてのアプリはMDSL形式で作成する必要があります。
+アプリはMDSL（Monadic Domain Specific Language）ファイルで定義します。
 
 **一般的なアプリパターン**:
 - **ファサードパターン**: すべてのカスタム機能にファサードメソッドを使用する`*_tools.rb`ファイルを持つアプリ（推奨）
@@ -65,39 +63,7 @@ apps/novel_writer/
 
 ### MDSL形式の基本構造
 
-```ruby
-app "AppNameProvider" do      # プロバイダー付きのID（例: ChatOpenAI）
-  display_name "アプリ名"     # UIに表示される名前（プロバイダー名なし）
-  description <<~TEXT
-    アプリの説明文
-  TEXT
-  icon "icon-name"
-  
-  llm do
-    provider "openai"
-    model "<model-id>"  # モデルIDを指定
-    temperature 0.7
-  end
-
-  system_prompt <<~TEXT
-    システムプロンプト
-  TEXT
-
-  features do
-    easy_submit false
-    auto_speech false
-
-    group "OpenAI"      # UIでのグループ分け
-  end
-
-  # ツールが必要な場合
-  tools do
-    define_tool "tool_name", "ツールの説明" do
-      parameter :param, "string", "パラメータの説明", required: true
-    end
-  end
-end
-```
+基本構造のコード例と各ブロック・設定の詳細は、[Monadic DSLドキュメント](monadic_dsl.md)を参照してください。
 
 ## アプリの追加手順
 
@@ -165,7 +131,6 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # providerDefaultsにフォールバック
   end
   
   system_prompt "あなたは役立つアシスタントです。"
@@ -221,19 +186,18 @@ end
 
 ### カスタムアプリのモデル指定
 
-**推奨事項**: カスタムアプリでは、`~/monadic/config/env`でのユーザー設定を尊重し、ハードコードされたモデル名が古くならないよう、モデル指定に環境変数を使用してください：
+**推奨事項**: 特定のモデルを固定する必要がないカスタムアプリでは、`llm`ブロックの`model`を省略し、既定のモデル解決に委ねてください：
 
 ```ruby
 llm do
   provider "openai"
-  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # providerDefaultsにフォールバック
 end
 ```
 
 | アプリタイプ | 推奨アプローチ | 理由 |
 |------------|--------------|------|
 | 標準アプリ（`docker/services/ruby/apps/`） | 明示的なモデル名 | 安定性と予測可能性 |
-| カスタムアプリ（`~/monadic/data/apps/`） | `ENV.fetch()` | 柔軟性とユーザー制御 |
+| カスタムアプリ（`~/monadic/data/apps/`） | `model`を省略 | 既定のモデル解決を利用 |
 
 解決順序の全体（MDSL値 > 環境変数 > `providerDefaults` > ハードコードされたフォールバック）、複数モデルのドロップダウン指定、プロバイダー別環境変数の一覧については、Monadic DSLドキュメントの[モデル指定のベストプラクティス](monadic_dsl.md#モデル指定のベストプラクティス)を参照してください。
 

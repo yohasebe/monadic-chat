@@ -2,7 +2,7 @@
 
 ## 概要
 
-`rake server:debug`は、ローカルのRuby環境を使用して、Monadicサーバーを非デーモン化デバッグモードで起動します。その他のコンテナ（Python、pgvector、Seleniumなど）は必要に応じて起動・再利用されます。
+`rake server:debug`は、ローカルのRuby環境を使用して、Monadicサーバーを非デーモン化デバッグモードで起動します。その他のコンテナ（qdrant、embeddings、Python、Seleniumなど）は必要に応じて起動・再利用されます。
 
 このモードで有効になる機能：
 - **追加ログ** - プロバイダーのリクエスト/レスポンスをデバッグするための詳細ログ

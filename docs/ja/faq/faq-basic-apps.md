@@ -22,15 +22,15 @@
 
 **A**: Monadic Chatをサーバーモードで実行するには：
 
-1. アプリケーションの歯車アイコンをクリックして設定パネルを開きます
-2. 「System Settings」の「Application Mode」を見つけます
+1. コンソールパネルの **Settings** ボタンで設定パネルを開きます
+2. サイドバーから **Services** パネルを選び、**Application Mode** を見つけます
 3. ドロップダウンから「Server Mode」を選択します
 4. 「Save」をクリックして変更を適用します
 5. アプリケーションを再起動します
 
 このモードでは、JupyterノートブックのURLやその他のサービスはサーバーの外部IPアドレスを使用し、クライアントはWebブラウザを介してサーバーに接続できます。
 
-詳細については、[サーバーモードとスタンドアロンモード](../docker-integration/basic-architecture.md#サーバーモードとスタンドアロンモード)のドキュメントを参照してください。
+詳細については、[サーバーモードとスタンドアロンモード](../docker-integration/basic-architecture.md#server-standalone-modes)のドキュメントを参照してください。
 
 ---
 
@@ -80,7 +80,7 @@
 
 ---
 
-##### Q: Code Interpreterでコード実行が繰り返し失敗する可能性がある場合はどうなりますか？ :id=code-execution-errors
+##### Q: Code Interpreterでコード実行が繰り返し失敗した場合はどうなりますか？ :id=code-execution-errors
 
 **A**: Code Interpreterアプリには、無限の再試行ループを防ぐための自動エラーハンドリングが含まれています。コード実行で繰り返しエラーが発生した場合：
 

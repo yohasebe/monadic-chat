@@ -1,7 +1,7 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
-  "version": "1.0.0-beta.34",
+  "version": "1.0.0-beta.35",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "app/main.js",
   "scripts": {
@@ -108,6 +108,7 @@
       "app/**/*",
       "icons/**/*"
     ],
+    "beforePack": "scripts/before_pack.js",
     "afterSign": "scripts/notarize.js",
     "afterAllArtifactBuild": "scripts/notarize-dmg.js",
     "win": {
@@ -159,7 +160,7 @@
   "overrides": {
     "semver": "^7.5.3",
     "minimatch": "^10.2.1",
-    "js-yaml": "^4.3.1",
+    "js-yaml": "^4.3.2",
     "glob": "^10.5.0",
     "@xmldom/xmldom": "^0.8.15",
     "ip-address": "^10.3.1",

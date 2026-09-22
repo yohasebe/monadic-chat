@@ -8,7 +8,7 @@
 
 ##### Q: Python コンテナに新たなプログラムやライブラリを追加するにはどうすればいいですか？ :id=adding-python-libraries
 
-**A**: 設定フォルダ（`~/monadic/config/`）に `pysetup.sh` スクリプトを作成して、Monadic Chat の環境構築時にライブラリをインストールできます。詳細は[Pythonコンテナ](../docker-integration/python-container.md)の「追加ライブラリ（pysetup.sh）」を参照してください。
+**A**: 設定フォルダ（`~/monadic/config/`）に `pysetup.sh` スクリプトを作成して、Monadic Chat の環境構築時にライブラリをインストールできます。詳細は[追加ライブラリ（pysetup.sh）](../docker-integration/python-container.md#adding-libraries-with-pysetupsh)を参照してください。
 
 ---
 
@@ -24,7 +24,7 @@
 
 - **ネイティブWeb検索**: OpenAI、Claude、Gemini、Grokは組み込みのウェブ検索機能を使用（対応アプリでデフォルト有効）
 - **Tavily検索**: Mistral、Cohere、DeepSeek、Ollamaは`~/monadic/config/env`に`TAVILY_API_KEY`を設定することでTavily APIを使用
-- **URLコンテンツ抽出**: 全プロバイダーでメッセージ入力エリアの「URLから読込」ボタンを使用し、Seleniumベースのスクレイピングで任意のURLからコンテンツを抽出可能
+- **URLコンテンツ抽出**: 全プロバイダーでメッセージ入力エリアの `From URL` ボタンを使用し、Seleniumベースのスクレイピングで任意のURLからコンテンツを抽出可能
 
 Chatアプリでは、コストとプライバシーを考慮してWeb検索ツールはデフォルトで無効になっていますが、最新の情報が必要なときに手動で有効にできます。
 

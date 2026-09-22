@@ -10,7 +10,7 @@ The following basic apps support file reading:
 
 - Code Interpreter<br />Various text files including Python scripts and CSV, Microsoft Office files, audio files (MP3, WAV, M4A, and other common formats)
 - Knowledge Base<br />Imports PDFs, Microsoft Office files (.docx / .xlsx / .pptx), Markdown, and source-code files via the Browse modal's **Import file** button
-- Video Description<br />Video files (MP4, MOV, AVI, MKV, and other common formats)
+- Video Describer<br />Video files (MP4, MOV, AVI, MKV, and other common formats)
 
 You can also click the `Speech Input` button to use voice input. Speech input uses the Speech-to-Text API and is available in all apps.
 

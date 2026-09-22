@@ -250,7 +250,7 @@ This command:
 - Performs comprehensive setup: API key checks, vendor asset downloads, process cleanup
 - Starts the server in debug mode with `EXTRA_LOGGING=true`
 - Does NOT start the Ruby container - uses host Ruby runtime instead
-- Starts all other containers (Python, PostgreSQL, pgvector, Selenium)
+- Starts the other containers (qdrant, embeddings, Python, Selenium, and Privacy unless `PRIVACY_FILTER=false`)
 - Uses files from `docker/services/ruby/` directly on the host
 - Makes the web UI accessible via browser at [http://localhost:4567](http://localhost:4567)
 

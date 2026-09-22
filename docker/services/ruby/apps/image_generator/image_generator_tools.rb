@@ -29,7 +29,11 @@ class ImageGeneratorOpenAI < MonadicApp
   # @param mask [String] Mask image filename for precise editing
   # @param n [Integer] Number of images to generate (1-4)
   # @param size [String] Image dimensions
-  # @param quality [String] Image quality level ('standard' or 'hd')
+  # @param quality [String, nil] Image quality level. The accepted values differ
+  #   per model (gpt-image-2 takes auto/low/medium/high; the 2.5 models also
+  #   take xhigh/max), so they are resolved from the catalog rather than fixed
+  #   here. nil leaves the choice to the API's own default. The DALL-E terms
+  #   'standard' and 'hd' have not been accepted since that model was removed.
   # @param output_format [String] Output format ('png', 'webp', 'jpeg')
   # @param background [String] Background color for transparent images
   # @param output_compression [Integer] Compression level for JPEG (1-100)
@@ -37,7 +41,7 @@ class ImageGeneratorOpenAI < MonadicApp
   # @return [Hash] Generated image URLs and metadata
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil,
                                 mask: nil, n: 1, size: "1024x1024",
-                                quality: "standard", output_format: "png",
+                                quality: nil, output_format: "png",
                                 background: nil, output_compression: nil, input_fidelity: nil,
                                 session: nil)
     # Input validation
@@ -430,11 +434,11 @@ class ImageGeneratorGrok < MonadicApp
   # Generate or edit images using Grok/xAI
   # @param operation [String] Type of operation: 'generate' or 'edit'
   # @param prompt [String] Text description of the desired image or editing instructions
-  # @param aspect_ratio [String] Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
-  # @param images [Array<String>] Array of image filenames for editing (max 3)
+  # @param aspect_ratio [String] Aspect ratio from imageGenerationOptions.xai
+  # @param images [Array<String>] Array of image filenames for editing (max 5)
   # @param session [Object] Session object (automatically provided)
   # @return [String] Generated image information from the script
-  def generate_image_with_grok(operation: "generate", prompt:, aspect_ratio: nil, images: nil, image_model: nil, session: nil)
+  def generate_image_with_grok(operation: "generate", prompt:, aspect_ratio: nil, quality: nil, images: nil, image_model: nil, session: nil)
     # Input validation
     raise ArgumentError, "Invalid operation" unless %w[generate edit].include?(operation)
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
@@ -459,16 +463,16 @@ class ImageGeneratorGrok < MonadicApp
       return "❌ Image file not found for editing. Please upload an image or generate one first."
     end
 
-    # SSOT: imageGenerationOptions.xai.aspect_ratio (same list the MDSL enum
-    # offers), with the literal set as the fallback if the spec is unreadable.
-    allowed_ratios = begin
-      r = Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")
-      r.empty? ? %w[1:1 16:9 9:16 4:3 3:4] : r
-    rescue StandardError
-      %w[1:1 16:9 9:16 4:3 3:4]
+    %w[aspect_ratio quality].zip([aspect_ratio, quality]).each do |parameter, value|
+      next unless value
+
+      allowed = Monadic::Utils::ModelSpec.image_options("xai", parameter)
+      unless allowed.include?(value)
+        raise ArgumentError, "Invalid #{parameter}: #{value}. Must be one of: #{allowed.join(', ')}"
+      end
     end
-    if aspect_ratio && !allowed_ratios.include?(aspect_ratio)
-      raise ArgumentError, "Invalid aspect_ratio: #{aspect_ratio}. Must be one of: 1:1, 16:9, 9:16, 4:3, 3:4"
+    if images.is_a?(Array) && images.size > 5
+      return "❌ Maximum 5 images allowed for xAI edit API."
     end
 
     shared_folder = Monadic::Utils::Environment.shared_volume
@@ -527,7 +531,7 @@ class ImageGeneratorGrok < MonadicApp
     end
 
     # Call the method from MediaGenerationHelper (via MonadicHelper)
-    result_json = super(prompt: prompt, aspect_ratio: aspect_ratio, operation: operation,
+    result_json = super(prompt: prompt, aspect_ratio: aspect_ratio, quality: quality, operation: operation,
                         images: resolved_images, image_model: image_model)
 
     # Parse result and store filename if successful (for continuous reference)

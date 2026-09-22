@@ -60,7 +60,7 @@ rake help:export
 rake help:stats
 ```
 
-**Note**: Help database tasks require the pgvector container to be running.
+**Note**: Help database tasks need the qdrant and embeddings containers. `rake help:build` starts the embeddings container itself if it is not already running.
 
 ## Asset Management
 
@@ -130,12 +130,6 @@ UPDATE_CHANGELOG=true rake release:update_assets[version,file_patterns]
 - `DRAFT=true` - Create GitHub release as draft
 - `UPDATE_CHANGELOG=true` - Update changelog when updating release assets
 
-### Development Environment
-
-When running outside Docker, the Rakefile automatically sets:
-- `POSTGRES_HOST=localhost`
-- `POSTGRES_PORT=5433` (to avoid conflicts with local PostgreSQL)
-
 ### Version Update
 
 The `update_version` task updates version numbers in:
@@ -178,7 +172,7 @@ rake jstest           # JavaScript tests (Jest)
 | Test Type | Required Dependencies |
 |-----------|----------------------|
 | `spec_unit` | Ruby only |
-| `spec_integration` | • PostgreSQL + pgvector (Docker, port 5433)<br>• Python container (Docker)<br>• Selenium container (port 4444)<br>• OpenAI API key (for embeddings) |
+| `spec_integration` | • Qdrant + embeddings containers (started automatically by `rake test`)<br>• Python container (Docker)<br>• Selenium container (port 4444) |
 | `spec_system` | Ruby only |
 | `spec_docker` | All Docker containers running |
 | `spec_e2e` | • All Docker containers<br>• AI provider API keys<br>• WebSocket server (auto-started) |

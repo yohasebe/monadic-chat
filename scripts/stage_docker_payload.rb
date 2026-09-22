@@ -28,7 +28,9 @@
 # compares the packaged archives against.
 
 require 'fileutils'
+require 'json'
 require 'pathname'
+require_relative 'help_dump_guard'
 
 ROOT = Pathname.new(File.expand_path('..', __dir__))
 OUT = ROOT.join('build/app-payload')
@@ -87,6 +89,22 @@ def assert_dockerignore_agrees
   end
 end
 assert_dockerignore_agrees
+
+# What may and may not ship in the help dump is decided in HelpDumpGuard,
+# so the packaging entry points and the lint self-test share one answer.
+def assert_help_dump_is_public
+  problems = HelpDumpGuard.problems(
+    dump_path: ROOT.join('docker/services/ruby/help_data/help_db.json'),
+    root: ROOT
+  )
+  return if problems.empty?
+
+  abort "[stage_docker_payload] refusing to package the help dump:\n  " +
+        problems.join("\n  ") +
+        "\n  Regenerate it with `rake help:build` (public documentation only).\n" \
+        '  `rake help:build_internal` produces a developer dump that must not ship.'
+end
+assert_help_dump_is_public
 
 def build_product_paths
   REQUIRED_BUILD_PRODUCTS.flat_map do |pattern|

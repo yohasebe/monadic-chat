@@ -57,12 +57,13 @@ Qdrant はデータを名前付きコレクションで管理します。Monadic
 - **`library_summaries`** — 会話/ドキュメント 1 件につき 1 ポイント。Payload：`{conversation_id, scope_app, content_type, source, title, language, license, topics, messages, participants, ...}`。検索カスケードの入口、Knowledge Base ブラウズリストの source-of-truth として使用。
 - **`library_turns`** — チャンク化された各テキストセグメントに 1 ポイント。ベクトル：チャンク埋め込み。Payload：`{conversation_id, scope_app, turn_idx, speaker_id, text, ...}`。`library_search` ツールが利用するメインの RAG 検索単位。
 - **`help_docs` / `help_items`** — Monadic Help のドキュメントインデックス。Ruby イメージにパッケージビルド時に同梱され、初回起動時に Qdrant へロードされる。
+- **`pdf_docs` / `pdf_items`** — [PDF データベース](../basic-usage/pdf_storage.md)のポイント。Library とは別の、アプリごとの PDF 保管庫です。各エントリは `app_key` payload を持ち、アプリは自分がアップロードしたものだけを見ます。
 
 すべてのコレクションは 768 次元、コサイン距離、HNSW インデックス（フィルター付き高速検索対応）を使用します。
 
 ## スコープによるフィルタリング :id=visibility
 
-Library エントリは `scope_app` payload を持ちます。値は「アプリ + プロバイダーのクラス名」（例: `ChatOpenAI`）またはリテラルの `Global` センチネルです。Knowledge Base UI はスコープに関係なくすべてのエントリを表示しますが、検索は `scope_app IN [現在のアプリ, "Global"]` でフィルターされます。アプリスコープのエントリは保存時と同じアプリ + プロバイダーからのみ検索可能で、`Global` エントリは `library_search` ツール経由で全アプリから検索可能です。これは旧 PDF Navigator 時代の「アプリ単位の物理隔離」モデルを置き換えるもので、プロジェクト全体で 1 つの Library を共有しつつ、アプリ横断アクセスはエントリ単位の `Global` スコープで opt-in します（Knowledge Base ページの[スコープモデル](/ja/apps/knowledge-base.md)も参照）。
+Library エントリは `scope_app` payload を持ちます。値は「アプリ + プロバイダーのクラス名」（例: `ChatOpenAI`）またはリテラルの `Global` センチネルです。Knowledge Base UI はスコープに関係なくすべてのエントリを表示しますが、検索は `scope_app IN [現在のアプリ, "Global"]` でフィルターされます。アプリスコープのエントリは保存時と同じアプリ + プロバイダーからのみ検索可能で、`Global` エントリは `library_search` ツール経由で全アプリから検索可能です。Library はプロジェクト全体で 1 つを共有し、アプリ横断アクセスはエントリ単位の `Global` スコープで opt-in します（Knowledge Base ページの[スコープモデル](/ja/apps/knowledge-base.md)も参照）。
 
 ## Knowledge Base での使用 :id=use-in-knowledge-base
 

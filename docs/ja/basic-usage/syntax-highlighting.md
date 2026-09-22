@@ -8,7 +8,7 @@ Monadic Chat は、チャット内のコードスニペットに対してシン�
 - **デフォルトテーマ**: `github-light`（良好な可読性を提供するライトテーマ）
 - **自動検出**: プログラミング言語はコードブロックマーカーから自動的に検出されます（例：` ```python`）
 - **テーマの永続化**: テーマの選択は保存され、今後のすべてのセッションに適用されます
-- **対応言語**: Rougeは100以上のプログラミング言語をサポート（Python、JavaScript、Ruby、Java、C++、Go、Rustなど）
+- **対応言語**: Rouge の[対応言語・レキサー一覧](https://github.com/rouge-ruby/rouge/wiki/List-of-supported-languages-and-lexers)を参照してください
 
 ## Dark Themes
 

@@ -48,7 +48,7 @@ RubyサービスはMonadic Chatのコアバックエンドで、RackとAsync/Fal
 - **Async** - 非同期I/Oフレームワーク
 - **Async::WebSocket** - Async用WebSocketサポート
 - **Docker** - コンテナオーケストレーション
-- **PostgreSQL/PGVector** - エンベディング用ベクトルデータベース
+- **Qdrant** - 埋め込み用ベクトルデータベース。埋め込み生成はローカルの embeddings サービス（`multilingual-e5-base`）
 
 ## 関連ドキュメント
 

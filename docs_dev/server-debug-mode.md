@@ -2,7 +2,7 @@
 
 ## Overview
 
-`rake server:debug` starts the Monadic server in a non-daemonized debug mode using the local Ruby environment, while other containers (Python, pgvector, Selenium, etc.) are started and reused as needed.
+`rake server:debug` starts the Monadic server in a non-daemonized debug mode using the local Ruby environment, while the other containers (qdrant, embeddings, Python, Selenium, etc.) are started and reused as needed.
 
 This mode enables:
 - **Extra logging** for debugging provider requests/responses

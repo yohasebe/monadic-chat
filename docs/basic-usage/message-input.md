@@ -4,7 +4,7 @@ After starting the server and selecting an app and configuring it, click the `St
 
 <!-- SCREENSHOT: Message input interface showing text area, Send button, Speech Input button, Image/PDF upload button, From file button, From URL button, and Role selector -->
 
-Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via Speech-to-Text API and displayed in the text area.
+Enter a message in the text area and click the `Send` button to send it. For voice input, see [Speech Input](#speech-input) below.
 
 ?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the System Settings. These are enabled by default in the [Voice Chat](../apps/chat-apps.md#voice-chat) app.
 
@@ -68,7 +68,7 @@ To use voice input, click the `Speech Input` button to start voice input, and cl
 
 <!-- SCREENSHOT: Message input area during voice recording showing animated waveform and Stop button -->
 
-After voice input, a `p-value` indicating the confidence of the voice input is displayed. The `p-value` is an indicator of the confidence of the voice input, expressed in the range from 0 to 1. The closer the `p-value` is to 1, the higher the confidence of the voice input.
+After voice input, a `p-value` is displayed: the confidence of the transcription, on a scale from 0 to 1. The closer it is to 1, the more confident the result.
 
 <!-- SCREENSHOT: Message input area showing transcribed text with p-value confidence score displayed below -->
 
@@ -87,13 +87,13 @@ A streaming mode is available for the `GPT Realtime Whisper ⚡` entry in the Sp
 
 <!-- SCREENSHOT: Message input area during realtime streaming — grey italic partial text visible inside the textarea while the user is speaking -->
 
-**When to use streaming vs batch.** Streaming mode gives immediate visual feedback during long utterances and is well-suited for live note-taking or dictation flows. The standard batch path is more cost-efficient for short utterances and is what other STT models (Whisper-1, GPT-4o Transcribe, Gemini Flash, ElevenLabs Scribe, Cohere Transcribe, Mistral Voxtral, xAI STT) use.
+**When to use streaming vs batch.** Streaming mode gives immediate visual feedback during long utterances and is well-suited for live note-taking or dictation flows. The standard batch path is more cost-efficient for short utterances, and every other model in the dropdown uses it.
 
-**Cost note.** Realtime transcription is billed per audio minute by OpenAI. Refer to OpenAI's pricing page for current rates. The non-streaming STT models on the dropdown use OpenAI's batch transcription pricing, which is typically lower per minute.
+**Cost note.** Realtime transcription is billed per audio minute by OpenAI, at a higher rate than its batch transcription. The other models on the dropdown are billed by their own providers; refer to each provider's pricing page for current rates.
 
 **Provider support.** Realtime streaming transcription is currently available only via OpenAI, which is the only supported provider with a transcription-only realtime API. Other STT models on the dropdown continue to use the batch path. This transcription feature is separate from the speech-to-speech conversation in [Live Conversation](../apps/chat-apps.md#live-conversation), which is available for OpenAI, xAI, and Gemini.
 
-!> **Privacy Filter interaction.** Audio captured by Speech Input is transmitted to OpenAI for transcription before any Privacy Filter masking applies. Privacy Filter operates on the **text** sent to the LLM after transcription completes — it does not mask the audio itself. If your audio contains personally identifiable information that you do not want to send to OpenAI, type the message instead of dictating it.
+!> **Privacy Filter interaction.** Audio captured by Speech Input is sent to the provider of the Speech-to-Text model you selected, before any Privacy Filter masking applies. Privacy Filter operates on the **text** sent to the LLM after transcription completes — it does not mask the audio itself. If your audio contains personally identifiable information that you do not want to send to that provider, type the message instead of dictating it.
 
 ## Text-to-Speech Playback
 

@@ -45,6 +45,8 @@ Hello! Tell me about artificial intelligence and its applications.
 
 You should see a response about AI and its various uses.
 
+Setup is complete at this point — Monadic Chat is working. The rest of this page is a tour of features you can try in any order, or skip.
+
 ### 2.3 Try Web Search
 
 1. Click the **Settings** icon in the web interface
@@ -126,25 +128,18 @@ Now that you've tried the basics, explore more features:
 - **Jupyter Notebook**: Interactive coding environment
 - **Mermaid Grapher**: Create diagrams and flowcharts
 
+Browse [all available apps and provider capabilities](../basic-usage/basic-apps.md), or create your own with [Monadic DSL](../advanced-topics/monadic_dsl.md).
+
 ## Tips for Success
 
-1. **Save your conversations**: Use the **Export** button in the web UI's Session panel to save a chat as a JSON file, or the **Save** button in the Knowledge Base panel to store it in the Knowledge Base
-2. **Export settings**: Save your app configurations for reuse
-3. **Check the logs**: If something goes wrong, check Console Panel logs
-4. **Use appropriate models**: Different tasks work better with different models
+1. **Save your conversations**: Use the **Export** button in the web UI's Session panel to save a chat as a JSON file, or the **Save** button in the Knowledge Base panel to store it in the Knowledge Base. The exported file carries the app's parameter settings as well, so importing it restores them
+2. **Check the logs**: If something goes wrong, the Console Panel logs show what happened
+3. **Run the same task on different providers**: Most apps exist in several provider variants, so the same prompt can be compared side by side — see [Comparing Providers](../reference/providers.md#comparing-providers)
 
 ## Getting Help
 
-- **Built-in Help**: Use the **Monadic Help** app for AI-powered assistance about Monadic Chat
-- **Documentation**: Browse the full documentation for detailed information
+- **Built-in Help**: The **Monadic Help** app answers questions about Monadic Chat itself — features, troubleshooting and usage
 - **FAQ**: Check [Frequently Asked Questions](../faq/faq-settings.md) for common issues
-
-?> **Tip**: The Monadic Help app has specific knowledge about Monadic Chat and can answer questions about features, troubleshooting, and usage.
-
-## What's Next?
-
-- Explore [all available apps and provider capabilities](../basic-usage/basic-apps.md)
-- Create your own apps with [Monadic DSL](../advanced-topics/monadic_dsl.md)
 
 ---
 

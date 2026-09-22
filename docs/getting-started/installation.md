@@ -24,7 +24,7 @@ Drag the Docker icon to Applications folder and launch. Accept the service agree
 
 2. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.34 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.34/Monadic.Chat-1.0.0-beta.34-arm64.dmg)
+📦 [Download Monadic Chat 1.0.0-beta.35 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.35/Monadic.Chat-1.0.0-beta.35-arm64.dmg)
 
 ### **Windows**
 
@@ -49,19 +49,19 @@ Accept the service agreement and use recommended settings.
 
 3. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.34 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.34/Monadic.Chat.Setup.1.0.0-beta.34.exe)
+📦 [Download Monadic Chat 1.0.0-beta.35 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.35/Monadic.Chat.Setup.1.0.0-beta.35.exe)
 
 ### **Linux**
 
 1. **Install Docker Desktop for Linux**
 
 Refer to Docker documentation:
-- [For Debian](https://docs.docker.jp/desktop/install/debian.html)
-- [For Ubuntu](https://docs.docker.jp/desktop/install/ubuntu.html)
+- [For Debian](https://docs.docker.com/desktop/setup/install/linux/debian/)
+- [For Ubuntu](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
 
 2. **Download Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.34 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.34/monadic-chat_1.0.0-beta.34_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.34/monadic-chat_1.0.0-beta.34_arm64.AppImage)
+📦 [Download Monadic Chat 1.0.0-beta.35 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.35/monadic-chat_1.0.0-beta.35_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.35/monadic-chat_1.0.0-beta.35_arm64.AppImage)
 
 3. **Make it executable and run it**
 
@@ -81,7 +81,7 @@ If your distribution does not ship FUSE 2, either install it (`sudo apt install 
 After installation, when you first launch Monadic Chat:
 
 1. The application will start building Docker containers automatically
-2. **Initial setup time**: This can take significant time (varies based on internet connection and system performance)
+2. **Initial setup time**: 10-30 minutes depending on your internet connection and system performance
 3. **Subsequent startups**: Much faster as existing containers are reused
 4. Configure API keys in Settings for the AI services you want to use
 5. Once ready, the status indicator will turn green
@@ -100,7 +100,7 @@ Monadic Chat automatically checks for updates on startup.
 2. Click **Download & Install** — the update downloads in the background, with progress shown in the console
 3. When the download completes, you are prompted to restart Monadic Chat to apply the update
 
-You can also download it yourself from the [release page for 1.0.0-beta.34](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.34), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
+You can also download it yourself from the [release page for 1.0.0-beta.35](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.35), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
 
 ## Advanced Configuration :id=advanced-configuration
 

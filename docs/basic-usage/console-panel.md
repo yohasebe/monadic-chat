@@ -6,7 +6,8 @@
 
 The console panel is the main control interface for Monadic Chat. It displays the current status (Stopped, Starting, Running, etc.) and provides quick access buttons for common operations.
 
-**Start** Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
+**Start** <br />
+Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
 
 **Stop** <br />
 Stop Monadic Chat.
@@ -14,13 +15,15 @@ Stop Monadic Chat.
 **Restart** <br />
 Restart Monadic Chat.
 
-**Open Browser** <br />
+**Browser** <br />
 Open Monadic Chat in a web browser.
 Access URL: [http://localhost:4567](http://localhost:4567)
 
 **Shared Folder** <br />
-Open the folder shared between the host and Docker containers. It can be used for importing and exporting files. It is also used when installing additional apps.
+Open the folder shared between the host and Docker containers. It can be used for importing and exporting files, and when installing additional apps. See [Shared Folder](../docker-integration/shared-folder.md) for the folder layout and the role of each subfolder (`apps`, `helpers`, `scripts`).
 
+**Settings** <br />
+Open the settings panel described in [Settings Panel](#settings-panel) below.
 
 **Quit** <br />
 Exit the Monadic Chat Console.
@@ -70,7 +73,6 @@ Build the Docker image and container (`monadic-chat-extractor-container`) used f
 **Start JupyterLab** <br />
 Launch JupyterLab at [http://localhost:8889](http://localhost:8889). See [JupyterLab Integration](../docker-integration/jupyterlab.md) for details.
 
-
 **Stop JupyterLab** <br />
 Stop JupyterLab.
 
@@ -101,7 +103,6 @@ Open the `~/monadic/config` folder. This folder contains configuration files for
 - `rbsetup.sh`: Script for setting up the Ruby environment (optional, user-created).
 - `compose.yml`: Docker Compose configuration file (auto-generated when user containers are present).
 
-
 **Open Log Folder** <br />
 Open the `~/monadic/log` folder. This folder contains log files for Monadic Chat. The following files are included:
 
@@ -111,11 +112,7 @@ Open the `~/monadic/log` folder. This folder contains log files for Monadic Chat
 - `command.log`: Log file for command execution and code execution.
 - `jupyter.log`: Log file for cells added to jupyter notebook.
 
-When `Extra Logging` is enabled in the settings panel, additional logs are saved as `extra.log`.
-
-- `extra.log`: Log file for chat logs recorded as streaming JSON objects from the start to the end of Monadic Chat.
-
-?> **Note:** The "Extra Logging" option enables detailed logging for debugging purposes. When enabled, additional log information is saved in the logs directory.
+When `Extra Logging` is enabled in the settings panel, an additional `extra.log` records each chat as streaming JSON objects, from the start of Monadic Chat until it exits. It is intended for debugging.
 
 **Open Console** <br />
 Open the Monadic Chat console.
@@ -170,33 +167,23 @@ Select whether to enable additional logging. When enabled, API requests and resp
 
 ### API Keys
 
-**OPENAI_API_KEY** <br />
-(Recommended) Enter your OpenAI API key. This key is used to access the Chat API, image generation API, Speech-to-Text API, and Text-to-Speech API. While not strictly required, many core features depend on this key. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
+Enter a key for each provider you want to use — configure only the ones you have an account with. OpenAI covers the most ground, since the same key serves its chat models, image generation, speech-to-text and text-to-speech, which makes it the most useful one to start with.
 
+For what each key enables and which apps require it, see [Configuration](../reference/configuration.md#api-keys).
 
-**ANTHROPIC_API_KEY** <br />
-Enter your Anthropic API key. This key is required to use the Anthropic Claude models. It can be obtained from [https://console.anthropic.com](https://console.anthropic.com).
+| Setting | Where to get the key |
+| --- | --- |
+| `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/docs/guides/authentication) |
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
+| `COHERE_API_KEY` | [dashboard.cohere.com](https://dashboard.cohere.com) |
+| `GEMINI_API_KEY` | [ai.google.dev](https://ai.google.dev/) |
+| `MISTRAL_API_KEY` | [console.mistral.ai](https://console.mistral.ai/) |
+| `XAI_API_KEY` | [x.ai/api](https://x.ai/api) |
+| `DEEPSEEK_API_KEY` | [platform.deepseek.com](https://platform.deepseek.com/) |
+| `ELEVENLABS_API_KEY` | [elevenlabs.io/developers](https://elevenlabs.io/developers) |
+| `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) |
 
-**COHERE_API_KEY** <br />
-Enter your Cohere API key. This key is required to use the Cohere models. It can be obtained from [https://dashboard.cohere.com](https://dashboard.cohere.com).
-
-**GEMINI_API_KEY** <br />
-Enter your Google Gemini API key. This key is required to use the Google Gemini models. It can be obtained from [https://ai.google.dev/](https://ai.google.dev/).
-
-**MISTRAL_API_KEY** <br />
-Enter your Mistral API key. This key is required to use the Mistral AI models. It can be obtained from [https://console.mistral.ai/](https://console.mistral.ai/).
-
-**XAI_API_KEY** <br />
-Enter your xAI API key. This key is required to use the xAI Grok models. It can be obtained from [https://x.ai/api](https://x.ai/api).
-
-**DEEPSEEK_API_KEY** <br />
-Enter your DeepSeek API key. This key is required to use the DeepSeek models. It can be obtained from [https://platform.deepseek.com/](https://platform.deepseek.com/).
-
-**ELEVENLABS_API_KEY** <br />
-Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers](https://elevenlabs.io/developers).
-
-**TAVILY_API_KEY** <br />
-Enter your Tavily API key. This key is used for two purposes: 1) the "From URL" feature as an alternative to Selenium, and 2) web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). It can be obtained from [https://tavily.com/](https://tavily.com/).
+`TAVILY_API_KEY` is the one key not tied to a single provider: it backs the "From URL" feature as an alternative to Selenium, and web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
 <!-- SCREENSHOT: Settings panel showing Voice & Audio section with TTS Dictionary File Path input field and Auto TTS Max Bytes input -->
 
@@ -223,7 +210,9 @@ The network port for the MCP server (default: `3100`). Change it only if the por
 
 ### Install Options
 
-Select optional packages to be installed in the service containers: LaTeX, Python libraries (NLTK, spaCy, etc.), music analysis libraries, system tools, and additional Privacy Filter languages. Saving changed options triggers a rebuild of the affected container where required.
+Select optional packages to be installed in the service containers: LaTeX, Python libraries (NLTK, spaCy, etc.), music analysis libraries, and system tools. Saving records the choice but does not rebuild anything — the next Start offers **Rebuild and Start**, or you can rebuild straight away with **Actions → Build Python Container**.
+
+The additional Privacy Filter languages in the same panel work differently: every language model is already in the Privacy container, so a change there takes effect on save with no rebuild.
 
 ### Actions
 

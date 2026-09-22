@@ -27,21 +27,25 @@ and must be mirrored in **`package.json`**, **`package-lock.json`** (root
 `date-released`). `docker/monadic.sh` reads `version.rb` at runtime, so no
 manual edit there.
 
-`rake update_version[<old>,<new>]` bumps `version.rb` + `package.json`, but be
-aware of two caveats and prefer editing by hand when they apply:
-- It does NOT touch `package-lock.json` or `CITATION.cff` — update those
-  manually.
+`rake update_version[<old>,<new>]` now bumps every file listed above,
+including `package-lock.json` and `CITATION.cff` (whose `date-released` is set
+to the day the task runs — a release is published on the day it is built).
+`rake check_version` reports any file left behind.
+
+One caveat remains:
 - Its CHANGELOG step *relabels* the current-month top entry rather than adding
-  a new one. If the top entry is an already-published release, do not use it —
-  add a fresh CHANGELOG section by hand (see step 2).
+  a new one. If the top entry is an already-published release, restore that
+  heading and add a fresh section above it (see step 2).
+
+Anything a release must keep in step belongs in `version_files` in
+`rakelib/version.rake`. `CITATION.cff` was updated by hand until beta.30 and
+then drifted four releases behind, because a step that lives only in this
+document is a step that gets skipped.
 
 Verify all agree:
 
 ```bash
-grep 'VERSION = ' docker/services/ruby/lib/monadic/version.rb
-node -e "console.log(require('./package.json').version)"
-node -e "const p=require('./package-lock.json'); console.log(p.version, p.packages[''].version)"
-ruby -ryaml -e "puts YAML.load_file('CITATION.cff')['version']"
+rake check_version
 ```
 
 ## 2. CHANGELOG entry

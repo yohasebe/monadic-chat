@@ -4,11 +4,11 @@
 
 <a href="https://github.com/yohasebe/monadic-chat/releases"><img src="https://img.shields.io/github/v/release/yohasebe/monadic-chat?include_prereleases&style=for-the-badge&cacheSeconds=3600" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge&cacheSeconds=3600" alt="License"></a>
-<a href="https://yohasebe.github.io/monadic-chat/#/developer/testing_guide"><img src="https://img.shields.io/badge/tests-passing-success?style=for-the-badge" alt="Tests"></a>
+<a href="https://github.com/yohasebe/monadic-chat/actions"><img src="https://img.shields.io/github/actions/workflow/status/yohasebe/monadic-chat/specs.yml?branch=main&style=for-the-badge&label=tests" alt="Tests"></a>
 
   ---
 
-**🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [PDF Knowledge Base](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat) · [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter)
+**🎯 Features** · [Multimodal Input](https://yohasebe.github.io/monadic-chat/#/basic-usage/message-input#uploading-images) · [PDF Knowledge Base](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#provider-capabilities) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/apps/coding-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/apps/chat-apps#voice-chat) · [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter)
 
   **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · xAI · DeepSeek · Ollama
 
@@ -60,8 +60,6 @@ After installation:
 
 For offline use, install [Ollama](https://ollama.com/) and select it as your provider.
 
-> ⚠️ **Upgrading from 1.0.0-beta.14 or earlier?** Version 1.0.0-beta.15 replaces the OpenAI embeddings + PGVector stack with a fully local pipeline (Qdrant + `multilingual-e5-base`). Help search no longer requires an OpenAI API key. **Existing local PDF data is not migrated automatically — re-upload your PDFs after upgrading.** See the [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog) and [PDF Storage docs](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) for details.
-
 ## Why Monadic Chat?
 
 Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **locally-run AI platform** that gives you:
@@ -72,7 +70,7 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 
 3. **Extensible Platform**: Not just a chatbot—a framework for building custom AI applications with Monadic DSL.
 
-4. **Provider Independence**: Switch between 9 AI providers. Choose the best model for each task.
+4. **Provider Independence**: Switch between providers. Choose the best model for each task.
 
 **Perfect for**: Developers building AI tools, researchers needing reproducible environments, privacy-conscious teams, and anyone wanting full control over their AI infrastructure.
 
@@ -92,9 +90,9 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 
 ### Featured Applications
 
-Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Live Conversation · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · PDF Navigator · Image Generator · Music Generator · Language Practice
+Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Live Conversation · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · Knowledge Base · Image Generator · Music Generator · Language Practice
 
-📖 **Full list and details**: [Basic Apps](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps) (30+ apps)
+📖 **Full list and details**: [Basic Apps](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps)
 
 ### Extensibility
 
@@ -103,7 +101,7 @@ Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant 
 - **Ruby & Python**: Extend functionality with familiar languages
 - **MCP Server**: Integrate external tools and services via JSON-RPC 2.0
 
-📖 **Development guide**: [Advanced Topics](https://yohasebe.github.io/monadic-chat/#/advanced-topics/)
+📖 **Development guide**: [Development of Extra Apps](https://yohasebe.github.io/monadic-chat/#/advanced-topics/develop_apps)
 
 ## Documentation
 
@@ -111,9 +109,9 @@ Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant 
 - 🚀 **[Getting Started](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)**
 - 📚 **[Basic Usage](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps)**
 - 🐳 **[Docker Integration](https://yohasebe.github.io/monadic-chat/#/docker-integration/basic-architecture)**
-- 💡 **[Advanced Topics](https://yohasebe.github.io/monadic-chat/#/advanced-topics/)**
+- 💡 **[Advanced Topics](https://yohasebe.github.io/monadic-chat/#/advanced-topics/develop_apps)**
 - 📖 **[Reference](https://yohasebe.github.io/monadic-chat/#/reference/configuration)**
-- ❓ **[Frequently Asked Questions](https://yohasebe.github.io/monadic-chat/#/faq)**
+- ❓ **[Frequently Asked Questions](https://yohasebe.github.io/monadic-chat/#/faq/faq-settings)**
 - 📝 **[Related blog posts](https://yohasebe.com/tags/monadic-chat/)**
 
 ## Developer

@@ -16,8 +16,8 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
                    │
 ┌──────────────────▼───────────────────────────┐
 │         Orchestration Layer                  │
-│  (GPT-5 / Claude Code / Grok-4-Fast-         │
-│   Reasoning via provider APIs)               │
+│  (OpenAI / Anthropic / xAI chat models       │
+│   via provider APIs)                         │
 │   - User interaction                         │
 │   - Planning & coordination                  │
 │   - Tool invocation                          │
@@ -34,10 +34,10 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
                    │
 ┌──────────────────▼───────────────────────────┐
 │        Code Generation Layer                 │
-│  (OpenAI Code / Claude Code /                │
-│   Grok-Code-Fast-1 via provider agents)      │
+│  (OpenAI / Claude / Grok                     │
+│   provider-specific coding agents)           │
 │   - HTML/CSS/JS/CLI generation               │
-│   - via provider-specific agents             │
+│   - Same provider as the orchestrator        │
 └──────────────────────────────────────────────┘
 ```
 
@@ -195,7 +195,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 2. **Generation Errors**:
    - Placeholder HTML (173 bytes) → Mock generator conflict (resolved)
    - Empty response → Timeout or API issues
-   - Long generation time → Normal for OpenAI Code / Claude Code (2-5 minutes)
+   - Long generation time → Normal for the OpenAI and Claude coding agents (2-5 minutes)
 
 3. **File System Errors**:
    - Unicode project names → Fixed with proper encoding

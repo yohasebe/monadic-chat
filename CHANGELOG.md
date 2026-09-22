@@ -1,3 +1,14 @@
+- [September, 2026] 1.0.0-beta.35
+  - **The bundled help database carries only the published documentation**: it also held the project's internal developer notes. Search hid them, but they were in the file, so anyone who opened it could read them. The database is now built from the published documentation alone, and packaging stops if the database holds internal notes or names a file that is not part of the repository
+  - **The newest xAI and Google models are now the defaults**: chat and vision move to `grok-4.7`, and chat, vision and audio move to `gemini-3.8-flash`. Both are priced the same as the models they replace, and the previous models stay in the dropdown
+  - **The reasoning effort choices match what each model accepts**: the Grok models accept a deeper level than the list offered, and Gemini Flash accepts a middle level that was missing. Both are now selectable
+  - **Reasoning can actually be turned off on Gemini Flash**: choosing no reasoning still sent a small thinking allowance, because the model was recorded as unable to turn it off and the choice was discarded before it took effect. It now sends zero
+  - **Image settings follow the chosen model rather than the provider**: a request the selected model cannot accept is refused before it is sent, and the message names the values that model does accept. Previously it was sent and came back as a provider error
+  - **Two more OpenAI image models**: `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` join the image generator alongside `gpt-image-2`, and they accept higher quality levels than it does
+  - **xAI image generation gains a quality choice and eleven more aspect ratios**: the list offered five ratios where the API accepts sixteen, and quality could not be chosen at all. Editing now accepts up to five source images instead of three. The separate high-quality model is removed from the list, because from 2 November the provider serves it as the standard model at its lowest quality
+  - **Progress messages name this app's own code generators**: the messages shown while an application is being built said "OpenAI Code", "Claude Code" and "Grok Code", which read like the names of separate products. They now describe the coding agent each provider uses
+  - **Documentation corrections**: the public documentation carried settings, defaults and file names that no longer matched the application, and several links and in-page anchors pointed at pages or headings that no longer exist
+
 - [September, 2026] 1.0.0-beta.34
   - **The app starts again after updating to 1.0.0-beta.33**: building the Ruby container failed with an unmet dependency between two Docker packages, so the app could not start wherever that container had to be rebuilt. The container now installs only the Docker command-line client it actually uses to reach the host's Docker, which removes the conflicting packages and makes the image smaller
 
@@ -389,7 +400,7 @@
     - Ensures consistent data flow: single JSON serialization at output stage
     - Updated tests to reflect implementation changes
 
-- [October 22, 2024] **v1.0.0 - First Stable Release** 🎉
+- [October 22, 2024] 1.0.0 - First Stable Release
   - **Production Ready**: Comprehensive testing with 317 passing tests
   - **Electron 38.3.0**: Updated to latest stable Electron for improved performance and security
   - **Enhanced Stability**: Fixed all test suite issues for reliable operation
@@ -668,7 +679,6 @@
 
 - [June, 2024] Recent Updates
   - **Beta Release**: First beta release for version 1.0.0
-  - **Important Changes**: See [documentation](https://yohasebe.github.io/monadic-chat/#/developer/breaking-changes) for migration guide
   - **New Apps**: Concept Visualizer (LaTeX/TikZ diagrams), Syntax Tree (linguistic analysis)
   - **Ollama Support**: Local LLM integration with automatic model management
   - **O3 Series Support**: OpenAI o3 and o3-pro models (o3-pro uses responses API)
@@ -766,7 +776,7 @@
   - Initial system prompt duplication issue fixed
   - TTS/STT support for Safari
   - Selenium image supported for both arm64 and amd64
-- [Jan, 2024] 0.9.37
+- [January, 2024] 0.9.37
   - Perplexity `sonar-reasoning` (DeepSeek) model supported
   - OpenAI o1 models supported
   - DeepSeek models supported
@@ -774,7 +784,7 @@
   - New folder structure for config/data/logs introduced
   - Perplexity models supported
   - Start-up time (after build) improved
-- [Dec, 2023] 0.9.30
+- [December, 2023] 0.9.30
   - "From URL" feature added
   - "From file" feature added (pdf, docx, pptx, xlsx, etc.)
   - xAI Grok models supported
@@ -786,7 +796,7 @@
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed
   - Role selection issue fixed
-- [Nov, 2023] 0.9.22
+- [November, 2023] 0.9.22
   - Rebuilding specific containers feature added
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook apps (for GPT and Claude) improved
@@ -798,30 +808,30 @@
   - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
   - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models
   - AI user feature improved
-- [Oct, 2023] 0.9.6
+- [October, 2023] 0.9.6
   - PyMuPDF4LLM integration
   - Anthropic's new sonnet model supported
   - Stability of code running and chart generation improved
-- [Sep, 2023] 0.9.2
+- [September, 2023] 0.9.2
   - Beta models (`o1-preview`, `o1-mini`) supported
   - Documentation renewed
   - Stability improvement
   - Better app development support
   - Many under-the-hood improvements
   - Documentation using Docsify released
-- [Aug, 2023] 0.8.11
+- [August, 2023] 0.8.11
   - App authoring format changed
   - Claude Jupyter Notebook app added
   - Math rendering improved
   - Second Opinion app added
   - PDF Document import/export feature
-- [Jul, 2023] 
+- [July, 2023]
   - Mistral AI (Chat and Code Interpreter) app added
   - Multiple images can be uploaded for image recognition
   - Continue button introduced
   - Jupyter Notebook app added
   - Browser auto open
-- [Jun, 2023] 
+- [June, 2023]
   - Linux (Ubuntu/Debian) installer released
   - App file name changed from monadic-chat to Monadic Chat
   - Settings menu added
@@ -835,22 +845,22 @@
   - Video Describer app added
 - [May, 2023] Talk to Claude/Cohere/Gemini apps added
   - Ruby/Python/PGVector/Selenium containers structure introduced
-- [Feb, 2023] Mermaid diagram support
+- [February, 2023] Mermaid diagram support
   - File reading feature
   - Stability improvement with several apps modified
-- [Jan, 2023] Default model set to `gpt-3.5-turbo-1106`
+- [January, 2023] Default model set to `gpt-3.5-turbo-1106`
   - OpenAI's January 2024 models supported
   - Mac/Win Monadic Chat Console UI improved
   - Image understanding feature
   - Voice Interpreter app added
   - More responsive text-to-speech in auto-speech mode
   - Language Practice Plus app updated
-- [Nov, 2023] Image generator app updated to support dall-e-3.
+- [November, 2023] Image generator app updated to support dall-e-3.
   - Speech-to-Text voice input is supported for Chrome/Edge/Safari.
   - Natural voice stream playback using OpenAI's text-to-speech API supported.
   - OpenAI's new models supported (0.3.0)
-- [Sep, 2023] Stability improvement with several apps modified
-- [Jul, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0).
+- [September, 2023] Stability improvement with several apps modified
+- [July, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0).
   - Image generation feature added.
   - The initial version of Monadic Chat (1.0.0) has been released.
   - The original command-line program renamed to [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository.

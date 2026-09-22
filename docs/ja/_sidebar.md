@@ -13,7 +13,7 @@
     - [Workflow Viewer](/ja/basic-usage/workflow-viewer.md)
     - [基本アプリ](/ja/basic-usage/basic-apps.md)
     - [PDF Database](/ja/basic-usage/pdf_storage.md)
-    - [シンタックスハイライト](/ja/basic-usage/syntax-highlighting.md)
+    - [シンタックス・ハイライト](/ja/basic-usage/syntax-highlighting.md)
 
 - **アプリ**
 
@@ -35,7 +35,7 @@
     - [Dockerコンテナ](/ja/docker-integration/docker-access.md)
     - [JupyterLabとの連携](/ja/docker-integration/jupyterlab.md)
     - [共有フォルダ](/ja/docker-integration/shared-folder.md)
-    - [標準Pythonコンテナ](/ja/docker-integration/python-container.md)
+    - [標準 Python コンテナ](/ja/docker-integration/python-container.md)
     - [ベクトルデータベース](/ja/docker-integration/vector-database.md)
 
 - **高度な機能**
@@ -45,7 +45,7 @@
     - [アプリ開発者のためのファイル構成](/ja/advanced-topics/code_structure.md)
     - [Monadic DSLリファレンス](/ja/advanced-topics/monadic_dsl.md)
     - [アプリの設定項目](/ja/advanced-topics/setting-items.md)
-    - [レシピ・ファイルの例](/ja/advanced-topics/recipe-examples.md)
+    - [レシピファイルの例](/ja/advanced-topics/recipe-examples.md)
     - [ツールグループ](/ja/advanced-topics/tool-groups.md)
     - [Monadicモード](/ja/advanced-topics/monadic-mode.md)
     - [セッションコンテキスト](/ja/advanced-topics/session-context.md)
@@ -62,10 +62,10 @@
     
 - **よくある質問**
     - [初期設定](/ja/faq/faq-settings.md)
-    - [ユーザー・インターフェイス](/ja/faq/faq-user-interface.md)
+    - [ユーザーインターフェイス](/ja/faq/faq-user-interface.md)
     - [基本アプリ](/ja/faq/faq-basic-apps.md)
     - [メディアファイルの送信](/ja/faq/faq-media-files.md)
-    - [音声インタラクション](/ja/faq/faq-voice-interaction.md)
+    - [音声入力と音声合成](/ja/faq/faq-voice-interaction.md)
     - [機能の追加](/ja/faq/faq-extra-features.md)
 
 - [更新履歴](/ja/changelog.md)

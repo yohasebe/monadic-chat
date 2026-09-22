@@ -32,6 +32,51 @@ end
 
 ALLOWED_IMAGE_MODELS = resolve_openai_image_models
 
+# What is wrong with this request, or nil. Defined before the CLI block that
+# calls it — a top-level `def` is evaluated when execution reaches it, so a
+# definition further down the file does not exist yet at that point.
+#
+# Both entry points run it. The app shells out to this script
+# (lib/monadic/adapters/media_generation_helper.rb builds the command line),
+# and generate_image checks again for any caller that reaches it directly, so
+# an unsupported quality cannot travel to a request the API will reject.
+#
+# Quality is per model — gpt-image-2 rejects `xhigh` while the 2.5 models
+# accept it — so the model and the quality are only meaningful together.
+def image_request_problem(options)
+  model = options[:model].to_s
+  return "No image model specified." if model.empty?
+
+  # The catalog has to answer before anything is allowed through. Treating an
+  # unreadable catalog as "no constraints" is the same mistake as guessing a
+  # vocabulary: it turns a broken spec into a request the API will reject.
+  offered = begin
+    Monadic::Utils::ModelSpec.provider_default_models("openai", "image")
+  rescue StandardError
+    []
+  end
+  return "No image models are defined in the catalog." if offered.empty?
+  unless offered.include?(model)
+    return "Unknown image model '#{model}'. Available: #{offered.join(', ')}."
+  end
+
+  allowed = begin
+    Monadic::Utils::ModelSpec.image_options("openai", "quality", model: model)
+  rescue StandardError
+    []
+  end
+  # Checked before the quality is read, so a model whose vocabulary is missing
+  # is refused even when the caller omitted the quality — otherwise a newly
+  # offered model with no capability entry passes straight through.
+  return "No quality vocabulary is defined for '#{model}'." if allowed.empty?
+
+  quality = options[:quality]
+  return nil if quality.nil? || quality.to_s.strip.empty?
+  return nil if allowed.include?(quality.to_s)
+
+  "Quality '#{quality}' is not supported by '#{model}'. Supported: #{allowed.join(', ')}."
+end
+
 if __FILE__ == $PROGRAM_NAME
   # CLI entry only. Behind a __FILE__ guard so specs can require this file and
   # exercise its functions in-process; spawning the script is what let a unit
@@ -128,18 +173,11 @@ if __FILE__ == $PROGRAM_NAME
   end.parse!
 
 
-  # gpt-image-2 quality options
-  # SSOT: imageGenerationOptions.openai.quality. Falls back to the literal set
-  # only if the spec cannot be read, so a bad spec cannot reject every value.
-  allowed_quality = begin
-    q = Monadic::Utils::ModelSpec.image_options("openai", "quality")
-    q.empty? ? %w[low medium high auto] : q
-  rescue StandardError
-    %w[low medium high auto]
-  end
-  unless allowed_quality.include?(options[:quality])
-    puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
-    options[:quality] = "auto"
+  # Same check the library entry point runs; doing it here too keeps the CLI's
+  # error text on stdout instead of surfacing as an exception.
+  if (problem = image_request_problem(options))
+    puts "ERROR: #{problem}"
+    exit 1
   end
 
   # Validate required options based on operation
@@ -224,6 +262,11 @@ def get_mime_type(file_path)
 end
 
 def generate_image(options, num_retrials = 3)
+  if (problem = image_request_problem(options))
+    return { operation: options[:operation], model: options[:model],
+             original_prompt: options[:prompt], success: false, message: problem }
+  end
+
   api_key = get_api_key
   
   begin
@@ -243,7 +286,9 @@ def generate_image(options, num_retrials = 3)
 
       # GPT Image models specific parameters
       body[:size] = options[:size] if options[:size]
-      body[:quality] = options[:quality] if options[:quality]
+      # An empty string is truthy in Ruby, so without the strip it would be
+      # sent as quality="" — a value the validator treats as "omitted".
+      body[:quality] = options[:quality] unless options[:quality].to_s.strip.empty?
       body[:output_format] = options[:output_format] if options[:output_format]
       body[:background] = options[:background] if options[:background]
       body[:output_compression] = options[:output_compression] if options[:output_compression]
@@ -281,7 +326,7 @@ def generate_image(options, num_retrials = 3)
         body[:images] = img_refs
 
         body[:size] = options[:size] if options[:size]
-        body[:quality] = options[:quality] if options[:quality]
+        body[:quality] = options[:quality] unless options[:quality].to_s.strip.empty?
         body[:output_format] = options[:output_format] if options[:output_format]
         body[:background] = options[:background] if options[:background]
         body[:output_compression] = options[:output_compression] if options[:output_compression]
@@ -306,7 +351,7 @@ def generate_image(options, num_retrials = 3)
 
         # Add specific parameters
         form[:size] = options[:size] if options[:size]
-        form[:quality] = options[:quality] if options[:quality]
+        form[:quality] = options[:quality] unless options[:quality].to_s.strip.empty?
         form[:output_format] = options[:output_format] if options[:output_format]
         form[:background] = options[:background] if options[:background]
         form[:output_compression] = options[:output_compression].to_s if options[:output_compression]
@@ -425,11 +470,18 @@ def generate_image(options, num_retrials = 3)
         puts "ERROR: #{error_msg}"
         puts "Response body: #{res.body}" if options[:verbose]
       rescue JSON::ParserError
-        puts "ERROR: Failed to parse error response. Status: #{res.status}"
+        error_msg = "Failed to parse error response. Status: #{res.status}"
+        puts "ERROR: #{error_msg}"
         puts "Response body: #{res.body}" if options[:verbose]
       end
       
-      if num_retrials > 0
+      # A 4xx other than 429 means the request itself is wrong — an
+      # unsupported quality, a bad size, a rejected prompt. Sending it again
+      # cannot change the answer — repeating a request cannot fix its own
+      # parameters — so only retry what a retry could fix.
+      retryable = res.status.to_i == 429 || res.status.to_i >= 500
+
+      if retryable && num_retrials > 0
         puts "Retrying... (#{num_retrials} attempts left)"
         sleep 1
         return generate_image(options, num_retrials - 1)
@@ -438,8 +490,11 @@ def generate_image(options, num_retrials = 3)
           operation: options[:operation],
           model: options[:model],
           original_prompt: options[:prompt],
-          success: false, 
-          message: "Failed after multiple attempts." 
+          success: false,
+          # Carry the API's own words through. "Failed after multiple attempts"
+          # hid which quality or size was rejected, and on a request that was
+          # never retried it was not even true.
+          message: error_msg || "Failed after multiple attempts."
         }
       end
     end

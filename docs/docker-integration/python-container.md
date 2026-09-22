@@ -11,7 +11,7 @@ Use the Electron app “Actions → Install Options…” to choose optional com
 - Music: `librosa` + `madmom` (used by the Music Lab pipeline)
 - Tools: ImageMagick (`convert`/`mogrify`)
 
-Saving does not auto-rebuild. When you explicitly run Rebuild from the main console, the Python image is built to a temporary tag, verified, and promoted only on success. Progress output appears in the main console. Logs and artifacts are written directly to `~/monadic/log/` (`docker_build_python.log`, `post_install_python.log`, `python_health.json`, `python_meta.json`) and are overwritten on each run.
+Saving does not auto-rebuild. The next Start offers **Rebuild and Start**, and **Actions → Build Python Container** rebuilds immediately. Either way the Python image is built to a temporary tag, verified, and promoted only on success. Progress output appears in the main console. Logs and artifacts are written directly to `~/monadic/log/` (`docker_build_python.log`, `post_install_python.log`, `python_health.json`, `python_meta.json`) and are overwritten on each run.
 
 Notes on NLTK and spaCy:
 - Turning on the `nltk` option installs the package only. NLTK datasets/corpora are not downloaded automatically.
@@ -31,7 +31,7 @@ Notes on NLTK and spaCy:
 - Dockerfile split into a base layer (common pip set) and per-option layers (one RUN per library)
 - Toggling options reuses base layers and rebuilds only the affected layers
 
-## Adding libraries with pysetup.sh
+## Adding libraries with pysetup.sh :id=adding-libraries-with-pysetupsh
 
 Create `~/monadic/config/pysetup.sh` to run a post-setup step after rebuild (not embedded into the Dockerfile).
 
@@ -149,7 +149,7 @@ Noto CJK fonts and a configured `matplotlibrc` are included so matplotlib can re
 
 ## Script layout
 
-```
+```text
 /monadic/scripts/
 ├── utilities/          # System utilities (e.g., sysinfo.sh)
 ├── cli_tools/          # CLI tools (e.g., content_fetcher.py)

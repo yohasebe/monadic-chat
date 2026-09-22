@@ -46,13 +46,68 @@ RSpec.describe "image_generator_grok.rb" do
         .to include("At least one image is required")
     end
 
-    it "caps edit input at three images" do
-      expect(script.validate_options({ prompt: "x", operation: "edit", images: %w[a b c d] }))
-        .to include("Maximum 3 images")
+    it "caps edit input at five images" do
+      expect(script.validate_options({ prompt: "x", operation: "edit", images: %w[a b c d e f] }))
+        .to include("Maximum 5 images")
     end
 
     it "accepts a usable set of options" do
       expect(script.validate_options({ prompt: "x", operation: "generate", images: [] })).to be_nil
+    end
+  end
+
+  describe "offline requests" do
+    let(:client) { double("HTTP client") }
+
+    before do
+      allow(File).to receive(:read).and_call_original
+      ["/monadic/config/env", "#{Dir.home}/monadic/config/env"].each do |path|
+        allow(File).to receive(:read).with(path).and_return("XAI_API_KEY=test-key\n")
+      end
+      allow(HTTP).to receive(:headers).and_return(client)
+      allow(client).to receive(:timeout).with(120).and_return(client)
+      # Stop at transport with a handled exception; no image file is written.
+      allow(client).to receive(:post).and_raise(HTTP::Error, "offline stop")
+    end
+
+    it "rejects six images before resolving, encoding or making a request" do
+      expect(script).not_to receive(:resolve_image_path)
+      expect(script).not_to receive(:encode_image_as_data_uri)
+      expect(HTTP).not_to receive(:headers)
+      result = script.generate_image("x", operation: "edit", images: %w[a b c d e f])
+      expect(result[:success]).to be(false)
+      expect(result[:message]).to start_with("❌ Maximum 5 images")
+    end
+
+    it "accepts five images and carries quality into an edit request" do
+      images = %w[a b c d e]
+      expect(script.validate_options(prompt: "x", operation: "edit", images: images)).to be_nil
+      images.each do |path|
+        allow(script).to receive(:resolve_image_path).with(path).and_return(path)
+        allow(script).to receive(:encode_image_as_data_uri).with(path).and_return("data:image/png;base64,fixture")
+      end
+      script.generate_image("x", operation: "edit", images: images, quality: "medium")
+      expect(client).to have_received(:post).with("https://api.x.ai/v1/images/edits",
+        json: hash_including(quality: "medium", images: array_including(hash_including(type: "image_url"))))
+      expect(client).to have_received(:post) { |_url, json:| expect(json[:images].size).to eq(5) }
+    end
+
+    %w[low medium high auto].each do |quality|
+      it "carries #{quality} and the expanded ratio from the CLI to the request" do
+        GeneratorScriptLoader.run_cli("image_generator_grok.rb", ["-p", "x", "-q", quality, "-a", "5:2"])
+        expect(client).to have_received(:post).with("https://api.x.ai/v1/images/generations",
+          json: hash_including(quality: quality, aspect_ratio: "5:2"))
+      end
+    end
+
+    it "omits unspecified quality" do
+      GeneratorScriptLoader.run_cli("image_generator_grok.rb", ["-p", "x"])
+      expect(client).to have_received(:post) { |_url, json:| expect(json).not_to have_key(:quality) }
+    end
+
+    it "rejects unsupported quality before the request" do
+      expect(HTTP).not_to receive(:headers)
+      expect(script.generate_image("x", quality: "xhigh")[:message]).to include("Invalid quality")
     end
   end
 

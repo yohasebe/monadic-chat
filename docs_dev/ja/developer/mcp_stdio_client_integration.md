@@ -1,13 +1,13 @@
-# Claude Code MCP統合（内部）
+# MCP stdio クライアント統合（内部）
 
 ## 概要
 
-このドキュメントは、Claude CodeとMonadic ChatのPGVectorドキュメントデータベース間のMCP統合の技術実装について説明します。
+このドキュメントは、stdio のみに対応する MCP クライアントを Monadic Chat の Qdrant ドキュメントデータベースへ接続する際の技術実装について説明します。
 
 ## アーキテクチャ
 
 ```
-Claude Code（stdioトランスポート）
+MCP クライアント（stdio トランスポート）
     ↓
 mcp_stdio_bridge.rb（stdio → HTTPブリッジ）
     ↓
@@ -15,7 +15,7 @@ Monadic Chat MCPサーバー（HTTP JSON-RPC 2.0）
     ↓
 Monadic Helpアプリツール
     ↓
-PGVectorデータベース（3072次元埋め込み）
+Qdrantコレクション（ローカル埋め込みサービスによる768次元埋め込み）
 ```
 
 ## コンポーネント
@@ -64,7 +64,7 @@ end
 
 **目的：**
 トランスポートプロトコルの不一致をブリッジ：
-- Claude Code: stdio（STDINを読み、STDOUTに書き込み）
+- クライアント側: stdio（STDINを読み、STDOUTに書き込み）
 - Monadic Chat: HTTP（/mcpエンドポイントへのPOST）
 
 **実装：**
@@ -85,8 +85,8 @@ end
 ```
 
 **環境変数：**
-- `MCP_SERVER_URL`: デフォルトのhttp://localhost:3100/mcpをオーバーライド
-- `DEBUG=true`: /tmp/mcp_wrapper.logにデバッグログを書き込み
+- `MCP_SERVER_HOST`: 接続先ホスト（既定 `127.0.0.1`）
+- `MCP_SERVER_PORT`: 接続先ポート（既定 `3100`）
 
 **エラーハンドリング：**
 - JSONパースエラー → -32700（Parse error）
@@ -96,12 +96,12 @@ end
 ### 3. Monadic Helpアプリ（`docker/services/ruby/apps/monadic_help/`）
 
 **公開されているツール：**
-1. `find_help_topics` - PGVectorでのセマンティック検索
+1. `find_help_topics` - Qdrantのヘルプコレクションに対するセマンティック検索
 2. `get_help_document` - IDによる完全なドキュメントの取得
 3. `list_help_sections` - すべてのセクションのリスト
 4. `search_help_by_section` - セクションスコープの検索
 
-**PGVector統合：**
+**検索の統合：**
 ```ruby
 def find_help_topics(text:, top_n: 10, chunks_per_result: nil, include_internal: nil)
   results = help_embeddings_db.find_closest_text_multi(
@@ -134,35 +134,25 @@ rake server:debug
 npm start  # Electronアプリ
 ```
 
-### クライアント側（Claude Code）
+### クライアント側
 
-**グローバル設定：**
+ブリッジを**コマンド起動型（stdio）の MCP サーバー**として登録します。登録の
+書式はクライアントごとに異なるため、クライアント側のドキュメントを参照して
+ください。実行するコマンドは、ホストの Ruby を使って次のとおりです。
+
 ```bash
-claude mcp add --scope user --transport stdio monadic-chat \
-  --env DEBUG=true \
-  -- ruby /path/to/monadic-chat/docker/services/ruby/scripts/mcp_stdio_bridge.rb
+ruby /path/to/monadic-chat/docker/services/ruby/scripts/mcp_stdio_bridge.rb
 ```
 
-**設定の保存場所：**
-- `~/.claude.json`（userスコープ）
-- または`.claude/settings.local.json`（projectスコープ）
+streamable-HTTP に対応したクライアントはブリッジ自体が不要で、
+`http://localhost:3100/mcp` へ直接接続できます。
 
-**検証：**
-```bash
-# 設定されたサーバーのリスト
-claude mcp list
-
-# 特定のサーバーの詳細を確認
-claude mcp get monadic-chat
-
-# 必要に応じてサーバーを削除
-claude mcp remove monadic-chat -s user
-```
+設定の保存場所や、一覧表示・削除の方法もクライアントごとに異なります。
 
 ## ツール発見フロー
 
-1. **Claude Codeがセッションを開始**
-   - stdioラッパーサブプロセスを起動
+1. **クライアントがセッションを開始**
+   - stdio ブリッジをサブプロセスとして起動
    - `initialize`リクエストを送信
 
 2. **ラッパーがHTTP MCPサーバーに転送**
@@ -176,14 +166,14 @@ claude mcp remove monadic-chat -s user
    - 各アプリの設定からツールを抽出
    - MCPプロトコル用にツールをフォーマット
 
-4. **ツールリストがClaude Codeに返される**
+4. **ツールリストがクライアントに返される**
    - `MonadicHelpOpenAI__find_help_topics`
    - `MonadicHelpOpenAI__get_help_document`
    - など
 
 ## ツール実行フロー
 
-1. **Claude Codeがツール呼び出しを決定**
+1. **クライアントがツール呼び出しを決定**
    - ユーザークエリ分析に基づく
    - 適切なツールと引数を選択
 
@@ -209,9 +199,9 @@ claude mcp remove monadic-chat -s user
    - 引数をシンボルキーに変換
    - `app_instance.find_help_topics(**args)`を呼び出し
 
-4. **ツールがPGVectorに対して実行**
-   - クエリテキストの埋め込みを生成
-   - pgvector拡張を使用してPostgreSQLを検索
+4. **ツールがQdrantに対して実行**
+   - ローカルの埋め込みサービスでクエリテキストを埋め込む
+   - `is_internal` の payload フィルタ付きで `help_items` コレクションを検索
    - 類似度スコア付きの上位N件の結果を返す
 
 5. **結果がフォーマットされて返される**
@@ -247,10 +237,9 @@ claude mcp remove monadic-chat -s user
 
 ### データベースパフォーマンス
 
-**PGVectorクエリ：**
-- 埋め込み生成：約100ms（OpenAI API呼び出し）
-- ベクトル類似度検索：約10ms（インデックス化）
-- 合計レイテンシ：典型的な検索で約150ms
+**検索クエリ：**
+- 埋め込み生成：ローカルの `embeddings_service` コンテナ（プロバイダーAPIの呼び出しなし）
+- ベクトル類似度検索：QdrantのHNSWインデックス
 
 **最適化のヒント：**
 - データ転送を制限するために`chunks_per_result`を使用
@@ -270,15 +259,12 @@ claude mcp remove monadic-chat -s user
    rake server:debug
    ```
 
-2. **Stdioラッパー側：**
-   ```bash
-   # ラッパーは既にDEBUG=trueで設定済み
-   tail -f /tmp/mcp_wrapper.log
-   ```
+2. **Stdioブリッジ側：**
+   ブリッジは標準出力にJSON-RPCを書き出します。接続先は `MCP_SERVER_HOST` / `MCP_SERVER_PORT` で変更できます。
 
 ### よくある問題
 
-**Claude Codeで"Server not connected"：**
+**クライアントが"Server not connected"を報告する場合：**
 - Monadic Chatサーバーが実行中か確認：`curl http://localhost:3100/health`
 - ブリッジスクリプトが存在するか確認：`ls -la docker/services/ruby/scripts/mcp_stdio_bridge.rb`
 - ブリッジの権限を確認：`chmod +x docker/services/ruby/scripts/mcp_stdio_bridge.rb`
@@ -335,7 +321,7 @@ curl -X POST http://localhost:3100/mcp \
 
 ### なぜstdioラッパーが必要か？
 
-Claude CodeはMCPサーバーのstdioトランスポートのみをサポートしていますが、Monadic ChatのMCPサーバーは以下の理由でHTTPトランスポートを使用しています：
+MCP クライアントの中には stdio トランスポートしか話せないものがありますが、Monadic Chat の MCP サーバーは以下の理由で HTTP トランスポートを使用しています：
 
 1. **シンプルさ**：HTTPはステートレスでcurlでデバッグしやすい
 2. **Web互換性**：ブラウザベースのクライアントが同じエンドポイントを使用可能
@@ -359,47 +345,54 @@ stdioラッパーは薄いブリッジ（< 100行）で、最小限のオーバ�
 
 ### 標準ビルド（開発）
 
-標準の`rake help:build`コマンドは現在、デフォルトで内部ドキュメントを含みます：
+`rake help:build` は `docs/` のみからビルドします。出荷されるのはこのダンプです：
 
 ```bash
-# 公開ドキュメントと内部ドキュメントの両方でVectorDBをビルド
+# 公開ドキュメントから VectorDB をビルド
 rake help:build
 
 # またはスクラッチから再ビルド
 rake help:rebuild
+
+# 手元の開発用のみ：docs_dev/ も索引化する
+rake help:build_internal
 ```
 
 **ビルド中に起こること：**
-1. `docs/`を処理（公開ドキュメント）
-2. `docs_dev/`を処理（内部ドキュメント）
-3. `is_internal`フラグを持つローカルPGVectorデータベースに両方を保存
-4. **公開ドキュメントのみをエクスポート**してパッケージング（内部ドキュメントはフィルタリング）
+1. `docs/`を `is_internal=false` で処理（公開ドキュメント）
+2. `docs_dev/`を `is_internal=true` で処理（内部ドキュメント）。ただし
+   `help:build_internal` のときだけ
+3. 結果を `help_data/help_db.json` に書き出す
 
-### エクスポート安全メカニズム
+両タスクとも同じパスに書き出すため、ディスク上のダンプは最後に走らせた方に
+なります。
 
-エクスポートプロセス（`export_help_database_docker.rb`）は内部ドキュメントを自動的にフィルタリングします：
+### 出荷されるもの
 
-```ruby
-# 146行目：公開ドキュメントのみをエクスポート
-SELECT * FROM help_docs WHERE is_internal = FALSE
+`help:build` は `--public-only` を渡し、これが `DEBUG_MODE` に優先します。
+開発環境から走らせても内部ドキュメントがリリース用ダンプに混入しません。
+二重の防御として、`scripts/help_dump_guard.rb` は `is_internal` のポイントを
+1つでも含むダンプのパッケージングを中止します。これは梱包の両経路で動きます。
+Rake 経路では `scripts/stage_docker_payload.rb` から、stager を呼ばない npm の
+ビルドスクリプトでは electron-builder の `beforePack` フックから呼ばれます。
+`help:build_internal` を走らせた後に `SKIP_HELP_DB=true` で梱包した場合を
+ここで捕まえます。
 
-# 186行目：公開アイテムのみをエクスポート
-SELECT hi.* FROM help_items hi
-JOIN help_docs hd ON hi.doc_id = hd.id
-WHERE hd.is_internal = FALSE
-```
+`is_internal` は引き続き**検索時**の Qdrant payload フィルタとして働くため、
+`help:build_internal` で作ったダンプでは次のようになります。
 
-**結果：**
-- **開発者**：ローカルデータベースにはすべてのドキュメントが含まれる
-- **エンドユーザー**：パッケージ化されたアプリには公開ドキュメントのみが含まれる
-- **MCPアクセス**：開発者はすべてのドキュメントを検索可能、ユーザーは公開ドキュメントのみ検索可能
+- **開発者**（`DEBUG_MODE=true`）：検索は両方のツリーを返す
+- **それ以外**：検索は `docs/` のエントリのみを返す
+
+ダンプの調べ方と実際の配布経路については
+[ヘルプデータベース内の内部ドキュメント](help_system_internal.md)を参照してください。
 
 ### 非推奨タスク
 
-`rake help:build_dev`は現在非推奨で、`rake help:build`にリダイレクトされます：
+`rake help:build_dev`は非推奨で、`rake help:build_internal`にリダイレクトされます：
 
 ```bash
-# これは非推奨警告を表示し、rake help:buildを呼び出す
+# これは非推奨警告を表示し、rake help:build_internalを呼び出す
 rake help:build_dev
 ```
 
@@ -416,7 +409,7 @@ rake help:build_dev
 
 1. **レイテンシ**：stdioラッパーが約50msのオーバーヘッドを追加
 2. **ストリーミングなし**：完了後にのみ結果が返される
-3. **エラーコンテキスト**：Claude Code UIでのエラー詳細が限定的
+3. **エラーコンテキスト**：エラー詳細がどこまで伝わるかはクライアント次第
 4. **キャッシュ無効化**：ツールキャッシュをクリアするには手動再起動が必要
 
 ## 関連ドキュメント
@@ -424,4 +417,4 @@ rake help:build_dev
 - **公開ドキュメント**：`docs/advanced-topics/mcp-integration.md`
 - **MCPサーバーコード**：`docker/services/ruby/lib/monadic/mcp/server.rb`
 - **Monadic Helpアプリ**：`docker/services/ruby/apps/monadic_help/`
-- **PGVector統合**：`docs_dev/ruby_service/help_embeddings.md`
+- **ヘルプ埋め込み**：`docker/services/ruby/lib/monadic/utils/help_embeddings.rb`

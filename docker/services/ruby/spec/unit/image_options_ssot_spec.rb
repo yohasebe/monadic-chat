@@ -54,10 +54,104 @@ RSpec.describe "image generation options come from the SSOT" do
       expect(sizes).to include("1024x1024", "2048x2048")
     end
 
-    it "offers OpenAI only the qualities gpt-image-2 defines" do
-      quality = Monadic::Utils::ModelSpec.image_options("openai", "quality")
-      # "standard" and "hd" are DALL-E 3 values and answer 400.
-      expect(quality).to match_array(%w[auto low medium high])
+    # Quality is the one parameter whose accepted values differ per model, and
+    # the difference is not cosmetic: asking gpt-image-2 for `xhigh` answers
+    # "The model 'gpt-image-2' does not support quality 'xhigh'" (live probe,
+    # 2026-09-21), while the 2.5 models generate. A single provider-wide list
+    # cannot describe both without either hiding values or offering rejected
+    # ones.
+    describe "quality, which differs per model" do
+      it "gives gpt-image-2 the four it accepts" do
+        # "standard" and "hd" are DALL-E 3 values and answer 400.
+        expect(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: "gpt-image-2"))
+          .to match_array(%w[auto low medium high])
+      end
+
+      it "gives the 2.5 models the two extra ones" do
+        %w[gpt-image-2.5-flare gpt-image-2.5-sunburst].each do |model|
+          expect(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: model))
+            .to match_array(%w[auto low medium high xhigh max]), model
+        end
+      end
+
+      it "resolves the default model when none is named" do
+        default = Monadic::Utils::ModelSpec.get_provider_default("openai", "image")
+        expect(Monadic::Utils::ModelSpec.image_options("openai", "quality"))
+          .to eq(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: default))
+      end
+
+      it "offers the tool every value some model accepts" do
+        # The MDSL enum is fixed when the app loads while the model is chosen
+        # per call, so neither the default's list nor any one model's list
+        # describes what may legitimately be asked for.
+        expect(Monadic::Utils::ModelSpec.image_tool_options("openai", "quality"))
+          .to match_array(%w[auto low medium high xhigh max])
+      end
+
+      it "answers nothing for an unknown model even if the provider defines the parameter" do
+        # The refusal must come from the model not being listed, not from the
+        # provider-level key happening to be absent. Simulate someone
+        # reintroducing a provider-wide quality list.
+        opts = Monadic::Utils::ModelSpec.send(:load_image_generation_options)
+        original = opts["openai"].dup
+        begin
+          opts["openai"] = original.merge("quality" => %w[auto low])
+          expect(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: "gpt-image-9"))
+            .to eq([])
+          # Positive control: a known model still resolves through that path.
+          expect(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: "gpt-image-2"))
+            .to match_array(%w[auto low medium high])
+        ensure
+          opts["openai"] = original
+        end
+      end
+
+      it "answers nothing for a model it does not know" do
+        # Falling back to the default model's vocabulary here is how a typo or
+        # a new model reaches a real request with a value the API rejects.
+        expect(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: "gpt-image-9"))
+          .to eq([])
+        expect(Monadic::Utils::ModelSpec.image_option_supported?("openai", "quality", "auto", model: "gpt-image-9"))
+          .to be(false)
+      end
+
+      it "decides a model-and-value pair without calling the API" do
+        expect(Monadic::Utils::ModelSpec.image_option_supported?("openai", "quality", "xhigh", model: "gpt-image-2"))
+          .to be(false)
+        expect(Monadic::Utils::ModelSpec.image_option_supported?("openai", "quality", "xhigh", model: "gpt-image-2.5-flare"))
+          .to be(true)
+      end
+    end
+
+    it "keeps parameters that do not vary by model at the provider level" do
+      # size is the same for every OpenAI image model, so a per-model entry
+      # that omits it must still resolve.
+      per_model = Monadic::Utils::ModelSpec.image_options("openai", "size", model: "gpt-image-2.5-flare")
+      expect(per_model).to eq(Monadic::Utils::ModelSpec.image_options("openai", "size"))
+      expect(per_model).not_to be_empty
+    end
+
+    it "offers the measured xAI vocabulary for each selectable model" do
+      Monadic::Utils::ModelSpec.get_provider_models("xai", "image").each do |model|
+        expect(Monadic::Utils::ModelSpec.image_options("xai", "quality", model: model))
+          .to eq(%w[low medium high auto])
+        expect(Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio", model: model))
+          .to eq(%w[1:1 3:4 4:3 9:16 16:9 2:3 3:2 9:19.5 19.5:9 9:20 20:9 1:2 2:1 21:9 5:2 auto])
+      end
+    end
+
+    it "leaves providers without per-model tables alone" do
+      expect(Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")).not_to be_empty
+      expect(Monadic::Utils::ModelSpec.image_options("gemini", "model")).not_to be_empty
+    end
+
+    it "defines a quality vocabulary for every model it offers" do
+      # A model in providerDefaults that the table does not describe resolves
+      # to [], which the generator treats as "cannot validate" and refuses.
+      Monadic::Utils::ModelSpec.provider_default_models("openai", "image").each do |model|
+        expect(Monadic::Utils::ModelSpec.image_options("openai", "quality", model: model))
+          .not_to be_empty, "#{model} has no quality vocabulary"
+      end
     end
 
     it "returns an empty list for anything unknown instead of raising" do
@@ -93,13 +187,19 @@ RSpec.describe "image generation options come from the SSOT" do
     it "resolves the OpenAI enums to the SSOT values, not the retired ones" do
       enums = enums_for("ImageGeneratorOpenAI")
       expect(enums["size"]).to eq(Monadic::Utils::ModelSpec.image_options("openai", "size"))
-      expect(enums["quality"]).to eq(Monadic::Utils::ModelSpec.image_options("openai", "quality"))
+      # The tool enum is the union across offered models, not the default
+      # model's list: the model picks both the image model and the quality in
+      # one call, so an enum limited to the default would hide xhigh and max.
+      # The pair is checked against each other before the request goes out.
+      expect(enums["quality"]).to eq(Monadic::Utils::ModelSpec.image_tool_options("openai", "quality"))
+      expect(enums["model"]).to eq(Monadic::Utils::ModelSpec.get_provider_models("openai", "image"))
       expect(enums["size"]).not_to include("256x256")
-      expect(enums["quality"]).not_to include("hd")
+      expect(enums["quality"]).not_to include("hd", "standard")
     end
 
     it "resolves the Grok enums to the SSOT values" do
       enums = enums_for("ImageGeneratorGrok")
+      expect(enums["quality"]).to eq(%w[low medium high auto])
       expect(enums["aspect_ratio"]).to eq(Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio"))
       expect(enums["image_model"]).to eq(Monadic::Utils::ModelSpec.get_provider_models("xai", "image"))
     end

@@ -15,8 +15,8 @@ require_relative '../agents/grok_code_agent'
 
 module Monadic
   module MCP
-    # Monadic Conduit — the capability surface exposed to external agentic CLIs
-    # (e.g. Claude Code) over MCP.
+    # Monadic Conduit — the capability surface exposed to external MCP clients
+    # and agentic CLIs over MCP.
     #
     # Design principle (the "first principle"): Conduit does NOT re-publish the
     # app-specific tools (the former `app__tool` surface). It publishes a small,
@@ -660,8 +660,8 @@ module Monadic
           },
           {
             name: "monadic_generate_code",
-            description: "Generate code with a provider's dedicated code agent (OpenAI Code, " \
-                         "Claude Code, or Grok Code). Give a `prompt` describing the task; " \
+            description: "Generate code with a provider's dedicated coding agent (OpenAI, " \
+                         "Claude, or Grok). Give a `prompt` describing the task; " \
                          "returns the generated code. Uses your own API keys; spends provider " \
                          "tokens (budget-gated). LONG-RUNNING (up to ~20 min for complex tasks) " \
                          "— run this via monadic_submit and poll, so it doesn't block the " \

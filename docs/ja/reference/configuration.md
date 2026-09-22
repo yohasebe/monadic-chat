@@ -5,7 +5,7 @@
 ## 設定カテゴリー
 
 - [設定優先度](#設定優先度)
-- [APIキー](#apiキー)
+- [APIキー](#api-keys)
 - [モデル設定](#モデル設定)
 - [システム設定](#システム設定)
 - [音声設定](#音声設定)
@@ -19,15 +19,18 @@
 
 Monadic Chatは設定値に対して以下の優先順位を使用します（高い順）：
 
-1. **環境変数** (`~/monadic/config/env`)
-   - ユーザー定義の設定が最優先
-   - 他のすべての設定ソースを上書き
+1. **アプリの`llm`ブロックで明示された`model`**（モデル値のみ）
+   - モデルを固定したアプリは、以下の設定に関わらずその値を使います
+   - `model`を省略したアプリは以下にフォールスルーします
 
-2. **プロバイダーデフォルト** (`model_spec.js`内の`providerDefaults`)
+2. **環境変数** (`~/monadic/config/env`)
+   - ユーザー定義の設定が、同梱の既定値より優先されます
+
+3. **プロバイダーデフォルト** (`model_spec.js`内の`providerDefaults`)
    - 単一の信頼できるソース(SSOT)として定義されたプロバイダー固有のデフォルトモデル
    - 環境変数が設定されていない場合に適用
 
-3. **ハードコードされたデフォルト**
+4. **ハードコードされたデフォルト**
    - コード内の組み込みフォールバック値
    - ENVとproviderDefaultsのどちらも値を提供しない場合の最終手段
 
@@ -40,7 +43,7 @@ OpenAIのデフォルトモデルの場合：
 
 > **Note**: 現在のデフォルト値は`docker/services/ruby/public/js/monadic/model_spec.js`の`providerDefaults`を参照してください。モデル名は頻繁に更新されるため、最新の値は実装ファイルで確認することを推奨します。
 
-## APIキー
+## APIキー :id=api-keys
 
 | 変数名 | 説明 | 必須 | 例 |
 |--------|------|------|-----|
@@ -52,7 +55,7 @@ OpenAIのデフォルトモデルの場合：
 | `DEEPSEEK_API_KEY` | DeepSeek APIキー | はい（DeepSeekアプリ使用時） | `...` |
 | `XAI_API_KEY` | Grokモデル用のxAI APIキー | はい（Grokアプリ使用時） | `xai-...` |
 | `ELEVENLABS_API_KEY` | TTSおよびScribe音声認識用のElevenLabs APIキー | はい（ElevenLabs音声使用時） | `...` |
-| `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー（Mistral、Cohere、DeepSeek、Ollamaのウェブ検索に必要） | いいえ | `tvly-...` |
+| `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー — 対応は[プロバイダー機能概要](../basic-usage/basic-apps.md#provider-capabilities)を参照 | Tavily経由のウェブ検索時に必要 | `tvly-...` |
 
 ## モデル設定
 
@@ -92,7 +95,7 @@ OpenAIのデフォルトモデルの場合：
 | `TTS_DICT_PATH` | TTS発音辞書CSVのパス。Electronの設定パネル（「TTS辞書ファイルパス」）で設定すると、ファイルが`~/monadic/config/TTS_DICT.csv`にコピーされ、サーバーがこれを読み込みます | （オプション） | ファイルパス |
 | `TTS_DICT_DATA` | インラインTTS発音データ（レガシー。辞書ファイルがない場合のみ使用） | （オプション） | CSV形式 |
 
-> **Note**: 音声認識（STT）モデルは環境変数では設定しません。Web UIの**Speech**パネルで選択してください。選択内容はブラウザのクッキーに保存されます。
+> **Note**: 音声認識（STT）モデルは環境変数では設定しません。Web UIの**Speech Settings**パネルで選択してください。選択内容はブラウザのローカルストレージに保存されます。
 
 ## ヘルプシステム設定
 

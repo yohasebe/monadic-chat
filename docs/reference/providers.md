@@ -12,7 +12,7 @@ Chat providers, each with its own vendor adapter:
 - **Mistral AI** — chat, code generation, vision, text-to-speech, and speech-to-text
 - **Cohere** — chat, vision, and speech-to-text
 - **xAI Grok** — chat, code generation, vision, image generation, video generation, text-to-speech, and speech-to-text
-- **DeepSeek** — chat
+- **DeepSeek** — chat and vision
 - **Ollama** — chat with local models on your own machine. Ollama runs natively on the host OS (not in a Docker container); vision and tool-calling support depend on the installed model. See [Using Ollama](/advanced-topics/ollama.md).
 
 Speech-only service:
@@ -31,15 +31,16 @@ The apps and UI options for each provider become selectable once its key is conf
 
 The model an app uses is resolved in this order (highest priority first):
 
-1. Environment variables in `~/monadic/config/env` — per-provider `*_DEFAULT_MODEL` variables such as `OPENAI_DEFAULT_MODEL`
-2. `providerDefaults` in `model_spec.js` — the default model set shipped with the app
-3. Hardcoded fallbacks in code
+1. An explicit `model` in the app's `llm` block — apps that need a fixed model pin it there
+2. Environment variables in `~/monadic/config/env` — per-provider `*_DEFAULT_MODEL` variables such as `OPENAI_DEFAULT_MODEL`
+3. `providerDefaults` in `model_spec.js` — the default model set shipped with the app
+4. Hardcoded fallbacks in code
 
 See [Configuration Priority](/reference/configuration.md#configuration-priority) and the `*_DEFAULT_MODEL` variable table in [Model Settings](/reference/configuration.md#model-settings).
 
 In the web UI, the Model dropdown shows a curated list by default; the **All** toggle reveals every available model from the provider. See [Model Selection in the UI](/reference/configuration.md#model-selection-in-the-ui).
 
-## Comparing Providers
+## Comparing Providers :id=comparing-providers
 
 Several features make cross-provider comparison a first-class workflow:
 

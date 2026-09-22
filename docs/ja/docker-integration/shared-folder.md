@@ -90,7 +90,7 @@ JupyterLabも`/monadic/data`をホームディレクトリとして起動する�
 
 Monadic Chatを初回起動すると、以下のディレクトリ構造が自動的に作成されます：
 
-```
+```text
 ~/monadic/
 ├── config/         # 設定ファイル（env、rbsetup.sh、pysetup.sh）
 ├── data/           # 共有フォルダ（コンテナから/monadic/dataとしてアクセス可能）

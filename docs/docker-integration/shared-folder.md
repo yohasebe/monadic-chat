@@ -90,7 +90,7 @@ Files are saved directly in the shared folder with generated filenames that ofte
 
 When Monadic Chat starts for the first time, the following directory structure is automatically created:
 
-```
+```text
 ~/monadic/
 ├── config/         # Configuration files (env, rbsetup.sh, pysetup.sh)
 ├── data/           # Shared folder (accessible from containers as /monadic/data)

@@ -16,11 +16,11 @@ AutoForge（公開名：「Artifact Builder」）は、インテリジェント�
                    │
 ┌──────────────────▼───────────────────────────┐
 │         オーケストレーションレイヤー         │
-│  (GPT-5 / Claude Code / Grok-4-Fast-         │
-│   Reasoning via provider APIs)               │
+│  (OpenAI / Anthropic / xAI のチャットモデル  │
+│   をプロバイダー API 経由で使用)             │
 │   - ユーザーインタラクション                 │
-│   - 計画と調整                              │
-│   - ツール呼び出し                          │
+│   - 計画と調整                               │
+│   - ツール呼び出し                           │
 └──────────────────┬───────────────────────────┘
                    │
 ┌──────────────────▼───────────────────────────┐
@@ -34,10 +34,10 @@ AutoForge（公開名：「Artifact Builder」）は、インテリジェント�
                    │
 ┌──────────────────▼───────────────────────────┐
 │        コード生成レイヤー                    │
-│  (OpenAI Code / Claude Code /                │
-│   Grok-Code-Fast-1 via provider agents)      │
-│   - HTML/CSS/JS/CLI生成                      │
-│   - プロバイダー固有のエージェント経由       │
+│  (OpenAI / Claude / Grok の                  │
+│   プロバイダー固有コード生成エージェント)    │
+│   - HTML/CSS/JS/CLI 生成                     │
+│   - オーケストレータと同じプロバイダー       │
 └──────────────────────────────────────────────┘
 ```
 
@@ -154,7 +154,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 
 - 3つのMDSLアプリが共有ツールレイヤーをラップ：
   - `auto_forge_openai`：GPT-5オーケストレーション + OpenAI Code生成
-  - `auto_forge_claude`：Claude Code 4.1オーケストレーション + 生成
+  - `auto_forge_claude`：Claude によるオーケストレーション + Claude のコード生成エージェント
   - `auto_forge_grok`：Grok-4-Fast-Reasoningオーケストレーション + Grok-Code-Fast-1生成
 - プロバイダーエージェントは`source`識別子付きの`wait`フラグメントを発行し、WebSocketレイヤーが一時カードに更新をストリーミングできるようにします：
   - OpenAI用の`OpenAICodeAgent`
@@ -199,7 +199,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 2. **生成エラー**：
    - プレースホルダーHTML（173バイト） → モックジェネレーターの競合（解決済み）
    - 空のレスポンス → タイムアウトまたはAPI問題
-   - 長い生成時間 → OpenAI Code / Claude Codeでは正常（2-5分）
+   - 長い生成時間 → OpenAI・Claude のコード生成エージェントでは正常（2-5分）
 
 3. **ファイルシステムエラー**：
    - Unicodeプロジェクト名 → 適切なエンコーディングで修正

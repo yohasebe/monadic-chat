@@ -2,6 +2,8 @@
 
 <!-- SCREENSHOT: Main web interface showing chat area, sidebar with settings, and status indicators -->
 
+The web interface is made up of the conversation area, the message input area, and a set of side panels.
+
 ## Browser Modes :id=browser-modes
 
 Monadic Chat supports two different browser modes for accessing its web interface:
@@ -39,11 +41,13 @@ Configure the application mode in the Console Settings panel. For the architectu
 
 The interface supports 58 languages. Select your preferred language from the dropdown in the Info panel to configure speech-to-text, text-to-speech, and AI response language. Right-to-Left (RTL) text display is automatically applied for Arabic, Hebrew, Persian, and Urdu.
 
-You can change the language at any time during a conversation. Your language preference is saved and restored on your next session.
+You can change the language at any time during a conversation. The preference is stored in a browser cookie, so it is restored on your next session but is lost if you clear the browser's data or use **Reset All**.
 
 ## System Settings Screen :id=system-settings-screen
 
 <!-- SCREENSHOT: System settings panel showing Base App selector, Model dropdown, reasoning controls, token limits, and various chat options -->
+
+This screen is where you choose the app and model for a session and adjust the conversation parameters.
 
 **Base App** <br />
 Select one of the basic apps. Each app has different default parameters and initial prompts. See [Base Apps](./basic-apps.md) for details.
@@ -83,6 +87,9 @@ Select a provider for the AI User feature, which automatically generates follow-
 
 **Start from assistant**<br />
 The assistant makes the first message when starting a conversation.
+
+**Workflow Viewer**<br />
+Open a live diagram of the selected app — how input flows to the response, and which tools, agents and features the app can use. See [Workflow Viewer](./workflow-viewer.md).
 
 **Chat Interaction Controls**<br />
 Options for voice-based conversations. Click the `toggle all` link to enable or disable all options at once. These controls are hidden in [Live Conversation](../apps/chat-apps.md#live-conversation), which manages audio itself.
@@ -197,14 +204,7 @@ When you click the **AI User** button (robot icon) in the message input area, th
 ### Configuration
 
 **AI User Provider**<br />
-Select which AI provider generates the simulated user responses. This can be different from the main conversation's AI provider. Available providers depend on which API keys you have configured:
-- OpenAI
-- Claude (Anthropic)
-- Gemini (Google)
-- Mistral
-- Cohere
-- Grok (xAI)
-- DeepSeek
+Select which AI provider generates the simulated user responses. This can be different from the main conversation's AI provider. Available providers depend on which API keys you have configured (OpenAI, Anthropic, Gemini, Cohere, Mistral, DeepSeek, Grok).
 
 **Initial Prompt for AI-User**<br />
 Customize the system prompt that guides how the AI generates user responses. You can modify this to adjust the personality, focus areas, or response style of the simulated user.

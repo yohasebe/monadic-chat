@@ -151,7 +151,7 @@ Monadic Chat supports opening multiple browser tabs simultaneously. Each tab is 
 - In server mode, each connected client's sessions are isolated from other clients
 
 **Shared per browser:**
-- Preferences stored in cookies (such as UI language and voice settings) are shared by all tabs in the same browser profile
+- Preferences stored in the browser (UI language in a cookie, the speech-to-text choice in local storage) are shared by all tabs in the same browser profile
 
 See [Server Mode Architecture](../docker-integration/basic-architecture.md#server-mode) for more details.
 

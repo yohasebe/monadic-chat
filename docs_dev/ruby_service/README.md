@@ -51,7 +51,7 @@ The Ruby service is the core backend of Monadic Chat, built on Rack and Async/Fa
 - **Async** - Asynchronous I/O framework
 - **Async::WebSocket** - WebSocket support for Async
 - **Docker** - Container orchestration
-- **PostgreSQL/PGVector** - Vector database for embeddings
+- **Qdrant** - Vector database for embeddings, with a local embeddings service (`multilingual-e5-base`)
 
 ## Related Documentation
 

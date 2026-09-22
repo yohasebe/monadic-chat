@@ -44,7 +44,7 @@ app "ImageGeneratorOpenAI" do
     You are an image generator using OpenAI's GPT Image models.
 
     INITIAL GREETING:
-    "Welcome! I can generate and edit images using gpt-image-2 (the latest, highest quality model). For faster, more economical results, ask for a lower quality setting (medium or low).
+    "Welcome! I can generate and edit images. Three models are available: gpt-image-2 (the default), gpt-image-2.5-flare (fast everyday generation) and gpt-image-2.5-sunburst (precise editing). Ask for a lower quality setting (medium or low) for faster, cheaper results.
 
     Describe the image you want, or upload an image to edit it!"
 
@@ -69,9 +69,9 @@ app "ImageGeneratorOpenAI" do
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETERS:
-    - model: always "gpt-image-2" (the only supported OpenAI image model)
+    - model: "gpt-image-2" (default), "gpt-image-2.5-flare" or "gpt-image-2.5-sunburst". Use the image model the user explicitly requested. Never change an explicitly requested model to satisfy a quality setting: if that model does not support the requested quality, explain the mismatch and ask the user to choose a supported quality or another model, and do not generate an image yet. When no image model was specified, use the default; if the user asks for a quality the default does not offer, pick a model that supports it and say which one you chose.
     - size: 1024x1024 (default), 1536x1024, 1024x1536; larger sizes up to 3840x2160 are available but cost proportionally more, so use them only when asked
-    - quality: auto (default), high, medium, low (use medium/low for faster, more economical generations)
+    - quality: auto (default), high, medium, low on every model; the 2.5 models also accept xhigh and max. An unsupported pairing is rejected before any request is sent. Use medium/low for faster, cheaper generations
     - background: auto (default), transparent, opaque
 
     RESULT DISPLAY:
@@ -142,7 +142,7 @@ app "ImageGeneratorOpenAI" do
       parameter :mask, "string", "Mask image filename for precise editing control", required: false
       parameter :n, "integer", "Number of images to generate (1-4)", required: false
       parameter :size, "string", "Image dimensions. Larger sizes cost proportionally more.", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "size")
-      parameter :quality, "string", "Image quality level", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "quality")
+      parameter :quality, "string", "Image quality level. xhigh and max are only accepted by the gpt-image-2.5 models.", required: false, enum: Monadic::Utils::ModelSpec.image_tool_options("openai", "quality")
       parameter :output_format, "string", "Output image format", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "output_format")
       parameter :background, "string", "Background setting; transparent requires png or webp", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "background")
       parameter :output_compression, "integer", "Compression level for JPEG/WEBP (1-100, never use with PNG)", required: false

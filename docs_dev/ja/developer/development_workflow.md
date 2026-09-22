@@ -240,7 +240,7 @@ rake server:debug
 - 包括的なセットアップを実行：APIキーチェック、ベンダーアセットダウンロード、プロセスクリーンアップ
 - `EXTRA_LOGGING=true` でデバッグモードでサーバーを起動
 - Ruby コンテナは起動せず、ホストの Ruby ランタイムを使用
-- 他のすべてのコンテナを起動（Python、PostgreSQL、pgvector、Selenium）
+- 他のコンテナを起動（qdrant、embeddings、Python、Selenium、および `PRIVACY_FILTER=false` でなければ Privacy）
 - ホスト上の `docker/services/ruby/` のファイルを直接使用
 - ブラウザで [http://localhost:4567](http://localhost:4567) から Web UI にアクセス可能
 

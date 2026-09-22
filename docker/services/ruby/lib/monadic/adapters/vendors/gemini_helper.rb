@@ -754,7 +754,7 @@ module GeminiHelper
     
     # New Gemini 3 thinking level parameter
     # Filter out "none" — Gemini doesn't support it; valid values are minimal/low/medium/high.
-    # When "none", skip thinking configuration entirely (model runs without thinking).
+    # When "none", use the budget branch below to apply can_disable.
     gemini_reasoning = options["reasoning_effort"]
     gemini_reasoning = nil if gemini_reasoning == "none"
 
@@ -1691,9 +1691,12 @@ module GeminiHelper
     thinking_level_config = Monadic::Utils::ModelSpec.get_thinking_level_options(model_name)
     thinking_level = nil
     reasoning_effort = obj["reasoning_effort"]
-    # Filter "none" — Gemini has no "none" level; treat as "disable thinking"
-    reasoning_effort = nil if reasoning_effort == "none"
-    if thinking_level_config
+    # "none" is an application control, not an API thinking level. Preserve
+    # it for the budget branch when the catalog permits disabling thinking.
+    disable_thinking = reasoning_effort == "none" &&
+      Monadic::Utils::ModelSpec.get_thinking_budget(model_name)&.[]("can_disable")
+    reasoning_effort = nil if reasoning_effort == "none" && !disable_thinking
+    if thinking_level_config && !disable_thinking
       thinking_level = reasoning_effort || obj["thinking_level"] || thinking_level_config[:default]
       reasoning_effort = nil  # Avoid mixing thinking_budget and thinking_level
     end

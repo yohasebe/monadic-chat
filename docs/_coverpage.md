@@ -10,6 +10,6 @@
 - JupyterLab integration
 - Privacy Filter for PII masking (opt-in)
 
-[Get Started](README.md)
+[Get Started](/README.md)
 [GitHub](https://github.com/yohasebe/monadic-chat/)
 

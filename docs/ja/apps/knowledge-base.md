@@ -2,9 +2,9 @@
 
 チャットセッションの保存とドキュメントのインポートを、どのアプリからも検索できる単一のライブラリに集約します。
 
-プロジェクト全体で共有される、会話とドキュメントの統合ライブラリです。Knowledge Base はすべての Monadic Chat アプリから参照可能なため、ここに保存した内容はどのチャットセッションからも検索・引用できます。
+プロジェクト全体で共有される、会話とドキュメントの統合ライブラリです。すべての Monadic Chat アプリから参照できますが、実際に検索できる範囲は後述のスコープモデルに従います。
 
-Knowledge Base は従来の PDF Navigator と Content Reader を置き換えるサブシステムです。会話のトランスクリプト、PDF、Office ファイル、Markdown、ソースコードを単一のインターフェースで扱えるようにまとめています。
+会話のトランスクリプト、PDF、Office ファイル、Markdown、ソースコードを単一のインターフェースで扱えるようにまとめています。
 
 ?> Knowledge Base はアプリ単位の [PDF Database パネル](../basic-usage/pdf_storage.md)（`pdf_vector_storage` を宣言したアプリ＝現在は Chat Plus と Research Assistant 向けのアプリスコープ PDF ストレージ）とは別の機能です。一方に取り込んだ内容がもう一方に現れることはありません。
 

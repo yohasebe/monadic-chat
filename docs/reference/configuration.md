@@ -19,15 +19,18 @@ This page provides a comprehensive reference for all configuration options in Mo
 
 Monadic Chat uses the following priority order for configuration values (highest to lowest):
 
-1. **Environment Variables** (`~/monadic/config/env`)
-   - User-defined settings take highest priority
-   - Override all other configuration sources
+1. **An explicit `model` in an app's `llm` block** (model values only)
+   - An app that pins a model keeps it regardless of the settings below
+   - Apps that omit `model` fall through to the sources below
 
-2. **Provider Defaults** (`providerDefaults` in `model_spec.js`)
+2. **Environment Variables** (`~/monadic/config/env`)
+   - User-defined settings take priority over the shipped defaults
+
+3. **Provider Defaults** (`providerDefaults` in `model_spec.js`)
    - Provider-specific default models defined as the single source of truth (SSOT)
    - Applied when no environment variable is set
 
-3. **Hardcoded Defaults**
+4. **Hardcoded Defaults**
    - Built-in fallback values in the code
    - Used as last resort when neither ENV nor providerDefaults provide a value
 
@@ -40,7 +43,7 @@ For the OpenAI default model:
 
 > **Note**: For current default values, refer to `providerDefaults` in `docker/services/ruby/public/js/monadic/model_spec.js`. Model names are updated frequently, so it's recommended to check the implementation files for the latest values.
 
-## API Keys
+## API Keys :id=api-keys
 
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
@@ -52,7 +55,7 @@ For the OpenAI default model:
 | `DEEPSEEK_API_KEY` | DeepSeek API key | Yes (for DeepSeek apps) | `...` |
 | `XAI_API_KEY` | xAI API key for Grok models | Yes (for Grok apps) | `xai-...` |
 | `ELEVENLABS_API_KEY` | ElevenLabs API key for TTS and Scribe speech-to-text | Yes (for ElevenLabs voices) | `...` |
-| `TAVILY_API_KEY` | Tavily API key for web search (required for Mistral, Cohere, DeepSeek, Ollama web search) | No | `tvly-...` |
+| `TAVILY_API_KEY` | Tavily API key for web search — see [Provider Capabilities Overview](../basic-usage/basic-apps.md#provider-capabilities) | Required for web search through Tavily | `tvly-...` |
 
 ## Model Settings
 
@@ -92,7 +95,7 @@ To see all available models from the provider, toggle the **All** switch next to
 | `TTS_DICT_PATH` | Path to a TTS pronunciation dictionary CSV. Set via the Electron Settings panel ("TTS Dictionary File Path"); the file is copied to `~/monadic/config/TTS_DICT.csv`, which the server reads | (optional) | File path |
 | `TTS_DICT_DATA` | Inline TTS pronunciation data (legacy; used only when no dictionary file is available) | (optional) | CSV format |
 
-> **Note**: The speech-to-text model is not configured via environment variables. Select it in the **Speech** panel of the web UI; the selection is stored in a browser cookie.
+> **Note**: The speech-to-text model is not configured via environment variables. Select it in the **Speech Settings** panel of the web UI; the selection is stored in the browser's local storage.
 
 ## Help System Settings
 

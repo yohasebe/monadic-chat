@@ -11,7 +11,7 @@ Monadic Chat は `monadic-chat-python-container` 内で Python ツールを実�
 - Music：`librosa` + `madmom`（Music Lab パイプラインで使用）
 - Tools：ImageMagick（`convert`/`mogrify`）
 
-保存後に表示されるダイアログで「Rebuild now」を選ぶと、Python コンテナを成功時のみ本番に反映して再ビルドします。進捗と要約は インストールオプション ウィンドウに表示され、ログと成果物は `~/monadic/log/` 直下（`docker_build_python.log`、`post_install_python.log`、`python_health.json`、`python_meta.json`）に保存され、実行のたびに上書きされます。
+保存しても再ビルドは行われません。次回の起動時に**Rebuild and Start**が提示され、**Actions → Build Python Container** ならその場で再ビルドできます。どちらの場合も Python イメージは一時タグにビルドされ、検証に通ったときだけ本番タグへ昇格します。進捗はメインコンソールに表示され、ログと成果物は `~/monadic/log/` 直下（`docker_build_python.log`、`post_install_python.log`、`python_health.json`、`python_meta.json`）に保存され、実行のたびに上書きされます。
 
 NLTK と spaCy について:
 - `nltk` オプションはライブラリのみをインストールします。コーパス/データは自動ダウンロードされません。
@@ -28,7 +28,7 @@ NLTK と spaCy について:
 - Dockerfile はベース層（共通 pip）とオプション層（ライブラリごと RUN）に分割し、キャッシュを最大限活用。
 - オプション変更・LaTeX/ImageMagick 切替でも必要な層だけ再実行され、フル再ビルドを回避。
 
-## 追加ライブラリ（pysetup.sh）
+## 追加ライブラリ（pysetup.sh） :id=adding-libraries-with-pysetupsh
 
 `~/monadic/config/pysetup.sh` を作成すると、Rebuild 後の「ポストセットアップ」で自動実行されます（Dockerfile 内に組み込みません）。
 
@@ -144,7 +144,7 @@ matplotlib 等で日本語表示できるよう、Noto CJK 系フォントと `m
 
 ## スクリプト構成
 
-```
+```text
 /monadic/scripts/
 ├── utilities/          # システムユーティリティ (sysinfo.sh 等)
 ├── cli_tools/          # CLIツール (content_fetcher.py 等)

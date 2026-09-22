@@ -95,12 +95,12 @@ module Monadic
         code = normalize_response(response)
 
         if code.nil? || code.strip.empty?
-          { success: false, error: 'Claude Code returned empty content' }
+          { success: false, error: 'The Claude coding agent returned empty content' }
         else
           { success: true, code: code }
         end
       rescue => e
-        { success: false, error: "Claude Code generation failed: #{e.message}" }
+        { success: false, error: "Claude coding agent failed: #{e.message}" }
       ensure
         cleanup_claude_progress_thread(progress_thread)
       end

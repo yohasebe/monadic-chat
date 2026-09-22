@@ -6,7 +6,8 @@ Monadic ヘルプシステムは、Monadic Chat ユーザー向けにドキュ�
 
 - **ストレージ**: `qdrant_service` コンテナ上の Qdrant コレクション (`help_docs`: ドキュメント単位、`help_items`: チャンク単位)
 - **埋め込み**: `embeddings_service` コンテナで提供される `intfloat/multilingual-e5-base` (768 次元、L2 正規化)。外部 API キー不要。
-- **ビルドパイプライン**: `rake help:build` が `docs/` 配下の Markdown を分割し (`--include-internal` 指定時は `docs_dev/` も)、JSON ダンプを `docker/services/ruby/help_data/help_db.json` に書き出します。ダンプは Ruby イメージに焼き込まれ、初回起動時に `Monadic::Help::DumpLoader` が Qdrant にインポートします。
+- **ビルドパイプライン**: `rake help:build` が `docs/` 配下の Markdown を分割し、JSON ダンプを `docker/services/ruby/help_data/help_db.json` に書き出します。ダンプは Ruby イメージに焼き込まれ、初回起動時に `Monadic::Help::DumpLoader` が Qdrant にインポートします。
+- **公開ドキュメントのみ**: 出荷されるダンプに入るのは公開ドキュメントだけです。`rake help:build_internal` は手元用に `docs_dev/` も索引化します。内部ポイントを含むダンプは `HelpDumpGuard` が梱包を拒否します（Rake の stager と electron-builder の `beforePack` フックの両方から）。
 
 ## 機能
 
@@ -27,7 +28,7 @@ Monadic ヘルプシステムは、Monadic Chat ユーザー向けにドキュ�
 ## ヘルプ DB のビルド
 
 ```bash
-# docs/* + docs_dev/* からダンプをビルド (毎回フル再構築)
+# docs/* からダンプをビルド (毎回フル再構築)。出荷されるのはこちら。
 rake help:build
 
 # 既存ダンプを削除してから再構築
@@ -35,9 +36,12 @@ rake help:rebuild
 
 # ダンプ統計を表示 (パス、埋め込みモデル、コレクション別ポイント数)
 rake help:stats
+
+# 開発者向け: docs_dev/* も索引化する。梱包時に拒否される。
+rake help:build_internal
 ```
 
-ビルドスクリプトは常にコーパス全体を処理します — 増分スキップは行いません。ローカル CPU 上で約 150 ドキュメント (約 2,500 チャンク) を 1 分以内で埋め込めるため、簡素化を優先しています (Apple Silicon の場合)。
+ビルドスクリプトは常にコーパス全体を処理します — 増分スキップは行いません。コーパス全体をローカルで埋め込んでも 1 分とかからないため、簡素化を優先しています。
 
 ## 検索 API (Ruby)
 

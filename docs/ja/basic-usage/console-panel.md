@@ -15,15 +15,17 @@ Monadic Chatを停止します。
 **Restart** <br />
 Monadic Chatを再起動します。
 
-**Open Browser** <br />
+**Browser** <br />
 Monadic ChatをWebブラウザで開きます。
 アクセス URL: [http://localhost:4567](http://localhost:4567)
 
 **Shared Folder** <br />
-ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。
+ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポート、追加アプリの導入に使用します。フォルダ構成と各サブフォルダ（`apps`、`helpers`、`scripts`）の役割については[共有フォルダ](../docker-integration/shared-folder.md)を参照してください。
 
+**Settings** <br />
+下記の[設定パネル](#設定パネル)を開きます。
 
-**Quit**<br />
+**Quit** <br />
 Monadic Chat Consoleを終了します。
 
 ## コンソールメニュー項目
@@ -36,48 +38,48 @@ Monadic Chat Consoleを終了します。
 
 <!-- SCREENSHOT: Actionsメニュードロップダウン。Install Options、Start、Stop、Restart、ビルドオプション、JupyterLab制御、ドキュメントDBインポート/エクスポートオプションを表示 -->
 
-**インストールオプション（Install Options）** <br />
+**Install Options** <br />
 設定ウィンドウの Install Options パネルを開きます。サービスコンテナにインストールするオプションパッケージ（LaTeX、Pythonライブラリ、Privacy Filterの追加言語など）を選択できます。
 
-**開始** <br />
+**Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
 
-**停止** <br />
+**Stop** <br />
 Monadic Chatを停止します。
 
-**再起動** <br />
+**Restart** <br />
 Monadic Chatを再起動します。
 
-**すべてビルド** <br />
+**Build All** <br />
 Monadic ChatのすべてのDockerイメージおよびコンテナを構築します。
 
 ?> **補足:** メニューから実行するビルドコマンドは常に Docker の `--no-cache` フラグ付きで動作し、Dockerfile の変更や依存関係の更新を確実に反映します。
 
-**Ruby コンテナをビルド** <br />
+**Build Ruby Container** <br />
 Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を構築します。
 
-**Python コンテナをビルド** <br />
+**Build Python Container** <br />
 AIエージェントが利用するDockerイメージおよびコンテナ（`monadic-chat-python-container`）を構築します。
 
-**ユーザーコンテナをビルド** <br />
+**Build User Containers** <br />
 ユーザーが定義したDockerイメージおよびコンテナを構築します。なお、ユーザー定義コンテナはMonadic Chat起動時に自動的には構築されませんので、ユーザーコンテナ定義を追加または変更した後は、このメニューオプションを使用して手動で構築する必要があります。
 
-**Privacy コンテナをビルド** <br />
+**Build Privacy Container** <br />
 Privacy Filter 機能が使用するDockerイメージおよびコンテナ（`monadic-chat-privacy-container`）を構築します。
 
-**Extractor コンテナをビルド** <br />
+**Build Extractor Container** <br />
 ドキュメントファイルからのテキスト抽出に使用するDockerイメージおよびコンテナ（`monadic-chat-extractor-container`）を構築します。
 
-**JupyterLab を開始** <br />
+**Start JupyterLab** <br />
 JupyterLabを[http://localhost:8889](http://localhost:8889)で起動します。詳細は[JupyterLabとの連携](../docker-integration/jupyterlab.md)を参照してください。
 
-**JupyterLab を停止** <br />
+**Stop JupyterLab** <br />
 JupyterLabを停止します。
 
-**ドキュメント DB をインポート** <br />
+**Import Document DB** <br />
 ドキュメント DB（保存された会話・PDF・Knowledge Base エントリすべて）を共有フォルダ内の tarball から取り込みます。実行前に、現在の DB を上書きすることを警告する確認ダイアログが表示されます。受け入れられるファイル名は `monadic-qdrant.tar.gz`（平文）または `monadic-qdrant.tar.gz.enc`（暗号化、エクスポート時のパスフレーズを入力するよう促されます）です。
 
-**ドキュメント DB をエクスポート** <br />
+**Export Document DB** <br />
 ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **Encrypt and Export**（デフォルト — パスフレーズを尋ね、`monadic-qdrant.tar.gz.enc` を書き出します）と **Export Plain**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。保存済みの会話・PDF が平文で含まれることを強く警告）。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。暗号化フォーマットとインポート／復号の挙動の詳細は [Privacy Filter](../advanced-topics/privacy-filter.md#document-db-export-import) を参照してください。
 
 ### Open メニュー
@@ -101,7 +103,6 @@ Monadic Chatの設定ファイルが保存されているフォルダを開き�
 - `rbsetup.sh`: Ruby環境をセットアップするスクリプト（オプション、ユーザー作成）
 - `compose.yml`: Docker Compose設定ファイル（ユーザーコンテナが存在する場合に自動生成）
 
-
 **Open Log Folder** <br />
 Monadic Chatのログファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
 
@@ -111,11 +112,7 @@ Monadic Chatのログファイルが保存されているフォルダを開き�
 - `command.log`: Monadic Chatのコマンド実行およびコード実行ログファイル
 - `jupyter.log`: Jupyterノートブックに追加されたセルのログファイル
 
-設定パネルで`Extra Logging`を有効にすると、追加のログが`extra.log`として保存されます。
-
-- `extra.log`: Monadic Chatの起動から終了時までに行なったチャットの記録がレスポンス時にストリーミングされるJSONオブジェクト単位で記録されるログファイル
-
-?> **注意:** 「Extra Logging」オプションはデバッグ目的で詳細なログを有効にします。有効にすると、追加のログ情報がログディレクトリに保存されます。
+設定パネルで`Extra Logging`を有効にすると、`extra.log`が追加され、Monadic Chatの起動から終了までのチャットがストリーミングされるJSONオブジェクト単位で記録されます。デバッグ用です。
 
 **Open Console** <br />
 Monadic Chatのコンソールパネルを開きます。
@@ -170,33 +167,23 @@ Monadic ChatのすべてのDockerイメージ、コンテナ、および保存�
 
 ### API Keys（APIキー）
 
-**OPENAI_API_KEY** <br />
-（推奨）OpenAI APIキーを入力します。このキーは、Chat API、画像生成API、Speech-to-Text API、およびText-to-Speech APIにアクセスするために使用されます。必須ではありませんが、多くの基本機能がこのキーに依存しています。APIキーは[OpenAI APIページ](https://platform.openai.com/docs/guides/authentication)から取得できます。
+使用したいプロバイダーのキーを入力します。アカウントを持っているものだけ設定すれば十分です。OpenAIのキーは対応範囲が広く、チャットモデルに加えて画像生成・Speech-to-Text・Text-to-Speechにも同じキーが使われるため、最初に用意する価値が最も高いキーです。
 
+各キーで何が使えるようになるか、どのアプリで必須かは[設定](../reference/configuration.md#api-keys)を参照してください。
 
-**ANTHROPIC_API_KEY** <br />
-Anthropic APIキーを入力します。APIキーは[https://console.anthropic.com](https://console.anthropic.com)から取得できます。
+| 設定項目 | キーの取得先 |
+| --- | --- |
+| `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/docs/guides/authentication) |
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) |
+| `COHERE_API_KEY` | [dashboard.cohere.com](https://dashboard.cohere.com) |
+| `GEMINI_API_KEY` | [ai.google.dev](https://ai.google.dev/) |
+| `MISTRAL_API_KEY` | [console.mistral.ai](https://console.mistral.ai/) |
+| `XAI_API_KEY` | [x.ai/api](https://x.ai/api) |
+| `DEEPSEEK_API_KEY` | [platform.deepseek.com](https://platform.deepseek.com/) |
+| `ELEVENLABS_API_KEY` | [elevenlabs.io/developers](https://elevenlabs.io/developers) |
+| `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) |
 
-**COHERE_API_KEY** <br />
-Cohere APIキーを入力します。APIキーは[https://dashboard.cohere.com](https://dashboard.cohere.com)から取得できます。
-
-**GEMINI_API_KEY** <br />
-Google Gemini APIキーを入力します。APIキーは[https://ai.google.dev/](https://ai.google.dev/)から取得できます。
-
-**MISTRAL_API_KEY** <br />
-Mistral APIキーを入力します。APIキーは[https://console.mistral.ai/](https://console.mistral.ai/)から取得できます。
-
-**XAI_API_KEY** <br />
-xAI APIキーを入力します。APIキーは[https://x.ai/api](https://x.ai/api)から取得できます。
-
-**DEEPSEEK_API_KEY** <br />
-DeepSeek APIキーを入力します。APIキーは[https://platform.deepseek.com/](https://platform.deepseek.com/)から取得できます。
-
-**ELEVENLABS_API_KEY** <br />
-ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声モデルを使用するためのものです。APIキーは[https://elevenlabs.io/developers](https://elevenlabs.io/developers)から取得できます。
-
-**TAVILY_API_KEY** <br />
-Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（Seleniumの代替）、2) ネイティブ検索機能を持たないプロバイダーでのWeb検索機能 — 対象プロバイダーは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。APIキーは[https://tavily.com/](https://tavily.com/)から取得できます。
+`TAVILY_API_KEY`だけは特定のプロバイダーに紐づきません。"From URL"機能（Seleniumの代替）と、ネイティブ検索機能を持たないプロバイダーでのWeb検索に使われます — 対象プロバイダーは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
 
 <!-- SCREENSHOT: 設定パネル。Voice & Audioセクションを表示し、TTS Dictionary File PathとAuto TTS Max Bytesの入力フィールドを含む -->
 
@@ -223,7 +210,9 @@ MCPサーバーが使用するネットワークポートです（デフォル�
 
 ### Install Options（インストールオプション）
 
-サービスコンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCyなど）、音楽分析ライブラリ、システムツール、Privacy Filterの追加言語。変更したオプションを保存すると、必要に応じて該当コンテナの再ビルドが行われます。
+サービスコンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCyなど）、音楽分析ライブラリ、システムツール。保存しても再ビルドは行われません。次回の起動時に**Rebuild and Start**が提示されるか、**Actions → Build Python Container** から手動で実行します。
+
+同じパネルにあるPrivacy Filterの追加言語は扱いが異なります。言語モデルはPrivacyコンテナにすべて同梱済みなので、保存するだけで反映され、再ビルドは不要です。
 
 ### Actions（アクション）
 

@@ -70,10 +70,11 @@ module MonadicHelpTools
     { error: "Error searching help database: #{e.message}" }
   end
 
-  def get_help_document(doc_id:)
+  def get_help_document(doc_id:, include_internal: nil)
     return { error: "Help database not available" } unless help_embeddings_db
     
-    snippets = help_embeddings_db.get_text_snippets(doc_id)
+    include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
+    snippets = help_embeddings_db.get_text_snippets(doc_id, include_internal: include_internal)
     
     # Combine snippets into full document
     full_text = snippets.map { |s| s[:text] }.join("\n\n")
@@ -87,11 +88,12 @@ module MonadicHelpTools
     { error: "Error retrieving document: #{e.message}" }
   end
 
-  def list_help_sections(language: nil)
+  def list_help_sections(language: nil, include_internal: nil)
     return { error: "Help database not available" } unless help_embeddings_db
     
     begin
-      titles = help_embeddings_db.list_titles(language: language)
+      include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
+      titles = help_embeddings_db.list_titles(language: language, include_internal: include_internal)
     rescue NoMethodError => e
       return { error: "Help database not properly initialized. Please restart the server." }
     end

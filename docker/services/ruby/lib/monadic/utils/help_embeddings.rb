@@ -37,7 +37,7 @@ class HelpEmbeddings
       vector: vec, vector_name: 'content',
       filter: filter, limit: top_n
     )
-    hits.map { |hit| item_hit_to_row(hit) }
+    hits.filter_map { |hit| item_hit_to_row(hit, include_internal: include_internal) }
   end
 
   # Group nearest items by document so a single document does not flood
@@ -55,20 +55,20 @@ class HelpEmbeddings
     grouped.values.take(top_n).flatten
   end
 
-  def find_closest_doc(text, top_n: 5, language: nil)
+  def find_closest_doc(text, top_n: 5, language: nil, include_internal: false)
     vec = embed_query(text)
     filter = language ? language_filter(language) : nil
     hits = @store.search(
       collection: Schema::HELP_DOCS,
       vector: vec, vector_name: 'content',
-      filter: filter, limit: top_n
+      filter: visibility_filter(filter, include_internal: include_internal), limit: top_n
     )
     hits.map { |hit| doc_hit_to_row(hit) }
   end
 
-  def list_titles(language: nil)
+  def list_titles(language: nil, include_internal: false)
     filter = language ? language_filter(language) : nil
-    scroll_all(Schema::HELP_DOCS, filter: filter).map do |point|
+    scroll_all(Schema::HELP_DOCS, filter: filter, include_internal: include_internal).map do |point|
       payload = point['payload'] || {}
       {
         doc_id: point['id'],
@@ -80,8 +80,11 @@ class HelpEmbeddings
     end
   end
 
-  def get_text_snippets(doc_id)
-    items = scroll_all(Schema::HELP_ITEMS, filter: doc_id_filter(doc_id))
+  def get_text_snippets(doc_id, include_internal: false)
+    return [] unless fetch_doc_payload(doc_id, include_internal: include_internal)
+
+    items = scroll_all(Schema::HELP_ITEMS, filter: doc_id_filter(doc_id),
+                       include_internal: include_internal)
     items
       .map { |p| p['payload'] || {} }
       .sort_by { |p| (p['position'] || 0).to_i }
@@ -96,8 +99,9 @@ class HelpEmbeddings
   end
 
   # MCP adapter compatibility: tightened formatting around find_closest_text_multi.
-  def search(query:, num_results: 3)
-    rows = find_closest_text_multi(query, chunks_per_result: 1, top_n: num_results)
+  def search(query:, num_results: 3, include_internal: false)
+    rows = find_closest_text_multi(query, chunks_per_result: 1, top_n: num_results,
+                                  include_internal: include_internal)
     rows.map do |r|
       {
         title: r[:title],
@@ -108,18 +112,18 @@ class HelpEmbeddings
     end
   end
 
-  def get_stats
-    docs = scroll_all(Schema::HELP_DOCS)
+  def get_stats(include_internal: false)
+    docs = scroll_all(Schema::HELP_DOCS, include_internal: include_internal)
     by_lang = Hash.new(0)
     docs.each do |p|
       by_lang[p.dig('payload', 'language') || 'unknown'] += 1
     end
-    total_items = @store.count(collection: Schema::HELP_ITEMS)
-    avg = if docs.empty?
-            0.0
-          else
-            (docs.sum { |p| (p.dig('payload', 'items') || 0).to_i }.to_f / docs.size).round(2)
-          end
+    # Count visible children of visible parents, not the unfiltered item
+    # count cached in each document's payload.
+    doc_ids = docs.to_h { |doc| [doc['id'], true] }
+    total_items = scroll_all(Schema::HELP_ITEMS, include_internal: include_internal)
+                  .count { |item| doc_ids.key?(item.dig('payload', 'doc_id')) }
+    avg = docs.empty? ? 0.0 : (total_items.to_f / docs.size).round(2)
     {
       documents_by_language: by_lang,
       total_items: total_items,
@@ -127,19 +131,21 @@ class HelpEmbeddings
     }
   end
 
-  def get_unique_categories
-    scroll_all(Schema::HELP_DOCS)
+  def get_unique_categories(include_internal: false)
+    scroll_all(Schema::HELP_DOCS, include_internal: include_internal)
       .map { |p| p.dig('payload', 'metadata', 'category') }
       .compact
       .uniq
       .sort
   end
 
-  def get_by_category(category)
-    scroll_all(Schema::HELP_DOCS, filter: category_filter(category)).map do |doc|
+  def get_by_category(category, include_internal: false)
+    scroll_all(Schema::HELP_DOCS, filter: category_filter(category),
+               include_internal: include_internal).map do |doc|
       payload = doc['payload'] || {}
       doc_id = doc['id']
-      items = scroll_all(Schema::HELP_ITEMS, filter: doc_id_filter(doc_id))
+      items = scroll_all(Schema::HELP_ITEMS, filter: doc_id_filter(doc_id),
+                         include_internal: include_internal)
               .sort_by { |i| (i.dig('payload', 'position') || 0).to_i }
       content = items.map { |i| i.dig('payload', 'text') }.compact.join("\n\n")
       {
@@ -234,9 +240,13 @@ class HelpEmbeddings
     }
   end
 
-  def item_hit_to_row(hit)
+  def item_hit_to_row(hit, include_internal: false)
     payload = hit['payload'] || {}
-    doc_payload = fetch_doc_payload(payload['doc_id'])
+    return nil unless include_internal || payload['is_internal'] == false
+
+    doc_payload = fetch_doc_payload(payload['doc_id'], include_internal: include_internal)
+    return nil unless doc_payload
+
     {
       text: payload['text'],
       doc_id: payload['doc_id'],
@@ -265,10 +275,22 @@ class HelpEmbeddings
     }
   end
 
-  def fetch_doc_payload(doc_id)
-    return {} if doc_id.nil?
+  def fetch_doc_payload(doc_id, include_internal: false)
+    return nil if doc_id.nil?
     points = @store.retrieve_points(collection: Schema::HELP_DOCS, ids: [doc_id])
-    points.first&.dig('payload') || {}
+    payload = points.first&.dig('payload')
+    return nil unless payload && (include_internal || payload['is_internal'] == false)
+
+    payload
+  end
+
+  # Keep every clause of the incoming filter (should / must_not as well as
+  # must) and add the public-only condition to its must list.
+  def visibility_filter(filter, include_internal: false)
+    return filter if include_internal
+
+    base = filter || {}
+    base.merge(must: Array(base[:must]) + without_internal_filter[:must])
   end
 
   def without_internal_filter
@@ -287,7 +309,8 @@ class HelpEmbeddings
     { must: [{ key: 'metadata.category', match: { value: category } }] }
   end
 
-  def scroll_all(collection, filter: nil, batch_size: 256)
+  def scroll_all(collection, filter: nil, batch_size: 256, include_internal: false)
+    filter = visibility_filter(filter, include_internal: include_internal)
     results = []
     offset = nil
     loop do

@@ -123,8 +123,14 @@ RSpec.describe Monadic::Help::ValidatedDump do
     end
   end
 
+  # The dump is generated at packaging time and is not tracked, so a checkout
+  # that has never run `rake help:build` has nothing to validate here. What
+  # ships is gated where it matters -- stage_docker_payload and the beforePack
+  # hook both refuse a dump that is missing or carries internal documents.
   it 'validates the shipped public dump' do
     path = File.expand_path('../../../help_data/help_db.json', __dir__)
+    skip 'no help dump built; run `rake help:build`' unless File.file?(path)
+
     expect { described_class.new(path) }.not_to raise_error
   end
 end

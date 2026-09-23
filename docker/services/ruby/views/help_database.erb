@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="<%= Rack::Utils.escape_html(@ui_language) %>">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Help Data - Monadic Chat</title>
+    <link rel="stylesheet" href="/vendor/css/bootstrap.min.css">
+  </head>
+  <body>
+    <main class="container py-4">
+      <h1>Monadic Chat</h1>
+      <%= erb :_help_database_panel, locals: { standalone: true } %>
+      <p class="mt-3"><a href="/" data-i18n="ui.helpData.back">Back to chat</a></p>
+    </main>
+    <script src="/js/monadic/dom-helpers.js"></script>
+    <script src="/js/monadic/monadic-fetch.js"></script>
+    <script src="/js/i18n/translations.js"></script>
+    <script src="/js/monadic/help-database.js"></script>
+  </body>
+</html>

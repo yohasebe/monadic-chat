@@ -282,7 +282,11 @@ RSpec.describe HelpEmbeddings do
         previous.nil? ? ENV.delete('DEBUG_MODE') : ENV['DEBUG_MODE'] = previous
       end
 
-      before { allow(host).to receive(:help_embeddings_db).and_return(db) }
+      before do
+        installation = instance_double(Monadic::Help::Installation)
+        allow(Monadic::Help).to receive(:installation).and_return(installation)
+        allow(installation).to receive(:with_search).and_yield(db)
+      end
 
       it 'excludes internal data through all four tools with DEBUG_MODE unset' do
         expect(host.find_help_topics(text: 'q')[:results].map { |r| r[:doc_id] }).to eq([1, 4])

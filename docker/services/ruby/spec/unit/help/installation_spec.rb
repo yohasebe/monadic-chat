@@ -4,6 +4,7 @@ require 'spec_helper'
 require 'tmpdir'
 require 'timeout'
 require 'monadic/help/installation'
+require_relative '../../../apps/monadic_help/monadic_help_tools'
 
 RSpec.describe Monadic::Help::Installation do
   # A stateful store double: failures can occur before or after a durable write.
@@ -144,6 +145,18 @@ RSpec.describe Monadic::Help::Installation do
     install
     File.open(@path, 'a') { |f| f.write("\n") }
     expect(service.status).to include(state: 'update_available', searchable: true, bundled_match: false)
+  end
+
+  it 'makes the same Help tool host usable immediately after an explicit installation' do
+    host = Object.new.extend(MonadicHelpTools)
+    allow(Monadic::Help).to receive(:installation).and_return(service)
+    expect(host.list_help_sections).to include(state: 'not_installed', code: 'help_database_unavailable')
+    expect(store.collections).to be_empty
+    expect(store.operations.map(&:first).uniq).to eq([:metadata])
+    expect(install).to include(state: 'installed', searchable: true)
+    expect(store).to receive(:list_titles).with(language: nil, include_internal: false).and_return([])
+    expect(host.list_help_sections(include_internal: false)).to eq(sections: [])
+    expect(host.instance_variables).to be_empty
   end
 
   it 'rehashes the validated install bytes instead of reusing the status hash' do

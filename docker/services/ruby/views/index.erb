@@ -324,6 +324,8 @@
                 <% end %>
                 &nbsp;&nbsp;
                 <span class="info-panel-link"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.github">GitHub</a></span>
+                &nbsp;&nbsp;
+                <span class="info-panel-link"><i class="fa-solid fa-circle-question"></i> <a href="/help/database" target="_blank" rel="noopener noreferrer" data-i18n="ui.helpData.title">Help Data</a></span>
               </div>
             </div>
             <div class="mb-3 flex-container">
@@ -366,6 +368,7 @@
               <div id="base-app-title" class="ms-2 like-h5"></div>
             </div>
             <div id="base-app-desc" class="mt-2 mb-1"></div>
+            <%= erb :_help_database_panel, locals: { standalone: false } %>
 
             <!-- Available Variables: Substitution-Pipeline vocabulary tokens
                  enabled for the current app. Rows are rendered purely from the

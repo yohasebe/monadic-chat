@@ -2412,6 +2412,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // to ensure proper initialization even if messages already exist
     if (messages.length > 0) {
       if (appValue === lastApp && window.initialAppLoaded) {
+        if (window.HelpDatabase) window.HelpDatabase.setApp(appValue);
         return;
       }
     }
@@ -2757,6 +2758,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.loadApp) {
       window.WorkflowViewer.loadApp(appValue);
     }
+    if (window.HelpDatabase) window.HelpDatabase.setApp(appValue);
   }
 
   $on($id("websearch"), "change", function() {

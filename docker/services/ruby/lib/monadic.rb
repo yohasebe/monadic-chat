@@ -52,7 +52,7 @@ IN_CONTAINER = Monadic::Utils::Environment.in_container?
 
 require_relative "monadic/utils/setup"
 require_relative "monadic/utils/tokenizer"
-require_relative "monadic/utils/help_embeddings_loader"
+require_relative "monadic/help"
 
 require_relative "monadic/utils/string_utils"
 helpers StringUtils
@@ -761,6 +761,8 @@ require_relative "monadic/routes/static_routes"
 require_relative "monadic/routes/upload_routes"
 require_relative "monadic/routes/session_routes"
 require_relative "monadic/routes/library_import_routes"
+require_relative "monadic/routes/help_routes"
+register Monadic::Routes::HelpRoutes
 
 APPS.each do |k, v|
   # convert `k` from a capitalized multi word title to snake_case

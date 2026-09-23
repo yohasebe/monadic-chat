@@ -82,6 +82,7 @@ describe('bundle order invariants', () => {
     const consumers = [
       'js/monadic/cards.js',
       'js/monadic/utilities.js',
+      'js/monadic/help-database.js',
       'js/monadic/shims.js'
     ];
 

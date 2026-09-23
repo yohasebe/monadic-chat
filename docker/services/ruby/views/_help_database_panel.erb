@@ -1,0 +1,14 @@
+<section id="help-database-panel" class="mt-3 p-3 rounded border" data-standalone="<%= standalone %>" <%= 'hidden' unless standalone %> aria-labelledby="help-database-title">
+  <h5 id="help-database-title" data-i18n="ui.helpData.title">Help Data</h5>
+  <p class="small" data-i18n="ui.helpData.description">Install the bundled documentation for Help search. No API key is needed to install it.</p>
+  <div role="status" aria-live="polite">
+    <p id="help-database-status" class="mb-2" data-i18n="ui.helpData.checking">Checking Help data...</p>
+    <p id="help-database-progress" class="small mb-2" hidden></p>
+    <p id="help-database-reason" class="small mb-2 text-break" hidden></p>
+    <p id="help-database-notice" class="small mb-2" hidden></p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button id="help-database-install" type="button" class="btn btn-sm btn-primary" hidden disabled></button>
+    <button id="help-database-refresh" type="button" class="btn btn-sm btn-outline-secondary" data-i18n="ui.helpData.refresh">Refresh status</button>
+  </div>
+</section>

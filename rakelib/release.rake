@@ -1,5 +1,117 @@
 # frozen_string_literal: true
 
+require 'open3'
+
+# Establishes which commit CI actually ran against, and refuses to go on unless
+# it passed.
+#
+# The release commit on `main` is created with `commit-tree` from dev's tree, so
+# it has no CI of its own at this point. The tree is what carries over, so the
+# gate asks the remote for dev's tip, requires its tree to be the one being
+# released, and then checks that commit. Asking the local `origin/dev` instead
+# would read a tracking ref that may be behind, which would verify an older
+# tree's green and report it as this release's.
+#
+# Deliberately has no override: an environment variable that disables a release
+# gate is a gate that stops being one.
+def verify_release_ci_green(target)
+  if target.to_s.empty?
+    abort "Error: pass the release commit as the third argument, e.g.\n" \
+          "  rake \"release:github[<version>,true,$NEW]\"\n" \
+          'Without it there is no commit to check CI against, and the tag would ' \
+          "be placed at the remote default branch's HEAD."
+  end
+
+  remote, status = Open3.capture2('git', 'ls-remote', 'origin', 'refs/heads/dev')
+  abort 'Error: cannot read origin/dev; CI results cannot be checked.' unless status.success?
+
+  dev_sha = remote.split(/\s+/).first.to_s
+  abort 'Error: origin has no dev branch; CI results cannot be checked.' unless dev_sha.match?(/\A[0-9a-f]{40}\z/)
+
+  dev_tree = git_tree_of(dev_sha)
+  if dev_tree.nil?
+    abort "Error: #{dev_sha[0, 8]} is not in this clone. Run `git fetch origin dev` and try again."
+  end
+
+  # Pin the release to a commit now, and use that SHA everywhere afterwards.
+  # `main` or a tag resolves here, but `gh release create --target main` is
+  # resolved by GitHub when the release is made -- minutes later, after the
+  # build -- so the commit checked and the commit published could differ.
+  release_sha = git_commit_of(target)
+  abort "Error: #{target} cannot be resolved to a commit." if release_sha.nil?
+
+  target_tree = git_tree_of(release_sha)
+  abort "Error: #{target} cannot be resolved to a commit." if target_tree.nil?
+
+  unless dev_tree == target_tree
+    abort "Error: the release commit's tree is not the tree CI ran against.\n" \
+          "  release commit #{release_sha[0, 8]}: tree #{target_tree[0, 8]}\n" \
+          "  origin/dev #{dev_sha[0, 8]}: tree #{dev_tree[0, 8]}\n" \
+          'Push the release candidate to dev first, or rebuild the release ' \
+          'commit from the dev tip that CI checked.'
+  end
+
+  puts "Checking CI for #{dev_sha[0, 8]} (dev), whose tree is what this release publishes..."
+  unless system('ruby', 'scripts/verify_ci_green.rb', dev_sha, 'dev')
+    abort 'Error: nothing was published. Fix CI on dev and release the commit that passed.'
+  end
+
+  [dev_sha, release_sha]
+end
+
+# Run again immediately before publishing, on the commit the first check
+# settled on rather than whatever dev points at now.
+#
+# Building four platforms takes long enough for someone to re-run CI on that
+# commit, and the release tag is pushed before this task runs, so `--target`
+# does not move an existing tag: `gh release create` attaches the release to
+# the tag that is already there. A tag left over at an older commit would
+# publish a tree nobody checked, with the gate reporting success for a
+# different one.
+def verify_release_is_still_publishable(version, target, dev_sha)
+  tag = "v#{version}"
+  # Both refs are named: asking only for refs/tags/<tag> returns the tag
+  # OBJECT for an annotated tag and no peeled line at all, so the commit it
+  # points at never appears and a correct release would be refused.
+  remote, status = Open3.capture2('git', 'ls-remote', 'origin',
+                                  "refs/tags/#{tag}", "refs/tags/#{tag}^{}")
+  abort "Error: cannot read the #{tag} tag on origin; nothing was published." unless status.success?
+
+  entries = remote.lines.filter_map do |line|
+    sha, ref = line.split(/\s+/)
+    [sha, ref] if sha && ref
+  end
+  peeled = entries.find { |_sha, ref| ref == "refs/tags/#{tag}^{}" }
+  plain = entries.find { |_sha, ref| ref == "refs/tags/#{tag}" }
+  tagged = (peeled || plain)&.first
+
+  if tagged && tagged != target
+    abort "Error: #{tag} on origin points at #{tagged[0, 8]}, not the release commit " \
+          "#{target[0, 8]} that was checked.\n" \
+          "  `gh release create` attaches to the existing tag, so the release would " \
+          "publish a commit this gate never looked at.\n" \
+          "  Delete or move the tag, then release again."
+  end
+
+  puts "Re-checking CI for #{dev_sha[0, 8]} before publishing..."
+  unless system('ruby', 'scripts/verify_ci_green.rb', dev_sha, 'dev')
+    abort 'Error: CI is no longer green for this commit; nothing was published.'
+  end
+end
+
+# Resolves to the commit a ref points at, so the rest of the release works
+# with one fixed SHA instead of a name that can move under it.
+def git_commit_of(commitish)
+  out, status = Open3.capture2e('git', 'rev-parse', '--verify', '--quiet', "#{commitish}^{commit}")
+  sha = out.strip
+  status.success? && sha.match?(/\A[0-9a-f]{40}\z/) ? sha : nil
+end
+
+def git_tree_of(commitish)
+  out, status = Open3.capture2e('git', 'rev-parse', '--verify', '--quiet', "#{commitish}^{tree}")
+  status.success? ? out.strip : nil
+end
+
 # GitHub Release Management Tasks
 namespace :release do
   desc "Build, package, and create a new GitHub release"
@@ -18,8 +130,19 @@ namespace :release do
     end
 
     prerelease_flag = prerelease ? "--prerelease" : ""
-    
+
     puts "Preparing GitHub release for version #{version} (#{prerelease ? 'prerelease' : 'stable'})"
+
+    # Step 0: Refuse to publish a tree whose CI did not pass. beta.35 went out
+    # with Lint red because every other gate here looks at the artifacts. The
+    # workflows ran against the dev commit, and the release commit is built
+    # from that same tree by commit-tree, so the tree is what ties the two
+    # together — see verify_release_ci_green.
+    #
+    # `target` becomes the resolved commit SHA: everything after this point --
+    # the tag comparison and `--target` -- must name the commit that was
+    # checked, not a branch GitHub would resolve again at publish time.
+    verified_dev_sha, target = verify_release_ci_green(target)
 
     # Step 1: Verify the current version matches the requested version
     current_version = get_current_version
@@ -172,6 +295,11 @@ namespace :release do
         puts "Creating as DRAFT release (won't be visible to users)"
       end
       
+      # Last gate before the release exists: the tag the assets will hang
+      # off, and the CI of the commit they came from, are both re-checked
+      # here because the build between the two checks takes minutes.
+      verify_release_is_still_publishable(version, target, verified_dev_sha)
+
       # Execute the command
       sh release_cmd
       
@@ -186,12 +314,14 @@ namespace :release do
   end
   
   desc "Create a new draft release without publishing build artifacts"
-  task :draft, [:version, :prerelease] do |_t, args|
+  task :draft, [:version, :prerelease, :target] do |_t, args|
     # Set the DRAFT environment variable to true
     ENV['DRAFT'] = 'true'
-    
-    # Call the github release task with the draft flag
-    Rake::Task["release:github"].invoke(*args)
+
+    # Takes the release commit for the same reason release:github does: a
+    # draft still creates the tag and carries the assets, so it has to name
+    # the commit whose CI was checked.
+    Rake::Task["release:github"].invoke(args[:version], args[:prerelease], args[:target])
   end
   
   desc "List all GitHub releases for the repository"

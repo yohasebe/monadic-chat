@@ -2,17 +2,19 @@
 
 ## Overview
 
-The Monadic Help database carries both public documentation (`docs/`) and
-internal developer documentation (`docs_dev/`). Every point is tagged with an
-`is_internal` payload field, and search filters on it.
+The Help data format supports both public documentation (`docs/`) and internal
+developer documentation (`docs_dev/`). Every point is tagged with an
+`is_internal` payload field. Read APIs exclude internal points by default; the
+installation feature accepts only explicitly public points.
 
 The shipped database contains **public documentation only**: `docs/`, plus the
 root `README.md` and `CHANGELOG.md`. `rake help:build` passes `--public-only`,
 and `HelpDumpGuard` refuses to package a dump that carries internal points —
 from both `scripts/stage_docker_payload.rb` and the `beforePack` hook that the
-npm build scripts go through. Developers who want to search `docs_dev/` too
-build a local dump with `rake help:build_internal`; that dump must not be
-packaged, and the gate will stop it if it is.
+npm build scripts go through. Developers can generate a dump containing
+`docs_dev/` with `rake help:build_internal`, but both packaging and
+`Monadic::Help::ValidatedDump` reject that dump. It cannot be installed through
+the Help data installation feature, even with `DEBUG_MODE=true`.
 
 ## Architecture
 
@@ -61,7 +63,15 @@ the Ruby image bakes in (`Dockerfile`: `COPY help_data/`).
 
 ### Search
 
-`HelpEmbeddings#find_closest_text` applies a Qdrant payload filter:
+All content read APIs on `HelpEmbeddings` default to `include_internal: false`:
+`find_closest_text`, `find_closest_text_multi`, `find_closest_doc`, `list_titles`,
+`get_text_snippets`, `search`, `get_stats`, `get_unique_categories`, and
+`get_by_category`. They require `is_internal == false`; points with a missing
+flag are excluded along with internal points. Visibility filters are combined
+with language, document, and category filters. Item results and statistics also
+respect the visibility of their parent documents.
+
+For example, `find_closest_text` applies a Qdrant payload filter:
 
 ```ruby
 def find_closest_text(text, top_n: 10, include_internal: false)
@@ -82,8 +92,15 @@ include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
 ```
 
 `DEBUG_MODE` is consulted only when the caller passes nothing; an explicit
-`include_internal:` wins. So a developer running with `DEBUG_MODE=true` searches
-both trees by default; everyone else searches only public documentation.
+`include_internal:` wins. This controls visibility only for data already present;
+it does not install internal documentation. The public dump contains no internal
+points, and the installer rejects internal dumps regardless of `DEBUG_MODE`.
+
+Every Help tool performs its complete read inside
+`Monadic::Help.installation.with_search`, including embedding, item retrieval,
+and parent document retrieval. The yielded connection must not escape the block.
+When search is unavailable, tools return structured installation guidance rather
+than creating collections or importing data.
 
 ## Rake Tasks
 
@@ -97,7 +114,8 @@ one that started it — and not at all when `KEEP_VECTOR_SERVICES=true`.
 
 ### help:build_internal
 Same, but passes `--include-internal` so `docs_dev/` is covered as well. For
-local development only — the resulting dump is rejected at packaging time.
+local development only — the resulting dump is rejected by packaging and the
+Help data installer.
 
 ### help:rebuild
 Deletes the existing dump first, then runs the same build.
@@ -146,57 +164,120 @@ stopped rather than shipping the internal dump.
 
 ### Loading into an existing installation
 
-`lib/monadic/utils/help_embeddings_loader.rb` imports the dump **only when the
-collections are empty**:
+`Monadic::Help::Installation` installs data only after an explicit user action.
+The startup loader performs no import or collection bootstrap. The entry points
+are the Monadic Chat Help panel and **Monadic Chat Info → Help Data**. Neither
+viewing the status nor installing requires a provider API key.
 
-```ruby
-unless db.data_loaded?
-  Monadic::Help::DumpLoader.load(store: db.store, path: dump_path)
-end
-```
+- `GET /help/database` renders the standalone panel.
+- `GET /help/database/status` returns a read-only snapshot without creating lock
+  files or collections.
+- `POST /help/database/install` starts a background worker and returns HTTP 202
+  with `install_id`. A busy lock returns HTTP 409 with `retryable: true`; the
+  caller must retry explicitly. Parameters are rejected with HTTP 400 and
+  cross-origin requests with HTTP 403.
 
-`Monadic::Help::DumpLoader` upserts points and never deletes. Shipping a new
-dump therefore does not replace what an existing installation already holds —
-old points survive both the "collections are populated" short-circuit and the
-upsert. Changing `HELP_DATA_DUMP` to another path does not help either, for the
-same reason.
+The endpoint accepts another explicit installation even when the same dump is
+already installed, and replaces the data again. It does not require a
+confirmation dialog.
 
-Clearing the collections is therefore only half the job. The container reads
-the dump from inside its own image, so a dump you just built on the host is not
-visible to it until you deliver it. To search an internal dump locally:
+#### Installation states
 
-1. Build it: `rake help:build_internal`.
-2. Get it where the Ruby process can read it — either rebuild the Ruby image so
-   `COPY help_data/` picks up the new file, or mount the file into the
-   container and point `HELP_DATA_DUMP` at that path.
-3. Clear the `help_docs` and `help_items` collections in Qdrant, so the loader
-   stops short-circuiting on `data_loaded?`.
-4. Recreate the Ruby container, then search with `DEBUG_MODE=true`. Recreate,
-   not restart: `docker restart` keeps the old image, and a new mount or
-   `HELP_DATA_DUMP` value only takes effect on a container started with it.
+| State | Meaning | Searchable |
+|---|---|---|
+| `not_installed` | Neither help collection exists and there is no failed installation attempt | No |
+| `legacy` | Both help collections exist but neither has installation records; reinstall to establish a verified version | No |
+| `installing` | An installation holds the job lock | No in the status response |
+| `installed` | Matching completion records and exact counts have been verified | Yes |
+| `update_available` | The installed data is verified, but its SHA-256 differs from the bundled file | Yes, until replacement begins |
+| `failed` | An installation failed without a usable database, or records/counts are missing, inconsistent, or incomplete | No |
+| `unavailable` | The vector store cannot be reached or queried | No |
 
-Skipping step 2 just reloads the same public dump that is already in the image.
-Do not delete the whole Qdrant volume: `library_*` and `pdf_*` collections hold
-user data.
+If the bundled file cannot be fingerprinted, a verified installed database remains
+searchable: `bundled_match` is `null` and `bundled_error` carries the reason.
+A failure during validation also preserves a previously healthy database and
+reports the failed attempt through `last_attempt`.
+
+#### Coordination and replacement
+
+Instances and processes targeting the same database must share the coordination
+directory: `/monadic/data/.help-installation` in the container or
+`~/monadic/data/.help-installation` on the host. `job.lock` serializes installers;
+`readers.lock` protects the full duration of Help reads using `flock`. Lock files
+are never unlinked because lock ownership is tied to their inode. Progress is
+persisted in `progress.json` with file and directory `fsync` and atomic rename.
+
+The worker runs these steps:
+
+1. **Validate** the entire dump with `ValidatedDump` before any database mutation:
+   format version, embedding model/dimension, the two required collections,
+   unique unsigned integer IDs, explicitly public payloads, finite vectors, and
+   valid item-to-document references. The SHA-256 and imported points come from
+   the same file read. Healthy existing data remains readable through
+   `with_search` during this stage, although status reports `installing`.
+2. **Prepare** by refusing new search leases and waiting for active readers to
+   finish. Persist `database_invalid: true` before the first destructive change.
+3. **Replace** only `help_docs` and `help_items`: delete and recreate each
+   collection, then attach installation metadata with `state: installing`.
+   `library_*` and `pdf_*` collections are untouched.
+4. **Load** points in batches. Each upsert must report `completed` before progress
+   advances.
+5. **Verify counts** for both collections with exact counts against the dump.
+6. **Record completion** on both collections with `state: completed` and
+   `loaded_at`. Read the records back, verify equality with the intended record,
+   and **verify exact counts again**.
+7. **Finish** by persisting the completed journal with `database_invalid: false`,
+   then release the locks so search can resume.
+
+A failed or interrupted replacement stays unsearchable until an explicit retry
+completes. There is no automatic rollback or retry. The durable invalidation
+also covers an interruption after both completion records are written but before
+final verification. An abandoned running journal is reported as a failed attempt
+when the job lock is no longer held.
+
+#### Installation metadata and new dumps
+
+Both collections store the same record under the `monadic_help_installation`
+metadata key:
+
+- `install_id`, `dump_sha256`, `dump_version`
+- `embedding_model`, `embedding_dimension`
+- `expected_docs`, `expected_items`
+- `state`, `loaded_at`, `exported_at` (the dump's export time)
+
+The version is `1`, the model is `intfloat/multilingual-e5-base`, and the vector
+dimension is 768. Readiness requires compatible, matching completion records and
+exact point counts; `exported_at` is informational. The installed SHA-256 is
+compared with the current dump to detect an available update.
+
+To deliver changed public documentation, run `rake help:build`, then rebuild and
+recreate the Ruby container with the new dump, or supply a readable mounted dump
+via `HELP_DATA_DUMP`. Finally, use the panel to install or update. Rebuilding,
+restarting, or changing the dump path alone does not replace installed data.
+Do not delete the Qdrant volume: it also contains user data.
 
 ## Configuration
 
 | Variable | Effect |
 |---|---|
-| `DEBUG_MODE=true` | Includes `docs_dev/` at build time (unless `--public-only`) **and** returns it in search |
-| `HELP_DATA_DUMP` | Overrides the dump path read at startup |
+| `DEBUG_MODE=true` | Includes `docs_dev/` at build time (unless `--public-only`); defaults Help tool reads to include internal points already present |
+| `HELP_DATA_DUMP` | Overrides the dump path used for explicit installation and update detection |
 | `HELP_CHUNK_SIZE` | Characters per chunk (default 3000) |
 | `HELP_OVERLAP_SIZE` | Overlap between chunks (default 500) |
 | `HELP_CHUNKS_PER_RESULT` | Chunks per search result (default 3) |
 | `KEEP_VECTOR_SERVICES=true` | Leaves the embeddings container running after a build |
 
-`DEBUG_MODE` does double duty: build inclusion and search visibility. The build
-half is overridden by `--public-only`; the search half is overridden by passing
-`include_internal:` explicitly. Either way, a public dump has nothing internal
-to return, so a developer who wants internal search needs a dump built by
-`help:build_internal`, delivered to the container, and the collections reloaded
-from it (see
-[Loading into an existing installation](#loading-into-an-existing-installation)).
+`DEBUG_MODE` controls build inclusion and the Help tools' default read visibility.
+`--public-only` overrides it for builds; an explicit `include_internal:` overrides
+it for reads. It does not bypass installation validation or the search
+availability checks. `help:build_internal` therefore does not provide a supported
+installation path for internal content.
+
+`Monadic::Help.installation` resolves the default dump to
+`/monadic/help_data/help_db.json` inside the container and
+`docker/services/ruby/help_data/help_db.json` in host development.
+`HELP_DATA_DUMP` overrides either default. Installation instances are constructed
+on demand; availability and search connections are not cached.
 
 ## Verifying what a dump contains
 

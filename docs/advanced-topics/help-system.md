@@ -11,23 +11,30 @@ The help system uses a local sentence-transformer model (`multilingual-e5-base`)
 - **Local-only retrieval**: Both embedding inference and vector storage run on your machine; no provider API key is needed for help search
 - **Multilingual**: `multilingual-e5-base` handles English, Japanese, and many other languages with comparable quality
 - **Multi-chunk Retrieval**: Returns multiple relevant sections per result for comprehensive answers
-- **Prebuilt JSON dump**: The help database is generated at packaging time and shipped inside the Ruby image, so it is searchable on first start
-- **Public content only**: The shipped database is built from the public documentation. Developers can build a local database that also covers `docs_dev/` with `rake help:build_internal`
+- **Prebuilt JSON dump**: The help database is generated at packaging time and shipped inside the Ruby image, ready for installation when you choose to use help search
+- **Public content only**: The shipped database and the installation feature use public documentation only
 
 ## Requirements :id=requirements
 
 - Running `monadic-chat-qdrant-container` (vector storage)
 - Running `monadic-chat-embeddings-container` (multilingual-e5-base inference)
 
-Both containers start automatically with Monadic Chat. The chat model used to generate answers (Claude, GPT, Gemini, etc.) still requires its own API key, but the search step itself does not.
+Both containers start automatically with Monadic Chat. The chat model used to generate answers still requires its provider API key. Installing the help data and searching it do not require an API key.
 
 ## Usage :id=usage
 
 ### Accessing Help :id=accessing-help
 
 1. Start Monadic Chat and ensure all containers are running
-2. Select "Monadic Help" from the app menu
-3. Ask questions about Monadic Chat in any language
+2. Select "Monadic Chat Help" from the app menu
+3. Use the help data panel to install the bundled data. You can also open **Monadic Chat Info → Help Data** to install it without an API key
+4. Once installation is complete, ask questions about Monadic Chat in any language
+
+Help search is opt-in: starting or rebuilding Monadic Chat does not install or replace the help data. The panel shows the installation status and progress.
+
+When the bundled data changes, the panel shows that an update is available. Use its update button to replace the installed help data. Existing help remains searchable until replacement begins. Users upgrading from an older version are asked to reinstall because the installed data's version cannot be verified.
+
+The install, update, reinstall, and retry buttons start their operation without a confirmation dialog. Help search is unavailable during replacement. **Knowledge Base and conversation library data are preserved.** If installation fails, check the displayed reason and use the panel to try again.
 
 ### Common Questions :id=common-questions
 
@@ -53,7 +60,7 @@ rake help:stats
 rake help:export
 
 # Developers only: also index docs_dev/*. The resulting dump is rejected
-# at packaging time and must not be shipped.
+# by packaging and the help data installer.
 rake help:build_internal
 ```
 
@@ -63,22 +70,14 @@ The build pipeline starts the embeddings container if it is not already running,
 
 ### Storage :id=storage
 
-The help system uses two Qdrant collections inside the shared `monadic-chat-qdrant-container`:
-
-- **`help_docs`** — One point per documentation file. The vector is the average of its item embeddings, which lets the system rank entire documents by relevance.
-  - Payload: `title`, `file_path`, `section`, `language`, `items` (count), `is_internal`, `metadata`
-
-- **`help_items`** — One point per chunked text fragment.
-  - Payload: `doc_id`, `text`, `position`, `heading`, `language`, `is_internal`, `metadata`
-
-Both collections use 768-dimensional vectors with cosine distance and HNSW indexing.
+Help data is stored locally in Qdrant, separately from Knowledge Base and conversation library data. The index covers both complete documents and their text fragments so searches can return relevant sections. Updating help data replaces only the help index.
 
 ### Build-Time Pipeline :id=build-time-pipeline
 
 1. **Documentation processing**:
    - `rake help:build` runs `scripts/utilities/process_documentation.rb`
    - The script chunks each markdown file (default 3000 chars per chunk, 500 chars of overlap)
-   - Hierarchical heading paths are preserved in payload metadata
+   - Hierarchical heading paths are preserved with each fragment
 
 2. **Embedding generation**:
    - Each chunk is sent to the embeddings container as a "passage"
@@ -87,15 +86,15 @@ Both collections use 768-dimensional vectors with cosine distance and HNSW index
 
 3. **JSON dump output**:
    - The processed data is written to `docker/services/ruby/help_data/help_db.json`
-   - A short fingerprint (`help_data/export_id.txt`) tracks the dump for build cache invalidation
    - The Ruby Docker image bakes the dump in at build time
 
 ### Runtime Pipeline :id=runtime-pipeline
 
-1. **Bootstrap**:
-   - On first start, Monadic Chat ensures the `help_docs` and `help_items` collections exist in Qdrant
-   - If they are empty, `Monadic::Help::DumpLoader` reads the bundled JSON dump and bulk-imports it
-   - Subsequent starts skip the import once the collections are populated
+1. **Installation**:
+   - The user starts installation from the Help app panel or **Monadic Chat Info → Help Data**
+   - Monadic Chat checks the bundled data, replaces the previous help index, and verifies the result
+   - Search becomes available after installation completes; subsequent starts use the installed data
+   - A new bundled version is offered as an update and requires an explicit installation action
 
 2. **Search**:
    - User questions are embedded with the `query:` prefix using the same model
@@ -115,7 +114,7 @@ The help system can be configured via environment variables in `~/monadic/config
 - `HELP_CHUNKS_PER_RESULT`: Chunks returned per search result (default: 3)
   - Number of relevant chunks included in each search result
 
-- `HELP_DATA_DUMP`: Override the path of the JSON dump (default: `/monadic/help_data/help_db.json` inside the Ruby container)
+- `HELP_DATA_DUMP`: Override the JSON dump used by the installation action (default: `/monadic/help_data/help_db.json` inside the Ruby container). Changing the path does not install the data automatically
 
 Example:
 ```
@@ -130,12 +129,10 @@ HELP_CHUNKS_PER_RESULT=5
 
 1. Add or modify markdown files in the `docs/` directory
 2. Run `rake help:build` to regenerate the JSON dump
-3. Rebuild the Ruby container so the new dump is baked in
+3. Rebuild and recreate the Ruby container so it uses the new dump
+4. Open the Help app panel or **Monadic Chat Info → Help Data** and install or update the help data
 
-Internal notes under `docs_dev/` are not part of the shipped database. To search
-them locally, build with `rake help:build_internal` instead — and note that the
-dump is only read when the Qdrant collections are empty, so an existing
-installation needs those two collections cleared before it picks up a new dump.
+Rebuilding alone does not change the running help database. Internal notes under `docs_dev/` are excluded from the shipped database. `rake help:build_internal` generates a development dump, but both packaging and the help data installer reject internal content, including when `DEBUG_MODE=true`.
 
 ### Processing Details :id=processing-details
 
@@ -159,28 +156,29 @@ installation needs those two collections cleared before it picks up a new dump.
 
 ## Limitations :id=limitations
 
-- The chat model used to answer questions still requires its own provider API key (Claude, GPT, etc.); only the search step is local
+- The chat model used to answer questions still requires its provider API key; installation and search require no API key
 - Coverage and accuracy vary by language because each spaCy/sentence-transformer model is trained on a different corpus
 
 ## Troubleshooting :id=troubleshooting
 
 ### Common Issues :id=common-issues
 
-1. **Help search returns no results**
-   - Check that the JSON dump exists: `ls docker/services/ruby/help_data/help_db.json`
+1. **Help search is unavailable or returns no results**
+   - Check the status in the Help app panel or **Monadic Chat Info → Help Data** and install or reinstall if requested
+   - Wait for an active installation to finish; if it fails, check the displayed reason and try again
    - Verify both containers are running: `docker ps | grep -E 'qdrant|embeddings'`
-   - Re-run `rake help:rebuild` to regenerate the dump
 
 2. **Poor search results**
-   - Increase chunk size for better context
-   - Rebuild database with `rake help:rebuild`
+   - Install an available help data update
    - Check whether the documentation has enough detail to answer the question
+   - For documentation developers, adjust chunk size, regenerate the dump with `rake help:rebuild`, and follow [Adding Documentation](#adding-documentation) to install it
 
 3. **Build fails with "embeddings_service did not become ready"**
    - Verify that the embeddings image was built: `docker images | grep monadic-embeddings`
    - Inspect container logs: `docker logs monadic-chat-embeddings-container`
-   - The container may take 30-60 seconds on first start while loading the model
+   - Wait for the model to finish loading before retrying the build
 
-4. **Help collections are empty after upgrade**
-   - The Ruby app loads the JSON dump only when the collections are empty
-   - Manually clear collections via the Qdrant API and restart the Ruby container, or rebuild the container so the bundled dump is reloaded
+4. **Help data needs attention after an upgrade**
+   - Open the Help app panel or **Monadic Chat Info → Help Data**
+   - Install if no data is installed, update when offered, or reinstall if the previous version cannot be verified
+   - Restarting or rebuilding the container does not replace the help data; use the panel's action

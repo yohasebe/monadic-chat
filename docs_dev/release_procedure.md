@@ -2,7 +2,9 @@
 
 Authoritative, reproducible steps for cutting a Monadic Chat release. This
 replaces the ad-hoc notes that previously lived only in a maintainer's head /
-personal memory. It has been followed without incident for beta.24–beta.27.
+personal memory. Where a step exists because a release went wrong, the entry
+says which one: following the steps is not the same as the steps being
+sufficient, and beta.33 and beta.35 both went out through this document.
 
 > Audience: maintainers with push access and a configured macOS signing +
 > notarization environment. Not user-facing.
@@ -157,8 +159,13 @@ validate:
 ```bash
 ruby scripts/patch_release_manifests.rb    # re-computes sha512/size in dist/latest*.yml
 ruby scripts/verify_release_manifests.rb   # asserts every yml matches its artifact bytes
-xcrun stapler validate "dist/Monadic Chat-<version>-arm64.dmg"
+xcrun stapler validate "dist/Monadic.Chat-<version>-arm64.dmg"
 ```
+
+electron-builder writes the mac artifacts with dots, not spaces
+(`Monadic.Chat-<version>-arm64.dmg`). A name with a space simply does not
+exist, and `stapler` says so — but the zip check in §9 would report it as zero
+symlinks, which is what a genuinely broken archive looks like.
 
 Do not skip `verify_release_manifests.rb`: a manifest whose sha512/size does
 not match the artifact will make auto-update fail the integrity check on the
@@ -193,10 +200,10 @@ checks that the tag resolves to the release commit for exactly this reason.
 
 `rake release:github[<version>,<prerelease?>,<target>]` automates asset
 discovery (exactly the 11 assets — `builder-debug.yml` is excluded) +
-`gh release create`, reading the CHANGELOG section for notes. Pass the third
-arg `<target>` (a commit SHA) so the tag is created at the exact release
-commit instead of the remote default-branch HEAD. Read §8 before choosing the
-prerelease argument.
+`gh release create`, reading the CHANGELOG section for notes. The third
+argument `<target>` is required — it names the commit whose CI is checked and
+the commit the tag must point at, and the task stops without it. Read §8
+before choosing the prerelease argument.
 
 ```bash
 # Move main to the release tree, then release the same commit:
@@ -283,13 +290,22 @@ That auto-derivation splits users into two paths:
 Run these on the mac host after `rake build`:
 
 ```bash
-ruby scripts/verify_release_manifests.rb                       # sha512/size match, all one version
-xcrun stapler validate "dist/Monadic.Chat-<version>-arm64.dmg" # notarized + stapled
-zipinfo "dist/Monadic.Chat-<version>-arm64.zip" | grep -c '^l' # framework symlinks preserved (>0; beta.19 guard)
+DMG="dist/Monadic.Chat-<version>-arm64.dmg"
+ZIP="dist/Monadic.Chat-<version>-arm64.zip"
+for f in "$DMG" "$ZIP"; do [ -f "$f" ] || { echo "missing: $f"; exit 1; }; done
+
+ruby scripts/verify_release_manifests.rb   # sha512/size match, all one version
+xcrun stapler validate "$DMG"              # notarized + stapled
+zipinfo "$ZIP" | grep -c '^l'              # framework symlinks preserved (>0; beta.19 guard)
 ```
 
-Note: use `zipinfo` (or `ditto`), NOT `unzip -l | grep '->'`, to detect zip
-symlinks — `unzip -l` does not show the arrow notation and will read as 0.
+The existence check is not ceremony. `zipinfo` on a path that is not there
+fails, `grep -c` then counts zero, and zero is exactly what the flattened
+archive that broke beta.19 auto-update reports. A typo in the file name and a
+genuinely broken artifact are indistinguishable at the end of that pipe.
+
+Use `zipinfo` (or `ditto`), NOT `unzip -l | grep '->'`, to detect zip
+symlinks — `unzip -l` does not show the arrow notation and will also read as 0.
 
 Verify Windows signing on the mac host (no `osslsigncode`/`signtool` needed —
 parse the PE certificate table; a non-empty Security directory = signed):

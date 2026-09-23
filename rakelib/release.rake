@@ -118,10 +118,10 @@ namespace :release do
   task :github, [:version, :prerelease, :target] do |_t, args|
     version = args[:version] || get_current_version
     prerelease = args[:prerelease] == 'true'
-    # Optional commit-ish (SHA/branch/tag) the release tag is created at. When
-    # omitted, `gh release create` places the tag at the remote default
-    # branch's HEAD — which can point at the WRONG tree if the built artifacts
-    # came from a different commit. Pass the exact release commit to be safe.
+    # Required: the commit the release is cut from. Without it there is no
+    # commit whose CI can be checked, and `gh release create` would place the
+    # tag at the remote default branch's HEAD — which can point at a different
+    # tree than the built artifacts. Resolved to a SHA by the gate below.
     target = args[:target]
 
     if version.nil?

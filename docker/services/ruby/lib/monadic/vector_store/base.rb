@@ -30,6 +30,16 @@ module Monadic
         raise NotImplementedError
       end
 
+      # nil means missing (404); {} means present without metadata.
+      # Transport/server failures must raise BackendError, never return nil.
+      def collection_metadata(name:)
+        raise NotImplementedError
+      end
+
+      def update_collection_metadata(name:, metadata:)
+        raise NotImplementedError
+      end
+
       # ─── Point operations ──────────────────────────────────────────────
 
       # Insert or update points. Each point is { id:, vector:, payload: }.

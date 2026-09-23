@@ -93,7 +93,6 @@ test_tts_input_*
 # docs/*; .gitkeep is tracked so the Dockerfile's COPY help_data/ has
 # something to copy on a fresh checkout).
 /docker/services/ruby/help_data/help_db.json
-/docker/services/ruby/help_data/export_id.txt
 
 # Temporary session files for screenshot automation
 /docker/services/ruby/public/sessions/

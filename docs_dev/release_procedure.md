@@ -16,7 +16,7 @@ personal memory. It has been followed without incident for beta.24–beta.27.
   Parallels Windows VM (electron-builder's `win.signtoolOptions` points at the
   cert in the VM's store; a VM window opens on its own while signing). The mac
   host drives mac + linux + the VM-signed win artifacts — no separate manual
-  Windows step. Verify after building (see §8). See `docs_dev/electron-build.md`.
+  Windows step. Verify after building (see §9). See `docs_dev/electron-build.md`.
 - A clean working tree on the branch you intend to release from (usually `dev`).
 
 ## 1. Bump the version (single source of truth)
@@ -56,7 +56,64 @@ section by this exact heading — a bare version mention elsewhere will not be
 picked up). Draft material is accumulated in the `pending-changelog-entries`
 maintainer memory during the dev cycle; transcribe and then clear it.
 
-## 3. Create the release commit on `main`
+## 3. Confirm CI passed on the commit being released
+
+Push the final candidate (version bump + CHANGELOG) to `dev`, wait for the
+workflows to finish, then:
+
+```bash
+git fetch origin dev
+ruby scripts/verify_ci_green.rb "$(git rev-parse origin/dev)"
+```
+
+It exits non-zero unless `lint.yml` and `specs.yml` both have a completed,
+successful **push** run for that exact commit, with every required job in them
+green. A run that is still going, a workflow that never started, or an API call
+that failed all count as "not green" — none of them are treated as the absence
+of a failure.
+
+`rake release:github` (and `rake release:draft`, which now takes the same third
+argument) runs this check before it does anything else, so skipping this step
+does not skip the gate; running it here just avoids tagging and building four
+platforms first. It runs the check **again** immediately before publishing,
+because building four platforms takes long enough for someone to re-run CI in
+between, and at that point it also requires `v<version>` on origin to resolve
+to the release commit — `gh release create` attaches to a tag that already
+exists, so a leftover tag would publish a commit the gate never looked at.
+There is no override.
+
+The third argument is resolved to a commit SHA once, and that SHA is what the
+tag comparison and `--target` use. Passing a name works, but `--target main`
+would otherwise be resolved by GitHub at publish time — after the build — and
+could name a different commit than the one checked.
+
+Both checks are on the Rake path. Publishing by hand with `gh release create`,
+or publishing a draft later from the web UI, does not pass through them.
+
+**What a green result does not cover.** Say this out loud when reasoning about
+a release, because the gate is narrow on purpose:
+
+- **The help database.** `rake build` regenerates `help_db.json`, which is
+  gitignored and therefore never in the tree CI ran against. It is gated
+  separately by `help_dump_guard` at staging and packaging time.
+- **The `main` release commit.** Its tree matches dev's, but `specs.yml` picks
+  the service image tag from the branch name
+  (`MONADIC_IMAGE_TAG: github.ref_name == 'dev' && 'dev' || 'latest'`), so
+  dev's green says nothing about the same source against the released images.
+- **Service image publication.** `specs.yml` waits for `publish-images` to stop
+  running but never requires it to have succeeded, so a green Specs run does
+  not mean the images were published. Verify digests separately on a release
+  that changes `docker/services/**`.
+- **Anything CI skips**: specs that need API keys, and steps marked
+  `continue-on-error`. A green CI is not a substitute for the real-machine
+  smoke test in §10.
+
+Why this exists: v1.0.0-beta.35 was built, signed, notarized, manifest-verified
+and published with Lint red on both `dev` and `main`, and it stayed unnoticed
+for two days. Every other gate here looks at the artifacts; none looked at the
+commit they came from.
+
+## 4. Create the release commit on `main`
 
 `main` must have the **same tree** as the released `dev` tip so the built
 artifacts match what is tagged. Use `commit-tree` to guarantee tree identity
@@ -70,7 +127,7 @@ git tag v<version> <new-sha>
 git push origin v<version>
 ```
 
-## 4. Build all platform packages
+## 5. Build all platform packages
 
 Run from the project root, **in the foreground** (the build must go through
 `setup_build_environment`, which also rebuilds the help database from docs):
@@ -83,7 +140,7 @@ Notes:
 - Each `electron-builder` invocation is passed `--publish never
   -c.generateUpdatesFilesForAllChannels=true`. The channel flag makes a
   prerelease build ALSO emit `latest-*.yml` (not just `beta-*.yml`), which is
-  load-bearing for the updater — see §7.
+  load-bearing for the updater — see §8.
 - The task then runs `scripts/repackage_mac_zip.rb` **before** patching
   manifests. This preserves framework symlinks in the mac zip; a flattened
   zip was the beta.19 auto-update breaker. See
@@ -91,7 +148,7 @@ Notes:
 - `latest-mac.yml` is mirrored to `latest-mac-arm64.yml` if the arch-specific
   file is absent.
 
-## 5. Notarize + staple (macOS) and patch manifests
+## 6. Notarize + staple (macOS) and patch manifests
 
 After signing/notarization completes, the stapled DMG/zip bytes differ from
 what the just-built `latest-*.yml` recorded. Re-sync the manifests, then
@@ -110,7 +167,7 @@ user's machine, and that failure is not self-healing (see
 "skipped" is a stapler quirk, not a failure — see
 `docs_dev/mac_notarize_skipped_misread` (memory).
 
-## 6. Publish the GitHub release
+## 7. Publish the GitHub release
 
 The 11 expected assets are: 6 binaries (mac dmg + zip, win exe + zip, linux
 x64 + arm64 AppImage) and the auto-update manifests
@@ -118,25 +175,34 @@ x64 + arm64 AppImage) and the auto-update manifests
 `latest-linux-arm64.yml`). The `builder-debug.yml` electron-builder emits is
 NOT an asset — exclude it.
 
+Prefer the Rake path below: it is the only one that re-checks CI and the tag
+before publishing. The bare command is kept for reference and for recovery,
+and it passes through no gate at all.
+
 ```bash
 gh release create v<version> <assets...> \
   --title "Monadic Chat <version>" \
   --notes-file <changelog-section>.md \
-  [--prerelease]        # SEE §7 — this flag's presence is a release-type decision, not a default
+  [--prerelease]        # SEE §8 — this flag's presence is a release-type decision, not a default
 ```
+
+Note that `--target` only decides where a tag is created when it does not yet
+exist. Step 4 pushes the tag first, so by this point `--target` changes
+nothing: the release attaches to the tag that is already there. `release:github`
+checks that the tag resolves to the release commit for exactly this reason.
 
 `rake release:github[<version>,<prerelease?>,<target>]` automates asset
 discovery (exactly the 11 assets — `builder-debug.yml` is excluded) +
 `gh release create`, reading the CHANGELOG section for notes. Pass the third
 arg `<target>` (a commit SHA) so the tag is created at the exact release
-commit instead of the remote default-branch HEAD. Read §7 before choosing the
+commit instead of the remote default-branch HEAD. Read §8 before choosing the
 prerelease argument.
 
 ```bash
 # Move main to the release tree, then release the same commit:
 NEW=$(git commit-tree origin/dev^{tree} -p origin/main -m "Release v<version>")
 git push origin "$NEW:main"
-rake "release:github[<version>,true,$NEW]"     # true = prerelease (betas); OMIT for v1.0 stable — see §7
+rake "release:github[<version>,true,$NEW]"     # true = prerelease (betas); OMIT for v1.0 stable — see §8
 ```
 
 Ordering note: pushing the new `version.rb` to `main` makes the in-app update
@@ -147,7 +213,7 @@ back-to-back (seconds apart). For a higher-traffic release (v1.0), prefer
 publishing the release first (create+push the tag at `$NEW`, run
 `release:github`), then fast-forward `main` to `$NEW`.
 
-## 7. Release channel / prerelease flag — READ BEFORE PUBLISHING
+## 8. Release channel / prerelease flag — READ BEFORE PUBLISHING
 
 **This is the single most consequential decision at publish time, and it has
 never been exercised for a stable release.** Every beta (beta.18–beta.27) was
@@ -212,7 +278,7 @@ That auto-derivation splits users into two paths:
       (the beta→stable path) BEFORE announcing — auto-update bugs are not
       self-healing.
 
-## 8. Verify the build before publishing
+## 9. Verify the build before publishing
 
 Run these on the mac host after `rake build`:
 
@@ -238,7 +304,7 @@ print("SIGNED" if size>0 and b'Yoichiro Hasebe' in d[off:off+size] else "NOT SIG
 PY
 ```
 
-## 9. Post-publish verification
+## 10. Post-publish verification
 
 - Real-machine smoke test of the packaged build: launch → containers start →
   one round-trip chat per provider → quit → all containers stop (the standard

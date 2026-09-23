@@ -118,6 +118,7 @@ const FILES = [
   "js/monadic/mask_editor.js",
   "js/syntax-theme-handler.js",
   "js/i18n/translations.js",
+  "js/monadic/help-database.js",
   "js/monadic/pdf_export.js",
   "js/monadic.js",
   "js/monadic-improvements.js",

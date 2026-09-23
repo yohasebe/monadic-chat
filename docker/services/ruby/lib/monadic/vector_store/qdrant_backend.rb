@@ -50,6 +50,34 @@ module Monadic
         false
       end
 
+      # Unlike collection_exists?, this preserves connectivity failures.
+      # Qdrant >= 1.16 exposes collection metadata inside config.
+      def collection_metadata(name:)
+        response = HTTP.timeout(@timeout).get("#{@endpoint}/collections/#{name}")
+        return nil if response.status.code == 404
+
+        unless response.status.success?
+          raise BackendError, "collection_metadata(#{name}) failed: #{response.status.code} #{body_excerpt(response)}"
+        end
+        data = JSON.parse(response.body.to_s)
+        config = data.fetch('result').fetch('config')
+        metadata = config.fetch('metadata', nil)
+        metadata = {} if metadata.nil?
+        raise BackendError, "Invalid collection metadata for #{name}" unless metadata.is_a?(Hash)
+
+        metadata
+      rescue HTTP::Error, JSON::ParserError, KeyError, NoMethodError, TypeError => e
+        raise BackendError, "Qdrant collection metadata error: #{e.message}"
+      end
+
+      # PATCH merges top-level metadata keys. The caller owns its namespace.
+      def update_collection_metadata(name:, metadata:)
+        result = request(:patch, "/collections/#{name}", { metadata: metadata })
+        raise BackendError, "Metadata update not confirmed for #{name}" unless result['result'] == true
+
+        true
+      end
+
       # ─── Point operations ──────────────────────────────────────────────
 
       def upsert_points(collection:, points:)

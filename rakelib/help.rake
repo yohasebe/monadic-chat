@@ -29,8 +29,25 @@ namespace :help do
     system('curl -sf http://localhost:8002/v1/health >/dev/null 2>&1')
   end
 
+  # Docker itself has to be up before any container check means anything.
+  # Without this the missing daemon surfaces only as two socket errors from
+  # `docker ps` and `compose up`, followed by a 60-second wait for a container
+  # that was never started.
+  def docker_available?
+    system('docker info >/dev/null 2>&1')
+  end
+
   def ensure_embeddings_service
     return false if embeddings_service_reachable?
+
+    unless docker_available?
+      raise <<~MSG
+        Docker is not running, so the embeddings container cannot be started.
+
+        Start Docker Desktop, wait until it reports that it is running, and
+        run this task again.
+      MSG
+    end
 
     if system("docker ps --format '{{.Names}}' | grep -q '^monadic-chat-embeddings-container$'")
       raise <<~MSG
@@ -49,7 +66,11 @@ namespace :help do
     project_dir = File.expand_path('docker/services', PROJECT_ROOT)
     overlays = ["-f '#{compose_file}'"]
     overlays << "-f '#{embeddings_dev}'" if File.exist?(embeddings_dev)
-    system("docker compose --project-directory '#{project_dir}' #{overlays.join(' ')} -p 'monadic-chat' up -d embeddings_service")
+    # A failed `up` means there is nothing to wait for, so say so now rather
+    # than spending the full timeout on a container that will never appear.
+    unless system("docker compose --project-directory '#{project_dir}' #{overlays.join(' ')} -p 'monadic-chat' up -d embeddings_service")
+      raise 'Could not start embeddings_service; see the docker compose output above.'
+    end
 
     print 'Waiting for embeddings service '
     60.times do

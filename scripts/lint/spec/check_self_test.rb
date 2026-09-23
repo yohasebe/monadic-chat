@@ -498,11 +498,23 @@ Dir.mktmpdir('help_dump_guard') do |tmp|
       File.delete(probe) if File.exist?(probe)
     end
   RUBY
-  probe_file = Pathname.new(Dir.tmpdir).join('_lint_generator_probe.rb')
-  begin
+  # The generator pulls in dotenv and http, which this job deliberately does
+  # not install ("the rules use only Ruby's stdlib"), so `bundle exec` here
+  # produced no output on CI and the assertion failed on an empty string --
+  # green locally, red on CI. Neither gem is involved in deciding what to
+  # index: dotenv only reads ~/monadic/config/env, and HTTP is touched at
+  # request time, not at load. Stubbing both lets plain ruby load the real
+  # generator, so `tracked?` is still the code being asked.
+  stubs = {
+    'dotenv.rb' => "module Dotenv\n  def self.load(*) = nil\nend\n",
+    'http.rb' => "module HTTP\n  class Error < StandardError; end\nend\n"
+  }
+  Dir.mktmpdir('lint_generator_probe') do |dir|
+    probe_file = Pathname.new(dir).join('probe.rb')
     probe_file.write(generator_probe)
+    stubs.each { |name, body| Pathname.new(dir).join(name).write(body) }
     out, err, = Open3.capture3(
-      'bundle', 'exec', 'ruby', probe_file.to_s,
+      'ruby', '-I', dir, probe_file.to_s,
       chdir: ROOT.join('docker/services/ruby').to_s
     )
     assert(
@@ -510,8 +522,6 @@ Dir.mktmpdir('help_dump_guard') do |tmp|
       out.include?('UNTRACKED=false') && out.include?('TRACKED=true'),
       "stdout:\n#{out}\nstderr:\n#{err.lines.last(5).join}"
     )
-  ensure
-    probe_file.delete if probe_file.exist?
   end
 
   problems = check.call({})

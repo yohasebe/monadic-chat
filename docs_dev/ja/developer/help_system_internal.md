@@ -2,17 +2,19 @@
 
 ## 概要
 
-Monadic Help のデータベースには、公開ドキュメント（`docs/`）と開発者向け内部
-ドキュメント（`docs_dev/`）の両方を入れられます。各ポイントには `is_internal`
-payload が付き、検索はこれでフィルタされます。
+ヘルプのデータ形式は、公開ドキュメント（`docs/`）と開発者向け内部
+ドキュメント（`docs_dev/`）の両方に対応します。各ポイントには `is_internal`
+payload が付きます。読取 API は既定で内部ポイントを除外し、インストール機能は
+明示的に公開と指定されたポイントだけを受け入れます。
 
 出荷されるデータベースに入るのは**公開ドキュメントだけ**です（`docs/` と、
 ルートの `README.md`・`CHANGELOG.md`）。`rake help:build` は `--public-only` を
 渡し、`HelpDumpGuard` が内部ポイントを含むダンプの梱包を拒否します。拒否は
 `scripts/stage_docker_payload.rb` と、npm のビルドスクリプトが通る `beforePack`
-フックの両方から効きます。`docs_dev/` も検索したい開発者は
-`rake help:build_internal` で手元用のダンプを作ります。そのダンプは梱包しては
-いけません（してもゲートが止めます）。
+フックの両方から効きます。開発者は `rake help:build_internal` で `docs_dev/` を
+含むダンプを生成できますが、梱包ゲートと `Monadic::Help::ValidatedDump` の
+両方が拒否します。`DEBUG_MODE=true` でも、ヘルプデータのインストール機能では
+このダンプを導入できません。
 
 ## アーキテクチャ
 
@@ -61,7 +63,14 @@ include_internal ||= (ENV['DEBUG_MODE'] == 'true') unless public_only
 
 ### 検索
 
-`HelpEmbeddings#find_closest_text` が Qdrant の payload フィルタを適用します。
+`HelpEmbeddings` の全コンテンツ読取 API は `include_internal: false` が既定です。
+対象は `find_closest_text`、`find_closest_text_multi`、`find_closest_doc`、
+`list_titles`、`get_text_snippets`、`search`、`get_stats`、`get_unique_categories`、
+`get_by_category` です。`is_internal == false` を要求するため、内部ポイントだけで
+なくフラグのないポイントも除外します。可視性フィルタは言語・文書・カテゴリの
+フィルタと組み合わせます。アイテムの結果と統計は親文書の可視性にも従います。
+
+例えば `find_closest_text` は Qdrant の payload フィルタを適用します。
 
 ```ruby
 def find_closest_text(text, top_n: 10, include_internal: false)
@@ -82,9 +91,14 @@ include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
 ```
 
 `DEBUG_MODE` が参照されるのは呼び出し側が何も渡さなかったときだけで、明示的な
-`include_internal:` が優先されます。つまり `DEBUG_MODE=true` で動かしている
-開発者は既定で両方のツリーを検索対象にでき、それ以外は公開ドキュメントのみを
-検索します。
+`include_internal:` が優先されます。これは既存データの可視性だけを制御し、
+内部文書をインストールするものではありません。公開ダンプには内部ポイントが
+なく、インストーラーは `DEBUG_MODE` にかかわらず内部ダンプを拒否します。
+
+すべての Help ツールは、埋め込み、アイテム取得、親文書取得を含む読取処理全体を
+`Monadic::Help.installation.with_search` 内で実行します。渡された接続をブロックの
+外へ持ち出してはいけません。検索不可の場合、ツールはコレクションの作成やデータの
+取り込みを行わず、構造化されたインストール案内を返します。
 
 ## Rake タスク
 
@@ -98,7 +112,7 @@ include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
 
 ### help:build_internal
 同じですが `--include-internal` を渡すので `docs_dev/` も対象になります。
-手元の開発用のみ。生成されたダンプは梱包時に拒否されます。
+手元の開発用のみ。生成されたダンプは梱包時とヘルプデータのインストール時に拒否されます。
 
 ### help:rebuild
 既存のダンプを削除してから同じビルドを実行します。
@@ -147,55 +161,115 @@ include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
 
 ### 既存インストールへの読み込み
 
-`lib/monadic/utils/help_embeddings_loader.rb` は**コレクションが空のときだけ**
-ダンプを読み込みます。
+`Monadic::Help::Installation` は、利用者の明示的な操作でのみデータをインストール
+します。起動時のローダーは取り込みもコレクションの初期作成も行いません。
+入口は Monadic Chat Help のパネルと **Monadic Chat Info → Help Data** です。
+状態表示にもインストールにもプロバイダの API キーは不要です。
 
-```ruby
-unless db.data_loaded?
-  Monadic::Help::DumpLoader.load(store: db.store, path: dump_path)
-end
-```
+- `GET /help/database` は独立したパネルを表示します。
+- `GET /help/database/status` は読取専用の状態を返し、ロックファイルや
+  コレクションを作りません。
+- `POST /help/database/install` はバックグラウンド処理を開始し、HTTP 202 と
+  `install_id` を返します。ロックが使用中なら HTTP 409 と `retryable: true` を
+  返すので、呼び出し側が明示的に再試行します。パラメータ付きリクエストは
+  HTTP 400、別オリジンからのリクエストは HTTP 403 で拒否します。
 
-`Monadic::Help::DumpLoader` は upsert のみで削除を行いません。したがって新しい
-ダンプを配っても既存インストールの内容は置き換わりません。「コレクションに
-データがある」という短絡と upsert の両方を、古いポイントが生き延びます。
-`HELP_DATA_DUMP` で別のパスを指しても同じ理由で読み込まれません。
+このエンドポイントは、同じダンプがインストール済みでも明示的なインストールを
+受け付け、データを再度入れ替えます。確認ダイアログは要求しません。
 
-したがってコレクションの削除は作業の半分にすぎません。コンテナはダンプを自身の
-イメージ内から読むため、ホストでビルドしたばかりのダンプは、届けるまでコンテナに
-見えません。内部ダンプを手元で検索するには次の順で行います。
+#### インストール状態
 
-1. `rake help:build_internal` でビルドする。
-2. Ruby プロセスが読める場所へ届ける。Ruby イメージを再ビルドして
-   `COPY help_data/` に新しいファイルを拾わせるか、ファイルをコンテナに
-   マウントして `HELP_DATA_DUMP` をそのパスに向ける。
-3. Qdrant の `help_docs` と `help_items` コレクションを削除し、ローダーが
-   `data_loaded?` で短絡しないようにする。
-4. Ruby コンテナを**作り直し**てから `DEBUG_MODE=true` で検索する。再起動では
-   なく作り直しです。`docker restart` では古いイメージのままですし、新しい
-   マウントや `HELP_DATA_DUMP` はそれを付けて起動したコンテナにしか効きません。
+| 状態 | 意味 | 検索可否 |
+|---|---|---|
+| `not_installed` | 両方のヘルプコレクションがなく、失敗したインストール試行もない | 不可 |
+| `legacy` | 両方のヘルプコレクションはあるが、いずれにもインストール記録がない。版を検証するため再インストールが必要 | 不可 |
+| `installing` | インストール処理がジョブロックを保持中 | 状態応答では不可 |
+| `installed` | 一致する完了記録と正確な件数を検証済み | 可 |
+| `update_available` | インストール済みデータは検証済みだが、SHA-256 が同梱ファイルと異なる | 入れ替え開始まで可 |
+| `failed` | 使用可能な DB を残さずインストールが失敗、または記録・件数の欠落、不一致、未完了 | 不可 |
+| `unavailable` | ベクトルストアへの接続または問い合わせに失敗 | 不可 |
 
-手順 2 を飛ばすと、イメージに既に入っている同じ公開ダンプを読み直すだけに
-なります。Qdrant のボリューム全体を消さないでください。`library_*` と `pdf_*`
-コレクションには利用者のデータが入っています。
+同梱ファイルの指紋を取得できなくても、検証済みのインストール済み DB は検索可能です。
+その場合 `bundled_match` は `null` となり、`bundled_error` に理由が入ります。
+検証段階で失敗した場合も、それ以前の正常な DB は保持され、失敗した試行は
+`last_attempt` に記録されます。
+
+#### 排他と入れ替え
+
+同じ DB を扱うインスタンスとプロセスは、調整用ディレクトリを共有する必要が
+あります。コンテナ内は `/monadic/data/.help-installation`、ホスト上は
+`~/monadic/data/.help-installation` です。`job.lock` がインストール処理を直列化し、
+`readers.lock` が `flock` で Help の読取処理全体を保護します。ロックの所有権は
+inode に結び付くため、ロックファイルを削除してはいけません。進捗はファイルと
+ディレクトリの `fsync` およびアトミックな rename で `progress.json` に永続化します。
+
+処理順序は次のとおりです。
+
+1. **検証**：DB を変更する前に `ValidatedDump` がダンプ全体を検証します。
+   形式の版、埋め込みモデルと次元、必要な 2 コレクション、一意な符号なし整数 ID、
+   明示的に公開とされた payload、有限値のベクトル、アイテムから文書への参照を
+   検査します。SHA-256 と投入ポイントは同じファイル読み込みから取得します。
+   この段階では状態応答は `installing` ですが、正常な既存データは `with_search`
+   で引き続き読めます。
+2. **準備**：新しい検索を受け付けず、実行中の読取処理の完了を待ちます。
+   最初の破壊的変更より前に `database_invalid: true` を永続化します。
+3. **置換**：`help_docs` と `help_items` だけを対象に、各コレクションを削除・
+   再作成し、`state: installing` のインストールメタデータを付けます。
+   `library_*` と `pdf_*` は変更しません。
+4. **投入**：ポイントをバッチ投入します。各 upsert が `completed` を返したことを
+   確認してから進捗を進めます。
+5. **件数確認**：両コレクションの正確な件数をダンプと照合します。
+6. **完了記録**：両コレクションに `state: completed` と `loaded_at` を書きます。
+   記録を読み戻して意図した内容との一致を検証し、**正確な件数を再度確認**します。
+7. **終了**：完了状態と `database_invalid: false` を進捗ファイルに永続化し、
+   ロックを解放して検索を再開できるようにします。
+
+入れ替えに失敗した場合や途中で中断された場合は、明示的な再試行が完了するまで
+検索不可です。自動ロールバックや自動再試行はありません。永続化した無効状態により、
+両方の完了記録を書いた後、最終検証前に中断した場合も保護します。ジョブロックが
+解放されているのに実行中の進捗記録が残っていれば、失敗した試行として報告します。
+
+#### インストールメタデータと新しいダンプ
+
+両コレクションは `monadic_help_installation` キーに同じ記録を持ちます。
+
+- `install_id`、`dump_sha256`、`dump_version`
+- `embedding_model`、`embedding_dimension`
+- `expected_docs`、`expected_items`
+- `state`、`loaded_at`、`exported_at`（ダンプの書き出し時刻）
+
+版は `1`、モデルは `intfloat/multilingual-e5-base`、ベクトル次元は 768 です。
+利用可能と判定するには、互換性のある完了記録の一致と正確な件数が必要です。
+`exported_at` は参考情報です。インストール済みの SHA-256 と現在のダンプを比較し、
+更新の有無を判定します。
+
+公開文書の変更を届けるには `rake help:build` を実行し、新しいダンプを含むよう
+Ruby コンテナを再ビルドして作り直すか、読み取り可能なダンプをマウントして
+`HELP_DATA_DUMP` で指定します。その後、パネルでインストールまたは更新します。
+再ビルド・再起動・パス変更だけではインストール済みデータは置換されません。
+Qdrant のボリュームには利用者のデータも含まれるため、全体を削除しないでください。
 
 ## 設定
 
 | 変数 | 効果 |
 |---|---|
-| `DEBUG_MODE=true` | ビルド時に `docs_dev/` を含め（`--public-only` でない場合）、**かつ**検索でも返す |
-| `HELP_DATA_DUMP` | 起動時に読むダンプのパスを上書き |
+| `DEBUG_MODE=true` | ビルド時に `docs_dev/` を含める（`--public-only` でない場合）。Help ツールの読取では、既存の内部ポイントを含めることを既定にする |
+| `HELP_DATA_DUMP` | 明示的なインストールと更新検出で使うダンプのパスを上書き |
 | `HELP_CHUNK_SIZE` | チャンクあたりの文字数（既定 3000） |
 | `HELP_OVERLAP_SIZE` | チャンク間のオーバーラップ（既定 500） |
 | `HELP_CHUNKS_PER_RESULT` | 検索結果1件あたりのチャンク数（既定 3） |
 | `KEEP_VECTOR_SERVICES=true` | ビルド後も embeddings コンテナを動かしたままにする |
 
-`DEBUG_MODE` はビルドへの取り込みと検索での可視性を兼ねています。ビルド側は
-`--public-only` が、検索側は明示的な `include_internal:` が上書きします。
-いずれにしても公開ダンプには返せる内部文書自体がないので、内部文書を検索したい
-開発者は、`help:build_internal` で作ったダンプをコンテナへ届け、そこから
-コレクションを読み直す必要があります
-（[既存インストールへの読み込み](#既存インストールへの読み込み)を参照）。
+`DEBUG_MODE` はビルドへの取り込みと Help ツールの既定の読取可視性を制御します。
+ビルド側は `--public-only` が、読取側は明示的な `include_internal:` が上書きします。
+インストール時の検証や検索可否の判定は回避しません。したがって
+`help:build_internal` は、内部コンテンツの正式なインストール経路にはなりません。
+
+`Monadic::Help.installation` が選ぶ既定のダンプは、コンテナ内では
+`/monadic/help_data/help_db.json`、ホスト開発時は
+`docker/services/ruby/help_data/help_db.json` です。どちらも `HELP_DATA_DUMP` で
+上書きできます。インストール用インスタンスは必要時に生成し、利用可否や検索用
+接続はキャッシュしません。
 
 ## ダンプの中身を確認する
 

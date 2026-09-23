@@ -6,8 +6,8 @@
 # each chunk via the embeddings_service container, and writes a JSON dump
 # at docker/services/ruby/help_data/help_db.json.
 #
-# Runtime model: the Ruby image bakes in this dump. On first start, the
-# Ruby app loads it into Qdrant collections via Monadic::Help::DumpLoader.
+# Runtime model: the Ruby image bakes in this dump. Monadic::Help::Installation
+# loads it into Qdrant only when the user requests installation from the UI.
 # Therefore this script does not need a running Qdrant container — only
 # embeddings_service.
 
@@ -36,7 +36,6 @@ class ProcessDocumentation
 
   HELP_DATA_DIR  = File.expand_path('../../help_data', __dir__)
   DUMP_PATH      = File.join(HELP_DATA_DIR, 'help_db.json')
-  EXPORT_ID_PATH = File.join(HELP_DATA_DIR, 'export_id.txt')
 
   CHUNK_SIZE   = ENV.fetch('HELP_CHUNK_SIZE',   '3000').to_i
   OVERLAP_SIZE = ENV.fetch('HELP_OVERLAP_SIZE', '500').to_i
@@ -285,11 +284,6 @@ class ProcessDocumentation
     }
 
     File.write(DUMP_PATH, JSON.pretty_generate(dump))
-
-    # Short fingerprint used by monadic.sh to invalidate the build cache
-    # when the help DB content changes (so the embeddings image is rebuilt).
-    export_id = Digest::SHA256.file(DUMP_PATH).hexdigest[0, 16]
-    File.write(EXPORT_ID_PATH, export_id)
   end
 
   # ─── Markdown helpers (unchanged behaviour from the prior PG version) ──

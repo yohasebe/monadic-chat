@@ -1002,14 +1002,6 @@ build_docker_compose() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
   
-  # Get help export ID for build-arg cache invalidation (Phase 4 build
-  # script writes this when the prebuilt help DB JSON dump changes).
-  local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
-  if [ -f "$help_export_file" ]; then
-    help_export_id=$(cat "$help_export_file")
-  fi
-
   # Calculate gems fingerprint for Ruby container labeling
   local gems_fingerprint
   if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
@@ -1047,7 +1039,7 @@ build_docker_compose() {
   ${DOCKER} system df >> "${log_file}" 2>&1 || echo "Unable to get disk usage" >> "${log_file}"
   echo "" >> "${log_file}"
   echo "[DEBUG] GEMS_FINGERPRINT='${gems_fingerprint}'" >> "${log_file}"
-  echo "[DEBUG] Executing: HELP_EXPORT_ID='${help_export_id}' GEMS_FINGERPRINT='${gems_fingerprint}' '${DOCKER}' compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache}" >> "${log_file}"
+  echo "[DEBUG] Executing: GEMS_FINGERPRINT='${gems_fingerprint}' '${DOCKER}' compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache}" >> "${log_file}"
   echo "======================================" >> "${log_file}"
   echo "" >> "${log_file}"
 
@@ -1078,7 +1070,7 @@ build_docker_compose() {
   # Execute docker compose build and redirect output to log file with or without cache
   # Include all profiles so profiled services (python, selenium) are also built
   local build_start_epoch=$(date +%s)
-  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  eval "GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
   local build_status=${PIPESTATUS[0]}
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))
@@ -1179,21 +1171,13 @@ save_container_versions() {
   local embeddings_dockerfile="${ROOT_DIR}/services/embeddings/Dockerfile"
   local embeddings_hash=$(calculate_docker_hash "$embeddings_dockerfile")
 
-  # Get help export ID if it exists (Phase 4 build script writes this)
-  local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
-  if [ -f "$help_export_file" ]; then
-    help_export_id=$(cat "$help_export_file")
-  fi
-
   # Create JSON file with version information and hashes
   cat <<EOF > "$json_file"
 {
   "version": "${MONADIC_VERSION}",
   "python_hash": "${python_hash}",
   "selenium_hash": "${selenium_hash}",
-  "embeddings_hash": "${embeddings_hash}",
-  "help_export_id": "${help_export_id}"
+  "embeddings_hash": "${embeddings_hash}"
 }
 EOF
   
@@ -1238,13 +1222,6 @@ check_dockerfiles_changed() {
   local embeddings_dockerfile="${ROOT_DIR}/services/embeddings/Dockerfile"
   local embeddings_hash=$(calculate_docker_hash "$embeddings_dockerfile")
 
-  # Get current help export ID
-  local help_export_id="initial_empty_database"
-  local help_export_file="${ROOT_DIR}/services/ruby/help_data/export_id.txt"
-  if [ -f "$help_export_file" ]; then
-    help_export_id=$(cat "$help_export_file")
-  fi
-
   # If the file doesn't exist, consider everything changed
   if [ ! -f "$json_file" ]; then
     PYTHON_DOCKERFILE_CHANGED=true
@@ -1259,7 +1236,6 @@ check_dockerfiles_changed() {
   local stored_python_hash=$(json_string_value "$json_file" "python_hash")
   local stored_selenium_hash=$(json_string_value "$json_file" "selenium_hash")
   local stored_embeddings_hash=$(json_string_value "$json_file" "embeddings_hash")
-  local stored_help_export_id=$(json_string_value "$json_file" "help_export_id")
 
   # Check each container individually
   if [[ "$stored_python_hash" != "$python_hash" ]]; then
@@ -1268,12 +1244,8 @@ check_dockerfiles_changed() {
   if [[ "$stored_selenium_hash" != "$selenium_hash" ]]; then
     SELENIUM_DOCKERFILE_CHANGED=true
   fi
-  # Embeddings refresh is needed only when its Dockerfile changed. The
-  # help DB JSON dump lives in the RUBY image (help_data/, keyed by
-  # HELP_EXPORT_ID there), NOT in the embeddings image — an earlier
-  # design baked it into embeddings and this condition used to include
-  # the export ID, causing pointless embeddings refreshes on every help
-  # DB update.
+  # Embeddings refresh depends only on its Dockerfile. The help dump is
+  # copied into the Ruby image and does not affect the embeddings image.
   if [[ "$stored_embeddings_hash" != "$embeddings_hash" ]]; then
     EMBEDDINGS_DOCKERFILE_CHANGED=true
   fi

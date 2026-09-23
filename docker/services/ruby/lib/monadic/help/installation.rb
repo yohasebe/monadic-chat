@@ -10,7 +10,6 @@ require_relative 'validated_dump'
 
 module Monadic
   module Help
-    # Preparation API only: boot loading, routes and Help tools do not use it yet.
     # All processes targeting the same database must share coordination_dir.
     # Never unlink lock files: flock ownership is tied to the inode.
     class Installation
@@ -29,12 +28,7 @@ module Monadic
       end
 
       def self.default_coordination_dir
-        base = if Monadic::Utils::Environment.in_container?
-                 '/monadic/data'
-               else
-                 File.expand_path('~/monadic/data')
-               end
-        File.join(base, '.help-installation')
+        File.join(Monadic::Utils::Environment.data_path, '.help-installation')
       end
 
       def initialize(store: VectorStore.default_backend,

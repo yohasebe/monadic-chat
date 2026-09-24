@@ -1305,6 +1305,18 @@ const modelSpec = {
       "luna", "lux", "naksh", "orion", "perseus", "rex", "rigel", "sal",
       "sirius", "ursa", "zagan", "zenith"]
   },
+  "gemini-3.8-flash-tts": {
+    "tts_capability": true,
+    "tts_family": "gemini",
+    "tts_style_directive": "bracket_cue",
+    "tts_instructions_capability": true
+  },
+  "gemini-3.8-flash-lite-tts": {
+    "tts_capability": true,
+    "tts_family": "gemini",
+    "tts_style_directive": "bracket_cue",
+    "tts_instructions_capability": true
+  },
   "gemini-3.1-flash-tts-preview": {
     "tts_capability": true,
     "tts_family": "gemini",
@@ -1555,7 +1567,7 @@ const providerDefaults = {
     "image": ["gemini-3.1-flash-image", "gemini-3-pro-image"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "music": ["lyria-3-pro-preview", "lyria-3-clip-preview"],
-    "tts": ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
+    "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
     "chat": ["command-a-plus-05-2026", "command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],

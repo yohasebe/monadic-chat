@@ -440,6 +440,11 @@ module Monadic
           get_model_property(model_name, "tts_instructions_capability") == true
         end
 
+        # In-band style directive syntax; nil keeps the legacy prefix.
+        def tts_style_directive(model_name)
+          get_model_property(model_name, "tts_style_directive")
+        end
+
         # Supported voice list for the TTS model, or nil when unknown.
         def tts_voices(model_name)
           get_model_property(model_name, "tts_voices")

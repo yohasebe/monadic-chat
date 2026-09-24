@@ -7,6 +7,7 @@ $LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(Fi
 require "http"
 require "json"
 require "net/http"
+require "monadic/utils/tts_audio"
 
 # Configure SSL to avoid CRL check errors
 begin
@@ -32,7 +33,7 @@ end
 
 # Resolve TTS provider label to actual model name via providerDefaults SSOT.
 # OpenAI TTS list: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
-# Gemini TTS list: [0]=flash, [1]=pro
+# Gemini TTS list: first entry is the default; resolve legacy Pro by name.
 # ElevenLabs TTS list: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
 def resolve_tts_model(provider_label)
   if provider_label.start_with?("gemini")
@@ -41,7 +42,7 @@ def resolve_tts_model(provider_label)
                  end
     case provider_label
     when "gemini-pro"
-      tts_models&.[](1)
+      tts_models&.find { |model| model.include?("-pro-") }
     else
       tts_models&.[](0)
     end
@@ -314,8 +315,11 @@ def tts_api_request(text,
     # Apply speed control using natural language instructions
     # Gemini TTS doesn't have a numeric speed parameter, so we use natural language prompts
     # Note: Voice-specific style instructions removed to let each voice's natural characteristics come through
+    model_name = resolve_tts_model(provider)
     speed_val = speed.to_f
-    speed_instruction = if speed_val >= 1.8
+    speed_instruction = if model_name.to_s.start_with?("gemini-3")
+      ""  # Keep pace prefixes out of dedicated 3.x TTS prompts.
+    elsif speed_val >= 1.8
       "[extremely fast] "
     elsif speed_val >= 1.4
       "Speak quickly and at a faster pace. "
@@ -432,45 +436,9 @@ def tts_api_request(text,
           # Log the actual format received
           STDERR.puts "INFO: Gemini returned audio in #{mime_type} format"
           
-          # Handle PCM audio data by adding WAV header if needed
-          if mime_type && mime_type.include?("L16") && mime_type.include?("pcm")
-            # Extract sample rate from mime type
-            sample_rate = 24000  # Default
-            if mime_type =~ /rate=(\d+)/
-              sample_rate = $1.to_i
-            end
-            
-            # Create WAV header for 16-bit mono PCM
-            require 'stringio'
-            wav_data = StringIO.new
-            wav_data.binmode
-            
-            # Write WAV header
-            channels = 1
-            bits_per_sample = 16
-            byte_rate = sample_rate * channels * bits_per_sample / 8
-            block_align = channels * bits_per_sample / 8
-            data_size = decoded_audio.bytesize
-            
-            wav_data.write("RIFF")
-            wav_data.write([36 + data_size].pack("V"))  # File size - 8
-            wav_data.write("WAVE")
-            wav_data.write("fmt ")
-            wav_data.write([16].pack("V"))              # Subchunk1Size
-            wav_data.write([1].pack("v"))               # AudioFormat (1 = PCM)
-            wav_data.write([channels].pack("v"))        # NumChannels
-            wav_data.write([sample_rate].pack("V"))     # SampleRate
-            wav_data.write([byte_rate].pack("V"))       # ByteRate
-            wav_data.write([block_align].pack("v"))     # BlockAlign
-            wav_data.write([bits_per_sample].pack("v")) # BitsPerSample
-            wav_data.write("data")
-            wav_data.write([data_size].pack("V"))       # Subchunk2Size
-            wav_data.write(decoded_audio)
-            
-            decoded_audio = wav_data.string
-            mime_type = "audio/wav"
-          end
-          
+          decoded_audio = Monadic::Utils::TtsAudio.to_wav(decoded_audio, mime_type: mime_type)
+          mime_type = "audio/wav"
+
           # Return both audio data and mime type for proper file extension handling
           response = {
             audio_data: decoded_audio,
@@ -479,7 +447,7 @@ def tts_api_request(text,
         else
           return { type: "error", content: "ERROR: Invalid response format from Gemini API" }
         end
-      rescue JSON::ParserError => e
+      rescue JSON::ParserError, Monadic::Utils::TtsAudio::InvalidWav => e
         return { type: "error", content: "ERROR: Failed to parse Gemini response: #{e.message}" }
       end
     else

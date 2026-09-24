@@ -4,38 +4,11 @@ require 'base64'
 require 'net/http'
 require_relative 'extra_logger'
 require_relative 'tts_text_processors'
+require_relative 'tts_audio'
 
 module InteractionUtils
-  # Convert raw PCM audio data to WAV format (in memory, no file I/O)
-  # WAV format adds a 44-byte header to the raw PCM data
-  # @param pcm_data [String] Raw PCM audio data (binary string)
-  # @param sample_rate [Integer] Sample rate in Hz (default: 24000 for Gemini TTS)
-  # @param channels [Integer] Number of audio channels (default: 1 for mono)
-  # @param bits_per_sample [Integer] Bits per sample (default: 16)
-  # @return [String] WAV audio data (binary string)
-  def pcm_to_wav(pcm_data, sample_rate: 24000, channels: 1, bits_per_sample: 16)
-    data_size = pcm_data.bytesize
-    byte_rate = sample_rate * channels * bits_per_sample / 8
-    block_align = channels * bits_per_sample / 8
-
-    # WAV file header (44 bytes)
-    header = [
-      "RIFF",                          # ChunkID
-      data_size + 36,                  # ChunkSize (file size - 8)
-      "WAVE",                          # Format
-      "fmt ",                          # Subchunk1ID
-      16,                              # Subchunk1Size (16 for PCM)
-      1,                               # AudioFormat (1 = PCM)
-      channels,                        # NumChannels
-      sample_rate,                     # SampleRate
-      byte_rate,                       # ByteRate
-      block_align,                     # BlockAlign
-      bits_per_sample,                 # BitsPerSample
-      "data",                          # Subchunk2ID
-      data_size                        # Subchunk2Size
-    ].pack("A4VA4A4VvvVVvvA4V")
-
-    header + pcm_data
+  def pcm_to_wav(pcm_data, **options)
+    Monadic::Utils::TtsAudio.pcm_to_wav(pcm_data, **options)
   end
 
   def tts_api_request(text,
@@ -191,7 +164,7 @@ module InteractionUtils
       }
 
       # Resolve target model first so speed-prefix logic can branch on it.
-      # SSOT: providerDefaults.gemini.tts (primary = gemini-3.1-flash-tts-preview).
+      # SSOT: providerDefaults.gemini.tts (first entry is the default).
       model_name = resolve_tts_model(provider)
 
       # Apply speed control using natural language instructions for the 2.5
@@ -220,16 +193,15 @@ module InteractionUtils
         ""  # Default speed - no instruction needed for faster response
       end
 
-      # Gemini TTS accepts natural-language style directives as an in-band
-      # prefix in the spoken-text channel (no separate `instructions`
-      # parameter exists). When the upstream extractor surfaced a
-      # `<<TTS:...>>` directive block from the LLM response, prepend it
-      # here as a director's note. Gemini's own docs demonstrate this
-      # pattern (see ai.google.dev/gemini-api/docs/speech-generation —
-      # "Controlling speech style with prompts"). The engine reads the
-      # lead-in as direction rather than speech.
+      # Style directives are in-band. SSOT selects bracket cues for models
+      # that read the legacy prose prefix aloud; older models keep it.
       style_prefix = if instructions && !instructions.to_s.empty?
-        "Say with this voice and style:\n#{instructions.to_s.strip}\n\n"
+        if Monadic::Utils::ModelSpec.tts_style_directive(model_name) == "bracket_cue"
+          cue = instructions.to_s.tr("[]", "  ").gsub(/\s+/, " ").strip
+          cue.empty? ? "" : "[#{cue}] "
+        else
+          "Say with this voice and style:\n#{instructions.to_s.strip}\n\n"
+        end
       else
         ""
       end
@@ -327,7 +299,7 @@ module InteractionUtils
         return { "type" => "error", "content" => "ERROR: #{error_report}" }
       end
 
-      # Handle Gemini response format - convert PCM to WAV for browser compatibility
+      # Handle Gemini response format - normalize audio to WAV for browser compatibility
       if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
         begin
           gemini_response = JSON.parse(res.body.to_s)
@@ -355,22 +327,13 @@ module InteractionUtils
             pcm_base64 = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
             original_mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
 
-            # Decode base64 PCM data
-            pcm_data = Base64.decode64(pcm_base64)
-
-            # Extract sample rate from mime_type (e.g., "audio/L16;codec=pcm;rate=24000")
-            sample_rate = 24000  # Default
-            if original_mime_type =~ /rate=(\d+)/
-              sample_rate = $1.to_i
-            end
-
-            # Convert PCM to WAV (in memory, no file I/O)
-            wav_data = pcm_to_wav(pcm_data, sample_rate: sample_rate)
+            audio_data = Base64.decode64(pcm_base64)
+            wav_data = Monadic::Utils::TtsAudio.to_wav(audio_data, mime_type: original_mime_type)
 
             # Re-encode to base64
             wav_base64 = Base64.strict_encode64(wav_data)
 
-            puts "Gemini TTS: PCM (#{pcm_data.length} bytes) -> WAV (#{wav_data.length} bytes)" if ENV["DEBUG_TTS"]
+            puts "Gemini TTS: Audio (#{audio_data.length} bytes) -> WAV (#{wav_data.length} bytes)" if ENV["DEBUG_TTS"]
 
             return { "type" => "audio", "content" => wav_base64, "mime_type" => "audio/wav" }
           else
@@ -378,7 +341,7 @@ module InteractionUtils
             Monadic::Utils::ExtraLogger.log { "[DEBUG] Gemini TTS Error: Invalid response format (no inlineData)\n[DEBUG] Response structure: #{gemini_response.to_json[0..500]}" }
             return { "type" => "error", "content" => "ERROR: Invalid response format from Gemini TTS API. The API may be experiencing issues." }
           end
-        rescue JSON::ParserError => e
+        rescue JSON::ParserError, Monadic::Utils::TtsAudio::InvalidWav => e
           return { "type" => "error", "content" => "ERROR: Failed to parse Gemini response: #{e.message}" }
         end
       end
@@ -692,7 +655,7 @@ module InteractionUtils
                 next
               end
 
-              # Extract audio data from Gemini response and convert PCM to WAV
+              # Extract audio data from Gemini response and normalize audio to WAV
               if gemini_response["candidates"] &&
                  gemini_response["candidates"][0] &&
                  gemini_response["candidates"][0]["content"] &&
@@ -703,17 +666,8 @@ module InteractionUtils
                 pcm_base64 = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
                 original_mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
 
-                # Decode base64 PCM data
-                pcm_data = Base64.decode64(pcm_base64)
-
-                # Extract sample rate from mime_type (e.g., "audio/L16;codec=pcm;rate=24000")
-                sample_rate = 24000  # Default
-                if original_mime_type =~ /rate=(\d+)/
-                  sample_rate = $1.to_i
-                end
-
-                # Convert PCM to WAV (in memory, no file I/O)
-                wav_data = pcm_to_wav(pcm_data, sample_rate: sample_rate)
+                audio_data = Base64.decode64(pcm_base64)
+                wav_data = Monadic::Utils::TtsAudio.to_wav(audio_data, mime_type: original_mime_type)
 
                 # Re-encode to base64
                 wav_base64 = Base64.strict_encode64(wav_data)
@@ -725,7 +679,7 @@ module InteractionUtils
                 }
                 result["sequence_id"] = sequence_id if sequence_id
 
-                Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: SUCCESS (Gemini/http.rb) - pcm_size=#{pcm_data.length}, wav_size=#{wav_data.length}, sequence_id=#{sequence_id}" }
+                Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: SUCCESS (Gemini/http.rb) - audio_size=#{audio_data.length}, wav_size=#{wav_data.length}, sequence_id=#{sequence_id}" }
 
                 # Return to Async reactor context
                 Async do
@@ -744,14 +698,14 @@ module InteractionUtils
             block.call(error_result)
           end
               end
-            rescue JSON::ParserError => e
+            rescue JSON::ParserError, Monadic::Utils::TtsAudio::InvalidWav => e
               error_result = {
                 "type" => "error",
                 "content" => "ERROR: Failed to parse Gemini response: #{e.message}"
               }
               error_result["sequence_id"] = sequence_id if sequence_id
 
-              Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Gemini JSON parse error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
+              Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Gemini response parse error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
 
               Async do
             block.call(error_result)
@@ -929,7 +883,7 @@ module InteractionUtils
 
   # Resolve TTS provider label to actual model name via providerDefaults.
   # OpenAI TTS list is ordered: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
-  # Gemini TTS list is ordered: [0]=flash, [1]=pro
+  # Gemini TTS list: first entry is the default; resolve legacy Pro by name.
   # ElevenLabs TTS list is ordered: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
   def resolve_tts_model(provider_label)
     if provider_label =~ /\Agemini/
@@ -938,7 +892,7 @@ module InteractionUtils
                    end
       case provider_label
       when "gemini-pro"
-        tts_models&.[](1)
+        tts_models&.find { |model| model.include?("-pro-") }
       else # "gemini-flash", "gemini"
         tts_models&.[](0)
       end

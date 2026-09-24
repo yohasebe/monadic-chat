@@ -20,19 +20,19 @@
 
 ##### Q: Can I adjust the speed of the AI agent's voice? :id=voice-speed-adjustment
 
-**A**: Yes, you can adjust the playback speed of the synthesized speech using the `TTS Speed` slider in the Speech Settings panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, though quality may vary. Gemini TTS also supports speed adjustment through natural language instructions internally converted from the slider value.
+**A**: Yes, you can adjust the playback speed of the synthesized speech using the `TTS Speed` slider in the Speech Settings panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, though quality may vary. Gemini TTS uses playback-rate adjustment for its current Flash models. Older models also receive natural-language pace instructions derived from the slider value. Because the current Flash models are adjusted at playback, audio files saved through the Speech Draft Helper app with them are generated at the standard pace.
 
 ---
 
 ##### Q: What is Gemini TTS and how does it differ from other providers? :id=gemini-tts-overview
 
-**A**: Gemini TTS is Google's text-to-speech service, using Gemini's Flash and Pro TTS models. It requires a Gemini API key, and covers both spoken chat responses and audio file generation through the Speech Draft Helper app. The voices and languages on offer are Google's, and change independently of Monadic Chat; the voice dropdown in the Speech Settings panel shows what is currently available.
+**A**: Gemini TTS is Google's text-to-speech service, offering Flash and Flash-Lite TTS models alongside the existing Flash and Pro options. It requires a Gemini API key, and covers both spoken chat responses and audio file generation through the Speech Draft Helper app. The voices and languages on offer are Google's, and change independently of Monadic Chat; the voice dropdown in the Speech Settings panel shows what is currently available.
 
 ---
 
 ##### Q: Can I save the input text as an audio file by synthesizing speech? :id=saving-audio-files
 
-**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an audio file. The Speech Draft Helper supports multiple TTS providers: OpenAI and ElevenLabs output MP3 files, while Gemini outputs WAV files. You can choose different voices and providers for audio generation.
+**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an audio file. The Speech Draft Helper supports multiple TTS providers: OpenAI and ElevenLabs output MP3 files, while Gemini outputs WAV files. WAV files from the current Gemini models carry Google's content credentials, which record when the audio was generated and that it was created by generative AI. You can choose different voices and providers for audio generation.
 
 ---
 

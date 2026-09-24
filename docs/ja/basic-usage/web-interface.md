@@ -54,7 +54,7 @@ Monadic Chatは2つの異なるブラウザモードでWebインターフェー�
 使用するAIモデルを選択します。使用可能なモデルは選択中のアプリによって異なります。非推奨（deprecated）のモデルは一覧から自動的に除外されます。
 
 **推論/思考コントロール** <br />
-高度な思考をサポートするモデルの推論深度を調整します。セレクターは各プロバイダーの用語に適応します（OpenAI: Reasoning Effort、Anthropic: Thinking Level、Google: Thinking Mode、xAI: Reasoning Effort、DeepSeek: Reasoning Mode）。
+高度な思考をサポートするモデルの推論深度を調整します。適応的推論が必須のモデルでは、推論の設定がオフの場合やアプリが構造化出力を使う場合も推論が実行され、推論の費用はなくなりません。思考過程を非表示にしても、変わるのは表示だけです。セレクターは各プロバイダーの用語に適応します（OpenAI: Reasoning Effort、Anthropic: Thinking Level、Google: Thinking Mode、xAI: Reasoning Effort、DeepSeek: Reasoning Mode）。
 
 **Show Thinking** <br />
 モデルの思考（reasoning）の過程を、各応答内の折りたたみ可能な「Thinking Process」パネルとして表示するかどうかを切り替えます。このトグルは思考をサポートするモデルでのみ表示され、推論コントロールと連動します。推論の深さが「None」の状態でオンにすると、そのモデルの最も低い思考レベルまで自動的に引き上げられ、逆に「None」に戻すとトグルはオフになります。[Live Conversation](../apps/chat-apps.md#live-conversation) ではこのトグルは表示されません（リアルタイムモデルは推論過程を出力しないため）。

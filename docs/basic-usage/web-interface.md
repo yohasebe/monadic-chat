@@ -56,7 +56,7 @@ Select one of the basic apps. Each app has different default parameters and init
 Select the AI model to use. Available models depend on the selected app. Deprecated models are automatically excluded from the list.
 
 **Reasoning/Thinking Control** <br />
-Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
+Adjust the reasoning depth for models that support advanced thinking. Models with mandatory adaptive reasoning continue to reason even when reasoning controls are off or the app uses structured output; these settings do not eliminate reasoning costs. Hiding the thinking trace only changes its display. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
 
 **Show Thinking** <br />
 Show or hide the model's thinking/reasoning trace as a collapsible "Thinking Process" panel in each response. The toggle appears only for models that support thinking, and it is linked with the reasoning control: turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, and setting the effort back to "None" turns the toggle off. In [Live Conversation](../apps/chat-apps.md#live-conversation) this toggle is not shown, because realtime models do not emit a reasoning trace.

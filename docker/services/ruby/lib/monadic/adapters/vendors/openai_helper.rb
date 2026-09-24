@@ -237,7 +237,7 @@ module OpenAIHelper
     # Add reasoning_effort when provided and model supports it (reasoning family)
     if options["reasoning_effort"]
       begin
-        if Monadic::Utils::ModelSpec.is_reasoning_model?(model)
+        if Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
           body["reasoning_effort"] = options["reasoning_effort"]
         end
       rescue StandardError
@@ -284,8 +284,13 @@ module OpenAIHelper
       body["tool_choice"] = "auto"
     end
 
-    # Set API endpoint
-    target_uri = API_ENDPOINT + "/chat/completions"
+    # Simple queries must honor the same endpoint contract as chat requests.
+    use_responses_api = Monadic::Utils::ModelSpec.responses_api?(model)
+    if use_responses_api
+      body["verbosity"] = options["verbosity"] if options["verbosity"]
+      body = convert_to_responses_api_body(body, options, model, {}, body["max_completion_tokens"], model)
+    end
+    target_uri = API_ENDPOINT + (use_responses_api ? "/responses" : "/chat/completions")
 
     # Make the request
     http = HTTP.headers(headers)
@@ -299,7 +304,18 @@ module OpenAIHelper
       response_body = res.body.respond_to?(:read) ? res.body.read : res.body.to_s
       parsed_response = JSON.parse(response_body)
       Monadic::Utils::UsageNormalizer.capture("openai", parsed_response)
-      message = parsed_response.dig("choices", 0, "message")
+      message = if use_responses_api
+                  output = Array(parsed_response["output"])
+                  text = output.select { |item| item["type"] == "message" }.flat_map do |item|
+                    Array(item["content"]).filter_map { |part| part["text"] if part["type"] == "output_text" }
+                  end.join("\n")
+                  calls = output.select { |item| item["type"] == "function_call" }.map do |item|
+                    { "function" => { "name" => item["name"], "arguments" => item["arguments"] } }
+                  end
+                  { "content" => text, "tool_calls" => calls }
+                else
+                  parsed_response.dig("choices", 0, "message")
+                end
 
       # Check for tool calls in the response
       if message && message["tool_calls"] && message["tool_calls"].any?
@@ -391,7 +407,7 @@ module OpenAIHelper
     end
 
     if reasoning_model
-      if reasoning_effort && reasoning_effort != "none"
+      if reasoning_effort
         body["reasoning_effort"] = reasoning_effort
       end
       body.delete("temperature")
@@ -1009,11 +1025,12 @@ module OpenAIHelper
       "store" => true
     }
 
-    if body["reasoning_effort"] && body["reasoning_effort"] != "none"
-      responses_body["reasoning"] = {
-        "effort" => body["reasoning_effort"],
-        "summary" => "auto"
-      }
+    effort_config = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
+    effort = body["reasoning_effort"] || obj["reasoning_effort"] || effort_config&.dig(:default)
+    if effort && effort_config && effort_config[:options].include?(effort)
+      # Omitting "none" would select the API's default reasoning level.
+      responses_body["reasoning"] = { "effort" => effort }
+      responses_body["reasoning"]["summary"] = "auto" unless effort == "none"
     end
 
     is_reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
@@ -1115,16 +1132,13 @@ module OpenAIHelper
       if body["verbosity"] && Monadic::Utils::ModelSpec.supports_verbosity?(model)
         responses_body["text"]["verbosity"] = body["verbosity"]
       end
-    elsif body["response_format"] && body["response_format"]["type"] == "json_object"
-      responses_body["text"] = {
-        "format" => {
-          "type" => "json",
-          "json_schema" => body["response_format"]["json_schema"] || {
-            "name" => "response",
-            "schema" => { "type" => "object", "additionalProperties" => true }
-          }
-        }
-      }
+    elsif body["response_format"]
+      format = JSON.parse(body["response_format"].to_json)
+      format = { "type" => "json_schema" }.merge(format.fetch("json_schema")) if format["type"] == "json_schema"
+      responses_body["text"] = { "format" => format }
+      if body["verbosity"] && Monadic::Utils::ModelSpec.supports_verbosity?(model)
+        responses_body["text"]["verbosity"] = body["verbosity"]
+      end
     else
       if body["verbosity"] && Monadic::Utils::ModelSpec.supports_verbosity?(model)
         responses_body["text"] = { "verbosity" => body["verbosity"] }

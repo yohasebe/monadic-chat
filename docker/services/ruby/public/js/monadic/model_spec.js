@@ -208,6 +208,20 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  "gpt-6-sol": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh", "max"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
   "gpt-5.6-sol": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
@@ -223,6 +237,20 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   "gpt-5.6-terra": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh", "max"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
+  "gpt-6-luna": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high", "xhigh", "max"], "none"],
@@ -403,7 +431,7 @@ const modelSpec = {
     "structured_output": true,
     "structured_output_mode": "json_schema",
     "beta_flags": [],
-    "unavailable_fallback": "claude-opus-5"
+    "unavailable_fallback": "claude-opus-5-5"
   },
   "claude-fable-5": {
     "context_window" : [1, 1000000],
@@ -429,6 +457,33 @@ const modelSpec = {
     "structured_output_mode": "json_schema",
     "beta_flags": [],
     "unavailable_fallback": "claude-opus-5"
+  },
+  // Opus 5.5 uses adaptive thinking and prefix-bound thinking blocks.
+  "claude-opus-5-5": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "rejects_forced_tool_choice": true,
+    "thinking_block_binding": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
   },
   // Claude Opus 5 — for complex agentic coding and enterprise work.
   // Capabilities verified identical to claude-sonnet-5 via the Models API
@@ -1542,9 +1597,9 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
+    "chat": ["gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
     "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
-    "vision": ["gpt-5.6-luna", "gpt-5.4-mini"],
+    "vision": ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],
     // First entry is the default. The 2.5 models are offered as choices; moving
     // the default is a separate decision that needs a like-for-like comparison

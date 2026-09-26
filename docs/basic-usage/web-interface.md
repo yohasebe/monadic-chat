@@ -173,7 +173,7 @@ When Auto Speech is enabled and the selected TTS provider supports Expressive Sp
 - **Instruction mode** (the OpenAI TTS model with instruction support): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
 - **Hybrid mode** (Gemini TTS): Gemini supports both of the above simultaneously. The assistant may use inline markers, a voice directive, or both, and Google's engine interprets the combination. Everything except the spoken reply is stripped from the transcript.
 
-With Gemini TTS, style cues can add words such as "Oh," or laughter that are absent from the text. For language-learning material or other uses that require reading the text as written, omit style directives and expressive markers.
+With Gemini TTS, style cues can add words such as "Oh," or laughter that are absent from the text. The Flash-Lite option receives no voice directive, because it sometimes reads the directive aloud as part of the text; inline markers still apply. For language-learning material or other uses that require reading the text as written, omit style directives and expressive markers.
 
 Hover the badge for a tooltip that describes the active mechanism. Turning off Auto Speech, or switching to a TTS provider without Expressive Speech support, silently disables the feature.
 

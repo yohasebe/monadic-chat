@@ -132,6 +132,31 @@ RSpec.describe "Gemini TTS audio decoding" do
     end
   end
 
+  [:normal, :sentence, :cli].each do |route|
+    it "routes Flash-Lite audio through #{route} using its actual resolver" do
+      allow(host).to receive(:resolve_tts_model).and_call_original
+      respond_with(wav, "audio/wav")
+      options = { provider: "gemini-flash-lite", voice: "kore", response_format: "wav", speed: 1.0, language: "auto" }
+      result = case route
+               when :normal
+                 host.tts_api_request("Hello", **options, instructions: "warm [and] amused")
+               when :sentence
+                 value = nil
+                 host.tts_api_request_async("Hello", **options) { |audio| value = audio }
+                 value
+               when :cli
+                 script.tts_api_request("Hello", **options).transform_keys(&:to_s)
+               end
+      expect(audio_bytes(result)).to eq(wav)
+      expect(client).to have_received(:post) do |url, json:|
+        expect(url).to include("/gemini-3.8-flash-lite-tts:generateContent")
+        # Flash-Lite speaks even a bracketed style cue as part of the script,
+        # so a direction given on the normal route must not reach the text.
+        expect(json.dig("contents", 0, "parts", 0, "text")).to eq("Hello")
+      end
+    end
+  end
+
   it "loads CLI definitions without polluting Object" do
     methods = Object.private_instance_methods(false)
     constants = Object.constants(false)
@@ -150,7 +175,7 @@ RSpec.describe "Gemini TTS audio decoding" do
     expect(File).to receive(:open).with(a_string_ending_with("/gemini-tts-draft.wav"), "wb").and_yield(output)
     previous_argv = ARGV.dup
     begin
-      ARGV.replace([input, "--provider=gemini-flash", "--voice=kore"])
+      ARGV.replace([input, "--provider=gemini-flash-lite", "--voice=kore"])
       expect { Object.new.instance_eval(File.read(script_path), script_path) }
         .to output(/WAV format/).to_stdout
     ensure
@@ -188,9 +213,9 @@ RSpec.describe "Gemini TTS audio decoding" do
             respond_with(wav, "audio/wav")
             host.tts_api_request("Hello", provider: "gemini", voice: "kore",
                                  response_format: "wav", speed: 1.0, instructions: directive)
-            expected = if directive.nil? || directive.empty?
+            expected = if directive.nil? || directive.empty? || model == "gemini-3.8-flash-lite-tts"
                          "Hello"
-                       elsif %w[gemini-3.8-flash-tts gemini-3.8-flash-lite-tts].include?(model)
+                       elsif model == "gemini-3.8-flash-tts"
                          directive.include?("[") ? "[warm and amused] Hello" : "[warm, amused] Hello"
                        else
                          "Say with this voice and style:\n#{directive}\n\nHello"

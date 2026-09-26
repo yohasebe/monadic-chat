@@ -8,6 +8,7 @@ require "http"
 require "json"
 require "net/http"
 require "monadic/utils/tts_audio"
+require "monadic/utils/tts_provider"
 
 # Configure SSL to avoid CRL check errors
 begin
@@ -33,19 +34,14 @@ end
 
 # Resolve TTS provider label to actual model name via providerDefaults SSOT.
 # OpenAI TTS list: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
-# Gemini TTS list: first entry is the default; resolve legacy Pro by name.
+# Gemini TTS list: unsuffixed default follows order; explicit variants resolve by name.
 # ElevenLabs TTS list: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
 def resolve_tts_model(provider_label)
-  if provider_label.start_with?("gemini")
+  if Monadic::Utils::TtsProvider.gemini?(provider_label)
     tts_models = if defined?(Monadic::Utils::ModelSpec)
                    Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
                  end
-    case provider_label
-    when "gemini-pro"
-      tts_models&.find { |model| model.include?("-pro-") }
-    else
-      tts_models&.[](0)
-    end
+    Monadic::Utils::TtsProvider.resolve_gemini_model(provider_label, tts_models)
   elsif provider_label.start_with?("elevenlabs")
     tts_models = if defined?(Monadic::Utils::ModelSpec)
                    Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")
@@ -285,7 +281,7 @@ def tts_api_request(text,
 
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
-  when "gemini", "gemini-flash", "gemini-pro"
+  when Monadic::Utils::TtsProvider.method(:gemini?)
     # Try config file first (primary source of truth)
     api_key = nil
     begin
@@ -414,7 +410,7 @@ def tts_api_request(text,
     end
     
     # Handle Gemini response format
-    if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
+    if Monadic::Utils::TtsProvider.gemini?(provider)
       begin
         gemini_response = JSON.parse(res.body.to_s)
         
@@ -552,7 +548,7 @@ begin
   outfile = File.basename(textpath, ".*")
   
   # Determine file extension based on provider and response
-  file_extension = if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && response.is_a?(Hash) && response[:mime_type]
+  file_extension = if (Monadic::Utils::TtsProvider.gemini?(provider)) && response.is_a?(Hash) && response[:mime_type]
     # Extract extension from mime type (e.g., "audio/wav" -> "wav")
     mime_ext = response[:mime_type].split("/").last
     # Default to wav if we can't determine the format
@@ -565,7 +561,7 @@ begin
   file_path = File.join(save_path, filename)
 
   # Save the audio file
-  audio_content = if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && response.is_a?(Hash)
+  audio_content = if (Monadic::Utils::TtsProvider.gemini?(provider)) && response.is_a?(Hash)
     response[:audio_data]
   else
     response
@@ -576,7 +572,7 @@ begin
   end
 
   # Display appropriate message based on file format
-  if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && file_extension != "mp3"
+  if (Monadic::Utils::TtsProvider.gemini?(provider)) && file_extension != "mp3"
     puts "Text-to-speech audio saved to #{filename} (#{file_extension.upcase} format)"
   else
     puts "Text-to-speech audio MP3 saved to #{filename}"

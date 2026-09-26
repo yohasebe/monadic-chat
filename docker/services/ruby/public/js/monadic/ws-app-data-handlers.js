@@ -87,12 +87,11 @@ function handleGeminiVoices(data) {
   const cookieValue = getCookie("gemini-tts-voice");
   const voices = data["content"];
 
+  Array.from(($id("tts-provider") || {}).options || []).filter(option =>
+    window.TtsProvider.isGemini(option.value)
+  ).forEach(option => { option.disabled = voices.length === 0; });
+
   if (voices.length > 0) {
-    // Enable Gemini TTS provider options
-    ["gemini-flash-provider-option", "gemini-pro-provider-option"].forEach(id => {
-      const el = $id(id);
-      if (el) el.disabled = false;
-    });
     // Enable Gemini STT model
     const sttFlash = $id("gemini-stt-flash");
     if (sttFlash) sttFlash.disabled = false;
@@ -118,11 +117,6 @@ function handleGeminiVoices(data) {
       }
     }
   } else {
-    // Disable Gemini TTS provider options
-    ["gemini-flash-provider-option", "gemini-pro-provider-option"].forEach(id => {
-      const el = $id(id);
-      if (el) el.disabled = true;
-    });
     // Disable Gemini STT model
     const sttFlash = $id("gemini-stt-flash");
     if (sttFlash) sttFlash.disabled = true;
@@ -130,7 +124,7 @@ function handleGeminiVoices(data) {
 
   // Restore saved cookie value for provider if it was gemini
   const savedProvider = getCookie("tts-provider");
-  if (savedProvider === "gemini-flash" || savedProvider === "gemini-pro") {
+  if (window.TtsProvider.isGemini(savedProvider) && savedProvider !== "gemini") {
     const providerSelect = $id("tts-provider");
     if (providerSelect) {
       providerSelect.value = savedProvider;

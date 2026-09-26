@@ -1,3 +1,4 @@
+require('../../docker/services/ruby/public/js/monadic/tts-provider');
 /**
  * @jest-environment jsdom
  */

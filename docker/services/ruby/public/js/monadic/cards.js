@@ -186,7 +186,7 @@ function attachEventListeners(card) {
       } else if (ttsProvider === "webspeech") {
         const el = $id("webspeech-voice");
         ttsVoice = el ? el.value : '';
-      } else if (ttsProvider === "gemini-flash" || ttsProvider === "gemini-pro") {
+      } else if (window.TtsProvider.isGemini(ttsProvider) && ttsProvider !== "gemini") {
         const el = $id("gemini-tts-voice");
         ttsVoice = el ? el.value : '';
       } else {

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'tts_provider'
+
 require 'base64'
 require 'net/http'
 require_relative 'extra_logger'
@@ -150,7 +152,7 @@ module InteractionUtils
       # For Web Speech API, we don't need to make an API call
       # Return early with a special response
       return { "type" => "web_speech", "content" => text_converted }
-    when "gemini", "gemini-flash", "gemini-pro"
+    when Monadic::Utils::TtsProvider.method(:gemini?)
       api_key = CONFIG["GEMINI_API_KEY"]
       if api_key.nil?
         return { "type" => "error", "content" => "ERROR: GEMINI_API_KEY is not set." }
@@ -195,8 +197,13 @@ module InteractionUtils
 
       # Style directives are in-band. SSOT selects bracket cues for models
       # that read the legacy prose prefix aloud; older models keep it.
-      style_prefix = if instructions && !instructions.to_s.empty?
-        if Monadic::Utils::ModelSpec.tts_style_directive(model_name) == "bracket_cue"
+      # "omit" is for models that speak even a bracketed cue as part of the
+      # script, and not on every call, so no in-band form is safe for them.
+      style_directive = Monadic::Utils::ModelSpec.tts_style_directive(model_name)
+      style_prefix = if style_directive == "omit"
+        ""
+      elsif instructions && !instructions.to_s.empty?
+        if style_directive == "bracket_cue"
           cue = instructions.to_s.tr("[]", "  ").gsub(/\s+/, " ").strip
           cue.empty? ? "" : "[#{cue}] "
         else
@@ -280,7 +287,7 @@ module InteractionUtils
         error_report = JSON.parse(res.body) rescue { "message" => res.body.to_s }
 
         # Log detailed error for Gemini
-        if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
+        if Monadic::Utils::TtsProvider.gemini?(provider)
           puts "Gemini TTS API Error: #{res.status} - #{error_report}"
           puts "Request URI: #{target_uri}"
           puts "Request body: #{body.to_json}"
@@ -300,7 +307,7 @@ module InteractionUtils
       end
 
       # Handle Gemini response format - normalize audio to WAV for browser compatibility
-      if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
+      if Monadic::Utils::TtsProvider.gemini?(provider)
         begin
           gemini_response = JSON.parse(res.body.to_s)
 
@@ -582,7 +589,7 @@ module InteractionUtils
         end
       end
 
-    when "gemini", "gemini-flash", "gemini-pro"
+    when Monadic::Utils::TtsProvider.method(:gemini?)
       api_key = CONFIG["GEMINI_API_KEY"]
       if api_key.nil?
         error_result = {
@@ -883,19 +890,14 @@ module InteractionUtils
 
   # Resolve TTS provider label to actual model name via providerDefaults.
   # OpenAI TTS list is ordered: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
-  # Gemini TTS list: first entry is the default; resolve legacy Pro by name.
+  # Gemini TTS list: unsuffixed default follows order; explicit variants resolve by name.
   # ElevenLabs TTS list is ordered: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
   def resolve_tts_model(provider_label)
-    if provider_label =~ /\Agemini/
+    if Monadic::Utils::TtsProvider.gemini?(provider_label)
       tts_models = if defined?(Monadic::Utils::ModelSpec)
                      Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
                    end
-      case provider_label
-      when "gemini-pro"
-        tts_models&.find { |model| model.include?("-pro-") }
-      else # "gemini-flash", "gemini"
-        tts_models&.[](0)
-      end
+      Monadic::Utils::TtsProvider.resolve_gemini_model(provider_label, tts_models)
     elsif provider_label =~ /\Amistral/
       tts_models = if defined?(Monadic::Utils::ModelSpec)
                      Monadic::Utils::ModelSpec.get_provider_models("mistral", "tts")

@@ -1369,7 +1369,9 @@ const modelSpec = {
   "gemini-3.8-flash-lite-tts": {
     "tts_capability": true,
     "tts_family": "gemini",
-    "tts_style_directive": "bracket_cue",
+    // Reads a style cue aloud as part of the script, even in brackets and
+    // not on every call, so none is sent. Inline tags in the text still work.
+    "tts_style_directive": "omit",
     "tts_instructions_capability": true
   },
   "gemini-3.1-flash-tts-preview": {

@@ -1,3 +1,4 @@
+require('../../docker/services/ruby/public/js/monadic/tts-provider');
 /**
  * @jest-environment jsdom
  */
@@ -186,8 +187,11 @@ describe('ws-app-data-handlers', () => {
     beforeEach(() => {
       voiceSelect = createDOMSelect('gemini-tts-voice');
       createDOMSelect('tts-provider');
-      createDOMOption('gemini-flash-provider-option');
-      createDOMOption('gemini-pro-provider-option');
+      ['gemini-flash', 'gemini-flash-lite', 'gemini-pro'].forEach(value => {
+        const option = createDOMOption(`${value}-provider-option`);
+        option.value = value;
+        document.getElementById('tts-provider').appendChild(option);
+      });
       createDOMOption('gemini-stt-flash');
     });
 

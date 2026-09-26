@@ -48,7 +48,7 @@ RSpec.describe "InteractionUtils#resolve_tts_model dispatch" do
   end
 
   describe "Gemini dispatch preserves SSOT defaults and legacy Pro" do
-    it "resolves 'gemini-flash' to the first gemini TTS entry (SSOT-ordered)" do
+    it "resolves 'gemini-flash' to the first non-Lite Flash TTS entry" do
       allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models)
         .with("gemini", "tts")
         .and_return([

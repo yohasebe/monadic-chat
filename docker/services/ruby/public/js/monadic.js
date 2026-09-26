@@ -4165,8 +4165,6 @@ document.addEventListener("DOMContentLoaded", function () {
     "elevenlabs-flash":        { panelId: "elevenlabs-voices" },
     "elevenlabs-multilingual": { panelId: "elevenlabs-voices" },
     "elevenlabs-v3":           { panelId: "elevenlabs-voices" },
-    "gemini-flash":            { panelId: "gemini-voices" },
-    "gemini-pro":              { panelId: "gemini-voices" },
     // Mistral Voxtral exposes no speed parameter server-side.
     "mistral":                 { panelId: "mistral-voices", supportsSpeed: false },
     // Grok TTS: playback rate is handled client-side (AVAudioPlayer in native
@@ -4249,7 +4247,8 @@ document.addEventListener("DOMContentLoaded", function () {
     TTS_VOICE_PANEL_IDS.forEach(id => $hide($id(id)));
     $show($id("tts-speed-container"));
 
-    const entry = TTS_VOICE_PANELS[params["tts_provider"]];
+    const entry = window.TtsProvider.isGemini(params["tts_provider"]) && params["tts_provider"] !== "gemini"
+      ? { panelId: "gemini-voices" } : TTS_VOICE_PANELS[params["tts_provider"]];
     const panelId = entry ? entry.panelId : TTS_DEFAULT_PANEL_ID;
     $show($id(panelId));
     if (entry && entry.supportsSpeed === false) {

@@ -136,6 +136,7 @@
     "dockerNotRunning": "Docker Desktop läuft nicht. Bitte starten Sie Docker Desktop und versuchen Sie es erneut.",
     "dockerPermissionDenied": "Docker läuft, aber dieser Benutzer darf es nicht verwenden. Fügen Sie Ihren Benutzer der Gruppe docker hinzu (sudo usermod -aG docker $USER) und melden Sie sich ab und wieder an. Unter Omarchy führen Sie stattdessen omarchy-setup-security-sudoless-docker aus. Die Mitgliedschaft in der Gruppe docker entspricht Root-Rechten.",
     "dockerEngineNotRunning": "Docker läuft nicht. Starten Sie den Docker-Dienst (sudo systemctl start docker) oder Docker Desktop und versuchen Sie es erneut.",
+    "noInternetAtStartup": "Beim Start wurde keine Internetverbindung gefunden. Lokale Modelle, Einstellungen und Dateien funktionieren weiterhin; Cloud-KI-Anbieter, das Herunterladen von Container-Images und die Suche nach Updates benötigen eine Verbindung. Starten Sie Monadic Chat neu, sobald Sie online sind.",
     "dockerNotRunningStart": "Docker Desktop läuft nicht. Bitte starten Sie Docker Desktop und drücken Sie die <b>Start</b>-Taste.",
     "systemInitComplete": "Systeminitialisierung abgeschlossen",
     "openingBrowser": "Browser wird geöffnet.",

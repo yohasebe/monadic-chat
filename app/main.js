@@ -1185,6 +1185,10 @@ let mainWindow = null;
 let settingsWindow = null;
 let forceQuit = false;
 let isQuittingDialogShown = false;
+// Set when the startup connectivity probe gets no answer at all. The app keeps
+// running (local models, the UI and settings work offline); the main window
+// explains what needs a network once it has loaded.
+let startupOffline = false;
 
 async function quitApp() {
   if (isQuittingDialogShown || forceQuit) return;
@@ -1451,33 +1455,18 @@ function initializeApp() {
   // Continue with the rest of the initialization
   (async () => {
     
-    // Check internet connection with an explicit timeout
+    // Check internet connection with an explicit timeout. Any HTTP answer
+    // means the network works: api.github.com answers 403 when the anonymous
+    // rate limit is spent, which is not "offline". Only a failure to connect
+    // or a timeout counts, and even then startup continues.
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch('https://api.github.com', { signal: controller.signal });
+      await fetch('https://api.github.com', { signal: controller.signal });
       clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error('Internet connection test failed');
-      }
-
-      // Note: We no longer perform a separate version check here
-      // The autoUpdater will handle checking for updates and updating the message
-      // This avoids displaying potentially conflicting information
-      
     } catch (error) {
-      forceQuit = true;
-      dialog.showMessageBox(null, {
-        type: 'error',
-        title: 'Connection Error',
-        message: 'No internet connection available',
-        detail: 'Please check your internet connection and try again.',
-        buttons: ['OK']
-      }).then(() => {
-        cleanupAndQuit();
-      });
-      return;
+      startupOffline = true;
+      console.warn(`Startup connectivity check failed: ${error.message}`);
     }
 
     app.name = 'Monadic Chat';
@@ -2982,6 +2971,10 @@ function createMainWindow() {
     // Send initial status and version
     mainWindow.webContents.send('update-status-indicator', currentStatus);
     mainWindow.webContents.send('update-version', app.getVersion());
+
+    if (startupOffline) {
+      writeToScreen(formatMessage('warning', 'messages.noInternetAtStartup') + '<hr />');
+    }
     
     // Send interface language to Web UI
     const envPath = getEnvPath();

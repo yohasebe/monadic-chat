@@ -66,7 +66,9 @@ SCAN_ROOTS = {
 # Markdown and Dockerfiles ship too. Binary files are read too: executables,
 # SQLite files and image metadata carry paths as plain strings, and UTF-16
 # text looks binary. They are matched as bytes, both as ASCII and as UTF-16LE
-# at either byte alignment, and reported by file name only.
+# at either byte alignment (reading from the odd byte also catches UTF-16BE),
+# and reported by file name only. Compressed formats (ZIP, xlsx, docx, PNG
+# zTXt) are not opened; none is tracked under the scan roots today.
 BINARY_PROBE_BYTES = 8192
 
 def binary_file?(path)

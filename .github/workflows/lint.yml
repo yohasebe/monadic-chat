@@ -27,6 +27,9 @@ jobs:
           ruby-version: '3.4'
           bundler-cache: false
 
+      - name: Tracked files match the allow list
+        run: ruby scripts/lint/check_tracked_paths.rb
+
       - name: Personal home-directory paths
         run: ruby scripts/lint/check_personal_paths.rb
 

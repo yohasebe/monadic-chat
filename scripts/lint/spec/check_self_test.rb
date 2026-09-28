@@ -794,6 +794,80 @@ section 'scan floors (shared)'
   end
 end
 
+# Tracked-path allow list: exercised in a throwaway git repository so the
+# real index is never touched. Hooks are disabled for the test commits.
+section 'check_tracked_paths.rb'
+def git_in(dir, *args)
+  Open3.capture3('git', '-C', dir, '-c', 'core.hooksPath=/dev/null', '-c', 'user.name=lint',
+                 '-c', 'user.email=lint@example.invalid', *args)
+end
+
+def tracked_paths_repo(allow_lines, files)
+  Dir.mktmpdir do |dir|
+    lint_dir = File.join(dir, 'scripts', 'lint')
+    FileUtils.mkdir_p(lint_dir)
+    FileUtils.cp(LINT_DIR.join('check_tracked_paths.rb'), lint_dir)
+    File.write(File.join(lint_dir, 'tracked_paths.allow'), allow_lines.join("\n") + "\n")
+    files.each do |name|
+      FileUtils.mkdir_p(File.dirname(File.join(dir, name)))
+      File.write(File.join(dir, name), "x\n")
+    end
+    git_in(dir, 'init', '-q')
+    git_in(dir, 'add', '-A')
+    yield dir, ->(*extra) { Open3.capture3('ruby', File.join(lint_dir, 'check_tracked_paths.rb'), *extra) }
+  end
+end
+
+base_allow = %w[scripts/lint/*.{rb,allow} docs/**/*.md]
+tracked_paths_repo(base_allow, %w[docs/a.md docs/sub/b.md]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths accepts allowed files', status.success?, stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md docs/.env]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths rejects a file no line allows', !status.success? && stdout.include?('docs/.env'), stdout)
+end
+tracked_paths_repo(base_allow + %w[icons/*.png], %w[docs/a.md]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths rejects a line that matches nothing', !status.success? && stdout.include?('icons/*.png'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md]) do |dir, run|
+  git_in(dir, 'commit', '-q', '-m', 'clean')
+  File.write(File.join(dir, 'docs', 'debug.log'), "x\n")
+  git_in(dir, 'add', 'docs/debug.log')
+  stdout, _stderr, status = run.call('--tree', 'HEAD')
+  assert('tracked_paths --tree checks the commit, not the index', status.success?, stdout)
+  stdout, _stderr, status = run.call
+  assert('tracked_paths checks the index by default', !status.success? && stdout.include?('docs/debug.log'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md docs/debug.log]) do |dir, run|
+  git_in(dir, 'commit', '-q', '-m', 'with a log')
+  File.write(File.join(dir, 'scripts', 'lint', 'tracked_paths.allow'), (base_allow + %w[docs/*.log]).join("\n") + "\n")
+  stdout, _stderr, status = run.call('--tree', 'HEAD')
+  assert('tracked_paths --tree judges by the allow list in that commit', !status.success? && stdout.include?('docs/debug.log'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md docs/debug.log]) do |dir, run|
+  File.write(File.join(dir, 'scripts', 'lint', 'tracked_paths.allow'), (base_allow + %w[docs/*.log]).join("\n") + "\n")
+  stdout, _stderr, status = run.call
+  assert('tracked_paths ignores an unstaged edit to the allow list', !status.success? && stdout.include?('docs/debug.log'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md]) do |_dir, run|
+  stdout, _stderr, status = run.call('--tree')
+  assert('tracked_paths --tree without a revision fails', !status.success? && stdout.include?('needs a revision'), stdout)
+end
+tracked_paths_repo(%w[scripts/lint/*.{rb,allow} docs/**/*.{md,txt}], %w[docs/a.md]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths rejects an unused brace alternative', !status.success? && stdout.include?('docs/**/*.txt'), stdout)
+end
+Dir.mktmpdir do |dir|
+  lint_dir = File.join(dir, 'scripts', 'lint')
+  FileUtils.mkdir_p(lint_dir)
+  FileUtils.cp(LINT_DIR.join('check_tracked_paths.rb'), lint_dir)
+  File.write(File.join(lint_dir, 'tracked_paths.allow'), "docs/**/*.md\n")
+  stdout, _stderr, status = Open3.capture3('ruby', File.join(lint_dir, 'check_tracked_paths.rb'))
+  assert('tracked_paths fails outside a git checkout', !status.success? && stdout.include?('refusing to pass'), stdout)
+end
+
 # ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------

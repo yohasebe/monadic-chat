@@ -212,6 +212,10 @@ RSpec.describe "VideoGeneratorGemini" do
   end
   
   describe "#check_operation_status" do
+    before do
+      allow(HTTP).to receive(:headers).with("x-goog-api-key" => mock_api_key).and_return(HTTP)
+    end
+
     let(:operation_url) { "https://generativelanguage.googleapis.com/v1beta/#{mock_operation_name}" }
     
     context "when operation is complete" do
@@ -292,7 +296,7 @@ RSpec.describe "VideoGeneratorGemini" do
   end
   
   describe "#save_video" do
-    let(:video_url) { "https://example.com/video.mp4?key=#{mock_api_key}" }
+    let(:video_url) { "https://example.com/video.mp4" }
     let(:save_path) { "/tmp/test_videos_#{Time.now.to_i}/" }
     
     before do
@@ -310,14 +314,14 @@ RSpec.describe "VideoGeneratorGemini" do
         body: "fake video data"
       )
       
-      allow(HTTP).to receive_message_chain(:timeout, :follow, :get).and_return(mock_response)
+      allow(HTTP).to receive_message_chain(:headers, :timeout, :follow, :get).and_return(mock_response)
       
       # Mock file operations to avoid actual file I/O
       allow(File).to receive(:open).and_call_original
       test_file = StringIO.new
       allow(File).to receive(:open).with(anything, "wb").and_yield(test_file)
       
-      filename = script.save_video(video_url, "16:9", 0)
+      filename = script.save_video(video_url, "16:9", 0, mock_api_key)
       expect(filename).to match(/\d+_0_16x9\.mp4/)
     end
     
@@ -327,14 +331,14 @@ RSpec.describe "VideoGeneratorGemini" do
         body: "Forbidden"
       )
       
-      allow(HTTP).to receive_message_chain(:timeout, :follow, :get).and_return(mock_response)
+      allow(HTTP).to receive_message_chain(:headers, :timeout, :follow, :get).and_return(mock_response)
       
       # Mock file operations to avoid actual file I/O
       allow(File).to receive(:open).and_call_original
       test_file = StringIO.new
       allow(File).to receive(:open).with(anything, "wb").and_yield(test_file)
       
-      filename = script.save_video(video_url, "16:9", 0)
+      filename = script.save_video(video_url, "16:9", 0, mock_api_key)
       expect(filename).to match(/\d+_0_16x9\.mp4/)
     end
   end
@@ -410,7 +414,7 @@ RSpec.describe "VideoGeneratorGemini" do
         body: "fake video data"
       )
       
-      allow(HTTP).to receive_message_chain(:timeout, :follow, :get).and_return(video_response)
+      allow(HTTP).to receive_message_chain(:headers, :timeout, :follow, :get).and_return(video_response)
     end
     
     it "generates video successfully" do

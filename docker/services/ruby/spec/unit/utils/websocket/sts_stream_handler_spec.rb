@@ -2109,10 +2109,10 @@ RSpec.describe 'Gemini Live provider' do
     end.new
   end
 
-  it 'declares Gemini connection facts (query-key auth, 16kHz input)' do
+  it 'declares Gemini connection facts (header auth, 16kHz input)' do
     profile = WebSocketHelper::STS_PROVIDER_PROFILES['gemini']
     expect(profile[:api_key_env]).to eq('GEMINI_API_KEY')
-    expect(profile[:auth]).to eq(:query_key)
+    expect(profile[:auth]).to eq(:google_api_key)
     expect(profile[:input_rate]).to eq(16_000)
     expect(profile[:default_voice]).to eq('Kore')
   end

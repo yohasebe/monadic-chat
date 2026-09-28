@@ -209,7 +209,7 @@ module AudioTranscriptionAgent
   # Uses generateContent with audio inline_data (multimodal input)
 
   def transcribe_gemini(path, model, api_key, lang_code)
-    uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}"
+    uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent"
 
     # Detect MIME type
     ext = File.extname(path).delete_prefix(".").downcase
@@ -246,7 +246,7 @@ module AudioTranscriptionAgent
 
     retries = 0
     begin
-      res = HTTP.headers("Content-Type" => "application/json")
+      res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                .timeout(
                  connect: AUDIO_CONNECT_TIMEOUT,
                  write: AUDIO_WRITE_TIMEOUT,

@@ -298,9 +298,9 @@ module VideoAnalyzeAgent
   end
 
   def video_vision_gemini(query, frames, model, api_key)
-    uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}"
+    uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent"
     headers = {
-      "Content-Type" => "application/json"
+      "Content-Type" => "application/json", "x-goog-api-key" => api_key
     }
 
     parts = []

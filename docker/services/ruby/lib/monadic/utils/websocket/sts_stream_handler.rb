@@ -352,11 +352,11 @@ module WebSocketHelper
     # (OpenAI-GA-shaped) event vocabulary via sts_translate_gemini; the
     # writer wraps audio/seed/greet in Gemini frames. Live-probed
     # 2026-08-01: input 16kHz / output 24kHz, delta transcriptions both
-    # ways, auth via ?key= query param, 15-minute session cap.
+    # ways, 15-minute session cap. Header auth verified 2026-09-26.
     "gemini" => {
       url: "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent",
       api_key_env: "GEMINI_API_KEY",
-      auth: :query_key,
+      auth: :google_api_key,
       default_model: "gemini-3.1-flash-live-preview",
       voices: %w[Zephyr Puck Charon Kore Fenrir Leda Orus
                  Aoede Callirrhoe Autonoe Enceladus Iapetus
@@ -855,11 +855,11 @@ module WebSocketHelper
 
   def sts_connect_and_run(state, ws_session_id, api_key)
     profile = sts_profile(state)
-    if profile[:auth] == :query_key
-      # Gemini: API key travels as a query parameter; the model is named in
+    if profile[:auth] == :google_api_key
+      # Gemini: API key travels in the handshake header; the model is named in
       # the setup frame, not the URL.
-      url = "#{profile[:url]}?key=#{URI.encode_www_form_component(api_key)}"
-      headers = {}
+      url = profile[:url]
+      headers = { "x-goog-api-key" => api_key }
     else
       url = "#{profile[:url]}?model=#{URI.encode_www_form_component(state[:model])}"
       headers = { "Authorization" => "Bearer #{api_key}" }

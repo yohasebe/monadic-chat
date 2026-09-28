@@ -162,7 +162,8 @@ module InteractionUtils
       puts "Gemini TTS: voice=#{voice}, provider=#{provider}" if ENV["DEBUG_TTS"]
 
       headers = {
-        "Content-Type" => "application/json"
+        "Content-Type" => "application/json",
+        "x-goog-api-key" => api_key
       }
 
       # Resolve target model first so speed-prefix logic can branch on it.
@@ -235,7 +236,7 @@ module InteractionUtils
       # Always use non-streaming endpoint for better performance.
       # Gemini TTS returns complete audio in one response anyway. The 3.1
       # model is REST-only (no Live API), so this path covers both.
-      target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
+      target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
     when "grok"
       # Grok dedicated TTS REST API. Uses a single model (grok-tts) with 5
       # voice IDs (eve, ara, rex, sal, leo). Returns MP3 bytes.
@@ -627,7 +628,7 @@ module InteractionUtils
       # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
       model_name = resolve_tts_model(provider)
 
-      target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
+      target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
 
       require 'http'
 
@@ -635,7 +636,7 @@ module InteractionUtils
         begin
           response = HTTP
             .timeout(connect: 5, read: 15)
-            .headers("Content-Type" => "application/json")
+            .headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
             .post(target_uri, json: body)
 
           if response.status.success?

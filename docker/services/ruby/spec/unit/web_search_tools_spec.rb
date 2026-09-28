@@ -110,8 +110,13 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
       # Mock LOCAL_SHARED_VOL constant
       stub_const('MonadicSharedTools::WebSearchTools::LOCAL_SHARED_VOL', '/tmp/test_shared')
 
-      # Mock MonadicApp.fetch_webpage to prevent actual HTTP calls
-      allow(MonadicApp).to receive(:fetch_webpage).and_return('Mock webpage content')
+      # Stub the current transport boundary, so this unit test never connects.
+      response = double('HTTP response', code: '200', body: 'Mock webpage content')
+      allow(response).to receive(:[]).with('Content-Type').and_return('text/plain')
+      http = double('HTTP client', request: response)
+      expect(Net::HTTP).to receive(:start).with(
+        'example.com', 443, use_ssl: true, open_timeout: 5, read_timeout: 10
+      ).and_yield(http)
 
       # Mock file operations
       allow(File).to receive(:write)

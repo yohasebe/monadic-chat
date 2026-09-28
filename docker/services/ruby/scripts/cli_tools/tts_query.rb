@@ -305,7 +305,8 @@ def tts_api_request(text,
     require 'json'
 
     headers = {
-      "Content-Type" => "application/json"
+      "Content-Type" => "application/json",
+      "x-goog-api-key" => api_key
     }
 
     # Apply speed control using natural language instructions
@@ -353,7 +354,7 @@ def tts_api_request(text,
 
     # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
     model_name = resolve_tts_model(provider)
-    target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
+    target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
   else # openai
     # Try config file first (primary source of truth)
     api_key = nil

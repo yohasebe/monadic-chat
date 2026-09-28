@@ -233,7 +233,7 @@ module GeminiHelper
     }
 
     endpoints = [
-      "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
+      "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent"
     ]
     response = nil
 
@@ -245,6 +245,7 @@ module GeminiHelper
         uri = URI(endpoint)
         request = Net::HTTP::Post.new(uri)
         request['Content-Type'] = 'application/json'
+        request['x-goog-api-key'] = api_key
         request.body = body.to_json
 
         response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
@@ -351,7 +352,7 @@ module GeminiHelper
 
     body = { contents: [{ parts: parts }], generationConfig: generation_config }
 
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent"
     response = nil
     Monadic::Utils::ProgressBroadcaster.with_progress(
       source: "MusicGeneratorGemini",
@@ -360,6 +361,7 @@ module GeminiHelper
       uri = URI(endpoint)
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
+      request['x-goog-api-key'] = api_key
       request.body = body.to_json
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
         http.request(request)
@@ -598,8 +600,8 @@ module GeminiHelper
 
   define_model_lister :gemini,
     api_key_config: "GEMINI_API_KEY",
-    endpoint: ->(api_key) { "/models?key=#{api_key}" },
-    headers: ->(_api_key) { { "Content-Type" => "application/json" } } do |json|
+    endpoint_path: "/models",
+    headers: ->(api_key) { { "Content-Type" => "application/json", "x-goog-api-key" => api_key } } do |json|
       (json["models"] || []).filter_map do |model|
         name = model["name"].split("/").last
         name if name && /Legacy/ !~ model["displayName"]
@@ -645,7 +647,8 @@ module GeminiHelper
     return { error: "GEMINI_API_KEY not configured" } if api_key.nil?
 
     headers = {
-      "Content-Type" => "application/json"
+      "Content-Type" => "application/json",
+      "x-goog-api-key" => api_key
     }
 
     # Build request body with google_search grounding only
@@ -664,7 +667,7 @@ module GeminiHelper
       }
     }
 
-    target_uri = "#{API_ENDPOINT}/models/#{model}:generateContent?key=#{api_key}"
+    target_uri = "#{API_ENDPOINT}/models/#{model}:generateContent"
 
     begin
       http = HTTP.headers(headers)
@@ -777,7 +780,8 @@ module GeminiHelper
     
     # Set headers
     headers = {
-      "content-type" => "application/json"
+      "content-type" => "application/json",
+      "x-goog-api-key" => api_key
     }
 
     # Basic request body
@@ -901,7 +905,7 @@ module GeminiHelper
 
     # Set up API endpoint - use v1beta for thinking models, v1alpha for others
     endpoint = is_thinking_model ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
-    target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
+    target_uri = "#{endpoint}/models/#{model}:generateContent"
     
     # Debug logging for SecondOpinion
     Monadic::Utils::ExtraLogger.log { "GeminiHelper send_query: Model=#{model}, Endpoint=#{endpoint}\nGeminiHelper send_query: Full URI=#{target_uri.gsub(/key=.*/, 'key=***')}" }
@@ -1368,7 +1372,8 @@ module GeminiHelper
 
     # Set the headers for the API request
     headers = {
-      "content-type" => "application/json"
+      "content-type" => "application/json",
+      "x-goog-api-key" => api_key
     }
 
     # Build request body (safety settings, generationConfig, thinkingConfig, systemInstruction)
@@ -2206,9 +2211,9 @@ module GeminiHelper
                               app:, session:, call_depth:, &block)
     # Use v1beta for thinking models or PDF handling, v1alpha for others
     endpoint = (is_thinking_model || has_pdf_part) ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
-    target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
+    target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent"
 
-    http = HTTP.headers(headers)
+    http = HTTP.headers(headers.merge("x-goog-api-key" => api_key))
 
     # Privacy Filter: mask user-message PII before sending to Gemini. No-op
     # when the app does not declare `privacy do; enabled true; end` in MDSL.
@@ -4131,10 +4136,11 @@ module GeminiHelper
       
       # Make API request — Nano Banana 2 (GA 2026-05-28)
       model_name = "gemini-3.1-flash-image"
-      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}")
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent")
 
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
+      request['x-goog-api-key'] = api_key
       request.body = request_body.to_json
 
       response = Monadic::Utils::ProgressBroadcaster.with_progress(
@@ -4282,10 +4288,11 @@ module GeminiHelper
       # system_info: Using image_model #{image_model} for generation
 
       # Make API request to Imagen
-      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{image_model}:predict?key=#{api_key}")
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{image_model}:predict")
 
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
+      request['x-goog-api-key'] = api_key
       request.body = request_body.to_json
 
       response = Monadic::Utils::ProgressBroadcaster.with_progress(

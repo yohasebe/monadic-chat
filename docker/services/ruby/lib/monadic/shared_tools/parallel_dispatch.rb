@@ -267,12 +267,12 @@ module MonadicSharedTools
 
     # Google Gemini GenerateContent API
     def gemini_sub_call(endpoint, api_key, model, prompt, timeout_secs)
-      target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
+      target_uri = "#{endpoint}/models/#{model}:generateContent"
       body = {
         "contents" => [{ "role" => "user", "parts" => [{ "text" => prompt }] }],
         "generationConfig" => { "temperature" => 0.0, "maxOutputTokens" => SUB_AGENT_MAX_TOKENS }
       }
-      res = HTTP.headers("Content-Type" => "application/json")
+      res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
                 .post(target_uri, json: body)
       parsed = JSON.parse(res.body.to_s)
@@ -344,13 +344,13 @@ module MonadicSharedTools
 
     # Gemini with google_search grounding tool.
     def gemini_websearch_sub_call(endpoint, api_key, model, prompt, timeout_secs)
-      target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
+      target_uri = "#{endpoint}/models/#{model}:generateContent"
       body = {
         "contents" => [{ "role" => "user", "parts" => [{ "text" => prompt }] }],
         "tools" => [{ "google_search" => {} }],
         "generationConfig" => { "temperature" => 0.0, "maxOutputTokens" => SUB_AGENT_MAX_TOKENS }
       }
-      res = HTTP.headers("Content-Type" => "application/json")
+      res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
                 .post(target_uri, json: body)
       parsed = JSON.parse(res.body.to_s)

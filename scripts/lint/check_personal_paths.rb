@@ -36,18 +36,25 @@ require 'pathname'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
-# Roots where the rule applies. Tests/specs are intentionally excluded
-# because realistic fixtures sometimes need explicit personal paths.
-SCAN_ROOTS = [
-  'app',
-  'docker/services/ruby/lib',
-  'docker/services/ruby/scripts',
-  'docker/services/ruby/public/js',
-  'docker/services/python/scripts',
-  'docker/services/extractor',
-  'docker/services/embeddings',
-  'docker/services/privacy'
-].freeze
+# Roots where the rule applies, each with the fewest files a scan of it may
+# read. Tests/specs are intentionally excluded because realistic fixtures
+# sometimes need explicit personal paths.
+#
+# A scan that reads nothing also finds no violations, so a renamed root or a
+# misresolved ROOT would pass silently. The floors sit about 20% below the
+# current counts (app 12, lib 205, scripts 20, public/js 91, python 24,
+# extractor 5, embeddings 5, privacy 10); lower one when files are genuinely
+# removed, and drop the entry when a root is retired on purpose.
+SCAN_ROOTS = {
+  'app' => 10,
+  'docker/services/ruby/lib' => 165,
+  'docker/services/ruby/scripts' => 16,
+  'docker/services/ruby/public/js' => 72,
+  'docker/services/python/scripts' => 19,
+  'docker/services/extractor' => 4,
+  'docker/services/embeddings' => 4,
+  'docker/services/privacy' => 8
+}.freeze
 
 ALLOWED_EXTENSIONS = %w[.rb .js .mjs .ts .py .sh .erb .mdsl .yml .yaml].freeze
 
@@ -75,13 +82,11 @@ PERSONAL_PATH_PATTERNS = [
 def each_target_file
   return enum_for(:each_target_file) unless block_given?
 
-  SCAN_ROOTS.each do |rel_root|
-    abs_root = ROOT.join(rel_root)
-    next unless abs_root.exist?
-    Dir.glob(abs_root.join('**', '*')).each do |path|
+  SCAN_ROOTS.each_key do |rel_root|
+    Dir.glob(ROOT.join(rel_root, '**', '*')).each do |path|
       next unless File.file?(path)
       next unless ALLOWED_EXTENSIONS.include?(File.extname(path))
-      yield Pathname.new(path)
+      yield rel_root, Pathname.new(path)
     end
   end
 end
@@ -109,7 +114,9 @@ if ARGV.include?('--baseline')
 end
 
 violations = []
-each_target_file do |path|
+scanned = Hash.new(0)
+each_target_file do |rel_root, path|
+  scanned[rel_root] += 1
   rel = relative_path(path)
   text = File.read(path, encoding: 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
   text.each_line.with_index do |line, idx|
@@ -119,6 +126,17 @@ each_target_file do |path|
       violations << { path: rel, line: idx + 1, text: line.rstrip }
     end
   end
+end
+
+# Checked before the violation count: a short scan is a failure even when
+# --baseline would otherwise accept the result.
+short = SCAN_ROOTS.select { |rel_root, floor| scanned[rel_root] < floor }
+puts "[lint:personal_paths] scanned #{scanned.values.sum} file(s) under #{SCAN_ROOTS.size} root(s)"
+unless short.empty?
+  short.each do |rel_root, floor|
+    puts "  #{rel_root}: scanned #{scanned[rel_root]} file(s), expected at least #{floor}"
+  end
+  exit 1
 end
 
 if violations.empty?

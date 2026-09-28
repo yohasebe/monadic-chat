@@ -22,6 +22,7 @@
 require 'open3'
 require 'fileutils'
 require 'pathname'
+require 'tmpdir'
 
 ROOT = Pathname.new(__dir__).join('..', '..', '..').realpath
 LINT_DIR = ROOT.join('scripts/lint')
@@ -93,6 +94,16 @@ with_temp_file(fixture, violation) do
     !status.success? && stdout.include?(fixture.relative_path_from(ROOT).to_s),
     "exit=#{status.exitstatus}, stdout did not name fixture\n#{stdout}"
   )
+end
+
+# A copy whose root resolves to an empty tree reads no files. It must fail on
+# the scan floors instead of reporting a clean tree.
+Dir.mktmpdir do |dir|
+  copy = File.join(dir, 'scripts', 'lint', 'check_personal_paths.rb')
+  FileUtils.mkdir_p(File.dirname(copy))
+  FileUtils.cp(LINT_DIR.join('check_personal_paths.rb'), copy)
+  stdout, _stderr, status = Open3.capture3('ruby', copy, chdir: dir)
+  assert('fails when the scan reads no files', !status.success? && stdout.include?('expected at least'), stdout)
 end
 
 # ---------------------------------------------------------------------------

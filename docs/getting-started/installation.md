@@ -24,7 +24,7 @@ Drag the Docker icon to Applications folder and launch. Accept the service agree
 
 2. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.36 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/Monadic.Chat-1.0.0-beta.36-arm64.dmg)
+📦 [Download Monadic Chat 1.0.0-beta.37 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/Monadic.Chat-1.0.0-beta.37-arm64.dmg)
 
 ### **Windows**
 
@@ -49,7 +49,7 @@ Accept the service agreement and use recommended settings.
 
 3. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.36 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/Monadic.Chat.Setup.1.0.0-beta.36.exe)
+📦 [Download Monadic Chat 1.0.0-beta.37 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/Monadic.Chat.Setup.1.0.0-beta.37.exe)
 
 ### **Linux**
 
@@ -69,7 +69,7 @@ On Omarchy, run `omarchy-setup-security-sudoless-docker` instead. Membership in 
 
 2. **Download Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.36 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/monadic-chat_1.0.0-beta.36_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/monadic-chat_1.0.0-beta.36_arm64.AppImage)
+📦 [Download Monadic Chat 1.0.0-beta.37 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/monadic-chat_1.0.0-beta.37_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/monadic-chat_1.0.0-beta.37_arm64.AppImage)
 
 3. **Make it executable and run it**
 
@@ -108,7 +108,7 @@ Monadic Chat automatically checks for updates on startup.
 2. Click **Download & Install** — the update downloads in the background, with progress shown in the console
 3. When the download completes, you are prompted to restart Monadic Chat to apply the update
 
-You can also download it yourself from the [release page for 1.0.0-beta.36](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.36), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
+You can also download it yourself from the [release page for 1.0.0-beta.37](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.37), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
 
 ## Advanced Configuration :id=advanced-configuration
 

@@ -633,6 +633,37 @@ Dir.mktmpdir('before_pack') do |tmp|
   )
 end
 
+# Credential URL rule: each positive case is checked independently. Negative
+# controls prove that headers, keyword arguments and prose are not violations.
+section 'check_api_key_urls.rb'
+[
+  'url = "https://example.invalid/models?key=#{api_key}"',
+  'url = "#{endpoint}&key=#{token}"',
+  'query = "key=#{URI.encode_www_form_component(api_key)}"',
+  'url = "https://example.invalid/?key=" + api_key',
+  'url = "https://example.invalid/?key=obviously-fake-lint-fixture"'
+].each_with_index do |source, index|
+  with_temp_file(FIXTURES[:ruby], source) do
+    stdout, _stderr, status = run_lint('check_api_key_urls.rb')
+    assert("detects credential URL case #{index + 1}",
+           !status.success? && stdout.include?(FIXTURES[:ruby].relative_path_from(ROOT).to_s))
+    assert("does not echo credential source case #{index + 1}", !stdout.include?(source))
+  end
+end
+safe_source = <<~'RUBY'
+  headers = { "x-goog-api-key" => api_key, "Authorization" => "Bearer #{api_key}" }
+  call_api(api_key: api_key)
+  message = "API key is required"
+  # Migration note: never build "?key=#{api_key}".
+  matcher = /[?&]key=/
+  literal_matcher = /\?key=/
+RUBY
+with_temp_file(FIXTURES[:ruby], safe_source) do
+  stdout, _stderr, status = run_lint('check_api_key_urls.rb')
+  assert('accepts header auth, keyword arguments, comments and regexp matchers',
+         status.success? && !stdout.include?(FIXTURES[:ruby].relative_path_from(ROOT).to_s))
+end
+
 # ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------

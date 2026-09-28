@@ -75,6 +75,13 @@ namespace :lint do
     end
   end
 
+  desc "Check that API credentials are sent in headers instead of URLs"
+  task :api_key_urls do
+    Dir.chdir(PROJECT_ROOT) do
+      system('ruby scripts/lint/check_api_key_urls.rb') || abort('API key URL lint failed')
+    end
+  end
+
   desc "Verify each anti-pattern lint still detects its target via temp fixture"
   task :self_check do
     Dir.chdir(PROJECT_ROOT) do
@@ -84,5 +91,5 @@ namespace :lint do
   end
 
   desc "Run every anti-pattern lint rule plus the self-check meta-test"
-  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :http_timeout, :self_check]
+  task :anti_patterns => [:personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :http_timeout, :api_key_urls, :self_check]
 end

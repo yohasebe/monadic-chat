@@ -50,6 +50,7 @@ app/vendor/fontawesome/{LICENSE.txt,css/all.min.css}
 app/vendor/fontawesome/webfonts/*.woff2
 app/vendor/montserrat/{OFL.txt,montserrat.css}
 app/vendor/montserrat/*.woff2
+app/vendor/README.md
 
 # --- Docker services --------------------------------------------------------
 docker/monadic.sh

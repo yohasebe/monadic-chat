@@ -14,10 +14,16 @@
 #   npm run test:docs-parity
 
 require "pathname"
+require_relative "scan_floor"
 
 ROOT    = Pathname.new(__dir__).join("..", "..").realpath
 DOCS_EN = ROOT.join("docs")
 DOCS_JA = ROOT.join("docs", "ja")
+
+# Fewest EN/JA pairs a run may compare (see scan_floor.rb). The floor sits
+# about 20% below the current count (55); lower it when pages are genuinely
+# removed. A run that compares nothing reports parity for everything.
+MIN_PAIRS = 44
 
 # Directories to skip (no JA counterparts expected)
 SKIP_DIRS = %w[assets].freeze
@@ -135,6 +141,8 @@ end
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
+
+exit 1 unless ScanFloor.met?("lint:docs_parity", { "EN/JA pairs" => checked }, { "EN/JA pairs" => MIN_PAIRS })
 
 puts "EN/JA Documentation Parity Check"
 puts "=" * 60

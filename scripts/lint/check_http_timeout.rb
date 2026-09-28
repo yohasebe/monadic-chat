@@ -28,14 +28,19 @@
 #     large uploads (base64 images, PDFs, audio).
 
 require 'pathname'
+require_relative 'scan_floor'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
-SCAN_ROOTS = [
-  'docker/services/ruby/lib',
-  'docker/services/ruby/scripts',
-  'docker/services/ruby/apps'
-].freeze
+# Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
+# Floors sit about 20% below the current counts (lib 205, scripts 18, apps 56);
+# lower one when files are genuinely removed.
+SCAN_ROOTS = {
+  'docker/services/ruby/lib' => 164,
+  'docker/services/ruby/scripts' => 14,
+  'docker/services/ruby/apps' => 44
+}.freeze
+SCANNED = Hash.new(0)
 
 ALLOWED_EXTENSIONS = %w[.rb].freeze
 
@@ -88,12 +93,12 @@ end
 
 def each_target_file
   return enum_for(:each_target_file) unless block_given?
-  SCAN_ROOTS.each do |rel_root|
+  SCAN_ROOTS.each_key do |rel_root|
     abs_root = ROOT.join(rel_root)
-    next unless abs_root.exist?
     Dir.glob(abs_root.join('**', '*')).each do |path|
       next unless File.file?(path)
       next unless ALLOWED_EXTENSIONS.include?(File.extname(path))
+      SCANNED[rel_root] += 1
       yield Pathname.new(path)
     end
   end
@@ -148,6 +153,8 @@ each_target_file do |path|
     violations << { path: rel, line: idx + 1, text: line.strip[0, 100] }
   end
 end
+
+exit 1 unless ScanFloor.met?('lint:http_timeout', SCANNED, SCAN_ROOTS)
 
 if violations.empty?
   puts '[lint:http_timeout] OK — no untimed HTTP calls.'

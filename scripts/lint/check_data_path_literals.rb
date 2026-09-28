@@ -26,16 +26,21 @@
 #   Same exit-code semantics as the other lint scripts.
 
 require 'pathname'
+require_relative 'scan_floor'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
-SCAN_ROOTS = [
-  'app',
-  'docker/services/ruby/lib',
-  'docker/services/ruby/scripts',
-  'docker/services/ruby/apps',
-  'docker/services/ruby/public/js'
-].freeze
+# Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
+# Floors sit about 20% below the current counts (app 12, lib 205, scripts 18, apps 191, public/js 91);
+# lower one when files are genuinely removed.
+SCAN_ROOTS = {
+  'app' => 9,
+  'docker/services/ruby/lib' => 164,
+  'docker/services/ruby/scripts' => 14,
+  'docker/services/ruby/apps' => 152,
+  'docker/services/ruby/public/js' => 72
+}.freeze
+SCANNED = Hash.new(0)
 
 ALLOWED_EXTENSIONS = %w[.rb .js .mjs .erb .mdsl].freeze
 
@@ -78,12 +83,12 @@ PATH_RE = %r{['"]/monadic/data['"/]}
 
 def each_target_file
   return enum_for(:each_target_file) unless block_given?
-  SCAN_ROOTS.each do |rel_root|
+  SCAN_ROOTS.each_key do |rel_root|
     abs_root = ROOT.join(rel_root)
-    next unless abs_root.exist?
     Dir.glob(abs_root.join('**', '*')).each do |path|
       next unless File.file?(path)
       next unless ALLOWED_EXTENSIONS.include?(File.extname(path))
+      SCANNED[rel_root] += 1
       yield Pathname.new(path)
     end
   end
@@ -110,6 +115,8 @@ each_target_file do |path|
     violations << { path: rel, line: idx + 1, text: line.rstrip }
   end
 end
+
+exit 1 unless ScanFloor.met?('lint:data_path_literals', SCANNED, SCAN_ROOTS)
 
 if violations.empty?
   puts '[lint:data_path_literals] OK — no bare "/monadic/data" literals outside the Environment helper.'

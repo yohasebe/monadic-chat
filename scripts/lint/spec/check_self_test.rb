@@ -741,6 +741,25 @@ Dir.mktmpdir do |dir|
   assert('fails when the scan reads no files', !status.success? && stdout.include?('expected at least'), stdout)
 end
 
+# Every lint that shares scan_floor.rb must fail on an empty tree instead of
+# reporting it clean. Each copy gets scan_floor.rb beside it, as in the repo.
+section 'scan floors (shared)'
+%w[
+  check_bare_ws_send.rb check_data_path_literals.rb check_docs_links.rb
+  check_docs_parity.rb check_global_shadow_delegation.rb check_http_timeout.rb
+  check_shell_escape.rb check_xhr_pair.rb
+].each do |script|
+  Dir.mktmpdir do |dir|
+    lint_dir = File.join(dir, 'scripts', 'lint')
+    FileUtils.mkdir_p(lint_dir)
+    FileUtils.cp(LINT_DIR.join(script), lint_dir)
+    FileUtils.cp(LINT_DIR.join('scan_floor.rb'), lint_dir)
+    stdout, stderr, status = Open3.capture3('ruby', File.join(lint_dir, script), chdir: dir)
+    assert("#{script} fails when the scan reads no files",
+           !status.success? && stdout.include?('expected at least'), stdout + stderr)
+  end
+end
+
 # ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------

@@ -256,9 +256,16 @@ release_build_lock() {
   rm -rf "${LOCK_DIR}" 2>/dev/null || true
 }
 
+# Prints 1 when Docker answers, "denied" when the daemon is there but this
+# user may not use its socket (Linux without docker-group membership, the
+# Omarchy default), and 0 otherwise. The distinction comes from Docker's own
+# error text rather than from inspecting the socket ourselves.
 check_if_docker_desktop_is_running() {
-  if "${DOCKER}" info >/dev/null 2>&1; then
+  local err
+  if err=$("${DOCKER}" info 2>&1 >/dev/null); then
     echo "1"
+  elif printf '%s' "$err" | grep -qi "permission denied"; then
+    echo "denied"
   else
     echo "0"
   fi

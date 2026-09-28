@@ -134,6 +134,8 @@
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop n'est pas en cours d'exécution. Veuillez démarrer Docker Desktop et réessayer.",
+    "dockerPermissionDenied": "Docker est en cours d'exécution, mais cet utilisateur n'est pas autorisé à l'utiliser. Ajoutez votre utilisateur au groupe docker (sudo usermod -aG docker $USER), puis déconnectez-vous et reconnectez-vous. Sous Omarchy, exécutez plutôt omarchy-setup-security-sudoless-docker. L'appartenance au groupe docker équivaut à des droits root.",
+    "dockerEngineNotRunning": "Docker n'est pas en cours d'exécution. Démarrez le service Docker (sudo systemctl start docker) ou Docker Desktop, puis réessayez.",
     "dockerNotRunningStart": "Docker Desktop n'est pas en cours d'exécution. Veuillez démarrer Docker Desktop et appuyer sur le bouton <b>démarrer</b>.",
     "systemInitComplete": "Initialisation du système terminée",
     "openingBrowser": "Ouverture du navigateur.",

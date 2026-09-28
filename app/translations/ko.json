@@ -180,6 +180,8 @@
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop이 실행되고 있지 않습니다. Docker Desktop을 먼저 시작한 후 다시 시도하세요.",
+    "dockerPermissionDenied": "Docker는 실행 중이지만 이 사용자에게는 사용 권한이 없습니다. 사용자를 docker 그룹에 추가하고(sudo usermod -aG docker $USER) 로그아웃한 뒤 다시 로그인하세요. Omarchy에서는 대신 omarchy-setup-security-sudoless-docker를 실행하세요. docker 그룹에 속하면 root와 같은 권한을 갖게 됩니다.",
+    "dockerEngineNotRunning": "Docker가 실행되고 있지 않습니다. Docker 서비스(sudo systemctl start docker) 또는 Docker Desktop을 시작한 후 다시 시도하세요.",
     "dockerNotRunningStart": "Docker Desktop이 실행되고 있지 않습니다. Docker Desktop을 시작하고 <b>시작</b> 버튼을 누르세요.",
     "systemInitComplete": "시스템 초기화 완료",
     "openingBrowser": "브라우저를 여는 중입니다.",

@@ -543,12 +543,24 @@ class DockerManager {
           console.error(`Docker status check stderr: ${stderr}`);
           reject(stderr);
         } else {
-          const isRunning = stdout.trim() === '1';
-          console.log(`Docker status check result: ${isRunning}`);
+          const result = stdout.trim();
+          // "denied": the daemon answered but this user may not use its
+          // socket (Linux without docker-group membership).
+          this.accessDenied = result === 'denied';
+          const isRunning = result === '1';
+          console.log(`Docker status check result: ${result}`);
           resolve(isRunning);
         }
       });
     });
+  }
+
+  // Message key explaining why Docker is unavailable. On Linux, Docker is
+  // often the Docker Engine service rather than Docker Desktop, and a
+  // missing docker-group membership looks like "not running" otherwise.
+  dockerUnavailableMessageKey() {
+    if (process.platform !== 'linux') return 'messages.dockerNotRunning';
+    return this.accessDenied ? 'messages.dockerPermissionDenied' : 'messages.dockerEngineNotRunning';
   }
 
   startDockerDesktop() {
@@ -582,6 +594,11 @@ class DockerManager {
   async ensureDockerDesktopRunning() {
     // Check Docker Desktop status
     const st = await this.checkStatus();
+    if (!st && process.platform === 'linux' && this.accessDenied) {
+      // Starting Docker cannot help: it is running, but not for this user.
+      dialog.showErrorBox('Docker', i18n.t(this.dockerUnavailableMessageKey()));
+      return;
+    }
     if (!st) {
       this.startDockerDesktop()
         .then(async () => {
@@ -592,7 +609,10 @@ class DockerManager {
         })
         .catch(error => {
           console.error('Failed to start Docker Desktop:', error);
-          dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+          const detail = process.platform === 'linux'
+            ? i18n.t(this.dockerUnavailableMessageKey())
+            : 'Failed to start Docker Desktop. Please start it manually and try again.';
+          dialog.showErrorBox('Error', detail);
         });
     }
   }
@@ -653,7 +673,7 @@ class DockerManager {
     return this.checkStatus()
       .then((status) => {
         if (!status) {
-          writeToScreen(formatMessage('info', 'messages.dockerNotRunning') + '<hr />');
+          writeToScreen(formatMessage('info', this.dockerUnavailableMessageKey()) + '<hr />');
           // Reset status to 'Stopped' and update UI
           currentStatus = 'Stopped';
           updateStatusIndicator(currentStatus);
@@ -4638,7 +4658,11 @@ async function updateDockerStatus() {
         updateContextMenu(false);
         updateStatusIndicator(currentStatus);
         writeToScreen('[SERVER STOPPED]');
-        writeToScreen('[HTML]: <hr /><p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
+        if (process.platform === 'linux') {
+          writeToScreen(formatMessage('info', dockerManager.dockerUnavailableMessageKey()) + '<hr />');
+        } else {
+          writeToScreen('[HTML]: <hr /><p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
+        }
       }
     }
   }

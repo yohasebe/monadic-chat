@@ -180,6 +180,8 @@
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop未运行。请先启动Docker Desktop后重试。",
+    "dockerPermissionDenied": "Docker 正在运行，但当前用户没有使用权限。请将用户加入 docker 组（sudo usermod -aG docker $USER），然后注销并重新登录。在 Omarchy 上，请改为运行 omarchy-setup-security-sudoless-docker。加入 docker 组相当于拥有 root 权限。",
+    "dockerEngineNotRunning": "Docker 未运行。请启动 Docker 服务（sudo systemctl start docker）或 Docker Desktop 后重试。",
     "dockerNotRunningStart": "Docker Desktop未运行。请启动Docker Desktop并按<b>开始</b>按钮。",
     "systemInitComplete": "系统初始化完成",
     "openingBrowser": "正在打开浏览器。",

@@ -561,6 +561,37 @@ const modelSpec = {
     "structured_output_mode": "json_schema",
     "beta_flags": []
   },
+  // Claude Sonnet 5.5 — the current Sonnet, same price and limits as Sonnet 5.
+  // Live-probed: `thinking: {type: "disabled"}`, non-default temperature and
+  // forced tool_choice all return 400; thinking blocks are bound to the
+  // conversation (drop_block accepted with adaptive thinking). Omitting
+  // `thinking` runs adaptive at the default effort (high), as on Sonnet 5.
+  "claude-sonnet-5-5": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "rejects_forced_tool_choice": true,
+    "thinking_block_binding": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
+  },
   "claude-sonnet-5": {
     "context_window" : [1, 1000000],
     "api_version": "2023-06-01",
@@ -1610,8 +1641,8 @@ const providerDefaults = {
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   "anthropic": {
-    "chat": ["claude-sonnet-5", "claude-haiku-4-5-20251001"],
-    "code": ["claude-sonnet-5"],
+    "chat": ["claude-sonnet-5-5", "claude-haiku-4-5-20251001"],
+    "code": ["claude-sonnet-5-5"],
     "vision": ["claude-haiku-4-5-20251001"]
   },
   "gemini": {

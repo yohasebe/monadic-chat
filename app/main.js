@@ -1057,6 +1057,16 @@ function checkForUpdates() {
 }
 
 // Version check - shows download link instead of auto-updating
+// Node reports a failed connection to a multi-address host (IPv4 and IPv6
+// both tried) as an AggregateError whose own message is empty; the reasons
+// are in its inner errors. Without this, "Failed to check for updates:" ends
+// in nothing when the machine is offline.
+function describeNetworkError(err) {
+  if (!err) return 'unknown error';
+  const inner = Array.isArray(err.errors) && err.errors.length > 0 ? err.errors[0] : null;
+  return err.message || (inner && (inner.message || inner.code)) || err.code || String(err);
+}
+
 function checkForUpdatesManual(showDialog = false) {
   const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb';
 
@@ -1148,12 +1158,12 @@ function checkForUpdatesManual(showDialog = false) {
   }).on('error', (err) => {
     if (showDialog) {
       // Show error dialog only when menu is clicked
-      dialog.showErrorBox('Error', `Failed to check for updates: ${err.message}`);
+      dialog.showErrorBox('Error', `Failed to check for updates: ${describeNetworkError(err)}`);
     } else {
       // Display error in main window only on startup
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('command-output', 
-          formatMessage('info', 'messages.failedToCheckUpdates', { error: err.message }));
+          formatMessage('info', 'messages.failedToCheckUpdates', { error: describeNetworkError(err) }));
       }
     }
   });

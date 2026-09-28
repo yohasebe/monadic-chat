@@ -3648,11 +3648,13 @@ function readEnvFile(envPath) {
     }
 }
 
-// Write the ENV file by converting config entries to newline-separated key=value pairs
+// Write the ENV file as key=value lines, each ending in a newline. Users are
+// told to add settings to this file by hand; without the final newline an
+// appended line (`echo KEY=value >> env`) runs into the last existing one.
 function writeEnvFile(envPath, envConfig) {
     const envContent = Object.entries(envConfig)
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n');
+        .map(([key, value]) => `${key}=${value}\n`)
+        .join('');
 
     try {
         fs.writeFileSync(envPath, envContent);

@@ -38,7 +38,7 @@ JS_ROOTS = {
 # Fewest files each scan may read (see scan_floor.rb). Floors sit about 20%
 # below the current counts (routes 7, public/js/monadic 85, app 12); lower one
 # when files are genuinely removed. The routes floor is checked before the
-# "no request.xhr? usages" exit, which an empty routes scan would reach.
+# "routes using request.xhr?: 0" exit, which an empty routes scan would reach.
 # The JS floors apply only when some route uses request.xhr?, since the JS
 # roots are read only then.
 ROUTE_FLOORS = { 'routes' => 5 }.freeze
@@ -131,7 +131,7 @@ xhr_route_paths = xhr_routes.keys - EXEMPT_ROUTES
 exit 1 unless ScanFloor.met?('lint:xhr_pair', SCANNED, ROUTE_FLOORS)
 
 if xhr_route_paths.empty?
-  puts '[lint:xhr_pair] OK — no request.xhr? usages found in routes/.'
+  puts '[lint:xhr_pair] OK — routes using request.xhr?: 0, so the JS side was not checked.'
   exit 0
 end
 

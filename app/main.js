@@ -2946,7 +2946,7 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      contentSecurityPolicy: "default-src 'self' http://localhost:4567 http://127.0.0.1:4567; style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; connect-src 'self' http://localhost:4567 ws://localhost:4567 http://127.0.0.1:4567 ws://127.0.0.1:4567 https://raw.githubusercontent.com; img-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; worker-src 'self';",
+      contentSecurityPolicy: "default-src 'self' http://localhost:4567 http://127.0.0.1:4567; style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; script-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; connect-src 'self' http://localhost:4567 ws://localhost:4567 http://127.0.0.1:4567 ws://127.0.0.1:4567 https://raw.githubusercontent.com; img-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; worker-src 'self';",
       devTools: !app.isPackaged, // Only enable DevTools in development
       spellcheck: false // Disable spellcheck to avoid IMKit related errors
     },
@@ -3334,7 +3334,7 @@ function openSettingsWindow(category = null) {
         nodeIntegration: false,
         contextIsolation: true,
         preload: path.join(__dirname, 'preload.js'),
-        contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
+        contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
       }
     });
 

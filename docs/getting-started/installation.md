@@ -53,11 +53,19 @@ Accept the service agreement and use recommended settings.
 
 ### **Linux**
 
-1. **Install Docker Desktop for Linux**
+1. **Install Docker**
 
-Refer to Docker documentation:
-- [For Debian](https://docs.docker.com/desktop/setup/install/linux/debian/)
-- [For Ubuntu](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
+Install either Docker Desktop for Linux or Docker Engine:
+- Docker Desktop: [for Debian](https://docs.docker.com/desktop/setup/install/linux/debian/), [for Ubuntu](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
+- Docker Engine: [installation guide](https://docs.docker.com/engine/install/)
+
+With Docker Engine, your user must be able to run `docker` without `sudo`. Add it to the `docker` group, then log out and back in:
+
+```shell
+$ sudo usermod -aG docker $USER
+```
+
+On Omarchy, run `omarchy-setup-security-sudoless-docker` instead. Membership in the `docker` group gives root-equivalent access to the machine. If the group is missing, Monadic Chat shows these steps when it cannot use Docker.
 
 2. **Download Monadic Chat**
 
@@ -72,7 +80,7 @@ $ chmod +x monadic-chat_*.AppImage
 $ ./monadic-chat_*.AppImage
 ```
 
-If your distribution does not ship FUSE 2, either install it (`sudo apt install libfuse2`) or run the AppImage with `--appimage-extract-and-run`.
+The AppImage mounts itself through FUSE. FUSE 3, which current distributions include, is enough; `libfuse2` is not required. Where FUSE is not available, run the AppImage with `--appimage-extract-and-run`.
 
 <!-- tabs:end -->
 

@@ -61,6 +61,8 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 
 Note that other features like web search, image generation, and cloud-based language models still require internet access.
 
+The first start needs a connection to download the container images and build the Ruby container. After that, Monadic Chat also starts without a connection and shows which features are unavailable until you are back online.
+
 ---
 
 ##### Q: How can I reset the app to the initial state? :id=app-reset

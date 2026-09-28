@@ -53,11 +53,19 @@ PowerShellを管理者として開き、以下を実行：
 
 ### **Linux**
 
-1. **Docker Desktop for Linuxのインストール**
+1. **Dockerのインストール**
 
-Dockerドキュメントを参照：
-- [Debian用](https://docs.docker.com/desktop/setup/install/linux/debian/)
-- [Ubuntu用](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
+Docker Desktop for Linux か Docker Engine のどちらかをインストールします：
+- Docker Desktop：[Debian用](https://docs.docker.com/desktop/setup/install/linux/debian/)、[Ubuntu用](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
+- Docker Engine：[インストールガイド](https://docs.docker.com/engine/install/)
+
+Docker Engine を使う場合は、`sudo` なしで `docker` を実行できる必要があります。ユーザーを `docker` グループに追加し、ログインし直してください：
+
+```shell
+$ sudo usermod -aG docker $USER
+```
+
+Omarchy では、代わりに `omarchy-setup-security-sudoless-docker` を実行します。`docker` グループに入ると、その機械に対して root 相当の権限を持つことになります。グループに入っていない場合、Monadic Chat は Docker を使えないときにこの手順を表示します。
 
 2. **Monadic Chatのダウンロード**
 
@@ -72,7 +80,7 @@ $ chmod +x monadic-chat_*.AppImage
 $ ./monadic-chat_*.AppImage
 ```
 
-FUSE 2 が入っていないディストリビューションでは、`sudo apt install libfuse2` で導入するか、`--appimage-extract-and-run` を付けて起動してください。
+AppImage は FUSE を使って自身をマウントします。現在のディストリビューションに入っている FUSE 3 で足り、`libfuse2` は不要です。FUSE が使えない環境では、`--appimage-extract-and-run` を付けて起動してください。
 
 <!-- tabs:end -->
 

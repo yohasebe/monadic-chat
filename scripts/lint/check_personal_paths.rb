@@ -14,9 +14,12 @@
 #   - /Users/<name>/...          (macOS home)
 #   - /home/<name>/...           (Linux home, except a small allow-list)
 #   - C:\Users\<name>\...        (Windows home)
+#   - /var/folders/... and /private/var/folders/...   (macOS per-user temp)
+#   - ~/.<name>                  (a dotfile or dot-directory in someone's home,
+#                                 e.g. a shell profile holding secrets)
 #
 # What we DO NOT flag:
-#   - "~/..." (tilde — host-portable)
+#   - "~/..." without a leading dot (tilde — host-portable, e.g. ~/monadic)
 #   - Dir.home, ENV['HOME'], File.expand_path('~/...')
 #   - "/monadic/data" / "/monadic/..." — these are the container-side
 #     canonical paths and have their own lint rule (check_data_path_literals.rb)
@@ -27,8 +30,9 @@
 #   - the lint config files themselves
 #
 # Output mode:
-#   - Default: print every violation as "path:line: content" and exit
-#     with status equal to the violation count (capped at 1 for CI).
+#   - Default: print every violation as "path:line" and exit 1. The line
+#     itself is never printed: CI logs are public, and the matched text is
+#     the very path that must not be published.
 #   - With --baseline N: exit 0 if violations <= N (used for warn-only
 #     rollout while the codebase has known violations).
 
@@ -42,21 +46,28 @@ ROOT = Pathname.new(__dir__).join('..', '..').realpath
 #
 # A scan that reads nothing also finds no violations, so a renamed root or a
 # misresolved ROOT would pass silently. The floors sit about 20% below the
-# current counts (app 12, lib 205, scripts 20, public/js 91, python 24,
-# extractor 5, embeddings 5, privacy 10); lower one when files are genuinely
+# current counts of text files (app 22, lib 207, scripts 22, public/js 91,
+# python 25, extractor 6, embeddings 6, privacy 12); lower one when files are genuinely
 # removed, and drop the entry when a root is retired on purpose.
 SCAN_ROOTS = {
-  'app' => 10,
+  'app' => 17,
   'docker/services/ruby/lib' => 165,
-  'docker/services/ruby/scripts' => 16,
+  'docker/services/ruby/scripts' => 17,
   'docker/services/ruby/public/js' => 72,
-  'docker/services/python/scripts' => 19,
+  'docker/services/python/scripts' => 20,
   'docker/services/extractor' => 4,
   'docker/services/embeddings' => 4,
-  'docker/services/privacy' => 8
+  'docker/services/privacy' => 9
 }.freeze
 
-ALLOWED_EXTENSIONS = %w[.rb .js .mjs .ts .py .sh .erb .mdsl .yml .yaml].freeze
+# Every text file under a root is read, whatever its extension: a list of
+# extensions only covers the file types someone thought of, and JSON, HTML,
+# Markdown and Dockerfiles ship too. Binary files are skipped by content.
+BINARY_PROBE_BYTES = 8192
+
+def binary_file?(path)
+  File.open(path, 'rb') { |f| (f.read(BINARY_PROBE_BYTES) || '').include?("\0") }
+end
 
 # Files that legitimately mention personal paths (e.g. lint scripts
 # describing the patterns themselves, or compatibility shims).
@@ -76,7 +87,9 @@ ACCEPTED_VIOLATIONS = [].freeze
 PERSONAL_PATH_PATTERNS = [
   %r{/Users/[A-Za-z0-9_.-]+/},
   %r{/home/[A-Za-z0-9_.-]+/},
-  %r{C:\\Users\\[A-Za-z0-9_.-]+\\}
+  %r{C:\\Users\\[A-Za-z0-9_.-]+\\},
+  %r{/(?:private/)?var/folders/},
+  %r{~/\.[A-Za-z0-9_]}
 ].freeze
 
 def each_target_file
@@ -85,7 +98,7 @@ def each_target_file
   SCAN_ROOTS.each_key do |rel_root|
     Dir.glob(ROOT.join(rel_root, '**', '*')).each do |path|
       next unless File.file?(path)
-      next unless ALLOWED_EXTENSIONS.include?(File.extname(path))
+      next if binary_file?(path)
       yield rel_root, Pathname.new(path)
     end
   end
@@ -120,11 +133,10 @@ each_target_file do |rel_root, path|
   rel = relative_path(path)
   text = File.read(path, encoding: 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
   text.each_line.with_index do |line, idx|
-    PERSONAL_PATH_PATTERNS.each do |re|
-      next unless line.match?(re)
-      next if allowed_violation?(rel, line)
-      violations << { path: rel, line: idx + 1, text: line.rstrip }
-    end
+    next unless PERSONAL_PATH_PATTERNS.any? { |re| line.match?(re) }
+    next if allowed_violation?(rel, line)
+
+    violations << { path: rel, line: idx + 1 }
   end
 end
 
@@ -146,7 +158,7 @@ end
 
 puts "[lint:personal_paths] #{violations.size} violation(s):"
 violations.each do |v|
-  puts "  #{v[:path]}:#{v[:line]}: #{v[:text]}"
+  puts "  #{v[:path]}:#{v[:line]}"
 end
 
 if baseline && violations.size <= baseline

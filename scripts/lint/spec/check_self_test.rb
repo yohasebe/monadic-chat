@@ -96,6 +96,29 @@ with_temp_file(fixture, violation) do
   )
 end
 
+# Each form is checked on its own, in a file type the old extension list
+# skipped, and the matched text must never reach the output (CI logs are public).
+json_fixture = ROOT.join('docker/services/ruby/public/js/monadic/_lint_self_check.json')
+[
+  '{"path": "/Users/someone/monadic/data"}',
+  '{"path": "/home/someone/monadic/data"}',
+  '{"tmp": "/var/folders/ab/xyz/T/upload"}',
+  '{"tmp": "/private/var/folders/ab/xyz/T/upload"}',
+  '{"profile": "~/.secrets.zsh"}'
+].each_with_index do |source, index|
+  with_temp_file(json_fixture, source) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert("detects personal path form #{index + 1} in JSON",
+           !status.success? && stdout.include?(json_fixture.relative_path_from(ROOT).to_s), stdout)
+    matched = source[/"([^"]+)"\}\z/, 1]
+    assert("does not echo personal path form #{index + 1}", !stdout.include?(matched), stdout)
+  end
+end
+with_temp_file(json_fixture, '{"data": "~/monadic/data", "up": "~/../shared"}') do
+  stdout, _stderr, status = run_lint('check_personal_paths.rb')
+  assert('accepts portable tilde paths', status.success?, stdout)
+end
+
 # A copy whose root resolves to an empty tree reads no files. It must fail on
 # the scan floors instead of reporting a clean tree.
 Dir.mktmpdir do |dir|

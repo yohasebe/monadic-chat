@@ -80,8 +80,8 @@ module BaseVendorHelper
     #   api_key_config:  - CONFIG key for the API key (e.g. "DEEPSEEK_API_KEY")
     #   endpoint_path:   - Path appended to API_ENDPOINT (e.g. "/models")
     #   endpoint:        - Alternative to endpoint_path: lambda receiving api_key,
-    #                      returns the path. For providers that put the key in the
-    #                      URL (e.g. Gemini's "/models?key=...") instead of headers.
+    #                      returns the path. Authentication belongs in headers,
+    #                      never in the returned URL.
     #   headers:         - Lambda receiving api_key, returns headers hash.
     #                      Default: Bearer token + Content-Type JSON.
     #   fallback_provider: - Provider name for ModelSpec fallback on failure (e.g. "anthropic").

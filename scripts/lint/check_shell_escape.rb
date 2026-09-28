@@ -30,15 +30,20 @@
 #   --baseline N permits the current count.
 
 require 'pathname'
+require_relative 'scan_floor'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
-SCAN_ROOTS = [
-  'app',
-  'docker/services/ruby/lib',
-  'docker/services/ruby/scripts',
-  'docker/services/ruby/apps'
-].freeze
+# Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
+# Floors sit about 20% below the current counts (lib 205, scripts 18, apps 56);
+# lower one when files are genuinely removed.
+# app/ is not scanned: it holds no Ruby, so the root read nothing.
+SCAN_ROOTS = {
+  'docker/services/ruby/lib' => 164,
+  'docker/services/ruby/scripts' => 14,
+  'docker/services/ruby/apps' => 44
+}.freeze
+SCANNED = Hash.new(0)
 
 # Identifiers we trust without Shellwords.escape because they are either
 # fixed at build-time (constants), server-generated (timestamps, hex), or
@@ -97,10 +102,10 @@ end
 def each_target_file
   return enum_for(:each_target_file) unless block_given?
 
-  SCAN_ROOTS.each do |rel_root|
+  SCAN_ROOTS.each_key do |rel_root|
     abs_root = ROOT.join(rel_root)
-    next unless abs_root.exist?
     Dir.glob(abs_root.join('**', '*.rb')).each do |path|
+      SCANNED[rel_root] += 1
       yield Pathname.new(path)
     end
   end
@@ -144,6 +149,8 @@ violations = []
 each_target_file do |path|
   violations.concat(scan_file(path))
 end
+
+exit 1 unless ScanFloor.met?('lint:shell_escape', SCANNED, SCAN_ROOTS)
 
 if violations.empty?
   puts '[lint:shell_escape] OK — no unescaped shell interpolations found.'

@@ -141,6 +141,9 @@
   },
   "messages": {
     "dockerNotRunning": "Docker Desktopが実行されていません。Docker Desktopを起動してから再試行してください。",
+    "dockerPermissionDenied": "Dockerは動いていますが、このユーザーには使用する権限がありません。ユーザーをdockerグループに追加し（sudo usermod -aG docker $USER）、ログインし直してください。Omarchyでは代わりに omarchy-setup-security-sudoless-docker を実行します。dockerグループに入ると、root相当の権限を持つことになります。",
+    "dockerEngineNotRunning": "Dockerが実行されていません。Dockerのサービス（sudo systemctl start docker）またはDocker Desktopを起動してから再試行してください。",
+    "noInternetAtStartup": "起動時にインターネットに接続できませんでした。ローカルのモデル、設定、ファイルは使えます。クラウドのAIプロバイダー、コンテナイメージのダウンロード、アップデートの確認には接続が必要です。オンラインになったらMonadic Chatを再起動してください。",
     "dockerNotRunningStart": "Docker Desktopが実行されていません。Docker Desktopを起動して<b>開始</b>ボタンを押してください。",
     "systemInitComplete": "システム初期化完了",
     "openingBrowser": "ブラウザを開いています。",
@@ -184,6 +187,7 @@
     "standaloneModeTitle": "Monadic Chat: <span style=\"color: #4CACDC; font-weight: bold;\">スタンドアロンモード</span>",
     "standaloneModeDesc": "スタンドアロンモードで実行中です。サービスはローカルでのみアクセス可能です。",
     "standaloneModeTip": "Monadic Chatの使用中はDocker Desktopが実行中であることを確認してください。",
+    "standaloneModeTipLinux": "Monadic Chatの使用中はDockerが実行中であることを確認してください。",
     "pressStartButton": "<b>開始</b>ボタンを押してサーバーを初期化してください。",
     "checkingForUpdates": "アップデートを確認しています...",
     "serverRunningOnPort": "サーバーがポート4567で実行中です。ブラウザを開いています。",

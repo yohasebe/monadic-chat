@@ -80,6 +80,9 @@ test_text_*
 test_tts_input_*
 .test_tmp/
 
+# Raw results written by scripts/benchmark_startup.rb
+/scripts/benchmark_results/
+
 /icons/menu_icons/
 /icons/app_icons/
 

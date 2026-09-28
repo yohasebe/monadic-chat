@@ -27,12 +27,17 @@
 #   Same exit-code semantics as the other lint scripts.
 
 require 'pathname'
+require_relative 'scan_floor'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
-SCAN_ROOTS = [
-  'docker/services/ruby/public/js'
-].freeze
+# Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
+# Floors sit about 20% below the current counts (public/js 90);
+# lower one when files are genuinely removed.
+SCAN_ROOTS = {
+  'docker/services/ruby/public/js' => 72
+}.freeze
+SCANNED = Hash.new(0)
 
 ALLOWED_EXTENSIONS = %w[.js .mjs].freeze
 
@@ -54,9 +59,8 @@ PATH_RE = /\b(?:window\.)?ws\.send\s*\(/
 
 def each_target_file
   return enum_for(:each_target_file) unless block_given?
-  SCAN_ROOTS.each do |rel_root|
+  SCAN_ROOTS.each_key do |rel_root|
     abs_root = ROOT.join(rel_root)
-    next unless abs_root.exist?
     Dir.glob(abs_root.join('**', '*')).each do |path|
       next unless File.file?(path)
       next unless ALLOWED_EXTENSIONS.include?(File.extname(path))
@@ -64,6 +68,7 @@ def each_target_file
       # and inevitably contain the helper's internal sends inlined.
       next if path.include?('.bundle.')
       next if path.include?('.min.')
+      SCANNED[rel_root] += 1
       yield Pathname.new(path)
     end
   end
@@ -103,6 +108,8 @@ each_target_file do |path|
     violations << { path: rel, line: idx + 1, text: line.rstrip }
   end
 end
+
+exit 1 unless ScanFloor.met?('lint:bare_ws_send', SCANNED, SCAN_ROOTS)
 
 if violations.empty?
   puts '[lint:bare_ws_send] OK — no bare ws.send() callsites outside the monadic-ws.js helper.'

@@ -511,7 +511,7 @@ module MistralHelper
     end
 
     # Log response status if extra logging is enabled
-    Monadic::Utils::ExtraLogger.log { "Response status: #{res.status}\nResponse headers: #{res.headers.to_h}\nAbout to process streaming response..." }
+    Monadic::Utils::ExtraLogger.log { "Response status: #{res.status}\nResponse headers: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(res.headers.to_h.to_s)}\nAbout to process streaming response..." }
 
     # Process the response line by line
     buffer = ""

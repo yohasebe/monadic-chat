@@ -1210,7 +1210,7 @@ module DeepSeekHelper
       return [res]
     end
 
-    Monadic::Utils::ExtraLogger.log { "Response status: #{res.status}\nResponse headers: #{res.headers.to_h}\nAbout to process streaming response..." }
+    Monadic::Utils::ExtraLogger.log { "Response status: #{res.status}\nResponse headers: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(res.headers.to_h.to_s)}\nAbout to process streaming response..." }
 
     process_json_data(app: app, session: session, query: body,
                       res: res.body, call_depth: call_depth, &block)

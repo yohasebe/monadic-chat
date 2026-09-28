@@ -120,9 +120,9 @@ module InteractionUtils
     num_retrial = 0
 
     begin
-      response = HTTP.headers("Content-Type" => "application/json")
+      response = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => CONFIG["GEMINI_API_KEY"])
         .timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
-        .post("#{url}?key=#{CONFIG['GEMINI_API_KEY']}", json: body)
+        .post(url, json: body)
 
       if response.status.success?
         result = JSON.parse(response.body)

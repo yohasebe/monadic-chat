@@ -825,10 +825,17 @@ document.addEventListener('DOMContentLoaded', () => {
         <p>Press <b>start</b> button to initialize the server.</p>
         <hr />`;
     } else {
+      // On Linux, Docker is often the Docker Engine service, not Docker Desktop.
+      const isLinux = window.electronAPI && window.electronAPI.platform === 'linux';
+      const tipKey = isLinux ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
+      const standaloneTip = (window.i18n && window.i18n.t)
+        ? window.i18n.t(tipKey)
+        : (isLinux ? 'Please make sure Docker is running while using Monadic Chat.'
+                   : 'Please make sure Docker Desktop is running while using Monadic Chat.');
       initialMessage = `
         <p><b>Monadic Chat: <span style="color: #4CACDC; font-weight: bold;">Standalone Mode</span></b></p>
         <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> Running in standalone mode. Services are accessible locally only.</p>
-        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Please make sure Docker Desktop is running while using Monadic Chat.</p>
+        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${standaloneTip}</p>
         <p>Press <b>start</b> button to initialize the server.</p>
         <hr />`;
     }

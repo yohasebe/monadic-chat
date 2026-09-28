@@ -193,7 +193,7 @@
         // Check if this is PCM audio from Gemini
         var ttsProviderEl = $id("tts-provider");
         var provider = ttsProviderEl ? ttsProviderEl.value : '';
-        var isPCMFromGemini = (provider === "gemini-flash" || provider === "gemini-pro") && data.mime_type && data.mime_type.includes("audio/L16");
+        var isPCMFromGemini = (window.TtsProvider.isGemini(provider) && provider !== "gemini") && data.mime_type && data.mime_type.includes("audio/L16");
 
         if (isPCMFromGemini) {
           // Handle PCM audio from Gemini

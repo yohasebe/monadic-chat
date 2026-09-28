@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../tts_provider'
+
 # Streaming query handler for WebSocket connections.
 # Handles the main LLM streaming flow: fragment processing, realtime TTS
 # buffering, post-completion TTS, response parsing, and context extraction.
@@ -246,8 +248,8 @@ module WebSocketHelper
       provider = obj["tts_provider"]
       if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
         voice = obj["elevenlabs_tts_voice"]
-      elsif provider == "gemini-flash" || provider == "gemini-pro"
-        voice = obj["gemini_tts_voice"]
+      elsif Monadic::Utils::TtsProvider.gemini?(provider)
+        voice = provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
       elsif provider == "mistral"
         voice = obj["mistral_tts_voice"]
       elsif provider == "grok"

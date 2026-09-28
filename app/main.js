@@ -543,12 +543,24 @@ class DockerManager {
           console.error(`Docker status check stderr: ${stderr}`);
           reject(stderr);
         } else {
-          const isRunning = stdout.trim() === '1';
-          console.log(`Docker status check result: ${isRunning}`);
+          const result = stdout.trim();
+          // "denied": the daemon answered but this user may not use its
+          // socket (Linux without docker-group membership).
+          this.accessDenied = result === 'denied';
+          const isRunning = result === '1';
+          console.log(`Docker status check result: ${result}`);
           resolve(isRunning);
         }
       });
     });
+  }
+
+  // Message key explaining why Docker is unavailable. On Linux, Docker is
+  // often the Docker Engine service rather than Docker Desktop, and a
+  // missing docker-group membership looks like "not running" otherwise.
+  dockerUnavailableMessageKey() {
+    if (process.platform !== 'linux') return 'messages.dockerNotRunning';
+    return this.accessDenied ? 'messages.dockerPermissionDenied' : 'messages.dockerEngineNotRunning';
   }
 
   startDockerDesktop() {
@@ -582,6 +594,11 @@ class DockerManager {
   async ensureDockerDesktopRunning() {
     // Check Docker Desktop status
     const st = await this.checkStatus();
+    if (!st && process.platform === 'linux' && this.accessDenied) {
+      // Starting Docker cannot help: it is running, but not for this user.
+      dialog.showErrorBox('Docker', i18n.t(this.dockerUnavailableMessageKey()));
+      return;
+    }
     if (!st) {
       this.startDockerDesktop()
         .then(async () => {
@@ -592,7 +609,10 @@ class DockerManager {
         })
         .catch(error => {
           console.error('Failed to start Docker Desktop:', error);
-          dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+          const detail = process.platform === 'linux'
+            ? i18n.t(this.dockerUnavailableMessageKey())
+            : 'Failed to start Docker Desktop. Please start it manually and try again.';
+          dialog.showErrorBox('Error', detail);
         });
     }
   }
@@ -653,7 +673,7 @@ class DockerManager {
     return this.checkStatus()
       .then((status) => {
         if (!status) {
-          writeToScreen(formatMessage('info', 'messages.dockerNotRunning') + '<hr />');
+          writeToScreen(formatMessage('info', this.dockerUnavailableMessageKey()) + '<hr />');
           // Reset status to 'Stopped' and update UI
           currentStatus = 'Stopped';
           updateStatusIndicator(currentStatus);
@@ -1037,6 +1057,16 @@ function checkForUpdates() {
 }
 
 // Version check - shows download link instead of auto-updating
+// Node reports a failed connection to a multi-address host (IPv4 and IPv6
+// both tried) as an AggregateError whose own message is empty; the reasons
+// are in its inner errors. Without this, "Failed to check for updates:" ends
+// in nothing when the machine is offline.
+function describeNetworkError(err) {
+  if (!err) return 'unknown error';
+  const inner = Array.isArray(err.errors) && err.errors.length > 0 ? err.errors[0] : null;
+  return err.message || (inner && (inner.message || inner.code)) || err.code || String(err);
+}
+
 function checkForUpdatesManual(showDialog = false) {
   const url = 'https://raw.githubusercontent.com/yohasebe/monadic-chat/main/docker/services/ruby/lib/monadic/version.rb';
 
@@ -1128,12 +1158,12 @@ function checkForUpdatesManual(showDialog = false) {
   }).on('error', (err) => {
     if (showDialog) {
       // Show error dialog only when menu is clicked
-      dialog.showErrorBox('Error', `Failed to check for updates: ${err.message}`);
+      dialog.showErrorBox('Error', `Failed to check for updates: ${describeNetworkError(err)}`);
     } else {
       // Display error in main window only on startup
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('command-output', 
-          formatMessage('info', 'messages.failedToCheckUpdates', { error: err.message }));
+          formatMessage('info', 'messages.failedToCheckUpdates', { error: describeNetworkError(err) }));
       }
     }
   });
@@ -1165,6 +1195,10 @@ let mainWindow = null;
 let settingsWindow = null;
 let forceQuit = false;
 let isQuittingDialogShown = false;
+// Set when the startup connectivity probe gets no answer at all. The app keeps
+// running (local models, the UI and settings work offline); the main window
+// explains what needs a network once it has loaded.
+let startupOffline = false;
 
 async function quitApp() {
   if (isQuittingDialogShown || forceQuit) return;
@@ -1431,33 +1465,18 @@ function initializeApp() {
   // Continue with the rest of the initialization
   (async () => {
     
-    // Check internet connection with an explicit timeout
+    // Check internet connection with an explicit timeout. Any HTTP answer
+    // means the network works: api.github.com answers 403 when the anonymous
+    // rate limit is spent, which is not "offline". Only a failure to connect
+    // or a timeout counts, and even then startup continues.
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch('https://api.github.com', { signal: controller.signal });
+      await fetch('https://api.github.com', { signal: controller.signal });
       clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error('Internet connection test failed');
-      }
-
-      // Note: We no longer perform a separate version check here
-      // The autoUpdater will handle checking for updates and updating the message
-      // This avoids displaying potentially conflicting information
-      
     } catch (error) {
-      forceQuit = true;
-      dialog.showMessageBox(null, {
-        type: 'error',
-        title: 'Connection Error',
-        message: 'No internet connection available',
-        detail: 'Please check your internet connection and try again.',
-        buttons: ['OK']
-      }).then(() => {
-        cleanupAndQuit();
-      });
-      return;
+      startupOffline = true;
+      console.warn(`Startup connectivity check failed: ${error.message}`);
     }
 
     app.name = 'Monadic Chat';
@@ -2926,7 +2945,7 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      contentSecurityPolicy: "default-src 'self' http://localhost:4567 http://127.0.0.1:4567; style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; connect-src 'self' http://localhost:4567 ws://localhost:4567 http://127.0.0.1:4567 ws://127.0.0.1:4567 https://raw.githubusercontent.com; img-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; worker-src 'self';",
+      contentSecurityPolicy: "default-src 'self' http://localhost:4567 http://127.0.0.1:4567; style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; script-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; connect-src 'self' http://localhost:4567 ws://localhost:4567 http://127.0.0.1:4567 ws://127.0.0.1:4567 https://raw.githubusercontent.com; img-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; worker-src 'self';",
       devTools: !app.isPackaged, // Only enable DevTools in development
       spellcheck: false // Disable spellcheck to avoid IMKit related errors
     },
@@ -2962,6 +2981,10 @@ function createMainWindow() {
     // Send initial status and version
     mainWindow.webContents.send('update-status-indicator', currentStatus);
     mainWindow.webContents.send('update-version', app.getVersion());
+
+    if (startupOffline) {
+      writeToScreen(formatMessage('warning', 'messages.noInternetAtStartup') + '<hr />');
+    }
     
     // Send interface language to Web UI
     const envPath = getEnvPath();
@@ -3003,7 +3026,7 @@ function createMainWindow() {
           [HTML]: 
           <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
           <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
-          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t('messages.standaloneModeTip')}</p>
+          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip')}</p>
           <p>${i18n.t('messages.pressStartButton')}</p>
           <hr />`;
       }
@@ -3314,7 +3337,7 @@ function openSettingsWindow(category = null) {
         nodeIntegration: false,
         contextIsolation: true,
         preload: path.join(__dirname, 'preload.js'),
-        contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
+        contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';"
       }
     });
 
@@ -3628,11 +3651,13 @@ function readEnvFile(envPath) {
     }
 }
 
-// Write the ENV file by converting config entries to newline-separated key=value pairs
+// Write the ENV file as key=value lines, each ending in a newline. Users are
+// told to add settings to this file by hand; without the final newline an
+// appended line (`echo KEY=value >> env`) runs into the last existing one.
 function writeEnvFile(envPath, envConfig) {
     const envContent = Object.entries(envConfig)
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n');
+        .map(([key, value]) => `${key}=${value}\n`)
+        .join('');
 
     try {
         fs.writeFileSync(envPath, envContent);
@@ -4172,7 +4197,7 @@ ipcMain.handle('save-settings', (_event, data) => {
           [HTML]: 
           <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
           <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
-          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t('messages.standaloneModeTip')}</p>
+          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip')}</p>
           <p>${i18n.t('messages.pressStartButton')}</p>
           <hr />`;
       }
@@ -4638,7 +4663,11 @@ async function updateDockerStatus() {
         updateContextMenu(false);
         updateStatusIndicator(currentStatus);
         writeToScreen('[SERVER STOPPED]');
-        writeToScreen('[HTML]: <hr /><p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
+        if (process.platform === 'linux') {
+          writeToScreen(formatMessage('info', dockerManager.dockerUnavailableMessageKey()) + '<hr />');
+        } else {
+          writeToScreen('[HTML]: <hr /><p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
+        }
       }
     }
   }

@@ -187,9 +187,24 @@ def resolve_image_path(image_path)
   nil
 end
 
+# Custom headers are retained by the HTTP gem when following redirects.
+# Signed storage URLs need no API key; keep credentials on Google's API origin.
+def gemini_api_origin?(uri)
+  uri.scheme == "https" && uri.host == "generativelanguage.googleapis.com" && uri.port == 443
+end
+
+def gemini_redirect_options
+  {
+    max_hops: 5,
+    on_redirect: lambda do |_response, request|
+      request.headers.delete("x-goog-api-key") unless gemini_api_origin?(request.uri)
+    end
+  }
+end
+
 # Save video file from operation response
 
-def save_video(video_url, aspect_ratio, index)
+def save_video(video_url, aspect_ratio, index, api_key)
   return nil if video_url.nil?
   
   begin
@@ -201,7 +216,9 @@ def save_video(video_url, aspect_ratio, index)
     # First try to download video content directly
     begin
       # Use HTTP gem to download video content with timeout
-      response = HTTP.timeout(connect: 20, read: 60).follow(max_hops: 5).get(video_url)
+      auth_headers = gemini_api_origin?(URI(video_url)) ? { "x-goog-api-key" => api_key } : {}
+      response = HTTP.headers(auth_headers).timeout(connect: 20, read: 60)
+                     .follow(**gemini_redirect_options).get(video_url)
       
       if response.status.success?
         File.open(file_path, "wb") do |f|
@@ -255,10 +272,11 @@ end
 def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio, person_generation, negative_prompt, duration_seconds, api_key)
   # Use the current model set by generate_video function
   api_endpoint = "https://generativelanguage.googleapis.com/v1beta/models/#{$current_model}:predictLongRunning"
-  url = "#{api_endpoint}?key=#{api_key}"
+  url = api_endpoint
   
   headers = {
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "x-goog-api-key": api_key
   }
 
   # Build the request body according to Vertex AI Video Generation API
@@ -341,13 +359,13 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
   begin
     # Use a timeout and follow redirects, with SSL verification
     http_client = HTTP.timeout(connect: 30, read: 60)
-                     .follow(max_hops: 5)
+                     .follow(**gemini_redirect_options)
     
     response = http_client.headers(headers).post(url, json: body)
     
     # Separate debugging info to STDERR only, not mixing with the response object
     STDERR.puts "Raw Response Status: #{response.status}"
-    STDERR.puts "Raw Response Headers: #{response.headers.to_h}"
+    STDERR.puts "Raw Response Headers: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(response.headers.to_h.to_s)}"
     
     # Don't log the entire response body to avoid corrupting the JSON response
     response_preview = response.body.to_s[0..100]
@@ -387,7 +405,7 @@ end
 # Check the status of a video generation operation
 
 def check_operation_status(operation_name, api_key, max_retries = 84, retry_interval = 5)
-  operation_url = "#{API_OPERATION_ENDPOINT}/#{operation_name}?key=#{api_key}"
+  operation_url = "#{API_OPERATION_ENDPOINT}/#{operation_name}"
   
   STDERR.puts "Checking operation status at: #{operation_url}"
   
@@ -396,7 +414,7 @@ def check_operation_status(operation_name, api_key, max_retries = 84, retry_inte
   while retries < max_retries
     begin
       # Add timeout and retry for connection errors
-      response = HTTP.timeout(connect: 30, read: 60).get(operation_url)
+      response = HTTP.headers("x-goog-api-key" => api_key).timeout(connect: 30, read: 60).get(operation_url)
       
       if response.status.success?
         operation_data = JSON.parse(response.body.to_s)
@@ -545,16 +563,15 @@ def process_operation_result(operation_data, prompt, aspect_ratio, params, api_k
         end
         
         # For Veo API videos are in the video.uri path
-        # Need to append the API key to download the video
-        base_url = sample.dig("video", "uri")
-        video_url = base_url.nil? ? nil : "#{base_url}&key=#{api_key}"
+        # Authenticate the download with a header, keeping the URL credential-free.
+        video_url = sample.dig("video", "uri")
         
         if video_url.nil?
           puts "No video URL found in prediction #{index}"
           next
         end
         
-        filename = save_video(video_url, aspect_ratio, index)
+        filename = save_video(video_url, aspect_ratio, index, api_key)
         
         results << {
           filename: filename,

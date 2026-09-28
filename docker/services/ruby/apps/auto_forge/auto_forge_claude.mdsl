@@ -1,11 +1,11 @@
 app "AutoForgeClaude" do
   description do
     en <<~TEXT
-    Autonomous application builder powered by Claude Sonnet 4.6 with a Claude Opus 4.6 advisor. Creates web applications (HTML/CSS/JS) and command-line tools.
+    Autonomous application builder powered by Claude Sonnet with a Claude Opus advisor. Creates web applications (HTML/CSS/JS) and command-line tools.
     TEXT
 
     ja <<~TEXT
-    Claude Sonnet 4.6を実行役、Claude Opus 4.6をアドバイザーとして用いる自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
+    Claude Sonnetを実行役、Claude Opusをアドバイザーとして用いる自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
     TEXT
   end
 
@@ -16,18 +16,18 @@ app "AutoForgeClaude" do
   llm do
     provider "anthropic"
     reasoning_effort "low"
-    # Executor: Sonnet 4.6 for disciplined instruction-following and fast
+    # Executor: Sonnet for disciplined instruction-following and fast
     # turn-around. The Anthropic Advisor Tool's canonical pairing is
     # "Sonnet executor + Opus advisor" — Sonnet handles the bulk of tool
     # calls while Opus is consulted only for strategic guidance.
     model "claude-sonnet-5"
   end
 
-  # Advisor Tool (Anthropic beta): consult Opus 4.6 for strategic guidance on
+  # Advisor Tool (Anthropic beta): consult Opus for strategic guidance on
   # long autonomous loops. The advisor sees the full transcript and returns
-  # a short plan or course correction; the executor (Sonnet 4.6) continues.
+  # a short plan or course correction; the executor (Sonnet) continues.
   advisor_tool do
-    model "claude-opus-5"
+    model "claude-opus-5-5"
     max_uses 3
     caching true
   end
@@ -43,7 +43,7 @@ app "AutoForgeClaude" do
   end
 
   system_prompt <<~TEXT
-    You are Auto Forge, an application builder powered by Claude Sonnet 4.6 as the executor, with Claude Opus 4.6 available as an advisor via the `advisor` tool. You create complete web applications (single-file HTML/CSS/JS) and command-line tools from user specifications.
+    You are Auto Forge, an application builder powered by Claude Sonnet as the executor, with Claude Opus available as an advisor via the `advisor` tool. You create complete web applications (single-file HTML/CSS/JS) and command-line tools from user specifications.
 
     ## Default Workflow
 
@@ -63,7 +63,7 @@ app "AutoForgeClaude" do
 
     ## Advisor Tool (Anthropic beta)
 
-    You have access to an `advisor` tool that consults Claude Opus 4.6. It takes NO parameters — the advisor sees your full conversation automatically. Its response is a short, enumerated plan.
+    You have access to an `advisor` tool that consults Claude Opus. It takes NO parameters — the advisor sees your full conversation automatically. Its response is a short, enumerated plan.
 
     Call advisor at most 2 times per user request, and only in these situations:
     - BEFORE `generate_application` when the user's spec is genuinely ambiguous or architecturally non-trivial and you want a second opinion on the approach.

@@ -412,7 +412,7 @@ module ContextExtractorAgent
   # Call Gemini API
   def call_gemini_api(model, system_message, api_key)
     endpoint = API_ENDPOINTS["gemini"] % { model: model }
-    uri = URI.parse("#{endpoint}?key=#{api_key}")
+    uri = URI.parse("#{endpoint}")
 
     # Check for thinking models (e.g., gemini-2.0-flash-thinking-exp)
     is_thinking_model = model.to_s.include?("thinking")
@@ -436,7 +436,7 @@ module ContextExtractorAgent
     request_body["generationConfig"]["temperature"] = 0.3 unless is_thinking_model
 
     response = make_http_request(uri, request_body, {
-      "Content-Type" => "application/json"
+      "Content-Type" => "application/json", "x-goog-api-key" => api_key
     })
 
     return nil unless response

@@ -24,7 +24,7 @@ Drag the Docker icon to Applications folder and launch. Accept the service agree
 
 2. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.36 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/Monadic.Chat-1.0.0-beta.36-arm64.dmg)
+📦 [Download Monadic Chat 1.0.0-beta.37 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/Monadic.Chat-1.0.0-beta.37-arm64.dmg)
 
 ### **Windows**
 
@@ -49,19 +49,27 @@ Accept the service agreement and use recommended settings.
 
 3. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.36 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/Monadic.Chat.Setup.1.0.0-beta.36.exe)
+📦 [Download Monadic Chat 1.0.0-beta.37 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/Monadic.Chat.Setup.1.0.0-beta.37.exe)
 
 ### **Linux**
 
-1. **Install Docker Desktop for Linux**
+1. **Install Docker**
 
-Refer to Docker documentation:
-- [For Debian](https://docs.docker.com/desktop/setup/install/linux/debian/)
-- [For Ubuntu](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
+Install either Docker Desktop for Linux or Docker Engine:
+- Docker Desktop: [for Debian](https://docs.docker.com/desktop/setup/install/linux/debian/), [for Ubuntu](https://docs.docker.com/desktop/setup/install/linux/ubuntu/)
+- Docker Engine: [installation guide](https://docs.docker.com/engine/install/)
+
+With Docker Engine, your user must be able to run `docker` without `sudo`. Add it to the `docker` group, then log out and back in:
+
+```shell
+$ sudo usermod -aG docker $USER
+```
+
+On Omarchy, run `omarchy-setup-security-sudoless-docker` instead. Membership in the `docker` group gives root-equivalent access to the machine. If the group is missing, Monadic Chat shows these steps when it cannot use Docker.
 
 2. **Download Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.36 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/monadic-chat_1.0.0-beta.36_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.36/monadic-chat_1.0.0-beta.36_arm64.AppImage)
+📦 [Download Monadic Chat 1.0.0-beta.37 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/monadic-chat_1.0.0-beta.37_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.37/monadic-chat_1.0.0-beta.37_arm64.AppImage)
 
 3. **Make it executable and run it**
 
@@ -72,7 +80,7 @@ $ chmod +x monadic-chat_*.AppImage
 $ ./monadic-chat_*.AppImage
 ```
 
-If your distribution does not ship FUSE 2, either install it (`sudo apt install libfuse2`) or run the AppImage with `--appimage-extract-and-run`.
+The AppImage mounts itself through FUSE. FUSE 3, which current distributions include, is enough; `libfuse2` is not required. Where FUSE is not available, run the AppImage with `--appimage-extract-and-run`.
 
 <!-- tabs:end -->
 
@@ -100,7 +108,7 @@ Monadic Chat automatically checks for updates on startup.
 2. Click **Download & Install** — the update downloads in the background, with progress shown in the console
 3. When the download completes, you are prompted to restart Monadic Chat to apply the update
 
-You can also download it yourself from the [release page for 1.0.0-beta.36](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.36), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
+You can also download it yourself from the [release page for 1.0.0-beta.37](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.37), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
 
 ## Advanced Configuration :id=advanced-configuration
 

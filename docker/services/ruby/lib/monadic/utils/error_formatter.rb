@@ -14,13 +14,22 @@ module Monadic
       TOOL_ERROR = "Tool Execution Error"
       UNKNOWN_ERROR = "Unknown Error"
 
-      # Account identifiers that providers embed in their error text. These
+      # Credentials and account identifiers that providers embed in their error text. These
       # reach the chat, are saved with the conversation, and travel with any
       # export — so they are replaced before the message leaves the server.
       # Each provider names something different, which is why this lives in one
       # place: xAI names the team UUID, Google the project number, OpenAI the
       # organization, and several APIs attach a request id.
       IDENTIFIER_PATTERNS = [
+        # Header/hash renderings and URL query values, including short opaque
+        # credentials. Keep the label/delimiter so the error stays readable.
+        /\b(?:x-goog-api-key|authorization)["']?\s*(?:=>|:|=)\s*["']?(?:Bearer[ \t]+)?+\K[^\s"'<>;,}\]\[]+/i,
+        /[?&](?:key|api_key)=\K[^\s&#"'<>\\)\]}\[]+/i,
+        /\bBearer[ \t]+\K[A-Za-z0-9._~+\/-]{16,}=*/i,
+        /\bAIza[A-Za-z0-9_-]{16,}/,
+        /\bsk-[A-Za-z0-9_-]{16,}/,
+        /\bxai-[A-Za-z0-9_-]{16,}/,
+
         /\h{8}-\h{4}-\h{4}-\h{4}-\h{12}/,             # UUID (xAI team, Azure ids)
         /\borg-[A-Za-z0-9]{8,}/,                      # OpenAI organization
         /\bproj_[A-Za-z0-9]{8,}/,                     # OpenAI project
@@ -32,7 +41,7 @@ module Monadic
       REDACTION = "[redacted]"
 
       class << self
-        # Replace account identifiers in provider error text. Returns the input
+        # Replace credentials and account identifiers in provider error text. Returns the input
         # unchanged when it carries none, so ordinary messages stay readable.
         def scrub_identifiers(text)
           return text if text.nil?

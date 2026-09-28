@@ -120,3 +120,51 @@ RSpec.describe Monadic::Utils::ErrorFormatter do
     end
   end
 end
+RSpec.describe Monadic::Utils::ErrorFormatter, 'credential redaction' do
+  let(:fake_google) { 'AIza_NOT_A_REAL_KEY_REDACTION_TEST_0000' }
+
+  it 'redacts Google, OpenAI and xAI key shapes without requiring a label' do
+    [fake_google, 'sk-proj-NOT_A_REAL_KEY_TEST_ONLY_0000', 'xai-NOT_A_REAL_KEY_TEST_ONLY_0000'].each do |key|
+      expect(described_class.scrub_identifiers("Denied #{key}; retry")).to eq('Denied [redacted]; retry')
+    end
+  end
+
+  it 'redacts first and later URL query key values, preserving other parameters' do
+    ['https://example.invalid/?key=short&alt=media',
+     'https://example.invalid/?alt=media&key=short',
+     'https://example.invalid/?api_key=short#section'].each do |text|
+      expect(described_class.scrub_identifiers(text)).to eq(text.sub('short', '[redacted]'))
+    end
+  end
+
+  it 'redacts URL-encoded credentials and bearer token syntax' do
+    expect(described_class.scrub_identifiers('https://example.invalid/?key=fake%2Bencoded%3D&alt=media'))
+      .to eq('https://example.invalid/?key=[redacted]&alt=media')
+    expect(described_class.scrub_identifiers('Bearer NOT_A_REAL_BEARER_TOKEN_0000'))
+      .to eq('Bearer [redacted]')
+  end
+
+  it 'redacts header values in HTTP, JSON and Ruby hash renderings' do
+    ['x-goog-api-key: short', 'X-Goog-Api-Key=short',
+     '{"x-goog-api-key":"short"}', '{"Authorization"=>"Bearer short"}',
+     'Authorization: Bearer short'].each do |text|
+      expect(described_class.scrub_identifiers(text)).to eq(text.sub('short', '[redacted]'))
+    end
+  end
+
+  it 'does not redact ordinary messages, provider names or configuration names' do
+    ['API key is missing. Set GEMINI_API_KEY.', 'Rate limit exceeded. Retry in 20 seconds.',
+     'Bearer tokens authenticate requests.', 'Use the x-goog-api-key header.',
+     'A key=value pair is required.', 'Use sk-learn to process data.',
+     'https://example.invalid/?monkey=banana&keyboard=enabled'].each do |text|
+      expect(described_class.scrub_identifiers(text)).to eq(text)
+    end
+  end
+
+  it 'is idempotent and keeps nil unchanged' do
+    expect(described_class.scrub_identifiers(nil)).to be_nil
+    text = "Authorization: Bearer #{fake_google}"
+    once = described_class.scrub_identifiers(text)
+    expect(described_class.scrub_identifiers(once)).to eq(once)
+  end
+end

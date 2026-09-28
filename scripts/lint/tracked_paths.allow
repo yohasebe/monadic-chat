@@ -1,0 +1,118 @@
+# Paths this repository may track. check_tracked_paths.rb fails when a tracked
+# file matches no line here, and when a line here matches no tracked file (so
+# a stale line cannot quietly widen what is allowed).
+#
+# Lines are File.fnmatch globs with FNM_PATHNAME | FNM_DOTMATCH: `*` stays
+# within one directory and also matches dotfiles, `**/` spans any depth.
+# `{a,b}` is expanded by the checker before matching, and every alternative
+# must match a tracked file.
+# Prefer a place and a file type over a single file; name a single file only
+# when it is the one file of its kind in that place.
+#
+# Adding a line is a decision about what may be published: this repository
+# is public, and release payloads are assembled from tracked files.
+
+# --- Repository root --------------------------------------------------------
+.gitattributes
+.gitignore
+CHANGELOG.md
+CITATION.cff
+CONTRIBUTING.md
+Gemfile
+LICENSE
+README.md
+Rakefile
+eslint.config.mjs
+jest.config.js
+notarize.js
+package.json
+package-lock.json
+
+# --- Repository tooling -----------------------------------------------------
+.github/FUNDING.yml
+.github/workflows/*.yml
+bin/*.sh
+config/deprecated_model_terms.txt
+config/test/test-config.yml
+config/electron/entitlements.mac.plist
+config/jest/jest.config.js
+lib/**/*.rb
+rakelib/*.rake
+scripts/**/*.{rb,js,mjs,sh}
+scripts/lint/tracked_paths.allow
+
+# --- Electron app -----------------------------------------------------------
+app/**/*.{js,html}
+app/translations/*.json
+# Fonts the app pages use, bundled so they render the same offline
+# (Font Awesome Free 6.4.0 and Montserrat, each with its license file).
+app/vendor/fontawesome/{LICENSE.txt,css/all.min.css}
+app/vendor/fontawesome/webfonts/*.woff2
+app/vendor/montserrat/{OFL.txt,montserrat.css}
+app/vendor/montserrat/*.woff2
+app/vendor/README.md
+
+# --- Docker services --------------------------------------------------------
+docker/monadic.sh
+docker/services/compose.yml
+docker/services/*.sh
+docker/services/*/Dockerfile
+docker/services/*/compose{,.build,.dev}.yml
+docker/services/support_scripts/*.sh
+docker/services/{embeddings,extractor,privacy}/**/*.py
+docker/services/embeddings/*.sh
+docker/services/privacy/language_map.json
+docker/services/privacy/recognizers/*.yaml
+docker/services/python/**/*.{py,sh}
+docker/services/python/matplotlibrc
+docker/services/python/@jupyterlab/**/*.jupyterlab-settings
+
+# Ruby service: application code
+docker/services/ruby/{Dockerfile,Gemfile,config.ru,*.gemspec,*.sh}
+docker/services/ruby/.{dockerignore,rubocop.yml,rubocop_todo.yml,rspec-integration,rspec_env}
+docker/services/ruby/.bundle/config
+docker/services/ruby/apps/**/*.{rb,mdsl}
+docker/services/ruby/apps/auto_forge/config/standard_libraries.json
+docker/services/ruby/bin/{assets_list.sh,check_model_sync,monadic_dev}
+docker/services/ruby/docs/context_management_configuration.md
+docker/services/ruby/help_data/.gitkeep
+docker/services/ruby/lib/**/*.{rb,rake}
+docker/services/ruby/public/**/*.{js,css,svg,ico,html}
+docker/services/ruby/schema/*.json
+docker/services/ruby/scripts/**/*.{rb,sh}
+docker/services/ruby/views/*.erb
+
+# Ruby service: specs and their fixtures
+docker/services/ruby/spec/**/*.{rb,sh,yml}
+docker/services/ruby/spec/e2e/websearch
+docker/services/ruby/spec/fixtures/office/*.{docx,pptx,xlsx}
+docker/services/ruby/spec/fixtures/*.png
+docker/services/ruby/spec/integration/stt_noise_benchmark/data/truth.txt
+docker/services/ruby/spec/unit/scripts/generators/*.rb.disabled
+
+# --- Frontend tests ---------------------------------------------------------
+test/**/*.js
+
+# --- Documentation ----------------------------------------------------------
+# Outside docs/ and docs_dev/, Markdown is allowed only as a README or by
+# name: internal notes (plans, status reports, fix write-ups) are almost
+# always Markdown, so a place-and-type line for .md would let them through.
+{docker/services,test}/**/README.md
+docker/services/python/scripts/services/README_TESTS.md
+docker/services/ruby/spec/unit/README_model_sync.md
+docker/services/ruby/spec/unit/scripts/generators/README_video_generator_gemini.md
+docs/.nojekyll
+docs/index.html
+docs/**/*.{md,png,svg,jpg}
+docs/**/favicon/{favicon.ico,site.webmanifest}
+docs/**/.gitkeep
+docs/assets/images/workflows/manifest.json
+docs/assets/sessions/image-generator.json
+docs/examples/*.example
+docs_dev/.nojekyll
+docs_dev/index.html
+docs_dev/**/*.md
+docs_dev/ruby_service/apps_tools_inventory.json
+
+# --- Icons ------------------------------------------------------------------
+icons/**/*.{png,svg,icns,ico}

@@ -3,6 +3,7 @@
 
 require 'pathname'
 require 'set'
+require_relative 'scan_floor'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 DOCS_DIRS = [ROOT.join('docs'), ROOT.join('docs_dev')]
@@ -146,14 +147,19 @@ end
 
 # README.md and CHANGELOG.md sit outside docs/ but link into the published
 # site, so they are scanned against docs/ as their root.
-SCAN_SETS = DOCS_DIRS.map { |d| [d, Dir.glob(d.join('**', '*.md'))] } +
-            [[ROOT.join('docs'),
+SCAN_SETS = DOCS_DIRS.map { |d| [d.basename.to_s, d, Dir.glob(d.join('**', '*.md'))] } +
+            [['README.md+CHANGELOG.md', ROOT.join('docs'),
               %w[README.md CHANGELOG.md].map { |f| ROOT.join(f).to_s }.select { |f| File.exist?(f) }]]
 
-SCAN_SETS.each do |docs_root, files|
-  next unless docs_root.exist?
+# Fewest files each scan set may read (see scan_floor.rb). Floors sit about
+# 20% below the current counts (docs 110, docs_dev 196); lower one when pages
+# are genuinely removed. README.md and CHANGELOG.md must both be read.
+SCAN_FLOORS = { 'docs' => 88, 'docs_dev' => 156, 'README.md+CHANGELOG.md' => 2 }.freeze
+scanned = Hash.new(0)
 
+SCAN_SETS.each do |label, docs_root, files|
   files.each do |file_path|
+    scanned[label] += 1
     current_file = Pathname.new(file_path)
     checked_files << current_file
 
@@ -249,6 +255,8 @@ SCAN_SETS.each do |docs_root, files|
     end
   end
 end
+
+exit 1 unless ScanFloor.met?('lint:docs_links', scanned, SCAN_FLOORS)
 
 if violations.empty?
   puts "[lint] All documentation links and heading anchors are valid (checked #{checked_files.size} files)."

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../tts_provider'
+
 # Text-to-speech (TTS) operations for WebSocket connections.
 # Handles voice listing, TTS request processing, playback control,
 # and streaming TTS delivery.
@@ -361,8 +363,8 @@ module WebSocketHelper
     provider = obj["provider"]
     if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
       voice = obj["elevenlabs_voice"]
-    elsif provider == "gemini-flash" || provider == "gemini-pro"
-      voice = obj["gemini_voice"]
+    elsif Monadic::Utils::TtsProvider.gemini?(provider)
+      voice = provider == "gemini" ? obj["voice"] : obj["gemini_voice"]
     elsif provider == "mistral"
       voice = obj["mistral_voice"]
     elsif provider == "grok"
@@ -460,8 +462,8 @@ module WebSocketHelper
     provider = obj["tts_provider"]
     if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
       voice = obj["elevenlabs_tts_voice"]
-    elsif provider == "gemini-flash" || provider == "gemini-pro"
-      voice = obj["gemini_tts_voice"]
+    elsif Monadic::Utils::TtsProvider.gemini?(provider)
+      voice = provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
     elsif provider == "mistral"
       voice = obj["mistral_tts_voice"]
     elsif provider == "grok"

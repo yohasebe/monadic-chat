@@ -22,6 +22,7 @@
 require 'open3'
 require 'fileutils'
 require 'pathname'
+require 'tmpdir'
 
 ROOT = Pathname.new(__dir__).join('..', '..', '..').realpath
 LINT_DIR = ROOT.join('scripts/lint')
@@ -32,6 +33,7 @@ LINT_DIR = ROOT.join('scripts/lint')
 RUBY_FIXTURE_DIR = ROOT.join('docker/services/ruby/lib/monadic')
 ROUTE_FIXTURE_DIR = ROOT.join('docker/services/ruby/lib/monadic/routes')
 JS_FIXTURE_DIR = ROOT.join('docker/services/ruby/public/js/monadic')
+PY_FIXTURE_DIR = ROOT.join('docker/services/python/scripts/utilities')
 
 DOCS_FIXTURE_DIR = ROOT.join('docs')
 
@@ -39,6 +41,7 @@ FIXTURES = {
   ruby: RUBY_FIXTURE_DIR.join('_lint_self_check_fixture.rb'),
   route: ROUTE_FIXTURE_DIR.join('_lint_self_check_route.rb'),
   js: JS_FIXTURE_DIR.join('_lint_self_check.js'),
+  py: PY_FIXTURE_DIR.join('_lint_self_check.py'),
   docs: DOCS_FIXTURE_DIR.join('_lint_self_check.md')
 }.freeze
 
@@ -91,6 +94,73 @@ with_temp_file(fixture, violation) do
     !status.success? && stdout.include?(fixture.relative_path_from(ROOT).to_s),
     "exit=#{status.exitstatus}, stdout did not name fixture\n#{stdout}"
   )
+end
+
+# Each form is checked on its own, in a file type the old extension list
+# skipped, and the matched text must never reach the output (CI logs are public).
+json_fixture = ROOT.join('docker/services/ruby/public/js/monadic/_lint_self_check.json')
+[
+  '{"path": "/Users/someone/monadic/data"}',
+  '{"path": "/home/someone/monadic/data"}',
+  '{"tmp": "/var/folders/ab/xyz/T/upload"}',
+  '{"tmp": "/private/var/folders/ab/xyz/T/upload"}',
+  '{"profile": "~/.secrets.zsh"}'
+].each_with_index do |source, index|
+  with_temp_file(json_fixture, source) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert("detects personal path form #{index + 1} in JSON",
+           !status.success? && stdout.include?(json_fixture.relative_path_from(ROOT).to_s), stdout)
+    matched = source[/"([^"]+)"\}\z/, 1]
+    assert("does not echo personal path form #{index + 1}", !stdout.include?(matched), stdout)
+  end
+end
+with_temp_file(json_fixture, '{"data": "~/monadic/data", "up": "~/../shared"}') do
+  stdout, _stderr, status = run_lint('check_personal_paths.rb')
+  assert('accepts portable tilde paths', status.success?, stdout)
+end
+['{"profile": "$HOME/.secrets.zsh"}', '{"config": "${HOME}/.config/tool"}'].each_with_index do |source, index|
+  with_temp_file(json_fixture, source) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert("detects $HOME dotfile form #{index + 1}",
+           !status.success? && stdout.include?(json_fixture.relative_path_from(ROOT).to_s), stdout)
+  end
+end
+
+# Binary files are matched as bytes (ASCII and UTF-16LE) and reported by name
+# only. The ignored __pycache__ copy proves git-ignored files are not read.
+personal = '/Users/someone/monadic/data'
+{
+  'ASCII inside a binary' => ["\x7FELF\0\0\0#{personal}\0\x01".b, '_lint_self_check.bin'],
+  'UTF-16LE text' => ["\uFEFFpath=#{personal}\n".encode('UTF-16LE').b, '_lint_self_check_utf16.txt'],
+  'UTF-16LE at an odd offset' => ["\0".b + "#{personal}".encode('UTF-16LE').b, '_lint_self_check.bin']
+}.each do |label, (bytes, name)|
+  fixture_path = JS_FIXTURE_DIR.join(name)
+  with_temp_file(fixture_path, bytes) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert("detects a personal path in #{label}",
+           !status.success? && stdout.include?("#{fixture_path.relative_path_from(ROOT)} (binary)"), stdout)
+    assert("does not echo the path found in #{label}", !stdout.include?('someone'), stdout)
+  end
+end
+ignored_dir = PY_FIXTURE_DIR.join('__pycache__')
+ignored_dir_existed = ignored_dir.exist?
+begin
+  with_temp_file(ignored_dir.join('_lint_self_check.pyc'), "\0\0#{personal}\0".b) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert('skips git-ignored files', status.success?, stdout)
+  end
+ensure
+  FileUtils.rm_rf(ignored_dir) unless ignored_dir_existed
+end
+
+# A copy whose root resolves to an empty tree reads no files. It must fail on
+# the scan floors instead of reporting a clean tree.
+Dir.mktmpdir do |dir|
+  copy = File.join(dir, 'scripts', 'lint', 'check_personal_paths.rb')
+  FileUtils.mkdir_p(File.dirname(copy))
+  FileUtils.cp(LINT_DIR.join('check_personal_paths.rb'), copy)
+  stdout, _stderr, status = Open3.capture3('ruby', copy, chdir: dir)
+  assert('fails when the scan reads no files', !status.success? && stdout.include?('expected at least'), stdout)
 end
 
 # ---------------------------------------------------------------------------
@@ -631,6 +701,171 @@ Dir.mktmpdir('before_pack') do |tmp|
     run_before_pack(tmp).include?('REJECTED'),
     run_before_pack(tmp)
   )
+end
+
+# Credential URL rule: each positive case is checked independently. Negative
+# controls prove that headers, keyword arguments and prose are not violations.
+section 'check_api_key_urls.rb'
+[
+  'url = "https://example.invalid/models?key=#{api_key}"',
+  'url = "#{endpoint}&key=#{token}"',
+  'query = "key=#{URI.encode_www_form_component(api_key)}"',
+  'url = "https://example.invalid/?key=" + api_key',
+  'url = "https://example.invalid/?key=obviously-fake-lint-fixture"',
+  'url = "#{endpoint}&" + "key=" + api_key',
+  "url = \"\#{endpoint}&\" + 'key=' +\n  api_key"
+].map { |source| [:ruby, source] }.concat([
+  'const url = `${base}?key=${apiKey}`;',
+  'const query = "key=" + apiKey;',
+  'const query = `key=${this.apiKey}`;',
+  "const url = base + '&api_key=' + apiKey;"
+].map { |source| [:js, source] }).concat([
+  'url = f"{base}?key={api_key}"',
+  'query = "key=" + api_key',
+  'query = f"key={api_key}"'
+].map { |source| [:py, source] }).each_with_index do |(kind, source), index|
+  with_temp_file(FIXTURES[kind], source) do
+    stdout, _stderr, status = run_lint('check_api_key_urls.rb')
+    assert("detects credential URL case #{index + 1} (#{kind})",
+           !status.success? && stdout.include?(FIXTURES[kind].relative_path_from(ROOT).to_s))
+    assert("does not echo credential source case #{index + 1} (#{kind})", !stdout.include?(source))
+  end
+end
+safe_source = <<~'RUBY'
+  headers = { "x-goog-api-key" => api_key, "Authorization" => "Bearer #{api_key}" }
+  call_api(api_key: api_key)
+  message = "API key is required"
+  # Migration note: never build "?key=#{api_key}".
+  matcher = /[?&]key=/
+  literal_matcher = /\?key=/
+RUBY
+with_temp_file(FIXTURES[:ruby], safe_source) do
+  stdout, _stderr, status = run_lint('check_api_key_urls.rb')
+  assert('accepts header auth, keyword arguments, comments and regexp matchers',
+         status.success? && !stdout.include?(FIXTURES[:ruby].relative_path_from(ROOT).to_s))
+end
+{
+  js: <<~'JS',
+    const headers = { "x-goog-api-key": apiKey };
+    // Migration note: never build "?key=" + apiKey.
+    const sortKey = `sort_key=${column}`;
+    const apiKeyMissing = "API key is required";
+  JS
+  py: <<~'PY'
+    headers = {"x-goog-api-key": api_key}
+    # Migration note: never build f"?key={api_key}".
+    sort_query = f"sort_key={column}"
+    message = "API key is required"
+  PY
+}.each do |kind, source|
+  with_temp_file(FIXTURES[kind], source) do
+    stdout, _stderr, status = run_lint('check_api_key_urls.rb')
+    assert("accepts header auth, comments and unrelated key names (#{kind})",
+           status.success? && !stdout.include?(FIXTURES[kind].relative_path_from(ROOT).to_s))
+  end
+end
+
+# A copy whose root resolves to an empty tree reads no files. It must fail on
+# the scan floors instead of reporting zero violations.
+Dir.mktmpdir do |dir|
+  copy = File.join(dir, 'scripts', 'lint', 'check_api_key_urls.rb')
+  FileUtils.mkdir_p(File.dirname(copy))
+  FileUtils.cp(LINT_DIR.join('check_api_key_urls.rb'), copy)
+  stdout, _stderr, status = Open3.capture3('ruby', copy, chdir: dir)
+  assert('fails when the scan reads no files', !status.success? && stdout.include?('expected at least'), stdout)
+end
+
+# Every lint that shares scan_floor.rb must fail on an empty tree instead of
+# reporting it clean. Each copy gets scan_floor.rb beside it, as in the repo.
+section 'scan floors (shared)'
+%w[
+  check_bare_ws_send.rb check_data_path_literals.rb check_docs_links.rb
+  check_docs_parity.rb check_global_shadow_delegation.rb check_http_timeout.rb
+  check_shell_escape.rb check_xhr_pair.rb
+].each do |script|
+  Dir.mktmpdir do |dir|
+    lint_dir = File.join(dir, 'scripts', 'lint')
+    FileUtils.mkdir_p(lint_dir)
+    FileUtils.cp(LINT_DIR.join(script), lint_dir)
+    FileUtils.cp(LINT_DIR.join('scan_floor.rb'), lint_dir)
+    stdout, stderr, status = Open3.capture3('ruby', File.join(lint_dir, script), chdir: dir)
+    assert("#{script} fails when the scan reads no files",
+           !status.success? && stdout.include?('expected at least'), stdout + stderr)
+  end
+end
+
+# Tracked-path allow list: exercised in a throwaway git repository so the
+# real index is never touched. Hooks are disabled for the test commits.
+section 'check_tracked_paths.rb'
+def git_in(dir, *args)
+  Open3.capture3('git', '-C', dir, '-c', 'core.hooksPath=/dev/null', '-c', 'user.name=lint',
+                 '-c', 'user.email=lint@example.invalid', *args)
+end
+
+def tracked_paths_repo(allow_lines, files)
+  Dir.mktmpdir do |dir|
+    lint_dir = File.join(dir, 'scripts', 'lint')
+    FileUtils.mkdir_p(lint_dir)
+    FileUtils.cp(LINT_DIR.join('check_tracked_paths.rb'), lint_dir)
+    File.write(File.join(lint_dir, 'tracked_paths.allow'), allow_lines.join("\n") + "\n")
+    files.each do |name|
+      FileUtils.mkdir_p(File.dirname(File.join(dir, name)))
+      File.write(File.join(dir, name), "x\n")
+    end
+    git_in(dir, 'init', '-q')
+    git_in(dir, 'add', '-A')
+    yield dir, ->(*extra) { Open3.capture3('ruby', File.join(lint_dir, 'check_tracked_paths.rb'), *extra) }
+  end
+end
+
+base_allow = %w[scripts/lint/*.{rb,allow} docs/**/*.md]
+tracked_paths_repo(base_allow, %w[docs/a.md docs/sub/b.md]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths accepts allowed files', status.success?, stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md docs/.env]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths rejects a file no line allows', !status.success? && stdout.include?('docs/.env'), stdout)
+end
+tracked_paths_repo(base_allow + %w[icons/*.png], %w[docs/a.md]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths rejects a line that matches nothing', !status.success? && stdout.include?('icons/*.png'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md]) do |dir, run|
+  git_in(dir, 'commit', '-q', '-m', 'clean')
+  File.write(File.join(dir, 'docs', 'debug.log'), "x\n")
+  git_in(dir, 'add', 'docs/debug.log')
+  stdout, _stderr, status = run.call('--tree', 'HEAD')
+  assert('tracked_paths --tree checks the commit, not the index', status.success?, stdout)
+  stdout, _stderr, status = run.call
+  assert('tracked_paths checks the index by default', !status.success? && stdout.include?('docs/debug.log'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md docs/debug.log]) do |dir, run|
+  git_in(dir, 'commit', '-q', '-m', 'with a log')
+  File.write(File.join(dir, 'scripts', 'lint', 'tracked_paths.allow'), (base_allow + %w[docs/*.log]).join("\n") + "\n")
+  stdout, _stderr, status = run.call('--tree', 'HEAD')
+  assert('tracked_paths --tree judges by the allow list in that commit', !status.success? && stdout.include?('docs/debug.log'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md docs/debug.log]) do |dir, run|
+  File.write(File.join(dir, 'scripts', 'lint', 'tracked_paths.allow'), (base_allow + %w[docs/*.log]).join("\n") + "\n")
+  stdout, _stderr, status = run.call
+  assert('tracked_paths ignores an unstaged edit to the allow list', !status.success? && stdout.include?('docs/debug.log'), stdout)
+end
+tracked_paths_repo(base_allow, %w[docs/a.md]) do |_dir, run|
+  stdout, _stderr, status = run.call('--tree')
+  assert('tracked_paths --tree without a revision fails', !status.success? && stdout.include?('needs a revision'), stdout)
+end
+tracked_paths_repo(%w[scripts/lint/*.{rb,allow} docs/**/*.{md,txt}], %w[docs/a.md]) do |_dir, run|
+  stdout, _stderr, status = run.call
+  assert('tracked_paths rejects an unused brace alternative', !status.success? && stdout.include?('docs/**/*.txt'), stdout)
+end
+Dir.mktmpdir do |dir|
+  lint_dir = File.join(dir, 'scripts', 'lint')
+  FileUtils.mkdir_p(lint_dir)
+  FileUtils.cp(LINT_DIR.join('check_tracked_paths.rb'), lint_dir)
+  File.write(File.join(lint_dir, 'tracked_paths.allow'), "docs/**/*.md\n")
+  stdout, _stderr, status = Open3.capture3('ruby', File.join(lint_dir, 'check_tracked_paths.rb'))
+  assert('tracked_paths fails outside a git checkout', !status.success? && stdout.include?('refusing to pass'), stdout)
 end
 
 # ---------------------------------------------------------------------------

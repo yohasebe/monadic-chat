@@ -36,6 +36,7 @@ const FILES = [
   "js/monadic/lazy-loader.js",
   "js/monadic/syntax-highlight.js",
   "js/monadic/tts-tag-sanitizer.js",
+  "js/monadic/tts-provider.js",
   // text-utils.js defines the canonical window.escapeHtml and must precede
   // every consumer (markdown-renderer.js, card-renderer.js, ...).
   // html-sanitizer.js defines window.sanitizeModelHtml (DOMPurify wrapper)

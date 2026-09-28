@@ -38,24 +38,24 @@ app "JupyterNotebookClaude" do
     temperature 0.0
     reasoning_effort "none"
     context_size 20
-    # Executor: Sonnet 4.6 for fast, disciplined tool-calling. The Anthropic
+    # Executor: Sonnet for fast, disciplined tool-calling. The Anthropic
     # Advisor Tool's canonical pairing is "Sonnet executor + Opus advisor" —
     # Sonnet handles the bulk of notebook operations while Opus is consulted
     # only for strategic guidance on architecturally non-trivial tasks.
     model "claude-sonnet-5"
   end
 
-  # Advisor Tool (Anthropic beta): consult Opus 4.6 for strategic guidance on
+  # Advisor Tool (Anthropic beta): consult Opus for strategic guidance on
   # multi-cell analysis tasks. The advisor sees the full conversation and
-  # returns a short plan; the executor (Sonnet 4.6) continues.
+  # returns a short plan; the executor (Sonnet) continues.
   advisor_tool do
-    model "claude-opus-5"
+    model "claude-opus-5-5"
     max_uses 2
     caching true
   end
 
   system_prompt <<~TEXT
-    You have access to an `advisor` tool backed by Claude Opus 4.6. It takes NO parameters — the advisor automatically sees your full conversation, every tool call, and every result. Its response is a short, enumerated plan (under 100 words).
+    You have access to an `advisor` tool backed by Claude Opus. It takes NO parameters — the advisor automatically sees your full conversation, every tool call, and every result. Its response is a short, enumerated plan (under 100 words).
 
     Call advisor at most 2 times per user request, and only in these situations:
     - BEFORE creating a notebook when the user's task involves non-trivial data analysis design choices, multiple data sources, or a pipeline where early decisions affect later cells.

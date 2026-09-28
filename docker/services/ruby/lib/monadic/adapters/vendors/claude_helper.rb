@@ -579,7 +579,7 @@ module ClaudeHelper
     # previous cache-invalidating behavior — no breakage, just lost savings.
     beta_flags << "mid-conversation-tool-changes-2026-07-01"
 
-    # Thinking block binding (Claude Fable 5.1). The header is what permits
+    # Thinking block binding for models that declare it in SSOT. The header permits
     # `thinking.block_binding` in the body (set below) and adds
     # `input_transformations` to responses so dropped blocks are visible.
     beta_flags << "thinking-binding-controls-2026-08-01" if Monadic::Utils::ModelSpec.thinking_block_binding?(model)
@@ -760,7 +760,7 @@ module ClaudeHelper
     advisor_cfg = claude_advisor_settings(app)
     return unless advisor_cfg
 
-    model_value  = advisor_cfg[:model]    || advisor_cfg["model"]    || "claude-opus-5"
+    model_value  = advisor_cfg[:model]    || advisor_cfg["model"]    || "claude-opus-5-5"
     max_uses_val = advisor_cfg[:max_uses] || advisor_cfg["max_uses"]
     caching_val  = advisor_cfg[:caching]  || advisor_cfg["caching"]
 
@@ -916,7 +916,7 @@ module ClaudeHelper
           end
         elsif tool_capable || has_websearch
           # Forced tool use ("any") is a 400 on models that declare
-          # rejects_forced_tool_choice (Claude Fable 5.1). Those models think
+          # rejects_forced_tool_choice in SSOT. Those models think
           # before every response, so "auto" plus the tool instructions in the
           # system prompt is the documented replacement. This branch is
           # reached on such a model only when the helper's own thinking flag

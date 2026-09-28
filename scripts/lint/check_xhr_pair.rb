@@ -25,14 +25,25 @@
 #   Same exit-code semantics as the other lint scripts.
 
 require 'pathname'
+require_relative 'scan_floor'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
 ROUTES_DIR = ROOT.join('docker/services/ruby/lib/monadic/routes')
-JS_ROOTS = [
-  ROOT.join('docker/services/ruby/public/js/monadic'),
-  ROOT.join('app')
-].freeze
+JS_ROOTS = {
+  'public/js/monadic' => ROOT.join('docker/services/ruby/public/js/monadic'),
+  'app' => ROOT.join('app')
+}.freeze
+
+# Fewest files each scan may read (see scan_floor.rb). Floors sit about 20%
+# below the current counts (routes 7, public/js/monadic 85, app 12); lower one
+# when files are genuinely removed. The routes floor is checked before the
+# "routes using request.xhr?: 0" exit, which an empty routes scan would reach.
+# The JS floors apply only when some route uses request.xhr?, since the JS
+# roots are read only then.
+ROUTE_FLOORS = { 'routes' => 5 }.freeze
+JS_FLOORS = { 'public/js/monadic' => 68, 'app' => 9 }.freeze
+SCANNED = Hash.new(0)
 
 # Routes that legitimately use request.xhr? for content negotiation
 # (e.g. graceful HTML fallback for non-AJAX form submitters in old
@@ -45,7 +56,7 @@ EXEMPT_ROUTES = [].freeze
 def find_xhr_routes
   routes = {}
   Dir.glob(ROUTES_DIR.join('**', '*.rb')).each do |path|
-    next unless File.exist?(path)
+    SCANNED['routes'] += 1
     text = File.read(path)
     rel = Pathname.new(path).relative_path_from(ROOT).to_s
 
@@ -73,10 +84,11 @@ end
 # parse JS.
 def find_fetch_callsites(target_paths)
   callsites = []
-  JS_ROOTS.each do |js_root|
-    next unless js_root.exist?
+  JS_ROOTS.each do |label, js_root|
     Dir.glob(js_root.join('**', '*.js')).each do |path|
       next if path.include?('.bundle.min.js')
+
+      SCANNED[label] += 1
       rel = Pathname.new(path).relative_path_from(ROOT).to_s
       text = File.read(path, encoding: 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
       lines = text.lines
@@ -116,13 +128,15 @@ end
 
 xhr_routes = find_xhr_routes
 xhr_route_paths = xhr_routes.keys - EXEMPT_ROUTES
+exit 1 unless ScanFloor.met?('lint:xhr_pair', SCANNED, ROUTE_FLOORS)
 
 if xhr_route_paths.empty?
-  puts '[lint:xhr_pair] OK — no request.xhr? usages found in routes/.'
+  puts '[lint:xhr_pair] OK — routes using request.xhr?: 0, so the JS side was not checked.'
   exit 0
 end
 
 callsites = find_fetch_callsites(xhr_route_paths)
+exit 1 unless ScanFloor.met?('lint:xhr_pair', SCANNED, JS_FLOORS)
 
 # Reverse check: any xhr-route that nobody fetches at all is suspicious
 # (probably dead code). Report as warning.

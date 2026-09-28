@@ -59,7 +59,7 @@ module AudioAnalysisAgent
                "limit ~#{MAX_INLINE_BYTES / (1024 * 1024)}MB). Please upload a shorter clip or a compressed mp3."
       end
       base64_data = Base64.strict_encode64(File.binread(send_path))
-      uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent?key=#{api_key}"
+      uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent"
       # No generationConfig on purpose. The Gemini 3 Developer Guide strongly
       # recommends keeping temperature at its default 1.0 for ALL Gemini 3
       # models — lowering it "may lead to unexpected behavior, such as looping
@@ -76,7 +76,7 @@ module AudioAnalysisAgent
           ]
         }]
       }
-      post_and_parse(uri, body)
+      post_and_parse(uri, body, api_key)
     ensure
       cleanup&.call
     end
@@ -104,10 +104,10 @@ module AudioAnalysisAgent
     end
   end
 
-  def post_and_parse(uri, body)
+  def post_and_parse(uri, body, api_key)
     retries = 0
     begin
-      res = HTTP.headers("Content-Type" => "application/json")
+      res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                .timeout(connect: ANALYSIS_CONNECT_TIMEOUT, write: ANALYSIS_WRITE_TIMEOUT, read: ANALYSIS_READ_TIMEOUT)
                .post(uri, json: body)
     rescue HTTP::Error, HTTP::TimeoutError => e

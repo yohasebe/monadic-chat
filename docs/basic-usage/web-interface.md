@@ -56,7 +56,7 @@ Select one of the basic apps. Each app has different default parameters and init
 Select the AI model to use. Available models depend on the selected app. Deprecated models are automatically excluded from the list.
 
 **Reasoning/Thinking Control** <br />
-Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
+Adjust the reasoning depth for models that support advanced thinking. Models with mandatory adaptive reasoning continue to reason even when reasoning controls are off or the app uses structured output; these settings do not eliminate reasoning costs. Hiding the thinking trace only changes its display. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
 
 **Show Thinking** <br />
 Show or hide the model's thinking/reasoning trace as a collapsible "Thinking Process" panel in each response. The toggle appears only for models that support thinking, and it is linked with the reasoning control: turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, and setting the effort back to "None" turns the toggle off. In [Live Conversation](../apps/chat-apps.md#live-conversation) this toggle is not shown, because realtime models do not emit a reasoning trace.
@@ -172,6 +172,8 @@ When Auto Speech is enabled and the selected TTS provider supports Expressive Sp
 - **Inline markers** (xAI Grok, ElevenLabs v3): the assistant weaves short markers (brief pauses, laughter, a whispered aside) into the text, and the TTS engine interprets them as stage directions. The markers never surface in the chat transcript — only their audio effect does.
 - **Instruction mode** (the OpenAI TTS model with instruction support): the assistant emits a separate voice directive — tone, pacing, emotion, pronunciation, pauses — alongside the reply. The TTS engine reads the directive but does not speak it; the directive matches the mood of the reply and is invisible in the transcript.
 - **Hybrid mode** (Gemini TTS): Gemini supports both of the above simultaneously. The assistant may use inline markers, a voice directive, or both, and Google's engine interprets the combination. Everything except the spoken reply is stripped from the transcript.
+
+With Gemini TTS, style cues can add words such as "Oh," or laughter that are absent from the text. The Flash-Lite option receives no voice directive, because it sometimes reads the directive aloud as part of the text; inline markers still apply. For language-learning material or other uses that require reading the text as written, omit style directives and expressive markers.
 
 Hover the badge for a tooltip that describes the active mechanism. Turning off Auto Speech, or switching to a TTS provider without Expressive Speech support, silently disables the feature.
 

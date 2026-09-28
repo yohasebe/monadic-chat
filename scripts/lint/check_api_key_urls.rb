@@ -30,8 +30,14 @@ SCRIPT_EXCLUDE = %r{/(vendor|node_modules|dist|\.venv|site-packages)/|\.min\.js\
 QUERY_KEY = /[?&](?:key|api_key)=/i
 KEY_FRAGMENT_END = /\b(?:key|api_key)=\z/i
 CREDENTIAL_NAME = /api_?key|apikey|token|secret/i
+# A scan that reads nothing also reports zero violations. These floors sit a
+# little below the current counts (Ruby 279, JavaScript 107, Python 27) so a
+# misresolved root or a broken glob fails loudly; lower them when files are
+# genuinely removed.
+MIN_SCANNED = { ruby: 250, javascript: 95, python: 24 }.freeze
 
 violations = []
+scanned = Hash.new(0)
 
 # --- Ruby ------------------------------------------------------------------
 def next_significant(tokens, index)
@@ -40,6 +46,7 @@ end
 
 RUBY_ROOTS.each do |dir|
   root.join(dir).glob('**/*.rb').each do |path|
+    scanned[:ruby] += 1
     tokens = Ripper.lex(path.read)
     in_regexp = false
     tokens.each_with_index do |(position, type, value, _state), index|
@@ -89,6 +96,7 @@ SCRIPT_GLOBS.flat_map { |glob| root.glob(glob) }.uniq.each do |path|
   next if "/#{rel}".match?(SCRIPT_EXCLUDE)
 
   python = rel.end_with?('.py')
+  scanned[python ? :python : :javascript] += 1
   path.each_line.with_index(1) do |line, number|
     code = strip_comment(line, python)
     next if code.empty?
@@ -99,7 +107,10 @@ SCRIPT_GLOBS.flat_map { |glob| root.glob(glob) }.uniq.each do |path|
 end
 
 violations.uniq!
+short = MIN_SCANNED.select { |lang, floor| scanned[lang] < floor }
+puts "[lint:api_key_urls] scanned #{MIN_SCANNED.keys.map { |lang| "#{lang} #{scanned[lang]}" }.join(', ')}"
+short.each { |lang, floor| puts "  #{lang}: scanned #{scanned[lang]} file(s), expected at least #{floor}" }
 puts "[lint:api_key_urls] #{violations.size} violation(s)"
 # Never print source snippets: a violation might itself contain a credential.
 violations.each { |path, line| puts "  #{path}:#{line}" }
-exit(violations.empty? ? 0 : 1)
+exit(violations.empty? && short.empty? ? 0 : 1)

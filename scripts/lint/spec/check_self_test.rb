@@ -697,6 +697,16 @@ end
   end
 end
 
+# A copy whose root resolves to an empty tree reads no files. It must fail on
+# the scan floors instead of reporting zero violations.
+Dir.mktmpdir do |dir|
+  copy = File.join(dir, 'scripts', 'lint', 'check_api_key_urls.rb')
+  FileUtils.mkdir_p(File.dirname(copy))
+  FileUtils.cp(LINT_DIR.join('check_api_key_urls.rb'), copy)
+  stdout, _stderr, status = Open3.capture3('ruby', copy, chdir: dir)
+  assert('fails when the scan reads no files', !status.success? && stdout.include?('expected at least'), stdout)
+end
+
 # ---------------------------------------------------------------------------
 # Summary.
 # ---------------------------------------------------------------------------

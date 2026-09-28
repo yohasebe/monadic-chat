@@ -32,6 +32,7 @@ LINT_DIR = ROOT.join('scripts/lint')
 RUBY_FIXTURE_DIR = ROOT.join('docker/services/ruby/lib/monadic')
 ROUTE_FIXTURE_DIR = ROOT.join('docker/services/ruby/lib/monadic/routes')
 JS_FIXTURE_DIR = ROOT.join('docker/services/ruby/public/js/monadic')
+PY_FIXTURE_DIR = ROOT.join('docker/services/python/scripts/utilities')
 
 DOCS_FIXTURE_DIR = ROOT.join('docs')
 
@@ -39,6 +40,7 @@ FIXTURES = {
   ruby: RUBY_FIXTURE_DIR.join('_lint_self_check_fixture.rb'),
   route: ROUTE_FIXTURE_DIR.join('_lint_self_check_route.rb'),
   js: JS_FIXTURE_DIR.join('_lint_self_check.js'),
+  py: PY_FIXTURE_DIR.join('_lint_self_check.py'),
   docs: DOCS_FIXTURE_DIR.join('_lint_self_check.md')
 }.freeze
 
@@ -641,13 +643,24 @@ section 'check_api_key_urls.rb'
   'url = "#{endpoint}&key=#{token}"',
   'query = "key=#{URI.encode_www_form_component(api_key)}"',
   'url = "https://example.invalid/?key=" + api_key',
-  'url = "https://example.invalid/?key=obviously-fake-lint-fixture"'
-].each_with_index do |source, index|
-  with_temp_file(FIXTURES[:ruby], source) do
+  'url = "https://example.invalid/?key=obviously-fake-lint-fixture"',
+  'url = "#{endpoint}&" + "key=" + api_key',
+  "url = \"\#{endpoint}&\" + 'key=' +\n  api_key"
+].map { |source| [:ruby, source] }.concat([
+  'const url = `${base}?key=${apiKey}`;',
+  'const query = "key=" + apiKey;',
+  'const query = `key=${this.apiKey}`;',
+  "const url = base + '&api_key=' + apiKey;"
+].map { |source| [:js, source] }).concat([
+  'url = f"{base}?key={api_key}"',
+  'query = "key=" + api_key',
+  'query = f"key={api_key}"'
+].map { |source| [:py, source] }).each_with_index do |(kind, source), index|
+  with_temp_file(FIXTURES[kind], source) do
     stdout, _stderr, status = run_lint('check_api_key_urls.rb')
-    assert("detects credential URL case #{index + 1}",
-           !status.success? && stdout.include?(FIXTURES[:ruby].relative_path_from(ROOT).to_s))
-    assert("does not echo credential source case #{index + 1}", !stdout.include?(source))
+    assert("detects credential URL case #{index + 1} (#{kind})",
+           !status.success? && stdout.include?(FIXTURES[kind].relative_path_from(ROOT).to_s))
+    assert("does not echo credential source case #{index + 1} (#{kind})", !stdout.include?(source))
   end
 end
 safe_source = <<~'RUBY'
@@ -662,6 +675,26 @@ with_temp_file(FIXTURES[:ruby], safe_source) do
   stdout, _stderr, status = run_lint('check_api_key_urls.rb')
   assert('accepts header auth, keyword arguments, comments and regexp matchers',
          status.success? && !stdout.include?(FIXTURES[:ruby].relative_path_from(ROOT).to_s))
+end
+{
+  js: <<~'JS',
+    const headers = { "x-goog-api-key": apiKey };
+    // Migration note: never build "?key=" + apiKey.
+    const sortKey = `sort_key=${column}`;
+    const apiKeyMissing = "API key is required";
+  JS
+  py: <<~'PY'
+    headers = {"x-goog-api-key": api_key}
+    # Migration note: never build f"?key={api_key}".
+    sort_query = f"sort_key={column}"
+    message = "API key is required"
+  PY
+}.each do |kind, source|
+  with_temp_file(FIXTURES[kind], source) do
+    stdout, _stderr, status = run_lint('check_api_key_urls.rb')
+    assert("accepts header auth, comments and unrelated key names (#{kind})",
+           status.success? && !stdout.include?(FIXTURES[kind].relative_path_from(ROOT).to_s))
+  end
 end
 
 # ---------------------------------------------------------------------------

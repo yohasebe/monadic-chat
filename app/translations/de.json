@@ -178,6 +178,7 @@
     "standaloneModeTitle": "Monadic Chat: <span style=\"color: #4CACDC; font-weight: bold;\">Eigenständiger Modus</span>",
     "standaloneModeDesc": "Läuft im eigenständigen Modus. Dienste sind nur lokal zugänglich.",
     "standaloneModeTip": "Bitte stellen Sie sicher, dass Docker Desktop läuft, während Sie Monadic Chat verwenden.",
+    "standaloneModeTipLinux": "Bitte stellen Sie sicher, dass Docker läuft, während Sie Monadic Chat verwenden.",
     "pressStartButton": "Drücken Sie die <b>Start</b>-Taste, um den Server zu initialisieren.",
     "checkingForUpdates": "Suche nach Updates...",
     "serverRunningOnPort": "Der Server läuft auf Port 4567. Browser wird geöffnet.",

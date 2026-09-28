@@ -187,6 +187,7 @@
     "standaloneModeTitle": "Monadic Chat: <span style=\"color: #4CACDC; font-weight: bold;\">スタンドアロンモード</span>",
     "standaloneModeDesc": "スタンドアロンモードで実行中です。サービスはローカルでのみアクセス可能です。",
     "standaloneModeTip": "Monadic Chatの使用中はDocker Desktopが実行中であることを確認してください。",
+    "standaloneModeTipLinux": "Monadic Chatの使用中はDockerが実行中であることを確認してください。",
     "pressStartButton": "<b>開始</b>ボタンを押してサーバーを初期化してください。",
     "checkingForUpdates": "アップデートを確認しています...",
     "serverRunningOnPort": "サーバーがポート4567で実行中です。ブラウザを開いています。",

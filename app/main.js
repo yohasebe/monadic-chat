@@ -3026,7 +3026,7 @@ function createMainWindow() {
           [HTML]: 
           <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
           <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
-          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t('messages.standaloneModeTip')}</p>
+          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip')}</p>
           <p>${i18n.t('messages.pressStartButton')}</p>
           <hr />`;
       }
@@ -4197,7 +4197,7 @@ ipcMain.handle('save-settings', (_event, data) => {
           [HTML]: 
           <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
           <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
-          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t('messages.standaloneModeTip')}</p>
+          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip')}</p>
           <p>${i18n.t('messages.pressStartButton')}</p>
           <hr />`;
       }

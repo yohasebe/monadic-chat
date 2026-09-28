@@ -224,6 +224,7 @@
     "standaloneModeTitle": "Monadic Chat: <span style=\"color: #4CACDC; font-weight: bold;\">单机模式</span>",
     "standaloneModeDesc": "正在单机模式下运行。服务仅可本地访问。",
     "standaloneModeTip": "使用Monadic Chat时请确保Docker Desktop正在运行。",
+    "standaloneModeTipLinux": "使用 Monadic Chat 时，请确保 Docker 正在运行。",
     "pressStartButton": "按<b>开始</b>按钮初始化服务器。",
     "checkingForUpdates": "正在检查更新...",
     "serverRunningOnPort": "服务器正在端口4567上运行。正在打开浏览器。",

@@ -224,6 +224,7 @@
     "standaloneModeTitle": "Monadic Chat: <span style=\"color: #4CACDC; font-weight: bold;\">독립형 모드</span>",
     "standaloneModeDesc": "독립형 모드에서 실행 중입니다. 서비스는 로컬에서만 액세스할 수 있습니다.",
     "standaloneModeTip": "Monadic Chat 사용 중에는 Docker Desktop이 실행 중인지 확인하세요.",
+    "standaloneModeTipLinux": "Monadic Chat을 사용하는 동안 Docker가 실행 중인지 확인하세요.",
     "pressStartButton": "<b>시작</b> 버튼을 눌러 서버를 초기화하세요.",
     "checkingForUpdates": "업데이트를 확인하는 중...",
     "serverRunningOnPort": "서버가 포트 4567에서 실행 중입니다. 브라우저를 여는 중입니다.",

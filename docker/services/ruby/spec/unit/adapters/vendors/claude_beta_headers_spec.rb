@@ -47,13 +47,13 @@ RSpec.describe 'Claude beta headers' do
   end
 
   it 'attaches the mid-conversation tool-changes beta on the current default model' do
-    expect(betas_for('claude-sonnet-5')).to include(MID_TOOL_BETA)
+    expect(betas_for('claude-sonnet-5-5')).to include(MID_TOOL_BETA)
   end
 
   # Anthropic documents the beta for Opus 5 / Opus 4.8 / Fable 5 only, but every
   # catalog model was verified to honor it, and unsupported models ignore the
   # header rather than erroring — so it is sent provider-wide.
-  %w[claude-opus-5 claude-opus-4-8 claude-fable-5-1 claude-fable-5 claude-haiku-4-5-20251001 claude-sonnet-4-6].each do |model|
+  %w[claude-sonnet-5 claude-opus-5 claude-opus-4-8 claude-fable-5-1 claude-fable-5 claude-haiku-4-5-20251001 claude-sonnet-4-6].each do |model|
     it "attaches it for #{model}" do
       expect(betas_for(model)).to include(MID_TOOL_BETA)
     end
@@ -62,14 +62,14 @@ RSpec.describe 'Claude beta headers' do
   it 'composes with app-declared betas instead of replacing them' do
     APPS[app_name] = Struct.new(:settings).new({ 'betas' => ['some-other-beta-2026-01-01'] })
 
-    betas = betas_for('claude-sonnet-5')
+    betas = betas_for('claude-sonnet-5-5')
     expect(betas).to include(MID_TOOL_BETA, 'some-other-beta-2026-01-01')
   end
 
   it 'emits each beta flag only once' do
     APPS[app_name] = Struct.new(:settings).new({ 'betas' => [MID_TOOL_BETA] })
 
-    betas = betas_for('claude-sonnet-5')
+    betas = betas_for('claude-sonnet-5-5')
     expect(betas.count(MID_TOOL_BETA)).to eq(1)
   end
 end

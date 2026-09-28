@@ -23,7 +23,7 @@ RSpec.describe 'Opus 5.5 app selections' do
       if selection == :advisor
         advisor = settings[:advisor_tool] || settings['advisor_tool']
         expect(advisor[:model] || advisor['model']).to eq('claude-opus-5-5')
-        expect(settings[:model] || settings['model']).to eq('claude-sonnet-5')
+        expect(settings[:model] || settings['model']).to eq('claude-sonnet-5-5')
       elsif selection == :choice
         expect(settings[:models] || settings['models'] || settings[:model] || settings['model']).to include('claude-opus-5-5')
       else

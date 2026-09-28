@@ -1,6 +1,7 @@
 {
   "name": "monadic-chat",
   "productName": "Monadic Chat",
+  "desktopName": "monadic-chat.desktop",
   "version": "1.0.0-beta.36",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "app/main.js",
@@ -52,6 +53,9 @@
     "ws": "^8.20.1"
   },
   "build": {
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
     "asar": true,
     "appId": "com.yohasebe.monadic",
     "publish": [
@@ -140,6 +144,7 @@
         "AppImage"
       ],
       "category": "Development",
+      "syncDesktopName": true,
       "artifactName": "monadic-chat_${version}_${arch}.${ext}",
       "defaultArch": "x64",
       "protocols": [

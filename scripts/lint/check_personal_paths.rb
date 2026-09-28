@@ -37,6 +37,7 @@
 #     rollout while the codebase has known violations).
 
 require 'pathname'
+require 'set'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
@@ -62,7 +63,10 @@ SCAN_ROOTS = {
 
 # Every text file under a root is read, whatever its extension: a list of
 # extensions only covers the file types someone thought of, and JSON, HTML,
-# Markdown and Dockerfiles ship too. Binary files are skipped by content.
+# Markdown and Dockerfiles ship too. Binary files are read too: executables,
+# SQLite files and image metadata carry paths as plain strings, and UTF-16
+# text looks binary. They are matched as bytes, both as ASCII and as UTF-16LE
+# at either byte alignment, and reported by file name only.
 BINARY_PROBE_BYTES = 8192
 
 def binary_file?(path)
@@ -89,16 +93,40 @@ PERSONAL_PATH_PATTERNS = [
   %r{/home/[A-Za-z0-9_.-]+/},
   %r{C:\\Users\\[A-Za-z0-9_.-]+\\},
   %r{/(?:private/)?var/folders/},
-  %r{~/\.[A-Za-z0-9_]}
+  %r{~/\.[A-Za-z0-9_]},
+  %r{\$\{?HOME\}?/\.[A-Za-z0-9_]}
 ].freeze
+
+def personal_path_in_bytes?(data)
+  views = [data.b] + [0, 1].map do |offset|
+    data.byteslice(offset..).force_encoding('UTF-16LE')
+        .encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
+  end
+  views.any? { |view| PERSONAL_PATH_PATTERNS.any? { |re| view.match?(re) } }
+end
+
+# Files git ignores can be neither committed nor shipped (release payloads
+# are staged from tracked files), yet they hold the most personal paths: a
+# local __pycache__/*.pyc embeds the path it was compiled from. Untracked
+# files that are NOT ignored are still read, since the next commit may add
+# them. Outside a git checkout nothing is treated as ignored.
+def ignored_files
+  out = IO.popen(['git', '-C', ROOT.to_s, 'ls-files', '--others', '--ignored',
+                  '--exclude-standard', '-z', '--', *SCAN_ROOTS.keys], err: File::NULL, &:read)
+  $?.success? ? out.split("\0").to_set : Set.new
+rescue SystemCallError
+  Set.new
+end
 
 def each_target_file
   return enum_for(:each_target_file) unless block_given?
 
+  ignored = ignored_files
   SCAN_ROOTS.each_key do |rel_root|
     Dir.glob(ROOT.join(rel_root, '**', '*')).each do |path|
       next unless File.file?(path)
-      next if binary_file?(path)
+      next if ignored.include?(relative_path(path))
+
       yield rel_root, Pathname.new(path)
     end
   end
@@ -131,6 +159,13 @@ scanned = Hash.new(0)
 each_target_file do |rel_root, path|
   scanned[rel_root] += 1
   rel = relative_path(path)
+  if binary_file?(path)
+    next if ALLOWLIST_PATHS.include?(rel)
+
+    violations << { path: rel, line: nil } if personal_path_in_bytes?(File.binread(path))
+    next
+  end
+
   text = File.read(path, encoding: 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
   text.each_line.with_index do |line, idx|
     next unless PERSONAL_PATH_PATTERNS.any? { |re| line.match?(re) }
@@ -158,7 +193,7 @@ end
 
 puts "[lint:personal_paths] #{violations.size} violation(s):"
 violations.each do |v|
-  puts "  #{v[:path]}:#{v[:line]}"
+  puts(v[:line] ? "  #{v[:path]}:#{v[:line]}" : "  #{v[:path]} (binary)")
 end
 
 if baseline && violations.size <= baseline

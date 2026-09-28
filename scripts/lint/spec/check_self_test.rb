@@ -118,6 +118,40 @@ with_temp_file(json_fixture, '{"data": "~/monadic/data", "up": "~/../shared"}') 
   stdout, _stderr, status = run_lint('check_personal_paths.rb')
   assert('accepts portable tilde paths', status.success?, stdout)
 end
+['{"profile": "$HOME/.secrets.zsh"}', '{"config": "${HOME}/.config/tool"}'].each_with_index do |source, index|
+  with_temp_file(json_fixture, source) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert("detects $HOME dotfile form #{index + 1}",
+           !status.success? && stdout.include?(json_fixture.relative_path_from(ROOT).to_s), stdout)
+  end
+end
+
+# Binary files are matched as bytes (ASCII and UTF-16LE) and reported by name
+# only. The ignored __pycache__ copy proves git-ignored files are not read.
+personal = '/Users/someone/monadic/data'
+{
+  'ASCII inside a binary' => ["\x7FELF\0\0\0#{personal}\0\x01".b, '_lint_self_check.bin'],
+  'UTF-16LE text' => ["\uFEFFpath=#{personal}\n".encode('UTF-16LE').b, '_lint_self_check_utf16.txt'],
+  'UTF-16LE at an odd offset' => ["\0".b + "#{personal}".encode('UTF-16LE').b, '_lint_self_check.bin']
+}.each do |label, (bytes, name)|
+  fixture_path = JS_FIXTURE_DIR.join(name)
+  with_temp_file(fixture_path, bytes) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert("detects a personal path in #{label}",
+           !status.success? && stdout.include?("#{fixture_path.relative_path_from(ROOT)} (binary)"), stdout)
+    assert("does not echo the path found in #{label}", !stdout.include?('someone'), stdout)
+  end
+end
+ignored_dir = PY_FIXTURE_DIR.join('__pycache__')
+ignored_dir_existed = ignored_dir.exist?
+begin
+  with_temp_file(ignored_dir.join('_lint_self_check.pyc'), "\0\0#{personal}\0".b) do
+    stdout, _stderr, status = run_lint('check_personal_paths.rb')
+    assert('skips git-ignored files', status.success?, stdout)
+  end
+ensure
+  FileUtils.rm_rf(ignored_dir) unless ignored_dir_existed
+end
 
 # A copy whose root resolves to an empty tree reads no files. It must fail on
 # the scan floors instead of reporting a clean tree.

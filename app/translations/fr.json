@@ -149,7 +149,7 @@
     "downloadingUpdate": "Téléchargement de la mise à jour vers la version {{version}} . . .",
     "usingLatestVersion": "Vous utilisez la dernière version ({{version}}).",
     "failedToRetrieveVersion": "Échec de la récupération du numéro de version le plus récent.",
-    "failedToCheckUpdates": "Échec de la vérification des mises à jour : {{error}}",
+    "failedToCheckUpdates": "Impossible de joindre le serveur de mises à jour. Vérifiez votre connexion réseau et réessayez.",
     "removingContainers": "Suppression des conteneurs et images.",
     "stoppingAllProcesses": "Arrêt de tous les processus.",
     "systemStopped": "Système arrêté à {{time}}",

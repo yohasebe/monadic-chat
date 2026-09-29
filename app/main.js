@@ -1062,8 +1062,8 @@ function checkForUpdates() {
 // Version check - shows download link instead of auto-updating
 // Node reports a failed connection to a multi-address host (IPv4 and IPv6
 // both tried) as an AggregateError whose own message is empty; the reasons
-// are in its inner errors. Without this, "Failed to check for updates:" ends
-// in nothing when the machine is offline.
+// are in its inner errors. Used for the log only: the reason is an error code
+// and a server address, which tells a user nothing they can act on.
 function describeNetworkError(err) {
   if (!err) return 'unknown error';
   const inner = Array.isArray(err.errors) && err.errors.length > 0 ? err.errors[0] : null;
@@ -1159,14 +1159,17 @@ function checkForUpdatesManual(showDialog = false) {
       }
     });
   }).on('error', (err) => {
+    console.warn(`Update check failed: ${describeNetworkError(err)}`);
     if (showDialog) {
       // Show error dialog only when menu is clicked
-      dialog.showErrorBox('Error', `Failed to check for updates: ${describeNetworkError(err)}`);
+      dialog.showErrorBox('Error', i18n.t('messages.failedToCheckUpdates'));
     } else {
-      // Display error in main window only on startup
+      // On startup the offline warning already says updates need a
+      // connection; repeating it here would only add noise.
+      if (startupOffline) return;
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('command-output', 
-          formatMessage('info', 'messages.failedToCheckUpdates', { error: describeNetworkError(err) }));
+        mainWindow.webContents.send('command-output',
+          formatMessage('info', 'messages.failedToCheckUpdates'));
       }
     }
   });
@@ -3052,13 +3055,18 @@ function createMainWindow() {
       writeToScreen(openingText);
       justLaunched = false;
       
-      // Show update checking message
-      writeToScreen(`[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
-      
-      // Check for updates after main window is loaded (no dialog)
-      setTimeout(() => {
-        checkForUpdatesManual(false); // false = no dialog, only main window notification
-      }, 2000); // Delay to ensure window is fully loaded
+      // Offline at startup: the warning above already says updates need a
+      // connection, and a check that cannot succeed would leave the
+      // "checking" line spinning with nothing to replace it.
+      if (!startupOffline) {
+        // Show update checking message
+        writeToScreen(`[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
+
+        // Check for updates after main window is loaded (no dialog)
+        setTimeout(() => {
+          checkForUpdatesManual(false); // false = no dialog, only main window notification
+        }, 2000); // Delay to ensure window is fully loaded
+      }
     }
   });
 

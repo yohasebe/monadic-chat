@@ -149,7 +149,7 @@
     "downloadingUpdate": "Update auf Version {{version}} wird heruntergeladen . . .",
     "usingLatestVersion": "Sie verwenden die neueste Version ({{version}}).",
     "failedToRetrieveVersion": "Fehler beim Abrufen der neuesten Versionsnummer.",
-    "failedToCheckUpdates": "Fehler beim Suchen nach Updates: {{error}}",
+    "failedToCheckUpdates": "Der Update-Server ist nicht erreichbar. Prüfen Sie Ihre Netzwerkverbindung und versuchen Sie es erneut.",
     "removingContainers": "Container und Images werden entfernt.",
     "stoppingAllProcesses": "Alle Prozesse werden gestoppt.",
     "systemStopped": "System gestoppt um {{time}}",

@@ -195,7 +195,7 @@
     "downloadingUpdate": "버전 {{version}} 업데이트 다운로드 중 . . .",
     "usingLatestVersion": "최신 버전({{version}})을 사용 중입니다.",
     "failedToRetrieveVersion": "최신 버전 번호를 가져오지 못했습니다.",
-    "failedToCheckUpdates": "업데이트 확인 실패: {{error}}",
+    "failedToCheckUpdates": "업데이트 서버에 연결할 수 없습니다. 네트워크 연결을 확인한 후 다시 시도하세요.",
     "removingContainers": "컨테이너와 이미지를 제거하는 중입니다.",
     "stoppingAllProcesses": "모든 프로세스를 중지하는 중입니다.",
     "systemStopped": "{{time}}에 시스템이 중지되었습니다",

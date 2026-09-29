@@ -195,7 +195,7 @@
     "downloadingUpdate": "Descargando actualización a la versión {{version}} . . .",
     "usingLatestVersion": "Está usando la última versión ({{version}}).",
     "failedToRetrieveVersion": "No se pudo obtener el número de la última versión.",
-    "failedToCheckUpdates": "Error al buscar actualizaciones: {{error}}",
+    "failedToCheckUpdates": "No se pudo conectar con el servidor de actualizaciones. Compruebe su conexión de red e intente de nuevo.",
     "removingContainers": "Eliminando contenedores e imágenes.",
     "stoppingAllProcesses": "Deteniendo todos los procesos.",
     "systemStopped": "Sistema detenido a las {{time}}",

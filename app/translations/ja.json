@@ -156,7 +156,7 @@
     "downloadingUpdate": "バージョン {{version}} のアップデートをダウンロード中 . . .",
     "usingLatestVersion": "最新バージョン({{version}})を使用しています。",
     "failedToRetrieveVersion": "最新バージョン番号の取得に失敗しました。",
-    "failedToCheckUpdates": "アップデートの確認に失敗しました: {{error}}",
+    "failedToCheckUpdates": "アップデートサーバーに接続できませんでした。ネットワークの接続を確認して、もう一度お試しください。",
     "removingContainers": "コンテナとイメージを削除しています。",
     "stoppingAllProcesses": "すべてのプロセスを停止しています。",
     "systemStopped": "システムが{{time}}に停止しました",

@@ -1394,8 +1394,11 @@ h5 i,
 
 #main {
   padding-bottom: 0;
-  /* Ensure full height for all views to prevent gray area */
-  min-height: calc(100vh - 65px);
+  /* Ensure full height for all views to prevent gray area. Below the 65px
+     navbar the column also has the row's gutter above it (--bs-gutter-y);
+     a min-height of 100vh - 65px overrode the max-height below and pushed
+     the column's bottom edge, and the sticky Start Session bar, off-screen. */
+  min-height: calc(100vh - 65px - var(--bs-gutter-y, 12px));
   margin-bottom: 0;
 }
 
@@ -1403,7 +1406,8 @@ h5 i,
 
 .scrollable {
   overflow-y: auto; /* Use auto instead of scroll for better performance */
-  max-height: calc(100vh - 65px - 12px); /* Use max-height instead of fixed height */
+  /* The space below the 65px navbar, less the row gutter above the column */
+  max-height: calc(100vh - 65px - var(--bs-gutter-y, 12px));
   -webkit-overflow-scrolling: touch;
   padding-top: 10px; /* Keep top padding for visual spacing */
   padding-bottom: 50px; /* Add bottom padding to prevent content from being cut off */
@@ -6093,8 +6097,16 @@ i.fas.fa-bolt,
   pointer-events: none;
 }
 
+/* Start Session stays in view while the settings above it scroll: it sits
+   below the workflow viewer, which on a window around 800px tall (or less)
+   pushed it past the bottom edge. Sticky keeps it at the bottom of #main,
+   the scrolling column, without changing the order of the panels. */
 #config-actions {
-  padding: 0 0.5rem;
+  padding: 0.5rem;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background-color: var(--bg-body);
 }
 
 /* Sidebar collapsible panel headers */

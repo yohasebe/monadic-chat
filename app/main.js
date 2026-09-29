@@ -166,9 +166,20 @@ function openWebViewWindow(url, forceReload = false) {
     }
   );
 
+  // 1280x800 fits most screens. On a smaller one the window is maximized
+  // instead: the window manager knows where docks and panels are, while the
+  // work area Electron reports can include them (on Wayland it is the whole
+  // screen), so a size computed from it still opened partly off-screen on a
+  // 1024-wide Ubuntu desktop. Use the display the console window is on.
+  const { screen } = require('electron');
+  const display = (mainWindow && !mainWindow.isDestroyed())
+    ? screen.getDisplayMatching(mainWindow.getBounds())
+    : screen.getPrimaryDisplay();
+  const { width: workWidth, height: workHeight } = display.workAreaSize;
+  const smallScreen = workWidth < 1280 || workHeight < 800;
   webviewWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: Math.max(412, Math.min(1280, workWidth)),
+    height: Math.max(600, Math.min(800, workHeight)),
     // Prevent width below 320px; mobile styles apply below 1024px
     minWidth: 412,
     minHeight: 600,
@@ -188,6 +199,7 @@ function openWebViewWindow(url, forceReload = false) {
       devTools: !app.isPackaged
     }
   });
+  if (smallScreen) webviewWindow.maximize();
   // Set permission request handler to auto-approve media access requests
   webviewWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
     const allowedPermissions = ['media', 'microphone', 'audioCapture'];

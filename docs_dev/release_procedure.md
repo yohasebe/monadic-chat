@@ -20,6 +20,8 @@ sufficient, and beta.33 and beta.35 both went out through this document.
   host drives mac + linux + the VM-signed win artifacts — no separate manual
   Windows step. Verify after building (see §9). See `docs_dev/electron-build.md`.
 - A clean working tree on the branch you intend to release from (usually `dev`).
+- `7zz` (`brew install sevenzip`): `verify_bundle_payload.rb` opens the AppImages
+  with it, and stops rather than skipping them when it is missing.
 
 ## 1. Bump the version (single source of truth)
 
@@ -287,7 +289,37 @@ That auto-derivation splits users into two paths:
 
 ## 9. Verify the build before publishing
 
-Run these on the mac host after `rake build`:
+What ships is checked automatically at two points, and both stop the build or
+the release rather than warn:
+
+- **Before packaging** (`scripts/before_pack.js`, every electron-builder entry
+  point): `app/` and `icons/` must hold only tracked files (electron-builder
+  packs them into app.asar and does not read `.gitignore`; files it drops on
+  its own, such as `.DS_Store`, are allowed), and the staged `build/app-payload`
+  must match the current sources byte for byte (`stage_docker_payload.rb
+  --check`), so a payload left from an earlier build cannot ship. Shipped
+  tracked files with uncommitted changes (staged or not) stop staging and this
+  check alike: a build ships what is committed. The files are hashed and
+  compared with HEAD, so `--skip-worktree` or `--assume-unchanged` does not
+  hide an edit. For a local test build only,
+  `MONADIC_ALLOW_UNCOMMITTED_BUILD=1` lets staging continue; the result cannot
+  pass the check below.
+- **After packaging and again before publishing** (`scripts/verify_bundle_payload.rb`,
+  mac zip, Windows zip and both AppImages): the `docker/`/`bin/` payload matches
+  the staged manifest; app.asar holds exactly the tracked `app/`, `icons/` and
+  `package.json` files and only production dependencies (compared as
+  name@version, because electron-builder hoists nested packages); nothing but
+  electron-builder's own output sits beside app.asar; the AppImage carries only
+  the toolset's known libraries and the app icon under `usr/`, root ownership
+  and no xattr table. Every tracked file in app.asar and the payload must also
+  carry the bytes committed at HEAD when staging ran: staging records their
+  blob IDs in `build/app-tracked.blobs`, and git hashes the packed files for
+  the comparison. package.json is compared field by field instead, because
+  electron-builder drops fields from it when packing. The untracked build
+  products (vendor assets, JS bundle, help database) are not in that list;
+  their own checks cover them.
+
+Then run these on the mac host after `rake build`:
 
 ```bash
 DMG="dist/Monadic.Chat-<version>-arm64.dmg"

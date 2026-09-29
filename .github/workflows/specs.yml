@@ -144,6 +144,22 @@ jobs:
       - name: Install GraphViz (used by some unit specs)
         run: sudo apt-get update && sudo apt-get install -y graphviz libgraphviz-dev pkg-config
 
+      # The payload allow-list spec packs and reads app.asar with
+      # @electron/asar, the library electron-builder packs it with, so this
+      # job needs the root node_modules as well. The Electron binary is not
+      # needed (and its CDN intermittently 504s), as in the jest job.
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install Node dependencies
+        working-directory: .
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
       - name: Run unit specs
         # ~integration: a few docker-dependent spec files under spec/unit
         # carry :integration metadata; excluding the tag also keeps the

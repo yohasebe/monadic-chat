@@ -25,6 +25,15 @@ RSpec.describe 'the app payload allow list' do
   describe 'what the staging step decides to ship' do
     let(:source) { File.read(stager) }
 
+    it 'refuses shipped files with uncommitted changes' do
+      # A build ships what is committed; the blob IDs it records come from HEAD.
+      expect(source).to include('--untracked-files=no')
+      expect(source).to include('have uncommitted changes')
+      expect(source).to include('ls-tree -r -z HEAD')
+      # git status trusts the index; a --skip-worktree edit is only seen by hashing.
+      expect(source).to include("'hash-object', '--no-filters', '--stdin-paths'")
+    end
+
     it 'takes tracked files as the base, not the working tree' do
       # Matched in two pieces so the assertion does not itself contain an
       # interpolation sequence, which reads as a mistake in a single-quoted
@@ -120,19 +129,92 @@ RSpec.describe 'the app payload allow list' do
     # Builds a miniature archive shaped like the real one and runs the real
     # verifier over it, so the comparison itself is exercised rather than
     # described.
-    def with_fixture(manifest_paths, archive_paths)
+    NODE_MODULES = File.expand_path('../../../../../../node_modules', __dir__)
+    RESOURCES = 'Monadic Chat.app/Contents/Resources'
+
+    # Packs an asar the way electron-builder does, with the same library.
+    def pack_asar(files, dest)
+      Dir.mktmpdir('asar_src') do |src|
+        files.each do |path, body|
+          full = File.join(src, path)
+          FileUtils.mkdir_p(File.dirname(full))
+          File.write(full, body)
+        end
+        # createPackage collects files through a glob whose installed version
+        # it no longer matches, and then packs nothing; pass the list instead.
+        script = <<~'JS'
+          const asar = require('@electron/asar');
+          const fs = require('fs');
+          const path = require('path');
+          const src = process.argv[1];
+          const files = [];
+          (function walk(d) {
+            for (const n of fs.readdirSync(d)) {
+              const p = path.join(d, n);
+              files.push(p);
+              if (fs.statSync(p).isDirectory()) walk(p);
+            }
+          })(src);
+          asar.createPackageFromFiles(src, process.argv[2], files)
+            .catch(e => { console.error(e); process.exit(1); });
+        JS
+        system({ 'NODE_PATH' => NODE_MODULES }, 'node', '-e', script, src, dest, err: File::NULL) or raise 'asar pack failed'
+        raise 'asar pack wrote nothing' unless File.size?(dest)
+      end
+    end
+
+    DEFAULT_ASAR = {
+      'package.json' => '{"name":"app","version":"1.0.0"}',
+      'app/main.js' => 'x',
+      'node_modules/dotenv/package.json' => '{"name":"dotenv","version":"1.0.0"}'
+    }.freeze
+
+    # The committed package.json carries fields electron-builder drops when it
+    # packs the app, as the real one does.
+    COMMITTED_PACKAGE_JSON = '{"name":"app","version":"1.0.0","scripts":{"test":"jest"}}'
+
+    # asar_files: what the packed app.asar holds; asar_expected / modules: the
+    # lists staging records; resources_extra: files placed beside app.asar;
+    # committed: contents at HEAD where they differ from what was packed.
+    def with_fixture(manifest_paths, archive_paths, asar_files: DEFAULT_ASAR,
+                     asar_expected: %w[app/main.js package.json], modules: %w[dotenv@1.0.0],
+                     resources_extra: [], asar: true, committed: {})
       Dir.mktmpdir('payload_spec') do |dir|
         build = File.join(dir, 'build')
         FileUtils.mkdir_p(build)
         File.write(File.join(build, 'app-payload.manifest'), manifest_paths.join("\n") + "\n")
         File.write(File.join(build, 'app-payload.symlinks'), '')
+        File.write(File.join(build, 'app-asar.manifest'), asar_expected.join("\n") + "\n")
+        File.write(File.join(build, 'app-asar.modules'), modules.join("\n") + "\n")
+
+        # The blob list staging records from HEAD, with the objects themselves
+        # in a repository so the verifier can read the committed package.json.
+        system('git', 'init', '-q', dir) or raise 'git init failed'
+        at_head = manifest_paths.to_h { |p| [p, 'x'] }
+                                .merge(asar_expected.to_h { |p| [p, asar_files[p]] })
+                                .merge('package.json' => COMMITTED_PACKAGE_JSON)
+                                .merge(committed)
+        blobs = at_head.map do |path, body|
+          sha, status = Open3.capture2('git', '-C', dir, 'hash-object', '-w', '--stdin', stdin_data: body.to_s)
+          raise 'git hash-object failed' unless status.success?
+
+          "#{sha.strip}\t#{path}"
+        end
+        File.write(File.join(build, 'app-tracked.blobs'), blobs.sort.join("\n") + "\n")
 
         src = File.join(dir, 'src')
         archive_paths.each do |p|
-          full = File.join(src, 'Monadic Chat.app/Contents/Resources/app', p)
+          full = File.join(src, RESOURCES, 'app', p)
           FileUtils.mkdir_p(File.dirname(full))
           File.write(full, 'x')
         end
+        resources_extra.each do |p|
+          full = File.join(src, RESOURCES, p)
+          FileUtils.mkdir_p(File.dirname(full))
+          File.write(full, 'x')
+        end
+        FileUtils.mkdir_p(File.join(src, RESOURCES))
+        pack_asar(asar_files, File.join(src, RESOURCES, 'app.asar')) if asar
 
         dist = File.join(dir, 'dist')
         FileUtils.mkdir_p(dist)
@@ -148,7 +230,8 @@ RSpec.describe 'the app payload allow list' do
     def run_verifier(dir, dist)
       FileUtils.mkdir_p(File.join(dir, 'scripts'))
       FileUtils.cp(verifier, File.join(dir, 'scripts'))
-      Open3.capture3('ruby', File.join(dir, 'scripts/verify_bundle_payload.rb'), dist)
+      Open3.capture3({ 'MONADIC_NODE_MODULES' => NODE_MODULES },
+                     'ruby', File.join(dir, 'scripts/verify_bundle_payload.rb'), dist)
     end
 
     it 'passes when the archive matches the manifest' do
@@ -176,6 +259,77 @@ RSpec.describe 'the app payload allow list' do
         _stdout, stderr, status = run_verifier(dir, dist)
 
         expect(stderr).to include('did not reach the archive')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports an untracked file packed into app.asar' do
+      files = DEFAULT_ASAR.merge('app/notes.txt' => 'private')
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], asar_files: files) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('untracked file(s): app/notes.txt')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports a package that is not a production dependency' do
+      files = DEFAULT_ASAR.merge('node_modules/jest/package.json' => '{"name":"jest","version":"29.0.0"}')
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], asar_files: files) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('outside the production dependencies: jest@29.0.0')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports a file placed beside app.asar' do
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], resources_extra: %w[debug.log]) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('unexpected entries beside app.asar: debug.log')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports a tracked file whose packed bytes differ from the commit' do
+      # A path comparison passes an uncommitted edit to a tracked file: the
+      # path is right, the contents are not what was reviewed.
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], committed: { 'docker/a.rb' => "x\n# debug\n" }) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('1 tracked file(s) differ from the committed version')
+        expect(stderr).to include('~ docker/a.rb')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports the same for a file inside app.asar' do
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], committed: { 'app/main.js' => 'y' }) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('~ app/main.js')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports a packed package.json field the commit does not have' do
+      # electron-builder may drop fields, never add or change them.
+      files = DEFAULT_ASAR.merge('package.json' => '{"name":"app","version":"1.0.1"}')
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], asar_files: files) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('package.json fields differ from the commit: version')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'fails when the archive has no app.asar to check' do
+      # A missing asar must not read as a clean one.
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], asar: false) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('no app.asar found')
         expect(status.exitstatus).to eq(1)
       end
     end

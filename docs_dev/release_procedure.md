@@ -326,6 +326,18 @@ the release rather than warn:
   verifier first. before_pack also passes electron-builder's effective
   configuration (including `-c.<key>=` and `--config` overrides) to that check,
   so an override that adds or moves an extra file stops the build.
+- **Libraries bundled in the AppImage**: electron-builder copies six
+  libraries from Ubuntu 18.04 packages into every AppImage's `usr/lib`; two
+  are GPL-3 and two LGPL. Their notices ship inside the AppImage
+  (`config/linux/licenses/`, via `linux.extraFiles`), and their source ships
+  beside it as `monadic-chat_<version>_linux-library-sources.tar`, which
+  `scripts/build_linux_library_sources.rb` assembles during `rake build` and
+  `release:github` attaches. Both the libraries and the source files are
+  pinned by SHA-256 in `config/linux/licenses/bundled-libraries.json`, and
+  `verify_bundle_payload.rb` checks the AppImages and the tar against it. When
+  an electron-builder update changes a library, the check stops the build:
+  identify the new Ubuntu package versions, then update the manifest, the
+  copyright files and THIRD-PARTY-LIBRARIES together.
 
 Then run these on the mac host after `rake build`:
 

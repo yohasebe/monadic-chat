@@ -159,6 +159,7 @@ namespace :build do
     setup_build_environment(skip_help_db: skip_help_db)
     puts "Building Linux x64 package..."
     sh "npm run build:linux-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+    sh "ruby scripts/build_linux_library_sources.rb"
   end
 
   desc "Build Linux arm64 package only"
@@ -167,6 +168,7 @@ namespace :build do
     setup_build_environment(skip_help_db: skip_help_db)
     puts "Building Linux arm64 package..."
     sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+    sh "ruby scripts/build_linux_library_sources.rb"
   end
 
   desc "Build macOS package (arm64 only, Apple Silicon)"
@@ -197,6 +199,10 @@ task :build do
   sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   sh "npm run build:win -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+
+  # The AppImages carry third-party libraries whose licenses require their
+  # source to go with them; see config/linux/licenses/THIRD-PARTY-LIBRARIES.
+  sh "ruby scripts/build_linux_library_sources.rb"
 
   # macOS post-steps — keep in lockstep with build:mac_arm64 above. Until
   # 2026-06-13 these ran only in the single-platform task, so an
@@ -241,7 +247,9 @@ task :build do
 
     # Linux files (AppImage is the auto-update-compatible format)
     "linux_x64_appimage" => "monadic-chat_VERSION_x86_64.AppImage",
-    "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage"
+    "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage",
+    # Source of the libraries the AppImages carry (GPL/LGPL)
+    "linux_library_sources" => "monadic-chat_VERSION_linux-library-sources.tar"
   }
   
   # Find all necessary files using flexible matching

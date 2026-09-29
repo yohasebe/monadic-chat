@@ -269,6 +269,8 @@ RSpec.describe 'the app payload allow list' do
     def run_verifier(dir, dist)
       FileUtils.mkdir_p(File.join(dir, 'scripts'))
       FileUtils.cp(verifier, File.join(dir, 'scripts'))
+      # The verifier loads its Linux library checks from beside itself.
+      FileUtils.cp(File.join(File.dirname(verifier), 'linux_libraries.rb'), File.join(dir, 'scripts'))
       Open3.capture3({ 'MONADIC_NODE_MODULES' => NODE_MODULES },
                      'ruby', File.join(dir, 'scripts/verify_bundle_payload.rb'), dist)
     end

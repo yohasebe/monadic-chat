@@ -1,0 +1,47 @@
+Third-party libraries in the Monadic Chat AppImage
+==================================================
+
+The AppImage carries six shared libraries in usr/lib, added by the AppImage
+build tooling (electron-builder). They are unmodified copies of files from
+Ubuntu 18.04 (bionic) packages:
+
+  Library                     Ubuntu package and version                        License
+  libXss.so.1.0.0             libxss1 1:1.2.2-1                                 MIT/X11
+  libXtst.so.6.1.0            libxtst6 2:1.2.3-1                                MIT/X11
+  libnotify.so.4.0.0          libnotify4 0.7.7-3ubuntu0.18.04.1                 LGPL-2.1
+  libgconf-2.so.4.1.5         libgconf-2-4 3.2.6-4ubuntu1                       LGPL-2
+  libappindicator3.so.1.0.0   libappindicator3-1 12.10.1+18.04.20200408.1-0ubuntu1
+                                                                                GPL-3 (some files LGPL-2.1)
+  libindicator3.so.7.0.0      libindicator3-7 16.10.0+18.04.20180321.1-0ubuntu1 GPL-3
+
+Copyright notices and license terms
+-----------------------------------
+
+Each package's copyright file is in usr/share/doc/<package>/copyright.
+The license texts they refer to are in usr/share/common-licenses
+(GPL-3, LGPL-2, LGPL-2.1).
+
+Corresponding source
+--------------------
+
+The complete source of each library is its Ubuntu source package
+(original source, Ubuntu changes and .dsc file):
+
+  libxss           1:1.2.2-1
+  libxtst          2:1.2.3-1
+  libnotify        0.7.7-3ubuntu0.18.04.1
+  gconf            3.2.6-4ubuntu1
+  libappindicator  12.10.1+18.04.20200408.1-0ubuntu1
+  libindicator     16.10.0+18.04.20180321.1-0ubuntu1
+
+These source packages are attached to every Monadic Chat release on GitHub
+that includes an AppImage, as monadic-chat_<version>_linux-library-sources.tar,
+together with a SHA256SUMS file:
+
+  https://github.com/yohasebe/monadic-chat/releases
+
+They are also available from the Ubuntu archive
+(http://archive.ubuntu.com/ubuntu/pool/, or
+http://old-releases.ubuntu.com/ubuntu/pool/ once Ubuntu 18.04 moves there).
+
+The rest of Monadic Chat is licensed under the Apache License 2.0.

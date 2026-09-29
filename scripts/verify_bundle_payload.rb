@@ -13,6 +13,7 @@
 # beta.32 carried benchmark logs, __pycache__ and rspec state, each naming
 # absolute paths on the build machine.
 
+require 'digest'
 require 'json'
 require 'open3'
 require 'pathname'
@@ -208,6 +209,55 @@ def linux_extra_allowed?(entry, extra)
   extra.key?(entry) || extra.keys.any? { |dest| dest.start_with?("#{entry}/") }
 end
 
+# The libraries electron-builder copies into usr/lib, and the source release
+# that has to accompany them, pinned by hash in bundled-libraries.json. A
+# toolset update that changes a library stops here, before the notice and
+# source release go out of date.
+require_relative 'linux_libraries'
+
+def appimage_arch(file)
+  case file.basename.to_s
+  when /_x86_64\.AppImage\z/ then 'x64'
+  when /_arm64\.AppImage\z/ then 'arm64'
+  end
+end
+
+# Problems with the regular files under usr/lib of one AppImage.
+def library_problems(file, all)
+  arch = appimage_arch(file) or return ["cannot tell the architecture of #{file.basename}"]
+  expected = LinuxLibraries.library_hashes(LinuxLibraries.libraries(ROOT), arch)
+  problems = []
+  Dir.mktmpdir('verify_libs') do |tmp|
+    system('7zz', 'x', '-snld', "-o#{tmp}", file.to_s, 'usr/lib/*', out: File::NULL, err: File::NULL)
+    found = Dir.glob(File.join(tmp, 'usr/lib/*')).reject { |f| File.symlink?(f) }.to_h do |f|
+      [File.basename(f), Digest::SHA256.file(f).hexdigest]
+    end
+    (expected.keys - found.keys).each { |n| problems << "usr/lib/#{n} is missing" }
+    (found.keys - expected.keys).each { |n| problems << "usr/lib/#{n} is not in bundled-libraries.json" }
+    (expected.keys & found.keys).each do |n|
+      next if expected[n] == found[n]
+
+      problems << "usr/lib/#{n} differs from the pinned #{arch} build; update the notice, sources and bundled-libraries.json"
+    end
+  end
+  problems << 'no usr/lib entries were read' if all.none? { |e| e.start_with?('usr/lib/') }
+  problems
+end
+
+# The source release goes with the AppImages: exactly one tar beside them,
+# checked against the pinned files and the committed notice.
+def library_source_problems(dist, recorded_blobs)
+  tars = dist.glob('*_linux-library-sources.tar')
+  return ['no *_linux-library-sources.tar beside the AppImages (run scripts/build_linux_library_sources.rb)'] if tars.empty?
+  return ["more than one source release: #{tars.map(&:basename).join(', ')}"] if tars.size > 1
+
+  blob = recorded_blobs[LinuxLibraries::NOTICE] or return ["no recorded blob for #{LinuxLibraries::NOTICE}"]
+  notice, status = Open3.capture2('git', '-C', ROOT.to_s, 'cat-file', 'blob', blob)
+  return ["could not read the committed #{LinuxLibraries::NOTICE}"] unless status.success?
+
+  LinuxLibraries.source_problems(tars.first, LinuxLibraries.libraries(ROOT), notice)
+end
+
 # squashfs superblock: every file owned by uid/gid 0, and no xattr table (so
 # no build-machine attributes such as download origins travel along).
 def appimage_superblock_problems(file)
@@ -267,6 +317,7 @@ targets.each do |zip, kind|
                .reject { |e| e.match?(APPIMAGE_USR) || linux_extra_allowed?(e, extra) }
     failures << "#{rel}: unexpected files under usr/: #{stray.first(10).join(', ')}" unless stray.empty?
     appimage_superblock_problems(zip).each { |pr| failures << "#{rel}: #{pr}" }
+    library_problems(zip, all).each { |pr| failures << "#{rel}: #{pr}" }
 
     Dir.mktmpdir('verify_extra') do |tmp|
       placed = {}
@@ -374,6 +425,14 @@ targets.each do |zip, kind|
   end
 
   puts "[verify_bundle_payload] #{rel}: #{payload.size} payload files" if extra.empty? && missing.empty?
+end
+
+# The source release goes with the AppImages: it is required whenever one is
+# being published.
+if targets.any? { |_, kind| kind == :appimage }
+  problems = library_source_problems(DIST, recorded_blobs)
+  problems.each { |pr| failures << "linux library sources: #{pr}" }
+  puts '[verify_bundle_payload] linux library sources match bundled-libraries.json' if problems.empty?
 end
 
 if failures.empty?

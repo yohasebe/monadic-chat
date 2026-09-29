@@ -165,7 +165,8 @@ namespace :release do
       "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
       "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
       "linux_x64_appimage" => "monadic-chat_VERSION_x86_64.AppImage",
-      "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage"
+      "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage",
+      "linux_library_sources" => "monadic-chat_VERSION_linux-library-sources.tar"
     }
     
     # Check which files are missing
@@ -403,10 +404,9 @@ namespace :release do
         "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
         "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
         "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
-        "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
-        "linux_arm64_deb" => "monadic-chat_VERSION_arm64.deb",
-        "linux_x64_zip" => "monadic-chat_VERSION_x64.zip",
-        "linux_arm64_zip" => "monadic-chat_VERSION_arm64.zip"
+        "linux_x64_appimage" => "monadic-chat_VERSION_x86_64.AppImage",
+        "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage",
+        "linux_library_sources" => "monadic-chat_VERSION_linux-library-sources.tar"
       }
       
       # Find files using flexible pattern matching

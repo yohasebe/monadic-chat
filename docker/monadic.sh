@@ -1879,7 +1879,7 @@ build_ruby_container)
   # rm -f "${ROOT_DIR}/services/ruby/rbsetup.sh"
   # rm -f "${ROOT_DIR}/services/python/pysetup.sh"
 
-  if ${DOCKER} images | grep -q "monadic-chat"; then
+  if ${DOCKER} images --format '{{.Repository}}' | grep -qx "yohasebe/monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
@@ -1904,7 +1904,10 @@ build_python_container|build_python_container_update)
 
   build_python_container
 
-  if ${DOCKER} images | grep -q "monadic-chat"; then
+  # Check for this container's own image. Matching any "monadic-chat" image
+  # reported a successful Python build as failed on a fresh install, where
+  # the Ruby image does not exist yet.
+  if ${DOCKER} images --format '{{.Repository}}' | grep -qx "yohasebe/python"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"

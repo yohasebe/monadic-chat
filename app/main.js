@@ -596,7 +596,9 @@ class DockerManager {
     const st = await this.checkStatus();
     if (!st && process.platform === 'linux' && this.accessDenied) {
       // Starting Docker cannot help: it is running, but not for this user.
-      dialog.showErrorBox('Docker', i18n.t(this.dockerUnavailableMessageKey()));
+      // Shown in the main window rather than a modal dialog, which would
+      // cover the window at startup.
+      noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
       return;
     }
     if (!st) {
@@ -609,10 +611,11 @@ class DockerManager {
         })
         .catch(error => {
           console.error('Failed to start Docker Desktop:', error);
-          const detail = process.platform === 'linux'
-            ? i18n.t(this.dockerUnavailableMessageKey())
-            : 'Failed to start Docker Desktop. Please start it manually and try again.';
-          dialog.showErrorBox('Error', detail);
+          if (process.platform === 'linux') {
+            noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
+          } else {
+            dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+          }
         });
     }
   }
@@ -1199,6 +1202,18 @@ let isQuittingDialogShown = false;
 // running (local models, the UI and settings work offline); the main window
 // explains what needs a network once it has loaded.
 let startupOffline = false;
+// Notices written to the main window before its page has loaded would be
+// lost, so they wait here until did-finish-load flushes them.
+let mainWindowLoaded = false;
+const pendingMainWindowNotices = [];
+
+function noticeInMainWindow(html) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindowLoaded) {
+    writeToScreen(html);
+  } else {
+    pendingMainWindowNotices.push(html);
+  }
+}
 
 async function quitApp() {
   if (isQuittingDialogShown || forceQuit) return;
@@ -2932,6 +2947,8 @@ ipcMain.handle('get-translations', async (_e, lang) => {
 
 function createMainWindow() {
   if (mainWindow) return;
+  // A new window has not loaded yet; notices wait for its did-finish-load.
+  mainWindowLoaded = false;
   
   // Ensure Docker Manager loads settings on startup
   dockerManager.loadServerModeSettings();
@@ -2985,6 +3002,8 @@ function createMainWindow() {
     if (startupOffline) {
       writeToScreen(formatMessage('warning', 'messages.noInternetAtStartup') + '<hr />');
     }
+    mainWindowLoaded = true;
+    pendingMainWindowNotices.splice(0).forEach(html => writeToScreen(html));
     
     // Send interface language to Web UI
     const envPath = getEnvPath();

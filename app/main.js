@@ -3620,13 +3620,35 @@ async function promptForPendingRebuilds() {
   const pending = computePendingContainerBuilds(imageStatus);
   if (pending.length === 0) return true;
 
-  const lines = pending.map(p => `• ${p.label} — ${p.reason} (${p.estimate})`).join('\n');
+  // A container that was never built is not "stale": on a fresh install
+  // nothing has been saved or built yet. Skipping it does not leave the
+  // feature broken either — ensure-service sets the container up the first
+  // time an app needs it, so that first use is the one that waits.
+  const notBuiltOnly = pending.every(p => p.reason === 'not yet built');
+  const someNotBuilt = pending.some(p => p.reason === 'not yet built');
+  const lines = pending
+    .map(p => (notBuiltOnly ? `• ${p.label} (${p.estimate})` : `• ${p.label} — ${p.reason} (${p.estimate})`))
+    .join('\n');
+  const dialogText = notBuiltOnly
+    ? {
+        title: 'Set up containers',
+        message: 'Some containers are not set up on this computer yet.',
+        detail: `${lines}\n\nSet them up now, or start without them. Each one is then set up ` +
+          'the first time a feature needs it, so that first use takes longer.',
+        buttons: ['Set Up and Start', 'Start Now', 'Cancel']
+      }
+    : {
+        title: 'Container rebuild recommended',
+        message: 'Some containers need to be rebuilt to apply your saved settings.',
+        detail: someNotBuilt
+          ? `${lines}\n\nWithout a rebuild, containers already built keep their previous settings. ` +
+            'Containers not built yet are set up the first time a feature needs them.'
+          : `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
+        buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel']
+      };
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'question',
-    title: 'Container rebuild recommended',
-    message: 'Some containers need to be rebuilt to apply your saved settings.',
-    detail: `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
-    buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel'],
+    ...dialogText,
     defaultId: 0,
     cancelId: 2,
     noLink: true

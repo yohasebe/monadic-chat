@@ -310,14 +310,22 @@ the release rather than warn:
   `package.json` files and only production dependencies (compared as
   name@version, because electron-builder hoists nested packages); nothing but
   electron-builder's own output sits beside app.asar; the AppImage carries only
-  the toolset's known libraries and the app icon under `usr/`, root ownership
-  and no xattr table. Every tracked file in app.asar and the payload must also
+  the toolset's known libraries, the app icon and the files named in
+  `linux.extraFiles` (the AppStream metainfo, compared with its committed
+  source) under `usr/`, root ownership and no xattr table. Every tracked file in app.asar and the payload must also
   carry the bytes committed at HEAD when staging ran: staging records their
   blob IDs in `build/app-tracked.blobs`, and git hashes the packed files for
   the comparison. package.json is compared field by field instead, because
   electron-builder drops fields from it when packing. The untracked build
   products (vendor assets, JS bundle, help database) are not in that list;
-  their own checks cover them.
+  their own checks cover them. Files that `extraResources` and
+  `linux.extraFiles` add (LICENSE, README.md, the AppStream metainfo) must be
+  present and match their committed sources; nothing else may sit in
+  `resources/app/` beside the payload. Staging stops on any other
+  `extraFiles`/`extraResources` setting, so a new one has to be added to the
+  verifier first. before_pack also passes electron-builder's effective
+  configuration (including `-c.<key>=` and `--config` overrides) to that check,
+  so an override that adds or moves an extra file stops the build.
 
 Then run these on the mac host after `rake build`:
 

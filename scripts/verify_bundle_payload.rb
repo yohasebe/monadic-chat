@@ -191,6 +191,23 @@ MAC_RESOURCE_ALLOWED = [/\A[A-Za-z0-9_]+\.lproj\z/, /\Aicon\.icns\z/].freeze
 # appimage@1.0.3 runtime), and the app icon at each size it is rendered in.
 APPIMAGE_USR = %r{\Ausr(?:/(?:lib(?:/lib(?:Xss\.so\.1|Xtst\.so\.6|appindicator3\.so\.1|gconf-2\.so\.4|indicator3\.so\.7|notify\.so\.4)(?:\.[0-9.]+)?)?|share(?:/icons(?:/hicolor(?:/[0-9]+x[0-9]+(?:/apps(?:/monadic-chat\.png)?)?)?)?)?))?\z}
 
+# Files electron-builder adds from package.json on top of app.asar, recorded by
+# staging as "kind<TAB>destination<TAB>source": "resources" entries sit under
+# the resources directory of every package (LICENSE, README.md), "linux"
+# entries in the AppImage (the AppStream metainfo). Each must be present with
+# the committed contents of its source. The record is required: without it an
+# entry that failed to ship would go unnoticed.
+EXTRA = ROOT.join('build/app-extra')
+
+def extra_entries(kind)
+  EXTRA.read.split("\n").reject(&:empty?).map { |l| l.split("\t", 3) }
+       .select { |k, _, _| k == kind }.to_h { |_, dest, source| [dest, source] }
+end
+
+def linux_extra_allowed?(entry, extra)
+  extra.key?(entry) || extra.keys.any? { |dest| dest.start_with?("#{entry}/") }
+end
+
 # squashfs superblock: every file owned by uid/gid 0, and no xattr table (so
 # no build-machine attributes such as download origins travel along).
 def appimage_superblock_problems(file)
@@ -226,6 +243,9 @@ end
 asar_expected = ASAR_MANIFEST.read.split("\n").reject(&:empty?).to_set
 modules_allowed = ASAR_MODULES.read.split("\n").reject(&:empty?).to_set
 abort "[verify_bundle_payload] no #{BLOBS.relative_path_from(ROOT)}; run stage_docker_payload.rb first." unless BLOBS.file?
+abort "[verify_bundle_payload] no #{EXTRA.relative_path_from(ROOT)}; run stage_docker_payload.rb first." unless EXTRA.file?
+resource_extra = extra_entries('resources')
+linux_extra = extra_entries('linux')
 recorded_blobs = BLOBS.read.split("\n").reject(&:empty?).to_h { |l| l.split("\t", 2).reverse }
 
 targets.each do |zip, kind|
@@ -242,9 +262,28 @@ targets.each do |zip, kind|
   failures << "#{rel}: unexpected entries beside app.asar: #{unexpected.sort.join(', ')}" unless unexpected.empty?
 
   if kind == :appimage
-    stray = all.map { |e| e.chomp('/') }.select { |e| e.start_with?('usr') }.reject { |e| e.match?(APPIMAGE_USR) }
+    extra = linux_extra
+    stray = all.map { |e| e.chomp('/') }.select { |e| e.start_with?('usr') }
+               .reject { |e| e.match?(APPIMAGE_USR) || linux_extra_allowed?(e, extra) }
     failures << "#{rel}: unexpected files under usr/: #{stray.first(10).join(', ')}" unless stray.empty?
     appimage_superblock_problems(zip).each { |pr| failures << "#{rel}: #{pr}" }
+
+    Dir.mktmpdir('verify_extra') do |tmp|
+      placed = {}
+      extra.each do |dest, source|
+        unless all.include?(dest)
+          failures << "#{rel}: #{dest} (from #{source}) is missing"
+          next
+        end
+        system('7zz', 'x', "-o#{tmp}", zip.to_s, dest, out: File::NULL, err: File::NULL)
+        placed[source] = File.join(tmp, dest)
+      end
+      blob_mismatches(placed, recorded_blobs).each do |source|
+        failures << "#{rel}: #{extra.key(source)} differs from the committed #{source}"
+      end
+      unrecorded = placed.keys.reject { |source| recorded_blobs.key?(source) }
+      failures << "#{rel}: no recorded blob for #{unrecorded.join(', ')}" unless unrecorded.empty?
+    end
   end
 
   # The app itself: own files must be exactly the tracked ones; dependencies
@@ -275,6 +314,7 @@ targets.each do |zip, kind|
       symlinks.each { |link, resolved| repo = repo.sub(%r{\A#{Regexp.escape(link)}/}, "#{resolved}/") }
       packed[repo] = disk
     end
+    resource_extra.each { |dest, source| packed[source] = File.join(dir, dest) }
     pj = package_json_problem(packed.delete('package.json'), recorded_blobs['package.json'])
     failures << "#{rel}: #{pj}" if pj
     changed = blob_mismatches(packed, recorded_blobs)
@@ -284,12 +324,27 @@ targets.each do |zip, kind|
     end
     compared = packed.count { |repo, disk| recorded_blobs.key?(repo) && File.file?(disk) && !File.symlink?(disk) }
     # Every recorded file has to be compared; comparing none would read as a pass.
-    expected_compared = recorded_blobs.size - (recorded_blobs.key?('package.json') ? 1 : 0)
+    # package.json is compared field by field above, and the linux.extraFiles
+    # sources only exist in the AppImages (checked there).
+    skipped = ['package.json', *linux_extra.values].count { |p| recorded_blobs.key?(p) }
+    expected_compared = recorded_blobs.size - skipped
     if compared < expected_compared
       failures << "#{rel}: compared #{compared} of #{expected_compared} recorded tracked files with the commit"
     end
     puts "[verify_bundle_payload] #{rel}: app.asar #{own.size} own files, #{pkgs.size} packages; " \
          "#{compared} tracked files compared with the commit"
+  end
+
+  # Under resources/app only the payload trees and the recorded extras.
+  app_dir = "#{res}app/"
+  loose = all.reject { |e| e.end_with?('/') || e.start_with?('__MACOSX/') }
+             .select { |e| e.start_with?(app_dir) }
+             .map { |e| e.delete_prefix(res) }
+             .reject { |e| e.start_with?('app/docker/', 'app/bin/') || resource_extra.key?(e) }
+             .reject { |e| e.split('/').last.to_s.start_with?('._') }
+  failures << "#{rel}: unexpected files in #{app_dir}: #{loose.first(10).join(', ')}" unless loose.empty?
+  resource_extra.each_key do |dest|
+    failures << "#{rel}: #{res}#{dest} is missing" unless all.include?("#{res}#{dest}")
   end
 
   # Skip directory entries and the resource forks the mac zip carries.

@@ -7,7 +7,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { verifyAppTreesTracked } = require('../../scripts/before_pack');
+const beforePack = require('../../scripts/before_pack');
+const { verifyAppTreesTracked } = beforePack;
 
 function withRepo(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'before-pack-'));
@@ -54,5 +55,18 @@ describe('beforePack: only tracked files in app/ and icons/', () => {
       fs.writeFileSync(path.join(dir, 'app', '__pycache__', 'm.pyc'), 'x');
       expect(() => verifyAppTreesTracked(dir)).not.toThrow();
     });
+  });
+});
+
+describe('beforePack: the configuration electron-builder uses', () => {
+  it('stops when the configuration is not where it is expected', async () => {
+    // Skipping the comparison silently would let -c. overrides through.
+    await expect(beforePack.default({})).rejects.toThrow(/context\.packager\.config/);
+    await expect(beforePack.default({ packager: {} })).rejects.toThrow(/context\.packager\.config/);
+  });
+
+  it('accepts a configuration object', () => {
+    const config = { linux: {} };
+    expect(beforePack.effectiveConfig({ packager: { config } })).toBe(config);
   });
 });

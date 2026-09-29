@@ -145,6 +145,12 @@
       ],
       "category": "Development",
       "syncDesktopName": true,
+      "extraFiles": [
+        {
+          "from": "config/linux/io.github.yohasebe.monadic_chat.appdata.xml",
+          "to": "usr/share/metainfo/io.github.yohasebe.monadic_chat.appdata.xml"
+        }
+      ],
       "artifactName": "monadic-chat_${version}_${arch}.${ext}",
       "defaultArch": "x64",
       "protocols": [

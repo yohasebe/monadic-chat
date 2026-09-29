@@ -1,4 +1,6 @@
 const { execFileSync } = require('child_process');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const STAGED_DUMP = 'build/app-payload/docker/services/ruby/help_data/help_db.json';
@@ -75,25 +77,54 @@ function verifyAppTreesTracked(repoRoot) {
 // The docker/ and bin/ payload is copied from build/app-payload as it stands.
 // A payload staged by an earlier build ships old contents, or files deleted
 // since, unless it is compared with the current sources first.
-function verifyStagedPayloadCurrent(repoRoot) {
+//
+// When the effective configuration is given (context.packager.config, which
+// includes -c.<key>=... overrides from the command line), staging also checks
+// that the extra files it adds are the ones it recorded. The rule lives in
+// stage_docker_payload.rb only; this passes it the configuration as JSON.
+function verifyStagedPayloadCurrent(repoRoot, config) {
+    const args = [path.join(repoRoot, 'scripts/stage_docker_payload.rb'), '--check'];
+    let tmp = null;
+    if (config) {
+        tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'before-pack-'));
+        const file = path.join(tmp, 'config.json');
+        fs.writeFileSync(file, JSON.stringify(config));
+        args.push('--config', file);
+    }
     try {
-        return execFileSync('ruby', [path.join(repoRoot, 'scripts/stage_docker_payload.rb'), '--check'],
-            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        return execFileSync('ruby', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
         const detail = (err.stderr || err.stdout || err.message || '').toString().trim();
         throw new Error(`[before_pack] refusing to package the staged payload.\n${detail}`);
+    } finally {
+        if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
     }
 }
 
-exports.default = async function beforePack() {
+// The effective configuration is required: if a later electron-builder moved
+// it, skipping the comparison would pass command-line overrides unnoticed.
+function effectiveConfig(context) {
+    const config = context && context.packager && context.packager.config;
+    if (!config || typeof config !== 'object') {
+        throw new Error(
+            '[before_pack] electron-builder did not pass its configuration (context.packager.config);\n' +
+            '  the extra files it adds cannot be compared with what staging recorded.'
+        );
+    }
+    return config;
+}
+
+exports.default = async function beforePack(context) {
     const root = path.resolve(__dirname, '..');
+    const config = effectiveConfig(context);
     process.stdout.write(verifyAppTreesTracked(root));
-    process.stdout.write(verifyStagedPayloadCurrent(root));
+    process.stdout.write(verifyStagedPayloadCurrent(root, config));
     process.stdout.write(verifyStagedHelpDump(root));
 };
 
 exports.verifyAppTreesTracked = verifyAppTreesTracked;
 exports.verifyStagedPayloadCurrent = verifyStagedPayloadCurrent;
+exports.effectiveConfig = effectiveConfig;
 
 exports.verifyStagedHelpDump = verifyStagedHelpDump;
 exports.stagedDumpPath = stagedDumpPath;

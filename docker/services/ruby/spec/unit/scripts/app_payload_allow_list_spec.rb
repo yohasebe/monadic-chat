@@ -98,6 +98,22 @@ RSpec.describe 'the app payload allow list' do
       expect(froms).to include('./build/app-payload/docker', './build/app-payload/bin')
     end
 
+    it 'places the AppStream metainfo where software catalogs look for it' do
+      # appimage.github.io and software centres read usr/share/metainfo; the
+      # file is named after the component id it declares.
+      entries = package_json.dig('build', 'linux', 'extraFiles')
+      expect(entries).to be_an(Array)
+      metainfo = entries.find { |e| e['to'].to_s.start_with?('usr/share/metainfo/') }
+      expect(metainfo).not_to be_nil
+      source = File.join(root, metainfo['from'])
+      expect(File.file?(source)).to be(true)
+      id = File.read(source)[%r{<id>([^<]+)</id>}, 1]
+      expect(File.basename(metainfo['to'])).to eq("#{id}.appdata.xml")
+      expect(File.basename(metainfo['from'])).to eq("#{id}.appdata.xml")
+      # The desktop file it launches is the one electron-builder writes.
+      expect(File.read(source)).to include("<launchable type=\"desktop-id\">#{package_json['desktopName']}</launchable>")
+    end
+
     it 'no longer copies the working tree' do
       # This is the defect: `from: ./docker` with a filter that only removed
       # dotfiles.
@@ -117,6 +133,27 @@ RSpec.describe 'the app payload allow list' do
 
     it 'checks the archives after packaging' do
       expect(build_rake).to include('sh "ruby scripts/verify_bundle_payload.rb"')
+    end
+
+    it 'requires the linux.extraFiles in every AppImage, with their committed contents' do
+      verifier_source = File.read(verifier)
+      expect(verifier_source).to include("build/app-extra")
+      expect(verifier_source).to include('is missing')
+      expect(verifier_source).to include('differs from the committed')
+      # Every extraFiles/extraResources key is read, and an unknown one stops staging.
+      expect(File.read(stager)).to include('EXTRA_KEYS = %w[extraFiles extraResources]')
+      expect(File.read(stager)).to include('is not checked by verify_bundle_payload.rb')
+    end
+
+    it 'compares the configuration electron-builder uses with what staging recorded' do
+      # -c.<key>=... and --config reach the packager but not package.json, so
+      # before_pack hands the effective configuration to the one place that
+      # decides what counts as an extra file.
+      before_pack = File.read(File.join(root, 'scripts/before_pack.js'))
+      expect(before_pack).to include('context.packager.config')
+      expect(before_pack).to include("args.push('--config', file)")
+      expect(File.read(stager)).to include("ARGV.index('--config')")
+      expect(File.read(stager)).to include('which staging did not record')
     end
 
     it 'checks again before publishing, and stops on failure' do
@@ -178,7 +215,7 @@ RSpec.describe 'the app payload allow list' do
     # committed: contents at HEAD where they differ from what was packed.
     def with_fixture(manifest_paths, archive_paths, asar_files: DEFAULT_ASAR,
                      asar_expected: %w[app/main.js package.json], modules: %w[dotenv@1.0.0],
-                     resources_extra: [], asar: true, committed: {})
+                     resources_extra: [], asar: true, committed: {}, extra: [])
       Dir.mktmpdir('payload_spec') do |dir|
         build = File.join(dir, 'build')
         FileUtils.mkdir_p(build)
@@ -186,6 +223,8 @@ RSpec.describe 'the app payload allow list' do
         File.write(File.join(build, 'app-payload.symlinks'), '')
         File.write(File.join(build, 'app-asar.manifest'), asar_expected.join("\n") + "\n")
         File.write(File.join(build, 'app-asar.modules'), modules.join("\n") + "\n")
+        # extraResources files staging recorded ("kind<TAB>destination<TAB>source").
+        File.write(File.join(build, 'app-extra'), extra.map { |e| e.join("\t") }.join("\n") + "\n")
 
         # The blob list staging records from HEAD, with the objects themselves
         # in a repository so the verifier can read the committed package.json.
@@ -321,6 +360,38 @@ RSpec.describe 'the app payload allow list' do
 
         expect(stderr).to include('package.json fields differ from the commit: version')
         expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports a file in resources/app that is neither payload nor a recorded extra' do
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb notes.txt]) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('unexpected files in')
+        expect(stderr).to include('app/notes.txt')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports a recorded extra resource that did not ship' do
+      extra = [%w[resources app/LICENSE LICENSE]]
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], extra: extra, committed: { 'LICENSE' => 'x' }) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('app/LICENSE is missing')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'fails without the record of extra files' do
+      # Treating a missing record as "no extras" would pass a package whose
+      # metainfo or licence never shipped.
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb]) do |dir, dist|
+        File.delete(File.join(dir, 'build', 'app-extra'))
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('no build/app-extra')
+        expect(status.exitstatus).not_to eq(0)
       end
     end
 

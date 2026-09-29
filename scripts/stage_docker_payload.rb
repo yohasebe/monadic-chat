@@ -46,6 +46,54 @@ ASAR_MANIFEST = ROOT.join('build/app-asar.manifest')
 ASAR_MODULES = ROOT.join('build/app-asar.modules')
 ASAR_TREES = %w[app icons package.json].freeze
 
+# Files electron-builder copies into the packages from package.json on top of
+# app.asar: extraResources (into resources/, all platforms) and
+# linux.extraFiles (into the AppImage, the AppStream metainfo). They are read
+# from the same settings the build uses and recorded in EXTRA as
+# "kind<TAB>destination<TAB>source", so verify_bundle_payload.rb can require
+# each one and compare it with its committed source. The staged payload
+# directories are the one other form allowed; anything else stops staging,
+# because the verifier would not know to look for it.
+EXTRA = ROOT.join('build/app-extra')
+PAYLOAD_RESOURCES = {
+  './build/app-payload/bin' => 'app/bin',
+  './build/app-payload/docker' => 'app/docker'
+}.freeze
+EXTRA_KEYS = %w[extraFiles extraResources].freeze
+
+def extra_entries(build = JSON.parse(ROOT.join('package.json').read).fetch('build', {}))
+  found = []
+  walk = lambda do |node, path|
+    node.each do |key, value|
+      here = path + [key]
+      if EXTRA_KEYS.include?(key)
+        found << [here.join('.'), value]
+      elsif value.is_a?(Hash)
+        walk.call(value, here)
+      end
+    end
+  end
+  walk.call(build, [])
+
+  found.flat_map do |where, list|
+    kind = { 'extraResources' => 'resources', 'linux.extraFiles' => 'linux' }[where]
+    abort "[stage_docker_payload] build.#{where} is not checked by verify_bundle_payload.rb; add it there first." unless kind
+
+    Array(list).filter_map do |entry|
+      unless entry.is_a?(Hash) && entry['from'] && entry['to']
+        abort "[stage_docker_payload] build.#{where} entries must name from and to: #{entry.inspect}"
+      end
+      next if kind == 'resources' && PAYLOAD_RESOURCES[entry['from']] == entry['to']
+
+      source = entry['from'].delete_prefix('./')
+      unless ROOT.join(source).file? && !ROOT.join(source).symlink?
+        abort "[stage_docker_payload] build.#{where} may name only the staged payload or a single file: #{entry.inspect}"
+      end
+      [kind, entry['to'], source]
+    end
+  end.sort
+end
+
 def asar_tracked_paths
   out = `git -C "#{ROOT}" ls-files -z -- #{ASAR_TREES.join(' ')}`
   raise 'git ls-files failed' unless $?.success?
@@ -81,7 +129,7 @@ BLOBS = ROOT.join('build/app-tracked.blobs')
 ALLOW_UNCOMMITTED = 'MONADIC_ALLOW_UNCOMMITTED_BUILD'
 
 def uncommitted_paths(shipped)
-  out = `git -C "#{ROOT}" status --porcelain=v1 -z --untracked-files=no -- #{(SHIPPED_TREES + ASAR_TREES).join(' ')}`
+  out = `git -C "#{ROOT}" status --porcelain=v1 -z --untracked-files=no -- #{(SHIPPED_TREES + ASAR_TREES + extra_entries.map(&:last)).join(' ')}`
   raise 'git status failed' unless $?.success?
 
   # Each record is "XY path"; a rename adds the old path as its own record.
@@ -93,7 +141,7 @@ end
 # out: their blob is the link text, which staging already compares, and
 # Windows stores the target's contents in their place.
 def head_blobs(shipped)
-  out = `git -C "#{ROOT}" ls-tree -r -z HEAD -- #{(SHIPPED_TREES + ASAR_TREES).join(' ')}`
+  out = `git -C "#{ROOT}" ls-tree -r -z HEAD -- #{(SHIPPED_TREES + ASAR_TREES + extra_entries.map(&:last)).join(' ')}`
   raise 'git ls-tree failed' unless $?.success?
 
   wanted = shipped.to_set
@@ -211,7 +259,7 @@ def differs_from_head(shipped)
   files.zip(out.split("\n")).reject { |p, sha| blobs[p] == sha }.map(&:first)
 end
 
-shipped_tracked = (tracked_paths + asar_tracked_paths).uniq
+shipped_tracked = (tracked_paths + asar_tracked_paths + extra_entries.map(&:last)).uniq
 dirty = (uncommitted_paths(shipped_tracked) + differs_from_head(shipped_tracked)).uniq.sort
 unless dirty.empty?
   msg = "[stage_docker_payload] #{dirty.size} shipped file(s) have uncommitted changes:\n  " +
@@ -253,7 +301,8 @@ def staged_problems(paths)
                .map { |f| Pathname.new(f).relative_path_from(OUT).to_s }
   (on_disk - paths).first(10).each { |p| problems << "in the staging directory but not in the payload: #{p}" }
   { ASAR_MANIFEST => asar_tracked_paths, ASAR_MODULES => production_modules,
-    BLOBS => head_blobs((tracked_paths + asar_tracked_paths).uniq) }.each do |file, now|
+    BLOBS => head_blobs((tracked_paths + asar_tracked_paths + extra_entries.map(&:last)).uniq),
+    EXTRA => extra_entries.map { |entry| entry.join("\t") } }.each do |file, now|
     recorded_list = file.file? ? file.read.split("\n").reject(&:empty?) : nil
     next if recorded_list == now
 
@@ -264,6 +313,15 @@ end
 
 if ARGV.include?('--check')
   problems = staged_problems(paths)
+  # --config FILE: the configuration electron-builder is about to use, written
+  # by before_pack.js. Command-line overrides (-c.<key>=...) reach it but not
+  # package.json, so its extra files are compared with what staging recorded.
+  if (i = ARGV.index('--config'))
+    effective = extra_entries(JSON.parse(File.read(ARGV.fetch(i + 1))))
+    recorded = EXTRA.file? ? EXTRA.read.split("\n").reject(&:empty?).map { |l| l.split("\t", 3) } : []
+    (effective - recorded).each { |e| problems << "packaging adds #{e[2]} -> #{e[1]}, which staging did not record" }
+    (recorded - effective).each { |e| problems << "staging recorded #{e[2]} -> #{e[1]}, which packaging does not add" }
+  end
   if problems.empty?
     puts "[stage_docker_payload] staged payload is current (#{paths.size} files)"
     exit 0
@@ -295,6 +353,7 @@ MANIFEST.write(paths.join("\n") + "\n")
 ASAR_MANIFEST.write(asar_tracked_paths.join("\n") + "\n")
 ASAR_MODULES.write(production_modules.join("\n") + "\n")
 BLOBS.write(head_blobs(shipped_tracked).join("\n") + "\n")
+EXTRA.write(extra_entries.map { |entry| entry.join("\t") }.join("\n") + "\n")
 
 # Recorded separately because Windows cannot store symlinks: electron-builder
 # copies the target's contents in their place, so the packaged file list is

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Monadic
-  VERSION = "1.0.0-beta.37"
+  VERSION = "1.0.0-beta.38"
 end

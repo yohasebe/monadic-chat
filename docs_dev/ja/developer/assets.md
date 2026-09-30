@@ -2,67 +2,38 @@
 
 ## 概要
 
-Monadic Chatは、ローカル開発とDockerビルドの両方でオフライン使用のためにサードパーティライブラリをダウンロードするCDNアセット管理スクリプトを提供しています。
+Web UI は、オフラインで動くように、サードパーティライブラリを `/vendor` から配信します。これらはダウンロードされるもので git では追跡しないため、`assets_list.sh` がその中身を示す唯一の記録です。各エントリは、バージョンを含む URL とファイルの sha256 を固定します。
 
 ## ファイル
 
-- `/docker/services/ruby/bin/assets_list.sh`: 必要なアセットを定義する中央設定ファイル
-- `/bin/assets.sh`: ローカル開発用にアセットをダウンロードするスクリプト
-- `/docker/services/ruby/scripts/download_assets.sh`: Dockerビルド時に使用されるスクリプト
+- `/docker/services/ruby/bin/assets_list.sh`: 一覧と、それを読むすべての側が使うシェル関数（`vendor_manifest`、`vendor_fetch`）
+- `/bin/assets.sh`: ソースツリーへ取得する（`rake download_vendor_assets`。`rake build` でも実行される）
+- `/docker/services/ruby/scripts/download_assets.sh`: Ruby イメージのビルド中に実行される
+- `/scripts/build_products.rb`: 同じ一覧をパッケージングのゲートから読む
 
 ## 新しいアセットの追加方法
 
-新しいライブラリやアセットを追加する必要がある場合:
-
-1. `/docker/services/ruby/bin/assets_list.sh`の`ASSETS`配列にエントリを追加します:
+1. バージョンを含む URL からファイルを取得し、sha256 を求める
+2. `ASSETS` 配列にエントリを追加する：
    ```
-   "type,url,filename"
+   "type,url,filename,sha256"
    ```
+   - `type`: `css`（vendor/css）、`js`（vendor/js）、`font`（vendor/fonts）、`webfont`（vendor/webfonts）
+   - `url`: バージョンを含み、同じバイト列を返し続ける URL
+   - `sha256`: ダウンロードしたままのファイルの値。取得後にファイルを書き換えることはない
+3. `rake download_vendor_assets` を実行する
 
-   各項目:
-   - `type`: アセットタイプ（css, js, font, webfont, mathfont）
-   - `url`: CDN上のアセットへの完全URL
-   - `filename`: 保存するローカルファイル名
+## 取得の仕組み
 
-   例:
-   ```bash
-   "js,https://cdn.example.com/library.min.js,library.min.js"
-   ```
+`vendor_fetch` は、hash が固定値と一致するファイルは残し、それ以外は取得し直します（`curl --fail`）。取得の失敗や hash の不一致はエラーで停止するため、HTTP のエラーページがアセットとして保存されることはありません。あわせて `MONTSERRAT_CSS` から `css/montserrat.css` を書き出し、`css/fonts` を `../fonts` へのリンクにします。`katex.min.css` はこの場所で KaTeX のフォントを探します。
 
-2. 他の変更は必要ありません - すべてのスクリプトは同じアセットリストを使用します。
-
-## アセットタイプと保存場所
-
-アセットはタイプ別に整理されます：
-- **CSS**: `vendor/css/`に保存
-- **JS**: `vendor/js/`に保存
-- **フォント**: `vendor/fonts/`に保存（Montserratなどの通常フォント）
-- **Webフォント**: `vendor/webfonts/`に保存（Font Awesomeなどのアイコンフォント）
-- **数式フォント**: `vendor/js/output/chtml/fonts/woff-v2/`に保存（KaTeX用）
-
-## 使用方法
-
-ローカルで実行:
-```bash
-rake download_vendor_assets
-```
-
-これはアプリケーションをパッケージ化するビルドプロセス中に自動的に実行されます。
+maxGraph にはダウンロードできるブラウザ向けビルドがありません。`npm run build:maxgraph` が、ロックされた `@maxgraph/core` から `vendor/js/maxgraph.bundle.js` を作ります。
 
 ## Docker統合
 
-アセットはDockerビルド中にダウンロードされます：
-- ビルド時に自動的に実行（Dockerfileの96行目）
-- コンテナ内の`/monadic/public/vendor/`にダウンロード
-- 既に存在するファイルはスキップ
-- Font AwesomeのCSSパスの特別処理を含む（相対パスを絶対パスに変換）
-- プラットフォーム固有のsedコマンドがmacOSとLinuxの違いを処理
+Ruby イメージはアプリのペイロードから `public/` をコピーします。ペイロードには vendor ファイルが既に入っており、その後で `download_assets.sh` を実行します。hash が一致するので、イメージのビルドでこれらのためにネットワークは必要ありません。本番で配信されるのはペイロードにあるファイルです。
 
-## 現在のアセット
+## パッケージングのゲート
 
-システムには以下が含まれています：
-- **CSSフレームワーク**: Bootstrap 5
-- **JavaScriptライブラリ**: KaTeX、Mermaid、ABC.js
-- **アイコンフォント**: Font Awesome
-- **Webフォント**: Montserratファミリー
-- **メディアライブラリ**: 音声録音用のOpus Media Recorder
+- `stage_docker_payload.rb` は、`vendor_manifest` が挙げるファイルに、フォントへのリンクと maxGraph のバンドルを加えたものだけを出荷します。vendor ディレクトリにあるそれ以外のファイルは出荷しません。一覧にあるファイルの hash が固定値と違えば、staging は停止します
+- `verify_bundle_payload.rb` は、各アーカイブ内の vendor ファイルをすべて固定値と比べます。さらに、staging が読んだコミットのクリーンな worktree で JS バンドルと maxGraph のバンドルを作り直し、梱包されたものと比べます

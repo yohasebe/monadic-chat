@@ -317,8 +317,12 @@ the release rather than warn:
   blob IDs in `build/app-tracked.blobs`, and git hashes the packed files for
   the comparison. package.json is compared field by field instead, because
   electron-builder drops fields from it when packing. The untracked build
-  products (vendor assets, JS bundle, help database) are not in that list;
-  their own checks cover them. Files that `extraResources` and
+  products are compared too: each vendor file with the sha256 that
+  `assets_list.sh` pins, and the JS bundle and the maxGraph bundle with a
+  build of the same commit (staging records it in `build/app-commit`) made in
+  a clean worktree. Staging itself ships only the vendor files the list names
+  and stops on one that differs from its pin. The help database has its own
+  gate (`HelpDumpGuard`). Files that `extraResources` and
   `linux.extraFiles` add (LICENSE, README.md, the AppStream metainfo) must be
   present and match their committed sources; nothing else may sit in
   `resources/app/` beside the payload. Staging stops on any other

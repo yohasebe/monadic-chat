@@ -215,6 +215,14 @@ end
 # source release go out of date.
 require_relative 'linux_libraries'
 
+# Untracked files in the payload (the vendor files, the two bundles) must
+# carry the bytes the commit produces: the hashes assets_list.sh pins, and the
+# bundles built again in a clean checkout of the commit staging read. Only the
+# help database is left to its own gate (HelpDumpGuard).
+require_relative 'build_products'
+COMMIT = ROOT.join('build/app-commit')
+HELP_DB = 'docker/services/ruby/help_data/help_db.json'
+
 def appimage_arch(file)
   case file.basename.to_s
   when /_x86_64\.AppImage\z/ then 'x64'
@@ -298,6 +306,21 @@ resource_extra = extra_entries('resources')
 linux_extra = extra_entries('linux')
 recorded_blobs = BLOBS.read.split("\n").reject(&:empty?).to_h { |l| l.split("\t", 2).reverse }
 
+products = (expected.to_a - recorded_blobs.keys - symlinks.keys - [HELP_DB]).sort
+product_hashes = {}
+commit = nil
+unless products.empty?
+  abort "[verify_bundle_payload] no #{COMMIT.relative_path_from(ROOT)}; run stage_docker_payload.rb first." unless COMMIT.file?
+  commit = COMMIT.read.strip
+  begin
+    product_hashes = BuildProducts.expected(ROOT, commit)
+  rescue StandardError => e
+    abort "[verify_bundle_payload] could not derive the build products of #{commit}: #{e.message}"
+  end
+  (products - product_hashes.keys).each { |p| failures << "#{p} ships, but #{commit[0, 12]} neither pins nor builds it" }
+  (product_hashes.keys - products).each { |p| failures << "#{p} is pinned or built at #{commit[0, 12]}, but was not staged" }
+end
+
 targets.each do |zip, kind|
   rel = zip.relative_path_from(DIST).to_s
   res = RESOURCES.fetch(kind)
@@ -373,6 +396,15 @@ targets.each do |zip, kind|
       failures << "#{rel}: #{changed.size} tracked file(s) differ from the committed version"
       changed.first(15).each { |e| failures << "    ~ #{e}" }
     end
+    product_hashes.each do |repo, sha|
+      disk = packed[repo]
+      if disk.nil? || !File.file?(disk)
+        failures << "#{rel}: #{repo} is missing"
+      elsif Digest::SHA256.file(disk).hexdigest != sha
+        source = BuildProducts::BUILT.key?(repo) ? "the build of #{commit[0, 12]}" : 'the hash pinned in assets_list.sh'
+        failures << "#{rel}: #{repo} differs from #{source}"
+      end
+    end
     compared = packed.count { |repo, disk| recorded_blobs.key?(repo) && File.file?(disk) && !File.symlink?(disk) }
     # Every recorded file has to be compared; comparing none would read as a pass.
     # package.json is compared field by field above, and the linux.extraFiles
@@ -383,7 +415,7 @@ targets.each do |zip, kind|
       failures << "#{rel}: compared #{compared} of #{expected_compared} recorded tracked files with the commit"
     end
     puts "[verify_bundle_payload] #{rel}: app.asar #{own.size} own files, #{pkgs.size} packages; " \
-         "#{compared} tracked files compared with the commit"
+         "#{compared} tracked files compared with the commit, #{product_hashes.size} build products with their pins and rebuilds"
   end
 
   # Under resources/app only the payload trees and the recorded extras.

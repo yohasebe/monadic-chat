@@ -77,6 +77,9 @@ namespace :build do
     # the later rebuilds produce the same bytes, and before_pack stops the
     # build if they do not.
     sh "npm run build:js"
+    # maxGraph has no browser build to download; this makes it from the locked
+    # @maxgraph/core, and verify_bundle_payload.rb builds it again to compare.
+    sh "npm run build:maxgraph"
     # Assemble the payload that ships inside the app from an allow list.
     # electron-builder points at build/app-payload, so whatever is not staged
     # here cannot reach a release — the deny-list filter this replaces shipped

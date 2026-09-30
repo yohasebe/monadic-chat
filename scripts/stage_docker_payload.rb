@@ -27,16 +27,21 @@
 # contains to build/app-payload.manifest, which verify_bundle_payload.rb
 # compares the packaged archives against.
 
+require 'digest'
 require 'fileutils'
 require 'json'
 require 'pathname'
 require 'set'
 require_relative 'help_dump_guard'
+require_relative 'build_products'
 
 ROOT = Pathname.new(File.expand_path('..', __dir__))
 OUT = ROOT.join('build/app-payload')
 MANIFEST = ROOT.join('build/app-payload.manifest')
 SYMLINKS = ROOT.join('build/app-payload.symlinks')
+# The commit staging read, so verify_bundle_payload.rb can build the bundles
+# again from it.
+COMMIT = ROOT.join('build/app-commit')
 
 # The app itself (app.asar) is packed by electron-builder from app/, icons/,
 # package.json and the production dependencies. These two lists record what it
@@ -140,6 +145,13 @@ end
 # "blob<TAB>path" for every shipped tracked file at HEAD. Symlinks are left
 # out: their blob is the link text, which staging already compares, and
 # Windows stores the target's contents in their place.
+def head_commit
+  out = `git -C "#{ROOT}" rev-parse HEAD`.strip
+  raise 'git rev-parse failed' unless $?.success? && out.match?(/\A\h{40}\z/)
+
+  out
+end
+
 def head_blobs(shipped)
   out = `git -C "#{ROOT}" ls-tree -r -z HEAD -- #{(SHIPPED_TREES + ASAR_TREES + extra_entries.map(&:last)).join(' ')}`
   raise 'git ls-tree failed' unless $?.success?
@@ -152,10 +164,16 @@ def head_blobs(shipped)
   end.sort
 end
 
-# Generated at build time, required at run time. Globs are relative to ROOT.
+# Generated at build time, required at run time, each named: the vendor files
+# assets_list.sh pins, the link KaTeX's stylesheet reaches its fonts through,
+# the two bundles and the help database. Other files in the vendor directory
+# (left there by an older fetch) do not ship.
+PINNED_VENDOR = BuildProducts.pinned_vendor(ROOT)
 REQUIRED_BUILD_PRODUCTS = [
-  'docker/services/ruby/public/vendor/**/*',
-  'docker/services/ruby/public/js/monadic.bundle.min.js',
+  *PINNED_VENDOR.keys,
+  BuildProducts::FONT_LINK,
+  BuildProducts::MAXGRAPH,
+  BuildProducts::JS_BUNDLE,
   'docker/services/ruby/help_data/help_db.json'
 ].freeze
 
@@ -222,18 +240,30 @@ end
 assert_help_dump_is_public
 
 def build_product_paths
-  REQUIRED_BUILD_PRODUCTS.flat_map do |pattern|
-    # Symlinks count: `public/vendor/css/fonts` points at the sibling font
-    # directory, and the stylesheets resolve through it. Dropping it would
-    # ship a UI with no fonts.
-    matches = Dir.glob(ROOT.join(pattern).to_s).select { |p| File.file?(p) || File.symlink?(p) }
-    if matches.empty?
-      abort "[stage_docker_payload] required build product missing: #{pattern}\n" \
-            '  Run the build steps that generate it (vendor fetch, JS bundle, help database).'
-    end
-    matches.map { |p| Pathname.new(p).relative_path_from(ROOT).to_s }
+  missing = REQUIRED_BUILD_PRODUCTS.reject { |p| ROOT.join(p).file? || ROOT.join(p).symlink? }
+  unless missing.empty?
+    abort "[stage_docker_payload] required build product missing (#{missing.size}):\n  " +
+          missing.first(10).join("\n  ") +
+          "\n  Run the build steps that generate it (vendor fetch, JS bundle, help database)."
   end
+  REQUIRED_BUILD_PRODUCTS.dup
 end
+
+# A vendor file ships only with the bytes assets_list.sh pins. The bundles are
+# built from the commit just before staging, and verify_bundle_payload.rb
+# builds them again to compare.
+def assert_vendor_is_pinned
+  wrong = PINNED_VENDOR.reject do |path, sha|
+    ROOT.join(path).file? && Digest::SHA256.file(ROOT.join(path)).hexdigest == sha
+  end.keys
+  link = ROOT.join(BuildProducts::FONT_LINK)
+  wrong << BuildProducts::FONT_LINK unless link.symlink? && File.readlink(link) == BuildProducts::FONT_LINK_TARGET
+  return if wrong.empty?
+
+  abort "[stage_docker_payload] #{wrong.size} vendor file(s) differ from assets_list.sh:\n  " +
+        wrong.first(10).join("\n  ") + "\n  Fetch them again: rake download_vendor_assets"
+end
+assert_vendor_is_pinned
 
 paths = (tracked_paths + build_product_paths).uniq.sort
 missing = paths.reject { |p| ROOT.join(p).file? || ROOT.join(p).symlink? }
@@ -302,7 +332,7 @@ def staged_problems(paths)
   (on_disk - paths).first(10).each { |p| problems << "in the staging directory but not in the payload: #{p}" }
   { ASAR_MANIFEST => asar_tracked_paths, ASAR_MODULES => production_modules,
     BLOBS => head_blobs((tracked_paths + asar_tracked_paths + extra_entries.map(&:last)).uniq),
-    EXTRA => extra_entries.map { |entry| entry.join("\t") } }.each do |file, now|
+    EXTRA => extra_entries.map { |entry| entry.join("\t") }, COMMIT => [head_commit] }.each do |file, now|
     recorded_list = file.file? ? file.read.split("\n").reject(&:empty?) : nil
     next if recorded_list == now
 
@@ -354,6 +384,7 @@ ASAR_MANIFEST.write(asar_tracked_paths.join("\n") + "\n")
 ASAR_MODULES.write(production_modules.join("\n") + "\n")
 BLOBS.write(head_blobs(shipped_tracked).join("\n") + "\n")
 EXTRA.write(extra_entries.map { |entry| entry.join("\t") }.join("\n") + "\n")
+COMMIT.write(head_commit + "\n")
 
 # Recorded separately because Windows cannot store symlinks: electron-builder
 # copies the target's contents in their place, so the packaged file list is

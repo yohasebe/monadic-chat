@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'fileutils'
+require 'digest'
 require 'open3'
 require 'tmpdir'
 
@@ -45,9 +46,18 @@ RSpec.describe 'the app payload allow list' do
     it 'names every untracked file it allows' do
       # The generated files the app cannot run without. Anything else that is
       # untracked has to be added here deliberately, which is the whole point.
-      expect(source).to include("'docker/services/ruby/public/vendor/**/*'")
-      expect(source).to include("'docker/services/ruby/public/js/monadic.bundle.min.js'")
+      expect(source).to include('*PINNED_VENDOR.keys')
+      expect(source).to include('BuildProducts::JS_BUNDLE')
+      expect(source).to include('BuildProducts::MAXGRAPH')
       expect(source).to include("'docker/services/ruby/help_data/help_db.json'")
+      # A glob over the vendor directory shipped whatever an old fetch left
+      # there, including an HTML error page saved as a stylesheet.
+      expect(source).not_to include('public/vendor/**')
+    end
+
+    it 'stops on a vendor file that differs from its pin' do
+      expect(source).to include('differ from assets_list.sh')
+      expect(source).to match(/^assert_vendor_is_pinned$/)
     end
 
     it 'leaves out the files git keeps only to hold a directory' do
@@ -142,6 +152,11 @@ RSpec.describe 'the app payload allow list' do
       expect(bundle_at).to be < stage_at
     end
 
+    it 'builds maxGraph before staging it' do
+      setup = build_rake[build_rake.index('def setup_build_environment')..]
+      expect(setup.index('sh "npm run build:maxgraph"')).to be < setup.index('sh "ruby scripts/stage_docker_payload.rb"')
+    end
+
     it 'checks the archives after packaging' do
       expect(build_rake).to include('sh "ruby scripts/verify_bundle_payload.rb"')
     end
@@ -226,11 +241,11 @@ RSpec.describe 'the app payload allow list' do
     # committed: contents at HEAD where they differ from what was packed.
     def with_fixture(manifest_paths, archive_paths, asar_files: DEFAULT_ASAR,
                      asar_expected: %w[app/main.js package.json], modules: %w[dotenv@1.0.0],
-                     resources_extra: [], asar: true, committed: {}, extra: [])
+                     resources_extra: [], asar: true, committed: {}, extra: [], products: nil)
       Dir.mktmpdir('payload_spec') do |dir|
         build = File.join(dir, 'build')
         FileUtils.mkdir_p(build)
-        File.write(File.join(build, 'app-payload.manifest'), manifest_paths.join("\n") + "\n")
+        File.write(File.join(build, 'app-payload.manifest'), (manifest_paths + (products || {}).keys).sort.join("\n") + "\n")
         File.write(File.join(build, 'app-payload.symlinks'), '')
         File.write(File.join(build, 'app-asar.manifest'), asar_expected.join("\n") + "\n")
         File.write(File.join(build, 'app-asar.modules'), modules.join("\n") + "\n")
@@ -252,11 +267,13 @@ RSpec.describe 'the app payload allow list' do
         end
         File.write(File.join(build, 'app-tracked.blobs'), blobs.sort.join("\n") + "\n")
 
+        commit_products_source(dir, build) if products
+
         src = File.join(dir, 'src')
-        archive_paths.each do |p|
+        (archive_paths + (products || {}).keys).each do |p|
           full = File.join(src, RESOURCES, 'app', p)
           FileUtils.mkdir_p(File.dirname(full))
-          File.write(full, 'x')
+          File.write(full, (products || {}).fetch(p, 'x'))
         end
         resources_extra.each do |p|
           full = File.join(src, RESOURCES, p)
@@ -275,6 +292,40 @@ RSpec.describe 'the app payload allow list' do
       end
     end
 
+    # A commit whose asset list pins one vendor file and whose package.json
+    # scripts write fixed bundles, standing in for the real sources: the
+    # verifier builds the bundles again from it and compares.
+    PINNED_CSS = 'docker/services/ruby/public/vendor/css/a.css'
+    JS_BUNDLE = 'docker/services/ruby/public/js/monadic.bundle.min.js'
+    MAXGRAPH = 'docker/services/ruby/public/vendor/js/maxgraph.bundle.js'
+    GOOD_PRODUCTS = { PINNED_CSS => 'pinned', JS_BUNDLE => 'bundle', MAXGRAPH => 'graph' }.freeze
+
+    def commit_products_source(dir, build)
+      sha = Digest::SHA256.hexdigest('pinned')
+      files = {
+        'docker/services/ruby/bin/assets_list.sh' => "vendor_manifest() { printf 'css/a.css\\t%s\\n' #{sha}; }\n",
+        'build.js' => <<~JS,
+          const fs = require('fs'), path = require('path');
+          const [out, body] = { js: ['#{JS_BUNDLE}', 'bundle'], graph: ['#{MAXGRAPH}', 'graph'] }[process.argv[2]];
+          fs.mkdirSync(path.dirname(out), { recursive: true });
+          fs.writeFileSync(out, body);
+        JS
+        'package.json' => '{"scripts":{"build:js":"node build.js js","build:maxgraph":"node build.js graph"}}'
+      }
+      files.each do |path, body|
+        full = File.join(dir, path)
+        FileUtils.mkdir_p(File.dirname(full))
+        File.write(full, body)
+      end
+      git = ['git', '-C', dir, '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=/dev/null']
+      system(*git, 'add', *files.keys) or raise 'git add failed'
+      system(*git, 'commit', '-q', '-m', 'fixture') or raise 'git commit failed'
+      head, status = Open3.capture2('git', '-C', dir, 'rev-parse', 'HEAD')
+      raise 'git rev-parse failed' unless status.success?
+
+      File.write(File.join(build, 'app-commit'), head)
+    end
+
     # The verifier reads the manifest from its own repo root, so point a copy
     # of the scripts at the fixture instead.
     def run_verifier(dir, dist)
@@ -282,6 +333,7 @@ RSpec.describe 'the app payload allow list' do
       FileUtils.cp(verifier, File.join(dir, 'scripts'))
       # The verifier loads its Linux library checks from beside itself.
       FileUtils.cp(File.join(File.dirname(verifier), 'linux_libraries.rb'), File.join(dir, 'scripts'))
+      FileUtils.cp(File.join(File.dirname(verifier), 'build_products.rb'), File.join(dir, 'scripts'))
       Open3.capture3({ 'MONADIC_NODE_MODULES' => NODE_MODULES },
                      'ruby', File.join(dir, 'scripts/verify_bundle_payload.rb'), dist)
     end
@@ -414,6 +466,47 @@ RSpec.describe 'the app payload allow list' do
         _stdout, stderr, status = run_verifier(dir, dist)
 
         expect(stderr).to include('no app.asar found')
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'passes build products that match their pins and a rebuild of the commit' do
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], products: GOOD_PRODUCTS) do |dir, dist|
+        stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).not_to include('FAILED'), stderr
+        expect(stdout).to include('3 build products with their pins and rebuilds')
+        expect(status.exitstatus).to eq(0)
+      end
+    end
+
+    it 'reports a bundle that differs from a rebuild of the commit' do
+      # 1.0.0-beta.37: the bundle of the commit before its last, packed from
+      # the disk. Present and well-formed, so only a rebuild tells it apart.
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], products: GOOD_PRODUCTS.merge(JS_BUNDLE => 'stale')) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include("#{JS_BUNDLE} differs from the build of")
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports a vendor file that differs from its pin' do
+      # 1.0.0-beta.37 also shipped an nginx 404 page as a highlight.js theme.
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], products: GOOD_PRODUCTS.merge(PINNED_CSS => '<html>404</html>')) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include("#{PINNED_CSS} differs from the hash pinned in assets_list.sh")
+        expect(status.exitstatus).to eq(1)
+      end
+    end
+
+    it 'reports an untracked file that is neither pinned nor built' do
+      extra = GOOD_PRODUCTS.merge('docker/services/ruby/public/vendor/hljs/theme.css' => 'x')
+      with_fixture(%w[docker/a.rb], %w[docker/a.rb], products: extra) do |dir, dist|
+        _stdout, stderr, status = run_verifier(dir, dist)
+
+        expect(stderr).to include('vendor/hljs/theme.css ships, but')
         expect(status.exitstatus).to eq(1)
       end
     end

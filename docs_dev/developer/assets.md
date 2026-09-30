@@ -2,67 +2,38 @@
 
 ## Overview
 
-Monadic Chat provides CDN asset management scripts to download third-party libraries for offline use in both local development and Docker builds.
+The web UI serves third-party libraries from `/vendor` so that it works offline. They are downloaded, not tracked, so `assets_list.sh` is the only record of what they are: each entry pins a versioned URL and the sha256 of the file.
 
 ## Files
 
-- `/docker/services/ruby/bin/assets_list.sh`: Central configuration file defining all required assets
-- `/bin/assets.sh`: Script to download assets for local development
-- `/docker/services/ruby/scripts/download_assets.sh`: Script used during Docker builds
+- `/docker/services/ruby/bin/assets_list.sh`: the list, and the shell functions every consumer uses to read it (`vendor_manifest`, `vendor_fetch`)
+- `/bin/assets.sh`: fetches into the source tree (`rake download_vendor_assets`, also run by `rake build`)
+- `/docker/services/ruby/scripts/download_assets.sh`: runs during the Ruby image build
+- `/scripts/build_products.rb`: the packaging gates' view of the same list
 
 ## How to Add New Assets
 
-When you need to add a new library or asset:
-
-1. Add an entry to the `ASSETS` array in `/docker/services/ruby/bin/assets_list.sh`:
+1. Download the file from a versioned URL and take its sha256.
+2. Add an entry to the `ASSETS` array:
    ```
-   "type,url,filename"
+   "type,url,filename,sha256"
    ```
+   - `type`: `css` (vendor/css), `js` (vendor/js), `font` (vendor/fonts), `webfont` (vendor/webfonts)
+   - `url`: a URL that names the version, so it keeps returning the same bytes
+   - `sha256`: of the file as downloaded; nothing edits it afterwards
+3. Run `rake download_vendor_assets`.
 
-   Where:
-   - `type`: Asset type (css, js, font, webfont, mathfont)
-   - `url`: Full URL to the asset on CDN
-   - `filename`: Local filename to save as
+## How Fetching Works
 
-   Example:
-   ```bash
-   "js,https://cdn.example.com/library.min.js,library.min.js"
-   ```
+`vendor_fetch` keeps a file whose hash matches its pin and downloads any other (`curl --fail`). A failed download or a hash mismatch stops with an error, so an HTTP error page is never saved as an asset. It also writes `css/montserrat.css` from `MONTSERRAT_CSS` and links `css/fonts` to `../fonts`, where `katex.min.css` looks for the KaTeX fonts.
 
-2. No other changes are needed - all scripts use the same asset list.
-
-## Asset Types and Storage
-
-Assets are organized by type:
-- **CSS**: Stored in `vendor/css/`
-- **JS**: Stored in `vendor/js/`
-- **Fonts**: Stored in `vendor/fonts/` (for regular fonts like Montserrat)
-- **Webfonts**: Stored in `vendor/webfonts/` (for icon fonts like Font Awesome)
-- **Math fonts**: Stored in `vendor/js/output/chtml/fonts/woff-v2/` (for KaTeX)
-
-## Usage
-
-Run locally:
-```bash
-rake download_vendor_assets
-```
-
-This is automatically run during the build process when packaging the application.
+maxGraph has no browser build to download. `npm run build:maxgraph` builds `vendor/js/maxgraph.bundle.js` from the locked `@maxgraph/core`.
 
 ## Docker Integration
 
-Assets are downloaded during Docker build:
-- Automatically executed at build time (Dockerfile line 96)
-- Downloads to `/monadic/public/vendor/` in the container
-- Skips files that already exist
-- Includes special processing for Font Awesome CSS paths (converts relative paths to absolute)
-- Platform-specific sed commands handle macOS vs Linux differences
+The Ruby image copies `public/` from the app payload, which already holds the vendor files, and then runs `download_assets.sh`. The hashes match, so an image build needs no network for them. The files served in production are the ones in the payload.
 
-## Current Assets
+## Packaging Gates
 
-The system includes:
-- **CSS frameworks**: Bootstrap 5
-- **JavaScript libraries**: KaTeX, Mermaid, ABC.js
-- **Icon fonts**: Font Awesome
-- **Web fonts**: Montserrat family
-- **Media libraries**: Opus Media Recorder for audio recording
+- `stage_docker_payload.rb` ships exactly the files `vendor_manifest` lists, plus the font link and the maxGraph bundle. Other files in the vendor directory do not ship. A listed file whose hash differs from its pin stops staging.
+- `verify_bundle_payload.rb` compares every vendor file in each archive with its pin. It also builds the JS bundle and the maxGraph bundle again in a clean worktree of the commit staging read, and compares those with the packed copies.

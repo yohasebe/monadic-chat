@@ -35,6 +35,9 @@ bin/*.sh
 config/deprecated_model_terms.txt
 config/test/test-config.yml
 config/electron/entitlements.mac.plist
+config/linux/*.appdata.xml
+config/linux/licenses/{THIRD-PARTY-LIBRARIES,bundled-libraries.json}
+config/linux/licenses/{copyright,common-licenses}/*
 config/jest/jest.config.js
 lib/**/*.rb
 rakelib/*.rake

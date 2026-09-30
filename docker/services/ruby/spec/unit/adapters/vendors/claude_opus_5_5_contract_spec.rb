@@ -76,23 +76,38 @@ RSpec.describe 'Claude Opus 5.5 request contract' do
   end
 
   it 'replaces forced tool choice with auto when helper thinking is off' do
-    _, body = request(effort: 'none')
+    _, body = request(effort: nil)
     expect(body['tool_choice']).to eq('type' => 'auto')
     expect(body['tools']).not_to be_empty
     expect(body).not_to have_key('temperature')
     expect(body).not_to have_key('output_config')
   end
 
-  [{ effort: nil }, { effort: 'none' }, { effort: 'high', monadic: true }].each do |options|
+  %w[user tool].each do |role|
+    it "leaves an unspecified effort to the model's default on #{role}" do
+      headers, body = request(effort: nil, role: role)
+      expect(body['thinking']).to eq('type' => 'adaptive',
+                                    'block_binding' => { 'prefix_mismatch_behavior' => 'drop_block' })
+      expect(headers['anthropic-beta'].split(',')).to include('thinking-binding-controls-2026-08-01')
+      expect(body).not_to have_key('output_config')
+      expect(body).not_to have_key('temperature')
+    end
+  end
+
+  # Opus 5.5 cannot turn thinking off. Omitting `thinking` for "none" ran the
+  # default effort (medium), more than "low"; the lowest effort is what
+  # "none" can mean here, and it keeps block_binding.
+  [{ effort: 'none' }, { effort: 'high', monadic: true }].each do |options|
     %w[user tool].each do |role|
-      it "never sends disabled/enabled or an extra effort when thinking is off for #{options.inspect} on #{role}" do
+      it "sends the lowest effort when reasoning off is requested for #{options.inspect} on #{role}" do
         headers, body = request(**options, role: role)
-        expect(body['thinking']).to eq('type' => 'adaptive',
+        expect(body['thinking']).to eq('type' => 'adaptive', 'display' => 'summarized',
                                       'block_binding' => { 'prefix_mismatch_behavior' => 'drop_block' })
+        expect(body['output_config']).to eq('effort' => 'low')
         expect(headers['anthropic-beta'].split(',')).to include('thinking-binding-controls-2026-08-01')
         expect(body.dig('thinking', 'budget_tokens')).to be_nil
-        expect(body).not_to have_key('output_config')
         expect(body).not_to have_key('temperature')
+        expect(body['tool_choice']).to be_nil
       end
     end
   end
@@ -116,8 +131,10 @@ RSpec.describe 'Claude Opus 5.5 request contract' do
       expect(captured).not_to have_key('temperature')
       expect([nil, 'adaptive']).to include(captured.dig('thinking', 'type'))
       expect(captured.dig('thinking', 'budget_tokens')).to be_nil
-      if effort.nil? || effort == 'none'
+      if effort.nil?
         expect(captured).not_to have_key('output_config')
+      elsif effort == 'none'
+        expect(captured['output_config']).to eq('effort' => 'low')
       else
         expect(captured['output_config']).to eq('effort' => effort)
       end

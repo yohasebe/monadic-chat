@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.yohasebe.monadic_chat</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <name>Monadic Chat</name>
+  <summary>Chat with AI models that can use a Linux environment</summary>
+  <description>
+    <p>
+      Monadic Chat is a locally hosted application for creating and using AI chatbots.
+      It gives AI models a real Linux environment through Docker, so they can run code,
+      read documents and search the web while they answer.
+    </p>
+    <p>
+      It works with OpenAI, Claude, Gemini, Mistral, Cohere, xAI, DeepSeek and Ollama.
+      Conversations are data you keep: you can edit, export and import them.
+    </p>
+  </description>
+  <launchable type="desktop-id">monadic-chat.desktop</launchable>
+  <url type="homepage">https://yohasebe.github.io/monadic-chat/</url>
+  <url type="bugtracker">https://github.com/yohasebe/monadic-chat/issues</url>
+  <url type="vcs-browser">https://github.com/yohasebe/monadic-chat</url>
+  <developer id="io.github.yohasebe">
+    <name>Yoichiro Hasebe</name>
+  </developer>
+  <screenshots>
+    <screenshot type="default">
+      <caption>A conversation in the web interface</caption>
+      <image>https://yohasebe.github.io/monadic-chat/assets/images/appstream/chat-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The web interface in the dark theme</caption>
+      <image>https://yohasebe.github.io/monadic-chat/assets/images/appstream/chat-dark.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The console that starts and stops the Docker containers</caption>
+      <image>https://yohasebe.github.io/monadic-chat/assets/images/appstream/console.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+</component>

@@ -166,9 +166,20 @@ function openWebViewWindow(url, forceReload = false) {
     }
   );
 
+  // 1280x800 fits most screens. On a smaller one the window is maximized
+  // instead: the window manager knows where docks and panels are, while the
+  // work area Electron reports can include them (on Wayland it is the whole
+  // screen), so a size computed from it still opened partly off-screen on a
+  // 1024-wide Ubuntu desktop. Use the display the console window is on.
+  const { screen } = require('electron');
+  const display = (mainWindow && !mainWindow.isDestroyed())
+    ? screen.getDisplayMatching(mainWindow.getBounds())
+    : screen.getPrimaryDisplay();
+  const { width: workWidth, height: workHeight } = display.workAreaSize;
+  const smallScreen = workWidth < 1280 || workHeight < 800;
   webviewWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: Math.max(412, Math.min(1280, workWidth)),
+    height: Math.max(600, Math.min(800, workHeight)),
     // Prevent width below 320px; mobile styles apply below 1024px
     minWidth: 412,
     minHeight: 600,
@@ -188,6 +199,7 @@ function openWebViewWindow(url, forceReload = false) {
       devTools: !app.isPackaged
     }
   });
+  if (smallScreen) webviewWindow.maximize();
   // Set permission request handler to auto-approve media access requests
   webviewWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
     const allowedPermissions = ['media', 'microphone', 'audioCapture'];
@@ -596,7 +608,9 @@ class DockerManager {
     const st = await this.checkStatus();
     if (!st && process.platform === 'linux' && this.accessDenied) {
       // Starting Docker cannot help: it is running, but not for this user.
-      dialog.showErrorBox('Docker', i18n.t(this.dockerUnavailableMessageKey()));
+      // Shown in the main window rather than a modal dialog, which would
+      // cover the window at startup.
+      noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
       return;
     }
     if (!st) {
@@ -609,10 +623,11 @@ class DockerManager {
         })
         .catch(error => {
           console.error('Failed to start Docker Desktop:', error);
-          const detail = process.platform === 'linux'
-            ? i18n.t(this.dockerUnavailableMessageKey())
-            : 'Failed to start Docker Desktop. Please start it manually and try again.';
-          dialog.showErrorBox('Error', detail);
+          if (process.platform === 'linux') {
+            noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
+          } else {
+            dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+          }
         });
     }
   }
@@ -1059,8 +1074,8 @@ function checkForUpdates() {
 // Version check - shows download link instead of auto-updating
 // Node reports a failed connection to a multi-address host (IPv4 and IPv6
 // both tried) as an AggregateError whose own message is empty; the reasons
-// are in its inner errors. Without this, "Failed to check for updates:" ends
-// in nothing when the machine is offline.
+// are in its inner errors. Used for the log only: the reason is an error code
+// and a server address, which tells a user nothing they can act on.
 function describeNetworkError(err) {
   if (!err) return 'unknown error';
   const inner = Array.isArray(err.errors) && err.errors.length > 0 ? err.errors[0] : null;
@@ -1156,14 +1171,17 @@ function checkForUpdatesManual(showDialog = false) {
       }
     });
   }).on('error', (err) => {
+    console.warn(`Update check failed: ${describeNetworkError(err)}`);
     if (showDialog) {
       // Show error dialog only when menu is clicked
-      dialog.showErrorBox('Error', `Failed to check for updates: ${describeNetworkError(err)}`);
+      dialog.showErrorBox('Error', i18n.t('messages.failedToCheckUpdates'));
     } else {
-      // Display error in main window only on startup
+      // On startup the offline warning already says updates need a
+      // connection; repeating it here would only add noise.
+      if (startupOffline) return;
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('command-output', 
-          formatMessage('info', 'messages.failedToCheckUpdates', { error: describeNetworkError(err) }));
+        mainWindow.webContents.send('command-output',
+          formatMessage('info', 'messages.failedToCheckUpdates'));
       }
     }
   });
@@ -1199,6 +1217,18 @@ let isQuittingDialogShown = false;
 // running (local models, the UI and settings work offline); the main window
 // explains what needs a network once it has loaded.
 let startupOffline = false;
+// Notices written to the main window before its page has loaded would be
+// lost, so they wait here until did-finish-load flushes them.
+let mainWindowLoaded = false;
+const pendingMainWindowNotices = [];
+
+function noticeInMainWindow(html) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindowLoaded) {
+    writeToScreen(html);
+  } else {
+    pendingMainWindowNotices.push(html);
+  }
+}
 
 async function quitApp() {
   if (isQuittingDialogShown || forceQuit) return;
@@ -2932,6 +2962,8 @@ ipcMain.handle('get-translations', async (_e, lang) => {
 
 function createMainWindow() {
   if (mainWindow) return;
+  // A new window has not loaded yet; notices wait for its did-finish-load.
+  mainWindowLoaded = false;
   
   // Ensure Docker Manager loads settings on startup
   dockerManager.loadServerModeSettings();
@@ -2985,6 +3017,8 @@ function createMainWindow() {
     if (startupOffline) {
       writeToScreen(formatMessage('warning', 'messages.noInternetAtStartup') + '<hr />');
     }
+    mainWindowLoaded = true;
+    pendingMainWindowNotices.splice(0).forEach(html => writeToScreen(html));
     
     // Send interface language to Web UI
     const envPath = getEnvPath();
@@ -3033,13 +3067,18 @@ function createMainWindow() {
       writeToScreen(openingText);
       justLaunched = false;
       
-      // Show update checking message
-      writeToScreen(`[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
-      
-      // Check for updates after main window is loaded (no dialog)
-      setTimeout(() => {
-        checkForUpdatesManual(false); // false = no dialog, only main window notification
-      }, 2000); // Delay to ensure window is fully loaded
+      // Offline at startup: the warning above already says updates need a
+      // connection, and a check that cannot succeed would leave the
+      // "checking" line spinning with nothing to replace it.
+      if (!startupOffline) {
+        // Show update checking message
+        writeToScreen(`[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
+
+        // Check for updates after main window is loaded (no dialog)
+        setTimeout(() => {
+          checkForUpdatesManual(false); // false = no dialog, only main window notification
+        }, 2000); // Delay to ensure window is fully loaded
+      }
     }
   });
 
@@ -3593,13 +3632,35 @@ async function promptForPendingRebuilds() {
   const pending = computePendingContainerBuilds(imageStatus);
   if (pending.length === 0) return true;
 
-  const lines = pending.map(p => `• ${p.label} — ${p.reason} (${p.estimate})`).join('\n');
+  // A container that was never built is not "stale": on a fresh install
+  // nothing has been saved or built yet. Skipping it does not leave the
+  // feature broken either — ensure-service sets the container up the first
+  // time an app needs it, so that first use is the one that waits.
+  const notBuiltOnly = pending.every(p => p.reason === 'not yet built');
+  const someNotBuilt = pending.some(p => p.reason === 'not yet built');
+  const lines = pending
+    .map(p => (notBuiltOnly ? `• ${p.label} (${p.estimate})` : `• ${p.label} — ${p.reason} (${p.estimate})`))
+    .join('\n');
+  const dialogText = notBuiltOnly
+    ? {
+        title: 'Set up containers',
+        message: 'Some containers are not set up on this computer yet.',
+        detail: `${lines}\n\nSet them up now, or start without them. Each one is then set up ` +
+          'the first time a feature needs it, so that first use takes longer.',
+        buttons: ['Set Up and Start', 'Start Now', 'Cancel']
+      }
+    : {
+        title: 'Container rebuild recommended',
+        message: 'Some containers need to be rebuilt to apply your saved settings.',
+        detail: someNotBuilt
+          ? `${lines}\n\nWithout a rebuild, containers already built keep their previous settings. ` +
+            'Containers not built yet are set up the first time a feature needs them.'
+          : `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
+        buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel']
+      };
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'question',
-    title: 'Container rebuild recommended',
-    message: 'Some containers need to be rebuilt to apply your saved settings.',
-    detail: `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
-    buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel'],
+    ...dialogText,
     defaultId: 0,
     cancelId: 2,
     noLink: true

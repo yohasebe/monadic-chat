@@ -20,6 +20,8 @@ sufficient, and beta.33 and beta.35 both went out through this document.
   host drives mac + linux + the VM-signed win artifacts — no separate manual
   Windows step. Verify after building (see §9). See `docs_dev/electron-build.md`.
 - A clean working tree on the branch you intend to release from (usually `dev`).
+- `7zz` (`brew install sevenzip`): `verify_bundle_payload.rb` opens the AppImages
+  with it, and stops rather than skipping them when it is missing.
 
 ## 1. Bump the version (single source of truth)
 
@@ -287,7 +289,61 @@ That auto-derivation splits users into two paths:
 
 ## 9. Verify the build before publishing
 
-Run these on the mac host after `rake build`:
+What ships is checked automatically at two points, and both stop the build or
+the release rather than warn:
+
+- **Before packaging** (`scripts/before_pack.js`, every electron-builder entry
+  point): `app/` and `icons/` must hold only tracked files (electron-builder
+  packs them into app.asar and does not read `.gitignore`; files it drops on
+  its own, such as `.DS_Store`, are allowed), and the staged `build/app-payload`
+  must match the current sources byte for byte (`stage_docker_payload.rb
+  --check`), so a payload left from an earlier build cannot ship. Shipped
+  tracked files with uncommitted changes (staged or not) stop staging and this
+  check alike: a build ships what is committed. The files are hashed and
+  compared with HEAD, so `--skip-worktree` or `--assume-unchanged` does not
+  hide an edit. For a local test build only,
+  `MONADIC_ALLOW_UNCOMMITTED_BUILD=1` lets staging continue; the result cannot
+  pass the check below.
+- **After packaging and again before publishing** (`scripts/verify_bundle_payload.rb`,
+  mac zip, Windows zip and both AppImages): the `docker/`/`bin/` payload matches
+  the staged manifest; app.asar holds exactly the tracked `app/`, `icons/` and
+  `package.json` files and only production dependencies (compared as
+  name@version, because electron-builder hoists nested packages); nothing but
+  electron-builder's own output sits beside app.asar; the AppImage carries only
+  the toolset's known libraries, the app icon and the files named in
+  `linux.extraFiles` (the AppStream metainfo, compared with its committed
+  source) under `usr/`, root ownership and no xattr table. Every tracked file in app.asar and the payload must also
+  carry the bytes committed at HEAD when staging ran: staging records their
+  blob IDs in `build/app-tracked.blobs`, and git hashes the packed files for
+  the comparison. package.json is compared field by field instead, because
+  electron-builder drops fields from it when packing. The untracked build
+  products are compared too: each vendor file with the sha256 that
+  `assets_list.sh` pins, and the JS bundle and the maxGraph bundle with a
+  build of the same commit (staging records it in `build/app-commit`) made in
+  a clean worktree. Staging itself ships only the vendor files the list names
+  and stops on one that differs from its pin. The help database has its own
+  gate (`HelpDumpGuard`). Files that `extraResources` and
+  `linux.extraFiles` add (LICENSE, README.md, the AppStream metainfo) must be
+  present and match their committed sources; nothing else may sit in
+  `resources/app/` beside the payload. Staging stops on any other
+  `extraFiles`/`extraResources` setting, so a new one has to be added to the
+  verifier first. before_pack also passes electron-builder's effective
+  configuration (including `-c.<key>=` and `--config` overrides) to that check,
+  so an override that adds or moves an extra file stops the build.
+- **Libraries bundled in the AppImage**: electron-builder copies six
+  libraries from Ubuntu 18.04 packages into every AppImage's `usr/lib`; two
+  are GPL-3 and two LGPL. Their notices ship inside the AppImage
+  (`config/linux/licenses/`, via `linux.extraFiles`), and their source ships
+  beside it as `monadic-chat_<version>_linux-library-sources.tar`, which
+  `scripts/build_linux_library_sources.rb` assembles during `rake build` and
+  `release:github` attaches. Both the libraries and the source files are
+  pinned by SHA-256 in `config/linux/licenses/bundled-libraries.json`, and
+  `verify_bundle_payload.rb` checks the AppImages and the tar against it. When
+  an electron-builder update changes a library, the check stops the build:
+  identify the new Ubuntu package versions, then update the manifest, the
+  copyright files and THIRD-PARTY-LIBRARIES together.
+
+Then run these on the mac host after `rake build`:
 
 ```bash
 DMG="dist/Monadic.Chat-<version>-arm64.dmg"

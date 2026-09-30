@@ -2,7 +2,7 @@
   "name": "monadic-chat",
   "productName": "Monadic Chat",
   "desktopName": "monadic-chat.desktop",
-  "version": "1.0.0-beta.37",
+  "version": "1.0.0-beta.38",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
   "main": "app/main.js",
   "scripts": {
@@ -145,6 +145,52 @@
       ],
       "category": "Development",
       "syncDesktopName": true,
+      "extraFiles": [
+        {
+          "from": "config/linux/io.github.yohasebe.monadic_chat.appdata.xml",
+          "to": "usr/share/metainfo/io.github.yohasebe.monadic_chat.appdata.xml"
+        },
+        {
+          "from": "config/linux/licenses/THIRD-PARTY-LIBRARIES",
+          "to": "usr/share/doc/monadic-chat/THIRD-PARTY-LIBRARIES"
+        },
+        {
+          "from": "config/linux/licenses/copyright/libxss1",
+          "to": "usr/share/doc/libxss1/copyright"
+        },
+        {
+          "from": "config/linux/licenses/copyright/libxtst6",
+          "to": "usr/share/doc/libxtst6/copyright"
+        },
+        {
+          "from": "config/linux/licenses/copyright/libnotify4",
+          "to": "usr/share/doc/libnotify4/copyright"
+        },
+        {
+          "from": "config/linux/licenses/copyright/libgconf-2-4",
+          "to": "usr/share/doc/libgconf-2-4/copyright"
+        },
+        {
+          "from": "config/linux/licenses/copyright/libappindicator3-1",
+          "to": "usr/share/doc/libappindicator3-1/copyright"
+        },
+        {
+          "from": "config/linux/licenses/copyright/libindicator3-7",
+          "to": "usr/share/doc/libindicator3-7/copyright"
+        },
+        {
+          "from": "config/linux/licenses/common-licenses/GPL-3",
+          "to": "usr/share/common-licenses/GPL-3"
+        },
+        {
+          "from": "config/linux/licenses/common-licenses/LGPL-2",
+          "to": "usr/share/common-licenses/LGPL-2"
+        },
+        {
+          "from": "config/linux/licenses/common-licenses/LGPL-2.1",
+          "to": "usr/share/common-licenses/LGPL-2.1"
+        }
+      ],
       "artifactName": "monadic-chat_${version}_${arch}.${ext}",
       "defaultArch": "x64",
       "protocols": [

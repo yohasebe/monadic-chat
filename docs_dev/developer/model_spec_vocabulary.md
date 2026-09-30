@@ -77,6 +77,9 @@ This document defines the canonical property names used across providers in `mod
 - thinking_block_binding: boolean
   - The model binds each thinking block to the request prefix (system, tools, earlier messages) that produced it and rejects a replay after that prefix changed (Claude Fable 5.1; enforced by default on accounts created on or after 2026-08-31). `claude_helper` sends the `thinking-binding-controls-2026-08-01` beta with `thinking.block_binding.prefix_mismatch_behavior: drop_block` so the API drops the affected blocks and continues, and logs `input_transformations`.
 
+- thinking_on_by_default: boolean
+  - The API runs adaptive thinking when the request omits `thinking` (Claude Opus 5 / 5.5, Sonnet 5 / 5.5, Fable 5 / 5.1); on Opus 4.8 / 4.7 omitting it means no thinking. Some of these models cannot turn thinking off at all (Opus 5.5, Fable 5.1) and Sonnet 5.5 only through `between_tools`, which cannot be combined with `block_binding`. `claude_helper` therefore sends reasoning effort "none" on these models as adaptive thinking at the lowest effort in `reasoning_effort`, and the Web UI selects that lowest option when an app asks for "none" and the model does not offer it.
+
 - unavailable_fallback: string
   - A model id to transparently retry on when this model returns a 404 not_found. Used for temporarily-paused models whose API contract is identical to the fallback (e.g., `claude-fable-5` → `claude-opus-5` while Fable 5 access is paused). The vendor helper swaps the model id and reuses the request body verbatim; when the original model returns, the 404 stops and it is used again with no change. See `claude_helper.rb`.
 

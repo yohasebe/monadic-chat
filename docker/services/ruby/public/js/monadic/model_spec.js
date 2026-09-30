@@ -208,6 +208,24 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // GPT-6.1 Sol (2026-09-29): same price and limits as GPT-6 Sol, but
+  // reasoning cannot be turned off — "none" is a 400 (probed; the API lists
+  // low..max, default medium). The app default is the lowest level; an app
+  // asking for "none" gets it too (openai_helper#openai_effort_for).
+  "gpt-6.1-sol": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
   "gpt-6-sol": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
@@ -415,6 +433,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -442,6 +461,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -468,6 +488,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -498,6 +519,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -575,6 +597,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -601,6 +624,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -1630,7 +1654,7 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
+    "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
     "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
     "vision": ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],

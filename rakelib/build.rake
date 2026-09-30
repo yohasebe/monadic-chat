@@ -69,6 +69,17 @@ namespace :build do
     # updates are a deliberate step (npm update + commit), not a
     # side effect of building.
     sh "npm ci"
+    # Build the JS bundle before staging. Each `npm run build:*` rebuilds it
+    # again before electron-builder, but electron-builder packs the staged
+    # copy, so staging a bundle left on disk by an earlier build shipped stale
+    # UI code: 1.0.0-beta.37 carried the bundle of the commit before its last,
+    # without the Claude Sonnet 5.5 model spec. The build is deterministic, so
+    # the later rebuilds produce the same bytes, and before_pack stops the
+    # build if they do not.
+    sh "npm run build:js"
+    # maxGraph has no browser build to download; this makes it from the locked
+    # @maxgraph/core, and verify_bundle_payload.rb builds it again to compare.
+    sh "npm run build:maxgraph"
     # Assemble the payload that ships inside the app from an allow list.
     # electron-builder points at build/app-payload, so whatever is not staged
     # here cannot reach a release — the deny-list filter this replaces shipped
@@ -159,6 +170,7 @@ namespace :build do
     setup_build_environment(skip_help_db: skip_help_db)
     puts "Building Linux x64 package..."
     sh "npm run build:linux-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+    sh "ruby scripts/build_linux_library_sources.rb"
   end
 
   desc "Build Linux arm64 package only"
@@ -167,6 +179,7 @@ namespace :build do
     setup_build_environment(skip_help_db: skip_help_db)
     puts "Building Linux arm64 package..."
     sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+    sh "ruby scripts/build_linux_library_sources.rb"
   end
 
   desc "Build macOS package (arm64 only, Apple Silicon)"
@@ -197,6 +210,10 @@ task :build do
   sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   sh "npm run build:win -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
+
+  # The AppImages carry third-party libraries whose licenses require their
+  # source to go with them; see config/linux/licenses/THIRD-PARTY-LIBRARIES.
+  sh "ruby scripts/build_linux_library_sources.rb"
 
   # macOS post-steps — keep in lockstep with build:mac_arm64 above. Until
   # 2026-06-13 these ran only in the single-platform task, so an
@@ -241,7 +258,9 @@ task :build do
 
     # Linux files (AppImage is the auto-update-compatible format)
     "linux_x64_appimage" => "monadic-chat_VERSION_x86_64.AppImage",
-    "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage"
+    "linux_arm64_appimage" => "monadic-chat_VERSION_arm64.AppImage",
+    # Source of the libraries the AppImages carry (GPL/LGPL)
+    "linux_library_sources" => "monadic-chat_VERSION_linux-library-sources.tar"
   }
   
   # Find all necessary files using flexible matching

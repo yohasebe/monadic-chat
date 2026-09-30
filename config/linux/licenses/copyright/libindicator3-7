@@ -1,0 +1,17 @@
+Format-Specification: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=135
+Name: libindicator
+Maintainer: Ted Gould <ted@canonical.com>
+Source: https://launchpad.net/libindicator
+
+Files: *
+Copyright: 2009-2010 Ted Gould <ted@canonical.com>, Canonical Ltd.
+License: GPL-3
+
+Files: debian/*
+Copyright: 2009-2010 Evgeni Golov <evgeni@debian.org>
+Copyright: 2009-2010 Ted Gould <ted@canonical.com>, Canonical Ltd.
+License: GPL-3
+
+License: GPL-3
+On Debian systems, the complete text of the GNU General
+ Public License version 3 can be found in `/usr/share/common-licenses/GPL-3'.

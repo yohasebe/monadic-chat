@@ -809,6 +809,12 @@ window.loadParams = function(params, calledFor = "loadParams") {
           let effortValue;
           if (reasoning_effort && availableOptions.includes(reasoning_effort)) {
             effortValue = reasoning_effort;
+          } else if (reasoning_effort === 'none' || reasoning_effort === 'minimal') {
+            // The app asks for as little reasoning as possible, but this model
+            // cannot switch it off (e.g. Claude Opus 5.5). The options are listed
+            // from lowest to highest, so take the lowest rather than the model's
+            // default, which is well above it.
+            effortValue = availableOptions[0];
           } else {
             let suggested = ReasoningMapper.getDefaultValue(provider, model);
             effortValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];

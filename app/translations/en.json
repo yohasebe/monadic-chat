@@ -156,7 +156,7 @@
     "downloadingUpdate": "Downloading update to version {{version}} . . .",
     "usingLatestVersion": "You are using the latest version ({{version}}).",
     "failedToRetrieveVersion": "Failed to retrieve the latest version number.",
-    "failedToCheckUpdates": "Failed to check for updates: {{error}}",
+    "failedToCheckUpdates": "Could not reach the update server. Check your network connection and try again.",
     "removingContainers": "Removing containers and images.",
     "stoppingAllProcesses": "Stopping all processes.",
     "systemStopped": "System stopped at {{time}}",

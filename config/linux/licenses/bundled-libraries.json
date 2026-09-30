@@ -1,0 +1,186 @@
+{
+  "origin": "Ubuntu 18.04 (bionic) packages, as copied into AppImages by electron-builder appimage@1.0.3",
+  "archive": "http://archive.ubuntu.com/ubuntu/",
+  "libraries": [
+    {
+      "binary_package": "libxss1",
+      "version": "1:1.2.2-1",
+      "pocket": "bionic",
+      "license": "MIT/X11",
+      "files": {
+        "libXss.so.1.0.0": {
+          "x64": "270fe6e4d430118793d01cac5c6081d0ea9e244cfcf510475bc779bef21b754a",
+          "arm64": "0e9314353f7f0262beeee9042f633b85103e4c6a318bb213c5765adaee982ac7"
+        }
+      },
+      "source_package": "libxss",
+      "source_files": [
+        {
+          "path": "pool/main/libx/libxss/libxss_1.2.2-1.dsc",
+          "size": 2042,
+          "sha256": "22379490d80d7661c793f0f016a5e12255fdb53a0b2b58b6fe14afa805fcac3f"
+        },
+        {
+          "path": "pool/main/libx/libxss/libxss_1.2.2.orig.tar.gz",
+          "size": 348915,
+          "sha256": "e12ba814d44f7b58534c0d8521e2d4574f7bf2787da405de4341c3b9f4cc8d96"
+        },
+        {
+          "path": "pool/main/libx/libxss/libxss_1.2.2-1.diff.gz",
+          "size": 14712,
+          "sha256": "fcc9c125f3af01da27f6cee798410a7907a63802f5c6360f972e12b1ff59e6c1"
+        }
+      ]
+    },
+    {
+      "binary_package": "libxtst6",
+      "version": "2:1.2.3-1",
+      "pocket": "bionic",
+      "license": "MIT/X11",
+      "files": {
+        "libXtst.so.6.1.0": {
+          "x64": "a3343e51790f219fbb3cb48bc1ba267b4727d9e9277e43cdfc081deb14d910b2",
+          "arm64": "ace11faf6473edaee67ed800325c71e68e8f704e0b9fd0bb52592ff66f37df06"
+        }
+      },
+      "source_package": "libxtst",
+      "source_files": [
+        {
+          "path": "pool/main/libx/libxtst/libxtst_1.2.3-1.dsc",
+          "size": 2243,
+          "sha256": "979f05e505ea319c3f75955e10345338f77a512f5a6a0a887d6f4633d6bd4633"
+        },
+        {
+          "path": "pool/main/libx/libxtst/libxtst_1.2.3.orig.tar.gz",
+          "size": 400197,
+          "sha256": "a0c83acce02d4923018c744662cb28eb0dbbc33b4adc027726879ccf68fbc2c2"
+        },
+        {
+          "path": "pool/main/libx/libxtst/libxtst_1.2.3-1.diff.gz",
+          "size": 10177,
+          "sha256": "c4739fc7ccda7caaffcf36f934b7c33463390e71d567c7d62f635db1946b74ed"
+        }
+      ]
+    },
+    {
+      "binary_package": "libnotify4",
+      "version": "0.7.7-3ubuntu0.18.04.1",
+      "pocket": "bionic-updates",
+      "license": "LGPL-2.1",
+      "files": {
+        "libnotify.so.4.0.0": {
+          "x64": "980f4f40c18f122a5e560fb41147ccc1bcd13992a2bbf26b11c4ecb8081c0fd3",
+          "arm64": "f5d1c6d1d9058fe027c6880ec88fb5286e0b1e6fdc91a5ffb4ababd3d9d32f7b"
+        }
+      },
+      "source_package": "libnotify",
+      "source_files": [
+        {
+          "path": "pool/main/libn/libnotify/libnotify_0.7.7.orig.tar.xz",
+          "size": 285356,
+          "sha256": "9cb4ce315b2655860c524d46b56010874214ec27e854086c1a1d0260137efc04"
+        },
+        {
+          "path": "pool/main/libn/libnotify/libnotify_0.7.7-3ubuntu0.18.04.1.debian.tar.xz",
+          "size": 12696,
+          "sha256": "2e2d0b3159e7ade0d24077c5d075e741d5da932fce3cd7ce7629d4e146d6b81a"
+        },
+        {
+          "path": "pool/main/libn/libnotify/libnotify_0.7.7-3ubuntu0.18.04.1.dsc",
+          "size": 2893,
+          "sha256": "660792a687f93da02e4dbdd7312313ecc8dba46778cc2415f42885d98bf4e1b5"
+        }
+      ]
+    },
+    {
+      "binary_package": "libgconf-2-4",
+      "version": "3.2.6-4ubuntu1",
+      "pocket": "bionic",
+      "license": "LGPL-2",
+      "files": {
+        "libgconf-2.so.4.1.5": {
+          "x64": "ad8ca9b6042cb2790ea143451e1f166fb4806aef2dd96fba00b20e37a32abf35",
+          "arm64": "04125aba09cbc82ba54c9eeecde53548852031fdc88f99fea16ab0a39a2040c4"
+        }
+      },
+      "source_package": "gconf",
+      "source_files": [
+        {
+          "path": "pool/universe/g/gconf/gconf_3.2.6-4ubuntu1.dsc",
+          "size": 2538,
+          "sha256": "4b6c4632c430e1e4c904b604487efe9bf485fca93dcd249fbdf9d55b63d45b75"
+        },
+        {
+          "path": "pool/universe/g/gconf/gconf_3.2.6.orig.tar.xz",
+          "size": 1559904,
+          "sha256": "1912b91803ab09a5eed34d364bf09fe3a2a9c96751fde03a4e0cfa51a04d784c"
+        },
+        {
+          "path": "pool/universe/g/gconf/gconf_3.2.6-4ubuntu1.debian.tar.xz",
+          "size": 34816,
+          "sha256": "5e00f57a5bf5ab0d3460bd41be2be0e8ae6e1785d4882f8268244e672327a19c"
+        }
+      ]
+    },
+    {
+      "binary_package": "libappindicator3-1",
+      "version": "12.10.1+18.04.20200408.1-0ubuntu1",
+      "pocket": "bionic-updates",
+      "license": "GPL-3 (some files LGPL-2.1)",
+      "files": {
+        "libappindicator3.so.1.0.0": {
+          "x64": "e986459b76c7592b6ee5a27a3ed1bae6aded0c677e9d6efc52d34499006e7fde",
+          "arm64": "beb131c6ea832c20fce41c9fe50ae557d50f272262632dd3df6a5a3cc01da984"
+        }
+      },
+      "source_package": "libappindicator",
+      "source_files": [
+        {
+          "path": "pool/main/liba/libappindicator/libappindicator_12.10.1+18.04.20200408.1.orig.tar.gz",
+          "size": 71211,
+          "sha256": "0a895d2014cdc4d939d46f6b8a1462759c96c3cb8a50a6a9a9c649216f71e3f9"
+        },
+        {
+          "path": "pool/main/liba/libappindicator/libappindicator_12.10.1+18.04.20200408.1-0ubuntu1.diff.gz",
+          "size": 13350,
+          "sha256": "cf6e5037666818558482ea824572fb57843f4f17b6f127cf3076ab41dcb0575a"
+        },
+        {
+          "path": "pool/main/liba/libappindicator/libappindicator_12.10.1+18.04.20200408.1-0ubuntu1.dsc",
+          "size": 3492,
+          "sha256": "067b7f80dc97708390ee335b49b98d969122ca324be847d6814d9ca3bdd59326"
+        }
+      ]
+    },
+    {
+      "binary_package": "libindicator3-7",
+      "version": "16.10.0+18.04.20180321.1-0ubuntu1",
+      "pocket": "bionic",
+      "license": "GPL-3",
+      "files": {
+        "libindicator3.so.7.0.0": {
+          "x64": "9ef1b4287cbf444af16f3e3da4fa97b6305a0329f457fb25b1ae6a6fd271baea",
+          "arm64": "68d5ba7792e63ea17c22ff9d9d86de5abf68a13867bfdc067b146d8df3d23ed0"
+        }
+      },
+      "source_package": "libindicator",
+      "source_files": [
+        {
+          "path": "pool/main/libi/libindicator/libindicator_16.10.0+18.04.20180321.1-0ubuntu1.dsc",
+          "size": 2780,
+          "sha256": "27b0725d489bcea5420399896821a4d61b74562acc6554014a9332c8b176b917"
+        },
+        {
+          "path": "pool/main/libi/libindicator/libindicator_16.10.0+18.04.20180321.1.orig.tar.gz",
+          "size": 70462,
+          "sha256": "0029ac3aa8d5a339de252f66209b40c12e5bfa9072221b9b32d07844273f62fd"
+        },
+        {
+          "path": "pool/main/libi/libindicator/libindicator_16.10.0+18.04.20180321.1-0ubuntu1.diff.gz",
+          "size": 11162,
+          "sha256": "f229914c774a2b647350831b40c6066ab38e2ba8a86b7ad468de0f0e5e750eaf"
+        }
+      ]
+    }
+  ]
+}

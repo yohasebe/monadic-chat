@@ -415,6 +415,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -442,6 +443,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -468,6 +470,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -498,6 +501,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -575,6 +579,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -601,6 +606,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true,
     "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,

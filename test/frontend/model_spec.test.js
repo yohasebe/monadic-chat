@@ -33,6 +33,23 @@ describe('Model Specification', () => {
     expect(modelSpec['grok-4.3']).toBeDefined();
   });
 
+  // Reasoning effort "none" on Claude: where the API thinks whenever
+  // `thinking` is omitted, the Web UI and claude_helper send the lowest
+  // listed effort instead. Checked here as well as in Ruby because both
+  // stacks read this file.
+  it('flags the Claude models that think when thinking is omitted', () => {
+    const flagged = Object.keys(modelSpec).filter(m => m.startsWith('claude-') && modelSpec[m].thinking_on_by_default);
+    expect(flagged.sort()).toEqual([
+      'claude-fable-5', 'claude-fable-5-1', 'claude-opus-5', 'claude-opus-5-5', 'claude-sonnet-5', 'claude-sonnet-5-5'
+    ]);
+    flagged.forEach(m => {
+      expect(modelSpec[m].supports_adaptive_thinking).toBe(true);
+      // Listed lowest first, which is what the UI takes for "none"
+      expect(modelSpec[m].reasoning_effort[0][0]).toBe('low');
+      expect(modelSpec[m].reasoning_effort[0]).not.toContain('none');
+    });
+  });
+
   // The vocabularies the image tools' enums are built from. Kept here as well
   // as in Ruby because both stacks read the same file — a change that breaks
   // one should break the other.

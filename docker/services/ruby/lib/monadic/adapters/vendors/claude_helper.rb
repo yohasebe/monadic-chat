@@ -209,7 +209,9 @@ module ClaudeHelper
     # way the chat path does: reuse configure_claude_thinking so adaptive models
     # get output_config.effort and budget models get thinking.budget_tokens.
     # Extended thinking requires temperature to be unset, so drop it when on.
-    if options["reasoning_effort"] && options["reasoning_effort"] != "none"
+    # "none" goes through configure_claude_thinking too: on models that always
+    # think it becomes the lowest effort rather than the model's default.
+    if options["reasoning_effort"]
       # configure_claude_thinking reads obj["model"]; send_query's authoritative
       # model is the keyword arg, so merge it in (options may omit "model").
       tc = configure_claude_thinking(options.merge("model" => model), model, max_tokens_value, nil)
@@ -512,6 +514,24 @@ module ClaudeHelper
 
       if monadic_with_structured_outputs
         Monadic::Utils::ExtraLogger.log { "Claude: Thinking mode disabled for monadic app with structured outputs\n  Model: #{obj["model"]}\n  App: #{app}" }
+      end
+
+      # On models that think whenever `thinking` is omitted, leaving it out for
+      # "none" ran the model's default effort (high on Sonnet 5.5, medium on
+      # Opus 5.5) — more reasoning than "low". Opus 5.5 and Fable 5.1 cannot
+      # turn thinking off, and Sonnet 5.5's `between_tools` cannot carry the
+      # block_binding that dynamically loaded skills need, so send the lowest
+      # effort the model offers. Only an explicit request to switch reasoning
+      # off does this; an unspecified effort still gets the model's default.
+      requested_off = obj["reasoning_effort"] == "none" || monadic_with_structured_outputs
+      if supports_thinking && use_adaptive && requested_off &&
+         Monadic::Utils::ModelSpec.thinking_on_by_default?(obj["model"])
+        lowest = Monadic::Utils::ModelSpec.get_reasoning_effort_options(obj["model"])&.dig(:options)&.first
+        if lowest
+          thinking_enabled = true
+          adaptive_effort = lowest
+          Monadic::Utils::ExtraLogger.log { "Claude: reasoning off requested; #{obj["model"]} always thinks, sending effort #{lowest}" }
+        end
       end
     end
 

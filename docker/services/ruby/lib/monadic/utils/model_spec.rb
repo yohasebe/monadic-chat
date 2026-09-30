@@ -365,6 +365,15 @@ module Monadic
           get_model_property(model_name, "thinking_block_binding") == true
         end
 
+        # True when the API runs adaptive thinking if the request omits
+        # `thinking` (Claude Opus 5 / 5.5, Sonnet 5 / 5.5, Fable 5 / 5.1),
+        # unlike Opus 4.8 / 4.7, where omitting it means no thinking. On these
+        # models reasoning effort "none" cannot be expressed by leaving thinking
+        # out, so claude_helper sends the lowest effort instead.
+        def thinking_on_by_default?(model_name)
+          get_model_property(model_name, "thinking_on_by_default") == true
+        end
+
         def supports_thinking_level?(model_name)
           get_model_property(model_name, "supports_thinking_level") == true
         end

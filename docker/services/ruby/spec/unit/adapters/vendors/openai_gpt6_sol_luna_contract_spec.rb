@@ -84,8 +84,9 @@ RSpec.describe 'GPT-6 Sol and Luna request contract' do
   end
 
   it 'changes chat and vision defaults while preserving old choices and the code default' do
-    expect(spec.default_chat_model('openai')).to eq('gpt-6-sol')
-    expect(spec.get_provider_models('openai', 'chat').take(2)).to eq(%w[gpt-6-sol gpt-6-luna])
+    # GPT-6.1 Sol took the chat default on 2026-09-30; GPT-6 Sol stays next.
+    expect(spec.default_chat_model('openai')).to eq('gpt-6.1-sol')
+    expect(spec.get_provider_models('openai', 'chat').take(3)).to eq(%w[gpt-6.1-sol gpt-6-sol gpt-6-luna])
     expect(spec.get_provider_models('openai', 'chat')).to include('gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna')
     expect(spec.default_vision_model('openai')).to eq('gpt-6-luna')
     expect(spec.get_provider_models('openai', 'vision')).to include('gpt-5.6-luna')

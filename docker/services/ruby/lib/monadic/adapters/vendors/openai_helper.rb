@@ -238,7 +238,8 @@ module OpenAIHelper
     if options["reasoning_effort"]
       begin
         if Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
-          body["reasoning_effort"] = options["reasoning_effort"]
+          effort = openai_effort_for(model, options["reasoning_effort"])
+          body["reasoning_effort"] = effort if effort
         end
       rescue StandardError
         # ignore if spec lookup fails
@@ -395,6 +396,22 @@ module OpenAIHelper
   end
 
   # Build the base request body (model, stream, temperature, penalties, reasoning, max_tokens).
+  # The reasoning effort to send for a requested one, from the model's list in
+  # model_spec. A listed value is sent as is. "none" or "minimal" on a model
+  # that cannot turn reasoning off (gpt-6.1-sol lists low..max) becomes the
+  # lowest listed level: sending it verbatim is a 400, and leaving it out runs
+  # the API default (medium), more than the app asked for. Anything else that
+  # is not listed is left out.
+  private def openai_effort_for(model, requested)
+    return nil if requested.nil? || requested.to_s.empty?
+
+    options = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options)
+    return requested if options.nil? || options.include?(requested)
+    return options.first if %w[none minimal].include?(requested.to_s)
+
+    nil
+  end
+
   private def build_openai_base_body(model, obj, app, caps, max_completion_tokens, temperature, presence_penalty, frequency_penalty)
     body = { "model" => model }
     reasoning_model = caps[:reasoning_model]
@@ -407,9 +424,8 @@ module OpenAIHelper
     end
 
     if reasoning_model
-      if reasoning_effort
-        body["reasoning_effort"] = reasoning_effort
-      end
+      effort = openai_effort_for(model, reasoning_effort)
+      body["reasoning_effort"] = effort if effort
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
@@ -1026,7 +1042,7 @@ module OpenAIHelper
     }
 
     effort_config = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
-    effort = body["reasoning_effort"] || obj["reasoning_effort"] || effort_config&.dig(:default)
+    effort = openai_effort_for(model, body["reasoning_effort"] || obj["reasoning_effort"] || effort_config&.dig(:default))
     if effort && effort_config && effort_config[:options].include?(effort)
       # Omitting "none" would select the API's default reasoning level.
       responses_body["reasoning"] = { "effort" => effort }

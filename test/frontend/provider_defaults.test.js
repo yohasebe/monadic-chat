@@ -88,8 +88,9 @@ describe('providerDefaults', () => {
   });
 
   describe('default model values (first element)', () => {
-    it('openai chat default is gpt-6-sol', () => {
-      expect(providerDefaults.openai.chat[0]).toBe('gpt-6-sol');
+    it('openai chat default is gpt-6.1-sol, with gpt-6-sol kept next', () => {
+      expect(providerDefaults.openai.chat[0]).toBe('gpt-6.1-sol');
+      expect(providerDefaults.openai.chat[1]).toBe('gpt-6-sol');
     });
 
     it('anthropic chat default is claude-sonnet-5-5', () => {

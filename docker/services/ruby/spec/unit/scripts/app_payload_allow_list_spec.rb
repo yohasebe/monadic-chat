@@ -131,6 +131,17 @@ RSpec.describe 'the app payload allow list' do
       expect(build_rake).to include('sh "ruby scripts/stage_docker_payload.rb"')
     end
 
+    it 'builds the JS bundle before staging it' do
+      # electron-builder packs the staged copy. Staging a bundle left on disk
+      # by an earlier build shipped stale UI code in 1.0.0-beta.37.
+      setup = build_rake[build_rake.index('def setup_build_environment')..]
+      bundle_at = setup.index('sh "npm run build:js"')
+      stage_at = setup.index('sh "ruby scripts/stage_docker_payload.rb"')
+      expect(bundle_at).not_to be_nil
+      expect(stage_at).not_to be_nil
+      expect(bundle_at).to be < stage_at
+    end
+
     it 'checks the archives after packaging' do
       expect(build_rake).to include('sh "ruby scripts/verify_bundle_payload.rb"')
     end

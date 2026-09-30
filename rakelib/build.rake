@@ -69,6 +69,14 @@ namespace :build do
     # updates are a deliberate step (npm update + commit), not a
     # side effect of building.
     sh "npm ci"
+    # Build the JS bundle before staging. Each `npm run build:*` rebuilds it
+    # again before electron-builder, but electron-builder packs the staged
+    # copy, so staging a bundle left on disk by an earlier build shipped stale
+    # UI code: 1.0.0-beta.37 carried the bundle of the commit before its last,
+    # without the Claude Sonnet 5.5 model spec. The build is deterministic, so
+    # the later rebuilds produce the same bytes, and before_pack stops the
+    # build if they do not.
+    sh "npm run build:js"
     # Assemble the payload that ships inside the app from an allow list.
     # electron-builder points at build/app-payload, so whatever is not staged
     # here cannot reach a release — the deny-list filter this replaces shipped

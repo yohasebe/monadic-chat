@@ -110,7 +110,6 @@ docs/**/*.{md,png,svg,jpg}
 docs/**/favicon/{favicon.ico,site.webmanifest}
 docs/**/.gitkeep
 docs/assets/images/workflows/manifest.json
-docs/assets/sessions/image-generator.json
 docs/examples/*.example
 docs_dev/.nojekyll
 docs_dev/index.html

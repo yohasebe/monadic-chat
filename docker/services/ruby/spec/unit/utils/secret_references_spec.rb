@@ -113,6 +113,19 @@ RSpec.describe Monadic::Utils::SecretReferences do
     end
   end
 
+  describe ".config_value without a file on disk" do
+    # CI has no ~/monadic/config/env; specs stub File.read for its path. An
+    # existence check before reading bypassed the stub and broke them there
+    # while they passed on a machine that has the file.
+    it "reads through File.read, so a stubbed read is honoured" do
+      path = File.join(@dir, "absent-env")
+      allow(File).to receive(:read).and_call_original
+      allow(File).to receive(:read).with(path).and_return("GEMINI_API_KEY=test-key\n")
+      expect(refs.config_value("GEMINI_API_KEY", path)).to eq("test-key")
+      expect(refs.config_value("GEMINI_API_KEY", File.join(@dir, "really-absent"))).to be_nil
+    end
+  end
+
   describe ".scrub_env!" do
     it "removes references that Dotenv copied into ENV and keeps everything else" do
       env = { "OPENAI_API_KEY" => "op://Test/OPENAI/credential", "XAI_API_KEY" => "xai-plain", "HOME" => "/root" }

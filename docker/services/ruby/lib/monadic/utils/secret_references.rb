@@ -48,8 +48,7 @@ module Monadic
       # One key from config/env, resolved, for scripts that read the file
       # themselves instead of loading CONFIG. nil when absent or unresolved.
       def config_value(key, path = Environment.env_path)
-        return nil unless File.file?(path)
-
+        # Read directly; a missing file is a SystemCallError like any other.
         line = File.read(path).each_line.map(&:strip).reverse.find { |l| l.start_with?("#{key}=") }
         return nil unless line
 

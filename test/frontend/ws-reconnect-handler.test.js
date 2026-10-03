@@ -95,6 +95,20 @@ describe('WsReconnectHandler', () => {
       expect(window.connect_websocket).not.toHaveBeenCalled();
     });
 
+    it('still sends over an open socket in silent mode (after Stop and a reload)', () => {
+      // The silent_reconnect cookie survives a page reload; sends go through
+      // reconnect_websocket, which used to return before running them.
+      document.cookie = 'silent_reconnect=true';
+      window.silentReconnectMode = true;
+      const handler = loadHandler();
+      window.ws = { readyState: 1, _reconnectAttempts: 0, _isReconnecting: false };
+      const callback = jest.fn();
+      handler.reconnect_websocket(window.ws, callback);
+      expect(callback).toHaveBeenCalledWith(window.ws);
+      expect(window.silentReconnectMode).toBe(false);
+      expect(window.connect_websocket).not.toHaveBeenCalled();
+    });
+
     it('should not reconnect when already reconnecting', () => {
       const handler = loadHandler();
       const mockWs = { readyState: 3, _isReconnecting: true };

@@ -262,6 +262,13 @@ window.loadedApp = "Chat";
 
   ws.onopen = function () {
     if (window.debugWebSocket) console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
+    // A connection means the server is back, so an intentional stop is over.
+    // The cookie that marks it survives a page reload; left in place it kept
+    // silent mode on and reconnect_websocket dropped every send.
+    try {
+      window.silentReconnectMode = false;
+      document.cookie = 'silent_reconnect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    } catch (_) { console.warn("[WebSocket] Silent reconnect cleanup failed:", _); }
     // Update state if available
     if (window.UIState) {
       window.UIState.set('wsConnected', true);

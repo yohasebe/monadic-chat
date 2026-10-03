@@ -2330,6 +2330,21 @@ build_extractor_container)
     exit 1
   fi
   ;;
+# Values the desktop app read from 1Password for config/env entries written
+# as op:// references (MONADIC_RUBY_CONTAINER names another container, for
+# the isolation check). They arrive on stdin (never in argv or the
+# environment) and go straight into the Ruby container's tmpfs; the rename
+# makes the file appear complete, since the entrypoint waits for it.
+deliver-secrets)
+  "${DOCKER}" exec -i "${MONADIC_RUBY_CONTAINER:-monadic-chat-ruby-container}" sh -c \
+    'umask 077 && cat > /run/monadic-secrets/env.tmp && mv /run/monadic-secrets/env.tmp /run/monadic-secrets/env' \
+    || { echo "deliver-secrets: could not write to the Ruby container" >&2; exit 1; }
+  ;;
+# When the Ruby container last started, or nothing if it is not running, so
+# the app can deliver again after any restart of that container.
+ruby-started-at)
+  "${DOCKER}" inspect -f '{{if .State.Running}}{{.State.StartedAt}}{{end}}' "${MONADIC_RUBY_CONTAINER:-monadic-chat-ruby-container}" 2>/dev/null || true
+  ;;
 *)
   echo "Usage: $0 {build|start|stop|restart|update|remove|check}" >&2
   # exit 1

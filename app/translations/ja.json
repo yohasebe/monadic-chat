@@ -165,6 +165,16 @@
     "serverStoppedAfterSleep": "スリープ/復帰後にサーバーが停止しました。サーバーを再起動してください。",
     "quittingMonadicChat": "Monadic Chatを終了しています...",
     "monadicChatPreparing": "Monadic Chatを準備しています...",
+    "opReferencesReading": "1Password から {{count}} 個のキーを読み込んでいます . . .",
+    "opReferenceFailed": "{{key}} を 1Password から読み込めませんでした：{{reason}}。次に Start するまで、このキーを使う機能は使えません。",
+    "opReferenceReasons": {
+      "opMissing": "1Password の CLI（op）が見つかりません",
+      "notSignedIn": "1Password がロックされているか、CLI がサインインしていません",
+      "cancelled": "確認が取り消されました",
+      "notFound": "参照の先に、該当する項目またはフィールドがありません",
+      "timeout": "1Password の応答が時間内にありませんでした",
+      "failed": "1Password の CLI がエラーを返しました"
+    },
     "monadicChatStopping": "Monadic Chatを停止しています...",
     "monadicChatRestarting": "Monadic Chatを再起動しています...",
     "buildingMonadicChat": "Monadic Chatをビルドしています...",

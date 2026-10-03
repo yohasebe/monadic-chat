@@ -57,6 +57,22 @@ OpenAIのデフォルトモデルの場合：
 | `ELEVENLABS_API_KEY` | TTSおよびScribe音声認識用のElevenLabs APIキー | はい（ElevenLabs音声使用時） | `...` |
 | `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー — 対応は[プロバイダー機能概要](../basic-usage/basic-apps.md#provider-capabilities)を参照 | Tavily経由のウェブ検索時に必要 | `tvly-...` |
 
+### APIキーを 1Password から読み込む :id=onepassword-references
+
+`~/monadic/config/env` の値には、キーそのものの代わりに 1Password のシークレット参照を書けます。
+
+```
+OPENAI_API_KEY=op://Dev/OpenAI/credential
+```
+
+`op://` で始まらない値は、これまでどおり書かれた値をそのまま使います。
+
+- **必要なもの**: アプリを動かすコンピュータの [1Password CLI](https://developer.1password.com/docs/cli/)（`op`）。サインインしているか、1Password のデスクトップアプリと連携している必要があります。アプリは `PATH` と、一般的なインストール先から `op` を探します。
+- **読み込むとき**: Start を押したときに、すべての参照を 1 回の `op` の呼び出しで読み込みます。1Password の確認は 1 回です。読み込んだ値はアプリを終了するまで保持し、Restart やコンテナの再起動では読み直しません。設定で参照を変えた場合は、次の Start で読み直します。
+- **値の置き場所**: `~/monadic/config/env` には参照のまま残ります。値はアプリのメモリに置き、メモリ上のマウント（tmpfs）を通して Ruby のコンテナに渡します。ファイル、コンテナの設定、コンテナの環境変数には書かず、ログにも出しません。メモリ上のマウントは Docker の仮想マシンのメモリにあり、そのメモリがディスクにスワップされるかどうかは Docker Desktop の動作によります。
+- **読み込めなかったとき**: コンソールに、キーの名前と理由（`op` が見つからない、1Password がロックされているか CLI がサインインしていない、確認が取り消された、項目またはフィールドが見つからない）を表示します。そのキーは次の Start まで未設定として扱い、ほかのキーと機能はそのまま使えます。参照の文字列をキーとしてプロバイダに送ることはありません。
+- **開発モード**（`rake server:debug`）: サーバがホストで動くため、サーバ自身が `op` で参照を読み込みます。
+
 ## モデル設定
 
 > **Note**: デフォルト値は`docker/services/ruby/public/js/monadic/model_spec.js`の`providerDefaults`を参照してください。以下の表は変数名と用途の説明のみを記載しています。

@@ -51,6 +51,7 @@ require_relative "monadic/utils/environment"
 IN_CONTAINER = Monadic::Utils::Environment.in_container?
 
 require_relative "monadic/utils/setup"
+require_relative "monadic/utils/secret_references"
 require_relative "monadic/utils/tokenizer"
 require_relative "monadic/help"
 
@@ -92,6 +93,7 @@ require_relative "monadic/adapters/vendors/ollama_helper"
 
 envpath = File.expand_path Paths::ENV_PATH
 Dotenv.load(envpath)
+Monadic::Utils::SecretReferences.scrub_env!
 
 # Include TavilyHelper for tavily_fetch method
 include TavilyHelper
@@ -179,6 +181,7 @@ CONFIG = {
   "AUTO_TTS_MAX_BYTES" => 400  # Maximum bytes for auto TTS in post-completion mode (default: 400 bytes ≈ 130 Japanese chars or 400 ASCII chars)
 }
 
+unresolved_references = []
 begin
   # Only process environment variables from the .env file, not dictionary data
   File.read(Paths::ENV_PATH).split("\n").each do |line|
@@ -196,6 +199,16 @@ begin
     
     # Trim any whitespace and quotes from values
     value = value.strip.gsub(/^['"]|['"]$/, '') if value
+
+    # A 1Password reference (op://...) stands for the value; an unresolved
+    # one leaves the key unset rather than passing the reference on.
+    if Monadic::Utils::SecretReferences.reference?(value)
+      value = Monadic::Utils::SecretReferences.resolve(key, value)
+      if value.nil?
+        unresolved_references << key
+        next
+      end
+    end
     
     # Skip empty API keys
     if key.end_with?("_API_KEY") && (value.nil? || value.empty?)
@@ -221,6 +234,10 @@ begin
     CONFIG[key] = converted_value
   end
   
+  unless unresolved_references.empty?
+    puts "1Password references not resolved, left unset: #{unresolved_references.join(', ')}"
+  end
+
   # Override with environment variables if they exist
   # This allows rake server:debug to force EXTRA_LOGGING=true and DEBUG_MODE=true
   if ENV["EXTRA_LOGGING"]

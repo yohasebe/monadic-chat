@@ -3,6 +3,7 @@
 require "securerandom"
 require "base64"
 require "http"
+require_relative "../../lib/monadic/utils/secret_references"
 
 begin
   require_relative "../../lib/monadic/utils/model_spec"
@@ -80,11 +81,7 @@ def image_query(message, image, model = nil)
   model ||= (defined?(Monadic::Utils::ModelSpec) && Monadic::Utils::ModelSpec.default_vision_model("openai"))
   num_retrial = 0
 
-  begin
-    api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-  rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-  end
+  api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
 
   if image && File.file?(image)
     image_path = image

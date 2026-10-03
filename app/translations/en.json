@@ -165,6 +165,16 @@
     "serverStoppedAfterSleep": "Server stopped after system sleep/resume. Please restart the server.",
     "quittingMonadicChat": "Quitting Monadic Chat . . .",
     "monadicChatPreparing": "Monadic Chat preparing . . .",
+    "opReferencesReading": "Reading {{count}} key(s) from 1Password . . .",
+    "opReferenceFailed": "{{key}} could not be read from 1Password: {{reason}}. Features that need it are unavailable until the next Start.",
+    "opReferenceReasons": {
+      "opMissing": "the 1Password CLI (op) was not found",
+      "notSignedIn": "1Password is locked or the CLI is not signed in",
+      "cancelled": "the request was declined",
+      "notFound": "the reference does not point to an existing item and field",
+      "timeout": "1Password did not answer in time",
+      "failed": "the 1Password CLI reported an error"
+    },
     "monadicChatStopping": "Monadic Chat is stopping . . .",
     "monadicChatRestarting": "Monadic Chat is restarting . . .",
     "buildingMonadicChat": "Building Monadic Chat . . .",

@@ -7,6 +7,7 @@ $LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(Fi
 require "securerandom"
 require "base64"
 require "http"
+require_relative "../../lib/monadic/utils/secret_references"
 
 # Configure SSL to avoid CRL check errors
 begin
@@ -35,11 +36,7 @@ def stt_api_request(audiofile, response_format = "text", lang_code = nil, model 
   model ||= default_stt_model
   num_retrial = 0
 
-  begin
-    api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-  rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-  end
+  api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
 
   url = "#{API_ENDPOINT}/audio/transcriptions"
   response = nil

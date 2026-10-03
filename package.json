@@ -90,6 +90,9 @@
       ],
       "minimumSystemVersion": "13.0"
     },
+    "dmg": {
+      "sign": true
+    },
     "extraResources": [
       {
         "from": "./build/app-payload/bin",

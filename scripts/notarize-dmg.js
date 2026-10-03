@@ -29,6 +29,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { credentialsOrSkip } = require('./notarize_credentials');
 
 function shaB64(file) {
   const buf = fs.readFileSync(file);
@@ -61,10 +62,9 @@ exports.default = async function afterAllArtifactBuild(context) {
   const dmgs = artifactPaths.filter((p) => typeof p === 'string' && p.endsWith('.dmg'));
   if (dmgs.length === 0) return;
 
-  if (!process.env.APPLEID || !process.env.APPLEIDPASS || !process.env.TEAMID) {
-    console.warn('[notarize-dmg] APPLEID / APPLEIDPASS / TEAMID not set; skipping DMG notarization.');
-    return;
-  }
+  // Stops a release build when no credentials are usable; skips otherwise.
+  const credentials = credentialsOrSkip('notarize-dmg');
+  if (!credentials) return;
 
   const { notarize } = await import('@electron/notarize');
 
@@ -76,9 +76,7 @@ exports.default = async function afterAllArtifactBuild(context) {
       tool: 'notarytool',
       appBundleId: 'com.yohasebe.monadic',
       appPath: dmgPath,
-      appleId: process.env.APPLEID,
-      appleIdPassword: process.env.APPLEIDPASS,
-      teamId: process.env.TEAMID
+      ...credentials
     });
 
     console.log(`[notarize-dmg] Stapling ticket to ${name} . . .`);

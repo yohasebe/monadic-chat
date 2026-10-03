@@ -13,7 +13,7 @@ sufficient, and beta.33 and beta.35 both went out through this document.
 
 - macOS on Apple Silicon (the only supported build host for the mac artifact).
 - `gh` CLI installed and authenticated (`gh auth status`).
-- Apple notarization credentials configured (see `docs_dev/notarize-dmg-fix-2026-04.md`).
+- `NOTARY_PROFILE` set to a notarytool keychain profile (see `docs_dev/electron-build.md`, Code Signing). `rake build` and `rake release:github` stop without it instead of producing an un-notarized DMG. Re-run `xcrun notarytool store-credentials` whenever the app-specific password is regenerated.
 - Windows Authenticode signing runs automatically during `rake build` via a
   Parallels Windows VM (electron-builder's `win.signtoolOptions` points at the
   cert in the VM's store; a VM window opens on its own while signing). The mac
@@ -352,6 +352,7 @@ for f in "$DMG" "$ZIP"; do [ -f "$f" ] || { echo "missing: $f"; exit 1; }; done
 
 ruby scripts/verify_release_manifests.rb   # sha512/size match, all one version
 xcrun stapler validate "$DMG"              # notarized + stapled
+ruby scripts/verify_mac_notarization.rb    # DMG + zipped .app: stapled and accepted by Gatekeeper (also run by rake build and release:github)
 zipinfo "$ZIP" | grep -c '^l'              # framework symlinks preserved (>0; beta.19 guard)
 ```
 
@@ -389,7 +390,7 @@ PY
 ## Related references
 
 - `docs_dev/electron-build.md` — build environment, Windows signing on Parallels
-- `docs_dev/notarize-dmg-fix-2026-04.md` — notarization setup
+- `docs_dev/electron-build.md` (Code Signing) — notarization credentials and checks
 - `docs_dev/docker-build-caching.md` — container build/caching behavior
 - Maintainer memories: `release-beta27-2026-07-10`, `macos-zip-symlink-autoupdate-bug`,
   `auto-updater-selfheal-lesson`, `release-manifest-drift`, `mac_notarize_skipped_misread`

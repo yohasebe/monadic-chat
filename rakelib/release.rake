@@ -116,6 +116,9 @@ end
 namespace :release do
   desc "Build, package, and create a new GitHub release"
   task :github, [:version, :prerelease, :target] do |_t, args|
+    # Publishing is a release: any package built from here must be notarized
+    # with NOTARY_PROFILE, and the notarize hooks stop without it.
+    ENV['MONADIC_RELEASE_BUILD'] = '1'
     version = args[:version] || get_current_version
     prerelease = args[:prerelease] == 'true'
     # Required: the commit the release is cut from. Without it there is no
@@ -264,6 +267,13 @@ namespace :release do
     puts "Verifying the packaged payload against the staged allow list..."
     unless system("ruby", "scripts/verify_bundle_payload.rb")
       puts "Error: packaged payload verification failed; nothing was published."
+      exit 1
+    end
+
+    # And that the macOS packages are notarized and stapled.
+    puts "Verifying macOS notarization..."
+    unless system("ruby", "scripts/verify_mac_notarization.rb")
+      puts "Error: macOS notarization verification failed; nothing was published."
       exit 1
     end
     

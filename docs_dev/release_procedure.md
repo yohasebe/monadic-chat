@@ -185,7 +185,11 @@ x64 + arm64 AppImage) and the auto-update manifests
 NOT an asset — exclude it.
 
 Prefer the Rake path below: it is the only one that re-checks CI and the tag
-before publishing. The bare command is kept for reference and for recovery,
+before publishing. It also stops at once when a release for the tag already
+exists: a trial build of a published version has the same file names as that
+release's assets with different contents, so `release:github` never replaces
+assets. Replacing them is the separate `rake "release:update_assets[<version>]"`,
+which asks for confirmation. The bare command is kept for reference and for recovery,
 and it passes through no gate at all.
 
 ```bash

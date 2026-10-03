@@ -134,6 +134,23 @@ namespace :release do
 
     prerelease_flag = prerelease ? "--prerelease" : ""
 
+    # A release for this tag must not exist yet. Packages built locally keep
+    # the version in their names, so a trial build of an already published
+    # version has the same file names as its assets with different contents;
+    # this task must never put those in place of the published ones. Replacing
+    # assets is a separate, explicit task (release:update_assets). Only gh's
+    # own "release not found" counts as absent: any other failure (offline,
+    # signed out) cannot tell, so it stops too.
+    existing, existing_status = Open3.capture2e("gh", "release", "view", "v#{version}", "--json", "tagName")
+    if existing_status.success?
+      puts "Error: a release for v#{version} already exists; nothing was built or published."
+      puts "To replace its assets on purpose: rake \"release:update_assets[#{version}]\""
+      exit 1
+    elsif !existing.include?("release not found")
+      puts "Error: could not check whether v#{version} already has a release (gh: #{existing.lines.first.to_s.strip}); nothing was published."
+      exit 1
+    end
+
     puts "Preparing GitHub release for version #{version} (#{prerelease ? 'prerelease' : 'stable'})"
 
     # Step 0: Refuse to publish a tree whose CI did not pass. beta.35 went out

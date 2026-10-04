@@ -15,7 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
-const { monadicShEnv } = require('./monadic_env');
+const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -479,23 +479,13 @@ function monadicCmd(args) {
 const secretCache = new opReferences.SecretCache();
 
 // Runs a monadic.sh subcommand with input on stdin, so the input appears
-// neither in the command line nor in the environment.
-function runMonadicWithInput(args, input) {
-  return new Promise(resolve => {
-    let child;
-    try {
-      child = spawn(monadicCmd(args), [], { shell: true, stdio: ['pipe', 'pipe', 'pipe'] });
-    } catch {
-      resolve({ code: -1, out: '' });
-      return;
-    }
-    let out = '';
-    child.stdout.on('data', d => { out += d.toString(); });
-    child.on('error', () => resolve({ code: -1, out: '' }));
-    child.on('close', code => resolve({ code, out: out.trim() }));
-    child.stdin.on('error', () => {});
-    child.stdin.end(input || '');
-  });
+// neither in the command line nor in the environment. No shell is involved,
+// and the call gives up after MONADIC_INPUT_TIMEOUT_MS: a WSL or Docker that
+// stops answering must not leave the delivery below waiting for ever.
+const MONADIC_INPUT_TIMEOUT_MS = 30000;
+function runMonadicWithInput(subcommand, input) {
+  const { cmd, argv } = monadicInvocation(monadicScriptPath, [subcommand], { toUnixPath });
+  return opReferences.run(cmd, argv, input, MONADIC_INPUT_TIMEOUT_MS);
 }
 
 // Reads the references before the containers start, at most once per app
@@ -525,7 +515,7 @@ async function deliverSecretsIfNeeded() {
   if (!secretCache.hasValues() || secretDeliveryInFlight) return false;
   secretDeliveryInFlight = true;
   try {
-    const { out: startedAt } = await runMonadicWithInput('ruby-started-at', '');
+    const startedAt = opReferences.startedAtFrom(await runMonadicWithInput('ruby-started-at', ''));
     if (!startedAt || startedAt === secretCache.deliveredFor) return false;
     const { code } = await runMonadicWithInput('deliver-secrets', secretCache.payload());
     if (code === 3) {

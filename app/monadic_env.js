@@ -29,4 +29,14 @@ function monadicShEnv(envConfig) {
   return env;
 }
 
-module.exports = { MONADIC_SH_ENV, monadicShEnv };
+// The program and arguments that run a monadic.sh subcommand without a shell,
+// for calls whose input is secret: nothing is interpreted, and nothing but the
+// subcommand names reaches a command line. On Windows the script runs inside
+// WSL with --exec: a plain `wsl <command>` joins its arguments and hands them
+// to the Linux user's default shell, which would split a path with spaces.
+function monadicInvocation(scriptPath, args, { platform = process.platform, toUnixPath } = {}) {
+  if (platform === 'win32') return { cmd: 'wsl', argv: ['--exec', toUnixPath(scriptPath), ...args] };
+  return { cmd: scriptPath, argv: [...args] };
+}
+
+module.exports = { MONADIC_SH_ENV, monadicShEnv, monadicInvocation };

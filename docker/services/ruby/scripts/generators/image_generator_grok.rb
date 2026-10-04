@@ -6,6 +6,7 @@ require "json"
 require "optparse"
 require "securerandom"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/secret_references"
 require_relative "../../lib/monadic/utils/model_spec"
 require_relative "../../lib/monadic/utils/error_formatter"
 
@@ -136,15 +137,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: ni
     return { original_prompt: prompt, success: false, message: "❌ Invalid quality: #{quality}" }
   end
   model ||= default_grok_image_model
-  begin
-    api_key = File.read("/monadic/config/env").split("\n").find do |line|
-      line.start_with?("XAI_API_KEY")
-    end.split("=").last
-  rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find do |line|
-      line.start_with?("XAI_API_KEY")
-    end.split("=").last
-  end
+  api_key = Monadic::Utils::SecretReferences.config_value("XAI_API_KEY")
 
   res = nil
 

@@ -14,6 +14,10 @@ end
 namespace :build do
   # Common setup for all platform builds
   def setup_build_environment(skip_help_db: false)
+    # Marks this as a release build for the notarize hooks: without usable
+    # credentials they stop it instead of skipping notarization, which
+    # used to end in an un-notarized DMG and a successful build.
+    ENV['MONADIC_RELEASE_BUILD'] = '1'
     # remove /docker/services/python/pysetup.py
     FileUtils.rm_f("docker/services/python/pysetup.py")
     home_directory_path = File.join(PROJECT_ROOT, "docker")
@@ -162,6 +166,9 @@ namespace :build do
 
     puts "\n=== Verifying packaged payload ==="
     sh "ruby scripts/verify_bundle_payload.rb"
+
+    puts "\n=== Verifying macOS notarization ==="
+    sh "ruby scripts/verify_mac_notarization.rb"
   end
 
   desc "Build Linux x64 package only"
@@ -358,4 +365,10 @@ task :build do
   # decides what ships; this reads what actually shipped.
   puts "\n=== Verifying packaged payload ==="
   sh "ruby scripts/verify_bundle_payload.rb"
+
+  # The notarize hooks run inside electron-builder; this reads the DMG and
+  # the zipped .app themselves, so a skipped or failed notarization cannot
+  # end in a successful build.
+  puts "\n=== Verifying macOS notarization ==="
+  sh "ruby scripts/verify_mac_notarization.rb"
 end

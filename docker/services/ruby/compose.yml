@@ -29,6 +29,13 @@ services:
       - ~/monadic/config:/monadic/config
       - log:/monadic/log
       - ~/monadic/log:/monadic/log
+    # Memory-only mount for values the desktop app reads from 1Password on
+    # the host (config/env entries written as op:// references). They are
+    # streamed in through `docker exec -i` stdin and never touch the
+    # container's layers, its config (`docker inspect`) or its environment.
+    # The server runs as root here, hence uid 0 and mode 0700.
+    tmpfs:
+      - /run/monadic-secrets:mode=0700,uid=0,gid=0,size=64k
     ports:
       - "${HOST_BINDING:-127.0.0.1}:4567:4567"
       # MCP (Conduit) capability surface. Published to the host loopback ONLY,

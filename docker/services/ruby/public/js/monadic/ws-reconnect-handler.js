@@ -17,9 +17,16 @@
   // Improved WebSocket reconnection logic with proper cleanup and retry handling
   // Note: Parameter renamed from 'ws' to 'currentWs' to avoid shadowing the window.ws variable
   function reconnect_websocket(currentWs, callback) {
-    // In silent mode (intentional stop), suppress reconnection attempts
+    // In silent mode (intentional stop), suppress reconnection attempts.
+    // An open socket needs no reconnection, so it falls through to the OPEN
+    // case below, which runs the callback and ends silent mode. Returning
+    // here for an open socket dropped every send after a Stop: the cookie
+    // outlives a page reload, and sends go through this function.
     try {
-      if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
+      const silent = window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'));
+      const target = currentWs || window.ws;
+      const open = target && target.readyState === WebSocket.OPEN;
+      if (silent && !open) {
         return;
       }
     } catch (_) { console.warn("[WebSocket] Silent reconnect check failed:", _); }

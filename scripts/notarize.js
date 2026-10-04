@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { execSync } = require('child_process');
+const { credentialsOrSkip } = require('./notarize_credentials');
 
 exports.default = async function notarizing(context) {
     const { electronPlatformName, appOutDir } = context;
@@ -7,10 +8,9 @@ exports.default = async function notarizing(context) {
         return;
     }
 
-    if (!process.env.APPLEID || !process.env.APPLEIDPASS || !process.env.TEAMID) {
-        console.warn('[notarize] APPLEID / APPLEIDPASS / TEAMID not set; skipping .app notarization.');
-        return;
-    }
+    // Stops a release build when no credentials are usable; skips otherwise.
+    const credentials = credentialsOrSkip('notarize');
+    if (!credentials) return;
 
     const { notarize } = await import('@electron/notarize');
     const appName = context.packager.appInfo.productFilename;
@@ -21,9 +21,7 @@ exports.default = async function notarizing(context) {
         tool: 'notarytool',
         appBundleId: 'com.yohasebe.monadic',
         appPath,
-        appleId: process.env.APPLEID,
-        appleIdPassword: process.env.APPLEIDPASS,
-        teamId: process.env.TEAMID
+        ...credentials
     });
 
     // @electron/notarize with tool: 'notarytool' may or may not staple

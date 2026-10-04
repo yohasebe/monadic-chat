@@ -43,7 +43,7 @@
 
 2. **Install** and launch the application
 
-3. **Configure API keys** in Settings
+3. **Configure API keys** in Settings (or [read them from 1Password](https://yohasebe.github.io/monadic-chat/#/reference/configuration?id=onepassword-references) by writing `op://` references in `~/monadic/config/env`)
 
 4. **Start using** built-in applications or create your own
 

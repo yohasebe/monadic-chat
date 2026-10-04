@@ -116,6 +116,9 @@ end
 namespace :release do
   desc "Build, package, and create a new GitHub release"
   task :github, [:version, :prerelease, :target] do |_t, args|
+    # Publishing is a release: any package built from here must be notarized
+    # with NOTARY_PROFILE, and the notarize hooks stop without it.
+    ENV['MONADIC_RELEASE_BUILD'] = '1'
     version = args[:version] || get_current_version
     prerelease = args[:prerelease] == 'true'
     # Required: the commit the release is cut from. Without it there is no
@@ -130,6 +133,23 @@ namespace :release do
     end
 
     prerelease_flag = prerelease ? "--prerelease" : ""
+
+    # A release for this tag must not exist yet. Packages built locally keep
+    # the version in their names, so a trial build of an already published
+    # version has the same file names as its assets with different contents;
+    # this task must never put those in place of the published ones. Replacing
+    # assets is a separate, explicit task (release:update_assets). Only gh's
+    # own "release not found" counts as absent: any other failure (offline,
+    # signed out) cannot tell, so it stops too.
+    existing, existing_status = Open3.capture2e("gh", "release", "view", "v#{version}", "--json", "tagName")
+    if existing_status.success?
+      puts "Error: a release for v#{version} already exists; nothing was built or published."
+      puts "To replace its assets on purpose: rake \"release:update_assets[#{version}]\""
+      exit 1
+    elsif !existing.include?("release not found")
+      puts "Error: could not check whether v#{version} already has a release (gh: #{existing.lines.first.to_s.strip}); nothing was published."
+      exit 1
+    end
 
     puts "Preparing GitHub release for version #{version} (#{prerelease ? 'prerelease' : 'stable'})"
 
@@ -264,6 +284,13 @@ namespace :release do
     puts "Verifying the packaged payload against the staged allow list..."
     unless system("ruby", "scripts/verify_bundle_payload.rb")
       puts "Error: packaged payload verification failed; nothing was published."
+      exit 1
+    end
+
+    # And that the macOS packages are notarized and stapled.
+    puts "Verifying macOS notarization..."
+    unless system("ruby", "scripts/verify_mac_notarization.rb")
+      puts "Error: macOS notarization verification failed; nothing was published."
       exit 1
     end
     

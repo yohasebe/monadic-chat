@@ -14,6 +14,8 @@ const i18n = require('./i18n');
 // See `app/install_options.config.js` for the schema and the contract
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
+const opReferences = require('./op_references');
+const { monadicShEnv } = require('./monadic_env');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -424,6 +426,28 @@ function openWebViewWindow(url, forceReload = false) {
 
 
 let dockerInstalled = false;
+// Set when the requirements check found no Docker CLI. The periodic status
+// check only runs once Docker is installed, so without this the status kept
+// reading "Checking" for as long as the app was open.
+let dockerMissing = false;
+// The install guidance waits for the periodic status check: the first
+// requirements check runs before the console page has loaded, and a message
+// written then never reaches it.
+let dockerMissingNoticePending = false;
+
+// Docker was not found: say so in the status and in the console, not only in
+// a dialog that is gone once closed. Start stays enabled because it runs the
+// check again, so installing Docker while the app is open needs no restart.
+function reportDockerMissing() {
+  dockerMissing = true;
+  dockerMissingNoticePending = true;
+}
+
+function showDockerMissingNotice() {
+  dockerMissingNoticePending = false;
+  const platform = ['win32', 'darwin'].includes(process.platform) ? process.platform : 'linux';
+  writeToScreen(formatMessage('warning', `messages.dockerNotInstalled.${platform}`) + '<hr />');
+}
 let wsl2Installed = false;
 
 let dotenv;
@@ -446,6 +470,94 @@ function monadicCmd(args) {
   return isWindows
     ? `wsl "${toUnixPath(monadicScriptPath)}" ${args}`
     : `"${monadicScriptPath}" ${args}`;
+}
+
+// Values written in config/env as 1Password references (op://...) are read
+// here on the host, kept in memory until the app quits, and streamed into the
+// Ruby container, which has no op CLI (see op_references.js). They never go
+// into a file, a command line, a child's environment or a log.
+const secretCache = new opReferences.SecretCache();
+
+// Runs a monadic.sh subcommand with input on stdin, so the input appears
+// neither in the command line nor in the environment.
+function runMonadicWithInput(args, input) {
+  return new Promise(resolve => {
+    let child;
+    try {
+      child = spawn(monadicCmd(args), [], { shell: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    } catch {
+      resolve({ code: -1, out: '' });
+      return;
+    }
+    let out = '';
+    child.stdout.on('data', d => { out += d.toString(); });
+    child.on('error', () => resolve({ code: -1, out: '' }));
+    child.on('close', code => resolve({ code, out: out.trim() }));
+    child.stdin.on('error', () => {});
+    child.stdin.end(input || '');
+  });
+}
+
+// Reads the references before the containers start, at most once per app
+// run unless they change or some could not be read. A key that could not be
+// read is reported by name and reason, and stays unset; the rest still work.
+async function prepareSecretReferences() {
+  const refs = opReferences.referencesIn(readEnvFile(getEnvPath()));
+  const count = Object.keys(refs).length;
+  if (count === 0) {
+    secretCache.clear();
+    return;
+  }
+  if (secretCache.needsRead(refs)) {
+    writeToScreen(formatMessage('info', 'messages.opReferencesReading', { count }));
+  }
+  const { failures, fresh } = await secretCache.ensure(refs);
+  if (!fresh) return;
+  for (const [key, code] of Object.entries(failures)) {
+    const reason = i18n.t(`messages.opReferenceReasons.${code}`);
+    writeToScreen(formatMessage('warning', 'messages.opReferenceFailed', { key, reason }));
+  }
+}
+
+// Hands the values to the Ruby container once per start of that container.
+let secretDeliveryInFlight = false;
+async function deliverSecretsIfNeeded() {
+  if (!secretCache.hasValues() || secretDeliveryInFlight) return false;
+  secretDeliveryInFlight = true;
+  try {
+    const { out: startedAt } = await runMonadicWithInput('ruby-started-at', '');
+    if (!startedAt || startedAt === secretCache.deliveredFor) return false;
+    const { code } = await runMonadicWithInput('deliver-secrets', secretCache.payload());
+    if (code === 3) {
+      // The Ruby container was built before this app could read 1Password
+      // references, so it would send the op:// text to providers as keys.
+      // Say so once per start of that container, and keep the values here.
+      secretCache.deliveredFor = startedAt;
+      writeToScreen(formatMessage('warning', 'messages.opReferencesStaleContainer'));
+      return true;
+    }
+    if (code !== 0) {
+      console.error('Could not hand the 1Password values to the Ruby container');
+      return false;
+    }
+    secretCache.deliveredFor = startedAt;
+    return true;
+  } finally {
+    secretDeliveryInFlight = false;
+  }
+}
+
+// During a start the Ruby container comes up while monadic.sh is still
+// running, and its entrypoint waits for the values, so deliver as soon as it
+// appears rather than after the command returns.
+function deliverWhenRubyStarts(timeoutMs = 120000) {
+  if (!secretCache.hasValues()) return;
+  const begun = Date.now();
+  const tick = async () => {
+    if (await deliverSecretsIfNeeded()) return;
+    if (Date.now() - begun < timeoutMs) setTimeout(tick, 1000);
+  };
+  tick();
 }
 
 // Docker operations are encapsulated in this class
@@ -638,9 +750,11 @@ class DockerManager {
       if (os.platform() === 'win32') {
         exec('docker -v', function (err) {
           dockerInstalled = !err;
+          dockerMissing = !dockerInstalled;
           exec('wsl -l -v', function (err) {
             wsl2Installed = !err;
             if (!dockerInstalled) {
+              reportDockerMissing();
               reject("Docker is not installed. Please install Docker Desktop for Windows first.");
             } else if (!wsl2Installed) {
               reject("WSL 2 is not installed. Please install WSL 2 first.");
@@ -652,7 +766,9 @@ class DockerManager {
       } else if (os.platform() === 'darwin') {
         exec('/usr/local/bin/docker -v', function (err, stdout) {
           dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+          dockerMissing = !dockerInstalled;
           if (!dockerInstalled) {
+            reportDockerMissing();
             reject("Docker is not installed. Please install Docker Desktop for Mac first.");
           } else {
             resolve();
@@ -661,8 +777,10 @@ class DockerManager {
       } else if (os.platform() === 'linux') {
         exec('docker -v', function (err, stdout) {
           dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+          dockerMissing = !dockerInstalled;
           if (!dockerInstalled) {
-            reject("Docker is not installed.|Please install Docker for Linux first.");
+            reportDockerMissing();
+            reject("Docker is not installed. Please install Docker Engine for Linux first.");
           } else {
             resolve();
           }
@@ -686,7 +804,11 @@ class DockerManager {
     updateStatusIndicator(statusWhileCommand);
     // Docker command execution
     return this.checkStatus()
-      .then((status) => {
+      .then(async (status) => {
+        if (status && (command === 'start' || command === 'restart')) {
+          await prepareSecretReferences();
+          deliverWhenRubyStarts();
+        }
         if (!status) {
           writeToScreen(formatMessage('info', this.dockerUnavailableMessageKey()) + '<hr />');
           // Reset status to 'Stopped' and update UI
@@ -722,9 +844,9 @@ class DockerManager {
             let subprocess = spawn(cmd, [], {
               shell: true,
               env: {
-                ...process.env,  // Keep existing environment variables
-                ...envConfig,    // Add variables from ~/monadic/config/env
-                ...buildEnv      // Add FORCE_REBUILD for build commands
+                ...process.env,           // Keep existing environment variables
+                ...monadicShEnv(envConfig), // Only the settings monadic.sh reads, never API keys
+                ...buildEnv               // Add FORCE_REBUILD for build commands
               }
             });
             
@@ -1313,6 +1435,9 @@ function cleanupAndQuit() {
 }
 
 // Update the app's quit handler
+// Drop the 1Password values held for the containers.
+app.on('will-quit', () => secretCache.clear());
+
 app.on('before-quit', (event) => {
   // If forceQuit is true, allow the app to quit normally without showing dialog
   if (forceQuit) {
@@ -3608,7 +3733,7 @@ function refreshServiceContainersForLangChange(prevLangs, newEnv) {
     const after = newEnv[key] ?? '';
     if (String(before) === String(after)) return;
     const cmd = monadicCmd(`refresh-service ${service}`);
-    exec(cmd, { env: { ...process.env, ...newEnv } }, (err, stdout) => {
+    exec(cmd, { env: { ...process.env, ...monadicShEnv(newEnv) } }, (err, stdout) => {
       if (err) {
         console.error(`refresh-service ${service} failed:`, err.message);
         return;
@@ -4681,6 +4806,7 @@ const DOCKER_STATUS_CHECK_INTERVAL = 2000; // Check every 2 seconds for better r
 // Track mode to avoid unnecessary updates
 let lastKnownMode = null;
 
+let lastSecretDeliveryCheck = 0;
 async function updateDockerStatus() {
   const now = Date.now();
   // Only perform check if enough time has passed since last check
@@ -4712,8 +4838,18 @@ async function updateDockerStatus() {
   }
   
   // Check Docker status
+  if (dockerMissing && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docker-desktop-status-update', 'not-installed');
+    if (dockerMissingNoticePending && !mainWindow.webContents.isLoading()) showDockerMissingNotice();
+  }
   if (dockerInstalled) {
     const status = await dockerManager.checkStatus();
+    // The Ruby container can be restarted outside a Start (rebuilds,
+    // restarts of dependent services); its new instance needs the values too.
+    if (status && secretCache.hasValues() && now - lastSecretDeliveryCheck >= 5000) {
+      lastSecretDeliveryCheck = now;
+      deliverSecretsIfNeeded();
+    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       // Pass Docker status to UI (running or not)
       mainWindow.webContents.send('docker-desktop-status-update', status);

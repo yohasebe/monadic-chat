@@ -278,6 +278,11 @@ RSpec.describe 'the release CI gate in rakelib/release.rake' do
       allow(File).to receive(:write).and_call_original
       allow(File).to receive(:write).with(/release_notes/, anything)
       allow(ReleaseManifestSet).to receive(:select).and_return([['dist/latest.yml'], nil])
+      # No release for the tag yet: gh's own answer, so the existing-release
+      # guard lets the task through without reaching GitHub.
+      allow(Open3).to receive(:capture2e).and_call_original
+      allow(Open3).to receive(:capture2e).with('gh', 'release', 'view', tag, '--json', 'tagName')
+                                         .and_return(["release not found\n", double(success?: false)])
     end
 
     def run(task, *args)
@@ -285,6 +290,15 @@ RSpec.describe 'the release CI gate in rakelib/release.rake' do
       allow(@host).to receive(:git_commit_of) { |ref| ref == 'HEAD' ? release_sha : ref }
       allow(@host).to receive(:git_tree_of).and_return(tree)
       @app[task].invoke(*args)
+    end
+
+    it 'stops before CI, a build or publishing when the tag already has a release' do
+      allow(Open3).to receive(:capture2e).with('gh', 'release', 'view', tag, '--json', 'tagName')
+                                         .and_return(["{\"tagName\":\"#{tag}\"}\n", double(success?: true)])
+      expect { run('release:github', '1.0.0-beta.36', 'true', release_sha) }
+        .to raise_error(SystemExit).and output(/already exists; nothing was built or published/).to_stdout
+      expect(published).to be_empty
+      expect(ci_results).to eq([true, true])
     end
 
     it 'publishes when CI is green at both checks' do

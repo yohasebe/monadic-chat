@@ -57,6 +57,23 @@ For the OpenAI default model:
 | `ELEVENLABS_API_KEY` | ElevenLabs API key for TTS and Scribe speech-to-text | Yes (for ElevenLabs voices) | `...` |
 | `TAVILY_API_KEY` | Tavily API key for web search — see [Provider Capabilities Overview](../basic-usage/basic-apps.md#provider-capabilities) | Required for web search through Tavily | `tvly-...` |
 
+### Reading Keys from 1Password :id=onepassword-references
+
+Any value in `~/monadic/config/env` can be a 1Password secret reference instead of the key itself:
+
+```
+OPENAI_API_KEY=op://Dev/OpenAI/credential
+```
+
+Values that do not start with `op://` are used as written, as before.
+
+- **Requirements**: the [1Password CLI](https://developer.1password.com/docs/cli/) (`op`) on the computer that runs the app, signed in or connected to the 1Password desktop app. The app looks for `op` on `PATH` and in the usual install locations.
+- **When the references are read**: when you press Start, all of them in one `op` call, so 1Password asks for confirmation once. The values are kept until the app quits; Restart and container restarts do not read them again. Changing a reference in the settings reads the references again at the next Start.
+- **Where the values go**: `~/monadic/config/env` keeps the references. The values are held in the app's memory and handed to the Ruby container through a memory-only mount (tmpfs); they are not written to a file, the container's settings or its environment, and they are not logged. A memory-only mount lives in the memory of the Docker virtual machine; whether that memory can be swapped to its disk depends on Docker Desktop.
+- **When a reference cannot be read**: the console names the key and the reason (`op` not found, 1Password locked or the CLI not signed in, the confirmation declined, the item or field not found). That key stays unset until the next Start; other keys and features keep working. The reference itself is never sent to a provider as a key.
+- **A Ruby container built by an earlier version**: it cannot use the values, so the app does not hand them over and asks you to rebuild it (**Actions → Build Ruby Container**). This happens only when the container was not rebuilt after an update.
+- **Development mode** (`rake server:debug`): the server runs on the host and reads the references itself with `op`.
+
 ## Model Settings
 
 > **Note**: For default values, refer to `providerDefaults` in `docker/services/ruby/public/js/monadic/model_spec.js`. The table below shows variable names and usage only.

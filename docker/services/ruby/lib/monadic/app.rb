@@ -750,7 +750,6 @@ class MonadicApp
     
     # For debugging purpose
     log_to_file("DEBUG MARKDOWNIFY: Using provider #{provider} with model #{model}")
-    log_to_file("DEBUG MARKDOWNIFY CONFIG: #{CONFIG.inspect}")
     
     send_query(parameters)
   end

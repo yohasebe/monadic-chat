@@ -2,6 +2,7 @@
 
 require "json"
 require "http"
+require_relative "../../lib/monadic/utils/secret_references"
 
 begin
   require_relative "../../lib/monadic/utils/model_spec"
@@ -23,11 +24,7 @@ def video_query(json_path, query, model = nil)
   model ||= (defined?(Monadic::Utils::ModelSpec) && Monadic::Utils::ModelSpec.default_vision_model("openai"))
   num_retrial = 0
 
-  begin
-    api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-  rescue Errno::ENOENT
-    api_key ||= File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }.split("=").last
-  end
+  api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
 
   # Read the JSON file
   json_data = JSON.parse(File.read(json_path))

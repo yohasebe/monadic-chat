@@ -6,6 +6,7 @@ require "json"
 require "optparse"
 require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/secret_references"
 require_relative "../../lib/monadic/utils/model_spec"
 
 if defined?(Monadic::Utils::SSLConfiguration)
@@ -106,16 +107,7 @@ if __FILE__ == $PROGRAM_NAME
   end
 
   # Get API key
-  api_key = nil
-  begin
-    api_key = File.read("/monadic/config/env").split("\n").find { |line|
-      line.start_with?("XAI_API_KEY")
-    }&.split("=", 2)&.last
-  rescue Errno::ENOENT
-    api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line|
-      line.start_with?("XAI_API_KEY")
-    }&.split("=", 2)&.last rescue nil
-  end
+  api_key = Monadic::Utils::SecretReferences.config_value("XAI_API_KEY")
 
   if api_key.nil? || api_key.strip.empty?
     puts JSON.generate({ success: false, error: "XAI_API_KEY is not set" })

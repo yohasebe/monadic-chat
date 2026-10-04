@@ -6,6 +6,7 @@ $LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(Fi
 
 require "http"
 require "json"
+require_relative "../../lib/monadic/utils/secret_references"
 require "net/http"
 require "monadic/utils/tts_audio"
 require "monadic/utils/tts_provider"
@@ -98,16 +99,7 @@ end
 
 def list_elevenlabs_voices
   # Try config file first (primary source of truth)
-  elevenlabs_api_key = nil
-  begin
-    elevenlabs_api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
-  rescue Errno::ENOENT
-    begin
-      elevenlabs_api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
-    rescue Errno::ENOENT
-      # Config file not found
-    end
-  end
+  elevenlabs_api_key = Monadic::Utils::SecretReferences.config_value("ELEVENLABS_API_KEY")
 
   # Fall back to ENV only if config file doesn't have the key
   elevenlabs_api_key = ENV["ELEVENLABS_API_KEY"] if elevenlabs_api_key.nil? || elevenlabs_api_key.empty?
@@ -223,16 +215,7 @@ def tts_api_request(text,
   case provider
   when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
     # Try config file first (primary source of truth)
-    api_key = nil
-    begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
-    rescue Errno::ENOENT
-      begin
-        api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
-      rescue Errno::ENOENT
-        # Config file not found
-      end
-    end
+    api_key = Monadic::Utils::SecretReferences.config_value("ELEVENLABS_API_KEY")
 
     # Fall back to ENV only if config file doesn't have the key
     api_key = ENV["ELEVENLABS_API_KEY"] if api_key.nil? || api_key.empty?
@@ -283,16 +266,7 @@ def tts_api_request(text,
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
   when Monadic::Utils::TtsProvider.method(:gemini?)
     # Try config file first (primary source of truth)
-    api_key = nil
-    begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=", 2)&.last&.strip
-    rescue Errno::ENOENT
-      begin
-        api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=", 2)&.last&.strip
-      rescue Errno::ENOENT
-        # Config file not found
-      end
-    end
+    api_key = Monadic::Utils::SecretReferences.config_value("GEMINI_API_KEY")
 
     # Fall back to ENV only if config file doesn't have the key
     api_key = ENV["GEMINI_API_KEY"] if api_key.nil? || api_key.empty?
@@ -357,16 +331,7 @@ def tts_api_request(text,
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
   else # openai
     # Try config file first (primary source of truth)
-    api_key = nil
-    begin
-      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=", 2)&.last&.strip
-    rescue Errno::ENOENT
-      begin
-        api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=", 2)&.last&.strip
-      rescue Errno::ENOENT
-        # Config file not found
-      end
-    end
+    api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
 
     # Fall back to ENV only if config file doesn't have the key
     api_key = ENV["OPENAI_API_KEY"] if api_key.nil? || api_key.empty?

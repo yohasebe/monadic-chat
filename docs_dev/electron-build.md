@@ -59,12 +59,16 @@ ls -la ~/Library/Caches/electron-builder/winCodeSign/winCodeSign-2.6.0/windows-1
 macOS code signing is configured via:
 - `build.mac.hardenedRuntime`: true
 - `build.mac.entitlements`: Entitlements plist file
-- `afterSign`: Notarization script (`scripts/notarize.js`)
+- `afterSign`: Notarization script for the `.app` (`scripts/notarize.js`)
+- `afterAllArtifactBuild`: Notarization script for the DMG (`scripts/notarize-dmg.js`)
+- `build.dmg.sign`: true — the DMG is signed too; Gatekeeper judges a disk image by its own signature (`spctl --context context:primary-signature`)
 
-Required environment variables (in `~/.zshrc` or `.env`):
-- `APPLEID`: Apple ID email
-- `APPLEIDPASS`: App-specific password
-- `TEAMID`: Apple Developer Team ID
+
+Notarization credentials, read by both scripts through `scripts/notarize_credentials.js`:
+- **`NOTARY_PROFILE`** (in `~/.zshrc`): the name of a notarytool keychain profile. Create it once with `xcrun notarytool store-credentials <name> --apple-id <id> --team-id <team>` and enter the app-specific password at its prompt; notarytool then reads the password from the keychain, so it never passes through the build's environment or a command line. The same variable and profile can be shared with other projects on the build machine. **When the app-specific password is regenerated, run `store-credentials` again**, or notarization fails (and a release build stops).
+- `APPLEID`, `APPLEIDPASS`, `TEAMID`: accepted only for builds that are not release builds, for compatibility. `@electron/notarize` passes the password to notarytool as a command-line argument, visible to other processes of the same user while it runs. A value of `APPLEIDPASS` that is a 1Password reference (`op://…`) is not read and counts as missing.
+
+`rake build`, `rake build:*` and `rake release:github` set `MONADIC_RELEASE_BUILD=1`. A release build requires `NOTARY_PROFILE` and stops without it; other builds (e.g. `npx electron-builder` run directly) warn and skip notarization. After packaging and again before publishing, `scripts/verify_mac_notarization.rb` checks the DMG (`xcrun stapler validate`, `spctl -a -t open --context context:primary-signature`) and the `.app` in the update zip (`xcrun stapler validate`, `spctl -a -t exec`), and stops the build or the release on any failure.
 
 ### Windows
 

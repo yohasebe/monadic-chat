@@ -7,14 +7,14 @@ require_relative '../../../lib/monadic/library/inventory'
 RSpec.describe Monadic::Utils::SystemPromptInjector do
   describe '.build_injections' do
     context 'with system context' do
-      context 'with no conditions met' do
-        it 'returns empty array' do
+      context 'with default settings' do
+        it 'includes the disabled math instruction' do
           session = {}
           options = {}
 
           result = described_class.build_injections(session: session, options: options, context: :system)
 
-          expect(result).to eq([])
+          expect(result.map { |r| r[:name] }).to eq([:math_disabled])
         end
       end
     end
@@ -65,7 +65,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
+        expect(result.length).to eq(2)
         expect(result[0][:name]).to eq(:language_preference)
         expect(result[0][:content]).to include('Japanese')
       end
@@ -78,7 +78,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
+        expect(result.length).to eq(2)
         expect(result[0][:name]).to eq(:language_preference)
         expect(result[0][:content]).to include('LANGUAGE MATCHING')
         expect(result[0][:content]).to include('Default to English')
@@ -96,7 +96,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
+        expect(result.length).to eq(2)
         expect(result[0][:name]).to eq(:websearch)
         expect(result[0][:content]).to eq('Use web search effectively.')
       end
@@ -111,7 +111,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result).to be_empty
+        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
       end
     end
 
@@ -195,7 +195,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
+        expect(result.length).to eq(2)
         expect(result[0][:name]).to eq(:stt_diarization_warning)
         expect(result[0][:content]).to include('Speaker Diarization Context')
         expect(result[0][:content]).to include('Do NOT adopt the role of any labeled speaker')
@@ -209,7 +209,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result).to be_empty
+        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
       end
     end
 
@@ -224,6 +224,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         expect(result.length).to eq(1)
         expect(result[0][:name]).to eq(:math)
+        expect(result[0][:content]).not_to include(described_class::MATH_DISABLED_PROMPT)
         expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\frac{k(k + 1)}{2}')  # Single backslash (literal)
         expect(result[0][:content]).not_to include('\\\\frac')  # Not double-escaped
@@ -240,6 +241,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         expect(result.length).to eq(1)
         expect(result[0][:name]).to eq(:math)
+        expect(result[0][:content]).not_to include(described_class::MATH_DISABLED_PROMPT)
         expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
@@ -256,20 +258,34 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         expect(result.length).to eq(1)
         expect(result[0][:name]).to eq(:math)
+        expect(result[0][:content]).not_to include(described_class::MATH_DISABLED_PROMPT)
         expect(result[0][:content]).to include('LaTeX notation')
         expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
         expect(result[0][:content]).to include('Make sure to escape properly')
       end
 
-      it 'excludes math prompt when math is false' do
-        session = {
-          parameters: { "math" => false }
-        }
-        options = {}
+    end
 
-        result = described_class.build_injections(session: session, options: options)
+    context 'with math disabled' do
+      [false, nil, 'false', 'true'].each do |value|
+        it "uses only the disabled instruction when math is #{value.inspect}" do
+          session = { parameters: { 'math' => value, 'monadic' => true, 'jupyter' => true } }
+          result = described_class.build_injections(session: session)
 
-        expect(result).to be_empty
+          expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+          content = result.first[:content]
+          expect(content).to include('plain text or Unicode', '```latex')
+          expect(content).to include('\[ \]', '\( \)', '$$', '$')
+          expect(content).not_to include(described_class::MATH_BASE_PROMPT)
+          expect(content).not_to include(described_class::MATH_MONADIC_PROMPT)
+          expect(content).not_to include(described_class::MATH_REGULAR_PROMPT)
+        end
+      end
+
+      it 'uses the disabled instruction when math is missing' do
+        result = described_class.build_injections(session: { parameters: {} })
+
+        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
       end
     end
 
@@ -282,9 +298,9 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:system_prompt_suffix)
-        expect(result[0][:content]).to eq('Always be concise.')
+        expect(result.length).to eq(2)
+        expect(result[1][:name]).to eq(:system_prompt_suffix)
+        expect(result[1][:content]).to eq('Always be concise.')
       end
 
       it 'excludes system_prompt_suffix when empty' do
@@ -295,7 +311,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result).to be_empty
+        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
       end
     end
 
@@ -308,7 +324,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
+        expect(result.length).to eq(2)
         expect(result[0][:name]).to eq(:autonomy)
         expect(result[0][:content]).to include('AUTONOMY MODE: HIGH')
         expect(result[0][:content]).to include('Execute actions immediately')
@@ -323,7 +339,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
+        expect(result.length).to eq(2)
         expect(result[0][:name]).to eq(:autonomy)
         expect(result[0][:content]).to include('AUTONOMY MODE: LOW')
         expect(result[0][:content]).to include('Before EVERY action')
@@ -338,7 +354,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result).to be_empty
+        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
       end
 
       it 'excludes autonomy injection when autonomy is not set' do
@@ -349,7 +365,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result).to be_empty
+        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
       end
 
       it 'works with symbol key for autonomy' do
@@ -360,7 +376,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
+        expect(result.length).to eq(2)
         expect(result[0][:name]).to eq(:autonomy)
         expect(result[0][:content]).to include('AUTONOMY MODE: HIGH')
       end
@@ -375,11 +391,11 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:expressive_speech)
-        expect(result[0][:content]).to include('[laugh]')
-        expect(result[0][:content]).to include('<whisper>')
-        expect(result[0][:content]).to match(/never name, quote, describe/i)
+        expect(result.length).to eq(2)
+        expect(result[1][:name]).to eq(:expressive_speech)
+        expect(result[1][:content]).to include('[laugh]')
+        expect(result[1][:content]).to include('<whisper>')
+        expect(result[1][:content]).to match(/never name, quote, describe/i)
       end
 
       it 'accepts the stringified boolean "true" for auto_speech (WebSocket transport)' do
@@ -388,8 +404,8 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         }
 
         result = described_class.build_injections(session: session, options: {})
-        expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:expressive_speech)
+        expect(result.length).to eq(2)
+        expect(result[1][:name]).to eq(:expressive_speech)
       end
 
       it 'excludes the addendum when auto_speech is false' do
@@ -527,11 +543,12 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.length).to eq(3)
-        # Check priority order: language(100) > autonomy(90) > websearch(80)
+        expect(result.length).to eq(4)
+        # Check priority order: language(100) > autonomy(90) > websearch(80) > math_disabled(50)
         expect(result[0][:name]).to eq(:language_preference)
         expect(result[1][:name]).to eq(:autonomy)
         expect(result[2][:name]).to eq(:websearch)
+        expect(result[3][:name]).to eq(:math_disabled)
       end
     end
   end
@@ -759,13 +776,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
   describe 'error handling' do
     context 'when condition evaluation raises error' do
       it 'skips the rule and continues' do
-        # Simulate error by passing nil session when language rule expects hash
+        # Missing session still uses the default math instruction.
         session = nil
         options = {}
 
         expect {
           result = described_class.build_injections(session: session, options: options)
-          expect(result).to be_empty
+          expect(result.map { |r| r[:name] }).to eq([:math_disabled])
         }.not_to raise_error
       end
     end

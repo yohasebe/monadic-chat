@@ -430,15 +430,21 @@ let dockerInstalled = false;
 // check only runs once Docker is installed, so without this the status kept
 // reading "Checking" for as long as the app was open.
 let dockerMissing = false;
+// The install guidance waits for the periodic status check: the first
+// requirements check runs before the console page has loaded, and a message
+// written then never reaches it.
+let dockerMissingNoticePending = false;
 
 // Docker was not found: say so in the status and in the console, not only in
 // a dialog that is gone once closed. Start stays enabled because it runs the
 // check again, so installing Docker while the app is open needs no restart.
 function reportDockerMissing() {
   dockerMissing = true;
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('docker-desktop-status-update', 'not-installed');
-  }
+  dockerMissingNoticePending = true;
+}
+
+function showDockerMissingNotice() {
+  dockerMissingNoticePending = false;
   const platform = ['win32', 'darwin'].includes(process.platform) ? process.platform : 'linux';
   writeToScreen(formatMessage('warning', `messages.dockerNotInstalled.${platform}`) + '<hr />');
 }
@@ -4834,6 +4840,7 @@ async function updateDockerStatus() {
   // Check Docker status
   if (dockerMissing && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('docker-desktop-status-update', 'not-installed');
+    if (dockerMissingNoticePending && !mainWindow.webContents.isLoading()) showDockerMissingNotice();
   }
   if (dockerInstalled) {
     const status = await dockerManager.checkStatus();

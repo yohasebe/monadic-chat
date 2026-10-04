@@ -165,7 +165,13 @@
     "serverStoppedAfterSleep": "Server stopped after system sleep/resume. Please restart the server.",
     "quittingMonadicChat": "Quitting Monadic Chat . . .",
     "monadicChatPreparing": "Monadic Chat preparing . . .",
+    "dockerNotInstalled": {
+      "darwin": "Docker was not found. Install Docker Desktop for Mac, start it, and then press <b>Start</b>.",
+      "win32": "Docker was not found. Install Docker Desktop for Windows (it runs on WSL 2), start it, and then press <b>Start</b>.",
+      "linux": "Docker was not found. Install Docker Engine for your distribution, and then press <b>Start</b>."
+    },
     "opReferencesReading": "Reading {{count}} key(s) from 1Password . . .",
+    "opReferencesStaleContainer": "The Ruby container was built by an earlier version and cannot use keys read from 1Password; providers would receive the op:// references instead of keys. Rebuild it with <b>Actions → Build Ruby Container</b>, then press <b>Start</b>.",
     "opReferenceFailed": "{{key}} could not be read from 1Password: {{reason}}. Features that need it are unavailable until the next Start.",
     "opReferenceReasons": {
       "opMissing": "the 1Password CLI (op) was not found",

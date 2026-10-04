@@ -80,7 +80,7 @@ Display or edit the system prompt for the AI User feature.
 Enable prompt caching to reduce API costs and improve response time.
 
 **Math Rendering**<br />
-Render mathematical expressions using KaTeX.
+Render mathematical expressions using KaTeX. When it is off, the model is asked to write formulas in plain text or Unicode, and to return LaTeX source, when you ask for it, in a code block.
 
 **AI User Provider**<br />
 Select a provider for the AI User feature, which automatically generates follow-up messages as if written by a human user.

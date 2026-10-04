@@ -15,6 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
+const { monadicShEnv } = require('./monadic_env');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -425,6 +426,22 @@ function openWebViewWindow(url, forceReload = false) {
 
 
 let dockerInstalled = false;
+// Set when the requirements check found no Docker CLI. The periodic status
+// check only runs once Docker is installed, so without this the status kept
+// reading "Checking" for as long as the app was open.
+let dockerMissing = false;
+
+// Docker was not found: say so in the status and in the console, not only in
+// a dialog that is gone once closed. Start stays enabled because it runs the
+// check again, so installing Docker while the app is open needs no restart.
+function reportDockerMissing() {
+  dockerMissing = true;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docker-desktop-status-update', 'not-installed');
+  }
+  const platform = ['win32', 'darwin'].includes(process.platform) ? process.platform : 'linux';
+  writeToScreen(formatMessage('warning', `messages.dockerNotInstalled.${platform}`) + '<hr />');
+}
 let wsl2Installed = false;
 
 let dotenv;
@@ -505,6 +522,14 @@ async function deliverSecretsIfNeeded() {
     const { out: startedAt } = await runMonadicWithInput('ruby-started-at', '');
     if (!startedAt || startedAt === secretCache.deliveredFor) return false;
     const { code } = await runMonadicWithInput('deliver-secrets', secretCache.payload());
+    if (code === 3) {
+      // The Ruby container was built before this app could read 1Password
+      // references, so it would send the op:// text to providers as keys.
+      // Say so once per start of that container, and keep the values here.
+      secretCache.deliveredFor = startedAt;
+      writeToScreen(formatMessage('warning', 'messages.opReferencesStaleContainer'));
+      return true;
+    }
     if (code !== 0) {
       console.error('Could not hand the 1Password values to the Ruby container');
       return false;
@@ -719,9 +744,11 @@ class DockerManager {
       if (os.platform() === 'win32') {
         exec('docker -v', function (err) {
           dockerInstalled = !err;
+          dockerMissing = !dockerInstalled;
           exec('wsl -l -v', function (err) {
             wsl2Installed = !err;
             if (!dockerInstalled) {
+              reportDockerMissing();
               reject("Docker is not installed. Please install Docker Desktop for Windows first.");
             } else if (!wsl2Installed) {
               reject("WSL 2 is not installed. Please install WSL 2 first.");
@@ -733,7 +760,9 @@ class DockerManager {
       } else if (os.platform() === 'darwin') {
         exec('/usr/local/bin/docker -v', function (err, stdout) {
           dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+          dockerMissing = !dockerInstalled;
           if (!dockerInstalled) {
+            reportDockerMissing();
             reject("Docker is not installed. Please install Docker Desktop for Mac first.");
           } else {
             resolve();
@@ -742,8 +771,10 @@ class DockerManager {
       } else if (os.platform() === 'linux') {
         exec('docker -v', function (err, stdout) {
           dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+          dockerMissing = !dockerInstalled;
           if (!dockerInstalled) {
-            reject("Docker is not installed.|Please install Docker for Linux first.");
+            reportDockerMissing();
+            reject("Docker is not installed. Please install Docker Engine for Linux first.");
           } else {
             resolve();
           }
@@ -807,9 +838,9 @@ class DockerManager {
             let subprocess = spawn(cmd, [], {
               shell: true,
               env: {
-                ...process.env,  // Keep existing environment variables
-                ...envConfig,    // Add variables from ~/monadic/config/env
-                ...buildEnv      // Add FORCE_REBUILD for build commands
+                ...process.env,           // Keep existing environment variables
+                ...monadicShEnv(envConfig), // Only the settings monadic.sh reads, never API keys
+                ...buildEnv               // Add FORCE_REBUILD for build commands
               }
             });
             
@@ -3696,7 +3727,7 @@ function refreshServiceContainersForLangChange(prevLangs, newEnv) {
     const after = newEnv[key] ?? '';
     if (String(before) === String(after)) return;
     const cmd = monadicCmd(`refresh-service ${service}`);
-    exec(cmd, { env: { ...process.env, ...newEnv } }, (err, stdout) => {
+    exec(cmd, { env: { ...process.env, ...monadicShEnv(newEnv) } }, (err, stdout) => {
       if (err) {
         console.error(`refresh-service ${service} failed:`, err.message);
         return;
@@ -4801,6 +4832,9 @@ async function updateDockerStatus() {
   }
   
   // Check Docker status
+  if (dockerMissing && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docker-desktop-status-update', 'not-installed');
+  }
   if (dockerInstalled) {
     const status = await dockerManager.checkStatus();
     // The Ruby container can be restarted outside a Start (rebuilds,

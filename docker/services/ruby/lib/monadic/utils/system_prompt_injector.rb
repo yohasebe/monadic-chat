@@ -61,6 +61,11 @@ module Monadic
         ✅ CORRECT: "That sounds like an exciting plan! Studying abroad can be both thrilling and challenging. How can I help you prepare?"
       PROMPT
 
+      # Math formatting when rendering is disabled (the default)
+      MATH_DISABLED_PROMPT = <<~'PROMPT'.strip
+        Math Rendering is disabled. Write mathematical expressions in plain text or Unicode, without LaTeX delimiters (`\[ \]`, `\( \)`, `$$`, or `$`). If the user requests LaTeX source, put it in a fenced code block starting with ```latex.
+      PROMPT
+
       # Math formatting prompt (base)
       MATH_BASE_PROMPT = <<~PROMPT.strip
         You use the LaTeX notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of LaTeX expression should be presntend without surrounding backticks.
@@ -240,6 +245,16 @@ module Monadic
             end
 
             parts.join("\n\n")
+          }
+        },
+        {
+          name: :math_disabled,
+          priority: 50,
+          condition: ->(session, _options) {
+            session&.[](:parameters)&.[]("math") != true
+          },
+          generator: ->(_session, _options) {
+            MATH_DISABLED_PROMPT
           }
         },
         {

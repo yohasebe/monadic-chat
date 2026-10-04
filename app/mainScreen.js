@@ -150,7 +150,12 @@ function updateDockerStatusUI(isRunning) {
   
   if (dockerStatusElement) {
     dockerStatusElement.style.display = '';
-    if (isRunning) {
+    if (isRunning === 'not-installed') {
+      dockerStatusElement.textContent = 'Not installed';
+      dockerStatusElement.classList.remove('active');
+      dockerStatusElement.classList.remove('blinking');
+      dockerStatusElement.classList.add('inactive');
+    } else if (isRunning) {
       dockerStatusElement.textContent = 'Running';
       dockerStatusElement.classList.remove('inactive');
       dockerStatusElement.classList.remove('blinking'); // Stop blinking when status is determined

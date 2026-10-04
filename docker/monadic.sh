@@ -933,50 +933,51 @@ EOF
   release_build_lock
 }
 
+# Format tab-separated Docker disk usage as one HTML message.
+format_docker_disk_usage() {
+  # Build HTML table as a single string
+  local html_table="<table style='font-size: 0.9em; border-collapse: collapse; margin: 10px 0;'>"
+  html_table="${html_table}<tr style='background: #f0f0f0; font-weight: bold;'>"
+  html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd;'>TYPE</td>"
+  html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>TOTAL</td>"
+  html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>ACTIVE</td>"
+  html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>SIZE</td>"
+  html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>RECLAIMABLE</td>"
+  html_table="${html_table}</tr>"
+
+  # Preserve spaces within types and reclaimable values.
+  local type total active size reclaimable
+  while IFS=$'\t' read -r type total active size reclaimable; do
+    [ -n "$type" ] || continue
+
+    html_table="${html_table}<tr>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd;'>${type}</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${total}</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${active}</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${size}</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${reclaimable}</td>"
+    html_table="${html_table}</tr>"
+  done <<< "$1"
+
+  html_table="${html_table}</table>"
+
+  # Output the complete table as one HTML message
+  echo "[HTML]: ${html_table}"
+}
+
 # Function to check Docker disk space and warn if insufficient
 check_docker_disk_space() {
   echo "[HTML]: <p>Checking Docker disk usage...</p>"
 
-  # Get Docker system info and format as HTML table
-  local disk_data=$(${DOCKER} system df 2>/dev/null)
-
-  if [ -n "$disk_data" ]; then
-    # Build HTML table as a single string
-    local html_table="<table style='font-size: 0.9em; border-collapse: collapse; margin: 10px 0;'>"
-    html_table="${html_table}<tr style='background: #f0f0f0; font-weight: bold;'>"
-    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd;'>TYPE</td>"
-    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>TOTAL</td>"
-    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>ACTIVE</td>"
-    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>SIZE</td>"
-    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>RECLAIMABLE</td>"
-    html_table="${html_table}</tr>"
-
-    # Parse each line (skip header)
-    while IFS= read -r line; do
-      local type=$(echo "$line" | awk '{print $1}')
-      local total=$(echo "$line" | awk '{print $2}')
-      local active=$(echo "$line" | awk '{print $3}')
-      local size=$(echo "$line" | awk '{print $4}')
-      local reclaimable=$(echo "$line" | awk '{print $5, $6}')
-
-      html_table="${html_table}<tr>"
-      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd;'>${type}</td>"
-      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${total}</td>"
-      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${active}</td>"
-      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${size}</td>"
-      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${reclaimable}</td>"
-      html_table="${html_table}</tr>"
-    done <<< "$(echo "$disk_data" | tail -n +2)"
-
-    html_table="${html_table}</table>"
-
-    # Output the complete table as one HTML message
-    echo "[HTML]: ${html_table}"
+  local disk_data
+  if disk_data=$(${DOCKER} system df --format '{{.Type}}\t{{.TotalCount}}\t{{.Active}}\t{{.Size}}\t{{.Reclaimable}}' 2>/dev/null) && [ -n "$disk_data" ]; then
+    format_docker_disk_usage "$disk_data"
 
     # Note: We no longer warn based on reclaimable space, as it's not a reliable
     # indicator of available disk space. Docker will fail with clear error messages
     # if it actually runs out of space during builds.
   else
+    # Older Docker versions may not support --format; continue without a table.
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i>Unable to check Docker disk usage. Proceeding with build...</p>"
   fi
 }
@@ -2336,7 +2337,20 @@ build_extractor_container)
 # environment) and go straight into the Ruby container's tmpfs; the rename
 # makes the file appear complete, since the entrypoint waits for it.
 deliver-secrets)
-  "${DOCKER}" exec -i "${MONADIC_RUBY_CONTAINER:-monadic-chat-ruby-container}" sh -c \
+  ruby_container="${MONADIC_RUBY_CONTAINER:-monadic-chat-ruby-container}"
+  # An image built before 1Password references existed reads config/env
+  # itself and would send the op:// text to providers as a key. Exit 3 tells
+  # the app to ask for a rebuild instead of handing values to it. The shell in
+  # the container answers 42 for a missing file: docker exec itself fails
+  # with 1 or 125-127 (no such container, not running), which must not read
+  # as an old image.
+  "${DOCKER}" exec "${ruby_container}" sh -c 'test -f /monadic/lib/monadic/utils/secret_references.rb || exit 42'
+  case $? in
+    0) ;;
+    42) echo "deliver-secrets: the Ruby container predates 1Password references; rebuild it" >&2; exit 3 ;;
+    *) echo "deliver-secrets: could not reach the Ruby container" >&2; exit 1 ;;
+  esac
+  "${DOCKER}" exec -i "${ruby_container}" sh -c \
     'umask 077 && cat > /run/monadic-secrets/env.tmp && mv /run/monadic-secrets/env.tmp /run/monadic-secrets/env' \
     || { echo "deliver-secrets: could not write to the Ruby container" >&2; exit 1; }
   ;;

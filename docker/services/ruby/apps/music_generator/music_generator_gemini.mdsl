@@ -1,31 +1,31 @@
 app "MusicGeneratorGemini" do
   description do
     en <<~TEXT
-    Generate music from text descriptions with Google's Lyria 3. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Generate music from text descriptions with Google's Lyria 3.5. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    GoogleのLyria 3でテキスト説明から音楽を生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    GoogleのLyria 3.5でテキスト説明から音楽を生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    使用Google的Lyria 3从文本描述生成音乐。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用Google的Lyria 3.5从文本描述生成音乐。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    Google의 Lyria 3로 텍스트 설명에서 음악을 생성합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Google의 Lyria 3.5로 텍스트 설명에서 음악을 생성합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Generar música a partir de descripciones de texto con Lyria 3 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Generar música a partir de descripciones de texto con Lyria 3.5 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Générer de la musique à partir de descriptions textuelles avec Lyria 3 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Générer de la musique à partir de descriptions textuelles avec Lyria 3.5 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Musik aus Textbeschreibungen mit Googles Lyria 3 generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Musik aus Textbeschreibungen mit Googles Lyria 3.5 generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -40,8 +40,8 @@ app "MusicGeneratorGemini" do
   end
 
   system_prompt <<~TEXT
-    You help users create music using Google's Lyria 3 model.
-    Models: lyria-3-pro-preview (full songs up to ~2-3 min, with vocals and timed
+    You help users create music using Google's Lyria 3.5 model.
+    Models: lyria-3.5 (full songs of a couple of minutes, with vocals and timed
     lyrics when requested) and lyria-3-clip-preview (30-second instrumental clips,
     fast). All output is 44.1 kHz stereo and carries an inaudible SynthID watermark.
 
@@ -53,7 +53,7 @@ app "MusicGeneratorGemini" do
     sentences). This is the one place you list capabilities, so be thorough.
 
     --- EXAMPLE GREETING (reproduce this shape in the user's language) ---
-    Hi! I generate music with Google's Lyria 3. Just describe the vibe you want
+    Hi! I generate music with Google's Lyria 3.5. Just describe the vibe you want
     and I'll create it — everything below is optional:
     - **Genre / mood / instruments** — e.g. "a mellow lo-fi piano track"
     - **Tempo, structure, or timing** — e.g. "around 120 BPM, a quiet intro
@@ -80,7 +80,8 @@ app "MusicGeneratorGemini" do
     - If the user uploaded an image, it automatically influences the composition
       (image-to-music) — no extra step needed; just describe what they want.
     - If the user asks for high quality / lossless / WAV, pass output_format: "wav"
-      (WAV is Pro-only; it is ignored for the clip model).
+      (WAV is Pro-only; it is ignored for the clip model). The API may still return
+      MP3: report the format from the result's mime_type, never assume WAV.
 
     PROMPT CRAFTING — preserve the default, structure only on request:
     - DEFAULT for open-ended / vibe requests (e.g. "a road trip song"): pass the
@@ -172,7 +173,7 @@ app "MusicGeneratorGemini" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_music_with_lyria", "Generate music with Google's Lyria 3. Default model lyria-3-pro-preview produces full songs (up to ~2-3 min) with vocals and lyrics when requested; lyria-3-clip-preview produces fast 30-second instrumental clips. Returns an MP3 (WAV for Pro) saved to the shared folder plus any generated lyrics." do
+    define_tool "generate_music_with_lyria", "Generate music with Google's Lyria. Default model lyria-3.5 produces full songs (a couple of minutes) with vocals and lyrics when requested; lyria-3-clip-preview produces fast 30-second instrumental clips. Returns the audio saved to the shared folder (MP3, or WAV when requested and supplied) plus any generated lyrics; mime_type reports the format actually returned." do
       parameter :prompt, "string", "The music description to generate from (English works best). Include genre, mood, instrumentation, tempo, and any lyrics for vocal tracks.", required: true
       parameter :lyria_model, "string", "Optional: 'pro' (default, full songs with optional vocals) or 'clip' (fast 30s instrumental).", required: false
       parameter :output_format, "string", "Optional: 'wav' for lossless audio (Pro model only; larger file) or 'mp3' (default).", required: false

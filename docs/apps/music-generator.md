@@ -5,7 +5,7 @@ Generate original music tracks — full songs or short instrumental clips — fr
 Generate music from text descriptions using Google's Lyria 3. Describe the genre, mood, instrumentation, and tempo you want, and the app produces an audio track that plays directly in the chat and is saved to your `Shared Folder`.
 
 **Key Features:**
--   **Full songs**: The default model (Lyria 3 Pro) creates tracks up to roughly two to three minutes, with vocals and lyrics when you request them.
+-   **Full songs**: The default model (Lyria 3.5) creates tracks of a couple of minutes, with vocals and lyrics when you request them.
 -   **Fast instrumental clips**: A 30-second clip model is available for quick instrumental sketches, loops, and background ideas.
 -   **Lyrics display**: When a track includes vocals, the generated lyrics are shown alongside the audio player.
 -   **Image-to-music (optional)**: Attach an image (up to 10) with your request and its mood, colors, and subject influence the composition — no extra step needed.

@@ -41,11 +41,11 @@ RSpec.describe 'Music Generator Gemini — integration' do
     require_relative '../../../lib/monadic/utils/model_spec'
     let(:m) { Monadic::Utils::ModelSpec }
 
-    it 'defaults to Lyria 3 Pro with Clip as the fast alternative' do
+    it 'defaults to Lyria 3.5 with Clip as the fast alternative' do
       models = m.get_provider_models('gemini', 'music')
-      expect(models.first).to eq('lyria-3-pro-preview')
+      expect(models.first).to eq('lyria-3.5')
       expect(models).to include('lyria-3-clip-preview')
-      expect(m.default_music_model('gemini')).to eq('lyria-3-pro-preview')
+      expect(m.default_music_model('gemini')).to eq('lyria-3.5')
     end
   end
 end

@@ -312,12 +312,14 @@ module GeminiHelper
   end
 
 
-  # Generate music with Google Lyria 3 via the Gemini API (synchronous
+  # Generate music with Google Lyria via the Gemini API (synchronous
   # generateContent with AUDIO modality — same response shape as Gemini TTS).
   # Returns inline base64 audio (MP3 by default; WAV for Pro) plus a text part
   # carrying lyrics/structure. lyria_model: "pro" (default, full songs with
-  # vocals) or "clip" (30s instrumental, fast). output_format: "wav" (Pro only;
-  # higher quality, larger file) else MP3. Uploaded images in the session
+  # vocals) or "clip" (30s instrumental, fast). output_format: "wav" (Pro only)
+  # asks for WAV; the REST enum is AUDIO_WAV (the "audio/wav" spelling in the
+  # Python examples is the SDK's and is rejected with 400 here). The API may
+  # still return MP3, so the saved file's extension follows the returned type. Uploaded images in the session
   # influence the composition (image-to-music, up to 10). Resolves the actual
   # model id from providerDefaults.gemini.music (SSOT).
   def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil)
@@ -334,7 +336,7 @@ module GeminiHelper
     rescue StandardError
       nil
     end
-    pro_model  = music_models&.[](0) || "lyria-3-pro-preview"
+    pro_model  = music_models&.[](0) || "lyria-3.5"
     clip_model = music_models&.[](1) || "lyria-3-clip-preview"
     model_id = lyria_model.to_s.downcase == "clip" ? clip_model : pro_model
 
@@ -347,7 +349,7 @@ module GeminiHelper
     generation_config = { responseModalities: ["AUDIO"] }
     # WAV is Pro-only; the Clip model is MP3-only, so ignore a WAV request there.
     if output_format.to_s.downcase == "wav" && model_id == pro_model
-      generation_config[:responseFormat] = { audio: { mimeType: "audio/wav" } }
+      generation_config[:responseFormat] = { audio: { mimeType: "AUDIO_WAV" } }
     end
 
     body = { contents: [{ parts: parts }], generationConfig: generation_config }

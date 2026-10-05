@@ -1625,7 +1625,7 @@ const modelSpec = {
   // `music_capability` flag keeps them out of chat model selectors
   // (utilities.js listModels, model_utils.js filterModelsForAllMode).
   // -------------------------------------------------------------------------
-  "lyria-3-pro-preview": {
+  "lyria-3.5": {
     "music_capability": true
   },
   "lyria-3-clip-preview": {
@@ -1678,7 +1678,7 @@ const providerDefaults = {
     // models remain.
     "image": ["gemini-3.1-flash-image", "gemini-3-pro-image"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
-    "music": ["lyria-3-pro-preview", "lyria-3-clip-preview"],
+    "music": ["lyria-3.5", "lyria-3-clip-preview"],
     "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {

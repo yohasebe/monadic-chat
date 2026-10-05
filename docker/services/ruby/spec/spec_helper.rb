@@ -27,6 +27,10 @@ if config_path
     next if line.strip.empty? || line.strip.start_with?('#')
     key, value = line.strip.split('=', 2)
     next unless key && value
+    # A 1Password reference (op://...) is not a key. The app resolves it on the
+    # host; the specs do not, so leave it out rather than send the reference to
+    # a provider as a key. Specs that need the key then skip as if it were unset.
+    next if value.start_with?('op://')
     CONFIG[key] = value
     ENV[key] = value  # Also set in ENV for compatibility
   end

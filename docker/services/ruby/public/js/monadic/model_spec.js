@@ -1630,6 +1630,11 @@ const modelSpec = {
   },
   "lyria-3-clip-preview": {
     "music_capability": true
+  },
+  // ElevenLabs Music, offered by Music Generator only when ELEVENLABS_API_KEY
+  // is set (apps/music_generator/music_generator_tools.rb).
+  "music_v2_5": {
+    "music_capability": true
   }
 }
 
@@ -1719,7 +1724,8 @@ const providerDefaults = {
   },
   "elevenlabs": {
     "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"],
-    "audio_transcription": ["scribe_v2"]
+    "audio_transcription": ["scribe_v2"],
+    "music": ["music_v2_5"]
   }
 };
 

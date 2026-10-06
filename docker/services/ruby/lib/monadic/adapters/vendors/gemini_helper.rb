@@ -17,6 +17,7 @@ require_relative "../../utils/system_defaults"
 require_relative "../../utils/ssl_configuration"
 require_relative "../../utils/extra_logger"
 require_relative "../../utils/progress_broadcaster"
+require_relative "../../utils/tool_key_requirements"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -393,7 +394,7 @@ module GeminiHelper
     filepath = File.join(shared_folder, filename)
     File.open(filepath, 'wb') { |f| f.write(Base64.decode64(inline["data"])) }
 
-    { success: true, filename: filename, mime_type: mime, lyrics: lyrics,
+    { success: true, service: "Google Lyria", filename: filename, mime_type: mime, lyrics: lyrics,
       model: model_id, prompt: prompt }.to_json
   rescue StandardError => e
     { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
@@ -2032,6 +2033,9 @@ module GeminiHelper
         DebugHelper.debug("Gemini: Skill menu annotation skipped due to #{e.message}", category: :api, level: :warning)
       end
     end
+
+    # Tools that call another service are offered only when its key is set.
+    filtered_function_tools = Monadic::Utils::ToolKeyRequirements.filter(filtered_function_tools)
 
     # Re-wrap tools using original structure expectations
     if app_tools.is_a?(Hash) && app_tools["function_declarations"]

@@ -60,12 +60,15 @@ app "MusicGeneratorGemini" do
       building to a big chorus"
     - **Lyrics** for a song with vocals — e.g. "a song about a road trip, gentle vocals"
     - **A reference image** — attach one and its mood and colors shape the music
-    - **Length** — a full song (default, up to ~2-3 min) or a quick 30-second
-      instrumental clip
-    - **High-quality WAV** instead of MP3 (full songs only)
+    - **Length** — a full song (default, a couple of minutes) or a quick
+      30-second instrumental clip
 
     What would you like to create?
     --- END EXAMPLE ---
+
+    Only if the generate_music_with_elevenlabs tool is available to you, add one
+    more bullet before the closing question: "**ElevenLabs Music** — say 'with
+    ElevenLabs' to have it made by ElevenLabs instead of Lyria".
 
     Put the closing question on its OWN line, separated from the last bullet by a
     blank line (do not append it to the final list item). In every other case, do
@@ -82,6 +85,21 @@ app "MusicGeneratorGemini" do
     - If the user asks for high quality / lossless / WAV, pass output_format: "wav"
       (WAV is Pro-only; it is ignored for the clip model). The API may still return
       MP3: report the format from the result's mime_type, never assume WAV.
+
+    ELEVENLABS MUSIC (only when the generate_music_with_elevenlabs tool is
+    available to you; the app runs on Gemini, so another service is used only by
+    the user's explicit choice):
+    - Call it ONLY when the user explicitly names ElevenLabs in the request, e.g.
+      "make it with ElevenLabs". "Try another model", "something different" or
+      "better quality" do NOT count: use Lyria, or ask whether they want ElevenLabs.
+    - NEVER use it as a fallback. If Lyria fails, show the error and stop; do not
+      switch services on your own. You may mention that ElevenLabs is available.
+    - Pass the user's description as prompt (same PROMPT CRAFTING rules). Pass
+      length_seconds when the user gives a length, and instrumental: true when
+      they ask for no vocals. ElevenLabs returns no lyrics text.
+    - If the user names ElevenLabs but the tool is not available, say that it
+      needs an ElevenLabs API key (ELEVENLABS_API_KEY) and do not generate with
+      Lyria instead unless they ask.
 
     PROMPT CRAFTING — preserve the default, structure only on request:
     - DEFAULT for open-ended / vibe requests (e.g. "a road trip song"): pass the
@@ -104,10 +122,15 @@ app "MusicGeneratorGemini" do
       a loop, or explicitly instrumental/background.
 
     RESULT DISPLAY:
-    The tool returns { filename, mime_type, lyrics }. On success, output raw HTML
-    (NO markdown code blocks), using the returned values:
+    The tools return { service, model, filename, mime_type, lyrics } (ElevenLabs
+    has no lyrics). On success, output raw HTML (NO markdown code blocks), using the
+    returned values. ALWAYS include the service line, so the user can see which
+    service made the track:
     <div class="prompt" style="margin-bottom: 10px;">
       <b>Prompt</b>: [user's prompt]
+    </div>
+    <div class="music-service" style="margin-bottom: 10px;">
+      <b>Generated with</b>: [service] ([model])
     </div>
     <div class="generated_music" style="margin-bottom: 10px;">
       <audio controls style="width: 100%;">
@@ -139,6 +162,7 @@ app "MusicGeneratorGemini" do
     - Do not modify the user's prompt.
     - NEVER retry automatically on error.
     - Pro generation can take a couple of minutes; clip is fast (~10s).
+    - Never switch between Lyria and ElevenLabs without the user asking.
 
     ## Plan-Approve-Execute Protocol
 
@@ -178,6 +202,13 @@ app "MusicGeneratorGemini" do
       parameter :lyria_model, "string", "Optional: 'pro' (default, full songs with optional vocals) or 'clip' (fast 30s instrumental).", required: false
       parameter :output_format, "string", "Optional: 'wav' for lossless audio (Pro model only; larger file) or 'mp3' (default).", required: false
       parameter :session, "object", "Session object (automatically provided). Carries any uploaded images for image-to-music.", required: false
+    end
+
+    define_tool "generate_music_with_elevenlabs", "Generate music with ElevenLabs Music instead of Lyria. Use ONLY when the user explicitly asks for ElevenLabs by name; never as a fallback when Lyria fails or as a silent substitute. Returns the audio saved to the shared folder (no lyrics text) and the service that made it." do
+      parameter :prompt, "string", "The music description to generate from. Include genre, mood, instrumentation, tempo, and any lyrics for vocal tracks.", required: true
+      parameter :length_seconds, "number", "Optional: length of the track in seconds (3 to 600). Omit to let the model decide.", required: false
+      parameter :instrumental, "boolean", "Optional: true for a track without vocals.", required: false
+      parameter :session, "object", "Session object (automatically provided).", required: false
     end
   end
 end

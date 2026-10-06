@@ -54,7 +54,7 @@ OpenAIのデフォルトモデルの場合：
 | `COHERE_API_KEY` | Cohere APIキー | はい（Cohereアプリ使用時） | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek APIキー | はい（DeepSeekアプリ使用時） | `...` |
 | `XAI_API_KEY` | Grokモデル用のxAI APIキー | はい（Grokアプリ使用時） | `xai-...` |
-| `ELEVENLABS_API_KEY` | TTSおよびScribe音声認識用のElevenLabs APIキー | はい（ElevenLabs音声使用時） | `...` |
+| `ELEVENLABS_API_KEY` | TTS、Scribe音声認識、Music GeneratorのElevenLabs Music用のElevenLabs APIキー | はい（ElevenLabs音声使用時） | `...` |
 | `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー — 対応は[プロバイダー機能概要](../basic-usage/basic-apps.md#provider-capabilities)を参照 | Tavily経由のウェブ検索時に必要 | `tvly-...` |
 
 ### APIキーを 1Password から読み込む :id=onepassword-references

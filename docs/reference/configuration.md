@@ -54,7 +54,7 @@ For the OpenAI default model:
 | `COHERE_API_KEY` | Cohere API key | Yes (for Cohere apps) | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek API key | Yes (for DeepSeek apps) | `...` |
 | `XAI_API_KEY` | xAI API key for Grok models | Yes (for Grok apps) | `xai-...` |
-| `ELEVENLABS_API_KEY` | ElevenLabs API key for TTS and Scribe speech-to-text | Yes (for ElevenLabs voices) | `...` |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key for TTS, Scribe speech-to-text, and ElevenLabs Music in Music Generator | Yes (for ElevenLabs voices) | `...` |
 | `TAVILY_API_KEY` | Tavily API key for web search — see [Provider Capabilities Overview](../basic-usage/basic-apps.md#provider-capabilities) | Required for web search through Tavily | `tvly-...` |
 
 ### Reading Keys from 1Password :id=onepassword-references

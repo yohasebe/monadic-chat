@@ -1063,6 +1063,39 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
+  // Mistral Large 4 (public preview 2026-10-06): open-weight multimodal MoE
+  // (1.05T total, 49B active). The API reports a 524,288-token context
+  // (the model page says 1M). reasoning_effort accepts only "none"/"high"
+  // like Medium 3.5; without it the model does not reason.
+  "mistral-large-4": {
+    "context_window": [1, 524288],
+    "max_output_tokens" : [1, 262000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true,
+    "supports_thinking": true,
+    "reasoning_effort": [["none", "high"], "none"]
+  },
+  // Z.ai GLM 5.3, hosted by Mistral (third-party open-weight, text only,
+  // 1M context, 128k output). reasoning_effort accepts low/high/max and
+  // rejects "none"; WITHOUT the parameter it reasons at about max, so the
+  // helper sends the lowest level when no reasoning is asked for
+  // (mistral_effort_for). "low" is close to no reasoning (checked 2026-10-06).
+  "zai-glm-5-3": {
+    "context_window": [1, 1048576],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": false,
+    "supports_structured_output": true,
+    "supports_thinking": true,
+    "reasoning_effort": [["low", "high", "max"], "low"]
+  },
   // Mistral Medium 3.5: frontier-class multimodal, agentic + coding,
   // 256k context, function calling, structured outputs. The Mistral API
   // accepts only "none" or "high" for reasoning_effort on this family —
@@ -1692,7 +1725,7 @@ const providerDefaults = {
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
-    "chat": ["mistral-medium-3-5", "mistral-large-latest"],
+    "chat": ["mistral-large-4", "mistral-medium-3-5", "zai-glm-5-3"],
     "code": ["devstral-latest", "mistral-small-2603"],
     "vision": ["mistral-small-2603"],
     "tts": ["voxtral-mini-tts-2603"],

@@ -160,6 +160,12 @@ module Monadic
           false
         end
 
+        # Whether the spec has an entry under exactly this name. Unlike
+        # model_exists?, a dated variant does not count by its base name.
+        def registered?(model_name)
+          model_name.is_a?(String) && load_spec.key?(model_name)
+        end
+
         def model_has_property?(model_name, property)
           spec = get_model_spec(model_name)
           spec.key?(property.to_s)

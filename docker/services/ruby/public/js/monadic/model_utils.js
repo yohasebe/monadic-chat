@@ -13,7 +13,7 @@ const PROVIDER_MODEL_BEHAVIOR = {
   gemini:     { modelPattern: /^(gemini-|gemma-)/ },
   google:     { modelPattern: /^(gemini-|gemma-)/ },                 // alias for gemini
   cohere:     { modelPattern: /^command-/ },
-  mistral:    { modelPattern: /^(mistral-|pixtral-|magistral-|ministral-)/ },
+  mistral:    { modelPattern: /^(mistral-|pixtral-|magistral-|ministral-|zai-glm-)/ },
   deepseek:   { modelPattern: /^deepseek-/ },
   xai:        { modelPattern: /^grok-/ },
   grok:       { modelPattern: /^grok-/ },                            // alias for xai

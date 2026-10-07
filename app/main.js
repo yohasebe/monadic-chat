@@ -115,6 +115,20 @@ function serverModeAuthHeaders() {
     return {};
   }
 }
+
+// A request from the desktop app to its own server, with the token in
+// Server Mode. Without it every check below read 401 as "server not running".
+function fetchLocalServer(url = 'http://localhost:4567') {
+  return fetch(url, { headers: serverModeAuthHeaders() });
+}
+
+// The address an external browser opens. In Server Mode it carries the token
+// once; the server moves it into a cookie and redirects to the clean URL.
+function externalLocalServerUrl() {
+  const header = serverModeAuthHeaders().Authorization;
+  if (!header) return 'http://localhost:4567';
+  return `http://localhost:4567/?monadic_auth=${encodeURIComponent(header.replace(/^Bearer /, ''))}`;
+}
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
@@ -1765,14 +1779,14 @@ function initializeApp() {
           case 'browser': {
             const url = 'http://localhost:4567';
             // Verify server is actually running before opening browser
-            fetch(url)
+            fetchLocalServer(url)
               .then(response => {
                 if (response.ok) {
                   // Server is running, open browser
                   if (browserMode === 'internal') {
                     openWebViewWindow(url);
                   } else {
-                    openBrowser(url);
+                    openBrowser(externalLocalServerUrl());
                   }
                 } else {
                   throw new Error('Server not responding');
@@ -1942,7 +1956,7 @@ function initializeApp() {
           // Show internal browser window (start server if not running)
           if (currentStatus === 'Running' || currentStatus === 'Ready') {
             // Verify server is actually running before opening browser
-            fetch('http://localhost:4567')
+            fetchLocalServer()
               .then(response => {
                 if (response.ok && browserMode === 'internal') {
                   openWebViewWindow('http://localhost:4567');
@@ -2411,7 +2425,7 @@ function updateContextMenu(disableControls = false) {
       {
         label: i18n.t('menu.openBrowser'),
         click: () => {
-          shell.openExternal('http://localhost:4567');
+          shell.openExternal(externalLocalServerUrl());
         },
         enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
       },
@@ -2859,7 +2873,7 @@ function updateApplicationMenu() {
         {
           label: i18n.t('menu.openBrowser'),
           click: () => {
-            shell.openExternal('http://localhost:4567');
+            shell.openExternal(externalLocalServerUrl());
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
@@ -4508,7 +4522,7 @@ app.whenReady().then(async () => {
     // Verify server state after resume
     if (currentStatus === 'Running' || currentStatus === 'Ready') {
       // Check if server is actually still running
-      fetch('http://localhost:4567')
+      fetchLocalServer()
         .then(response => {
           if (!response.ok) {
             throw new Error('Server not responding');

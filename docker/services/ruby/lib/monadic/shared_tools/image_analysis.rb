@@ -2,9 +2,11 @@
 
 module MonadicSharedTools
   module ImageAnalysis
-    # Available if any vision-capable provider API key is configured
+    # Available if a provider that can analyze images itself has a key.
+    # Which provider runs it is the app's own (Monadic::Utils::ProviderCapabilities).
     def self.available?
-      %w[OPENAI_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY XAI_API_KEY].any? do |key|
+      %w[OPENAI_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY XAI_API_KEY
+         MISTRAL_API_KEY COHERE_API_KEY DEEPSEEK_API_KEY].any? do |key|
         CONFIG && !CONFIG[key].to_s.strip.empty?
       end
     end

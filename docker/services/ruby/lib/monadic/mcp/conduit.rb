@@ -506,8 +506,8 @@ module Monadic
             description: "Analyze an image with a vision model and return a text description/" \
                          "answer. Give a `prompt` (what to look at) and an image `path` on the " \
                          "shared volume (~/monadic/data). Uses your own API keys; spends provider " \
-                         "tokens (budget-gated). A vision-capable provider is chosen automatically " \
-                         "unless you pass one.",
+                         "tokens (budget-gated). Name the `provider`: the image is sent only to " \
+                         "that provider, never to another one.",
             input_schema: {
               type: "object",
               properties: {
@@ -522,11 +522,11 @@ module Monadic
                 },
                 provider: {
                   type: "string",
-                  description: "Optional preferred vision provider (openai, anthropic/claude, " \
-                               "gemini/google, xai/grok). Falls back to the first available."
+                  description: "Vision provider: openai, anthropic/claude, gemini/google, " \
+                               "or xai/grok. Required; there is no automatic choice."
                 }
               },
-              required: ["prompt", "path"],
+              required: ["prompt", "path", "provider"],
               additionalProperties: false
             },
             handler: :handle_analyze_image
@@ -535,8 +535,8 @@ module Monadic
             name: "monadic_transcribe_audio",
             description: "Transcribe an audio file to text (speech-to-text) using a provider's " \
                          "STT API. Give an audio `path` on the shared volume (~/monadic/data). " \
-                         "Uses your own API keys; spends provider tokens (budget-gated). A " \
-                         "capable provider is chosen automatically unless you pass one.",
+                         "Uses your own API keys; spends provider tokens (budget-gated). Name the " \
+                         "`provider`: the audio is sent only to that provider.",
             input_schema: {
               type: "object",
               properties: {
@@ -555,11 +555,11 @@ module Monadic
                 },
                 provider: {
                   type: "string",
-                  description: "Optional preferred provider (openai, gemini/google). Falls " \
-                               "back to the first available."
+                  description: "Speech-to-text provider: openai or gemini/google. Required; " \
+                               "there is no automatic choice."
                 }
               },
-              required: ["path"],
+              required: ["path", "provider"],
               additionalProperties: false
             },
             handler: :handle_transcribe_audio
@@ -595,13 +595,20 @@ module Monadic
                          "plus transcribing its audio. Give a video `path` on the shared volume " \
                          "(~/monadic/data) and an optional `query`. Requires the Python container " \
                          "(frame extraction). Uses your own API keys; spends provider tokens " \
-                         "(budget-gated). Can take a while — runnable via monadic_submit.",
+                         "(budget-gated). Can take a while — runnable via monadic_submit. Name " \
+                         "the `provider`: frames and audio are sent only to that provider.",
             input_schema: {
               type: "object",
               properties: {
                 path: {
                   type: "string",
                   description: "Video filename on the shared volume (~/monadic/data)."
+                },
+                provider: {
+                  type: "string",
+                  description: "Vision provider: openai, anthropic/claude, gemini/google, or " \
+                               "xai/grok. Required; there is no automatic choice. Audio is " \
+                               "transcribed only when this provider offers speech-to-text."
                 },
                 query: {
                   type: "string",
@@ -612,7 +619,7 @@ module Monadic
                   description: "Optional frames-per-second to sample (default 1)."
                 }
               },
-              required: ["path"],
+              required: ["path", "provider"],
               additionalProperties: false
             },
             handler: :handle_analyze_video
@@ -1378,8 +1385,7 @@ module Monadic
         raise ArgumentError, "prompt is required" if prompt.empty?
         raise ArgumentError, "path is required" if path.empty?
 
-        provider = (arguments["provider"] || arguments[:provider]).to_s
-        provider = MonadicDSL::ProviderConfig.new(provider).standard_key unless provider.empty?
+        provider = required_analysis_provider(arguments)
 
         input_tokens = CostGuard.estimate_tokens(prompt) + IMAGE_TOKENS_ESTIMATE
         begin
@@ -1394,7 +1400,7 @@ module Monadic
         CostGuard.record(input_tokens + CostGuard.estimate_tokens(result))
 
         {
-          provider: (provider.empty? ? "auto" : provider),
+          provider: provider,
           success: success,
           text: (success ? result : nil),
           error: (success ? nil : "❌ #{result}"),
@@ -1412,8 +1418,7 @@ module Monadic
         path = (arguments["path"] || arguments[:path]).to_s
         raise ArgumentError, "path is required" if path.empty?
 
-        provider = (arguments["provider"] || arguments[:provider]).to_s
-        provider = MonadicDSL::ProviderConfig.new(provider).standard_key unless provider.empty?
+        provider = required_analysis_provider(arguments)
         model = (arguments["model"] || arguments[:model])
         language = (arguments["language"] || arguments[:language])
 
@@ -1430,7 +1435,7 @@ module Monadic
         CostGuard.record(AUDIO_TOKENS_ESTIMATE + CostGuard.estimate_tokens(result))
 
         {
-          provider: (provider.empty? ? "auto" : provider),
+          provider: provider,
           success: success,
           text: (success ? result : nil),
           error: (success ? nil : "❌ #{result}"),
@@ -1488,6 +1493,7 @@ module Monadic
         path = (arguments["path"] || arguments[:path]).to_s
         raise ArgumentError, "path is required" if path.empty?
 
+        provider = required_analysis_provider(arguments)
         guard = require_background_job("monadic_analyze_video")
         return guard if guard
 
@@ -1505,11 +1511,12 @@ module Monadic
         # container, then queries a vision provider and transcribes audio — it
         # needs the full MonadicApp surface (send_command + ImageAnalysisAgent +
         # AudioTranscriptionAgent), which MonadicApp already mixes in.
-        result = video_analyze_host.analyze_video(file: path, fps: fps, query: query)
+        result = video_analyze_host(provider).analyze_video(file: path, fps: fps, query: query)
         success = !video_error?(result)
         CostGuard.record(VIDEO_ANALYZE_ESTIMATE + CostGuard.estimate_tokens(result))
 
         {
+          provider: provider,
           success: success,
           text: (success ? result : nil),
           error: (success ? nil : "❌ #{result}"),
@@ -1517,11 +1524,23 @@ module Monadic
         }.compact
       end
 
-      def video_analyze_host
+      # A MonadicApp host for the video agent, carrying the requested provider
+      # in settings["provider"] the way an app would.
+      def video_analyze_host(provider)
         klass = @hosts_mutex.synchronize do
-          @video_analyze_host_class ||= Class.new(MonadicApp) { include VideoAnalyzeAgent }
+          @video_analyze_host_class ||= Class.new(MonadicApp) do
+            include VideoAnalyzeAgent
+            attr_accessor :_conduit_provider
+
+            def settings
+              base = defined?(super) ? super : nil
+              (base.is_a?(Hash) ? base : {}).merge("provider" => _conduit_provider.to_s)
+            end
+          end
         end
-        klass.new
+        host = klass.new
+        host._conduit_provider = provider
+        host
       end
 
       # The video agent signals failure with either "ERROR:" or "Error:".
@@ -2142,10 +2161,18 @@ module Monadic
 
       # ---- Analysis-agent helpers ----------------------------------------
 
-      # Build a headless host mixing in an analysis agent module. These agents
-      # read settings["provider"] to prefer a provider, so we supply a minimal
-      # settings carrying the (optional) requested provider; an empty value
-      # triggers each agent's own first-available fallback.
+      # The provider an analysis request names. Required: the agents run on the
+      # named provider only and never pick one that happens to have a key.
+      def required_analysis_provider(arguments)
+        provider = (arguments["provider"] || arguments[:provider]).to_s.strip
+        raise ArgumentError, "provider is required (the file is sent only to the provider you name)" if provider.empty?
+
+        MonadicDSL::ProviderConfig.new(provider).standard_key
+      end
+
+      # Build a headless host mixing in an analysis agent module. The agents
+      # read settings["provider"], so we supply a minimal settings carrying
+      # the requested provider.
       def agent_host(agent_module, provider)
         klass = Class.new do
           attr_accessor :_conduit_provider

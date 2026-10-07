@@ -961,11 +961,10 @@ RSpec.describe Monadic::MCP::Conduit do
         .with(message: "describe", image_path: "pic.png")
         .and_return("A red square on white.")
       result = described_class.call("monadic_analyze_image", {
-        "prompt" => "describe", "path" => "pic.png"
-      })
+        "prompt" => "describe", "path" => "pic.png", "provider" => "openai" })
       expect(result[:success]).to be true
       expect(result[:text]).to eq("A red square on white.")
-      expect(result[:provider]).to eq("auto")
+      expect(result[:provider]).to eq("openai")
       expect(result[:budget][:tokens_spent]).to be > 0
     end
 
@@ -981,25 +980,30 @@ RSpec.describe Monadic::MCP::Conduit do
     it "maps an agent ERROR string to a structured failure" do
       allow(vhost).to receive(:image_analysis_agent)
         .and_return("ERROR: Image file not found: x.png")
-      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png" })
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Image file not found/)
     end
 
     it "requires prompt and path" do
-      expect { described_class.call("monadic_analyze_image", { "path" => "x.png" }) }
+      expect { described_class.call("monadic_analyze_image", { "path" => "x.png", "provider" => "openai" }) }
         .to raise_error(ArgumentError, /prompt is required/)
-      expect { described_class.call("monadic_analyze_image", { "prompt" => "p" }) }
+      expect { described_class.call("monadic_analyze_image", { "prompt" => "p", "provider" => "openai" }) }
         .to raise_error(ArgumentError, /path is required/)
     end
 
     it "refuses when the budget is exhausted (no agent call)" do
       stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
       expect(vhost).not_to receive(:image_analysis_agent)
-      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png" })
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end
+  end
+
+  it "monadic_analyze_image requires a provider instead of picking one with a key" do
+    expect { described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png" }) }
+      .to raise_error(ArgumentError, /provider is required/)
   end
 
   describe "monadic_transcribe_audio" do
@@ -1016,7 +1020,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(ahost).to receive(:audio_transcription_agent)
         .with(hash_including(audio_path: "speech.mp3"))
         .and_return("hello world")
-      result = described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3" })
+      result = described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3", "provider" => "openai" })
       expect(result[:success]).to be true
       expect(result[:text]).to eq("hello world")
       expect(result[:budget][:tokens_spent]).to be > 0
@@ -1025,14 +1029,20 @@ RSpec.describe Monadic::MCP::Conduit do
     it "maps an agent ERROR string to a structured failure" do
       allow(ahost).to receive(:audio_transcription_agent)
         .and_return("ERROR: Audio file not found: speech.mp3")
-      result = described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3" })
+      result = described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Audio file not found/)
     end
 
     it "requires path" do
-      expect { described_class.call("monadic_transcribe_audio", {}) }
+      expect { described_class.call("monadic_transcribe_audio", { "provider" => "openai" }) }
         .to raise_error(ArgumentError, /path is required/)
+    end
+
+    it "requires a provider instead of picking one with a key" do
+      expect(ahost).not_to receive(:audio_transcription_agent)
+      expect { described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3" }) }
+        .to raise_error(ArgumentError, /provider is required/)
     end
   end
 
@@ -1094,7 +1104,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "refuses a direct (non-job) call and points to monadic_submit" do
       allow(described_class).to receive(:require_background_job).and_call_original
-      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4" })
+      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/must run in the background/)
     end
@@ -1104,7 +1114,7 @@ RSpec.describe Monadic::MCP::Conduit do
         .with(file: "clip.mp4", fps: 1, query: "what happens?")
         .and_return("A person waves at the camera.")
       result = described_class.call("monadic_analyze_video",
-                                    { "path" => "clip.mp4", "query" => "what happens?" })
+                                    { "path" => "clip.mp4", "query" => "what happens?", "provider" => "openai" })
       expect(result[:success]).to be true
       expect(result[:text]).to eq("A person waves at the camera.")
       expect(result[:budget][:tokens_spent]).to be > 0
@@ -1114,20 +1124,29 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(vhost).to receive(:analyze_video)
         .with(hash_including(fps: 2))
         .and_return("Error: Failed to extract frames from video.")
-      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4", "fps" => 2 })
+      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4", "fps" => 2, "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Failed to extract frames/)
     end
 
     it "requires path" do
-      expect { described_class.call("monadic_analyze_video", {}) }
+      expect { described_class.call("monadic_analyze_video", { "provider" => "openai" }) }
         .to raise_error(ArgumentError, /path is required/)
+    end
+
+    it "requires a provider and hands it to the host" do
+      expect { described_class.call("monadic_analyze_video", { "path" => "c.mp4" }) }
+        .to raise_error(ArgumentError, /provider is required/)
+      expect(described_class).to receive(:video_analyze_host).with("anthropic").and_return(vhost)
+      allow(vhost).to receive(:analyze_video).and_return("ok")
+      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4", "provider" => "claude" })
+      expect(result[:provider]).to eq("anthropic")
     end
 
     it "refuses when the budget is exhausted (no analysis)" do
       stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
       expect(vhost).not_to receive(:analyze_video)
-      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4" })
+      result = described_class.call("monadic_analyze_video", { "path" => "c.mp4", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end

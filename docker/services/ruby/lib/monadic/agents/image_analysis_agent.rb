@@ -3,13 +3,12 @@
 require "base64"
 require "http"
 require_relative "../utils/environment"
+require_relative "../utils/provider_capabilities"
 
-# ImageAnalysisAgent provides provider-independent image analysis
-# using each provider's native Vision API.
-#
-# Supported providers: OpenAI, Claude (Anthropic), Gemini (Google), Grok (xAI)
-# Non-vision providers (Cohere, DeepSeek, Mistral, Ollama) fall back
-# to the first available vision provider (preference: OpenAI).
+# ImageAnalysisAgent analyzes an image with the app's own provider's Vision
+# API. Which providers it can call is Monadic::Utils::ProviderCapabilities
+# (:image); for any other provider, or without that provider's key, it
+# returns an error rather than sending the image to another provider.
 
 module ImageAnalysisAgent
   # Provider key mapping for ModelSpec (which uses canonical keys)
@@ -17,7 +16,10 @@ module ImageAnalysisAgent
     "openai"    => "openai",
     "anthropic" => "anthropic",
     "google"    => "gemini",
-    "xai"       => "xai"
+    "xai"       => "xai",
+    "mistral"   => "mistral",
+    "cohere"    => "cohere",
+    "deepseek"  => "deepseek"
   }.freeze
 
   # Resolve the default vision model for a provider via providerDefaults SSOT
@@ -37,7 +39,10 @@ module ImageAnalysisAgent
     "openai"    => "OPENAI_API_KEY",
     "anthropic" => "ANTHROPIC_API_KEY",
     "google"    => "GEMINI_API_KEY",
-    "xai"       => "XAI_API_KEY"
+    "xai"       => "XAI_API_KEY",
+    "mistral"   => "MISTRAL_API_KEY",
+    "cohere"    => "COHERE_API_KEY",
+    "deepseek"  => "DEEPSEEK_API_KEY"
   }.freeze
 
   VISION_PROVIDERS = VISION_PROVIDER_MAP.keys.freeze
@@ -49,17 +54,18 @@ module ImageAnalysisAgent
   IMAGE_MAX_FILE_SIZE = 10 * 1024 * 1024 # 10MB
 
   def image_analysis_agent(message:, image_path:, detail: nil)
-    # 1. Load and encode the image
+    # 1. The app's own provider, or an error (never another provider)
+    resolved = Monadic::Utils::ProviderCapabilities.resolve(:image, analysis_app_provider)
+    return resolved[:error] if resolved[:error]
+
+    provider = resolved[:provider]
+
+    # 2. Load and encode the image
     image_data = prepare_image_for_analysis(image_path)
     return image_data if image_data.is_a?(String) # Error message
 
-    # 2. Determine the vision provider
-    provider = resolve_vision_provider
-
     # 3. Get API key
-    api_key_name = VISION_API_KEYS[provider]
-    api_key = CONFIG[api_key_name]&.strip
-    return "ERROR: No API key for provider '#{provider}'" if api_key.nil? || api_key.empty?
+    api_key = CONFIG[VISION_API_KEYS[provider]].to_s.strip
 
     # 4. Call provider-specific Vision API
     model = ImageAnalysisAgent.vision_model_for(provider)
@@ -73,12 +79,19 @@ module ImageAnalysisAgent
     when "anthropic" then vision_query_claude(message, image_data, model, api_key)
     when "google"    then vision_query_gemini(message, image_data, model, api_key)
     when "xai"       then vision_query_grok(message, image_data, model, api_key)
+    when "mistral"   then vision_query_mistral(message, image_data, model, api_key)
+    when "cohere"    then vision_query_cohere(message, image_data, model, api_key)
+    when "deepseek"  then vision_query_deepseek(message, image_data, model, api_key)
     end
   rescue => e
     "ERROR: Image analysis failed: #{e.message}"
   end
 
   private
+
+  def analysis_app_provider
+    settings["provider"] || settings[:provider]
+  end
 
   def prepare_image_for_analysis(image_path)
     return "ERROR: Invalid file path (path traversal not allowed)" if image_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
@@ -118,35 +131,10 @@ module ImageAnalysisAgent
     { base64: base64, mime_type: mime_type }
   end
 
+  # The app's own vision provider, or nil. Kept for callers that only need
+  # the name; it never picks another provider.
   def resolve_vision_provider
-    # Get the current app's provider
-    provider_raw = settings["provider"] || settings[:provider] || ""
-
-    # Normalize to vision provider key
-    normalized = case provider_raw.to_s.downcase
-                 when "openai" then "openai"
-                 when "anthropic", "claude" then "anthropic"
-                 when "google", "gemini" then "google"
-                 when "xai", "grok" then "xai"
-                 else nil
-                 end
-
-    # If provider supports vision and has API key, use it
-    if normalized && VISION_PROVIDERS.include?(normalized)
-      api_key_name = VISION_API_KEYS[normalized]
-      api_key = CONFIG[api_key_name]&.strip
-      return normalized unless api_key.nil? || api_key.empty?
-    end
-
-    # Fallback: try each vision provider in order
-    VISION_PROVIDERS.each do |vp|
-      api_key_name = VISION_API_KEYS[vp]
-      api_key = CONFIG[api_key_name]&.strip
-      return vp unless api_key.nil? || api_key.empty?
-    end
-
-    # Last resort
-    "openai"
+    Monadic::Utils::ProviderCapabilities.resolve(:image, analysis_app_provider)[:provider]
   end
 
   def vision_http_post(uri, headers, body)
@@ -170,7 +158,7 @@ module ImageAnalysisAgent
 
   # --- Provider-specific Vision API implementations ---
 
-  def vision_query_openai(message, image_data, model, api_key, detail: detail)
+  def vision_query_openai(message, image_data, model, api_key, detail: nil)
     uri = "https://api.openai.com/v1/chat/completions"
     headers = {
       "Content-Type" => "application/json",
@@ -312,4 +300,89 @@ module ImageAnalysisAgent
 
     JSON.parse(res.body.to_s).dig("choices", 0, "message", "content") || "ERROR: Empty response from Grok"
   end
+
+  # Mistral, Cohere and DeepSeek: the image formats their chat helpers already
+  # send (MistralHelper, CohereHelper, DeepSeekHelper).
+
+  def vision_query_mistral(message, image_data, model, api_key)
+    vision_query_chat_completions(
+      "https://api.mistral.ai/v1/chat/completions", "Mistral", message, image_data, model, api_key
+    )
+  end
+
+  def vision_query_deepseek(message, image_data, model, api_key)
+    vision_query_chat_completions(
+      "https://api.deepseek.com/chat/completions", "DeepSeek", message, image_data, model, api_key
+    )
+  end
+
+  # OpenAI-style chat completions with a data-URL image part. The answer is
+  # a string, or an array of parts for models that also return reasoning; only
+  # the text parts are kept.
+  def vision_query_chat_completions(uri, label, message, image_data, model, api_key)
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+    body = {
+      model: model,
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: message },
+            { type: "image_url", image_url: { url: "data:#{image_data[:mime_type]};base64,#{image_data[:base64]}" } }
+          ]
+        }
+      ]
+    }
+
+    res = vision_http_post(uri, headers, body)
+    unless res.status.success?
+      error = JSON.parse(res.body.to_s) rescue {}
+      detail = error.dig("error", "message") || error["message"] || res.body.to_s
+      return "ERROR: #{label} Vision API error (#{res.status}): #{detail}"
+    end
+
+    content = JSON.parse(res.body.to_s).dig("choices", 0, "message", "content")
+    text = if content.is_a?(Array)
+             content.filter_map { |part| part["text"] if part.is_a?(Hash) && part["type"] == "text" }.join
+           else
+             content.to_s
+           end
+    text.strip.empty? ? "ERROR: Empty response from #{label}" : text
+  end
+
+  def vision_query_cohere(message, image_data, model, api_key)
+    uri = "https://api.cohere.ai/v2/chat"
+    headers = {
+      "Content-Type" => "application/json",
+      "Authorization" => "Bearer #{api_key}"
+    }
+    body = {
+      model: model,
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: message },
+            { type: "image", image: "data:#{image_data[:mime_type]};base64,#{image_data[:base64]}" }
+          ]
+        }
+      ]
+    }
+
+    res = vision_http_post(uri, headers, body)
+    unless res.status.success?
+      error = JSON.parse(res.body.to_s) rescue {}
+      return "ERROR: Cohere Vision API error (#{res.status}): #{error["message"] || res.body.to_s}"
+    end
+
+    parts = JSON.parse(res.body.to_s).dig("message", "content")
+    text = Array(parts).filter_map { |part| part["text"] if part.is_a?(Hash) && part["type"] == "text" }.join
+    text.strip.empty? ? "ERROR: Empty response from Cohere" : text
+  end
+
 end

@@ -113,16 +113,13 @@ SeleniumコンテナはMonadic Chatの起動時に自動で起動します。バ
 **Actions → Build All** を実行してダウンロードしてください。
 
 #### 動画分析（1ツール）
-**必要条件**: ビジョン対応プロバイダーのAPIキー（OpenAI、Anthropic、Gemini、xAIのいずれか）が設定済み
+**必要条件**: OpenAI、Anthropic、Gemini、xAI のいずれかのアプリで、そのプロバイダーのAPIキーが設定済み
 
 - マルチモーダルAIを使用した動画コンテンツの分析
 - 動画フレームからの説明生成
+- フレームはアプリ自身のプロバイダーにだけ送られます。音声トラックは、そのプロバイダーが音声認識に対応している場合（OpenAI、Gemini）に文字起こしされ、対応していない場合は文字起こしをしなかったことが説明に添えられます
 
 **このツールを使用するアプリ**: Video Describer
-
-**有効化方法**:
-1. 設定で対応APIキー（OpenAI、Anthropic、Gemini、xAIのいずれか）を1つ以上設定
-2. ツールグループが自動的に利用可能になる
 
 #### Web検索（4ツール）
 **必要条件**: ネイティブWeb検索を持たないプロバイダーでは`TAVILY_API_KEY`が必要 — [プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
@@ -134,18 +131,20 @@ SeleniumコンテナはMonadic Chatの起動時に自動で起動します。バ
 **このツールを使用するアプリ**: Research Assistant、Mermaid Grapher、Wikipedia
 
 #### 音声文字起こし（1ツール）
-**必要条件**: OpenAIまたはGeminiのAPIキーが設定済み
+**必要条件**: OpenAI または Gemini のアプリで、そのプロバイダーのAPIキーが設定済み
 
 - 音声認識機能による音声ファイルの文字起こし
+- 音声はアプリ自身のプロバイダーにだけ送られます。ほかのプロバイダーのアプリでは、このツールは提供されません
 
 **このツールを使用するアプリ**: Video Describer、Speech Draft Helper
 
 #### 画像分析（1ツール）
-**必要条件**: ビジョン対応プロバイダーのAPIキー（OpenAI、Anthropic、Gemini、xAIのいずれか）が設定済み
+**必要条件**: OpenAI、Anthropic、Gemini、xAI、Mistral、Cohere、DeepSeek のいずれかのアプリで、そのプロバイダーのAPIキーが設定済み
 
 - ビジョン機能を使用した画像ファイル内容の分析と説明
+- 画像はアプリ自身のプロバイダーにだけ送られ、ほかのプロバイダーに送られることはありません
 
-**このツールを使用するアプリ**: Code Interpreter、Research Assistant（全プロバイダー）
+**このツールを使用するアプリ**: Code Interpreter、Research Assistant
 
 #### ライブラリ検索（1ツール）
 **必要条件**: ナレッジベース（埋め込みサービス）が利用可能

@@ -225,3 +225,4 @@ puts client.call_method("tools/list")
 - ナレッジベース系ツールは Qdrant と embeddings コンテナを必要とします。
 - `monadic_analyze_video` はフレーム抽出のため Python コンテナを必要とします。
 - 生成・解析系ツールは、該当プロバイダーの API キーを必要とします。
+- `monadic_analyze_image`、`monadic_transcribe_audio`、`monadic_analyze_video` には `provider` の指定が必要です。ファイルは指定したプロバイダーにだけ送られ、キーのある別のプロバイダーが自動で選ばれることはありません。

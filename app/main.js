@@ -97,6 +97,21 @@ let novncWindow = null;
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
 const allowedLocalHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
+
+// In Server Mode the Ruby server asks every client that is not on its own
+// loopback for the access token. The desktop app reaches the server through
+// Docker, which shows its requests as coming from the Docker gateway — the
+// same address LAN clients arrive from — so the app cannot be exempted by
+// address and sends the token like any other client.
+function serverModeAuthHeaders() {
+  try {
+    if (typeof dockerManager === 'undefined' || !dockerManager.isServerMode()) return {};
+    const token = (readEnvFile(getEnvPath()).MONADIC_AUTH_TOKEN || '').toString().trim();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch (_) {
+    return {};
+  }
+}
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
@@ -122,6 +137,7 @@ function openWebViewWindow(url, forceReload = false) {
         const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
         if (allowedLocalHosts.has(host)) {
           details.requestHeaders['Origin'] = `http://${host}`;
+          Object.assign(details.requestHeaders, serverModeAuthHeaders());
         }
       } catch (e) {
         console.warn('Failed to evaluate request host', e);
@@ -938,7 +954,7 @@ class DockerManager {
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
                 serverStartedReceived = true;
-                fetchWithRetry('http://localhost:4567')
+                fetchWithRetry('http://localhost:4567', { headers: serverModeAuthHeaders() })
                   .then((success) => {
                     if (success) {
                       // First set to Running state

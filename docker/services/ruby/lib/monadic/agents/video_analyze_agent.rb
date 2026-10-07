@@ -2,22 +2,26 @@
 
 require 'shellwords'
 require_relative '../utils/environment'
+require_relative '../utils/provider_capabilities'
 
 # VideoAnalyzeAgent provides provider-independent video analysis
 # by extracting frames and sending them to each provider's native Vision API.
 #
 # Supported vision providers: OpenAI, Claude (Anthropic), Gemini (Google), Grok (xAI)
-# Non-vision providers fall back to the first available vision provider.
+# Unsupported providers are rejected without cross-provider fallback.
 #
 # Dependencies:
 #   - ImageAnalysisAgent (included in MonadicApp) for:
-#     resolve_vision_provider, vision_http_post, vision_model_for, VISION_API_KEYS
+#     vision_model_for, VISION_API_KEYS
 #   - AudioTranscriptionAgent (included in MonadicApp) for:
 #     audio_transcription_agent (provider-independent STT)
 #   - send_command (from MonadicApp) for:
 #     extract_frames.py (Python container only)
 
 module VideoAnalyzeAgent
+  VIDEO_FRAMES_ONLY_NOTE = "You are shown still frames from a video, not its sound. The audio track, if any, " \
+                           "is transcribed separately and added after your answer. Describe only what the frames " \
+                           "show; do not mention audio, speech or sound, and do not say that audio is missing."
   VIDEO_MAX_FRAMES = 50
   VIDEO_CONNECT_TIMEOUT = 10
   VIDEO_READ_TIMEOUT = 300   # 5 minutes for vision API to process many frames
@@ -34,18 +38,19 @@ module VideoAnalyzeAgent
   def analyze_video(file:, fps: 1, query: nil, session: nil)
     return "Error: file is required." if file.to_s.empty?
 
-    # Defense in depth against shell injection: the `file` value comes
-    # from an LLM tool call (model-controlled) and the `fps` value comes
-    # from the same tool schema. We escape the filename and cast fps to
-    # an integer so neither can break out of the bash -c quoting.
-    safe_file = Shellwords.escape(file.to_s)
+    resolution = Monadic::Utils::ProviderCapabilities.resolve(:video, settings["provider"] || settings[:provider])
+    return resolution[:error] if resolution[:error]
+
+    provider = resolution[:provider]
+    frame_limit = PROVIDER_FRAME_LIMITS.fetch(provider)
+
+    # Quote both shell levels: filenames may contain spaces or shell syntax.
     safe_fps = fps.to_i
     safe_fps = 1 if safe_fps <= 0
-
-    # Step 1: Extract frames using Python container (provider-independent)
-    split_command = <<~CMD
-      bash -c "extract_frames.py #{safe_file} ./ --fps #{safe_fps} --format png --json --audio"
-    CMD
+    arguments = ["extract_frames.py", file.to_s, "./", "--fps", safe_fps.to_s,
+                 "--format", "png", "--frames", frame_limit.to_s, "--json", "--audio"]
+    safe_command = Shellwords.escape(Shellwords.join(arguments))
+    split_command = "bash -c #{safe_command}"
 
     split_res = send_command(command: split_command, container: "python")
 
@@ -74,7 +79,7 @@ module VideoAnalyzeAgent
     return frames if frames.is_a?(String) # Error message
 
     if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
-      puts "[VideoAnalyzeAgent] Loaded #{frames.size} frames from #{json_file}"
+      puts "[VideoAnalyzeAgent] Loaded frames from #{json_file}"
     end
 
     # Step 3: Call Vision API directly (provider-independent)
@@ -91,7 +96,9 @@ module VideoAnalyzeAgent
     end
 
     # Step 4: Audio transcription (via AudioTranscriptionAgent — provider-independent)
-    if audio_file
+    if audio_file && !Monadic::Utils::ProviderCapabilities.supports?(:audio, provider)
+      description += "\n\nAudio Transcript: Audio transcription is not supported by this provider."
+    elsif audio_file
       stt_model = session&.dig(:parameters, "stt_model") ||
                   settings.dig(:agents, :speech_to_text) ||
                   nil  # Let the agent use its default
@@ -144,25 +151,56 @@ module VideoAnalyzeAgent
 
     json_data = JSON.parse(File.read(path))
 
-    unless json_data.is_a?(Array) && json_data.all? { |item| item.is_a?(String) }
-      return "ERROR: Invalid frames JSON format"
+    if json_data.is_a?(Array) && !json_data.empty? && json_data.all? { |item| item.is_a?(String) }
+      # Legacy input: never invent timestamps from array positions.
+      return json_data.map { |frame| frame.sub(%r{\Adata:image/[^;]+;base64,}, "") }
     end
 
-    # Normalize: strip data URL prefix, keep raw base64
-    json_data.map do |frame|
-      if frame.start_with?("data:image/")
-        frame.sub(%r{\Adata:image/[^;]+;base64,}, "")
-      else
-        frame
-      end
+    valid_number = ->(value) { value.is_a?(Numeric) && value.finite? && value >= 0 }
+    unless json_data.is_a?(Hash) && json_data["schema_version"] == 1 &&
+           valid_number.call(json_data["duration_ms"]) &&
+           json_data["timestamp_source"].is_a?(String) && !json_data["timestamp_source"].empty? &&
+           json_data["frames"].is_a?(Array) && !json_data["frames"].empty?
+      return "ERROR: Invalid frames JSON format"
     end
+    valid = json_data["frames"].all? do |frame|
+      frame.is_a?(Hash) && frame["frame_id"].is_a?(String) && frame["frame_id"].match?(/\Af[0-9]+\z/) &&
+        frame["source_frame_index"].is_a?(Integer) && frame["source_frame_index"] >= 0 &&
+        valid_number.call(frame["timestamp_ms"]) && frame["timestamp_ms"] <= json_data["duration_ms"] &&
+        frame["image"].is_a?(String) && !frame["image"].empty? &&
+        %w[image/png image/jpeg].include?(frame["mime_type"]) &&
+        (!frame.key?("change_score") || valid_number.call(frame["change_score"]))
+    end
+    return "ERROR: Invalid frame metadata" unless valid
+
+    frames = json_data["frames"].sort_by { |frame| frame["timestamp_ms"] }
+    unless frames.map { |frame| frame["frame_id"] }.uniq.size == frames.size &&
+           frames.each_cons(2).all? { |a, b| a["timestamp_ms"] < b["timestamp_ms"] && a["source_frame_index"] < b["source_frame_index"] }
+      return "ERROR: Invalid frame timeline"
+    end
+    json_data.merge("frames" => frames)
   rescue JSON::ParserError => e
     "ERROR: Failed to parse frames JSON: #{e.message}"
   end
 
   # Send frames to Vision API for analysis (provider-independent)
   def video_vision_query(query, frames)
-    provider = resolve_vision_provider
+    resolution = Monadic::Utils::ProviderCapabilities.resolve(:video, settings["provider"] || settings[:provider])
+    return resolution[:error] if resolution[:error]
+
+    provider = resolution[:provider]
+    # The model sees still frames only. Without saying so it reports that no
+    # audio was provided, which then sits next to the transcript that is
+    # appended separately and reads as a contradiction.
+    query = "#{VIDEO_FRAMES_ONLY_NOTE}\n#{query}"
+    if frames.is_a?(Hash)
+      duration = video_timestamp(frames.fetch("duration_ms"))
+      query = "Video duration: #{duration}. These images are non-uniform excerpts, not continuous footage. " \
+              "Cite frame IDs and observed times. Do not infer events or durations between frames.\n#{query}"
+      frames = frames.fetch("frames").sort_by { |frame| frame.fetch("timestamp_ms") }
+    else
+      query = "These images are excerpts with unknown timestamps. Do not invent times or durations between frames.\n#{query}"
+    end
     api_key_name = ImageAnalysisAgent::VISION_API_KEYS[provider]
     api_key = CONFIG[api_key_name]&.strip
     return "ERROR: No API key for provider '#{provider}'" if api_key.nil? || api_key.empty?
@@ -195,8 +233,50 @@ module VideoAnalyzeAgent
     return frames if total <= max_frames
     return [frames.first] if max_frames <= 1
 
+    if frames.first.is_a?(Hash)
+      frames = frames.sort_by { |frame| frame.fetch("timestamp_ms") }
+      chosen = [0, total - 1]
+      coverage = [2, (max_frames + 1) / 2].max
+      first_time, last_time = frames.first["timestamp_ms"], frames.last["timestamp_ms"]
+      coverage.times do |i|
+        target = first_time + (last_time - first_time) * i / (coverage - 1).to_f
+        chosen << (0...total).min_by { |j| (frames[j]["timestamp_ms"] - target).abs }
+      end
+      chosen.uniq!
+      while chosen.size < max_frames
+        index = ((0...total).to_a - chosen).max_by do |j|
+          gap = chosen.map { |k| (frames[j]["timestamp_ms"] - frames[k]["timestamp_ms"]).abs }.min
+          frames[j].fetch("change_score", 0) + gap / [last_time - first_time, 1].max.to_f * 0.1
+        end
+        chosen << index
+      end
+      return chosen.sort.map { |index| frames[index] }
+    end
+
     step = (total - 1).to_f / (max_frames - 1)
     (0...max_frames).map { |i| frames[(i * step).round] }
+  end
+
+  def video_timestamp(milliseconds)
+    value = milliseconds.round
+    hours, rest = value.divmod(3_600_000)
+    minutes, rest = rest.divmod(60_000)
+    seconds, millis = rest.divmod(1000)
+    hours.positive? ? format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis) : format("%02d:%02d.%03d", minutes, seconds, millis)
+  end
+
+  def video_frame_label(frame)
+    return nil unless frame.is_a?(Hash)
+
+    "Frame #{frame.fetch('frame_id')}, video time #{video_timestamp(frame.fetch('timestamp_ms'))}"
+  end
+
+  def video_frame_image(frame)
+    frame.is_a?(Hash) ? frame.fetch("image") : frame
+  end
+
+  def video_frame_mime(frame)
+    frame.is_a?(Hash) ? frame.fetch("mime_type") : "image/png"
   end
 
   # HTTP POST with video-specific timeouts
@@ -230,9 +310,11 @@ module VideoAnalyzeAgent
 
     content = [{ type: "text", text: query }]
     frames.each do |frame_b64|
+      label = video_frame_label(frame_b64)
+      content << { type: "text", text: label } if label
       content << {
         type: "image_url",
-        image_url: { url: "data:image/png;base64,#{frame_b64}" }
+        image_url: { url: "data:#{video_frame_mime(frame_b64)};base64,#{video_frame_image(frame_b64)}" }
       }
     end
 
@@ -263,18 +345,19 @@ module VideoAnalyzeAgent
       "anthropic-version" => "2023-06-01"
     }
 
-    content = []
+    content = [{ type: "text", text: query }]
     frames.each do |frame_b64|
+      label = video_frame_label(frame_b64)
+      content << { type: "text", text: label } if label
       content << {
         type: "image",
         source: {
           type: "base64",
-          media_type: "image/png",
-          data: frame_b64
+          media_type: video_frame_mime(frame_b64),
+          data: video_frame_image(frame_b64)
         }
       }
     end
-    content << { type: "text", text: query }
 
     body = {
       model: model,
@@ -303,16 +386,17 @@ module VideoAnalyzeAgent
       "Content-Type" => "application/json", "x-goog-api-key" => api_key
     }
 
-    parts = []
+    parts = [{ text: query }]
     frames.each do |frame_b64|
+      label = video_frame_label(frame_b64)
+      parts << { text: label } if label
       parts << {
         inline_data: {
-          mime_type: "image/png",
-          data: frame_b64
+          mime_type: video_frame_mime(frame_b64),
+          data: video_frame_image(frame_b64)
         }
       }
     end
-    parts << { text: query }
 
     body = {
       contents: [{ parts: parts }]
@@ -337,9 +421,11 @@ module VideoAnalyzeAgent
 
     content = [{ type: "text", text: query }]
     frames.each do |frame_b64|
+      label = video_frame_label(frame_b64)
+      content << { type: "text", text: label } if label
       content << {
         type: "image_url",
-        image_url: { url: "data:image/png;base64,#{frame_b64}" }
+        image_url: { url: "data:#{video_frame_mime(frame_b64)};base64,#{video_frame_image(frame_b64)}" }
       }
     end
 

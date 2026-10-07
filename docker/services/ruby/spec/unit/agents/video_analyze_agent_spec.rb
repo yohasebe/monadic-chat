@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require 'rspec'
+require 'json'
+require 'http'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/audio_transcription_agent'
 require_relative '../../../lib/monadic/agents/video_analyze_agent'
@@ -59,6 +61,7 @@ RSpec.describe VideoAnalyzeAgent do
   let(:sample_frames_json) { JSON.generate(sample_frames) }
 
   before do
+    allow(ImageAnalysisAgent).to receive(:vision_model_for).and_return("test-vision-model")
     # Also stub CONFIG
     stub_const("CONFIG", {
       "OPENAI_API_KEY" => "test-openai-key",
@@ -246,20 +249,21 @@ RSpec.describe VideoAnalyzeAgent do
       allow(File).to receive(:exist?).and_call_original
     end
 
-    it 'uses resolve_vision_provider to determine provider' do
-      allow(agent).to receive(:resolve_vision_provider).and_return("openai")
+    it 'resolves the video capability without using the image resolver' do
+      allow(Monadic::Utils::ProviderCapabilities).to receive(:resolve).and_call_original
+      expect(agent).not_to receive(:resolve_vision_provider)
       allow(agent).to receive(:video_vision_openai).and_return("Description")
 
       result = agent.send(:video_vision_query, "What happens?", sample_frames)
 
       expect(result).to eq("Description")
-      expect(agent).to have_received(:resolve_vision_provider)
+      expect(Monadic::Utils::ProviderCapabilities).to have_received(:resolve).with(:video, "openai")
     end
 
     it 'applies per-provider frame limits' do
       agent.settings["provider"] = "anthropic"
       stub_const("CONFIG", {
-        "ANTHROPIC_API_KEY" => "test-claude-key",
+        "ANTHROPIC_API_KEY" => "test-anthropic-key",
         "EXTRA_LOGGING" => nil
       })
 
@@ -275,4 +279,145 @@ RSpec.describe VideoAnalyzeAgent do
       end
     end
   end
+
+  let(:timed_document) do
+    {
+      "schema_version" => 1, "duration_ms" => 15_000, "timestamp_source" => "ffprobe_best_effort_pts",
+      "frames" => [
+        { "frame_id" => "f000000", "source_frame_index" => 0, "timestamp_ms" => 0,
+          "image" => "AAA=", "mime_type" => "image/png", "change_score" => 1 },
+        { "frame_id" => "f000123", "source_frame_index" => 123, "timestamp_ms" => 12_340,
+          "image" => "BBB=", "mime_type" => "image/jpeg", "change_score" => 0.2 }
+      ]
+    }
+  end
+
+  def read_document(document)
+    allow(File).to receive(:exist?).with("/test/frames.json").and_return(true)
+    allow(File).to receive(:read).with("/test/frames.json").and_return(JSON.generate(document))
+    agent.send(:read_frames_json, "/test/frames.json")
+  end
+
+  it 'loads the versioned document and restores chronological order' do
+    document = timed_document.merge("frames" => timed_document["frames"].reverse)
+    expect(read_document(document)).to eq(timed_document)
+  end
+
+  it 'rejects invalid, empty and duplicate timelines' do
+    expect(read_document(timed_document.merge("schema_version" => 2))).to start_with("ERROR:")
+    expect(read_document(timed_document.merge("frames" => []))).to start_with("ERROR:")
+    frames = [timed_document["frames"].first] * 2
+    expect(read_document(timed_document.merge("frames" => frames))).to start_with("ERROR:")
+    expect(read_document([])).to start_with("ERROR:")
+    timed_document["frames"].last["timestamp_ms"] = -1
+    expect(read_document(timed_document)).to start_with("ERROR:")
+  end
+
+  %w[anthropic deepseek unknown].each do |provider|
+    it "rejects #{provider} with only another provider's key before extraction" do
+      agent.settings["provider"] = provider
+      expect(agent).not_to receive(:send_command)
+      expect(agent).not_to receive(:video_vision_http_post)
+      expect(agent.analyze_video(file: "test.mp4")).to start_with("ERROR:")
+      expect(agent.send(:video_vision_query, "Describe", sample_frames)).to start_with("ERROR:")
+    end
+  end
+
+  it 'returns the capability error unchanged' do
+    allow(Monadic::Utils::ProviderCapabilities).to receive(:resolve).with(:video, "openai")
+      .and_return(error: "ERROR: unavailable")
+    expect(agent.analyze_video(file: "test.mp4")).to eq("ERROR: unavailable")
+  end
+
+  %w[anthropic xai].each do |provider|
+    it "preserves video success for #{provider} without calling unsupported transcription" do
+      agent.settings = { provider: provider }
+      CONFIG[Monadic::Utils::ProviderCapabilities.api_key_name(provider)] = "own-test-key"
+      allow(agent).to receive(:read_frames_json).and_return(timed_document)
+      allow(agent).to receive(:video_vision_query).and_return("Visible event")
+      expect(agent).not_to receive(:audio_transcription_agent)
+      result = agent.analyze_video(file: "test.mp4")
+      expect(result).to include("Visible event", "Audio transcription is not supported by this provider")
+      expect(result).not_to include("failed")
+    end
+  end
+
+  %w[openai anthropic google xai].each do |provider|
+    it "places timestamps immediately before each image in #{provider} requests" do
+      agent.settings["provider"] = provider
+      CONFIG[Monadic::Utils::ProviderCapabilities.api_key_name(provider)] = "own-test-key"
+      unless defined?(OpenAIHelper)
+        stub_const("OpenAIHelper", Module.new)
+        OpenAIHelper.const_set(:OUTPUT_TOKEN_KEY, :max_completion_tokens)
+      end
+      response = double(status: double(success?: true), body: JSON.generate({
+        choices: [{ message: { content: "Description" } }], content: [{ text: "Description" }],
+        candidates: [{ content: { parts: [{ text: "Description" }] } }]
+      }))
+      expect(agent).to receive(:video_vision_http_post) do |uri, _headers, body|
+        host = { "openai" => "api.openai.com", "anthropic" => "api.anthropic.com",
+                 "google" => "generativelanguage.googleapis.com", "xai" => "api.x.ai" }.fetch(provider)
+        expect(uri).to include(host)
+        parts = provider == "google" ? body[:contents][0][:parts] : body[:messages][0][:content]
+        expect(parts[0][:text]).to include("00:15.000", "non-uniform excerpts", "Do not infer")
+        # The model is told it sees frames only, so it does not report missing
+        # audio next to the transcript that is appended separately.
+        expect(parts[0][:text]).to include("still frames", "transcribed separately", "do not say that audio is missing")
+        expect(parts[1][:text]).to eq("Frame f000000, video time 00:00.000")
+        expect(parts[3][:text]).to eq("Frame f000123, video time 00:12.340")
+        expect(parts.size).to eq(5)
+        if provider == "google"
+          expect(parts[4][:inline_data]).to eq(mime_type: "image/jpeg", data: "BBB=")
+        elsif provider == "anthropic"
+          expect(parts[4][:source]).to include(media_type: "image/jpeg", data: "BBB=")
+        else
+          expect(parts[4][:image_url][:url]).to eq("data:image/jpeg;base64,BBB=")
+        end
+        response
+      end
+      expect(agent.send(:video_vision_query, "Describe", timed_document)).to eq("Description")
+    end
+  end
+
+  it 'does not invent timestamps for legacy arrays' do
+    expect(agent).to receive(:video_vision_openai) do |query, frames, _model, _key|
+      expect(query).to include("unknown timestamps")
+      expect(frames).to eq(sample_frames)
+      "Description"
+    end
+    agent.send(:video_vision_query, "Describe", sample_frames)
+  end
+
+  it 'keeps endpoints, time coverage and a brief change within the frame budget' do
+    frames = (0...100).map do |i|
+      { "timestamp_ms" => i * 1000, "change_score" => i == 43 ? 1.0 : 0.0 }
+    end
+    selected = agent.send(:balance_frames, frames.reverse, 10)
+    expect(selected.size).to eq(10)
+    expect(selected.first).to eq(frames.first)
+    expect(selected.last).to eq(frames.last)
+    expect(selected).to include(frames[43])
+    expect(selected.map { |f| f["timestamp_ms"] }).to eq(selected.map { |f| f["timestamp_ms"] }.sort)
+  end
+
+  it 'quotes both shell levels and supplies the provider frame budget' do
+    filename = 'clip $(touch should-not-exist); "quoted".mp4'
+    agent.settings["provider"] = "anthropic"
+    CONFIG["ANTHROPIC_API_KEY"] = "own-test-key"
+    expect(agent).to receive(:send_command) do |command:, container:|
+      outer = Shellwords.split(command)
+      expect(outer.take(2)).to eq(["bash", "-c"])
+      inner = Shellwords.split(outer.fetch(2))
+      expect(inner[1]).to eq(filename)
+      expect(inner[inner.index("--frames") + 1]).to eq("20")
+      expect(container).to eq("python")
+      "No frames"
+    end
+    agent.analyze_video(file: filename)
+  end
+
+  it 'formats hour-long timestamps without wrapping minutes' do
+    expect(agent.send(:video_timestamp, 3_723_456)).to eq("01:02:03.456")
+  end
+
 end

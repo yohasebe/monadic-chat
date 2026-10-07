@@ -106,7 +106,10 @@ const allowedLocalHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
 function serverModeAuthHeaders() {
   try {
     if (typeof dockerManager === 'undefined' || !dockerManager.isServerMode()) return {};
-    const token = (readEnvFile(getEnvPath()).MONADIC_AUTH_TOKEN || '').toString().trim();
+    let token = (readEnvFile(getEnvPath()).MONADIC_AUTH_TOKEN || '').toString().trim();
+    // A 1Password reference is sent as the value read from 1Password, the
+    // same value the server receives; never as the reference text.
+    if (opReferences.isReference(token)) token = (secretCache.values.MONADIC_AUTH_TOKEN || '').toString();
     return token ? { Authorization: `Bearer ${token}` } : {};
   } catch (_) {
     return {};

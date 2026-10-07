@@ -185,9 +185,18 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
       expect(status).to eq(200)
     end
 
-    it 'honours X-Forwarded-For only when the first hop is loopback' do
-      env = env_for(remote_ip: '203.0.113.5',
-                    headers: { 'HTTP_X_FORWARDED_FOR' => '127.0.0.1' })
+    # The client writes forwarding headers, so they never make a remote
+    # request local (this used to return 200 and skip the token).
+    it 'rejects a remote request that claims a loopback X-Forwarded-For' do
+      %w[127.0.0.1 ::1 ::ffff:127.0.0.1].each do |claimed|
+        env = env_for(remote_ip: '203.0.113.5', headers: { 'HTTP_X_FORWARDED_FOR' => claimed })
+        status, _, _ = middleware.call(env)
+        expect(status).to eq(401), claimed
+      end
+    end
+
+    it 'ignores X-Forwarded-For on a real loopback connection' do
+      env = env_for(remote_ip: '127.0.0.1', headers: { 'HTTP_X_FORWARDED_FOR' => '203.0.113.99' })
       status, _, _ = middleware.call(env)
       expect(status).to eq(200)
     end

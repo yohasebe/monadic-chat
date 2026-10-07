@@ -78,17 +78,12 @@ module Monadic
         token.to_s.strip
       end
 
+      # Decided by the connection's own address only. Forwarding headers such
+      # as X-Forwarded-For are written by the client, so trusting them let any
+      # remote client claim to be local and skip the token. No reverse proxy in
+      # this setup adds them, so they are not read at all.
       def loopback?(env)
-        ip = env['REMOTE_ADDR'].to_s
-        # X-Forwarded-For is honoured for setups behind a reverse proxy
-        # whose proxy host is itself loopback (e.g. localhost test runs).
-        # In production we have no such proxy, so this widens the bypass
-        # only when the packet truly originated locally.
-        return true if LOCAL_IPS.include?(ip)
-        forwarded = env['HTTP_X_FORWARDED_FOR'].to_s
-        return false if forwarded.empty?
-        first = forwarded.split(',').first.to_s.strip
-        LOCAL_IPS.include?(first)
+        LOCAL_IPS.include?(env['REMOTE_ADDR'].to_s)
       end
 
       def extract_token(request)

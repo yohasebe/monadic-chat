@@ -347,9 +347,15 @@ task :update_version, [:from_version, :to_version] do |_t, args|
     unless content.include?("- [#{month_year}] #{to_version}")
       lines = content.lines
       
-      # Check if first line contains the current month and from_version
+      # Check if first line contains the current month and from_version.
+      # Renaming that entry is only right while from_version is unreleased;
+      # once it has a release tag, its entry is history and the new version
+      # gets an entry of its own (two releases in one month used to relabel
+      # the first one).
       first_line = lines[0].strip
-      if first_line.include?("[#{month_year}]") && first_line.include?(from_version)
+      from_released = system("git", "rev-parse", "-q", "--verify", "refs/tags/v#{from_version}",
+                             out: File::NULL, err: File::NULL)
+      if first_line.include?("[#{month_year}]") && first_line.include?(from_version) && !from_released
         # Update the version number in the current month's entry
         if dry_run
           puts "Would update current month entry in CHANGELOG.md from #{from_version} to #{to_version}#{dry_run_message}"

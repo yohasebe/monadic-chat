@@ -1,5 +1,7 @@
 # frozen_string_literal: false
 
+require_relative "../utils/shared_file_path"
+
 # Static file serving, documentation, and root page routes
 
 # Prevent aggressive browser/WebView caching of JS/CSS assets in dev mode.
@@ -174,37 +176,19 @@ get "/docs/?*" do
 end
 
 def fetch_file(file_name)
-  # Prevent path traversal attacks by sanitizing the filename
-  safe_name = File.basename(file_name.to_s)
-  # Decoded path params can arrive tagged ASCII-8BIT; reinterpret as UTF-8 so a
-  # non-ASCII (e.g. Japanese) filename matches the file saved under its UTF-8
-  # name and File.join below does not raise Encoding::CompatibilityError.
-  safe_name = safe_name.dup.force_encoding(Encoding::UTF_8) if safe_name.encoding != Encoding::UTF_8
-
-  datadir = Monadic::Utils::Environment.data_path
-  file_path = File.join(datadir, safe_name)
-
-  begin
-    # Resolve real paths to handle symlinks
-    real_path = File.realpath(file_path) if File.exist?(file_path)
-    real_datadir = File.realpath(datadir)
-
-    # Ensure proper directory separator
-    real_datadir_with_sep = real_datadir.end_with?(File::SEPARATOR) ?
-                           real_datadir :
-                           real_datadir + File::SEPARATOR
-
-    if real_path && real_path.start_with?(real_datadir_with_sep) && File.exist?(file_path)
-      send_file file_path
-    else
-      status 404
-      "Sorry, the file you are looking for is unavailable."
-    end
-  rescue StandardError => e
-    puts "File fetch error: #{e.message}" if ENV["DEBUG"]
+  # Path checks (top of the shared folder only, containment) live in
+  # Monadic::Utils::SharedFilePath so the specs exercise the same code.
+  file_path = Monadic::Utils::SharedFilePath.resolve(file_name, Monadic::Utils::Environment.data_path)
+  if file_path
+    send_file file_path
+  else
     status 404
     "Sorry, the file you are looking for is unavailable."
   end
+rescue StandardError => e
+  puts "File fetch error: #{e.message}" if ENV["DEBUG"]
+  status 404
+  "Sorry, the file you are looking for is unavailable."
 end
 
 get "/monadic/data/:file_name" do

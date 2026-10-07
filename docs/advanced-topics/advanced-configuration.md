@@ -139,6 +139,8 @@ In server mode:
 - Network URLs (like Jupyter notebooks) use the server's external IP address
 - Clients can access resources hosted on the server
 
+Server Mode is meant for a few people who trust each other, such as a family or a research group, on a network you trust. Everyone connects with the same access token, so every connected device can do what the host can. To remove a device, create a new token: delete `MONADIC_AUTH_TOKEN` from `~/monadic/config/env` and restart; every device then has to connect again. Conversations stay separate for each browser tab and device, but the `Shared Folder` is common to everyone.
+
 ### Multi-Tab Session Management
 
 Monadic Chat supports opening multiple browser tabs simultaneously. Each tab is an independent conversation session:

@@ -720,7 +720,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Don't hide startup animation here - let it complete naturally
 
       const networkUrl = `http://${data.localIP}:4567`;
-      const mode = window.electronAPI.getDistributedMode();
+      // The main process says which mode it started in; the cookie the
+      // renderer used to read is not kept for the console page.
+      const mode = data.mode || window.electronAPI.getDistributedMode();
       // Server mode: append the auth token so the displayed URL is
       // shareable. Phone/tablet browsers paste the URL with the token
       // and authenticate via the AuthMiddleware (cookie set on the

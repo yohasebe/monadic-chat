@@ -629,6 +629,9 @@ class DockerManager {
         }
       }
       
+      // The address LAN clients use, shown in the console and the menu.
+      this.serverUrl = this.serverMode ? `http://${localIPAddress}:4567` : null;
+
       // Sync with main window if it exists
       if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
         try {
@@ -1013,6 +1016,7 @@ class DockerManager {
                           // Send a custom command to show network URL exactly once
                           if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('display-network-url', {
+                              mode: 'server',
                               localIP: localIPAddress,
                               authToken: authToken
                             });
@@ -1021,6 +1025,7 @@ class DockerManager {
                           // For standalone mode - send network URL event for proper status update first
                           if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('display-network-url', {
+                              mode: 'off',
                               localIP: '127.0.0.1'
                             });
                           }

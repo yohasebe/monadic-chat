@@ -5,7 +5,7 @@ require 'monadic/utils/auth_middleware'
 
 RSpec.describe Monadic::Utils::AuthMiddleware do
   let(:downstream) do
-    ->(_env) { [200, { 'Content-Type' => 'text/plain' }, ['ok']] }
+    ->(_env) { [200, { 'content-type' => 'text/plain' }, ['ok']] }
   end
   let(:middleware) { described_class.new(downstream) }
 
@@ -20,9 +20,14 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
   end
 
   # Save and restore CONFIG between examples so tests do not bleed state.
+  # The middleware also falls back to ENV for these two settings, which
+  # spec_helper fills from the developer's config/env when another spec loads
+  # it first; clear them too so the result does not depend on that machine.
   around do |ex|
     config_was_defined = Object.const_defined?(:CONFIG, false)
     saved = config_was_defined ? CONFIG.dup : nil
+    saved_env = ENV.to_h.slice('MONADIC_AUTH_TOKEN', 'DISTRIBUTED_MODE')
+    saved_env.each_key { |k| ENV.delete(k) }
     Object.send(:remove_const, :CONFIG) if config_was_defined
     Object.const_set(:CONFIG, {})
     begin
@@ -30,6 +35,8 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
     ensure
       Object.send(:remove_const, :CONFIG)
       Object.const_set(:CONFIG, saved) if saved
+      %w[MONADIC_AUTH_TOKEN DISTRIBUTED_MODE].each { |k| ENV.delete(k) }
+      saved_env.each { |k, v| ENV[k] = v }
     end
   end
 
@@ -67,7 +74,7 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
     it 'rejects non-loopback requests without a token (401)' do
       status, headers, body = middleware.call(env_for(remote_ip: '192.168.1.50'))
       expect(status).to eq(401)
-      expect(headers['WWW-Authenticate']).to match(/Bearer/)
+      expect(headers['www-authenticate']).to match(/Bearer/)
       expect(body.first).to match(/Authentication required/)
     end
 
@@ -100,20 +107,20 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
                     remote_ip: '192.168.1.50')
       status, headers, _ = middleware.call(env)
       expect(status).to eq(302)
-      expect(headers['Location']).to eq('http://example.org/')
+      expect(headers['location']).to eq('http://example.org/')
       # Cookie is set on the redirect response so the follow-up
       # request authenticates without the URL parameter.
-      expect(headers['Set-Cookie']).to match(/monadic_auth=secret-token-1234567890abcdef/)
+      expect(Array(headers['set-cookie']).join("\n")).to match(/monadic_auth=secret-token-1234567890abcdef/)
     end
 
     it 'preserves non-auth query parameters when redirecting' do
       env = env_for(path: '/path?foo=bar&monadic_auth=secret-token-1234567890abcdef&x=y',
                     remote_ip: '192.168.1.50')
       _, headers, _ = middleware.call(env)
-      expect(headers['Location']).to start_with('http://example.org/path?')
-      expect(headers['Location']).to include('foo=bar')
-      expect(headers['Location']).to include('x=y')
-      expect(headers['Location']).not_to include('monadic_auth')
+      expect(headers['location']).to start_with('http://example.org/path?')
+      expect(headers['location']).to include('foo=bar')
+      expect(headers['location']).to include('x=y')
+      expect(headers['location']).not_to include('monadic_auth')
     end
 
     it 'does not redirect when the token came from a Bearer header' do
@@ -146,7 +153,7 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
                     cookies: { 'monadic_auth' => 'secret-token-1234567890abcdef' })
       _, headers, _ = middleware.call(env)
       # No Set-Cookie header (or, if downstream set one, ours is not appended).
-      expect(headers['Set-Cookie'].to_s).not_to match(/monadic_auth=secret-token-1234567890abcdef/)
+      expect(Array(headers['set-cookie']).join("\n")).not_to match(/monadic_auth=secret-token-1234567890abcdef/)
     end
 
     it 'rejects a wrong-length token without leaking timing information' do
@@ -208,4 +215,47 @@ RSpec.describe Monadic::Utils::AuthMiddleware do
       expect(status).to eq(401)
     end
   end
+
+  # Rack 3 rejects uppercase header names and "\n"-joined cookies; the server
+  # then dropped the rest of an authorized response and closed the
+  # connection, so a Bearer client (the desktop app in Server Mode) never got
+  # a usable reply. Rack's own Lint decides what is valid here.
+  describe 'Rack 3 response format' do
+    require 'rack/lint'
+
+    let(:linted) { Rack::Lint.new(described_class.new(Rack::Lint.new(downstream))) }
+
+    before do
+      CONFIG['DISTRIBUTED_MODE'] = 'server'
+      CONFIG['MONADIC_AUTH_TOKEN'] = 'secret-token-1234567890abcdef'
+    end
+
+    def run(env)
+      status, headers, body = linted.call(env)
+      body.each { |_| }
+      body.close if body.respond_to?(:close)
+      [status, headers]
+    end
+
+    it 'passes Rack::Lint when a Bearer token is accepted, a query token redirects, or the token is missing' do
+      status, headers = run(env_for(remote_ip: '192.168.65.1',
+                                    headers: { 'HTTP_AUTHORIZATION' => 'Bearer secret-token-1234567890abcdef' }))
+      expect(status).to eq(200)
+      expect(Array(headers['set-cookie']).join).to include('monadic_auth=')
+      expect(run(env_for(path: '/?monadic_auth=secret-token-1234567890abcdef', remote_ip: '192.168.65.1')).first).to eq(302)
+      expect(run(env_for(remote_ip: '192.168.65.1')).first).to eq(401)
+    end
+
+    it 'keeps a cookie the app already set, as a separate value' do
+      app = ->(_env) { [200, { 'content-type' => 'text/plain', 'set-cookie' => 'other=1' }, ['ok']] }
+      stack = Rack::Lint.new(described_class.new(Rack::Lint.new(app)))
+      _, headers, body = stack.call(env_for(remote_ip: '192.168.65.1',
+                                            headers: { 'HTTP_AUTHORIZATION' => 'Bearer secret-token-1234567890abcdef' }))
+      body.each { |_| }
+      body.close if body.respond_to?(:close)
+      expect(Array(headers['set-cookie'])).to include('other=1')
+      expect(Array(headers['set-cookie']).size).to eq(2)
+    end
+  end
+
 end

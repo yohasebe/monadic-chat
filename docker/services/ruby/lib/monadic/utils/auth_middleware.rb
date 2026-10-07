@@ -56,7 +56,7 @@ module Monadic
         # set on the redirect response so the follow-up request still
         # authenticates without the URL parameter.
         if scrub_query_token?(env, request)
-          redirect_headers = { 'Location' => clean_url_for(request), 'Content-Type' => 'text/html; charset=utf-8' }
+          redirect_headers = { 'location' => clean_url_for(request), 'content-type' => 'text/html; charset=utf-8' }
           attach_auth_cookie(redirect_headers, configured)
           return [302, redirect_headers, ['<html><body>Redirecting...</body></html>']]
         end
@@ -117,19 +117,21 @@ module Monadic
         # Path=/ ensures the cookie applies to /js, /css, /pdf, etc.
         # SameSite=Lax keeps the cookie on top-level navigations while
         # preventing cross-site requests from carrying it.
+        #
+        # Rack 3 wants lowercase header names and several cookies as an
+        # array. The Rack 2 form ("Set-Cookie", values joined by "\n") made
+        # the server drop the rest of the response and close the connection.
         cookie_str = "#{COOKIE_NAME}=#{token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400"
-        if headers['Set-Cookie']
-          # Rack accepts multiple Set-Cookie headers separated by "\n".
-          headers['Set-Cookie'] = "#{headers['Set-Cookie']}\n#{cookie_str}"
-        else
-          headers['Set-Cookie'] = cookie_str
-        end
+        existing = headers.delete('Set-Cookie') if headers.respond_to?(:key?) && headers.key?('Set-Cookie')
+        existing = headers['set-cookie'] if existing.nil?
+        values = Array(existing).flat_map { |v| v.to_s.split("\n") }.reject(&:empty?)
+        headers['set-cookie'] = values + [cookie_str]
       end
 
       def reject(status, message)
         [status, {
-          'Content-Type' => 'text/plain',
-          'WWW-Authenticate' => 'Bearer realm="Monadic Chat"'
+          'content-type' => 'text/plain',
+          'www-authenticate' => 'Bearer realm="Monadic Chat"'
         }, [message]]
       end
 

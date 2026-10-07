@@ -38,4 +38,6 @@ Web Insight is available with the providers marked in the [availability table](.
 
 Get a detailed description of any video's content. The app analyzes a video by extracting keyframes and audio, then uses the AI to describe the visual and auditory information.
 
+Frames are checked at the fps you give and selected so that the video's scenes and visible changes are covered, up to the number of images the provider accepts in one request. Each selected frame is sent with its time in the video, so the description can say when things happen; brief events between selected frames can be missed. The audio track is transcribed separately with the provider's speech-to-text.
+
 To use this app, place a video file in the `Shared Folder`, provide its name, and specify the frames per second (fps) for the analysis.

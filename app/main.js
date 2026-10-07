@@ -15,7 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
-const { monadicShEnv } = require('./monadic_env');
+const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -97,6 +97,38 @@ let novncWindow = null;
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
 const allowedLocalHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
+
+// In Server Mode the Ruby server asks every client that is not on its own
+// loopback for the access token. The desktop app reaches the server through
+// Docker, which shows its requests as coming from the Docker gateway — the
+// same address LAN clients arrive from — so the app cannot be exempted by
+// address and sends the token like any other client.
+function serverModeAuthHeaders() {
+  try {
+    if (typeof dockerManager === 'undefined' || !dockerManager.isServerMode()) return {};
+    let token = (readEnvFile(getEnvPath()).MONADIC_AUTH_TOKEN || '').toString().trim();
+    // A 1Password reference is sent as the value read from 1Password, the
+    // same value the server receives; never as the reference text.
+    if (opReferences.isReference(token)) token = (secretCache.values.MONADIC_AUTH_TOKEN || '').toString();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+// A request from the desktop app to its own server, with the token in
+// Server Mode. Without it every check below read 401 as "server not running".
+function fetchLocalServer(url = 'http://localhost:4567') {
+  return fetch(url, { headers: serverModeAuthHeaders() });
+}
+
+// The address an external browser opens. In Server Mode it carries the token
+// once; the server moves it into a cookie and redirects to the clean URL.
+function externalLocalServerUrl() {
+  const header = serverModeAuthHeaders().Authorization;
+  if (!header) return 'http://localhost:4567';
+  return `http://localhost:4567/?monadic_auth=${encodeURIComponent(header.replace(/^Bearer /, ''))}`;
+}
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
@@ -122,6 +154,7 @@ function openWebViewWindow(url, forceReload = false) {
         const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
         if (allowedLocalHosts.has(host)) {
           details.requestHeaders['Origin'] = `http://${host}`;
+          Object.assign(details.requestHeaders, serverModeAuthHeaders());
         }
       } catch (e) {
         console.warn('Failed to evaluate request host', e);
@@ -479,23 +512,13 @@ function monadicCmd(args) {
 const secretCache = new opReferences.SecretCache();
 
 // Runs a monadic.sh subcommand with input on stdin, so the input appears
-// neither in the command line nor in the environment.
-function runMonadicWithInput(args, input) {
-  return new Promise(resolve => {
-    let child;
-    try {
-      child = spawn(monadicCmd(args), [], { shell: true, stdio: ['pipe', 'pipe', 'pipe'] });
-    } catch {
-      resolve({ code: -1, out: '' });
-      return;
-    }
-    let out = '';
-    child.stdout.on('data', d => { out += d.toString(); });
-    child.on('error', () => resolve({ code: -1, out: '' }));
-    child.on('close', code => resolve({ code, out: out.trim() }));
-    child.stdin.on('error', () => {});
-    child.stdin.end(input || '');
-  });
+// neither in the command line nor in the environment. No shell is involved,
+// and the call gives up after MONADIC_INPUT_TIMEOUT_MS: a WSL or Docker that
+// stops answering must not leave the delivery below waiting for ever.
+const MONADIC_INPUT_TIMEOUT_MS = 30000;
+function runMonadicWithInput(subcommand, input) {
+  const { cmd, argv } = monadicInvocation(monadicScriptPath, [subcommand], { toUnixPath });
+  return opReferences.run(cmd, argv, input, MONADIC_INPUT_TIMEOUT_MS);
 }
 
 // Reads the references before the containers start, at most once per app
@@ -525,7 +548,7 @@ async function deliverSecretsIfNeeded() {
   if (!secretCache.hasValues() || secretDeliveryInFlight) return false;
   secretDeliveryInFlight = true;
   try {
-    const { out: startedAt } = await runMonadicWithInput('ruby-started-at', '');
+    const startedAt = opReferences.startedAtFrom(await runMonadicWithInput('ruby-started-at', ''));
     if (!startedAt || startedAt === secretCache.deliveredFor) return false;
     const { code } = await runMonadicWithInput('deliver-secrets', secretCache.payload());
     if (code === 3) {
@@ -620,6 +643,9 @@ class DockerManager {
         }
       }
       
+      // The address LAN clients use, shown in the console and the menu.
+      this.serverUrl = this.serverMode ? `http://${localIPAddress}:4567` : null;
+
       // Sync with main window if it exists
       if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
         try {
@@ -948,7 +974,7 @@ class DockerManager {
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
                 serverStartedReceived = true;
-                fetchWithRetry('http://localhost:4567')
+                fetchWithRetry('http://localhost:4567', { headers: serverModeAuthHeaders() })
                   .then((success) => {
                     if (success) {
                       // First set to Running state
@@ -1004,6 +1030,7 @@ class DockerManager {
                           // Send a custom command to show network URL exactly once
                           if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('display-network-url', {
+                              mode: 'server',
                               localIP: localIPAddress,
                               authToken: authToken
                             });
@@ -1012,6 +1039,7 @@ class DockerManager {
                           // For standalone mode - send network URL event for proper status update first
                           if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('display-network-url', {
+                              mode: 'off',
                               localIP: '127.0.0.1'
                             });
                           }
@@ -1751,14 +1779,14 @@ function initializeApp() {
           case 'browser': {
             const url = 'http://localhost:4567';
             // Verify server is actually running before opening browser
-            fetch(url)
+            fetchLocalServer(url)
               .then(response => {
                 if (response.ok) {
                   // Server is running, open browser
                   if (browserMode === 'internal') {
                     openWebViewWindow(url);
                   } else {
-                    openBrowser(url);
+                    openBrowser(externalLocalServerUrl());
                   }
                 } else {
                   throw new Error('Server not responding');
@@ -1928,7 +1956,7 @@ function initializeApp() {
           // Show internal browser window (start server if not running)
           if (currentStatus === 'Running' || currentStatus === 'Ready') {
             // Verify server is actually running before opening browser
-            fetch('http://localhost:4567')
+            fetchLocalServer()
               .then(response => {
                 if (response.ok && browserMode === 'internal') {
                   openWebViewWindow('http://localhost:4567');
@@ -2397,7 +2425,7 @@ function updateContextMenu(disableControls = false) {
       {
         label: i18n.t('menu.openBrowser'),
         click: () => {
-          shell.openExternal('http://localhost:4567');
+          shell.openExternal(externalLocalServerUrl());
         },
         enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
       },
@@ -2845,7 +2873,7 @@ function updateApplicationMenu() {
         {
           label: i18n.t('menu.openBrowser'),
           click: () => {
-            shell.openExternal('http://localhost:4567');
+            shell.openExternal(externalLocalServerUrl());
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
@@ -4494,7 +4522,7 @@ app.whenReady().then(async () => {
     // Verify server state after resume
     if (currentStatus === 'Running' || currentStatus === 'Ready') {
       // Check if server is actually still running
-      fetch('http://localhost:4567')
+      fetchLocalServer()
         .then(response => {
           if (!response.ok) {
             throw new Error('Server not responding');

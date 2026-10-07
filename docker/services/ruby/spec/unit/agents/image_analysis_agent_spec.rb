@@ -116,7 +116,7 @@ RSpec.describe ImageAnalysisAgent do
       it 'returns error when no API key is available' do
         result = agent.image_analysis_agent(message: "Test", image_path: "/test/image.png")
         expect(result).to include("ERROR:")
-        expect(result).to include("No API key")
+        expect(result).to include("needs OPENAI_API_KEY")
       end
     end
   end
@@ -191,19 +191,74 @@ RSpec.describe ImageAnalysisAgent do
       expect(agent.send(:resolve_vision_provider)).to eq("google")
     end
 
-    it 'falls back to openai for non-vision provider' do
-      agent.settings["provider"] = "cohere"
-      expect(agent.send(:resolve_vision_provider)).to eq("openai")
+    # Provider Independence: the image goes to the app's own provider or
+    # nowhere, even when another provider has a key.
+    it 'does not fall back to another provider for a provider without vision' do
+      agent.settings["provider"] = "ollama"
+      expect(agent.send(:resolve_vision_provider)).to be_nil
     end
 
-    it 'falls back when current provider has no API key' do
+    it 'does not fall back when the current provider has no API key' do
       agent.settings["provider"] = "xai"
       stub_const("CONFIG", {
         "OPENAI_API_KEY" => "test-key",
         "XAI_API_KEY" => "",
         "EXTRA_LOGGING" => nil
       })
-      expect(agent.send(:resolve_vision_provider)).to eq("openai")
+      expect(agent.send(:resolve_vision_provider)).to be_nil
+      result = agent.image_analysis_agent(message: "Test", image_path: "/test/image.png")
+      expect(result).to start_with("ERROR:").and include("XAI_API_KEY")
     end
   end
+
+  # Mistral, Cohere and DeepSeek analyze images with their own models
+  # (checked against the live APIs 2026-10-07); nothing goes to another provider.
+  describe 'Mistral, Cohere and DeepSeek vision' do
+    let(:image) { { base64: "QUJD", mime_type: "image/png" } }
+    let(:posted) { [] }
+
+    def ok(body)
+      double("res", status: double(success?: true, to_s: "200"), body: body.to_json)
+    end
+
+    it 'sends an OpenAI-style image part to Mistral and keeps only the text of the answer' do
+      allow(agent).to receive(:vision_http_post) { |uri, _h, body| posted << [uri, body]; ok(choices: [{ message: { content: [{ type: "thinking", thinking: [] }, { type: "text", text: "A menu." }] } }]) }
+      result = agent.send(:vision_query_mistral, "What is it?", image, "mistral-small-2603", "k")
+      expect(result).to eq("A menu.")
+      uri, body = posted.last
+      expect(uri).to eq("https://api.mistral.ai/v1/chat/completions")
+      expect(body[:messages][0][:content][1]).to eq(type: "image_url", image_url: { url: "data:image/png;base64,QUJD" })
+    end
+
+    it 'sends the image to DeepSeek the same way' do
+      allow(agent).to receive(:vision_http_post) { |uri, _h, body| posted << [uri, body]; ok(choices: [{ message: { content: "A chart." } }]) }
+      expect(agent.send(:vision_query_deepseek, "q", image, "deepseek-v4-flash-vision-exp", "k")).to eq("A chart.")
+      expect(posted.last[0]).to eq("https://api.deepseek.com/chat/completions")
+    end
+
+    it 'uses the Cohere image part and reads the text parts of the reply' do
+      allow(agent).to receive(:vision_http_post) { |uri, _h, body| posted << [uri, body]; ok(message: { content: [{ type: "thinking", thinking: "x" }, { type: "text", text: "A phone." }] }) }
+      expect(agent.send(:vision_query_cohere, "q", image, "command-a-plus-05-2026", "k")).to eq("A phone.")
+      uri, body = posted.last
+      expect(uri).to eq("https://api.cohere.ai/v2/chat")
+      expect(body[:messages][0][:content][1]).to eq(type: "image", image: "data:image/png;base64,QUJD")
+    end
+
+    it 'reports an API error with the provider name' do
+      allow(agent).to receive(:vision_http_post).and_return(
+        double("res", status: double(success?: false, to_s: "400"), body: { message: "bad image" }.to_json)
+      )
+      expect(agent.send(:vision_query_mistral, "q", image, "m", "k")).to start_with("ERROR: Mistral Vision API error (400): bad image")
+    end
+
+    it 'routes a Mistral app to Mistral even when OpenAI has a key' do
+      agent.settings["provider"] = "mistral"
+      stub_const("CONFIG", { "OPENAI_API_KEY" => "o", "MISTRAL_API_KEY" => "m", "EXTRA_LOGGING" => nil })
+      allow(agent).to receive(:prepare_image_for_analysis).and_return(image)
+      expect(agent).to receive(:vision_query_mistral).and_return("ok")
+      expect(agent).not_to receive(:vision_query_openai)
+      expect(agent.image_analysis_agent(message: "q", image_path: "x.png")).to eq("ok")
+    end
+  end
+
 end

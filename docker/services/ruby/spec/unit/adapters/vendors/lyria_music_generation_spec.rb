@@ -73,6 +73,15 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
     expect(result['lyrics']).to eq('') # instrumental → no lyrics
   end
 
+  it 'treats section markers alone (how Lyria 3.5 marks an instrumental) as no lyrics' do
+    allow(Net::HTTP).to receive(:start).and_return(
+      response('200', audio_body(mime: 'audio/mpeg', text: "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]"))
+    )
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x'))
+    expect(result['success']).to be true
+    expect(result['lyrics']).to eq('')
+  end
+
   it 'returns success:false with the API error message on a non-200' do
     allow(Net::HTTP).to receive(:start).and_return(
       response('500', { 'error' => { 'message' => 'internal boom' } })
@@ -154,9 +163,21 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
       JSON.parse(posted.last)
     end
 
-    it 'requests WAV in generationConfig when output_format is wav on the Pro model' do
+    # The REST API takes the enum name; "audio/wav" (the Python SDK's spelling)
+    # is rejected with 400 INVALID_ARGUMENT by both lyria-3.5 and
+    # lyria-3-pro-preview (checked against the live API, 2026-10-05).
+    it 'requests WAV with the AUDIO_WAV enum when output_format is wav on the Pro model' do
       helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', output_format: 'wav')
-      expect(sent_body.dig('generationConfig', 'responseFormat', 'audio', 'mimeType')).to eq('audio/wav')
+      expect(sent_body.dig('generationConfig', 'responseFormat', 'audio', 'mimeType')).to eq('AUDIO_WAV')
+    end
+
+    it 'names the file after the format actually returned when WAV was asked for but MP3 came back' do
+      allow(Net::HTTP).to receive(:start).and_return(
+        response('200', audio_body(mime: 'audio/mpeg', text: '[[A0]]'))
+      )
+      result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', output_format: 'wav'))
+      expect(result['mime_type']).to eq('audio/mpeg')
+      expect(result['filename']).to end_with('.mp3')
     end
 
     it 'ignores a WAV request on the Clip model (Clip is MP3-only)' do

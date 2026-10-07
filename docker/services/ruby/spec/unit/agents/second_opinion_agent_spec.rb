@@ -60,7 +60,7 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-6.1-sol")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3.8-flash")
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.7")
-        expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-medium-3-5")
+        expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-4")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-plus-05-2026")
         expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
       end

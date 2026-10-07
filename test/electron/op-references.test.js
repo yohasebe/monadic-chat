@@ -8,7 +8,8 @@ const os = require('os');
 const path = require('path');
 
 const {
-  isReference, referencesIn, opCandidates, locateOp, classify, resolveReferences, SecretCache
+  isReference, referencesIn, opCandidates, isRunnable, locateOp, run, classify, startedAtFrom,
+  resolveReferences, SecretCache
 } = require('../../app/op_references');
 
 // A fake op: `inject` turns `KEY={{ op://V/ITEM/f }}` lines into
@@ -88,6 +89,39 @@ describe('finding references', () => {
     expect(opCandidates('darwin', { MONADIC_OP_CLI: '/x/op' })).toEqual(['/x/op']);
     expect(locateOp(['/nope/op', op])).toBe(op);
     expect(locateOp(['/nope/op'])).toBeNull();
+  });
+
+  test('skips a candidate it may not run and takes the next one', () => {
+    const stray = path.join(dir, 'stray-op');
+    fs.writeFileSync(stray, '', { mode: 0o644 });
+    expect(isRunnable(stray, 'darwin')).toBe(false);
+    expect(isRunnable(dir, 'darwin')).toBe(false);
+    expect(isRunnable(op, 'darwin')).toBe(true);
+    expect(locateOp([stray, dir, op])).toBe(op);
+  });
+});
+
+describe('talking to monadic.sh', () => {
+  test('gives up on a command that does not answer, instead of waiting for ever', async () => {
+    const stuck = path.join(dir, 'stuck');
+    fs.writeFileSync(stuck, '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
+    const started = Date.now();
+    const result = await run(stuck, [], 'payload', 300);
+    expect(result.code).toBe(-1);
+    expect(classify(result.stderr)).toBe('timeout');
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
+
+  test('takes only a Docker timestamp from a successful call as the container start', () => {
+    const at = '2026-10-04T13:45:01.123456789Z';
+    expect(startedAtFrom({ code: 0, stdout: `${at}\n` })).toBe(at);
+    expect(startedAtFrom({ code: 0, stdout: `${at}\r\n` })).toBe(at);
+    expect(startedAtFrom({ code: 0, stdout: `Welcome to Ubuntu\n${at}\n` })).toBe(at);
+    expect(startedAtFrom({ code: 0, stdout: '' })).toBeNull();
+    expect(startedAtFrom({ code: 1, stdout: `${at}\n` })).toBeNull();
+    expect(startedAtFrom({ code: -1, stdout: '' })).toBeNull();
+    expect(startedAtFrom({ code: 0, stdout: 'Error: No such object\n' })).toBeNull();
+    expect(startedAtFrom({ code: 0, stdout: `${at}\nsomething after\n` })).toBeNull();
   });
 });
 

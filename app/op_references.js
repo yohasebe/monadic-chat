@@ -46,8 +46,20 @@ function opCandidates(platform = process.platform, env = process.env) {
   return [...new Set(dirs)].map(dir => path.join(dir, exe));
 }
 
-function locateOp(candidates = opCandidates(), exists = fs.existsSync) {
-  return candidates.find(candidate => exists(candidate)) || null;
+// A candidate counts only if it is a file this process may run, so a stray
+// non-executable `op` earlier on PATH does not hide a working one later.
+function isRunnable(file, platform = process.platform) {
+  try {
+    if (!fs.statSync(file).isFile()) return false;
+    if (platform !== 'win32') fs.accessSync(file, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function locateOp(candidates = opCandidates(), runnable = isRunnable) {
+  return candidates.find(candidate => runnable(candidate)) || null;
 }
 
 // Runs a command with input on stdin. No shell, so nothing is interpreted.
@@ -128,6 +140,18 @@ async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
   return { values, failures };
 }
 
+// The Ruby container's start time from `monadic.sh ruby-started-at`, or null.
+// It identifies one start of the container, so anything else on stdout (a
+// failed command, a shell banner from WSL) must not be taken for it. Only the
+// last line is considered, and only a Docker timestamp is accepted.
+const STARTED_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+function startedAtFrom({ code, stdout } = {}) {
+  if (code !== 0) return null;
+  const lines = String(stdout || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const last = lines[lines.length - 1];
+  return last && STARTED_AT.test(last) ? last : null;
+}
+
 // Resolved values for the app's lifetime. Read again only when the set of
 // references changes or the last attempt left some keys unresolved.
 class SecretCache {
@@ -184,9 +208,11 @@ module.exports = {
   isReference,
   referencesIn,
   opCandidates,
+  isRunnable,
   locateOp,
   run,
   classify,
+  startedAtFrom,
   resolveReferences,
   SecretCache
 };

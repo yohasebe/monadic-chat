@@ -225,3 +225,4 @@ Tools that fail at runtime (a missing file, a refused budget, a provider error) 
 - Knowledge-base tools require the Qdrant and embeddings containers.
 - `monadic_analyze_video` requires the Python container for frame extraction.
 - Generation and analysis tools require an API key for the relevant provider.
+- `monadic_analyze_image`, `monadic_transcribe_audio`, and `monadic_analyze_video` require a `provider` argument. The file is sent only to that provider; there is no automatic choice of another provider that has a key.

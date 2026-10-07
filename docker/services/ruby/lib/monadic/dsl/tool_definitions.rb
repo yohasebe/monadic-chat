@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'tool_formatters'
+require_relative '../utils/provider_capabilities'
 
 module MonadicDSL
   # Custom error classes
@@ -156,6 +157,14 @@ module MonadicDSL
       ollama: ToolFormatters::OpenAIFormatter
     }.freeze
 
+    # Shared tool groups that run on the app's own provider, and the
+    # capability each needs (Monadic::Utils::ProviderCapabilities).
+    ANALYSIS_GROUP_CAPABILITIES = {
+      image_analysis: :image,
+      video_analysis: :video,
+      audio_transcription: :audio
+    }.freeze
+
     PROVIDER_WRAPPERS = {
       gemini: ->(tools) { { "function_declarations" => tools } },
       default: ->(tools) { tools }
@@ -261,6 +270,17 @@ module MonadicDSL
         # Validate group exists
         unless MonadicSharedTools::Registry.group_exists?(group)
           raise ArgumentError, "Unknown tool group: #{group}. Available: #{MonadicSharedTools::Registry.available_groups.join(', ')}"
+        end
+
+        # An analysis group is registered only for a provider that can run it
+        # itself: the agents never hand the work to another provider, so the
+        # model must not be offered a tool that can only fail.
+        capability = ANALYSIS_GROUP_CAPABILITIES[group.to_sym]
+        if capability && !Monadic::Utils::ProviderCapabilities.supports?(capability, @provider)
+          if CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[DSL] Skipping tool group '#{group}': #{@provider} has no #{capability} analysis of its own"
+          end
+          next
         end
 
         # Get tool specifications from registry

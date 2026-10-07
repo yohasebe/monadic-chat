@@ -483,7 +483,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
           providerGroup = "Google";
         } else if (/^command-/.test(modelToSet)) {
           providerGroup = "Cohere";
-        } else if (/^(mistral-|pixtral-|magistral-|ministral-)/.test(modelToSet)) {
+        } else if (/^(mistral-|pixtral-|magistral-|ministral-|zai-glm-)/.test(modelToSet)) {
           providerGroup = "Mistral";
         } else if (/^deepseek-/.test(modelToSet)) {
           providerGroup = "DeepSeek";

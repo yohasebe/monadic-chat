@@ -54,7 +54,7 @@ OpenAIのデフォルトモデルの場合：
 | `COHERE_API_KEY` | Cohere APIキー | はい（Cohereアプリ使用時） | `...` |
 | `DEEPSEEK_API_KEY` | DeepSeek APIキー | はい（DeepSeekアプリ使用時） | `...` |
 | `XAI_API_KEY` | Grokモデル用のxAI APIキー | はい（Grokアプリ使用時） | `xai-...` |
-| `ELEVENLABS_API_KEY` | TTSおよびScribe音声認識用のElevenLabs APIキー | はい（ElevenLabs音声使用時） | `...` |
+| `ELEVENLABS_API_KEY` | TTS、Scribe音声認識、Music GeneratorのElevenLabs Music用のElevenLabs APIキー | はい（ElevenLabs音声使用時） | `...` |
 | `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー — 対応は[プロバイダー機能概要](../basic-usage/basic-apps.md#provider-capabilities)を参照 | Tavily経由のウェブ検索時に必要 | `tvly-...` |
 
 ### APIキーを 1Password から読み込む :id=onepassword-references
@@ -67,8 +67,8 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 `op://` で始まらない値は、これまでどおり書かれた値をそのまま使います。
 
-- **必要なもの**: アプリを動かすコンピュータの [1Password CLI](https://developer.1password.com/docs/cli/)（`op`）。サインインしているか、1Password のデスクトップアプリと連携している必要があります。アプリは `PATH` と、一般的なインストール先から `op` を探します。
-- **読み込むとき**: Start を押したときに、すべての参照を 1 回の `op` の呼び出しで読み込みます。1Password の確認は 1 回です。読み込んだ値はアプリを終了するまで保持し、Restart やコンテナの再起動では読み直しません。設定で参照を変えた場合は、次の Start で読み直します。
+- **必要なもの**: アプリを動かすコンピュータの 1Password のデスクトップアプリと [1Password CLI](https://developer.1password.com/docs/cli/)（`op`）。デスクトップアプリで **Settings → Developer → Integrate with 1Password CLI** をオンにしておく必要があります。この設定は macOS・Windows・Linux で共通です。Windows では、先に 1Password で Windows Hello をオンにします。Linux では、先に **Settings → Security → Unlock using system authentication** をオンにします。これには PolKit と、PolKit の認証エージェントが動いていることが必要です。Snap と Flathub で配布されている 1Password は、この連携に対応していません。詳しくは [1Password の手順](https://developer.1password.com/docs/cli/app-integration/)を参照してください。ターミナルで手動でサインインしたときに設定されるセッションの環境変数は、デスクトップから起動したアプリには渡りません。アプリは `PATH` と、一般的なインストール先から `op` を探します。
+- **読み込むとき**: Start を押したときに、すべての参照を 1 回の `op` の呼び出しで読み込みます。1Password の確認は通常 1 回です。この呼び出しが失敗した場合は、どの参照が失敗したかを調べるために 1 つずつ読み直すので、1Password が再び確認を求めることがあります。すべての参照を読み込めたら、値はアプリを終了するまで保持し、Restart やコンテナの再起動では読み直しません。読み込めなかった参照がある場合は、次の Start か Restart で読み直します。設定で参照を変えた場合は、次の Start で読み直します。
 - **値の置き場所**: `~/monadic/config/env` には参照のまま残ります。値はアプリのメモリに置き、メモリ上のマウント（tmpfs）を通して Ruby のコンテナに渡します。ファイル、コンテナの設定、コンテナの環境変数には書かず、ログにも出しません。メモリ上のマウントは Docker の仮想マシンのメモリにあり、そのメモリがディスクにスワップされるかどうかは Docker Desktop の動作によります。
 - **読み込めなかったとき**: コンソールに、キーの名前と理由（`op` が見つからない、1Password がロックされているか CLI がサインインしていない、確認が取り消された、項目またはフィールドが見つからない）を表示します。そのキーは次の Start まで未設定として扱い、ほかのキーと機能はそのまま使えます。参照の文字列をキーとしてプロバイダに送ることはありません。
 - **以前の版で作られた Ruby のコンテナ**: 値を使えないため、アプリは値を渡さず、作り直しを促します（**Actions → Build Ruby Container**）。更新の後にコンテナが作り直されなかった場合にだけ起こります。

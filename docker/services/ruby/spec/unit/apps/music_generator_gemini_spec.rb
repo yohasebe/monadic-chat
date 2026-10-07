@@ -37,15 +37,35 @@ RSpec.describe 'Music Generator Gemini — integration' do
     expect(tools.to_s).to include('generate_music_with_lyria')
   end
 
+  it 'exposes generate_music_with_elevenlabs, gated on ELEVENLABS_API_KEY' do
+    tools = settings[:tools] || settings['tools']
+    expect(tools.to_s).to include('generate_music_with_elevenlabs')
+    expect(MusicGeneratorGemini.instance_method(:generate_music_with_elevenlabs)).to be_a(UnboundMethod)
+    expect(Monadic::Utils::ToolKeyRequirements::REQUIRED_KEYS['generate_music_with_elevenlabs'])
+      .to eq('ELEVENLABS_API_KEY')
+  end
+
+  # The a/b/c rules the user set for using another service from this app.
+  it 'tells the model to use ElevenLabs only on request, never as a fallback, and to name the service' do
+    prompt = settings[:initial_prompt] || settings['initial_prompt'] || settings[:system_prompt].to_s
+    expect(prompt).to include('ONLY when the user explicitly names ElevenLabs')
+    expect(prompt).to include('NEVER use it as a fallback')
+    expect(prompt).to include('ALWAYS include the service line')
+  end
+
   describe 'Lyria providerDefaults SSOT' do
     require_relative '../../../lib/monadic/utils/model_spec'
     let(:m) { Monadic::Utils::ModelSpec }
 
-    it 'defaults to Lyria 3 Pro with Clip as the fast alternative' do
+    it 'defaults to Lyria 3.5 with Clip as the fast alternative' do
       models = m.get_provider_models('gemini', 'music')
-      expect(models.first).to eq('lyria-3-pro-preview')
+      expect(models.first).to eq('lyria-3.5')
       expect(models).to include('lyria-3-clip-preview')
-      expect(m.default_music_model('gemini')).to eq('lyria-3-pro-preview')
+      expect(m.default_music_model('gemini')).to eq('lyria-3.5')
+    end
+
+    it 'names the ElevenLabs music model in providerDefaults' do
+      expect(m.get_provider_models('elevenlabs', 'music')).to eq(['music_v2_5'])
     end
   end
 end

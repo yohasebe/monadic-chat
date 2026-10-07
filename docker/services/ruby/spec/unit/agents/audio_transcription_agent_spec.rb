@@ -143,7 +143,7 @@ RSpec.describe AudioTranscriptionAgent do
       it 'returns error when no API key is available' do
         result = agent.audio_transcription_agent(audio_path: "/test/audio.mp3")
         expect(result).to include("ERROR:")
-        expect(result).to include("No API key")
+        expect(result).to include("needs OPENAI_API_KEY")
       end
     end
   end
@@ -211,19 +211,21 @@ RSpec.describe AudioTranscriptionAgent do
       expect(agent.send(:resolve_audio_provider)).to eq("google")
     end
 
-    it 'falls back to openai for non-audio provider' do
+    # Provider Independence: the audio goes to the app's own provider or
+    # nowhere, even when another provider has a key.
+    it 'does not fall back to another provider for a provider without speech-to-text' do
       agent.settings["provider"] = "anthropic"
-      expect(agent.send(:resolve_audio_provider)).to eq("openai")
+      expect(agent.send(:resolve_audio_provider)).to be_nil
     end
 
-    it 'falls back to gemini when OpenAI key is missing' do
+    it 'does not fall back to Gemini when the app is not on Gemini' do
       agent.settings["provider"] = "cohere"
       stub_const("CONFIG", {
         "OPENAI_API_KEY" => "",
         "GEMINI_API_KEY" => "test-gemini-key",
         "EXTRA_LOGGING" => nil
       })
-      expect(agent.send(:resolve_audio_provider)).to eq("google")
+      expect(agent.send(:resolve_audio_provider)).to be_nil
     end
   end
 

@@ -113,16 +113,13 @@ shows the group as unavailable, wait for startup to finish; if the Selenium
 image is missing, run **Actions → Build All** to download it.
 
 #### Video Analysis (1 tool)
-**Requires**: At least one vision-capable provider API key (OpenAI, Anthropic, Gemini, or xAI)
+**Requires**: An app on OpenAI, Anthropic, Gemini, or xAI, with that provider's API key
 
 - Analyze video content using multimodal AI
 - Generate descriptions from video frames
+- Frames are sent only to the app's own provider. The audio track is transcribed when that provider offers speech-to-text (OpenAI, Gemini); otherwise the description says that the audio was not transcribed
 
 **Apps using this**: Video Describer
-
-**How to enable**:
-1. Configure at least one of the supported API keys (OpenAI, Anthropic, Gemini, or xAI) in Settings
-2. The tool group will become available automatically
 
 #### Web Search (4 tools)
 **Requires**: `TAVILY_API_KEY` for providers without native web search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
@@ -134,18 +131,20 @@ image is missing, run **Actions → Build All** to download it.
 **Apps using this**: Research Assistant, Mermaid Grapher, Wikipedia
 
 #### Audio Transcription (1 tool)
-**Requires**: OpenAI or Gemini API key configured
+**Requires**: An app on OpenAI or Gemini, with that provider's API key
 
 - Transcribe audio files using speech-to-text capabilities
+- The audio is sent only to the app's own provider; apps on other providers do not offer this tool
 
 **Apps using this**: Video Describer, Speech Draft Helper
 
 #### Image Analysis (1 tool)
-**Requires**: At least one vision-capable provider API key (OpenAI, Anthropic, Gemini, or xAI)
+**Requires**: An app on OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, or DeepSeek, with that provider's API key
 
 - Analyze and describe the contents of an image file using vision capabilities
+- The image is sent only to the app's own provider, never to another one
 
-**Apps using this**: Code Interpreter, Research Assistant (all providers)
+**Apps using this**: Code Interpreter, Research Assistant
 
 #### Library Search (1 tool)
 **Requires**: Knowledge Base (embeddings service) available

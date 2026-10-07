@@ -3,6 +3,7 @@
 require "base64"
 require "http"
 require_relative "../utils/environment"
+require_relative "../utils/provider_capabilities"
 
 # AudioTranscriptionAgent provides provider-independent audio transcription.
 #
@@ -10,8 +11,9 @@ require_relative "../utils/environment"
 #   - OpenAI: Dedicated /v1/audio/transcriptions endpoint (Whisper, gpt-4o-transcribe models)
 #   - Gemini: Multimodal generateContent with audio inline_data
 #
-# Non-STT providers (Claude, Grok, Cohere, DeepSeek, Mistral, Ollama)
-# fall back to the first available audio provider (preference: OpenAI -> Gemini).
+# Only the app's own provider is used (Monadic::Utils::ProviderCapabilities,
+# :audio). Any other provider gets an error; the audio is never sent to
+# another provider because it has a key.
 
 module AudioTranscriptionAgent
   AUDIO_PROVIDER_MAP = {
@@ -86,13 +88,14 @@ module AudioTranscriptionAgent
       return "ERROR: Audio file too large (#{file_size / 1024 / 1024}MB). Maximum: 25MB"
     end
 
-    # 3. Determine provider
-    provider = resolve_audio_provider
+    # 3. The app's own provider, or an error (never another provider)
+    resolved = Monadic::Utils::ProviderCapabilities.resolve(:audio, settings["provider"] || settings[:provider])
+    return resolved[:error] if resolved[:error]
+
+    provider = resolved[:provider]
 
     # 4. Get API key
-    api_key_name = AUDIO_API_KEYS[provider]
-    api_key = CONFIG[api_key_name]&.strip
-    return "ERROR: No API key for provider '#{provider}'" if api_key.nil? || api_key.empty?
+    api_key = CONFIG[AUDIO_API_KEYS[provider]].to_s.strip
 
     if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       puts "[AudioTranscriptionAgent] Using provider: #{provider}, path: #{path}"
@@ -133,29 +136,9 @@ module AudioTranscriptionAgent
     path
   end
 
-  # Determine which provider to use for audio transcription
+  # The app's own audio provider, or nil. Never another provider.
   def resolve_audio_provider
-    provider_raw = settings["provider"] || settings[:provider] || ""
-
-    # Only OpenAI and Gemini support audio transcription natively
-    normalized = case provider_raw.to_s.downcase
-                 when "openai" then "openai"
-                 when "google", "gemini" then "google"
-                 else nil
-                 end
-
-    if normalized && AUDIO_PROVIDERS.include?(normalized)
-      api_key = CONFIG[AUDIO_API_KEYS[normalized]]&.strip
-      return normalized unless api_key.nil? || api_key.empty?
-    end
-
-    # Fallback: OpenAI first, then Gemini
-    AUDIO_PROVIDERS.each do |ap|
-      api_key = CONFIG[AUDIO_API_KEYS[ap]]&.strip
-      return ap unless api_key.nil? || api_key.empty?
-    end
-
-    "openai"
+    Monadic::Utils::ProviderCapabilities.resolve(:audio, settings["provider"] || settings[:provider])[:provider]
   end
 
   # --- OpenAI Transcription API ---

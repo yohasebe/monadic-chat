@@ -3,6 +3,7 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
+require_relative "../../../lib/monadic/utils/shared_file_path"
 
 RSpec.describe "Static Routes helpers" do
   describe "DOCS_CONTENT_TYPE_MAP" do
@@ -53,93 +54,63 @@ RSpec.describe "Static Routes helpers" do
     end
   end
 
-  describe "fetch_file path traversal protection" do
-    # Tests the path sanitization pattern used in static_routes.rb fetch_file method
+  describe "fetch_file path resolution (Monadic::Utils::SharedFilePath)" do
+    # fetch_file serves exactly what this resolver returns.
     let(:data_dir) { Dir.mktmpdir("monadic_test_data") }
+    let(:resolve) { ->(name) { Monadic::Utils::SharedFilePath.resolve(name, data_dir) } }
 
     before do
       File.write(File.join(data_dir, "safe_file.txt"), "safe content")
-
-      @outside_file = Tempfile.new("outside_file")
-      @outside_file.write("outside content")
-      @outside_file.close
+      FileUtils.mkdir_p(File.join(data_dir, "saved", ".hidden"))
+      File.write(File.join(data_dir, "saved", "clip.mp4"), "video")
+      File.write(File.join(data_dir, "saved", "notes.txt"), "text")
+      File.write(File.join(data_dir, "saved", ".hidden", "clip.mp4"), "video")
+      @outside = Dir.mktmpdir("monadic_outside")
+      File.write(File.join(@outside, "secret.mp4"), "outside")
     end
 
     after do
       FileUtils.rm_rf(data_dir)
-      @outside_file.unlink if @outside_file
+      FileUtils.rm_rf(@outside)
     end
 
-    def safe_file_path(file_name, datadir)
-      # Replicate the sanitization logic from static_routes.rb fetch_file
-      safe_name = File.basename(file_name.to_s)
-      safe_name = safe_name.dup.force_encoding(Encoding::UTF_8) if safe_name.encoding != Encoding::UTF_8
-      file_path = File.join(datadir, safe_name)
-
-      return nil unless File.exist?(file_path)
-
-      real_path = File.realpath(file_path)
-      real_datadir = File.realpath(datadir)
-      real_datadir_with_sep = real_datadir.end_with?(File::SEPARATOR) ?
-                              real_datadir :
-                              real_datadir + File::SEPARATOR
-
-      if real_path.start_with?(real_datadir_with_sep)
-        file_path
-      else
-        nil
-      end
+    it "serves any file at the top of the shared folder, as before" do
+      expect(resolve.call("safe_file.txt")).to end_with("safe_file.txt")
     end
 
-    it "allows access to files within the data directory" do
-      result = safe_file_path("safe_file.txt", data_dir)
-      expect(result).not_to be_nil
-      expect(result).to end_with("safe_file.txt")
+    it "serves nothing under a subfolder, media included" do
+      expect(resolve.call("saved/clip.mp4")).to be_nil
+      expect(resolve.call("saved/notes.txt")).to be_nil
+      expect(resolve.call("saved/.hidden/clip.mp4")).to be_nil
     end
 
-    it "blocks path traversal with ../" do
-      result = safe_file_path("../../../etc/passwd", data_dir)
-      expect(result).to be_nil
+    it "blocks traversal, absolute paths and encoded tricks" do
+      expect(resolve.call("../../../etc/passwd")).to be_nil
+      expect(resolve.call("saved/../../etc/passwd")).to be_nil
+      expect(resolve.call("/etc/passwd")).to be_nil
+      expect(resolve.call("..%2F..%2Fetc%2Fpasswd")).to be_nil
+      expect(resolve.call("saved\\clip.mp4")).to be_nil
+      expect(resolve.call("a\0b")).to be_nil
     end
 
-    it "blocks path traversal with encoded dots" do
-      result = safe_file_path("..%2F..%2Fetc%2Fpasswd", data_dir)
-      expect(result).to be_nil
+    it "does not follow a symlink out of the shared folder" do
+      File.symlink(File.join(@outside, "secret.mp4"), File.join(data_dir, "link.mp4"))
+      expect(resolve.call("link.mp4")).to be_nil
     end
 
-    it "strips directory components from filename" do
-      expect(File.basename("/etc/passwd")).to eq("passwd")
-      expect(File.basename("../../../etc/passwd")).to eq("passwd")
-      expect(File.basename("subdir/file.txt")).to eq("file.txt")
+    it "returns nil for missing files and directories" do
+      expect(resolve.call("nonexistent.txt")).to be_nil
+      expect(resolve.call("saved")).to be_nil
     end
 
-    it "returns nil for non-existent files" do
-      result = safe_file_path("nonexistent.txt", data_dir)
-      expect(result).to be_nil
-    end
-
-    it "handles filenames with spaces" do
+    it "handles spaces and a non-ASCII name tagged ASCII-8BIT" do
       File.write(File.join(data_dir, "file with spaces.txt"), "content")
-      result = safe_file_path("file with spaces.txt", data_dir)
-      expect(result).not_to be_nil
-    end
-
-    it "resolves a non-ASCII (Japanese) filename even when the param is tagged ASCII-8BIT" do
       File.write(File.join(data_dir, "報告書.pdf"), "content")
-      # Simulate a percent-decoded path param handed back tagged binary.
-      param = "報告書.pdf".b
-      expect { @result = safe_file_path(param, data_dir) }.not_to raise_error
+      expect(resolve.call("file with spaces.txt")).not_to be_nil
+      expect { @result = resolve.call("報告書.pdf".b) }.not_to raise_error
       expect(@result).not_to be_nil
     end
-
-    it "handles filenames with special characters" do
-      safe_name = "file-name_v2.0.txt"
-      File.write(File.join(data_dir, safe_name), "content")
-      result = safe_file_path(safe_name, data_dir)
-      expect(result).not_to be_nil
-    end
   end
-
   describe "Documentation path traversal protection" do
     # Tests the path sanitization pattern used in /docs/* and /docs_dev/* routes
 

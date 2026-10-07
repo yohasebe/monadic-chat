@@ -56,12 +56,80 @@ module MistralHelper
       (json["data"] || [])
         .sort_by { |m| m["created"] }.reverse
         .map { |m| m["id"] }
-        .reject { |id| EXCLUDED_MODELS.any? { |ex| /\b#{ex}\b/ =~ id || /[\d\-]+(?:rc\d+)?\z/ =~ id } }
+        .reject { |id| mistral_model_excluded?(id) }
     end
+
+  # Drops embedding/moderation/legacy ids and versioned snapshots such as
+  # mistral-large-2512, which the -latest aliases stand for. A model named in
+  # the model spec (exactly; not by dropping a date suffix) is kept, whatever
+  # its name ends with: Mistral now
+  # names current models by version (mistral-medium-3-5, mistral-large-4,
+  # zai-glm-5-3), and the suffix rule alone dropped every one of them from
+  # the model list, including the provider default.
+  def self.mistral_model_excluded?(id)
+    return true if EXCLUDED_MODELS.any? { |ex| /\b#{ex}\b/ =~ id }
+    return false if (Monadic::Utils::ModelSpec.registered?(id) rescue false)
+
+    /[\d\-]+(?:rc\d+)?\z/.match?(id)
+  end
 
   # Get default model
   def self.get_default_model
-    "mistral-large-latest"
+    "mistral-large-4"
+  end
+
+  # Order used to find the nearest effort a model accepts.
+  MISTRAL_EFFORT_RANK = %w[none minimal low medium high xhigh max].freeze
+
+  # The reasoning_effort to send for this model, or nil to send none.
+  #
+  # What leaving the parameter out means differs by model, so "none" cannot
+  # simply be dropped: Mistral Large 4 / Medium 3.5 / Small 4 do not reason
+  # without it, but Z.ai GLM 5.3 reasons at about its maximum, and rejects
+  # "none" outright (accepts low/high/max; checked live 2026-10-06). So:
+  # - a model whose spec declares no reasoning_effort gets nothing (Magistral
+  #   rejects the parameter: "reasoning_effort is not enabled for this model");
+  # - "none", no request, or a value this method does not know goes out as
+  #   nothing where the model accepts none, and as its lowest level where it
+  #   does not — an unknown value never raises the effort;
+  # - a known level the model does not accept becomes the nearest accepted
+  #   level at or above it (else the highest), instead of a 400.
+  # The model's levels are ordered by MISTRAL_EFFORT_RANK, not by how the spec
+  # (or a models.json override) happens to list them.
+  def mistral_effort_for(model, requested)
+    options = (Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options) rescue nil)
+    return nil unless options.is_a?(Array) && !options.empty?
+
+    levels = options.map(&:to_s).select { |o| MISTRAL_EFFORT_RANK.include?(o) }
+                    .sort_by { |o| MISTRAL_EFFORT_RANK.index(o) }
+    return nil if levels.empty?
+
+    accepts_none = levels.include?("none")
+    above_none = levels - ["none"]
+    requested = requested.to_s.strip.downcase
+    rank = MISTRAL_EFFORT_RANK.index(requested)
+
+    if requested.empty? || requested == "none" || rank.nil?
+      return accepts_none ? nil : above_none.first
+    end
+    return requested if levels.include?(requested)
+
+    above_none.find { |o| MISTRAL_EFFORT_RANK.index(o) >= rank } || above_none.last
+  end
+
+  # Whether the streamed answer is held back until the end. Only when the
+  # user asked for reasoning on a model that can take "none" (where asking
+  # means the model really reasons); see the comment at the call site.
+  def mistral_buffer_answer?(model, requested, is_reasoning_model)
+    return false unless is_reasoning_model
+
+    requested = requested.to_s.strip.downcase
+    return false if requested.empty? || requested == "none"
+
+    options = (Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options) rescue nil)
+    return true unless options.is_a?(Array) # Magistral: reasons whenever asked
+
+    options.map(&:to_s).include?("none")
   end
 
   # Simple non-streaming chat completion
@@ -144,16 +212,10 @@ module MistralHelper
       "safe_prompt" => false
     }
     
-    # For reasoning models, use reasoning_effort instead of temperature.
-    # Filter out "none" — Mistral only supports low/medium/high.
-    # When "none", skip reasoning_effort and use temperature instead.
-    # Gate on the model spec actually DECLARING reasoning_effort: Magistral
-    # models reason by default and the API rejects the parameter outright
-    # ("reasoning_effort is not enabled for this model", HTTP 400 — verified
-    # live 2026-07-09), so supports_thinking alone must not trigger sending it.
-    mistral_effort = options["reasoning_effort"]
-    model_declares_effort = (Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort") rescue false)
-    if is_reasoning_model && model_declares_effort && mistral_effort && mistral_effort != "none"
+    # Reasoning models get reasoning_effort instead of temperature, as
+    # mistral_effort_for decides (nil = send none and use temperature).
+    mistral_effort = mistral_effort_for(model, options["reasoning_effort"])
+    if is_reasoning_model && mistral_effort
       body["reasoning_effort"] = mistral_effort
     else
       # For non-reasoning models or when reasoning disabled, use temperature
@@ -395,15 +457,10 @@ module MistralHelper
       "messages" => []
     }
     
-    # For reasoning models, use reasoning_effort instead of temperature.
-    # Filter out "none" — Mistral only supports low/medium/high.
-    # Gate on the model spec actually DECLARING reasoning_effort: Magistral
-    # models reason by default and the API rejects the parameter outright
-    # ("reasoning_effort is not enabled for this model", HTTP 400 — verified
-    # live 2026-07-09), so supports_thinking alone must not trigger sending it.
-    mistral_effort = obj["reasoning_effort"]
-    model_declares_effort = (Monadic::Utils::ModelSpec.model_has_property?(obj["model"], "reasoning_effort") rescue false)
-    if is_reasoning_model && model_declares_effort && mistral_effort && mistral_effort != "none"
+    # Reasoning models get reasoning_effort instead of temperature, as
+    # mistral_effort_for decides (nil = send none and use temperature).
+    mistral_effort = mistral_effort_for(obj["model"], obj["reasoning_effort"])
+    if is_reasoning_model && mistral_effort
       body["reasoning_effort"] = mistral_effort
       # Log if extra logging is enabled
       DebugHelper.debug("Mistral: Using reasoning_effort '#{mistral_effort}' for model #{obj["model"]}", category: :api, level: :info)
@@ -647,14 +704,14 @@ module MistralHelper
               end
               content = content.to_s unless content.is_a?(String)
 
-              # Buffer the response only when reasoning is actively engaged
-              # (Magistral emits `<think>...</think>` blocks that may be split
-              # across chunks, so we must reassemble before sending to the
-              # client). When reasoning_effort is "none" (or unset), the model
-              # behaves like a normal chat model — stream as usual, including
-              # for new reasoning-capable models like mistral-medium-3-5 and
-              # mistral-small-2603 whose default we pin to "none".
-              if is_reasoning_model && mistral_effort && mistral_effort != "none"
+              # Buffer the answer only when the user asked for reasoning, so
+              # `<think>...</think>` text split across chunks can be put back
+              # together before it is shown. This follows the requested
+              # effort, not the value sent: a model that rejects "none" (GLM)
+              # is sent its lowest level even when no reasoning was asked for,
+              # and returns its reasoning as structured thinking parts, which
+              # are extracted separately — so its answer streams as usual.
+              if mistral_buffer_answer?(obj["model"], obj["reasoning_effort"], is_reasoning_model)
                 # Debug logging for reasoning model detection
                 if CONFIG["EXTRA_LOGGING"]
                   DebugHelper.debug("Mistral: Processing content for reasoning model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0

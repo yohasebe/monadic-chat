@@ -199,7 +199,7 @@ const providerDefaults = {
 | `image` | Image generation (OpenAI, Gemini, xAI) |
 | `video` | Video generation (Veo, Grok Imagine) |
 | `tts` | Text-to-speech (OpenAI TTS: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1; Gemini TTS: [0]=flash, [1]=pro) |
-| `music` | Music generation (Gemini Lyria: [0]=lyria-3-pro-preview, [1]=lyria-3-clip-preview). Resolved inside the generation tool, not a chat dropdown |
+| `music` | Music generation (Gemini Lyria: [0]=lyria-3.5, [1]=lyria-3-clip-preview; ElevenLabs: [0]=music_v2_5, used by Music Generator only when ELEVENLABS_API_KEY is set and the user names ElevenLabs). Resolved inside the generation tool, not a chat dropdown |
 
 > Note: there is no `embedding` category. Help search and the local PDF
 > knowledge base run on a self-hosted `multilingual-e5-base` model in the

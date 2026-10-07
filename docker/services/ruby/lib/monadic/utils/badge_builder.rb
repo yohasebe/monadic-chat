@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "tool_key_requirements"
+
 module Monadic
   module Utils
     # BadgeBuilder: Unified utility for building app capability badges
@@ -110,6 +112,10 @@ module Monadic
                   STDERR.puts "[BadgeBuilder] Unexpected tools format: #{tools_data.class}"
                   []
                 end
+
+        # A tool that needs another service's key is not offered without it,
+        # so it gets no badge either.
+        tools = Monadic::Utils::ToolKeyRequirements.filter(tools)
 
         # Extract agent tools
         agent_patterns = [

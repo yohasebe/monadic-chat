@@ -5,7 +5,7 @@
 // nothing that looks like a secret may be listed.
 const fs = require('fs');
 const path = require('path');
-const { MONADIC_SH_ENV, monadicShEnv } = require('../../app/monadic_env');
+const { MONADIC_SH_ENV, monadicShEnv, monadicInvocation } = require('../../app/monadic_env');
 
 const ROOT = path.join(__dirname, '../..');
 const MONADIC_SH = fs.readFileSync(path.join(ROOT, 'docker/monadic.sh'), 'utf8');
@@ -56,5 +56,15 @@ describe('the environment passed to monadic.sh', () => {
       PRIVACY_LANGS: 'en,ja', INSTALL_LATEX: 'true', DISTRIBUTED_MODE: 'off'
     });
     expect(env).toEqual({ PRIVACY_LANGS: 'en,ja', INSTALL_LATEX: 'true' });
+  });
+});
+
+describe('running a monadic.sh subcommand without a shell', () => {
+  test('runs the script itself, or through wsl --exec on Windows so no shell splits the path', () => {
+    const toUnixPath = p => p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
+    expect(monadicInvocation('/Apps/Monadic Chat/docker/monadic.sh', ['deliver-secrets'], { platform: 'darwin', toUnixPath }))
+      .toEqual({ cmd: '/Apps/Monadic Chat/docker/monadic.sh', argv: ['deliver-secrets'] });
+    expect(monadicInvocation('C:\\Program Files\\Monadic\\docker\\monadic.sh', ['ruby-started-at'], { platform: 'win32', toUnixPath }))
+      .toEqual({ cmd: 'wsl', argv: ['--exec', '/mnt/c/program files/monadic/docker/monadic.sh', 'ruby-started-at'] });
   });
 });

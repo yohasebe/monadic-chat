@@ -1,3 +1,9 @@
+- [October, 2026] 1.0.0-beta.41
+  - **Tool arguments no longer reach a shell, and tools stay inside the shared folder**: a file name or option that the model passed to a tool could run commands on your computer, and some tools read or wrote files outside the shared folder. A document or web page the model reads can influence those arguments, so update before using apps with tools on documents or pages you do not trust. Tools now hand their arguments over without a shell, and accept only files inside the shared folder
+  - **File names in the attachment list are shown as text**: a file name containing HTML was inserted into the page as markup
+  - **Server Mode is no longer available**: Monadic Chat runs on this computer only and is reached at http://localhost:4567. `DISTRIBUTED_MODE` and `HOST_BINDING` in the env file are ignored, and the Application Mode setting is gone
+  - **AutoForge checks that project paths are inside the shared folder**: the check was in place but never rejected a path
+
 - [October, 2026] 1.0.0-beta.40
   - **Server Mode no longer accepts a forwarding header in place of the access token**: a request could be treated as coming from the host machine because of a header the client sends, and skip the token check. Access is now decided by the connection's own address. If you run Server Mode on a network, update. Server Mode serves plain HTTP, so use it only on a network you trust
   - **Server Mode starts from the desktop app again**: Start stopped at "could not verify that the server is running", and the console's browser opened a page that refused it, because the desktop app did not send the access token to its own server and the server's reply to an accepted token was malformed. The console now shows the network address and a link that includes the token

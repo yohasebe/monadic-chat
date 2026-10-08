@@ -126,29 +126,10 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 | 変数名 | 説明 | デフォルト | オプション |
 |--------|------|------------|-----------|
-| `DISTRIBUTED_MODE` | マルチユーザーサーバーモードを有効化 | `off` | `off`, `server` |
 | `SESSION_SECRET` | セッション管理用の秘密鍵 | （自動生成） | 任意の文字列 |
 | `MCP_SERVER_ENABLED` | Model Context Protocolサーバーを有効化 | `false` | `true`, `false` |
 | `MCP_SERVER_PORT` | Model Context Protocolサーバーのポート | `3100` | 空いている任意のポート |
-| `ALLOW_JUPYTER_IN_SERVER_MODE` | サーバーモードでJupyterを有効化 | `false` | `true`, `false` |
 | `EXTRA_LOGGING` | 詳細なロギングを有効化 | `false` | `true`, `false` |
-
-### アプリケーションモード
-
-Monadic Chatは、ネットワークアクセスを制御する2つのアプリケーションモードをサポートしています：
-
-**Standaloneモード**（デフォルト: `DISTRIBUTED_MODE=off` または未設定）
-- サーバーは`127.0.0.1`（ローカルホストのみ）にバインド
-- ローカルマシンからのみアクセス可能
-- JupyterLab環境が有効
-- シングルユーザーのローカル開発に推奨
-
-**Server Mode** (`DISTRIBUTED_MODE=server`)
-- サーバーは`0.0.0.0`（すべてのネットワークインターフェース）にバインド
-- ネットワーク上の任意のデバイスからローカルIPアドレス経由でアクセス可能（例: `http://192.168.1.10:4567`）
-- 接続された各デバイスは独立したセッションを持ち、会話状態はブラウザセッションごとに個別に保存（デバイス間・ブラウザ間で共有されない）
-- セキュリティのため、デフォルトでJupyterLabは無効（`ALLOW_JUPYTER_IN_SERVER_MODE=true`で有効化可能）
-- セッション分離の詳細は[高度な設定](/ja/advanced-topics/advanced-configuration.md)を参照
 
 ## コンテナ設定
 
@@ -244,7 +225,6 @@ PDF_RAG_TOKENS=6000
 PDF_RAG_OVERLAP_LINES=6
 
 # 開発
-DISTRIBUTED_MODE=server
 MCP_SERVER_ENABLED=true
 ```
 

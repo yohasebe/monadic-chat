@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
 require_relative "../../../lib/monadic/utils/model_spec"
 require_relative "../../../lib/monadic/utils/container_dependencies"
 require_relative "../../../lib/monadic/utils/privacy/pipeline"
@@ -949,7 +950,17 @@ RSpec.describe Monadic::MCP::Conduit do
   describe "monadic_analyze_image" do
     let(:vhost) { double("vision_host") }
 
+    around do |example|
+      Dir.mktmpdir('conduit-shared-') do |directory|
+        @data_dir = File.realpath(directory)
+        example.run
+      end
+    end
+
     before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
+      File.binwrite(File.join(@data_dir, "pic.png"), "fixture")
+      File.binwrite(File.join(@data_dir, "x.png"), "fixture")
       Monadic::MCP::CostGuard.reset!
       allow(described_class).to receive(:agent_host).and_return(vhost)
     end
@@ -958,7 +969,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "returns the analysis text and charges the budget" do
       expect(vhost).to receive(:image_analysis_agent)
-        .with(message: "describe", image_path: "pic.png")
+        .with(message: "describe", image_path: File.join(@data_dir, "pic.png"))
         .and_return("A red square on white.")
       result = described_class.call("monadic_analyze_image", {
         "prompt" => "describe", "path" => "pic.png", "provider" => "openai" })
@@ -1009,7 +1020,16 @@ RSpec.describe Monadic::MCP::Conduit do
   describe "monadic_transcribe_audio" do
     let(:ahost) { double("audio_host") }
 
+    around do |example|
+      Dir.mktmpdir('conduit-shared-') do |directory|
+        @data_dir = File.realpath(directory)
+        example.run
+      end
+    end
+
     before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
+      File.binwrite(File.join(@data_dir, "speech.mp3"), "fixture")
       Monadic::MCP::CostGuard.reset!
       allow(described_class).to receive(:agent_host).and_return(ahost)
     end
@@ -1018,7 +1038,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "returns the transcript and charges the budget" do
       expect(ahost).to receive(:audio_transcription_agent)
-        .with(hash_including(audio_path: "speech.mp3"))
+        .with(hash_including(audio_path: File.join(@data_dir, "speech.mp3")))
         .and_return("hello world")
       result = described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3", "provider" => "openai" })
       expect(result[:success]).to be true

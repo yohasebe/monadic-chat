@@ -199,9 +199,6 @@ Text-to-Speech辞書ファイルのパスを入力します。辞書ファイル
 
 ### Services（サービス）
 
-**Application Mode** <br />
-Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク上の複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
-
 **Enable MCP Server** <br />
 Model Context Protocol（MCP）サーバーを有効にします。Monadic Chatのツールを外部のAIアシスタントから利用できるようになります。詳細は[MCP連携](../advanced-topics/mcp-integration.md)を参照してください。
 

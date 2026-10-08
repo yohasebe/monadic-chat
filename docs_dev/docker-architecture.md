@@ -180,9 +180,10 @@ Host-published ports (see each service's `compose.yml` for the authoritative lis
 Qdrant, embeddings, Privacy, and Extractor expose no host ports; they are
 reached only over the internal `monadic-chat-network`.
 
-Published ports use the `HOST_BINDING` environment variable to control the bind address:
-- **Default** (`127.0.0.1`): Ports are only accessible from localhost (Standalone mode)
-- **Server mode** (`0.0.0.0`): Ports are accessible from the network (set via `HOST_BINDING=0.0.0.0` in `~/monadic/config/env`)
+Every published port is bound to `127.0.0.1` in the compose files themselves,
+so it is reachable from this machine only, whatever the environment of the
+process that runs `docker compose`. Nothing on the web server checks who
+connects. `test/electron/local-binding.test.js` holds this.
 
 ## Troubleshooting
 

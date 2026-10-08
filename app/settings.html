@@ -730,15 +730,6 @@
           <!-- Panel: Services -->
           <div class="settings-panel" id="panel-services">
             <div class="setting-group">
-              <label for="distributed-mode" data-i18n="settings.labels.applicationMode">Application Mode</label>
-              <select id="distributed-mode" name="distributed-mode">
-                <option value="off" data-i18n="settings.labels.standaloneMode">Standalone (Default)</option>
-                <option value="server" data-i18n="settings.labels.serverMode">Server Mode</option>
-              </select>
-              <small class="text-muted" data-i18n="settings.labels.applicationModeDesc">Standalone runs locally. Server mode allows remote browser access via network.</small>
-            </div>
-
-            <div class="setting-group">
               <div class="checkbox-row">
                 <input type="checkbox" id="mcp-server-enabled" value="">
                 <label for="mcp-server-enabled" data-i18n="settings.labels.enableMcpServer">Enable MCP Server</label>
@@ -1279,8 +1270,6 @@
       // the Save button. Returns true only when the env file write succeeded,
       // so close-and-save flows can refuse to close on failure.
       async function saveSettingsFromForm() {
-        const distributedMode = document.getElementById('distributed-mode').value;
-        const previousMode = document.getElementById('distributed-mode').getAttribute('data-previous-value') || 'off';
         const previousBrowserMode = document.getElementById('browser-mode').getAttribute('data-previous-value') || 'external';
 
         const data = {
@@ -1297,7 +1286,6 @@
           TTS_DICT_PATH: document.getElementById('tts-dict-path').value,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
           BROWSER_MODE: document.getElementById('browser-mode').value,
-          DISTRIBUTED_MODE: distributedMode,
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
           UI_LANGUAGE: document.getElementById('ui-language').value,
@@ -1353,41 +1341,11 @@
         settingsDirty = false;
 
         // Update previous values so consecutive saves compare correctly
-        document.getElementById('distributed-mode').setAttribute('data-previous-value', distributedMode);
         document.getElementById('browser-mode').setAttribute('data-previous-value', data.BROWSER_MODE);
 
-        // Mode change requires restart (skip dialog when saving via unsaved dialog)
+        // A browser mode change takes effect when the window reopens
         if (!closingAfterSave) {
-          if (distributedMode !== previousMode) {
-            window.electronAPI.clearMessages();
-            const dialogHTML = `
-              <div id="modeChangeDialog" role="dialog" aria-modal="true" aria-labelledby="modeChangeDialogTitle" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                  background-color: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center;
-                  justify-content: center;">
-                <div style="background-color: #f8f9fa; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                    padding: 24px; max-width: 400px; font-family: 'Montserrat', sans-serif;">
-                  <h3 id="modeChangeDialogTitle" style="margin-top: 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.modeChanged')}</h3>
-                  <p style="margin-bottom: 20px; color: #1d1d1f; font-weight: normal; font-size: 14px;">
-                    ${settingsI18n.t('settings.messages.modeChangeMessage')}
-                  </p>
-                  <div style="text-align: right;">
-                    <button id="closeDialog" style="background-color: #ffc107; border: none; padding: 8px 16px;
-                        border-radius: 6px; color: #000; cursor: pointer; font-weight: 600; font-size: 13px;">
-                      ${settingsI18n.t('settings.messages.ok')}
-                    </button>
-                  </div>
-                </div>
-              </div>`;
-            document.body.insertAdjacentHTML('beforeend', dialogHTML);
-            document.getElementById('closeDialog').addEventListener('click', () => {
-              document.getElementById('modeChangeDialog').remove();
-              window.electronAPI.closeSettings();
-            });
-            // Accessibility: focus trap, Escape key dismiss
-            setupDialogAccessibility('modeChangeDialog', () => {
-              document.getElementById('closeDialog')?.click();
-            });
-          } else if (data.BROWSER_MODE !== previousBrowserMode) {
+          if (data.BROWSER_MODE !== previousBrowserMode) {
             window.electronAPI.closeSettings();
           }
         }
@@ -1455,7 +1413,6 @@
       // ─── Load Settings from Main Process ───
       window.electronAPI.onLoadSettings((_event, data) => {
         // Clean up any stale dialogs from previous session
-        document.getElementById('modeChangeDialog')?.remove();
         document.getElementById('unsavedDialog')?.remove();
 
         document.getElementById('openai-api-key').value = data.OPENAI_API_KEY || '';
@@ -1506,12 +1463,6 @@
           document.getElementById('content-title').textContent = activeItem.querySelector('span').textContent;
         }
 
-        // Distributed mode
-        const distributedMode = data.DISTRIBUTED_MODE || 'off';
-        const modeSelect = document.getElementById('distributed-mode');
-        const valueExists = Array.from(modeSelect.options).some(opt => opt.value === distributedMode);
-        modeSelect.value = valueExists ? distributedMode : 'off';
-        modeSelect.setAttribute('data-previous-value', modeSelect.value);
 
         // Browser mode
         const browserModeValue = data.BROWSER_MODE || 'external';

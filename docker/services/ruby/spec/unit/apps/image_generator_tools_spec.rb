@@ -1,3 +1,4 @@
+require 'tmpdir'
 # frozen_string_literal: true
 
 require_relative "../../spec_helper"
@@ -120,7 +121,20 @@ RSpec.describe "ImageGeneratorTools" do
 
   describe "ImageGeneratorGrok auto-attach" do
     let(:app) { ImageGeneratorGrok.new }
-    let(:shared_folder) { Monadic::Utils::Environment.shared_volume }
+    let(:shared_folder) { @shared_folder }
+
+    around do |example|
+      Dir.mktmpdir('image-edit-shared-') do |directory|
+        @shared_folder = File.realpath(directory)
+        example.run
+      end
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared_folder)
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared_folder)
+      allow(app).to receive(:send_command).and_return('{"success":true,"images":[]}')
+    end
 
     it "auto-attaches last image from monadic_state for edit" do
       # Create a temp image file (the shared folder may not exist on CI)
@@ -138,11 +152,13 @@ RSpec.describe "ImageGeneratorTools" do
         }
       }
 
-      # This will try to call super (send_command) which won't work in unit test,
-      # but we can verify the error doesn't come from "Image file not found"
+      # Capture the generator command without calling the external image API.
       result = app.generate_image_with_grok(operation: "edit", prompt: "make it blue", session: session)
       # Should NOT contain "Image file not found" since auto-attach should resolve the image
       expect(result).not_to include("Image file not found")
+      expect(app).to have_received(:send_command).with(
+        hash_including(command: include(Shellwords.escape(test_image)), container: "ruby")
+      )
     ensure
       File.delete(test_image) if test_image && File.exist?(test_image)
     end

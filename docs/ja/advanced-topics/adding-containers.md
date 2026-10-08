@@ -103,7 +103,7 @@ services:
         # PYOPT_SPACY、PYOPT_GENSIM、PYOPT_LIBROSA、PYOPT_MEDIAPIPE、
         # PYOPT_TRANSFORMERS、IMGOPT_IMAGEMAGICK）
     ports:
-      - "${HOST_BINDING:-127.0.0.1}:8889:8889"
+      - "127.0.0.1:8889:8889"
     container_name: monadic-chat-python-container
     volumes:
       - data:/monadic/data

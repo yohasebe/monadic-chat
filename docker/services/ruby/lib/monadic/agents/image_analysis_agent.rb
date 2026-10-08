@@ -3,6 +3,7 @@
 require "base64"
 require "http"
 require_relative "../utils/environment"
+require_relative "../utils/shared_path_guard"
 require_relative "../utils/provider_capabilities"
 
 # ImageAnalysisAgent analyzes an image with the app's own provider's Vision
@@ -94,18 +95,9 @@ module ImageAnalysisAgent
   end
 
   def prepare_image_for_analysis(image_path)
-    return "ERROR: Invalid file path (path traversal not allowed)" if image_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
-
-    # Resolve path — check absolute, then the active shared volume
-    # (`/monadic/data` in container, `~/monadic/data` on host in dev mode).
-    shared_path = File.join(Monadic::Utils::Environment.shared_volume, image_path)
-    path = if File.exist?(image_path)
-             image_path
-           elsif File.exist?(shared_path)
-             shared_path
-           end
-
-    return "ERROR: Image file not found: #{image_path}" unless path && File.exist?(path)
+    path = Monadic::Utils::SharedPathGuard.resolve_in_shared!(
+      image_path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS, kind: "image"
+    )
 
     # Check file size
     file_size = File.size(path)
@@ -129,6 +121,8 @@ module ImageAnalysisAgent
     base64 = Base64.strict_encode64(raw)
 
     { base64: base64, mime_type: mime_type }
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath => e
+    "ERROR: #{e.message}"
   end
 
   # The app's own vision provider, or nil. Kept for callers that only need

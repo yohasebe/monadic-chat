@@ -37,11 +37,12 @@ services:
     tmpfs:
       - /run/monadic-secrets:mode=0700,uid=0,gid=0,size=64k
     ports:
-      - "${HOST_BINDING:-127.0.0.1}:4567:4567"
-      # MCP (Conduit) capability surface. Published to the host loopback ONLY,
-      # never following HOST_BINDING: the MCP server has no auth yet and Conduit
-      # spends API keys / (later) runs container commands, so it must not reach
-      # the LAN. The container binds 0.0.0.0 (see Server.mcp_bind_host) so this
+      # Published to the host loopback only: nothing on the web server checks
+      # who connects.
+      - "127.0.0.1:4567:4567"
+      # MCP (Conduit) capability surface, also loopback only: the MCP server
+      # has no auth yet and Conduit spends API keys / (later) runs container
+      # commands, so it must not reach the LAN. The container binds 0.0.0.0 (see Server.mcp_bind_host) so this
       # forward arrives. Inert unless MCP_SERVER_ENABLED=true. Port tracks the
       # 3100 default; change MCP_SERVER_PORT and this mapping together.
       - "127.0.0.1:3100:3100"

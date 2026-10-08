@@ -115,7 +115,7 @@ end
 - `response_format` - Specify structured output format (OpenAI)
 - `reasoning_effort` - Control reasoning intensity for supported models. Available values depend on the model (e.g., "low", "high" for some models)
 - `models` - Override available model list
-- `jupyter` - Enable Jupyter notebook access (disabled in Server Mode unless `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
+- `jupyter` - Enable Jupyter notebook access
 - `reachable_skills` - Declare tool groups the app is allowed to acquire on demand during a conversation (written at the app level, outside the `tools` block). `reachable_skills :safe` expands to the curated set of read-only safe groups. See [Tool Groups](./tool-groups.md)
 - `compaction` - Control server-side conversation compaction for providers whose APIs support it (written at the app level). OpenAI apps use the default threshold even without this directive; `compaction false` opts out, and a `compaction do ... end` block with `compact_threshold` sets a custom trigger threshold
 

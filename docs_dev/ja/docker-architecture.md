@@ -170,9 +170,9 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 Qdrant・embeddings・Privacy・Extractorはホストポートを公開せず、内部の
 `monadic-chat-network`経由でのみ到達できます。
 
-公開ポートは`HOST_BINDING`環境変数でバインドアドレスを制御します：
-- **デフォルト**（`127.0.0.1`）：ポートはlocalhostからのみアクセス可能（Standaloneモード）
-- **サーバーモード**（`0.0.0.0`）：ポートはネットワークからアクセス可能（`~/monadic/config/env`で`HOST_BINDING=0.0.0.0`を設定）
+公開ポートは、compose ファイルの中で `127.0.0.1` に固定しています。`docker compose`
+を動かすプロセスの環境変数によらず、このコンピュータからだけ到達できます。Web
+サーバーは接続元を確かめません。`test/electron/local-binding.test.js` がこれを固定しています。
 
 ## トラブルシューティング
 

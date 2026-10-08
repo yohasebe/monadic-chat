@@ -31,25 +31,12 @@ In the basic Jupyter Notebook app of Monadic Chat, you can do the following by i
 
 For complex multi-step tasks, the app first proposes a numbered plan and waits for your approval before executing it (Plan-Approve-Execute workflow).
 
-## Jupyter Access in Different Modes
+## Jupyter Access
 
-### Standalone Mode
-
-In Standalone Mode, all Jupyter features are fully available:
+All Jupyter features are available:
 - The JupyterLab interface can be accessed at [http://127.0.0.1:8889](http://127.0.0.1:8889)
 - The `Jupyter Notebook` app is available in the application menu
 - AI agents can create, modify, and execute Jupyter notebooks
-
-### Server Mode Restrictions :id=server-mode-restrictions
-
-When running Monadic Chat in [Server Mode](basic-architecture.md#server-standalone-modes), Jupyter features are disabled by default: **Jupyter apps are hidden** from the application menu. Server Mode allows network access from multiple devices, and Jupyter permits arbitrary code execution with full access to the shared folder — a dangerous combination when untrusted users can reach the server.
-
-To enable Jupyter apps in Server Mode anyway, add the following to your `~/monadic/config/env` file:
-```
-ALLOW_JUPYTER_IN_SERVER_MODE=true
-```
-
-!> **WARNING**: Enable this only in trusted environments — anyone who can reach the server can then execute arbitrary code with full access to the shared folder.
 
 ## Tips for Using JupyterLab
 

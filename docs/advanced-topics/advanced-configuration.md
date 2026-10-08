@@ -1,6 +1,6 @@
 # Advanced Configuration
 
-This page covers advanced configuration options for Monadic Chat, including Install Options, Server Mode, and container management.
+This page covers advanced configuration options for Monadic Chat, including Install Options and container management.
 
 ## Install Options :id=install-options
 
@@ -118,30 +118,7 @@ Logs are overwritten each run:
 
 - Ruby/User/Ollama build: `~/monadic/log/docker_build.log`
 
-## Server Mode Configuration :id=server-mode
-
-?> **Note: Monadic Chat is designed primarily for standalone mode. Server mode should only be used when you need to share the service with multiple users on a local network.**
-
-By default, Monadic Chat runs in standalone mode with all components on a single machine.
-
-### Enabling Server Mode
-
-1. Open Settings by clicking the gear icon
-2. In "Application Mode" dropdown, select "Server Mode"
-3. Click "Save"
-4. Restart the application
-
-### Server Mode Behavior
-
-In server mode:
-- The server hosts all Docker containers and web services
-- Multiple clients can connect via their web browsers
-- Network URLs (like Jupyter notebooks) use the server's external IP address
-- Clients can access resources hosted on the server
-
-Server Mode is meant for a few people who trust each other, such as a family or a research group, on a network you trust. Everyone connects with the same access token, so every connected device can do what the host can. To remove a device, create a new token: delete `MONADIC_AUTH_TOKEN` from `~/monadic/config/env` and restart; every device then has to connect again. Conversations stay separate for each browser tab and device, but the `Shared Folder` is common to everyone.
-
-### Multi-Tab Session Management
+## Multi-Tab Session Management :id=multi-tab-sessions
 
 Monadic Chat supports opening multiple browser tabs simultaneously. Each tab is an independent conversation session:
 
@@ -149,13 +126,10 @@ Monadic Chat supports opening multiple browser tabs simultaneously. Each tab is 
 - Each tab has a unique tab ID (kept in `sessionStorage`) that identifies its WebSocket session on the server
 - Conversation state — messages, app selection, and parameter changes — is per tab and never leaks into other tabs
 - Reloading a tab keeps its session; opening a new tab starts a fresh one
-- Different browsers, browser profiles, incognito/private windows, and devices are likewise separate sessions
-- In server mode, each connected client's sessions are isolated from other clients
+- Different browsers, browser profiles, and incognito/private windows are likewise separate sessions
 
 **Shared per browser:**
 - Preferences stored in the browser (UI language in a cookie, the speech-to-text choice in local storage) are shared by all tabs in the same browser profile
-
-See [Server Mode Architecture](../docker-integration/basic-architecture.md#server-mode) for more details.
 
 ## Environment Variables :id=environment-variables
 

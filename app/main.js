@@ -97,38 +97,6 @@ let novncWindow = null;
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
 const allowedLocalHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
-
-// In Server Mode the Ruby server asks every client that is not on its own
-// loopback for the access token. The desktop app reaches the server through
-// Docker, which shows its requests as coming from the Docker gateway — the
-// same address LAN clients arrive from — so the app cannot be exempted by
-// address and sends the token like any other client.
-function serverModeAuthHeaders() {
-  try {
-    if (typeof dockerManager === 'undefined' || !dockerManager.isServerMode()) return {};
-    let token = (readEnvFile(getEnvPath()).MONADIC_AUTH_TOKEN || '').toString().trim();
-    // A 1Password reference is sent as the value read from 1Password, the
-    // same value the server receives; never as the reference text.
-    if (opReferences.isReference(token)) token = (secretCache.values.MONADIC_AUTH_TOKEN || '').toString();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch (_) {
-    return {};
-  }
-}
-
-// A request from the desktop app to its own server, with the token in
-// Server Mode. Without it every check below read 401 as "server not running".
-function fetchLocalServer(url = 'http://localhost:4567') {
-  return fetch(url, { headers: serverModeAuthHeaders() });
-}
-
-// The address an external browser opens. In Server Mode it carries the token
-// once; the server moves it into a cookie and redirects to the clean URL.
-function externalLocalServerUrl() {
-  const header = serverModeAuthHeaders().Authorization;
-  if (!header) return 'http://localhost:4567';
-  return `http://localhost:4567/?monadic_auth=${encodeURIComponent(header.replace(/^Bearer /, ''))}`;
-}
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
@@ -154,7 +122,6 @@ function openWebViewWindow(url, forceReload = false) {
         const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
         if (allowedLocalHosts.has(host)) {
           details.requestHeaders['Origin'] = `http://${host}`;
-          Object.assign(details.requestHeaders, serverModeAuthHeaders());
         }
       } catch (e) {
         console.warn('Failed to evaluate request host', e);
@@ -586,98 +553,9 @@ function deliverWhenRubyStarts(timeoutMs = 120000) {
 // Docker operations are encapsulated in this class
 class DockerManager {
   constructor() {
-    // Default to standalone mode (not server mode)
-    this.serverMode = false;
-    
     // Docker containers use fixed ports
     this.rubyPort = '4567';     // Ruby Sinatra web server
-    this.jupyterPort = '8889';  // JupyterLab server (disabled in server mode)
-    
-    // Configuration will be loaded from .env file
-    // HOST_BINDING will be set to:
-    // - 127.0.0.1 for standalone mode (local access only)
-    // - 0.0.0.0 for server mode (accessible from network)
-  }
-
-  // Load distributed mode settings (unified method that handles both server and standalone modes)
-  loadDistributedModeSettings() {
-    const envPath = getEnvPath();
-    if (envPath) {
-      const envConfig = readEnvFile(envPath);
-      this.serverMode = envConfig.DISTRIBUTED_MODE === 'server';
-
-      // Set host binding based on mode - 0.0.0.0 for server mode, 127.0.0.1 for standalone
-      envConfig.HOST_BINDING = this.serverMode ? '0.0.0.0' : '127.0.0.1';
-
-      // In server mode, every non-loopback request must carry an auth
-      // token. Generate one on first switch so the user never runs the
-      // app wide-open by accident; subsequent loads keep the existing
-      // token so bookmarks survive.
-      if (this.serverMode) {
-        const existing = (envConfig.MONADIC_AUTH_TOKEN || '').toString().trim();
-        if (existing.length === 0) {
-          envConfig.MONADIC_AUTH_TOKEN = crypto.randomBytes(32).toString('hex');
-        }
-      }
-
-      writeEnvFile(envPath, envConfig);
-      
-      // Get local IP address for server mode
-      let localIPAddress = '127.0.0.1';
-      if (this.serverMode) {
-        try {
-          const networkInterfaces = os.networkInterfaces();
-          // Find the first non-internal IPv4 address
-          for (const interfaceName in networkInterfaces) {
-            const interfaces = networkInterfaces[interfaceName];
-            for (const iface of interfaces) {
-              if (iface.family === 'IPv4' && !iface.internal) {
-                localIPAddress = iface.address;
-                break;
-              }
-            }
-            if (localIPAddress !== '127.0.0.1') break;
-          }
-        } catch (err) {
-          console.error('Error getting network interfaces:', err);
-        }
-      }
-      
-      // The address LAN clients use, shown in the console and the menu.
-      this.serverUrl = this.serverMode ? `http://${localIPAddress}:4567` : null;
-
-      // Sync with main window if it exists
-      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
-        try {
-          mainWindow.webContents.executeJavaScript(`
-            document.cookie = "distributed-mode=${this.serverMode ? 'server' : 'off'}; path=/; max-age=31536000";
-          `);
-          mainWindow.webContents.send('update-distributed-mode', {
-            mode: this.serverMode ? 'server' : 'off',
-            localIP: localIPAddress,
-            showNotification: false
-          });
-        } catch (error) {
-          console.error('Error syncing distributed mode', error);
-        }
-      }
-      
-      // Using fixed default ports as Docker containers have hardcoded port bindings
-      this.rubyPort = '4567';
-      this.jupyterPort = '8889';
-    }
-    return this.serverMode;
-  }
-  
-  // Alias for backward compatibility
-  loadServerModeSettings() {
-    return this.loadDistributedModeSettings();
-  }
-
-  // Check if we're in server mode
-  isServerMode() {
-    this.loadDistributedModeSettings();
-    return this.serverMode;
+    this.jupyterPort = '8889';  // JupyterLab server
   }
 
   // Other methods remain unchanged
@@ -974,7 +852,7 @@ class DockerManager {
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
                 serverStartedReceived = true;
-                fetchWithRetry('http://localhost:4567', { headers: serverModeAuthHeaders() })
+                fetchWithRetry('http://localhost:4567')
                   .then((success) => {
                     if (success) {
                       // First set to Running state
@@ -987,80 +865,33 @@ class DockerManager {
                       currentStatus = "Ready";
                       updateStatusIndicator("Ready");
                       
-                      // Signal successful server start with an event
-                      const verificationMessage = dockerManager.isServerMode() 
-                        ? 'Server verification complete'
-                        : 'System initialization complete';
-                      const msgKey = dockerManager.isServerMode() ? 'messages.serverModeActivated' : 'messages.systemInitComplete';
-                      const msgParams = dockerManager.isServerMode() ? { url: dockerManager.serverUrl } : {};
-                      writeToScreen(formatMessage('success', msgKey, msgParams));
+                      writeToScreen(formatMessage('success', 'messages.systemInitComplete'));
                       
                       // Force a small delay to ensure status update is processed first
                       setTimeout(() => {
-                        // In server mode, show network URL but don't auto-open browser
-                        if (dockerManager.isServerMode()) {
-                          // Get local IP address for network access info
-                          let localIPAddress = '127.0.0.1';
-                          try {
-                            const networkInterfaces = os.networkInterfaces();
-                            for (const interfaceName in networkInterfaces) {
-                              const interfaces = networkInterfaces[interfaceName];
-                              for (const iface of interfaces) {
-                                if (iface.family === 'IPv4' && !iface.internal) {
-                                  localIPAddress = iface.address;
-                                  break;
-                                }
-                              }
-                              if (localIPAddress !== '127.0.0.1') break;
-                            }
-                          } catch (err) {
-                            console.error('Error getting network interfaces:', err);
-                          }
-                          
-                          // Pull the per-instance auth token out of the
-                          // env file so the displayed URL is shareable —
-                          // copying it into a phone or tablet browser is
-                          // enough to authenticate.
-                          let authToken = '';
-                          try {
-                            const cfg = readEnvFile(getEnvPath());
-                            authToken = (cfg.MONADIC_AUTH_TOKEN || '').toString().trim();
-                          } catch (_) { /* ignore — UI will degrade gracefully */ }
+                        // Show the address and mark the server as started
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                          mainWindow.webContents.send('display-network-url', {
+                            localIP: '127.0.0.1'
+                          });
+                        }
 
-                          // Send a custom command to show network URL exactly once
-                          if (mainWindow && !mainWindow.isDestroyed()) {
-                            mainWindow.webContents.send('display-network-url', {
-                              mode: 'server',
-                              localIP: localIPAddress,
-                              authToken: authToken
-                            });
-                          }
+                        // Then open based on browser mode preference
+                        if (browserMode === 'internal') {
+                          openWebViewWindow('http://localhost:4567', isRestart);
                         } else {
-                          // For standalone mode - send network URL event for proper status update first
-                          if (mainWindow && !mainWindow.isDestroyed()) {
-                            mainWindow.webContents.send('display-network-url', {
-                              mode: 'off',
-                              localIP: '127.0.0.1'
-                            });
-                          }
-
-                          // Then open based on browser mode preference
-                          if (browserMode === 'internal') {
-                            openWebViewWindow('http://localhost:4567', isRestart);
-                          } else {
-                            try {
-                              // For restart, force reload by adding timestamp parameter
-                              const browserUrl = isRestart ? 
-                                `http://localhost:4567?reload=${Date.now()}` : 
-                                'http://localhost:4567';
-                              shell.openExternal(browserUrl).catch(err => {
-                                console.error('Error opening browser:', err);
-                                writeToScreen(formatMessage('warning', 'messages.openBrowserManually'));
-                              });
-                              writeToScreen(formatMessage('success', 'messages.openingBrowser'));
-                            } catch (err) {
+                          try {
+                            // For restart, force reload by adding timestamp parameter
+                            const browserUrl = isRestart ? 
+                              `http://localhost:4567?reload=${Date.now()}` : 
+                              'http://localhost:4567';
+                            shell.openExternal(browserUrl).catch(err => {
                               console.error('Error opening browser:', err);
-                            }
+                              writeToScreen(formatMessage('warning', 'messages.openBrowserManually'));
+                            });
+                            writeToScreen(formatMessage('success', 'messages.openingBrowser'));
+                          } catch (err) {
+                            console.error('Error opening browser:', err);
                           }
                         }
                       }, 500);
@@ -1502,20 +1333,6 @@ let statusMenuItem = {
   enabled: false
 };
 
-// Add mode status to menu
-function getDistributedModeLabel() {
-  if (dockerManager.isServerMode()) {
-    return i18n.t('menu.server');
-  } else {
-    return i18n.t('menu.standalone');
-  }
-}
-
-let serverModeItem = {
-  label: `${i18n.t('menu.mode')}: ${getDistributedModeLabel()}`,
-  enabled: false
-};
-
 // Note: Old unused menuItems array removed.
 // Actual menus are defined in:
 // - Tray menu: freshMenuItems (line ~1809)
@@ -1779,14 +1596,14 @@ function initializeApp() {
           case 'browser': {
             const url = 'http://localhost:4567';
             // Verify server is actually running before opening browser
-            fetchLocalServer(url)
+            fetch(url)
               .then(response => {
                 if (response.ok) {
                   // Server is running, open browser
                   if (browserMode === 'internal') {
                     openWebViewWindow(url);
                   } else {
-                    openBrowser(externalLocalServerUrl());
+                    openBrowser(url);
                   }
                 } else {
                   throw new Error('Server not responding');
@@ -1854,34 +1671,12 @@ function initializeApp() {
             break;
           // JupyterLab commands
           case 'start-jupyter':
-            if (dockerManager.isServerMode()) {
-              openMainWindow();
-              dialog.showMessageBox(mainWindow, {
-                type: 'warning',
-                title: i18n.t('menu.jupyterDisabled'),
-                message: i18n.t('menu.jupyterDisabledMessage'),
-                detail: i18n.t('menu.jupyterDisabledDetail'),
-                buttons: [i18n.t('dialogs.ok')]
-              });
-              break;
-            }
             openMainWindow();
             dockerManager.runCommand('start-jupyter',
               formatMessage(null, 'messages.startingJupyterLab'),
               'Starting', 'Running');
             break;
           case 'stop-jupyter':
-            if (dockerManager.isServerMode()) {
-              openMainWindow();
-              dialog.showMessageBox(mainWindow, {
-                type: 'warning',
-                title: i18n.t('menu.jupyterDisabled'),
-                message: i18n.t('menu.jupyterDisabledMessage'),
-                detail: i18n.t('menu.jupyterDisabledDetail'),
-                buttons: [i18n.t('dialogs.ok')]
-              });
-              break;
-            }
             openMainWindow();
             dockerManager.runCommand('stop-jupyter',
               formatMessage(null, 'messages.stoppingJupyterLab'),
@@ -1945,18 +1740,12 @@ function initializeApp() {
 
       console.log(`Custom URL protocol received: ${url}, command: ${command}`);
 
-      // Check if server mode is active - internal browser control is disabled in server mode
-      if (dockerManager.isServerMode()) {
-        console.log('Internal browser control is disabled in Server Mode');
-        return;
-      }
-
       switch (command) {
         case 'show-browser':
           // Show internal browser window (start server if not running)
           if (currentStatus === 'Running' || currentStatus === 'Ready') {
             // Verify server is actually running before opening browser
-            fetchLocalServer()
+            fetch('http://localhost:4567')
               .then(response => {
                 if (response.ok && browserMode === 'internal') {
                   openWebViewWindow('http://localhost:4567');
@@ -2374,15 +2163,11 @@ function updateTrayImage(status) {
 }
 
 function updateContextMenu(disableControls = false) {
-  // Load the distributed mode settings
-  dockerManager.loadDistributedModeSettings();
-  
   updateTrayImage(currentStatus);
   if (tray) {
     // Create fresh menu items with current translations
     const freshMenuItems = [
       statusMenuItem,
-      serverModeItem,
       { type: 'separator' },
       {
         label: i18n.t('menu.start'),
@@ -2425,7 +2210,7 @@ function updateContextMenu(disableControls = false) {
       {
         label: i18n.t('menu.openBrowser'),
         click: () => {
-          shell.openExternal(externalLocalServerUrl());
+          shell.openExternal('http://localhost:4567');
         },
         enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
       },
@@ -2457,9 +2242,6 @@ function updateContextMenu(disableControls = false) {
       }
     ];
     
-    // Update mode label
-    serverModeItem.label = `Mode: ${getDistributedModeLabel()}`;
-
     contextMenu = Menu.buildFromTemplate(freshMenuItems);
     tray.setContextMenu(contextMenu);
 
@@ -2697,17 +2479,6 @@ function updateApplicationMenu() {
           {
             label: i18n.t('menu.startJupyterLab'),
             click: () => {
-              // First check if we're in server mode
-              if (dockerManager.isServerMode()) {
-                dialog.showMessageBox(mainWindow, {
-                  type: 'warning',
-                  title: i18n.t('menu.jupyterDisabled'),
-                  message: i18n.t('menu.jupyterDisabledMessage'),
-                  detail: i18n.t('menu.jupyterDisabledDetail'),
-                  buttons: [i18n.t('dialogs.ok')]
-                });
-                return;
-              }
               openMainWindow();
               dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
             },
@@ -2716,17 +2487,6 @@ function updateApplicationMenu() {
           {
             label: i18n.t('menu.stopJupyterLab'),
             click: () => {
-              // First check if we're in server mode
-              if (dockerManager.isServerMode()) {
-                dialog.showMessageBox(mainWindow, {
-                  type: 'warning',
-                  title: i18n.t('menu.jupyterDisabled'),
-                  message: i18n.t('menu.jupyterDisabledMessage'),
-                  detail: i18n.t('menu.jupyterDisabledDetail'),
-                  buttons: [i18n.t('dialogs.ok')]
-                });
-                return;
-              }
               dockerManager.runCommand('stop-jupyter', formatMessage(null, 'messages.stoppingJupyterLab'), 'Starting', 'Running');
             },
             enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
@@ -2873,7 +2633,7 @@ function updateApplicationMenu() {
         {
           label: i18n.t('menu.openBrowser'),
           click: () => {
-            shell.openExternal(externalLocalServerUrl());
+            shell.openExternal('http://localhost:4567');
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
@@ -2962,14 +2722,8 @@ function updateTrayMenu() {
   // Update the global statusMenuItem with translated status
   statusMenuItem.label = translateStatus(currentStatus || 'Stopped');
   
-  const serverModeItem = {
-    label: dockerManager.serverMode ? `${i18n.t('menu.network')}: ${dockerManager.serverUrl}` : i18n.t('menu.standaloneMode'),
-    enabled: false
-  };
-  
   const menuItems = [
     statusMenuItem,
-    serverModeItem,
     { type: 'separator' },
     {
       label: i18n.t('menu.startDockerContainers'),
@@ -3056,11 +2810,21 @@ function writeToScreen(text) {
   }
 }
 
+// The console's first message: what to have running, and how to start
+function openingMessageHtml() {
+  const tipKey = process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
+  return `
+    [HTML]: 
+    <p><b>Monadic Chat</b></p>
+    <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(tipKey)}</p>
+    <p>${i18n.t('messages.pressStartButton')}</p>
+    <hr />`;
+}
+
 // Send a message to the renderer process to update the status indicator
 function updateStatusIndicator(status) {
   if (debugStatusIndicator) {
     console.log(`[STATUS INDICATOR] Setting status to: ${status}`);
-    console.log(`[STATUS INDICATOR] Current distributed mode: ${dockerManager.isServerMode() ? 'server' : 'standalone'}`);
     console.trace();
   }
   
@@ -3117,9 +2881,6 @@ function createMainWindow() {
   if (mainWindow) return;
   // A new window has not loaded yet; notices wait for its did-finish-load.
   mainWindowLoaded = false;
-  
-  // Ensure Docker Manager loads settings on startup
-  dockerManager.loadServerModeSettings();
 
   mainWindow = new BrowserWindow({
     width: 820,
@@ -3185,39 +2946,13 @@ function createMainWindow() {
     }
     
     // Set cookies
-    const isServerMode = dockerManager.isServerMode();
     mainWindow.webContents.executeJavaScript(`
-      document.cookie = "distributed-mode=${isServerMode ? 'server' : 'off'}; path=/; max-age=31536000";
       document.cookie = "ui-language=${interfaceLanguage}; path=/; max-age=31536000";
     `);
     
-    // Send mode update
-    mainWindow.webContents.send('update-distributed-mode', {
-      mode: isServerMode ? 'server' : 'off',
-      showNotification: false
-    });
-    
     // Send opening message if just launched
     if (justLaunched) {
-      let openingText;
-      if (isServerMode) {
-        openingText = `
-          [HTML]: 
-          <p><b>${i18n.t('messages.serverModeTitle')}</b></p>
-          <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> ${i18n.t('messages.serverModeDesc')}</p>
-          <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>${i18n.t('dialogs.warning')}:</strong> ${i18n.t('menu.jupyterDisabledMessage')}</p>
-          <p>${i18n.t('messages.pressStartButton')}</p>
-          <hr />`;
-      } else {
-        openingText = `
-          [HTML]: 
-          <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
-          <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
-          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip')}</p>
-          <p>${i18n.t('messages.pressStartButton')}</p>
-          <hr />`;
-      }
-      writeToScreen(openingText);
+      writeToScreen(openingMessageHtml());
       justLaunched = false;
       
       // Offline at startup: the warning above already says updates need a
@@ -3413,7 +3148,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
     return;
   }
 
-  // For server or standalone mode, check if port is available first
+  // Otherwise wait until the port is taken before opening the browser
   const port = 4567;
   const timeout = 20000;
   const interval = 500;
@@ -4042,12 +3777,6 @@ function checkAndUpdateEnvFile() {
       envConfig.EXTRA_LOGGING = 'false';
     }
 
-    // Set mode defaults if not specified or empty
-    if (!envConfig.DISTRIBUTED_MODE || envConfig.DISTRIBUTED_MODE === '') {
-      // Set to standalone mode as the default
-      envConfig.DISTRIBUTED_MODE = 'off';
-    }
-
     // Port settings are no longer user-configurable
     // Docker containers use hardcoded ports
     envConfig.RUBY_PORT = '4567';
@@ -4065,12 +3794,6 @@ function checkAndUpdateEnvFile() {
         'TAVILY_API_KEY'
     ];
     const hasApiKey = api_list.some(key => envConfig[key]);
-    
-    // Ensure DISTRIBUTED_MODE is set
-    if (!envConfig.DISTRIBUTED_MODE || envConfig.DISTRIBUTED_MODE === '') {
-        // Set to standalone mode by default
-        envConfig.DISTRIBUTED_MODE = 'off';
-    }
     
     // Save updated config to file
     writeEnvFile(envPath, envConfig);
@@ -4117,66 +3840,6 @@ function saveSettings(data) {
                     console.error('Error removing TTS dictionary file:', error);
                 }
             }
-        }
-        
-        // Handle mode settings - save cookies for the web UI
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            // Save mode settings as cookies for UI access
-            if (data.DISTRIBUTED_MODE) {
-                try {
-                    // Log mode change for troubleshooting (only when it
-                    // actually changes — every save passes through here)
-                    if ((envConfig.DISTRIBUTED_MODE || 'off') !== data.DISTRIBUTED_MODE) {
-                        console.log(`Changing distributed mode from ${envConfig.DISTRIBUTED_MODE || 'off'} to ${data.DISTRIBUTED_MODE}`);
-                    }
-                    
-                    // Set cookie for web UI
-                    mainWindow.webContents.executeJavaScript(`
-                        document.cookie = "distributed-mode=${data.DISTRIBUTED_MODE}; path=/; max-age=31536000";
-                    `);
-                    
-                    // Show notification about Jupyter in Server mode
-                    if (data.DISTRIBUTED_MODE === 'server') {
-                        try {
-                            // Add notification to console
-                            writeToScreen(`[HTML]: <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle"></i> Server Mode activated. 
-                                Jupyter features have been disabled for security reasons.
-                                <br>
-                                <small>Network interfaces are now bound to 0.0.0.0 for external access.</small>
-                            </div>`);
-                        } catch (error) {
-                            console.error('Error showing server mode notification:', error);
-                        }
-                    } else if (envConfig.DISTRIBUTED_MODE === 'server' && data.DISTRIBUTED_MODE === 'off') {
-                        // Switching from server mode to standalone mode
-                        try {
-                            // Add notification to console
-                            writeToScreen(`[HTML]: <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i> Standalone Mode activated.
-                                <br>
-                                <small>Network interfaces are now bound to 127.0.0.1 for local access only.</small>
-                            </div>`);
-                        } catch (error) {
-                            console.error('Error showing standalone mode notification:', error);
-                        }
-                    }
-                    
-                    // Send the mode update to the renderer process to update the UI immediately
-                    // Include showNotification flag since this is an explicit mode change
-                    mainWindow.webContents.send('update-distributed-mode', {
-                        mode: data.DISTRIBUTED_MODE,
-                        showNotification: true // Show notification for explicit settings changes
-                    });
-                } catch (error) {
-                    console.error('Error updating distributed mode:', error);
-                    dialog.showErrorBox('Mode Change Error', 
-                        `Failed to change distributed mode to ${data.DISTRIBUTED_MODE}. Error: ${error.message}`);
-                }
-            }
-            
-            // Port settings have been removed since they don't affect Docker containers
-            // Default values will be used (4567, 8889)
         }
         
         // Normalize install option booleans to string 'true'/'false'
@@ -4396,26 +4059,7 @@ ipcMain.handle('save-settings', (_event, data) => {
       mainWindow.webContents.send('clear-messages');
       
       // Re-send the initial message in the new language
-      const isServerMode = dockerManager.isServerMode();
-      let openingText;
-      if (isServerMode) {
-        openingText = `
-          [HTML]: 
-          <p><b>${i18n.t('messages.serverModeTitle')}</b></p>
-          <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> ${i18n.t('messages.serverModeDesc')}</p>
-          <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>${i18n.t('dialogs.warning')}:</strong> ${i18n.t('menu.jupyterDisabledMessage')}</p>
-          <p>${i18n.t('messages.pressStartButton')}</p>
-          <hr />`;
-      } else {
-        openingText = `
-          [HTML]: 
-          <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
-          <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
-          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip')}</p>
-          <p>${i18n.t('messages.pressStartButton')}</p>
-          <hr />`;
-      }
-      writeToScreen(openingText);
+      writeToScreen(openingMessageHtml());
       
       // Re-send update check result if available
       if (lastUpdateCheckResult) {
@@ -4522,7 +4166,7 @@ app.whenReady().then(async () => {
     // Verify server state after resume
     if (currentStatus === 'Running' || currentStatus === 'Ready') {
       // Check if server is actually still running
-      fetchLocalServer()
+      fetch('http://localhost:4567')
         .then(response => {
           if (!response.ok) {
             throw new Error('Server not responding');
@@ -4831,9 +4475,6 @@ nativeTheme.themeSource = 'system';
 let lastDockerStatusCheckTime = 0;
 const DOCKER_STATUS_CHECK_INTERVAL = 2000; // Check every 2 seconds for better responsiveness
 
-// Track mode to avoid unnecessary updates
-let lastKnownMode = null;
-
 let lastSecretDeliveryCheck = 0;
 async function updateDockerStatus() {
   const now = Date.now();
@@ -4842,28 +4483,6 @@ async function updateDockerStatus() {
     return;
   }
   lastDockerStatusCheckTime = now;
-  
-  // Ensure distributed mode is synced before checking docker status,
-  // but only if there's actually been a change to reduce message traffic
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    // Explicitly load from environment file each time to make sure we have the latest setting
-    const envPath = getEnvPath();
-    if (envPath) {
-      const envConfig = readEnvFile(envPath);
-      const isServerMode = envConfig.DISTRIBUTED_MODE === 'server';
-      const currentMode = isServerMode ? 'server' : 'off';
-      
-      // Only send update if the mode has actually changed since last check
-      if (lastKnownMode !== currentMode) {
-        lastKnownMode = currentMode;
-        mainWindow.webContents.send('update-distributed-mode', {
-          mode: currentMode,
-          showNotification: false
-        });
-        console.log("Syncing mode from env file:", currentMode);
-      }
-    }
-  }
   
   // Check Docker status
   if (dockerMissing && mainWindow && !mainWindow.isDestroyed()) {

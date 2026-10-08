@@ -628,8 +628,8 @@ module AutoForgeTools
   def create_readme(project_path)
     # Validate project path
     validation_result = validate_file_path(project_path)
-    if validation_result.is_a?(Hash)
-      return { success: false, error: "Invalid project path: #{validation_result[:error]}" }
+    if validation_result.nil?
+      return { success: false, error: "Invalid project path (it must be inside the shared folder)" }
     end
 
     main_script, _content = read_cli_script(project_path)
@@ -658,8 +658,8 @@ module AutoForgeTools
 
     readme_path = File.join(project_path, 'README.md')
     readme_validation = validate_file_path(readme_path)
-    if readme_validation.is_a?(Hash)
-      return { success: false, error: "Invalid README path: #{readme_validation[:error]}" }
+    if readme_validation.nil?
+      return { success: false, error: "Invalid README path (it must be inside the shared folder)" }
     end
 
     File.write(readme_path, readme)
@@ -669,8 +669,8 @@ module AutoForgeTools
   def create_config_template(project_path)
     # Validate project path
     validation_result = validate_file_path(project_path)
-    if validation_result.is_a?(Hash)
-      return { success: false, error: "Invalid project path: #{validation_result[:error]}" }
+    if validation_result.nil?
+      return { success: false, error: "Invalid project path (it must be inside the shared folder)" }
     end
 
     main_script, content = read_cli_script(project_path)
@@ -697,8 +697,8 @@ module AutoForgeTools
 
     config_path = File.join(project_path, filename)
     config_validation = validate_file_path(config_path)
-    if config_validation.is_a?(Hash)
-      return { success: false, error: "Invalid config path: #{config_validation[:error]}" }
+    if config_validation.nil?
+      return { success: false, error: "Invalid config path (it must be inside the shared folder)" }
     end
 
     File.write(config_path, config)
@@ -708,8 +708,8 @@ module AutoForgeTools
   def create_dependencies(project_path)
     # Validate project path
     validation_result = validate_file_path(project_path)
-    if validation_result.is_a?(Hash)
-      return { success: false, error: "Invalid project path: #{validation_result[:error]}" }
+    if validation_result.nil?
+      return { success: false, error: "Invalid project path (it must be inside the shared folder)" }
     end
 
     main_script, content = read_cli_script(project_path)
@@ -747,8 +747,8 @@ module AutoForgeTools
     # Validate the target file path
     file_path = File.join(project_path, filename)
     file_validation = validate_file_path(file_path)
-    if file_validation.is_a?(Hash)
-      return { success: false, error: "Invalid file path: #{file_validation[:error]}" }
+    if file_validation.nil?
+      return { success: false, error: "Invalid file path (it must be inside the shared folder)" }
     end
 
     File.write(file_path, body)
@@ -1315,12 +1315,12 @@ module AutoForgeTools
       # Validate the path is within the shared folder
       data_dir = Monadic::Utils::Environment.data_path
       validation_result = validate_file_path(expanded_path)
-      if validation_result.is_a?(Hash)
+      if validation_result.nil?
         return {
           success: false,
           error_type: :invalid_path,
           project_name: project_name,
-          error: "Invalid project path: #{validation_result[:error]}"
+          error: "Invalid project path (it must be inside the shared folder)"
         }
       end
 
@@ -1338,12 +1338,12 @@ module AutoForgeTools
 
       # Validate HTML path as well
       html_validation = validate_file_path(html_path)
-      if html_validation.is_a?(Hash)
+      if html_validation.nil?
         return {
           success: false,
           error_type: :invalid_path,
           project_name: project_name,
-          error: "Invalid HTML path: #{html_validation[:error]}"
+          error: "Invalid HTML path (it must be inside the shared folder)"
         }
       end
 

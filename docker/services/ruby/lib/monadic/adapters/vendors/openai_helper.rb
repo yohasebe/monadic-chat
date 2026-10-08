@@ -536,8 +536,14 @@ module OpenAIHelper
 
     save_image_to_shared = lambda do |img, target_path|
       begin
-        if File.exist?(img["data"].to_s)
-          FileUtils.cp(img["data"].to_s, target_path)
+        # `data` arrives from the client. A path is copied only when it
+        # resolves, links followed, to a file inside the shared folder;
+        # otherwise a client could have any file the server can read copied
+        # out and sent to the provider.
+        source = File.realpath(img["data"].to_s) rescue nil
+        root = File.realpath(shared_folder) rescue nil
+        if source && root && source.start_with?(root + File::SEPARATOR) && File.file?(source)
+          FileUtils.cp(source, target_path)
           true
         elsif img["data"].to_s.start_with?("data:")
           data_uri = img["data"].to_s

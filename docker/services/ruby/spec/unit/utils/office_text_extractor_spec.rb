@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'tmpdir'
+require 'shellwords'
 require 'json'
 require 'open3'
 require 'fileutils'
@@ -24,7 +26,8 @@ RSpec.describe "Office Text Extraction" do
       def send_command(command:, container:, success: "", success_with_output: "")
         @last_command = command
         @last_container = container
-        @mock_response || ""
+        output = @mock_response || ""
+        block_given? ? yield(output, "", Struct.new(:success?).new(true)) : output
       end
 
       attr_accessor :mock_response, :last_command, :last_container
@@ -32,7 +35,18 @@ RSpec.describe "Office Text Extraction" do
   end
 
   let(:helper) { test_class.new }
-  let(:data_dir) { File.join(Dir.home, "monadic", "data") }
+  let(:data_dir) { @data_dir }
+
+  around do |example|
+    Dir.mktmpdir('office-shared-') do |directory|
+      @data_dir = File.realpath(directory)
+      %w[test_document.docx test_spreadsheet.xlsx test_presentation.pptx test.docx
+         empty_document.docx empty_spreadsheet.xlsx empty_presentation.pptx].each do |name|
+        File.binwrite(File.join(@data_dir, name), '')
+      end
+      example.run
+    end
+  end
 
   before do
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
@@ -49,7 +63,7 @@ RSpec.describe "Office Text Extraction" do
         helper.fetch_text_from_office(file: docx_path)
 
         expect(helper.last_command).to include('office2txt.py')
-        expect(helper.last_command).to include(docx_path)
+        expect(Shellwords.split(helper.last_command)).to eq(["office2txt.py", "/monadic/data/test_document.docx"])
         expect(helper.last_container).to eq('python')
       end
 
@@ -89,7 +103,7 @@ RSpec.describe "Office Text Extraction" do
         helper.fetch_text_from_office(file: xlsx_path)
 
         expect(helper.last_command).to include('office2txt.py')
-        expect(helper.last_command).to include(xlsx_path)
+        expect(Shellwords.split(helper.last_command)).to eq(["office2txt.py", "/monadic/data/test_spreadsheet.xlsx"])
       end
 
       it "extracts cell values as text" do
@@ -125,7 +139,7 @@ RSpec.describe "Office Text Extraction" do
         helper.fetch_text_from_office(file: pptx_path)
 
         expect(helper.last_command).to include('office2txt.py')
-        expect(helper.last_command).to include(pptx_path)
+        expect(Shellwords.split(helper.last_command)).to eq(["office2txt.py", "/monadic/data/test_presentation.pptx"])
       end
 
       it "extracts text from multiple slides" do
@@ -218,7 +232,7 @@ RSpec.describe "Office Text Extraction" do
 
         result = helper.fetch_text_from_office(file: valid_path)
 
-        expect(result).not_to include("Invalid file path")
+        expect(JSON.parse(result)).to eq("text" => "Valid content")
       end
     end
 

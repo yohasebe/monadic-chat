@@ -341,7 +341,8 @@ def start_server(opts)
   ENV["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
 
   # Start local Falcon server
-  cmd = "bundle exec falcon serve -b http://0.0.0.0:#{opts[:port] || DEFAULT_PORT} -c config.ru --count 1"
+  # This machine only: nothing on the server checks who connects
+  cmd = "bundle exec falcon serve -b http://127.0.0.1:#{opts[:port] || DEFAULT_PORT} -c config.ru --count 1"
 
   if opts[:daemonize]
     # Daemon mode: run in background

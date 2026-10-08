@@ -68,8 +68,19 @@ RSpec.describe 'AutoForge CLI optional files' do
   end
 
   describe '#generate_additional_file' do
+    around do |example|
+      Dir.mktmpdir('cli-shared-') do |directory|
+        @data_dir = File.realpath(directory)
+        example.run
+      end
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
+    end
+
     it 'creates a README for the active CLI project' do
-      Dir.mktmpdir do |dir|
+      Dir.mktmpdir('project-', @data_dir) do |dir|
         script_path = File.join(dir, 'tool.py')
         File.write(script_path, "#!/usr/bin/env python3\nprint('ok')\n")
 
@@ -91,7 +102,7 @@ RSpec.describe 'AutoForge CLI optional files' do
     end
 
     it 'creates a custom file when file_name and instructions are provided' do
-      Dir.mktmpdir do |dir|
+      Dir.mktmpdir('project-', @data_dir) do |dir|
         script_path = File.join(dir, 'tool.py')
         File.write(script_path, "#!/usr/bin/env python3\nprint('ok')\n")
 
@@ -121,7 +132,7 @@ RSpec.describe 'AutoForge CLI optional files' do
     end
 
     it 'rejects unsafe file names' do
-      Dir.mktmpdir do |dir|
+      Dir.mktmpdir('project-', @data_dir) do |dir|
         helper.instance_variable_set(
           :@context,
           {

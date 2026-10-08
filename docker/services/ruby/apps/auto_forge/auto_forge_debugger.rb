@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'shellwords'
+require 'open3'
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'fileutils'
 require_relative '../../lib/monadic/utils/environment'
 
@@ -13,6 +16,9 @@ module AutoForge
     end
 
     def debug_html(html_path, options = {})
+      html_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(html_path, extensions: %w[.html .htm])
+      return { success: false, error: "Invalid shared HTML path" } unless html_path
+
       start_time = Time.now
       puts "[AutoForgeDebugger] Starting debug at #{start_time.strftime('%Y-%m-%d %H:%M:%S')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
@@ -58,24 +64,12 @@ module AutoForge
       # Use send_command from MonadicApp (same as web_insight)
       # This handles Docker execution properly through the established pattern
 
-      # The HTML file is already in the shared volume (host: ~/monadic/data,
-      # container: /monadic/data). Convert host path to container path.
-      # Use Environment.shared_volume for SSOT — see CLAUDE.md "Dual-Mode
-      # Execution"; the legacy ENV['SHARED_VOLUME'] fallback assumed the env
-      # var was set in production, which is not guaranteed across all entry
-      # paths.
-      shared_volume = Monadic::Utils::Environment.shared_volume
-      if html_path.start_with?(shared_volume)
-        # Path is already in shared volume, just convert to container path
-        container_html_path = html_path.sub(shared_volume, '/monadic/data')
-      else
-        # File is outside shared volume, need to copy it (shouldn't happen with AutoForge)
-        temp_html = File.join(shared_volume, "temp_debug_#{Time.now.to_i}.html")
-        FileUtils.cp(html_path, temp_html)
-        container_html_path = "/monadic/data/#{File.basename(temp_html)}"
-      end
+      # Validate the real shared path before translating it to Python's mount.
+      html_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(html_path, extensions: %w[.html .htm])
+      container_html_path = Monadic::Utils::SharedPathGuard.command_path(html_path, container: "python")
+      return { 'success' => false, 'errors' => ['Invalid shared HTML path'] } unless container_html_path
 
-      command = "debug_html.py #{container_html_path} --json"
+      command = Shellwords.join(["debug_html.py", container_html_path, "--json"])
 
       result = nil
       puts "[AutoForgeDebugger] Executing: #{command}" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -85,8 +79,10 @@ module AutoForge
         output = send_command(command: command, container: "python")
       else
         # Fallback to direct docker exec (for standalone use)
-        docker_command = "docker exec -w /monadic/data monadic-chat-python-container python /monadic/scripts/utilities/debug_html.py #{container_html_path} --json"
-        output = `#{docker_command} 2>&1`
+        output, _status = Open3.capture2e(
+          "docker", "exec", "-w", "/monadic/data", "monadic-chat-python-container",
+          "python", "/monadic/scripts/utilities/debug_html.py", container_html_path, "--json"
+        )
       end
 
       begin
@@ -96,11 +92,6 @@ module AutoForge
           'success' => false,
           'errors' => ["Failed to parse debug output: #{e.message}", "Raw output: #{output[0..500]}"]
         }
-      end
-
-      # Clean up temporary HTML file (only if we created one)
-      if defined?(temp_html) && temp_html && File.exist?(temp_html)
-        File.delete(temp_html)
       end
 
       result

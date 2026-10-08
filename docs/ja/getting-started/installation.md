@@ -24,7 +24,7 @@ Dockerアイコンをアプリケーションフォルダにドラッグして�
 
 2. **Monadic Chatのダウンロードとインストール**
 
-📦 [Monadic Chat 1.0.0-beta.40 をダウンロード（macOS）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.40/Monadic.Chat-1.0.0-beta.40-arm64.dmg)
+📦 [Monadic Chat 1.0.0-beta.41 をダウンロード（macOS）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.41/Monadic.Chat-1.0.0-beta.41-arm64.dmg)
 
 ### **Windows**
 
@@ -49,7 +49,7 @@ PowerShellを管理者として開き、以下を実行：
 
 3. **Monadic Chatのダウンロードとインストール**
 
-📦 [Monadic Chat 1.0.0-beta.40 をダウンロード（Windows）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.40/Monadic.Chat.Setup.1.0.0-beta.40.exe)
+📦 [Monadic Chat 1.0.0-beta.41 をダウンロード（Windows）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.41/Monadic.Chat.Setup.1.0.0-beta.41.exe)
 
 ### **Linux**
 
@@ -69,7 +69,7 @@ Omarchy では、代わりに `omarchy-setup-security-sudoless-docker` を実行
 
 2. **Monadic Chatのダウンロード**
 
-📦 [Monadic Chat 1.0.0-beta.40 をダウンロード（Linux x86_64）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.40/monadic-chat_1.0.0-beta.40_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.40/monadic-chat_1.0.0-beta.40_arm64.AppImage)
+📦 [Monadic Chat 1.0.0-beta.41 をダウンロード（Linux x86_64）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.41/monadic-chat_1.0.0-beta.41_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.41/monadic-chat_1.0.0-beta.41_arm64.AppImage)
 
 3. **実行権限を付けて起動**
 
@@ -108,13 +108,12 @@ Monadic Chatは起動時に自動的に更新をチェックします。
 2. **Download & Install** をクリックすると、更新がバックグラウンドでダウンロードされ、進捗がコンソールに表示されます
 3. ダウンロードが完了すると、更新を適用するためにMonadic Chatの再起動を促すダイアログが表示されます
 
-[1.0.0-beta.40 のリリースページ](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.40)から手動でダウンロードすることも、[すべてのリリース](https://github.com/yohasebe/monadic-chat/releases)を見ることもできます。
+[1.0.0-beta.41 のリリースページ](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.41)から手動でダウンロードすることも、[すべてのリリース](https://github.com/yohasebe/monadic-chat/releases)を見ることもできます。
 
 ## 高度な設定 :id=advanced-configuration
 
 以下を含む高度な設定オプション：
 - インストールオプション（LaTeX、Pythonライブラリなど）
-- サーバーモード設定
 - 再ビルド手順
 - 環境変数
 

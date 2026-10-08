@@ -1290,30 +1290,6 @@ start_docker_compose() {
   set_docker_compose
   remove_legacy_prebuilt_images
 
-  # Load environment variables from env file
-  local config_dir="${HOME_DIR}/monadic/config"
-  local env_file="${config_dir}/env"
-  local host_binding="127.0.0.1" # Default to localhost only for security
-  local distributed_mode="off"
-
-  if [ -f "${env_file}" ]; then
-    # Read DISTRIBUTED_MODE from env file
-    if grep -q "DISTRIBUTED_MODE=" "${env_file}"; then
-      distributed_mode=$(grep "DISTRIBUTED_MODE=" "${env_file}" | cut -d'=' -f2)
-    fi
-
-    # Read HOST_BINDING from env file if explicitly set
-    if grep -q "HOST_BINDING=" "${env_file}"; then
-      host_binding=$(grep "HOST_BINDING=" "${env_file}" | cut -d'=' -f2)
-    elif [ "${distributed_mode}" = "server" ]; then
-      # Auto-enable network binding for server mode
-      host_binding="0.0.0.0"
-    fi
-  fi
-
-  # Export for docker-compose
-  export HOST_BINDING="${host_binding}"
-
   # Wait until Docker is running
   local retries=0
   while ! ${DOCKER} info > /dev/null 2>&1; do

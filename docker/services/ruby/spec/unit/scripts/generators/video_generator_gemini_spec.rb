@@ -3,6 +3,7 @@
 require "spec_helper"
 require "json"
 require "tempfile"
+require "tmpdir"
 require "fileutils"
 require "http"
 require "stringio"
@@ -16,9 +17,16 @@ RSpec.describe "VideoGeneratorGemini" do
   let(:script) { GEMINI_VIDEO_SCRIPT }
   let(:mock_api_key) { "test-api-key-12345" }
   let(:test_prompt) { "A beautiful sunset over the ocean" }
-  let(:test_image_path) { "/tmp/test_image.jpg" }
+  let(:test_image_path) { File.join(@data_dir, "test_image.jpg") }
   let(:mock_operation_name) { "operations/abc123xyz789" }
   
+  around do |example|
+    Dir.mktmpdir('video-shared-') do |directory|
+      @data_dir = File.realpath(directory)
+      example.run
+    end
+  end
+
   before do
     # Silence STDERR during tests
     @original_stderr = $stderr
@@ -34,6 +42,7 @@ RSpec.describe "VideoGeneratorGemini" do
     allow(Dir).to receive(:exist?).with("/monadic/data/").and_return(true)
     allow(FileUtils).to receive(:mkdir_p)
     
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
     # Create a temporary test image
     File.write(test_image_path, "fake image data")
   end
@@ -104,7 +113,7 @@ RSpec.describe "VideoGeneratorGemini" do
       it "handles PNG images" do
         # Create a fake PNG with proper magic bytes
         png_data = [0x89, 0x50, 0x4E, 0x47].pack("C*") + "fake png data"
-        png_path = "/tmp/test_image.png"
+        png_path = File.join(@data_dir, "test_image.png")
         File.write(png_path, png_data)
         
         result = script.encode_image_to_data_url(png_path)
@@ -122,7 +131,7 @@ RSpec.describe "VideoGeneratorGemini" do
       it "returns nil for oversized file" do
         # Create a file larger than 20MB
         large_data = "x" * (21 * 1024 * 1024)
-        large_file = "/tmp/large_image.jpg"
+        large_file = File.join(@data_dir, "large_image.jpg")
         File.write(large_file, large_data)
         
         expect(script.encode_image_to_data_url(large_file)).to be_nil
@@ -133,20 +142,20 @@ RSpec.describe "VideoGeneratorGemini" do
   end
   
   describe "#resolve_image_path" do
-    it "returns absolute path if exists" do
+    it "returns an existing absolute path inside the shared folder" do
       expect(script.resolve_image_path(test_image_path)).to eq(test_image_path)
     end
     
-    it "checks current directory" do
-      relative_path = "test_image.jpg"
-      expected_path = File.join(Dir.pwd, relative_path)
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with(expected_path).and_return(true)
-      allow(File).to receive(:absolute_path?).with(relative_path).and_return(false)
-      
-      expect(script.resolve_image_path(relative_path)).to eq(expected_path)
+    it "resolves relative paths against the shared folder rather than CWD" do
+      Dir.mktmpdir('video-cwd-') do |directory|
+        File.binwrite(File.join(directory, 'test_image.jpg'), 'outside image')
+        Dir.chdir(directory) do
+          expect(script.resolve_image_path('test_image.jpg')).to eq(test_image_path)
+          expect(script.resolve_image_path(File.join(directory, 'test_image.jpg'))).to be_nil
+        end
+      end
     end
-    
+
     it "returns nil if not found" do
       expect(script.resolve_image_path("/non/existent/image.jpg")).to be_nil
     end

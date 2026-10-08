@@ -22,7 +22,7 @@ services:
         PYOPT_TRANSFORMERS: ${PYOPT_TRANSFORMERS:-false}
         IMGOPT_IMAGEMAGICK: ${IMGOPT_IMAGEMAGICK:-false}
     ports:
-      - "${HOST_BINDING:-127.0.0.1}:8889:8889"
+      - "127.0.0.1:8889:8889"
     container_name: monadic-chat-python-container
     volumes:
       # The named-volume line below is inert cruft: the bind mount that

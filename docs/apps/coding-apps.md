@@ -41,6 +41,4 @@ Let the AI create Jupyter Notebooks, add cells, and execute code based on your r
 ?> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br /><!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
 
-?> **Note:** For Server Mode restrictions, see [JupyterLab - Server Mode Restrictions](../docker-integration/jupyterlab.md#server-mode-restrictions).
-
 Jupyter Notebook is available for the providers shown in the [availability table](../basic-usage/basic-apps.md#app-availability).

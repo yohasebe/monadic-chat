@@ -50,10 +50,10 @@ The file list and order come from the same SSOT the bundler uses (`FILES` in `sc
 
 ### The Ruby container is stopped automatically
 
-`rake server:debug` stops `monadic-chat-ruby-container` so the host Falcon owns port 4567 — you do **not** need to stop it manually. Be aware of one gotcha: if the container is running alongside the host server, its published `127.0.0.1:4567` can shadow the host's `*:4567` for `localhost` connections (macOS prefers the more specific bind), silently serving the container's baked-in code instead of your local edits. The dev start flow re-stops the container (including the case where the `MONADIC_DEV` recreate step brought it back up) before launching Falcon. If you suspect stale code is being served, check for both listeners:
+`rake server:debug` stops `monadic-chat-ruby-container` so the host Falcon owns port 4567 — you do **not** need to stop it manually. Both the host Falcon and the container publish `127.0.0.1:4567`, so if the container is still running the host server cannot bind the port. The dev start flow re-stops the container (including the case where the `MONADIC_DEV` recreate step brought it back up) before launching Falcon. If the host server fails to start, or you suspect the container is answering instead, check the listeners:
 
 ```bash
-lsof -nP -iTCP:4567 -sTCP:LISTEN   # a host `ruby` (*:4567) + a docker proxy (127.0.0.1:4567) means the container is shadowing
+lsof -nP -iTCP:4567 -sTCP:LISTEN   # a docker proxy on 127.0.0.1:4567 means the container still holds the port
 ```
 
 ### Local Documentation Access

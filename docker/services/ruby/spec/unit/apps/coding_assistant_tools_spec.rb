@@ -1,31 +1,24 @@
 require "spec_helper"
+require "tmpdir"
 require_relative "../../../apps/coding_assistant/coding_assistant_tools"
 
 RSpec.describe CodingAssistantTools do
-  let(:test_class) do
-    Class.new do
-      include CodingAssistantTools
+  let(:app) { Class.new { include CodingAssistantTools }.new }
 
-      # Mock the Environment module
-      def self.data_path
-        "/test/data"
-      end
+  around do |example|
+    Dir.mktmpdir('coding-shared-') do |directory|
+      @data_dir = File.realpath(directory)
+      example.run
     end
   end
 
-  let(:app) { test_class.new }
+  before do
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
+    allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
+  end
 
   describe "#read_file_from_shared_folder" do
-    before do
-      allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/test/data")
-      allow(File).to receive(:exist?).and_return(true)
-      allow(File).to receive(:file?).and_return(true)
-      allow(File).to receive(:read).and_return("test content")
-      allow(File).to receive(:size).and_return(100)
-      allow(File).to receive(:mtime).and_return(Time.now)
-      allow(File).to receive(:ctime).and_return(Time.now)
-      allow(app).to receive(:validate_file_path).and_return(true)
-    end
+    before { File.write(File.join(@data_dir, 'test.txt'), 'test content') }
 
     it "reads file from shared folder" do
       result = app.read_file_from_shared_folder(filepath: "test.txt")
@@ -34,70 +27,43 @@ RSpec.describe CodingAssistantTools do
     end
 
     it "handles absolute paths" do
-      result = app.read_file_from_shared_folder(filepath: "/test/data/test.txt")
+      result = app.read_file_from_shared_folder(filepath: File.join(@data_dir, "test.txt"))
       expect(result[:content]).to eq("test content")
     end
 
     it "returns error for non-existent files" do
-      allow(File).to receive(:exist?).and_return(false)
       result = app.read_file_from_shared_folder(filepath: "nonexistent.txt")
       expect(result[:error]).to include("not found")
     end
   end
 
   describe "#write_file_to_shared_folder" do
-    before do
-      allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/test/data")
-      allow(FileUtils).to receive(:mkdir_p)
-      allow(File).to receive(:directory?).and_return(true)
-      allow(File).to receive(:exist?).and_return(false, true) # doesn't exist, then exists after write
-      allow(File).to receive(:size).and_return(100)
-      allow(File).to receive(:open)
-      allow(app).to receive(:validate_file_path).and_return(true)
-    end
-
     it "writes file to shared folder" do
-      result = app.write_file_to_shared_folder(
-        filepath: "output.txt",
-        content: "new content"
-      )
+      result = app.write_file_to_shared_folder(filepath: "output.txt", content: "new content")
       expect(result[:success]).to be true
       expect(result[:action]).to eq("created")
+      expect(File.read(File.join(@data_dir, 'output.txt'))).to eq('new content')
     end
 
     it "supports append mode" do
-      allow(File).to receive(:exist?).and_return(true)
-      result = app.write_file_to_shared_folder(
-        filepath: "output.txt",
-        content: "appended",
-        mode: "append"
-      )
+      File.write(File.join(@data_dir, 'output.txt'), 'original')
+      result = app.write_file_to_shared_folder(filepath: "output.txt", content: "appended", mode: "append")
       expect(result[:action]).to eq("appended")
+      expect(File.read(File.join(@data_dir, 'output.txt'))).to eq('originalappended')
     end
 
     it "validates file paths" do
-      allow(app).to receive(:validate_file_path).and_return(false)
-      result = app.write_file_to_shared_folder(
-        filepath: "../../../etc/passwd",
-        content: "malicious"
-      )
+      result = app.write_file_to_shared_folder(filepath: "../../../etc/passwd", content: "malicious")
       expect(result[:error]).to include("invalid")
+      expect(Dir.children(@data_dir)).to be_empty
     end
   end
 
   describe "#list_files_in_shared_folder" do
     before do
-      allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/test/data")
-      allow(Dir).to receive(:entries).and_return([".", "..", "file1.txt", "dir1"])
-      allow(File).to receive(:exist?).and_return(true)
-      allow(File).to receive(:directory?).with("/test/data").and_return(true)
-      allow(File).to receive(:directory?).with("/test/data/dir1").and_return(true)
-      allow(File).to receive(:directory?).with("/test/data/file1.txt").and_return(false)
-      allow(File).to receive(:directory?).with("/test/data/dir1/subfile.txt").and_return(false)
-      allow(File).to receive(:size).and_return(100)
-      allow(File).to receive(:mtime).and_return(Time.now)
-      allow(Dir).to receive(:entries).with("/test/data/dir1").and_return([".", "..", "subfile.txt"])
-      allow(app).to receive(:validate_file_path).and_return(true)
+      File.write(File.join(@data_dir, 'file1.txt'), 'text')
+      Dir.mkdir(File.join(@data_dir, 'dir1'))
+      File.write(File.join(@data_dir, 'dir1/subfile.txt'), 'text')
     end
 
     it "lists files and directories" do
@@ -111,6 +77,7 @@ RSpec.describe CodingAssistantTools do
     it "handles subdirectories" do
       result = app.list_files_in_shared_folder(directory: "dir1")
       expect(result[:path]).to eq("/dir1")
+      expect(result[:files].map { |file| file[:name] }).to eq(['subfile.txt'])
     end
   end
 end

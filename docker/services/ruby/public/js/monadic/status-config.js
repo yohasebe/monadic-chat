@@ -2,7 +2,7 @@
  * Status Message Configuration Module
  *
  * Centralized configuration for #status-message styling and behavior.
- * Aligned with Electron UI design system (#status, #dockerStatus, #modeStatus).
+ * Aligned with Electron UI design system (#status, #dockerStatus).
  *
  * Design System:
  * - Background: Dark gray (#444444 light mode, #2a2a2a dark mode)

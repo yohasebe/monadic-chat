@@ -44,6 +44,4 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
 <br /><br /><!-- SCREENSHOT: Actionsメニュー - Start JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
 
-?> **注意:** サーバーモードでの制約については、[JupyterLab - Server モードでの制限](../docker-integration/jupyterlab.md#server-mode-restrictions)を参照してください。
-
 Jupyter Notebookの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

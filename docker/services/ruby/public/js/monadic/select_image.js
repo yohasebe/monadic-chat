@@ -427,7 +427,7 @@ function updateFileDisplay(files) {
       const icon = getDocumentIcon(file.type);
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container">
-          <i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${file.title}
+          <i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -437,7 +437,7 @@ function updateFileDisplay(files) {
       // Display PDF file with icon and title
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container">
-          <i class="fas fa-file-pdf"></i> ${file.title}
+          <i class="fas fa-file-pdf"></i> ${window.escapeHtml(file.title)}
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -448,7 +448,7 @@ function updateFileDisplay(files) {
       const icon = getDocumentIcon(file.type);
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container">
-          <i class="fas ${icon}"></i> ${file.title}
+          <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -459,8 +459,8 @@ function updateFileDisplay(files) {
 
       const overlayDisplay = `
         <div class="mask-overlay-container">
-          <img class='base-image' alt='${file.title}' src='${file.data}' />
-          <img class='mask-overlay opacity-60' alt='${maskData.title}' src='${maskData.display_data || maskData.data}' />
+          <img class='base-image' alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' />
+          <img class='mask-overlay opacity-60' alt='${window.escapeHtml(maskData.title)}' src='${window.escapeHtml(maskData.display_data || maskData.data)}' />
           <div class="mask-overlay-label">MASK</div>
           <div class="mask-controls">
             <button class='btn btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
@@ -490,7 +490,7 @@ function updateFileDisplay(files) {
 
       const imageDisplay = `
         <div class="image-container">
-          <img class='base64-image' alt='${file.title}' src='${file.data}' data-type='${file.type}' />
+          <img class='base64-image' alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' data-type='${window.escapeHtml(file.type)}' />
           ${imageActions}
         </div>
       `;

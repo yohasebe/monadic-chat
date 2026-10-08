@@ -3,6 +3,7 @@ require 'fileutils'
 require 'shellwords'
 require 'cgi'
 require 'json'
+require_relative '../../lib/monadic/utils/shared_path_guard'
 
 module DrawIOGrapher
   # Template for a valid minimal Draw.io diagram
@@ -22,6 +23,8 @@ module DrawIOGrapher
   XML
 
   def write_drawio_file(content:, filename: "diagram")
+    return "❌ Invalid filename" unless filename.is_a?(String)
+
     # Handle file extension
     filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
 
@@ -37,7 +40,8 @@ module DrawIOGrapher
       end
     end
 
-    filepath = File.join(data_dir, filename)
+    filepath = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename, extensions: %w[.drawio], must_exist: false)
+    return "❌ Invalid shared file path" unless filepath
 
     # Validate and repair XML content
     validated_content = validate_and_repair_drawio_xml(content)
@@ -47,6 +51,8 @@ module DrawIOGrapher
   end
 
   def preview_drawio(content:, filename: "diagram", session: nil)
+    return "❌ Invalid filename" unless filename.is_a?(String)
+
     # 1. Handle file extension
     filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
     shared_volume = Monadic::Utils::Environment.shared_volume
@@ -55,7 +61,8 @@ module DrawIOGrapher
     validated_content = validate_and_repair_drawio_xml(content)
 
     # 3. Save .drawio file
-    drawio_path = File.join(shared_volume, filename)
+    drawio_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename, extensions: %w[.drawio], must_exist: false)
+    return "❌ Invalid shared file path" unless drawio_path
     save_result = write_file_synchronously(validated_content, drawio_path, filename, shared_volume)
     return save_result if save_result.start_with?("❌")
 
@@ -63,7 +70,8 @@ module DrawIOGrapher
     timestamp = Time.now.to_i
     html_filename = "drawio_live_#{timestamp}.html"
     screenshot_filename = "drawio_preview_#{timestamp}.png"
-    html_path = File.join(shared_volume, html_filename)
+    html_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(html_filename, must_exist: false)
+    return "❌ Invalid preview file path" unless html_path
     File.write(html_path, build_drawio_preview_html(validated_content))
 
     # 5. Browser session management via web_navigator.py
@@ -97,9 +105,9 @@ module DrawIOGrapher
     ss_result = parse_drawio_response(ss_output)
 
     if ss_result[:success] && ss_result[:screenshot]
-      src = File.join(shared_volume, ss_result[:screenshot])
-      dst = File.join(shared_volume, screenshot_filename)
-      FileUtils.cp(src, dst) if File.exist?(src)
+      src = Monadic::Utils::SharedPathGuard.resolve_in_shared(ss_result[:screenshot], extensions: %w[.png])
+      dst = Monadic::Utils::SharedPathGuard.resolve_in_shared(screenshot_filename, must_exist: false)
+      FileUtils.cp(src, dst) if src && dst
     end
 
     result = {
@@ -115,7 +123,7 @@ module DrawIOGrapher
     end
     result
   rescue StandardError => e
-    "❌ Preview generation failed: #{e.message}"
+    "❌ Preview generation failed"
   ensure
     cleanup_old_drawio_html_files(keep_latest: html_filename) if html_filename
   end
@@ -133,7 +141,10 @@ module DrawIOGrapher
 
   def write_file_synchronously(validated_content, filepath, filename, data_dir)
     begin
-      File.open(filepath, "w") do |f|
+      resolved = Monadic::Utils::SharedPathGuard.resolve_in_shared(filepath, extensions: %w[.drawio], must_exist: false)
+      return "❌ Invalid shared file path" unless resolved
+
+      File.open(resolved, "w") do |f|
         f.write(validated_content)
       end
 
@@ -158,7 +169,7 @@ module DrawIOGrapher
       STDOUT.flush
       return result
     rescue StandardError => e
-      error_result = "❌ The file could not be written to #{filepath}.\nReason: #{e.message}\nBacktrace: #{e.backtrace.first(3).join('\n')}"
+      error_result = "❌ The file could not be written"
       STDOUT.flush
       return error_result
     end

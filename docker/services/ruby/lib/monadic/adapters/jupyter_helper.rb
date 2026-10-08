@@ -1,4 +1,5 @@
 require 'shellwords'
+require_relative '../utils/shared_path_guard'
 require 'cgi'
 require 'digest'
 require_relative '../utils/extra_logger'
@@ -459,22 +460,20 @@ module MonadicHelper
   end
 
   def run_jupyter_cells(filename:)
-    command = "jupyter nbconvert --to notebook --execute #{filename} --ExecutePreprocessor.timeout=#{JUPYTER_RUN_TIMEOUT} --allow-errors --inplace"
+    name = filename.to_s.end_with?('.ipynb') ? filename.to_s : "#{filename}.ipynb"
+    notebook_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(name, extensions: %w[.ipynb])
+    return "Error: Invalid shared notebook path" unless notebook_path
+
+    command_path = Monadic::Utils::SharedPathGuard.command_path(notebook_path, container: "python")
+    return "Error: Invalid shared notebook path" unless command_path
+
+    command = "jupyter nbconvert --to notebook --execute #{Shellwords.escape(command_path)} --ExecutePreprocessor.timeout=#{JUPYTER_RUN_TIMEOUT} --allow-errors --inplace"
     res = send_command(
       command: command,
       container: "python",
       success: "The notebook has been executed\n",
       success_with_output: "The notebook has been executed with the following output:\n"
     )
-
-    shared_volume = if Monadic::Utils::Environment.in_container?
-                      MonadicApp::SHARED_VOL
-                    else
-                      MonadicApp::LOCAL_SHARED_VOL
-                    end
-    # Ensure filename has .ipynb extension
-    filename_with_ext = filename.end_with?('.ipynb') ? filename : "#{filename}.ipynb"
-    filepath = File.join(shared_volume, filename_with_ext)
 
     if res
       # Don't include the last cell output in the response as it's too technical
@@ -921,12 +920,14 @@ module MonadicHelper
     
     # Resolve to the per-environment shared volume so dev-mode users can
     # restart kernels whatever their home directory is.
-    shared_volume = Monadic::Utils::Environment.data_path
-    full_path = File.join(shared_volume, filename_with_ext)
-    
-    # First, try to restart using nbconvert with --clear-output option
-    restart_command = "jupyter nbconvert --clear-output --inplace #{full_path}"
-    
+    full_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename_with_ext, extensions: %w[.ipynb])
+    return "Error: Invalid shared notebook path" unless full_path
+
+    command_path = Monadic::Utils::SharedPathGuard.command_path(full_path, container: "python")
+    return "Error: Invalid shared notebook path" unless command_path
+
+    restart_command = "jupyter nbconvert --clear-output --inplace #{Shellwords.escape(command_path)}"
+
     result = send_command(
       command: restart_command,
       container: "python",

@@ -3,6 +3,7 @@
 require "base64"
 require "http"
 require_relative "../utils/environment"
+require_relative "../utils/shared_path_guard"
 require_relative "../utils/provider_capabilities"
 
 # AudioTranscriptionAgent provides provider-independent audio transcription.
@@ -121,19 +122,11 @@ module AudioTranscriptionAgent
   # in dev mode). Inputs typically arrive as `./audio_<timestamp>.mp3`
   # because the producing scripts run with the shared volume as CWD.
   def resolve_audio_path(audio_path)
-    return "ERROR: Invalid file path (path traversal not allowed)" if audio_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
-
-    clean_path = audio_path.to_s.sub(%r{\A\./}, "")
-    shared_path = File.join(Monadic::Utils::Environment.shared_volume, clean_path)
-
-    path = if File.exist?(audio_path.to_s)
-             audio_path.to_s
-           elsif File.exist?(shared_path)
-             shared_path
-           end
-
-    return "ERROR: Audio file not found: #{audio_path}" unless path && File.exist?(path)
-    path
+    Monadic::Utils::SharedPathGuard.resolve_in_shared!(
+      audio_path, extensions: Monadic::Utils::SharedPathGuard::AUDIO_EXTENSIONS, kind: "audio"
+    )
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath => e
+    "ERROR: #{e.message}"
   end
 
   # The app's own audio provider, or nil. Never another provider.

@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require "base64"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 require "http"
 require "json"
 require "optparse"
@@ -108,7 +109,8 @@ end
 # Base64 encode an image file and create data URL with validation
 
 def encode_image_to_data_url(image_path)
-  return nil unless File.exist?(image_path)
+  image_path = resolve_image_path(image_path)
+  return nil unless image_path
   
   begin
     image_data = File.binread(image_path)
@@ -167,24 +169,9 @@ end
 
 # Resolve image path considering both absolute and relative paths
 def resolve_image_path(image_path)
-  return nil if image_path.nil? || image_path.empty?
-  
-  # If it's already an absolute path and exists, use it
-  return image_path if File.absolute_path?(image_path) && File.exist?(image_path)
-  
-  # Try current working directory
-  current_dir_path = File.join(Dir.pwd, image_path)
-  return current_dir_path if File.exist?(current_dir_path)
-  
-  # Try data directories
-  data_paths = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
-  data_paths.each do |data_path|
-    full_path = File.join(data_path, image_path)
-    return full_path if File.exist?(full_path)
-  end
-  
-  # Return nil if not found anywhere
-  nil
+  Monadic::Utils::SharedPathGuard.resolve_in_shared(
+    image_path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS
+  )
 end
 
 # Custom headers are retained by the HTTP gem when following redirects.
@@ -312,10 +299,10 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
         # Use Vertex AI Video Generation API structure
         # Based on the documentation, the image should include mimeType
         # Try to read mime type from companion file first
-        mime_info_path = resolved_path + ".mime"
+        mime_info_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(resolved_path + ".mime", extensions: %w[.mime])
         mime_type = nil
         
-        if File.exist?(mime_info_path)
+        if mime_info_path
           mime_type = File.read(mime_info_path).strip
           STDERR.puts "DEBUG: Read mime type from companion file: #{mime_type}" if $debug
         end
@@ -341,10 +328,10 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
         STDERR.puts "Successfully encoded image from: #{resolved_path}"
         STDERR.puts "DEBUG: Added image to request body with base64 encoding and mimeType: #{mime_type}" if $debug
       else
-        STDERR.puts "Failed to encode image, proceeding with text-to-video generation only"
+        raise ArgumentError, "Unable to encode the shared image"
       end
     else
-      STDERR.puts "Warning: Image file not found at #{image_path} (searched in current dir and data folders), proceeding with text-to-video generation only"
+      raise ArgumentError, "Invalid shared image path or unsupported format"
     end
   end
 
@@ -627,6 +614,11 @@ end
 # Main function to generate videos
 
 def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio = "16:9", person_generation = nil, negative_prompt = nil, fast_mode = false, duration_seconds = 5, num_retrials = 3)
+  if image_path && !image_path.to_s.empty?
+    image_path = resolve_image_path(image_path)
+    return { success: false, message: "Invalid shared image path or unsupported format" } unless image_path
+  end
+
   # Convert parameters to proper strings to prevent JSON encoding issues
   prompt = prompt.to_s
   negative_prompt = negative_prompt.to_s if negative_prompt

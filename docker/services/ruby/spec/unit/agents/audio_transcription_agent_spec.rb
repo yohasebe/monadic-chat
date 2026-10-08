@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'tmpdir'
 require_relative '../../../lib/monadic/agents/audio_transcription_agent'
 
 RSpec.describe AudioTranscriptionAgent do
@@ -18,37 +19,42 @@ RSpec.describe AudioTranscriptionAgent do
 
   let(:agent) { test_class.new }
 
+  around do |example|
+    Dir.mktmpdir('analysis-shared-') do |directory|
+      @data_dir = File.realpath(directory)
+      example.run
+    end
+  end
+
   before do
     stub_const("CONFIG", {
       "OPENAI_API_KEY" => "test-openai-key",
       "GEMINI_API_KEY" => "test-gemini-key",
       "EXTRA_LOGGING" => nil
     })
-    # Pin the shared volume to the container path so the resolve_audio_path
-    # specs below stay deterministic across host machines. The agent uses
-    # `Monadic::Utils::Environment.shared_volume` for path resolution.
-    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return("/monadic/data")
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@data_dir)
+    %w[audio.mp3 huge.mp3 audio..final.mp3 test.mp3].each do |name|
+      File.binwrite(File.join(@data_dir, name), 'audio bytes')
+    end
   end
 
   describe '#audio_transcription_agent' do
     context 'with valid audio file (OpenAI)' do
       before do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("/test/audio.mp3").and_return(true)
-        allow(File).to receive(:size).with("/test/audio.mp3").and_return(5 * 1024 * 1024)
         allow(agent).to receive(:transcribe_openai).and_return("Hello world, this is the transcript.")
       end
 
       it 'returns transcript text' do
-        result = agent.audio_transcription_agent(audio_path: "/test/audio.mp3")
+        result = agent.audio_transcription_agent(audio_path: File.join(@data_dir, "audio.mp3"))
         expect(result).to eq("Hello world, this is the transcript.")
       end
 
       it 'uses default model when none specified' do
         expected_model = Monadic::Utils::ModelSpec.default_audio_model("openai")
-        agent.audio_transcription_agent(audio_path: "/test/audio.mp3")
+        agent.audio_transcription_agent(audio_path: File.join(@data_dir, "audio.mp3"))
         expect(agent).to have_received(:transcribe_openai).with(
-          "/test/audio.mp3",
+          File.join(@data_dir, "audio.mp3"),
           expected_model,
           "test-openai-key",
           "text",
@@ -57,9 +63,9 @@ RSpec.describe AudioTranscriptionAgent do
       end
 
       it 'passes custom model when specified' do
-        agent.audio_transcription_agent(audio_path: "/test/audio.mp3", model: "gpt-transcribe")
+        agent.audio_transcription_agent(audio_path: File.join(@data_dir, "audio.mp3"), model: "gpt-transcribe")
         expect(agent).to have_received(:transcribe_openai).with(
-          "/test/audio.mp3",
+          File.join(@data_dir, "audio.mp3"),
           "gpt-transcribe",
           "test-openai-key",
           "text",
@@ -71,9 +77,9 @@ RSpec.describe AudioTranscriptionAgent do
         # whisper-1 retires on 2027-02-26. A selection saved before then still
         # arrives here, so the agent resolves it rather than passing on a name
         # the provider has dropped.
-        agent.audio_transcription_agent(audio_path: "/test/audio.mp3", model: "whisper-1")
+        agent.audio_transcription_agent(audio_path: File.join(@data_dir, "audio.mp3"), model: "whisper-1")
         expect(agent).to have_received(:transcribe_openai).with(
-          "/test/audio.mp3",
+          File.join(@data_dir, "audio.mp3"),
           "gpt-transcribe",
           "test-openai-key",
           "text",
@@ -85,30 +91,19 @@ RSpec.describe AudioTranscriptionAgent do
     context 'with Gemini provider' do
       before do
         agent.settings["provider"] = "gemini"
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("/test/audio.mp3").and_return(true)
-        allow(File).to receive(:size).with("/test/audio.mp3").and_return(1024)
         allow(agent).to receive(:transcribe_gemini).and_return("Gemini transcript")
       end
 
       it 'uses Gemini for Google provider' do
-        result = agent.audio_transcription_agent(audio_path: "/test/audio.mp3")
+        result = agent.audio_transcription_agent(audio_path: File.join(@data_dir, "audio.mp3"))
         expect(result).to eq("Gemini transcript")
         expect(agent).to have_received(:transcribe_gemini)
       end
     end
 
     context 'with missing audio file' do
-      before do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("/nonexistent.mp3").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/nonexistent.mp3").and_return(false)
-        local_path = File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "nonexistent.mp3")
-        allow(File).to receive(:exist?).with(local_path).and_return(false)
-      end
-
       it 'returns error for missing file' do
-        result = agent.audio_transcription_agent(audio_path: "/nonexistent.mp3")
+        result = agent.audio_transcription_agent(audio_path: "nonexistent.mp3")
         expect(result).to include("ERROR:")
         expect(result).to include("not found")
       end
@@ -116,13 +111,11 @@ RSpec.describe AudioTranscriptionAgent do
 
     context 'with oversized audio file' do
       before do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("/test/huge.mp3").and_return(true)
-        allow(File).to receive(:size).with("/test/huge.mp3").and_return(30 * 1024 * 1024)
+        File.truncate(File.join(@data_dir, 'huge.mp3'), 30 * 1024 * 1024)
       end
 
       it 'returns error for files exceeding 25MB' do
-        result = agent.audio_transcription_agent(audio_path: "/test/huge.mp3")
+        result = agent.audio_transcription_agent(audio_path: File.join(@data_dir, "huge.mp3"))
         expect(result).to include("ERROR:")
         expect(result).to include("too large")
       end
@@ -135,13 +128,10 @@ RSpec.describe AudioTranscriptionAgent do
           "GEMINI_API_KEY" => "",
           "EXTRA_LOGGING" => nil
         })
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("/test/audio.mp3").and_return(true)
-        allow(File).to receive(:size).with("/test/audio.mp3").and_return(1024)
       end
 
       it 'returns error when no API key is available' do
-        result = agent.audio_transcription_agent(audio_path: "/test/audio.mp3")
+        result = agent.audio_transcription_agent(audio_path: File.join(@data_dir, "audio.mp3"))
         expect(result).to include("ERROR:")
         expect(result).to include("needs OPENAI_API_KEY")
       end
@@ -169,33 +159,23 @@ RSpec.describe AudioTranscriptionAgent do
       end
 
       it 'allows filenames containing double dots' do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("audio..final.mp3").and_return(true)
 
         result = agent.send(:resolve_audio_path, "audio..final.mp3")
-        expect(result).to eq("audio..final.mp3")
+        expect(result).to eq(File.join(@data_dir, "audio..final.mp3"))
       end
     end
 
     context 'shared volume resolution' do
-      before do
-        allow(File).to receive(:exist?).and_call_original
-      end
-
       it 'finds files in SHARED_VOL' do
-        allow(File).to receive(:exist?).with("test.mp3").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/test.mp3").and_return(true)
 
         result = agent.send(:resolve_audio_path, "test.mp3")
-        expect(result).to eq("/monadic/data/test.mp3")
+        expect(result).to eq(File.join(@data_dir, "test.mp3"))
       end
 
       it 'strips leading ./ before resolving' do
-        allow(File).to receive(:exist?).with("./test.mp3").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/test.mp3").and_return(true)
 
         result = agent.send(:resolve_audio_path, "./test.mp3")
-        expect(result).to eq("/monadic/data/test.mp3")
+        expect(result).to eq(File.join(@data_dir, "test.mp3"))
       end
     end
   end

@@ -1,4 +1,5 @@
 require 'securerandom'
+require 'shellwords'
 
 module MonadicHelper
   def list_providers_and_voices
@@ -34,7 +35,17 @@ module MonadicHelper
       f.write(text)
     end
 
-    command = "tts_query.rb \"#{textpath}\" --provider=#{provider} --speed=#{speed} --voice=#{voice_id} --language=#{language} --instructions=\"#{instructions}\""
+    # Every value can come from a model's tool call; each is escaped into a
+    # single argument so none of them is read by the shell.
+    command = [
+      "tts_query.rb",
+      Shellwords.escape(textpath),
+      Shellwords.escape("--provider=#{provider}"),
+      Shellwords.escape("--speed=#{speed}"),
+      Shellwords.escape("--voice=#{voice_id}"),
+      Shellwords.escape("--language=#{language}"),
+      Shellwords.escape("--instructions=#{instructions}")
+    ].join(" ")
     send_command(command: command, container: "ruby")
   end
 end

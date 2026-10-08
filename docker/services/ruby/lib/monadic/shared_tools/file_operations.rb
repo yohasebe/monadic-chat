@@ -10,17 +10,20 @@
 # - Comprehensive error handling (from both)
 # - Filepath-based interface for maximum flexibility
 
+require 'fileutils'
+require_relative '../utils/shared_path_guard'
+
 module MonadicSharedTools
   module FileOperations
     include MonadicHelper
 
-    CONTAINER_DATA_PREFIX = "/monadic/data"
+    CONTAINER_DATA_PREFIX = Monadic::Utils::SharedPathGuard::CONTAINER_ROOT
 
     # Normalize a path from container format (/monadic/data/...) to host format
     # when running in dev mode. In container mode, returns path unchanged.
     def normalize_path_for_host(path)
       return path if Monadic::Utils::Environment.in_container?
-      return path unless path.start_with?(CONTAINER_DATA_PREFIX)
+      return path unless path == CONTAINER_DATA_PREFIX || path.start_with?("#{CONTAINER_DATA_PREFIX}/")
 
       data_dir = Monadic::Utils::Environment.data_path
       data_dir + path[CONTAINER_DATA_PREFIX.length..]
@@ -29,12 +32,7 @@ module MonadicSharedTools
     # Normalize a host path to container format (/monadic/data/...) for use
     # in Python/Docker code. In container mode, returns path unchanged.
     def normalize_path_for_container(path)
-      return path if Monadic::Utils::Environment.in_container?
-
-      data_dir = Monadic::Utils::Environment.data_path
-      return path unless path.start_with?(data_dir)
-
-      CONTAINER_DATA_PREFIX + path[data_dir.length..]
+      Monadic::Utils::SharedPathGuard.command_path(path, container: "python", must_exist: false) || path
     end
 
     # Read a file from the shared folder
@@ -150,42 +148,19 @@ module MonadicSharedTools
         }
       end
 
-      data_dir = Monadic::Utils::Environment.data_path
-
-      # Handle both absolute and relative paths
-      if filepath.start_with?('/')
-        # Normalize container paths to host paths for actual file I/O
-        full_path = normalize_path_for_host(filepath)
-        relative_path = full_path.sub(/^#{Regexp.escape(data_dir)}\//, '')
-      else
-        # Sanitize path while preserving Unicode characters and directory structure
-        # Split path into parts, sanitize each part individually
-        parts = filepath.split('/')
-        safe_parts = parts.map do |part|
-          # Preserve Unicode (Japanese, Chinese, Korean, etc.)
-          # Remove only dangerous filesystem characters: \ : * ? " < > |
-          # Forward slash is handled by split/join
-          part.gsub(/[\\:\*\?\"\<\>\|]/, '_')
-        end
-
-        safe_filepath = safe_parts.join('/')
-        full_path = File.join(data_dir, safe_filepath)
-        relative_path = safe_filepath
+      full_path = validate_file_path(filepath)
+      unless full_path
+        return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
       end
-
-      # Security: Validate path is within shared folder
-      unless validate_file_path(full_path)
-        return {
-          success: false,
-          error: "File path is outside the shared folder or invalid",
-          filepath: filepath
-        }
-      end
+      relative_path = normalize_path_for_container(full_path).delete_prefix("#{CONTAINER_DATA_PREFIX}/")
 
       begin
         # Automatically create parent directories
         dir = File.dirname(full_path)
         FileUtils.mkdir_p(dir) unless File.directory?(dir)
+        unless validate_file_path(full_path) == full_path
+          return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
+        end
 
         # Check if file exists (for action reporting)
         file_existed = File.exist?(full_path)

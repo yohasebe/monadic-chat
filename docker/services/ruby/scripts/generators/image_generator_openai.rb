@@ -2,6 +2,7 @@
 
 require_relative "../../lib/monadic/utils/http_client"
 require "base64"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 require "http"
 require "json"
 require "optparse"
@@ -266,6 +267,19 @@ def generate_image(options, num_retrials = 3)
     return { operation: options[:operation], model: options[:model],
              original_prompt: options[:prompt], success: false, message: problem }
   end
+
+  # Validate all local inputs before reading configuration or contacting an API.
+  options = options.dup
+  paths = Array(options[:images])
+  resolved_images = paths.map do |path|
+    Monadic::Utils::SharedPathGuard.resolve_in_shared(path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS)
+  end
+  mask = options[:mask] && Monadic::Utils::SharedPathGuard.resolve_in_shared(options[:mask], extensions: %w[.png])
+  if resolved_images.any?(&:nil?) || (options[:mask] && !mask)
+    return { operation: options[:operation], success: false, message: "Invalid shared image path or unsupported format" }
+  end
+  options[:images] = resolved_images
+  options[:mask] = mask
 
   api_key = get_api_key
   

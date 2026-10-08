@@ -1,3 +1,4 @@
+require 'shellwords'
 require_relative '../utils/environment'
 
 module MonadicHelper
@@ -8,7 +9,7 @@ module MonadicHelper
 
   def selenium_fetch(url: "")
     max_retrials = 10
-    command = "webpage_fetcher.py --url \"#{url}\" --filepath \"/monadic/data/\" --mode \"md\""
+    command = Shellwords.join(["webpage_fetcher.py", "--url", url.to_s, "--filepath", "/monadic/data/", "--mode", "md"])
 
     result = nil 
 

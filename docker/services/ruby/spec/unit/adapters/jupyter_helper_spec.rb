@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
 require_relative "../../../lib/monadic/adapters/jupyter_helper"
 
 RSpec.describe "JupyterHelper" do
@@ -132,6 +133,18 @@ RSpec.describe "JupyterHelper" do
   end
 
   describe "#restart_jupyter_kernel" do
+    around do |example|
+      Dir.mktmpdir('notebook-shared-') do |directory|
+        @data_dir = File.realpath(directory)
+        File.write(File.join(@data_dir, 'test.ipynb'), '{"cells":[]}')
+        example.run
+      end
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
+    end
+
     it "returns error when filename is empty" do
       result = helper.restart_jupyter_kernel(filename: "")
       expect(result).to eq("Error: Filename is required.")
@@ -141,6 +154,9 @@ RSpec.describe "JupyterHelper" do
       allow(helper).to receive(:send_command).and_return("Kernel restarted")
       result = helper.restart_jupyter_kernel(filename: "test.ipynb")
       expect(result).to include("Successfully restarted kernel")
+      expect(helper).to have_received(:send_command).with(
+        hash_including(command: "jupyter nbconvert --clear-output --inplace /monadic/data/test.ipynb", container: "python")
+      )
     end
   end
 

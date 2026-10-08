@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative '../utils/shared_path_guard'
 require_relative 'cost_guard'
 require_relative 'job_store'
 require_relative 'conduit_agent'
@@ -1386,6 +1387,7 @@ module Monadic
         raise ArgumentError, "path is required" if path.empty?
 
         provider = required_analysis_provider(arguments)
+        path = resolve_shared_path(path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS)
 
         input_tokens = CostGuard.estimate_tokens(prompt) + IMAGE_TOKENS_ESTIMATE
         begin
@@ -1419,6 +1421,7 @@ module Monadic
         raise ArgumentError, "path is required" if path.empty?
 
         provider = required_analysis_provider(arguments)
+        path = resolve_shared_path(path, extensions: Monadic::Utils::SharedPathGuard::AUDIO_EXTENSIONS)
         model = (arguments["model"] || arguments[:model])
         language = (arguments["language"] || arguments[:language])
 
@@ -1554,16 +1557,8 @@ module Monadic
       # absolute paths are allowed only if they fall within it. This keeps a
       # caller from reading arbitrary host files (the analysis agents read the
       # file directly in the Ruby process and send its bytes to a provider).
-      def resolve_shared_path(path)
-        raise ArgumentError, "invalid path (traversal not allowed)" if path.match?(%r{(?:\A|/)\.\.(?:/|\z)})
-
-        base = File.expand_path(Monadic::Utils::Environment.shared_volume)
-        abs = path.start_with?("/") ? File.expand_path(path) : File.expand_path(File.join(base, path))
-        unless abs == base || abs.start_with?("#{base}/")
-          raise ArgumentError, "path must be within the shared volume (~/monadic/data)"
-        end
-
-        abs
+      def resolve_shared_path(path, extensions: nil)
+        Monadic::Utils::SharedPathGuard.resolve_in_shared!(path, extensions: extensions)
       end
 
       # ---- Speech synthesis (TTS) ----------------------------------------
@@ -2239,6 +2234,7 @@ module Monadic
           if !text.empty?
             [chunk_text(text), "text"]
           elsif !path.empty?
+            path = resolve_shared_path(path, extensions: %w[.pdf])
             [extract_pdf_chunks(path), path]
           else
             raise ArgumentError, "provide either `text` or `path`"
@@ -2303,10 +2299,7 @@ module Monadic
       end
 
       def extract_pdf_chunks(path)
-        unless path.downcase.end_with?(".pdf")
-          raise ArgumentError, "path must point to a .pdf file"
-        end
-        raise ArgumentError, "file not found: #{path}" unless File.exist?(path)
+        path = resolve_shared_path(path, extensions: %w[.pdf])
 
         require_relative '../utils/pdf_text_extractor'
         pdf = PDF2Text.new(path: path, max_tokens: kb_chunk_tokens, separator: "\n",

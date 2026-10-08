@@ -461,6 +461,21 @@ class MonadicApp
     last_error = nil
 
     begin
+      # The model writes `command` and `extension`. They become separate argv
+      # elements of `docker exec`, never part of a shell string, so a value
+      # such as "python; rm -rf ~" runs nothing on this side of the container.
+      command_argv = begin
+                       Shellwords.split(command.to_s)
+                     rescue ArgumentError
+                       []
+                     end
+      unless command_argv.first.to_s.match?(/\A[A-Za-z][A-Za-z0-9._+-]*\z/)
+        return "Error: Invalid execution command. Give the interpreter name, such as 'python' or 'bash'."
+      end
+      unless extension.to_s.match?(/\A[A-Za-z0-9]{1,10}\z/)
+        return "Error: Invalid file extension. Give letters and digits only, such as 'py' or 'sh'."
+      end
+
       # Check if trying to run JavaScript/Node.js code
       if command == "node" || extension == "js" || extension == "mjs" || extension == "ts"
         return "Error: JavaScript/Node.js execution is not currently supported. The Python container does not have Node.js installed. Please use Python code instead, or consider using the Code Interpreter app which may have broader language support."
@@ -519,9 +534,7 @@ class MonadicApp
       end
 
       # Copy the file to the container
-      docker_command = <<~DOCKER
-        docker cp #{file_path} #{container}:#{SHARED_VOL}/#{filename}
-      DOCKER
+      docker_command = ["docker", "cp", file_path, "#{container}:#{SHARED_VOL}/#{filename}"]
 
       stdout, stderr, status = self.capture_command(docker_command, timeout: 30)  # 30 seconds for file copy
       unless status.success?
@@ -529,9 +542,7 @@ class MonadicApp
       end
 
       # Execute the code in the container with longer timeout for complex operations
-      docker_command = <<~DOCKER
-        docker exec -w #{SHARED_VOL} #{container} #{command} #{filename}
-      DOCKER
+      docker_command = ["docker", "exec", "-w", SHARED_VOL, container, *command_argv, filename]
 
     stdout, stderr, status = self.capture_command(docker_command, timeout: 180)  # 3 minutes for code execution
 
@@ -659,7 +670,8 @@ class MonadicApp
       stdout, stderr, status = nil, nil, nil
 
       Timeout::timeout(timeout) do
-        stdout, stderr, status = Open3.capture3(command)
+        # An Array runs without a shell, each element one argument
+        stdout, stderr, status = command.is_a?(Array) ? Open3.capture3(*command) : Open3.capture3(command)
       end
     rescue Timeout::Error
       error_msg = "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort."
@@ -672,7 +684,7 @@ class MonadicApp
       Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
       File.open(COMMAND_LOG_FILE, "a") do |f|
         f.puts "Time: #{Time.now}"
-        f.puts "Command: #{command}"
+        f.puts "Command: #{command.is_a?(Array) ? Shellwords.join(command) : command}"
         f.puts "Error: #{stderr}" if stderr.strip.length.positive?
         f.puts "Output: #{stdout}"
         f.puts "-----------------------------------"

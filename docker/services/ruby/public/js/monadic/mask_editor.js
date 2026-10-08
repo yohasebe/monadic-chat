@@ -353,7 +353,7 @@ function openMaskEditor(imageData) {
       images.push(window.currentMaskData);
 
       const maskCreatedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskCreated') : 'Mask created for';
-      setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskCreatedMsg} ${imageData.title}`, "success");
+      setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskCreatedMsg} ${window.escapeHtml(imageData.title)}`, "success");
 
       const existingImageIndex = images.findIndex(img =>
         img.title === imageData.title && img !== window.currentMaskData
@@ -364,8 +364,8 @@ function openMaskEditor(imageData) {
       if (existingImageIndex !== -1) {
         if (imageUsedEl) {
           imageUsedEl.insertAdjacentHTML('beforeend', `
-            <div class="mask-overlay-container" data-original-image="${imageData.title}">
-              <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
+            <div class="mask-overlay-container" data-original-image="${window.escapeHtml(imageData.title)}">
+              <img class='base-image' alt='${window.escapeHtml(imageData.title)}' src='${window.escapeHtml(imageData.data)}' />
               <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
               <div class="mask-overlay-label">MASK</div>
               <div class="mask-controls">
@@ -381,7 +381,7 @@ function openMaskEditor(imageData) {
         }
 
         // Hide original image container
-        var origImg = document.querySelector(`.image-container img[alt="${imageData.title}"]`);
+        var origImg = document.querySelector(`.image-container img[alt="${CSS.escape(String(imageData.title))}"]`);
         if (origImg) {
           var container = origImg.closest('.image-container');
           $hide(container);
@@ -389,8 +389,8 @@ function openMaskEditor(imageData) {
       } else {
         if (imageUsedEl) {
           imageUsedEl.insertAdjacentHTML('beforeend', `
-            <div class="mask-overlay-container" data-original-image="${imageData.title}">
-              <img class='base-image' alt='${imageData.title}' src='${imageData.data}' />
+            <div class="mask-overlay-container" data-original-image="${window.escapeHtml(imageData.title)}">
+              <img class='base-image' alt='${window.escapeHtml(imageData.title)}' src='${window.escapeHtml(imageData.data)}' />
               <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
               <div class="mask-overlay-label">MASK</div>
               <div class="mask-controls">

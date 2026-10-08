@@ -7,6 +7,7 @@ require_relative "monadic/utils/ssl_configuration"
 require_relative "monadic/utils/workflow_viewer_helpers"
 require_relative "monadic/utils/container_dependencies"
 require_relative "monadic/utils/server_mode"
+require_relative "monadic/workspace"
 require_relative "monadic/mcp/server"
 
 # Optional startup profiling

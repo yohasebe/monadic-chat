@@ -426,6 +426,17 @@ EOF
   fi
 }
 
+# The Ruby container bind-mounts ~/monadic/state. Create it here, owned by
+# the user: left to Docker, a missing source is created as root on Linux and
+# the server run from the host could not write its ledger there.
+ensure_state_dir() {
+  if [[ -f "/.dockerenv" ]]; then
+    mkdir -p "/monadic/state"
+  else
+    mkdir -p "${HOME_DIR}/monadic/state" && chmod 700 "${HOME_DIR}/monadic/state"
+  fi
+}
+
 # Function to ensure data directory exists
 ensure_data_dir() {
   local container_type="$1"
@@ -446,6 +457,7 @@ ensure_data_dir() {
   mkdir -p "${data_dir}"
   mkdir -p "${log_dir}"
   mkdir -p "${config_dir}"
+  ensure_state_dir
 
   safe_rm "${log_dir}/command.log"
   safe_rm "${log_dir}/jupyter.log"
@@ -1289,6 +1301,7 @@ remove_legacy_prebuilt_images() {
 start_docker_compose() {
   set_docker_compose
   remove_legacy_prebuilt_images
+  ensure_state_dir
 
   # Wait until Docker is running
   local retries=0

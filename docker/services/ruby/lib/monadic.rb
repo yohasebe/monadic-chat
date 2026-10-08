@@ -6,6 +6,7 @@ $LOAD_PATH.uniq!
 require_relative "monadic/utils/ssl_configuration"
 require_relative "monadic/utils/workflow_viewer_helpers"
 require_relative "monadic/utils/container_dependencies"
+require_relative "monadic/utils/server_mode"
 require_relative "monadic/mcp/server"
 
 # Optional startup profiling
@@ -260,6 +261,10 @@ rescue StandardError => e
   CONFIG["ERROR"] = "Error loading configuration: #{e.message}"
 end
 
+# Runs after the env file is read, or failed to be read, so the access
+# check stays off on every path
+Monadic::Utils::ServerMode.normalize!(CONFIG)
+
 # Configure SSL defaults after environment has been processed
 begin
   Monadic::Utils::SSLConfiguration.configure!(CONFIG)
@@ -443,7 +448,6 @@ def init_apps
   
   # If in debug mode, log we're processing apps
   Monadic::Utils::ExtraLogger.log { "Initializing apps in normal mode" }
-  Monadic::Utils::ExtraLogger.log { "Debug: environment has DISTRIBUTED_MODE=#{ENV["DISTRIBUTED_MODE"]}" }
   
   klass.subclasses.each do |a|
     app = a.new
@@ -690,30 +694,6 @@ def init_apps
 
   # Load TTS dictionary from provided data, not from a path
   load_tts_dict
-
-  # Filter out Jupyter apps if we're in server mode unless explicitly allowed
-  distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] || "off"
-  allow_jupyter_in_server = CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] == true || CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] == "true"
-  
-  if distributed_mode == "server" && !allow_jupyter_in_server
-    # Create a new hash without the Jupyter apps
-    filtered_apps = {}
-    apps.each do |app_name, app|
-      settings = app.settings
-      if settings["jupyter"] == true ||
-         settings["jupyter"] == "true" ||
-         app_name.to_s.downcase.include?("jupyter") ||
-         settings["display_name"].to_s.downcase.include?("jupyter")
-        Monadic::Utils::ExtraLogger.log { "Filtering out Jupyter app in server mode: #{app_name}" }
-      else
-        filtered_apps[app_name] = app
-      end
-    end
-    apps = filtered_apps
-    puts "SERVER MODE: Filtered out Jupyter apps for security reasons (set ALLOW_JUPYTER_IN_SERVER_MODE=true in config to enable)"
-  elsif distributed_mode == "server" && allow_jupyter_in_server
-    puts "SERVER MODE: Jupyter apps enabled via ALLOW_JUPYTER_IN_SERVER_MODE configuration"
-  end
 
   # Group apps by provider and sort alphabetically within each group
   grouped_apps = apps.group_by { |_, app| app.settings["group"] }

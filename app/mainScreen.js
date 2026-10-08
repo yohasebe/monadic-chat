@@ -11,7 +11,6 @@ let currentStatus = 'Stopped';
 let networkUrlDisplayed = false;
 let serverStarted = false; // Flag to track if server has fully started
 let updateInProgress = false; // True while an app update is downloading or staged for install
-let lastMode = null; // Track the last set mode
 
 // Function to add copy functionality to code blocks
 function addCopyToClipboardListener() {
@@ -108,40 +107,11 @@ function addCommandListeners() {
   });
 }
 
-// Function to update system label based on mode
-function updateSystemLabelForMode(mode) {
-  const systemLabelElement = document.getElementById('systemLabel');
-  if (systemLabelElement) {
-    if (mode === 'server') {
-      systemLabelElement.innerHTML = ' <i class="fa-solid fa-server"></i> Server ';
-    } else {
-      systemLabelElement.innerHTML = ' <i class="fa-solid fa-cube"></i> System ';
-    }
-  }
-}
-
-// Function to update UI based on Docker Desktop status and operational mode
+// Function to update UI based on Docker Desktop status
 function updateDockerStatusUI(isRunning) {
   const dockerStatusElement = document.getElementById('dockerStatus');
   const dockerLabelElement = document.getElementById('dockerLabel');
-  const modeStatusElement = document.getElementById('modeStatus');
-  const modeLabelElement = document.getElementById('modeLabel');
-  
-  // Update mode display if elements exist
-  if (modeStatusElement && modeLabelElement) {
-    // Initialize with "Checking" during startup
-    if (modeStatusElement.textContent === "") {
-      modeStatusElement.textContent = 'Checking';
-      modeStatusElement.classList.remove('active');
-      modeStatusElement.classList.add('inactive');
-    }
-    
-    // NOTE: We no longer update the mode here - this is handled by the dedicated 
-    // onUpdateDistributedMode event listener to avoid race conditions
-    modeStatusElement.classList.remove('inactive');
-    modeStatusElement.classList.add('active');
-  }
-  
+
   // Normal Docker mode
   if (dockerLabelElement) {
     dockerLabelElement.style.display = '';
@@ -174,14 +144,13 @@ function updateMonadicChatStatusUI(status) {
   const statusElement = document.getElementById('status');
   
   // Debug output to console to help diagnose status issues
-  console.log(`Updating status UI: ${status}, distributed mode: ${window.electronAPI.getDistributedMode()}`);
+  console.log(`Updating status UI: ${status}`);
   
   // (debug) originalStatus removed to avoid unused warnings
   
   
-  // Special case: if we receive "Ready" status, handle differently based on mode
+  // Special case: "Ready" shows Started only once the server is verified
   if (status === 'Ready') {
-    // Both Standalone and Server mode now wait for server to be fully ready
     if (serverStarted) {
       console.log("Server ready and serverStarted=true, showing Started");
       statusElement.textContent = "Started";
@@ -246,7 +215,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.settings.disabled = false;
     statusElement.textContent = status;
   } else if (status === 'Running') {
-    // For Running state, show "Starting" for both modes until server verification completes
+    // For Running state, show "Starting" until server verification completes
     if (serverStarted) {
       // Only if serverStarted is true (should not happen normally with Running status)
       statusElement.textContent = "Started";
@@ -254,7 +223,7 @@ function updateMonadicChatStatusUI(status) {
       statusElement.classList.remove('blinking');
       statusElement.classList.add('active');
     } else {
-      // In both modes, show "Starting" until server is verified
+      // Show "Starting" until server is verified
       statusElement.textContent = "Starting";
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
@@ -265,8 +234,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.start.disabled = true;
     buttons.stop.disabled = false;
     buttons.restart.disabled = false;
-    // Browser enabled in Standalone mode, disabled in Server mode
-    buttons.browser.disabled = window.electronAPI.getDistributedMode() === 'server';
+    buttons.browser.disabled = false;
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else if (status === 'Ready') {
@@ -347,71 +315,6 @@ function writeToScreen(text) {
       return;
     }
     
-    // Get current mode - try multiple sources
-    let currentMode = null;
-    try {
-      // First try the API
-      currentMode = window.electronAPI.getDistributedMode();
-    } catch {
-      // Fallback to cookie
-      const match = document.cookie.match(/distributed-mode=([^;]+)/);
-      if (match) {
-        currentMode = match[1];
-      }
-    }
-    
-    // Also check the mode status element as another fallback
-    if (!currentMode) {
-      const modeStatusElement = document.getElementById('modeStatus');
-      if (modeStatusElement && modeStatusElement.textContent === 'Server') {
-        currentMode = 'server';
-      }
-    }
-    
-    // Handle connection-related status updates for Server mode
-    if (currentMode === 'server') {
-      // Server is still in connecting stage - failed attempts (English only)
-      if (interfaceLanguage === 'en' && text.includes("Connecting to server: attempt") && text.includes("failed")) {
-        const statusElement = document.getElementById('status');
-        if (statusElement && statusElement.textContent !== "Finalizing") {
-          console.log("Server connection attempt failed - ensuring status shows Finalizing");
-          statusElement.textContent = "Finalizing";
-          statusElement.classList.remove('active');
-          statusElement.classList.add('inactive');
-        }
-        return; // Don't show attempt failed messages in server mode (English only)
-      }
-      
-      // Don't show retry messages in server mode (English only)
-      else if (interfaceLanguage === 'en' && text.includes("Retrying in")) {
-        return;
-      }
-      
-      // Connection succeeded but still need to display network URL
-      else if (text.includes("Connecting to server: success")) {
-        console.log("Server connection success detected - waiting for network URL");
-        const statusElement = document.getElementById('status');
-        if (statusElement && !serverStarted) {
-          statusElement.textContent = "Finalizing";
-          statusElement.classList.remove('active');
-          statusElement.classList.add('inactive');
-        }
-        return; // Don't show success message in server mode
-      }
-      
-      // Server verification complete but still waiting for network URL
-      else if (text.includes("Server verification complete")) {
-        console.log("Server verification complete - waiting for network URL");
-        const statusElement = document.getElementById('status');
-        if (statusElement && !serverStarted) {
-          statusElement.textContent = "Finalizing";
-          statusElement.classList.remove('active');
-          statusElement.classList.add('inactive');
-        }
-        return; // Don't show verification message in server mode
-      }
-    }
-    
     // Handle update check messages - replace the checking message
     // Check for update result messages by looking for specific icons instead of text
     const hasUpdateResult = text.includes('fa-circle-check') || // Success (latest version)
@@ -446,9 +349,7 @@ function writeToScreen(text) {
       logLines = 0;
       // Add stop message to messages area with timestamp
       const timestamp = new Date().toLocaleTimeString();
-      const stopMessageKey = window.electronAPI.getDistributedMode() === 'server' 
-        ? 'messages.serverStopped' 
-        : 'messages.systemStopped';
+      const stopMessageKey = 'messages.systemStopped';
       
       // Get translated stop message
       let stopMessage = stopMessageKey;
@@ -456,10 +357,7 @@ function writeToScreen(text) {
         stopMessage = window.i18n.t(stopMessageKey, { time: timestamp });
       } else {
         // Fallback to English if i18n not available
-        const defaultMessage = window.electronAPI.getDistributedMode() === 'server' 
-          ? 'Server stopped' 
-          : 'System stopped';
-        stopMessage = `${defaultMessage} at ${timestamp}`;
+        stopMessage = `System stopped at ${timestamp}`;
       }
       
       htmlOutputElement.innerHTML += `<p style="color: #999;"><i class="fa-solid fa-circle-stop"></i> ${stopMessage}</p>\n`;
@@ -602,10 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
   dockerStatusElement.classList.add('blinking'); // Add blinking for initial checking
   dockerStatusElement.textContent = 'Checking';
   
-  // Set initial system label based on current mode
-  const initialMode = window.electronAPI.getDistributedMode();
-  updateSystemLabelForMode(initialMode);
-
   // Update version
   window.electronAPI.onUpdateVersion((_event, ver) => {
     const versionElement = document.getElementById('version');
@@ -639,58 +533,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Listen for distributed mode updates from the main process
-  window.electronAPI.onUpdateDistributedMode((_event, data) => {
-    // Support both old format (string) and new format (object)
-    const mode = typeof data === 'string' ? data : data.mode;
-    const _localIP = typeof data === 'object' && data.localIP ? data.localIP : null;
-    
-    // Update system label icon based on mode
-    updateSystemLabelForMode(mode === 'server' ? 'server' : 'off');
-    
-    const modeStatusElement = document.getElementById('modeStatus');
-    if (modeStatusElement) {
-      modeStatusElement.textContent = mode === 'server' ? 'Server' : 'Standalone';
-      
-      // Set colors based on mode - using a unified color palette
-      if (mode === 'server') {
-        modeStatusElement.style.color = '#ff6666'; // More distinct red for server mode
-        modeStatusElement.classList.remove('active');
-        modeStatusElement.classList.add('inactive');
-      } else {
-        modeStatusElement.style.color = '#66ccff'; // Soft blue for standalone mode
-        modeStatusElement.classList.remove('inactive');
-        modeStatusElement.classList.add('active');
-        
-        // Reset flags when switching to standalone mode
-        networkUrlDisplayed = false;
-        serverStarted = false;
-      }
-      
-      // If the mode has changed, clear the messages area and display new mode info
-      if (lastMode !== null && lastMode !== mode) {
-        // Clear messages area
-        htmlOutputElement.innerHTML = '';
-        htmlMessageCount = 0; // Reset message count
-        
-        // Add new mode information message
-        const modeInfo = mode === 'server' ? 
-          `<p><i class="fa-solid fa-info-circle" style="color:#ff6666;"></i> <b>Server Mode</b>: System is now in Server Mode. Please start the service and access via browser from other devices on your network.</p>` : 
-          `<p><i class="fa-solid fa-info-circle" style="color:#66ccff;"></i> <b>Standalone Mode</b>: System is now in Standalone Mode for local use.</p>`;
-        
-        htmlOutputElement.innerHTML = modeInfo;
-        htmlMessageCount = 1; // Count the mode info message
-      }
-      
-      // Update last mode
-      lastMode = mode;
-      
-      // Force a cookie update to ensure consistency
-      document.cookie = `distributed-mode=${mode}; path=/; max-age=31536000`;
-      console.log(`Mode updated to: ${mode}`);
-    }
-  });
-  
   // Handle controls update from main process
   window.electronAPI.onUpdateControls((_event, data) => {
     const { status, disableControls } = data;
@@ -720,25 +562,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Don't hide startup animation here - let it complete naturally
 
       const networkUrl = `http://${data.localIP}:4567`;
-      // The main process says which mode it started in; the cookie the
-      // renderer used to read is not kept for the console page.
-      const mode = data.mode || window.electronAPI.getDistributedMode();
-      // Server mode: append the auth token so the displayed URL is
-      // shareable. Phone/tablet browsers paste the URL with the token
-      // and authenticate via the AuthMiddleware (cookie set on the
-      // first successful match → bookmarkable for subsequent loads).
-      // The URL is rendered as plain text so users notice the token
-      // BEFORE they paste it into a chat or screenshot it.
-      const shareableUrl = (mode === 'server' && data.authToken)
-        ? `${networkUrl}/?monadic_auth=${encodeURIComponent(data.authToken)}`
-        : networkUrl;
-      const escapedShareUrl = shareableUrl
-        .replace(/&/g, '&amp;').replace(/'/g, '&#39;');
-      const escapedJsLiteral = shareableUrl.replace(/'/g, "\\'");
-      const urlMessage = mode === 'server'
-        ? `<p><i class="fa-solid fa-network-wired" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${escapedJsLiteral}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${escapedShareUrl.replace(/"/g, '&quot;')}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff; word-break: break-all;">${escapedShareUrl}</span><br><small style="color:#999;">Server mode requires authentication. Share this full URL with anyone you want to grant access.</small></p>`
-        : `<p><i class="fa-solid fa-laptop" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${networkUrl}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${networkUrl}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff;">${networkUrl}</span></p>`;
-      
+      const urlMessage = `<p><i class="fa-solid fa-laptop" style="color:#66ccff;"></i> System available at: <span class="network-url" onclick="navigator.clipboard.writeText('${networkUrl}').then(() => { this.innerHTML = '✓ Copied!'; setTimeout(() => { this.innerHTML = '${networkUrl}'; }, 1000); })" style="cursor:pointer; text-decoration:underline; color:#66ccff;">${networkUrl}</span></p>`;
+
       // Write directly to HTML output instead of going through writeToScreen
       htmlOutputElement.innerHTML += urlMessage + '\n';
       htmlMessageCount++;
@@ -759,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Mark server as fully started when network URL is displayed
       serverStarted = true;
       
-      // Update status indicator if status is Ready or Finalizing (for both modes)
+      // Update status indicator if status is Ready or Finalizing
       const statusElement = document.getElementById('status');
       if (statusElement && (statusElement.textContent === "Finalizing" || currentStatus === 'Ready' || statusElement.textContent === "Starting" || statusElement.textContent === "Started")) {
         console.log("Network URL displayed - updating status to Started");
@@ -820,35 +645,25 @@ document.addEventListener('DOMContentLoaded', () => {
     serverStarted = false;
     inStartupPhase = false;
     
-    // Get the current mode and show initial message
-    const mode = window.electronAPI.getDistributedMode();
-    let initialMessage = '';
-    
-    if (mode === 'server') {
-      initialMessage = `
-        <p><b>Monadic Chat: <span style="color: #DC4C64; font-weight: bold;">Server Mode</span></b></p>
-        <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> Running in server mode. Services will be accessible from external devices.</p>
-        <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>Security notice:</strong> Jupyter features are disabled in Server Mode for security.</p>
-        <p>Press <b>start</b> button to initialize the server.</p>
+    // Show the initial message. On Linux, Docker is often the Docker
+    // Engine service, not Docker Desktop.
+    const isLinux = window.electronAPI && window.electronAPI.platform === 'linux';
+    const tipKey = isLinux ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
+    const dockerTip = (window.i18n && window.i18n.t)
+      ? window.i18n.t(tipKey)
+      : (isLinux ? 'Please make sure Docker is running while using Monadic Chat.'
+                 : 'Please make sure Docker Desktop is running while using Monadic Chat.');
+    const pressStart = (window.i18n && window.i18n.t)
+      ? window.i18n.t('messages.pressStartButton')
+      : 'Press <b>start</b> button to initialize the server.';
+    const initialMessage = `
+        <p><b>Monadic Chat</b></p>
+        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${dockerTip}</p>
+        <p>${pressStart}</p>
         <hr />`;
-    } else {
-      // On Linux, Docker is often the Docker Engine service, not Docker Desktop.
-      const isLinux = window.electronAPI && window.electronAPI.platform === 'linux';
-      const tipKey = isLinux ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
-      const standaloneTip = (window.i18n && window.i18n.t)
-        ? window.i18n.t(tipKey)
-        : (isLinux ? 'Please make sure Docker is running while using Monadic Chat.'
-                   : 'Please make sure Docker Desktop is running while using Monadic Chat.');
-      initialMessage = `
-        <p><b>Monadic Chat: <span style="color: #4CACDC; font-weight: bold;">Standalone Mode</span></b></p>
-        <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> Running in standalone mode. Services are accessible locally only.</p>
-        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${standaloneTip}</p>
-        <p>Press <b>start</b> button to initialize the server.</p>
-        <hr />`;
-    }
     
     htmlOutputElement.innerHTML = initialMessage;
-    htmlMessageCount = 5; // Count initial messages (title, mode description, notice, start instruction, hr)
+    htmlMessageCount = 4; // Count initial messages (title, tip, start instruction, hr)
     
     // Show the last update check result if available
     if (lastUpdateResult) {

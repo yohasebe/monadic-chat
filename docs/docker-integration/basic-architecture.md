@@ -8,40 +8,13 @@ It also provides a mechanism for sharing data between the host computer and indi
 
 ![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
 
-## Server and Standalone Modes :id=server-standalone-modes
+## Local Operation :id=local-operation
 
-Monadic Chat can operate in two primary modes:
-
-### Standalone Mode :id=standalone-mode
-- Default operating mode
 - All components run on a single machine
 - Docker containers, web server, and UI are on the same device
-- Network bindings use `127.0.0.1` (localhost) for enhanced security
+- Network bindings use `127.0.0.1` (localhost)
 - Only accessible from the device it runs on
-- All features including Jupyter Notebook are available
-
-### Server Mode :id=server-mode
-- Enables multiple clients to connect to a central server
-- Server hosts Docker containers and web services
-- Clients connect through their web browsers
-- Network bindings use `0.0.0.0` (all network interfaces)
-- Network URLs use the server's external IP address
-- Enables sharing resources across multiple users
-- Session isolation ensures each user's data remains private
-- Each browser tab is an independent conversation session
-- Jupyter-related features are disabled for security reasons (see [JupyterLab - Server Mode Restrictions](jupyterlab.md#server-mode-restrictions) for the opt-in exception)
-
-!> **Security Warning**: Server Mode requires an access token (`MONADIC_AUTH_TOKEN`); clients on other devices authenticate with a token URL, and requests without a valid token are rejected (see [Web Interface](../basic-usage/web-interface.md) for the authentication flow). The token gate is designed for trusted local networks — when exposing Monadic Chat to external networks, especially the internet, still add security layers such as firewalls, reverse proxies, and TLS.
-
-For details on multi-tab session management and session isolation, see [Advanced Configuration](../advanced-topics/advanced-configuration.md#server-mode).
-
-To switch between modes in the desktop application:
-
-1. Click on the settings icon in the top-right corner
-2. Choose either "Standalone Mode" or "Server Mode"
-3. Save and restart the application when prompted
-
-To enable Server Mode when running from source code, set the environment variable `DISTRIBUTED_MODE=server` when starting Monadic Chat.
+- Each browser tab is an independent conversation session (see [Multi-Tab Session Management](../advanced-topics/advanced-configuration.md#multi-tab-sessions))
 
 ## Standard Docker Containers :id=standard-containers
 

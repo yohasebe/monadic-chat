@@ -42,11 +42,10 @@ class MCPServerStarter
   end
 end
 
-# In server (distributed) mode the WebSocket port is bound to 0.0.0.0 so
-# anyone on the LAN can reach the app. The auth middleware gates non-
-# loopback traffic against MONADIC_AUTH_TOKEN; standalone-mode and
-# loopback (host) requests pass through untouched. See
-# lib/monadic/utils/auth_middleware.rb for the token sources.
+# The ports are published to this machine only. The auth middleware asks
+# for MONADIC_AUTH_TOKEN only when DISTRIBUTED_MODE is "server", which
+# Monadic::Utils::ServerMode.normalize! never leaves set, so it passes every
+# request through. See lib/monadic/utils/auth_middleware.rb.
 use Monadic::Utils::AuthMiddleware
 use MCPServerStarter
 run Sinatra::Application

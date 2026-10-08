@@ -25,18 +25,6 @@ When running in internal browser mode, five additional buttons appear at the bot
 In external browser mode, Monadic Chat launches your default web browser and connects to the local server (at `http://localhost:4567`).
 
 
-## Application Modes :id=application-modes
-
-**Standalone Mode (Default)**<br />
-Runs locally on a single device for personal use.
-
-**Server Mode**<br />
-Allows multiple devices on the local network to connect to the same Monadic Chat instance. The interface adapts to different screen sizes. Jupyter Notebook functionality is disabled by default for security reasons (see [JupyterLab - Server Mode Restrictions](../docker-integration/jupyterlab.md#server-mode-restrictions) for the opt-in exception).
-
-Server Mode requires authentication for every client other than the server's own loopback. When the mode is first enabled, Monadic Chat generates a random 256-bit token in `~/monadic/config/env` (`MONADIC_AUTH_TOKEN`) and the host console displays the full shareable URL — e.g. `http://192.168.1.50:4567/?monadic_auth=<token>`. Anyone using that URL on the LAN authenticates on the first request, the token is set as a cookie, and subsequent navigations work without echoing it in the URL. The desktop app sends the token itself, so its console and built-in browser work without entering it. A browser on the host machine authenticates with the same URL as any other device. To rotate the token, delete `MONADIC_AUTH_TOKEN` from the env file and restart Monadic Chat. Server Mode serves plain HTTP, so the token and the session cookie travel unencrypted on the network: use it only on a network you trust.
-
-Configure the application mode in the Console Settings panel. For the architectural differences between the two modes (network bindings, container hosting, session isolation), see [Basic Architecture](../docker-integration/basic-architecture.md#server-standalone-modes).
-
 ## Language Settings :id=language-settings
 
 The interface supports 58 languages. Select your preferred language from the dropdown in the Info panel to configure speech-to-text, text-to-speech, and AI response language. Right-to-Left (RTL) text display is automatically applied for Arabic, Hebrew, Persian, and Urdu.

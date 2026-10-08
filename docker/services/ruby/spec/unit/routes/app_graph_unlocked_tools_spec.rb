@@ -7,8 +7,8 @@ require 'spec_helper'
 #    unlocked tools (read from the Rack session shared with the WebSocket
 #    handlers) so the Workflow Viewer can mark them;
 #  - handle_request_tool must notify the requesting session (NOT broadcast to
-#    everyone: unlocks are per-session state, and in server mode other users
-#    must not receive them) with a tool_unlocked event.
+#    everyone: unlocks are per-session state, and other tabs must not
+#    receive them) with a tool_unlocked event.
 RSpec.describe 'App graph dynamic-skill wiring' do
   let(:routes_src) do
     File.read(File.expand_path('../../../lib/monadic/routes/api_routes.rb', __dir__))

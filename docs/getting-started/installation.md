@@ -114,7 +114,6 @@ You can also download it yourself from the [release page for 1.0.0-beta.40](http
 
 For advanced configuration options including:
 - Install Options (LaTeX, Python libraries, etc.)
-- Server Mode setup
 - Rebuild procedures
 - Environment variables
 

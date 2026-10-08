@@ -126,29 +126,10 @@ To see all available models from the provider, toggle the **All** switch next to
 
 | Variable | Description | Default | Options |
 |----------|-------------|---------|---------|
-| `DISTRIBUTED_MODE` | Enable multi-user server mode | `off` | `off`, `server` |
 | `SESSION_SECRET` | Secret key for session management | (generated) | Any string |
 | `MCP_SERVER_ENABLED` | Enable Model Context Protocol server | `false` | `true`, `false` |
 | `MCP_SERVER_PORT` | Port for the Model Context Protocol server | `3100` | Any free port |
-| `ALLOW_JUPYTER_IN_SERVER_MODE` | Enable Jupyter in server mode | `false` | `true`, `false` |
 | `EXTRA_LOGGING` | Enable detailed logging | `false` | `true`, `false` |
-
-### Application Modes
-
-Monadic Chat supports two application modes that control network accessibility:
-
-**Standalone Mode** (Default: `DISTRIBUTED_MODE=off` or unset)
-- Server binds to `127.0.0.1` (localhost only)
-- Accessible only from the local machine
-- JupyterLab environment enabled
-- Recommended for single-user local development
-
-**Server Mode** (`DISTRIBUTED_MODE=server`)
-- Server binds to `0.0.0.0` (all network interfaces)
-- Accessible from any device on the network via local IP address (e.g., `http://192.168.1.10:4567`)
-- Each connected device has its own session; conversation state is stored per browser session and is not shared across devices or browsers
-- JupyterLab disabled by default for security (enable with `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
-- See [Advanced Configuration](/advanced-topics/advanced-configuration.md) for session isolation details
 
 ## Container Settings
 
@@ -244,7 +225,6 @@ PDF_RAG_TOKENS=6000
 PDF_RAG_OVERLAP_LINES=6
 
 # Development
-DISTRIBUTED_MODE=server
 MCP_SERVER_ENABLED=true
 ```
 

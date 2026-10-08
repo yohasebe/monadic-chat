@@ -135,10 +135,10 @@ This means messages may not be reaching the WebSocket connection. Verify that `W
 2025-11-07
 
 ### Problem Addressed
-Prior to this update, `broadcast_to_all()` sent messages to ALL WebSocket connections across all users and sessions. In distributed/server mode with multiple users, this caused:
-- User A's parameters/messages appearing in User B's browser
-- Privacy violations in multi-user environments
-- Session state contamination between different users
+Prior to this update, `broadcast_to_all()` sent messages to ALL WebSocket connections across all sessions. With several tabs open, this caused:
+- One tab's parameters/messages appearing in another tab
+- Data from one conversation shown in another
+- Session state contamination between tabs
 
 ### Solution
 Modified all broadcasting calls in session-specific operations to use **session-targeted broadcasting**:
@@ -202,10 +202,8 @@ When a new tab opens while a conversation is active in another tab:
 - Other sessions remain unaffected
 
 ### Security Benefits
-- **User Privacy**: Each user's data is isolated from other users
-- **Multi-Tenant Safe**: Supports multiple users on same server
+- **Tab isolation**: Each tab's data stays in that tab
 - **Session Integrity**: Browser sessions remain independent
-- **Distributed Mode Ready**: Works correctly in server mode with multiple clients
 
 ### Backward Compatibility
 All modified functions include fallback to `broadcast_to_all()` when `ws_session_id` is not available, maintaining compatibility with edge cases or legacy connection paths.
@@ -306,9 +304,9 @@ After this comprehensive implementation (including final review fixes):
 ✅ **Connection keepalive (PONG)** is connection-specific
 ✅ **Shared resources (voice lists)** correctly remain global
 ✅ **Multi-tab synchronization** works within same session
-✅ **Multi-user isolation** works across different sessions
+✅ **Tab isolation** works across different sessions
 
-**The system is now secure for server mode deployment with multiple users.**
+Messages reach only the tab (session) they belong to.
 
 ### Testing Recommendations
 
@@ -336,5 +334,5 @@ To verify session isolation:
 - The MDSL validation errors seen during server startup are unrelated to this feature
 - Background bash processes (409abb, 4d556e) were test servers during development
 - The implementation prioritizes working functionality over architectural purity
-- Session isolation is critical for distributed/server mode deployments
+- Session isolation keeps one tab's progress and parameters out of the others
 - All fixes maintain backward compatibility via fallback clauses

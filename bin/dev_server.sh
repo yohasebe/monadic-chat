@@ -90,4 +90,5 @@ export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 export DEBUG_MODE=true
 
 # Start Falcon in foreground with single worker for debugging (allows Ctrl+C to stop gracefully)
-exec bundle exec falcon serve -b http://0.0.0.0:4567 -c config.ru --count 1
+# This machine only: nothing on the server checks who connects
+exec bundle exec falcon serve -b http://127.0.0.1:4567 -c config.ru --count 1

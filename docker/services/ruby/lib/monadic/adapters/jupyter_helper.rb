@@ -637,26 +637,9 @@ module MonadicHelper
   
   private
   
-  # Get appropriate Jupyter host based on distributed mode
+  # JupyterLab is published on this machine only
   def get_jupyter_host
-    if defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] == "server"
-      # In server mode, try to find external IP
-      begin
-        require 'socket'
-        # Find a non-localhost IP address
-        addr = Socket.ip_address_list.find do |ip|
-          ip.ipv4? && !ip.ipv4_loopback? && !ip.ipv4_multicast?
-        end
-        addr ? addr.ip_address : "127.0.0.1"
-      rescue StandardError => e
-        # If error finding IP, fall back to default
-        Monadic::Utils::ExtraLogger.log { "[WARNING] Error getting IP address: #{e.message}" }
-        "127.0.0.1"
-      end
-    else
-      # In standalone mode, use localhost
-      "127.0.0.1"
-    end
+    "127.0.0.1"
   end
   
   # Get complete Jupyter base URL

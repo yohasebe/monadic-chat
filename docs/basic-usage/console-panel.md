@@ -199,9 +199,6 @@ Set the maximum text size (in bytes) for automatic text-to-speech playback in po
 
 ### Services
 
-**Application Mode** <br />
-Select the application mode. "Standalone" mode runs the application for a single device while "Server" mode allows multiple devices in the local network to connect to the Monadic Chat server. The default is "Standalone".
-
 **Enable MCP Server** <br />
 Enable the Model Context Protocol (MCP) server, which exposes Monadic Chat's tools to external AI assistants. See [MCP Integration](../advanced-topics/mcp-integration.md).
 

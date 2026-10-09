@@ -151,35 +151,50 @@ module Monadic
     # @!visibility private
     # With a timeout the command is stopped once it runs over and TimedOut
     # is raised. (Open3.capture3 has no timeout option: passing one raised
-    # ArgumentError.) Stopping `docker exec` ends the client, not
-    # necessarily the process it started in the container.
+    # ArgumentError.) The command runs in a process group of its own and the
+    # whole group is stopped, so a child it started cannot keep the output
+    # open and hold the caller past the limit. Stopping `docker exec` ends the
+    # client, not necessarily the process it started in the container.
     def capture(argv, timeout: nil)
       stdout, stderr, status = timeout ? capture_with_timeout(argv, timeout) : Open3.capture3(*argv)
       log_invocation(argv, stdout, stderr)
       [stdout, stderr, status]
     end
 
+    READ_GRACE = 2 # seconds to collect output once the command has ended or been stopped
+
     def capture_with_timeout(argv, timeout)
-      Open3.popen3(*argv) do |stdin, out, err, wait|
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+      Open3.popen3(*argv, pgroup: true) do |stdin, out, err, wait|
         stdin.close
-        out_reader = Thread.new { out.read }
-        err_reader = Thread.new { err.read }
-        unless wait.join(timeout)
-          stop(wait.pid)
-          wait.join
-          out_reader.join
-          err_reader.join
+        readers = [out, err].map { |io| Thread.new { read_all(io) } }
+        finished = wait.join(timeout)
+        # A child left running can hold the pipes open after the command
+        # itself ends; output is read until the deadline, not until EOF.
+        remaining = [deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC), 0].max
+        drained = finished && readers.all? { |t| t.join(remaining) }
+        unless finished && drained
+          stop_group(wait.pid)
+          wait.join(READ_GRACE)
+          readers.each { |t| t.join(READ_GRACE) }
+          [out, err].each { |io| io.close unless io.closed? }
           raise TimedOut, "#{File.basename(argv.first.to_s)} did not finish within #{timeout} seconds"
         end
-        [out_reader.value, err_reader.value, wait.value]
+        [readers[0].value, readers[1].value, wait.value]
       end
     end
 
-    def stop(pid)
-      Process.kill('TERM', pid)
+    def read_all(io)
+      io.read
+    rescue IOError
+      ''
+    end
+
+    def stop_group(pgid)
+      Process.kill('TERM', -pgid)
       sleep 0.5
-      Process.kill('KILL', pid)
-    rescue Errno::ESRCH
+      Process.kill('KILL', -pgid)
+    rescue Errno::ESRCH, Errno::EPERM
       nil
     end
   end

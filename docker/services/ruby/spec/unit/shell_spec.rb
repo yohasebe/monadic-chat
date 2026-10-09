@@ -76,6 +76,33 @@ RSpec.describe Monadic::Shell do
       expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 5
     end
 
+    it 'does not wait past the limit for a child that keeps the output open' do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      expect { described_class.capture(['sh', '-c', 'sleep 30 & wait'], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut)
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 6
+    end
+
+    it 'stops the children too, not only the command' do
+      marker = "monadic-shell-spec-#{Process.pid}-#{rand(100_000)}"
+      # The child is a shell named by the marker ($0), kept alive by a compound
+      # command so it does not exec into sleep and lose the name.
+      child = "sh -c 'sleep 30; :' #{marker} >/dev/null 2>&1"
+      expect { described_class.capture(["sh", "-c", "#{child} & exec sleep 30"], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut)
+      sleep 1
+      expect(`pgrep -f #{marker}`.strip).to be_empty
+    ensure
+      system('pkill', '-f', marker.to_s) if marker
+    end
+
+    it 'does not wait for a child that the command left running after it ended' do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      expect { described_class.capture(['sh', '-c', 'sleep 30 & echo done'], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut)
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 6
+    end
+
     it 'passes the timeout from exec to the command it runs' do
       expect(described_class).to receive(:capture).with(array_including('docker', 'exec', 'true'), timeout: 5)
         .and_return(['', '', double(success?: true)])

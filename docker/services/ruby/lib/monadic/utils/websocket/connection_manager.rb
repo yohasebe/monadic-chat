@@ -97,17 +97,33 @@ module WebSocketHelper
     obj
   end
 
+  # A tab can briefly have two connections: the one it is reconnecting from
+  # and the new one. Each connection claims a generation when it opens, and
+  # a write from an older generation is ignored, so the old connection's
+  # last save as it closes cannot undo what the new one did (such as a Reset
+  # that moved the tab to a new chat).
+  def self.claim_session_state(session_id)
+    @@session_state_mutex.synchronize do
+      state = (@@session_state[session_id] ||= {})
+      state[:generation] = state[:generation].to_i + 1
+    end
+  end
+
   # chat_id is kept as is when not given, so callers that only carry
-  # messages and parameters do not move a tab to another chat.
-  def self.update_session_state(session_id, messages:, parameters:, chat_id: nil)
+  # messages and parameters do not move a tab to another chat. Returns
+  # false when the write came from a connection that has been replaced.
+  def self.update_session_state(session_id, messages:, parameters:, chat_id: nil, generation: nil)
     return unless session_id
 
     @@session_state_mutex.synchronize do
       @@session_state[session_id] ||= {}
       state = @@session_state[session_id]
+      return false if generation && state[:generation] && generation < state[:generation]
+
       state[:messages] = deep_clone_session_state(messages || [])
       state[:parameters] = deep_clone_session_state(parameters || {})
       state[:chat_id] = chat_id if chat_id
+      true
     end
   end
 

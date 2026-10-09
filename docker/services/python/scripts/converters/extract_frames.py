@@ -90,6 +90,16 @@ def select_frames(candidates, limit):
     return [candidates[i] for i in sorted(chosen)]
 
 
+def fit_within(width, height, longest):
+    """(width, height) scaled so the longer side is at most `longest`, never enlarged.
+
+    Scaling the width to a fixed value let a tall, narrow video ask for an
+    image hundreds of times its own size (2x4096 became 768x1572864).
+    """
+    scale = min(1.0, longest / max(width, height))
+    return max(1, round(width * scale)), max(1, round(height * scale))
+
+
 def extract_frames(video_path, output_dir, output_format, frame_limit, fps, output_json, resize_width):
     if fps <= 0 or not math.isfinite(fps) or resize_width < 8 or (frame_limit is not None and frame_limit < 1):
         raise ValueError("FPS, width and frame limit must be positive (width >= 8)")
@@ -148,8 +158,7 @@ def extract_frames(video_path, output_dir, output_format, frame_limit, fps, outp
             if index not in selected_by_index:
                 continue
             item = {k: v for k, v in selected_by_index[index].items() if k != "signature"}
-            height = max(1, round(frame.shape[0] * resize_width / frame.shape[1]))
-            resized = cv2.resize(frame, (resize_width, height))
+            resized = cv2.resize(frame, fit_within(frame.shape[1], frame.shape[0], resize_width))
             success, buffer = cv2.imencode(f".{output_format}", resized)
             if not success:
                 raise ValueError("Could not encode selected frame")
@@ -207,7 +216,7 @@ def main():
     parser.add_argument("--frames", type=int, default=None, help="Maximum selected frames (default: no limit).")
     parser.add_argument("--fps", type=float, default=1.0, help="Number of frames to extract per second (default: 1.0).")
     parser.add_argument("--json", action="store_true", help="Output versioned JSON with timestamps and base64 images.")
-    parser.add_argument("--width", type=int, default=768, help="Width to resize the images to (default: 768).")
+    parser.add_argument("--width", type=int, default=768, help="Longest side of the saved images; smaller frames are not enlarged (default: 768).")
     parser.add_argument("--audio", action="store_true", help="Extract audio from the video and save as an mp3 file.")
     parser.add_argument("--audio-bitrate", type=str, default=None,
                         help="Constant audio bitrate such as 64k (default: variable high quality).")

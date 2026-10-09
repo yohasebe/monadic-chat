@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../../workspace'
+
 require_relative '../tts_provider'
 
 # Streaming query handler for WebSocket connections.
@@ -198,6 +200,12 @@ module WebSocketHelper
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
 
+    # The chat this turn belongs to. A Reset or app switch while it runs
+    # starts another chat (Workspace::Chats); what this turn produces is
+    # then dropped rather than delivered into, and recorded in, the new one.
+    chat_at_start = session[Monadic::Workspace::Chats::SESSION_KEY]
+    chat_changed = -> { session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
+
     session[:parameters].merge! obj
 
     # Guard: STS realtime models are voice-only — they have no chat
@@ -326,6 +334,8 @@ module WebSocketHelper
 
       prev_texts_for_tts = []
       responses = app_obj.api_request("user", session) do |fragment|
+        next if chat_changed.call
+
         # DEBUG: Log all fragment arrivals
         Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}" }
 
@@ -404,6 +414,12 @@ module WebSocketHelper
         send_or_broadcast(flush_payload, ws_session_id)
         sentinel_held = +""
         sentinel_state = :passthrough
+      end
+
+      if chat_changed.call
+        # Still end the turn on the page, which has moved on to the new chat.
+        send_or_broadcast({ "type" => "streaming_complete" }.to_json, ws_session_id)
+        Thread.exit
       end
 
       Thread.exit if !responses || responses.empty?
@@ -627,7 +643,7 @@ module WebSocketHelper
           # which extracts text from tool parameters (e.g., save_response message)
           # and stores it in session[:tts_text], processed earlier in the pipeline
 
-          queue.push(response)
+          queue.push(response) unless chat_changed.call
         end
       end
 

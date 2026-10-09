@@ -293,6 +293,47 @@ RSpec.describe 'Per-chat workspaces' do
     end
   end
 
+  # A tab reconnecting can have its old and new connections open at once.
+  describe 'an old connection closing after the new one changed the chat' do
+    let(:tab) { "tab-#{SecureRandom.hex(4)}" }
+    let(:host) { Class.new { include WebSocketHelper }.new }
+
+    # The real save, run as the given connection would run it.
+    def save_as(connection_session)
+      Thread.current[:websocket_session_id] = tab
+      Thread.current[:rack_session] = connection_session
+      host.send(:sync_session_state!)
+    ensure
+      Thread.current[:websocket_session_id] = nil
+      Thread.current[:rack_session] = nil
+    end
+
+    it 'keeps the new chat when the replaced connection saves last' do
+      old_chat = ids.generate(:chat)
+      a = { messages: [], parameters: {}, chat_id: old_chat, _ws_generation: WebSocketHelper.claim_session_state(tab) }
+      save_as(a)
+      b = { messages: [], parameters: {}, chat_id: old_chat, _ws_generation: WebSocketHelper.claim_session_state(tab) }
+      host.send(:handle_ws_reset, b.tap { Thread.current[:websocket_session_id] = tab; Thread.current[:rack_session] = b })
+      new_chat = b[:chat_id]
+      expect(new_chat).not_to eq(old_chat)
+      expect(WebSocketHelper.fetch_session_state(tab)[:chat_id]).to eq(new_chat)
+
+      save_as(a) # the old connection closes
+      expect(WebSocketHelper.fetch_session_state(tab)[:chat_id]).to eq(new_chat)
+    ensure
+      Thread.current[:websocket_session_id] = nil
+      Thread.current[:rack_session] = nil
+    end
+
+    it 'lets the newest connection keep saving' do
+      a = { messages: [], parameters: {}, chat_id: ids.generate(:chat), _ws_generation: WebSocketHelper.claim_session_state(tab) }
+      save_as(a)
+      a[:messages] << { 'text' => 'later' }
+      save_as(a)
+      expect(WebSocketHelper.fetch_session_state(tab)[:messages].size).to eq(1)
+    end
+  end
+
   describe 'tab state across reconnects' do
     let(:tab) { "tab-#{SecureRandom.hex(4)}" }
 

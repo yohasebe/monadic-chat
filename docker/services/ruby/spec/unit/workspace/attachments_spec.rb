@@ -144,6 +144,68 @@ RSpec.describe 'Attachments' do
     end
   end
 
+  # The chat folders can be rewritten by code in the Python container: a
+  # folder swapped for a link must not carry a write or a read elsewhere.
+  describe 'folders swapped for links' do
+    let(:outside) { File.join(File.dirname(@data), 'outside').tap { |d| FileUtils.mkdir_p(d) } }
+
+    def swap_for_link(dir, target)
+      FileUtils.mv(dir, "#{dir}.orig")
+      File.symlink(target, dir)
+    end
+
+    it 'refuses to save into an inputs folder that is now a link, and writes nothing there' do
+      first = accept
+      inputs = File.dirname(File.join(@data, first[:relative_path]))
+      swap_for_link(inputs, outside)
+      expect { accept }.to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:workspace_missing) }
+      expect(Dir.children(outside)).to be_empty
+    end
+
+    it 'marks the attachment failed when the folder is swapped while the file is written' do
+      accept
+      inputs = Dir.glob(File.join(@data, 'conversations', '*', 'inputs')).first
+      allow(Monadic::Workspace::Attachments).to receive(:copy_exclusive).and_wrap_original do |original, src, dest, &blk|
+        result = original.call(src, dest, &blk)
+        swap_for_link(inputs, outside)
+        result
+      end
+      expect { accept }.to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:write_failed) }
+      statuses = JSON.parse(File.read(ledger.path))['attachments'].values.map { |r| r['status'] }
+      expect(statuses.sort).to eq(%w[failed ready])
+    end
+
+    it 'reports a chat folder that is now a link as missing' do
+      record = accept
+      workspace = File.join(@data, File.dirname(File.dirname(record[:relative_path])))
+      FileUtils.cp_r(workspace, File.join(outside, 'copy'))
+      swap_for_link(workspace, File.join(outside, 'copy'))
+      expect(Monadic::Workspace::Folders.lookup({ chat_id: chat_id }, ledger: ledger)[:status]).to eq(:missing)
+      expect { attachments.resolve!(chat_id: chat_id, attachment_id: record[:attachment_id], ledger: ledger) }
+        .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:missing) }
+    end
+
+    it 'takes no output from a job folder that is now a link' do
+      record = accept
+      workspace = ledger.workspace(record[:workspace_id])
+      job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+      File.write(File.join(job[:path], 'frames_1.json'), '{}')
+      expect(Monadic::Workspace::Jobs.outputs(job, /\Aframes_[0-9_]+\.json\z/).size).to eq(1)
+
+      File.write(File.join(outside, 'frames_2.json'), 'OUTSIDE')
+      swap_for_link(job[:path], outside)
+      expect(Monadic::Workspace::Jobs.outputs(job, /\Aframes_[0-9_]+\.json\z/)).to be_empty
+    end
+
+    it 'takes no output that is itself a link' do
+      record = accept
+      job = Monadic::Workspace::Jobs.create!(ledger.workspace(record[:workspace_id])[:relative_dir])
+      File.write(File.join(outside, 'frames_3.json'), 'OUTSIDE')
+      File.symlink(File.join(outside, 'frames_3.json'), File.join(job[:path], 'frames_3.json'))
+      expect(Monadic::Workspace::Jobs.outputs(job, /\Aframes_[0-9_]+\.json\z/)).to be_empty
+    end
+  end
+
   describe '.resolve!' do
     it 'gives a ready attachment to its own chat only' do
       record = accept

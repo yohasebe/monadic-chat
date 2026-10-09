@@ -28,17 +28,16 @@ RSpec.describe VideoAnalyzeAgent do
         @session ||= { parameters: {} }
       end
 
-      # Mock send_command — only used for extract_frames.py (Python container)
-      def send_command(command:, container:)
-        if command.include?("extract_frames.py")
-          <<~OUTPUT
-            13 frames extracted
-            Base64-encoded frames saved to ./frames_20250629_154801.json
-            Audio extracted to ./audio_20250629_154802.mp3
-          OUTPUT
-        else
-          "Unknown command"
-        end
+      # What the extractor in the Python container prints (Monadic::Shell.exec
+      # is answered with it below).
+      attr_writer :extractor_output
+
+      def extractor_output
+        @extractor_output || <<~OUTPUT
+          13 frames extracted
+          Base64-encoded frames saved to ./frames_20250629_154801.json
+          Audio extracted to ./audio_20250629_154802.mp3
+        OUTPUT
       end
 
       # Mock audio_transcription_agent (replaces stt_query.rb delegation)
@@ -59,7 +58,13 @@ RSpec.describe VideoAnalyzeAgent do
     # in 'analyzing an attachment' below and in video_probe_spec.
     allow(Monadic::Utils::SharedPathGuard).to receive(:command_path) { |file, **| "/monadic/data/#{file}" }
     allow(Monadic::Utils::VideoProbe).to receive(:check!).and_return({ duration: 3.0, width: 320, height: 240, audio: true })
+    allow(Monadic::Shell).to receive(:exec) do |container:, argv:, **|
+      extractor_calls << { container: container, argv: argv }
+      [agent.extractor_output, "", double(success?: true)]
+    end
   end
+
+  let(:extractor_calls) { [] }
 
   let(:agent) { test_class.new }
 
@@ -103,21 +108,18 @@ RSpec.describe VideoAnalyzeAgent do
         expect(result).to include("This is a video showing a deer crossing the road")
       end
 
-      it 'only calls send_command for extract_frames (no video_query or stt_query)' do
-        allow(agent).to receive(:send_command).and_call_original
-
+      it 'runs only the extractor in the Python container (no video_query or stt_query)' do
         agent.analyze_video(file: "test.mp4", fps: 1)
 
-        # send_command should only be called for extract_frames.py
-        expect(agent).to have_received(:send_command).with(hash_including(command: /extract_frames\.py/))
-        expect(agent).not_to have_received(:send_command).with(hash_including(command: /video_query\.rb/))
-        expect(agent).not_to have_received(:send_command).with(hash_including(command: /stt_query\.rb/))
+        expect(extractor_calls.size).to eq(1)
+        expect(extractor_calls.first[:container]).to eq(:python)
+        expect(extractor_calls.first[:argv].first(2)).to eq(["python", VideoAnalyzeAgent::EXTRACT_SCRIPT])
       end
     end
 
     context 'when frame extraction fails' do
       it 'returns error message when no JSON file is found' do
-        allow(agent).to receive(:send_command).and_return("Error: Failed to extract frames")
+        agent.extractor_output = "Error: Failed to extract frames"
 
         result = agent.analyze_video(file: "test.mp4")
 
@@ -154,9 +156,7 @@ RSpec.describe VideoAnalyzeAgent do
 
     context 'output without audio file' do
       before do
-        allow(agent).to receive(:send_command).with(hash_including(container: "python")).and_return(
-          "15 frames extracted\nBase64-encoded frames saved to ./frames_only.json"
-        )
+        agent.extractor_output = "15 frames extracted\nBase64-encoded frames saved to ./frames_only.json"
         allow(File).to receive(:exist?).and_call_original
         allow(File).to receive(:exist?).with("./frames_only.json").and_return(false)
         allow(File).to receive(:exist?).with("/monadic/data/frames_only.json").and_return(true)
@@ -190,9 +190,7 @@ RSpec.describe VideoAnalyzeAgent do
 
       it 'includes audio error in output when audio transcription fails' do
         allow(agent).to receive(:video_vision_openai).and_return("Video description")
-        allow(agent).to receive(:send_command).with(hash_including(container: "python")).and_return(
-          "Base64-encoded frames saved to ./frames_20250629_154801.json\nAudio extracted to ./audio.mp3"
-        )
+        agent.extractor_output = "Base64-encoded frames saved to ./frames_20250629_154801.json\nAudio extracted to ./audio.mp3"
         allow(agent).to receive(:audio_transcription_agent).and_return(
           "ERROR: Failed to transcribe audio"
         )
@@ -323,7 +321,7 @@ RSpec.describe VideoAnalyzeAgent do
   %w[anthropic deepseek unknown].each do |provider|
     it "rejects #{provider} with only another provider's key before extraction" do
       agent.settings["provider"] = provider
-      expect(agent).not_to receive(:send_command)
+      expect(Monadic::Shell).not_to receive(:exec)
       expect(agent).not_to receive(:video_vision_http_post)
       expect(agent.analyze_video(file: "test.mp4")).to start_with("ERROR:")
       expect(agent.send(:video_vision_query, "Describe", sample_frames)).to start_with("ERROR:")
@@ -407,20 +405,15 @@ RSpec.describe VideoAnalyzeAgent do
     expect(selected.map { |f| f["timestamp_ms"] }).to eq(selected.map { |f| f["timestamp_ms"] }.sort)
   end
 
-  it 'quotes both shell levels and supplies the provider frame budget' do
+  it 'hands a file name with shell syntax over as one argument, with the provider frame budget' do
     filename = 'clip $(touch should-not-exist); "quoted".mp4'
     agent.settings["provider"] = "anthropic"
     CONFIG["ANTHROPIC_API_KEY"] = "own-test-key"
-    expect(agent).to receive(:send_command) do |command:, container:|
-      outer = Shellwords.split(command)
-      expect(outer.take(2)).to eq(["bash", "-c"])
-      inner = Shellwords.split(outer.fetch(2))
-      expect(inner[1]).to eq(filename)
-      expect(inner[inner.index("--frames") + 1]).to eq("20")
-      expect(container).to eq("python")
-      "No frames"
-    end
+    agent.extractor_output = "No frames"
     agent.analyze_video(file: filename)
+    argv = extractor_calls.first[:argv]
+    expect(argv[2]).to eq("/monadic/data/#{filename}")
+    expect(argv[argv.index("--frames") + 1]).to eq("20")
   end
 
   it 'formats hour-long timestamps without wrapping minutes' do

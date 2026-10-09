@@ -42,8 +42,13 @@ module Monadic
           raise Unusable.new(:workspace_missing, "This chat's folder is missing from the shared folder. Start a new chat to attach files.")
         end
 
+        inputs = File.join(workspace[:relative_dir], 'inputs')
+        unless Folders.real_path(inputs, :directory)
+          raise Unusable.new(:workspace_missing, "This chat's folder in the shared folder was changed. Start a new chat to attach files.")
+        end
+
         attachment_id = Ids.generate(:attachment)
-        relative_path = File.join(workspace[:relative_dir], 'inputs', "#{attachment_id}__#{stored_name(original_name)}")
+        relative_path = File.join(inputs, "#{attachment_id}__#{stored_name(original_name)}")
         ledger.register_attachment(attachment_id: attachment_id, chat_id: chat_id, workspace_id: workspace[:workspace_id],
                                    purpose: purpose, original_name: display_name(original_name),
                                    relative_path: relative_path, created_at: now)
@@ -51,6 +56,10 @@ module Monadic
         created = false
         begin
           size, digest = copy_exclusive(source, dest) { created = true }
+          # Checked again after writing: a folder swapped for a link while the
+          # file was being written means it may have gone elsewhere.
+          raise Folders::Unavailable, 'the chat folder changed while saving' unless Folders.real_path(relative_path)
+
           ledger.update_attachment(attachment_id, status: 'ready', 'size' => size, 'sha256' => digest)
         rescue StandardError => e
           # Remove only a partial file this call created, never one it found.
@@ -67,28 +76,13 @@ module Monadic
         raise Unusable.new(:unknown, 'No such attachment.') unless record && record[:chat_id] == chat_id
         raise Unusable.new(:not_ready, 'This attachment is not ready.') unless record[:status] == 'ready'
 
-        path = verified_path(record)
+        path = Folders.real_path(record[:relative_path])
         unless path
           raise Unusable.new(:missing, "The attached file #{record[:original_name]} is no longer in the shared folder.")
         end
         raise Unusable.new(:changed, "The attached file #{record[:original_name]} was changed after it was attached.") unless unchanged?(path, record)
 
         record.merge(path: path)
-      end
-
-      # The file's real path, if it is exactly where the ledger put it: inside
-      # the shared folder and reached without a link anywhere on the way.
-      # Code running in the Python container can rewrite the chat folders, so
-      # a folder on the path swapped for a link (to another chat's folder, or
-      # out of the shared folder) must not lead to a file.
-      def verified_path(record)
-        real = Monadic::Utils::SharedPathGuard.resolve_in_shared(record[:relative_path])
-        return nil unless real
-
-        expected = File.join(File.realpath(Monadic::Utils::Environment.data_path), record[:relative_path])
-        real == expected && File.file?(real) && !File.symlink?(real) ? real : nil
-      rescue SystemCallError
-        nil
       end
 
       def unchanged?(path, record)

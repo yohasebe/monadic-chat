@@ -5,12 +5,15 @@ require_relative '../shell'
 
 module Monadic
   module Utils
-    # Checks a video before anything decodes it in full. ffprobe, run in the
-    # Python container without a shell, reads only the container headers; the
-    # file goes on to frame and audio extraction only if what it reports fits:
+    # Checks a video before anything decodes it in full. ffprobe still parses
+    # the untrusted file (it is the first program to do so), so it runs in
+    # the Python container, without a shell and with a time limit; the file
+    # goes on to frame and audio extraction only if what it reports fits:
     #
     # - the container format is the one the extension names,
-    # - there is a video stream in a codec on the list,
+    # - there is exactly one video stream besides any cover picture, it comes
+    #   first (extraction decodes the first video stream), and its codec is
+    #   on the list,
     # - the length is above zero and within MAX_SECONDS (the audio of that
     #   length, at the bitrate extraction uses, stays under the 25 MB that
     #   transcription accepts),
@@ -65,8 +68,15 @@ module Monadic
         raise Rejected.new(:format, "The file's format (#{reported.first || 'unknown'}) does not match its extension.") if (reported & formats).empty?
 
         # A cover picture is stored as a one-frame video stream; it is not the video.
-        video = Array(info['streams']).find { |s| s['codec_type'] == 'video' && s.dig('disposition', 'attached_pic').to_i != 1 }
-        raise Rejected.new(:no_video, 'The file has no video track.') unless video
+        videos = Array(info['streams']).select { |s| s['codec_type'] == 'video' }
+        moving = videos.reject { |s| s.dig('disposition', 'attached_pic').to_i == 1 }
+        raise Rejected.new(:no_video, 'The file has no video track.') if moving.empty?
+        # What is checked here must be what extraction decodes: the first video stream.
+        unless moving.size == 1 && videos.first.equal?(moving.first)
+          raise Rejected.new(:streams, 'Videos with more than one picture track are not supported.')
+        end
+
+        video = moving.first
         unless VIDEO_CODECS.include?(video['codec_name'])
           raise Rejected.new(:codec, "Video encoded as #{video['codec_name']} is not supported.")
         end

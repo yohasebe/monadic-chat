@@ -111,6 +111,24 @@ class VideoFramesTest(unittest.TestCase):
         self.assertIn(9, indices)
         self.assertIn(10, indices)
 
+    def test_images_fit_the_longest_side_without_enlarging(self):
+        self.assertEqual(video_frames.fit_within(1920, 1080, 768), (768, 432))
+        self.assertEqual(video_frames.fit_within(1080, 1920, 768), (432, 768))
+        self.assertEqual(video_frames.fit_within(2, 4096, 768), (1, 768))
+        self.assertEqual(video_frames.fit_within(320, 240, 768), (320, 240))
+
+    def test_tall_narrow_video_stays_small(self):
+        with tempfile.TemporaryDirectory(prefix="video-frames-") as directory:
+            path = Path(directory) / "tall.avi"
+            writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"FFV1"), 5, (8, 400))
+            self.assertTrue(writer.isOpened())
+            for value in (0, 255):
+                writer.write(np.full((400, 8, 3), value, dtype=np.uint8))
+            writer.release()
+            video_frames.extract_frames(str(path), directory, "png", 5, 5, False, 160)
+            image = cv2.imread(str(next(Path(directory).glob("frames_*/*.png"))))
+            self.assertLessEqual(max(image.shape[:2]), 160)
+
     def test_single_frame(self):
         document, _ = self.extract([self.blank()])
         self.assertEqual(len(document["frames"]), 1)

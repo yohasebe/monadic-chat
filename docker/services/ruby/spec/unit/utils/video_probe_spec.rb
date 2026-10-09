@@ -64,6 +64,19 @@ RSpec.describe Monadic::Utils::VideoProbe do
     expect(rejection.first).to eq(:no_video)
   end
 
+  it "refuses a second picture track, or a cover picture ahead of the video" do
+    answer["streams"] << { "codec_type" => "video", "codec_name" => "h264", "width" => 640, "height" => 360, "disposition" => { "attached_pic" => 0 } }
+    expect(rejection.first).to eq(:streams)
+    answer["streams"].pop
+    answer["streams"].unshift({ "codec_type" => "video", "codec_name" => "mjpeg", "width" => 600, "height" => 600, "disposition" => { "attached_pic" => 1 } })
+    expect(rejection.first).to eq(:streams)
+  end
+
+  it "accepts a cover picture that follows the video" do
+    answer["streams"] << { "codec_type" => "video", "codec_name" => "mjpeg", "width" => 600, "height" => 600, "disposition" => { "attached_pic" => 1 } }
+    expect(probe[:width]).to eq(1280)
+  end
+
   it "refuses a codec outside the list" do
     answer["streams"][0]["codec_name"] = "gif"
     expect(rejection.first).to eq(:codec)

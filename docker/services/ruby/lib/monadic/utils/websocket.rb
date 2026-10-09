@@ -63,7 +63,8 @@ module WebSocketHelper
       session_id,
       messages: session[:messages] || [],
       parameters: params,
-      chat_id: session[Monadic::Workspace::Chats::SESSION_KEY]
+      chat_id: session[Monadic::Workspace::Chats::SESSION_KEY],
+      generation: session[:_ws_generation]
     )
   end
 
@@ -123,6 +124,9 @@ module WebSocketHelper
 
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session
+      # This connection's generation; writes from a connection it replaced
+      # are ignored from now on.
+      session[:_ws_generation] = WebSocketHelper.claim_session_state(ws_session_id)
 
       # Tab isolation: Each tab must have completely independent session state
       # Always initialize with empty session first to clear any Rack session data from other tabs

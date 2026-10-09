@@ -34,7 +34,13 @@ module Monadic
       # status is :ready, or :missing when the ledger names a folder that is
       # no longer there (it is not recreated under the same record).
       def ensure!(session, app_name:, ledger: Ledger.default, now: Time.now)
-        chat_id = Chats.current(session)
+        ensure_for_chat!(Chats.current(session), app_name: app_name, ledger: ledger, now: now)
+      end
+
+      # The same for a chat id fixed earlier, e.g. when an upload started.
+      def ensure_for_chat!(chat_id, app_name:, ledger: Ledger.default, now: Time.now)
+        raise ArgumentError, 'invalid chat id' unless Ids.valid?(:chat, chat_id)
+
         @mutex.synchronize do
           record = ledger.workspace_for_chat(chat_id)
           return describe(record) if record

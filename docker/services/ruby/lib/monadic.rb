@@ -266,6 +266,14 @@ end
 # check stays off on every path
 Monadic::Utils::ServerMode.normalize!(CONFIG)
 
+# Attachments a stopped server left half-saved are marked failed, so no chat
+# treats them as usable. Reads only; writes when there is something to mark.
+begin
+  Monadic::Workspace::Ledger.default.reconcile_interrupted! if File.exist?(Monadic::Workspace::Ledger.default_path)
+rescue StandardError => e
+  puts "[Workspace] Ledger check skipped: #{e.class}"
+end
+
 # Configure SSL defaults after environment has been processed
 begin
   Monadic::Utils::SSLConfiguration.configure!(CONFIG)
@@ -763,7 +771,9 @@ require_relative "monadic/routes/upload_routes"
 require_relative "monadic/routes/session_routes"
 require_relative "monadic/routes/library_import_routes"
 require_relative "monadic/routes/help_routes"
+require_relative "monadic/routes/attachment_routes"
 register Monadic::Routes::HelpRoutes
+register Monadic::Routes::AttachmentRoutes
 
 APPS.each do |k, v|
   # convert `k` from a capitalized multi word title to snake_case

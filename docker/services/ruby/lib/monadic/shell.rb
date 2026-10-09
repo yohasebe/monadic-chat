@@ -53,6 +53,7 @@ module Monadic
     SHARED_VOLUME = '/monadic/data'
 
     class UnknownContainerError < ArgumentError; end
+    class TimedOut < StandardError; end
 
     module_function
 
@@ -148,14 +149,38 @@ module Monadic
     end
 
     # @!visibility private
+    # With a timeout the command is stopped once it runs over and TimedOut
+    # is raised. (Open3.capture3 has no timeout option: passing one raised
+    # ArgumentError.) Stopping `docker exec` ends the client, not
+    # necessarily the process it started in the container.
     def capture(argv, timeout: nil)
-      stdout, stderr, status = if timeout
-                                  Open3.capture3(*argv, timeout: timeout)
-                                else
-                                  Open3.capture3(*argv)
-                                end
+      stdout, stderr, status = timeout ? capture_with_timeout(argv, timeout) : Open3.capture3(*argv)
       log_invocation(argv, stdout, stderr)
       [stdout, stderr, status]
+    end
+
+    def capture_with_timeout(argv, timeout)
+      Open3.popen3(*argv) do |stdin, out, err, wait|
+        stdin.close
+        out_reader = Thread.new { out.read }
+        err_reader = Thread.new { err.read }
+        unless wait.join(timeout)
+          stop(wait.pid)
+          wait.join
+          out_reader.join
+          err_reader.join
+          raise TimedOut, "#{File.basename(argv.first.to_s)} did not finish within #{timeout} seconds"
+        end
+        [out_reader.value, err_reader.value, wait.value]
+      end
+    end
+
+    def stop(pid)
+      Process.kill('TERM', pid)
+      sleep 0.5
+      Process.kill('KILL', pid)
+    rescue Errno::ESRCH
+      nil
     end
   end
 end

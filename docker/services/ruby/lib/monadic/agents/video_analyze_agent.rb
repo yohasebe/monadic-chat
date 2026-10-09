@@ -3,6 +3,10 @@
 require 'shellwords'
 require_relative '../utils/environment'
 require_relative '../utils/provider_capabilities'
+require_relative '../utils/shared_path_guard'
+require_relative '../utils/video_probe'
+require_relative '../shell'
+require_relative '../workspace'
 
 # VideoAnalyzeAgent provides provider-independent video analysis
 # by extracting frames and sending them to each provider's native Vision API.
@@ -35,44 +39,39 @@ module VideoAnalyzeAgent
     "xai"       => 50
   }.freeze
 
-  def analyze_video(file:, fps: 1, query: nil, session: nil)
-    return "Error: file is required." if file.to_s.empty?
+  # Seconds the frame and audio extraction may take (long videos decode
+  # slowly; the default command timeout of two minutes cut them off).
+  VIDEO_EXTRACT_TIMEOUT = 900
+  EXTRACT_SCRIPT = "/monadic/scripts/converters/extract_frames.py"
+  # Mono at a constant 64 kbps: about 0.48 MB a minute, so the audio of the
+  # longest video VideoProbe accepts (50 minutes) stays under the 25 MB that
+  # transcription takes.
+  AUDIO_ARGS = ["--audio", "--audio-bitrate", "64k", "--audio-channels", "1"].freeze
+  OLD_PYTHON_IMAGE = "The Python container predates this version of Monadic Chat and cannot prepare the video. " \
+                     "Rebuild it (Actions > Build Python Container) and try again."
+
+  # attachment_id: a video the user attached to this chat (preferred).
+  # file: a file in the shared folder, for videos placed there by hand.
+  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil)
+    return "Error: attachment_id or file is required." if attachment_id.to_s.empty? && file.to_s.empty?
 
     resolution = Monadic::Utils::ProviderCapabilities.resolve(:video, settings["provider"] || settings[:provider])
     return resolution[:error] if resolution[:error]
 
     provider = resolution[:provider]
     frame_limit = PROVIDER_FRAME_LIMITS.fetch(provider)
-
-    # Quote both shell levels: filenames may contain spaces or shell syntax.
     safe_fps = fps.to_i
     safe_fps = 1 if safe_fps <= 0
-    arguments = ["extract_frames.py", file.to_s, "./", "--fps", safe_fps.to_s,
-                 "--format", "png", "--frames", frame_limit.to_s, "--json", "--audio"]
-    safe_command = Shellwords.escape(Shellwords.join(arguments))
-    split_command = "bash -c #{safe_command}"
 
-    split_res = send_command(command: split_command, container: "python")
+    extracted = if attachment_id.to_s.empty?
+                  extract_from_shared_file(file, safe_fps, frame_limit)
+                else
+                  extract_from_attachment(attachment_id.to_s, session, safe_fps, frame_limit)
+                end
+    return extracted if extracted.is_a?(String) # Error message
 
-    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
-      puts "[VideoAnalyzeAgent] extract_frames output: #{split_res.inspect}"
-    end
-
-    # Parse frame and audio file paths from output
-    json_file = nil
-    audio_file = nil
-
-    if split_res =~ /Base64-encoded frames saved to (.+\.json)/
-      json_file = $1.strip
-    end
-
-    if split_res =~ /Audio extracted to (.+\.mp3)/
-      audio_file = $1.strip
-    end
-
-    if json_file.nil? || json_file.empty?
-      return "Error: Failed to extract frames from video. Output: #{split_res}"
-    end
+    json_file = extracted[:json]
+    audio_file = extracted[:audio]
 
     # Step 2: Read frames JSON directly from shared volume
     frames = read_frames_json(json_file)
@@ -125,6 +124,70 @@ module VideoAnalyzeAgent
   end
 
   private
+
+  # The attached video, run in a folder of its own inside the chat's folder.
+  # The chat is the session's; an id from another chat is refused.
+  def extract_from_attachment(attachment_id, session, fps, frame_limit)
+    chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
+    record = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id)
+    return "Error: attachment #{record[:original_name]} is not a video." unless record[:purpose] == "video"
+
+    workspace = Monadic::Workspace::Ledger.default.workspace(record[:workspace_id])
+    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    input = Monadic::Utils::SharedPathGuard.command_path(record[:path], container: "python")
+    output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
+    return "Error: the attachment or its run folder is outside the shared folder." unless input && output
+
+    Monadic::Utils::VideoProbe.check!(input)
+    argv = ["python", EXTRACT_SCRIPT, input, output, "--fps", fps.to_s, "--format", "png",
+            "--frames", frame_limit.to_s, "--json", *AUDIO_ARGS]
+    _stdout, stderr, status = Monadic::Shell.exec(container: :python, argv: argv, timeout: VIDEO_EXTRACT_TIMEOUT)
+    return "Error: #{OLD_PYTHON_IMAGE}" if stderr.to_s.include?("unrecognized arguments")
+
+    json = Monadic::Workspace::Jobs.outputs(job[:path], /\Aframes_[0-9_]+\.json\z/).first
+    unless status.success? && json
+      detail = stderr.to_s.lines.last.to_s.strip
+      return "Error: Failed to extract frames from the video.#{" #{detail}" unless detail.empty?}"
+    end
+
+    { json: json, audio: Monadic::Workspace::Jobs.outputs(job[:path], /\Aaudio_[0-9_]+\.mp3\z/).first }
+  rescue Monadic::Workspace::Attachments::Unusable, Monadic::Utils::VideoProbe::Rejected => e
+    "Error: #{e.message}"
+  rescue Monadic::Workspace::Jobs::Unavailable, Monadic::Workspace::Ledger::Unreadable => e
+    "Error: #{e.message}"
+  rescue Monadic::Shell::TimedOut
+    "Error: extracting frames took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes. Try a shorter video."
+  end
+
+  # A video placed in the shared folder by name (the way before attachments).
+  def extract_from_shared_file(file, fps, frame_limit)
+    # The same check before decoding as for attachments.
+    input = Monadic::Utils::SharedPathGuard.command_path(file.to_s, container: "python")
+    return "Error: #{file} was not found in the shared folder." unless input
+
+    begin
+      Monadic::Utils::VideoProbe.check!(input)
+    rescue Monadic::Utils::VideoProbe::Rejected => e
+      return "Error: #{e.message}"
+    end
+
+    # Quote both shell levels: filenames may contain spaces or shell syntax.
+    arguments = ["extract_frames.py", file.to_s, "./", "--fps", fps.to_s,
+                 "--format", "png", "--frames", frame_limit.to_s, "--json", *AUDIO_ARGS]
+    split_command = "bash -c #{Shellwords.escape(Shellwords.join(arguments))}"
+    split_res = send_command(command: split_command, container: "python")
+    return "Error: #{OLD_PYTHON_IMAGE}" if split_res.to_s.include?("unrecognized arguments")
+
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
+      puts "[VideoAnalyzeAgent] extract_frames output: #{split_res.inspect}"
+    end
+
+    json_file = split_res[/Base64-encoded frames saved to (.+\.json)/, 1]&.strip
+    audio_file = split_res[/Audio extracted to (.+\.mp3)/, 1]&.strip
+    return "Error: Failed to extract frames from video. Output: #{split_res}" if json_file.nil? || json_file.empty?
+
+    { json: json_file, audio: audio_file }
+  end
 
   # Read the frames JSON file from the shared volume.
   #

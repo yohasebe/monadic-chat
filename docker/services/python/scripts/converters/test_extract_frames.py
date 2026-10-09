@@ -124,5 +124,43 @@ class VideoFramesTest(unittest.TestCase):
                 video_frames.probe_timeline("unused")
 
 
+
+class AudioExtractionTest(unittest.TestCase):
+    """Real ffmpeg: the file size must follow the length for the caller's limit to hold."""
+
+    def source(self, directory, seconds=4):
+        path = Path(directory) / "talk.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"testsrc=duration={seconds}:size=160x96:rate=10",
+                        "-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}", "-ac", "2", "-shortest",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ac", "2", str(path)], check=True)
+        return path
+
+    @staticmethod
+    def audio_stream(path):
+        out = subprocess.run(["ffprobe", "-v", "error", "-print_format", "json", "-show_entries",
+                              "stream=channels,bit_rate", str(path)], capture_output=True, text=True, check=True)
+        return json.loads(out.stdout)["streams"][0]
+
+    def test_constant_mono_bitrate_when_asked(self):
+        with tempfile.TemporaryDirectory(prefix="audio-") as directory:
+            video_frames.extract_audio(str(self.source(directory)), directory, "64k", 1)
+            audio = next(Path(directory).glob("audio_*.mp3"))
+            stream = self.audio_stream(audio)
+            self.assertEqual(stream["channels"], 1)
+            self.assertEqual(int(stream["bit_rate"]), 64000)
+            self.assertLess(audio.stat().st_size, 4 * 8000 * 1.2)
+
+    def test_source_layout_and_variable_quality_by_default(self):
+        with tempfile.TemporaryDirectory(prefix="audio-") as directory:
+            video_frames.extract_audio(str(self.source(directory)), directory)
+            self.assertEqual(self.audio_stream(next(Path(directory).glob("audio_*.mp3")))["channels"], 2)
+
+    def test_rejects_a_malformed_bitrate(self):
+        result = subprocess.run(["python", str(SCRIPT), "in.mp4", ".", "--audio", "--audio-bitrate", "64k; rm -rf /"],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--audio-bitrate must look like 64k", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

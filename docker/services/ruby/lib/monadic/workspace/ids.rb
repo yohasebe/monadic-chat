@@ -10,7 +10,7 @@ module Monadic
     module Ids
       ALPHABET = [*'a'..'z', *'0'..'9'].freeze
       LENGTH = 16
-      PREFIXES = { chat: 'c', workspace: 'w', attachment: 'a' }.freeze
+      PREFIXES = { chat: 'c', workspace: 'w', attachment: 'a', job: 'j' }.freeze
 
       module_function
 

@@ -2,6 +2,9 @@
 
 require 'rspec'
 require 'json'
+require 'stringio'
+require 'fileutils'
+require 'tmpdir'
 require 'http'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/audio_transcription_agent'
@@ -52,6 +55,10 @@ RSpec.describe VideoAnalyzeAgent do
     # `defined?(SHARED_VOL)` lookup never resolved from the agent module's
     # lexical scope and was masking the real path behavior in production.
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return("/monadic/data")
+    # The way by file name; the check before decoding is exercised for real
+    # in 'analyzing an attachment' below and in video_probe_spec.
+    allow(Monadic::Utils::SharedPathGuard).to receive(:command_path) { |file, **| "/monadic/data/#{file}" }
+    allow(Monadic::Utils::VideoProbe).to receive(:check!).and_return({ duration: 3.0, width: 320, height: 240, audio: true })
   end
 
   let(:agent) { test_class.new }
@@ -121,12 +128,12 @@ RSpec.describe VideoAnalyzeAgent do
     context 'when file parameter is missing' do
       it 'returns error message for nil' do
         result = agent.analyze_video(file: nil)
-        expect(result).to eq("Error: file is required.")
+        expect(result).to eq("Error: attachment_id or file is required.")
       end
 
       it 'returns error message for empty string' do
         result = agent.analyze_video(file: "")
-        expect(result).to eq("Error: file is required.")
+        expect(result).to eq("Error: attachment_id or file is required.")
       end
     end
 
@@ -420,4 +427,143 @@ RSpec.describe VideoAnalyzeAgent do
     expect(agent.send(:video_timestamp, 3_723_456)).to eq("01:02:03.456")
   end
 
+
+  # A video attached to the chat: resolved through the ledger, run in a job
+  # folder of its own, output found in that folder.
+  describe 'analyzing an attachment' do
+    around do |example|
+      Dir.mktmpdir('video-attachment') do |dir|
+        @data = File.join(dir, 'data')
+        @state = File.join(dir, 'state')
+        FileUtils.mkdir_p(@data)
+        example.run
+      end
+    end
+
+    let(:ledger) { Monadic::Workspace::Ledger.new(File.join(@state, 'ledger.json')) }
+    let(:chat_id) { Monadic::Workspace::Ids.generate(:chat) }
+    let(:mp4) { "\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom".b + ('x' * 2000) }
+    let(:calls) { [] }
+    let(:transcribed) { [] }
+    let(:probe_answer) do
+      { 'streams' => [{ 'codec_type' => 'video', 'codec_name' => 'h264', 'width' => 640, 'height' => 360, 'disposition' => { 'attached_pic' => 0 } },
+                      { 'codec_type' => 'audio', 'codec_name' => 'aac' }],
+        'format' => { 'format_name' => 'mov,mp4,m4a,3gp,3g2,mj2', 'duration' => '120.0' } }
+    end
+    let(:frames_json) do
+      { 'schema_version' => 1, 'duration_ms' => 3000, 'timestamp_source' => 'container',
+        'frames' => [{ 'frame_id' => 'f0', 'source_frame_index' => 0, 'timestamp_ms' => 0,
+                       'image' => 'iVBORw0KGgo=', 'mime_type' => 'image/png' }] }
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+      allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
+      allow(Monadic::Workspace::Ledger).to receive(:default).and_return(ledger)
+      allow(Monadic::Utils::SharedPathGuard).to receive(:command_path).and_call_original
+      allow(Monadic::Utils::VideoProbe).to receive(:check!).and_call_original
+      allow(agent).to receive(:video_vision_openai).and_return('A deer crosses the road.')
+      allow(agent).to receive(:audio_transcription_agent) { |audio_path:, **| transcribed << audio_path; 'Hello.' }
+      # The extractor in the Python container, played here: it writes into
+      # the folder it is given, as the real script does.
+      allow(Monadic::Shell).to receive(:exec) do |container:, argv:, **opts|
+        next [probe_answer.to_json, '', double(success?: true)] if argv.first == 'ffprobe'
+
+        calls << { container: container, argv: argv, timeout: opts[:timeout] }
+        out = File.join(File.realpath(@data), argv[3].delete_prefix('/monadic/data/'))
+        File.write(File.join(out, 'frames_20261009_120000_000001.json'), frames_json.to_json)
+        File.write(File.join(out, 'audio_20261009_120000.mp3'), 'ID3')
+        ["Base64-encoded frames saved to /monadic/data/elsewhere.json\n", '', double(success?: true)]
+      end
+    end
+
+    def attach(chat: chat_id)
+      Monadic::Workspace::Attachments.accept!(chat_id: chat, app_name: 'VideoDescriberOpenAI', purpose: 'video',
+                                              original_name: 'clip.mp4', source: StringIO.new(mp4), ledger: ledger)
+    end
+
+    it 'runs the extractor without a shell on the attached file, into a job folder, and reads what it wrote there' do
+      record = attach
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+
+      expect(result).to include('A deer crosses the road.')
+      expect(result).to include('Hello.')
+      call = calls.first
+      expect(call[:container]).to eq(:python)
+      expect(call[:argv].first(2)).to eq(['python', VideoAnalyzeAgent::EXTRACT_SCRIPT])
+      expect(call[:argv][2]).to eq("/monadic/data/#{record[:relative_path]}")
+      expect(call[:argv][3]).to match(%r{\A/monadic/data/conversations/[^/]+/artifacts/j_[a-z0-9]{16}\z})
+      expect(call[:timeout]).to eq(VideoAnalyzeAgent::VIDEO_EXTRACT_TIMEOUT)
+      # The printed path is ignored; the audio is the one in the job folder.
+      expect(transcribed.first).to start_with(File.join(File.realpath(@data), call[:argv][3].delete_prefix('/monadic/data/')))
+    end
+
+    it 'gives each run its own folder' do
+      record = attach
+      2.times { agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id }) }
+      expect(calls.map { |c| c[:argv][3] }.uniq.size).to eq(2)
+    end
+
+    it "refuses another chat's attachment before running anything" do
+      record = attach(chat: Monadic::Workspace::Ids.generate(:chat))
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      expect(result).to start_with('Error: No such attachment')
+      expect(calls).to be_empty
+    end
+
+    it 'refuses without a session to say which chat it is' do
+      record = attach
+      expect(agent.analyze_video(attachment_id: record[:attachment_id])).to start_with('Error: No such attachment')
+      expect(calls).to be_empty
+    end
+
+    it 'reports a run that produced no frames' do
+      allow(Monadic::Shell).to receive(:exec) do |argv:, **|
+        next [probe_answer.to_json, '', double(success?: true)] if argv.first == 'ffprobe'
+
+        ['', "cv2.error: cannot open\n", double(success?: false)]
+      end
+      record = attach
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      expect(result).to start_with('Error: Failed to extract frames from the video. cv2.error: cannot open')
+    end
+
+    it 'asks for mono audio at a constant bitrate' do
+      record = attach
+      agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      expect(calls.first[:argv]).to include('--audio', '--audio-bitrate', '64k', '--audio-channels', '1')
+    end
+
+    it 'checks the video before decoding it, and stops when the check fails' do
+      probe_answer['format']['duration'] = '3601.5'
+      record = attach
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      expect(result).to eq('Error: The video is 61 minutes long; videos up to 50 minutes can be analyzed.')
+      expect(calls).to be_empty
+    end
+
+    it 'says to rebuild the Python container when its extractor is too old for the audio options' do
+      allow(Monadic::Shell).to receive(:exec) do |argv:, **|
+        if argv.first == 'ffprobe'
+          [probe_answer.to_json, '', double(success?: true)]
+        else
+          ['', "extract_frames.py: error: unrecognized arguments: --audio-bitrate 64k --audio-channels 1\n", double(success?: false)]
+        end
+      end
+      record = attach
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      expect(result).to include('Rebuild it (Actions > Build Python Container)')
+    end
+
+    it 'reports a run that took too long' do
+      allow(Monadic::Shell).to receive(:exec) do |argv:, **|
+        raise Monadic::Shell::TimedOut unless argv.first == 'ffprobe'
+
+        [probe_answer.to_json, '', double(success?: true)]
+      end
+      record = attach
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      expect(result).to include('took longer than 15 minutes')
+    end
+  end
 end

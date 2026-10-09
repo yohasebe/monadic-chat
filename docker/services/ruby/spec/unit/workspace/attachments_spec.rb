@@ -148,7 +148,7 @@ RSpec.describe 'Attachments' do
     it 'gives a ready attachment to its own chat only' do
       record = accept
       resolved = attachments.resolve!(chat_id: chat_id, attachment_id: record[:attachment_id], ledger: ledger)
-      expect(resolved[:path]).to eq(File.join(@data, record[:relative_path]))
+      expect(resolved[:path]).to eq(File.join(File.realpath(@data), record[:relative_path]))
 
       expect { attachments.resolve!(chat_id: ids.generate(:chat), attachment_id: record[:attachment_id], ledger: ledger) }
         .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:unknown) }
@@ -163,10 +163,9 @@ RSpec.describe 'Attachments' do
         .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:not_ready) }
     end
 
-    it 'reports a file that was removed, changed in size, or replaced by a link' do
+    it 'reports a file that was removed or replaced by a link' do
       [
         ->(path) { File.unlink(path) },
-        ->(path) { File.open(path, 'ab') { |f| f.write('more') } },
         ->(path) { File.unlink(path); File.symlink('/etc/hosts', path) }
       ].each do |damage|
         record = accept
@@ -174,6 +173,49 @@ RSpec.describe 'Attachments' do
         expect { attachments.resolve!(chat_id: chat_id, attachment_id: record[:attachment_id], ledger: ledger) }
           .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:missing) }
       end
+    end
+
+    it 'reports a file whose contents changed, even at the same size' do
+      [
+        ->(path) { File.open(path, 'ab') { |f| f.write('more') } },
+        ->(path) { bytes = File.binread(path); bytes[-1] = (bytes[-1].ord ^ 1).chr; File.binwrite(path, bytes) }
+      ].each do |damage|
+        record = accept
+        damage.call(File.join(@data, record[:relative_path]))
+        expect { attachments.resolve!(chat_id: chat_id, attachment_id: record[:attachment_id], ledger: ledger) }
+          .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:changed) }
+      end
+    end
+
+    # The chat folders can be rewritten by code in the Python container.
+    it 'refuses a path that runs through a link, inside or outside the shared folder' do
+      record = accept
+      inputs = File.dirname(File.join(@data, record[:relative_path]))
+      name = File.basename(record[:relative_path])
+
+      # inputs/ swapped for a link to a copy elsewhere in the shared folder
+      decoy = File.join(@data, 'decoy')
+      FileUtils.mkdir_p(decoy)
+      FileUtils.cp(File.join(inputs, name), File.join(decoy, name))
+      FileUtils.mv(inputs, "#{inputs}.orig")
+      File.symlink(decoy, inputs)
+      expect { attachments.resolve!(chat_id: chat_id, attachment_id: record[:attachment_id], ledger: ledger) }
+        .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:missing) }
+
+      # ... and to a copy outside it
+      outside = File.join(File.dirname(@data), 'outside')
+      FileUtils.mkdir_p(outside)
+      FileUtils.cp(File.join(decoy, name), File.join(outside, name))
+      File.unlink(inputs)
+      File.symlink(outside, inputs)
+      expect { attachments.resolve!(chat_id: chat_id, attachment_id: record[:attachment_id], ledger: ledger) }
+        .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:missing) }
+
+      # restored, it resolves again
+      File.unlink(inputs)
+      FileUtils.mv("#{inputs}.orig", inputs)
+      expect(attachments.resolve!(chat_id: chat_id, attachment_id: record[:attachment_id], ledger: ledger)[:path])
+        .to eq(File.join(File.realpath(@data), record[:relative_path]))
     end
   end
 
@@ -366,7 +408,7 @@ RSpec.describe 'Attachments' do
       expect(last_response.status).to eq(201)
       body = JSON.parse(last_response.body)
       expect(body).to include('name' => 'clip.mp4', 'size' => 4096, 'purpose' => 'video', 'status' => 'ready')
-      expect(attachments.resolve!(chat_id: chat_id, attachment_id: body['attachment_id'], ledger: ledger)[:path]).to start_with(@data)
+      expect(attachments.resolve!(chat_id: chat_id, attachment_id: body['attachment_id'], ledger: ledger)[:path]).to start_with(File.realpath(@data))
     end
 
     it 'answers a wrong type, an oversized file, and a missing file with reasons' do

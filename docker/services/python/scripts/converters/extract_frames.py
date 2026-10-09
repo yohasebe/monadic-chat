@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import cv2
+import re
 import numpy as np
 import math
 import os
@@ -170,7 +171,7 @@ def extract_frames(video_path, output_dir, output_format, frame_limit, fps, outp
             json.dump(document, json_file, allow_nan=False)
         print(f"Base64-encoded frames saved to {json_filename}")
 
-def extract_audio(video_path, output_dir):
+def extract_audio(video_path, output_dir, bitrate=None, channels=None):
     # Extract the audio track to MP3 by invoking system ffmpeg directly.
     # ffmpeg is provided by the python container's apt layer; calling it
     # via subprocess removes the need for moviepy + imageio-ffmpeg, which
@@ -178,11 +179,16 @@ def extract_audio(video_path, output_dir):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_filename = os.path.join(output_dir, f"audio_{timestamp}.mp3")
 
+    # A fixed bitrate (and channel count) keeps the file size proportional to
+    # the length, so a caller can tell in advance whether a transcription
+    # service's size limit will hold. Without them, variable high quality.
+    quality = ["-b:a", bitrate] if bitrate else ["-q:a", "2"]
+    layout = ["-ac", str(channels)] if channels else []
     result = subprocess.run(
         [
             "ffmpeg", "-y", "-loglevel", "error",
             "-i", video_path,
-            "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+            "-vn", "-acodec", "libmp3lame", *quality, *layout,
             audio_filename,
         ],
         capture_output=True, text=True
@@ -203,13 +209,20 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output versioned JSON with timestamps and base64 images.")
     parser.add_argument("--width", type=int, default=768, help="Width to resize the images to (default: 768).")
     parser.add_argument("--audio", action="store_true", help="Extract audio from the video and save as an mp3 file.")
+    parser.add_argument("--audio-bitrate", type=str, default=None,
+                        help="Constant audio bitrate such as 64k (default: variable high quality).")
+    parser.add_argument("--audio-channels", type=int, choices=[1, 2], default=None,
+                        help="Audio channels: 1 for mono, 2 for stereo (default: as in the source).")
 
     args = parser.parse_args()
 
     extract_frames(args.video_path, args.output_dir, args.format, args.frames, args.fps, args.json, args.width)
 
+    if args.audio_bitrate is not None and not re.fullmatch(r"[1-9][0-9]{0,2}k", args.audio_bitrate):
+        parser.error("--audio-bitrate must look like 64k")
+
     if args.audio:
-        extract_audio(args.video_path, args.output_dir)
+        extract_audio(args.video_path, args.output_dir, args.audio_bitrate, args.audio_channels)
 
 if __name__ == "__main__":
     main()

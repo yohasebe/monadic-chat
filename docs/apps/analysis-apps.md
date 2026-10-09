@@ -40,4 +40,6 @@ Get a detailed description of any video's content. The app analyzes a video by e
 
 Frames are checked at the fps you give and selected so that the video's scenes and visible changes are covered, up to the number of images the provider accepts in one request. Each selected frame is sent with its time in the video, so the description can say when things happen; brief events between selected frames can be missed. The audio track is transcribed separately with the provider's speech-to-text.
 
+Before any frames are extracted, the file is checked: its format must match its extension (MP4, M4V, MOV, WebM, MKV, AVI or MPEG), it must contain a video track, last at most 50 minutes, and be at most 4096 pixels on each side. A file that does not pass is not processed, and the reason is shown. The audio is extracted as mono at 64 kbps, which keeps a 50-minute track within the size that speech-to-text accepts.
+
 To use this app, place a video file in the `Shared Folder`, provide its name, and specify the frames per second (fps) for the analysis.

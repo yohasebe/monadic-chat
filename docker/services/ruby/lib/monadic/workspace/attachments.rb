@@ -6,6 +6,7 @@ require_relative 'ledger'
 require_relative 'folders'
 require_relative 'file_types'
 require_relative '../utils/environment'
+require_relative '../utils/shared_path_guard'
 
 module Monadic
   module Workspace
@@ -66,12 +67,32 @@ module Monadic
         raise Unusable.new(:unknown, 'No such attachment.') unless record && record[:chat_id] == chat_id
         raise Unusable.new(:not_ready, 'This attachment is not ready.') unless record[:status] == 'ready'
 
-        path = File.join(Monadic::Utils::Environment.data_path, record[:relative_path])
-        unless File.file?(path) && !File.symlink?(path) && File.size(path) == record[:size]
+        path = verified_path(record)
+        unless path
           raise Unusable.new(:missing, "The attached file #{record[:original_name]} is no longer in the shared folder.")
         end
+        raise Unusable.new(:changed, "The attached file #{record[:original_name]} was changed after it was attached.") unless unchanged?(path, record)
 
         record.merge(path: path)
+      end
+
+      # The file's real path, if it is exactly where the ledger put it: inside
+      # the shared folder and reached without a link anywhere on the way.
+      # Code running in the Python container can rewrite the chat folders, so
+      # a folder on the path swapped for a link (to another chat's folder, or
+      # out of the shared folder) must not lead to a file.
+      def verified_path(record)
+        real = Monadic::Utils::SharedPathGuard.resolve_in_shared(record[:relative_path])
+        return nil unless real
+
+        expected = File.join(File.realpath(Monadic::Utils::Environment.data_path), record[:relative_path])
+        real == expected && File.file?(real) && !File.symlink?(real) ? real : nil
+      rescue SystemCallError
+        nil
+      end
+
+      def unchanged?(path, record)
+        File.size(path) == record[:size] && Digest::SHA256.file(path).hexdigest == record[:sha256]
       end
 
       # The name kept for display: the base name the browser sent, as valid

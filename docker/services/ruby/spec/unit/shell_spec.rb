@@ -62,8 +62,22 @@ RSpec.describe Monadic::Shell do
       expect(captured).to include('-e', 'FOO=bar', '-e', 'BAZ=qux')
     end
 
-    it 'forwards a timeout to Open3.capture3 only when requested' do
-      expect(Open3).to receive(:capture3).with(any_args, timeout: 5)
+    # Real processes, not a stubbed Open3: the stub once hid that
+    # Open3.capture3 has no timeout option, so every timed call raised.
+    it 'returns the output of a command that finishes within the timeout' do
+      stdout, stderr, status = described_class.capture(['sh', '-c', 'echo out; echo err >&2'], timeout: 5)
+      expect([stdout, stderr, status.success?]).to eq(["out\n", "err\n", true])
+    end
+
+    it 'stops a command that runs over the timeout and says so' do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      expect { described_class.capture(['sleep', '10'], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut, /did not finish within 1 seconds/)
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 5
+    end
+
+    it 'passes the timeout from exec to the command it runs' do
+      expect(described_class).to receive(:capture).with(array_including('docker', 'exec', 'true'), timeout: 5)
         .and_return(['', '', double(success?: true)])
       described_class.exec(container: :python, argv: ['true'], timeout: 5)
     end

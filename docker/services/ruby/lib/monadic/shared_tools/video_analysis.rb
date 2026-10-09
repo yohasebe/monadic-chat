@@ -18,9 +18,13 @@ module MonadicSharedTools
           parameters: {
             type: "object",
             properties: {
+              attachment_id: {
+                type: "string",
+                description: "The attachment_id of a video the user attached to this chat (use this when one is given)"
+              },
               file: {
                 type: "string",
-                description: "The video file to analyze"
+                description: "The name of a video file in the shared folder (only when no attachment_id is given)"
               },
               fps: {
                 type: "integer",
@@ -31,7 +35,7 @@ module MonadicSharedTools
                 description: "Query to guide the analysis"
               }
             },
-            required: ["file"]
+            required: []
           }
         }
       }

@@ -51,32 +51,16 @@ class ImageGeneratorOpenAI < MonadicApp
 
     shared_folder = Monadic::Utils::Environment.shared_volume
 
-    # Auto-attach last generated image for iterative editing (same pattern as Gemini3Preview)
-    # ONLY if user hasn't provided explicit images and there's a previous image
-    if %w[edit variation].include?(operation) && (images.nil? || images.empty?) && session
-      app_key = session.dig(:parameters, "app_name") || "ImageGeneratorOpenAI"
-      last_images = fetch_last_images_from_session(session, app_key, legacy_prefix: "openai")
-      last_image_filename = last_images&.first
+    # Which image to edit is resolved below, in this order: the images the
+    # model named, the user's upload in this turn, then the last image this
+    # app made. (An earlier step attached the last made image first, so an
+    # upload in the same turn was ignored, and it attached it in a form the
+    # checks below could not read, which failed every such edit.)
+    if images.is_a?(Array)
+      images = images.filter_map do |img|
+        next img unless img.is_a?(Hash)
 
-      Monadic::Utils::ExtraLogger.log { "OpenAI Image: Auto-attach check\n  operation: #{operation}\n  app_key: #{app_key}\n  last_images: #{last_images.inspect}" }
-
-      if last_image_filename
-        image_path = File.join(shared_folder, File.basename(last_image_filename))
-        if File.exist?(image_path)
-          # Load and encode the last generated image
-          image_data = File.read(image_path)
-          image_b64 = Base64.strict_encode64(image_data)
-
-          # Add to images parameter (same format as uploaded images)
-          images = [{
-            "data" => "data:image/png;base64,#{image_b64}",
-            "name" => File.basename(last_image_filename)
-          }]
-
-          Monadic::Utils::ExtraLogger.log { "OpenAI Image: Auto-attached last generated image: #{last_image_filename}\n  This makes iterative editing work like 'editing uploaded image'" }
-        else
-          Monadic::Utils::ExtraLogger.log { "OpenAI Image: Last generated image file not found: #{image_path}" }
-        end
+        img["name"] || img["filename"] || img["title"]
       end
     end
 
@@ -477,25 +461,10 @@ class ImageGeneratorGrok < MonadicApp
 
     shared_folder = Monadic::Utils::Environment.shared_volume
 
-    # Auto-attach last generated image for iterative editing
+    # Which image to edit when the model named none
     if operation == "edit" && (images.nil? || images.empty?) && session
-      app_key = session.dig(:parameters, "app_name") || "ImageGeneratorGrok"
-      last_images = fetch_last_images_from_session(session, app_key, legacy_prefix: "grok")
-      last_image_filename = last_images&.first
-
-      Monadic::Utils::ExtraLogger.log { "Grok Image: Auto-attach check\n  operation: #{operation}\n  app_key: #{app_key}\n  last_images: #{last_images.inspect}" }
-
-      if last_image_filename
-        image_path = File.join(shared_folder, File.basename(last_image_filename))
-        if File.exist?(image_path)
-          images = [File.basename(last_image_filename)]
-          Monadic::Utils::ExtraLogger.log { "Grok Image: Auto-attached last generated image: #{last_image_filename}" }
-        else
-          Monadic::Utils::ExtraLogger.log { "Grok Image: Last generated image file not found: #{image_path}" }
-        end
-      end
-
-      # Fallback: check session messages for uploaded images
+      # The user's upload in this turn comes first: asking to edit "this"
+      # photo must not edit the last image this app made instead.
       if (images.nil? || images.empty?) && session[:messages]
         last_user_msg = session[:messages].reverse.find { |m| m["role"] == "user" }
         if last_user_msg && last_user_msg["images"] && !last_user_msg["images"].empty?
@@ -514,6 +483,25 @@ class ImageGeneratorGrok < MonadicApp
             elsif File.exist?(File.join(shared_folder, File.basename(found_name)))
               images = [File.basename(found_name)]
             end
+          end
+        end
+      end
+
+      # Otherwise the last image this app made, for iterative editing.
+      if images.nil? || images.empty?
+        app_key = session.dig(:parameters, "app_name") || "ImageGeneratorGrok"
+        last_images = fetch_last_images_from_session(session, app_key, legacy_prefix: "grok")
+        last_image_filename = last_images&.first
+
+        Monadic::Utils::ExtraLogger.log { "Grok Image: Auto-attach check\n  operation: #{operation}\n  app_key: #{app_key}\n  last_images: #{last_images.inspect}" }
+
+        if last_image_filename
+          image_path = File.join(shared_folder, File.basename(last_image_filename))
+          if File.exist?(image_path)
+            images = [File.basename(last_image_filename)]
+            Monadic::Utils::ExtraLogger.log { "Grok Image: Auto-attached last generated image: #{last_image_filename}" }
+          else
+            Monadic::Utils::ExtraLogger.log { "Grok Image: Last generated image file not found: #{image_path}" }
           end
         end
       end

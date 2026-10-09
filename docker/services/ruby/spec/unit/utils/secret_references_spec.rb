@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "fileutils"
 require "tmpdir"
 require_relative "../../../lib/monadic/utils/secret_references"
 
@@ -136,11 +137,37 @@ RSpec.describe Monadic::Utils::SecretReferences do
 
   # Every script that needs a key must go through config_value; reading
   # config/env directly would hand an op:// reference to the API.
+  #
+  # Matching only `File.read(".../config/env")` missed two generators that put
+  # the path in a variable first. What they all share is picking a key's line
+  # out of the file themselves, so that is what this looks for.
+  KEY_LINE_PARSE = /start_with\?\(\s*["'][A-Z0-9_]*_API_KEY|["']\^?[A-Z0-9_]*_API_KEY=["']\s*\)/
+  ENV_FILE_READ = %r{File\.read\([^)]*monadic/config/env}
+
+  def env_key_readers(root)
+    Dir.glob(File.join(root, "{scripts,lib,apps}", "**", "*.rb")).reject { |path| path.end_with?("utils/secret_references.rb") }.select do |path|
+      text = File.read(path)
+      text.match?(ENV_FILE_READ) || text.match?(KEY_LINE_PARSE)
+    end
+  end
+
   it "leaves no script reading API keys from config/env directly" do
     root = File.expand_path("../../..", __dir__)
-    offenders = Dir.glob(File.join(root, "{scripts,lib,apps}", "**", "*.rb")).select do |path|
-      File.read(path).match?(%r{File\.read\([^)]*monadic/config/env})
+    expect(env_key_readers(root).map { |p| p.delete_prefix("#{root}/") }).to eq([])
+  end
+
+  it "recognises the ways a script has read a key itself" do
+    Dir.mktmpdir("key-readers") do |root|
+      FileUtils.mkdir_p(File.join(root, "scripts"))
+      {
+        "path_in_variable.rb" => %(path = "/monadic/config/env"\nFile.read(path).split("\\n").find { |l| l.start_with?("OPENAI_API_KEY=") }),
+        "prefix_only.rb" => %(lines.find { |line| line.start_with?("GEMINI_API_KEY") }),
+        "direct_read.rb" => %(File.read("\#{Dir.home}/monadic/config/env")),
+        "uses_helper.rb" => %(Monadic::Utils::SecretReferences.config_value("XAI_API_KEY"))
+      }.each { |name, body| File.write(File.join(root, "scripts", name), body) }
+
+      found = env_key_readers(root).map { |p| File.basename(p) }.sort
+      expect(found).to eq(%w[direct_read.rb path_in_variable.rb prefix_only.rb])
     end
-    expect(offenders.map { |p| p.delete_prefix("#{root}/") }).to eq([])
   end
 end

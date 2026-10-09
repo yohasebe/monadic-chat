@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'tmpdir'
 
 # In-process and namespaced, like the other generator specs.
 #
@@ -23,12 +24,40 @@ RSpec.describe "image_generator_openai.rb" do
     end
   end
 
+  # The real lookup, against an env file that holds what users write.
   describe "api key lookup" do
-    it "exits with guidance when no config file holds a key" do
-      allow(File).to receive(:exist?).and_return(false)
+    around do |example|
+      Dir.mktmpdir("openai-image-env") do |dir|
+        @env_file = File.join(dir, "env")
+        example.run
+      end
+    end
+
+    before { allow(Monadic::Utils::Environment).to receive(:env_path).and_return(@env_file) }
+
+    it "returns a plain key" do
+      File.write(@env_file, "OPENAI_API_KEY=sk-plain\n")
+      expect(script.get_api_key).to eq("sk-plain")
+    end
+
+    it "returns the delivered value of a 1Password reference" do
+      File.write(@env_file, "OPENAI_API_KEY=op://Test/OPENAI/credential\n")
+      allow(Monadic::Utils::SecretReferences).to receive(:resolved).and_return({ "OPENAI_API_KEY" => "sk-delivered" })
+      expect(script.get_api_key).to eq("sk-delivered")
+    end
+
+    it "exits with guidance on an unread reference instead of sending its text" do
+      File.write(@env_file, "OPENAI_API_KEY=op://Test/OPENAI/credential\n")
+      allow(Monadic::Utils::SecretReferences).to receive(:resolved).and_return({})
       expect { script.get_api_key }
         .to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
-        .and output(/Unable to find OpenAI API key/).to_stdout
+        .and output(satisfy { |text| text.include?("OPENAI_API_KEY is not set") && !text.include?("op://") }).to_stdout
+    end
+
+    it "exits with guidance when no file holds a key" do
+      expect { script.get_api_key }
+        .to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
+        .and output(/OPENAI_API_KEY is not set/).to_stdout
     end
   end
 

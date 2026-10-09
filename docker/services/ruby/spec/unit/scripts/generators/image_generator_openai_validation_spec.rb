@@ -98,19 +98,13 @@ RSpec.describe "image_generator_openai request validation" do
     # everything for an unrelated reason would satisfy that too, which is what
     # an earlier version of these examples allowed.
 
-    # The script reads its key from a config file, not from the environment, so
-    # a machine that happens to have one would pass here while CI and a fresh
-    # checkout would stop at the key instead of reaching the request. Answer for
-    # those two paths only; every other file lookup behaves normally.
-    CONFIG_PATHS = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"].freeze
-
+    # The script reads its key from config/env (through config_value), not
+    # from the environment, so a machine that happens to have one would pass
+    # here while CI and a fresh checkout would stop at the key instead of
+    # reaching the request. Answer for that path only.
     before do
-      allow(File).to receive(:exist?).and_call_original
       allow(File).to receive(:read).and_call_original
-      CONFIG_PATHS.each do |path|
-        allow(File).to receive(:exist?).with(path).and_return(true)
-        allow(File).to receive(:read).with(path).and_return("OPENAI_API_KEY=sk-test\n")
-      end
+      allow(File).to receive(:read).with(Monadic::Utils::Environment.env_path).and_return("OPENAI_API_KEY=sk-test\n")
     end
 
     def run_cli(*argv)

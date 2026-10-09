@@ -55,35 +55,37 @@ RSpec.describe "VideoGeneratorGemini" do
   end
   
   describe "#get_api_key" do
-    context "when config file exists" do
-      it "reads API key from config file" do
-        temp_config = Tempfile.new("env")
-        temp_config.write("GEMINI_API_KEY=test-key-from-file\n")
-        temp_config.rewind
-        
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("/monadic/config/env").and_return(false)
-        allow(File).to receive(:exist?).with("#{Dir.home}/monadic/config/env").and_return(true)
-        allow(File).to receive(:read).with("#{Dir.home}/monadic/config/env").and_return(temp_config.read)
-        
-        # Remove the mock from before block for this test
-        allow(script).to receive(:get_api_key).and_call_original
-        
-        expect(script.get_api_key).to eq("test-key-from-file")
-        temp_config.unlink
-      end
+    # The real lookup, against an env file that holds what users write.
+    let(:env_file) { File.join(@data_dir, "env") }
+
+    before do
+      allow(script).to receive(:get_api_key).and_call_original
+      allow(Monadic::Utils::Environment).to receive(:env_path).and_return(env_file)
     end
-    
-    context "when no config file exists" do
-      it "raises an error" do
-        allow(File).to receive(:exist?).and_return(false)
-        allow(script).to receive(:get_api_key).and_call_original
-        
-        expect { script.get_api_key }.to raise_error(/Could not find GEMINI_API_KEY/)
-      end
+
+    it "returns a plain key" do
+      File.write(env_file, "GEMINI_API_KEY=test-key-from-file\n")
+      expect(script.get_api_key).to eq("test-key-from-file")
+    end
+
+    it "returns the delivered value of a 1Password reference" do
+      File.write(env_file, "GEMINI_API_KEY=op://Test/GEMINI/credential\n")
+      allow(Monadic::Utils::SecretReferences).to receive(:resolved).and_return({ "GEMINI_API_KEY" => "delivered-key" })
+      expect(script.get_api_key).to eq("delivered-key")
+    end
+
+    it "stops on an unread reference instead of sending its text as the key" do
+      File.write(env_file, "GEMINI_API_KEY=op://Test/GEMINI/credential\n")
+      allow(Monadic::Utils::SecretReferences).to receive(:resolved).and_return({})
+      expect { script.get_api_key }.to raise_error(/GEMINI_API_KEY is not set/) { |e| expect(e.message).not_to include("op://") }
+    end
+
+    it "stops when the key is absent" do
+      File.write(env_file, "OTHER=1\n")
+      expect { script.get_api_key }.to raise_error(/GEMINI_API_KEY is not set/)
     end
   end
-  
+
   describe "#get_save_path" do
     it "returns existing data path" do
       allow(Dir).to receive(:exist?).with("/monadic/data/").and_return(true)

@@ -217,7 +217,7 @@ Tools that fail at runtime (a missing file, a refused budget, a provider error) 
 - The server binds to the host loopback only; in the packaged app the container port is published to `127.0.0.1` and is not exposed to the local network.
 - All provider calls use your own API keys, and generated files stay on your machine under `~/monadic/data`.
 - The token budget is a hard ceiling that stops runaway spending.
-- CORS headers are configured for browser-based clients.
+- Requests must be `application/json` and must not come from a web page: a request that carries an `Origin` header, or names a host other than `localhost`, `127.0.0.1` or `[::1]`, is refused. MCP clients such as Claude Code send neither.
 
 ## Known Limitations
 

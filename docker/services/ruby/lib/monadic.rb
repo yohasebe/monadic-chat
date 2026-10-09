@@ -720,8 +720,11 @@ configure do
   set :elevenlabs_api_key, CONFIG["ELEVENLABS_API_KEY"]
   enable :cross_origin
 
-  # Configure headers for Electron WebView compatibility
-  set :protection, :except => [:frame_options]
+  # Configure headers for Electron WebView compatibility. A failed check
+  # refuses the request: the default reaction only drops the session and
+  # lets the request through, which is no protection for routes that do not
+  # use the session.
+  set :protection, :except => [:frame_options], :reaction => :deny
 
   # Add MIME type for WebAssembly files
   mime_type :wasm, 'application/wasm'

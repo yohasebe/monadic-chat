@@ -97,6 +97,16 @@ let novncWindow = null;
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
 const allowedLocalHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
+
+// Whether a URL is one of the app's own pages (http on an allowed host).
+function isAppUrl(value) {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'http:' && allowedLocalHosts.has(`${u.hostname}:${u.port || '80'}`);
+  } catch (_) {
+    return false;
+  }
+}
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
@@ -113,22 +123,10 @@ function openWebViewWindow(url, forceReload = false) {
     cache: true
   });
 
-  // Configure the session to allow localhost resources
-  customSession.webRequest.onBeforeSendHeaders(
-    { urls: ['http://localhost:4567/*', 'http://127.0.0.1:4567/*'] },
-    (details, callback) => {
-      try {
-        const targetUrl = new URL(details.url);
-        const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
-        if (allowedLocalHosts.has(host)) {
-          details.requestHeaders['Origin'] = `http://${host}`;
-        }
-      } catch (e) {
-        console.warn('Failed to evaluate request host', e);
-      }
-      callback({ requestHeaders: details.requestHeaders });
-    }
-  );
+  // The Origin header is left as the page sent it. The server refuses
+  // changes and WebSocket connections whose Origin is not its own, so
+  // writing the local origin in here would let any page loaded in this
+  // window pass as the app.
 
   // Modify CSP headers to allow localhost resources
   customSession.webRequest.onHeadersReceived(
@@ -229,6 +227,20 @@ function openWebViewWindow(url, forceReload = false) {
   webviewWindow.webContents.session.clearCache();
 
   webviewWindow.loadURL(url);
+
+  // This window shows the app only. A link or redirect to anywhere else
+  // opens in the system browser instead, so no other site's page runs here.
+  webviewWindow.webContents.on('will-navigate', (event, navUrl) => {
+    if (!isAppUrl(navUrl)) {
+      event.preventDefault();
+      if (navUrl.startsWith('https:') || navUrl.startsWith('http:')) {
+        shell.openExternal(navUrl);
+      }
+    }
+  });
+  webviewWindow.webContents.on('will-redirect', (event, navUrl) => {
+    if (!isAppUrl(navUrl)) event.preventDefault();
+  });
 
   // Prevent blank windows from opening (e.g., image clicks in lightbox)
   webviewWindow.webContents.setWindowOpenHandler(({ url }) => {

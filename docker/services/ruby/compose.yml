@@ -29,6 +29,9 @@ services:
       - ~/monadic/config:/monadic/config
       - log:/monadic/log
       - ~/monadic/log:/monadic/log
+      # The workspace ledger. Only this container mounts it: code running in
+      # the Python container can write the shared folder, not this record.
+      - ~/monadic/state:/monadic/state
     # Memory-only mount for values the desktop app reads from 1Password on
     # the host (config/env entries written as op:// references). They are
     # streamed in through `docker exec -i` stdin and never touch the

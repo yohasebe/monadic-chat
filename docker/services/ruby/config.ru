@@ -7,9 +7,14 @@ require "async/websocket/adapters/rack"
 require_relative "lib/monadic"
 require_relative "lib/monadic/utils/unlimited_session_store"
 require_relative "lib/monadic/utils/auth_middleware"
+require_relative "lib/monadic/utils/local_origin_guard"
 
 set :logging, true
 set :bind, "0.0.0.0"
+
+# First of all: only this computer's own pages and programs may use the
+# server. See lib/monadic/utils/local_origin_guard.rb.
+use Monadic::Utils::LocalOriginGuard
 
 # Use unlimited in-memory sessions to handle large message imports
 # Rack::Session::Pool has size limits that cause "Content dropped" warnings

@@ -41,6 +41,12 @@ module Monadic
         resolve_path('/monadic/data')
       end
 
+      # Server-owned records (the workspace ledger). Kept outside the shared
+      # folder so code running in other containers cannot rewrite them.
+      def state_path
+        resolve_path('/monadic/state')
+      end
+
       def scripts_path
         File.join(data_path, 'scripts')
       end

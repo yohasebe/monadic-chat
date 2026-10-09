@@ -107,6 +107,9 @@ module WebSocketHelper
     current_app = session[:parameters]["app_name"]
     new_app = incoming["app_name"]&.to_s
     if new_app && current_app && new_app != current_app
+      # Switching apps starts a new chat, even when nothing was sent yet
+      # (the client sends RESET only when there are messages).
+      Monadic::Workspace::Chats.start_new!(session)
       # App is changing - reset conversation context
       if session[:monadic_state]
         session[:monadic_state][:conversation_context] = nil
@@ -357,6 +360,9 @@ module WebSocketHelper
     end
     session[:messages].clear
     session[:parameters].clear
+    # Reset starts a new chat: files made from now on go to a new folder,
+    # and the previous chat's folder stays as it is.
+    Monadic::Workspace::Chats.start_new!(session)
     session[:progressive_tools]&.clear  # Reset Progressive Tool Disclosure state
     session[:monadic_state]&.clear  # Reset conversation context for Session Context panel
     session[:error] = nil

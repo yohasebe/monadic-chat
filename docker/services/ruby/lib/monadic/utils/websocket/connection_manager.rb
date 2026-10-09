@@ -97,7 +97,9 @@ module WebSocketHelper
     obj
   end
 
-  def self.update_session_state(session_id, messages:, parameters:)
+  # chat_id is kept as is when not given, so callers that only carry
+  # messages and parameters do not move a tab to another chat.
+  def self.update_session_state(session_id, messages:, parameters:, chat_id: nil)
     return unless session_id
 
     @@session_state_mutex.synchronize do
@@ -105,6 +107,7 @@ module WebSocketHelper
       state = @@session_state[session_id]
       state[:messages] = deep_clone_session_state(messages || [])
       state[:parameters] = deep_clone_session_state(parameters || {})
+      state[:chat_id] = chat_id if chat_id
     end
   end
 
@@ -116,7 +119,8 @@ module WebSocketHelper
       if state
         {
           messages: deep_clone_session_state(state[:messages] || []),
-          parameters: deep_clone_session_state(state[:parameters] || {})
+          parameters: deep_clone_session_state(state[:parameters] || {}),
+          chat_id: state[:chat_id]
         }
       else
         nil

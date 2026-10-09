@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../utils/local_origin_guard"
 require 'sinatra/base'
 require 'json'
 require 'securerandom'
@@ -46,16 +47,10 @@ module Monadic
       @server_running = false
       @server_thread = nil
 
-      # CORS headers for HTTP transport
-      before do
-        headers['Access-Control-Allow-Origin'] = '*'
-        headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-        headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
-
-        if request.request_method == 'OPTIONS'
-          halt 200
-        end
-      end
+      # No CORS headers: MCP clients are programs, not web pages, and a page
+      # allowed to read the answers could call every tool with the user's
+      # keys. LocalOriginGuard (mode :api) refuses any request that carries
+      # an Origin, which is every request a browser page makes here.
 
       # Health check endpoint
       get '/health' do
@@ -211,6 +206,37 @@ module Monadic
         nil
       end
 
+      # What the HTTP server runs: the JSON-RPC app behind the guard that
+      # turns away browser pages (any request with an Origin) and requests
+      # naming another host.
+      def self.rack_app
+        Rack::Builder.new do
+          use Monadic::Utils::LocalOriginGuard, mode: :api
+          use RequireJson
+          run Monadic::MCP::Server
+        end.to_app
+      end
+
+      # JSON-RPC over HTTP is application/json. A form, multipart or
+      # text/plain body is what a page can send without asking first, so a
+      # POST of any other type is refused before anything reads it (Sinatra
+      # would parse a form or multipart body before the route runs).
+      class RequireJson
+        def initialize(app)
+          @app = app
+        end
+
+        def call(env)
+          if env['REQUEST_METHOD'] == 'POST' && Rack::Request.new(env).media_type != 'application/json'
+            body = { jsonrpc: JSONRPC_VERSION, id: nil,
+                     error: { code: INVALID_REQUEST, message: 'Content-Type must be application/json' } }.to_json
+            return [415, { 'content-type' => 'application/json' }, [body]]
+          end
+
+          @app.call(env)
+        end
+      end
+
       # Interface to bind the MCP HTTP server to. In the container we bind all
       # interfaces so Docker port publishing works; on the host we stay on
       # loopback. Host-side exposure is constrained to loopback by the compose
@@ -278,9 +304,7 @@ module Monadic
             endpoint = Async::HTTP::Endpoint.parse("http://#{bind_host}:#{port}")
 
             # Create Rack app
-            app = Rack::Builder.new do
-              run Monadic::MCP::Server
-            end
+            app = rack_app
 
             # Wrap Rack app for Async::HTTP::Server
             middleware = Protocol::Rack::Adapter.new(app)

@@ -1,4 +1,6 @@
 require 'tmpdir'
+require 'base64'
+require 'shellwords'
 # frozen_string_literal: true
 
 require_relative "../../spec_helper"
@@ -173,6 +175,75 @@ RSpec.describe "ImageGeneratorTools" do
       result = app.generate_image_with_grok(operation: "edit", prompt: "make it blue", session: session)
       expect(result).to start_with("❌")
       expect(result).to include("Image file not found")
+    end
+  end
+
+  # Which picture an edit works on. The generator script is replaced by a
+  # recorder; the question is which file the app hands it.
+  describe "edit target selection" do
+    around do |example|
+      Dir.mktmpdir("image-edit-target-") do |directory|
+        @shared = File.realpath(directory)
+        example.run
+      end
+    end
+
+    let(:png_b64) { "data:image/png;base64,#{Base64.strict_encode64("\x89PNG fake upload")}" }
+
+    def session_for(app_name, upload: true, generated: true)
+      File.write(File.join(@shared, "generated_last.png"), "made earlier") if generated
+      messages = [{ "role" => "user", "text" => "edit this photo" }]
+      messages[0]["images"] = [{ "name" => "my_photo.png", "data" => png_b64 }] if upload
+      {
+        parameters: { "app_name" => app_name },
+        messages: messages,
+        monadic_state: generated ? { app_name => { "last_images" => { data: ["generated_last.png"], version: 1 } } } : {}
+      }
+    end
+
+    def edited_files(app)
+      commands = []
+      allow(app).to receive(:send_command) do |**args|
+        commands << Shellwords.split(args[:command])
+        '{"success":true,"images":[]}'
+      end
+      yield
+      commands.flatten.select { |arg| arg.end_with?(".png") }.map { |arg| File.basename(arg) }
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
+    end
+
+    {
+      "ImageGeneratorOpenAI" => ->(app, session) { app.generate_image_with_openai(operation: "edit", model: "gpt-image-2", prompt: "add a festival", session: session) },
+      "ImageGeneratorGrok" => ->(app, session) { app.generate_image_with_grok(operation: "edit", prompt: "add a festival", session: session) }
+    }.each do |app_name, edit|
+      context app_name do
+        let(:app) { Object.const_get(app_name).new }
+
+        it "edits the photo uploaded in this turn, not the last image it made" do
+          session = session_for(app_name)
+          files = edited_files(app) { edit.call(app, session) }
+          expect(files).to include("my_photo.png")
+          expect(files).not_to include("generated_last.png")
+        end
+
+        it "edits the last image it made when nothing was uploaded" do
+          session = session_for(app_name, upload: false)
+          result = nil
+          files = edited_files(app) { result = edit.call(app, session) }
+          expect(result.to_s).not_to include("no implicit conversion")
+          expect(files).to include("generated_last.png")
+        end
+
+        it "says so when there is nothing to edit" do
+          result = edit.call(app, session_for(app_name, upload: false, generated: false))
+          expect(result).to start_with("❌")
+          expect(result).to include("Image file not found")
+        end
+      end
     end
   end
 end

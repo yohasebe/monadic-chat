@@ -175,11 +175,25 @@ get "/docs/?*" do
   end
 end
 
+# Files in the shared folder are written by tools and by code the models
+# write. A page among them must not run as the app: served from the app's
+# own origin, its scripts could drive the app like the app's own page. So
+# documents that can run scripts are sandboxed into an origin of their own
+# (scripts still run, e.g. interactive plots; the app's server refuses their
+# requests as coming from another origin). Not applied to every file: Chrome
+# does not open PDFs in a sandboxed document.
+SHARED_ACTIVE_TYPES = %w[text/html application/xhtml+xml image/svg+xml text/xml application/xml].freeze
+SHARED_SANDBOX_POLICY = "sandbox allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
+
 def fetch_file(file_name)
   # Path checks (top of the shared folder only, containment) live in
   # Monadic::Utils::SharedFilePath so the specs exercise the same code.
   file_path = Monadic::Utils::SharedFilePath.resolve(file_name, Monadic::Utils::Environment.data_path)
   if file_path
+    headers "X-Content-Type-Options" => "nosniff"
+    if SHARED_ACTIVE_TYPES.include?(Rack::Mime.mime_type(File.extname(file_path), "application/octet-stream"))
+      headers "Content-Security-Policy" => SHARED_SANDBOX_POLICY
+    end
     send_file file_path
   else
     status 404

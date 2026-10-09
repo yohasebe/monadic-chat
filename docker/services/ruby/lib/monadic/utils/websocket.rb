@@ -8,6 +8,7 @@ require 'async/queue'
 require 'async/websocket/adapters/rack'
 require 'twitter_cldr'
 require_relative 'error_formatter'
+require_relative '../workspace'
 require_relative '../agents/ai_user_agent'
 require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
@@ -61,7 +62,8 @@ module WebSocketHelper
     WebSocketHelper.update_session_state(
       session_id,
       messages: session[:messages] || [],
-      parameters: params
+      parameters: params,
+      chat_id: session[Monadic::Workspace::Chats::SESSION_KEY]
     )
   end
 
@@ -138,6 +140,10 @@ module WebSocketHelper
           end
         end
       end
+
+      # Reconnecting the same tab continues its chat; anything else starts one.
+      Monadic::Workspace::Chats.resume!(session, saved_state && saved_state[:chat_id])
+      sync_session_state!
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})" }
 

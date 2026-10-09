@@ -10,6 +10,7 @@ require "open3"
 require "openssl"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 require_relative "../../lib/monadic/utils/error_formatter"
+require_relative "../../lib/monadic/utils/secret_references"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -38,7 +39,6 @@ VIDEO_MODEL = video_models&.[](1)
 # This will be set in the generate_video function
 $current_model = nil
 API_OPERATION_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
-CONFIG_PATHS = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"]
 DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
 
 # Define valid parameter values
@@ -66,18 +66,12 @@ DEFAULT_OPTIONS = {
 # Get API key from environment files
 
 def get_api_key
-  CONFIG_PATHS.each do |path|
-    if File.exist?(path)
-      env_content = File.read(path)
-      key_line = env_content.split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }
-      if key_line
-        api_key = key_line.split("=").last.strip
-        return api_key if !api_key.nil? && !api_key.empty?
-      end
-    end
-  end
-  
-  raise "ERROR: Could not find GEMINI_API_KEY in configuration files. Please add it to #{CONFIG_PATHS.join(' or ')}."
+  # Through config_value: config/env may hold an op:// reference, which only
+  # the delivered secrets resolve.
+  api_key = Monadic::Utils::SecretReferences.config_value("GEMINI_API_KEY")
+  return api_key if api_key
+
+  raise "ERROR: GEMINI_API_KEY is not set, or its 1Password reference could not be read. Set it in ~/monadic/config/env, then restart Monadic Chat."
 end
 
 # Find or create a directory to save videos

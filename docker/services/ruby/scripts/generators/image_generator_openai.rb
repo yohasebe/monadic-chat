@@ -9,6 +9,7 @@ require "optparse"
 require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 require_relative "../../lib/monadic/utils/error_formatter"
+require_relative "../../lib/monadic/utils/secret_references"
 
 begin
   require_relative "../../lib/monadic/utils/model_spec"
@@ -200,32 +201,16 @@ if __FILE__ == $PROGRAM_NAME
 end
 
 def get_api_key
-  api_key = nil
-  
-  # Try both possible config file locations
-  config_paths = ["/monadic/config/env", "#{Dir.home}/monadic/config/env"]
-  
-  config_paths.each do |config_path|
-    next unless File.exist?(config_path)
-    
-    begin
-      api_key = File.read(config_path).split("\n").find do |line|
-        line.start_with?("OPENAI_API_KEY=")
-      end&.split("=", 2)&.last&.strip
-      
-      break if api_key
-    rescue => e
-      puts "WARNING: Error reading #{config_path}: #{e.message}"
-    end
-  end
-  
+  # Through config_value: config/env may hold an op:// reference, which only
+  # the delivered secrets resolve. Reading the file here sent the reference
+  # text to OpenAI as the key.
+  api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
   unless api_key
-    puts "ERROR: Unable to find OpenAI API key in config files:"
-    config_paths.each { |path| puts "  - #{path}" }
-    puts "Please add OPENAI_API_KEY=your-key to ~/monadic/config/env"
+    puts "ERROR: OPENAI_API_KEY is not set, or its 1Password reference could not be read."
+    puts "Set OPENAI_API_KEY in ~/monadic/config/env, then restart Monadic Chat."
     exit 1
   end
-  
+
   api_key
 end
 

@@ -61,6 +61,16 @@ RUN uv pip install --no-cache \
 # midiutil + pretty_midi moved to the optional librosa group below since
 # they are only used by the Music Lab pipeline.
 
+# Speech detection for Video Describer's timed transcript
+# (scripts/converters/speech_segments.py): Silero VAD (MIT) on the CPU
+# runtime of onnxruntime. The model file is pinned by release tag and hash.
+RUN uv pip install --no-cache onnxruntime==1.31.0 && \
+    mkdir -p /monadic/models && \
+    curl -fsSL -o /monadic/models/silero_vad.onnx \
+      https://raw.githubusercontent.com/snakers4/silero-vad/v6.2.3/src/silero_vad/data/silero_vad.onnx && \
+    echo "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3  /monadic/models/silero_vad.onnx" | sha256sum -c -
+COPY licenses/silero-vad-LICENSE /monadic/models/silero_vad.LICENSE
+
 # Optional: ImageMagick (convert/mogrify)
 RUN if [ "$IMGOPT_IMAGEMAGICK" = "true" ]; then \
       apt-get update && apt-get install -y --no-install-recommends imagemagick && \

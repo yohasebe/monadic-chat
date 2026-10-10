@@ -9,6 +9,62 @@ const MAX_PDF_SIZE = 35; // Maximum PDF file size in MB
 const MAX_FILE_SIZE = 50; // Maximum file size in MB for File Inputs API documents
 const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 
+// Videos are not put into the message: they go to the server as attachments
+// of this chat (POST /attachments), and the message names them by
+// attachment_id. Only apps that import the video_analysis tools take them.
+const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.avi', '.mpeg', '.mpg'];
+let videoAttachments = []; // [{ attachment_id, name, size }]
+
+function appTakesVideoAttachments(appName) {
+  const app = (typeof apps !== 'undefined' && apps) ? apps[appName] : null;
+  if (!app || !app.imported_tool_groups) return false;
+  try {
+    const groups = typeof app.imported_tool_groups === 'string' ? JSON.parse(app.imported_tool_groups) : app.imported_tool_groups;
+    return Array.isArray(groups) && groups.some(function (g) { return g && g.name === 'video_analysis' && g.available !== false; });
+  } catch (_) {
+    return false;
+  }
+}
+
+function isVideoFile(file) {
+  const name = String((file && file.name) || '').toLowerCase();
+  return VIDEO_EXTENSIONS.some(function (ext) { return name.endsWith(ext); });
+}
+
+// Sends the video to the chat's folder on the server. The server checks the
+// type and size and refuses what it cannot use, with a reason.
+async function uploadVideoAttachment(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('purpose', 'video');
+  const tabId = typeof window.getMonadicTabId === 'function' ? window.getMonadicTabId() : '';
+  const url = '/attachments?tab_id=' + encodeURIComponent(tabId || '');
+  const record = await window.monadicFetch.postJson(url, formData);
+  videoAttachments.push({ attachment_id: record.attachment_id, name: record.name || file.name, size: record.size || file.size });
+  updateFileDisplay(images);
+  return record;
+}
+
+function hasVideoAttachments() {
+  return videoAttachments.length > 0;
+}
+
+// The lines that tell the model which videos are attached; empties the list.
+function takeVideoAttachmentLines() {
+  if (videoAttachments.length === 0) return '';
+  const lines = videoAttachments.map(function (v) {
+    return 'Attached video: ' + v.name + ' (attachment_id: ' + v.attachment_id + ')';
+  });
+  videoAttachments = [];
+  updateFileDisplay(images);
+  return lines.join('\n');
+}
+
+function clearVideoAttachments() {
+  videoAttachments = [];
+  updateFileDisplay(images);
+}
+
 // File extensions accepted by OpenAI File Inputs API
 // Note: text/* MIME type is included because macOS WebView does not reliably
 // recognize custom extensions (.rb, .py, .ts, etc.) via the accept attribute alone.
@@ -215,6 +271,13 @@ if (selectFileButton) {
       if (imageFileLabel) imageFileLabel.textContent = imageLabel;
     }
 
+    // Apps with video analysis also take a video, as an attachment.
+    if (appTakesVideoAttachments(currentApp) && imageFileEl) {
+      imageFileEl.setAttribute('accept', imageFileEl.getAttribute('accept') + ',' + VIDEO_EXTENSIONS.join(','));
+      const videoNote = getTranslation('ui.fileToImportVideo', 'Video (.mp4, .mov, .webm, .mkv, ...)');
+      if (imageFileLabel) imageFileLabel.textContent = imageFileLabel.textContent + ' / ' + videoNote;
+    }
+
     // Show/hide URL input section for Responses API models
     const isResponsesApi = window.isResponsesApiModel ? window.isResponsesApiModel(selectedModel) : false;
     const urlInputSection = $id("url-input-section");
@@ -252,6 +315,28 @@ if (uploadImageBtn) {
 
     const imageModal = $id("imageModal");
     const selectImageError = $id("select_image_error");
+
+    if (file && isVideoFile(file) && appTakesVideoAttachments(currentApp)) {
+      if (imageModal) imageModal.querySelectorAll("button").forEach(function(btn) { btn.disabled = true; });
+      if (selectImageError) {
+        selectImageError.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' +
+          window.escapeHtml(getTranslation('ui.messages.uploadingVideo', 'Uploading the video...'));
+      }
+      uploadVideoAttachment(file)
+        .then(function () {
+          if (selectImageError) selectImageError.innerHTML = "";
+          if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+        })
+        .catch(function (err) {
+          if (selectImageError) {
+            selectImageError.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + window.escapeHtml(err && err.message ? err.message : String(err));
+          }
+        })
+        .finally(function () {
+          if (imageModal) imageModal.querySelectorAll("button").forEach(function(btn) { btn.disabled = false; });
+        });
+      return;
+    }
 
     if (file) {
       const fileSizeInMB = file.size / (1024 * 1024);
@@ -498,6 +583,25 @@ function updateFileDisplay(files) {
     }
   });
 
+  // Attached videos: on the server already, named in the next message.
+  videoAttachments.forEach(function (video, index) {
+    const sizeMb = (Number(video.size || 0) / (1024 * 1024)).toFixed(1);
+    if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
+      <div class="file-container video-attachment">
+        <i class="fas fa-film"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)
+        <button class='btn btn-secondary btn-sm remove-video' data-index='${index}' tabindex="99">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `);
+  });
+  document.querySelectorAll(".remove-video").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      videoAttachments.splice(parseInt(this.dataset.index, 10), 1);
+      updateFileDisplay(images);
+    });
+  });
+
   // Add event listeners for file removal
   document.querySelectorAll(".remove-file").forEach(function(btn) {
     btn.addEventListener("click", function () {
@@ -622,6 +726,7 @@ function updateFileDisplay(files) {
 function clearAllImages() {
   images = [];
   currentMaskData = null;
+  videoAttachments = [];
   updateFileDisplay(images);
 }
 
@@ -631,6 +736,12 @@ window.imageToBase64 = imageToBase64;
 window.updateFileDisplay = updateFileDisplay;
 window.limitImageCount = limitImageCount;
 window.clearAllImages = clearAllImages;
+window.appTakesVideoAttachments = appTakesVideoAttachments;
+window.isVideoFile = isVideoFile;
+window.uploadVideoAttachment = uploadVideoAttachment;
+window.hasVideoAttachments = hasVideoAttachments;
+window.takeVideoAttachmentLines = takeVideoAttachmentLines;
+window.clearVideoAttachments = clearVideoAttachments;
 window.getDocumentIcon = getDocumentIcon;
 window.isDocumentType = isDocumentType;
 window.getMimeTypeFromExtension = getMimeTypeFromExtension;

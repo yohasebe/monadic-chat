@@ -539,6 +539,41 @@ RSpec.describe VideoAnalyzeAgent do
       expect(transcribed.first).to start_with(File.join(File.realpath(@data), call[:argv][3].delete_prefix('/monadic/data/')))
     end
 
+    it 'puts a copy of the attached video in the shared folder for the page to play' do
+      record = attach
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      name = "pub_#{record[:attachment_id]}.mp4"
+      expect(result).to start_with("Video for display: /data/#{name}\n\n")
+      copy = File.join(File.realpath(@data), name)
+      expect(File.binread(copy)).to eq(mp4)
+      expect(Dir[File.join(File.realpath(@data), '*.part-*')]).to be_empty
+
+      # The copy is a copy: writing to it leaves the attachment as it was.
+      File.binwrite(copy, 'changed')
+      original = File.join(File.realpath(@data), record[:relative_path])
+      expect(File.binread(original)).to eq(mp4)
+    end
+
+    it 'makes the copy once, and goes on without it when it cannot be made' do
+      record = attach
+      2.times { agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id }) }
+      expect(Dir[File.join(File.realpath(@data), 'pub_*')].size).to eq(1)
+
+      allow(IO).to receive(:copy_stream).and_raise(Errno::ENOSPC)
+      other = attach
+      result = agent.analyze_video(attachment_id: other[:attachment_id], session: { chat_id: chat_id })
+      expect(result).not_to include('Video for display')
+      expect(result).to include('A deer crosses the road.')
+      expect(Dir[File.join(File.realpath(@data), '*.part-*')]).to be_empty
+    end
+
+    it 'takes an attachment id passed as the file name as the attachment' do
+      record = attach
+      result = agent.analyze_video(file: record[:attachment_id], session: { chat_id: chat_id })
+      expect(result).to include('A deer crosses the road.')
+      expect(calls.first[:argv][2]).to eq("/monadic/data/#{record[:relative_path]}")
+    end
+
     it 'gives each run its own folder' do
       record = attach
       2.times { agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id }) }

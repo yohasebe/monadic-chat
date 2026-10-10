@@ -3282,7 +3282,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
     }
-    if (message.value === "") {
+    const hasAttachment = typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments();
+    if (message.value === "" && !hasAttachment) {
       return;
     }
     // Auto-collapse settings when sending a message
@@ -3299,7 +3300,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
-    const userMessageText = ($id("message") || {}).value;
+    // Attached videos are named in the message by attachment_id, which the
+    // video tools take; the files themselves are on the server already.
+    const typedText = ($id("message") || {}).value;
+    const attachmentLines = typeof window.takeVideoAttachmentLines === 'function' ? window.takeVideoAttachmentLines() : '';
+    const userMessageText = [typedText, attachmentLines].filter(function (part) { return part; }).join("\n\n");
     params["message"] = userMessageText;
 
     // Mark that user has interacted with this tab (for app change confirmation)

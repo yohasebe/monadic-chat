@@ -44,4 +44,4 @@ The audio track is transcribed separately, with the speech-to-text of the app's 
 
 Before any frames are extracted, the file is checked: its format must match its extension (MP4, M4V, MOV, WebM, MKV, AVI or MPEG), it must contain a video track, last at most 50 minutes, and be at most 4096 pixels on each side. A file that does not pass is not processed, and the reason is shown. The audio is extracted as mono at 64 kbps, which keeps a 50-minute track within the size that speech-to-text accepts.
 
-To use this app, place a video file in the `Shared Folder`, provide its name, and specify the frames per second (fps) for the analysis.
+To use this app, attach a video with the `Image` button below the message box, or place a video file in the `Shared Folder` and give its name, and specify the frames per second (fps) for the analysis. An attached video is uploaded to the chat's folder and shown below the message box until you send the message; you can send it with or without text. The answer plays the video from a copy placed in the Shared Folder (`pub_<id>.<ext>`).

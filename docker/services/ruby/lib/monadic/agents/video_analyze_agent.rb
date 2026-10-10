@@ -76,6 +76,13 @@ module VideoAnalyzeAgent
   def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil)
     return "Error: attachment_id or file is required." if attachment_id.to_s.empty? && file.to_s.empty?
 
+    # Models sometimes pass the attachment id as the file name. A shared-folder
+    # video always has an extension, so an exact attachment id is one.
+    if attachment_id.to_s.empty? && Monadic::Workspace::Ids.valid?(:attachment, file.to_s.strip)
+      attachment_id = file.to_s.strip
+      file = nil
+    end
+
     resolution = Monadic::Utils::ProviderCapabilities.resolve(:video, settings["provider"] || settings[:provider])
     return resolution[:error] if resolution[:error]
 
@@ -131,7 +138,8 @@ module VideoAnalyzeAgent
       return "Video analysis failed: #{description}#{transcript}"
     end
 
-    "#{description}#{transcript}"
+    display = extracted[:display] ? "Video for display: #{extracted[:display]}\n\n" : ""
+    "#{display}#{description}#{transcript}"
   end
 
   # The "Audio Transcript" part of the answer.
@@ -195,13 +203,36 @@ module VideoAnalyzeAgent
     end
 
     { json: json, audio: Monadic::Workspace::Jobs.outputs(job, /\Aaudio_[0-9_]+\.mp3\z/).first,
-      job: job, input: input, output: output }
+      job: job, input: input, output: output, display: publish_attachment(record) }
   rescue Monadic::Workspace::Attachments::Unusable, Monadic::Utils::VideoProbe::Rejected => e
     "Error: #{e.message}"
   rescue Monadic::Workspace::Jobs::Unavailable, Monadic::Workspace::Ledger::Unreadable => e
     "Error: #{e.message}"
   rescue Monadic::Shell::TimedOut
     "Error: extracting frames took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes. Try a shorter video."
+  end
+
+  # A copy of the attached video directly in the shared folder, where the page
+  # can play it (/data/<name>); the attachment itself stays in the chat's
+  # folder. A real copy, not a link: code that writes to the public file must
+  # not change the attachment. Made once per attachment, written under a
+  # temporary name and then renamed so that a half-written file is never
+  # served. Returns the address, or nil when the copy cannot be made.
+  def publish_attachment(record)
+    ext = File.extname(record[:original_name].to_s).downcase
+    return nil unless ext.match?(/\A\.[a-z0-9]{1,5}\z/)
+
+    name = "pub_#{record[:attachment_id]}#{ext}"
+    dest = File.join(Monadic::Utils::Environment.data_path, name)
+    unless File.file?(dest) && File.size(dest) == File.size(record[:path])
+      partial = "#{dest}.part-#{Process.pid}"
+      File.open(record[:path], "rb") { |src| File.open(partial, "wb") { |out| IO.copy_stream(src, out) } }
+      File.rename(partial, dest)
+    end
+    "/data/#{name}"
+  rescue SystemCallError, IOError
+    File.delete(partial) if partial && File.exist?(partial)
+    nil
   end
 
   # A video placed in the shared folder by name (the way before attachments).

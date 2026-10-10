@@ -1283,6 +1283,8 @@ function resetEvent(_event, resetToDefaultApp = false) {
   const imageUsed = $id("image-used");
   if (imageUsed) imageUsed.innerHTML = '';
   images = [];
+  // Attachments belong to the chat being reset; they do not carry over.
+  if (typeof window.clearVideoAttachments === 'function') window.clearVideoAttachments();
 
   // Detect iOS/iPadOS
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||

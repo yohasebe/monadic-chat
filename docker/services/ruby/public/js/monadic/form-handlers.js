@@ -121,8 +121,8 @@ async function importSession(file) {
   formData.append('file', file);
 
   // Include tab_id for WebSocket session routing
-  if (typeof window.tabId !== 'undefined' && window.tabId) {
-    formData.append('tab_id', window.tabId);
+  if (typeof window.getMonadicTabId === 'function' && window.getMonadicTabId()) {
+    formData.append('tab_id', window.getMonadicTabId());
   }
 
   return await postLoadWithPassphraseRetry(formData, file);
@@ -165,8 +165,8 @@ async function postLoadWithPassphraseRetry(formData, file, lastError) {
     const retryForm = new FormData();
     retryForm.append('file', file);
     retryForm.append('passphrase', passphrase);
-    if (typeof window.tabId !== 'undefined' && window.tabId) {
-      retryForm.append('tab_id', window.tabId);
+    if (typeof window.getMonadicTabId === 'function' && window.getMonadicTabId()) {
+      retryForm.append('tab_id', window.getMonadicTabId());
     }
     return await postLoadWithPassphraseRetry(retryForm, file, data.error || null);
   }

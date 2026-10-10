@@ -689,7 +689,7 @@ RSpec.describe VideoAnalyzeAgent do
       it 'keeps the transcript when the frame analysis fails' do
         allow(agent).to receive(:video_vision_query).and_return('ERROR: vision refused')
         result = analyze
-        expect(result).to start_with('Video analysis failed: ERROR: vision refused')
+        expect(result).to match(%r{\AVideo for display: /data/pub_a_[a-z0-9]{16}\.mp4\n\nVideo analysis failed: ERROR: vision refused})
         expect(result).to include("Audio Transcript:\n[00:01–00:03] Hello there.")
       end
 
@@ -703,8 +703,47 @@ RSpec.describe VideoAnalyzeAgent do
         allow(agent).to receive(:video_vision_query).and_raise(IOError, 'reset')
         result = analyze
         expect(finished).to be(true)
-        expect(result).to start_with('Video analysis failed: ERROR: IOError')
+        expect(result).to include('Video analysis failed: ERROR: IOError')
         expect(result).to include('[00:01–00:03] Hello there.')
+      end
+
+      it 'stops the audio side when the analysis itself is stopped (Cancel kills its thread)' do
+        audio_started = Queue.new
+        audio_thread = nil
+        allow(Monadic::Utils::SegmentTranscriber).to receive(:new) do |**_args|
+          audio_thread = Thread.current
+          audio_started << true
+          sleep 30
+          double(run: transcript)
+        end
+        allow(agent).to receive(:video_vision_query) { sleep 30 }
+        runner = Thread.new { analyze }
+        audio_started.pop
+        runner.kill
+        runner.join(5)
+        sleep 0.2
+        expect(audio_thread.alive?).to be(false)
+      end
+
+      it 'keeps to the chat it started in when the chat changes while speech is being found' do
+        session = { chat_id: chat_id }
+        record = attach
+        segmenter_now = segmenter
+        stub_segmenter = lambda do |container, argv, opts|
+          session[:chat_id] = Monadic::Workspace::Ids.generate(:chat) # Reset meanwhile
+          segmenter_now.call(container, argv, opts)
+        end
+        allow(Monadic::Shell).to receive(:exec) do |container:, argv:, **opts|
+          next [probe_answer.to_json, '', double(success?: true)] if argv.first == 'ffprobe'
+          next stub_segmenter.call(container, argv, opts) if argv[1] == VideoAnalyzeAgent::SEGMENT_SCRIPT
+
+          out = File.join(File.realpath(@data), argv[3].delete_prefix('/monadic/data/'))
+          File.write(File.join(out, 'frames_20261009_120000_000001.json'), frames_json.to_json)
+          File.binwrite(File.join(out, 'audio_20261009_120000.mp3'), 'ID3')
+          ['', '', double(success?: true)]
+        end
+        agent.analyze_video(attachment_id: record[:attachment_id], session: session)
+        expect(transcriber_args[:cancelled].call).to be(true)
       end
 
       it 'still returns the frames when the audio side raises' do
@@ -730,6 +769,43 @@ RSpec.describe VideoAnalyzeAgent do
           .to eq(['Hello there.', 'Goodbye.'])
         expect(File.exist?(File.join(job, 'audio_24k.pcm'))).to be(false)
         expect(transcriber_args[:pcm_path]).to eq(File.join(job, 'audio_24k.pcm'))
+      end
+
+      it 'removes the decoded audio when stopped while the segments are sent (Reset or Cancel)' do
+        sending = Queue.new
+        allow(Monadic::Utils::SegmentTranscriber).to receive(:new) do |**args|
+          transcriber_args.merge!(args)
+          double(run: nil).tap do |d|
+            allow(d).to receive(:run) do
+              sending << true
+              sleep 30
+            end
+          end
+        end
+        allow(agent).to receive(:video_vision_query).and_return('A deer.')
+        reply = Thread.new { analyze }
+        sending.pop
+        pcm = transcriber_args[:pcm_path]
+        expect(File.exist?(pcm)).to be(true)
+        reply.kill
+        reply.join(10)
+        expect(File.exist?(pcm)).to be(false)
+      end
+
+      it 'writes subtitle files for the transcript and links copies the page can load' do
+        result = analyze
+        job = File.join(File.realpath(@data), segment_calls.first[:argv][3].delete_prefix('/monadic/data/'))
+        job_id = File.basename(job)
+        expect(result).to include("Subtitles: /data/pub_#{job_id}.vtt (WebVTT), /data/pub_#{job_id}.srt (SRT)")
+        vtt = File.read(File.join(job, 'transcript.vtt'))
+        expect(vtt).to start_with("WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nHello there.\n")
+        expect(File.read(File.join(File.realpath(@data), "pub_#{job_id}.vtt"))).to eq(vtt)
+        expect(File.read(File.join(File.realpath(@data), "pub_#{job_id}.srt"))).to include("2\n00:01:01,000 --> 00:01:02,500\nGoodbye.")
+      end
+
+      it 'links no subtitles when no segment has words' do
+        transcript['segments'].each { |seg| seg['text'] = '' }
+        expect(analyze).not_to include('Subtitles:')
       end
 
       it 'stops sending when the chat changes' do
@@ -762,6 +838,12 @@ RSpec.describe VideoAnalyzeAgent do
         expect(result.scan('transcription failed').size).to eq(1)
       end
 
+      it 'says how its times differ from the player when the picture starts later' do
+        transcript['timeline_origin_ms'] = 5_000.0
+        expect(analyze).to include("(These times count from the first video frame, which a player shows at 00:05; " \
+                                   "the subtitles follow the player's time.)")
+      end
+
       it 'leaves out segments that came back without words' do
         transcript['segments'][0]['text'] = '  '
         result = analyze
@@ -785,6 +867,17 @@ RSpec.describe VideoAnalyzeAgent do
           expect(result).to include('Hello.')
           expect(result).to include(VideoAnalyzeAgent::UNTIMED_NOTE)
           expect(Monadic::Utils::SegmentTranscriber).not_to have_received(:new)
+        end
+
+        it 'does not send the whole audio when the chat was reset while the segmenter was tried' do
+          session = { chat_id: chat_id }
+          allow(agent).to receive(:audio_transcription_agent).and_return('Hello.')
+          allow(agent).to receive(:timed_transcript) do |*_args|
+            session[:chat_id] = Monadic::Workspace::Ids.generate(:chat)
+            { fallback: true }
+          end
+          analyze(session)
+          expect(agent).not_to have_received(:audio_transcription_agent)
         end
       end
 

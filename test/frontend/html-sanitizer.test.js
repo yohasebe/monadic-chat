@@ -137,6 +137,19 @@ describeFn('model-output sanitization pipeline (golden + XSS)', () => {
       expect(source.getAttribute('type')).toBe('video/mp4');
     });
 
+    test('Video Describer: video with a subtitle track survives, as the model writes it in markdown', () => {
+      const text = '### Original Video:\n\n<video class="to_analyze" src="/data/pub_a.mp4" width="100%" controls>' +
+        '<track kind="subtitles" src="/data/pub_j.vtt" srclang="ja" label="Transcript" default></video>';
+      const doc = toDoc(renderSanitized(text));
+      const track = doc.querySelector('video.to_analyze > track');
+      expect(track).not.toBeNull();
+      expect(track.getAttribute('src')).toBe('/data/pub_j.vtt');
+      expect(track.getAttribute('kind')).toBe('subtitles');
+      expect(track.getAttribute('srclang')).toBe('ja');
+      expect(track.getAttribute('label')).toBe('Transcript');
+      expect(track.hasAttribute('default')).toBe(true);
+    });
+
     test('mc: citation link keeps href and data-mc-link', () => {
       const doc = toDoc(renderSanitized('[Conversation 42](mc:conv:abc-123)'));
       const a = doc.querySelector('a.mc-conv-link');

@@ -7,6 +7,7 @@ require_relative '../utils/shared_path_guard'
 require_relative '../utils/video_probe'
 require_relative '../utils/model_spec'
 require_relative '../utils/segment_transcriber'
+require_relative '../utils/subtitles'
 require_relative '../shell'
 require_relative '../workspace'
 
@@ -83,6 +84,11 @@ module VideoAnalyzeAgent
       file = nil
     end
 
+    # The chat this analysis belongs to, fixed now: a Reset while it runs
+    # starts another chat, and nothing of this run (transcription requests,
+    # its run folder) may carry over to that one.
+    owner_chat = session && session[Monadic::Workspace::Chats::SESSION_KEY]
+
     resolution = Monadic::Utils::ProviderCapabilities.resolve(:video, settings["provider"] || settings[:provider])
     return resolution[:error] if resolution[:error]
 
@@ -98,6 +104,8 @@ module VideoAnalyzeAgent
                 end
     return extracted if extracted.is_a?(String) # Error message
 
+    extracted[:chat_id] = owner_chat
+
     json_file = extracted[:json]
 
     # Step 2: Read frames JSON directly from shared volume
@@ -108,14 +116,29 @@ module VideoAnalyzeAgent
       puts "[VideoAnalyzeAgent] Loaded frames from #{json_file}"
     end
 
-    # Step 3: The audio and the frames at the same time. They do not wait for
-    # each other: the app's model relates them afterwards by their video
-    # times, and one failing does not hold up the other.
+    # Step 3: The audio and the frames at the same time (see describe_and_transcribe).
+    video_query = query || "Describe what happens in the video by analyzing the image data extracted from the video."
+    description, transcript = describe_and_transcribe(video_query, frames, extracted, provider, session)
+
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
+      puts "[VideoAnalyzeAgent] Vision query result: #{description&.slice(0, 200).inspect}"
+    end
+
+    # A failed frame analysis does not discard the transcript, and the other
+    # way round.
+    display = extracted[:display] ? "Video for display: #{extracted[:display]}\n\n" : ""
+    return "#{display}Video analysis failed: #{description}#{transcript}" if description.to_s.start_with?("ERROR:", "Error:")
+
+    "#{display}#{description}#{transcript}"
+  end
+
+  # The frames are described while the audio is transcribed: they do not wait
+  # for each other, the app's model relates them afterwards by their video
+  # times, and one failing does not hold up the other. Returns
+  # [description, transcript section].
+  def describe_and_transcribe(video_query, frames, extracted, provider, session)
     audio = Thread.new { video_transcript_section(extracted, provider, session) }
     audio.report_on_exception = false
-
-    # Step 4: Call Vision API directly (provider-independent)
-    video_query = query || "Describe what happens in the video by analyzing the image data extracted from the video."
     description = begin
       video_vision_query(video_query, frames)
     rescue StandardError => e
@@ -127,19 +150,14 @@ module VideoAnalyzeAgent
     rescue StandardError => e
       "\n\n---\n\nAudio Transcript:\nAudio transcription failed: #{e.class.name.split('::').last}"
     end
-
-    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
-      puts "[VideoAnalyzeAgent] Vision query result: #{description&.slice(0, 200).inspect}"
+    [description, transcript]
+  ensure
+    # This call itself stopped (Cancel kills the thread running it): the
+    # audio side stops with it rather than going on sending.
+    if audio&.alive?
+      audio.kill
+      audio.join(10) # its own clean-up (closing connections, stopping commands)
     end
-
-    # A failed frame analysis does not discard the transcript, and the other
-    # way round.
-    if description.to_s.start_with?("ERROR:", "Error:")
-      return "Video analysis failed: #{description}#{transcript}"
-    end
-
-    display = extracted[:display] ? "Video for display: #{extracted[:display]}\n\n" : ""
-    "#{display}#{description}#{transcript}"
   end
 
   # The "Audio Transcript" part of the answer.
@@ -148,11 +166,19 @@ module VideoAnalyzeAgent
     return "" unless audio_file
 
     timed = timed_transcript(extracted, provider, session)
-    return "\n\n---\n\nAudio Transcript:\n#{timed[:text]}" if timed && !timed[:fallback]
+    if timed && !timed[:fallback]
+      subtitles = timed[:subtitles]
+      named = { vtt: "WebVTT", srt: "SRT" }
+      links = subtitles ? "\n\nSubtitles: #{subtitles.map { |kind, address| "#{address} (#{named[kind]})" }.join(', ')}" : ""
+      return "\n\n---\n\nAudio Transcript:\n#{timed[:text]}#{links}"
+    end
 
     unless Monadic::Utils::ProviderCapabilities.supports?(:audio, provider)
       return "\n\nAudio Transcript: Audio transcription is not supported by this provider."
     end
+    # The chat may have ended (Reset) while the speech segmenter was tried:
+    # the whole audio is not sent for a chat that is gone.
+    return "" if chat_moved_on?(extracted, session)
 
     stt_model = session&.dig(:parameters, "stt_model") ||
                 settings.dig(:agents, :speech_to_text) ||
@@ -178,6 +204,12 @@ module VideoAnalyzeAgent
   end
 
   private
+
+  # Whether the chat this analysis began in has ended (Reset or app switch).
+  def chat_moved_on?(extracted, session)
+    extracted.key?(:chat_id) && !session.nil? &&
+      session[Monadic::Workspace::Chats::SESSION_KEY] != extracted[:chat_id]
+  end
 
   # The attached video, run in a folder of its own inside the chat's folder.
   # The chat is the session's; an id from another chat is refused.
@@ -222,17 +254,25 @@ module VideoAnalyzeAgent
     ext = File.extname(record[:original_name].to_s).downcase
     return nil unless ext.match?(/\A\.[a-z0-9]{1,5}\z/)
 
-    name = "pub_#{record[:attachment_id]}#{ext}"
+    publish_copy(record[:path], "pub_#{record[:attachment_id]}#{ext}")
+  end
+
+  # Copies a file to the top of the shared folder under name (once: an
+  # existing copy of the same size is kept) and returns its /data address,
+  # or nil when it cannot be made.
+  def publish_copy(source, name)
     dest = File.join(Monadic::Utils::Environment.data_path, name)
-    unless File.file?(dest) && File.size(dest) == File.size(record[:path])
+    unless File.file?(dest) && File.size(dest) == File.size(source)
       partial = "#{dest}.part-#{Process.pid}"
-      File.open(record[:path], "rb") { |src| File.open(partial, "wb") { |out| IO.copy_stream(src, out) } }
+      File.open(source, "rb") { |src| File.open(partial, "wb") { |out| IO.copy_stream(src, out) } }
       File.rename(partial, dest)
     end
     "/data/#{name}"
   rescue SystemCallError, IOError
-    File.delete(partial) if partial && File.exist?(partial)
     nil
+  ensure
+    # A copy left half-written (failed, or stopped by Reset or Cancel).
+    File.delete(partial) if partial && File.exist?(partial) rescue nil
   end
 
   # A video placed in the shared folder by name (the way before attachments).
@@ -288,7 +328,7 @@ module VideoAnalyzeAgent
   def timed_transcript(extracted, provider, session)
     return nil unless SEGMENT_TRANSCRIPTION_PROVIDERS.include?(provider)
 
-    chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
+    chat_id = extracted.key?(:chat_id) ? extracted[:chat_id] : session && session[Monadic::Workspace::Chats::SESSION_KEY]
     return nil unless extracted[:job] || Monadic::Workspace::Ids.valid?(:chat, chat_id)
 
     model = segment_transcription_model(provider, session)
@@ -318,8 +358,8 @@ module VideoAnalyzeAgent
     return { text: "Audio transcription failed: #{key_name} is not set." } if api_key.empty?
 
     pcm_path = Monadic::Workspace::Jobs.outputs(job, /\Aaudio_24k\.pcm\z/).first
-    chat_at_start = session && session[Monadic::Workspace::Chats::SESSION_KEY]
-    cancelled = -> { session && session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
+    owner_chat = extracted.key?(:chat_id) ? extracted[:chat_id] : chat_id
+    cancelled = -> { session && session[Monadic::Workspace::Chats::SESSION_KEY] != owner_chat }
     result = if provider == "openai"
                Sync do
                  Monadic::Utils::SegmentTranscriber.new(
@@ -334,12 +374,36 @@ module VideoAnalyzeAgent
                ).run
              end
     File.write(File.join(job[:path], "transcript.json"), JSON.pretty_generate(result))
-    File.delete(pcm_path) if pcm_path && File.exist?(pcm_path)
-    { text: format_timed_transcript(result) }
+    { text: format_timed_transcript(result), subtitles: write_subtitles(job, result) }
   rescue Monadic::Shell::TimedOut
     { text: "Audio transcription failed: finding speech took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes." }
   rescue JSON::ParserError, SystemCallError => e
     { text: "Audio transcription failed: #{e.class.name.split('::').last}" }
+  ensure
+    # The decoded audio (about 144 MB for 50 minutes) is only needed while
+    # the segments are sent: removed however this ends, Reset and Cancel too.
+    remove_decoded_audio(job) if job
+  end
+
+  def remove_decoded_audio(job)
+    Monadic::Workspace::Jobs.outputs(job, /\Aaudio_24k\.pcm\z/).each { |path| File.delete(path) }
+  rescue SystemCallError, Monadic::Workspace::Jobs::Unavailable
+    nil
+  end
+
+  # Subtitle files for the transcript, in the run folder and as public copies
+  # the page can load (WebVTT for the player, SRT for other programs).
+  # Returns { vtt:, srt: } addresses, or nil when there is nothing to show.
+  def write_subtitles(job, result)
+    return nil if Monadic::Utils::Subtitles.cues(result).empty?
+
+    { vtt: Monadic::Utils::Subtitles.vtt(result), srt: Monadic::Utils::Subtitles.srt(result) }.to_h do |kind, body|
+      path = File.join(job[:path], "transcript.#{kind}")
+      File.write(path, body)
+      [kind, publish_copy(path, "pub_#{job[:job_id]}.#{kind}")]
+    end.compact.then { |links| links.empty? ? nil : links }
+  rescue SystemCallError, IOError
+    nil
   end
 
   # The run folder for the transcript: the attachment's own, or for a video
@@ -348,7 +412,7 @@ module VideoAnalyzeAgent
   def transcript_job(extracted, session)
     return [extracted[:job], extracted[:output]] if extracted[:job]
 
-    chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
+    chat_id = extracted.key?(:chat_id) ? extracted[:chat_id] : session && session[Monadic::Workspace::Chats::SESSION_KEY]
     return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id) && extracted[:input]
 
     workspace = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: self.class.name)
@@ -400,6 +464,14 @@ module VideoAnalyzeAgent
     case result["status"]
     when "partial" then lines << "(Some segments could not be transcribed.)"
     when "cancelled" then lines << "(Stopped because the chat changed.)"
+    end
+    # The lines count from the first frame; a player counts from the file's
+    # zero, which differ when the picture starts later (the subtitles follow
+    # the player).
+    origin = result["timeline_origin_ms"].to_f / 1000
+    if origin >= 1
+      lines << "(These times count from the first video frame, which a player shows at " \
+               "#{video_clock(origin.floor)}; the subtitles follow the player's time.)"
     end
     lines.join("\n")
   end

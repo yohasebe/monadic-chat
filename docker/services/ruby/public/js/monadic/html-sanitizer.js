@@ -37,9 +37,10 @@ var PURIFY_CONFIG = {
   // <annotation encoding="application/x-tex"> source otherwise. The mXSS
   // vector is annotation-xml (namespace confusion), NOT annotation, so
   // allowing it here does not reopen that hole.
-  ADD_TAGS: ['video', 'source', 'audio', 'semantics', 'annotation'],
+  ADD_TAGS: ['video', 'source', 'track', 'audio', 'semantics', 'annotation'],
   ADD_ATTR: [
     'controls', 'width', 'type', // video/source
+    'kind', 'srclang', 'label', 'default', // track (Video Describer subtitles)
     'data-mc-link',              // mc: citation links (data-* is default-allowed; explicit for clarity)
     'data-depth', 'data-key',    // Monadic JSON tree
     'encoding',                  // KaTeX <annotation encoding="application/x-tex">

@@ -651,6 +651,27 @@ RSpec.describe VideoAnalyzeAgent do
         expect(result).to include("A deer crosses the road.\n\n---\n\nAudio Transcript:\n[00:01–00:03] Hello there.")
       end
 
+      it 'keeps the transcript when the frame analysis fails' do
+        allow(agent).to receive(:video_vision_query).and_return('ERROR: vision refused')
+        result = analyze
+        expect(result).to start_with('Video analysis failed: ERROR: vision refused')
+        expect(result).to include("Audio Transcript:\n[00:01–00:03] Hello there.")
+      end
+
+      it 'waits for the audio side and keeps its result when the frame analysis raises' do
+        finished = false
+        allow(Monadic::Utils::SegmentTranscriber).to receive(:new) do |**_args|
+          sleep 0.2
+          finished = true
+          double(run: transcript)
+        end
+        allow(agent).to receive(:video_vision_query).and_raise(IOError, 'reset')
+        result = analyze
+        expect(finished).to be(true)
+        expect(result).to start_with('Video analysis failed: ERROR: IOError')
+        expect(result).to include('[00:01–00:03] Hello there.')
+      end
+
       it 'still returns the frames when the audio side raises' do
         allow(Monadic::Utils::SegmentTranscriber).to receive(:new).and_raise(IOError, 'socket closed')
         expect(analyze).to include('A deer crosses the road.', "Audio Transcript:\nAudio transcription failed: IOError")

@@ -109,7 +109,12 @@ module VideoAnalyzeAgent
 
     # Step 4: Call Vision API directly (provider-independent)
     video_query = query || "Describe what happens in the video by analyzing the image data extracted from the video."
-    description = video_vision_query(video_query, frames)
+    description = begin
+      video_vision_query(video_query, frames)
+    rescue StandardError => e
+      "ERROR: #{e.class.name.split('::').last}"
+    end
+    # The audio side is always waited for, so no thread outlives the call.
     transcript = begin
       audio.value
     rescue StandardError => e
@@ -120,9 +125,10 @@ module VideoAnalyzeAgent
       puts "[VideoAnalyzeAgent] Vision query result: #{description&.slice(0, 200).inspect}"
     end
 
-    # Check if there was an error
+    # A failed frame analysis does not discard the transcript, and the other
+    # way round.
     if description.to_s.start_with?("ERROR:", "Error:")
-      return "Video analysis failed: #{description}"
+      return "Video analysis failed: #{description}#{transcript}"
     end
 
     "#{description}#{transcript}"

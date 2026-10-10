@@ -64,7 +64,9 @@ app "CodingAssistantDeepSeek" do
   
   llm do
     provider "deepseek"
-    reasoning_effort "low"
+    # V4 takes high or max only; "low" was never sent, so the API ran its own
+    # default (high). This states that.
+    reasoning_effort "high"
     # V4 unified models are the default; thinking mode toggle controls reasoning depth.
     model ["deepseek-v4-flash", "deepseek-v4-pro"]
   end

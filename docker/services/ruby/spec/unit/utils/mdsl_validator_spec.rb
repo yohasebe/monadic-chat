@@ -3,74 +3,55 @@
 require_relative '../../spec_helper'
 require 'monadic/utils/mdsl_validator'
 
-# Guards MDSLValidator.validate_reasoning_parameters for DeepSeek.
-#
-# Context: DeepSeek V4 exposes two INDEPENDENT reasoning controls in its model
-# spec — reasoning_content ("disabled"/"enabled", the On/Off toggle) and
-# reasoning_effort ("high"/"max", the depth used when thinking is on). The
-# retired pre-V4 generation exposed only the former. The validator must accept
-# valid values for each, flag invalid values as errors, and warn (not error)
-# when a model simply doesn't support the parameter. An earlier version
-# rejected reasoning_effort on DeepSeek outright, which was wrong for V4.
+# MDSLValidator flags a reasoning setting that the request code would not
+# send: a value outside the levels the named model lists in model_spec.js.
+# Rules per provider are not repeated in the validator (an earlier version
+# had them, and they drifted: it called reasoning_effort wrong for Claude,
+# Gemini, Mistral and Cohere, all of which send it). So these specs check the
+# rule against the model list, and that no app's MDSL trips it.
 RSpec.describe Monadic::Utils::MDSLValidator do
-  describe '.validate_reasoning_parameters (DeepSeek)' do
-    def validate(config, model = 'deepseek-v4-pro')
-      described_class.validate_reasoning_parameters(config, 'DeepSeek', model)
-    end
+  def validate(config, model, provider = 'Any')
+    described_class.validate_reasoning_parameters(config, provider, model)
+  end
 
-    it 'accepts reasoning_content "disabled" on V4' do
-      result = validate(reasoning_content: 'disabled')
-      expect(result[:errors]).to be_empty
-    end
+  it 'accepts a level the model lists, in either shape of list' do
+    expect(validate({ reasoning_effort: 'max' }, 'deepseek-v4-pro')).to eq(errors: [], warnings: [])
+    expect(validate({ reasoning_content: 'enabled' }, 'deepseek-v4-pro')).to eq(errors: [], warnings: [])
+    expect(validate({ reasoning_effort: 'enabled' }, 'north-mini-code-1-0')).to eq(errors: [], warnings: [])
+  end
 
-    it 'accepts reasoning_content "enabled" on V4' do
-      result = validate(reasoning_content: 'enabled')
-      expect(result[:errors]).to be_empty
-    end
+  it 'accepts "none", which every provider sends as its least reasoning' do
+    expect(validate({ reasoning_effort: 'none' }, 'gpt-6.1-sol')).to eq(errors: [], warnings: [])
+  end
 
-    it 'rejects an invalid reasoning_content value' do
-      result = validate(reasoning_content: 'sometimes')
-      expect(result[:errors]).to include(a_string_matching(/Invalid reasoning_content 'sometimes'/))
-    end
+  it 'warns, without an error, about a level the model does not take' do
+    result = validate({ reasoning_effort: 'low' }, 'deepseek-v4-flash')
+    expect(result[:errors]).to be_empty
+    expect(result[:warnings]).to eq(["reasoning_effort 'low' is not a level deepseek-v4-flash takes (high, max); it is not sent"])
+    expect(validate({ reasoning_content: 'maybe' }, 'deepseek-v4-pro')[:warnings].first).to include("reasoning_content 'maybe'")
+  end
 
-    it 'accepts reasoning_effort "high" on V4' do
-      result = validate(reasoning_effort: 'high')
-      expect(result[:errors]).to be_empty
-    end
+  it 'says nothing when the model lists no levels (its request code decides)' do
+    model = Monadic::Utils::ModelSpec.load_spec.keys.find { |m| Monadic::Utils::ModelSpec.get_model_spec(m)['reasoning_effort'].nil? }
+    expect(validate({ reasoning_effort: 'high' }, model)).to eq(errors: [], warnings: [])
+  end
 
-    it 'rejects reasoning_effort "low" on V4 (only high/max are valid)' do
-      result = validate(reasoning_effort: 'low')
-      expect(result[:errors]).to include(a_string_matching(/Invalid reasoning_effort 'low'.*high, max/))
-    end
+  it 'reports a model missing from the specification' do
+    expect(validate({ reasoning_effort: 'high' }, 'no-such-model')[:errors]).to eq(["Model 'no-such-model' not found in specifications"])
+  end
 
-    it 'accepts both reasoning_content and reasoning_effort together' do
-      result = validate(reasoning_content: 'disabled', reasoning_effort: 'high')
-      expect(result[:errors]).to be_empty
-    end
+  it "finds nothing to report in any app's MDSL" do
+    apps = File.expand_path('../../../apps', __dir__)
+    reports = Dir[File.join(apps, '**', '*.mdsl')].sort.filter_map do |file|
+      text = File.read(file)
+      model = text[/^\s*model\s+\[?\s*"([^"]+)"/, 1]
+      config = %w[reasoning_effort reasoning_content].to_h { |k| [k.to_sym, text[/^\s*#{k}\s+"([^"]+)"/, 1]] }.compact
+      next unless model && !config.empty?
 
-    # The retired 2026-07-24 generation (deepseek-chat) had reasoning_content
-    # but no reasoning_effort; its entries are gone from model_spec, so the
-    # shape is pinned via a stub — the validator behavior (warn, not error)
-    # must survive for any future model with that spec shape.
-    it 'warns (not errors) when a model lacks reasoning_effort in its spec' do
-      allow(Monadic::Utils::ModelSpec).to receive(:get_model_spec)
-        .with('deepseek-legacy-shape').and_return({ 'reasoning_content' => %w[disabled enabled] })
-      result = validate({ reasoning_effort: 'low' }, 'deepseek-legacy-shape')
-      expect(result[:errors]).to be_empty
-      expect(result[:warnings]).to include(a_string_matching(/doesn't support reasoning_effort/))
+      result = validate(config, model)
+      messages = result[:errors] + result[:warnings]
+      "#{File.basename(file)}: #{messages.join('; ')}" unless messages.empty?
     end
-
-    it 'still accepts reasoning_content on a model whose spec carries only that key' do
-      allow(Monadic::Utils::ModelSpec).to receive(:get_model_spec)
-        .with('deepseek-legacy-shape').and_return({ 'reasoning_content' => %w[disabled enabled] })
-      result = validate({ reasoning_content: 'disabled' }, 'deepseek-legacy-shape')
-      expect(result[:errors]).to be_empty
-    end
-
-    it 'produces no errors or warnings when neither parameter is set' do
-      result = validate({})
-      expect(result[:errors]).to be_empty
-      expect(result[:warnings]).to be_empty
-    end
+    expect(reports).to be_empty
   end
 end

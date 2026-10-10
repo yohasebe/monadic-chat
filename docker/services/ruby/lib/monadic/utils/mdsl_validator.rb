@@ -2,138 +2,37 @@
 
 module Monadic
   module Utils
+    # Checks an app's reasoning setting against the model it names. Each
+    # provider's request code reads `reasoning_effort` (and DeepSeek's
+    # `reasoning_content`) and sends what the model takes: a listed value as
+    # is, "none" as the model's way of reasoning least, anything else is left
+    # out. So the one thing worth flagging is a value outside the model's own
+    # list in model_spec.js (a typo or a level the model does not have): it is
+    # silently not sent. Rules per provider are not repeated here; they drifted
+    # from the request code once already.
     class MDSLValidator
-      # Validate MDSL configuration against model specifications
       class << self
-        def validate_reasoning_parameters(app_config, provider, model)
-          errors = []
+        def validate_reasoning_parameters(app_config, _provider, model)
           warnings = []
-          
-          # Get model spec from ModelSpec
           model_spec = ModelSpec.get_model_spec(model)
-          return { errors: ["Model '#{model}' not found in specifications"], warnings: [] } unless model_spec
-          
-          # Check reasoning/thinking parameters based on provider
-          case provider
-          when 'OpenAI'
-            validate_openai_reasoning(app_config, model_spec, errors, warnings)
-          when 'Anthropic'
-            validate_anthropic_thinking(app_config, model_spec, errors, warnings)
-          when 'Google'
-            validate_gemini_thinking(app_config, model_spec, errors, warnings)
-          when 'xAI'
-            validate_grok_reasoning(app_config, model_spec, errors, warnings)
-          when 'DeepSeek'
-            validate_deepseek_reasoning(app_config, model_spec, errors, warnings)
-          when 'Mistral', 'Cohere'
-            validate_no_reasoning(app_config, provider, errors, warnings)
-          end
-          
-          { errors: errors, warnings: warnings }
-        end
-        
-        private
-        
-        def validate_openai_reasoning(config, spec, errors, warnings)
-          if config[:reasoning_effort]
-            # Use string key since spec is loaded from JSON
-            spec_reasoning = spec["reasoning_effort"] || spec[:reasoning_effort]
-            if spec_reasoning
-              valid_values = spec_reasoning.first if spec_reasoning.is_a?(Array)
-              unless valid_values&.include?(config[:reasoning_effort])
-                errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for OpenAI model. Valid values: #{valid_values&.join(', ')}"
-              end
-            else
-              warnings << "Model doesn't support reasoning_effort parameter, it will be ignored"
-            end
-          end
-          
-          # Check for incorrect parameters
-          if config[:thinking_budget]
-            errors << "OpenAI models use 'reasoning_effort', not 'thinking_budget'"
-          end
-          if config[:reasoning_content]
-            errors << "OpenAI models use 'reasoning_effort', not 'reasoning_content'"
-          end
-        end
-        
-        def validate_anthropic_thinking(config, spec, errors, warnings)
-          # Anthropic doesn't use explicit thinking parameters in MDSL
-          # It's handled internally based on model capabilities
-          if config[:reasoning_effort]
-            errors << "Anthropic models don't use 'reasoning_effort' in MDSL configuration"
-          end
-          if config[:thinking_budget]
-            warnings << "thinking_budget is automatically managed for Anthropic models"
-          end
-        end
-        
-        def validate_gemini_thinking(config, spec, errors, warnings)
-          # Gemini uses internal thinking_budget but not in MDSL
-          if config[:reasoning_effort]
-            errors << "Gemini models don't use 'reasoning_effort' in MDSL configuration"
-          end
-          if config[:thinking_budget]
-            warnings << "thinking_budget is automatically managed for Gemini models"
-          end
-        end
-        
-        def validate_grok_reasoning(config, spec, errors, warnings)
-          if config[:reasoning_effort]
-            # Use string key since spec is loaded from JSON
-            spec_reasoning = spec["reasoning_effort"] || spec[:reasoning_effort]
-            if spec_reasoning
-              valid_values = spec_reasoning.first if spec_reasoning.is_a?(Array)
-              unless valid_values&.include?(config[:reasoning_effort])
-                errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for xAI model. Valid values: #{valid_values&.join(', ')}"
-              end
-            else
-              warnings << "Model doesn't support reasoning_effort parameter, it will be ignored"
-            end
-          end
-        end
-        
-        def validate_deepseek_reasoning(config, spec, errors, warnings)
-          # DeepSeek V4 exposes two independent controls:
-          #   reasoning_content ("disabled"/"enabled") — whether thinking runs at all
-          #   reasoning_effort   ("high"/"max")        — the depth used when thinking is on
-          # Older DeepSeek models expose neither. Validate each against the spec.
-          spec_effort = spec["reasoning_effort"] || spec[:reasoning_effort]
-          spec_content = spec["reasoning_content"] || spec[:reasoning_content]
-
-          if config[:reasoning_effort]
-            if spec_effort
-              valid = spec_effort.first.is_a?(Array) ? spec_effort.first : spec_effort
-              unless valid.include?(config[:reasoning_effort])
-                errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for DeepSeek model. Valid values: #{valid.join(', ')}"
-              end
-            else
-              warnings << "Model doesn't support reasoning_effort parameter, it will be ignored"
-            end
+          # An unknown model comes back as an empty entry, not nil.
+          if model_spec.nil? || model_spec.empty?
+            return { errors: ["Model '#{model}' not found in specifications"], warnings: [] }
           end
 
-          if config[:reasoning_content]
-            if spec_content
-              valid = spec_content.first.is_a?(Array) ? spec_content.first : spec_content
-              unless valid.include?(config[:reasoning_content])
-                errors << "Invalid reasoning_content '#{config[:reasoning_content]}' for DeepSeek model. Valid values: #{valid.join(', ')}"
-              end
-            else
-              warnings << "Model doesn't support reasoning_content parameter, it will be ignored"
-            end
+          %w[reasoning_effort reasoning_content].each do |key|
+            value = app_config[key.to_sym] || app_config[key]
+            next if value.nil? || value.to_s.empty? || value.to_s == "none"
+
+            # Either [[levels], default] or a plain list of levels.
+            listed = model_spec[key]
+            levels = listed.is_a?(Array) && listed.first.is_a?(Array) ? listed.first : listed
+            next unless levels.is_a?(Array) && levels.all? { |l| l.is_a?(String) } && !levels.empty?
+            next if levels.include?(value.to_s)
+
+            warnings << "#{key} '#{value}' is not a level #{model} takes (#{levels.join(', ')}); it is not sent"
           end
-        end
-        
-        def validate_no_reasoning(config, provider, errors, warnings)
-          if config[:reasoning_effort]
-            errors << "#{provider} models don't support reasoning_effort parameter"
-          end
-          if config[:thinking_budget]
-            errors << "#{provider} models don't support thinking_budget parameter"
-          end
-          if config[:reasoning_content]
-            errors << "#{provider} models don't support reasoning_content parameter"
-          end
+          { errors: [], warnings: warnings }
         end
       end
     end

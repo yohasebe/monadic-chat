@@ -53,4 +53,32 @@ RSpec.describe "Streaming across a chat change" do
     expect(sent).to include("BEFORE", "AFTER")
     expect(queue.size).to eq(1)
   end
+
+  def finish_turn
+    allow(host).to receive(:detect_language).and_return("en")
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, nil, queue)
+  end
+
+  it "drops a reply that was queued before a Reset instead of saving it in the new chat" do
+    run_turn(fake_app)
+    expect(queue.size).to eq(1)
+    # What Reset does to the session: a new chat and no messages.
+    session[:chat_id] = Monadic::Workspace::Ids.generate(:chat)
+    session[:messages] = []
+    broadcasts.clear
+    finish_turn
+
+    expect(session[:messages]).to be_empty
+    expect(broadcasts.join("\n")).not_to include("FINAL")
+  end
+
+  it "saves and shows a queued reply when the chat did not change" do
+    run_turn(fake_app)
+    broadcasts.clear
+    finish_turn
+
+    expect(session[:messages].select { |m| m["role"] == "assistant" }.map { |m| m["text"] }).to eq(["FINAL"])
+    expect(broadcasts.join("\n")).to include("FINAL")
+    expect(session[:messages].last).not_to have_key("_chat_id")
+  end
 end

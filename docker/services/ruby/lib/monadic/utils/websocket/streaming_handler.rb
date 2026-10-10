@@ -409,7 +409,7 @@ module WebSocketHelper
       # Safety valve: if the stream ended while we were still scanning for a
       # sentinel (e.g., the LLM forgot the wrapper, or the response was very
       # short), flush the held-back characters so the user sees their text.
-      if sentinel_state == :scanning && !sentinel_held.empty?
+      if sentinel_state == :scanning && !sentinel_held.empty? && !chat_changed.call
         flush_payload = { "type" => "fragment", "content" => sentinel_held }.to_json
         send_or_broadcast(flush_payload, ws_session_id)
         sentinel_held = +""
@@ -643,6 +643,9 @@ module WebSocketHelper
           # which extracts text from tool parameters (e.g., save_response message)
           # and stores it in session[:tts_text], processed earlier in the pipeline
 
+          # The chat travels with the response: a Reset after this point but
+          # before the page asks for it must not land it in the new chat.
+          response["_chat_id"] = chat_at_start if response.is_a?(Hash)
           queue.push(response) unless chat_changed.call
         end
       end

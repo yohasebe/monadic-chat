@@ -284,4 +284,78 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
     expect(result['status']).to eq('failed')
     expect(result['segments'].map { |s| s['error'] }).to all(eq('connection_limit'))
   end
+
+  describe Monadic::Utils::SegmentTranscriber::Batch do
+    def batch(doc, transcribe, **opts)
+      described_class.new(segments: doc, pcm_path: pcm, model: 'xai-stt', transcribe: transcribe, **opts)
+    end
+
+    it 'sends each segment as a WAV of exactly its samples and keeps the segment times' do
+      sent = []
+      result = batch(three, lambda { |wav|
+        sent << wav
+        "#{wav.bytesize - 44} bytes"
+      }).run
+      expect(result['status']).to eq('complete')
+      expect(result['model']).to eq('xai-stt')
+      expect(result['segments'].map { |s| s['text'] }).to eq(["#{2 * rate * 2} bytes", "#{(1.5 * rate * 2).to_i} bytes",
+                                                                 "#{29 * rate * 2} bytes"])
+      expect(result['segments'].map { |s| s['start_sample'] }).to eq([rate, 5 * rate, 10 * rate])
+      header = sent.min_by(&:bytesize)[0, 44].unpack('a4Va4a4VvvVVvva4V')
+      expect(header.values_at(0, 2, 5, 6, 7, 10)).to eq(['RIFF', 'WAVE', 1, 1, rate, 16])
+    end
+
+    it 'sends no more than the given number at a time' do
+      running = 0
+      peak = 0
+      batch(segments_doc(*Array.new(8) { |i| seg("seg#{i}", i * 2, (i * 2) + 1) }), lambda { |_wav|
+        running += 1
+        peak = [peak, running].max
+        sleep 0.01
+        running -= 1
+        'ok'
+      }, concurrency: 3).run
+      expect(peak).to eq(3)
+    end
+
+    it 'tries a failing segment again, then records it as failed and keeps the others' do
+      calls = Hash.new(0)
+      result = batch(three, lambda { |wav|
+        calls[wav.bytesize] += 1
+        next 'ERROR: xAI STT Error (500): busy' if wav.bytesize == 44 + (1.5 * rate * 2).to_i
+
+        calls[wav.bytesize] == 1 ? 'ERROR: timeout' : 'second try'
+      }, max_attempts: 3).run
+      expect(result['status']).to eq('partial')
+      expect(result['segments'].map { |s| s['status'] }).to eq(%w[complete failed complete])
+      expect(result['segments'][0]).to include('text' => 'second try', 'attempts' => 2, 'accepted_attempt_id' => 'attempt0002')
+      expect(result['segments'][1]).to include('attempts' => 3, 'error' => 'xAI STT Error (500): busy')
+    end
+
+    it 'treats an exception like a failed attempt' do
+      result = batch(three, ->(_wav) { raise IOError, 'socket closed' }, max_attempts: 2).run
+      expect(result['status']).to eq('failed')
+      expect(result['segments'].map { |s| s['error'] }).to all(eq('IOError'))
+    end
+
+    it 'stops sending when the chat changes' do
+      count = 0
+      cancel = false
+      result = batch(three, lambda { |_wav|
+        count += 1
+        cancel = true
+        'one'
+      }, concurrency: 1, cancelled: -> { cancel }).run
+      expect(count).to eq(1)
+      expect(result['status']).to eq('cancelled')
+      expect(result['segments'].map { |s| s['status'] }).to eq(%w[complete pending pending])
+    end
+
+    it 'refuses a segment that reaches past the end of the audio without sending it' do
+      sent = 0
+      result = batch(segments_doc(seg('seg000001', 39, 41)), ->(_wav) { (sent += 1) && 'x' }).run
+      expect(sent).to eq(0)
+      expect(result['segments'].first).to include('status' => 'failed', 'error' => 'protocol: audio shorter than the segment')
+    end
+  end
 end

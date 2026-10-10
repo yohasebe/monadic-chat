@@ -11,6 +11,7 @@ require_relative "../utils/provider_capabilities"
 # Supported providers:
 #   - OpenAI: Dedicated /v1/audio/transcriptions endpoint (Whisper, gpt-4o-transcribe models)
 #   - Gemini: Multimodal generateContent with audio inline_data
+#   - xAI: /v1/stt file transcription
 #
 # Only the app's own provider is used (Monadic::Utils::ProviderCapabilities,
 # :audio). Any other provider gets an error; the audio is never sent to
@@ -19,7 +20,8 @@ require_relative "../utils/provider_capabilities"
 module AudioTranscriptionAgent
   AUDIO_PROVIDER_MAP = {
     "openai" => "openai",
-    "google" => "gemini"
+    "google" => "gemini",
+    "xai" => "xai"
   }.freeze
 
   # Resolve the default audio transcription model for a provider via providerDefaults SSOT
@@ -48,7 +50,8 @@ module AudioTranscriptionAgent
 
   AUDIO_API_KEYS = {
     "openai" => "OPENAI_API_KEY",
-    "google" => "GEMINI_API_KEY"
+    "google" => "GEMINI_API_KEY",
+    "xai" => "XAI_API_KEY"
   }.freeze
 
   AUDIO_PROVIDERS = AUDIO_PROVIDER_MAP.keys.freeze
@@ -110,6 +113,25 @@ module AudioTranscriptionAgent
     when "google"
       stt_model = AudioTranscriptionAgent.model_for("google", model)
       transcribe_gemini(path, stt_model, api_key, lang_code)
+    when "xai"
+      stt_model = AudioTranscriptionAgent.model_for("xai", model)
+      transcribe_xai(File.binread(path), File.extname(path).delete_prefix(".").downcase, stt_model, api_key, lang_code)
+    end
+  rescue => e
+    "ERROR: Audio transcription failed: #{e.message}"
+  end
+
+  # Audio already in memory (a speech segment of a video, as WAV), through
+  # the same requests as a file. Gemini and xAI only; OpenAI segments go
+  # through a realtime session instead. Returns the text or "ERROR: ...".
+  def transcribe_audio_bytes(provider, raw, format, model, lang_code = nil)
+    api_key = CONFIG[AUDIO_API_KEYS[provider]].to_s.strip
+    return "ERROR: #{AUDIO_API_KEYS[provider]} is not set" if api_key.empty?
+
+    case provider
+    when "google" then gemini_transcription_request(raw, AUDIO_MIME_TYPES[format] || "audio/wav", model, api_key, lang_code)
+    when "xai" then transcribe_xai(raw, format, model, api_key, lang_code)
+    else "ERROR: #{provider} audio is not transcribed in segments"
     end
   rescue => e
     "ERROR: Audio transcription failed: #{e.message}"
@@ -185,20 +207,19 @@ module AudioTranscriptionAgent
   # Uses generateContent with audio inline_data (multimodal input)
 
   def transcribe_gemini(path, model, api_key, lang_code)
-    uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent"
-
-    # Detect MIME type
     ext = File.extname(path).delete_prefix(".").downcase
-    mime_type = AUDIO_MIME_TYPES[ext] || "audio/mpeg"
+    gemini_transcription_request(File.binread(path), AUDIO_MIME_TYPES[ext] || "audio/mpeg", model, api_key, lang_code)
+  end
 
-    # Read and encode audio
-    raw = File.binread(path)
+  def gemini_transcription_request(raw, mime_type, model, api_key, lang_code)
+    uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent"
     base64_data = Base64.strict_encode64(raw)
 
     # Build transcription prompt
     prompt = "Transcribe the following audio accurately."
     prompt += " The audio is in #{lang_code}." if lang_code && !lang_code.empty?
     prompt += " Return only the transcription text, without any additional commentary."
+    prompt += " Do not describe sound effects or audio characteristics."
 
     body = {
       contents: [
@@ -244,5 +265,42 @@ module AudioTranscriptionAgent
 
     parsed = JSON.parse(res.body.to_s)
     parsed.dig("candidates", 0, "content", "parts", 0, "text") || "ERROR: Empty response from Gemini"
+  end
+
+  # --- xAI Transcription ---
+  # /v1/stt takes the file as multipart form data; the container format is
+  # detected by the service, the extension only hints it.
+
+  def transcribe_xai(raw, format, model, api_key, lang_code)
+    form = HTTP::FormData.create(
+      { file: HTTP::FormData::Part.new(raw, filename: "audio.#{format}") }
+        .merge(lang_code && !lang_code.empty? && lang_code != "auto" ? { language: lang_code } : {})
+    )
+
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      puts "[AudioTranscriptionAgent] xAI STT model: #{model}, size: #{raw.bytesize} bytes"
+    end
+
+    retries = 0
+    begin
+      res = HTTP.headers("Content-Type" => form.content_type, "Authorization" => "Bearer #{api_key}")
+                .timeout(connect: AUDIO_CONNECT_TIMEOUT, write: AUDIO_WRITE_TIMEOUT, read: AUDIO_READ_TIMEOUT)
+                .post("https://api.x.ai/v1/stt", body: form.to_s)
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if retries < AUDIO_MAX_RETRIES
+        retries += 1
+        sleep 1
+        retry
+      end
+      raise e
+    end
+
+    unless res.status.success?
+      error = JSON.parse(res.body.to_s) rescue {}
+      detail = error["error"].is_a?(Hash) ? error.dig("error", "message") : (error["error"] || error["message"])
+      return "ERROR: xAI STT API error (#{res.status}): #{detail || res.body.to_s}"
+    end
+
+    JSON.parse(res.body.to_s)["text"].to_s
   end
 end

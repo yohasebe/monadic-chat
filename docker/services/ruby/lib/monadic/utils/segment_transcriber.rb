@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'async'
+require 'async/semaphore'
 require 'base64'
 require 'json'
 
@@ -71,6 +72,58 @@ module Monadic
       end
       class Timeout < StandardError; end
       class SegmentFailed < StandardError; end
+
+      # What both ways of sending have in common: reading a segment's audio
+      # from the PCM file and writing the timed transcript document.
+      module Shared
+        private
+
+        def segment_audio(seg)
+          start = Integer(seg['start_sample'])
+          length = Integer(seg['end_sample']) - start
+          raise ProtocolError, 'segment out of order' if start.negative? || length <= 0
+
+          data = File.binread(@pcm_path, length * BYTES_PER_SAMPLE, start * BYTES_PER_SAMPLE)
+          raise ProtocolError, 'audio shorter than the segment' if data.nil? || data.bytesize != length * BYTES_PER_SAMPLE
+
+          data
+        end
+
+        def document(segments, results, status)
+          out = segments.map do |seg|
+            r = results[seg['segment_id']]
+            seg.merge(r.slice('status', 'text', 'error', 'usage_seconds', 'accepted_attempt_id', 'provenance', 'attempts'))
+          end
+          failed = out.select { |s| s['status'] != 'complete' }.map { |s| s['segment_id'] }
+          status ||= if segments.empty? then @doc['status']
+                     elsif failed.empty? then 'complete'
+                     elsif failed.size == segments.size then 'failed'
+                     else 'partial'
+                     end
+          {
+            'schema' => 'timed-transcript', 'schema_version' => 2,
+            'timebase' => @doc['timebase'], 'sample_rate_hz' => @doc['sample_rate_hz'],
+            'interval_convention' => @doc['interval_convention'],
+            'timeline_origin_ms' => @doc['timeline_origin_ms'],
+            'status' => status, 'model' => @model,
+            'detector' => @doc['detector'], 'segmentation' => @doc['segmentation'],
+            'segments' => out,
+            'coverage' => { 'segment_count' => segments.size,
+                            'completed_segment_count' => segments.size - failed.size,
+                            'unresolved_segment_ids' => failed }
+          }
+        end
+
+        def fail_segment(result, reason)
+          result.merge!('status' => 'failed', 'error' => reason)
+        end
+
+        def now
+          Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        end
+      end
+
+      include Shared
 
       def initialize(segments:, pcm_path:, model:, connect:, segment_timeout: 90, session_timeout: 20,
                      max_attempts: 3, max_connections: 6, cancelled: -> { false }, on_progress: nil)
@@ -151,10 +204,6 @@ module Monadic
         rescue StandardError
           nil
         end
-      end
-
-      def fail_segment(result, reason)
-        result.merge!('status' => 'failed', 'error' => reason)
       end
 
       def error_reason(error)
@@ -252,44 +301,70 @@ module Monadic
         end
       end
 
-      def segment_audio(seg)
-        start = Integer(seg['start_sample'])
-        length = Integer(seg['end_sample']) - start
-        raise ProtocolError, 'segment out of order' if start.negative? || length <= 0
 
-        data = File.binread(@pcm_path, length * BYTES_PER_SAMPLE, start * BYTES_PER_SAMPLE)
-        raise ProtocolError, 'audio shorter than the segment' if data.nil? || data.bytesize != length * BYTES_PER_SAMPLE
+      # The same segments through a provider's file transcription instead of a
+      # realtime session: each segment goes out as its own WAV request, a few
+      # at a time. `transcribe` takes the WAV bytes and returns the text, or a
+      # string starting with "ERROR:". The times are the segments' own, as
+      # with the realtime way.
+      class Batch
+        include Shared
 
-        data
-      end
-
-      def document(segments, results, status)
-        out = segments.map do |seg|
-          r = results[seg['segment_id']]
-          seg.merge(r.slice('status', 'text', 'error', 'usage_seconds', 'accepted_attempt_id', 'provenance', 'attempts'))
+        def initialize(segments:, pcm_path:, model:, transcribe:, concurrency: 4, max_attempts: 3,
+                       cancelled: -> { false })
+          @doc = segments
+          @pcm_path = pcm_path
+          @model = model
+          @transcribe = transcribe
+          @concurrency = concurrency
+          @max_attempts = max_attempts
+          @cancelled = cancelled
         end
-        failed = out.select { |s| s['status'] != 'complete' }.map { |s| s['segment_id'] }
-        status ||= if segments.empty? then @doc['status']
-                   elsif failed.empty? then 'complete'
-                   elsif failed.size == segments.size then 'failed'
-                   else 'partial'
-                   end
-        {
-          'schema' => 'timed-transcript', 'schema_version' => 2,
-          'timebase' => @doc['timebase'], 'sample_rate_hz' => @doc['sample_rate_hz'],
-          'interval_convention' => @doc['interval_convention'],
-          'timeline_origin_ms' => @doc['timeline_origin_ms'],
-          'status' => status, 'model' => @model,
-          'detector' => @doc['detector'], 'segmentation' => @doc['segmentation'],
-          'segments' => out,
-          'coverage' => { 'segment_count' => segments.size,
-                          'completed_segment_count' => segments.size - failed.size,
-                          'unresolved_segment_ids' => failed }
-        }
-      end
 
-      def now
-        Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        def run
+          segments = Array(@doc['segments'])
+          results = segments.to_h { |s| [s['segment_id'], { 'status' => 'pending', 'attempts' => 0 }] }
+          Sync do
+            semaphore = Async::Semaphore.new(@concurrency)
+            segments.map { |seg| semaphore.async { transcribe_segment(seg, results[seg['segment_id']]) } }
+                    .each(&:wait)
+          end
+          cancelled = results.values.any? { |r| r['status'] == 'pending' }
+          document(segments, results, cancelled ? 'cancelled' : nil)
+        end
+
+        private
+
+        def transcribe_segment(seg, result)
+          wav = wav_bytes(segment_audio(seg))
+          reason = nil
+          while result['attempts'] < @max_attempts
+            return if @cancelled.call
+
+            result['attempts'] += 1
+            text = begin
+              @transcribe.call(wav).to_s
+            rescue StandardError => e
+              "ERROR: #{e.class.name.split('::').last}"
+            end
+            if text.start_with?('ERROR:')
+              reason = text.delete_prefix('ERROR:').strip
+              next
+            end
+            result.merge!('status' => 'complete', 'text' => text.strip,
+                          'accepted_attempt_id' => "attempt#{format('%04d', result['attempts'])}")
+            return
+          end
+          fail_segment(result, reason || 'transcription failed')
+        rescue ProtocolError => e
+          fail_segment(result, "protocol: #{e.message}")
+        end
+
+        def wav_bytes(pcm)
+          header = ['RIFF', 36 + pcm.bytesize, 'WAVE', 'fmt ', 16, 1, 1, RATE, RATE * BYTES_PER_SAMPLE,
+                    BYTES_PER_SAMPLE, 16, 'data', pcm.bytesize].pack('a4Va4a4VvvVVvva4V')
+          header + pcm
+        end
       end
     end
   end

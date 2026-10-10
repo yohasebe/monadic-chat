@@ -54,6 +54,9 @@ module VideoAnalyzeAgent
   # Finds speech in the attached video's audio and cuts it into segments of
   # at most 30 seconds, with times on the video's clock (Python container).
   SEGMENT_SCRIPT = "/monadic/scripts/converters/speech_segments.py"
+  # Providers whose own speech-to-text transcribes the speech segments:
+  # OpenAI over a realtime session, the others one request per segment.
+  SEGMENT_TRANSCRIPTION_PROVIDERS = %w[openai google xai].freeze
   UNTIMED_NOTE = "(Without times: the Python container predates timed transcripts. " \
                  "Rebuild it with Actions > Build Python Container to get them.)"
 
@@ -222,12 +225,12 @@ module VideoAnalyzeAgent
   # (the untimed transcript is used, with a note saying so), or { text: }.
   # Stops sending when the chat changes; the result stays in the run folder.
   def timed_transcript(extracted, provider, session)
-    return nil unless provider == "openai"
+    return nil unless SEGMENT_TRANSCRIPTION_PROVIDERS.include?(provider)
 
     chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
     return nil unless extracted[:job] || Monadic::Workspace::Ids.valid?(:chat, chat_id)
 
-    model = segment_transcription_model(session)
+    model = segment_transcription_model(provider, session)
     return nil unless model
 
     job, output = transcript_job(extracted, session)
@@ -249,18 +252,26 @@ module VideoAnalyzeAgent
     return { text: "(The video has no audio track.)" } if doc["status"] == "absent"
     return { text: "(No speech was detected in the audio.)" } if doc["status"] == "no_speech_detected"
 
-    api_key = CONFIG["OPENAI_API_KEY"].to_s.strip
-    return { text: "Audio transcription failed: OPENAI_API_KEY is not set." } if api_key.empty?
+    key_name = AudioTranscriptionAgent::AUDIO_API_KEYS[provider]
+    api_key = CONFIG[key_name].to_s.strip
+    return { text: "Audio transcription failed: #{key_name} is not set." } if api_key.empty?
 
     pcm_path = Monadic::Workspace::Jobs.outputs(job, /\Aaudio_24k\.pcm\z/).first
     chat_at_start = session && session[Monadic::Workspace::Chats::SESSION_KEY]
-    result = Sync do
-      Monadic::Utils::SegmentTranscriber.new(
-        segments: doc, pcm_path: pcm_path, model: model,
-        connect: -> { Monadic::Utils::SegmentTranscriber::WebSocketConnection.open(api_key) },
-        cancelled: -> { session && session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
-      ).run
-    end
+    cancelled = -> { session && session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
+    result = if provider == "openai"
+               Sync do
+                 Monadic::Utils::SegmentTranscriber.new(
+                   segments: doc, pcm_path: pcm_path, model: model, cancelled: cancelled,
+                   connect: -> { Monadic::Utils::SegmentTranscriber::WebSocketConnection.open(api_key) }
+                 ).run
+               end
+             else
+               Monadic::Utils::SegmentTranscriber::Batch.new(
+                 segments: doc, pcm_path: pcm_path, model: model, cancelled: cancelled,
+                 transcribe: ->(wav) { transcribe_audio_bytes(provider, wav, "wav", model) }
+               ).run
+             end
     File.write(File.join(job[:path], "transcript.json"), JSON.pretty_generate(result))
     File.delete(pcm_path) if pcm_path && File.exist?(pcm_path)
     { text: format_timed_transcript(result) }
@@ -287,10 +298,14 @@ module VideoAnalyzeAgent
     nil
   end
 
-  # The chat's STT selection when it can transcribe committed segments,
-  # otherwise the provider's default when that can, otherwise none.
-  def segment_transcription_model(session)
+  # The model that transcribes the segments. For OpenAI, the chat's STT
+  # selection when it can transcribe committed segments in a realtime
+  # session, otherwise the default when that can, otherwise none. For the
+  # others, the chat's selection when it is theirs, otherwise their default.
+  def segment_transcription_model(provider, session)
     selected = session&.dig(:parameters, "stt_model") || settings.dig(:agents, :speech_to_text)
+    return AudioTranscriptionAgent.model_for(provider, selected) unless provider == "openai"
+
     [AudioTranscriptionAgent.model_for("openai", selected), AudioTranscriptionAgent.audio_model_for("openai")]
       .compact.find { |m| Monadic::Utils::ModelSpec.supports_segment_transcription?(m) }
   end

@@ -4,7 +4,7 @@ module MonadicSharedTools
   module AudioTranscription
     # Available if any audio-capable provider API key is configured
     def self.available?
-      %w[OPENAI_API_KEY GEMINI_API_KEY].any? do |key|
+      %w[OPENAI_API_KEY GEMINI_API_KEY XAI_API_KEY].any? do |key|
         CONFIG && !CONFIG[key].to_s.strip.empty?
       end
     end

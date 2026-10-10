@@ -158,6 +158,8 @@ KB_SAVE_ONLY_MDSLS = %w[
   knowledge_base/knowledge_base_openai.mdsl
   monadic_help/monadic_help_openai.mdsl
   video_describer/video_describer_app.mdsl
+  video_describer/video_describer_gemini.mdsl
+  video_describer/video_describer_grok.mdsl
   voice_interpreter/voice_interpreter_cohere.mdsl
   voice_interpreter/voice_interpreter_openai.mdsl
   web_insight/web_insight_claude.mdsl
@@ -306,7 +308,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     {
       'PF only'      => [PF_ONLY_MDSLS, 25],
       'KB search'    => [KB_SEARCH_MDSLS, 53],
-      'KB save only' => [KB_SAVE_ONLY_MDSLS, 30],
+      'KB save only' => [KB_SAVE_ONLY_MDSLS, 32],
       'Neither'      => [NEITHER_MDSLS, 27]
     }.each do |label, (list, expected_size)|
       it "#{label}: list size is #{expected_size}" do

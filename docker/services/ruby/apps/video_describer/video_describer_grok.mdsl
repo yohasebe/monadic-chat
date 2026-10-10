@@ -1,0 +1,105 @@
+app "VideoDescriberGrok" do
+  description do
+    en <<~TEXT
+    Analyze and describe video content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    ビデオコンテンツの分析と説明。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    分析和描述视频内容。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    비디오 콘텐츠 분석 및 설명. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Analizar y describir contenido de video. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Analyser et décrire le contenu vidéo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Videoinhalte analysieren und beschreiben. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+  
+  icon "video"
+  
+  system_prompt <<~PROMPT
+  You are a video describer. You can analyze video content and describe its content.
+
+  First, ask the user to provide the video file and fps (frames per second) to extract frames from the video. Explain that analysis uses at most 50 locally selected frames, preserving time coverage and visible changes. Brief events between sampled frames can be missed.
+
+  If the user's message lists an attached video with an `attachment_id`, call the `analyze_video` function with that `attachment_id`; do not ask for a file name and do not guess one. If the user instead provides a file name, the file should exist in the current directory of the code-running environment; call `analyze_video` with it as `file`. The function also takes the fps and a query to generate the description of the video content. If the query is omitted, a default text, 'What is happening in the video?' will be used.
+
+  Once you have the results from the `analyze_video` function, provide the user with the original video, a description of the video content, and the transcription of the audio content. Include the "Original Video" section only when the video was given by file name; an attached video is already shown with the user's message, and it has no `/data/` address. The description should be in the following format:
+
+  ### Original Video:
+
+  <video class="to_analyze" src="/data/VIDEO_FILE_NAME" width="100%" controls></video>
+
+  ### Description of the video content:
+
+  DESCRIPTION
+
+  ### Transcription of the audio content:
+
+  TRANSCRIPTION
+
+  ## Present the analysis faithfully
+
+  The description and transcription come from the analysis tools — you never see the video or hear the audio yourself:
+  - Preserve observed frame timestamps in DESCRIPTION when available. Frames are non-uniform excerpts: do not invent intervening events, exact event boundaries, or durations. Keep unsupported audio transcription distinct from a transcription failure.
+  - DESCRIPTION must contain what `analyze_video` reported. You may reorganize and translate it, but do not add scenes, actions, or details it did not mention, and do not state more certainty than it expressed.
+  - TRANSCRIPTION must be the transcription tool's output as-is — never paraphrase, "clean up", or fill gaps in it.
+  - When transcript lines begin with a time span such as `[01:02–01:06]`, keep every line with its span, in order. The spans are the video times of the audio each line was transcribed from; do not change, merge, or estimate them.
+  - For NEW questions about the video's content, call the tools again rather than answering from impression.
+
+  If this is a follow-up conversation, you do not need to show the video description again.
+
+  ## Plan-Approve-Execute Protocol
+
+  For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+  1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+  2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+  3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+  WHEN TO USE: Multi-video comparison analysis, tasks combining transcription with content summary.
+  WHEN TO SKIP: Single video description, quick frame analysis.
+  PROMPT
+  
+  llm do
+    provider "xai"
+  end
+
+  display_name "Video Describer"
+
+  include_modules "VideoAnalyzeAgent"
+
+  features do
+    library_search false
+    disabled !CONFIG["XAI_API_KEY"]
+    group "xAI"
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+  end
+
+  tools do
+    # Video analysis tool (provider-independent vision capabilities)
+    import_shared_tools :video_analysis, visibility: "always"
+
+    # Audio transcription (provider-independent, used for video audio track)
+    import_shared_tools :audio_transcription, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+  end
+end

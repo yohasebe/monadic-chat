@@ -334,7 +334,15 @@ RSpec.describe VideoAnalyzeAgent do
     expect(agent.analyze_video(file: "test.mp4")).to eq("ERROR: unavailable")
   end
 
-  %w[anthropic xai].each do |provider|
+  it "transcribes the audio with xAI's own speech-to-text on Grok" do
+    agent.settings = { provider: "xai" }
+    CONFIG["XAI_API_KEY"] = "own-test-key"
+    allow(agent).to receive(:read_frames_json).and_return(timed_document)
+    allow(agent).to receive(:video_vision_query).and_return("Visible event")
+    expect(agent.analyze_video(file: "test.mp4")).to include("Visible event", "Hello world, this is the audio transcript.")
+  end
+
+  %w[anthropic].each do |provider|
     it "preserves video success for #{provider} without calling unsupported transcription" do
       agent.settings = { provider: provider }
       CONFIG[Monadic::Utils::ProviderCapabilities.api_key_name(provider)] = "own-test-key"
@@ -682,9 +690,28 @@ RSpec.describe VideoAnalyzeAgent do
         expect(segment_calls.size).to eq(1)
       end
 
-      it 'is used only for OpenAI, whose realtime transcription it relies on' do
-        expect(agent.send(:timed_transcript, { job: { path: @data } }, 'google', { chat_id: chat_id })).to be_nil
+      it 'is not used for a provider without its own speech-to-text' do
+        expect(agent.send(:timed_transcript, { job: { path: @data } }, 'anthropic', { chat_id: chat_id })).to be_nil
         expect(segment_calls).to be_empty
+      end
+
+      %w[google xai].each do |provider|
+        it "sends each segment to #{provider}'s own speech-to-text, a request per segment" do
+          CONFIG[AudioTranscriptionAgent::AUDIO_API_KEYS[provider]] = 'own-test-key'
+          batch_args = {}
+          allow(Monadic::Utils::SegmentTranscriber::Batch).to receive(:new) do |**args|
+            batch_args.merge!(args)
+            double(run: transcript)
+          end
+          allow(agent).to receive(:transcribe_audio_bytes).and_return('segment text')
+          timed = agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, provider, { chat_id: chat_id })
+
+          expect(timed[:text]).to include('[00:01–00:03] Hello there.')
+          expect(Monadic::Utils::SegmentTranscriber).not_to have_received(:new)
+          expect(batch_args[:model]).to eq(AudioTranscriptionAgent.audio_model_for(provider))
+          expect(batch_args[:transcribe].call('RIFF')).to eq('segment text')
+          expect(agent).to have_received(:transcribe_audio_bytes).with(provider, 'RIFF', 'wav', batch_args[:model])
+        end
       end
 
       it 'keeps the untimed transcription when no model can transcribe committed segments' do

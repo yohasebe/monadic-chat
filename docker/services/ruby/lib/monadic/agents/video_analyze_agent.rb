@@ -309,8 +309,12 @@ module VideoAnalyzeAgent
     end
 
     rate = result["sample_rate_hz"].to_f
-    lines = result["segments"].reject { |seg| seg["status"] == "pending" }.map do |seg|
-      span = "[#{video_timestamp(seg['start_sample'] * 1000.0 / rate)}–#{video_timestamp(seg['end_sample'] * 1000.0 / rate)}]"
+    shown = result["segments"].reject do |seg|
+      seg["status"] == "pending" || (seg["status"] == "complete" && seg["text"].to_s.strip.empty?)
+    end
+    lines = shown.map do |seg|
+      # Rounded outward, so the span never cuts into the speech it holds.
+      span = "[#{video_clock((seg['start_sample'] / rate).floor)}–#{video_clock((seg['end_sample'] / rate).ceil)}]"
       text = case seg["status"]
              when "complete" then seg["text"].to_s.strip
              else "(transcription failed)"
@@ -392,7 +396,7 @@ module VideoAnalyzeAgent
     # appended separately and reads as a contradiction.
     query = "#{VIDEO_FRAMES_ONLY_NOTE}\n#{query}"
     if frames.is_a?(Hash)
-      duration = video_timestamp(frames.fetch("duration_ms"))
+      duration = video_clock((frames.fetch("duration_ms") / 1000.0).round)
       query = "Video duration: #{duration}. These images are non-uniform excerpts, not continuous footage. " \
               "Cite frame IDs and observed times. Do not infer events or durations between frames.\n#{query}"
       frames = frames.fetch("frames").sort_by { |frame| frame.fetch("timestamp_ms") }
@@ -455,12 +459,19 @@ module VideoAnalyzeAgent
     (0...max_frames).map { |i| frames[(i * step).round] }
   end
 
+  # Video times as people read them: whole seconds ("01:05", "1:02:03").
+  def video_clock(seconds)
+    hours, rest = seconds.to_i.divmod(3600)
+    minutes, secs = rest.divmod(60)
+    hours.positive? ? format("%d:%02d:%02d", hours, minutes, secs) : format("%02d:%02d", minutes, secs)
+  end
+
+  # A frame's time: whole seconds, with tenths only for a frame between two
+  # seconds, so that frames taken less than a second apart keep their order.
   def video_timestamp(milliseconds)
-    value = milliseconds.round
-    hours, rest = value.divmod(3_600_000)
-    minutes, rest = rest.divmod(60_000)
-    seconds, millis = rest.divmod(1000)
-    hours.positive? ? format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis) : format("%02d:%02d.%03d", minutes, seconds, millis)
+    tenths = (milliseconds / 100.0).round
+    seconds, tenth = tenths.divmod(10)
+    tenth.zero? ? video_clock(seconds) : "#{video_clock(seconds)}.#{tenth}"
   end
 
   def video_frame_label(frame)

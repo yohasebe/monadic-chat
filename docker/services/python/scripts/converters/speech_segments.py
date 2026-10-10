@@ -22,12 +22,13 @@ CONTEXT = 64                     # samples carried over between Silero chunks
 STEP = CHUNK * RATE // DETECT_RATE  # one detector frame in output samples (768)
 ON, OFF = 0.5, 0.35              # hysteresis on the speech probability
 MERGE_GAP = RATE // 2            # pauses shorter than 500 ms stay inside one segment
+PACK_GAP = 2 * RATE              # utterances closer than 2 s share a segment while it fits
 MARGIN = RATE // 5               # 200 ms kept before and after detected speech
 MAX_SAMPLES = 30 * RATE          # 30 s per segment, margins included
 SEARCH_FROM = 25 * RATE          # start looking for a cut 25 s into a long segment
 MIN_PAUSE_FRAMES = 5             # 160 ms of low speech probability counts as a pause
 DEFAULT_MODEL = "/monadic/models/silero_vad.onnx"
-POLICY = "bounded_segments_v1"
+POLICY = "bounded_segments_v2"
 
 
 def run(args):
@@ -36,12 +37,26 @@ def run(args):
 
 def probe(video_path):
     """Return (origin seconds, duration seconds, has_audio) on the video's own clock."""
-    first = json.loads(run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-read_intervals", "%+#1",
-                            "-show_frames", "-show_entries", "frame=best_effort_timestamp_time",
-                            "-of", "json", video_path])).get("frames", [])
-    if not first or first[0].get("best_effort_timestamp_time") in (None, "N/A"):
+    # The first decoded video frame, read until it appears (reading a fixed
+    # number of packets can see only audio when that stream comes first).
+    proc = subprocess.Popen(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_frames",
+                             "-show_entries", "frame=best_effort_timestamp_time", "-of", "csv=p=0", video_path],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    origin = None
+    try:
+        for line in proc.stdout:
+            field = line.split(",", 1)[0].strip()  # side data may follow on the same line
+            if field:
+                try:
+                    origin = float(field)
+                except ValueError:
+                    pass
+                break
+    finally:
+        proc.kill()
+        proc.wait()
+    if origin is None:
         raise ValueError("Video has no valid presentation timestamps")
-    origin = float(first[0]["best_effort_timestamp_time"])
     info = json.loads(run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type",
                            "-of", "json", video_path]))
     duration = float(info.get("format", {}).get("duration") or 0)
@@ -144,12 +159,23 @@ def build_segments(probs, total):
     """Turn per-frame probabilities into non-overlapping segments of at most MAX_SAMPLES."""
     regions = [(a * STEP, min(total, b * STEP)) for a, b in speech_runs(probs)]
     regions = [(a, b) for a, b in regions if b > a]
-    groups = []
+    utterances = []
     for a, b in regions:
-        if groups and a - groups[-1][-1][1] < MERGE_GAP:
-            groups[-1].append((a, b))
+        if utterances and a - utterances[-1][-1][1] < MERGE_GAP:
+            utterances[-1].append((a, b))
         else:
-            groups.append([(a, b)])
+            utterances.append([(a, b)])
+    # A short utterance sent on its own often comes back empty: the model
+    # needs the speech around it. Utterances closer than PACK_GAP go into one
+    # segment as long as it stays within MAX_SAMPLES with its margins; one
+    # that is longer by itself is split below.
+    groups = []
+    for utterance in utterances:
+        if groups and utterance[0][0] - groups[-1][-1][1] < PACK_GAP and \
+                utterance[-1][1] - groups[-1][0][0] + 2 * MARGIN <= MAX_SAMPLES:
+            groups[-1].extend(utterance)
+        else:
+            groups.append(list(utterance))
     segments, prev_end = [], 0
     for gi, group in enumerate(groups):
         start = max(group[0][0] - MARGIN, prev_end, 0)
@@ -198,7 +224,8 @@ def document(status, total, origin_s, segments=(), regions=(), detector=None):
         "status": status, "total_samples": total,
         "detector": detector,
         "segmentation": {"policy": POLICY, "max_samples": MAX_SAMPLES, "margin_samples": MARGIN,
-                         "merge_gap_samples": MERGE_GAP, "search_from_samples": SEARCH_FROM,
+                         "merge_gap_samples": MERGE_GAP, "pack_gap_samples": PACK_GAP,
+                         "search_from_samples": SEARCH_FROM,
                          "overlap_samples": 0},
         "segments": list(segments),
         "coverage": {"scanned_samples": total if detector else 0,

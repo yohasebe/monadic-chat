@@ -54,7 +54,7 @@ class SegmentationTest(unittest.TestCase):
         self.assertEqual(segments, [])
 
     def test_separate_utterances_get_margins_and_do_not_overlap(self):
-        segments, total = build(12, [(2, 4), (6, 7)])
+        segments, total = build(12, [(2, 4), (7, 8)])
         self.assertEqual(len(segments), 2)
         self.assert_bounded(segments, total)
         first = segments[0]
@@ -62,6 +62,18 @@ class SegmentationTest(unittest.TestCase):
         self.assertEqual(first["end_sample"] - first["speech_regions"][0]["end_sample"], seg.MARGIN)
         self.assertEqual([s["end_reason"] for s in segments], ["silence", "silence"])
         self.assertEqual([s["segment_id"] for s in segments], ["seg000001", "seg000002"])
+
+    def test_utterances_close_together_share_a_segment(self):
+        segments, total = build(12, [(0.5, 1.2), (2.2, 3.0), (4.0, 9.0)])
+        self.assertEqual(len(segments), 1)
+        self.assertEqual(len(segments[0]["speech_regions"]), 3)
+        self.assert_bounded(segments, total)
+
+    def test_packing_stops_before_the_segment_limit(self):
+        segments, total = build(40, [(1, 11), (12, 22), (23, 33)])
+        self.assert_bounded(segments, total)
+        self.assertEqual([len(s["speech_regions"]) for s in segments], [2, 1])
+        self.assertEqual([s["end_reason"] for s in segments], ["silence", "silence"])
 
     def test_short_pause_stays_inside_one_segment(self):
         segments, _ = build(10, [(1, 3), (3.3, 5)])
@@ -120,7 +132,7 @@ def ffmpeg(*args):
 class AudioAlignmentTest(unittest.TestCase):
     """A white flash and an audio click at the same moment must land at the same time."""
 
-    def make(self, directory, audio_offset=0.0, video_offset=0.0, ts_offset=None):
+    def make(self, directory, audio_offset=0.0, video_offset=0.0, ts_offset=None, audio_first=False):
         flash = "geq=lum='if(between(T,2.0,2.0999)+between(T,5.5,5.5999),235,16)':cb=128:cr=128"
         click = "aevalsrc=exprs='if(between(t,2.0,2.002)+between(t,5.5,5.502),0.9,0)':s=48000:d=8"
         v, a = os.path.join(directory, "v.mp4"), os.path.join(directory, "a.wav")
@@ -129,7 +141,8 @@ class AudioAlignmentTest(unittest.TestCase):
         ffmpeg("-f", "lavfi", "-i", click, "-c:a", "pcm_s16le", a)
         out = os.path.join(directory, "clip.mp4")
         ffmpeg("-itsoffset", str(video_offset), "-i", v, "-itsoffset", str(audio_offset), "-i", a,
-               "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", out)
+               *(["-map", "1:a", "-map", "0:v"] if audio_first else ["-map", "0:v", "-map", "1:a"]),
+               "-c:v", "copy", "-c:a", "aac", out)
         if ts_offset is not None:
             shifted = os.path.join(directory, "shifted.mp4")
             ffmpeg("-i", out, "-c", "copy", "-output_ts_offset", str(ts_offset), shifted)
@@ -164,6 +177,22 @@ class AudioAlignmentTest(unittest.TestCase):
 
     def test_video_starting_late(self):
         self.check([1300, 4800], video_offset=0.7)
+
+    def test_clip_cut_by_stream_copy(self):
+        # Audio stored first, B-frames, and an edit list from a stream-copy cut:
+        # the first video frame needs several packets before it decodes.
+        with tempfile.TemporaryDirectory(prefix="speech-segments-") as directory:
+            clip = self.make(directory, audio_first=True)
+            cut = os.path.join(directory, "cut.mp4")
+            ffmpeg("-ss", "1.05", "-i", clip, "-c", "copy", cut)
+            origin, duration, _ = seg.probe(cut)
+            total = int(round(duration * seg.RATE))
+            pcm = os.path.join(directory, "audio.pcm")
+            seg.normalize_audio(cut, pcm, origin, total)
+            samples, clicks = self.clicks_ms(pcm)
+            self.assertEqual(len(samples), total)
+            self.assertEqual(len(clicks), 2)
+            self.assertAlmostEqual(clicks[1] - clicks[0], 3500, delta=1.0)
 
     def test_whole_file_offset(self):
         self.check([2000, 5500], ts_offset=5)

@@ -364,12 +364,12 @@ RSpec.describe VideoAnalyzeAgent do
                  "google" => "generativelanguage.googleapis.com", "xai" => "api.x.ai" }.fetch(provider)
         expect(uri).to include(host)
         parts = provider == "google" ? body[:contents][0][:parts] : body[:messages][0][:content]
-        expect(parts[0][:text]).to include("00:15.000", "non-uniform excerpts", "Do not infer")
+        expect(parts[0][:text]).to include("Video duration: 00:15.", "non-uniform excerpts", "Do not infer")
         # The model is told it sees frames only, so it does not report missing
         # audio next to the transcript that is appended separately.
         expect(parts[0][:text]).to include("still frames", "transcribed separately", "do not say that audio is missing")
-        expect(parts[1][:text]).to eq("Frame f000000, video time 00:00.000")
-        expect(parts[3][:text]).to eq("Frame f000123, video time 00:12.340")
+        expect(parts[1][:text]).to eq("Frame f000000, video time 00:00")
+        expect(parts[3][:text]).to eq("Frame f000123, video time 00:12.3")
         expect(parts.size).to eq(5)
         if provider == "google"
           expect(parts[4][:inline_data]).to eq(mime_type: "image/jpeg", data: "BBB=")
@@ -417,7 +417,10 @@ RSpec.describe VideoAnalyzeAgent do
   end
 
   it 'formats hour-long timestamps without wrapping minutes' do
-    expect(agent.send(:video_timestamp, 3_723_456)).to eq("01:02:03.456")
+    expect(agent.send(:video_timestamp, 3_723_456)).to eq("1:02:03.5")
+    expect(agent.send(:video_timestamp, 65_000)).to eq("01:05")
+    expect(agent.send(:video_timestamp, 64_970)).to eq("01:05")
+    expect(agent.send(:video_clock, 3599)).to eq("59:59")
   end
 
 
@@ -593,7 +596,7 @@ RSpec.describe VideoAnalyzeAgent do
 
       it 'puts the video time of each segment before its text, and does not use the untimed transcription' do
         result = analyze
-        expect(result).to include("Audio Transcript:\n[00:01.000–00:03.000] Hello there.\n[01:01.000–01:02.500] Goodbye.")
+        expect(result).to include("Audio Transcript:\n[00:01–00:03] Hello there.\n[01:01–01:03] Goodbye.")
         expect(transcribed).to be_empty
         expect(transcriber_args[:model]).to eq('gpt-transcribe')
       end
@@ -623,7 +626,7 @@ RSpec.describe VideoAnalyzeAgent do
         transcript['status'] = 'cancelled'
         transcript['segments'][1]['status'] = 'pending'
         result = analyze
-        expect(result).to include('[00:01.000–00:03.000] Hello there.')
+        expect(result).to include('[00:01–00:03] Hello there.')
         expect(result).not_to include('Goodbye.')
         expect(result).not_to include('transcription failed')
         expect(result).to include('(Stopped because the chat changed.)')
@@ -632,13 +635,20 @@ RSpec.describe VideoAnalyzeAgent do
       it 'marks segments that could not be transcribed, and says so once when none could' do
         transcript['status'] = 'partial'
         transcript['segments'][1].merge!('status' => 'failed', 'error' => 'timeout', 'text' => nil)
-        expect(analyze).to include("[01:01.000–01:02.500] (transcription failed)\n(Some segments could not be transcribed.)")
+        expect(analyze).to include("[01:01–01:03] (transcription failed)\n(Some segments could not be transcribed.)")
 
         transcript['status'] = 'failed'
         transcript['segments'].each { |s| s.merge!('status' => 'failed', 'error' => 'protocol: session rejected (invalid_api_key)') }
         result = analyze
         expect(result).to include("Audio Transcript:\nAudio transcription failed: protocol: session rejected (invalid_api_key).")
         expect(result.scan('transcription failed').size).to eq(1)
+      end
+
+      it 'leaves out segments that came back without words' do
+        transcript['segments'][0]['text'] = '  '
+        result = analyze
+        expect(result).to include("Audio Transcript:\n[01:01–01:03] Goodbye.")
+        expect(result).not_to include('00:01–00:03')
       end
 
       it 'says there is no speech without opening a transcription session' do
@@ -662,7 +672,7 @@ RSpec.describe VideoAnalyzeAgent do
 
       it 'gives a video named from the shared folder a run folder in the chat, and none without a chat' do
         timed = agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, 'openai', { chat_id: chat_id })
-        expect(timed[:text]).to include('[00:01.000–00:03.000] Hello there.')
+        expect(timed[:text]).to include('[00:01–00:03] Hello there.')
         call = segment_calls.first
         expect(call[:argv][2]).to eq('/monadic/data/clip.mp4')
         expect(call[:argv][3]).to match(%r{\A/monadic/data/conversations/[^/]+/artifacts/j_[a-z0-9]{16}\z})

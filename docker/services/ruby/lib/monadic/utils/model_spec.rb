@@ -194,6 +194,14 @@ module Monadic
           get_model_property(model_name, "supports_realtime_streaming") == true
         end
 
+        # True when the STT model transcribes client-committed audio in a
+        # realtime transcription session with turn detection off (one item
+        # per commit). Video Describer's timed transcript sends speech
+        # segments this way.
+        def supports_segment_transcription?(model_name)
+          get_model_property(model_name, "supports_segment_transcription") == true
+        end
+
         # Follow a deprecated model to the successor the catalog names for it,
         # so a value saved before the model was retired still resolves to
         # something that answers. Returns the model unchanged when it is not

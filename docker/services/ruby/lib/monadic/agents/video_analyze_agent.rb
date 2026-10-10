@@ -5,6 +5,8 @@ require_relative '../utils/environment'
 require_relative '../utils/provider_capabilities'
 require_relative '../utils/shared_path_guard'
 require_relative '../utils/video_probe'
+require_relative '../utils/model_spec'
+require_relative '../utils/segment_transcriber'
 require_relative '../shell'
 require_relative '../workspace'
 
@@ -49,6 +51,11 @@ module VideoAnalyzeAgent
   AUDIO_ARGS = ["--audio", "--audio-bitrate", "64k", "--audio-channels", "1"].freeze
   OLD_PYTHON_IMAGE = "The Python container predates this version of Monadic Chat and cannot prepare the video. " \
                      "Rebuild it (Actions > Build Python Container) and try again."
+  # Finds speech in the attached video's audio and cuts it into segments of
+  # at most 30 seconds, with times on the video's clock (Python container).
+  SEGMENT_SCRIPT = "/monadic/scripts/converters/speech_segments.py"
+  UNTIMED_NOTE = "(Without times: the Python container predates timed transcripts. " \
+                 "Rebuild it with Actions > Build Python Container to get them.)"
 
   # attachment_id: a video the user attached to this chat (preferred).
   # file: a file in the shared folder, for videos placed there by hand.
@@ -95,6 +102,11 @@ module VideoAnalyzeAgent
     end
 
     # Step 4: Audio transcription (via AudioTranscriptionAgent — provider-independent)
+    timed = timed_transcript(extracted, provider, session) if audio_file
+    if timed && !timed[:fallback]
+      return "#{description}\n\n---\n\nAudio Transcript:\n#{timed[:text]}"
+    end
+
     if audio_file && !Monadic::Utils::ProviderCapabilities.supports?(:audio, provider)
       description += "\n\nAudio Transcript: Audio transcription is not supported by this provider."
     elsif audio_file
@@ -118,6 +130,7 @@ module VideoAnalyzeAgent
 
       description += "\n\n---\n\n"
       description += "Audio Transcript:\n#{audio_description}"
+      description += "\n\n#{UNTIMED_NOTE}" if timed&.dig(:fallback)
     end
 
     description
@@ -148,7 +161,8 @@ module VideoAnalyzeAgent
       return "Error: Failed to extract frames from the video.#{" #{detail}" unless detail.empty?}"
     end
 
-    { json: json, audio: Monadic::Workspace::Jobs.outputs(job, /\Aaudio_[0-9_]+\.mp3\z/).first }
+    { json: json, audio: Monadic::Workspace::Jobs.outputs(job, /\Aaudio_[0-9_]+\.mp3\z/).first,
+      job: job, input: input, output: output }
   rescue Monadic::Workspace::Attachments::Unusable, Monadic::Utils::VideoProbe::Rejected => e
     "Error: #{e.message}"
   rescue Monadic::Workspace::Jobs::Unavailable, Monadic::Workspace::Ledger::Unreadable => e
@@ -184,7 +198,7 @@ module VideoAnalyzeAgent
     audio_file = split_res[/Audio extracted to (.+\.mp3)/, 1]&.strip
     return "Error: Failed to extract frames from video. Output: #{split_res}" if json_file.nil? || json_file.empty?
 
-    { json: json_file, audio: audio_file }
+    { json: json_file, audio: audio_file, input: input }
   rescue Monadic::Shell::TimedOut
     "Error: extracting frames took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes. Try a shorter video."
   end
@@ -197,6 +211,117 @@ module VideoAnalyzeAgent
     argv = ["python", EXTRACT_SCRIPT, input, output, "--fps", fps.to_s, "--format", "png",
             "--frames", frame_limit.to_s, "--json", *AUDIO_ARGS]
     Monadic::Shell.exec(container: :python, argv: argv, timeout: VIDEO_EXTRACT_TIMEOUT)
+  end
+
+  # A transcript whose lines carry the video time of the speech they hold:
+  # speech_segments.py cuts the audio into segments, and each segment is
+  # transcribed on its own over a realtime transcription session, so the
+  # times are the segments' own positions, never the model's guesses.
+  # Returns nil when this path does not apply (another provider, or no model
+  # that can do it), { fallback: true } when the Python container is too old
+  # (the untimed transcript is used, with a note saying so), or { text: }.
+  # Stops sending when the chat changes; the result stays in the run folder.
+  def timed_transcript(extracted, provider, session)
+    return nil unless provider == "openai"
+
+    chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
+    return nil unless extracted[:job] || Monadic::Workspace::Ids.valid?(:chat, chat_id)
+
+    model = segment_transcription_model(session)
+    return nil unless model
+
+    job, output = transcript_job(extracted, session)
+    return nil unless job
+
+    _stdout, stderr, status = Monadic::Shell.exec(
+      container: :python, argv: ["python", SEGMENT_SCRIPT, extracted[:input], output],
+      timeout: VIDEO_EXTRACT_TIMEOUT
+    )
+    return { fallback: true } if old_python_image?(stderr)
+
+    segments_path = Monadic::Workspace::Jobs.outputs(job, /\Asegments\.json\z/).first
+    unless status.success? && segments_path
+      detail = stderr.to_s.lines.last.to_s.strip
+      return { text: "Audio transcription failed: could not find speech in the audio.#{" #{detail}" unless detail.empty?}" }
+    end
+
+    doc = JSON.parse(File.read(segments_path))
+    return { text: "(The video has no audio track.)" } if doc["status"] == "absent"
+    return { text: "(No speech was detected in the audio.)" } if doc["status"] == "no_speech_detected"
+
+    api_key = CONFIG["OPENAI_API_KEY"].to_s.strip
+    return { text: "Audio transcription failed: OPENAI_API_KEY is not set." } if api_key.empty?
+
+    pcm_path = Monadic::Workspace::Jobs.outputs(job, /\Aaudio_24k\.pcm\z/).first
+    chat_at_start = session && session[Monadic::Workspace::Chats::SESSION_KEY]
+    result = Sync do
+      Monadic::Utils::SegmentTranscriber.new(
+        segments: doc, pcm_path: pcm_path, model: model,
+        connect: -> { Monadic::Utils::SegmentTranscriber::WebSocketConnection.open(api_key) },
+        cancelled: -> { session && session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
+      ).run
+    end
+    File.write(File.join(job[:path], "transcript.json"), JSON.pretty_generate(result))
+    File.delete(pcm_path) if pcm_path && File.exist?(pcm_path)
+    { text: format_timed_transcript(result) }
+  rescue Monadic::Shell::TimedOut
+    { text: "Audio transcription failed: finding speech took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes." }
+  rescue JSON::ParserError, SystemCallError => e
+    { text: "Audio transcription failed: #{e.class.name.split('::').last}" }
+  end
+
+  # The run folder for the transcript: the attachment's own, or for a video
+  # named from the shared folder a new one in the chat's folder. Without a
+  # chat (e.g. an MCP call) there is nowhere to keep it, so none.
+  def transcript_job(extracted, session)
+    return [extracted[:job], extracted[:output]] if extracted[:job]
+
+    chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
+    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id) && extracted[:input]
+
+    workspace = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: self.class.name)
+    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
+    output ? [job, output] : nil
+  rescue Monadic::Workspace::Jobs::Unavailable, Monadic::Workspace::Ledger::Unreadable
+    nil
+  end
+
+  # The chat's STT selection when it can transcribe committed segments,
+  # otherwise the provider's default when that can, otherwise none.
+  def segment_transcription_model(session)
+    selected = session&.dig(:parameters, "stt_model") || settings.dig(:agents, :speech_to_text)
+    [AudioTranscriptionAgent.model_for("openai", selected), AudioTranscriptionAgent.audio_model_for("openai")]
+      .compact.find { |m| Monadic::Utils::ModelSpec.supports_segment_transcription?(m) }
+  end
+
+  def old_python_image?(stderr)
+    text = stderr.to_s
+    text.include?("can't open file") || text.include?("No module named 'onnxruntime'") ||
+      text.include?("Speech detection model not found")
+  end
+
+  # One line per segment: "[start–end] text", times on the video's clock.
+  def format_timed_transcript(result)
+    if result["status"] == "failed"
+      reason = result["segments"].filter_map { |seg| seg["error"] }.first
+      return "Audio transcription failed#{": #{reason}" if reason}."
+    end
+
+    rate = result["sample_rate_hz"].to_f
+    lines = result["segments"].reject { |seg| seg["status"] == "pending" }.map do |seg|
+      span = "[#{video_timestamp(seg['start_sample'] * 1000.0 / rate)}–#{video_timestamp(seg['end_sample'] * 1000.0 / rate)}]"
+      text = case seg["status"]
+             when "complete" then seg["text"].to_s.strip
+             else "(transcription failed)"
+             end
+      "#{span} #{text}"
+    end
+    case result["status"]
+    when "partial" then lines << "(Some segments could not be transcribed.)"
+    when "cancelled" then lines << "(Stopped because the chat changed.)"
+    end
+    lines.join("\n")
   end
 
   # Read the frames JSON file from the shared volume.

@@ -38,7 +38,9 @@ Web Insight is available with the providers marked in the [availability table](.
 
 Get a detailed description of any video's content. The app analyzes a video by extracting keyframes and audio, then uses the AI to describe the visual and auditory information.
 
-Frames are checked at the fps you give and selected so that the video's scenes and visible changes are covered, up to the number of images the provider accepts in one request. Each selected frame is sent with its time in the video, so the description can say when things happen; brief events between selected frames can be missed. The audio track is transcribed separately with the provider's speech-to-text.
+Frames are checked at the fps you give and selected so that the video's scenes and visible changes are covered, up to the number of images the provider accepts in one request. Each selected frame is sent with its time in the video, so the description can say when things happen; brief events between selected frames can be missed.
+
+The audio track is transcribed separately. With OpenAI, the speech in the audio is found first and cut into segments of at most 30 seconds, and each segment is transcribed on its own, so every line of the transcript starts with the video times of its segment, for example `[01:02.300–01:05.100]`. The times come from where the segment lies in the audio, not from the transcription model. Sounds other than speech (music, applause, noise) are not transcribed. The transcript is also saved as `transcript.json` in a run folder of the chat's folder (`conversations/` in the Shared Folder). Timed transcripts need a Python container built for this version; with an older one, the transcript has no times and a note says to rebuild the container.
 
 Before any frames are extracted, the file is checked: its format must match its extension (MP4, M4V, MOV, WebM, MKV, AVI or MPEG), it must contain a video track, last at most 50 minutes, and be at most 4096 pixels on each side. A file that does not pass is not processed, and the reason is shown. The audio is extracted as mono at 64 kbps, which keeps a 50-minute track within the size that speech-to-text accepts.
 

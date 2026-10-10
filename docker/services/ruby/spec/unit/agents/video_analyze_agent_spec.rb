@@ -461,12 +461,20 @@ RSpec.describe VideoAnalyzeAgent do
       # the folder it is given, as the real script does.
       allow(Monadic::Shell).to receive(:exec) do |container:, argv:, **opts|
         next [probe_answer.to_json, '', double(success?: true)] if argv.first == 'ffprobe'
+        next segmenter.call(container, argv, opts) if argv[1] == VideoAnalyzeAgent::SEGMENT_SCRIPT
 
         calls << { container: container, argv: argv, timeout: opts[:timeout] }
         out = File.join(File.realpath(@data), argv[3].delete_prefix('/monadic/data/'))
         File.write(File.join(out, 'frames_20261009_120000_000001.json'), frames_json.to_json)
         File.write(File.join(out, 'audio_20261009_120000.mp3'), 'ID3')
         ["Base64-encoded frames saved to /monadic/data/elsewhere.json\n", '', double(success?: true)]
+      end
+    end
+
+    # speech_segments.py; by default the Python image predates it.
+    let(:segmenter) do
+      lambda do |_container, _argv, _opts|
+        ['', "python: can't open file '#{VideoAnalyzeAgent::SEGMENT_SCRIPT}': [Errno 2]\n", double(success?: false)]
       end
     end
 
@@ -546,6 +554,136 @@ RSpec.describe VideoAnalyzeAgent do
       record = attach
       result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
       expect(result).to include('Rebuild it (Actions > Build Python Container)')
+    end
+
+    describe 'with a timed transcript' do
+      let(:segments_doc) do
+        { 'schema' => 'speech-segments', 'schema_version' => 1, 'sample_rate_hz' => 24_000,
+          'timebase' => 'video_relative_samples', 'status' => 'complete',
+          'segments' => [{ 'segment_id' => 'seg000001', 'start_sample' => 24_000, 'end_sample' => 72_000 },
+                         { 'segment_id' => 'seg000002', 'start_sample' => 1_464_000, 'end_sample' => 1_500_000 }] }
+      end
+      let(:segment_calls) { [] }
+      let(:segmenter) do
+        lambda do |container, argv, opts|
+          segment_calls << { container: container, argv: argv, timeout: opts[:timeout] }
+          out = File.join(File.realpath(@data), argv[3].delete_prefix('/monadic/data/'))
+          File.write(File.join(out, 'segments.json'), segments_doc.to_json)
+          File.binwrite(File.join(out, 'audio_24k.pcm'), "\0" * 3_000_000)
+          ["Speech segments written\n", '', double(success?: true)]
+        end
+      end
+      let(:transcriber_args) { {} }
+      let(:transcript) do
+        segments_doc.merge('schema' => 'timed-transcript', 'status' => 'complete',
+                           'segments' => [segments_doc['segments'][0].merge('status' => 'complete', 'text' => 'Hello there.'),
+                                          segments_doc['segments'][1].merge('status' => 'complete', 'text' => 'Goodbye.')])
+      end
+
+      before do
+        allow(Monadic::Utils::SegmentTranscriber).to receive(:new) do |**args|
+          transcriber_args.merge!(args)
+          double(run: transcript)
+        end
+      end
+
+      def analyze(session = { chat_id: chat_id })
+        agent.analyze_video(attachment_id: attach[:attachment_id], session: session)
+      end
+
+      it 'puts the video time of each segment before its text, and does not use the untimed transcription' do
+        result = analyze
+        expect(result).to include("Audio Transcript:\n[00:01.000–00:03.000] Hello there.\n[01:01.000–01:02.500] Goodbye.")
+        expect(transcribed).to be_empty
+        expect(transcriber_args[:model]).to eq('gpt-transcribe')
+      end
+
+      it 'finds speech in the attached file, in the same run folder, and keeps the transcript there' do
+        analyze
+        call = segment_calls.first
+        expect(call[:container]).to eq(:python)
+        expect(call[:argv].first(3)).to eq(['python', VideoAnalyzeAgent::SEGMENT_SCRIPT, calls.first[:argv][2]])
+        expect(call[:argv][3]).to eq(calls.first[:argv][3])
+        job = File.join(File.realpath(@data), call[:argv][3].delete_prefix('/monadic/data/'))
+        expect(JSON.parse(File.read(File.join(job, 'transcript.json')))['segments'].map { |s| s['text'] })
+          .to eq(['Hello there.', 'Goodbye.'])
+        expect(File.exist?(File.join(job, 'audio_24k.pcm'))).to be(false)
+        expect(transcriber_args[:pcm_path]).to eq(File.join(job, 'audio_24k.pcm'))
+      end
+
+      it 'stops sending when the chat changes' do
+        session = { chat_id: chat_id }
+        analyze(session)
+        expect(transcriber_args[:cancelled].call).to be(false)
+        session[:chat_id] = Monadic::Workspace::Ids.generate(:chat)
+        expect(transcriber_args[:cancelled].call).to be(true)
+      end
+
+      it 'says when the chat changed before every segment was sent' do
+        transcript['status'] = 'cancelled'
+        transcript['segments'][1]['status'] = 'pending'
+        result = analyze
+        expect(result).to include('[00:01.000–00:03.000] Hello there.')
+        expect(result).not_to include('Goodbye.')
+        expect(result).not_to include('transcription failed')
+        expect(result).to include('(Stopped because the chat changed.)')
+      end
+
+      it 'marks segments that could not be transcribed, and says so once when none could' do
+        transcript['status'] = 'partial'
+        transcript['segments'][1].merge!('status' => 'failed', 'error' => 'timeout', 'text' => nil)
+        expect(analyze).to include("[01:01.000–01:02.500] (transcription failed)\n(Some segments could not be transcribed.)")
+
+        transcript['status'] = 'failed'
+        transcript['segments'].each { |s| s.merge!('status' => 'failed', 'error' => 'protocol: session rejected (invalid_api_key)') }
+        result = analyze
+        expect(result).to include("Audio Transcript:\nAudio transcription failed: protocol: session rejected (invalid_api_key).")
+        expect(result.scan('transcription failed').size).to eq(1)
+      end
+
+      it 'says there is no speech without opening a transcription session' do
+        segments_doc.merge!('status' => 'no_speech_detected', 'segments' => [])
+        expect(analyze).to include("Audio Transcript:\n(No speech was detected in the audio.)")
+        expect(Monadic::Utils::SegmentTranscriber).not_to have_received(:new)
+      end
+
+      context 'when the Python image is too old' do
+        let(:segmenter) do
+          ->(*) { ['', "ModuleNotFoundError: No module named 'onnxruntime'\n", double(success?: false)] }
+        end
+
+        it 'falls back to the untimed transcription, saying why' do
+          result = analyze
+          expect(result).to include('Hello.')
+          expect(result).to include(VideoAnalyzeAgent::UNTIMED_NOTE)
+          expect(Monadic::Utils::SegmentTranscriber).not_to have_received(:new)
+        end
+      end
+
+      it 'gives a video named from the shared folder a run folder in the chat, and none without a chat' do
+        timed = agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, 'openai', { chat_id: chat_id })
+        expect(timed[:text]).to include('[00:01.000–00:03.000] Hello there.')
+        call = segment_calls.first
+        expect(call[:argv][2]).to eq('/monadic/data/clip.mp4')
+        expect(call[:argv][3]).to match(%r{\A/monadic/data/conversations/[^/]+/artifacts/j_[a-z0-9]{16}\z})
+        expect(ledger.workspace_for_chat(chat_id)).not_to be_nil
+
+        expect(agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, 'openai', nil)).to be_nil
+        expect(segment_calls.size).to eq(1)
+      end
+
+      it 'is used only for OpenAI, whose realtime transcription it relies on' do
+        expect(agent.send(:timed_transcript, { job: { path: @data } }, 'google', { chat_id: chat_id })).to be_nil
+        expect(segment_calls).to be_empty
+      end
+
+      it 'keeps the untimed transcription when no model can transcribe committed segments' do
+        allow(Monadic::Utils::ModelSpec).to receive(:supports_segment_transcription?).and_return(false)
+        result = analyze
+        expect(result).to include('Hello.')
+        expect(result).not_to include(VideoAnalyzeAgent::UNTIMED_NOTE)
+        expect(segment_calls).to be_empty
+      end
     end
 
     it 'reports a run that took too long' do

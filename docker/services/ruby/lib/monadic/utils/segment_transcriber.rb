@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'async'
 require 'base64'
 require 'json'
 

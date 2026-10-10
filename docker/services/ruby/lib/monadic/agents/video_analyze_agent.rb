@@ -28,6 +28,17 @@ module VideoAnalyzeAgent
   VIDEO_FRAMES_ONLY_NOTE = "You are shown still frames from a video, not its sound. The audio track, if any, " \
                            "is transcribed separately and added after your answer. Describe only what the frames " \
                            "show; do not mention audio, speech or sound, and do not say that audio is missing."
+  # For speech with exact times (e.g. word times from the provider), the frames
+  # can be described together with it. Video Describer does not pass speech
+  # today: its segments are too coarse, so the app's model relates the two.
+  VIDEO_WITH_SPEECH_NOTE = "You are shown still frames from a video and, after this note, what was said in it: " \
+                           "each line starts with the video times of the speech it holds. Describe what happens by " \
+                           "relating the speech to the frames whose times fall within or next to its span, quoting " \
+                           "briefly and exactly. Do not place speech at times finer than its span, do not add " \
+                           "sounds or words that are not in the lines, and do not repeat the whole transcript: " \
+                           "it is shown to the reader separately."
+  # Speech passed with the frames, at most this many characters (whole lines).
+  VIDEO_SPEECH_CHAR_LIMIT = 20_000
   VIDEO_MAX_FRAMES = 50
   VIDEO_CONNECT_TIMEOUT = 10
   VIDEO_READ_TIMEOUT = 300   # 5 minutes for vision API to process many frames
@@ -81,7 +92,6 @@ module VideoAnalyzeAgent
     return extracted if extracted.is_a?(String) # Error message
 
     json_file = extracted[:json]
-    audio_file = extracted[:audio]
 
     # Step 2: Read frames JSON directly from shared volume
     frames = read_frames_json(json_file)
@@ -91,9 +101,20 @@ module VideoAnalyzeAgent
       puts "[VideoAnalyzeAgent] Loaded frames from #{json_file}"
     end
 
-    # Step 3: Call Vision API directly (provider-independent)
+    # Step 3: The audio and the frames at the same time. They do not wait for
+    # each other: the app's model relates them afterwards by their video
+    # times, and one failing does not hold up the other.
+    audio = Thread.new { video_transcript_section(extracted, provider, session) }
+    audio.report_on_exception = false
+
+    # Step 4: Call Vision API directly (provider-independent)
     video_query = query || "Describe what happens in the video by analyzing the image data extracted from the video."
     description = video_vision_query(video_query, frames)
+    transcript = begin
+      audio.value
+    rescue StandardError => e
+      "\n\n---\n\nAudio Transcript:\nAudio transcription failed: #{e.class.name.split('::').last}"
+    end
 
     if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"] && !defined?(RSpec)
       puts "[VideoAnalyzeAgent] Vision query result: #{description&.slice(0, 200).inspect}"
@@ -104,39 +125,42 @@ module VideoAnalyzeAgent
       return "Video analysis failed: #{description}"
     end
 
-    # Step 4: Audio transcription (via AudioTranscriptionAgent — provider-independent)
-    timed = timed_transcript(extracted, provider, session) if audio_file
-    if timed && !timed[:fallback]
-      return "#{description}\n\n---\n\nAudio Transcript:\n#{timed[:text]}"
+    "#{description}#{transcript}"
+  end
+
+  # The "Audio Transcript" part of the answer.
+  def video_transcript_section(extracted, provider, session)
+    audio_file = extracted[:audio]
+    return "" unless audio_file
+
+    timed = timed_transcript(extracted, provider, session)
+    return "\n\n---\n\nAudio Transcript:\n#{timed[:text]}" if timed && !timed[:fallback]
+
+    unless Monadic::Utils::ProviderCapabilities.supports?(:audio, provider)
+      return "\n\nAudio Transcript: Audio transcription is not supported by this provider."
     end
 
-    if audio_file && !Monadic::Utils::ProviderCapabilities.supports?(:audio, provider)
-      description += "\n\nAudio Transcript: Audio transcription is not supported by this provider."
-    elsif audio_file
-      stt_model = session&.dig(:parameters, "stt_model") ||
-                  settings.dig(:agents, :speech_to_text) ||
-                  nil  # Let the agent use its default
+    stt_model = session&.dig(:parameters, "stt_model") ||
+                settings.dig(:agents, :speech_to_text) ||
+                nil  # Let the agent use its default
 
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "[VideoAnalyzeAgent] Using STT model: #{stt_model || 'default'}"
-      end
-
-      audio_description = audio_transcription_agent(
-        audio_path: audio_file,
-        model: stt_model,
-        response_format: "text"
-      )
-
-      if audio_description.to_s.start_with?("ERROR:", "Error:")
-        audio_description = "Audio transcription failed: #{audio_description}"
-      end
-
-      description += "\n\n---\n\n"
-      description += "Audio Transcript:\n#{audio_description}"
-      description += "\n\n#{UNTIMED_NOTE}" if timed&.dig(:fallback)
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      puts "[VideoAnalyzeAgent] Using STT model: #{stt_model || 'default'}"
     end
 
-    description
+    audio_description = audio_transcription_agent(
+      audio_path: audio_file,
+      model: stt_model,
+      response_format: "text"
+    )
+
+    if audio_description.to_s.start_with?("ERROR:", "Error:")
+      audio_description = "Audio transcription failed: #{audio_description}"
+    end
+
+    section = "\n\n---\n\nAudio Transcript:\n#{audio_description}"
+    section += "\n\n#{UNTIMED_NOTE}" if timed&.dig(:fallback)
+    section
   end
 
   private
@@ -401,7 +425,7 @@ module VideoAnalyzeAgent
   end
 
   # Send frames to Vision API for analysis (provider-independent)
-  def video_vision_query(query, frames)
+  def video_vision_query(query, frames, speech: nil)
     resolution = Monadic::Utils::ProviderCapabilities.resolve(:video, settings["provider"] || settings[:provider])
     return resolution[:error] if resolution[:error]
 
@@ -409,7 +433,11 @@ module VideoAnalyzeAgent
     # The model sees still frames only. Without saying so it reports that no
     # audio was provided, which then sits next to the transcript that is
     # appended separately and reads as a contradiction.
-    query = "#{VIDEO_FRAMES_ONLY_NOTE}\n#{query}"
+    query = if speech&.any?
+              "#{VIDEO_WITH_SPEECH_NOTE}\nSpeech:\n#{video_speech_excerpt(speech)}\n\n#{query}"
+            else
+              "#{VIDEO_FRAMES_ONLY_NOTE}\n#{query}"
+            end
     if frames.is_a?(Hash)
       duration = video_clock((frames.fetch("duration_ms") / 1000.0).round)
       query = "Video duration: #{duration}. These images are non-uniform excerpts, not continuous footage. " \
@@ -472,6 +500,20 @@ module VideoAnalyzeAgent
 
     step = (total - 1).to_f / (max_frames - 1)
     (0...max_frames).map { |i| frames[(i * step).round] }
+  end
+
+  # Whole lines up to VIDEO_SPEECH_CHAR_LIMIT, saying how many were left out.
+  def video_speech_excerpt(lines)
+    kept = []
+    size = 0
+    lines.each do |line|
+      break if size + line.size + 1 > VIDEO_SPEECH_CHAR_LIMIT
+
+      kept << line
+      size += line.size + 1
+    end
+    omitted = lines.size - kept.size
+    omitted.positive? ? (kept + ["(#{omitted} later lines of speech omitted)"]).join("\n") : kept.join("\n")
   end
 
   # Video times as people read them: whole seconds ("01:05", "1:02:03").

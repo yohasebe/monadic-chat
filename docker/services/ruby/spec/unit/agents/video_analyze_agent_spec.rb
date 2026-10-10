@@ -432,6 +432,35 @@ RSpec.describe VideoAnalyzeAgent do
   end
 
 
+
+  describe 'speech given to the vision model' do
+    let(:frames) { { 'duration_ms' => 12_000, 'frames' => [{ 'frame_id' => 'f0', 'timestamp_ms' => 0, 'image' => 'x', 'mime_type' => 'image/png' }] } }
+
+    it 'puts the timed lines after a note on how to use them' do
+      sent = nil
+      allow(agent).to receive(:video_vision_openai) { |query, *| (sent = query) && 'ok' }
+      agent.send(:video_vision_query, 'What happens?', frames, speech: ['[00:00–00:12] おっと危な。'])
+      expect(sent).to include(VideoAnalyzeAgent::VIDEO_WITH_SPEECH_NOTE, "Speech:\n[00:00–00:12] おっと危な。", 'What happens?')
+      expect(sent).not_to include(VideoAnalyzeAgent::VIDEO_FRAMES_ONLY_NOTE)
+    end
+
+    it 'keeps the frames-only note without speech' do
+      sent = nil
+      allow(agent).to receive(:video_vision_openai) { |query, *| (sent = query) && 'ok' }
+      agent.send(:video_vision_query, 'What happens?', frames)
+      expect(sent).to include(VideoAnalyzeAgent::VIDEO_FRAMES_ONLY_NOTE)
+      expect(sent).not_to include('Speech:')
+    end
+
+    it 'passes whole lines up to the limit and says how many were left out' do
+      lines = Array.new(5) { |i| "[00:0#{i}–00:0#{i + 1}] #{'あ' * 9_000}" }
+      excerpt = agent.send(:video_speech_excerpt, lines)
+      expect(excerpt.size).to be <= VideoAnalyzeAgent::VIDEO_SPEECH_CHAR_LIMIT + 60
+      expect(excerpt.lines.first(2).map(&:chomp)).to eq(lines.first(2))
+      expect(excerpt).to end_with('(3 later lines of speech omitted)')
+    end
+  end
+
   # A video attached to the chat: resolved through the ledger, run in a job
   # folder of its own, output found in that folder.
   describe 'analyzing an attachment' do
@@ -600,6 +629,31 @@ RSpec.describe VideoAnalyzeAgent do
 
       def analyze(session = { chat_id: chat_id })
         agent.analyze_video(attachment_id: attach[:attachment_id], session: session)
+      end
+
+
+      it 'transcribes the audio and describes the frames at the same time, without passing speech' do
+        allow(Monadic::Utils::SegmentTranscriber).to receive(:new) do |**_args|
+          sleep 0.4
+          double(run: transcript)
+        end
+        given = :unset
+        allow(agent).to receive(:video_vision_query) do |_query, _frames, speech: nil|
+          sleep 0.4
+          given = speech
+          'A deer crosses the road.'
+        end
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        result = analyze
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+        expect(elapsed).to be < 0.7
+        expect(given).to be_nil
+        expect(result).to include("A deer crosses the road.\n\n---\n\nAudio Transcript:\n[00:01–00:03] Hello there.")
+      end
+
+      it 'still returns the frames when the audio side raises' do
+        allow(Monadic::Utils::SegmentTranscriber).to receive(:new).and_raise(IOError, 'socket closed')
+        expect(analyze).to include('A deer crosses the road.', "Audio Transcript:\nAudio transcription failed: IOError")
       end
 
       it 'puts the video time of each segment before its text, and does not use the untimed transcription' do

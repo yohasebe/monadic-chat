@@ -100,7 +100,7 @@ RUN if [ "$PYOPT_LIBROSA" = "true" ]; then \
       || echo "madmom build failed; librosa-only mode"; \
     else echo "skip librosa+madmom"; fi
 RUN if [ "$PYOPT_MEDIAPIPE" = "true" ]; then uv pip install --no-cache mediapipe || echo 'mediapipe wheel not available; skipped'; else echo "skip mediapipe"; fi
-RUN if [ "$PYOPT_TRANSFORMERS" = "true" ]; then uv pip install --no-cache transformers accelerate onnxruntime || true; else echo "skip transformers"; fi
+RUN if [ "$PYOPT_TRANSFORMERS" = "true" ]; then uv pip install --no-cache transformers accelerate || true; else echo "skip transformers"; fi
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

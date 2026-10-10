@@ -94,6 +94,33 @@ jobs:
           cache-to: type=inline
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }},push-by-digest=true,name-canonical=true,push=true
 
+      # The python image ships a model file (Silero VAD) and onnxruntime for
+      # speech_segments.py. Run the image on this runner (same arch) and ask
+      # it, before the merge job gives the digest a tag: exactly the model and
+      # its license in /monadic/models, the model's hash and the onnxruntime
+      # version as the Dockerfile pins them, the license as the repository
+      # has it, and the speech segment tests passing. A failure here stops
+      # the job, so the digest is never tagged.
+      - name: Check the speech model in the python image
+        if: matrix.service == 'python'
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/monadic-python@${{ steps.build.outputs.digest }}
+        run: |
+          expected=$(sed -n 's/.*"\([0-9a-f]\{64\}\)  \/monadic\/models\/silero_vad.onnx".*/\1/p' docker/services/python/Dockerfile)
+          runtime=$(sed -n 's/.*onnxruntime==\([0-9][0-9.]*\).*/\1/p' docker/services/python/Dockerfile)
+          # Each value must be exactly one well-formed line; each test stops the step on its own.
+          [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || { echo "model hash not found once in the Dockerfile"; exit 1; }
+          [[ "$runtime" =~ ^[0-9]+(\.[0-9]+)+$ ]] || { echo "onnxruntime pin not found once in the Dockerfile"; exit 1; }
+          docker run --rm -e EXPECTED="$expected" -e RUNTIME="$runtime" \
+            -v "$PWD/docker/services/python/licenses/silero-vad-LICENSE:/expected/LICENSE:ro" "$IMAGE" bash -c '
+            set -euo pipefail
+            [ "$(ls -A /monadic/models | sort | tr "\n" " ")" = "silero_vad.LICENSE silero_vad.onnx " ] || {
+              echo "unexpected files in /monadic/models: $(ls -A /monadic/models | tr "\n" " ")"; exit 1; }
+            echo "$EXPECTED  /monadic/models/silero_vad.onnx" | sha256sum -c -
+            cmp /expected/LICENSE /monadic/models/silero_vad.LICENSE
+            python -c "import os, sys, onnxruntime; v = onnxruntime.__version__; print(\"onnxruntime\", v); sys.exit(0 if v == os.environ[\"RUNTIME\"] else \"onnxruntime \" + v + \" is not the pinned \" + os.environ[\"RUNTIME\"])"
+            cd /monadic/scripts/converters && python -m unittest test_speech_segments'
+
       - name: Export digest
         run: |
           mkdir -p /tmp/digests

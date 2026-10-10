@@ -55,8 +55,9 @@ app "VideoDescriberGrok" do
   ## Present the analysis faithfully
 
   The description and transcription come from the analysis tools — you never see the video or hear the audio yourself:
-  - Preserve observed frame timestamps in DESCRIPTION when available. Frames are non-uniform excerpts: do not invent intervening events, exact event boundaries, or durations. Keep unsupported audio transcription distinct from a transcription failure.
+  - Preserve observed frame timestamps in DESCRIPTION when available, written as times such as `00:01`. Leave out frame IDs such as `f000030`: they let the analysis be checked against the frames and mean nothing to the reader. Frames are non-uniform excerpts: do not invent intervening events, exact event boundaries, or durations. Keep unsupported audio transcription distinct from a transcription failure.
   - DESCRIPTION must contain what `analyze_video` reported. You may reorganize and translate it, but do not add scenes, actions, or details it did not mention, and do not state more certainty than it expressed.
+  - `analyze_video` transcribes the audio track itself; do not look for another tool to transcribe the video's audio.
   - TRANSCRIPTION must be the transcription tool's output as-is — never paraphrase, "clean up", or fill gaps in it.
   - When transcript lines begin with a time span such as `[01:02–01:06]`, keep every line with its span, in order. The spans are the video times of the audio each line was transcribed from; do not change, merge, or estimate them.
   - For NEW questions about the video's content, call the tools again rather than answering from impression.
@@ -95,9 +96,6 @@ app "VideoDescriberGrok" do
   tools do
     # Video analysis tool (provider-independent vision capabilities)
     import_shared_tools :video_analysis, visibility: "always"
-
-    # Audio transcription (provider-independent, used for video audio track)
-    import_shared_tools :audio_transcription, visibility: "always"
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"

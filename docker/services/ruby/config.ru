@@ -26,7 +26,18 @@ use Rack::TempfileReaper
 use Monadic::Workspace::UploadContext,
     paths: [Monadic::Routes::AttachmentRoutes::PATH],
     state_lookup: ->(tab_id) { WebSocketHelper.fetch_session_state(tab_id) }
-use Monadic::Workspace::UploadLimit, paths: [Monadic::Routes::AttachmentRoutes::PATH]
+# Every upload, likewise capped before anything reads the body: Rack writes
+# file parts to disk while parsing, with no total limit of its own.
+use Monadic::Workspace::UploadLimit, limits: {
+  Monadic::Routes::AttachmentRoutes::PATH => Monadic::Workspace::UploadLimit::DEFAULT_MAX_BYTES,
+  "/pdf" => PDF_UPLOAD_MAX_BYTES,
+  "/document" => DOCUMENT_UPLOAD_MAX_BYTES,
+  "/upload_audio" => AUDIO_UPLOAD_MAX_BYTES,
+  "/load" => SESSION_LOAD_MAX_BYTES,
+  # The route checks the file itself; this stops the body first, with room
+  # for the multipart framing around the file.
+  "/library/import" => LIBRARY_IMPORT_MAX_BYTES + 1_000_000
+}
 
 # Use unlimited in-memory sessions to handle large message imports
 # Rack::Session::Pool has size limits that cause "Content dropped" warnings

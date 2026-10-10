@@ -4,6 +4,10 @@
 
 ALLOWED_AUDIO_EXTS = %w[.mp3 .wav .m4a .ogg .flac .mid .midi].freeze
 
+# Largest uploads accepted, checked before the body is read (config.ru).
+AUDIO_UPLOAD_MAX_BYTES = 500_000_000
+DOCUMENT_UPLOAD_MAX_BYTES = 200_000_000
+
 post "/upload_audio" do
   content_type :json
   if params["audioFile"]
@@ -17,7 +21,7 @@ post "/upload_audio" do
       end
       user_data_dir = Monadic::Utils::Environment.data_path
       dest_path = File.join(user_data_dir, filename)
-      File.open(dest_path, "wb") { |f| f.write(file_handler.read) }
+      File.open(dest_path, "wb") { |f| IO.copy_stream(file_handler, f) }
       file_handler.close
       utf8_filename = filename.force_encoding("UTF-8")
       { success: true, filename: utf8_filename }.to_json

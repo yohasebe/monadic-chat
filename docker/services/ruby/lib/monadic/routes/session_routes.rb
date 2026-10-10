@@ -3,6 +3,9 @@
 # Session state management routes
 # Export/import conversation state and session data
 
+# Largest saved conversation /load accepts, checked before the body is read (config.ru).
+SESSION_LOAD_MAX_BYTES = 500_000_000
+
 # Convert a Privacy Filter export (encrypted/masked_only/restored) into the
 # standard { parameters, messages } shape that the rest of /load expects.
 #

@@ -67,19 +67,21 @@ module Monadic
         end
       end
 
-      def initialize(app, paths:, max_bytes: DEFAULT_MAX_BYTES)
+      # Either one limit for several paths (paths:, max_bytes:) or a limit
+      # per path (limits: { path => bytes }).
+      def initialize(app, paths: [], max_bytes: DEFAULT_MAX_BYTES, limits: nil)
         @app = app
-        @paths = paths
-        @max_bytes = max_bytes
+        @limits = limits || paths.to_h { |path| [path, max_bytes] }
       end
 
       def call(env)
-        return @app.call(env) unless env['REQUEST_METHOD'] == 'POST' && @paths.include?(env['PATH_INFO'])
+        limit = @limits[env['PATH_INFO']] if env['REQUEST_METHOD'] == 'POST'
+        return @app.call(env) unless limit
 
         declared = env['CONTENT_LENGTH']
-        return too_large if declared && declared.to_i > @max_bytes
+        return too_large(limit) if declared && declared.to_i > limit
 
-        env['rack.input'] = LimitedInput.new(env['rack.input'], @max_bytes, env) if env['rack.input']
+        env['rack.input'] = LimitedInput.new(env['rack.input'], limit, env) if env['rack.input']
         tempfiles = track_tempfiles(env)
         begin
           response = begin
@@ -89,7 +91,7 @@ module Monadic
           end
           # The parser may have turned the interruption into an error page;
           # the flag says what really happened.
-          env[EXCEEDED_KEY] ? too_large : response
+          env[EXCEEDED_KEY] ? too_large(limit) : response
         ensure
           # Rack lists its temporary files only after a parse succeeds, so a
           # cut-off upload would leave its partial file behind. Every one made
@@ -110,9 +112,8 @@ module Monadic
         made
       end
 
-      def too_large
-        limit_mb = @max_bytes / 1_000_000
-        body = { error: "The file is larger than the #{limit_mb} MB limit for attachments.", reason: 'too_large' }.to_json
+      def too_large(limit)
+        body = { error: "The file is larger than the #{limit / 1_000_000} MB limit.", reason: 'too_large' }.to_json
         [413, { 'content-type' => 'application/json', 'connection' => 'close' }, [body]]
       end
     end

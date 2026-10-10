@@ -1296,6 +1296,11 @@ document.addEventListener("DOMContentLoaded", function () {
     var aiUserButton = $id("ai_user");
     if (aiUserButton) {
       aiUserButton.onclick = function () {
+        const aiUserHandler = window.WsAIUserHandler;
+        // One suggestion at a time: a second press while one is being
+        // written does nothing (the server would refuse it too).
+        if (aiUserHandler && typeof aiUserHandler.isWaiting === 'function' && aiUserHandler.isWaiting()) return;
+
         // Force enable AI User
         params["ai_user"] = "true";
 
@@ -1308,6 +1313,7 @@ document.addEventListener("DOMContentLoaded", function () {
         let ai_user_query = {
           message: "AI_USER_QUERY",
           contents: {
+            request_id: aiUserHandler && typeof aiUserHandler.beginRequest === 'function' ? aiUserHandler.beginRequest() : null,
             params: params,
             messages: messages.map(msg => {
               return { "role": msg["role"], "text": msg["text"] }
@@ -1320,7 +1326,12 @@ document.addEventListener("DOMContentLoaded", function () {
         // explicitly non-idempotent — the wrapper will fail-fast with
         // an alert if the WS is not OPEN, which is the right outcome
         // for a button click that visibly disables the trigger.
-        window.safeWsSend(ai_user_query);
+        const aiUserSent = window.safeWsSend(ai_user_query);
+        if (!(aiUserSent && aiUserSent.sent)) {
+          // Not sent: nothing will answer this request.
+          if (aiUserHandler && typeof aiUserHandler.abandonAIUser === 'function') aiUserHandler.abandonAIUser();
+          return;
+        }
 
         // Ensure the button stays visible
         $show(this);
@@ -1348,12 +1359,8 @@ document.addEventListener("DOMContentLoaded", function () {
           webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
         var spinnerSpan = spinnerEl ? spinnerEl.querySelector("span") : null;
         if (spinnerSpan) spinnerSpan.innerHTML = `<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`;
-
-        // Enable button after a delay to prevent rapid clicking
-        setTimeout(() => {
-          var btn = $id("ai_user");
-          if (btn) btn.disabled = false;
-        }, 3000);
+        // The button comes back when the suggestion is finished, fails, or is
+        // given up (Cancel, Reset, app switch).
       };
     }
   
@@ -2280,6 +2287,10 @@ document.addEventListener("DOMContentLoaded", function () {
       { const el = $id("temp-card"); if (el) el.remove(); }
       { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
+      // An AI User suggestion still being written is for the chat that ends.
+      if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
+        window.WsAIUserHandler.abandonAIUser();
+      }
       // Send server-side RESET to clear session
       window.safeWsSend({ message: "RESET" });
     }
@@ -2342,6 +2353,10 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("temp-card"); if (el) el.remove(); }
     { const el = $id("temp-reasoning-card"); if (el) el.remove(); }
 
+    // An AI User suggestion still being written is for the chat that ends.
+    if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
+      window.WsAIUserHandler.abandonAIUser();
+    }
     // Send server-side RESET to clear session
     window.safeWsSend({ message: "RESET" });
 
@@ -3239,6 +3254,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
   $on($id("cancel_query"), "click", function() {
+    // An AI User suggestion being written is given up now: its notices may
+    // already be on the way, and must not fill the input box afterwards.
+    if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
+      window.WsAIUserHandler.abandonAIUser();
+    }
     setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.operationCanceled') : 'Operation canceled'}`, "warning");
     ttsStop();
 
@@ -3303,7 +3323,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Attached videos are named in the message by attachment_id, which the
     // video tools take; the files themselves are on the server already.
     const typedText = ($id("message") || {}).value;
-    const attachmentLines = typeof window.takeVideoAttachmentLines === 'function' ? window.takeVideoAttachmentLines() : '';
+    const attachmentLines = typeof window.videoAttachmentLines === 'function' ? window.videoAttachmentLines() : '';
     const userMessageText = [typedText, attachmentLines].filter(function (part) { return part; }).join("\n\n");
     params["message"] = userMessageText;
 
@@ -3351,11 +3371,19 @@ document.addEventListener("DOMContentLoaded", function () {
         // SAMPLE appends a fresh-mid turn to session[:messages] so a
         // queued replay would create a duplicate sample message.
         // Non-idempotent → default fail-fast.
-        window.safeWsSend(msg_object);
-        
+        const sampleResult = window.safeWsSend(msg_object);
+        if (!(sampleResult && sampleResult.sent)) {
+          clearTimeout(sampleTimeoutId);
+          restoreAfterUnsentMessage();
+          return;
+        }
+
         // Clear input field and reset role selector immediately
         { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
         { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
+        { const el = document.querySelector("#role-icon i"); if (el) { el.classList.remove("fa-robot", "fa-bars"); el.classList.add("fa-face-smile"); } }
+        // The attached videos went with the sample message.
+        if (typeof window.clearVideoAttachments === 'function') window.clearVideoAttachments();
       });
     } else {
       reconnect_websocket(ws, function (_ws) {
@@ -3377,7 +3405,15 @@ document.addEventListener("DOMContentLoaded", function () {
         // queue, alert) is the only safe behavior; the user will see
         // their input still sitting in the message box and can retry
         // once the connection comes back.
-        window.safeWsSend(params);
+        const sendResult = window.safeWsSend(params);
+        // Not sent: the text, images and attachments stay for the retry.
+        if (!(sendResult && sendResult.sent)) {
+          restoreAfterUnsentMessage();
+          return;
+        }
+        if (typeof window.clearVideoAttachments === 'function') {
+          window.clearVideoAttachments();
+        }
         // Lock the Privacy Filter toggle once the first message of the
         // session has been sent. The locked state is also enforced by the
         // backend (Pipeline is cached in session[:_privacy_pipeline]).
@@ -3399,9 +3435,24 @@ document.addEventListener("DOMContentLoaded", function () {
         updateFileDisplay(images);
       });
     }
-    { const el = $id("select-role"); if (el) el.value = "user"; }
-    { const el = document.querySelector("#role-icon i"); if (el) { el.classList.remove("fa-robot", "fa-bars"); el.classList.add("fa-face-smile"); } }
+    // The role goes back to "user" only once the message has been sent (in
+    // the callbacks above): a message that could not be sent keeps its role,
+    // so sending it again is the same kind of message.
   });
+
+  // A message that could not be sent (the connection was down; safeWsSend
+  // has said so): the waiting indicators and the placeholder turn are taken
+  // away, and what was typed and attached is left as it was.
+  function restoreAfterUnsentMessage() {
+    const pending = window.messages || [];
+    const tempIndex = pending.findIndex(function (m) { return m.temp === true; });
+    if (tempIndex !== -1 && window.SessionState) window.SessionState.removeMessage(tempIndex);
+    $hide($id("temp-card"));
+    $hide($id("indicator"));
+    $hide($id("monadic-spinner"));
+    $hide($id("cancel_query"));
+  }
+  window.restoreAfterUnsentMessage = restoreAfterUnsentMessage;
 
   $on($id("clear"), "click", function(event) {
     event.preventDefault();

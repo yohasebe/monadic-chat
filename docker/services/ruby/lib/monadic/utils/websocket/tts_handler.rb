@@ -158,6 +158,11 @@ module WebSocketHelper
       return
     end
 
+    # The chat this speech belongs to: audio that comes back after a Reset or
+    # app switch is not sent into the chat the page is now in.
+    chat_at_start = respond_to?(:session) && session ? session[Monadic::Workspace::Chats::SESSION_KEY] : nil
+    chat_changed = -> { respond_to?(:session) && session && session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
+
     # Start TTS thread for API-based providers
     @tts_thread = Thread.new do
       Thread.current[:type] = :tts_playback
@@ -172,7 +177,9 @@ module WebSocketHelper
                                    language: language,
                                    instructions: instructions)
 
-        if res_hash && res_hash["type"] == "audio"
+        if chat_changed.call
+          nil # dropped: the chat was reset while the audio was being made
+        elsif res_hash && res_hash["type"] == "audio"
           res_hash["segment_index"] = 0
           res_hash["total_segments"] = 1
           res_hash["is_segment"] = false  # Not segmented
@@ -205,9 +212,12 @@ module WebSocketHelper
         send_error("TTS error: #{e.message}", ws_session_id)
       end
 
-      # Send completion message
-      complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
-      send_or_broadcast(complete_message, ws_session_id)
+      # Send completion message (not into a chat this speech was not for:
+      # it would hide the indicator of whatever that chat is doing)
+      unless chat_changed.call
+        complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
+        send_or_broadcast(complete_message, ws_session_id)
+      end
     end
   end
 
@@ -415,7 +425,15 @@ module WebSocketHelper
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
 
-    # Stop any running TTS thread and all prefetch threads
+    stop_tts_threads("STOP_TTS message")
+
+    # Send confirmation
+    tts_stopped_message = { "type" => "tts_stopped" }.to_json
+    send_or_broadcast(tts_stopped_message, ws_session_id)
+  end
+
+  # Stops the running TTS thread and its prefetch threads (STOP_TTS, Reset).
+  private def stop_tts_threads(reason)
     if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
       # Kill all prefetch subthreads first
       begin
@@ -435,12 +453,11 @@ module WebSocketHelper
       # Kill main TTS thread
       @tts_thread.kill
       @tts_thread = nil
-      puts "TTS thread and subthreads stopped by STOP_TTS message"
+      puts "TTS thread and subthreads stopped by #{reason}"
+      true
+    else
+      false
     end
-
-    # Send confirmation
-    tts_stopped_message = { "type" => "tts_stopped" }.to_json
-    send_or_broadcast(tts_stopped_message, ws_session_id)
   end
 
   private def handle_ws_play_tts(connection, obj, session, thread)

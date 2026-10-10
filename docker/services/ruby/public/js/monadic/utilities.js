@@ -1280,12 +1280,6 @@ function checkParams() {
 function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
 
-  const imageUsed = $id("image-used");
-  if (imageUsed) imageUsed.innerHTML = '';
-  images = [];
-  // Attachments belong to the chat being reset; they do not carry over.
-  if (typeof window.clearVideoAttachments === 'function') window.clearVideoAttachments();
-
   // Detect iOS/iPadOS
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1361,6 +1355,17 @@ function resetEvent(_event, resetToDefaultApp = false) {
 
 // Function to handle the actual reset logic
 function doResetActions(resetToDefaultApp = false) {
+  // Attached images and videos belong to the chat being reset; cleared only
+  // now that the reset is confirmed (cancelling the dialog keeps them).
+  const imageUsed = $id("image-used");
+  if (imageUsed) imageUsed.innerHTML = '';
+  images = [];
+  if (typeof window.clearVideoAttachments === 'function') window.clearVideoAttachments();
+  // An AI User suggestion still being written is for the chat being reset.
+  if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
+    window.WsAIUserHandler.abandonAIUser();
+  }
+
   // Reset must end a running Live Conversation first: otherwise the mic
   // keeps streaming and the server bridge keeps billing against a canon
   // that is about to be cleared. (The server tears its side down on RESET

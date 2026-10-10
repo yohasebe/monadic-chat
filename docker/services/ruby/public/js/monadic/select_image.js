@@ -12,8 +12,13 @@ const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 // Videos are not put into the message: they go to the server as attachments
 // of this chat (POST /attachments), and the message names them by
 // attachment_id. Only apps that import the video_analysis tools take them.
-const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.avi', '.mpeg', '.mpg'];
+// The same list the server accepts for video attachments (FileTypes); a
+// spec checks that the two agree.
+const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.avi'];
 let videoAttachments = []; // [{ attachment_id, name, size }]
+// Advances whenever the list is cleared (Reset, app switch, sent): an upload
+// that finishes after that belonged to the chat that was left, and is dropped.
+let attachmentGeneration = 0;
 
 function appTakesVideoAttachments(appName) {
   const app = (typeof apps !== 'undefined' && apps) ? apps[appName] : null;
@@ -39,7 +44,9 @@ async function uploadVideoAttachment(file) {
   formData.append('purpose', 'video');
   const tabId = typeof window.getMonadicTabId === 'function' ? window.getMonadicTabId() : '';
   const url = '/attachments?tab_id=' + encodeURIComponent(tabId || '');
+  const generation = attachmentGeneration;
   const record = await window.monadicFetch.postJson(url, formData);
+  if (generation !== attachmentGeneration) return null;
   videoAttachments.push({ attachment_id: record.attachment_id, name: record.name || file.name, size: record.size || file.size });
   updateFileDisplay(images);
   return record;
@@ -49,18 +56,16 @@ function hasVideoAttachments() {
   return videoAttachments.length > 0;
 }
 
-// The lines that tell the model which videos are attached; empties the list.
-function takeVideoAttachmentLines() {
-  if (videoAttachments.length === 0) return '';
-  const lines = videoAttachments.map(function (v) {
+// The lines that tell the model which videos are attached. The list is left
+// as it is: it is cleared once the message has actually been sent.
+function videoAttachmentLines() {
+  return videoAttachments.map(function (v) {
     return 'Attached video: ' + v.name + ' (attachment_id: ' + v.attachment_id + ')';
-  });
-  videoAttachments = [];
-  updateFileDisplay(images);
-  return lines.join('\n');
+  }).join('\n');
 }
 
 function clearVideoAttachments() {
+  attachmentGeneration += 1;
   videoAttachments = [];
   updateFileDisplay(images);
 }
@@ -726,6 +731,7 @@ function updateFileDisplay(files) {
 function clearAllImages() {
   images = [];
   currentMaskData = null;
+  attachmentGeneration += 1;
   videoAttachments = [];
   updateFileDisplay(images);
 }
@@ -740,7 +746,7 @@ window.appTakesVideoAttachments = appTakesVideoAttachments;
 window.isVideoFile = isVideoFile;
 window.uploadVideoAttachment = uploadVideoAttachment;
 window.hasVideoAttachments = hasVideoAttachments;
-window.takeVideoAttachmentLines = takeVideoAttachmentLines;
+window.videoAttachmentLines = videoAttachmentLines;
 window.clearVideoAttachments = clearVideoAttachments;
 window.getDocumentIcon = getDocumentIcon;
 window.isDocumentType = isDocumentType;

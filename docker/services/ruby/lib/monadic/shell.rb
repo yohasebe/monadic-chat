@@ -2,6 +2,7 @@
 
 require 'open3'
 require 'shellwords'
+require 'securerandom'
 
 module Monadic
   # Single point of coupling between Ruby code and the docker CLI.
@@ -70,12 +71,53 @@ module Monadic
     # @return [Array(String, String, Process::Status)]
     def exec(container:, argv:, workdir: SHARED_VOLUME, env: {}, timeout: nil)
       raise ArgumentError, 'argv must be a non-empty array' unless argv.is_a?(Array) && !argv.empty?
+      name = resolve_container(container)
       docker_argv = ['docker', 'exec', '-w', workdir]
       env.each_pair { |k, v| docker_argv.concat(['-e', "#{k}=#{v}"]) }
-      docker_argv << resolve_container(container)
+      # A run with a time limit is marked, so that stopping it also stops
+      # what it started in the container (see stop_in_container).
+      run_id = SecureRandom.hex(16) if timeout
+      docker_argv.concat(['-e', "#{RUN_ID_VAR}=#{run_id}"]) if run_id
+      docker_argv << name
       docker_argv.concat(argv.map(&:to_s))
-      capture(docker_argv, timeout: timeout)
+      on_stop = run_id && -> { stop_in_container(name, run_id) }
+      capture(docker_argv, timeout: timeout, on_stop: on_stop)
     end
+
+    RUN_ID_VAR = 'MONADIC_RUN_ID'
+
+    # Stopping `docker exec` ends the client on this side; the process it
+    # started in the container, and that process's own children (ffmpeg
+    # started by a Python script), go on. They all carry the run's mark in
+    # their environment, so they are found by it there and stopped. Only sh
+    # and tr are used: the Python image has no pgrep or pkill.
+    # The mark must be a whole entry of the environment, not part of another.
+    STOP_MARKED = <<~'SH'
+      mark="MONADIC_RUN_ID=$1"
+      nl='
+      '
+      signal_marked() {
+        for d in /proc/[0-9]*; do
+          case "$nl$(tr '\000' '\n' < "$d/environ" 2>/dev/null)$nl" in
+            *"$nl$mark$nl"*) kill -s "$1" "${d#/proc/}" 2>/dev/null ;;
+          esac
+        done
+      }
+      signal_marked TERM
+      sleep 0.5
+      signal_marked KILL
+      exit 0
+    SH
+
+    def stop_in_container(name, run_id)
+      return unless run_id.to_s.match?(/\A\h{32}\z/)
+
+      capture_with_timeout(['docker', 'exec', name, 'sh', '-c', STOP_MARKED, 'sh', run_id], STOP_TIMEOUT)
+    rescue StandardError
+      nil # best effort: the container may be gone
+    end
+
+    STOP_TIMEOUT = 5 # seconds; the reply waits a little longer (REPLY_STOP_WAIT)
 
     # Run a `bash -c BODY` inside a container. The body is passed as a
     # single argv element, so the docker / outer-shell layer cannot
@@ -155,33 +197,49 @@ module Monadic
     # whole group is stopped, so a child it started cannot keep the output
     # open and hold the caller past the limit. Stopping `docker exec` ends the
     # client, not necessarily the process it started in the container.
-    def capture(argv, timeout: nil)
-      stdout, stderr, status = timeout ? capture_with_timeout(argv, timeout) : Open3.capture3(*argv)
+    def capture(argv, timeout: nil, on_stop: nil)
+      stdout, stderr, status = timeout ? capture_with_timeout(argv, timeout, on_stop: on_stop) : Open3.capture3(*argv)
       log_invocation(argv, stdout, stderr)
       [stdout, stderr, status]
     end
 
     READ_GRACE = 2 # seconds to collect output once the command has ended or been stopped
 
-    def capture_with_timeout(argv, timeout)
+    def capture_with_timeout(argv, timeout, on_stop: nil)
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
       Open3.popen3(*argv, pgroup: true) do |stdin, out, err, wait|
-        stdin.close
-        readers = [out, err].map { |io| Thread.new { read_all(io) } }
-        finished = wait.join(timeout)
-        # A child left running can hold the pipes open after the command
-        # itself ends; output is read until the deadline, not until EOF.
-        remaining = [deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC), 0].max
-        drained = finished && readers.all? { |t| t.join(remaining) }
-        unless finished && drained
-          stop_group(wait.pid)
-          wait.join(READ_GRACE)
-          readers.each { |t| t.join(READ_GRACE) }
-          [out, err].each { |io| io.close unless io.closed? }
-          raise TimedOut, "#{File.basename(argv.first.to_s)} did not finish within #{timeout} seconds"
+        result = run_to_end_or_stop(argv, timeout, deadline, stdin, out, err, wait)
+        done = true
+        result
+      ensure
+        # Run over, or interrupted (the calling thread killed, as Cancel
+        # does): the group is stopped rather than left running to its end,
+        # including a child still holding the output after the command
+        # itself has ended, and so is what it started in a container.
+        unless done
+          stop_group(wait.pid) if wait
+          [out, err].each { |io| io.close if io && !io.closed? }
+          on_stop&.call
         end
-        [readers[0].value, readers[1].value, wait.value]
       end
+    end
+
+    def run_to_end_or_stop(argv, timeout, deadline, stdin, out, err, wait)
+      stdin.close
+      readers = [out, err].map { |io| Thread.new { read_all(io) } }
+      finished = wait.join(timeout)
+      # A child left running can hold the pipes open after the command
+      # itself ends; output is read until the deadline, not until EOF.
+      remaining = [deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC), 0].max
+      drained = finished && readers.all? { |t| t.join(remaining) }
+      unless finished && drained
+        stop_group(wait.pid)
+        wait.join(READ_GRACE)
+        readers.each { |t| t.join(READ_GRACE) }
+        [out, err].each { |io| io.close unless io.closed? }
+        raise TimedOut, "#{File.basename(argv.first.to_s)} did not finish within #{timeout} seconds"
+      end
+      [readers[0].value, readers[1].value, wait.value]
     end
 
     def read_all(io)

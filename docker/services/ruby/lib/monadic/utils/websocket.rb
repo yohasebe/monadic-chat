@@ -153,6 +153,9 @@ module WebSocketHelper
 
       queue = Queue.new
       thread = nil
+      # An AI User suggestion being written: kept apart from the reply, so
+      # that what waits for the reply (HTML, PLAY_TTS) does not wait for it.
+      suggestion = nil
 
       # Send initial load message immediately after connection
       handle_load_message(connection)
@@ -184,6 +187,8 @@ module WebSocketHelper
 
           thread&.kill
           thread = nil
+          suggestion&.kill
+          suggestion = nil
           queue.clear
 
           cancel_message = { "type" => "cancel" }.to_json
@@ -224,6 +229,14 @@ module WebSocketHelper
           # Send PONG only to the connection that sent PING (connection-specific keepalive)
           send_to_client(connection, { "type" => "pong" })
         when "RESET"
+          # A reply still being written belongs to the chat being reset. It
+          # is stopped as Cancel stops it, before the session is cleared:
+          # otherwise its tools could finish later and write their results
+          # (the last image, a gallery) into the next chat's session.
+          stop_running_reply(thread, queue)
+          thread = nil
+          stop_running_reply(suggestion, nil)
+          suggestion = nil
           handle_ws_reset(session)
         when "LOAD"
           # Store ui_language in session parameters if provided
@@ -247,7 +260,7 @@ module WebSocketHelper
         when "UPDATE_CONTEXT_FROM_CLIENT"
           handle_context_update_from_client(connection, obj)
         when "AI_USER_QUERY"
-          handle_ws_ai_user_query(connection, obj, session, thread)
+          suggestion = handle_ws_ai_user_query(connection, obj, session, thread, suggestion) || suggestion
         when "HTML"
           handle_ws_html(connection, obj, session, thread, queue)
         when "UPDATE_PARAMS"
@@ -320,6 +333,7 @@ module WebSocketHelper
       Thread.current[:rack_session] = nil
 
       thread&.kill
+      suggestion&.kill
     end
   end
 

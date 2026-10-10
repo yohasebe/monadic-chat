@@ -1095,6 +1095,13 @@ window.loadedApp = "Chat";
         }
         break;
       }
+      case "ai_user_error": {
+        const auh = window.WsAIUserHandler;
+        if (auh && typeof auh.handleAIUserError === 'function') {
+          auh.handleAIUserError(data);
+        }
+        break;
+      }
 
       case "success": {
         const wsh = window.WsSessionHandler;

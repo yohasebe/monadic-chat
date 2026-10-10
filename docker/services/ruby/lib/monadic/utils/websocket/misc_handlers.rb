@@ -50,48 +50,59 @@ module WebSocketHelper
     end
   end
 
-  private def handle_ws_ai_user_query(connection, obj, session, thread)
+  # The suggestion is written in a thread of its own, returned to the read
+  # loop: Reset and Cancel stop it as they stop a reply (run in the loop, it
+  # held both back until it was done), and nothing in the loop waits for it.
+  # Every notice carries the request id the page sent, errors included, so
+  # the page can tell a suggestion it has given up from the one it awaits.
+  # A request while another suggestion is being written is refused.
+  private def handle_ws_ai_user_query(connection, obj, session, reply, suggestion = nil)
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
+    request_id = obj.dig("contents", "request_id")
+    notice = ->(fields) { send_or_broadcast(fields.merge("request_id" => request_id).to_json, ws_session_id) }
 
     # Check if there are enough messages for AI User to work with
     if session[:messages].nil? || session[:messages].size < 2
-      send_error("ai_user_requires_conversation", ws_session_id)
-      return
+      notice.call("type" => "ai_user_error", "content" => "ai_user_requires_conversation")
+      return nil
+    end
+    if suggestion&.alive?
+      notice.call("type" => "ai_user_error", "content" => "ai_user_busy")
+      return nil
     end
 
-    thread&.join
-
-    # Get parameters
     params = obj["contents"]["params"]
+    rack_session = Thread.current[:rack_session]
 
-    # UI feedback
-    wait_msg = { "type" => "wait", "content" => "generating_ai_user_response" }.to_json
-    send_or_broadcast(wait_msg, ws_session_id)
-
-    started_msg = { "type" => "ai_user_started" }.to_json
-    send_or_broadcast(started_msg, ws_session_id)
-
-    # Process the request
-    begin
-      # Get AI user response
-      result = process_ai_user(session, params)
-
-      # Handle result
-      if result["type"] == "error"
-        send_error(result["content"], ws_session_id)
-      else
-        # Send response to client
-        ai_user_msg = { "type" => "ai_user", "content" => result["content"] }.to_json
-        send_or_broadcast(ai_user_msg, ws_session_id)
-
-        finished_msg = { "type" => "ai_user_finished", "content" => result["content"] }.to_json
-        send_or_broadcast(finished_msg, ws_session_id)
-      end
-    rescue StandardError => e
-      # Error handling
-      send_error({ "key" => "ai_user_error", "details" => e.message }, ws_session_id)
+    Thread.new do
+      Thread.current[:websocket_session_id] = ws_session_id
+      Thread.current[:rack_session] = rack_session
+      # A reply still being written comes first (waited for here, not in the
+      # read loop, so a Reset or Cancel meanwhile is still taken).
+      reply&.join
+      write_ai_user_suggestion(session, params, notice)
     end
+  end
+
+  private def write_ai_user_suggestion(session, params, notice)
+    notice.call("type" => "ai_user_started")
+
+    # The chat this suggestion is for: after a Reset or app switch it would
+    # land in the next chat's input box, so nothing is sent.
+    chat_at_start = session[Monadic::Workspace::Chats::SESSION_KEY]
+
+    result = process_ai_user(session, params)
+    if session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start
+      nil
+    elsif result["type"] == "error"
+      notice.call("type" => "ai_user_error", "content" => result["content"].to_s)
+    else
+      notice.call("type" => "ai_user", "content" => result["content"])
+      notice.call("type" => "ai_user_finished", "content" => result["content"])
+    end
+  rescue StandardError => e
+    notice.call("type" => "ai_user_error", "content" => "AI User error: #{e.message}")
   end
 
   private def handle_ws_update_params(connection, obj, session)
@@ -349,6 +360,24 @@ module WebSocketHelper
     end
   end
 
+  # Seconds for a stopped reply's own clean-up: stopping a command it runs
+  # (Monadic::Shell::STOP_TIMEOUT plus the group's grace) fits within it.
+  REPLY_STOP_WAIT = 15
+
+  # Stops a reply that is still being written, waits briefly for its clean-up
+  # (closing connections, stopping commands it started) and drops what it
+  # queued. The page gets the same notice as for Cancel, which gives it its
+  # controls back without touching the input box.
+  private def stop_running_reply(thread, queue)
+    queue&.clear
+    return unless thread&.alive?
+
+    thread.kill
+    thread.join(REPLY_STOP_WAIT)
+    queue&.clear
+    send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id])
+  end
+
   private def handle_ws_reset(session)
     # A live speech-to-speech bridge must not survive Reset: it would keep
     # the upstream socket (and billing) alive against a cleared canon, and
@@ -357,6 +386,11 @@ module WebSocketHelper
       teardown_sts_session(session)
       send_or_broadcast({ "type" => "sts_session", "state" => "stopped" }.to_json,
                         Thread.current[:websocket_session_id])
+    end
+    # Speech still being made for the old chat is stopped, not played into the
+    # new one; the page gets the Cancel notice so its indicator does not stay on.
+    if respond_to?(:stop_tts_threads, true) && stop_tts_threads("Reset")
+      send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id])
     end
     session[:messages].clear
     session[:parameters].clear

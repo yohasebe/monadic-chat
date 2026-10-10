@@ -55,9 +55,12 @@ afterEach(() => {
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-ai-user-handler');
 
 describe('ws-ai-user-handler', () => {
+  let rid;
+  beforeEach(() => { rid = handlers.beginRequest(); });
+
   describe('handleAIUserStarted', () => {
     it('shows warning alert with generating message', () => {
-      handlers.handleAIUserStarted({});
+      handlers.handleAIUserStarted({ request_id: rid });
 
       expect(global.setAlert).toHaveBeenCalledWith(
         expect.stringContaining('Generating AI user response'),
@@ -66,20 +69,20 @@ describe('ws-ai-user-handler', () => {
     });
 
     it('shows cancel button', () => {
-      handlers.handleAIUserStarted({});
+      handlers.handleAIUserStarted({ request_id: rid });
 
       const cancelButton = document.getElementById('cancel_query');
       expect(cancelButton.style.display).toBe('flex');
     });
 
     it('shows spinner', () => {
-      handlers.handleAIUserStarted({});
+      handlers.handleAIUserStarted({ request_id: rid });
 
       expect(document.getElementById('monadic-spinner').style.display).toBe('block');
     });
 
     it('disables all input elements', () => {
-      handlers.handleAIUserStarted({});
+      handlers.handleAIUserStarted({ request_id: rid });
 
       expect(document.getElementById('message').disabled).toBe(true);
       expect(document.getElementById('send').disabled).toBe(true);
@@ -93,7 +96,7 @@ describe('ws-ai-user-handler', () => {
     it('appends content to message field', () => {
       document.getElementById('message').value = 'existing ';
 
-      handlers.handleAIUser({ content: 'new text' });
+      handlers.handleAIUser({ request_id: rid, content: 'new text' });
 
       expect(document.getElementById('message').value).toBe('existing new text');
     });
@@ -101,7 +104,7 @@ describe('ws-ai-user-handler', () => {
     it('converts escaped newlines to real newlines', () => {
       document.getElementById('message').value = '';
 
-      handlers.handleAIUser({ content: 'line1\\nline2' });
+      handlers.handleAIUser({ request_id: rid, content: 'line1\\nline2' });
 
       expect(document.getElementById('message').value).toBe('line1\nline2');
     });
@@ -111,7 +114,7 @@ describe('ws-ai-user-handler', () => {
       global.mainPanel = { scrollIntoView: jest.fn() };
       document.getElementById('message').value = '';
 
-      handlers.handleAIUser({ content: 'text' });
+      handlers.handleAIUser({ request_id: rid, content: 'text' });
 
       expect(global.mainPanel.scrollIntoView).toHaveBeenCalledWith(false);
     });
@@ -119,13 +122,13 @@ describe('ws-ai-user-handler', () => {
 
   describe('handleAIUserFinished', () => {
     it('sets trimmed content to message field', () => {
-      handlers.handleAIUserFinished({ content: '  hello world  ' });
+      handlers.handleAIUserFinished({ request_id: rid, content: '  hello world  ' });
 
       expect(document.getElementById('message').value).toBe('hello world');
     });
 
     it('hides cancel button and spinner', () => {
-      handlers.handleAIUserFinished({ content: 'done' });
+      handlers.handleAIUserFinished({ request_id: rid, content: 'done' });
 
       const cancelButton = document.getElementById('cancel_query');
       expect(cancelButton.style.display).toBe('none');
@@ -138,7 +141,7 @@ describe('ws-ai-user-handler', () => {
       document.getElementById('send').disabled = true;
       document.getElementById('ai_user').disabled = true;
 
-      handlers.handleAIUserFinished({ content: 'done' });
+      handlers.handleAIUserFinished({ request_id: rid, content: 'done' });
 
       expect(document.getElementById('message').disabled).toBe(false);
       expect(document.getElementById('send').disabled).toBe(false);
@@ -146,7 +149,7 @@ describe('ws-ai-user-handler', () => {
     });
 
     it('shows success alert', () => {
-      handlers.handleAIUserFinished({ content: 'done' });
+      handlers.handleAIUserFinished({ request_id: rid, content: 'done' });
 
       expect(global.setAlert).toHaveBeenCalledWith(
         expect.stringContaining('AI user response generated'),
@@ -155,9 +158,116 @@ describe('ws-ai-user-handler', () => {
     });
 
     it('focuses on input field', () => {
-      handlers.handleAIUserFinished({ content: 'done' });
+      handlers.handleAIUserFinished({ request_id: rid, content: 'done' });
 
       expect(global.setInputFocus).toHaveBeenCalled();
+    });
+  });
+
+  describe('abandonAIUser (Reset while a suggestion is being written)', () => {
+    it('gives the controls back and leaves the new chat\'s input box alone', () => {
+      handlers.handleAIUserStarted({ request_id: rid });
+      const message = document.getElementById('message');
+      message.value = 'a draft for the new chat';
+      global.setAlert.mockClear();
+
+      handlers.abandonAIUser();
+
+      expect(message.value).toBe('a draft for the new chat');
+      expect(message.disabled).toBe(false);
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('cancel_query').style.display).toBe('none');
+      expect(global.setAlert).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when no suggestion is being written', () => {
+      handlers.handleAIUserStarted({ request_id: rid });
+      handlers.handleAIUserFinished({ request_id: rid, content: 'done' });
+      const send = document.getElementById('send');
+      send.disabled = true; // locked by something else since
+
+      handlers.abandonAIUser();
+
+      expect(send.disabled).toBe(true);
+    });
+  });
+
+  describe('a suggestion given up at Reset or app switch', () => {
+    it('cannot fill the input box or unlock the controls when its notices arrive later', () => {
+      handlers.handleAIUserStarted({ request_id: rid });
+      handlers.abandonAIUser();
+      const message = document.getElementById('message');
+      message.value = 'a draft for the new chat';
+      const send = document.getElementById('send');
+      send.disabled = true; // locked by a reply in the new chat
+
+      handlers.handleAIUser({ request_id: rid, content: 'old suggestion' });
+      handlers.handleAIUserFinished({ request_id: rid, content: 'old suggestion' });
+
+      expect(message.value).toBe('a draft for the new chat');
+      expect(send.disabled).toBe(true);
+    });
+
+    it('is told apart from a new request made after it', () => {
+      const old = rid;
+      handlers.abandonAIUser();
+      const fresh = handlers.beginRequest();
+      handlers.handleAIUserStarted({ request_id: fresh });
+
+      handlers.handleAIUserFinished({ request_id: old, content: 'old suggestion' });
+      expect(document.getElementById('message').value).toBe('');
+      handlers.handleAIUserFinished({ request_id: fresh, content: 'new suggestion' });
+      expect(document.getElementById('message').value).toBe('new suggestion');
+    });
+
+    it('ignores notices without a request id', () => {
+      handlers.handleAIUserFinished({ content: 'from nowhere' });
+      expect(document.getElementById('message').value).toBe('');
+    });
+  });
+
+  describe('errors and the request they belong to', () => {
+    it('ends the current request on its error, leaving the input box as it is', () => {
+      handlers.handleAIUserStarted({ request_id: rid });
+      const message = document.getElementById('message');
+      message.value = 'kept';
+      handlers.handleAIUserError({ request_id: rid, content: 'AI User error: quota' });
+      expect(message.value).toBe('kept');
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(handlers.isWaiting()).toBe(false);
+      expect(global.setAlert).toHaveBeenLastCalledWith(expect.stringContaining('AI User error: quota'), 'error');
+    });
+
+    it('ignores the error of a request given up already', () => {
+      handlers.handleAIUserStarted({ request_id: rid });
+      handlers.abandonAIUser();
+      const send = document.getElementById('send');
+      send.disabled = true; // locked by something in the next chat
+      global.setAlert.mockClear();
+      handlers.handleAIUserError({ request_id: rid, content: 'AI User error: late' });
+      expect(send.disabled).toBe(true);
+      expect(global.setAlert).not.toHaveBeenCalled();
+    });
+
+    it('shows the error text as text', () => {
+      handlers.handleAIUserError({ request_id: rid, content: '<img src=x onerror=alert(1)>' });
+      expect(global.setAlert).toHaveBeenLastCalledWith(expect.stringContaining('&lt;img'), 'error');
+    });
+  });
+
+  describe('one request at a time', () => {
+    it('is waiting from the press of the button until the request ends', () => {
+      expect(handlers.isWaiting()).toBe(true);
+      handlers.handleAIUserFinished({ request_id: rid, content: 'done' });
+      expect(handlers.isWaiting()).toBe(false);
+    });
+
+    it('gives the controls back when given up before the server started', () => {
+      const send = document.getElementById('send');
+      send.disabled = true; // locked by the button itself
+      handlers.abandonAIUser();
+      expect(send.disabled).toBe(false);
+      expect(handlers.isWaiting()).toBe(false);
     });
   });
 

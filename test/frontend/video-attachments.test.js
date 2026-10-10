@@ -64,15 +64,28 @@ describe('video attachments', () => {
     expect(document.getElementById('image-used').textContent).toContain('clip.mp4 (3.0 MB)');
   });
 
-  it('are named in the message once, then cleared', async () => {
+  it('are named in the message, and stay listed until cleared', async () => {
     load({ toolGroups: [{ name: 'video_analysis', available: true }] });
     window.monadicFetch.postJson.mockResolvedValue({ attachment_id: 'a_123', name: 'clip.mp4', size: 1 });
     await window.uploadVideoAttachment(new File(['x'], 'clip.mp4'));
 
-    expect(window.takeVideoAttachmentLines()).toBe('Attached video: clip.mp4 (attachment_id: a_123)');
-    expect(window.hasVideoAttachments()).toBe(false);
-    expect(window.takeVideoAttachmentLines()).toBe('');
+    expect(window.videoAttachmentLines()).toBe('Attached video: clip.mp4 (attachment_id: a_123)');
+    // Building the message does not clear the list: a failed send keeps it.
+    expect(window.hasVideoAttachments()).toBe(true);
+    window.clearVideoAttachments();
+    expect(window.videoAttachmentLines()).toBe('');
     expect(document.getElementById('image-used').textContent).not.toContain('clip.mp4');
+  });
+
+  it('drop an upload that finishes after the list was cleared (Reset or app switch meanwhile)', async () => {
+    load({ toolGroups: [{ name: 'video_analysis', available: true }] });
+    let finish;
+    window.monadicFetch.postJson.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const pending = window.uploadVideoAttachment(new File(['x'], 'old.mp4'));
+    window.clearAllImages();
+    finish({ attachment_id: 'a_old', name: 'old.mp4', size: 1 });
+    await expect(pending).resolves.toBeNull();
+    expect(window.hasVideoAttachments()).toBe(false);
   });
 
   it('can be removed before sending, and are cleared with the images', async () => {
@@ -113,5 +126,69 @@ describe('tab id', () => {
     expect(files.length).toBeGreaterThan(50);
     const offenders = files.filter((f) => /window\.tabId\b/.test(fs.readFileSync(f, 'utf8')));
     expect(offenders).toEqual([]);
+  });
+});
+
+// Reset asks for confirmation; cancelling it must leave what is attached.
+// The clearing lives in doResetActions, which runs only once confirmed.
+describe('reset', () => {
+  it('clears attachments only after the reset is confirmed', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.resolve(__dirname, '../../docker/services/ruby/public/js/monadic/utilities.js'), 'utf8');
+    const body = (name) => {
+      const start = src.indexOf('function ' + name + '(');
+      const next = src.indexOf('\nfunction ', start + 1);
+      return src.slice(start, next === -1 ? undefined : next);
+    };
+    expect(body('resetEvent')).not.toMatch(/clearVideoAttachments|images = \[\]/);
+    expect(body('doResetActions')).toMatch(/clearVideoAttachments\(\)/);
+    expect(body('doResetActions')).toMatch(/images = \[\]/);
+  });
+});
+
+// A message that cannot be sent (the connection is down) leaves what was
+// typed and attached in place: nothing is cleared before the send succeeded.
+describe('sending while disconnected', () => {
+  it('clears the input box only after the message was sent, for chat and sample messages', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.resolve(__dirname, '../../docker/services/ruby/public/js/monadic.js'), 'utf8');
+    const sends = [...src.matchAll(/const (sendResult|sampleResult) = window\.safeWsSend\(/g)];
+    expect(sends.length).toBe(2);
+    sends.forEach((m) => {
+      const after = src.slice(m.index);
+      const check = after.search(/restoreAfterUnsentMessage\(\);\s*return;/);
+      const clear = after.search(/el\.value = ""/);
+      expect(check).toBeGreaterThan(-1);
+      expect(check).toBeLessThan(clear);
+    });
+  });
+
+  it('keeps the role of a sample message that could not be sent', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.resolve(__dirname, '../../docker/services/ruby/public/js/monadic.js'), 'utf8');
+    const sample = src.indexOf('const sampleResult = window.safeWsSend(');
+    const after = src.slice(sample);
+    const check = after.search(/restoreAfterUnsentMessage\(\);\s*return;/);
+    const roleBack = after.search(/select-role"\); if \(el\) \{ el\.value = "user"/);
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(roleBack);
+    // No unconditional switch back to "user" after the send callbacks.
+    expect(src).not.toMatch(/\{ const el = \$id\("select-role"\); if \(el\) el\.value = "user"; \}/);
+  });
+});
+
+// Cancel gives up an AI User suggestion when pressed: its notices may already
+// be on the way and must not fill the input box afterwards.
+describe('cancel', () => {
+  it('gives up the AI User request when pressed', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.resolve(__dirname, '../../docker/services/ruby/public/js/monadic.js'), 'utf8');
+    const start = src.indexOf('$on($id("cancel_query"), "click"');
+    expect(start).toBeGreaterThan(-1);
+    expect(src.slice(start, start + 600)).toMatch(/abandonAIUser\(\)/);
   });
 });

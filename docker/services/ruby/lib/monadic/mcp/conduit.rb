@@ -556,7 +556,7 @@ module Monadic
                 },
                 provider: {
                   type: "string",
-                  description: "Speech-to-text provider: openai or gemini/google. Required; " \
+                  description: "Speech-to-text provider: openai, gemini/google or xai/grok. Required; " \
                                "there is no automatic choice."
                 }
               },

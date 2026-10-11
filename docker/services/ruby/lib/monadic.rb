@@ -720,8 +720,9 @@ APPS = init_apps
 
 # Configure the Sinatra application
 configure do
-  use Rack::Session::Pool
-  set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
+  # Sessions come from config.ru (Rack::Session::CappedPool). A second
+  # session middleware here would replace that session for every route and
+  # the WebSocket, and its limits would never apply.
   set :public_folder, "public"
   set :views, "views"
   set :api_key, CONFIG["OPENAI_API_KEY"]
@@ -774,6 +775,13 @@ require_relative "monadic/routes/help_routes"
 require_relative "monadic/routes/attachment_routes"
 register Monadic::Routes::HelpRoutes
 register Monadic::Routes::AttachmentRoutes
+
+# A one-segment URL is a shortcut to a file in the shared folder. Defined
+# after every other route: Sinatra matches in order, and defined earlier it
+# took GET /monadic_state (the export of a chat's state) as a file name.
+get "/:filename" do |filename|
+  redirect to("/data/#{filename}")
+end
 
 
 # ──────────────────────────────────────────────────────────────

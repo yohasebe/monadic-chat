@@ -39,9 +39,9 @@ use Monadic::Workspace::UploadLimit, limits: {
   "/library/import" => LIBRARY_IMPORT_MAX_BYTES + 1_000_000
 }
 
-# Use unlimited in-memory sessions to handle large message imports
-# Rack::Session::Pool has size limits that cause "Content dropped" warnings
-# Use a capped pool to avoid unbounded memory growth while allowing larger payloads
+# The only session middleware (the routes and the WebSocket use this one).
+# In memory, with no size limit on a session; sessions left idle are removed
+# so the pool does not grow without bound (see unlimited_session_store.rb).
 use Rack::Session::CappedPool, key: 'monadic.session',
                                expire_after: 86400,  # 24 hours
                                max_sessions: (ENV['SESSION_MAX_COUNT'] || 50).to_i,

@@ -272,8 +272,11 @@ function handleAppsMessage(data) {
       }
 
       // If this is after a reset, re-initialize the app
-      // Check if parameters message hasn't been received yet
-      if (!data["from_parameters"] && !fromParamUpdate) {
+      // Check if parameters message hasn't been received yet. An import's
+      // app list is followed by the imported parameters, which select the
+      // app; re-selecting the one shown now would move the tab off the
+      // imported chat.
+      if (!data["from_parameters"] && !fromParamUpdate && !data["from_import"]) {
         // Re-initialize the current app with proceedWithAppChange
         setTimeout(function() {
           if (typeof window.proceedWithAppChange === 'function') {

@@ -105,6 +105,72 @@ module WebSocketHelper
     notice.call("type" => "ai_user_error", "content" => "AI User error: #{e.message}")
   end
 
+  # Whether UPDATE_PARAMS moves the tab to another app (a new chat).
+  private def app_change?(obj, session)
+    incoming = obj["params"]
+    return false unless incoming.is_a?(Hash) && session[:parameters].is_a?(Hash)
+
+    current_app = session[:parameters]["app_name"]
+    new_app = incoming["app_name"]&.to_s
+    !!(new_app && current_app && new_app != current_app)
+  end
+
+  # A conversation read from a file (POST /load staged it for this tab)
+  # replaces the tab's chat. The reply and suggestion were stopped by the
+  # caller; speech is stopped here, then the chat starts anew with the
+  # imported one in it, and the page is sent what it shows.
+  private def handle_ws_import_apply(connection, obj, session, imported)
+    ws_session_id = Thread.current[:websocket_session_id]
+    token = obj["token"].to_s
+    unless imported
+      send_to_client(connection, { "type" => "import_result", "token" => token, "success" => false,
+                                   "error" => "The conversation to import was not found. Please import the file again." })
+      return
+    end
+
+    if session[:_sts]
+      teardown_sts_session(session)
+      send_to_client(connection, { "type" => "sts_session", "state" => "stopped" })
+    end
+    send_to_client(connection, { "type" => "cancel" }) if respond_to?(:stop_tts_threads, true) && stop_tts_threads("Import")
+    handle_audio_abort(nil, nil) if session[:_realtime_stt] && respond_to?(:handle_audio_abort, true)
+
+    # The page's language belongs to the tab, not to the file.
+    ui_language = session[:parameters] && session[:parameters]["ui_language"]
+    session[:messages].clear
+    session[:parameters].clear
+    Monadic::Workspace::Chats.begin_new!(session)
+    imported.each { |key, value| session[key] = value }
+    session[:parameters]["ui_language"] ||= ui_language if ui_language
+    sync_session_state!
+
+    apps_data = prepare_apps_data(session[:parameters]["ui_language"], session: session)
+    app_name = session[:parameters]["app_name"]
+    shown = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == app_name }
+    # The page applies these in order; the pauses let it build the app list
+    # before the parameters select from it.
+    send_to_client(connection, { "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }) unless apps_data.empty?
+    sleep(0.2)
+    send_to_client(connection, { "type" => "parameters", "content" => session[:parameters], "from_import" => true }) unless session[:parameters].empty?
+    sleep(0.05)
+    send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true })
+
+    state = session[:monadic_state]
+    if state && state[:conversation_context]
+      send_to_client(connection, { "type" => "context_update", "context" => state[:conversation_context],
+                                   "schema" => state[:context_schema], "from_import" => true })
+    end
+    registry = state && state[:privacy] && state[:privacy][:registry]
+    send_to_client(connection, { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
+                                 "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil })
+    send_to_client(connection, { "type" => "import_result", "token" => token, "success" => true })
+    Monadic::Utils::ExtraLogger.log { "[Import] Tab #{ws_session_id} took #{session[:messages].size} messages" }
+  rescue StandardError => e
+    send_to_client(connection, { "type" => "import_result", "token" => token, "success" => false,
+                                 "error" => "The import could not be finished: #{e.message}" })
+    Monadic::Utils::ExtraLogger.log { "[Import] Failed: #{e.class}: #{e.message}" }
+  end
+
   private def handle_ws_update_params(connection, obj, session)
     incoming = obj["params"]
     unless incoming.is_a?(Hash)
@@ -119,27 +185,12 @@ module WebSocketHelper
     new_app = incoming["app_name"]&.to_s
     if new_app && current_app && new_app != current_app
       # Switching apps starts a new chat, even when nothing was sent yet
-      # (the client sends RESET only when there are messages).
-      Monadic::Workspace::Chats.start_new!(session)
-      # App is changing - reset conversation context
-      if session[:monadic_state]
-        session[:monadic_state][:conversation_context] = nil
-        # Also reset privacy registry — placeholders carry meaning for the
-        # specific conversation that produced them, so a new app/conversation
-        # must start with a clean registry. Drop the cached pipeline so the
-        # next vendor call re-evaluates the (possibly different) privacy
-        # config and session toggle for the new app.
-        session[:monadic_state].delete(:privacy)
-        session[:monadic_state].delete("privacy")
-      end
-      session.delete(:_privacy_pipeline)
-      # Drop the Vocabulary substitution pipeline too: it memoizes the previous
-      # app's ${TOKEN} set, which the new app may not share.
-      session.delete(:_substitution_pipeline)
-      # Clear backend-authoritative session toggle so the next app's
-      # toggle does not start in an inherited "on" state. The frontend
-      # will re-negotiate via PRIVACY_TOGGLE when the user opts in.
-      session.delete(:_privacy_session_enabled)
+      # (the client sends RESET only when there are messages). What the
+      # previous app's chat left in the session is dropped with it: the
+      # Session Context, the privacy registry, pipelines memoized for that
+      # app, the toggle (the frontend re-negotiates it via PRIVACY_TOGGLE),
+      # and tool results such as the last image or notebook.
+      Monadic::Workspace::Chats.begin_new!(session)
       # Push a privacy_state event so the frontend indicator reflects the
       # cleared registry immediately, instead of staying at the previous
       # app's count until the user sends the first message.
@@ -392,34 +443,20 @@ module WebSocketHelper
     if respond_to?(:stop_tts_threads, true) && stop_tts_threads("Reset")
       send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id])
     end
+    # Dictation still being transcribed belongs to the old chat's input.
+    handle_audio_abort(nil, nil) if session[:_realtime_stt] && respond_to?(:handle_audio_abort, true)
     session[:messages].clear
     session[:parameters].clear
-    # Reset starts a new chat: files made from now on go to a new folder,
-    # and the previous chat's folder stays as it is.
-    Monadic::Workspace::Chats.start_new!(session)
-    session[:progressive_tools]&.clear  # Reset Progressive Tool Disclosure state
-    session[:monadic_state]&.clear  # Reset conversation context for Session Context panel
-    session[:error] = nil
-    session[:obj] = nil
-    # Clear cached privacy pipeline so a new session can re-evaluate the
-    # session-level toggle. Without this, the locked-once-set Pipeline
-    # would survive Reset and ignore the user's new toggle choice.
-    session.delete(:_privacy_pipeline)
-    # Drop the Vocabulary substitution pipeline on Reset so the rebuilt session
-    # re-derives it from the (possibly changed) app settings.
-    session.delete(:_substitution_pipeline)
-    # Reset state-of-truth toggle as well; user re-negotiates via UI.
-    session.delete(:_privacy_session_enabled)
-    # Drop the Grok Context Compaction cache. The blob is a cache derived from
-    # session[:messages]; once the canon is cleared it must not be replayed.
-    session.delete(:grok_compaction)
-    # Reset the one-time model-fallback notice (e.g. Fable 5 → Opus 4.8) so a
-    # fresh conversation re-announces the substitution if it still applies.
-    session.delete(:_model_fallback_notified)
-    # Clear provider-specific media references to prevent cross-session leakage
-    session.keys
-      .select { |k| k.is_a?(Symbol) && (k.to_s.match?(/last_image|last_video/) || k == :tool_html_fragments) }
-      .each { |k| session.delete(k) }
+    # Reset starts a new chat: what the previous chat left in the session
+    # (tool results such as the last image, the Session Context, the privacy
+    # registry and toggle, cached pipelines) is dropped, and files made from
+    # now on go to a new folder while the previous chat's folder stays.
+    Monadic::Workspace::Chats.begin_new!(session)
     sync_session_state!
+    # The Privacy Filter is off for the new chat until the page turns it on
+    # again; tell the page, so its indicator does not keep showing the old
+    # chat's ON (the page turns it back on itself when its toggle is on).
+    send_or_broadcast({ "type" => "privacy_state", "enabled" => false, "registry_count" => 0, "error" => nil }.to_json,
+                      Thread.current[:websocket_session_id])
   end
 end

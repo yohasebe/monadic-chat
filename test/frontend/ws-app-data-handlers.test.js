@@ -347,6 +347,36 @@ describe('ws-app-data-handlers', () => {
       global.normalizeGroupId = handlers.normalizeGroupId;
     });
 
+    describe('when apps are already loaded', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
+        window.apps = { ChatOpenAI: { app_name: 'ChatOpenAI', display_name: 'Chat', description: 'd' } };
+        const select = document.getElementById('apps');
+        const option = document.createElement('option');
+        option.value = 'ChatOpenAI';
+        select.appendChild(option);
+        select.value = 'ChatOpenAI';
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('re-selects the current app after a reset', () => {
+        handlers.handleAppsMessage({ version: '1', docker: true, content: window.apps });
+        jest.advanceTimersByTime(200);
+        expect(window.proceedWithAppChange).toHaveBeenCalledWith('ChatOpenAI');
+      });
+
+      // The imported parameters that follow select the app; re-selecting the
+      // one shown now would move the tab off the imported chat.
+      it('does not re-select the current app for an import', () => {
+        handlers.handleAppsMessage({ version: '1', docker: true, content: window.apps, from_import: true });
+        jest.advanceTimersByTime(200);
+        expect(window.proceedWithAppChange).not.toHaveBeenCalled();
+      });
+    });
+
     it('sets version string with Docker indicator', () => {
       const data = {
         version: '1.0.0-beta.8',

@@ -32,10 +32,30 @@ module Monadic
           raise Refused, "the chat's session was not given" if session.nil?
           raise Refused, "the chat's session could not be read" unless chat_session?(session)
 
-          pipeline = session[:_privacy_pipeline]
+          pipeline = session[:_privacy_pipeline] || rebuild(session)
           return pipeline if pipeline
           raise Refused, "the Privacy Filter is on, but its masking is not available" if session[:_privacy_session_enabled] == true
 
+          nil
+        end
+
+        # A chat with the filter on whose pipeline is not built yet (a tab
+        # that reconnected or imported a conversation: a pipeline holds the
+        # session it was built for, so it is not carried over) gets one built
+        # for this session, as the chat's own call would build it, keeping
+        # the registry the session holds. nil when the app does not use the
+        # filter or it cannot be built; the caller then refuses.
+        def rebuild(session)
+          return nil unless session[:_privacy_session_enabled] == true
+
+          app_name = (session[:parameters] || {})["app_name"]
+          settings = defined?(APPS) && APPS[app_name] ? APPS[app_name].settings : nil
+          return nil unless settings && settings.dig(:privacy, :enabled) == true
+
+          require_relative 'pipeline'
+          require_relative 'presidio_backend'
+          session[:_privacy_pipeline] = Pipeline.new(backend: PresidioBackend.new, config: settings[:privacy], session: session)
+        rescue StandardError
           nil
         end
 

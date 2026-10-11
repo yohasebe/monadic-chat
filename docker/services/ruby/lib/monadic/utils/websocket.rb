@@ -64,6 +64,7 @@ module WebSocketHelper
       messages: session[:messages] || [],
       parameters: params,
       chat_id: session[Monadic::Workspace::Chats::SESSION_KEY],
+      chat_state: Monadic::Workspace::Chats.chat_state(session),
       generation: session[:_ws_generation]
     )
   end
@@ -128,8 +129,12 @@ module WebSocketHelper
       # are ignored from now on.
       session[:_ws_generation] = WebSocketHelper.claim_session_state(ws_session_id)
 
-      # Tab isolation: Each tab must have completely independent session state
-      # Always initialize with empty session first to clear any Rack session data from other tabs
+      # Tab isolation: a chat belongs to its tab, and the tab keeps it
+      # between connections. The cookie's session is shared by every tab
+      # and is not updated by this connection after it opens, so nothing of
+      # a chat is taken from it: whatever it holds beyond the connection's
+      # own keys is dropped first.
+      Monadic::Workspace::Chats.clear_chat_state!(session)
       session[:messages] = []
       session[:parameters] = {}
 
@@ -145,9 +150,15 @@ module WebSocketHelper
         end
       end
 
-      # Reconnecting the same tab continues its chat; anything else starts one.
+      # Reconnecting the same tab continues its chat, with what the chat
+      # had besides its messages (tool results, the Session Context, the
+      # privacy registry); anything else starts one.
+      if saved_state && Monadic::Workspace::Ids.valid?(:chat, saved_state[:chat_id])
+        (saved_state[:chat_state] || {}).each { |key, value| session[key] = value }
+      end
       Monadic::Workspace::Chats.resume!(session, saved_state && saved_state[:chat_id])
       sync_session_state!
+      WebSocketHelper.register_live_session(ws_session_id, session, session[:_ws_generation])
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})" }
 
@@ -264,7 +275,28 @@ module WebSocketHelper
         when "HTML"
           handle_ws_html(connection, obj, session, thread, queue)
         when "UPDATE_PARAMS"
+          # Another app starts a new chat: a reply still being written for
+          # the previous one is stopped first, as on Reset.
+          if app_change?(obj, session)
+            stop_running_reply(thread, queue)
+            thread = nil
+            stop_running_reply(suggestion, nil)
+            suggestion = nil
+          end
           handle_ws_update_params(connection, obj, session)
+        when "IMPORT_APPLY"
+          # A conversation read from a file replaces this tab's chat: what
+          # is running for the current one is stopped first, as on Reset,
+          # but only once the import is there to take (a stale or foreign
+          # token leaves the chat alone).
+          imported = WebSocketHelper.take_import(ws_session_id, obj["token"])
+          if imported
+            stop_running_reply(thread, queue)
+            thread = nil
+            stop_running_reply(suggestion, nil)
+            suggestion = nil
+          end
+          handle_ws_import_apply(connection, obj, session, imported)
         when "SYSTEM_PROMPT"
           handle_ws_system_prompt(connection, obj, session)
         when "SAMPLE"
@@ -324,6 +356,10 @@ module WebSocketHelper
       teardown_sts_session(session) if session
 
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
+      WebSocketHelper.unregister_live_session(ws_session_id, session[:_ws_generation]) if session
+      # Nothing stays staged for a tab with no connection left (a newer
+      # connection of the same tab keeps what was staged for it).
+      WebSocketHelper.drop_imports(ws_session_id) unless WebSocketHelper.live_session(ws_session_id)
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Connection closed for session #{ws_session_id}" }
 

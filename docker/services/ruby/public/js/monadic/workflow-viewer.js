@@ -1768,7 +1768,7 @@ const WorkflowViewer = (function () {
       saveViewState(); // Save current app's view before switching
       currentApp = name; currentData = null; updateTitle(null);
       container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>';
-      fetch('/api/app/' + encodeURIComponent(name) + '/graph')
+      fetch('/api/app/' + encodeURIComponent(name) + '/graph' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''))
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (data) {
           if (data.error) throw new Error(data.error);

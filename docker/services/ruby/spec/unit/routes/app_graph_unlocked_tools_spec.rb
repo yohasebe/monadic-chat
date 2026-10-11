@@ -3,9 +3,9 @@
 require 'spec_helper'
 
 # Guards for the dynamic-skill wiring added 2026-07-10:
-#  - the /api/app/:name/graph payload must expose the session's dynamically
-#    unlocked tools (read from the Rack session shared with the WebSocket
-#    handlers) so the Workflow Viewer can mark them;
+#  - the /api/app/:name/graph payload must expose the tab's dynamically
+#    unlocked tools (read from the chat the tab's connection holds) so the
+#    Workflow Viewer can mark them;
 #  - handle_request_tool must notify the requesting session (NOT broadcast to
 #    everyone: unlocks are per-session state, and other tabs must not
 #    receive them) with a tool_unlocked event.
@@ -17,10 +17,11 @@ RSpec.describe 'App graph dynamic-skill wiring' do
     File.read(File.expand_path('../../../lib/monadic/utils/progressive_tool_manager.rb', __dir__))
   end
 
-  it 'graph payload includes unlocked_tools sourced from session[:progressive_tools]' do
+  it "graph payload includes unlocked_tools sourced from the tab's chat" do
     block = routes_src[/unlocked_tools:.{0,500}/m]
     expect(block).not_to be_nil
-    expect(block).to include('session[:progressive_tools]')
+    expect(block).to include('tab_chat_session(params[:tab_id])')
+    expect(block).to include('chat[:progressive_tools]')
     expect(block).to include('rescue StandardError')
   end
 

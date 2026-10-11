@@ -315,6 +315,9 @@ window.shims.formHandlers = {
 
     const formData = new FormData();
     formData.append('file', file);
+    if (typeof window.getMonadicTabId === 'function' && window.getMonadicTabId()) {
+      formData.append('tab_id', window.getMonadicTabId());
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30000);

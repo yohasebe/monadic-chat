@@ -212,7 +212,3 @@ end
 get "/data/:file_name" do
   fetch_file(params[:file_name])
 end
-
-get "/:filename" do |filename|
-  redirect to("/data/#{filename}")
-end

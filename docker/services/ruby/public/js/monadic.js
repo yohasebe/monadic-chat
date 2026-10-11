@@ -3564,7 +3564,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let serverContextSchema = null;
     let progressiveTools = null;
     try {
-      const response = await fetch('/monadic_state');
+      const response = await fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''));
       if (!response.ok) throw new Error(`/monadic_state failed: ${response.status}`);
       const data = await response.json();
       if (data.success) {
@@ -4528,6 +4528,17 @@ document.addEventListener("DOMContentLoaded", function () {
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.importSession(file);
 
+      // The server read the file; the tab takes the conversation over its
+      // own connection, which stops what is running and starts the new chat.
+      // The import is done when that connection says so.
+      if (response && response.success) {
+        const result = await applyImportOverConnection(response.import_token);
+        if (!result.success) {
+          response.success = false;
+          response.error = result.error;
+        }
+      }
+
       // Process the response
       if (response && response.success) {
         // Clean up UI after successful import
@@ -5148,3 +5159,36 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 });
+
+// Sends a staged import to this tab's connection and waits for its result
+// (import_result), so the dialog reports what the server did, not only that
+// the request left the page.
+function applyImportOverConnection(token, timeoutMs) {
+  return new Promise(function (resolve) {
+    if (!token || typeof window.safeWsSend !== 'function') {
+      resolve({ success: false, error: "Could not reach the server to finish the import. Please try again." });
+      return;
+    }
+    let done = false;
+    const finish = function (result) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (window.onImportResult === onResult) window.onImportResult = null;
+      resolve(result);
+    };
+    const onResult = function (data) {
+      if (!data || data.token !== token) return;
+      finish(data.success ? { success: true } : { success: false, error: data.error || "The import could not be finished." });
+    };
+    const timer = setTimeout(function () {
+      finish({ success: false, error: "The server did not finish the import in time. Please try again." });
+    }, timeoutMs || 30000);
+    window.onImportResult = onResult;
+    const sent = window.safeWsSend({ message: "IMPORT_APPLY", token: token });
+    if (!sent || !sent.sent) {
+      finish({ success: false, error: "Could not reach the server to finish the import. Please try again." });
+    }
+  });
+}
+window.applyImportOverConnection = applyImportOverConnection;

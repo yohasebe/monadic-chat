@@ -648,6 +648,15 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "import_result": {
+        // The tab's connection took (or could not take) an imported
+        // conversation; the import dialog waits for this.
+        if (typeof window.onImportResult === 'function') {
+          window.onImportResult(data);
+        }
+        break;
+      }
+
       case "privacy_toggle_ack": {
         const wph_ack = window.WsPrivacyHandler;
         if (wph_ack && typeof wph_ack.handleToggleAck === 'function') {

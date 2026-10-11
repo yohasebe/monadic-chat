@@ -1302,7 +1302,7 @@
     };
 
     try {
-      fetch('/monadic_state').then(function (resp) {
+      fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : '')).then(function (resp) {
         if (!resp || !resp.ok) { afterState(null); return; }
         return resp.json().then(function (data) {
           afterState((data && data.monadic_state) ? data.monadic_state : null);

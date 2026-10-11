@@ -40,6 +40,13 @@
   // function to re-resolve the ID on demand.
   window.getMonadicTabId = ensureMonadicTabId;
 
+  // A tab's chat lives on the tab's own connection; HTTP requests that read
+  // it (the export, an app's graph) say which tab they come from.
+  window.monadicTabQuery = function () {
+    const id = ensureMonadicTabId();
+    return id ? '?tab_id=' + encodeURIComponent(id) : '';
+  };
+
   // Eager initialization at bundle load so window.monadicTabId is
   // immediately available to any consumer that reads it synchronously
   // (rather than through window.getMonadicTabId()).

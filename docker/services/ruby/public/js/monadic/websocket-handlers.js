@@ -833,9 +833,21 @@ function handleCancelMessage(data) {
     const aiUserProviderEl = $id('ai_user_provider');
     if (aiUserProviderEl) aiUserProviderEl.disabled = false;
 
-    // Hide cancel button
+    // Hide cancel button. It is shown with !important, so plain hiding
+    // would leave it on screen.
     const cancelEl = $id('cancel_query');
-    $hide(cancelEl);
+    if (cancelEl) cancelEl.style.setProperty('display', 'none', 'important');
+    $hide($id('indicator'));
+
+    // A reply the server stopped (Reset, another app, an import) leaves its
+    // "responding" status behind unless it is replaced here; a reply the
+    // user cancelled has set its own status already.
+    if (window.responseStarted || window.streamingResponse || window.callingFunction) {
+      if (typeof setAlert === 'function') {
+        const canceledText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.operationCanceled') : 'Operation canceled';
+        setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${canceledText}`, 'warning');
+      }
+    }
 
     // Use checkAndHideSpinner to respect Auto Speech mode
     if (typeof window.checkAndHideSpinner === 'function') {

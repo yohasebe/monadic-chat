@@ -730,6 +730,30 @@ describe('WebSocket Handlers', () => {
       global.setInputFocus = originalSetInputFocus;
     });
 
+    // Reset, another app or an import stops a reply on the server, which
+    // sends this message: the page must not keep showing it as running.
+    it('clears a cancel button shown with !important and replaces the responding status', () => {
+      const cancelEl = document.getElementById('cancel_query');
+      cancelEl.style.setProperty('display', 'flex', 'important');
+      window.responseStarted = true;
+      global.setAlert = jest.fn();
+      handlers.handleCancelMessage({ type: 'cancel' });
+      expect(cancelEl.style.getPropertyValue('display')).toBe('none');
+      expect(global.setAlert).toHaveBeenCalledWith(expect.stringContaining('Operation canceled'), 'warning');
+      expect(window.responseStarted).toBe(false);
+      delete global.setAlert;
+    });
+
+    it('leaves the status a user cancel has already set', () => {
+      window.responseStarted = false;
+      window.streamingResponse = false;
+      window.callingFunction = false;
+      global.setAlert = jest.fn();
+      handlers.handleCancelMessage({ type: 'cancel' });
+      expect(global.setAlert).not.toHaveBeenCalled();
+      delete global.setAlert;
+    });
+
     it('should reset placeholder text for message input', () => {
       const data = {
         type: 'cancel'

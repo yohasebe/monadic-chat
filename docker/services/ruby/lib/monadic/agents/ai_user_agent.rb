@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../utils/system_defaults"
+require_relative "../utils/privacy/outbound"
 
 # AI User Agent
 # Handles the generation of simulated user responses in conversations
@@ -18,9 +19,23 @@ module AIUserAgent
     
     # Provider details are logged to dedicated log files
     
+    # The provider writing the suggestion is another model: with the Privacy
+    # Filter on, it gets the conversation masked as the chat's model did (and
+    # the suggestion is restored for the input box), or nothing at all.
+    begin
+      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
+    end
+
     # Get conversation history
     max_history = 5
     conversation_messages = session[:messages].reject { |m| m["role"] == "system" }.last(max_history)
+    if pipeline
+      conversation_messages = conversation_messages.map do |m|
+        m.merge("text" => Monadic::Utils::Privacy::Outbound.mask(m["text"], pipeline, m["role"]))
+      end
+    end
     
     # Format conversation history as text
     conversation_text = format_conversation(conversation_messages, params["monadic"])
@@ -119,6 +134,7 @@ module AIUserAgent
       
       # Process result
       if result.is_a?(String) && !result.empty?
+        result = pipeline.after_receive_from_llm(result).text if pipeline
         # Success
         return {
           "type" => "ai_user",

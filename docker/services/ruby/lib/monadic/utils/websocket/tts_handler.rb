@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../tts_provider'
+require_relative '../privacy/outbound'
 
 # Text-to-speech (TTS) operations for WebSocket connections.
 # Handles voice listing, TTS request processing, playback control,
@@ -391,6 +392,7 @@ module WebSocketHelper
     #   - Web Speech (browser-native) gets the same treatment for UX
     #     parity even though the audio synthesis is local
     text = privacy_sanitize_tts_text(text, session)
+    return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
     elevenlabs_voice = obj["elevenlabs_voice"]
     speed = obj["speed"]
     response_format = obj["response_format"]
@@ -493,6 +495,7 @@ module WebSocketHelper
     # sanitize so the Play button does not leak restored PII to the cloud
     # TTS provider.
     text = privacy_sanitize_tts_text(text, session)
+    return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
     speed = obj["tts_speed"]
     response_format = "aac"
     language = obj["conversation_language"] || "auto"
@@ -520,9 +523,17 @@ module WebSocketHelper
   # here keeps the registry inside the trust boundary. The frontend
   # sends the rendered card text as-is; this method abstracts the
   # values out before any cloud TTS API or browser-native synth call.
+  # Returns nil (nothing is spoken; the page is told why) when the filter is
+  # on but cannot mask, so a cloud TTS provider never gets the restored text.
   private def privacy_sanitize_tts_text(text, session)
     return text unless text.is_a?(String) && !text.empty?
-    pipeline = session && (session[:_privacy_pipeline] || session['_privacy_pipeline'])
+
+    begin
+      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      send_error("Speech was not made: #{e.message}.", Thread.current[:websocket_session_id])
+      return nil
+    end
     return text unless pipeline.respond_to?(:sanitize_restored_for_tts)
     pipeline.sanitize_restored_for_tts(text)
   end

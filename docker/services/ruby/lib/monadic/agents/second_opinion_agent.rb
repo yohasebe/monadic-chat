@@ -1,4 +1,5 @@
 require_relative "../utils/system_defaults"
+require_relative '../utils/privacy/outbound'
 
 module SecondOpinionAgent
 
@@ -16,7 +17,7 @@ module SecondOpinionAgent
     "deepseek" => "DEEPSEEK_API_KEY"
   }.freeze
 
-  def parallel_second_opinions(user_query: "", agent_response: "", providers: [], session: {})
+  def parallel_second_opinions(user_query: "", agent_response: "", providers: [], session: nil)
     # Validate providers parameter
     unless providers.is_a?(Array) && providers.length >= 2
       return "Error: `providers` must be an array with at least 2 provider names."
@@ -98,13 +99,13 @@ module SecondOpinionAgent
     threads.each { |t| t.kill if t.alive? }
 
     # Force-stop further tool calls
-    session[:call_depth_per_turn] = FORCE_STOP_DEPTH if session.is_a?(Hash)
+    session[:call_depth_per_turn] = FORCE_STOP_DEPTH if session.respond_to?(:key?) && session.respond_to?(:[]=)
 
     # Format and return results
     format_parallel_opinions(results, skipped)
   end
 
-  def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil, session: {})
+  def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil, session: nil)
     # Determine provider and model
     target_provider, target_model = determine_provider_and_model(provider, model)
 
@@ -129,7 +130,13 @@ module SecondOpinionAgent
     # mask the inline query/response before sending so the second-opinion
     # provider (a different LLM, possibly a different vendor) does not
     # see raw PII the user has chosen to mask.
-    pipeline = session.is_a?(Hash) ? session[:_privacy_pipeline] : nil
+    # Not sent unmasked: refused when the filter is on but cannot mask (see
+    # Privacy::Outbound).
+    begin
+      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      return { comments: "Error: the second opinion was not requested: #{e.message}.", validity: "error", model: "none" }
+    end
     masked_query = pipeline ? mask_for_second_opinion(user_query, pipeline, "user") : user_query
     masked_response = pipeline ? mask_for_second_opinion(agent_response, pipeline, "assistant") : agent_response
 

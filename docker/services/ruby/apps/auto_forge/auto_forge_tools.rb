@@ -109,14 +109,14 @@ module AutoForgeTools
     # Priority 2: Rack session
     if session_id.nil? && Thread.current[:rack_session]
       rack_session = Thread.current[:rack_session]
-      session_id = rack_session[:websocket_session_id] if rack_session.is_a?(Hash)
+      session_id = rack_session[:websocket_session_id] if rack_session.respond_to?(:key?)
       if session_id && CONFIG && CONFIG["EXTRA_LOGGING"]
         puts "[AutoForgeTools] Using session ID from Rack session: #{session_id}"
       end
     end
 
     # Priority 3: Instance variable @session (legacy)
-    if session_id.nil? && defined?(@session) && @session.is_a?(Hash)
+    if session_id.nil? && defined?(@session) && @session.respond_to?(:key?)
       session_id = @session[:websocket_session_id] || @session[:session_id]
       if session_id && CONFIG && CONFIG["EXTRA_LOGGING"]
         puts "[AutoForgeTools] Using session ID from instance variable: #{session_id}"

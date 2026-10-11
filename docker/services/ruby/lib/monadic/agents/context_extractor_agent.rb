@@ -6,6 +6,7 @@ require "net/http"
 require "uri"
 require "json"
 require "cld"
+require_relative '../utils/privacy/outbound'
 
 # Context Extractor Agent
 # Automatically extracts conversation context after each response for apps with monadic: true setting
@@ -180,8 +181,9 @@ module ContextExtractorAgent
     # Fail-closed: if masking raises (privacy backend unreachable), the
     # whole extraction is skipped — a degraded extraction that re-leaks
     # PII would defeat the purpose of the user enabling the filter.
-    pipeline = session.is_a?(Hash) ? session[:_privacy_pipeline] : nil
     begin
+      # Refused (nothing is extracted) when the filter is on but cannot mask.
+      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
       extractable_user, extractable_assistant = if pipeline
                                                   [
                                                     mask_for_extraction(user_message, pipeline, "user"),

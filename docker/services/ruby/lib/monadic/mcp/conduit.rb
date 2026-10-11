@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative '../utils/shared_path_guard'
+require_relative '../utils/privacy/outbound'
 require_relative 'cost_guard'
 require_relative 'job_store'
 require_relative 'conduit_agent'
@@ -1365,7 +1366,7 @@ module Monadic
           agent_response: agent_response,
           provider: provider,
           model: model,
-          session: {}
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT # MCP masks on its own
         )
 
         comments = result[:comments] || result["comments"]

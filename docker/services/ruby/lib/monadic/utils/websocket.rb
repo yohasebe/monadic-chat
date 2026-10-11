@@ -107,12 +107,12 @@ module WebSocketHelper
       # Fallback: For connections without tab_id (e.g., background connections),
       # use a consistent session ID stored in Rack session
       # This ensures page reload preserves the session
-      ws_session_id = session[:websocket_session_id] if session.is_a?(Hash)
+      ws_session_id = session[:websocket_session_id] if session.respond_to?(:key?)
 
       if ws_session_id.nil?
         # Generate new UUID only if no session exists
         ws_session_id = SecureRandom.uuid
-        session[:websocket_session_id] = ws_session_id if session.is_a?(Hash)
+        session[:websocket_session_id] = ws_session_id if session.respond_to?(:key?)
       end
     end
 

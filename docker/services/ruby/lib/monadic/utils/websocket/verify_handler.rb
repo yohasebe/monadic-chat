@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require_relative '../privacy/outbound'
 
 # Confidence-via-agreement "Verify" handler. The Verify button on an assistant
 # message re-asks the original question to a diverse cross-provider panel and
@@ -46,6 +47,19 @@ module WebSocketHelper
     end
 
     review_answer = ai["text"].to_s
+
+    # The panel is other models: with the Privacy Filter on, they get the
+    # conversation masked as the chat's model did, or nothing at all.
+    begin
+      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(rack_session)
+      if pipeline
+        outbound = Monadic::Utils::Privacy::Outbound
+        panel_messages = panel_messages.map { |m| m.merge("content" => outbound.mask(m["content"], pipeline, m["role"])) }
+        review_answer = outbound.mask(review_answer, pipeline, "assistant")
+      end
+    rescue StandardError => e
+      return send_to_client(connection, verify_error(mid, "Not verified: the Privacy Filter could not mask the conversation (#{e.message})"))
+    end
 
     # Let the UI show a spinner immediately while the panel runs.
     send_to_client(connection, { "type" => "verify_confidence_start", "mid" => mid })

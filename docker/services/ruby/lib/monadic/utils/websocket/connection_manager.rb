@@ -176,6 +176,13 @@ module WebSocketHelper
     end
   end
 
+  # The chats open in some tab now.
+  def self.live_chat_ids
+    @@session_state_mutex.synchronize do
+      @@live_sessions.values.map { |entry| entry[:session][Monadic::Workspace::Chats::SESSION_KEY] }.compact
+    end
+  end
+
   def self.live_session(session_id)
     return nil if session_id.nil? || session_id.to_s.empty?
 

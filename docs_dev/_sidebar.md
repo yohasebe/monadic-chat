@@ -27,6 +27,7 @@
 * 📦 Feature Documentation
   * [Auto Forge Internals](auto_forge_internals.md)
   * [Library Subsystem](library_subsystem.md)
+  * [Shared Folder Panel](shared_folder_panel.md)
   * [Substitution Pipeline](substitution_pipeline.md)
   * [SSOT Normalization](ssot_normalization_and_accessors.md)
   * [SSOT Capabilities Overview](ssot_capabilities_and_model_spec.md)

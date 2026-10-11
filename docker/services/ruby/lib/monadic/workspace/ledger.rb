@@ -143,6 +143,12 @@ module Monadic
         read { |data| export(workspace_id, data['workspaces'][workspace_id]) }
       end
 
+      # The workspaces and attachments as one consistent read, for a caller
+      # that matches many folders against them (the shared folder's list).
+      def snapshot
+        read { |data| { workspaces: data['workspaces'], attachments: data['attachments'] } }
+      end
+
       def workspace_for_chat(chat_id)
         read do |data|
           workspace_id = data['chats'].dig(chat_id, 'workspace_id')

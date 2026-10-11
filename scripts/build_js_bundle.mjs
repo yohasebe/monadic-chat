@@ -107,6 +107,7 @@ const FILES = [
   "js/monadic/ws-input-handler.js",
   "js/monadic/vocabulary-panel.js",
   "js/monadic/library-panel.js",
+  "js/monadic/shared-folder-panel.js",
   "js/monadic/websocket-handlers.js",
   "js/monadic/verify-render.js",
   "js/monadic/websocket.js",

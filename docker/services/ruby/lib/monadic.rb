@@ -773,6 +773,7 @@ require_relative "monadic/routes/session_routes"
 require_relative "monadic/routes/library_import_routes"
 require_relative "monadic/routes/help_routes"
 require_relative "monadic/routes/attachment_routes"
+require_relative "monadic/routes/shared_folder_routes"
 register Monadic::Routes::HelpRoutes
 register Monadic::Routes::AttachmentRoutes
 

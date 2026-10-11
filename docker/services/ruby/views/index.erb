@@ -427,6 +427,15 @@
             </div><!-- end #pdf-panel-body -->
           </div>
 
+          <div id="shared-folder-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#shared-folder-panel-body" aria-expanded="true">
+              <span class="text"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.panelTitle">Shared Folder</span></span>
+            </h5>
+            <div id="shared-folder-panel-body" class="collapse show px-3 pb-3">
+              <button id="shared-folder-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="See what the shared folder holds" data-i18n-title="ui.sharedFolderPanel.browseHint"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.sharedFolderPanel.browse">Browse</span></button>
+            </div>
+          </div>
+
           <div id="library-panel" class="mb-3 rounded shaded-panel overflow-hidden">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#library-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.knowledgeBase"><i class="fas fa-book"></i> Knowledge Base</span>
@@ -1267,6 +1276,39 @@
     </div>
 
     <!-- Modal: Browse all conversations in the Knowledge Base -->
+    <div class="modal fade" id="sharedFolderModal" tabindex="-1" aria-labelledby="sharedFolderModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="sharedFolderModalLabel"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.modalTitle">Shared Folder</span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+              <div id="shared-folder-path" class="me-auto"></div>
+              <span id="shared-folder-info" class="small text-secondary"></span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-refresh" title="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
+            </div>
+            <p class="small text-secondary mb-2" data-i18n="ui.sharedFolderPanel.note">What an entry is comes from Monadic Chat's record where it has one, and otherwise only from its name. Sizes of folders are counted in the background.</p>
+            <div id="shared-folder-error" class="alert alert-warning py-1 small" style="display:none"></div>
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th data-i18n="ui.sharedFolderPanel.colName">Name</th>
+                  <th data-i18n="ui.sharedFolderPanel.colWhat">What it is</th>
+                  <th class="text-end" data-i18n="ui.sharedFolderPanel.colSize">Size</th>
+                  <th data-i18n="ui.sharedFolderPanel.colModified">Modified</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="shared-folder-tbody"></tbody>
+            </table>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-more" style="display:none" data-i18n="ui.sharedFolderPanel.more">Show more</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="libraryBrowseModal" tabindex="-1" aria-labelledby="libraryBrowseModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">

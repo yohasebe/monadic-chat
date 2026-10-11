@@ -15,6 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
+const { createRevealHandler } = require('./shared_folder_reveal');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 
 // Splash window for updates
@@ -64,7 +65,7 @@ if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('enable-features', 'AudioServiceHWAVAudioIO,WebRtcHWH264Encoding');
 }
 
-const { exec, execSync, spawn } = require('child_process');
+const { exec, execSync, execFileSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -3028,19 +3029,27 @@ function createMainWindow() {
   });
 }
 
+// The shared folder on this computer: ~/monadic/data, and on Windows the
+// same folder inside WSL, where the containers mount it from. WSL's own
+// $HOME is used as it is (not rebuilt as /home/<name>), and nothing is put
+// into a shell command line. Throws when it cannot be found.
+function resolveHostSharedRoot() {
+  if (os.platform() !== 'win32') {
+    return path.join(os.homedir(), 'monadic', 'data');
+  }
+  const out = execFileSync('wsl.exe', ['sh', '-c', 'wslpath -w "$HOME/monadic/data"'], { encoding: 'utf8', timeout: 15000 });
+  const folder = out.trim();
+  if (!folder) throw new Error('WSL did not give the shared folder');
+  return folder;
+}
+
 function openSharedFolder() {
   let folderPath;
-  if (os.platform() === 'darwin' || os.platform() === 'linux') {
-    folderPath = path.join(os.homedir(), 'monadic', 'data');
-  } else if (os.platform() === 'win32') {
-    try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/data`;
-      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
-    } catch (error) {
-      console.error('Error retrieving WSL path:', error);
-      return;
-    }
+  try {
+    folderPath = resolveHostSharedRoot();
+  } catch (error) {
+    console.error('Error retrieving the shared folder path:', error);
+    return;
   }
 
   // create folderPath if it does not exist
@@ -3976,7 +3985,7 @@ ipcMain.on('reveal-path', (_event, targetPath) => {
     let resolved = targetPath;
     const containerShared = '/monadic/data';
     if (resolved === containerShared || resolved.startsWith(containerShared + '/')) {
-      const hostShared = path.join(os.homedir(), 'monadic', 'data');
+      const hostShared = resolveHostSharedRoot();
       resolved = path.join(hostShared, resolved.slice(containerShared.length));
     }
 
@@ -3994,6 +4003,18 @@ ipcMain.on('reveal-path', (_event, targetPath) => {
   }
 });
 
+// The shared folder page shows an entry of the shared folder (see
+// shared_folder_reveal.js for what is checked first).
+ipcMain.handle('shared-folder-reveal', createRevealHandler({
+  resolveRoot: resolveHostSharedRoot,
+  isAppUrl,
+  // The app's own window, its top frame (not a page shown in a frame of it).
+  isAppSender: (event) => !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame),
+  shell,
+  fs,
+  platform: os.platform()
+}));
 
 // Handle immediate UI language change
 ipcMain.on('change-ui-language', (_event, language) => {

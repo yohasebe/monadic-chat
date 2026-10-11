@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Reveal a path (vocabulary ${TOKEN} target) in the OS file explorer.
   // Cross-platform via the main-process `shell`. No-op for empty input.
   revealPath: (p) => { if (p) ipcRenderer.send('reveal-path', String(p)); },
+  // Show an entry of the shared folder (the shared folder page): its path
+  // relative to the shared folder and the id the server gave for that folder.
+  revealSharedEntry: (rootId, relativePath) => {
+    if (!isTrustedOrigin()) return Promise.resolve({ ok: false, error: 'not from the app' });
+    return ipcRenderer.invoke('shared-folder-reveal', { rootId: String(rootId), path: String(relativePath) });
+  },
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
   // Clipboard access. Electron 44 removed the `clipboard` module from

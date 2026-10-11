@@ -74,6 +74,25 @@ RSpec.describe "Transcribing an audio file with times" do
     File.open(File.join(@data, "lecture.mp3"), "wb") { |f| f.truncate(30 * 1024 * 1024) }
   end
 
+  # The session of a real chat: a Rack session object, which is not a Hash.
+  def rack_session(values)
+    require "rack/session/abstract/id"
+    store = Object.new
+    def store.load_session(_req) = ["sid", {}]
+    def store.session_exists?(_req) = false
+    Rack::Session::Abstract::SessionHash.new(store, Object.new).tap do |s|
+      values.each { |k, v| s[k] = v }
+    end
+  end
+
+  it "reads the chat and its language from a real Rack session, which is not a Hash" do
+    real = rack_session(chat_id: chat_id, parameters: {}, runtime_settings: { language: "ja" })
+    expect(real).not_to be_a(Hash)
+    answer = host.analyze_audio(audio: "lecture.mp3", session: real)
+    expect(answer).to include("[00:03–00:05] Good morning.")
+    expect(transcriber_args[:language]).to eq("ja")
+  end
+
   it "gives each line the time in the recording, with no 25 MB limit, and keeps the run in the chat's folder" do
     answer = host.analyze_audio(audio: "lecture.mp3", session: session)
     expect(answer).to include("[00:03–00:05] Good morning.")
@@ -147,6 +166,12 @@ RSpec.describe "Transcribing an audio file with times" do
       expect(segmenter_calls.first[2]).to eq("/monadic/data/#{record[:relative_path]}")
       expect(segmenter_calls.first[3]).to include("/artifacts/j_")
       expect(File.dirname(segmenter_calls.first[3])).to eq(File.join(File.dirname(File.dirname(segmenter_calls.first[2])), "artifacts"))
+    end
+
+    it "is found from a real Rack session too (the session of an actual chat)" do
+      record = attach
+      real = rack_session(chat_id: chat_id, parameters: {})
+      expect(host.analyze_audio(audio: record[:attachment_id], session: real)).to include("Good morning.")
     end
 
     it "is found when the model passes its id as the file name" do

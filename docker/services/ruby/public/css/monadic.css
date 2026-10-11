@@ -2132,6 +2132,9 @@ legend {
 .file-container {
   display: flex;
   align-items: center;
+  /* Space between the icon, the name and the remove button: in a flex box
+     the spaces in the markup do not count. */
+  gap: 8px;
   margin: 8px 0;
   padding: 8px;
   border: 1px solid #dee2e6;
@@ -2141,11 +2144,11 @@ legend {
 
 .file-container i.fa-file-pdf {
   color: #dc3545;
-  margin-right: 10px;
   font-size: 1.2em;
 }
 
-.file-container .remove-file {
+.file-container .remove-file,
+.file-container .remove-video {
   margin-left: auto;
 }
 

@@ -25,9 +25,16 @@ module AudioTranscriptionAgent
       .compact.find { |m| Monadic::Utils::ModelSpec.supports_segment_transcription?(m) }
   end
 
+  # The session's value for key, or nil. The session of a real chat is a
+  # Rack session object, not a Hash, so it is read by key, never by its class.
+  def self.session_value(session, key)
+    session.respond_to?(:[]) ? session[key] : nil
+  end
+
   # The speech-to-text language chosen for the chat, or nil (detect it).
   def self.chat_language(session)
-    language = session.is_a?(Hash) ? session.dig(:runtime_settings, :language) : nil
+    runtime = session_value(session, :runtime_settings)
+    language = runtime.respond_to?(:[]) ? runtime[:language] : nil
     Monadic::Utils::LanguageConfig.stt_language_code(language)
   end
 
@@ -35,7 +42,7 @@ module AudioTranscriptionAgent
   # folder and the chat folder it belongs to. The chat is the session's; an
   # id from another chat, or an attachment that is not audio, is refused.
   def resolve_audio_attachment(attachment_id, session)
-    chat_id = session.is_a?(Hash) ? session[Monadic::Workspace::Chats::SESSION_KEY] : nil
+    chat_id = AudioTranscriptionAgent.session_value(session, Monadic::Workspace::Chats::SESSION_KEY)
     record = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id.to_s)
     raise Monadic::Workspace::Attachments::Unusable.new(:purpose, "attachment #{record[:original_name]} is not an audio file.") unless record[:purpose] == "audio"
 
@@ -53,7 +60,7 @@ module AudioTranscriptionAgent
     provider = resolved[:provider]
     return nil unless Monadic::Utils::TimedTranscription::PROVIDERS.include?(provider)
 
-    chat_id = session.is_a?(Hash) ? session[Monadic::Workspace::Chats::SESSION_KEY] : nil
+    chat_id = AudioTranscriptionAgent.session_value(session, Monadic::Workspace::Chats::SESSION_KEY)
     return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
 
     segment_model = AudioTranscriptionAgent.segment_model_for(provider, model)

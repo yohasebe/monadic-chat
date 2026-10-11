@@ -168,7 +168,11 @@ RSpec.describe SecondOpinionAgent do
     end
   end
   
+  # These call the providers with the keys in the config file: only when asked
+  # for (RUN_API=true), as the other tests that call real APIs.
   describe "#second_opinion_agent (real API tests)" do
+    before { skip("RUN_API is not enabled") unless ENV["RUN_API"] == "true" }
+
     context "with actual API calls" do
       it "gets a second opinion from OpenAI" do
         result = agent.second_opinion_agent(

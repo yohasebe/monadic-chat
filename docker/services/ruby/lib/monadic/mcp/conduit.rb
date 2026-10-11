@@ -2467,6 +2467,17 @@ module Monadic
         # that works for every provider without provider-specific branching.
         preamble = [system.to_s, kb_context].reject { |s| s.to_s.empty? }.join("\n\n")
         send_messages = apply_preamble(messages, preamble)
+        # Called for a chat in the Web UI (Verify's panel and judge run in the
+        # chat's thread): no word the user marked in that chat may go out.
+        chat_session = Thread.current[:rack_session]
+        if chat_session
+          require_relative "../utils/privacy/outbound"
+          begin
+            Monadic::Utils::Privacy::Outbound.check_no_marked_words!(chat_session, send_messages)
+          rescue Monadic::Utils::Privacy::Outbound::Refused => e
+            return { provider: provider, model: model, success: false, error: "❌ Not sent: #{e.message}" }
+          end
+        end
 
         # (2) Privacy masking — mask PII before sending; restore after.
         pipeline = privacy_enabled?(privacy) ? build_privacy_pipeline(privacy) : nil
@@ -2650,8 +2661,12 @@ module Monadic
       # failure rather than aborting the whole fan-out.
       def run_in_parallel(targets)
         started = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+        # Run for a chat in the Web UI, each target goes on in that chat (so
+        # execute_query checks it for the words the user marked there).
+        chat_session = Thread.current[:rack_session]
         threads = targets.map do |target|
           [target, Thread.new do
+            Thread.current[:rack_session] = chat_session
             begin
               yield(target)
             rescue StandardError => e

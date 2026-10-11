@@ -130,6 +130,12 @@ RSpec.describe Monadic::Library::TitleSuggester do
       expect(described_class.suggest(messages: messages, app_name: 'ChatOpenAI')).to be_nil
     end
 
+    it 'returns nil when the provider returns an error instead of a title' do
+      allow(app_instance).to receive(:send_query).and_return('[Cohere] API Error: nothing was sent')
+      messages = [{ 'role' => 'user', 'text' => 'Help.' }]
+      expect(described_class.suggest(messages: messages, app_name: 'ChatOpenAI')).to be_nil
+    end
+
     it 'returns nil when there are no user/assistant turns to summarise' do
       messages = [{ 'role' => 'system', 'text' => 'You are a helper.' }]
       expect(described_class.suggest(messages: messages, app_name: 'ChatOpenAI')).to be_nil

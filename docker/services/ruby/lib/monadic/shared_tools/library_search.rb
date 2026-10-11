@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../utils/privacy/outbound'
+
 # Shared Library Search tool for Monadic Chat
 # Exposes the project-wide Knowledge Base (Library) as a retrieval tool
 # that any app can import via `imported_tool_groups [:library_search]`.
@@ -104,8 +106,17 @@ module MonadicSharedTools
           top_n: top_n.to_i.clamp(1, 10),
           payload_filter: payload_filter
         )
+        # Words the user marked: each passage (its text, title, source) is
+        # checked while its values are still values of their own (a JSON value in it is read as what it decodes
+        # to), before it is joined into the text; none is returned if one
+        # holds a marked word in any form.
+        if Monadic::Utils::Privacy::Outbound.marked_terms?(resolved_session)
+          hits.each { |hit| Monadic::Utils::Privacy::Outbound.check_no_marked_words!(resolved_session, hit) }
+        end
         out = MonadicSharedTools::LibrarySearch.format_results(query, hits)
         MonadicSharedTools::LibrarySearch.apply_privacy(out, resolved_session)
+      rescue Monadic::Utils::Privacy::Outbound::Refused
+        MonadicSharedTools::LibrarySearch::WITHHELD_MESSAGE
       rescue StandardError => e
         "❌ Knowledge Base search failed: #{e.message}"
       end
@@ -153,8 +164,13 @@ module MonadicSharedTools
       return text unless pipeline.respond_to?(:enabled?) && pipeline.enabled?
 
       require_relative '../utils/privacy/types'
+      require_relative '../utils/privacy/outbound'
       raw = Monadic::Utils::Privacy::RawMessage.new(text, 'tool', {})
-      pipeline.before_send_to_llm(raw).text
+      masked = pipeline.before_send_to_llm(raw).text
+      # Words the user marked: results that still hold one (written in a way
+      # the masking did not reach) are withheld.
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, masked)
+      masked
     rescue StandardError => e
       Monadic::Utils::DegradationNotifier.report(
         component: 'privacy',

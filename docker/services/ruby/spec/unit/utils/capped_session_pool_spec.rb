@@ -110,7 +110,7 @@ RSpec.describe Rack::Session::CappedPool do
     root = File.expand_path('../../..', __dir__)
     seen = Dir.mktmpdir('capped-pool') do |home|
       stdout, stderr, status = Open3.capture3({ 'HOME' => home }, RbConfig.ruby, '-e', script, chdir: root)
-      raise "probe failed: #{stderr[-2000..]}" unless status.success?
+      raise "probe failed: #{stderr.lines.last(15).join}" unless status.success?
 
       JSON.parse(stdout.lines.last)
     end

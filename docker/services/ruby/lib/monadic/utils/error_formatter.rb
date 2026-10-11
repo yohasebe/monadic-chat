@@ -40,7 +40,23 @@ module Monadic
 
       REDACTION = "[redacted]"
 
+      CATEGORIES = [API_KEY_ERROR, API_ERROR, NETWORK_ERROR, TIMEOUT_ERROR, PARSING_ERROR,
+                    VALIDATION_ERROR, TOOL_ERROR, UNKNOWN_ERROR].freeze
+      FORMATTED = /\A\[[^\]\n]+\] (?:#{CATEGORIES.map { |c| Regexp.escape(c) }.join('|')}): /
+
       class << self
+        # Whether text is an error this formatter made (what a provider's
+        # send_query returns instead of a reply).
+        def formatted?(text)
+          text.is_a?(String) && FORMATTED.match?(text)
+        end
+
+        # Whether what a send_query returned is an error rather than a reply:
+        # one this formatter made, or an "ERROR:" line.
+        def error_reply?(text)
+          text.is_a?(String) && (text.start_with?("ERROR:", "Error:") || formatted?(text))
+        end
+
         # Replace credentials and account identifiers in provider error text. Returns the input
         # unchanged when it carries none, so ordinary messages stay readable.
         def scrub_identifiers(text)

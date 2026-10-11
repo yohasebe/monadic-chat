@@ -180,6 +180,8 @@ module WebSocketHelper
 
         if chat_changed.call
           nil # dropped: the chat was reset while the audio was being made
+        elsif res_hash && res_hash["type"] == "privacy_withheld"
+          send_tts_withheld(ws_session_id)
         elsif res_hash && res_hash["type"] == "audio"
           res_hash["segment_index"] = 0
           res_hash["total_segments"] = 1
@@ -391,7 +393,7 @@ module WebSocketHelper
     #   - the listener does not have to hear long emails / phone numbers
     #   - Web Speech (browser-native) gets the same treatment for UX
     #     parity even though the audio synthesis is local
-    text = privacy_sanitize_tts_text(text, session)
+    text = privacy_sanitize_tts_text(text, session, obj["provider"] || obj["tts_provider"])
     return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
     elevenlabs_voice = obj["elevenlabs_voice"]
     speed = obj["speed"]
@@ -413,6 +415,7 @@ module WebSocketHelper
                                 language: language)
       # Add unique ID to prevent false duplicate detection on frontend
       res_hash["sequence_id"] = "tts_#{SecureRandom.hex(8)}" if res_hash&.dig("type") == "audio"
+      return send_tts_withheld(ws_session_id) if res_hash&.dig("type") == "privacy_withheld"
     end
 
     # Send TTS response to session only
@@ -421,6 +424,14 @@ module WebSocketHelper
     else
       WebSocketHelper.broadcast_to_all(res_hash.to_json)
     end
+  end
+
+  # Speech held back because its text holds a word the user marked for the
+  # Privacy Filter: the page stops waiting for speech, then shows why (a
+  # notice for the speech only: the reply itself is fine and stays).
+  private def send_tts_withheld(ws_session_id)
+    send_or_broadcast({ "type" => "tts_stopped" }.to_json, ws_session_id)
+    send_or_broadcast({ "type" => "tts_notice", "content" => { "notice_type" => "privacy_withheld" } }.to_json, ws_session_id)
   end
 
   private def handle_ws_stop_tts(connection, obj, session)
@@ -494,7 +505,7 @@ module WebSocketHelper
     # Privacy Filter: see handle_ws_tts for the rationale. Apply the same
     # sanitize so the Play button does not leak restored PII to the cloud
     # TTS provider.
-    text = privacy_sanitize_tts_text(text, session)
+    text = privacy_sanitize_tts_text(text, session, obj["tts_provider"] || obj["provider"])
     return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
     speed = obj["tts_speed"]
     response_format = "aac"
@@ -525,7 +536,7 @@ module WebSocketHelper
   # values out before any cloud TTS API or browser-native synth call.
   # Returns nil (nothing is spoken; the page is told why) when the filter is
   # on but cannot mask, so a cloud TTS provider never gets the restored text.
-  private def privacy_sanitize_tts_text(text, session)
+  private def privacy_sanitize_tts_text(text, session, provider = nil)
     return text unless text.is_a?(String) && !text.empty?
 
     begin
@@ -534,8 +545,18 @@ module WebSocketHelper
       send_error("Speech was not made: #{e.message}.", Thread.current[:websocket_session_id])
       return nil
     end
-    return text unless pipeline.respond_to?(:sanitize_restored_for_tts)
-    pipeline.sanitize_restored_for_tts(text)
+    spoken = pipeline.respond_to?(:sanitize_restored_for_tts) ? pipeline.sanitize_restored_for_tts(text) : text
+    # Words the user marked are never spoken, however they are written: the
+    # text is checked as the TTS service would receive it too (after the
+    # user's dictionary and the provider's conversion of markers).
+    begin
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, spoken)
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, tts_text_as_sent(spoken, provider)) if provider && respond_to?(:tts_text_as_sent, true)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      send_error("Speech was not made: #{e.message}.", Thread.current[:websocket_session_id])
+      return nil
+    end
+    spoken
   end
 
 end

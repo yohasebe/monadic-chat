@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative '../utils/privacy/outbound'
+require_relative '../utils/error_formatter'
+
 require_relative '../utils/system_defaults'
 
 module Monadic
@@ -58,7 +61,7 @@ module Monadic
       #   re-introducing PII that the user has chosen to mask in the
       #   primary chat path.
       # @return [String, nil] a normalised title, or nil on any failure.
-      def suggest(messages:, app_name:, pipeline: nil)
+      def suggest(messages:, app_name:, pipeline: nil, session: nil)
         provider = derive_provider(app_name)
         return nil unless provider
         return nil unless api_key_present?(provider)
@@ -75,7 +78,12 @@ module Monadic
         return nil if model.to_s.empty?
 
         body = build_request_body(prompt, model, provider)
+        # Words the user marked: the request as it goes out (the fixed
+        # instructions included) holds none of them, or no title is asked for.
+        Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, body) if session
         raw = app_instance.send_query(body, model: model)
+        return nil if Monadic::Utils::ErrorFormatter.error_reply?(raw) # an error is not a title
+
         title = normalize(raw)
         pipeline ? humanize_placeholders(title, pipeline) : title
       rescue StandardError => e
@@ -91,13 +99,13 @@ module Monadic
       def mask_messages(messages, pipeline)
         return messages unless messages.is_a?(Array)
         require_relative '../utils/privacy/types'
+        require_relative '../utils/privacy/outbound'
         messages.map do |m|
           next m unless m.is_a?(Hash)
           text = (m['text'] || m[:text]).to_s
           next m if text.empty?
-          raw = Monadic::Utils::Privacy::RawMessage.new(text, (m['role'] || m[:role]).to_s, {})
-          masked = pipeline.before_send_to_llm(raw)
-          m.merge('text' => masked.text)
+          # Masked as other helpers mask (marked words, JSON in the text, checked).
+          m.merge('text' => Monadic::Utils::Privacy::Outbound.mask(text, pipeline, (m['role'] || m[:role]).to_s))
         end
       end
 

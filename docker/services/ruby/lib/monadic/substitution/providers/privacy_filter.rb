@@ -158,18 +158,19 @@ module Monadic
           return restored_text unless enabled?
           return restored_text unless restored_text.is_a?(String) && !restored_text.empty?
           reg = @registry.registry
-          return restored_text if reg.empty?
+          # Words the user marked are not read out either, even before the
+          # chat's model has seen them (and so before they are in the registry).
+          marked = @registry.terms.map { |t| [t[:text] || t['text'], (t[:type] || t['type']).to_s.tr('_', ' ')] }
+          return restored_text if reg.empty? && marked.empty?
 
-          # Sort by original length descending so longer entities are replaced
-          # before any shorter substring of theirs.
-          ordered = reg.sort_by { |_, original| -original.to_s.length }
-          ordered.each_with_object(restored_text.dup) do |(placeholder, original), out|
-            next if original.to_s.empty?
+          labels = reg.filter_map do |placeholder, original|
             m = placeholder.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
-            next unless m
-            label = "#{m[1].tr('_', ' ')} #{m[2]}"
-            out.gsub!(original.to_s, label)
+            [original.to_s, "#{m[1].tr('_', ' ')} #{m[2]}"] if m
           end
+          # Overlapping strings are replaced as one, so no part of one is read
+          # out because another was replaced first.
+          require_relative '../../utils/privacy/outbound'
+          Monadic::Utils::Privacy::Outbound.replace_union(restored_text, labels + marked)
         end
 
         def registry_count
@@ -208,6 +209,7 @@ module Monadic
             languages: resolve_languages,
             registry: @registry.registry,
             entity_types: presidio_entity_types,
+            terms: @registry.terms,
             options: {
               score_threshold: @config[:score_threshold],
               honorific_trim: @config[:honorific_trim]
@@ -300,6 +302,13 @@ module Monadic
             raise Monadic::Utils::Privacy::BackendError,
                   "Privacy backend failed (on_failure=:block): #{err.message}"
           when :pass
+            # Words the user marked are never sent unmasked, whatever the app
+            # allows for a failed detection.
+            if @registry.terms.any?
+              raise Monadic::Utils::Privacy::BackendError,
+                    "Privacy backend failed with marked words in the chat: #{err.message}"
+            end
+
             warn "[Privacy] backend failed, passing raw text: #{err.message}"
             raw_message
           else

@@ -1,5 +1,7 @@
 # frozen_string_literal: false
 
+require_relative "../utils/privacy/marks"
+
 # Session state management routes
 # Export/import conversation state and session data
 
@@ -69,6 +71,26 @@ def tab_chat_session(tab_id)
   return {} unless saved
 
   (saved[:chat_state] || {}).merge(messages: saved[:messages], parameters: saved[:parameters])
+end
+
+# The marked words of an imported file, checked: a list of { text, type }
+# with a known type, as the Privacy container takes them. Raises
+# ArgumentError on anything else (the import then stops, rather than go on
+# without the words).
+def privacy_import_terms(raw)
+  return [] if raw.nil?
+  raise ArgumentError, "the marked words in the file are not a list" unless raw.is_a?(Array)
+  raise ArgumentError, "the file has too many marked words" if raw.size > 200
+
+  require_relative "../utils/privacy/marks"
+  known = Monadic::Utils::Privacy::Marks::TYPE_ALIASES.keys
+  raw.map do |term|
+    text = term.is_a?(Hash) ? term["text"].to_s : ""
+    type = term.is_a?(Hash) ? (term["type"] || "PERSON").to_s : ""
+    raise ArgumentError, "a marked word in the file is not readable" if text.empty? || text.length > 200 || !known.include?(type)
+
+    { text: text, type: type }
+  end.reverse.uniq { |t| t[:text] }.reverse # a word given twice keeps its last type
 end
 
 # Get monadic_state for export (Session State mechanism)
@@ -141,6 +163,7 @@ post "/load" do
         # We unwrap each into the standard { parameters, messages } shape so the
         # rest of /load processes them like any other import.
         privacy_registry_to_restore = nil
+        privacy_terms_source = json_data
         if json_data.is_a?(Hash) && json_data["envelope"].is_a?(Hash) &&
            json_data["envelope"].dig("cipher", "algorithm") == "AES-256-GCM"
           passphrase = (params[:passphrase] || "").to_s
@@ -158,6 +181,7 @@ post "/load" do
             return error_json("Privacy file integrity check failed: #{e.message}")
           end
           decrypted = JSON.parse(plaintext)
+          privacy_terms_source = decrypted
           json_data = privacy_synthesize_session(json_data["header"], decrypted, "encrypted")
           privacy_registry_to_restore = decrypted["registry"] if decrypted["registry"].is_a?(Hash)
         elsif json_data.is_a?(Hash) && json_data["header"].is_a?(Hash) &&
@@ -187,6 +211,9 @@ post "/load" do
         return error_json("Import error: open Monadic Chat in this tab first") if tab_id.empty?
 
         imported = {}
+        require_relative "../utils/privacy/marks"
+        marked_in_messages = []
+        parse_marks = !(privacy_terms_source.is_a?(Hash) && privacy_terms_source["marks_parsed"] == true)
         # Force initiate_from_assistant and auto_speech to false to prevent unwanted auto-behaviors on import
         # (deletion is not enough because app defaults will override missing keys)
         imported_params = json_data["parameters"].dup
@@ -270,6 +297,16 @@ post "/load" do
           next unless msg["role"] && msg["text"]
 
           text = msg["text"]
+          # Words a person marked in what they wrote (⟦…⟧) are read as when
+          # typed: taken out and kept for the chat, so they are masked from
+          # the start of the imported chat. (A model's reply is not read for
+          # marks.)
+          # A file this version wrote has its marks taken out already (its
+          # brackets are the user's own text), so it is not read again.
+          if parse_marks && msg["role"] == "user" && Monadic::Utils::Privacy::Marks.any?(text)
+            text, found = Monadic::Utils::Privacy::Marks.extract(text)
+            marked_in_messages.concat(found)
+          end
 
           # Create message object with required fields
           mid = msg["mid"] || SecureRandom.hex(4)
@@ -305,11 +342,23 @@ post "/load" do
         # Privacy registry restoration (Block D.4): seeded into the chat when
         # the tab takes the import, so the next message reuses the imported
         # placeholders. RD-1 (memory-only) preserved.
-        if privacy_registry_to_restore.is_a?(Hash) && !privacy_registry_to_restore.empty?
+        # The words the user had marked come back with a restored file, so the
+        # imported chat goes on masking them (a masked file holds none).
+        terms_to_restore = begin
+          privacy_import_terms(privacy_terms_source.is_a?(Hash) ? privacy_terms_source["terms"] : nil)
+        rescue ArgumentError => e
+          return error_json("Import error: #{e.message}")
+        end
+        terms_to_restore = (terms_to_restore + marked_in_messages).reverse.uniq { |t| t[:text] }.reverse
+        return error_json("Import error: the file has too many marked words") if terms_to_restore.size > 200
+        has_registry = privacy_registry_to_restore.is_a?(Hash) && !privacy_registry_to_restore.empty?
+        if has_registry || terms_to_restore.any?
+          registry = has_registry ? privacy_registry_to_restore : {}
           imported[:monadic_state] ||= {}
           imported[:monadic_state][:privacy] = {
-            registry: privacy_registry_to_restore,
-            audit: [{ ts: Time.now.to_i, op: :import, count: privacy_registry_to_restore.size }]
+            registry: registry,
+            audit: [{ ts: Time.now.to_i, op: :import, count: registry.size }],
+            terms: terms_to_restore
           }
           # Importing a registry implies the user wanted privacy on for this
           # conversation; mirror that in the backend SSOT toggle so vendor
@@ -321,6 +370,8 @@ post "/load" do
         token = WebSocketHelper.stage_import(tab_id, imported)
 
         { success: true, app_name: json_data['parameters']['app_name'], import_token: token }.to_json
+      rescue Monadic::Utils::Privacy::Marks::Invalid => e
+        error_json("Import error: words marked with \u27E6 \u27E7 in the file could not be read: #{e.message}")
       rescue JSON::ParserError => e
         error_json("Invalid JSON format")
       rescue => e

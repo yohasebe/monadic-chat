@@ -489,6 +489,8 @@ module GrokHelper
     if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
       body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     res = post_json_with_retries(http, target_uri, body,
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)

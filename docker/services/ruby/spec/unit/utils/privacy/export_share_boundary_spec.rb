@@ -14,6 +14,8 @@ require_relative '../../../spec_helper'
 # These examples pin the two rules that keep those out: an allow list decides
 # what may be carried at all, and every free-text field it does carry is
 # remasked, not just `text`.
+require_relative '../../../../lib/monadic/utils/privacy/outbound'
+
 RSpec.describe 'Privacy export share boundary' do
   # Load the four methods under test without the surrounding WebSocket module,
   # which pulls in the whole handler stack.
@@ -27,6 +29,7 @@ RSpec.describe 'Privacy export share boundary' do
     methods = %w[
       privacy_clean_messages privacy_remask_messages
       privacy_export_parameters privacy_remask_parameters
+      privacy_replace_union
     ].map { |name| src[/private def #{name}.*?^  end/m] }
 
     expect(constants.scan('PRIVACY_').size).to eq(4),
@@ -148,17 +151,18 @@ RSpec.describe 'Privacy export share boundary' do
     end
 
     let(:masked_branch) do
-      branch = source[/if content_kind == "masked" && !registry\.empty\?.*?^    end/m]
+      # The registry plus the words the user marked (remask).
+      branch = source[/if content_kind == "masked" && !remask\.empty\?.*?^    end/m]
       expect(branch).to be_a(String), 'the masked-export branch has moved or been renamed'
       branch
     end
 
     it 'remasks the messages' do
-      expect(masked_branch).to include('privacy_remask_messages(messages, registry)')
+      expect(masked_branch).to include('privacy_remask_messages(messages, remask)')
     end
 
     it 'remasks the parameters' do
-      expect(masked_branch).to include('privacy_remask_parameters(parameters, registry)')
+      expect(masked_branch).to include('privacy_remask_parameters(parameters, remask)')
     end
 
     it 'builds parameters through the allow list' do

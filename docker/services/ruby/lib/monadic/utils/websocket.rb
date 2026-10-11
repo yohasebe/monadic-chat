@@ -125,6 +125,9 @@ module WebSocketHelper
 
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session
+      # What this connection starts (threads and fibers included) is done for
+      # this chat: words marked in it are checked in what is sent.
+      Monadic::Utils::Privacy::EgressGuard.for_chat(session)
       # This connection's generation; writes from a connection it replaced
       # are ignored from now on.
       session[:_ws_generation] = WebSocketHelper.claim_session_state(ws_session_id)
@@ -367,6 +370,7 @@ module WebSocketHelper
 
       Thread.current[:websocket_session_id] = nil
       Thread.current[:rack_session] = nil
+      Monadic::Utils::Privacy::EgressGuard.for_chat(nil)
 
       thread&.kill
       suggestion&.kill
@@ -489,6 +493,10 @@ module WebSocketHelper
   # so the key alone is backend-authoritative for the toggle half).
   private def sts_privacy_active?(session)
     return false unless session.respond_to?(:[])
+    # Words the user marked keep speech-to-speech closed, on or off: the
+    # voice session would be given the conversation as written.
+    require_relative 'privacy/outbound'
+    return true if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
     return false unless session[:_privacy_session_enabled] == true
 
     params = session[:parameters] || session["parameters"]

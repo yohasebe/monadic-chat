@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../workspace'
+require_relative '../privacy/outbound'
 
 require_relative '../tts_provider'
 
@@ -205,6 +206,16 @@ module WebSocketHelper
     # then dropped rather than delivered into, and recorded in, the new one.
     chat_at_start = session[Monadic::Workspace::Chats::SESSION_KEY]
     chat_changed = -> { session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
+
+    # Words the user marked for the Privacy Filter are taken out of the
+    # message (and kept for the chat) before it is recorded or sent; a
+    # message that cannot be sent masked is not sent at all.
+    if obj.key?("message")
+      clean = take_privacy_marks(obj["message"], session, ws_session_id)
+      return nil if clean.nil?
+
+      obj["message"] = clean
+    end
 
     session[:parameters].merge! obj
 
@@ -469,6 +480,20 @@ module WebSocketHelper
         # Idempotent for non-privacy sessions (no-op when no placeholders).
         if session[:_privacy_pipeline]
           text = session[:_privacy_pipeline].sanitize_for_tts(text)
+        end
+        # Words the user marked: replaced by their type if the reply holds
+        # one, and nothing is spoken if one is still there.
+        if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
+          pipeline = session[:_privacy_pipeline]
+          text = pipeline.sanitize_restored_for_tts(text) if pipeline.respond_to?(:sanitize_restored_for_tts)
+          begin
+            Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, text)
+            # As the TTS service would receive it (dictionary, provider markers).
+            Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, tts_text_as_sent(text, provider)) if respond_to?(:tts_text_as_sent, true)
+          rescue Monadic::Utils::Privacy::Outbound::Refused
+            text = ""
+            send_tts_withheld(ws_session_id)
+          end
         end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }

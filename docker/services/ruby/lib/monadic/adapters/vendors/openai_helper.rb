@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../utils/http_client"
+require_relative "../../utils/privacy/outbound"
 require 'cgi'
 require 'fileutils'
 require 'base64'
@@ -1239,6 +1240,8 @@ module OpenAIHelper
         body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
       end
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)
     DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
@@ -3178,6 +3181,10 @@ module OpenAIHelper
   # Returns file_id string on success, nil on failure (caller falls back to base64).
   def resolve_file_id_for_input(session, img)
     return nil unless img["data"].is_a?(String) && img["data"].include?(";base64,")
+    # A chat with words the user marked uploads nothing ahead of the request:
+    # the file goes in the request itself, where the last check sees its name
+    # and can stop the whole request before anything is sent.
+    return nil if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
 
     # Parse data URI → mime_type, base64_data
     _header, base64_data = img["data"].split(";base64,", 2)

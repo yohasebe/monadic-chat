@@ -123,6 +123,8 @@ module GrokCompaction
     if privacy_enabled_for?(app_settings, session)
       compact_input = apply_privacy_to_messages(compact_input, session, app_settings)
     end
+    # Words the user marked: masked wherever they are, or nothing is sent.
+    protect_marked_words!(compact_input, session, app_settings)
 
     blob = request_compaction(compact_input, model: model, api_key: api_key)
     if blob.nil?

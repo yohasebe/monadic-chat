@@ -124,10 +124,7 @@ module ContextExtractorAgent
   # chat path's :block contract; a degraded extraction that re-leaks
   # PII would defeat the purpose of the user enabling the filter.
   def mask_for_extraction(text, pipeline, role)
-    return text if text.nil? || text.to_s.empty?
-    require_relative '../utils/privacy/types'
-    raw = Monadic::Utils::Privacy::RawMessage.new(text.to_s, role, {})
-    pipeline.before_send_to_llm(raw).text
+    Monadic::Utils::Privacy::Outbound.mask(text, pipeline, role)
   end
 
   # Extract context from a conversation exchange using direct HTTP API calls
@@ -217,11 +214,25 @@ module ContextExtractorAgent
     TEXT
 
     system_message = "#{extraction_prompt}\n\nConversation to analyze:\n#{conversation_text}"
+    begin
+      # Words the user marked, in the schema or the prompt as well as in the
+      # conversation: nothing is sent while one is there.
+      # (Only read: a word in the schema or the prompt stops the extraction.)
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, system_message)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Not sent: #{e.message}" }
+      return nil
+    end
 
     begin
       Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Calling API: provider=#{provider}, model=#{model}" }
 
-      result = call_provider_api(provider, model, system_message, api_key)
+      Thread.current[:monadic_extraction_session] = session
+      result = begin
+        call_provider_api(provider, model, system_message, api_key)
+      ensure
+        Thread.current[:monadic_extraction_session] = nil
+      end
 
       Monadic::Utils::ExtraLogger.log { "[ContextExtractor] API result: #{result.nil? ? 'nil' : "#{result.length} chars"}" }
 
@@ -552,6 +563,10 @@ module ContextExtractorAgent
 
   # Make HTTP request with timeout (HTTPS)
   def make_http_request(uri, body, headers)
+    # Words the user marked in the chat being extracted: the request as it
+    # goes out (instructions added for a provider included) is checked last.
+    privacy_session = Thread.current[:monadic_extraction_session]
+    Monadic::Utils::Privacy::Outbound.check_no_marked_words!(privacy_session, body) if privacy_session
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     http.open_timeout = 10
@@ -576,6 +591,10 @@ module ContextExtractorAgent
 
   # Make HTTP request with timeout (HTTP, no SSL - for local services like Ollama)
   def make_http_request_local(uri, body, headers)
+    # Words the user marked in the chat being extracted: the request as it
+    # goes out (instructions added for a provider included) is checked last.
+    privacy_session = Thread.current[:monadic_extraction_session]
+    Monadic::Utils::Privacy::Outbound.check_no_marked_words!(privacy_session, body) if privacy_session
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = false
     http.open_timeout = 10

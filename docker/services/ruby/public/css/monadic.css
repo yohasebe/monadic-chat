@@ -6707,3 +6707,24 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   width: max-content;
   margin: 0 0 1rem;
 }
+
+/* Type menu of the Mask button: a compact list of actions (not links). */
+.privacy-mark-menu {
+  min-width: 0;
+  padding: 0.25rem 0;
+  font-size: 13px;
+}
+
+.privacy-mark-menu .dropdown-item {
+  padding: 0.2rem 0.9rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+.privacy-mark-menu .dropdown-item:hover,
+.privacy-mark-menu .dropdown-item:focus {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  text-decoration: none;
+}

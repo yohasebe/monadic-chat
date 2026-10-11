@@ -272,6 +272,17 @@ module WebSocketHelper
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
     Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}" }
 
+    # A chat that goes on after a reload keeps its Privacy Filter state; the
+    # page shows it as it is (and locked, as before the reload) rather than
+    # from what it remembers for the app.
+    unless filtered_messages.empty?
+      state = rack_session[:monadic_state]
+      registry = state && state[:privacy] && state[:privacy][:registry]
+      send_or_broadcast({ "type" => "privacy_state", "enabled" => rack_session[:_privacy_session_enabled] == true,
+                          "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,
+                          "restored" => true }.to_json, ws_session_id)
+    end
+
     # Send info message to hide spinner and show "Ready" status
     # For initial load with no parameters, send minimal info data
     info_data = {

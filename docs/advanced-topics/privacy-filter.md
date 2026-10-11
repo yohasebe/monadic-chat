@@ -93,6 +93,25 @@ privacy do
 end
 ```
 
+## Marking Words to Mask :id=marking-words
+
+Names and other words the detection does not recognize can be marked by you. Select the words in the message box and click **Mask** below it (or press Ctrl/Cmd+Shift+K); the menu next to the button marks them as an organization, a place, an email address, a phone number, a URL or a date instead of a person. The words are wrapped as `⟦Edogawa Imataro⟧`, or `⟦Acme Inc.|organization⟧` with a type; you can also type the brackets yourself.
+
+When the message is sent, the marks are taken out (the conversation shows the text as you wrote it) and the words are kept for the conversation:
+
+- They are masked before the message is sent, and wherever they occur afterwards in the conversation, also when they are not marked again.
+- They are masked in the messages and tool results sent to a model for the conversation, and in what is sent on its behalf (second opinions, Verify, AI User, the Session Context extraction); they are replaced in speech, and Live Conversation (speech-to-speech) stays unavailable while words are marked.
+- When a marked word is also in a part of a request that is not masked (the system prompt, a tool definition, the app's settings), nothing is sent and an error says so. The check finds the word inside other words too, so marking a short or common word (such as "auto", "query" or "user", which the app's settings and tools use) stops the conversation; press Reset to remove the marks.
+- Attached images, PDFs and audio are sent as they are: their contents are not checked for marked words.
+- While words are marked, nothing is sent for the conversation with the Privacy Filter off: turn it back on, or press Reset to end the conversation (Reset forgets the marked words).
+- Words marked in your own messages in an imported conversation file are read the same way (a file exported by Monadic Chat has its marks taken out already, so brackets in it stay as written).
+- While a conversation has marked words, every request the Monadic Chat server sends to an outside service for that conversation is checked last, as it is sent, and is not sent if it holds one of them. The check reads the request's address, its text (a JSON body, a form, the text fields and file names of an upload) and the text messages of a speech connection. This covers what is sent on the conversation's behalf too: the tools (web search, image generation, speech) and the MCP server when the conversation uses it. Each conversation is checked for its own words only; requests that belong to no conversation (such as the MCP server used from another application) are not checked for marked words. Not checked: the contents of uploaded files and audio, programs the apps run on their own (scripts in the containers, code you run), and the services on this computer (such as a local model).
+- A mark that cannot be read (not closed, nested, spanning lines, an unknown type) is refused, and the message is not sent. To write the brackets themselves, put a backslash before them: `\⟦`, `\⟧`.
+
+Marked words also need a Privacy container of this version: with an older one, a conversation with marked words is not sent until the container is updated.
+
+A **Restored** export keeps the marked words, so an imported conversation goes on masking them. A **Masked** export masks them too and does not hold them; after importing such a file, mark the words again.
+
 ## Text-to-Speech (TTS) Sanitization
 
 When the Privacy Filter is active, TTS playback (the per-card **Play** button, the Auto-Speech path, and the system **TTS** test) replaces tracked PII with the same short labels the streaming buffer uses (for example, "PERSON 1", "EMAIL ADDRESS 1"). This applies to every TTS provider — cloud TTS APIs (OpenAI, Gemini, ElevenLabs, etc.) never receive original names, addresses, or phone numbers, and listeners do not have to sit through long email addresses character-by-character.
@@ -111,7 +130,7 @@ The Browse modal shows a muted ⚠️ icon in front of an entry's title when the
 
 When the Privacy Filter is active in a session that calls `library_search`, the retrieved snippets pass through the same Privacy Pipeline before they reach the LLM. Any PII present in the Knowledge Base is masked into placeholders for the request, and the LLM's reply is restored on the way back via the existing streaming-handler pass.
 
-This closes a back-channel that would otherwise let saved PII reach the LLM via retrieval, even though the user enabled the Privacy Filter for the current session. The masking is best-effort — if the pipeline raises, the tool falls back to the raw snippet rather than failing the search.
+This closes a back-channel that would otherwise let saved PII reach the LLM via retrieval, even though the user enabled the Privacy Filter for the current session. When the snippets cannot be masked (the privacy service is down), or a word you marked would still be in them, the results are withheld rather than sent unmasked.
 
 ### Global vs App-only scope
 
@@ -163,6 +182,7 @@ Other apps do not declare `privacy do` and the toggle stays disabled. Apps that 
 
 ## Limitations
 
+- Detection does not find every name. In Japanese, a name of 2 to 12 kanji or katakana followed by an honorific (さん, 様, 氏, 先生, くん, 君, ちゃん, 殿) is masked whole, in addition to what the language model finds; names written in hiragana, names with no honorific and uncommon names may be missed. Mark such words yourself (see [Marking Words to Mask](#marking-words)).
 - Custom recognizers live in the privacy container source (`docker/services/privacy/recognizers/`). Adding new recognizers requires rebuilding the container.
 - Masking adds a small per-message latency, typically 50-200 ms depending on text length. Each turn re-masks the entire context (user and past assistant messages alike) so the registry stays consistent across turns.
 - Supported masking languages are limited to the nine spaCy NER models bundled with Presidio: English, German, Spanish, French, Italian, Japanese, Dutch, Portuguese, Chinese. Languages outside this set (e.g. Korean, Arabic) cannot use the Privacy Filter — the session toggle is disabled when the sidebar conversation_language is one of them.

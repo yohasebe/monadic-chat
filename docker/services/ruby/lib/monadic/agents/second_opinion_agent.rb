@@ -1,5 +1,6 @@
 require_relative "../utils/system_defaults"
 require_relative '../utils/privacy/outbound'
+require_relative '../utils/error_formatter'
 
 module SecondOpinionAgent
 
@@ -173,6 +174,12 @@ module SecondOpinionAgent
 
       Replace YOUR_COMMENTS_HERE with your actual comments and X with a number from 1 to 10.
     TEXT
+    begin
+      # Words the user marked: nothing is sent while one is still in it.
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, user_message_content)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      return { comments: "Error: the second opinion was not requested: #{e.message}.", validity: "error", model: "none" }
+    end
 
     # All providers will receive the same single user message format
     messages = [
@@ -240,6 +247,16 @@ module SecondOpinionAgent
       }
     end
     
+    # An error the provider's helper returned is a failed evaluation, not one
+    # to parse.
+    if Monadic::Utils::ErrorFormatter.error_reply?(response)
+      return {
+        comments: "Failed to get second opinion from #{target_provider}: #{response}",
+        validity: "error",
+        model: "#{target_provider}:#{target_model}"
+      }
+    end
+
     # Parse the response to extract comments, validity, and model
     if response.is_a?(String)
       comments = ""
@@ -308,10 +325,7 @@ module SecondOpinionAgent
   # losing it on a privacy backend outage is preferable to leaking
   # un-masked PII to a different provider.
   def mask_for_second_opinion(text, pipeline, role)
-    return text if text.nil? || text.to_s.empty?
-    require_relative '../utils/privacy/types'
-    raw = Monadic::Utils::Privacy::RawMessage.new(text.to_s, role, {})
-    pipeline.before_send_to_llm(raw).text
+    Monadic::Utils::Privacy::Outbound.mask(text, pipeline, role)
   end
 
   def normalize_provider_name(name)

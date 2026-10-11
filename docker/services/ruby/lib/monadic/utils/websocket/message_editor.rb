@@ -122,8 +122,14 @@ module WebSocketHelper
         end
       end
 
+      # A person wrote this edit: words they mark in it are taken out and
+      # kept for the chat, as in a message they send. A mark that cannot be
+      # used leaves the message as it was.
+      content = take_privacy_marks(obj["content"], rack_session, ws_session_id)
+      return if content.nil?
+
       # Update the message directly in the array to ensure it's persisted
-      messages[message_index]["text"] = obj["content"]
+      messages[message_index]["text"] = content
 
       # Invalidate any Grok compaction blob: the edited message may already be
       # folded into the opaque summary, so the cache is now stale. Dropping it
@@ -139,7 +145,7 @@ module WebSocketHelper
       message_to_edit = messages[message_index]
 
       # Generate HTML content if needed
-      html_content = generate_html_for_message(message_to_edit, obj["content"])
+      html_content = generate_html_for_message(message_to_edit, content)
 
       # Create response with updated HTML for the client
       response = {

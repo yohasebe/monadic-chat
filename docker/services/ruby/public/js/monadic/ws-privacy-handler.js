@@ -64,6 +64,17 @@
       return;
     }
 
+    // A chat restored after a reload: the toggle shows the chat's state,
+    // locked as it was once the chat began (not re-negotiated).
+    if (data && data.restored) {
+      const restoredToggle = document.getElementById('check-privacy-session');
+      if (restoredToggle) {
+        restoredToggle.checked = !!data.enabled;
+        restoredToggle.disabled = true;
+        window.privacyToggleLocked = true;
+      }
+    }
+
     if (!data || !data.enabled) {
       // Reconciliation: the backend resets privacy to OFF on app change /
       // reset and pushes this privacy_state. If the user's toggle is still

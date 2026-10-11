@@ -299,3 +299,23 @@ describe('WsPrivacyHandler.handleState — re-arm reconciliation on backend OFF'
     expect(window.safeWsSend).not.toHaveBeenCalled();
   });
 });
+
+describe('WsPrivacyHandler.handleState for a chat restored after a reload', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="privacy-indicator"></div><input type="checkbox" id="check-privacy-session">';
+    window.privacyToggleLocked = false;
+    window.safeWsSend = jest.fn();
+  });
+
+  it('shows the chat\'s state, locked, without negotiating the toggle again', () => {
+    window.WsPrivacyHandler.handleState({ enabled: true, registry_count: 2, restored: true });
+    const toggle = document.getElementById('check-privacy-session');
+    expect(toggle.checked).toBe(true);
+    expect(toggle.disabled).toBe(true);
+    expect(window.privacyToggleLocked).toBe(true);
+
+    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0, restored: true });
+    expect(toggle.checked).toBe(false);
+    expect(window.safeWsSend).not.toHaveBeenCalled();
+  });
+});

@@ -57,6 +57,8 @@ module WebSocketHelper
         panel_messages = panel_messages.map { |m| m.merge("content" => outbound.mask(m["content"], pipeline, m["role"])) }
         review_answer = outbound.mask(review_answer, pipeline, "assistant")
       end
+      # Words the user marked: nothing is sent while one is still there.
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(rack_session, { "messages" => panel_messages, "review" => review_answer })
     rescue StandardError => e
       return send_to_client(connection, verify_error(mid, "Not verified: the Privacy Filter could not mask the conversation (#{e.message})"))
     end

@@ -500,6 +500,8 @@ module MistralHelper
     if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
       body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     # Force text-only response when force-stop is active (e.g., after parallel dispatch
     # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting

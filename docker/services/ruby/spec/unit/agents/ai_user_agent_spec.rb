@@ -66,6 +66,15 @@ RSpec.describe AIUserAgent do
         expect(result["finished"]).to be true
       end
       
+      it 'reports a provider error as an error, not as a suggestion' do
+        allow(@mock_app).to receive(:send_query)
+          .and_return('[Cohere] API Error: a word marked to be masked in a chat would have been sent to another service; nothing was sent')
+        expect(agent.process_ai_user(session, params)['type']).to eq('error')
+
+        allow(@mock_app).to receive(:send_query).and_raise(Monadic::Utils::Privacy::Outbound::Refused, 'nothing was sent')
+        expect(agent.process_ai_user(session, params)['type']).to eq('error')
+      end
+
       it 'uses default provider when not specified' do
         params_without_provider = params.dup
         params_without_provider.delete("ai_user_provider")

@@ -19,6 +19,8 @@ require_relative '../privacy/export_cipher'
 #
 # Registry stays in memory only (RD-1); exports are user-driven via UI.
 
+require_relative '../privacy/outbound'
+
 module WebSocketHelper
   PRIVACY_PLACEHOLDER_RE = /\A<<([A-Z_]+)_(\d+)>>\z/
   PRIVACY_EXPORT_MODES = %w[encrypted masked_only restored].freeze
@@ -156,7 +158,11 @@ module WebSocketHelper
 
     pipeline = session[:_privacy_pipeline]
     state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
+    # The chat's own privacy state when no pipeline is built yet (a tab that
+    # reconnected): the registry and the marked words live in the chat.
+    state ||= (session[:monadic_state] || {})[:privacy]
     registry = (state.is_a?(Hash) ? state[:registry] : {}) || {}
+    terms = (state.is_a?(Hash) ? state[:terms] : nil) || []
     messages = privacy_clean_messages(session[:messages] || [])
 
     # When the user requests "masked", apply the registry placeholders to the
@@ -166,12 +172,19 @@ module WebSocketHelper
     # apply, so the original text passes through unchanged.
     parameters = privacy_export_parameters(session)
 
-    if content_kind == "masked" && !registry.empty?
-      messages = privacy_remask_messages(messages, registry)
-      parameters = privacy_remask_parameters(parameters, registry)
+    # A masked file holds neither the registry nor the marked words: marked
+    # words are masked too, with placeholders of their own when the model
+    # never saw them. A restored file keeps the marked words, so the
+    # imported chat goes on masking them.
+    remask = privacy_registry_with_terms(registry, terms)
+    if content_kind == "masked" && !remask.empty?
+      messages = privacy_remask_messages(messages, remask)
+      parameters = privacy_remask_parameters(parameters, remask)
       registry_to_export = {}
+      terms_to_export = []
     else
       registry_to_export = registry
+      terms_to_export = terms.map { |t| { "text" => t[:text] || t["text"], "type" => t[:type] || t["type"] } }
     end
 
     header = privacy_export_header(session, messages, registry_to_export)
@@ -182,12 +195,31 @@ module WebSocketHelper
     # `parameters` was assembled and remasked above, alongside the messages.
     monadic_state = privacy_export_monadic_state(session)
     session_context = privacy_export_session_context(session)
+    masked_file = content_kind == "masked" && !remask.empty?
     # Dynamic-skill unlock state, so an imported session restores the skills the
     # model had acquired (reproducibility). This is the ACTIVE export path
     # (the frontend $id("save") handler delegates here), so progressive_tools
     # must be attached to the payload here — not only in the legacy frontend
     # export branch.
     progressive_tools = Monadic::Utils::ProgressiveToolManager.export_unlocked(session)
+
+    # A masked file holds none of the originals anywhere, not only in the
+    # message text: everything that goes into it (the app state, the Session
+    # Context, what is nested in the messages) is masked, and the file is not
+    # written when one is still there.
+    if masked_file
+      outbound = Monadic::Utils::Privacy::Outbound
+      messages = privacy_mask_messages_everywhere(messages, remask)
+      parameters = privacy_mask_everywhere(parameters, remask)
+      monadic_state = privacy_mask_everywhere(monadic_state, remask)
+      session_context = privacy_mask_everywhere(session_context, remask)
+      progressive_tools = privacy_mask_everywhere(progressive_tools, remask)
+      contents = { "messages" => messages, "parameters" => parameters, "monadic_state" => monadic_state,
+                   "session_context" => session_context, "progressive_tools" => progressive_tools }
+      left = remask.values.map(&:to_s).reject(&:empty?)
+      leaked = privacy_file_strings(contents).any? { |text| outbound.holds_word?(text, left) }
+      raise ArgumentError, "a masked value is still in the file" if leaked
+    end
 
     if encrypt
       passphrase = obj["passphrase"].to_s
@@ -203,6 +235,8 @@ module WebSocketHelper
         "registry" => registry_to_export,
         "parameters" => parameters
       }
+      payload["terms"] = terms_to_export unless terms_to_export.empty?
+      payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
       payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
@@ -213,6 +247,8 @@ module WebSocketHelper
     else
       payload = { "parameters" => parameters, "messages" => messages }
       payload["registry"] = registry_to_export unless registry_to_export.empty?
+      payload["terms"] = terms_to_export unless terms_to_export.empty?
+      payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
       payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
@@ -298,9 +334,7 @@ module WebSocketHelper
     parameters.each_with_object(parameters.dup) do |(k, v), acc|
       next unless PRIVACY_REMASK_PARAMETER_KEYS.include?(k.to_s) && v.is_a?(String)
 
-      masked = v.dup
-      sorted.each { |placeholder, original| masked.gsub!(original.to_s, placeholder.to_s) }
-      acc[k] = masked
+      acc[k] = privacy_replace_union(v, sorted)
     end
   end
 
@@ -338,6 +372,98 @@ module WebSocketHelper
   # rendered HTML is built from the restored body.
   PRIVACY_REMASK_MESSAGE_FIELDS = %w[text thinking html].freeze
 
+  # The registry plus a placeholder for each marked word it does not hold
+  # (numbered after the registry's own, per type).
+  private def privacy_registry_with_terms(registry, terms)
+    combined = registry.dup
+    counters = Hash.new(0)
+    registry.each_key do |placeholder|
+      m = placeholder.to_s.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
+      counters[m[1]] = [counters[m[1]], m[2].to_i].max if m
+    end
+    terms.each do |term|
+      text = term[:text] || term["text"]
+      type = term[:type] || term["type"] || "PERSON"
+      next if text.to_s.empty? || combined.value?(text)
+
+      counters[type] += 1
+      combined["<<#{type}_#{counters[type]}>>"] = text
+    end
+    combined
+  end
+
+  # The originals in text replaced by their placeholders, overlapping
+  # occurrences as one (Outbound.replace_union), so no part of an original
+  # is left because a longer one was replaced first.
+  private def privacy_replace_union(text, registry_pairs)
+    Monadic::Utils::Privacy::Outbound.replace_union(text, registry_pairs.map { |placeholder, original| [original.to_s, placeholder.to_s] })
+  end
+
+  # Every string in a value masked the same way (the app state, the Session
+  # Context and anything nested in the messages of a masked file).
+  private def privacy_mask_everywhere(value, registry, depth = 0)
+    outbound = Monadic::Utils::Privacy::Outbound
+    case value
+    when String
+      # A string that is JSON is masked value by value and written again, so
+      # an escaped original ("A\"B") is masked too and the JSON stays valid.
+      inner = outbound.json_value(value)
+      unless inner.nil?
+        raise ArgumentError, "a value is nested as JSON too deeply to be masked" if depth >= outbound::JSON_DEPTH
+
+        return JSON.generate(privacy_mask_everywhere(inner, registry, depth + 1))
+      end
+      privacy_replace_union(value, registry)
+    when Array then value.map { |v| privacy_mask_everywhere(v, registry, depth) }
+    when Hash then value.transform_values { |v| privacy_mask_everywhere(v, registry, depth) }
+    else value
+    end
+  end
+
+  # Fields of a message that are its protocol, not what anyone said: kept
+  # as they are in a masked file (a role spelled like a marked word stays a
+  # role). Only at the message's own level; inside a message's content or
+  # the app state every string is masked.
+  PRIVACY_MESSAGE_PROTOCOL_KEYS = %w[mid role type app_name lang active].freeze
+
+  private def privacy_mask_messages_everywhere(messages, registry)
+    messages.map do |m|
+      next privacy_mask_everywhere(m, registry) unless m.is_a?(Hash)
+
+      m.each_with_object({}) do |(k, v), out|
+        out[k] = PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s) ? v : privacy_mask_everywhere(v, registry)
+      end
+    end
+  end
+
+  # The strings a masked file says (message protocol fields aside), for the
+  # last check that no original is left.
+  private def privacy_file_strings(contents)
+    strings = []
+    collect = lambda do |value|
+      case value
+      when String
+        strings << value
+        inner = Monadic::Utils::Privacy::Outbound.json_value(value)
+        collect.call(inner) unless inner.nil?
+      when Array then value.each { |v| collect.call(v) }
+      when Hash then value.each { |k, v| strings << k.to_s; collect.call(v) }
+      end
+    end
+    contents.each do |key, value|
+      if key == "messages" && value.is_a?(Array)
+        value.each do |m|
+          next collect.call(m) unless m.is_a?(Hash)
+
+          m.each { |k, v| collect.call(v) unless PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s) }
+        end
+      else
+        collect.call(value)
+      end
+    end
+    strings
+  end
+
   # Substitute original values back to placeholders for masked_only export.
   # Sort registry by value length descending to avoid partial-match issues
   # ("Smith" inside "John Smith" must be replaced last).
@@ -351,9 +477,7 @@ module WebSocketHelper
         value = m[field]
         next unless value.is_a?(String)
 
-        masked = value.dup
-        sorted.each { |placeholder, original| masked.gsub!(original.to_s, placeholder.to_s) }
-        acc[field] = masked
+        acc[field] = privacy_replace_union(value, sorted)
       end
 
       remasked.empty? ? m : m.merge(remasked)
@@ -448,5 +572,48 @@ module WebSocketHelper
     # wrong export?" UX.
     suffix = (!encrypt && content_kind == "restored") ? "-PRIVATE" : ""
     "#{safe_app}-#{ts}#{suffix}#{ext}"
+  end
+
+  # Words the user marks in what they write (⟦…⟧, see Privacy::Marks) are
+  # taken out of the text here, where the chat receives what a person wrote
+  # (a message sent, a message edited), and kept for the chat. Returns the
+  # text without the marks, or nil when it must not go on: a mark that is
+  # not well formed, or marks (or words marked before) while the Privacy
+  # Filter is not on for this chat. The error is sent to the page.
+  def take_privacy_marks(text, session, ws_session_id)
+    require_relative '../privacy/marks'
+    require_relative '../privacy/registry'
+    require_relative '../privacy/outbound'
+    marks = Monadic::Utils::Privacy::Marks
+    begin
+      clean, terms = marks.extract(text.to_s)
+    rescue marks::Invalid => e
+      send_error("The words marked with \u27E6 \u27E7 could not be read: #{e.message}. Nothing was sent.", ws_session_id)
+      return nil
+    end
+
+    if (terms.any? || Monadic::Utils::Privacy::Outbound.marked_terms?(session)) && !privacy_on_for_chat?(session)
+      send_error("Words are marked to be masked in this chat, but the Privacy Filter is off. " \
+                 "Turn it on (or reset the chat) to send. Nothing was sent.", ws_session_id)
+      return nil
+    end
+
+    begin
+      Monadic::Utils::Privacy::Registry.new(session).add_terms!(terms) if terms.any?
+    rescue Monadic::Utils::Privacy::Registry::TooManyTerms => e
+      send_error("#{e.message}. Nothing was sent.", ws_session_id)
+      return nil
+    end
+    clean
+  end
+
+  # The Privacy Filter masks this chat: the user turned it on, and the app
+  # uses it.
+  def privacy_on_for_chat?(session)
+    return false unless session[:_privacy_session_enabled] == true
+
+    app_name = (session[:parameters] || {})["app_name"]
+    settings = defined?(APPS) && APPS[app_name] ? APPS[app_name].settings : nil
+    !!(settings && settings.dig(:privacy, :enabled) == true)
   end
 end

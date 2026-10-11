@@ -58,6 +58,15 @@
       details = typeof webUIi18n !== 'undefined'
         ? webUIi18n.t('ui.tts.textExceedsLimit')
         : '(Text exceeds audio output limit)';
+    } else if (content.notice_type === 'privacy_withheld') {
+      // The reply is shown; only its speech was not made (it would have
+      // carried a word marked for the Privacy Filter).
+      message = typeof webUIi18n !== 'undefined'
+        ? webUIi18n.t('ui.tts.privacyWithheld')
+        : 'Audio output skipped';
+      details = typeof webUIi18n !== 'undefined'
+        ? webUIi18n.t('ui.tts.privacyWithheldDetail')
+        : '(It would have carried a word marked to be masked)';
     } else if (content.notice_type === 'manual_play') {
       if (typeof webUIi18n !== 'undefined') {
         message = webUIi18n.t('ui.tts.manualPlay')

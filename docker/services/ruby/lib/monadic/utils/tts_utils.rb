@@ -7,10 +7,28 @@ require 'net/http'
 require_relative 'extra_logger'
 require_relative 'tts_text_processors'
 require_relative 'tts_audio'
+require_relative 'privacy/outbound'
 
 module InteractionUtils
+  # What a speech request gives back when the text holds a word the user
+  # marked for the Privacy Filter: nothing was sent, and the page shows a
+  # notice for the speech only (the reply itself is fine).
+  TTS_WITHHELD = { "type" => "privacy_withheld" }.freeze
+
   def pcm_to_wav(pcm_data, **options)
     Monadic::Utils::TtsAudio.pcm_to_wav(pcm_data, **options)
+  end
+
+  # The text as a TTS service receives it: the user's dictionary applied,
+  # then the provider's own conversion (markers, tags). What is checked for
+  # words the user marked is this text, not the one before.
+  def tts_text_as_sent(text, provider)
+    converted = if CONFIG["TTS_DICT"]
+                  text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
+                else
+                  text
+                end
+    Monadic::Utils::TtsTextProcessors.pre_send(provider, converted)
   end
 
   def tts_api_request(text,
@@ -25,13 +43,7 @@ module InteractionUtils
     # Handle nil text
     return nil if text.nil? || text.empty?
 
-    if CONFIG["TTS_DICT"]
-      text_converted = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
-    else
-      text_converted = text
-    end
-
-    text_converted = Monadic::Utils::TtsTextProcessors.pre_send(provider, text_converted)
+    text_converted = tts_text_as_sent(text, provider)
 
     num_retrial = 0
 
@@ -371,6 +383,8 @@ module InteractionUtils
 
       Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Returning audio - body_size=#{res.body.to_s.length}" }
       { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
+    rescue Monadic::Utils::Privacy::Outbound::Refused
+      TTS_WITHHELD.dup
     rescue => e
       Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request: Exception occurred - #{e.class}: #{e.message}\n#{e.backtrace.join("\n")}" }
       { "type" => "error", "content" => "ERROR: TTS request failed: #{e.message}" }
@@ -392,13 +406,7 @@ module InteractionUtils
     return if text.nil? || text.empty?
 
     # Apply TTS dictionary if configured
-    text_converted = if CONFIG["TTS_DICT"]
-                      text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
-                    else
-                      text
-                    end
-
-    text_converted = Monadic::Utils::TtsTextProcessors.pre_send(provider, text_converted)
+    text_converted = tts_text_as_sent(text, provider)
 
     Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: START - provider=#{provider}, text_length=#{text_converted.length}, sequence_id=#{sequence_id}" }
 
@@ -476,6 +484,7 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
 
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
@@ -580,6 +589,7 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: ElevenLabs TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
 
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: ElevenLabs connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
@@ -739,6 +749,7 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: Gemini TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
 
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Gemini connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
@@ -826,6 +837,7 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: Grok TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Grok connection error - #{e.message}, sequence_id=#{sequence_id}" }
           Async { block.call(error_result) }

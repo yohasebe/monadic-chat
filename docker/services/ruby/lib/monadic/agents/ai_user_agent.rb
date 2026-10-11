@@ -2,6 +2,7 @@
 
 require_relative "../utils/system_defaults"
 require_relative "../utils/privacy/outbound"
+require_relative "../utils/error_formatter"
 
 # AI User Agent
 # Handles the generation of simulated user responses in conversations
@@ -43,6 +44,13 @@ module AIUserAgent
     # Create system message with instruction
     instruction = "Based on the conversation history above, generate the next natural response from the user."
     system_message = "#{MonadicApp::AI_USER_INITIAL_PROMPT}\n\nConversation History:\n\n#{conversation_text}\n\n#{instruction}"
+    begin
+      # Words the user marked: nothing is sent while one is still in the
+      # request (the fixed instructions included).
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, system_message)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
+    end
     
     # Find appropriate chat app for this provider
     chat_app = find_chat_app_for_provider(provider)
@@ -121,11 +129,23 @@ module AIUserAgent
           # ignore logging failures
         end
       end
+      # Words the user marked: the whole request as it goes out (instructions
+      # added for a provider included) is checked last.
+      begin
+        Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, options)
+      rescue Monadic::Utils::Privacy::Outbound::Refused => e
+        return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
+      end
       # Send query to get AI user response with explicit model parameter
-      result = app_instance.send_query(options, model: model)
-      
-      # Check for provider-specific error patterns
-      if result.is_a?(String) && (result.start_with?("ERROR:") || result.start_with?("Error:"))
+      begin
+        result = app_instance.send_query(options, model: model)
+      rescue Monadic::Utils::Privacy::Outbound::Refused => e
+        return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
+      end
+
+      # Check for provider-specific error patterns (an error is never offered
+      # as a suggestion)
+      if Monadic::Utils::ErrorFormatter.error_reply?(result)
         return {
           "type" => "error",
           "content" => result

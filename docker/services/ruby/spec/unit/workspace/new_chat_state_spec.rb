@@ -342,7 +342,7 @@ RSpec.describe 'What a new chat keeps from the session' do
       root = File.expand_path('../../..', __dir__)
       out = Dir.mktmpdir('new-chat-load') do |home|
         stdout, stderr, status = Open3.capture3({ 'HOME' => home }, RbConfig.ruby, '-e', probe_script, chdir: root)
-        raise "probe failed: #{stderr[-2000..]}" unless status.success?
+        raise "probe failed: #{stderr.lines.last(15).join}" unless status.success?
 
         JSON.parse(stdout.lines.last)
       end

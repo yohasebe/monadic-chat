@@ -980,6 +980,19 @@
                     <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
                     <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
                     <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>
+                    <div class="btn-group me-2" id="privacy-mark-group" style="display: none;">
+                      <button id="privacy-mark" type="button" class="btn btn-sm btn-warning text-nowrap" title="Mark the selected words to be masked in this chat (Ctrl/Cmd+Shift+K)" data-i18n-title="ui.privacyMark.hint"><i class="fas fa-user-lock"></i> <span data-i18n="ui.privacyMark.button">Mask</span></button>
+                      <button type="button" class="btn btn-sm btn-warning dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Type" data-i18n-aria-label="ui.privacyMark.typeMenu"></button>
+                      <ul class="dropdown-menu privacy-mark-menu">
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="PERSON" data-i18n="ui.privacyMark.person">Person</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="ORGANIZATION" data-i18n="ui.privacyMark.organization">Organization</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="LOCATION" data-i18n="ui.privacyMark.location">Place</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="EMAIL_ADDRESS" data-i18n="ui.privacyMark.email">Email address</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="PHONE_NUMBER" data-i18n="ui.privacyMark.phone">Phone number</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="URL" data-i18n="ui.privacyMark.url">URL</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="DATE_TIME" data-i18n="ui.privacyMark.date">Date</button></li>
+                      </ul>
+                    </div>
                     <button id="audio-upload" class="btn btn-sm btn-warning text-nowrap me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>

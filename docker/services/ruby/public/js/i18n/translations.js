@@ -2,6 +2,21 @@
 const webUITranslations = {
   en: {
     ui: {
+      privacyMark: {
+        button: "Mask",
+        hint: "Mark the selected words to be masked in this chat (Ctrl/Cmd+Shift+K)",
+        typeMenu: "Type",
+        person: "Person",
+        organization: "Organization",
+        location: "Place",
+        email: "Email address",
+        phone: "Phone number",
+        url: "URL",
+        date: "Date",
+        selectFirst: "Select the words to mask first.",
+        oneLine: "A mark cannot span more than one line.",
+        nested: "The selection already contains a mark."
+      },
       sharedFolderPanel: {
         notCounted: "not counted yet (refresh)",
         changed: "changed while counting",
@@ -567,6 +582,8 @@ const webUITranslations = {
         partialOutput: "Playing {{played}}/{{total}} sentences",
         textTooLong: "(Text too long for complete audio output)",
         skipped: "Audio output skipped",
+        privacyWithheld: "Audio output skipped",
+        privacyWithheldDetail: "(It would have carried a word marked to be masked)",
         textExceedsLimit: "(Text exceeds audio output limit)",
         manualPlay: "Playing {{total}} sentences",
         useStopButton: "(Use Stop button to cancel)"
@@ -579,6 +596,21 @@ const webUITranslations = {
   },
   ja: {
     ui: {
+      privacyMark: {
+        button: "伏せる",
+        hint: "選んだ語をこの会話で伏せ字にする（Ctrl/Cmd+Shift+K）",
+        typeMenu: "種類",
+        person: "人名",
+        organization: "組織",
+        location: "場所",
+        email: "メールアドレス",
+        phone: "電話番号",
+        url: "URL",
+        date: "日付",
+        selectFirst: "伏せる語を先に選んでください。",
+        oneLine: "印は 1 行の中で付けてください。",
+        nested: "選んだ範囲にすでに印があります。"
+      },
       sharedFolderPanel: {
         notCounted: "未計算（更新してください）",
         changed: "計算中に変更されました",
@@ -1144,6 +1176,8 @@ const webUITranslations = {
         partialOutput: "{{played}}/{{total}} 文を再生します",
         textTooLong: "（テキストが長いため一部のみ再生）",
         skipped: "音声出力をスキップしました",
+        privacyWithheld: "音声出力を省略しました",
+        privacyWithheldDetail: "（伏せる印を付けた語が含まれるため）",
         textExceedsLimit: "（テキストが長すぎます）",
         manualPlay: "{{total}} 文を再生します",
         useStopButton: "（停止ボタンでキャンセル可）"
@@ -1156,6 +1190,21 @@ const webUITranslations = {
   },
   zh: {
     ui: {
+      privacyMark: {
+        button: "遮盖",
+        hint: "将所选词语在本对话中遮盖（Ctrl/Cmd+Shift+K）",
+        typeMenu: "类型",
+        person: "人名",
+        organization: "组织",
+        location: "地点",
+        email: "电子邮件地址",
+        phone: "电话号码",
+        url: "URL",
+        date: "日期",
+        selectFirst: "请先选择要遮盖的词语。",
+        oneLine: "标记不能跨行。",
+        nested: "所选内容中已有标记。"
+      },
       sharedFolderPanel: {
         notCounted: "尚未计算（请刷新）",
         changed: "计算时已更改",
@@ -1744,6 +1793,8 @@ const webUITranslations = {
         partialOutput: "正在播放 {{played}}/{{total}} 句",
         textTooLong: "（文本过长，仅播放部分内容）",
         skipped: "已跳过音频输出",
+        privacyWithheld: "已跳过音频输出",
+        privacyWithheldDetail: "（其中含有标记为遮盖的词语）",
         textExceedsLimit: "（文本超出音频输出限制）",
         manualPlay: "正在播放 {{total}} 句",
         useStopButton: "（点击停止按钮取消）"
@@ -1756,6 +1807,21 @@ const webUITranslations = {
   },
   ko: {
     ui: {
+      privacyMark: {
+        button: "가리기",
+        hint: "선택한 단어를 이 대화에서 가립니다 (Ctrl/Cmd+Shift+K)",
+        typeMenu: "종류",
+        person: "사람 이름",
+        organization: "조직",
+        location: "장소",
+        email: "이메일 주소",
+        phone: "전화번호",
+        url: "URL",
+        date: "날짜",
+        selectFirst: "먼저 가릴 단어를 선택하세요.",
+        oneLine: "표시는 한 줄 안에서만 붙일 수 있습니다.",
+        nested: "선택한 범위에 이미 표시가 있습니다."
+      },
       sharedFolderPanel: {
         notCounted: "아직 계산되지 않음(새로 고침)",
         changed: "계산 중에 변경됨",
@@ -2321,6 +2387,8 @@ const webUITranslations = {
         partialOutput: "{{played}}/{{total}} 문장 재생 중",
         textTooLong: "(텍스트가 너무 길어 일부만 재생)",
         skipped: "음성 출력 건너뜀",
+        privacyWithheld: "음성 출력을 건너뛰었습니다",
+        privacyWithheldDetail: "(가리도록 표시한 단어가 포함되어 있습니다)",
         textExceedsLimit: "(텍스트가 음성 출력 제한을 초과)",
         manualPlay: "{{total}} 문장 재생 중",
         useStopButton: "(정지 버튼으로 취소)"
@@ -2333,6 +2401,21 @@ const webUITranslations = {
   },
   es: {
     ui: {
+      privacyMark: {
+        button: "Ocultar",
+        hint: "Marcar las palabras seleccionadas para ocultarlas en esta conversación (Ctrl/Cmd+Shift+K)",
+        typeMenu: "Tipo",
+        person: "Persona",
+        organization: "Organización",
+        location: "Lugar",
+        email: "Correo electrónico",
+        phone: "Teléfono",
+        url: "URL",
+        date: "Fecha",
+        selectFirst: "Selecciona primero las palabras que quieres ocultar.",
+        oneLine: "Una marca no puede ocupar más de una línea.",
+        nested: "La selección ya contiene una marca."
+      },
       sharedFolderPanel: {
         notCounted: "aún sin calcular (actualiza)",
         changed: "cambió durante el cálculo",
@@ -2898,6 +2981,8 @@ const webUITranslations = {
         partialOutput: "Reproduciendo {{played}}/{{total}} oraciones",
         textTooLong: "(Texto demasiado largo para salida de audio completa)",
         skipped: "Salida de audio omitida",
+        privacyWithheld: "Salida de audio omitida",
+        privacyWithheldDetail: "(Contendría una palabra marcada para ocultar)",
         textExceedsLimit: "(El texto excede el límite de salida de audio)",
         manualPlay: "Reproduciendo {{total}} oraciones",
         useStopButton: "(Usa el botón Detener para cancelar)"
@@ -2910,6 +2995,21 @@ const webUITranslations = {
   },
   fr: {
     ui: {
+      privacyMark: {
+        button: "Masquer",
+        hint: "Marquer les mots sélectionnés pour les masquer dans cette conversation (Ctrl/Cmd+Maj+K)",
+        typeMenu: "Type",
+        person: "Personne",
+        organization: "Organisation",
+        location: "Lieu",
+        email: "Adresse e-mail",
+        phone: "Numéro de téléphone",
+        url: "URL",
+        date: "Date",
+        selectFirst: "Sélectionnez d'abord les mots à masquer.",
+        oneLine: "Une marque ne peut pas s'étendre sur plusieurs lignes.",
+        nested: "La sélection contient déjà une marque."
+      },
       sharedFolderPanel: {
         notCounted: "pas encore calculé (actualisez)",
         changed: "modifié pendant le calcul",
@@ -3470,6 +3570,8 @@ const webUITranslations = {
         partialOutput: "Lecture de {{played}}/{{total}} phrases",
         textTooLong: "(Texte trop long pour une sortie audio complète)",
         skipped: "Sortie audio ignorée",
+        privacyWithheld: "Sortie audio ignorée",
+        privacyWithheldDetail: "(Elle contiendrait un mot marqué à masquer)",
         textExceedsLimit: "(Le texte dépasse la limite de sortie audio)",
         manualPlay: "Lecture de {{total}} phrases",
         useStopButton: "(Utilisez le bouton Arrêter pour annuler)"
@@ -3487,6 +3589,21 @@ const webUITranslations = {
   },
   de: {
     ui: {
+      privacyMark: {
+        button: "Verbergen",
+        hint: "Ausgewählte Wörter in diesem Chat maskieren (Strg/Cmd+Umschalt+K)",
+        typeMenu: "Art",
+        person: "Person",
+        organization: "Organisation",
+        location: "Ort",
+        email: "E-Mail-Adresse",
+        phone: "Telefonnummer",
+        url: "URL",
+        date: "Datum",
+        selectFirst: "Wählen Sie zuerst die zu maskierenden Wörter aus.",
+        oneLine: "Eine Markierung darf nicht über mehrere Zeilen gehen.",
+        nested: "Die Auswahl enthält bereits eine Markierung."
+      },
       sharedFolderPanel: {
         notCounted: "noch nicht gezählt (aktualisieren)",
         changed: "während des Zählens geändert",
@@ -4047,6 +4164,8 @@ const webUITranslations = {
         partialOutput: "{{played}}/{{total}} Sätze werden abgespielt",
         textTooLong: "(Text zu lang für vollständige Audioausgabe)",
         skipped: "Audioausgabe übersprungen",
+        privacyWithheld: "Audioausgabe übersprungen",
+        privacyWithheldDetail: "(Sie enthielte ein zum Maskieren markiertes Wort)",
         textExceedsLimit: "(Text überschreitet Audioausgabelimit)",
         manualPlay: "{{total}} Sätze werden abgespielt",
         useStopButton: "(Stopp-Taste zum Abbrechen)"

@@ -23,6 +23,15 @@ RSpec.describe SecondOpinionAgent do
     end
   end
 
+  describe "an error the provider's helper returns" do
+    it "is a failed evaluation, not comments to parse" do
+      helper = double("helper", send_query: "[Cohere] API Error: nothing was sent")
+      allow(agent).to receive(:get_provider_helper).and_return(helper)
+      result = agent.second_opinion_agent(user_query: "q", agent_response: "a", provider: "cohere", model: "command-r")
+      expect(result[:validity]).to eq("error")
+    end
+  end
+
   describe "#determine_provider_and_model" do
     context "provider name normalization" do
       it "normalizes claude/anthropic to claude" do

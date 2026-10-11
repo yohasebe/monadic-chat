@@ -365,7 +365,8 @@ module WebSocketHelper
     title = Monadic::Library::TitleSuggester.suggest(
       messages: messages,
       app_name: app_name,
-      pipeline: pipeline
+      pipeline: pipeline,
+      session: session
     )
 
     send_to_client(connection, {

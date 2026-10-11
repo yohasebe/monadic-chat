@@ -2186,10 +2186,25 @@ module GeminiHelper
   # through untouched. See apply_privacy_to_messages for the rationale on
   # masking past assistant turns.
   private def apply_privacy_to_gemini_contents(contents, session, app_settings)
+    require_relative '../../utils/privacy/outbound'
+    outbound = Monadic::Utils::Privacy::Outbound
     pipeline = privacy_pipeline_for(session, app_settings)
-    return contents unless pipeline
+    unless pipeline
+      # Words the user marked stay protected when the filter is off.
+      raise outbound::Refused, 'words were marked to be masked in this chat, but the Privacy Filter is off' if outbound.marked_terms?(session)
+
+      return contents
+    end
 
     require_relative '../../utils/privacy/types'
+    mask_text = lambda do |text|
+      next text unless text.is_a?(String) && !text.empty?
+
+      pipeline.before_send_to_llm(Monadic::Utils::Privacy::RawMessage.new(text, "user", {})).text
+    end
+    # In a chat with words the user marked, what a function gave back
+    # (functionResponse.response) is masked like the conversation.
+    mask_tools = outbound.marked_terms?(session)
     contents.map do |item|
       role = item[:role] || item["role"]
       # Gemini uses "model" for assistant turns; mask both directions so
@@ -2201,6 +2216,13 @@ module GeminiHelper
 
       new_parts = parts.map do |part|
         next part unless part.is_a?(Hash)
+        response_holder = %w[functionResponse function_response].find { |k| part[k].is_a?(Hash) } ||
+                          %i[functionResponse function_response].find { |k| part[k].is_a?(Hash) }
+        if mask_tools && response_holder
+          holder = part[response_holder]
+          response_key = holder.key?(:response) ? :response : "response"
+          next part.merge(response_holder => holder.merge(response_key => privacy_mask_value(holder[response_key], mask_text)))
+        end
         text_key = part.key?(:text) ? :text : "text"
         text = part[text_key]
         next part unless text.is_a?(String) && !text.empty?
@@ -2227,6 +2249,8 @@ module GeminiHelper
     if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
       body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     # Final safety check: Remove toolConfig if no function_declarations exist
     has_any_function_declarations = body["tools"]&.any? { |tool|

@@ -223,3 +223,81 @@ def test_anonymize_keeps_what_another_detection_covers_after_the_trim(monkeypatc
     r = client.post("/v1/anonymize", json={"text": "AB王様", "languages": ["ja"]})
     assert r.status_code == 200
     assert r.json()["masked_text"] == "<<PERSON_1>>"
+
+
+# Strings the user marked: every occurrence is masked, whole, with the type
+# the user gave, whatever the detection finds.
+def test_health_names_the_terms_capability():
+    body = client.get("/v1/health").json()
+    assert body["protocol"] >= 2
+    assert "terms" in body["capabilities"]
+
+
+def test_marked_terms_are_masked_wherever_they_occur(monkeypatch):
+    import server
+
+    text = "江戸川今太郎です。江戸川今太郎より"
+    inner = [{"start": 3, "end": 6, "type": "PERSON", "score": 0.9, "lang_used": "ja"}]  # only 太郎 detected
+    monkeypatch.setattr(server, "_analyze_per_language", lambda t, languages, threshold: [dict(s) for s in inner])
+    r = client.post("/v1/anonymize", json={"text": text, "languages": ["en"],
+                                           "terms": [{"text": "江戸川今太郎", "type": "PERSON"}]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["masked_text"] == "<<PERSON_1>>です。<<PERSON_1>>より"
+    assert body["registry"] == {"<<PERSON_1>>": "江戸川今太郎"}
+
+
+def test_a_marked_term_keeps_its_type_and_its_honorific(monkeypatch):
+    import server
+
+    monkeypatch.setattr(server, "_analyze_per_language",
+                        lambda t, languages, threshold: [{"start": 0, "end": 6, "type": "LOCATION", "score": 0.99, "lang_used": "ja"}])
+    r = client.post("/v1/anonymize", json={"text": "Acme王様の件", "languages": ["ja"], "entity_types": ["PERSON"],
+                                           "terms": [{"text": "Acme王様", "type": "ORGANIZATION"}]})
+    assert r.json()["masked_text"] == "<<ORGANIZATION_1>>の件"
+
+
+def test_an_unknown_term_type_is_refused():
+    r = client.post("/v1/anonymize", json={"text": "x", "terms": [{"text": "x", "type": "NICKNAME"}]})
+    assert r.status_code == 422
+
+
+def test_an_empty_term_is_refused():
+    r = client.post("/v1/anonymize", json={"text": "x", "terms": [{"text": "", "type": "PERSON"}]})
+    assert r.status_code == 422
+
+
+def test_the_honorific_rule_takes_the_whole_name_and_not_the_honorific():
+    import re
+    import yaml
+    from pathlib import Path
+
+    spec = yaml.safe_load((Path(__file__).parent.parent / "recognizers" / "jp_honorific_person.yaml").read_text())
+    pattern = re.compile(spec["patterns"][0]["regex"])
+    found = lambda text: [m.group(0) for m in pattern.finditer(text)]
+    assert found("佐々木馬之助さんにメール") == ["佐々木馬之助"]
+    assert found("山田さま") == ["山田"]
+    assert found("ジョン・スミスさん") == ["ジョン・スミス"]
+    assert found("𠮷田さん") == ["𠮷田"]
+    assert found("一二三四五六七八九十一二三さん") == []  # longer than the rule takes: never only its tail
+    assert found("森さん") == []
+    assert found("僕の名前は江戸川今太郎です。") == []
+
+
+def test_a_name_from_the_honorific_rule_is_not_trimmed_again():
+    from server import _trim_japanese_honorifics
+
+    spans = [{"start": 0, "end": 4, "type": "PERSON", "score": 0.6, "lang_used": "ja",
+              "recognizer": "JpHonorificPersonRecognizer"}]
+    assert _trim_japanese_honorifics("山田一君さん", spans)[0]["end"] == 4
+
+
+def test_the_honorific_rule_runs_in_the_analyzer_with_its_name():
+    import server
+
+    if "ja" not in server.enabled_languages():
+        return
+    spans = server._analyze_per_language("山田一君さんへ", ["ja"], 0.4)
+    assert any(s.get("recognizer") == "JpHonorificPersonRecognizer" and s["end"] - s["start"] == 4 for s in spans)
+    r = client.post("/v1/anonymize", json={"text": "山田一君さんへ", "languages": ["ja"]}).json()
+    assert r["masked_text"] == "<<PERSON_1>>さんへ"

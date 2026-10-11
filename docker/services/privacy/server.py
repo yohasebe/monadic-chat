@@ -50,11 +50,33 @@ class AnalyzeOptions(BaseModel):
     honorific_trim: bool = True
 
 
+# What this server can do beyond the first protocol. A client that needs a
+# capability checks for it and does not send (rather than send unmasked)
+# when it is missing.
+PROTOCOL = 2
+CAPABILITIES = ["terms"]
+
+# Types a user can give a term they mark.
+TERM_TYPES = {"PERSON", "ORGANIZATION", "LOCATION", "EMAIL_ADDRESS", "PHONE_NUMBER", "URL", "DATE_TIME"}
+MAX_TERMS = 200
+MAX_TERM_LENGTH = 200
+MAX_TERM_SPANS = 10_000
+
+
+class Term(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_TERM_LENGTH)
+    type: str = "PERSON"
+
+
 class AnonymizeRequest(BaseModel):
     text: str
     languages: list[str] = Field(default_factory=lambda: ["en"])
     registry: dict[str, str] = Field(default_factory=dict)
     options: AnalyzeOptions = Field(default_factory=AnalyzeOptions)
+    # Strings the user marked in the conversation. Every occurrence is
+    # masked, whatever the detection finds, the languages or the entity
+    # whitelist say.
+    terms: list[Term] = Field(default_factory=list, max_length=MAX_TERMS)
     # Whitelist of Presidio entity types to mask. Empty list means "no filter
     # — return all detected types" (legacy behavior). Default kept as None so
     # existing unfiltered callers stay unchanged.
@@ -68,13 +90,15 @@ class DeanonymizeRequest(BaseModel):
 
 @app.get("/v1/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "languages": enabled_languages()}
+    return {"status": "ok", "languages": enabled_languages(), "protocol": PROTOCOL, "capabilities": CAPABILITIES}
 
 
 @app.get("/v1/info")
 def info() -> dict[str, Any]:
     return {
         "languages": enabled_languages(),
+        "protocol": PROTOCOL,
+        "capabilities": CAPABILITIES,
         "recognizers": [
             {
                 "name": r.name,
@@ -101,6 +125,7 @@ def _analyze_per_language(text: str, languages: list[str], score_threshold: floa
                 "end": r.end,
                 "score": float(r.score),
                 "lang_used": lang,
+                "recognizer": (r.recognition_metadata or {}).get("recognizer_name"),
             })
     return spans
 
@@ -138,6 +163,11 @@ def _resolve_overlaps(spans: list[dict]) -> list[dict]:
 
 
 def _pick_winner(a: dict, b: dict) -> dict:
+    # A string the user marked keeps the type the user gave it.
+    a_user = a.get("source") == "user"
+    b_user = b.get("source") == "user"
+    if a_user != b_user:
+        return a if a_user else b
     # DATE_TIME always loses to numeric ID types
     if a["type"] == "DATE_TIME" and b["type"] in NUMERIC_TYPES:
         return b
@@ -157,10 +187,29 @@ def _pick_winner(a: dict, b: dict) -> dict:
     return a if pa >= pb else b
 
 
+def _term_spans(text: str, terms: list[Term]) -> list[dict]:
+    """Every occurrence of every marked term, found as a literal string."""
+    spans = []
+    for term in terms:
+        start = text.find(term.text)
+        while start != -1:
+            spans.append({"start": start, "end": start + len(term.text), "type": term.type,
+                          "score": 1.0, "lang_used": None, "source": "user"})
+            if len(spans) > MAX_TERM_SPANS:
+                raise HTTPException(status_code=422, detail="too many occurrences of the marked terms")
+            start = text.find(term.text, start + 1)
+    return spans
+
+
+HONORIFIC_RECOGNIZERS = {"JpHonorificPersonRecognizer"}
+
+
 def _trim_japanese_honorifics(text: str, spans: list[dict]) -> list[dict]:
     out = []
     for s in spans:
-        if s["type"] != "PERSON" or s.get("lang_used") != "ja":
+        # The honorific rule's spans end before the honorific already; trimming
+        # them again would cut a name ending like one (山田一君さん).
+        if s["type"] != "PERSON" or s.get("lang_used") != "ja" or s.get("recognizer") in HONORIFIC_RECOGNIZERS:
             out.append(s)
             continue
         surface = text[s["start"]:s["end"]]
@@ -242,6 +291,10 @@ def anonymize(req: AnonymizeRequest) -> dict[str, Any]:
     if not req.languages:
         raise HTTPException(status_code=400, detail="languages must not be empty")
 
+    unknown = sorted({t.type for t in req.terms} - TERM_TYPES)
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"unknown term types: {', '.join(unknown)}")
+
     raw_spans = _analyze_per_language(req.text, req.languages, req.options.score_threshold)
     detected = len(raw_spans)
     if req.entity_types:
@@ -252,6 +305,9 @@ def anonymize(req: AnonymizeRequest) -> dict[str, Any]:
     # detection covered.
     if req.options.honorific_trim:
         raw_spans = _trim_japanese_honorifics(req.text, raw_spans)
+    # Marked terms are added after the trim: what the user marked is masked
+    # whole, honorific or not.
+    raw_spans += _term_spans(req.text, req.terms)
     merged = _resolve_overlaps(raw_spans)
     after_merge = len(merged)
     masked_text, new_registry, entities = _build_masked(req.text, merged, req.registry)

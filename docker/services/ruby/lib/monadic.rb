@@ -47,6 +47,10 @@ require_relative "monadic/version"
 
 # Load environment utilities early
 require_relative "monadic/utils/environment"
+# Words the user marks for the Privacy Filter never leave for another
+# service: every outbound HTTP request is checked where it is sent.
+require_relative "monadic/utils/privacy/egress_guard"
+Monadic::Utils::Privacy::EgressGuard.install!
 
 # Backward compatibility - DEPRECATED
 # All tests have been migrated. This can be removed after verifying no external dependencies.

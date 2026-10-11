@@ -33,7 +33,21 @@ module Monadic
         csrf tracking
       ].freeze
 
+      # Told when a chat ends (its state is about to be dropped) and when a
+      # session's chat id is set, as on_change { |event, session| ... } with
+      # :ending or :started. Something that follows the chat (the check of
+      # what is sent for it) keeps up this way, whoever ends or starts it.
+      LISTENERS = []
+
       module_function
+
+      def on_change(&block)
+        LISTENERS << block unless LISTENERS.include?(block)
+      end
+
+      def notify(event, session)
+        LISTENERS.each { |listener| listener.call(event, session) }
+      end
 
       def current(session)
         id = session[SESSION_KEY]
@@ -44,6 +58,8 @@ module Monadic
 
       def start_new!(session)
         session[SESSION_KEY] = Ids.generate(:chat)
+        notify(:started, session)
+        session[SESSION_KEY]
       end
 
       # A new chat (Reset, another app, an imported conversation): drop what
@@ -58,6 +74,11 @@ module Monadic
       # Drops every key that is not kept for the tab or the connection,
       # the chat id included.
       def clear_chat_state!(session)
+        notify(:ending, session) if session[SESSION_KEY]
+        # The chat id goes first: while it is still there, nothing of the
+        # chat has been dropped (what checks a chat's words relies on this).
+        session.delete(SESSION_KEY)
+        session.delete(SESSION_KEY.to_s)
         session.keys.each do |key|
           session.delete(key) unless KEPT_KEYS.include?(key.to_s)
         end
@@ -85,6 +106,8 @@ module Monadic
       def resume!(session, saved_id)
         if Ids.valid?(:chat, saved_id)
           session[SESSION_KEY] = saved_id
+          notify(:started, session)
+          saved_id
         else
           start_new!(session)
         end

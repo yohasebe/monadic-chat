@@ -1021,6 +1021,8 @@ module CohereHelper
     if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
       body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     # Diagnostic: dump the exact tools and message roles sent to Cohere. The v2
     # API rejects malformed tool schemas (and model-generated calls to

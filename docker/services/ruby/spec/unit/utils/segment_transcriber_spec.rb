@@ -99,6 +99,33 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
 
   let(:three) { segments_doc(seg('seg000001', 1, 3), seg('seg000002', 5, 6.5), seg('seg000003', 10, 39)) }
 
+  it 'names the language in the session when one is chosen, and none for auto' do
+    conn = fake_server.new(&well_behaved)
+    transcriber(three, [conn], language: 'ja').run
+    expect(conn.written.first.dig('session', 'audio', 'input', 'transcription')).to eq('model' => 'gpt-transcribe', 'language' => 'ja')
+    conn = fake_server.new(&well_behaved)
+    transcriber(three, [conn], language: 'auto').run
+    expect(conn.written.first.dig('session', 'audio', 'input', 'transcription')).to eq('model' => 'gpt-transcribe')
+  end
+
+  it 'tells the seconds of audio of each attempt as it is sent' do
+    sent = []
+    conn = fake_server.new(&well_behaved)
+    transcriber(three, [conn], on_attempt: ->(seconds) { sent << seconds }).run
+    expect(sent).to eq([2.0, 1.5, 29.0])
+  end
+
+  it 'gives the document as far as it has got, with the rest pending' do
+    t = transcriber(three, [])
+    expect(t.snapshot).to be_nil
+    results = three['segments'].to_h { |sg| [sg['segment_id'], { 'status' => 'pending' }] }
+                               .merge('seg000001' => { 'status' => 'complete', 'text' => 'Hi.' })
+    t.instance_variable_set(:@progress, [three['segments'], results])
+    doc = t.snapshot
+    expect(doc['status']).to eq('stopped')
+    expect(doc['segments'].map { |sg| sg['status'] }).to eq(%w[complete pending pending])
+  end
+
   it 'sends each segment once, commits it, and keeps the segment times' do
     conn = fake_server.new(&well_behaved)
     result = transcriber(three, [conn]).run

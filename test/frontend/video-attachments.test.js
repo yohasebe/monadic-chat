@@ -111,6 +111,35 @@ describe('video attachments', () => {
 // The tab id is read through ws-tab-id.js, which the WebSocket uses. A
 // window.tabId was read in two places and never set anywhere, so uploads
 // carried no tab and the server could not tell which chat they were for.
+describe('audio attachments', () => {
+  it('are offered only by apps that import the audio transcription tools', () => {
+    load({ toolGroups: [{ name: 'audio_transcription', available: true }] });
+    expect(window.appTakesAudioAttachments('VideoDescriberApp')).toBe(true);
+    expect(window.appTakesVideoAttachments('VideoDescriberApp')).toBe(false);
+    load({ toolGroups: [{ name: 'video_analysis', available: true }] });
+    expect(window.appTakesAudioAttachments('VideoDescriberApp')).toBe(false);
+  });
+
+  it('are told from videos by the app and the extension (.webm is a video in a video app)', () => {
+    load({ toolGroups: [{ name: 'audio_transcription', available: true }] });
+    expect(window.attachmentPurposeFor({ name: 'talk.MP3' }, 'VideoDescriberApp')).toBe('audio');
+    expect(window.attachmentPurposeFor({ name: 'talk.webm' }, 'VideoDescriberApp')).toBe('audio');
+    expect(window.attachmentPurposeFor({ name: 'clip.mp4' }, 'VideoDescriberApp')).toBeNull();
+    expect(window.attachmentPurposeFor({ name: 'photo.png' }, 'VideoDescriberApp')).toBeNull();
+    load({ toolGroups: [{ name: 'video_analysis', available: true }, { name: 'audio_transcription', available: true }] });
+    expect(window.attachmentPurposeFor({ name: 'clip.webm' }, 'VideoDescriberApp')).toBe('video');
+  });
+
+  it('upload as audio and are named as audio in the message', async () => {
+    load({ toolGroups: [{ name: 'audio_transcription', available: true }] });
+    window.monadicFetch.postJson.mockResolvedValue({ attachment_id: 'a_9', name: 'talk.mp3', size: 1, purpose: 'audio' });
+    await window.uploadVideoAttachment(new File(['x'], 'talk.mp3'), 'audio');
+    expect(window.monadicFetch.postJson.mock.calls[0][1].get('purpose')).toBe('audio');
+    expect(window.videoAttachmentLines()).toBe('Attached audio: talk.mp3 (attachment_id: a_9)');
+    expect(document.querySelector('#image-used .fa-file-audio')).not.toBeNull();
+  });
+});
+
 describe('tab id', () => {
   it('is not read from window.tabId anywhere in the web UI', () => {
     const fs = require('fs');

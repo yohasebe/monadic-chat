@@ -537,14 +537,23 @@ module Monadic
             description: "Transcribe an audio file to text (speech-to-text) using a provider's " \
                          "STT API. Give an audio `path` on the shared volume (~/monadic/data). " \
                          "Uses your own API keys; spends provider tokens (budget-gated). Name the " \
-                         "`provider`: the audio is sent only to that provider.",
+                         "`provider`: the audio is sent only to that provider. With " \
+                         "`timestamps: true` (openai, gemini/google, xai), each line starts with " \
+                         "the time in the recording, recordings up to 50 minutes of any size are " \
+                         "taken, and the transcript and subtitles are saved under transcriptions/ " \
+                         "in the shared volume; that way is long-running — run it via monadic_submit.",
             input_schema: {
               type: "object",
               properties: {
                 path: {
                   type: "string",
                   description: "Audio path: absolute, or relative to the shared volume " \
-                               "(~/monadic/data). Max 25MB."
+                               "(~/monadic/data). Max 25MB without timestamps."
+                },
+                timestamps: {
+                  type: "boolean",
+                  description: "Give each line its time in the recording (run via monadic_submit). " \
+                               "Default false: the whole file at once, as plain text."
                 },
                 language: {
                   type: "string",
@@ -1421,9 +1430,18 @@ module Monadic
         raise ArgumentError, "path is required" if path.empty?
 
         provider = required_analysis_provider(arguments)
-        path = resolve_shared_path(path, extensions: Monadic::Utils::SharedPathGuard::AUDIO_EXTENSIONS)
         model = (arguments["model"] || arguments[:model])
         language = (arguments["language"] || arguments[:language])
+        if [true, "true"].include?(arguments["timestamps"] || arguments[:timestamps])
+          gate = require_background_job("monadic_transcribe_audio with timestamps")
+          return gate if gate
+
+          # The timed way decodes the file itself, so it takes every format
+          # the audio check knows (AAC and Opus too).
+          path = resolve_shared_path(path, extensions: Monadic::Utils::AudioProbe::FORMATS.keys)
+          return transcribe_audio_with_times(path, provider, model, language)
+        end
+        path = resolve_shared_path(path, extensions: Monadic::Utils::SharedPathGuard::AUDIO_EXTENSIONS)
 
         begin
           CostGuard.ensure_within!(AUDIO_TOKENS_ESTIMATE)
@@ -1442,6 +1460,77 @@ module Monadic
           success: success,
           text: (success ? result : nil),
           error: (success ? nil : "❌ #{result}"),
+          budget: CostGuard.status
+        }.compact
+      end
+
+      # The text returned with timestamps, at most this many bytes; the whole
+      # transcript is in the saved transcript.json.
+      TIMED_TEXT_LIMIT = 32 * 1024
+      # Realtime and file transcription bill audio by its length; about ten
+      # tokens a second is used for the budget, before and after.
+      AUDIO_TOKENS_PER_SECOND = 10
+
+      # Timestamps: the same speech segments and per-segment transcription as
+      # in the app (Monadic::Utils::TimedTranscription), on the recording's
+      # clock, kept in a run folder outside any chat (transcriptions/).
+      def transcribe_audio_with_times(path, provider, model, language)
+        # The audio agents' own name for the provider ("gemini" is "google").
+        resolved = Monadic::Utils::ProviderCapabilities.resolve(:audio, provider)
+        return { provider: provider, success: false, error: "❌ #{resolved[:error].delete_prefix('ERROR: ')}" } if resolved[:error]
+
+        provider = resolved[:provider]
+        segment_model = AudioTranscriptionAgent.segment_model_for(provider, model)
+        return { provider: provider, success: false, error: "❌ #{provider} has no model for timed transcription." } unless segment_model
+
+        input = Monadic::Utils::SharedPathGuard.command_path(path, container: "python")
+        probe = Monadic::Utils::AudioProbe.check!(input)
+        estimate = (probe[:duration] * AUDIO_TOKENS_PER_SECOND).ceil + DEFAULT_MAX_OUTPUT
+        begin
+          CostGuard.ensure_within!(estimate)
+        rescue CostGuard::BudgetExceeded => e
+          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        end
+
+        job = Monadic::Workspace::Jobs.create_outside_chat!("transcriptions")
+        output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
+        # Each attempt is charged as it is sent, once: whether the run ends,
+        # fails or is cancelled, and whatever is saved or not.
+        result = agent_host(AudioTranscriptionAgent, provider).run_timed_audio(
+          provider: provider, model: segment_model, input: input, job: job, output: output,
+          language: Monadic::Utils::LanguageConfig.stt_language_code(language),
+          on_attempt: ->(seconds) { CostGuard.record((seconds * AUDIO_TOKENS_PER_SECOND).ceil) }
+        )
+        if result[:fallback]
+          return { provider: provider, success: false,
+                   error: "❌ The Python container predates timed transcripts. Rebuild it (Actions > Build Python Container)." }
+        end
+
+        CostGuard.record(CostGuard.estimate_tokens(result[:text].to_s))
+        timed_transcription_view(provider, result, job)
+      rescue Monadic::Utils::AudioProbe::Rejected => e
+        { provider: provider, success: false, error: "❌ #{e.message}" }
+      rescue Monadic::Workspace::Jobs::Unavailable => e
+        { provider: provider, success: false, error: "❌ #{e.message}" }
+      end
+
+      def timed_transcription_view(provider, result, job)
+        doc = result[:document]
+        text = result[:text].to_s
+        truncated = text.bytesize > TIMED_TEXT_LIMIT
+        text = text.byteslice(0, TIMED_TEXT_LIMIT).scrub("") if truncated
+        artifacts = %w[json vtt srt].to_h { |ext| [ext, "#{job[:relative]}/transcript.#{ext}"] }
+                                     .select { |_ext, rel| File.file?(File.join(Monadic::Utils::Environment.data_path, rel)) }
+        succeeded = result[:saved] == true && doc && doc["status"] != "failed"
+        {
+          provider: provider,
+          success: succeeded ? true : false,
+          error: (succeeded ? nil : "❌ #{text}"),
+          status: doc&.dig("status"),
+          coverage: doc&.dig("coverage"),
+          text: (succeeded ? text : nil),
+          truncated: (succeeded ? truncated : nil),
+          artifacts: artifacts,
           budget: CostGuard.status
         }.compact
       end

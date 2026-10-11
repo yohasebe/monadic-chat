@@ -907,13 +907,15 @@ RSpec.describe VideoAnalyzeAgent do
             double(run: transcript)
           end
           allow(agent).to receive(:transcribe_audio_bytes).and_return('segment text')
-          timed = agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, provider, { chat_id: chat_id })
+          session = { chat_id: chat_id, runtime_settings: { language: 'ja' } }
+          timed = agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, provider, session)
 
           expect(timed[:text]).to include('[00:01–00:03] Hello there.')
           expect(Monadic::Utils::SegmentTranscriber).not_to have_received(:new)
           expect(batch_args[:model]).to eq(AudioTranscriptionAgent.audio_model_for(provider))
           expect(batch_args[:transcribe].call('RIFF')).to eq('segment text')
-          expect(agent).to have_received(:transcribe_audio_bytes).with(provider, 'RIFF', 'wav', batch_args[:model])
+          # The chat's language goes with each segment.
+          expect(agent).to have_received(:transcribe_audio_bytes).with(provider, 'RIFF', 'wav', batch_args[:model], 'ja')
         end
       end
 

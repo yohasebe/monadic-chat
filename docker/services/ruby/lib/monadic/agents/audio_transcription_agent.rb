@@ -304,3 +304,5 @@ module AudioTranscriptionAgent
     JSON.parse(res.body.to_s)["text"].to_s
   end
 end
+
+require_relative "timed_audio_transcription"

@@ -30,6 +30,12 @@ RSpec.describe MonadicHelper do
       "Transcription result for: #{audio_path}"
     end
 
+    # The timed way does not apply without a chat (timed_audio_transcription_spec
+    # covers it); these examples are about the whole-file way.
+    def timed_audio_transcript(*_args, **_kw)
+      nil
+    end
+
     def image_agent_calls
       @image_agent_calls
     end

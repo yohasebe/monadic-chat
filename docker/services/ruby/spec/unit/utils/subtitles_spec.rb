@@ -59,6 +59,13 @@ RSpec.describe Monadic::Utils::Subtitles do
     expect(described_class.cues(odd)).to eq([])
   end
 
+  it "times an audio file's cues from where a player shows its first sample, not its decoded origin" do
+    mp3 = result.merge("timeline_origin_ms" => 23.021, "source" => { "timeline" => "audio", "player_offset_ms" => 0.0 })
+    expect(described_class.vtt(mp3)).to start_with("WEBVTT\n\n00:00:00.088 --> 00:00:02.550\n")
+    late = result.merge("timeline_origin_ms" => 4978.667, "source" => { "timeline" => "audio", "player_offset_ms" => 4978.0 })
+    expect(described_class.vtt(late)).to start_with("WEBVTT\n\n00:00:05.066 --> 00:00:07.528\n")
+  end
+
   it "has no cues when nothing was transcribed" do
     expect(described_class.cues("sample_rate_hz" => 24_000, "segments" => [])).to eq([])
     expect(described_class.vtt("sample_rate_hz" => 24_000, "segments" => [])).to eq("WEBVTT\n")

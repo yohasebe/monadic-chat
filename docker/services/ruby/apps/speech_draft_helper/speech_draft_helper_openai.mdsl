@@ -61,7 +61,7 @@ app "SpeechDraftHelperOpenAI" do
 
       ## Image and Audio Analysis
       - Use `analyze_image` when the user asks about an image
-      - Use `analyze_audio` when the user provides an audio file
+      - Use `analyze_audio` when the user provides an audio file: for a file attached to the message ("Attached audio: NAME (attachment_id: ID)"), pass `attachment_id`; for a file placed in the shared folder, pass its name as `audio`. Each line of the transcript starts with the time in the recording; keep those times when you quote it, and give the subtitle links as they are returned.
 
       ## Text-to-Speech (Recommended)
       When the user requests audio generation:

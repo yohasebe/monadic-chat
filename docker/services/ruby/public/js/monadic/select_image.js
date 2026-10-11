@@ -9,45 +9,75 @@ const MAX_PDF_SIZE = 35; // Maximum PDF file size in MB
 const MAX_FILE_SIZE = 50; // Maximum file size in MB for File Inputs API documents
 const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 
-// Videos are not put into the message: they go to the server as attachments
-// of this chat (POST /attachments), and the message names them by
-// attachment_id. Only apps that import the video_analysis tools take them.
-// The same list the server accepts for video attachments (FileTypes); a
-// spec checks that the two agree.
+// Videos and audio files are not put into the message: they go to the server
+// as attachments of this chat (POST /attachments), and the message names them
+// by attachment_id. Only apps that import the video_analysis tools take
+// videos, and only apps that import the audio_transcription tools take audio.
+// The same lists the server accepts for each purpose (FileTypes); a spec
+// checks that they agree.
 const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.avi'];
-let videoAttachments = []; // [{ attachment_id, name, size }]
+const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.opus', '.flac', '.aac', '.webm'];
+// Every attachment of the next message, videos and audio alike (the names
+// say "video" from when only videos were attached).
+let videoAttachments = []; // [{ attachment_id, name, size, purpose }]
 // Advances whenever the list is cleared (Reset, app switch, sent): an upload
 // that finishes after that belonged to the chat that was left, and is dropped.
 let attachmentGeneration = 0;
 
-function appTakesVideoAttachments(appName) {
+function appImportsToolGroup(appName, groupName) {
   const app = (typeof apps !== 'undefined' && apps) ? apps[appName] : null;
   if (!app || !app.imported_tool_groups) return false;
   try {
     const groups = typeof app.imported_tool_groups === 'string' ? JSON.parse(app.imported_tool_groups) : app.imported_tool_groups;
-    return Array.isArray(groups) && groups.some(function (g) { return g && g.name === 'video_analysis' && g.available !== false; });
+    return Array.isArray(groups) && groups.some(function (g) { return g && g.name === groupName && g.available !== false; });
   } catch (_) {
     return false;
   }
 }
 
-function isVideoFile(file) {
-  const name = String((file && file.name) || '').toLowerCase();
-  return VIDEO_EXTENSIONS.some(function (ext) { return name.endsWith(ext); });
+function appTakesVideoAttachments(appName) {
+  return appImportsToolGroup(appName, 'video_analysis');
 }
 
-// Sends the video to the chat's folder on the server. The server checks the
+function appTakesAudioAttachments(appName) {
+  return appImportsToolGroup(appName, 'audio_transcription');
+}
+
+function hasExtension(file, extensions) {
+  const name = String((file && file.name) || '').toLowerCase();
+  return extensions.some(function (ext) { return name.endsWith(ext); });
+}
+
+function isVideoFile(file) {
+  return hasExtension(file, VIDEO_EXTENSIONS);
+}
+
+function isAudioFile(file) {
+  return hasExtension(file, AUDIO_EXTENSIONS);
+}
+
+// What a file would be attached as in this app: 'video', 'audio', or null
+// (it goes the usual way). A video app takes .webm as a video.
+function attachmentPurposeFor(file, appName) {
+  if (isVideoFile(file) && appTakesVideoAttachments(appName)) return 'video';
+  if (isAudioFile(file) && appTakesAudioAttachments(appName)) return 'audio';
+  return null;
+}
+
+// Sends the file to the chat's folder on the server. The server checks the
 // type and size and refuses what it cannot use, with a reason.
-async function uploadVideoAttachment(file) {
+async function uploadVideoAttachment(file, purpose) {
+  purpose = purpose || 'video';
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('purpose', 'video');
+  formData.append('purpose', purpose);
   const tabId = typeof window.getMonadicTabId === 'function' ? window.getMonadicTabId() : '';
   const url = '/attachments?tab_id=' + encodeURIComponent(tabId || '');
   const generation = attachmentGeneration;
   const record = await window.monadicFetch.postJson(url, formData);
   if (generation !== attachmentGeneration) return null;
-  videoAttachments.push({ attachment_id: record.attachment_id, name: record.name || file.name, size: record.size || file.size });
+  videoAttachments.push({ attachment_id: record.attachment_id, name: record.name || file.name, size: record.size || file.size,
+                          purpose: record.purpose || purpose });
   updateFileDisplay(images);
   return record;
 }
@@ -56,11 +86,12 @@ function hasVideoAttachments() {
   return videoAttachments.length > 0;
 }
 
-// The lines that tell the model which videos are attached. The list is left
+// The lines that tell the model which files are attached. The list is left
 // as it is: it is cleared once the message has actually been sent.
 function videoAttachmentLines() {
   return videoAttachments.map(function (v) {
-    return 'Attached video: ' + v.name + ' (attachment_id: ' + v.attachment_id + ')';
+    const kind = v.purpose === 'audio' ? 'audio' : 'video';
+    return 'Attached ' + kind + ': ' + v.name + ' (attachment_id: ' + v.attachment_id + ')';
   }).join('\n');
 }
 
@@ -282,6 +313,12 @@ if (selectFileButton) {
       const videoNote = getTranslation('ui.fileToImportVideo', 'Video (.mp4, .mov, .webm, .mkv, ...)');
       if (imageFileLabel) imageFileLabel.textContent = imageFileLabel.textContent + ' / ' + videoNote;
     }
+    // Apps that transcribe audio take an audio file, as an attachment.
+    if (appTakesAudioAttachments(currentApp) && imageFileEl) {
+      imageFileEl.setAttribute('accept', imageFileEl.getAttribute('accept') + ',' + AUDIO_EXTENSIONS.join(','));
+      const audioNote = getTranslation('ui.fileToImportAudio', 'Audio (.mp3, .m4a, .wav, .ogg, .flac, ...)');
+      if (imageFileLabel) imageFileLabel.textContent = imageFileLabel.textContent + ' / ' + audioNote;
+    }
 
     // Show/hide URL input section for Responses API models
     const isResponsesApi = window.isResponsesApiModel ? window.isResponsesApiModel(selectedModel) : false;
@@ -321,13 +358,16 @@ if (uploadImageBtn) {
     const imageModal = $id("imageModal");
     const selectImageError = $id("select_image_error");
 
-    if (file && isVideoFile(file) && appTakesVideoAttachments(currentApp)) {
+    const purpose = file ? attachmentPurposeFor(file, currentApp) : null;
+    if (purpose) {
       if (imageModal) imageModal.querySelectorAll("button").forEach(function(btn) { btn.disabled = true; });
       if (selectImageError) {
-        selectImageError.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' +
-          window.escapeHtml(getTranslation('ui.messages.uploadingVideo', 'Uploading the video...'));
+        const uploading = purpose === 'audio'
+          ? getTranslation('ui.messages.uploadingAudio', 'Uploading the audio file...')
+          : getTranslation('ui.messages.uploadingVideo', 'Uploading the video...');
+        selectImageError.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + window.escapeHtml(uploading);
       }
-      uploadVideoAttachment(file)
+      uploadVideoAttachment(file, purpose)
         .then(function () {
           if (selectImageError) selectImageError.innerHTML = "";
           if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
@@ -588,12 +628,13 @@ function updateFileDisplay(files) {
     }
   });
 
-  // Attached videos: on the server already, named in the next message.
+  // Attached videos and audio: on the server already, named in the next message.
   videoAttachments.forEach(function (video, index) {
     const sizeMb = (Number(video.size || 0) / (1024 * 1024)).toFixed(1);
+    const icon = video.purpose === 'audio' ? 'fa-file-audio' : 'fa-film';
     if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
       <div class="file-container video-attachment">
-        <i class="fas fa-film"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)
+        <i class="fas ${icon}"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)
         <button class='btn btn-secondary btn-sm remove-video' data-index='${index}' tabindex="99">
           <i class="fas fa-times"></i>
         </button>
@@ -743,7 +784,10 @@ window.updateFileDisplay = updateFileDisplay;
 window.limitImageCount = limitImageCount;
 window.clearAllImages = clearAllImages;
 window.appTakesVideoAttachments = appTakesVideoAttachments;
+window.appTakesAudioAttachments = appTakesAudioAttachments;
+window.attachmentPurposeFor = attachmentPurposeFor;
 window.isVideoFile = isVideoFile;
+window.isAudioFile = isAudioFile;
 window.uploadVideoAttachment = uploadVideoAttachment;
 window.hasVideoAttachments = hasVideoAttachments;
 window.videoAttachmentLines = videoAttachmentLines;

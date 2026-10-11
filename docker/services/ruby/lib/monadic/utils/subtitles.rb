@@ -10,6 +10,9 @@ module Monadic
     # later time (timeline_origin_ms). That time is added, so the subtitles
     # keep to the picture. A first frame before the file's zero (a negative
     # time, as WebM and MKV can have) is shown at zero, so nothing is added.
+    # For an audio file the segmenter says where a player shows sample 0
+    # (player_offset_ms): not the decoded origin, which an MP3's encoder
+    # delay moves while the player's clock stays.
     module Subtitles
       module_function
 
@@ -39,7 +42,7 @@ module Monadic
         rate = result["sample_rate_hz"].to_f
         return [] unless rate.positive?
 
-        origin = [result["timeline_origin_ms"].to_f / 1000, 0].max
+        origin = [player_offset_ms(result) / 1000, 0].max
         Array(result["segments"]).filter_map do |seg|
           text = seg["text"].to_s.gsub(/\r\n?/, "\n").gsub(/\n{2,}/, "\n").strip
           next if seg["status"] != "complete" || text.empty?
@@ -48,6 +51,12 @@ module Monadic
           stop = origin + (seg["end_sample"].to_f / rate)
           [start, stop, text] if start >= 0 && stop > start
         end
+      end
+
+      # Where a player shows sample 0, in milliseconds.
+      def player_offset_ms(result)
+        offset = result.dig("source", "player_offset_ms") if result["source"].is_a?(Hash)
+        (offset || result["timeline_origin_ms"]).to_f
       end
 
       def clock(seconds, separator)

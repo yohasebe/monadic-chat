@@ -76,6 +76,14 @@ module Monadic
       # What both ways of sending have in common: reading a segment's audio
       # from the PCM file and writing the timed transcript document.
       module Shared
+        # The document as far as it has got, for a run stopped before it
+        # returned (Reset or Cancel kill the thread running it): the segments
+        # done so far, the rest still pending. nil before the run began.
+        def snapshot(status = 'stopped')
+          segments, results = @progress
+          segments && document(segments, results, status)
+        end
+
         private
 
         def segment_audio(seg)
@@ -105,6 +113,8 @@ module Monadic
             'timebase' => @doc['timebase'], 'sample_rate_hz' => @doc['sample_rate_hz'],
             'interval_convention' => @doc['interval_convention'],
             'timeline_origin_ms' => @doc['timeline_origin_ms'],
+            # where the audio came from (an audio file: its clock, track, codec)
+            **(@doc['source'] ? { 'source' => @doc['source'] } : {}),
             'status' => status, 'model' => @model,
             'detector' => @doc['detector'], 'segmentation' => @doc['segmentation'],
             'segments' => out,
@@ -112,6 +122,15 @@ module Monadic
                             'completed_segment_count' => segments.size - failed.size,
                             'unresolved_segment_ids' => failed }
           }
+        end
+
+        # Told before each attempt is sent, with the seconds of audio it sends
+        # (what the caller charges for: an attempt is sent whether or not an
+        # answer comes back).
+        def attempt_seconds(seg)
+          return unless @on_attempt
+
+          @on_attempt.call((Integer(seg['end_sample']) - Integer(seg['start_sample'])).to_f / RATE)
         end
 
         def fail_segment(result, reason)
@@ -126,7 +145,10 @@ module Monadic
       include Shared
 
       def initialize(segments:, pcm_path:, model:, connect:, segment_timeout: 90, session_timeout: 20,
-                     max_attempts: 3, max_connections: 6, cancelled: -> { false }, on_progress: nil)
+                     max_attempts: 3, max_connections: 6, cancelled: -> { false }, on_progress: nil, language: nil,
+                     on_attempt: nil)
+        @on_attempt = on_attempt
+        @language = language.to_s.empty? || language.to_s == 'auto' ? nil : language.to_s
         @doc = segments
         @pcm_path = pcm_path
         @model = model
@@ -142,6 +164,7 @@ module Monadic
       def run
         segments = Array(@doc['segments'])
         results = segments.to_h { |s| [s['segment_id'], { 'status' => 'pending', 'attempts' => 0 }] }
+        @progress = [segments, results].freeze # one assignment: snapshot sees both or neither
         status = nil
         connections = 0
         while status.nil?
@@ -173,6 +196,7 @@ module Monadic
           result = results[seg['segment_id']]
           loop do
             result['attempts'] += 1
+            attempt_seconds(seg)
             attempt_id = "attempt#{format('%04d', result['attempts'])}"
             begin
               outcome = transcribe_segment(conn, seg, "#{seg['segment_id']}_#{connection_id}_#{attempt_id}")
@@ -218,7 +242,8 @@ module Monadic
         conn.write({ type: 'session.update', session: {
                      type: 'transcription',
                      audio: { input: { format: { type: 'audio/pcm', rate: RATE },
-                                       transcription: { model: @model }, turn_detection: nil } }
+                                       transcription: { model: @model, language: @language }.compact,
+                                       turn_detection: nil } }
                    } })
         deadline = now + @session_timeout
         loop do
@@ -311,7 +336,8 @@ module Monadic
         include Shared
 
         def initialize(segments:, pcm_path:, model:, transcribe:, concurrency: 4, max_attempts: 3,
-                       cancelled: -> { false })
+                       cancelled: -> { false }, on_attempt: nil)
+          @on_attempt = on_attempt
           @doc = segments
           @pcm_path = pcm_path
           @model = model
@@ -324,6 +350,7 @@ module Monadic
         def run
           segments = Array(@doc['segments'])
           results = segments.to_h { |s| [s['segment_id'], { 'status' => 'pending', 'attempts' => 0 }] }
+          @progress = [segments, results].freeze # one assignment: snapshot sees both or neither
           Sync do
             semaphore = Async::Semaphore.new(@concurrency)
             segments.map { |seg| semaphore.async { transcribe_segment(seg, results[seg['segment_id']]) } }
@@ -342,6 +369,7 @@ module Monadic
             return if @cancelled.call
 
             result['attempts'] += 1
+            attempt_seconds(seg)
             text = begin
               @transcribe.call(wav).to_s
             rescue StandardError => e

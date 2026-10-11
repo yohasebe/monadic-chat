@@ -10,6 +10,20 @@ module Monadic
       ISO_MEDIA = ->(head) { head.bytesize >= 12 && head.byteslice(4, 4) == 'ftyp' }
       EBML = ->(head) { head.start_with?("\x1A\x45\xDF\xA3".b) }
       AVI = ->(head) { head.start_with?('RIFF'.b) && head.byteslice(8, 4) == 'AVI '.b }
+      WAVE = ->(head) { head.start_with?('RIFF'.b) && head.byteslice(8, 4) == 'WAVE'.b }
+      ID3 = ->(head) { head.start_with?('ID3'.b) }
+      # An MPEG audio frame header: 11 sync bits, then a version and layer
+      # that are not the reserved values.
+      MPEG_AUDIO = lambda do |head|
+        b0 = head.getbyte(0)
+        b1 = head.getbyte(1)
+        b0 == 0xFF && b1 && (b1 & 0xE0) == 0xE0 && (b1 & 0x18) != 0x08 && (b1 & 0x06) != 0x00
+      end
+      MP3 = ->(head) { ID3.call(head) || MPEG_AUDIO.call(head) }
+      # ADTS: 12 sync bits and layer 0.
+      ADTS = ->(head) { head.getbyte(0) == 0xFF && head.getbyte(1) && (head.getbyte(1) & 0xF6) == 0xF0 }
+      FLAC = ->(head) { head.start_with?('fLaC'.b) }
+      OGG = ->(head) { head.start_with?('OggS'.b) }
 
       PURPOSES = {
         'video' => {
@@ -19,6 +33,16 @@ module Monadic
           '.webm' => EBML,
           '.mkv' => EBML,
           '.avi' => AVI
+        }.freeze,
+        'audio' => {
+          '.mp3' => MP3,
+          '.m4a' => ISO_MEDIA,
+          '.wav' => WAVE,
+          '.ogg' => OGG,
+          '.opus' => OGG,
+          '.flac' => FLAC,
+          '.aac' => ->(head) { ADTS.call(head) || ID3.call(head) },
+          '.webm' => EBML
         }.freeze
       }.freeze
 

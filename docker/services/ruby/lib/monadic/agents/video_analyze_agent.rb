@@ -6,8 +6,8 @@ require_relative '../utils/provider_capabilities'
 require_relative '../utils/shared_path_guard'
 require_relative '../utils/video_probe'
 require_relative '../utils/model_spec'
-require_relative '../utils/segment_transcriber'
-require_relative '../utils/subtitles'
+require_relative '../utils/timed_transcription'
+require_relative '../utils/public_copy'
 require_relative '../shell'
 require_relative '../workspace'
 
@@ -65,10 +65,10 @@ module VideoAnalyzeAgent
                      "Rebuild it (Actions > Build Python Container) and try again."
   # Finds speech in the attached video's audio and cuts it into segments of
   # at most 30 seconds, with times on the video's clock (Python container).
-  SEGMENT_SCRIPT = "/monadic/scripts/converters/speech_segments.py"
+  SEGMENT_SCRIPT = Monadic::Utils::TimedTranscription::SEGMENT_SCRIPT
   # Providers whose own speech-to-text transcribes the speech segments:
   # OpenAI over a realtime session, the others one request per segment.
-  SEGMENT_TRANSCRIPTION_PROVIDERS = %w[openai google xai].freeze
+  SEGMENT_TRANSCRIPTION_PROVIDERS = Monadic::Utils::TimedTranscription::PROVIDERS
   UNTIMED_NOTE = "(Without times: the Python container predates timed transcripts. " \
                  "Rebuild it with Actions > Build Python Container to get them.)"
 
@@ -257,22 +257,8 @@ module VideoAnalyzeAgent
     publish_copy(record[:path], "pub_#{record[:attachment_id]}#{ext}")
   end
 
-  # Copies a file to the top of the shared folder under name (once: an
-  # existing copy of the same size is kept) and returns its /data address,
-  # or nil when it cannot be made.
   def publish_copy(source, name)
-    dest = File.join(Monadic::Utils::Environment.data_path, name)
-    unless File.file?(dest) && File.size(dest) == File.size(source)
-      partial = "#{dest}.part-#{Process.pid}"
-      File.open(source, "rb") { |src| File.open(partial, "wb") { |out| IO.copy_stream(src, out) } }
-      File.rename(partial, dest)
-    end
-    "/data/#{name}"
-  rescue SystemCallError, IOError
-    nil
-  ensure
-    # A copy left half-written (failed, or stopped by Reset or Cancel).
-    File.delete(partial) if partial && File.exist?(partial) rescue nil
+    Monadic::Utils::PublicCopy.publish(source, name)
   end
 
   # A video placed in the shared folder by name (the way before attachments).
@@ -317,13 +303,11 @@ module VideoAnalyzeAgent
     Monadic::Shell.exec(container: :python, argv: argv, timeout: VIDEO_EXTRACT_TIMEOUT)
   end
 
-  # A transcript whose lines carry the video time of the speech they hold:
-  # speech_segments.py cuts the audio into segments, and each segment is
-  # transcribed on its own over a realtime transcription session, so the
-  # times are the segments' own positions, never the model's guesses.
-  # Returns nil when this path does not apply (another provider, or no model
-  # that can do it), { fallback: true } when the Python container is too old
-  # (the untimed transcript is used, with a note saying so), or { text: }.
+  # The transcript with the video times of its speech (Monadic::Utils::
+  # TimedTranscription), for this app's provider. Returns nil when this path
+  # does not apply (another provider, or no model that can do it),
+  # { fallback: true } when the Python container is too old (the untimed
+  # transcript is used, with a note saying so), or { text:, subtitles: }.
   # Stops sending when the chat changes; the result stays in the run folder.
   def timed_transcript(extracted, provider, session)
     return nil unless SEGMENT_TRANSCRIPTION_PROVIDERS.include?(provider)
@@ -337,73 +321,15 @@ module VideoAnalyzeAgent
     job, output = transcript_job(extracted, session)
     return nil unless job
 
-    _stdout, stderr, status = Monadic::Shell.exec(
-      container: :python, argv: ["python", SEGMENT_SCRIPT, extracted[:input], output],
-      timeout: VIDEO_EXTRACT_TIMEOUT
-    )
-    return { fallback: true } if old_python_image?(stderr)
-
-    segments_path = Monadic::Workspace::Jobs.outputs(job, /\Asegments\.json\z/).first
-    unless status.success? && segments_path
-      detail = stderr.to_s.lines.last.to_s.strip
-      return { text: "Audio transcription failed: could not find speech in the audio.#{" #{detail}" unless detail.empty?}" }
-    end
-
-    doc = JSON.parse(File.read(segments_path))
-    return { text: "(The video has no audio track.)" } if doc["status"] == "absent"
-    return { text: "(No speech was detected in the audio.)" } if doc["status"] == "no_speech_detected"
-
     key_name = AudioTranscriptionAgent::AUDIO_API_KEYS[provider]
-    api_key = CONFIG[key_name].to_s.strip
-    return { text: "Audio transcription failed: #{key_name} is not set." } if api_key.empty?
-
-    pcm_path = Monadic::Workspace::Jobs.outputs(job, /\Aaudio_24k\.pcm\z/).first
     owner_chat = extracted.key?(:chat_id) ? extracted[:chat_id] : chat_id
-    cancelled = -> { session && session[Monadic::Workspace::Chats::SESSION_KEY] != owner_chat }
-    result = if provider == "openai"
-               Sync do
-                 Monadic::Utils::SegmentTranscriber.new(
-                   segments: doc, pcm_path: pcm_path, model: model, cancelled: cancelled,
-                   connect: -> { Monadic::Utils::SegmentTranscriber::WebSocketConnection.open(api_key) }
-                 ).run
-               end
-             else
-               Monadic::Utils::SegmentTranscriber::Batch.new(
-                 segments: doc, pcm_path: pcm_path, model: model, cancelled: cancelled,
-                 transcribe: ->(wav) { transcribe_audio_bytes(provider, wav, "wav", model) }
-               ).run
-             end
-    File.write(File.join(job[:path], "transcript.json"), JSON.pretty_generate(result))
-    { text: format_timed_transcript(result), subtitles: write_subtitles(job, result) }
-  rescue Monadic::Shell::TimedOut
-    { text: "Audio transcription failed: finding speech took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes." }
-  rescue JSON::ParserError, SystemCallError => e
-    { text: "Audio transcription failed: #{e.class.name.split('::').last}" }
-  ensure
-    # The decoded audio (about 144 MB for 50 minutes) is only needed while
-    # the segments are sent: removed however this ends, Reset and Cancel too.
-    remove_decoded_audio(job) if job
-  end
-
-  def remove_decoded_audio(job)
-    Monadic::Workspace::Jobs.outputs(job, /\Aaudio_24k\.pcm\z/).each { |path| File.delete(path) }
-  rescue SystemCallError, Monadic::Workspace::Jobs::Unavailable
-    nil
-  end
-
-  # Subtitle files for the transcript, in the run folder and as public copies
-  # the page can load (WebVTT for the player, SRT for other programs).
-  # Returns { vtt:, srt: } addresses, or nil when there is nothing to show.
-  def write_subtitles(job, result)
-    return nil if Monadic::Utils::Subtitles.cues(result).empty?
-
-    { vtt: Monadic::Utils::Subtitles.vtt(result), srt: Monadic::Utils::Subtitles.srt(result) }.to_h do |kind, body|
-      path = File.join(job[:path], "transcript.#{kind}")
-      File.write(path, body)
-      [kind, publish_copy(path, "pub_#{job[:job_id]}.#{kind}")]
-    end.compact.then { |links| links.empty? ? nil : links }
-  rescue SystemCallError, IOError
-    nil
+    language = AudioTranscriptionAgent.chat_language(session)
+    Monadic::Utils::TimedTranscription.new(
+      provider: provider, model: model, api_key: CONFIG[key_name], api_key_name: key_name,
+      input: extracted[:input], job: job, output: output, timeout: VIDEO_EXTRACT_TIMEOUT, language: language,
+      cancelled: -> { session && session[Monadic::Workspace::Chats::SESSION_KEY] != owner_chat },
+      transcribe_bytes: ->(wav) { transcribe_audio_bytes(provider, wav, "wav", model, language) }
+    ).run.slice(:text, :subtitles, :fallback)
   end
 
   # The run folder for the transcript: the attachment's own, or for a video
@@ -429,51 +355,15 @@ module VideoAnalyzeAgent
   # others, the chat's selection when it is theirs, otherwise their default.
   def segment_transcription_model(provider, session)
     selected = session&.dig(:parameters, "stt_model") || settings.dig(:agents, :speech_to_text)
-    return AudioTranscriptionAgent.model_for(provider, selected) unless provider == "openai"
-
-    [AudioTranscriptionAgent.model_for("openai", selected), AudioTranscriptionAgent.audio_model_for("openai")]
-      .compact.find { |m| Monadic::Utils::ModelSpec.supports_segment_transcription?(m) }
+    AudioTranscriptionAgent.segment_model_for(provider, selected)
   end
 
   def old_python_image?(stderr)
-    text = stderr.to_s
-    text.include?("can't open file") || text.include?("No module named 'onnxruntime'") ||
-      text.include?("Speech detection model not found")
+    Monadic::Utils::TimedTranscription.old_python_image?(stderr)
   end
 
-  # One line per segment: "[start–end] text", times on the video's clock.
   def format_timed_transcript(result)
-    if result["status"] == "failed"
-      reason = result["segments"].filter_map { |seg| seg["error"] }.first
-      return "Audio transcription failed#{": #{reason}" if reason}."
-    end
-
-    rate = result["sample_rate_hz"].to_f
-    shown = result["segments"].reject do |seg|
-      seg["status"] == "pending" || (seg["status"] == "complete" && seg["text"].to_s.strip.empty?)
-    end
-    lines = shown.map do |seg|
-      # Rounded outward, so the span never cuts into the speech it holds.
-      span = "[#{video_clock((seg['start_sample'] / rate).floor)}–#{video_clock((seg['end_sample'] / rate).ceil)}]"
-      text = case seg["status"]
-             when "complete" then seg["text"].to_s.strip
-             else "(transcription failed)"
-             end
-      "#{span} #{text}"
-    end
-    case result["status"]
-    when "partial" then lines << "(Some segments could not be transcribed.)"
-    when "cancelled" then lines << "(Stopped because the chat changed.)"
-    end
-    # The lines count from the first frame; a player counts from the file's
-    # zero, which differ when the picture starts later (the subtitles follow
-    # the player).
-    origin = result["timeline_origin_ms"].to_f / 1000
-    if origin >= 1
-      lines << "(These times count from the first video frame, which a player shows at " \
-               "#{video_clock(origin.floor)}; the subtitles follow the player's time.)"
-    end
-    lines.join("\n")
+    Monadic::Utils::TimedTranscription.format_transcript(result)
   end
 
   # Read the frames JSON file from the shared volume.
@@ -627,9 +517,7 @@ module VideoAnalyzeAgent
 
   # Video times as people read them: whole seconds ("01:05", "1:02:03").
   def video_clock(seconds)
-    hours, rest = seconds.to_i.divmod(3600)
-    minutes, secs = rest.divmod(60)
-    hours.positive? ? format("%d:%02d:%02d", hours, minutes, secs) : format("%02d:%02d", minutes, secs)
+    Monadic::Utils::TimedTranscription.clock(seconds)
   end
 
   # A frame's time: whole seconds, with tenths only for a frame between two

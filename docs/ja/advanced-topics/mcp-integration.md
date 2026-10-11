@@ -226,3 +226,4 @@ puts client.call_method("tools/list")
 - `monadic_analyze_video` はフレーム抽出のため Python コンテナを必要とします。
 - 生成・解析系ツールは、該当プロバイダーの API キーを必要とします。
 - `monadic_analyze_image`、`monadic_transcribe_audio`、`monadic_analyze_video` には `provider` の指定が必要です。ファイルは指定したプロバイダーにだけ送られ、キーのある別のプロバイダーが自動で選ばれることはありません。
+- `monadic_transcribe_audio` は、ファイル全体を一度に文字起こしします（25 MB まで）。`timestamps: true` を指定すると（OpenAI、Google Gemini、xAI Grok）、各行の先頭に録音の中での時刻が付き、50 分までの録音を 25 MB の上限なしで受け付けます（AAC と Opus も）。文字起こし（`transcript.json`）と字幕（`.vtt`、`.srt`）は共有ボリュームの `transcriptions/` の下に保存され、結果にはそこでのパスが示されます。この方法はバックグラウンドで実行する必要があり（`monadic_submit`）、返すテキストは 32 KB までです（切った場合は `truncated` で示します。保存した文字起こしは全文です）。このバージョン用に作られた Python コンテナが必要です。

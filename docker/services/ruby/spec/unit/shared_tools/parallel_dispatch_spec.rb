@@ -750,4 +750,60 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       end
     end
   end
+
+  describe "when the reply running it is stopped (Reset or Cancel)" do
+    it "stops its sub-tasks too, and they send no progress afterwards" do
+      started = Queue.new
+      children = []
+      progress = []
+      allow(app).to receive(:sub_agent_api_call) do |*_args, **_kw|
+        children << Thread.current
+        started << true
+        sleep 30
+        "too late"
+      end
+      allow(app).to receive(:send_parallel_progress) { |message, *_| progress << message }
+      reply = Thread.new { app.dispatch_parallel_tasks(tasks: valid_tasks, session: session) }
+      valid_tasks.size.times { started.pop }
+      progress.clear
+
+      reply.kill
+      reply.join(10)
+      sleep 0.2
+
+      expect(reply).not_to be_alive
+      expect(children).to all(satisfy { |t| !t.alive? })
+      expect(progress).to be_empty
+    end
+
+    it "stops the sub-tasks already started when stopped while starting the rest" do
+      children = []
+      started = Queue.new
+      allow(app).to receive(:sub_agent_api_call) do |*_args, **_kw|
+        children << Thread.current
+        started << true
+        sleep 30
+      end
+      progress = []
+      allow(app).to receive(:send_parallel_progress) { |message, *_| progress << message }
+      spawned = 0
+      allow(MonadicSharedTools::ChildThreads).to receive(:spawn).and_wrap_original do |original, *args, &work|
+        original.call(*args, &work)
+        spawned += 1
+        sleep 30 if spawned == 1 # stopped here, before the second is started
+      end
+      reply = Thread.new { app.dispatch_parallel_tasks(tasks: valid_tasks, session: session) }
+      started.pop
+      progress.clear
+
+      reply.kill
+      reply.join(10)
+      sleep 0.2
+
+      expect(spawned).to eq(1)
+      expect(children.size).to eq(1)
+      expect(children.first).not_to be_alive
+      expect(progress).to be_empty
+    end
+  end
 end

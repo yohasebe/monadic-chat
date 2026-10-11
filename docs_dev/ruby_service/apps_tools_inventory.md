@@ -484,11 +484,11 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Video Describer (1 provider: OpenAI)
+### Video Describer (3 providers: OpenAI, Gemini, Grok)
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:video_analysis [always]`<br/>`:audio_transcription [always]`<br/>`:planning [always]` |
+| **Imported Tools** | `:video_analysis [always]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -550,7 +550,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | `:file_reading` | Code Interpreter, Jupyter Notebook, Math Tutor | 3 |
 | `:jupyter_operations` | Jupyter Notebook | 1 |
 | `:image_analysis` | Content Reader, Speech Draft Helper, Code Interpreter, Research Assistant, Coding Assistant (16 apps) | 16 |
-| `:audio_transcription` | Content Reader, Speech Draft Helper, Video Describer | 3 |
+| `:audio_transcription` | Content Reader, Speech Draft Helper | 2 |
 | `:video_analysis` | Video Describer | 1 |
 | `:web_automation` | Auto Forge, Web Insight | 2 |
 | `:planning` | All tool-enabled apps | 22 |

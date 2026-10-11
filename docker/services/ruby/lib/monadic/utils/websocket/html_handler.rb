@@ -6,6 +6,7 @@
 # extraction for monadic apps, and broadcasts to client.
 
 require_relative '../tts_instruction_extractor'
+require_relative '../../workspace'
 require_relative '../tts_marker_vocabulary'
 
 module WebSocketHelper
@@ -38,6 +39,11 @@ module WebSocketHelper
     thread&.join
     until queue.empty?
       last_one = queue.shift
+      # A response made for a chat that has since been reset or left is
+      # dropped, not shown in or saved to the chat the page is in now.
+      owner = last_one.delete("_chat_id") if last_one.is_a?(Hash)
+      next if owner && owner != session[Monadic::Workspace::Chats::SESSION_KEY]
+
       begin
         content = last_one["choices"][0]
 

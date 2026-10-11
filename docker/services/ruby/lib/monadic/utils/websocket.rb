@@ -63,7 +63,8 @@ module WebSocketHelper
       session_id,
       messages: session[:messages] || [],
       parameters: params,
-      chat_id: session[Monadic::Workspace::Chats::SESSION_KEY]
+      chat_id: session[Monadic::Workspace::Chats::SESSION_KEY],
+      generation: session[:_ws_generation]
     )
   end
 
@@ -106,12 +107,12 @@ module WebSocketHelper
       # Fallback: For connections without tab_id (e.g., background connections),
       # use a consistent session ID stored in Rack session
       # This ensures page reload preserves the session
-      ws_session_id = session[:websocket_session_id] if session.is_a?(Hash)
+      ws_session_id = session[:websocket_session_id] if session.respond_to?(:key?)
 
       if ws_session_id.nil?
         # Generate new UUID only if no session exists
         ws_session_id = SecureRandom.uuid
-        session[:websocket_session_id] = ws_session_id if session.is_a?(Hash)
+        session[:websocket_session_id] = ws_session_id if session.respond_to?(:key?)
       end
     end
 
@@ -123,6 +124,9 @@ module WebSocketHelper
 
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session
+      # This connection's generation; writes from a connection it replaced
+      # are ignored from now on.
+      session[:_ws_generation] = WebSocketHelper.claim_session_state(ws_session_id)
 
       # Tab isolation: Each tab must have completely independent session state
       # Always initialize with empty session first to clear any Rack session data from other tabs
@@ -149,6 +153,9 @@ module WebSocketHelper
 
       queue = Queue.new
       thread = nil
+      # An AI User suggestion being written: kept apart from the reply, so
+      # that what waits for the reply (HTML, PLAY_TTS) does not wait for it.
+      suggestion = nil
 
       # Send initial load message immediately after connection
       handle_load_message(connection)
@@ -180,6 +187,8 @@ module WebSocketHelper
 
           thread&.kill
           thread = nil
+          suggestion&.kill
+          suggestion = nil
           queue.clear
 
           cancel_message = { "type" => "cancel" }.to_json
@@ -220,6 +229,14 @@ module WebSocketHelper
           # Send PONG only to the connection that sent PING (connection-specific keepalive)
           send_to_client(connection, { "type" => "pong" })
         when "RESET"
+          # A reply still being written belongs to the chat being reset. It
+          # is stopped as Cancel stops it, before the session is cleared:
+          # otherwise its tools could finish later and write their results
+          # (the last image, a gallery) into the next chat's session.
+          stop_running_reply(thread, queue)
+          thread = nil
+          stop_running_reply(suggestion, nil)
+          suggestion = nil
           handle_ws_reset(session)
         when "LOAD"
           # Store ui_language in session parameters if provided
@@ -243,7 +260,7 @@ module WebSocketHelper
         when "UPDATE_CONTEXT_FROM_CLIENT"
           handle_context_update_from_client(connection, obj)
         when "AI_USER_QUERY"
-          handle_ws_ai_user_query(connection, obj, session, thread)
+          suggestion = handle_ws_ai_user_query(connection, obj, session, thread, suggestion) || suggestion
         when "HTML"
           handle_ws_html(connection, obj, session, thread, queue)
         when "UPDATE_PARAMS"
@@ -316,6 +333,7 @@ module WebSocketHelper
       Thread.current[:rack_session] = nil
 
       thread&.kill
+      suggestion&.kill
     end
   end
 

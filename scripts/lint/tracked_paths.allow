@@ -68,6 +68,7 @@ docker/services/privacy/language_map.json
 docker/services/privacy/recognizers/*.yaml
 docker/services/python/**/*.{py,sh}
 docker/services/python/matplotlibrc
+docker/services/python/licenses/silero-vad-LICENSE
 docker/services/python/@jupyterlab/**/*.jupyterlab-settings
 
 # Ruby service: application code

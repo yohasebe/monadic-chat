@@ -36,7 +36,7 @@
 | Concept Visualizer | ✅ | ✅ | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | |
 | Web Insight | ✅ | ✅ | | | ✅ | ✅ | | |
-| Video Describer | ✅ | | | | | | | |
+| Video Describer | ✅ | | | | ✅ | ✅ | | |
 | Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

@@ -4,6 +4,8 @@ require 'cgi'
 require 'json'
 require 'timeout'
 
+require_relative 'child_threads'
+
 module MonadicSharedTools
   module ParallelPythonExecution
     include MonadicHelper
@@ -54,42 +56,53 @@ module MonadicSharedTools
       completed_count = 0
       completed_mutex = Mutex.new
 
-      threads = tasks.map do |task|
-        Thread.new(task) do |t|
-          Thread.current.report_on_exception = false
-          begin
-            output = Timeout.timeout(timeout_val) do
-              run_code(code: t["code"], command: "python", extension: "py")
-            end
+      # Started and waited for inside one begin, so stopping this reply at any
+      # point (even while the threads are being started) stops every one.
+      threads = []
+      waited = false
+      begin
+        tasks.each do |task|
+          MonadicSharedTools::ChildThreads.spawn(threads, task) do |t|
+            Thread.current.report_on_exception = false
+            begin
+              output = Timeout.timeout(timeout_val) do
+                run_code(code: t["code"], command: "python", extension: "py")
+              end
 
-            results_mutex.synchronize do
-              results << { "id" => t["id"], "success" => true, "output" => output }
-            end
-          rescue Timeout::Error
-            results_mutex.synchronize do
-              results << { "id" => t["id"], "success" => false, "error" => "Timed out after #{timeout_val}s" }
-            end
-          rescue => e
-            results_mutex.synchronize do
-              results << { "id" => t["id"], "success" => false, "error" => e.message }
-            end
-          ensure
-            completed_mutex.synchronize do
-              completed_count += 1
-              send_code_progress(
-                "Parallel code execution: #{completed_count}/#{tasks.length} completed",
-                parent_ws_session_id, task_labels, completed_count
-              )
+              results_mutex.synchronize do
+                results << { "id" => t["id"], "success" => true, "output" => output }
+              end
+            rescue Timeout::Error
+              results_mutex.synchronize do
+                results << { "id" => t["id"], "success" => false, "error" => "Timed out after #{timeout_val}s" }
+              end
+            rescue => e
+              results_mutex.synchronize do
+                results << { "id" => t["id"], "success" => false, "error" => e.message }
+              end
+            ensure
+              # Not when stopped with the reply (Reset or Cancel): the page has moved on.
+              unless Thread.current[:stopped_with_reply]
+                completed_mutex.synchronize do
+                  completed_count += 1
+                  send_code_progress(
+                    "Parallel code execution: #{completed_count}/#{tasks.length} completed",
+                    parent_ws_session_id, task_labels, completed_count
+                  )
+                end
+              end
             end
           end
         end
+
+        # Wait for all threads (with buffer beyond per-task timeout)
+        threads.each { |t| t.join(timeout_val + 10) }
+        waited = true
+      ensure
+        # Hung ones, and all of them when this reply itself is stopped (Reset
+        # or Cancel kills the thread running it): none goes on by itself.
+        MonadicSharedTools::ChildThreads.stop(threads, quiet: !waited)
       end
-
-      # Wait for all threads (with buffer beyond per-task timeout)
-      threads.each { |t| t.join(timeout_val + 10) }
-
-      # Kill any hung threads
-      threads.each { |t| t.kill if t.alive? }
 
       # Force-stop further tool calls after results are returned.
       session[:call_depth_per_turn] = FORCE_STOP_DEPTH if session

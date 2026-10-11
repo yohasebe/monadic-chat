@@ -90,6 +90,24 @@ describe('monadicFetch', () => {
       });
     });
 
+    it("uses the server's own reason as the message when it gives one", async () => {
+      fetchSpy.mockResolvedValue(jsonResponse(
+        { error: 'The file is larger than the 200 MB limit.', reason: 'too_large' },
+        { status: 413, statusText: 'Payload Too Large' }
+      ));
+      await expect(monadicFetch.postJson('/pdf', new FormData())).rejects.toMatchObject({
+        message: 'The file is larger than the 200 MB limit.',
+        status: 413
+      });
+    });
+
+    it('falls back to the status line when the server gives no reason', async () => {
+      fetchSpy.mockResolvedValue(jsonResponse({ success: false }, { status: 502, statusText: 'Bad Gateway' }));
+      await expect(monadicFetch.postJson('/pdf', new FormData())).rejects.toMatchObject({
+        message: 'Request to /pdf failed: 502 Bad Gateway'
+      });
+    });
+
     it('throws a typed error when the response body is not parseable JSON', async () => {
       // The exact failure mode that produced the audit's
       // "No number after minus sign" defect: server claims JSON but

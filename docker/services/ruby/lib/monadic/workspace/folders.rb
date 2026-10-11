@@ -34,7 +34,13 @@ module Monadic
       # status is :ready, or :missing when the ledger names a folder that is
       # no longer there (it is not recreated under the same record).
       def ensure!(session, app_name:, ledger: Ledger.default, now: Time.now)
-        chat_id = Chats.current(session)
+        ensure_for_chat!(Chats.current(session), app_name: app_name, ledger: ledger, now: now)
+      end
+
+      # The same for a chat id fixed earlier, e.g. when an upload started.
+      def ensure_for_chat!(chat_id, app_name:, ledger: Ledger.default, now: Time.now)
+        raise ArgumentError, 'invalid chat id' unless Ids.valid?(:chat, chat_id)
+
         @mutex.synchronize do
           record = ledger.workspace_for_chat(chat_id)
           return describe(record) if record
@@ -66,8 +72,26 @@ module Monadic
 
       def describe(record)
         path = File.join(Monadic::Utils::Environment.data_path, record[:relative_dir])
-        status = File.directory?(path) && !File.symlink?(path) ? :ready : :missing
+        status = real_path(record[:relative_dir], :directory) ? :ready : :missing
         { workspace_id: record[:workspace_id], relative_dir: record[:relative_dir], path: path, status: status }
+      end
+
+      # The real local path of relative (a path the ledger recorded under the
+      # shared folder) if it is exactly there: the right kind of entry,
+      # reached without a link at any level. nil otherwise. The chat folders
+      # can be rewritten by code in the Python container, so every read and
+      # write of them goes through this, not only the first one.
+      def real_path(relative, kind = :file)
+        return nil if relative.to_s.empty? || relative.start_with?('/') || relative.split('/').include?('..')
+
+        expected = File.join(File.realpath(Monadic::Utils::Environment.data_path), relative)
+        return nil unless File.realpath(expected) == expected
+
+        stat = File.lstat(expected)
+        ok = kind == :directory ? stat.directory? : stat.file?
+        ok ? expected : nil
+      rescue SystemCallError
+        nil
       end
 
       # Each level is created exclusively and checked to be a real folder,

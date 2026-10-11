@@ -21,6 +21,7 @@ RSpec.describe "Web app and requests from other sites" do
     <<~'RUBY'
     require "rack"
     require "rack/mock_request"
+    require "tempfile"
     require "json"
     app, = Rack::Builder.parse_file("config.ru")
     req = Rack::MockRequest.new(app)
@@ -29,9 +30,15 @@ RSpec.describe "Web app and requests from other sites" do
       "--B\r\nContent-Disposition: form-data; name=\"#{field}\"; filename=\"#{name}\"\r\n" \
         "Content-Type: application/octet-stream\r\n\r\n#{body}\r\n--B--\r\n"
     end
+    # Every temporary file Rack makes for an upload, held here so garbage
+    # collection cannot remove it before it is counted.
+    made = []
+    factory = lambda do |filename, _type|
+      Tempfile.new(["RackMultipart", File.extname(filename.to_s)]).tap { |file| made << file }
+    end
     upload = lambda do |name, headers, path: "/upload_audio", field: "audioFile"|
       env = { input: form.call(field, name, "ID3"), "CONTENT_TYPE" => "multipart/form-data; boundary=B",
-              "HTTP_HOST" => "localhost:4567" }.merge(headers)
+              "HTTP_HOST" => "localhost:4567", "rack.multipart.tempfile_factory" => factory }.merge(headers)
       status = req.post("http://localhost:4567#{path}", env).status
       { "status" => status, "written" => File.exist?(File.join(data, name)) }
     end
@@ -51,6 +58,7 @@ RSpec.describe "Web app and requests from other sites" do
       "upload_own_page" => upload.call("d.mp3", { "HTTP_ORIGIN" => "http://localhost:4567" }),
       "upload_no_origin" => upload.call("e.mp3", {}),
       "document_other_site" => upload.call("f.txt", { "HTTP_ORIGIN" => "http://evil.example" }, path: "/document", field: "docFile"),
+      "attachment_other_site" => upload.call("g.mp4", { "HTTP_ORIGIN" => "http://evil.example" }, path: "/attachments?tab_id=t1", field: "file"),
       "ws_other_site" => ws.call({ "HTTP_ORIGIN" => "http://evil.example" }),
       "ws_null_origin" => ws.call({ "HTTP_ORIGIN" => "null" }),
       "ws_own_page" => ws.call({ "HTTP_ORIGIN" => "http://localhost:4567" }),
@@ -58,6 +66,42 @@ RSpec.describe "Web app and requests from other sites" do
       "read_own_host" => req.get("http://localhost:4567/", "HTTP_HOST" => "localhost:4567").status,
       "protection_reaction" => Sinatra::Application.protection[:reaction].to_s
     }
+
+    # A URL named after an app (GET /<app>) is only the shortcut to a file in
+    # the shared folder: any page can send it, and it must start no
+    # containers and leave the session alone. Container starts are counted.
+    starts = []
+    Monadic::Utils::ContainerDependencies.singleton_class.prepend(Module.new do
+      define_method(:ensure_services_async) { |name, **| (starts << name) && false }
+    end)
+    app_url = "/" + APPS.keys.first.to_s.gsub(/\s+/, "_").downcase
+    legacy = lambda do |site|
+      env = Rack::MockRequest.env_for("http://localhost:4567#{app_url}", "HTTP_HOST" => "localhost:4567")
+      env["HTTP_SEC_FETCH_SITE"] = site if site
+      status, headers, = app.call(env)
+      params = env["rack.session"] && (env["rack.session"][:parameters] || env["rack.session"]["parameters"])
+      { "status" => status, "location" => headers["location"].to_s.sub(%r{\Ahttps?://[^/]+}, ""),
+        "hint" => params && params["app_name"] }
+    end
+    # Each upload is capped before its body is read: a request declaring one
+    # byte over the limit is refused, an ordinary one is not.
+    caps = { "/pdf" => [PDF_UPLOAD_MAX_BYTES, "pdfFile"], "/document" => [DOCUMENT_UPLOAD_MAX_BYTES, "docFile"],
+             "/upload_audio" => [AUDIO_UPLOAD_MAX_BYTES, "audioFile"], "/load" => [SESSION_LOAD_MAX_BYTES, "file"],
+             "/library/import" => [LIBRARY_IMPORT_MAX_BYTES + 1_000_000, "libraryFile"] }
+    out["caps"] = caps.to_h do |path, (limit, field)|
+      over = req.post("http://localhost:4567#{path}", input: form.call(field, "x.mp3", "ID3"),
+                      "CONTENT_TYPE" => "multipart/form-data; boundary=B", "HTTP_HOST" => "localhost:4567",
+                      "HTTP_ORIGIN" => "http://localhost:4567", "CONTENT_LENGTH" => (limit + 1).to_s)
+      small = req.post("http://localhost:4567#{path}", input: form.call(field, "x.mp3", "ID3"),
+                       "CONTENT_TYPE" => "multipart/form-data; boundary=B", "HTTP_HOST" => "localhost:4567",
+                       "HTTP_ORIGIN" => "http://localhost:4567")
+      [path, { "over" => over.status, "over_reason" => (JSON.parse(over.body)["reason"] rescue nil), "small" => small.status }]
+    end
+
+    out["legacy_url"] = app_url
+    out["legacy_bookmark"] = legacy.call("none")
+    out["legacy_other_site"] = legacy.call("cross-site")
+    out["legacy_starts"] = starts
 
     # Documents in the shared folder that can run scripts are served in a
     # sandbox of their own origin, under every name the folder is served by.
@@ -104,6 +148,9 @@ RSpec.describe "Web app and requests from other sites" do
       out["ws_socket_null"] = connect.call("null")
       server.stop
     end
+    # Uploads leave no temporary files behind once answered.
+    out["upload_tempfiles_made"] = made.size
+    out["upload_tempfiles_left"] = made.count { |file| file.path && File.exist?(file.path) }
     STDOUT.puts "PROBE #{out.to_json}"
     STDOUT.flush
     exit!(0)
@@ -112,7 +159,9 @@ RSpec.describe "Web app and requests from other sites" do
 
   def probe
     Dir.mktmpdir("cross-site-home") do |home|
-      env = { "HOME" => home, "IN_CONTAINER" => "false", "EXTRA_LOGGING" => nil }
+      tmp = File.join(home, "tmp")
+      Dir.mkdir(tmp)
+      env = { "HOME" => home, "IN_CONTAINER" => "false", "EXTRA_LOGGING" => nil, "TMPDIR" => tmp }
       out, status = Open3.capture2e(env, RbConfig.ruby, "-e", probe_script, chdir: app_root)
       line = out.lines.find { |l| l.start_with?("PROBE ") }
       raise "probe failed (#{status.exitstatus}):\n#{out.lines.last(20).join}" unless line
@@ -124,10 +173,32 @@ RSpec.describe "Web app and requests from other sites" do
   # One boot for all examples.
   before(:all) { @result = probe }
 
+
+  it "caps every upload before reading it, and lets an ordinary one through" do
+    expect(@result["caps"].keys).to contain_exactly("/pdf", "/document", "/upload_audio", "/load", "/library/import")
+    @result["caps"].each do |path, r|
+      expect(r["over"]).to eq(413), path
+      expect(r["over_reason"]).to eq("too_large"), path
+      expect(r["small"]).not_to eq(413), path
+    end
+  end
+
+  it "treats a URL named after an app as a file shortcut that starts nothing and changes no session" do
+    expected = { "status" => 302, "location" => "/data#{@result['legacy_url']}", "hint" => nil }
+    expect(@result["legacy_bookmark"]).to eq(expected)
+    expect(@result["legacy_other_site"]).to eq(expected)
+    expect(@result["legacy_starts"]).to eq([])
+  end
+
   it "refuses uploads from other sites, null origins and rebinding pages, and writes nothing" do
-    %w[upload_other_site upload_null_origin upload_rebinding document_other_site].each do |key|
+    %w[upload_other_site upload_null_origin upload_rebinding document_other_site attachment_other_site].each do |key|
       expect(@result[key]).to eq({ "status" => 403, "written" => false }), key
     end
+  end
+
+  it "removes the temporary files of uploads once answered" do
+    expect(@result["upload_tempfiles_made"]).to be >= 2
+    expect(@result["upload_tempfiles_left"]).to eq(0)
   end
 
   it "still takes uploads from its own page and from programs" do

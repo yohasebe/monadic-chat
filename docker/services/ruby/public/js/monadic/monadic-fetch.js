@@ -76,8 +76,11 @@
     const data = await parseResponse(response);
 
     if (!response.ok) {
+      // The server's own explanation (e.g. "The file is larger than the
+      // 200 MB limit.") reads better than the status line when it gives one.
+      const reason = data && typeof data.error === 'string' && data.error.trim() ? data.error.trim() : null;
       const error = new Error(
-        `Request to ${url} failed: ${response.status} ${response.statusText}`
+        reason || `Request to ${url} failed: ${response.status} ${response.statusText}`
       );
       error.status = response.status;
       error.body = data;

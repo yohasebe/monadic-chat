@@ -62,8 +62,104 @@ RSpec.describe Monadic::Shell do
       expect(captured).to include('-e', 'FOO=bar', '-e', 'BAZ=qux')
     end
 
-    it 'forwards a timeout to Open3.capture3 only when requested' do
-      expect(Open3).to receive(:capture3).with(any_args, timeout: 5)
+    # Real processes, not a stubbed Open3: the stub once hid that
+    # Open3.capture3 has no timeout option, so every timed call raised.
+    it 'returns the output of a command that finishes within the timeout' do
+      stdout, stderr, status = described_class.capture(['sh', '-c', 'echo out; echo err >&2'], timeout: 5)
+      expect([stdout, stderr, status.success?]).to eq(["out\n", "err\n", true])
+    end
+
+    it 'stops a command that runs over the timeout and says so' do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      expect { described_class.capture(['sleep', '10'], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut, /did not finish within 1 seconds/)
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 5
+    end
+
+    it 'does not wait past the limit for a child that keeps the output open' do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      expect { described_class.capture(['sh', '-c', 'sleep 30 & wait'], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut)
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 6
+    end
+
+    it 'stops the children too, not only the command' do
+      marker = "monadic-shell-spec-#{Process.pid}-#{rand(100_000)}"
+      # The child is a shell named by the marker ($0), kept alive by a compound
+      # command so it does not exec into sleep and lose the name.
+      child = "sh -c 'sleep 30; :' #{marker} >/dev/null 2>&1"
+      expect { described_class.capture(["sh", "-c", "#{child} & exec sleep 30"], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut)
+      sleep 1
+      expect(`pgrep -f #{marker}`.strip).to be_empty
+    ensure
+      system('pkill', '-f', marker.to_s) if marker
+    end
+
+    it 'stops the command when the thread running it is killed (as Cancel does)' do
+      marker = "monadic-shell-kill-#{Process.pid}-#{rand(100_000)}"
+      runner = Thread.new do
+        described_class.capture(["sh", "-c", "sh -c 'sleep 30; :' #{marker} >/dev/null 2>&1; :"], timeout: 60)
+      end
+      sleep 0.1 until !`pgrep -f #{marker}`.strip.empty? || !runner.alive?
+      runner.kill
+      runner.join(5)
+      sleep 1
+      expect(`pgrep -f #{marker}`.strip).to be_empty
+    ensure
+      system('pkill', '-f', marker.to_s) if marker
+    end
+
+    it 'marks a run with a time limit, and on stopping it stops what carries the mark in the container' do
+      given = {}
+      allow(described_class).to receive(:capture) do |argv, **opts|
+        given[:run] = argv
+        given[:on_stop] = opts[:on_stop]
+        ['', '', double(success?: true)]
+      end
+      described_class.exec(container: :python, argv: %w[python x.py], timeout: 5)
+      run = given[:run]
+      mark = run[run.index('-e') + 1]
+      expect(mark).to match(/\AMONADIC_RUN_ID=\h{32}\z/)
+      expect(run.last(3)).to eq(%w[monadic-chat-python-container python x.py])
+
+      allow(described_class).to receive(:capture_with_timeout).and_return(['', '', double(success?: true)])
+      given[:on_stop].call
+      expect(described_class).to have_received(:capture_with_timeout)
+        .with(['docker', 'exec', 'monadic-chat-python-container', 'sh', '-c', described_class::STOP_MARKED,
+               'sh', mark.delete_prefix('MONADIC_RUN_ID=')], described_class::STOP_TIMEOUT)
+    end
+
+    it 'does not mark a run without a time limit' do
+      allow(described_class).to receive(:capture) { |argv, **| [argv.join(' '), '', nil] }
+      out, = described_class.exec(container: :python, argv: %w[true])
+      expect(out).not_to include('MONADIC_RUN_ID')
+    end
+
+    it 'stops a child still holding the output when the thread is killed after the command ended' do
+      marker = "monadic-shell-left-#{Process.pid}-#{rand(100_000)}"
+      runner = Thread.new do
+        described_class.capture(["sh", "-c", "sh -c 'sleep 30; :' #{marker} & echo started"], timeout: 60)
+      end
+      sleep 0.1 until !`pgrep -f #{marker}`.strip.empty? || !runner.alive?
+      sleep 0.5 # the command itself has ended; its child keeps the pipe open
+      runner.kill
+      runner.join(5)
+      sleep 1
+      expect(`pgrep -f #{marker}`.strip).to be_empty
+    ensure
+      system('pkill', '-f', marker.to_s) if marker
+    end
+
+    it 'does not wait for a child that the command left running after it ended' do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      expect { described_class.capture(['sh', '-c', 'sleep 30 & echo done'], timeout: 1) }
+        .to raise_error(Monadic::Shell::TimedOut)
+      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 6
+    end
+
+    it 'passes the timeout from exec to the command it runs' do
+      expect(described_class).to receive(:capture).with(array_including('docker', 'exec', 'true'), timeout: 5, on_stop: Proc)
         .and_return(['', '', double(success?: true)])
       described_class.exec(container: :python, argv: ['true'], timeout: 5)
     end

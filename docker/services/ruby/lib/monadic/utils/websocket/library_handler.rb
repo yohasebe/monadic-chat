@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'monadic/library'
+require_relative '../privacy/outbound'
 
 # WebSocket handlers for the Library (Knowledge Base) panel.
 #
@@ -215,7 +216,8 @@ module WebSocketHelper
     # the frontend hides the Save button accordingly. A stale tab or
     # programmatic client could still hit this path, so reject the save
     # before any storage side-effect to keep restored PII off disk.
-    if session.is_a?(Hash) && session[:_privacy_pipeline]
+    # The session of a real chat is a Rack session object, not a Hash: read it by key.
+    if session.respond_to?(:key?) && (session[:_privacy_pipeline] || session[:_privacy_session_enabled] == true)
       Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: Privacy Filter is active in this session" }
       send_to_client(connection, {
         'type' => 'library_saved', 'res' => 'failure',
@@ -352,7 +354,14 @@ module WebSocketHelper
     # call mirrors the user's chosen masking. Without it, the suggester
     # echoes raw PII back into the proposed title even when the chat
     # path itself is masked.
-    pipeline = session && session[:_privacy_pipeline]
+    # Not suggested from unmasked text when the filter is on but cannot mask.
+    begin
+      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      send_to_client(connection, { 'type' => 'library_title_suggested', 'res' => 'failure',
+                                   'content' => "No title was suggested: #{e.message}." })
+      return
+    end
     title = Monadic::Library::TitleSuggester.suggest(
       messages: messages,
       app_name: app_name,

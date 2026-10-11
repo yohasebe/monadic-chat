@@ -168,14 +168,19 @@ RSpec.describe SecondOpinionAgent do
     end
   end
   
+  # These call the providers with the keys in the config file: only when asked
+  # for (RUN_API=true), as the other tests that call real APIs.
   describe "#second_opinion_agent (real API tests)" do
+    before { skip("RUN_API is not enabled") unless ENV["RUN_API"] == "true" }
+
     context "with actual API calls" do
       it "gets a second opinion from OpenAI" do
         result = agent.second_opinion_agent(
           user_query: "What is 2 + 2?",
           agent_response: "2 + 2 equals 4",
           provider: "openai",
-          model: "gpt-4.1-mini"
+          model: "gpt-4.1-mini",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
         
         expect(result[:comments]).to be_a(String)
@@ -188,7 +193,8 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is the capital of France?",
           agent_response: "The capital of France is Paris",
           provider: "claude",
-          model: "claude-haiku-4-5-20251001"
+          model: "claude-haiku-4-5-20251001",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
 
         expect(result[:comments]).to be_a(String)
@@ -205,7 +211,8 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is 5 x 5?",
           agent_response: "5 x 5 equals 25",
           provider: "gemini",
-          model: "gemini-3-flash-preview"
+          model: "gemini-3-flash-preview",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
         
         expect(result[:comments]).to be_a(String)
@@ -219,7 +226,8 @@ RSpec.describe SecondOpinionAgent do
           user_query: "Simple math",
           agent_response: "1 + 1 = 2",
           provider: "anthropic",  # Should normalize to claude
-          model: "claude-haiku-4-5-20251001"
+          model: "claude-haiku-4-5-20251001",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
 
         expect(result[:model]).to include("claude")
@@ -230,7 +238,8 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is water?",
           agent_response: "Water is H2O",
           provider: "xai",  # Should normalize to grok
-          model: "grok-4.3"
+          model: "grok-4.3",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
         
         expect(result[:model]).to include("grok")
@@ -243,7 +252,8 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is the speed of light?",
           agent_response: "The speed of light is approximately 299,792,458 meters per second",
           provider: "mistral",
-          model: "mistral-small-latest"
+          model: "mistral-small-latest",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
         
         expect(result[:comments]).to be_a(String)
@@ -256,7 +266,8 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is Python?",
           agent_response: "Python is a high-level programming language",
           provider: "deepseek",
-          model: "deepseek-v4-flash"
+          model: "deepseek-v4-flash",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
         
         expect(result[:comments]).to be_a(String)
@@ -269,7 +280,8 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is AI?",
           agent_response: "AI stands for Artificial Intelligence",
           provider: "cohere",
-          model: "command-a-reasoning-08-2025"
+          model: "command-a-reasoning-08-2025",
+          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT
         )
 
         expect(result[:comments]).to be_a(String)

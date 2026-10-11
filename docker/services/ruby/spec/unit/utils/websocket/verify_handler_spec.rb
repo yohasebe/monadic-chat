@@ -50,7 +50,7 @@ RSpec.describe 'WebSocketHelper Verify handler' do
 
   before do
     host.class.sent.clear
-    Thread.current[:rack_session] = { messages: messages }
+    Thread.current[:rack_session] = { parameters: {}, messages: messages }
     Thread.current[:websocket_session_id] = 'sid-1'
     stub_const('Monadic::MCP::Conduit', double('Conduit'))
     allow(Monadic::MCP::Conduit).to receive(:call).and_return(conduit_result)
@@ -77,6 +77,7 @@ RSpec.describe 'WebSocketHelper Verify handler' do
 
   it 'errors when there is no preceding user question' do
     Thread.current[:rack_session] = {
+      parameters: {},
       messages: [{ 'role' => 'assistant', 'text' => 'orphan', 'mid' => 'a9', 'app_name' => 'ChatOpenAI', 'active' => true }]
     }
     host.handle_ws_verify_confidence(connection, { 'mid' => 'a9' }, {})

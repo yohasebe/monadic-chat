@@ -10,8 +10,11 @@ RSpec.describe AIUserAgent do
   end
   
   let(:agent) { TestAIUserAgent.new }
+  # A chat's session always has its parameters (the Privacy Filter's check
+  # for outbound text refuses a session that does not look like a chat's).
   let(:session) do
     {
+      parameters: {},
       messages: [
         { "role" => "user", "text" => "Hello", "type" => "text" },
         { "role" => "assistant", "text" => "Hi there! How can I help you?", "type" => "text" },

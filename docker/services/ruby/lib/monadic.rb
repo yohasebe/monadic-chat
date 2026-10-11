@@ -266,6 +266,14 @@ end
 # check stays off on every path
 Monadic::Utils::ServerMode.normalize!(CONFIG)
 
+# Attachments a stopped server left half-saved are marked failed, so no chat
+# treats them as usable. Reads only; writes when there is something to mark.
+begin
+  Monadic::Workspace::Ledger.default.reconcile_interrupted! if File.exist?(Monadic::Workspace::Ledger.default_path)
+rescue StandardError => e
+  puts "[Workspace] Ledger check skipped: #{e.class}"
+end
+
 # Configure SSL defaults after environment has been processed
 begin
   Monadic::Utils::SSLConfiguration.configure!(CONFIG)
@@ -763,30 +771,10 @@ require_relative "monadic/routes/upload_routes"
 require_relative "monadic/routes/session_routes"
 require_relative "monadic/routes/library_import_routes"
 require_relative "monadic/routes/help_routes"
+require_relative "monadic/routes/attachment_routes"
 register Monadic::Routes::HelpRoutes
+register Monadic::Routes::AttachmentRoutes
 
-APPS.each do |k, v|
-  # convert `k` from a capitalized multi word title to snake_case
-  # e.g., `Monadic App` to `monadic_app`
-  endpoint = k.to_s.gsub(/\s+/, "_").downcase
-
-  # Legacy bookmark-friendly URL. Modern UI flows select apps entirely
-  # via WebSocket (UPDATE_PARAMS — see misc_handlers.rb), so this route
-  # is only hit by stale bookmarks or direct URL navigation. We intentionally
-  # do NOT clear session[:messages] or overwrite the full parameter set —
-  # doing so would silently destroy user-visible state for anyone who
-  # accidentally loaded the URL. We only hint the app_name so the UI can
-  # pre-select it on LOAD, and fire on-demand container startup.
-  get "/#{endpoint}" do
-    session[:parameters] ||= {}
-    target_app_name = v.settings[:app_name] || v.settings["app_name"] || k.to_s
-    session[:parameters]["app_name"] = target_app_name
-
-    Monadic::Utils::ContainerDependencies.ensure_services_async(target_app_name, reason: "legacy route")
-
-    redirect "/"
-  end
-end
 
 # ──────────────────────────────────────────────────────────────
 # Private helper methods (shared across routes)

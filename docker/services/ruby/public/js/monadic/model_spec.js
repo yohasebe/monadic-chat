@@ -1529,8 +1529,13 @@ const modelSpec = {
   // batch endpoint at all, so speaker diarization has no successor yet: the
   // diarize entry below carries the sunset date without one, and stays
   // selectable until a replacement exists.
+  // supports_segment_transcription: verified (2026-10-10) to transcribe audio
+  // appended and committed by the client in a realtime transcription session
+  // with turn detection off — one item per commit, usage in seconds. Video
+  // Describer's timed transcript relies on exactly that.
   "gpt-transcribe": {
-    "stt_capability": true
+    "stt_capability": true,
+    "supports_segment_transcription": true
   },
   // Streaming counterpart of gpt-transcribe. Accepted by realtime sessions
   // only ("Invalid URL" on /v1/audio/transcriptions), so it is not offered in

@@ -539,13 +539,24 @@ module MonadicSharedTools
         tools: [
           {
             name: "analyze_audio",
-            description: "Transcribe audio from an audio file using speech-to-text capabilities",
+            description: "Transcribe the speech in an audio file. Each line of the transcript starts with the " \
+                         "time in the recording of the speech it holds, and subtitle files are made from it. " \
+                         "Recordings up to 50 minutes. Give attachment_id for a file attached to the message, " \
+                         "or audio for a file placed in the shared folder.",
             parameters: [
+              {
+                name: :attachment_id,
+                type: "string",
+                description: "The attachment_id of an audio file attached to this chat (given in the message as " \
+                             "\"Attached audio: ... (attachment_id: ...)\"). Use this for attached files.",
+                required: false
+              },
               {
                 name: :audio,
                 type: "string",
-                description: "The filename of the audio to transcribe",
-                required: true
+                description: "The file name of an audio file placed in the shared folder (mp3, m4a, wav, ogg, " \
+                             "opus, flac, webm, aac). Only for files not attached.",
+                required: false
               }
             ]
           }

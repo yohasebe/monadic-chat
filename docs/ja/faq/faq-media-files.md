@@ -10,7 +10,7 @@
 
 - Code Interpreter<br />PythonスクリプトやCSVを含む各種のテキストファイル、Microsoft Officeファイル、オーディオファイル（MP3、WAV、M4A、その他の一般的な形式）
 - Knowledge Base<br />Browse モーダルの **Import file** ボタンから PDF / Microsoft Office (.docx / .xlsx / .pptx) / Markdown / ソースコードファイルをインポート可能
-- Video Describer<br />動画ファイル（MP4、MOV、AVI、MKV、その他の一般的な形式）
+- Video Describer<br />動画ファイル（MP4、M4V、MOV、WebM、MKV、AVI、MPEG、50 分まで）
 
 `Speech Input`ボタンをクリックして音声入力を行うこともできます。音声入力はSpeech-to-Text APIを使用しており、すべてのアプリで利用可能です。
 

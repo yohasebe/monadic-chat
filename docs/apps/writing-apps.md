@@ -25,6 +25,8 @@ Mail Composer supports each provider shown in the [availability table](../basic-
 
 Draft speeches with the help of an AI assistant. You can ask the assistant to write a speech on a specific topic, or provide an existing draft (as plain text, a Word document, or a PDF) for it to improve. The final speech can be exported as an audio file in a format supported by your text-to-speech provider (e.g., MP3 or WAV).
 
+A recording of a speech can be transcribed as well: attach an audio file with the `Image` button below the message box (MP3, M4A, WAV, OGG, Opus, FLAC, WebM or AAC), or name a file placed in the shared folder. The speech in the recording is found first and transcribed segment by segment, so each line of the transcript starts with the time in the recording of the speech it holds (for example `[01:02–01:06]`). Recordings up to 50 minutes are transcribed; the 25 MB limit of transcribing a whole file at once does not apply (an attached file can be up to 2 GB). The transcript is saved as `transcript.json` in the chat's folder (`conversations/` in the shared folder), with WebVTT and SRT subtitle files. Timed transcripts need a Python container built for this version; with an older one, the recording is transcribed without times (up to 25 MB) and a note says to rebuild the container.
+
 
 ## Document Generator :id=document-generator
 

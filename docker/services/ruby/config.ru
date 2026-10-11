@@ -2,6 +2,7 @@
 
 require "sinatra"
 require "rack/session/pool"
+require "rack/tempfile_reaper"
 require "async/websocket/adapters/rack"
 
 require_relative "lib/monadic"
@@ -15,6 +16,28 @@ set :bind, "0.0.0.0"
 # First of all: only this computer's own pages and programs may use the
 # server. See lib/monadic/utils/local_origin_guard.rb.
 use Monadic::Utils::LocalOriginGuard
+
+# Remove the temporary files Rack writes for multipart uploads once the
+# response is sent; left alone they stay until garbage collection.
+use Rack::TempfileReaper
+
+# Attachments: the chat fixed from the tab, then the size cap, both before
+# anything reads the request body.
+use Monadic::Workspace::UploadContext,
+    paths: [Monadic::Routes::AttachmentRoutes::PATH],
+    state_lookup: ->(tab_id) { WebSocketHelper.fetch_session_state(tab_id) }
+# Every upload, likewise capped before anything reads the body: Rack writes
+# file parts to disk while parsing, with no total limit of its own.
+use Monadic::Workspace::UploadLimit, limits: {
+  Monadic::Routes::AttachmentRoutes::PATH => Monadic::Workspace::UploadLimit::DEFAULT_MAX_BYTES,
+  "/pdf" => PDF_UPLOAD_MAX_BYTES,
+  "/document" => DOCUMENT_UPLOAD_MAX_BYTES,
+  "/upload_audio" => AUDIO_UPLOAD_MAX_BYTES,
+  "/load" => SESSION_LOAD_MAX_BYTES,
+  # The route checks the file itself; this stops the body first, with room
+  # for the multipart framing around the file.
+  "/library/import" => LIBRARY_IMPORT_MAX_BYTES + 1_000_000
+}
 
 # Use unlimited in-memory sessions to handle large message imports
 # Rack::Session::Pool has size limits that cause "Content dropped" warnings

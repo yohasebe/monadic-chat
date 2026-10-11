@@ -326,9 +326,9 @@ describe('Form Handlers', () => {
 
       global.FormData = MockFormData;
 
-      // Mock window.tabId
-      const origTabId = window.tabId;
-      window.tabId = 'test-tab-id-12345';
+      // The tab id as ws-tab-id.js provides it (the WebSocket's own)
+      const origGetTabId = window.getMonadicTabId;
+      window.getMonadicTabId = () => 'test-tab-id-12345';
 
       // Mock fetch to resolve with success
       global.fetch = createFetchMock();
@@ -352,7 +352,7 @@ describe('Form Handlers', () => {
 
       // Restore originals
       global.FormData = origFormData;
-      window.tabId = origTabId;
+      window.getMonadicTabId = origGetTabId;
     });
 
     it('should reject null file input', async () => {

@@ -3,6 +3,8 @@
 require 'json'
 require 'timeout'
 
+require_relative 'child_threads'
+
 module MonadicSharedTools
   module ParallelDispatch
     include MonadicHelper
@@ -107,48 +109,59 @@ module MonadicSharedTools
       completed_count = 0
       completed_mutex = Mutex.new
 
-      threads = tasks.map do |task|
-        Thread.new(task) do |t|
-          Thread.current.report_on_exception = false
-          begin
-            prompt = if t["context"]
-                       "Context: #{t["context"]}\n\nTask: #{t["prompt"]}"
-                     else
-                       t["prompt"]
-                     end
+      # Started and waited for inside one begin, so stopping this reply at any
+      # point (even while the threads are being started) stops every one.
+      threads = []
+      waited = false
+      begin
+        tasks.each do |task|
+          MonadicSharedTools::ChildThreads.spawn(threads, task) do |t|
+            Thread.current.report_on_exception = false
+            begin
+              prompt = if t["context"]
+                         "Context: #{t["context"]}\n\nTask: #{t["prompt"]}"
+                       else
+                         t["prompt"]
+                       end
 
-            text = Timeout.timeout(timeout_val) do
-              sub_agent_api_call(model, prompt, provider_cfg, timeout_val, websearch: ws_enabled)
-            end
+              text = Timeout.timeout(timeout_val) do
+                sub_agent_api_call(model, prompt, provider_cfg, timeout_val, websearch: ws_enabled)
+              end
 
-            results_mutex.synchronize do
-              results << { "id" => t["id"], "success" => true, "content" => text }
-            end
-          rescue Timeout::Error
-            results_mutex.synchronize do
-              results << { "id" => t["id"], "success" => false, "error" => "Timed out after #{timeout_val}s" }
-            end
-          rescue => e
-            results_mutex.synchronize do
-              results << { "id" => t["id"], "success" => false, "error" => e.message }
-            end
-          ensure
-            completed_mutex.synchronize do
-              completed_count += 1
-              send_parallel_progress(
-                "Parallel tasks: #{completed_count}/#{tasks.length} completed",
-                parent_ws_session_id, tasks, completed_count
-              )
+              results_mutex.synchronize do
+                results << { "id" => t["id"], "success" => true, "content" => text }
+              end
+            rescue Timeout::Error
+              results_mutex.synchronize do
+                results << { "id" => t["id"], "success" => false, "error" => "Timed out after #{timeout_val}s" }
+              end
+            rescue => e
+              results_mutex.synchronize do
+                results << { "id" => t["id"], "success" => false, "error" => e.message }
+              end
+            ensure
+              # Not when stopped with the reply (Reset or Cancel): the page has moved on.
+              unless Thread.current[:stopped_with_reply]
+                completed_mutex.synchronize do
+                  completed_count += 1
+                  send_parallel_progress(
+                    "Parallel tasks: #{completed_count}/#{tasks.length} completed",
+                    parent_ws_session_id, tasks, completed_count
+                  )
+                end
+              end
             end
           end
         end
+
+        # Wait for all threads (with buffer beyond per-task timeout)
+        threads.each { |t| t.join(timeout_val + 10) }
+        waited = true
+      ensure
+        # Hung ones, and all of them when this reply itself is stopped (Reset
+        # or Cancel kills the thread running it): none goes on by itself.
+        MonadicSharedTools::ChildThreads.stop(threads, quiet: !waited)
       end
-
-      # Wait for all threads (with buffer beyond per-task timeout)
-      threads.each { |t| t.join(timeout_val + 10) }
-
-      # Kill any hung threads
-      threads.each { |t| t.kill if t.alive? }
 
       # --- Build result ---
       succeeded = results.count { |r| r["success"] }

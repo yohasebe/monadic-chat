@@ -78,6 +78,67 @@ module Monadic
         workspace(workspace_id)
       end
 
+      ATTACHMENT_STATES = %w[validating ready failed].freeze
+
+      # An attachment is recorded before its file is written, as validating,
+      # so a crash between the two leaves a record that reconcile! can fail
+      # rather than a file nobody accounts for.
+      def register_attachment(attachment_id:, chat_id:, workspace_id:, purpose:, original_name:,
+                              relative_path:, created_at: Time.now)
+        raise ArgumentError, 'invalid attachment id' unless Ids.valid?(:attachment, attachment_id)
+        raise ArgumentError, 'relative_path must be relative' if relative_path.start_with?('/') || relative_path.split('/').include?('..')
+
+        write do |data|
+          raise Conflict, 'attachment id already registered' if data['attachments'].key?(attachment_id)
+          unless data['workspaces'].dig(workspace_id, 'chat_id') == chat_id
+            raise Conflict, 'workspace does not belong to this chat'
+          end
+
+          data['attachments'][attachment_id] = {
+            'chat_id' => chat_id,
+            'workspace_id' => workspace_id,
+            'purpose' => purpose.to_s,
+            'original_name' => original_name.to_s,
+            'relative_path' => relative_path,
+            'status' => 'validating',
+            'created_at' => created_at.utc.iso8601
+          }
+        end
+        attachment(attachment_id)
+      end
+
+      def update_attachment(attachment_id, status:, **fields)
+        raise ArgumentError, "unknown state #{status}" unless ATTACHMENT_STATES.include?(status)
+
+        write do |data|
+          record = data['attachments'][attachment_id] or raise Conflict, 'unknown attachment'
+          record['status'] = status
+          fields.each { |key, value| record[key.to_s] = value }
+        end
+        attachment(attachment_id)
+      end
+
+      def attachment(attachment_id)
+        read do |data|
+          record = data['attachments'][attachment_id]
+          record && record.transform_keys(&:to_sym).merge(attachment_id: attachment_id)
+        end
+      end
+
+      # Attachments left validating by a stopped server never finished; they
+      # are marked failed so nothing treats them as usable. Returns them.
+      def reconcile_interrupted!
+        return [] if !File.exist?(@path) || read { |data| data['attachments'].none? { |_, r| r['status'] == 'validating' } }
+
+        write do |data|
+          data['attachments'].select { |_, r| r['status'] == 'validating' }.map do |id, record|
+            record['status'] = 'failed'
+            record['failure'] = 'interrupted'
+            record.transform_keys(&:to_sym).merge(attachment_id: id)
+          end
+        end
+      end
+
       def workspace(workspace_id)
         read { |data| export(workspace_id, data['workspaces'][workspace_id]) }
       end
@@ -131,6 +192,7 @@ module Monadic
         data['schema_version'] = version
         data['chats'] ||= {}
         data['workspaces'] ||= {}
+        data['attachments'] ||= {}
         data
       rescue JSON::ParserError
         raise Unreadable, 'ledger is not valid JSON'

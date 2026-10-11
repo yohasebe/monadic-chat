@@ -22,7 +22,7 @@ module Monadic
       CAPABILITIES = {
         image: %w[openai anthropic google xai mistral cohere deepseek],
         video: %w[openai anthropic google xai],
-        audio: %w[openai google]
+        audio: %w[openai google xai]
       }.freeze
 
       API_KEYS = {

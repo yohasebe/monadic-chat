@@ -2,6 +2,9 @@
 
 # PDF storage routes (local Qdrant + multilingual-e5-base only).
 
+# Largest PDF upload accepted, checked before the body is read (config.ru).
+PDF_UPLOAD_MAX_BYTES = 200_000_000
+
 # API: PDF storage status — reports whether the local store has any docs.
 get "/api/pdf_storage_status" do
   content_type :json

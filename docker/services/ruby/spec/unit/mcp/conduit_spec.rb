@@ -1064,6 +1064,123 @@ RSpec.describe Monadic::MCP::Conduit do
       expect { described_class.call("monadic_transcribe_audio", { "path" => "speech.mp3" }) }
         .to raise_error(ArgumentError, /provider is required/)
     end
+
+    describe "with timestamps" do
+      let(:args) { { "path" => "speech.mp3", "provider" => "xai", "timestamps" => true, "language" => "ja" } }
+      let(:document) do
+        { "status" => "complete", "sample_rate_hz" => 24_000,
+          "coverage" => { "segment_count" => 1, "completed_segment_count" => 1 },
+          "segments" => [{ "status" => "complete", "start_sample" => 0, "end_sample" => 240_000, "text" => "hi", "attempts" => 1 }] }
+      end
+
+      before do
+        # Keys the provider check looks for; nothing is sent (the run is played).
+        stub_const("CONFIG", CONFIG.merge("XAI_API_KEY" => "test-not-sent", "GEMINI_API_KEY" => "test-not-sent"))
+        allow(Monadic::Shell).to receive(:exec)
+          .and_return([{ "format" => { "format_name" => "mp3", "duration" => "10" }, "streams" => [{ "codec_type" => "audio" }] }.to_json,
+                       "", double(success?: true)])
+      end
+
+      def in_background(arguments = args)
+        allow(Monadic::MCP::JobStore).to receive(:current_job_id).and_return("job-1")
+        described_class.call("monadic_transcribe_audio", arguments)
+      end
+
+      it "must run in the background, and says how" do
+        expect(ahost).not_to receive(:run_timed_audio)
+        result = described_class.call("monadic_transcribe_audio", args)
+        expect(result[:success]).to be false
+        expect(result[:error]).to include("monadic_submit")
+      end
+
+      it "keeps the run under transcriptions/ and names the files it made, by their shared-volume paths" do
+        given = {}
+        allow(ahost).to receive(:run_timed_audio) do |**kw|
+          given.merge!(kw)
+          kw[:on_attempt].call(10.0)
+          File.write(File.join(kw[:job][:path], "transcript.json"), document.to_json)
+          File.write(File.join(kw[:job][:path], "transcript.vtt"), "WEBVTT\n")
+          { text: "[00:00–00:10] hi", document: document, saved: true }
+        end
+        result = in_background
+        expect(result).to include(success: true, status: "complete", text: "[00:00–00:10] hi", truncated: false)
+        expect(result[:artifacts].keys).to eq(%w[json vtt])
+        expect(result[:artifacts]["json"]).to match(%r{\Atranscriptions/artifacts/j_[a-z0-9]{16}/transcript\.json\z})
+        expect(given).to include(provider: "xai", language: "ja", input: "/monadic/data/speech.mp3")
+        expect(result[:budget][:tokens_spent]).to be >= 100 # ten seconds of audio sent
+      end
+
+      %w[google gemini].each do |name|
+        it "takes #{name} as Google's own speech-to-text" do
+          given = {}
+          allow(ahost).to receive(:run_timed_audio) { |**kw| given.merge!(kw); { text: "x", document: document, saved: true } }
+          expect(in_background(args.merge("provider" => name))[:success]).to be true
+          expect(given[:provider]).to eq("google")
+          expect(given[:model]).to eq(AudioTranscriptionAgent.audio_model_for("google"))
+        end
+      end
+
+      it "takes the formats the timed way decodes, such as Opus" do
+        File.binwrite(File.join(@data_dir, "talk.opus"), "OggS")
+        allow(Monadic::Shell).to receive(:exec)
+          .and_return([{ "format" => { "format_name" => "ogg", "duration" => "10" }, "streams" => [{ "codec_type" => "audio" }] }.to_json,
+                       "", double(success?: true)])
+        allow(ahost).to receive(:run_timed_audio).and_return(text: "x", document: document, saved: true)
+        expect(in_background(args.merge("path" => "talk.opus"))[:success]).to be true
+      end
+
+      it "fails when the transcript could not be saved, saying so" do
+        allow(ahost).to receive(:run_timed_audio)
+          .and_return(text: "Audio transcription failed: the transcript could not be saved in the run folder (ENOSPC).",
+                      document: document, saved: false)
+        result = in_background
+        expect(result[:success]).to be false
+        expect(result[:error]).to include("could not be saved")
+        expect(result).not_to have_key(:text)
+      end
+
+      it "charges every attempt as it is sent, also for segments that failed" do
+        failed = document.merge("status" => "failed",
+                                "segments" => [document["segments"][0].merge("status" => "failed", "attempts" => 3)])
+        allow(ahost).to receive(:run_timed_audio) do |**kw|
+          3.times { kw[:on_attempt].call(10.0) }
+          { text: "Audio transcription failed.", document: failed, saved: true }
+        end
+        result = in_background
+        expect(result[:success]).to be false
+        expect(result[:budget][:tokens_spent]).to be_between(300, 320) # ten seconds sent three times, plus the text
+      end
+
+      it "charges what was sent, once, when the job is cancelled part-way, saved or not" do
+        allow(ahost).to receive(:run_timed_audio) do |**kw|
+          kw[:on_attempt].call(10.0)
+          raise Interrupt # stands in for monadic_cancel killing the job's thread (no transcript saved)
+        end
+        expect { in_background }.to raise_error(Interrupt)
+        expect(Monadic::MCP::CostGuard.status[:tokens_spent]).to eq(100)
+      end
+
+      it "returns at most 32 KiB of text, saying it was cut" do
+        long = "[00:00–00:10] #{'a' * 40_000}"
+        allow(ahost).to receive(:run_timed_audio).and_return(text: long, document: document, saved: true)
+        result = in_background
+        expect(result[:text].bytesize).to eq(32 * 1024)
+        expect(result[:truncated]).to be true
+      end
+
+      it "refuses a recording too long before sending anything" do
+        allow(Monadic::Shell).to receive(:exec)
+          .and_return([{ "format" => { "format_name" => "mp3", "duration" => "3600" }, "streams" => [{ "codec_type" => "audio" }] }.to_json,
+                       "", double(success?: true)])
+        expect(ahost).not_to receive(:run_timed_audio)
+        expect(in_background[:error]).to match(/60 minutes long/)
+      end
+
+      it "says when the Python container is too old" do
+        allow(ahost).to receive(:run_timed_audio).and_return(fallback: true)
+        expect(in_background[:error]).to match(/Rebuild it/)
+      end
+    end
   end
 
   describe "monadic_analyze_audio" do

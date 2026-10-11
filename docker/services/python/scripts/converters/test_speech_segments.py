@@ -208,6 +208,108 @@ class AudioAlignmentTest(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(directory, "audio_24k.pcm")))
 
 
+class AudioFileTimelineTest(unittest.TestCase):
+    """An audio file on its own clock: a click 2.0 s and 5.5 s into the recording lands there."""
+
+    CLICK = "aevalsrc=exprs='if(between(t,{a},{a}+0.002)+between(t,{b},{b}+0.002),0.9,0)':s=48000:d=8"
+
+    def wav(self, directory, name="src.wav", a=2.0, b=5.5):
+        path = os.path.join(directory, name)
+        ffmpeg("-f", "lavfi", "-i", self.CLICK.format(a=a, b=b), "-c:a", "pcm_s16le", path)
+        return path
+
+    def clicks(self, path, **kwargs):
+        with tempfile.TemporaryDirectory(prefix="speech-segments-out-") as out:
+            streams = seg.audio_streams(path)
+            stream = seg.choose_audio_stream(streams, kwargs.get("audio_stream"))
+            origin, duration, _ = seg.probe_audio(path, stream)
+            total = int(round(duration * seg.RATE))
+            pcm = os.path.join(out, "audio.pcm")
+            seg.normalize_audio(path, pcm, origin, total, stream)
+            samples, clicks = AudioAlignmentTest.clicks_ms(None, pcm)
+            self.assertEqual(len(samples), total)
+            return stream, clicks
+
+    def test_each_format_keeps_the_recording_times(self):
+        with tempfile.TemporaryDirectory(prefix="speech-segments-") as directory:
+            src = self.wav(directory)
+            for ext, codec in [("wav", ["-c:a", "pcm_s16le"]), ("mp3", ["-c:a", "libmp3lame", "-b:a", "128k"]),
+                               ("m4a", ["-c:a", "aac", "-b:a", "128k"]), ("ogg", ["-c:a", "libvorbis"]),
+                               ("opus", ["-c:a", "libopus"]), ("flac", ["-c:a", "flac"])]:
+                with self.subTest(ext=ext):
+                    path = os.path.join(directory, f"clip.{ext}")
+                    ffmpeg("-i", src, *codec, path)
+                    _, clicks = self.clicks(path)
+                    self.assertEqual(len(clicks), 2)
+                    self.assertAlmostEqual(clicks[0], 2000, delta=3.0)
+                    self.assertAlmostEqual(clicks[1], 5500, delta=3.0)
+
+    def test_the_player_offset_follows_the_first_packet_not_the_decoder_delay(self):
+        if not (os.path.isfile(MODEL) and importlib.util.find_spec("onnxruntime")):
+            self.skipTest("speech model not installed")
+        with tempfile.TemporaryDirectory(prefix="speech-segments-") as directory:
+            src = self.wav(directory)
+            cases = {"plain.mp3": (["-c:a", "libmp3lame", "-b:a", "128k"], 0.0),   # LAME delay: not on the player's clock
+                     "a.m4a": (["-c:a", "aac"], 0.0),                              # priming before zero: not either
+                     "a.opus": (["-c:a", "libopus"], 0.0),
+                     "late.m4a": (["-c:a", "aac", "-output_ts_offset", "5"], 4.978),  # a real start: the player shows it
+                     "late.opus": (["-c:a", "libopus", "-output_ts_offset", "5"], 4.9935),
+                     "late.ogg": (["-c:a", "libvorbis", "-output_ts_offset", "5"], 0.0)}  # Vorbis: played from 0
+            for name, (codec, offset) in cases.items():
+                with self.subTest(name=name):
+                    path = os.path.join(directory, name)
+                    ffmpeg("-i", src, *codec, path)
+                    _, doc = seg.analyze(path, os.path.join(directory, name + ".out"), MODEL, timeline="audio")
+                    self.assertAlmostEqual(doc["source"]["player_offset_ms"] / 1000, offset, delta=0.005)
+
+    def test_album_art_does_not_make_it_a_video(self):
+        with tempfile.TemporaryDirectory(prefix="speech-segments-") as directory:
+            src = self.wav(directory)
+            art = os.path.join(directory, "art.png")
+            ffmpeg("-f", "lavfi", "-i", "color=c=red:s=64x64:d=1", "-frames:v", "1", art)
+            path = os.path.join(directory, "song.mp3")
+            ffmpeg("-i", src, "-i", art, "-map", "0:a", "-map", "1:v", "-c:a", "libmp3lame", "-c:v", "png",
+                   "-disposition:v", "attached_pic", path)
+            _, clicks = self.clicks(path)
+            self.assertAlmostEqual(clicks[0], 2000, delta=3.0)
+
+    def test_several_tracks_take_the_default_or_the_one_asked_for(self):
+        with tempfile.TemporaryDirectory(prefix="speech-segments-") as directory:
+            first = self.wav(directory, "first.wav", a=1.0, b=6.0)
+            second = self.wav(directory, "second.wav", a=3.0, b=7.0)
+            path = os.path.join(directory, "two.m4a")
+            ffmpeg("-i", first, "-i", second, "-map", "0:a", "-map", "1:a", "-c:a", "aac",
+                   "-disposition:a:0", "0", "-disposition:a:1", "default", path)
+            stream, clicks = self.clicks(path)
+            self.assertEqual(stream, 1)
+            self.assertAlmostEqual(clicks[0], 3000, delta=3.0)
+            stream, clicks = self.clicks(path, audio_stream=0)
+            self.assertEqual(stream, 0)
+            self.assertAlmostEqual(clicks[0], 1000, delta=3.0)
+            with self.assertRaises(ValueError):
+                seg.choose_audio_stream(seg.audio_streams(path), 2)
+
+    def test_the_document_names_the_audio_clock_and_track(self):
+        with tempfile.TemporaryDirectory(prefix="speech-segments-") as directory:
+            src = self.wav(directory)
+            if not (os.path.isfile(MODEL) and importlib.util.find_spec("onnxruntime")):
+                self.skipTest("speech model not installed")
+            _, doc = seg.analyze(src, os.path.join(directory, "out"), MODEL, timeline="audio")
+            self.assertEqual(doc["timebase"], "audio_relative_samples")
+            self.assertEqual(doc["source"]["timeline"], "audio")
+            self.assertEqual(doc["source"]["audio_stream"], 0)
+            self.assertEqual(doc["source"]["origin_policy"], "first_presented_audio_sample")
+            self.assertEqual(doc["total_samples"], 8 * seg.RATE)
+
+    def test_a_file_without_audio_is_refused(self):
+        with tempfile.TemporaryDirectory(prefix="speech-segments-") as directory:
+            clip = os.path.join(directory, "silent.mp4")
+            ffmpeg("-f", "lavfi", "-i", "color=c=black:s=160x96:r=10:d=3", "-c:v", "libx264",
+                   "-pix_fmt", "yuv420p", clip)
+            with self.assertRaises(ValueError):
+                seg.analyze(clip, directory, MODEL, timeline="audio")
+
+
 @unittest.skipUnless(os.path.isfile(MODEL) and importlib.util.find_spec("onnxruntime"), "speech model not installed")
 class DetectorTest(unittest.TestCase):
     def test_noise_and_tones_are_not_speech(self):

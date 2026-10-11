@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-"""Find speech in a video's audio and cut it into bounded segments for transcription.
+"""Find speech in a video's or an audio file's audio and cut it into bounded segments for transcription.
 
 Writes two files into the output directory:
-  audio_24k.pcm   mono s16le at 24 kHz, sample 0 = the first video frame
+  audio_24k.pcm   mono s16le at 24 kHz; sample 0 = the first video frame (--timeline video,
+                  the default) or the first sample the audio track plays (--timeline audio)
   segments.json   segment boundaries in samples of that PCM (no API calls are made)
 """
 
@@ -55,6 +56,7 @@ def probe(video_path):
     finally:
         proc.kill()
         proc.wait()
+        proc.stdout.close()
     if origin is None:
         raise ValueError("Video has no valid presentation timestamps")
     info = json.loads(run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type",
@@ -68,11 +70,79 @@ def probe(video_path):
     return origin, duration - (origin - format_start), has_audio
 
 
-def normalize_audio(video_path, pcm_path, origin_s, total):
-    """Decode the first audio track to exactly `total` samples aligned to the first video frame."""
+def audio_streams(path):
+    """The audio tracks, in order: [{"codec": ..., "default": bool, "language": ...}]."""
+    info = json.loads(run(["ffprobe", "-v", "error", "-select_streams", "a",
+                           "-show_entries", "stream=codec_name:stream_disposition=default:stream_tags=language",
+                           "-of", "json", path]))
+    return [{"codec": s.get("codec_name"), "default": bool((s.get("disposition") or {}).get("default")),
+             "language": (s.get("tags") or {}).get("language")} for s in info.get("streams", [])]
+
+
+def choose_audio_stream(streams, requested=None):
+    """The track asked for, else the one marked default, else the first. Tracks are never mixed."""
+    if requested is not None:
+        if not 0 <= requested < len(streams):
+            raise ValueError(f"No audio track {requested} (the file has {len(streams)})")
+        return requested
+    return next((i for i, s in enumerate(streams) if s["default"]), 0)
+
+
+def probe_audio(path, stream):
+    """Return (origin seconds, duration seconds, player offset seconds) of an audio file.
+
+    The origin is the time of the first sample the track plays, after the
+    decoder drops what the encoder put before the sound (codec delay, edit
+    lists): leading silence in the recording stays, speech is not the origin.
+    """
+    proc = subprocess.Popen(["ffprobe", "-v", "error", "-select_streams", f"a:{stream}", "-show_frames",
+                             "-show_entries", "frame=best_effort_timestamp_time", "-of", "csv=p=0", path],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    origin = None
+    try:
+        for line in proc.stdout:
+            field = line.split(",", 1)[0].strip()
+            if field:
+                try:
+                    origin = float(field)
+                except ValueError:
+                    pass
+                break
+    finally:
+        proc.kill()
+        proc.wait()
+        proc.stdout.close()
+    if origin is None:
+        raise ValueError("Audio has no valid presentation timestamps")
+    info = json.loads(run(["ffprobe", "-v", "error", "-show_entries", "format=duration,start_time", "-of", "json", path]))
+    fmt = info.get("format", {})
+    # A player counts from the first packet of the track, never before zero:
+    # it hides what the decoder skips (encoder delay, priming) without moving
+    # its clock, which ffmpeg's decoded frame times do move (MP3 by the LAME
+    # delay). So the first packet, not the origin, tells where a player shows
+    # sample 0.
+    packets = run(["ffprobe", "-v", "error", "-select_streams", f"a:{stream}", "-show_packets",
+                   "-show_entries", "packet=pts_time", "-read_intervals", "%+#1", "-of", "csv=p=0", path])
+    first_packet = None
+    for line in packets.splitlines():
+        try:
+            first_packet = float(line.split(",", 1)[0])
+            break
+        except ValueError:
+            continue
+    duration = float(fmt.get("duration") or 0)
+    if duration <= 0:
+        raise ValueError("Audio has no duration")
+    format_start = float(fmt.get("start_time") or 0)
+    player_offset = max(first_packet if first_packet is not None else origin, 0.0)
+    return origin, duration - (origin - format_start), player_offset
+
+
+def normalize_audio(video_path, pcm_path, origin_s, total, stream=0):
+    """Decode one audio track to exactly `total` samples, sample 0 at `origin_s` on the file's clock."""
     flt = (f"asetpts=PTS-{origin_s:.6f}/TB,aresample={RATE}:async=1:first_pts=0,"
            f"aformat=sample_fmts=s16:channel_layouts=mono,apad=whole_len={total},atrim=end_sample={total}")
-    subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-copyts", "-i", video_path, "-map", "0:a:0", "-vn",
+    subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-copyts", "-i", video_path, "-map", f"0:a:{stream}", "-vn",
                     "-af", flt, "-ar", str(RATE), "-ac", "1", "-c:a", "pcm_s16le", "-f", "s16le", pcm_path],
                    capture_output=True, text=True, check=True)
 
@@ -215,13 +285,15 @@ def sha256(path):
     return digest.hexdigest()
 
 
-def document(status, total, origin_s, segments=(), regions=(), detector=None):
+def document(status, total, origin_s, segments=(), regions=(), detector=None, source=None):
+    audio = (source or {}).get("timeline") == "audio"
     return {
         "schema": "speech-segments", "schema_version": 1,
-        "timebase": "video_relative_samples", "sample_rate_hz": RATE,
+        "timebase": "audio_relative_samples" if audio else "video_relative_samples", "sample_rate_hz": RATE,
         "interval_convention": "start_inclusive_end_exclusive",
         "timeline_origin_ms": round(origin_s * 1000, 3),
         "status": status, "total_samples": total,
+        **({"source": source} if source else {}),
         "detector": detector,
         "segmentation": {"policy": POLICY, "max_samples": MAX_SAMPLES, "margin_samples": MARGIN,
                          "merge_gap_samples": MERGE_GAP, "pack_gap_samples": PACK_GAP,
@@ -235,9 +307,31 @@ def document(status, total, origin_s, segments=(), regions=(), detector=None):
     }
 
 
-def analyze(video_path, output_dir, model_path):
+def analyze(video_path, output_dir, model_path, timeline="video", audio_stream=None):
     os.makedirs(output_dir, exist_ok=True)
-    origin, duration, has_audio = probe(video_path)
+    source = None
+    stream = 0
+    if timeline == "audio":
+        # An audio file: its own clock, whatever picture (album art) it carries.
+        streams = audio_streams(video_path)
+        if not streams:
+            raise ValueError("The file has no audio track")
+        stream = choose_audio_stream(streams, audio_stream)
+        origin, duration, player_offset = probe_audio(video_path, stream)
+        # Measured in Chrome: an Ogg Vorbis file that starts after zero plays
+        # from its first sample at 0 (unlike Opus and MP4 audio, which keep
+        # their start), so nothing is added for Vorbis.
+        if streams[stream]["codec"] == "vorbis":
+            player_offset = 0.0
+        has_audio = True
+        source = {"timeline": "audio", "origin_policy": "first_presented_audio_sample",
+                  "audio_stream": stream, "audio_stream_count": len(streams),
+                  "codec": streams[stream]["codec"], "language": streams[stream]["language"],
+                  "origin_pts_ms": round(origin * 1000, 3),
+                  # where a player shows sample 0 (subtitles add this)
+                  "player_offset_ms": round(player_offset * 1000, 3)}
+    else:
+        origin, duration, has_audio = probe(video_path)
     total = int(round(duration * RATE))
     if not has_audio:
         doc = document("absent", total, origin)
@@ -245,7 +339,7 @@ def analyze(video_path, output_dir, model_path):
         if not os.path.isfile(model_path):
             raise FileNotFoundError(f"Speech detection model not found: {model_path}")
         pcm_path = os.path.join(output_dir, "audio_24k.pcm")
-        normalize_audio(video_path, pcm_path, origin, total)
+        normalize_audio(video_path, pcm_path, origin, total, stream)
         probs = speech_probabilities(pcm_path, model_path)
         segments, regions = build_segments(probs, total)
         import onnxruntime
@@ -253,7 +347,8 @@ def analyze(video_path, output_dir, model_path):
                     "analysis_sample_rate_hz": DETECT_RATE, "frame_samples": STEP,
                     "threshold_on": ON, "threshold_off": OFF,
                     "onnxruntime": onnxruntime.__version__, "numpy": np.__version__}
-        doc = document("complete" if segments else "no_speech_detected", total, origin, segments, regions, detector)
+        doc = document("complete" if segments else "no_speech_detected", total, origin, segments, regions, detector,
+                       source)
     path = os.path.join(output_dir, "segments.json")
     with open(path, "w") as f:
         json.dump(doc, f, ensure_ascii=False, indent=1)
@@ -265,9 +360,13 @@ def main():
     parser.add_argument("video_path")
     parser.add_argument("output_dir")
     parser.add_argument("--model", default=os.environ.get("SILERO_VAD_MODEL", DEFAULT_MODEL))
+    parser.add_argument("--timeline", choices=["video", "audio"], default="video",
+                        help="video: sample 0 is the first video frame; audio: the first sample the track plays")
+    parser.add_argument("--audio-stream", type=int, default=None,
+                        help="audio track (0-based, audio tracks only) for --timeline audio")
     args = parser.parse_args()
     try:
-        path, doc = analyze(args.video_path, args.output_dir, args.model)
+        path, doc = analyze(args.video_path, args.output_dir, args.model, args.timeline, args.audio_stream)
     except (subprocess.CalledProcessError, ValueError, FileNotFoundError, RuntimeError) as e:
         detail = e.stderr.strip() if isinstance(e, subprocess.CalledProcessError) and e.stderr else str(e)
         print(f"Error: {detail}", file=sys.stderr)

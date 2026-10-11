@@ -144,3 +144,82 @@ def test_entity_types_empty_list_is_no_filter():
     })
     body = r.json()
     assert "<<DATE_TIME_1>>" in body["masked_text"]
+
+
+# Overlapping detections are masked as one span: a detection that loses on
+# type must not leave its characters in the clear.
+def _span(start, end, type_, score):
+    return {"start": start, "end": end, "type": type_, "score": score, "lang_used": "en"}
+
+
+def test_partly_overlapping_spans_are_masked_together():
+    from server import _resolve_overlaps, _build_masked
+
+    text = "ABCDEFGHIJ"
+    merged = _resolve_overlaps([_span(0, 6, "PERSON", 1.0), _span(4, 10, "LOCATION", 0.8)])
+    assert [(s["start"], s["end"], s["type"]) for s in merged] == [(0, 10, "PERSON")]
+    masked, registry, _ = _build_masked(text, merged, {})
+    assert masked == "<<PERSON_1>>"
+    assert registry == {"<<PERSON_1>>": "ABCDEFGHIJ"}
+
+
+def test_a_chain_of_overlaps_is_one_span_and_others_stay_apart():
+    from server import _resolve_overlaps
+
+    merged = _resolve_overlaps([
+        _span(0, 4, "PERSON", 0.9), _span(3, 7, "LOCATION", 0.85), _span(6, 9, "ORGANIZATION", 0.85),
+        _span(12, 15, "EMAIL_ADDRESS", 1.0),
+    ])
+    assert [(s["start"], s["end"]) for s in merged] == [(0, 9), (12, 15)]
+
+
+def test_an_inner_span_takes_the_outer_spans_type_and_range():
+    from server import _resolve_overlaps
+
+    merged = _resolve_overlaps([_span(2, 6, "PERSON", 1.0), _span(0, 10, "LOCATION", 0.8)])
+    assert [(s["start"], s["end"], s["type"]) for s in merged] == [(0, 10, "LOCATION")]
+
+
+def test_masking_never_leaves_a_detected_character():
+    import random
+    from server import _resolve_overlaps
+
+    rng = random.Random(7)
+    types = ["PERSON", "LOCATION", "ORGANIZATION", "DATE_TIME", "PHONE_NUMBER"]
+    for _ in range(500):
+        spans = []
+        for _ in range(rng.randint(1, 6)):
+            start = rng.randint(0, 30)
+            spans.append(_span(start, start + rng.randint(1, 8), rng.choice(types), rng.random()))
+        covered = {i for s in spans for i in range(s["start"], s["end"])}
+        merged = _resolve_overlaps(spans)
+        kept = {i for s in merged for i in range(s["start"], s["end"])}
+        assert covered <= kept
+        ends = [(s["start"], s["end"]) for s in merged]
+        assert all(a[1] <= b[0] for a, b in zip(ends, ends[1:]))  # in order, no overlap
+
+
+def test_an_honorific_trim_does_not_uncover_another_detection():
+    from server import _resolve_overlaps, _trim_japanese_honorifics, _build_masked
+
+    text = "AB王様"
+    spans = [
+        {"start": 0, "end": 3, "type": "PERSON", "score": 0.95, "lang_used": "ja"},
+        {"start": 2, "end": 4, "type": "LOCATION", "score": 0.8, "lang_used": "ja"},
+    ]
+    merged = _resolve_overlaps(_trim_japanese_honorifics(text, spans))  # the order anonymize uses
+    masked, _, _ = _build_masked(text, merged, {})
+    assert masked == "<<PERSON_1>>"
+
+
+def test_anonymize_keeps_what_another_detection_covers_after_the_trim(monkeypatch):
+    import server
+
+    spans = [
+        {"start": 0, "end": 3, "type": "PERSON", "score": 0.95, "lang_used": "ja"},
+        {"start": 2, "end": 4, "type": "LOCATION", "score": 0.8, "lang_used": "ja"},
+    ]
+    monkeypatch.setattr(server, "_analyze_per_language", lambda text, languages, threshold: [dict(s) for s in spans])
+    r = client.post("/v1/anonymize", json={"text": "AB王様", "languages": ["ja"]})
+    assert r.status_code == 200
+    assert r.json()["masked_text"] == "<<PERSON_1>>"

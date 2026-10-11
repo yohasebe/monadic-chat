@@ -106,31 +106,35 @@ def _analyze_per_language(text: str, languages: list[str], score_threshold: floa
 
 
 def _resolve_overlaps(spans: list[dict]) -> list[dict]:
-    """Drop spans that lose to a higher-priority overlapping span.
+    """Merge overlapping spans so that every detected character stays masked.
 
-    Rules:
+    Overlapping spans (directly or through a chain) form one group. The group
+    is masked as one span covering all of them, so a span that loses on type
+    never leaves its characters unmasked. Its type and score come from the
+    winner among the group's spans:
       1. Strict containment: outer wins (longer span absorbs inner).
       2. Score gap >= 0.1: higher score wins.
       3. Otherwise: TYPE_PRIORITY decides.
       4. DATE_TIME never beats numeric ID types when overlapping.
     """
-    spans = sorted(spans, key=lambda s: (s["start"], -(s["end"] - s["start"])))
-    kept: list[dict] = []
-    for cand in spans:
-        loser = False
-        for i, k in enumerate(list(kept)):
-            if cand["end"] <= k["start"] or cand["start"] >= k["end"]:
-                continue
-            winner = _pick_winner(cand, k)
-            if winner is k:
-                loser = True
-                break
-            kept[i] = cand
-            loser = True
-            break
-        if not loser:
-            kept.append(cand)
-    return sorted(kept, key=lambda s: s["start"])
+    ordered = sorted(spans, key=lambda s: (s["start"], -(s["end"] - s["start"])))
+    groups: list[list[dict]] = []
+    group_end = -1
+    for span in ordered:
+        if groups and span["start"] < group_end:
+            groups[-1].append(span)
+            group_end = max(group_end, span["end"])
+        else:
+            groups.append([span])
+            group_end = span["end"]
+
+    merged = []
+    for group in groups:
+        winner = group[0]
+        for other in group[1:]:
+            winner = _pick_winner(winner, other)
+        merged.append({**winner, "start": min(s["start"] for s in group), "end": max(s["end"] for s in group)})
+    return merged
 
 
 def _pick_winner(a: dict, b: dict) -> dict:
@@ -243,10 +247,13 @@ def anonymize(req: AnonymizeRequest) -> dict[str, Any]:
     if req.entity_types:
         whitelist = set(req.entity_types)
         raw_spans = [s for s in raw_spans if s["type"] in whitelist]
+    # Honorifics are trimmed from each detection before overlaps are merged:
+    # trimming the merged span would also uncover characters that another
+    # detection covered.
+    if req.options.honorific_trim:
+        raw_spans = _trim_japanese_honorifics(req.text, raw_spans)
     merged = _resolve_overlaps(raw_spans)
     after_merge = len(merged)
-    if req.options.honorific_trim:
-        merged = _trim_japanese_honorifics(req.text, merged)
     masked_text, new_registry, entities = _build_masked(req.text, merged, req.registry)
     return {
         "masked_text": masked_text,

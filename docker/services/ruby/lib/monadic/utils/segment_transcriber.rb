@@ -14,10 +14,16 @@ module Monadic
     #
     # The session runs without server-side turn detection: each segment's
     # audio is appended and then committed by us, so one segment becomes one
-    # item. Only one commit is ever outstanding, which is how the item that
-    # `input_audio_buffer.committed` names is tied to its segment (the event
-    # does not echo our commit's event_id). The next segment is sent after
-    # the previous one has completed or failed.
+    # item. On a connection only one commit is ever outstanding, which is how
+    # the item that `input_audio_buffer.committed` names is tied to its
+    # segment (the event does not echo our commit's event_id); the next
+    # segment is sent on it after the previous one has completed or failed.
+    # A few connections work at once (`concurrency`). The segments are cut
+    # into that many runs of consecutive segments of about the same length of
+    # audio, and each connection sends its own run in order: the model reads
+    # a segment with the ones before it on the same connection as context,
+    # so a connection keeps to a stretch of the recording rather than taking
+    # whichever segment is next.
     #
     # The transport is injected: `connect` returns an object with
     # `write(hash)`, `read(timeout_seconds)` (a parsed event, or nil when the
@@ -28,6 +34,9 @@ module Monadic
       RATE = 24_000
       BYTES_PER_SAMPLE = 2
       APPEND_SAMPLES = RATE / 2 # 0.5 s of audio per append event
+      # The wait after a rate limit: doubled each time, at most the cap.
+      RATE_LIMIT_WAIT = 2.0
+      RATE_LIMIT_WAIT_CAP = 30.0
       COMPLETED = 'conversation.item.input_audio_transcription.completed'
       FAILED = 'conversation.item.input_audio_transcription.failed'
 
@@ -44,6 +53,12 @@ module Monadic
           require 'async/websocket/client'
           endpoint = Async::HTTP::Endpoint.parse(URL, alpn_protocols: ['http/1.1'])
           new(Async::WebSocket::Client.connect(endpoint, headers: { 'Authorization' => "Bearer #{api_key}" }))
+        rescue Async::WebSocket::ConnectionError => e
+          status = e.response.respond_to?(:status) ? e.response.status : nil
+          raise RateLimited, 'the connection was refused (429)' if status == 429
+          raise Refused, "the connection was refused (#{status})" if [401, 403].include?(status)
+
+          raise IOError, "the connection was refused (#{status || 'unknown'})"
         end
 
         def initialize(connection)
@@ -72,6 +87,11 @@ module Monadic
       end
       class Timeout < StandardError; end
       class SegmentFailed < StandardError; end
+      # Too many requests: wait, then connect again.
+      class RateLimited < StandardError; end
+      # Refused for good (the key or the account): connecting again would be
+      # refused too.
+      class Refused < StandardError; end
 
       # What both ways of sending have in common: reading a segment's audio
       # from the PCM file and writing the timed transcript document.
@@ -100,7 +120,8 @@ module Monadic
         def document(segments, results, status)
           out = segments.map do |seg|
             r = results[seg['segment_id']]
-            seg.merge(r.slice('status', 'text', 'error', 'usage_seconds', 'accepted_attempt_id', 'provenance', 'attempts'))
+            seg.merge(r.slice('status', 'text', 'error', 'last_error', 'usage_seconds', 'accepted_attempt_id',
+                              'provenance', 'attempts'))
           end
           failed = out.select { |s| s['status'] != 'complete' }.map { |s| s['segment_id'] }
           status ||= if segments.empty? then @doc['status']
@@ -145,8 +166,8 @@ module Monadic
       include Shared
 
       def initialize(segments:, pcm_path:, model:, connect:, segment_timeout: 90, session_timeout: 20,
-                     max_attempts: 3, max_connections: 6, cancelled: -> { false }, on_progress: nil, language: nil,
-                     on_attempt: nil)
+                     max_attempts: 3, max_connections: 10, concurrency: 4, cancelled: -> { false },
+                     on_progress: nil, language: nil, on_attempt: nil)
         @on_attempt = on_attempt
         @language = language.to_s.empty? || language.to_s == 'auto' ? nil : language.to_s
         @doc = segments
@@ -157,6 +178,7 @@ module Monadic
         @session_timeout = session_timeout
         @max_attempts = max_attempts
         @max_connections = max_connections
+        @concurrency = [concurrency.to_i, 1].max
         @cancelled = cancelled
         @on_progress = on_progress
       end
@@ -165,36 +187,98 @@ module Monadic
         segments = Array(@doc['segments'])
         results = segments.to_h { |s| [s['segment_id'], { 'status' => 'pending', 'attempts' => 0 }] }
         @progress = [segments, results].freeze # one assignment: snapshot sees both or neither
-        status = nil
-        connections = 0
-        while status.nil?
-          pending = segments.select { |s| results[s['segment_id']]['status'] == 'pending' }
-          break if pending.empty?
-          if @cancelled.call
-            status = 'cancelled'
-            break
+        @results = results
+        @connections = 0
+        @cancelled_run = false
+        @refused = nil
+        @rate_limited = 0
+        @wait_until = 0.0
+        # The workers are fibers of one reactor, so the counters above and
+        # each worker's run of segments need no lock.
+        blocks = runs_of_segments(segments, [@concurrency, segments.size].min)
+        Sync { blocks.map { |block| Async { work(block) } }.each(&:wait) } unless blocks.empty?
+        unless @cancelled_run
+          blocks.flatten.each do |s|
+            result = results[s['segment_id']]
+            fail_segment(result, @refused || 'connection_limit') if result['status'] == 'pending'
           end
-          if connections >= @max_connections
-            pending.each { |s| fail_segment(results[s['segment_id']], 'connection_limit') }
-            break
-          end
-          connections += 1
-          status = transcribe_on_connection(pending, results, "conn#{format('%04d', connections)}")
         end
-        document(segments, results, status)
+        document(segments, results, @cancelled_run ? 'cancelled' : nil)
       end
 
       private
 
-      # Returns 'cancelled' to stop, or nil to go on (on this or a new connection).
-      def transcribe_on_connection(pending, results, connection_id)
+      # The segments in `count` runs of consecutive segments, each with about
+      # the same length of audio.
+      def runs_of_segments(segments, count)
+        return [] if count.zero?
+
+        lengths = segments.map { |s| Integer(s['end_sample']) - Integer(s['start_sample']) }
+        target = lengths.sum.to_f / count
+        runs = [[]]
+        done = 0
+        segments.each_with_index do |seg, i|
+          left_after = segments.size - i - 1
+          runs.last << seg
+          done += lengths[i]
+          runs << [] if runs.size < count && left_after >= count - runs.size && done >= target * runs.size
+        end
+        runs.reject(&:empty?)
+      end
+
+      # One worker: its run of segments, a connection at a time, until the
+      # run is done, the chat is cancelled, the connections run out or the
+      # service refuses for good.
+      def work(block)
+        until block.empty?
+          return if @refused
+          return @cancelled_run = true if @cancelled.call
+          return if @connections >= @max_connections
+          return @cancelled_run = true unless wait_out_rate_limit
+
+          @connections += 1
+          transcribe_on_connection(block, "conn#{format('%04d', @connections)}")
+        end
+      end
+
+      # Waits until the shared wait after a rate limit is over; false when
+      # the chat is cancelled meanwhile.
+      def wait_out_rate_limit
+        while (left = @wait_until - now).positive?
+          return false if @cancelled.call
+
+          sleep [left, 0.5].min
+        end
+        true
+      end
+
+      # Too many requests: every worker waits before connecting again, a
+      # little longer each time (with some jitter), at most 30 seconds.
+      def rate_limited!
+        @rate_limited += 1
+        delay = [RATE_LIMIT_WAIT * (2**(@rate_limited - 1)), RATE_LIMIT_WAIT_CAP].min * (0.75 + (rand * 0.5))
+        @wait_until = [@wait_until, now + delay].max
+      end
+
+      # Sends the worker's segments on one connection until they are done or
+      # the connection is lost (the segment it was sending goes back first).
+      def transcribe_on_connection(block, connection_id)
         conn = @connect.call
         start_session(conn)
-        pending.each do |seg|
-          return 'cancelled' if @cancelled.call
+        until block.empty?
+          if @cancelled.call
+            @cancelled_run = true
+            return
+          end
 
-          result = results[seg['segment_id']]
+          seg = block.first
+          result = @results[seg['segment_id']]
           loop do
+            if @cancelled.call # before an attempt is sent (and charged) again
+              @cancelled_run = true
+              return
+            end
+
             result['attempts'] += 1
             attempt_seconds(seg)
             attempt_id = "attempt#{format('%04d', result['attempts'])}"
@@ -207,21 +291,28 @@ module Monadic
               break
             rescue SegmentFailed => e
               # The connection is still usable, so the segment is tried again on it.
+              result['last_error'] = e.message
               if result['attempts'] >= @max_attempts
                 fail_segment(result, e.message)
                 break
               end
-            rescue ProtocolError, Timeout, IOError, SystemCallError => e
+            rescue RateLimited, ProtocolError, Timeout, IOError, SystemCallError => e
+              result['last_error'] = error_reason(e)
+              rate_limited! if e.is_a?(RateLimited)
               fail_segment(result, error_reason(e)) if result['attempts'] >= @max_attempts
-              return nil
+              block.shift unless result['status'] == 'pending' # sent again on a fresh connection otherwise
+              return
             end
           end
+          block.shift
         end
-        nil
-      rescue ProtocolError, Timeout, IOError, SystemCallError => e
-        # The session never started (or the transport failed outside a segment).
-        pending.each { |s| results[s['segment_id']]['last_error'] = error_reason(e) }
-        nil
+      rescue Refused => e
+        @refused = error_reason(e)
+      rescue RateLimited, ProtocolError, Timeout, IOError, SystemCallError => e
+        # The session never started (or the transport failed outside a
+        # segment): the segment waiting next carries the reason.
+        rate_limited! if e.is_a?(RateLimited)
+        @results[block.first['segment_id']]['last_error'] = error_reason(e) unless block.empty?
       ensure
         begin
           conn&.close
@@ -232,6 +323,8 @@ module Monadic
 
       def error_reason(error)
         case error
+        when RateLimited then 'rate_limited'
+        when Refused then 'refused'
         when Timeout then 'timeout'
         when ProtocolError then "protocol: #{error.message}"
         else 'connection'
@@ -255,7 +348,10 @@ module Monadic
 
             return
           when 'error'
-            raise ProtocolError, "session rejected (#{event.dig('error', 'code') || 'unknown'})"
+            code = event.dig('error', 'code')
+            raise RateLimited, 'rate limited' if code.to_s.include?('rate_limit')
+
+            raise ProtocolError, "session rejected (#{code || 'unknown'})"
           end
         end
       end
@@ -301,6 +397,7 @@ module Monadic
           when 'error'
             code = event.dig('error', 'code')
             raise ProtocolError, 'commit of a segment arrived empty' if code == 'input_audio_buffer_commit_empty'
+            raise RateLimited, 'rate limited' if code.to_s.include?('rate_limit')
 
             raise ProtocolError, "error (#{code || 'unknown'})"
           end

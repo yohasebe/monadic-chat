@@ -429,6 +429,40 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
       expect(result['segments'].map { |sg| sg['error'] }).to all(eq('refused'))
     end
 
+    it 'stops every connection when the session refuses the key' do
+      opened = 0
+      connect = lambda do
+        opened += 1
+        fake_server.new { |e, _| [{ 'type' => 'error', 'error' => { 'code' => 'invalid_api_key' } }] if e['type'] == 'session.update' }
+      end
+      t = described_class.new(segments: six, pcm_path: pcm, model: 'gpt-transcribe', connect: connect, concurrency: 1)
+      result = t.run
+      expect(opened).to eq(1)
+      expect(result['segments'].map { |sg| sg['error'] }).to all(eq('refused'))
+    end
+
+    it 'tries the next address of the host when one is unreachable' do
+      endpoint = double(each: nil)
+      allow(endpoint).to receive(:each).and_yield(:v6).and_yield(:v4)
+      tried = []
+      conn = described_class::WebSocketConnection.connect_any(endpoint) do |address|
+        tried << address
+        raise Errno::EHOSTUNREACH if address == :v6
+
+        :connected
+      end
+      expect(conn).to eq(:connected)
+      expect(tried).to eq(%i[v6 v4])
+    end
+
+    it 'raises the last error when no address of the host can be reached' do
+      endpoint = double
+      allow(endpoint).to receive(:each).and_yield(:v6).and_yield(:v4)
+      expect do
+        described_class::WebSocketConnection.connect_any(endpoint) { |_| raise Errno::EHOSTUNREACH }
+      end.to raise_error(Errno::EHOSTUNREACH)
+    end
+
     it 'does not send a segment again on the same connection once the chat is cancelled' do
       commits = 0
       cancel = false

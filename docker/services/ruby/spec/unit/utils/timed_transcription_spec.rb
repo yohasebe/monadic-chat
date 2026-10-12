@@ -112,6 +112,13 @@ RSpec.describe Monadic::Utils::TimedTranscription do
     expect(described_class.format_transcript(doc)).to include("count from the start of the audio track, which a player shows at 00:02")
   end
 
+  it "says why the connections failed when a run ran out of them" do
+    doc = { "status" => "failed", "sample_rate_hz" => 24_000,
+            "segments" => [{ "status" => "failed", "error" => "connection_limit", "last_error" => "connection" }] }
+    expect(described_class.format_transcript(doc))
+      .to eq("Audio transcription failed: connection_limit (last error: connection).")
+  end
+
   it "says when the transcript could not be saved, and does not leave a stopped one in its place" do
     allow(File).to receive(:rename).and_call_original
     allow(File).to receive(:rename).with(a_string_ending_with("transcript.json.part-#{Process.pid}"), anything)

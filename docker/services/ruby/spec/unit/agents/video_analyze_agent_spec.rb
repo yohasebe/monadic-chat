@@ -392,6 +392,26 @@ RSpec.describe VideoAnalyzeAgent do
     end
   end
 
+  it 'asks a reasoning model for the least reasoning and calls an empty reply a failure' do
+    agent.settings["provider"] = "openai"
+    CONFIG["OPENAI_API_KEY"] = "own-test-key"
+    unless defined?(OpenAIHelper)
+      stub_const("OpenAIHelper", Module.new)
+      OpenAIHelper.const_set(:OUTPUT_TOKEN_KEY, :max_completion_tokens)
+    end
+    allow(ImageAnalysisAgent).to receive(:vision_model_for).and_return("vision-test-model")
+    allow(Monadic::Utils::ModelSpec).to receive(:get_reasoning_effort_options).with("vision-test-model")
+      .and_return(options: %w[none low high], default: "none")
+    response = double(status: double(success?: true), body: JSON.generate({
+      choices: [{ message: { content: "" }, finish_reason: "length" }]
+    }))
+    expect(agent).to receive(:video_vision_http_post) do |_uri, _headers, body|
+      expect(body[:reasoning_effort]).to eq("none")
+      response
+    end
+    expect(agent.send(:video_vision_query, "Describe", timed_document)).to start_with("ERROR:").and include("length")
+  end
+
   it 'does not invent timestamps for legacy arrays' do
     expect(agent).to receive(:video_vision_openai) do |query, frames, _model, _key|
       expect(query).to include("unknown timestamps")

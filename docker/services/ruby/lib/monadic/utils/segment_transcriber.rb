@@ -37,6 +37,8 @@ module Monadic
       # The wait after a rate limit: doubled each time, at most the cap.
       RATE_LIMIT_WAIT = 2.0
       RATE_LIMIT_WAIT_CAP = 30.0
+      # Session errors that no new connection would get past.
+      REFUSED_CODES = %w[invalid_api_key insufficient_quota].freeze
       COMPLETED = 'conversation.item.input_audio_transcription.completed'
       FAILED = 'conversation.item.input_audio_transcription.failed'
 
@@ -52,13 +54,27 @@ module Monadic
           require 'async/http/endpoint'
           require 'async/websocket/client'
           endpoint = Async::HTTP::Endpoint.parse(URL, alpn_protocols: ['http/1.1'])
-          new(Async::WebSocket::Client.connect(endpoint, headers: { 'Authorization' => "Bearer #{api_key}" }))
+          new(connect_any(endpoint) { |address| Async::WebSocket::Client.connect(address, headers: { 'Authorization' => "Bearer #{api_key}" }) })
         rescue Async::WebSocket::ConnectionError => e
           status = e.response.respond_to?(:status) ? e.response.status : nil
           raise RateLimited, 'the connection was refused (429)' if status == 429
           raise Refused, "the connection was refused (#{status})" if [401, 403].include?(status)
 
           raise IOError, "the connection was refused (#{status || 'unknown'})"
+        end
+
+        # Each of the host's addresses in turn until one connects. The
+        # endpoint's own connect gives up at an unreachable address (only a
+        # refused one or an unreachable network moves it on), so a host with
+        # no working IPv6 route would never reach the IPv4 address after it.
+        def self.connect_any(endpoint)
+          last_error = nil
+          endpoint.each do |address|
+            return yield(address)
+          rescue SystemCallError => e
+            last_error = e
+          end
+          raise last_error || IOError.new('the host has no address')
         end
 
         def initialize(connection)
@@ -350,6 +366,8 @@ module Monadic
           when 'error'
             code = event.dig('error', 'code')
             raise RateLimited, 'rate limited' if code.to_s.include?('rate_limit')
+            # The key itself is refused: every other connection would be too.
+            raise Refused, "session rejected (#{code})" if REFUSED_CODES.include?(code.to_s)
 
             raise ProtocolError, "session rejected (#{code || 'unknown'})"
           end

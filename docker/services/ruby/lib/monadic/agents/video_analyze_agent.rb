@@ -461,12 +461,14 @@ module VideoAnalyzeAgent
       puts "[VideoAnalyzeAgent] Using provider: #{provider}, model: #{model}, frames: #{frames.size}"
     end
 
-    case provider
-    when "openai"    then video_vision_openai(query, frames, model, api_key)
-    when "anthropic" then video_vision_claude(query, frames, model, api_key)
-    when "google"    then video_vision_gemini(query, frames, model, api_key)
-    when "xai"       then video_vision_grok(query, frames, model, api_key)
-    end
+    text = case provider
+           when "openai"    then video_vision_openai(query, frames, model, api_key)
+           when "anthropic" then video_vision_claude(query, frames, model, api_key)
+           when "google"    then video_vision_gemini(query, frames, model, api_key)
+           when "xai"       then video_vision_grok(query, frames, model, api_key)
+           end
+    # A reply with no text is a failure, not a description.
+    text.to_s.strip.empty? ? "ERROR: Empty response from the vision model" : text
   rescue => e
     "ERROR: Video vision analysis failed: #{e.message}"
   end
@@ -587,9 +589,13 @@ module VideoAnalyzeAgent
     # critical for a single-shot vision query.
     body = {
       model: model,
-      OpenAIHelper::OUTPUT_TOKEN_KEY => 1000,
+      OpenAIHelper::OUTPUT_TOKEN_KEY => 4000,
       messages: [{ role: "user", content: content }]
     }
+    # Unasked, a reasoning model reasons at its own default level and can
+    # spend the whole output budget on it, leaving the description empty.
+    efforts = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options)
+    body[:reasoning_effort] = efforts.first if efforts&.any?
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
@@ -597,7 +603,11 @@ module VideoAnalyzeAgent
       return "ERROR: OpenAI Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
     end
 
-    JSON.parse(res.body.to_s).dig("choices", 0, "message", "content") || "ERROR: Empty response from OpenAI"
+    choice = JSON.parse(res.body.to_s).dig("choices", 0) || {}
+    text = choice.dig("message", "content").to_s
+    return text unless text.strip.empty?
+
+    "ERROR: Empty response from OpenAI (finish_reason: #{choice["finish_reason"] || "unknown"})"
   end
 
   def video_vision_claude(query, frames, model, api_key)

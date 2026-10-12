@@ -117,6 +117,9 @@ module Monadic
       def self.format_transcript(result)
         if result["status"] == "failed"
           reason = result["segments"].filter_map { |seg| seg["error"] }.first
+          # A run that ran out of connections says why the connections failed.
+          cause = result["segments"].filter_map { |seg| seg["last_error"] }.first
+          reason = "#{reason} (last error: #{cause})" if reason && cause && cause != reason
           return "Audio transcription failed#{": #{reason}" if reason}."
         end
 

@@ -924,6 +924,13 @@ window.loadedApp = "Chat";
         }
         break;
       }
+      case "secret_references_unresolved": {
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleSecretReferencesUnresolved === 'function') {
+          wch.handleSecretReferencesUnresolved(data);
+        }
+        break;
+      }
       case "apps": {
         const adh = window.WsAppDataHandlers;
         if (adh && typeof adh.handleAppsMessage === 'function') {

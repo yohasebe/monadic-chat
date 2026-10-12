@@ -67,9 +67,20 @@ module Monadic
         env.to_h.each { |key, value| env.delete(key) if reference?(value) }
       end
 
+      # Keys whose references could not be read when config/env was loaded,
+      # for telling the user which ones (names only).
+      def unresolved_at_load
+        @unresolved_at_load || []
+      end
+
+      def record_unresolved(keys)
+        @unresolved_at_load = Array(keys).map(&:to_s).uniq.freeze
+      end
+
       # For tests.
       def reset!
         @resolved = nil
+        @unresolved_at_load = nil
       end
 
       def read_delivered(path = DELIVERED_PATH)

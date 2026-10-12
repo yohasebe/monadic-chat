@@ -199,6 +199,34 @@ describe('ws-connection-handler', () => {
     });
   });
 
+  describe('handleSecretReferencesUnresolved', () => {
+    beforeEach(() => {
+      window.secretReferencesNoticeShown = false;
+      window.escapeHtml = require('../../docker/services/ruby/public/js/monadic/text-utils.js').escapeHtml;
+    });
+
+    it('names the keys in a system card, escaped', () => {
+      handlers.handleSecretReferencesUnresolved({ keys: ['OPENAI_API_KEY', '<b>X</b>'] });
+      expect(setAlert).toHaveBeenCalledTimes(1);
+      const [text, type] = setAlert.mock.calls[0];
+      expect(type).toBe('error');
+      expect(text).toContain('<code>OPENAI_API_KEY</code>, <code>&lt;b&gt;X&lt;/b&gt;</code>');
+      expect(text).toContain('Unlock 1Password and restart Monadic Chat');
+    });
+
+    it('shows the notice once per page, however often the connection is made again', () => {
+      handlers.handleSecretReferencesUnresolved({ keys: ['OPENAI_API_KEY'] });
+      handlers.handleSecretReferencesUnresolved({ keys: ['OPENAI_API_KEY'] });
+      expect(setAlert).toHaveBeenCalledTimes(1);
+    });
+
+    it('says nothing without keys', () => {
+      handlers.handleSecretReferencesUnresolved({ keys: [] });
+      handlers.handleSecretReferencesUnresolved({});
+      expect(setAlert).not.toHaveBeenCalled();
+    });
+  });
+
   describe('module exports', () => {
     it('exports all three handlers', () => {
       expect(typeof handlers.handleTokenVerified).toBe('function');

@@ -48,6 +48,11 @@ module WebSocketHelper
         send_to_client(connection, { "type" => "open_ai_api_error", "token" => "", "content" => "" })
       end
     end
+
+    # Keys left unset because 1Password could not be read (locked when the
+    # server started, for one): the page says which, by name only.
+    unresolved = Monadic::Utils::SecretReferences.unresolved_at_load
+    send_to_client(connection, { "type" => "secret_references_unresolved", "keys" => unresolved }) unless unresolved.empty?
   end
 
   # The suggestion is written in a thread of its own, returned to the read

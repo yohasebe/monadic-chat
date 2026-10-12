@@ -240,6 +240,7 @@ begin
     CONFIG[key] = converted_value
   end
   
+  Monadic::Utils::SecretReferences.record_unresolved(unresolved_references)
   unless unresolved_references.empty?
     puts "1Password references not resolved, left unset: #{unresolved_references.join(', ')}"
   end

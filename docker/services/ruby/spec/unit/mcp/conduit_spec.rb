@@ -768,6 +768,16 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:success]).to be false
     end
 
+    it "charges an evaluator error what it held, since the request may have gone out" do
+      allow(agent_host).to receive(:second_opinion_agent)
+        .and_return({ comments: "Failed: timeout", validity: "error", model: "openai:m" })
+      described_class.call("monadic_second_opinion", {
+        "user_query" => "test", "agent_response" => "test", "provider" => "openai"
+      })
+      expect(Monadic::MCP::CostGuard.status).to include(tokens_reserved: 0)
+      expect(Monadic::MCP::CostGuard.spent).to be >= described_class::DEFAULT_MAX_OUTPUT
+    end
+
     it "verifies across multiple providers in parallel" do
       allow(agent_host).to receive(:second_opinion_agent) do |provider:, **_|
         { comments: "checked by #{provider}", validity: "8/10", model: "#{provider}:m" }
@@ -948,6 +958,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_analyze_image" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     let(:vhost) { double("vision_host") }
 
     around do |example|
@@ -1010,6 +1023,23 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end
+
+    it "holds and charges nothing when the provider has no key, since nothing could be sent" do
+      stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => ""))
+      expect(vhost).not_to receive(:image_analysis_agent)
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png", "provider" => "openai" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/OPENAI_API_KEY/)
+      expect(Monadic::MCP::CostGuard.status).to include(tokens_spent: 0, tokens_reserved: 0)
+    end
+
+    it "reports the budget after a failed call has been charged" do
+      allow(vhost).to receive(:image_analysis_agent).and_return("ERROR: read timed out")
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png", "provider" => "openai" })
+      expect(result[:budget]).to eq(Monadic::MCP::CostGuard.status)
+      expect(result[:budget]).to include(tokens_reserved: 0)
+      expect(result[:budget][:tokens_spent]).to be >= described_class::DEFAULT_MAX_OUTPUT
+    end
   end
 
   it "monadic_analyze_image requires a provider instead of picking one with a key" do
@@ -1018,6 +1048,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_transcribe_audio" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     let(:ahost) { double("audio_host") }
 
     around do |example|
@@ -1184,6 +1217,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_analyze_audio" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     before { Monadic::MCP::CostGuard.reset! }
     after { Monadic::MCP::CostGuard.reset! }
 
@@ -1228,6 +1264,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_analyze_video" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     let(:vhost) { double("video_host") }
 
     before do
@@ -1682,6 +1721,13 @@ RSpec.describe Monadic::MCP::Conduit do
       result = described_class.call("monadic_agent", { "task" => "t" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/no web search key/)
+    end
+
+    it "refuses a tool group it does not permit before holding or charging anything" do
+      expect(Monadic::MCP::ConduitAgent).not_to receive(:run)
+      expect { described_class.call("monadic_agent", { "task" => "t", "tools" => ["not_permitted"] }) }
+        .to raise_error(ArgumentError, /not permitted/)
+      expect(Monadic::MCP::CostGuard.status).to include(tokens_spent: 0, tokens_reserved: 0)
     end
 
     it "requires a task" do

@@ -128,9 +128,11 @@ module AudioTranscriptionAgent
     api_key = CONFIG[AUDIO_API_KEYS[provider]].to_s.strip
     return "ERROR: #{AUDIO_API_KEYS[provider]} is not set" if api_key.empty?
 
+    # No retry inside: the caller tries a segment again itself, and pays for
+    # each try before it is sent.
     case provider
-    when "google" then gemini_transcription_request(raw, AUDIO_MIME_TYPES[format] || "audio/wav", model, api_key, lang_code)
-    when "xai" then transcribe_xai(raw, format, model, api_key, lang_code)
+    when "google" then gemini_transcription_request(raw, AUDIO_MIME_TYPES[format] || "audio/wav", model, api_key, lang_code, retries: 0)
+    when "xai" then transcribe_xai(raw, format, model, api_key, lang_code, retries: 0)
     else "ERROR: #{provider} audio is not transcribed in segments"
     end
   rescue => e
@@ -211,7 +213,7 @@ module AudioTranscriptionAgent
     gemini_transcription_request(File.binread(path), AUDIO_MIME_TYPES[ext] || "audio/mpeg", model, api_key, lang_code)
   end
 
-  def gemini_transcription_request(raw, mime_type, model, api_key, lang_code)
+  def gemini_transcription_request(raw, mime_type, model, api_key, lang_code, retries: AUDIO_MAX_RETRIES)
     uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent"
     base64_data = Base64.strict_encode64(raw)
 
@@ -241,7 +243,7 @@ module AudioTranscriptionAgent
       puts "[AudioTranscriptionAgent] Gemini model: #{model}, mime: #{mime_type}, size: #{raw.size} bytes"
     end
 
-    retries = 0
+    tries_left = retries
     begin
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                .timeout(
@@ -250,8 +252,8 @@ module AudioTranscriptionAgent
                  read: AUDIO_READ_TIMEOUT
                ).post(uri, json: body)
     rescue HTTP::Error, HTTP::TimeoutError => e
-      if retries < AUDIO_MAX_RETRIES
-        retries += 1
+      if tries_left.positive?
+        tries_left -= 1
         sleep 1
         retry
       end
@@ -271,7 +273,7 @@ module AudioTranscriptionAgent
   # /v1/stt takes the file as multipart form data; the container format is
   # detected by the service, the extension only hints it.
 
-  def transcribe_xai(raw, format, model, api_key, lang_code)
+  def transcribe_xai(raw, format, model, api_key, lang_code, retries: AUDIO_MAX_RETRIES)
     form = HTTP::FormData.create(
       { file: HTTP::FormData::Part.new(raw, filename: "audio.#{format}") }
         .merge(lang_code && !lang_code.empty? && lang_code != "auto" ? { language: lang_code } : {})
@@ -281,14 +283,14 @@ module AudioTranscriptionAgent
       puts "[AudioTranscriptionAgent] xAI STT model: #{model}, size: #{raw.bytesize} bytes"
     end
 
-    retries = 0
+    tries_left = retries
     begin
       res = HTTP.headers("Content-Type" => form.content_type, "Authorization" => "Bearer #{api_key}")
                 .timeout(connect: AUDIO_CONNECT_TIMEOUT, write: AUDIO_WRITE_TIMEOUT, read: AUDIO_READ_TIMEOUT)
                 .post("https://api.x.ai/v1/stt", body: form.to_s)
     rescue HTTP::Error, HTTP::TimeoutError => e
-      if retries < AUDIO_MAX_RETRIES
-        retries += 1
+      if tries_left.positive?
+        tries_left -= 1
         sleep 1
         retry
       end

@@ -163,11 +163,12 @@ module Monadic
 
         # Told before each attempt is sent, with the seconds of audio it sends
         # (what the caller charges for: an attempt is sent whether or not an
-        # answer comes back).
-        def attempt_seconds(seg)
-          return unless @on_attempt
+        # answer comes back). The caller answers false when the attempt must
+        # not be sent (its budget is spent); false is returned then.
+        def attempt_allowed?(seg)
+          return true unless @on_attempt
 
-          @on_attempt.call((Integer(seg['end_sample']) - Integer(seg['start_sample'])).to_f / RATE)
+          @on_attempt.call((Integer(seg['end_sample']) - Integer(seg['start_sample'])).to_f / RATE) != false
         end
 
         def fail_segment(result, reason)
@@ -251,6 +252,7 @@ module Monadic
           return @cancelled_run = true if @cancelled.call
           return if @connections >= @max_connections
           return @cancelled_run = true unless wait_out_rate_limit
+          return if @refused # refused while this worker waited
 
           @connections += 1
           transcribe_on_connection(block, "conn#{format('%04d', @connections)}")
@@ -295,8 +297,14 @@ module Monadic
               return
             end
 
+            # Another worker may have been refused meanwhile: nothing more is sent.
+            return if @refused
+
+            unless attempt_allowed?(seg)
+              @refused = 'budget' # every other worker stops too
+              return
+            end
             result['attempts'] += 1
-            attempt_seconds(seg)
             attempt_id = "attempt#{format('%04d', result['attempts'])}"
             begin
               outcome = transcribe_segment(conn, seg, "#{seg['segment_id']}_#{connection_id}_#{attempt_id}")
@@ -483,8 +491,9 @@ module Monadic
           while result['attempts'] < @max_attempts
             return if @cancelled.call
 
+            return fail_segment(result, 'budget') unless attempt_allowed?(seg)
+
             result['attempts'] += 1
-            attempt_seconds(seg)
             text = begin
               @transcribe.call(wav).to_s
             rescue StandardError => e

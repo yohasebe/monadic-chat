@@ -1355,33 +1355,33 @@ module Monadic
 
       def run_one_second_opinion(provider:, user_query:, agent_response:, model: nil)
         input_tokens = CostGuard.estimate_tokens("#{user_query}\n#{agent_response}")
-        begin
-          CostGuard.ensure_within!(input_tokens + DEFAULT_MAX_OUTPUT)
-        rescue CostGuard::BudgetExceeded => e
-          return { provider: provider, success: false, error: "❌ Budget exceeded: #{e.message}" }
+        reply = CostGuard.reserving(input_tokens + DEFAULT_MAX_OUTPUT) do |reservation|
+          result = second_opinion_host.second_opinion_agent(
+            user_query: user_query,
+            agent_response: agent_response,
+            provider: provider,
+            model: model,
+            session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT # MCP masks on its own
+          )
+
+          comments = result[:comments] || result["comments"]
+          validity = result[:validity] || result["validity"]
+          used_model = result[:model] || result["model"]
+
+          # An error reply may still have been sent: close charges what is held.
+          reservation.settle(input_tokens + CostGuard.estimate_tokens(comments)) unless validity.to_s == "error"
+
+          {
+            provider: provider || used_model.to_s.split(":").first,
+            model: used_model,
+            success: validity.to_s != "error",
+            validity: validity,
+            comments: comments
+          }
         end
-
-        result = second_opinion_host.second_opinion_agent(
-          user_query: user_query,
-          agent_response: agent_response,
-          provider: provider,
-          model: model,
-          session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT # MCP masks on its own
-        )
-
-        comments = result[:comments] || result["comments"]
-        validity = result[:validity] || result["validity"]
-        used_model = result[:model] || result["model"]
-
-        CostGuard.record(input_tokens + CostGuard.estimate_tokens(comments))
-
-        {
-          provider: provider || used_model.to_s.split(":").first,
-          model: used_model,
-          success: validity.to_s != "error",
-          validity: validity,
-          comments: comments
-        }
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { provider: provider, success: false, error: "❌ Budget exceeded: #{e.message}" }
       end
 
       # ---- Vision (image analysis) ---------------------------------------
@@ -1399,25 +1399,27 @@ module Monadic
         provider = required_analysis_provider(arguments)
         path = resolve_shared_path(path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS)
 
+        refusal = unsendable(:image, provider)
+        return refusal if refusal
+
         input_tokens = CostGuard.estimate_tokens(prompt) + IMAGE_TOKENS_ESTIMATE
-        begin
-          CostGuard.ensure_within!(input_tokens + DEFAULT_MAX_OUTPUT)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(input_tokens + DEFAULT_MAX_OUTPUT) do |reservation|
+          result = agent_host(ImageAnalysisAgent, provider)
+                   .image_analysis_agent(message: prompt, image_path: path)
+          success = !error_marker?(result)
+          reservation.settle(input_tokens + CostGuard.estimate_tokens(result)) if success
+
+          {
+            provider: provider,
+            success: success,
+            text: (success ? result : nil),
+            error: (success ? nil : "❌ #{result}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        result = agent_host(ImageAnalysisAgent, provider)
-                 .image_analysis_agent(message: prompt, image_path: path)
-        success = !error_marker?(result)
-        CostGuard.record(input_tokens + CostGuard.estimate_tokens(result))
-
-        {
-          provider: provider,
-          success: success,
-          text: (success ? result : nil),
-          error: (success ? nil : "❌ #{result}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       # ---- Audio transcription (STT) -------------------------------------
@@ -1443,26 +1445,27 @@ module Monadic
           return transcribe_audio_with_times(path, provider, model, language)
         end
         path = resolve_shared_path(path, extensions: Monadic::Utils::SharedPathGuard::AUDIO_EXTENSIONS)
+        refusal = unsendable(:audio, provider)
+        return refusal if refusal
 
-        begin
-          CostGuard.ensure_within!(AUDIO_TOKENS_ESTIMATE)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(AUDIO_TOKENS_ESTIMATE + DEFAULT_MAX_OUTPUT) do |reservation|
+          result = agent_host(AudioTranscriptionAgent, provider).audio_transcription_agent(
+            audio_path: path, model: model, response_format: "text", lang_code: language
+          )
+          success = !error_marker?(result)
+          reservation.settle(AUDIO_TOKENS_ESTIMATE + CostGuard.estimate_tokens(result)) if success
+
+          {
+            provider: provider,
+            success: success,
+            text: (success ? result : nil),
+            error: (success ? nil : "❌ #{result}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        result = agent_host(AudioTranscriptionAgent, provider).audio_transcription_agent(
-          audio_path: path, model: model, response_format: "text", lang_code: language
-        )
-        success = !error_marker?(result)
-        CostGuard.record(AUDIO_TOKENS_ESTIMATE + CostGuard.estimate_tokens(result))
-
-        {
-          provider: provider,
-          success: success,
-          text: (success ? result : nil),
-          error: (success ? nil : "❌ #{result}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       # The text returned with timestamps, at most this many bytes; the whole
@@ -1487,28 +1490,29 @@ module Monadic
         input = Monadic::Utils::SharedPathGuard.command_path(path, container: "python")
         probe = Monadic::Utils::AudioProbe.check!(input)
         estimate = (probe[:duration] * AUDIO_TOKENS_PER_SECOND).ceil + DEFAULT_MAX_OUTPUT
-        begin
-          CostGuard.ensure_within!(estimate)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
-        end
+        # The transcript's share stays held while the audio is paid for.
+        reply = CostGuard.reserving(estimate, pay_as_sent: true, keep: DEFAULT_MAX_OUTPUT) do |reservation|
+          job = Monadic::Workspace::Jobs.create_outside_chat!("transcriptions")
+          output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
+          # Each attempt is charged as it is sent, once: whether the run ends,
+          # fails or is cancelled, and whatever is saved or not.
+          result = agent_host(AudioTranscriptionAgent, provider).run_timed_audio(
+            provider: provider, model: segment_model, input: input, job: job, output: output,
+            language: Monadic::Utils::LanguageConfig.stt_language_code(language),
+            on_attempt: ->(seconds) { reservation.charge((seconds * AUDIO_TOKENS_PER_SECOND).ceil) }
+          )
+          if result[:fallback]
+            reservation.settle # nothing was sent
+            return { provider: provider, success: false,
+                     error: "❌ The Python container predates timed transcripts. Rebuild it (Actions > Build Python Container)." }
+          end
 
-        job = Monadic::Workspace::Jobs.create_outside_chat!("transcriptions")
-        output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
-        # Each attempt is charged as it is sent, once: whether the run ends,
-        # fails or is cancelled, and whatever is saved or not.
-        result = agent_host(AudioTranscriptionAgent, provider).run_timed_audio(
-          provider: provider, model: segment_model, input: input, job: job, output: output,
-          language: Monadic::Utils::LanguageConfig.stt_language_code(language),
-          on_attempt: ->(seconds) { CostGuard.record((seconds * AUDIO_TOKENS_PER_SECOND).ceil) }
-        )
-        if result[:fallback]
-          return { provider: provider, success: false,
-                   error: "❌ The Python container predates timed transcripts. Rebuild it (Actions > Build Python Container)." }
+          reservation.settle(CostGuard.estimate_tokens(result[:text].to_s))
+          timed_transcription_view(provider, result, job)
         end
-
-        CostGuard.record(CostGuard.estimate_tokens(result[:text].to_s))
-        timed_transcription_view(provider, result, job)
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       rescue Monadic::Utils::AudioProbe::Rejected => e
         { provider: provider, success: false, error: "❌ #{e.message}" }
       rescue Monadic::Workspace::Jobs::Unavailable => e
@@ -1548,26 +1552,28 @@ module Monadic
 
         abs_path = resolve_shared_path(path)
 
+        refusal = unsendable(:audio, "google") # the analysis is Gemini's
+        return refusal if refusal
+
         input_tokens = CostGuard.estimate_tokens(prompt) + AUDIO_TOKENS_ESTIMATE
-        begin
-          CostGuard.ensure_within!(input_tokens + DEFAULT_MAX_OUTPUT)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(input_tokens + DEFAULT_MAX_OUTPUT) do |reservation|
+          # AudioAnalysisAgent is a module_function utility (Gemini direct API,
+          # ffmpeg compression) — no host instance needed.
+          result = AudioAnalysisAgent.analyze(audio_path: abs_path, prompt: prompt, model: audio_analyze_model)
+          success = !error_marker?(result)
+          reservation.settle(input_tokens + CostGuard.estimate_tokens(result)) if success
+
+          {
+            provider: "gemini",
+            success: success,
+            text: (success ? result : nil),
+            error: (success ? nil : "❌ #{result}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        # AudioAnalysisAgent is a module_function utility (Gemini direct API,
-        # ffmpeg compression) — no host instance needed.
-        result = AudioAnalysisAgent.analyze(audio_path: abs_path, prompt: prompt, model: audio_analyze_model)
-        success = !error_marker?(result)
-        CostGuard.record(input_tokens + CostGuard.estimate_tokens(result))
-
-        {
-          provider: "gemini",
-          success: success,
-          text: (success ? result : nil),
-          error: (success ? nil : "❌ #{result}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       def audio_analyze_model
@@ -1593,28 +1599,29 @@ module Monadic
         query = arguments["query"] || arguments[:query]
         fps = (arguments["fps"] || arguments[:fps]).to_i
         fps = 1 if fps <= 0
+        refusal = unsendable(:video, provider)
+        return refusal if refusal
 
-        begin
-          CostGuard.ensure_within!(VIDEO_ANALYZE_ESTIMATE + DEFAULT_MAX_OUTPUT)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(VIDEO_ANALYZE_ESTIMATE + DEFAULT_MAX_OUTPUT) do |reservation|
+          # The video agent shells out to extract_frames.py in the Python
+          # container, then queries a vision provider and transcribes audio — it
+          # needs the full MonadicApp surface (send_command + ImageAnalysisAgent +
+          # AudioTranscriptionAgent), which MonadicApp already mixes in.
+          result = video_analyze_host(provider).analyze_video(file: path, fps: fps, query: query)
+          success = !video_error?(result)
+          reservation.settle(VIDEO_ANALYZE_ESTIMATE + CostGuard.estimate_tokens(result)) if success
+
+          {
+            provider: provider,
+            success: success,
+            text: (success ? result : nil),
+            error: (success ? nil : "❌ #{result}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        # The video agent shells out to extract_frames.py in the Python
-        # container, then queries a vision provider and transcribes audio — it
-        # needs the full MonadicApp surface (send_command + ImageAnalysisAgent +
-        # AudioTranscriptionAgent), which MonadicApp already mixes in.
-        result = video_analyze_host(provider).analyze_video(file: path, fps: fps, query: query)
-        success = !video_error?(result)
-        CostGuard.record(VIDEO_ANALYZE_ESTIMATE + CostGuard.estimate_tokens(result))
-
-        {
-          provider: provider,
-          success: success,
-          text: (success ? result : nil),
-          error: (success ? nil : "❌ #{result}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       # A MonadicApp host for the video agent, carrying the requested provider
@@ -1672,29 +1679,28 @@ module Monadic
         # TTS bills by audio duration, not tokens; the input text length is a
         # reasonable budget backstop alongside the platform's hard ceiling.
         est_tokens = CostGuard.estimate_tokens(text)
-        begin
-          CostGuard.ensure_within!(est_tokens)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(est_tokens) do |reservation|
+          result = tts_host.text_to_speech(
+            provider: provider, text: text, speed: speed,
+            voice_id: voice, language: language, instructions: instructions
+          ).to_s
+          reservation.settle(est_tokens)
+
+          filename = extract_audio_filename(result)
+          success = !filename.nil? && !speak_error?(result)
+
+          {
+            provider: provider,
+            success: success,
+            file: (success ? filename : nil),
+            note: (success ? "Saved to ~/monadic/data/#{filename}" : nil),
+            error: (success ? nil : "❌ #{result.strip}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        result = tts_host.text_to_speech(
-          provider: provider, text: text, speed: speed,
-          voice_id: voice, language: language, instructions: instructions
-        ).to_s
-        CostGuard.record(est_tokens)
-
-        filename = extract_audio_filename(result)
-        success = !filename.nil? && !speak_error?(result)
-
-        {
-          provider: provider,
-          success: success,
-          file: (success ? filename : nil),
-          note: (success ? "Saved to ~/monadic/data/#{filename}" : nil),
-          error: (success ? nil : "❌ #{result.strip}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       # Map a requested provider onto a supported TTS label (default openai).
@@ -1759,35 +1765,34 @@ module Monadic
         end
 
         input_tokens = CostGuard.estimate_tokens(prompt)
-        begin
-          CostGuard.ensure_within!(input_tokens + CODE_OUTPUT_ESTIMATE)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(input_tokens + CODE_OUTPUT_ESTIMATE) do |reservation|
+          spec = CODE_AGENTS[provider]
+          reporter = job_progress_reporter
+          result = if reporter
+                     code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt, &reporter)
+                   else
+                     code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt)
+                   end
+          result = {} unless result.is_a?(Hash)
+          code = result[:code]
+          # An agent can report success while leaking a provider error string into
+          # the code field (e.g. when api_request rescued mid-pipeline). Treat a
+          # "[Provider] ... Error:" code as a failure rather than passing it off.
+          success = result[:success] == true && !error_string?(code.to_s)
+          reservation.settle(input_tokens + CostGuard.estimate_tokens(code.to_s)) if success
+
+          {
+            provider: provider,
+            success: success,
+            model: result[:model],
+            code: (success ? code : nil),
+            error: (success ? nil : "❌ #{result[:error] || code || 'code generation failed'}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        spec = CODE_AGENTS[provider]
-        reporter = job_progress_reporter
-        result = if reporter
-                   code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt, &reporter)
-                 else
-                   code_host(provider, spec[:module]).public_send(spec[:call], prompt: prompt)
-                 end
-        result = {} unless result.is_a?(Hash)
-        code = result[:code]
-        # An agent can report success while leaking a provider error string into
-        # the code field (e.g. when api_request rescued mid-pipeline). Treat a
-        # "[Provider] ... Error:" code as a failure rather than passing it off.
-        success = result[:success] == true && !error_string?(code.to_s)
-        CostGuard.record(input_tokens + CostGuard.estimate_tokens(code.to_s))
-
-        {
-          provider: provider,
-          success: success,
-          model: result[:model],
-          code: (success ? code : nil),
-          error: (success ? nil : "❌ #{result[:error] || code || 'code generation failed'}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       # Resolve a requested provider to a configured code provider, or pick the
@@ -1857,26 +1862,25 @@ module Monadic
         aspect_ratio = arguments["aspect_ratio"] || arguments[:aspect_ratio]
         size = arguments["size"] || arguments[:size]
 
-        begin
-          CostGuard.ensure_within!(IMAGE_GEN_ESTIMATE)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(IMAGE_GEN_ESTIMATE) do |reservation|
+          # The helper methods wrap themselves in ProgressBroadcaster.with_progress,
+          # which mirrors progress into the current job for polling clients.
+          raw = invoke_image_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio, size: size)
+          result = normalize_image_result(provider, raw)
+          reservation.settle(IMAGE_GEN_ESTIMATE)
+
+          {
+            provider: provider,
+            success: result[:success],
+            files: (result[:success] ? result[:files] : nil),
+            note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+            error: (result[:success] ? nil : "❌ #{result[:error]}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        # The helper methods wrap themselves in ProgressBroadcaster.with_progress,
-        # which mirrors progress into the current job for polling clients.
-        raw = invoke_image_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio, size: size)
-        result = normalize_image_result(provider, raw)
-        CostGuard.record(IMAGE_GEN_ESTIMATE)
-
-        {
-          provider: provider,
-          success: result[:success],
-          files: (result[:success] ? result[:files] : nil),
-          note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
-          error: (result[:success] ? nil : "❌ #{result[:error]}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       def normalize_image_provider(value)
@@ -2008,25 +2012,24 @@ module Monadic
         duration = arguments["duration"] || arguments[:duration]
         image_path = arguments["image_path"] || arguments[:image_path]
 
-        begin
-          CostGuard.ensure_within!(VIDEO_GEN_ESTIMATE)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(VIDEO_GEN_ESTIMATE) do |reservation|
+          raw = invoke_video_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio,
+                                                 duration: duration, image_path: image_path)
+          result = normalize_media_json(raw)
+          reservation.settle(VIDEO_GEN_ESTIMATE)
+
+          {
+            provider: provider,
+            success: result[:success],
+            files: (result[:success] ? result[:files] : nil),
+            note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+            error: (result[:success] ? nil : "❌ #{result[:error]}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        raw = invoke_video_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio,
-                                               duration: duration, image_path: image_path)
-        result = normalize_media_json(raw)
-        CostGuard.record(VIDEO_GEN_ESTIMATE)
-
-        {
-          provider: provider,
-          success: result[:success],
-          files: (result[:success] ? result[:files] : nil),
-          note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
-          error: (result[:success] ? nil : "❌ #{result[:error]}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       def normalize_video_provider(value)
@@ -2069,26 +2072,25 @@ module Monadic
 
         output_format = arguments["format"] || arguments[:format]
 
-        begin
-          CostGuard.ensure_within!(MUSIC_GEN_ESTIMATE)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(MUSIC_GEN_ESTIMATE) do |reservation|
+          args = { prompt: prompt }
+          args[:output_format] = output_format if output_format
+          raw = gemini_media_host.generate_music_with_lyria(**args)
+          result = normalize_media_json(raw)
+          reservation.settle(MUSIC_GEN_ESTIMATE)
+
+          {
+            provider: "gemini",
+            success: result[:success],
+            files: (result[:success] ? result[:files] : nil),
+            note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+            error: (result[:success] ? nil : "❌ #{result[:error]}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        args = { prompt: prompt }
-        args[:output_format] = output_format if output_format
-        raw = gemini_media_host.generate_music_with_lyria(**args)
-        result = normalize_media_json(raw)
-        CostGuard.record(MUSIC_GEN_ESTIMATE)
-
-        {
-          provider: "gemini",
-          success: result[:success],
-          files: (result[:success] ? result[:files] : nil),
-          note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
-          error: (result[:success] ? nil : "❌ #{result[:error]}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       # ---- Autonomous tool-using agent -----------------------------------
@@ -2108,28 +2110,28 @@ module Monadic
 
         provider = (arguments["provider"] || arguments[:provider]).to_s
         provider = provider.empty? ? "openai" : MonadicDSL::ProviderConfig.new(provider).standard_key
-        groups = arguments["tools"] || arguments[:tools] || ConduitAgent::DEFAULT_GROUPS
+        # Checked before anything is held: a refused group sends nothing.
+        groups = ConduitAgent.normalize_groups(arguments["tools"] || arguments[:tools] || ConduitAgent::DEFAULT_GROUPS)
 
-        begin
-          CostGuard.ensure_within!(AGENT_ESTIMATE)
-        rescue CostGuard::BudgetExceeded => e
-          return { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
+        reply = CostGuard.reserving(AGENT_ESTIMATE + DEFAULT_MAX_OUTPUT) do |reservation|
+          model = default_chat_model_for(provider)
+          result = ConduitAgent.run(task: task, provider: provider, model: model, groups: groups).to_s
+          success = !result.start_with?("ERROR:") && !error_string?(result) && !result.strip.empty?
+          reservation.settle(AGENT_ESTIMATE + CostGuard.estimate_tokens(result)) if success
+
+          {
+            provider: provider,
+            model: model,
+            tools: Array(groups),
+            success: success,
+            text: (success ? result : nil),
+            error: (success ? nil : "❌ #{result}"),
+            budget: CostGuard.status
+          }.compact
         end
-
-        model = default_chat_model_for(provider)
-        result = ConduitAgent.run(task: task, provider: provider, model: model, groups: groups).to_s
-        success = !result.start_with?("ERROR:") && !error_string?(result) && !result.strip.empty?
-        CostGuard.record(AGENT_ESTIMATE + CostGuard.estimate_tokens(result))
-
-        {
-          provider: provider,
-          model: model,
-          tools: Array(groups),
-          success: success,
-          text: (success ? result : nil),
-          error: (success ? nil : "❌ #{result}"),
-          budget: CostGuard.status
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
       # ---- Background jobs (async submit / poll / cancel) ----------------
@@ -2269,6 +2271,20 @@ module Monadic
         host = klass.new
         host._conduit_provider = provider
         host
+      end
+
+      # A reply's budget as it stands once its reservation is closed (a
+      # failed call is charged at the close, after the reply was built).
+      def with_closed_budget(reply)
+        reply.is_a?(Hash) && reply.key?(:budget) ? reply.merge(budget: CostGuard.status) : reply
+      end
+
+      # The refusal the analysis agent would give before sending anything (a
+      # provider without the capability, or no key), asked of the same check
+      # the agent runs, so nothing is held for a call that cannot be sent.
+      def unsendable(capability, provider)
+        error = Monadic::Utils::ProviderCapabilities.resolve(capability, provider)[:error]
+        error && { provider: provider, success: false, error: "❌ #{error}", budget: CostGuard.status }
       end
 
       # The analysis agents signal failure with a leading "ERROR:" string.
@@ -2494,98 +2510,99 @@ module Monadic
 
         input_tokens = CostGuard.estimate_tokens(send_messages.map { |m| m["content"] }.join("\n"))
 
-        begin
-          CostGuard.ensure_within!(input_tokens + max_output)
-        rescue CostGuard::BudgetExceeded => e
-          return { provider: provider, model: model, success: false,
-                   error: "❌ Budget exceeded: #{e.message}" }
+        reply = CostGuard.reserving(input_tokens + max_output) do |reservation|
+          body = { "messages" => send_messages, "model" => model, "max_tokens" => max_output }
+          body["temperature"] = temperature unless temperature.nil?
+          # Reasoning effort is honored only by reasoning-capable models; send_query
+          # ignores it for the rest, so passing it through is always safe. Lets a
+          # caller trade depth for speed/cost — and avoid the "reasoning ate the
+          # whole max_tokens budget → empty text" trap by lowering effort.
+          unless reasoning_effort.to_s.strip.empty?
+            body["reasoning_effort"] = reasoning_effort.to_s.strip
+          end
+
+          # Clear before the call so a stale value from an earlier call can't leak
+          # in when this provider's send_query doesn't (yet) report usage.
+          Thread.current[:conduit_provider_usage] = nil
+          raw = host.send_query(body, model: model)
+          # Real provider-reported usage (normalized to {input,output,reasoning,
+          # cached,total}); nil for providers whose send_query is not yet wired.
+          provider_usage = Thread.current[:conduit_provider_usage]
+          Thread.current[:conduit_provider_usage] = nil
+          normalized = normalize_query_response(raw)
+
+          # Restore masked placeholders in the response back to original values.
+          if pipeline && normalized[:text]
+            normalized = normalized.merge(text: pipeline.after_receive_from_llm(normalized[:text]).text)
+          end
+
+          # Reasoning/thinking models spend hidden tokens (billed at the output rate)
+          # that never appear in the visible response text. Estimating output from
+          # that text alone undercounts real spend by up to an order of magnitude,
+          # softening the budget ceiling exactly for the most expensive models.
+          # send_query returns text only (no provider usage), so we fail closed:
+          # charge such models the output we already reserved.
+          # This over-counts short replies — the safe direction for a spend *ceiling*
+          # (a safety backstop, not an accounting ledger).
+          # Prefer real provider-reported usage (includes hidden reasoning tokens)
+          # for the spend ledger. The tiktoken estimate below — which over-counts
+          # reasoning models on purpose (fail-closed) — is the fallback used only
+          # when the provider did not report usage.
+          est_output = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
+          est_output = max_output if hidden_reasoning_capable?(model) && max_output > est_output
+          # Prefer the provider's own total, but ONLY when it actually reported a
+          # positive count. An all-nil extraction (e.g. a wired provider whose
+          # response carried no usage object, like streaming without include_usage)
+          # yields a truthy Hash with total: nil, and a soft-failed 200 can report
+          # total: 0 — both must fall back to the fail-closed tiktoken estimate
+          # rather than recording 0 or mislabeling an estimate as "real" usage.
+          real_total = provider_usage && provider_usage[:total]
+          real_total = nil unless real_total.is_a?(Integer) && real_total.positive?
+          # A failed call with no reported usage may have been sent and billed
+          # in full: it is charged what was held.
+          recorded_tokens = real_total || (normalized[:success] ? input_tokens + est_output : reservation.held)
+          reservation.settle(recorded_tokens)
+          # Single source for the "no visible text on a successful call" condition,
+          # so empty_output and its warning can never disagree.
+          empty_visible = normalized[:success] && normalized[:text].to_s.strip.empty?
+
+          {
+            provider: provider,
+            model: model,
+            success: normalized[:success],
+            text: normalized[:text],
+            tool_calls: normalized[:tool_calls],
+            error: normalized[:error],
+            grounded: (grounded || nil),
+            privacy: (pipeline ? true : nil),
+            # Best-effort hint: the text looks cut off (no sentence-final
+            # punctuation), e.g. a reasoning model that spent `max_tokens` on
+            # internal reasoning before finishing. Raise `max_tokens` and retry.
+            possibly_incomplete: (true if normalized[:success] && looks_incomplete?(normalized[:text])),
+            # Empty visible output on a successful call almost always means the
+            # model spent its whole max_tokens budget before emitting any text —
+            # for reasoning models (GPT-5.x, o-series, …) the internal reasoning
+            # consumes the cap. Surface an explicit flag + actionable warning so
+            # external callers can diagnose the silent-empty case immediately.
+            empty_output: (true if empty_visible),
+            warning: (empty_visible ? empty_output_warning(model, max_output) : nil),
+            # Real provider-reported token usage, surfaced only when the provider
+            # actually reported a usable total (see real_total above); nil otherwise
+            # so the field never advertises an all-nil/zero usage object as "real".
+            provider_usage: (real_total ? provider_usage : nil),
+            usage: {
+              input_tokens_est: input_tokens,
+              output_tokens_est: est_output,
+              recorded_tokens: recorded_tokens,
+              note: (real_total ? "recorded real provider usage; *_est are tiktoken estimates" \
+                                : "recorded tiktoken estimate; provider usage not reported for this provider")
+            }
+          }.compact
         end
-
-        body = { "messages" => send_messages, "model" => model, "max_tokens" => max_output }
-        body["temperature"] = temperature unless temperature.nil?
-        # Reasoning effort is honored only by reasoning-capable models; send_query
-        # ignores it for the rest, so passing it through is always safe. Lets a
-        # caller trade depth for speed/cost — and avoid the "reasoning ate the
-        # whole max_tokens budget → empty text" trap by lowering effort.
-        unless reasoning_effort.to_s.strip.empty?
-          body["reasoning_effort"] = reasoning_effort.to_s.strip
-        end
-
-        # Clear before the call so a stale value from an earlier call can't leak
-        # in when this provider's send_query doesn't (yet) report usage.
-        Thread.current[:conduit_provider_usage] = nil
-        raw = host.send_query(body, model: model)
-        # Real provider-reported usage (normalized to {input,output,reasoning,
-        # cached,total}); nil for providers whose send_query is not yet wired.
-        provider_usage = Thread.current[:conduit_provider_usage]
-        Thread.current[:conduit_provider_usage] = nil
-        normalized = normalize_query_response(raw)
-
-        # Restore masked placeholders in the response back to original values.
-        if pipeline && normalized[:text]
-          normalized = normalized.merge(text: pipeline.after_receive_from_llm(normalized[:text]).text)
-        end
-
-        # Reasoning/thinking models spend hidden tokens (billed at the output rate)
-        # that never appear in the visible response text. Estimating output from
-        # that text alone undercounts real spend by up to an order of magnitude,
-        # softening the budget ceiling exactly for the most expensive models.
-        # send_query returns text only (no provider usage), so we fail closed:
-        # charge such models the output we already reserved in ensure_within!.
-        # This over-counts short replies — the safe direction for a spend *ceiling*
-        # (a safety backstop, not an accounting ledger).
-        # Prefer real provider-reported usage (includes hidden reasoning tokens)
-        # for the spend ledger. The tiktoken estimate below — which over-counts
-        # reasoning models on purpose (fail-closed) — is the fallback used only
-        # when the provider did not report usage.
-        est_output = CostGuard.estimate_tokens(normalized[:text] || normalized[:error])
-        est_output = max_output if hidden_reasoning_capable?(model) && max_output > est_output
-        # Prefer the provider's own total, but ONLY when it actually reported a
-        # positive count. An all-nil extraction (e.g. a wired provider whose
-        # response carried no usage object, like streaming without include_usage)
-        # yields a truthy Hash with total: nil, and a soft-failed 200 can report
-        # total: 0 — both must fall back to the fail-closed tiktoken estimate
-        # rather than recording 0 or mislabeling an estimate as "real" usage.
-        real_total = provider_usage && provider_usage[:total]
-        real_total = nil unless real_total.is_a?(Integer) && real_total.positive?
-        recorded_tokens = real_total || (input_tokens + est_output)
-        CostGuard.record(recorded_tokens)
-        # Single source for the "no visible text on a successful call" condition,
-        # so empty_output and its warning can never disagree.
-        empty_visible = normalized[:success] && normalized[:text].to_s.strip.empty?
-
-        {
-          provider: provider,
-          model: model,
-          success: normalized[:success],
-          text: normalized[:text],
-          tool_calls: normalized[:tool_calls],
-          error: normalized[:error],
-          grounded: (grounded || nil),
-          privacy: (pipeline ? true : nil),
-          # Best-effort hint: the text looks cut off (no sentence-final
-          # punctuation), e.g. a reasoning model that spent `max_tokens` on
-          # internal reasoning before finishing. Raise `max_tokens` and retry.
-          possibly_incomplete: (true if normalized[:success] && looks_incomplete?(normalized[:text])),
-          # Empty visible output on a successful call almost always means the
-          # model spent its whole max_tokens budget before emitting any text —
-          # for reasoning models (GPT-5.x, o-series, …) the internal reasoning
-          # consumes the cap. Surface an explicit flag + actionable warning so
-          # external callers can diagnose the silent-empty case immediately.
-          empty_output: (true if empty_visible),
-          warning: (empty_visible ? empty_output_warning(model, max_output) : nil),
-          # Real provider-reported token usage, surfaced only when the provider
-          # actually reported a usable total (see real_total above); nil otherwise
-          # so the field never advertises an all-nil/zero usage object as "real".
-          provider_usage: (real_total ? provider_usage : nil),
-          usage: {
-            input_tokens_est: input_tokens,
-            output_tokens_est: est_output,
-            recorded_tokens: recorded_tokens,
-            note: (real_total ? "recorded real provider usage; *_est are tiktoken estimates" \
-                              : "recorded tiktoken estimate; provider usage not reported for this provider")
-          }
-        }.compact
+        with_closed_budget(reply)
+      rescue CostGuard::BudgetExceeded => e
+        { provider: provider, model: model, success: false,
+                 error: "❌ Budget exceeded: #{e.message}" }
       end
 
       # ---- KB grounding + Privacy helpers --------------------------------

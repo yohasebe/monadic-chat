@@ -441,6 +441,42 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
       expect(result['segments'].map { |sg| sg['error'] }).to all(eq('refused'))
     end
 
+    it 'sends nothing more once the caller says the budget is spent' do
+      allowed = 2
+      on_attempt = lambda do |_seconds|
+        allowed -= 1
+        allowed >= 0
+      end
+      conns = Array.new(2) { fake_server.new(&well_behaved) }
+      t = described_class.new(segments: six, pcm_path: pcm, model: 'gpt-transcribe', connect: -> { conns.shift },
+                              concurrency: 1, on_attempt: on_attempt)
+      result = t.run
+      expect(result['segments'].count { |sg| sg['status'] == 'complete' }).to eq(2)
+      expect(result['segments'].drop(2).map { |sg| sg['error'] }).to all(eq('budget'))
+    end
+
+    it 'stops the other connections from sending once one is refused for budget' do
+      answers = []
+      on_attempt = lambda do |_seconds|
+        answers << (answers.size != 1) # the second attempt is refused
+        answers.last
+      end
+      # Replies take a moment, so both connections are sending when one is refused.
+      slow_server = Class.new(fake_server) do
+        def read(timeout)
+          sleep 0.001
+          super
+        end
+      end
+      conns = Array.new(4) { slow_server.new(&well_behaved) }
+      t = described_class.new(segments: six, pcm_path: pcm, model: 'gpt-transcribe', connect: -> { conns.shift },
+                              concurrency: 2, on_attempt: on_attempt)
+      result = t.run
+      expect(answers.last).to be(false) # nothing was asked, or sent, after the refusal
+      expect(result['segments'].count { |sg| sg['status'] == 'complete' }).to eq(1)
+      expect(result['segments'].reject { |sg| sg['status'] == 'complete' }.map { |sg| sg['error'] }).to all(eq('budget'))
+    end
+
     it 'tries the next address of the host when one is unreachable' do
       endpoint = double(each: nil)
       allow(endpoint).to receive(:each).and_yield(:v6).and_yield(:v4)
@@ -505,6 +541,17 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
       expect(result['segments'].map { |s| s['start_sample'] }).to eq([rate, 5 * rate, 10 * rate])
       header = sent.min_by(&:bytesize)[0, 44].unpack('a4Va4a4VvvVVvva4V')
       expect(header.values_at(0, 2, 5, 6, 7, 10)).to eq(['RIFF', 'WAVE', 1, 1, rate, 16])
+    end
+
+    it 'does not send a segment the caller has no budget left for' do
+      sent = 0
+      allowed = [true, false, true]
+      result = batch(three, lambda { |_wav|
+        sent += 1
+        'ok'
+      }, concurrency: 1, on_attempt: ->(_s) { allowed.shift }).run
+      expect(sent).to eq(2)
+      expect(result['segments'].map { |sg| sg['error'] }).to eq([nil, 'budget', nil])
     end
 
     it 'sends no more than the given number at a time' do

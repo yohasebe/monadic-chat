@@ -46,8 +46,8 @@ RSpec.describe 'Tool input boundaries' do
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@root)
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
     allow(conduit).to receive(:required_analysis_provider).and_return('openai')
-    allow(Monadic::MCP::CostGuard).to receive(:ensure_within!)
-    allow(Monadic::MCP::CostGuard).to receive(:record)
+    allow(Monadic::MCP::CostGuard).to receive(:reserve!)
+      .and_return(instance_double(Monadic::MCP::CostGuard::Reservation, settle: nil, close: nil, charge: true, held: 0))
     allow(Monadic::MCP::CostGuard).to receive(:status).and_return({})
     allow(drawio).to receive(:sleep)
     allow(File).to receive(:read).and_call_original
@@ -295,6 +295,7 @@ RSpec.describe 'Tool input boundaries' do
     end
 
     it 'passes canonical valid media paths to MCP agents' do
+      stub_const('CONFIG', CONFIG.merge('OPENAI_API_KEY' => 'test')) # checked before any budget is held
       image_path = fixture('日本語 folder/image name.png')
       audio_path = fixture('日本語 folder/audio name.mp3')
       host = double('agent')

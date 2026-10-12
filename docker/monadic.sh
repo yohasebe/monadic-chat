@@ -575,6 +575,23 @@ build_ruby_container() {
 }
 
 # Function to build Python container only
+# Puts the running Python container on the image just built, whose ID is
+# given (taken before it was tagged, so a tag moved meanwhile is not taken
+# for it). A restart keeps a container on the image it was created from, so
+# the new image was not used until the container happened to be created
+# again; this creates it again from the local image, never pulling or
+# building one. Fails when the running container is not on that image
+# afterwards. COMPOSE_FILES comes from set_docker_compose.
+recreate_python_container() {
+  local log="$1" wanted="$2"
+  [ -n "${wanted}" ] || return 1
+  eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d --force-recreate --no-deps --pull never --no-build python_service" 2>&1 | tee -a "${log}"
+  [ "${PIPESTATUS[0]}" -eq 0 ] || return 1
+  local running
+  running=$("${DOCKER}" inspect -f '{{.Image}}' monadic-chat-python-container 2>/dev/null)
+  [ "${running}" = "${wanted}" ]
+}
+
 build_python_container() {
   local _lock_acquired=false
   if acquire_build_lock; then _lock_acquired=true; fi
@@ -657,7 +674,10 @@ build_python_container() {
     cache_flags="--no-cache"
   elif [ "$all_defaults" = "true" ]; then
     echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> No install options selected — downloading the prebuilt Python image (~0.9 GB, one time) instead of building . . .</p>" | tee -a "${build_log}"
-    if ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}"; then
+    # PIPESTATUS: the status of the command itself; tee's own (taken by
+    # `if cmd | tee`) made a failed pull or build read as a success.
+    ${DOCKER} pull "${prebuilt_image}" 2>&1 | tee -a "${build_log}"
+    if [ "${PIPESTATUS[0]}" -eq 0 ]; then
       ${DOCKER} tag "${prebuilt_image}" "${temp_tag}"
       image_ready=true
     else
@@ -678,7 +698,8 @@ build_python_container() {
   if [ "$image_ready" != "true" ]; then
     echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
     # IMPORTANT: cache_flags must not be quoted so an empty value expands to nothing
-    if ! ${DOCKER} build ${cache_flags} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
+    ${DOCKER} build ${cache_flags} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
       echo "[ERROR] Docker build failed" | tee -a "${build_log}"
       echo "[BUILD_COMPLETE] failed"
       release_build_lock
@@ -688,7 +709,8 @@ build_python_container() {
 
   # Optional post-setup: execute user's pysetup.sh if present (mounted config)
   echo "[HTML]: <p>Running post-setup (pysetup.sh) if available . . .</p>" | tee -a "${post_log}"
-  if ! ${DOCKER} run --rm -v "${HOME_DIR}/monadic/config:/monadic/config" "${temp_tag}" sh -lc 'if [ -s /monadic/config/pysetup.sh ]; then bash /monadic/config/pysetup.sh; else echo "No pysetup.sh provided"; fi' 2>&1 | tee -a "${post_log}"; then
+  ${DOCKER} run --rm -v "${HOME_DIR}/monadic/config:/monadic/config" "${temp_tag}" sh -lc 'if [ -s /monadic/config/pysetup.sh ]; then bash /monadic/config/pysetup.sh; else echo "No pysetup.sh provided"; fi' 2>&1 | tee -a "${post_log}"
+  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
     echo "[WARN] Post-setup script encountered errors" | tee -a "${post_log}"
   fi
 
@@ -753,6 +775,8 @@ META
   # If everything looks good, retag atomically to version and latest
   echo "[HTML]: <p>Verifying image . . .</p>" | tee -a "${build_log}"
   if ${DOCKER} run --rm "${temp_tag}" python -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+    local built_image
+    built_image=$("${DOCKER}" image inspect -f '{{.Id}}' "${temp_tag}" 2>/dev/null)
     "${DOCKER}" tag "${temp_tag}" yohasebe/python:${MONADIC_VERSION}
     "${DOCKER}" tag yohasebe/python:${MONADIC_VERSION} yohasebe/python:latest
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
@@ -766,14 +790,17 @@ META
     done
     echo "[INFO] Saved build options to ${prev_options_file}" | tee -a "${build_log}"
 
-    # Restart Python container if running to use the new image
+    # A running Python container is created again from the new image
     local python_container_name="monadic-chat-python-container"
     if ${DOCKER} ps --format '{{.Names}}' | grep -q "^${python_container_name}$"; then
       echo "[HTML]: <p>Restarting Python container to use new image...</p>" | tee -a "${build_log}"
-      if ${DOCKER} compose -f "${COMPOSE_MAIN}" ${COMPOSE_OVERRIDE} restart python_service 2>&1 | tee -a "${build_log}"; then
-        echo "[INFO] Python container restarted successfully" | tee -a "${build_log}"
+      set_docker_compose
+      if recreate_python_container "${build_log}" "${built_image}"; then
+        echo "[INFO] Python container now runs the new image" | tee -a "${build_log}"
       else
-        echo "[WARNING] Failed to restart Python container. Please restart manually." | tee -a "${build_log}"
+        # The image was built; only the running container is not on it yet.
+        echo "[WARNING] The Python container could not be moved to the new image. Restart Monadic Chat to use it." | tee -a "${build_log}"
+        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> The new Python image was built, but the running Python container is still on the old one. Restart Monadic Chat to use the new image.</p>"
       fi
     else
       echo "[INFO] Python container not running. New image will be used on next start." | tee -a "${build_log}"
@@ -1090,7 +1117,9 @@ build_docker_compose() {
   # Execute docker compose build and redirect output to log file with or without cache
   # Include all profiles so profiled services (python, selenium) are also built
   local build_start_epoch=$(date +%s)
-  eval "GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  # The pipe is outside eval: PIPESTATUS after `eval "a | tee"` is eval's
+  # own status, which is tee's, so a failed build read as a success.
+  eval "GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build ${use_cache}" 2>&1 | tee -a "${log_file}"
   local build_status=${PIPESTATUS[0]}
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))

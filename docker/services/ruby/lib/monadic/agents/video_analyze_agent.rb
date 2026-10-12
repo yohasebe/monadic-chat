@@ -4,6 +4,7 @@ require 'shellwords'
 require_relative '../utils/environment'
 require_relative '../utils/provider_capabilities'
 require_relative '../utils/shared_path_guard'
+require_relative '../shared_tools/child_threads'
 require_relative '../utils/video_probe'
 require_relative '../utils/model_spec'
 require_relative '../utils/timed_transcription'
@@ -60,6 +61,8 @@ module VideoAnalyzeAgent
   DETAILED_WINDOW_SECONDS = 600
   DETAILED_MAX_WINDOWS = 5
   DETAILED_WINDOW_FRAMES = 16
+  # Parts described at the same time.
+  DETAILED_CONCURRENCY = 2
   # No part is started once the parts have taken this long; the rest are
   # reported as not described.
   DETAILED_TIME_LIMIT = 15 * 60
@@ -153,7 +156,11 @@ module VideoAnalyzeAgent
     audio = Thread.new { video_transcript_section(extracted, provider, session) }
     audio.report_on_exception = false
     description = begin
-      frames.is_a?(Hash) && frames["windows"] ? describe_by_window(video_query, frames) : video_vision_query(video_query, frames)
+      if frames.is_a?(Hash) && frames["windows"]
+        describe_by_window(video_query, frames, still_ours: -> { !chat_moved_on?(extracted, session) })
+      else
+        video_vision_query(video_query, frames)
+      end
     rescue StandardError => e
       "ERROR: #{e.class.name.split('::').last}"
     end
@@ -491,42 +498,79 @@ module VideoAnalyzeAgent
   end
 
   # A video split into windows (a detailed analysis): each part is described
-  # on its own request, one after another, and the parts are returned in
-  # order with their video times. The app's model puts them together. A part
-  # that fails, has no selected frames or is not started before the time
-  # limit says so; the others
-  # are kept. An error only when no part could be described.
-  def describe_by_window(query, document)
+  # on its own request, DETAILED_CONCURRENCY at a time, and the parts are
+  # returned in order with their video times. The app's model puts them
+  # together. A part that fails, has no selected frames, or is not started
+  # before the time limit or once the chat moved on says so; the others are
+  # kept. An error only when no part could be described. When this call is
+  # stopped (Cancel), the parts still being described stop with it.
+  def describe_by_window(query, document, still_ours: -> { true })
     by_id = document["frames"].to_h { |frame| [frame["frame_id"], frame] }
     windows = document["windows"]
     deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DETAILED_TIME_LIMIT
-    described = 0
-    errors = []
-    parts = windows.each_with_index.map do |window, index|
-      span = "#{video_timestamp(window['start_ms'])}–#{video_timestamp(window['end_ms'])}"
-      frames = Array(window["frame_ids"]).filter_map { |id| by_id[id] }
-      text = if frames.empty?
-               "(Not described: no frames were selected from this part.)"
-             elsif Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
-               "(Not described: the detailed analysis ran out of time before this part.)"
-             else
-               part_query = "This is part #{index + 1} of #{windows.size} of the video, from #{span}. " \
-                            "Describe only what these frames show.\n#{query}"
-               reply = video_vision_query(part_query, document.merge("frames" => frames))
-               if reply.to_s.start_with?("ERROR:")
-                 errors << reply
-                 "(Not described: #{reply.delete_prefix('ERROR:').strip})"
-               else
-                 described += 1
-                 reply
-               end
-             end
-      "Part #{index + 1} of #{windows.size} (video time #{span}):\n#{text}"
+    results = Array.new(windows.size)
+    waiting = Queue.new
+    windows.each_with_index do |window, index|
+      if Array(window["frame_ids"]).any? { |id| by_id[id] }
+        waiting << index
+      else
+        results[index] = [:skipped, "(Not described: no frames were selected from this part.)"]
+      end
     end
-    return errors.first || "ERROR: No part of the video could be described" if described.zero?
+    waiting.close
 
+    workers = []
+    begin
+      [DETAILED_CONCURRENCY, waiting.size].min.times do
+        MonadicSharedTools::ChildThreads.spawn(workers) do
+          Thread.current.report_on_exception = false # a part's error is its result, not a log line
+          while (index = waiting.pop)
+            results[index] = describe_part(query, document, windows, index, by_id, deadline, still_ours)
+          end
+        end
+      end
+      workers.each(&:join)
+    ensure
+      MonadicSharedTools::ChildThreads.stop(workers)
+    end
+
+    if results.none? { |status, _| status == :described }
+      return results.find { |status, _| status == :failed }&.last || "ERROR: No part of the video could be described"
+    end
+
+    parts = windows.each_index.map do |index|
+      "Part #{index + 1} of #{windows.size} (video time #{video_window_span(windows[index])}):\n" \
+        "#{results[index].first == :failed ? "(Not described: #{results[index].last.delete_prefix('ERROR:').strip})" : results[index].last}"
+    end
     "The video was described in #{windows.size} parts, in order. Each part saw only its own frames.\n\n" \
       "#{parts.join("\n\n")}"
+  end
+
+  # One part of a detailed analysis: [:described, text], [:failed, error]
+  # or [:skipped, note]. Checked before the part is started: no part is
+  # started past the time limit or for a chat that has moved on. A part
+  # already started is not checked again (its request may be retried once
+  # after a network error); stopping the analysis stops it.
+  def describe_part(query, document, windows, index, by_id, deadline, still_ours)
+    unless still_ours.call
+      return [:skipped, "(Not described: the chat moved on before this part.)"]
+    end
+    if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+      return [:skipped, "(Not described: the detailed analysis ran out of time before this part.)"]
+    end
+
+    window = windows[index]
+    frames = Array(window["frame_ids"]).filter_map { |id| by_id[id] }
+    part_query = "This is part #{index + 1} of #{windows.size} of the video, from #{video_window_span(window)}. " \
+                 "Describe only what these frames show.\n#{query}"
+    reply = video_vision_query(part_query, document.merge("frames" => frames)).to_s
+    reply.start_with?("ERROR:") ? [:failed, reply] : [:described, reply]
+  rescue StandardError => e
+    [:failed, "ERROR: #{e.class.name.split('::').last}"]
+  end
+
+  def video_window_span(window)
+    "#{video_timestamp(window['start_ms'])}–#{video_timestamp(window['end_ms'])}"
   end
 
   # Evenly sample frames to fit within limit

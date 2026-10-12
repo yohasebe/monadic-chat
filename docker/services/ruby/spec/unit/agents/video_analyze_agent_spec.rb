@@ -997,14 +997,22 @@ RSpec.describe VideoAnalyzeAgent do
       expect(argv[argv.index("--window-frames") + 1]).to eq("12")
     end
 
-    it 'describes each part on its own request, in order, and says which parts it could not describe' do
-      seen = []
+    let(:three_parts) do
+      windowed.merge("frames" => windowed["frames"] + [frame("f006000", 600_000)],
+                     "windows" => windowed["windows"].map do |w|
+                       w["window_id"] == "w02" ? w.merge("frame_ids" => %w[f006000]) : w
+                     end)
+    end
+
+    it 'describes each part on its own request and says which parts it could not describe' do
+      seen = Queue.new
       allow(agent).to receive(:video_vision_query) do |query, document|
-        seen << [query[/part \d of \d/], document["frames"].map { |f| f["frame_id"] }]
-        seen.size == 1 ? "A deer appears." : "ERROR: Video vision analysis failed: timeout"
+        part = query[/part \d of \d/]
+        seen << [part, document["frames"].map { |f| f["frame_id"] }]
+        part == "part 1 of 3" ? "A deer appears." : "ERROR: Video vision analysis failed: timeout"
       end
       result = agent.send(:describe_by_window, "What happens?", windowed)
-      expect(seen).to eq([["part 1 of 3", %w[f000000 f000600]], ["part 3 of 3", %w[f010000]]])
+      expect(Array.new(seen.size) { seen.pop }.sort).to eq([["part 1 of 3", %w[f000000 f000600]], ["part 3 of 3", %w[f010000]]])
       expect(result).to include("described in 3 parts")
       expect(result).to include("Part 1 of 3 (video time 00:00–08:20):\nA deer appears.")
       expect(result).to include("Part 2 of 3 (video time 08:20–16:40):\n(Not described: no frames were selected")
@@ -1025,14 +1033,71 @@ RSpec.describe VideoAnalyzeAgent do
     it 'keeps the parts already described when the time runs out partway' do
       clock = 0
       allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock }
-      allow(agent).to receive(:video_vision_query) do
-        clock = VideoAnalyzeAgent::DETAILED_TIME_LIMIT + 1 # the first part took all the time
-        "A deer appears."
+      started = Queue.new
+      allow(agent).to receive(:video_vision_query) do |query|
+        started << query
+        100.times { break if started.size == 2; sleep 0.05 } # the first two parts run together
+        clock = VideoAnalyzeAgent::DETAILED_TIME_LIMIT + 1 # and take all the time
+        "Seen."
       end
-      result = agent.send(:describe_by_window, "What happens?", windowed)
-      expect(agent).to have_received(:video_vision_query).once
-      expect(result).to include("Part 1 of 3 (video time 00:00–08:20):\nA deer appears.")
+      result = agent.send(:describe_by_window, "What happens?", three_parts)
+      expect(agent).to have_received(:video_vision_query).twice
+      expect(result).to include("Part 1 of 3 (video time 00:00–08:20):\nSeen.", "Part 2 of 3 (video time 08:20–16:40):\nSeen.")
       expect(result).to include("Part 3 of 3 (video time 16:40–25:00):\n(Not described: the detailed analysis ran out of time")
+    end
+
+    it 'describes at most two parts at the same time' do
+      running = 0
+      most = 0
+      lock = Mutex.new
+      allow(agent).to receive(:video_vision_query) do
+        lock.synchronize { most = [most, running += 1].max }
+        sleep 0.05
+        lock.synchronize { running -= 1 }
+        "Seen."
+      end
+      four = three_parts.merge("frames" => three_parts["frames"] + [frame("f012000", 1_200_000)],
+                               "windows" => three_parts["windows"] + [
+                                 { "window_id" => "w04", "start_ms" => 1_200_000, "end_ms" => 1_500_000,
+                                   "candidate_count" => 1, "frame_ids" => %w[f012000] }
+                               ])
+      result = agent.send(:describe_by_window, "What happens?", four)
+      expect(agent).to have_received(:video_vision_query).exactly(4).times
+      expect(most).to eq(VideoAnalyzeAgent::DETAILED_CONCURRENCY)
+      expect(result.scan(/^Part (\d) of 4/).flatten).to eq(%w[1 2 3 4]) # in the video's order
+    end
+
+    it 'sends no more parts once the chat has moved on' do
+      ours = true
+      allow(agent).to receive(:video_vision_query) do
+        ours = false # a Reset while the first parts were being described
+        "Seen."
+      end
+      four = three_parts.merge("frames" => three_parts["frames"] + [frame("f012000", 1_200_000)],
+                               "windows" => three_parts["windows"] + [
+                                 { "window_id" => "w04", "start_ms" => 1_200_000, "end_ms" => 1_500_000,
+                                   "candidate_count" => 1, "frame_ids" => %w[f012000] }
+                               ])
+      result = agent.send(:describe_by_window, "What happens?", four, still_ours: -> { ours })
+      expect(agent).to have_received(:video_vision_query).at_most(2).times
+      expect(result).to include("(Not described: the chat moved on before this part.)")
+    end
+
+    it 'stops the parts being described when the analysis itself is stopped' do
+      started = Queue.new
+      allow(agent).to receive(:video_vision_query) do
+        started << Thread.current
+        sleep
+      end
+      caller = Thread.new { agent.send(:describe_by_window, "What happens?", three_parts) }
+      parts = [started.pop(timeout: 5), started.pop(timeout: 5)]
+      expect(parts).to all(be_a(Thread)) # two parts were being described at once
+      caller.kill.join(5)
+      expect(parts.map(&:alive?)).to eq([false, false])
+      expect(started).to be_empty # the third part was never sent
+    ensure
+      caller&.kill
+      parts&.each { |part| part&.kill }
     end
 
     it 'takes detailed as true only for true or "true"' do

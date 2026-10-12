@@ -90,6 +90,33 @@ def select_frames(candidates, limit):
     return [candidates[i] for i in sorted(chosen)]
 
 
+def plan_windows(duration_ms, window_ms, max_windows):
+    """Equal windows covering the whole video, each at most `window_ms` long,
+    and at most `max_windows` of them: past that, a longer video gets longer
+    windows rather than more of them."""
+    count = max(1, min(math.ceil(duration_ms / window_ms), max_windows))
+    length = duration_ms / count
+    return [(round(i * length, 3), round(duration_ms if i == count - 1 else (i + 1) * length, 3))
+            for i in range(count)]
+
+
+def select_in_windows(candidates, windows, limit):
+    """`limit` frames chosen in each window from its own candidates, so a long
+    video is covered window by window instead of thinned out as a whole."""
+    selected, described = [], []
+    for number, (start, end) in enumerate(windows, 1):
+        last = number == len(windows)
+        own = [c for c in candidates if start <= c["timestamp_ms"] < end or (last and c["timestamp_ms"] >= end)]
+        window_id = f"w{number:02d}"
+        chosen = [dict(c, window_id=window_id) for c in select_frames(own, limit)]
+        selected.extend(chosen)
+        # A window can be left with no frames (a still scene whose sampled
+        # frames all fell in a neighbour); it is listed with none, never filled in.
+        described.append({"window_id": window_id, "start_ms": start, "end_ms": end,
+                          "candidate_count": len(own), "frame_ids": [c["frame_id"] for c in chosen]})
+    return selected, described
+
+
 def fit_within(width, height, longest):
     """(width, height) scaled so the longer side is at most `longest`, never enlarged.
 
@@ -100,9 +127,14 @@ def fit_within(width, height, longest):
     return max(1, round(width * scale)), max(1, round(height * scale))
 
 
-def extract_frames(video_path, output_dir, output_format, frame_limit, fps, output_json, resize_width):
+def extract_frames(video_path, output_dir, output_format, frame_limit, fps, output_json, resize_width,
+                   window_seconds=None, max_windows=5):
+    """With `window_seconds`, a video longer than one window is split into
+    windows (see plan_windows) and `frame_limit` applies to each of them."""
     if fps <= 0 or not math.isfinite(fps) or resize_width < 8 or (frame_limit is not None and frame_limit < 1):
         raise ValueError("FPS, width and frame limit must be positive (width >= 8)")
+    if window_seconds is not None and (not math.isfinite(window_seconds) or window_seconds <= 0 or max_windows < 1):
+        raise ValueError("Window length and window count must be positive")
     video = cv2.VideoCapture(video_path)
     if not video.isOpened():
         print(f"Error: Could not open video {video_path}")
@@ -142,7 +174,12 @@ def extract_frames(video_path, output_dir, output_format, frame_limit, fps, outp
     finally:
         video.release()
 
-    selected = select_frames(candidates, frame_limit)
+    windows = None
+    if window_seconds is not None and duration > window_seconds * 1000:
+        selected, windows = select_in_windows(candidates, plan_windows(duration, window_seconds * 1000, max_windows),
+                                              frame_limit)
+    else:
+        selected = select_frames(candidates, frame_limit)
     # Second decode avoids retaining/encoding full images before selection.
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     output_folder = os.path.join(output_dir, f"frames_{timestamp}")
@@ -175,6 +212,8 @@ def extract_frames(video_path, output_dir, output_format, frame_limit, fps, outp
         document = {"schema_version": 1, "duration_ms": round(duration, 3),
                     "timestamp_source": "ffprobe_best_effort_pts", "timeline_origin_ms": origin,
                     "frames": output_frames}
+        if windows is not None:
+            document["windows"] = windows
         json_filename = os.path.join(output_dir, f"frames_{timestamp}.json")
         with open(json_filename, "w") as json_file:
             json.dump(document, json_file, allow_nan=False)
@@ -217,6 +256,10 @@ def main():
     parser.add_argument("--fps", type=float, default=1.0, help="Number of frames to extract per second (default: 1.0).")
     parser.add_argument("--json", action="store_true", help="Output versioned JSON with timestamps and base64 images.")
     parser.add_argument("--width", type=int, default=768, help="Longest side of the saved images; smaller frames are not enlarged (default: 768).")
+    parser.add_argument("--window-seconds", type=float, default=None,
+                        help="Split a video longer than this into windows; --frames then applies to each window.")
+    parser.add_argument("--max-windows", type=int, default=5,
+                        help="Most windows; a longer video gets longer windows (default: 5).")
     parser.add_argument("--audio", action="store_true", help="Extract audio from the video and save as an mp3 file.")
     parser.add_argument("--audio-bitrate", type=str, default=None,
                         help="Constant audio bitrate such as 64k (default: variable high quality).")
@@ -225,7 +268,8 @@ def main():
 
     args = parser.parse_args()
 
-    extract_frames(args.video_path, args.output_dir, args.format, args.frames, args.fps, args.json, args.width)
+    extract_frames(args.video_path, args.output_dir, args.format, args.frames, args.fps, args.json, args.width,
+                   args.window_seconds, args.max_windows)
 
     if args.audio_bitrate is not None and not re.fullmatch(r"[1-9][0-9]{0,2}k", args.audio_bitrate):
         parser.error("--audio-bitrate must look like 64k")

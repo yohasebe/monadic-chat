@@ -17,7 +17,7 @@ spec.loader.exec_module(video_frames)
 
 
 class VideoFramesTest(unittest.TestCase):
-    def extract(self, frames, fps=10, sample_fps=10, limit=50, vfr=False):
+    def extract(self, frames, fps=10, sample_fps=10, limit=50, vfr=False, **windowing):
         with tempfile.TemporaryDirectory(prefix="video-frames-") as directory:
             path = Path(directory) / "source.avi"
             writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"FFV1"), fps, (160, 96))
@@ -31,7 +31,7 @@ class VideoFramesTest(unittest.TestCase):
                                 "setpts=N*N/(25*TB)", "-fps_mode", "vfr", "-c:v", "ffv1", str(target)], check=True)
                 path = target
             timeline, _, _ = video_frames.probe_timeline(str(path))
-            video_frames.extract_frames(str(path), directory, "png", limit, sample_fps, True, 160)
+            video_frames.extract_frames(str(path), directory, "png", limit, sample_fps, True, 160, **windowing)
             document = json.loads(next(Path(directory).glob("frames_*.json")).read_text())
             return document, timeline
 
@@ -133,6 +133,78 @@ class VideoFramesTest(unittest.TestCase):
         document, _ = self.extract([self.blank()])
         self.assertEqual(len(document["frames"]), 1)
         self.assertEqual(document["frames"][0]["timestamp_ms"], 0)
+
+    def test_windows_cover_the_video_and_stop_at_the_most_allowed(self):
+        minute = 60_000
+        self.assertEqual(video_frames.plan_windows(5 * minute, 10 * minute, 5), [(0, 5 * minute)])
+        three = video_frames.plan_windows(25 * minute, 10 * minute, 5)
+        self.assertEqual(len(three), 3)
+        self.assertEqual(three[0][0], 0)
+        self.assertEqual(three[-1][1], 25 * minute)
+        self.assertTrue(all(a[1] == b[0] for a, b in zip(three, three[1:])))
+        five = video_frames.plan_windows(60 * minute, 10 * minute, 5)
+        self.assertEqual(len(five), 5)
+        self.assertEqual(five[0][1], 12 * minute)  # longer windows, not more of them
+
+    def test_each_window_keeps_its_own_brief_event(self):
+        frames = [self.blank()] * 121
+        for index in (20, 60, 100):  # one flash in each window, all sampled at 1 fps
+            frames[index] = self.blank(255)
+        document, _ = self.extract(frames, sample_fps=1, limit=3, window_seconds=5)  # 12.1 s in 3 windows
+        windows = document["windows"]
+        self.assertEqual([w["window_id"] for w in windows], ["w01", "w02", "w03"])
+        by_id = {f["frame_id"]: f for f in document["frames"]}
+        self.assertEqual(sorted(by_id), sorted(i for w in windows for i in w["frame_ids"]))
+        for window in windows:
+            self.assertTrue(1 <= len(window["frame_ids"]) <= 3)
+            for frame_id in window["frame_ids"]:
+                frame = by_id[frame_id]
+                self.assertEqual(frame["window_id"], window["window_id"])
+                self.assertTrue(window["start_ms"] <= frame["timestamp_ms"] <= window["end_ms"])
+        indices = [f["source_frame_index"] for f in document["frames"]]
+        self.assertEqual(indices, sorted(indices))
+        for flash in (20, 60, 100):
+            self.assertIn(flash, indices)
+
+    def test_without_windows_the_same_budget_loses_brief_events(self):
+        frames = [self.blank()] * 121
+        for index in (20, 60, 100):
+            frames[index] = self.blank(255)
+        document, _ = self.extract(frames, sample_fps=1, limit=3)
+        indices = [f["source_frame_index"] for f in document["frames"]]
+        self.assertLess(len({20, 60, 100} & set(indices)), 3)
+
+    def test_a_change_on_a_window_boundary_starts_the_next_window(self):
+        # 6.0 s in two 3.0 s windows; black turns white exactly at 3.0 s.
+        frames = [self.blank()] * 30 + [self.blank(255)] * 30
+        document, _ = self.extract(frames, limit=5, window_seconds=3)
+        by_index = {f["source_frame_index"]: f for f in document["frames"]}
+        self.assertEqual(by_index[29]["window_id"], "w01")  # the last frame before it
+        self.assertEqual(by_index[30]["window_id"], "w02")  # the change itself
+        first, second = document["windows"]
+        self.assertEqual(first["end_ms"], second["start_ms"])
+        self.assertTrue(all(by_index[i]["timestamp_ms"] < first["end_ms"] for i in by_index
+                            if by_index[i]["window_id"] == "w01"))
+        self.assertEqual(second["end_ms"], document["duration_ms"])
+
+    def test_a_window_without_candidates_is_listed_empty(self):
+        document, _ = self.extract([self.blank()] * 20, limit=3, window_seconds=0.4, max_windows=5)
+        windows = document["windows"]
+        self.assertEqual(len(windows), 5)
+        empty = [w for w in windows if not w["frame_ids"]]
+        self.assertTrue(empty)
+        self.assertTrue(all(w["candidate_count"] == 0 for w in empty))
+        self.assertEqual(sum(len(w["frame_ids"]) for w in windows), len(document["frames"]))
+
+    def test_whole_video_limit_without_windows_for_a_short_video(self):
+        document, _ = self.extract([self.blank()] * 121, sample_fps=1, limit=3, window_seconds=60)
+        self.assertNotIn("windows", document)
+        self.assertNotIn("window_id", document["frames"][0])
+        self.assertLessEqual(len(document["frames"]), 3)
+
+    def test_rejects_a_window_that_is_not_positive(self):
+        with self.assertRaisesRegex(ValueError, "Window length"):
+            video_frames.extract_frames("unused", ".", "png", 3, 1, True, 160, window_seconds=0)
 
     def test_rejects_invalid_timeline(self):
         result = type("Probe", (), {"stdout": json.dumps({"frames": [

@@ -45,7 +45,17 @@ module WebSocketHelper
     if requested_enabled
       require_relative '../privacy/presidio_backend'
       backend = Monadic::Utils::Privacy::PresidioBackend.new
-      if backend.health
+      if !backend.health
+        # Health probe failed. Keep state OFF so subsequent vendor calls
+        # cannot mistake the toggle as active. The reason tells the user
+        # whether to wait (the container starts when an app that needs it
+        # is chosen, and loading its language models takes a while) or to
+        # look into it.
+        session[:_privacy_session_enabled] = false
+        session.delete(:_privacy_pipeline)
+        reason = privacy_container_coming_up? ? "privacy_container_starting" : "privacy_container_unreachable"
+        send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false, "error" => reason })
+      else
         session[:_privacy_session_enabled] = true
         send_to_client(connection, {
           "type" => "privacy_toggle_ack",
@@ -58,16 +68,6 @@ module WebSocketHelper
         # privacy_state on restoration). The registry is empty at this
         # point — count == 0 renders the "Privacy ready" gray state.
         send_privacy_state(connection, session, registry_count: 0)
-      else
-        # Health probe failed. Keep state OFF so subsequent vendor calls
-        # cannot mistake the toggle as active.
-        session[:_privacy_session_enabled] = false
-        session.delete(:_privacy_pipeline)
-        send_to_client(connection, {
-          "type" => "privacy_toggle_ack",
-          "enabled" => false,
-          "error" => "privacy_container_unreachable"
-        })
       end
     else
       session[:_privacy_session_enabled] = false
@@ -82,6 +82,13 @@ module WebSocketHelper
       # until the next message turn.
       send_privacy_state(connection, session, enabled: false, registry_count: 0)
     end
+  end
+
+  private def privacy_container_coming_up?
+    deps = Monadic::Utils::ContainerDependencies
+    deps.starting?(:privacy) || deps.container_running?(:privacy)
+  rescue StandardError
+    false
   end
 
   # Build and emit a privacy_state payload mirroring the shape used by

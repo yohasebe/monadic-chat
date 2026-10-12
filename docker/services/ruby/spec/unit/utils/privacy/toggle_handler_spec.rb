@@ -55,29 +55,77 @@ RSpec.describe 'WebSocketHelper PRIVACY_TOGGLE' do
     end
   end
 
-  context 'when the user enables privacy but the container is unreachable' do
+  # A container that does not answer stays off either way; the reason
+  # says whether it is still starting (it starts when an app that needs it
+  # is chosen) or not coming up.
+  context 'when the user enables privacy but the container does not answer' do
+    let(:deps) { Monadic::Utils::ContainerDependencies }
+
     before do
-      allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend)
-        .to receive(:health).and_return(false)
+      require_relative '../../../../lib/monadic/utils/container_dependencies'
+      allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(false)
     end
 
-    it 'keeps backend session state false to avoid silent unmasked sends' do
+    def toggle_on
       harness.send(:handle_ws_privacy_toggle, connection, session, { 'enabled' => true })
-      expect(session[:_privacy_session_enabled]).to be false
+      harness.sent.last
     end
 
-    it 'replies with the privacy_container_unreachable error' do
-      harness.send(:handle_ws_privacy_toggle, connection, session, { 'enabled' => true })
-      msg = harness.sent.first
-      expect(msg['type']).to eq('privacy_toggle_ack')
-      expect(msg['enabled']).to be false
-      expect(msg['error']).to eq('privacy_container_unreachable')
-    end
-
-    it 'drops any cached pipeline so a stale enabled state cannot persist' do
+    it 'keeps backend session state false to avoid silent unmasked sends, and drops a cached pipeline' do
+      allow(deps).to receive_messages(starting?: false, container_running?: false)
       session[:_privacy_pipeline] = double('Pipeline')
-      harness.send(:handle_ws_privacy_toggle, connection, session, { 'enabled' => true })
+      toggle_on
+      expect(session[:_privacy_session_enabled]).to be false
       expect(session.key?(:_privacy_pipeline)).to be false
+    end
+
+    it 'says the container is starting when its start is scheduled or it is running' do
+      allow(deps).to receive_messages(starting?: true, container_running?: false)
+      expect(toggle_on).to include('type' => 'privacy_toggle_ack', 'enabled' => false, 'error' => 'privacy_container_starting')
+      allow(deps).to receive_messages(starting?: false, container_running?: true)
+      expect(toggle_on).to include('error' => 'privacy_container_starting')
+    end
+
+    it 'says the container cannot be reached when it is not coming up' do
+      allow(deps).to receive_messages(starting?: false, container_running?: false)
+      expect(toggle_on).to include('type' => 'privacy_toggle_ack', 'enabled' => false, 'error' => 'privacy_container_unreachable')
+    end
+  end
+
+  describe 'services scheduled to start' do
+    let(:deps) { Monadic::Utils::ContainerDependencies }
+
+    before { require_relative '../../../../lib/monadic/utils/container_dependencies' }
+
+    it 'stay starting until every start that scheduled them has handled them' do
+      deps.mark_starting(%i[privacy], true)
+      deps.mark_starting(%i[privacy], true)
+      deps.mark_starting(%i[privacy], false)
+      expect(deps.starting?(:privacy)).to be true
+      deps.mark_starting(%i[privacy], false)
+      expect(deps.starting?(:privacy)).to be false
+    end
+
+    it 'are not left marked when the start cannot begin' do
+      stub_const('APPS', { 'PrivApp' => double(settings: {}) })
+      allow(deps).to receive(:required_services).and_return(%i[privacy])
+      allow(Thread).to receive(:new).and_raise(ThreadError, 'cannot create thread')
+      expect { deps.ensure_services_async('PrivApp') }.to raise_error(ThreadError)
+      expect(deps.starting?(:privacy)).to be false
+    end
+
+    it 'are seen as starting from the moment they are scheduled until each is handled' do
+      gate = Queue.new
+      stub_const('APPS', { 'PrivApp' => double(settings: {}) })
+      allow(deps).to receive(:required_services).and_return(%i[qdrant privacy])
+      allow(deps).to receive(:container_running?).and_return(false)
+      allow(deps).to receive(:start_service) { |service| gate.pop if service == :qdrant; :started }
+      deps.ensure_services_async('PrivApp')
+      expect(deps.starting?(:privacy)).to be true # still waiting behind qdrant
+      gate << :go
+      deadline = Time.now + 2
+      sleep 0.01 while deps.starting?(:privacy) && Time.now < deadline
+      expect(deps.starting?(:privacy)).to be false
     end
   end
 

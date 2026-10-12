@@ -160,22 +160,42 @@
   // (e.g., privacy_container_unreachable). A separate event from
   // privacy_state means we never confuse a toggle reply with an
   // unrelated indicator update from app-change / reset / import.
+  function privacyMessage(key, fallback) {
+    return typeof window.getTranslation === 'function' ? window.getTranslation(key, fallback) : fallback;
+  }
+
+  // The status line said the filter is starting; the next confirmation
+  // replaces it, so the notice does not stay once the filter is on.
+  let _startingShown = false;
+
   function handleToggleAck(data) {
     const toggleEl = document.getElementById('check-privacy-session');
     const desired = !!(data && data.enabled);
+    const afterStarting = _startingShown;
+    _startingShown = false;
 
     if (data && data.error) {
       // Backend rejected — sync visual state to "off" and surface the
-      // reason so the user understands why their toggle bounced back.
+      // reason so the user understands why their toggle bounced back
+      // (and whether to wait or to look into it).
       if (toggleEl) toggleEl.checked = false;
 
-      const msg = data.error === 'privacy_container_unreachable'
-        ? 'Privacy container is not running. Try restarting the application.'
-        : ('Privacy Filter error: ' + String(data.error).substring(0, 200));
+      let msg;
+      let level = 'error';
+      if (data.error === 'privacy_container_starting') {
+        // Short: it is shown on the one-line status (docs explain more).
+        msg = privacyMessage('ui.messages.privacyStarting', 'Privacy Filter starting; retry soon');
+        level = 'warning';
+        _startingShown = true;
+      } else if (data.error === 'privacy_container_unreachable') {
+        msg = privacyMessage('ui.messages.privacyNotRunning', 'The Privacy Filter could not be started. Try restarting the application.');
+      } else {
+        msg = 'Privacy Filter error: ' + String(data.error).substring(0, 200);
+      }
       if (typeof window.setAlert === 'function') {
         window.setAlert(
           "<i class='fas fa-triangle-exclamation'></i> " + msg,
-          'error'
+          level
         );
       } else {
         console.warn('[Privacy]', msg);
@@ -185,6 +205,10 @@
 
     if (toggleEl && toggleEl.checked !== desired) {
       toggleEl.checked = desired;
+    }
+    if (afterStarting && desired && typeof window.setAlert === 'function') {
+      window.setAlert("<i class='fa-solid fa-circle-check'></i> " +
+        privacyMessage('ui.messages.privacyReady', 'Privacy Filter ready'), 'success');
     }
   }
 

@@ -64,6 +64,8 @@ When the filter is active, the chat header shows an indicator:
 - **Privacy ON (N)** (green lock icon with count): N placeholders are currently registered for restoration.
 - **Privacy error** (red): the privacy container could not be reached. Check that Docker is running and the container is healthy.
 
+The privacy container starts when an app that uses the filter is chosen, and loading its language models takes a while (about a minute the first time). If the filter is turned on before the container is ready, the toggle stays off and a notice says the filter is starting; turn it on again in a moment. When the container does not come up, a notice says so.
+
 When the conversation_language is set to **Automatic**, a small language badge appears next to the indicator (for example, **🌐 ja**) once the first reliably-detectable user message has locked the session to a specific language. The badge does not appear until a lock is in place; sidebar-selected languages are already explicit in the dropdown so the badge is omitted.
 
 Clicking the indicator opens the **Registry Viewer**, which lists each placeholder, the original value, and the entity type (PERSON, EMAIL_ADDRESS, and so on). The registry is held in session memory only; it is never written to the conversation log on disk.

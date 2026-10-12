@@ -293,9 +293,11 @@
           <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query" title="Cancel current operation" data-i18n-title="ui.cancelQuery">
             <i class="fas fa-ban"></i><span data-i18n="ui.cancelQuery">CANCEL</span>
           </button>
-          <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
+          <%# Indicators that come and go sit left of the status line, so the
+              status line keeps its place (the group is aligned right). %>
           <span id="privacy-indicator" class="me-2" style="display:none;"></span>
           <span id="sts-usage-indicator" class="me-2" style="display:none;"></span>
+          <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
           <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
             <i class="fas fa-bars"></i>
           </button>

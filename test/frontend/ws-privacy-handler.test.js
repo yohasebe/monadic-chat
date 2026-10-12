@@ -319,3 +319,36 @@ describe('WsPrivacyHandler.handleState for a chat restored after a reload', () =
     expect(window.safeWsSend).not.toHaveBeenCalled();
   });
 });
+
+describe('WsPrivacyHandler.handleToggleAck when the container does not answer', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<input type="checkbox" id="check-privacy-session" checked>';
+    window.setAlert = jest.fn();
+    window.safeWsSend = jest.fn();
+    window.getTranslation = (key, fallback) => fallback;
+  });
+
+  it('turns the toggle off and asks the user to try again in a moment while it starts', () => {
+    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_starting' });
+    expect(document.getElementById('check-privacy-session').checked).toBe(false);
+    expect(window.setAlert.mock.calls[0][0]).toContain('starting');
+    expect(window.setAlert.mock.calls[0][1]).toBe('warning');
+    expect(window.safeWsSend).not.toHaveBeenCalled();
+  });
+
+  it('replaces the starting notice once the filter turns on', () => {
+    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_starting' });
+    window.WsPrivacyHandler.handleToggleAck({ enabled: true, error: null });
+    expect(window.setAlert.mock.calls[1][0]).toContain('ready');
+    expect(window.setAlert.mock.calls[1][1]).toBe('success');
+    window.WsPrivacyHandler.handleToggleAck({ enabled: true, error: null });
+    expect(window.setAlert).toHaveBeenCalledTimes(2); // only after a starting notice
+  });
+
+  it('turns the toggle off and says so when the container is not coming up', () => {
+    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_unreachable' });
+    expect(document.getElementById('check-privacy-session').checked).toBe(false);
+    expect(window.setAlert.mock.calls[0][0]).toContain('could not be started');
+    expect(window.setAlert.mock.calls[0][1]).toBe('error');
+  });
+});

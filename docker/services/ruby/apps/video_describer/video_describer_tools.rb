@@ -21,29 +21,33 @@ class VideoDescriberApp < MonadicApp
   # @param file [String] A video placed in the shared folder by name
   # @param fps [Integer] Frames per second to extract (default: 1)
   # @param query [String] Query to guide the analysis (default: "What is happening in the video?")
+  # @param detailed [Boolean] The user asked for a detailed analysis: a video over ten minutes is described in parts
   # @param session [Hash] Injected by the tool runner; names the chat the attachment must belong to
   # @return [String] Analysis results including description and transcription
-  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: "What is happening in the video?", session: nil)
+  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: "What is happening in the video?", session: nil,
+                    detailed: false)
     VideoDescriberChecks.check!(file, attachment_id, fps)
-    super(file: file, attachment_id: attachment_id, fps: fps, query: query, session: session)
+    super(file: file, attachment_id: attachment_id, fps: fps, query: query, session: session, detailed: detailed)
   rescue StandardError => e
     "Video analysis failed: #{e.message}"
   end
 end
 
 class VideoDescriberGemini < MonadicApp
-  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: "What is happening in the video?", session: nil)
+  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: "What is happening in the video?", session: nil,
+                    detailed: false)
     VideoDescriberChecks.check!(file, attachment_id, fps)
-    super(file: file, attachment_id: attachment_id, fps: fps, query: query, session: session)
+    super(file: file, attachment_id: attachment_id, fps: fps, query: query, session: session, detailed: detailed)
   rescue StandardError => e
     "Video analysis failed: #{e.message}"
   end
 end
 
 class VideoDescriberGrok < MonadicApp
-  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: "What is happening in the video?", session: nil)
+  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: "What is happening in the video?", session: nil,
+                    detailed: false)
     VideoDescriberChecks.check!(file, attachment_id, fps)
-    super(file: file, attachment_id: attachment_id, fps: fps, query: query, session: session)
+    super(file: file, attachment_id: attachment_id, fps: fps, query: query, session: session, detailed: detailed)
   rescue StandardError => e
     "Video analysis failed: #{e.message}"
   end

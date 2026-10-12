@@ -959,4 +959,102 @@ RSpec.describe VideoAnalyzeAgent do
       expect(result).to include('took longer than 15 minutes')
     end
   end
+
+  describe 'a detailed analysis' do
+    def frame(id, ms)
+      { "frame_id" => id, "source_frame_index" => ms / 100, "timestamp_ms" => ms,
+        "image" => "AAA=", "mime_type" => "image/jpeg" }
+    end
+
+    let(:windowed) do
+      { "schema_version" => 1, "duration_ms" => 1_500_000, "timestamp_source" => "ffprobe_best_effort_pts",
+        "frames" => [frame("f000000", 0), frame("f000600", 60_000), frame("f010000", 1_000_000)],
+        "windows" => [
+          { "window_id" => "w01", "start_ms" => 0, "end_ms" => 500_000, "candidate_count" => 4,
+            "frame_ids" => %w[f000000 f000600] },
+          { "window_id" => "w02", "start_ms" => 500_000, "end_ms" => 1_000_000, "candidate_count" => 0,
+            "frame_ids" => [] },
+          { "window_id" => "w03", "start_ms" => 1_000_000, "end_ms" => 1_500_000, "candidate_count" => 2,
+            "frame_ids" => %w[f010000] }
+        ] }
+    end
+
+    it 'asks the extractor for windows only when the user asked for detail' do
+      agent.send(:run_extractor, "in.mp4", "out", 1, 50)
+      expect(extractor_calls.last[:argv]).not_to include("--window-seconds")
+
+      agent.send(:run_extractor, "in.mp4", "out", 1, 50, true)
+      argv = extractor_calls.last[:argv]
+      expect(argv).to include("--window-seconds", "--max-windows", "--window-frames")
+      expect(argv[argv.index("--window-seconds") + 1]).to eq("600")
+      expect(argv[argv.index("--window-frames") + 1]).to eq("16")
+      expect(argv[argv.index("--frames") + 1]).to eq("50") # a video under ten minutes keeps the usual limit
+    end
+
+    it 'never asks for more frames in a window than the provider takes in one request' do
+      agent.send(:run_extractor, "in.mp4", "out", 1, 12, true)
+      argv = extractor_calls.last[:argv]
+      expect(argv[argv.index("--window-frames") + 1]).to eq("12")
+    end
+
+    it 'describes each part on its own request, in order, and says which parts it could not describe' do
+      seen = []
+      allow(agent).to receive(:video_vision_query) do |query, document|
+        seen << [query[/part \d of \d/], document["frames"].map { |f| f["frame_id"] }]
+        seen.size == 1 ? "A deer appears." : "ERROR: Video vision analysis failed: timeout"
+      end
+      result = agent.send(:describe_by_window, "What happens?", windowed)
+      expect(seen).to eq([["part 1 of 3", %w[f000000 f000600]], ["part 3 of 3", %w[f010000]]])
+      expect(result).to include("described in 3 parts")
+      expect(result).to include("Part 1 of 3 (video time 00:00–08:20):\nA deer appears.")
+      expect(result).to include("Part 2 of 3 (video time 08:20–16:40):\n(Not described: no frames were selected")
+      expect(result).to include("Part 3 of 3 (video time 16:40–25:00):\n(Not described: Video vision analysis failed: timeout)")
+    end
+
+    it 'fails when no part could be described' do
+      allow(agent).to receive(:video_vision_query).and_return("ERROR: Video vision analysis failed: refused")
+      expect(agent.send(:describe_by_window, "What happens?", windowed)).to eq("ERROR: Video vision analysis failed: refused")
+    end
+
+    it 'starts no part once the time for the detailed analysis is over' do
+      stub_const("VideoAnalyzeAgent::DETAILED_TIME_LIMIT", -1)
+      expect(agent).not_to receive(:video_vision_query)
+      expect(agent.send(:describe_by_window, "What happens?", windowed)).to start_with("ERROR:")
+    end
+
+    it 'keeps the parts already described when the time runs out partway' do
+      clock = 0
+      allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock }
+      allow(agent).to receive(:video_vision_query) do
+        clock = VideoAnalyzeAgent::DETAILED_TIME_LIMIT + 1 # the first part took all the time
+        "A deer appears."
+      end
+      result = agent.send(:describe_by_window, "What happens?", windowed)
+      expect(agent).to have_received(:video_vision_query).once
+      expect(result).to include("Part 1 of 3 (video time 00:00–08:20):\nA deer appears.")
+      expect(result).to include("Part 3 of 3 (video time 16:40–25:00):\n(Not described: the detailed analysis ran out of time")
+    end
+
+    it 'takes detailed as true only for true or "true"' do
+      allow(agent).to receive(:read_frames_json).and_return(windowed.except("windows"))
+      allow(agent).to receive(:video_vision_query).and_return("Seen.")
+      [[true, true], ["true", true], [false, false], ["false", false], [nil, false]].each do |value, windows|
+        agent.analyze_video(file: "test.mp4", detailed: value)
+        expect(extractor_calls.last[:argv].include?("--window-seconds")).to be(windows)
+      end
+    end
+
+    it 'describes a windowed video part by part and an unwindowed one in a single request' do
+      allow(agent).to receive(:read_frames_json).and_return(windowed)
+      allow(agent).to receive(:video_vision_query).and_return("Seen.")
+      result = agent.analyze_video(file: "test.mp4", detailed: true)
+      expect(result).to include("Part 1 of 3")
+      expect(agent).to have_received(:video_vision_query).twice
+      expect(extractor_calls.last[:argv]).to include("--window-seconds")
+
+      allow(agent).to receive(:read_frames_json).and_return(windowed.except("windows"))
+      expect(agent.analyze_video(file: "test.mp4")).not_to include("Part 1 of 3")
+      expect(extractor_calls.last[:argv]).not_to include("--window-seconds")
+    end
+  end
 end

@@ -53,6 +53,17 @@ module VideoAnalyzeAgent
     "xai"       => 50
   }.freeze
 
+  # A detailed analysis (asked for by the user) of a video longer than one
+  # window: the video is split into at most DETAILED_MAX_WINDOWS equal parts
+  # of at most DETAILED_WINDOW_SECONDS, each with its own DETAILED_WINDOW_FRAMES
+  # frames, described one request a part. Shorter videos are analysed as usual.
+  DETAILED_WINDOW_SECONDS = 600
+  DETAILED_MAX_WINDOWS = 5
+  DETAILED_WINDOW_FRAMES = 16
+  # No part is started once the parts have taken this long; the rest are
+  # reported as not described.
+  DETAILED_TIME_LIMIT = 15 * 60
+
   # Seconds the frame and audio extraction may take (long videos decode
   # slowly; the default command timeout of two minutes cut them off).
   VIDEO_EXTRACT_TIMEOUT = 900
@@ -74,7 +85,8 @@ module VideoAnalyzeAgent
 
   # attachment_id: a video the user attached to this chat (preferred).
   # file: a file in the shared folder, for videos placed there by hand.
-  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil)
+  # detailed: the user asked for a detailed analysis (see DETAILED_WINDOW_SECONDS).
+  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil, detailed: false)
     return "Error: attachment_id or file is required." if attachment_id.to_s.empty? && file.to_s.empty?
 
     # Models sometimes pass the attachment id as the file name. A shared-folder
@@ -96,11 +108,12 @@ module VideoAnalyzeAgent
     frame_limit = PROVIDER_FRAME_LIMITS.fetch(provider)
     safe_fps = fps.to_i
     safe_fps = 1 if safe_fps <= 0
+    detailed = [true, "true"].include?(detailed)
 
     extracted = if attachment_id.to_s.empty?
-                  extract_from_shared_file(file, safe_fps, frame_limit)
+                  extract_from_shared_file(file, safe_fps, frame_limit, detailed)
                 else
-                  extract_from_attachment(attachment_id.to_s, session, safe_fps, frame_limit)
+                  extract_from_attachment(attachment_id.to_s, session, safe_fps, frame_limit, detailed)
                 end
     return extracted if extracted.is_a?(String) # Error message
 
@@ -140,7 +153,7 @@ module VideoAnalyzeAgent
     audio = Thread.new { video_transcript_section(extracted, provider, session) }
     audio.report_on_exception = false
     description = begin
-      video_vision_query(video_query, frames)
+      frames.is_a?(Hash) && frames["windows"] ? describe_by_window(video_query, frames) : video_vision_query(video_query, frames)
     rescue StandardError => e
       "ERROR: #{e.class.name.split('::').last}"
     end
@@ -213,7 +226,7 @@ module VideoAnalyzeAgent
 
   # The attached video, run in a folder of its own inside the chat's folder.
   # The chat is the session's; an id from another chat is refused.
-  def extract_from_attachment(attachment_id, session, fps, frame_limit)
+  def extract_from_attachment(attachment_id, session, fps, frame_limit, detailed = false)
     chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
     record = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id)
     return "Error: attachment #{record[:original_name]} is not a video." unless record[:purpose] == "video"
@@ -225,7 +238,7 @@ module VideoAnalyzeAgent
     return "Error: the attachment or its run folder is outside the shared folder." unless input && output
 
     Monadic::Utils::VideoProbe.check!(input)
-    _stdout, stderr, status = run_extractor(input, output, fps, frame_limit)
+    _stdout, stderr, status = run_extractor(input, output, fps, frame_limit, detailed)
     return "Error: #{OLD_PYTHON_IMAGE}" if stderr.to_s.include?("unrecognized arguments")
 
     json = Monadic::Workspace::Jobs.outputs(job, /\Aframes_[0-9_]+\.json\z/).first
@@ -262,7 +275,7 @@ module VideoAnalyzeAgent
   end
 
   # A video placed in the shared folder by name (the way before attachments).
-  def extract_from_shared_file(file, fps, frame_limit)
+  def extract_from_shared_file(file, fps, frame_limit, detailed = false)
     # The same check before decoding as for attachments.
     input = Monadic::Utils::SharedPathGuard.command_path(file.to_s, container: "python")
     return "Error: #{file} was not found in the shared folder." unless input
@@ -274,7 +287,7 @@ module VideoAnalyzeAgent
     end
 
     # Written next to the video, in the shared folder (the way before attachments).
-    stdout, stderr, status = run_extractor(input, "./", fps, frame_limit)
+    stdout, stderr, status = run_extractor(input, "./", fps, frame_limit, detailed)
     return "Error: #{OLD_PYTHON_IMAGE}" if stderr.to_s.include?("unrecognized arguments")
 
     split_res = "#{stdout}#{stderr}"
@@ -297,9 +310,13 @@ module VideoAnalyzeAgent
   # absolute path (scripts in the shared folder come first on PATH there, so
   # a file named like it must not run instead), and a time limit long enough
   # for the longest video VideoProbe accepts.
-  def run_extractor(input, output, fps, frame_limit)
+  def run_extractor(input, output, fps, frame_limit, detailed = false)
     argv = ["python", EXTRACT_SCRIPT, input, output, "--fps", fps.to_s, "--format", "png",
             "--frames", frame_limit.to_s, "--json", *AUDIO_ARGS]
+    if detailed
+      argv += ["--window-seconds", DETAILED_WINDOW_SECONDS.to_s, "--max-windows", DETAILED_MAX_WINDOWS.to_s,
+               "--window-frames", [DETAILED_WINDOW_FRAMES, frame_limit].min.to_s]
+    end
     Monadic::Shell.exec(container: :python, argv: argv, timeout: VIDEO_EXTRACT_TIMEOUT)
   end
 
@@ -471,6 +488,45 @@ module VideoAnalyzeAgent
     text.to_s.strip.empty? ? "ERROR: Empty response from the vision model" : text
   rescue => e
     "ERROR: Video vision analysis failed: #{e.message}"
+  end
+
+  # A video split into windows (a detailed analysis): each part is described
+  # on its own request, one after another, and the parts are returned in
+  # order with their video times. The app's model puts them together. A part
+  # that fails, has no selected frames or is not started before the time
+  # limit says so; the others
+  # are kept. An error only when no part could be described.
+  def describe_by_window(query, document)
+    by_id = document["frames"].to_h { |frame| [frame["frame_id"], frame] }
+    windows = document["windows"]
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DETAILED_TIME_LIMIT
+    described = 0
+    errors = []
+    parts = windows.each_with_index.map do |window, index|
+      span = "#{video_timestamp(window['start_ms'])}–#{video_timestamp(window['end_ms'])}"
+      frames = Array(window["frame_ids"]).filter_map { |id| by_id[id] }
+      text = if frames.empty?
+               "(Not described: no frames were selected from this part.)"
+             elsif Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+               "(Not described: the detailed analysis ran out of time before this part.)"
+             else
+               part_query = "This is part #{index + 1} of #{windows.size} of the video, from #{span}. " \
+                            "Describe only what these frames show.\n#{query}"
+               reply = video_vision_query(part_query, document.merge("frames" => frames))
+               if reply.to_s.start_with?("ERROR:")
+                 errors << reply
+                 "(Not described: #{reply.delete_prefix('ERROR:').strip})"
+               else
+                 described += 1
+                 reply
+               end
+             end
+      "Part #{index + 1} of #{windows.size} (video time #{span}):\n#{text}"
+    end
+    return errors.first || "ERROR: No part of the video could be described" if described.zero?
+
+    "The video was described in #{windows.size} parts, in order. Each part saw only its own frames.\n\n" \
+      "#{parts.join("\n\n")}"
   end
 
   # Evenly sample frames to fit within limit

@@ -571,13 +571,29 @@ module MonadicSharedTools
         tools: [
           {
             name: "analyze_video",
-            description: "Analyze video content and generate description using vision capabilities (image recognition + audio transcription)",
+            description: "Analyze video content and generate description using vision capabilities (image recognition + audio transcription). " \
+                         "Give attachment_id for a video attached to the message, or file for a video placed in the shared folder.",
             parameters: [
+              {
+                name: :attachment_id,
+                type: "string",
+                description: "The attachment_id of a video attached to this chat (given in the message with the attachment). " \
+                             "Use this for attached videos.",
+                required: false
+              },
               {
                 name: :file,
                 type: "string",
-                description: "The video file to analyze",
-                required: true
+                description: "The file name of a video placed in the shared folder. Only for videos not attached.",
+                required: false
+              },
+              {
+                name: :detailed,
+                type: "boolean",
+                description: "true only when the user asks for a detailed or thorough analysis. A video longer than " \
+                             "ten minutes is then described in up to five parts, which takes longer and costs more; " \
+                             "shorter videos are analysed the same way either way.",
+                required: false
               },
               {
                 name: :fps,

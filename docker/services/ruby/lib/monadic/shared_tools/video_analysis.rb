@@ -33,6 +33,11 @@ module MonadicSharedTools
               query: {
                 type: "string",
                 description: "Query to guide the analysis"
+              },
+              detailed: {
+                type: "boolean",
+                description: "true only when the user asks for a detailed or thorough analysis: a video longer than " \
+                             "ten minutes is then described in up to five parts (longer and costlier)"
               }
             },
             required: []

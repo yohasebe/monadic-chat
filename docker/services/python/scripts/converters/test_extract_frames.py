@@ -197,10 +197,15 @@ class VideoFramesTest(unittest.TestCase):
         self.assertEqual(sum(len(w["frame_ids"]) for w in windows), len(document["frames"]))
 
     def test_whole_video_limit_without_windows_for_a_short_video(self):
-        document, _ = self.extract([self.blank()] * 121, sample_fps=1, limit=3, window_seconds=60)
+        document, _ = self.extract([self.blank()] * 121, sample_fps=1, limit=3, window_seconds=60, window_frames=1)
         self.assertNotIn("windows", document)
         self.assertNotIn("window_id", document["frames"][0])
-        self.assertLessEqual(len(document["frames"]), 3)
+        self.assertEqual(len(document["frames"]), 3)  # the whole-video limit, not the per-window one
+
+    def test_frames_per_window_apart_from_the_whole_video_limit(self):
+        frames = [self.blank(i // 10 % 2 * 255) for i in range(121)]  # changes every sampled second
+        document, _ = self.extract(frames, sample_fps=1, limit=50, window_seconds=5, window_frames=2)
+        self.assertTrue(all(len(w["frame_ids"]) == 2 for w in document["windows"]))
 
     def test_rejects_a_window_that_is_not_positive(self):
         with self.assertRaisesRegex(ValueError, "Window length"):

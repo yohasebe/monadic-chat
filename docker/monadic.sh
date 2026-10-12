@@ -560,14 +560,23 @@ build_ruby_container() {
     -f "${dockerfile}" \
     -t yohasebe/monadic-chat:${MONADIC_VERSION} \
     "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
+  # A failed build is not recorded as built (the next start tries again),
+  # and an older image is not tagged as this version's.
+  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    echo "[ERROR] Ruby image build failed. See ${log_file}." | tee -a "${log_file}"
+    release_build_lock
+    return 1
+  fi
 
   "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
 
   # Don't call build_docker_compose here to avoid rebuilding the same container again
   # build_docker_compose
 
-  # Save container version information to prevent unnecessary full rebuilds on next start
-  save_container_versions "silent"
+  # Save container version information to prevent unnecessary full rebuilds
+  # on next start. It records every service's version, so a caller updating
+  # several (DEFER_VERSION_SAVE=true) saves once, after all of them worked.
+  [ "${DEFER_VERSION_SAVE:-false}" = "true" ] || save_container_versions "silent"
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
@@ -575,21 +584,69 @@ build_ruby_container() {
 }
 
 # Function to build Python container only
-# Puts the running Python container on the image just built, whose ID is
-# given (taken before it was tagged, so a tag moved meanwhile is not taken
-# for it). A restart keeps a container on the image it was created from, so
-# the new image was not used until the container happened to be created
-# again; this creates it again from the local image, never pulling or
-# building one. Fails when the running container is not on that image
-# afterwards. COMPOSE_FILES comes from set_docker_compose.
-recreate_python_container() {
-  local log="$1" wanted="$2"
+# Puts the running container of a compose service on the image whose ID is
+# given (taken right after the image was built or pulled, so a tag moved
+# meanwhile is not taken for it). A restart keeps a container on the image
+# it was created from, so a new image was not used until the container
+# happened to be created again; this creates it again from the local image,
+# never pulling or building one. Fails when the running container is not on
+# that image afterwards. COMPOSE_FILES comes from set_docker_compose.
+#   recreate_service_container LOG PROFILE SERVICE CONTAINER IMAGE_ID
+recreate_service_container() {
+  local log="$1" profile="$2" service="$3" container="$4" wanted="$5"
   [ -n "${wanted}" ] || return 1
-  eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d --force-recreate --no-deps --pull never --no-build python_service" 2>&1 | tee -a "${log}"
+  eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ${profile} up -d --force-recreate --no-deps --pull never --no-build ${service}" 2>&1 | tee -a "${log}"
   [ "${PIPESTATUS[0]}" -eq 0 ] || return 1
   local running
-  running=$("${DOCKER}" inspect -f '{{.Image}}' monadic-chat-python-container 2>/dev/null)
+  running=$("${DOCKER}" inspect -f '{{.Image}}' "${container}" 2>/dev/null)
   [ "${running}" = "${wanted}" ]
+}
+
+recreate_python_container() {
+  recreate_service_container "$1" python python_service monadic-chat-python-container "$2"
+}
+
+# After an image was built or pulled: a running container of the service is
+# moved onto it (left alone when it already runs it). The image is in place
+# either way; a container that could not be moved is reported, with what to
+# do, and does not fail the build.
+#   put_running_service_on_image LOG PROFILE SERVICE CONTAINER IMAGE_REF LABEL
+put_running_service_on_image() {
+  local log="$1" profile="$2" service="$3" container="$4" image="$5" label="$6"
+  ${DOCKER} ps --format '{{.Names}}' | grep -qx "${container}" || return 0
+  local wanted running
+  wanted=$("${DOCKER}" image inspect -f '{{.Id}}' "${image}" 2>/dev/null)
+  running=$("${DOCKER}" inspect -f '{{.Image}}' "${container}" 2>/dev/null)
+  [ -n "${wanted}" ] && [ "${running}" = "${wanted}" ] && return 0
+  echo "[HTML]: <p>Restarting the ${label} container to use the new image...</p>" | tee -a "${log}"
+  if recreate_service_container "${log}" "${profile}" "${service}" "${container}" "${wanted}"; then
+    echo "[INFO] ${label} container now runs the new image" | tee -a "${log}"
+  else
+    echo "[WARNING] The ${label} container could not be moved to the new image. Restart Monadic Chat to use it." | tee -a "${log}"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> The new ${label} image is in place, but the ${label} container could not be confirmed to run it. Restart Monadic Chat to use the new image.</p>"
+  fi
+}
+
+# Whether a service's image is ready after building (development) or pulling
+# it: a failed build fails, whatever older image is still there. A failed
+# pull (offline, for one) keeps the image already installed, and says so;
+# with none installed it fails.
+#   service_image_ready STATUS IS_DEV IMAGE_REF LABEL LOG
+service_image_ready() {
+  local status="$1" dev="$2" image="$3" label="$4" log="$5"
+  [ "${status}" -eq 0 ] && "${DOCKER}" image inspect "${image}" >/dev/null 2>&1 && return 0
+  [ "${dev}" = "true" ] && return 1
+  "${DOCKER}" image inspect "${image}" >/dev/null 2>&1 || return 1
+  echo "[WARNING] The ${label} image could not be downloaded; the one already installed stays in use." | tee -a "${log}"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> The ${label} image could not be downloaded (check the network); the one already installed stays in use.</p>"
+  return 0
+}
+
+# Start-up goes on with the images already installed when an update of
+# them failed, and says so; the update is not recorded as done, so the
+# next start tries it again.
+report_image_update_failed() {
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> Some container images could not be updated (see docker_build.log); starting with the ones already installed. The update is tried again on the next start.</p>"
 }
 
 build_python_container() {
@@ -800,7 +857,7 @@ META
       else
         # The image was built; only the running container is not on it yet.
         echo "[WARNING] The Python container could not be moved to the new image. Restart Monadic Chat to use it." | tee -a "${build_log}"
-        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> The new Python image was built, but the running Python container is still on the old one. Restart Monadic Chat to use the new image.</p>"
+        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> The new Python image was built, but the Python container could not be confirmed to run it. Restart Monadic Chat to use the new image.</p>"
       fi
     else
       echo "[INFO] Python container not running. New image will be used on next start." | tee -a "${build_log}"
@@ -848,7 +905,7 @@ ensure_ruby_compat_with_python() {
 
   if [ "$ruby_cp_ver" != "$target_ver" ]; then
     echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Rebuilding Ruby container for compatibility (expected=${target_ver}, actual=${ruby_cp_ver}).</p>"
-    build_ruby_container
+    build_ruby_container || report_image_update_failed
   fi
 }
 
@@ -868,17 +925,21 @@ build_selenium_container() {
   mkdir -p "$(dirname "${log_file}")"
 
   set_docker_compose
+  local fetched
   if [[ "${MONADIC_DEV:-false}" == "true" ]]; then
     echo "Building Selenium container..." | tee -a "${log_file}"
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/selenium/compose.build.yml\" -p monadic-chat --profile selenium build selenium_service" 2>&1 | tee -a "${log_file}"
+    fetched=${PIPESTATUS[0]}
   else
     echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt browser automation image (~1.5 GB on first download) . . .</p>"
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile selenium pull selenium_service" 2>&1 | tee -a "${log_file}"
+    fetched=${PIPESTATUS[0]}
   fi
 
-  # Check if the image is now present
-  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
+  if service_image_ready "${fetched}" "${MONADIC_DEV:-false}" "ghcr.io/yohasebe/monadic-selenium:${MONADIC_IMAGE_TAG:-latest}" "browser automation" "${log_file}"; then
     echo "Selenium container built successfully" | tee -a "${log_file}"
+    put_running_service_on_image "${log_file}" selenium selenium_service monadic-chat-selenium-container \
+      "ghcr.io/yohasebe/monadic-selenium:${MONADIC_IMAGE_TAG:-latest}" "Selenium"
 
     # Restart Ruby container if it's running to update SELENIUM_AVAILABLE environment variable
     if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
@@ -960,9 +1021,15 @@ EOF
 
   # Execute docker compose build and redirect output to log file
   ${DOCKER} compose ${REPORTING} -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
+  local build_status=${PIPESTATUS[0]}
 
   # remove compose_user.yml
   rm -f "${compose}"
+  if [ "${build_status}" -ne 0 ]; then
+    echo "[ERROR] User container build failed. See ${log_file}." | tee -a "${log_file}"
+    release_build_lock
+    return 1
+  fi
 
   # User containers have their own image names, so we only clean up dangling images
   remove_project_dangling_images
@@ -1467,7 +1534,8 @@ start_docker_compose() {
   elif [ "$needs_selective_rebuild" = true ]; then
     # Selective rebuild: only rebuild containers with changed Dockerfiles (--no-cache)
     # Ruby is always rebuilt on version update
-    build_ruby_container
+    local updated=true
+    DEFER_VERSION_SAVE=true build_ruby_container || updated=false
 
     # Rebuild only the containers whose Dockerfiles have changed
     if [ "$PYTHON_DOCKERFILE_CHANGED" = true ]; then
@@ -1478,10 +1546,12 @@ start_docker_compose() {
       echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)... Downloading the updated default image as a cache source first.</p>"
       ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${HOME_DIR}/monadic/log/docker_build.log" || true
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      [ "${PIPESTATUS[0]}" -eq 0 ] || updated=false
     fi
     if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then
       echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Rebuilding Selenium container (Dockerfile changed)...</p>"
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" build --no-cache selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      [ "${PIPESTATUS[0]}" -eq 0 ] || updated=false
     fi
     if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then
       # Embeddings is prebuilt: a Dockerfile change ships with an app update
@@ -1489,19 +1559,26 @@ start_docker_compose() {
       # of building locally.
       echo "[HTML]: <p><i class='fa-solid fa-database'></i> Refreshing Embeddings container image (Dockerfile changed)...</p>"
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/embeddings/compose.yml\" pull embeddings_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      [ "${PIPESTATUS[0]}" -eq 0 ] || updated=false
     fi
 
-    # Save updated container versions after selective rebuild
-    save_container_versions "silent"
-
-    if [[ "$1" != "silent" ]]; then
-      echo "[HTML]: <p>Starting containers with updated images...</p>"
+    if [ "${updated}" = true ]; then
+      # Save updated container versions after selective rebuild
+      save_container_versions "silent"
+      if [[ "$1" != "silent" ]]; then
+        echo "[HTML]: <p>Starting containers with updated images...</p>"
+      fi
+    else
+      report_image_update_failed
     fi
   elif [ "$needs_ruby_rebuild" = true ]; then
     # Only rebuild Ruby container
-    build_ruby_container
-    if [[ "$1" != "silent" ]]; then
-      echo "[HTML]: <p>Starting containers with updated Ruby container...</p>"
+    if build_ruby_container; then
+      if [[ "$1" != "silent" ]]; then
+        echo "[HTML]: <p>Starting containers with updated Ruby container...</p>"
+      fi
+    else
+      report_image_update_failed
     fi
   elif [[ "$1" != "silent" ]]; then
     echo "[HTML]: <p>All containers are available. Moving on...</p>"
@@ -1523,10 +1600,10 @@ start_docker_compose() {
         # Only rebuild if hash is missing or different - skip entirely if hashes match
         if [ -z "$current_hash" ]; then
           echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (hash not found in image) . . .</p>"
-          build_ruby_container
+          build_ruby_container || report_image_update_failed
         elif [ "$current_hash" != "$gems_hash" ]; then
           echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (Gemfile dependencies changed) . . .</p>"
-          build_ruby_container
+          build_ruby_container || report_image_update_failed
         fi
         # If hashes match, skip build entirely - no docker build command is executed
       fi
@@ -1569,10 +1646,15 @@ start_docker_compose() {
     if [ "${health_status}" = "unhealthy" ] && [ "${AUTO_REFRESH_RUBY_ON_HEALTH_FAIL}" = "true" ]; then
       echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
       echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
-      build_ruby_container
-      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"
-      if wait_for_ruby_ready; then
-        echo "Orchestration refreshed. Continuing startup . . ."
+      # A failed rebuild is not a refresh: nothing is restarted on it.
+      if build_ruby_container; then
+        eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"
+        if wait_for_ruby_ready; then
+          echo "Orchestration refreshed. Continuing startup . . ."
+        fi
+      else
+        echo "Ruby rebuild after the failed health probe did not succeed" >> "${HOME_DIR}/monadic/log/docker_startup.log"
+        report_image_update_failed
       fi
     fi
   fi
@@ -1893,12 +1975,8 @@ build_ruby_container)
   # Check disk space before building
   check_docker_disk_space
 
-  build_ruby_container
-
-  # rm -f "${ROOT_DIR}/services/ruby/rbsetup.sh"
-  # rm -f "${ROOT_DIR}/services/python/pysetup.sh"
-
-  if ${DOCKER} images --format '{{.Repository}}' | grep -qx "yohasebe/monadic-chat"; then
+  # The build's own result: an older image still there is not a success.
+  if build_ruby_container; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
@@ -1921,12 +1999,8 @@ build_python_container|build_python_container_update)
   # Check disk space before building
   check_docker_disk_space
 
-  build_python_container
-
-  # Check for this container's own image. Matching any "monadic-chat" image
-  # reported a successful Python build as failed on a fresh install, where
-  # the Ruby image does not exist yet.
-  if ${DOCKER} images --format '{{.Repository}}' | grep -qx "yohasebe/python"; then
+  # The build's own result: an older image still there is not a success.
+  if build_python_container; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
@@ -1950,7 +2024,7 @@ build_user_containers)
   if [ ${BUILD_RESULT} -eq 2 ]; then
     # No user containers found (special return code)
     echo "[HTML]: <p><i class='fa-solid fa-info-circle'></i>No user containers to build.</p><hr />"
-  elif ${DOCKER} images | grep -q "monadic-chat"; then
+  elif [ ${BUILD_RESULT} -eq 0 ]; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
@@ -1964,9 +2038,7 @@ build_selenium_container)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
-  build_selenium_container
-
-  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-selenium"; then
+  if build_selenium_container; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
@@ -2291,6 +2363,7 @@ build_privacy_container)
     # Development: build locally from source via the explicit build overlay.
     echo "[INFO] Building privacy container..."
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/privacy/compose.build.yml\" -p monadic-chat --profile privacy build privacy_service" 2>&1 | tee -a "${build_log}"
+    fetched=${PIPESTATUS[0]}
   else
     # Production: the image is prebuilt and user-independent — pull (or
     # refresh) it from ghcr.io instead of building. Output markers below
@@ -2298,9 +2371,11 @@ build_privacy_container)
     # the Electron UI matches on them.
     echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Privacy Filter image (~0.7 GB on first download) . . .</p>"
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile privacy pull privacy_service" 2>&1 | tee -a "${build_log}"
+    fetched=${PIPESTATUS[0]}
   fi
-  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-privacy"; then
+  if service_image_ready "${fetched}" "${MONADIC_DEV:-false}" "ghcr.io/yohasebe/monadic-privacy:${MONADIC_IMAGE_TAG:-latest}" "Privacy Filter" "${build_log}"; then
     echo "[INFO] Privacy container build succeeded."
+    put_running_service_on_image "${build_log}" privacy privacy_service monadic-chat-privacy-container "ghcr.io/yohasebe/monadic-privacy:${MONADIC_IMAGE_TAG:-latest}" "Privacy"
     # Snapshot marker: the Settings UI uses the existence of this file to
     # distinguish "not yet built" from "built". Language selection is no
     # longer build-relevant, so no language line is recorded.
@@ -2329,13 +2404,16 @@ build_extractor_container)
     # Development: build locally from source via the explicit build overlay.
     echo "[INFO] Building extractor container..."
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -f \"${ROOT_DIR}/services/extractor/compose.build.yml\" -p monadic-chat --profile extractor build extractor_service" 2>&1 | tee -a "${build_log}"
+    fetched=${PIPESTATUS[0]}
   else
     # Production: pull the prebuilt user-independent image from ghcr.io.
     echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB on first download) . . .</p>"
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor pull extractor_service" 2>&1 | tee -a "${build_log}"
+    fetched=${PIPESTATUS[0]}
   fi
-  if ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
+  if service_image_ready "${fetched}" "${MONADIC_DEV:-false}" "ghcr.io/yohasebe/monadic-extractor:${MONADIC_IMAGE_TAG:-latest}" "Knowledge Base Quality Pack" "${build_log}"; then
     echo "[INFO] Extractor container build succeeded."
+    put_running_service_on_image "${build_log}" extractor extractor_service monadic-chat-extractor-container "ghcr.io/yohasebe/monadic-extractor:${MONADIC_IMAGE_TAG:-latest}" "Extractor"
     # Snapshot marker: existence distinguishes "not yet built" from
     # "built". OCR languages/backend are runtime settings now, so no
     # language line is recorded.

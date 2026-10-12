@@ -17,6 +17,7 @@ const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
 const { createRevealHandler } = require('./shared_folder_reveal');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
+const { keepWarnings, createLineBuffer } = require('./build_output');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -767,8 +768,9 @@ class DockerManager {
               }
             });
             
-            subprocess.stdout.on('data', function (data) {
-              const output = data.toString();
+            // Handled a whole line at a time (a marker or a warning cut
+            // between two chunks would otherwise be missed or lost).
+            const stdoutLines = createLineBuffer(function (output) {
               
               // Translate Docker messages before displaying
               let translatedOutput = output;
@@ -839,8 +841,8 @@ class DockerManager {
                   translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span style="background: #e8f4fc; border: 1px solid #b8d4e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span style="background: #f0e8fc; border: 1px solid #d4b8e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
                 }
               }
-              
-              writeToScreen(translatedOutput);
+
+              writeToScreen(keepWarnings(output, translatedOutput));
 
               // Parse build markers to optionally summarize into main window messages
               if (isBuildPython) {
@@ -863,7 +865,7 @@ class DockerManager {
               }
               
               // Check for server started message
-              if (data.toString().includes("[SERVER STARTED]")) {
+              if (output.includes("[SERVER STARTED]")) {
                 serverStartedReceived = true;
                 fetchWithRetry('http://localhost:4567')
                   .then((success) => {
@@ -927,12 +929,16 @@ class DockerManager {
                   });
               }
             });
-            
+            subprocess.stdout.on('data', function (data) {
+              stdoutLines.push(data.toString());
+            });
+
             subprocess.stderr.on('data', function (data) {
               console.error(data.toString());
             });
-            
+
             subprocess.on('close', function (code) {
+              stdoutLines.flush();
               if (code !== 0) {
                 dialog.showErrorBox('Error', `Docker command exited with code ${code}.`);
               }

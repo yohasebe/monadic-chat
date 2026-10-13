@@ -1,4 +1,6 @@
 require 'spec_helper'
+require 'tmpdir'
+require 'fileutils'
 require_relative '../../lib/monadic/shared_tools/web_search_tools'
 
 RSpec.describe MonadicSharedTools::WebSearchTools do
@@ -107,8 +109,11 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
     let(:instance) { test_class.new }
 
     it 'accepts URL and timeout parameters' do
-      # Mock LOCAL_SHARED_VOL constant
-      stub_const('MonadicSharedTools::WebSearchTools::LOCAL_SHARED_VOL', '/tmp/test_shared')
+      # The page is saved into the shared folder: a temporary one here, never
+      # the user's.
+      shared = Dir.mktmpdir('web-content-')
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
 
       # Stub the current transport boundary, so this unit test never connects.
       response = double('HTTP response', code: '200', body: 'Mock webpage content')
@@ -118,13 +123,12 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
         'example.com', 443, use_ssl: true, open_timeout: 5, read_timeout: 10
       ).and_yield(http)
 
-      # Mock file operations
-      allow(File).to receive(:write)
-
       result = instance.fetch_web_content(url: 'https://example.com', timeout: 10)
       expect(result).to be_a(Hash)
       expect(result[:success]).to be true
       expect(result[:url]).to eq('https://example.com')
+    ensure
+      FileUtils.rm_rf(shared) if shared
     end
   end
 

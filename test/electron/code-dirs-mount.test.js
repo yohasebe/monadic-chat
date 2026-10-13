@@ -42,6 +42,8 @@ describe('apps, helpers and services in the containers', () => {
   // code a model runs could put code into apps, helpers or services. On Linux (CI) this
   // is the bind mount Docker Desktop's WSL2 backend uses as well.
   const mustRunMounts = process.env.CI === 'true' && process.platform === 'linux';
+  // Pinned by digest (the multi-arch index of busybox:1.37): CI pulls it on every run.
+  const image = 'busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e';
   const hasDaemon = (() => {
     try { execFileSync('docker', ['info'], { stdio: 'ignore', timeout: 20000 }); return true; } catch { return false; }
   })();
@@ -59,8 +61,6 @@ describe('apps, helpers and services in the containers', () => {
       expect(mounts.map((v) => v.target).sort()).toEqual(['/monadic/data', '/monadic/data/apps', '/monadic/data/helpers', '/monadic/data/services']);
       for (const v of mounts) expect(v.source.startsWith(home)).toBe(true);
 
-      // Pinned by digest (the multi-arch index of busybox:1.37): CI pulls it on every run.
-      const image = 'busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e';
       let pulled = false;
       for (let i = 0; i < 3 && !pulled; i++) {
         try { execFileSync('docker', ['pull', '-q', image], { stdio: 'ignore', timeout: 120000 }); pulled = true; } catch { /* retry */ }
@@ -114,6 +114,13 @@ describe('apps, helpers and services in the containers', () => {
       expect(fs.readdirSync(path.join(data, 'helpers'))).toEqual(['existing.rb']);
       expect(fs.readFileSync(path.join(data, 'helpers', 'existing.rb'), 'utf8')).toBe('original');
     } finally {
+      // The container ran as root: on Linux what it made (the Apps folder,
+      // a different one there) is root's, which the host user cannot remove.
+      // Remove it from a container as well.
+      try {
+        execFileSync('docker', ['run', '--rm', '--network', 'none', '--mount', `type=bind,src=${home},dst=/h`,
+          image, 'sh', '-c', 'rm -rf /h/monadic'], { stdio: 'ignore', timeout: 120000 });
+      } catch (_) { /* the host cleanup below reports what is left */ }
       // Docker Desktop can hold the bind mounts for a moment after the
       // container exits (rmdir then fails with EACCES), so try again.
       for (let i = 0; ; i++) {

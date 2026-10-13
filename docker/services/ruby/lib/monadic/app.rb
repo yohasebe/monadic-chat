@@ -361,20 +361,22 @@ class MonadicApp
       command_env = ruby_side_env
     when "python"
       container = "monadic-chat-python-container"
-      # Add all Python script directories to PATH
+      # Add all Python script directories to PATH. The user's scripts in the
+      # shared folder come last, after the system's: code a model runs can
+      # write there, and a python3 or bash it left must not stand in for the
+      # real ones (a script with its own name is still found).
       python_script_dirs = [
         "/monadic/scripts",
         "/monadic/scripts/utilities",
         "/monadic/scripts/services",
         "/monadic/scripts/cli_tools",
         "/monadic/scripts/converters",
-        "/monadic/scripts/music",
-        "#{USER_SCRIPT_DIR}"
+        "/monadic/scripts/music"
       ].join(":")
       # Build the bash command that will be executed inside the container
       # Note: We don't escape the command here because it will be properly escaped
       # when passed to bash -c via Shellwords.escape(bash_command)
-      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH=\"#{python_script_dirs}:${PATH}\"; #{command}"
+      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH=\"#{python_script_dirs}:${PATH}:#{USER_SCRIPT_DIR}\"; #{command}"
       system_command = <<~DOCKER.strip
         docker exec -w #{SHARED_VOL} #{container} bash -c #{Shellwords.escape(bash_command)}
       DOCKER

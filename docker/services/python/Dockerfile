@@ -117,7 +117,9 @@ RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod
 RUN mkdir -p /monadic/data/scripts
 
 # Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}"
+# The user's scripts in the shared folder come last: code a model runs can
+# write there, and must not stand in for python3, bash and the like.
+ENV PATH="/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}:/monadic/data/scripts"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
 

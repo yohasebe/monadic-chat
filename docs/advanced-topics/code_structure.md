@@ -42,7 +42,7 @@ Place your apps in `~/monadic/data/apps/`:
 
 Place your custom scripts in `~/monadic/data/scripts/`:
 - Scripts are automatically made executable
-- They're added to PATH in the Python container, so you can call them by name there (not on the Ruby side, which runs only the scripts that come with Monadic Chat)
+- They're added to the end of PATH in the Python container, so you can call them by name there (not on the Ruby side, which runs only the scripts that come with Monadic Chat)
 - Supports `.sh`, `.py` and other formats the Python container can run
 
 Example:

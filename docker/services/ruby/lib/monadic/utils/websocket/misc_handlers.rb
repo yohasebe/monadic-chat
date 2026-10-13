@@ -33,8 +33,9 @@ module WebSocketHelper
             send_to_client(connection, { "type" => "token_not_verified", "token" => "", "content" => "" })
           else
             Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: Sending token_verified (success)" }
+            # The key itself never goes to the page, whole or in part.
             send_to_client(connection, { "type" => "token_verified",
-                      "token" => token, "content" => res["content"],
+                      "content" => res["content"],
                       # "models" => res["models"],
                       "ai_user_initial_prompt" => MonadicApp::AI_USER_INITIAL_PROMPT })
             Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: token_verified message sent" }

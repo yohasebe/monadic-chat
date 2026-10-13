@@ -299,7 +299,7 @@ window.loadedApp = "Chat";
     window.safeWsSend({
       message: "CHECK_TOKEN",
       initial: true,
-      contents: ($id("token") || {}).value || '',
+      // No key goes from the page: the server checks the one it has.
       ui_language: uiLanguage
     }, { silentDrop: true });
 

@@ -115,7 +115,7 @@ describe('WebSocket Handlers', () => {
       const result = handlers.handleTokenVerification(data);
 
       expect(result).toBe(true);
-      expect(document.getElementById('api-token').value).toBe('test-token');
+      expect(document.getElementById('api-token').value).not.toBe('test-token'); // a key, if sent, is placed nowhere
       expect(document.getElementById('ai-user-initial-prompt').value).toBe('test-prompt');
     });
 
@@ -135,7 +135,7 @@ describe('WebSocket Handlers', () => {
       const result = handlers.handleTokenVerification(data);
 
       expect(result).toBe(true);
-      expect(document.getElementById('api-token').value).toBe('test-token');
+      expect(document.getElementById('api-token').value).not.toBe('test-token'); // a key, if sent, is placed nowhere
       expect(document.getElementById('ai-user-initial-prompt').value).toBe('test-prompt');
     });
   });

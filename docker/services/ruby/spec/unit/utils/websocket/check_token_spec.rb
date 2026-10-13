@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "json"
+require "securerandom"
 require_relative "../../../../lib/monadic/utils/secret_references"
 require_relative "../../../../lib/monadic/utils/websocket"
 
@@ -38,5 +40,34 @@ RSpec.describe "handle_ws_check_token" do
 
   it "says nothing about references when all were read" do
     expect(check_token.map { |m| m["type"] }).not_to include("secret_references_unresolved")
+  end
+
+  describe "the key itself" do
+    let(:key) { "sk-test-MARKER-#{SecureRandom.hex(8)}" }
+
+    def verify(obj = {})
+      checked = []
+      host.define_singleton_method(:check_api_key) do |token|
+        checked << token
+        { "type" => "models", "content" => "API token verified" }
+      end
+      stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => key, "ERROR" => nil))
+      host.send(:handle_ws_check_token, nil, obj, {})
+      [host.sent, checked]
+    end
+
+    it "is never sent to the page, neither whole nor its tail" do
+      sent, = verify
+      expect(sent.map { |m| m["type"] }).to include("token_verified")
+      everything = JSON.generate(sent)
+      expect(everything).not_to include(key)
+      expect(everything).not_to include(key[-8..]) # nor its tail
+    end
+
+    it "is the server's own: a key sent by the page is not used or echoed" do
+      sent, checked = verify("contents" => "sk-from-the-page", "ui_language" => "en")
+      expect(checked).to eq([key])
+      expect(JSON.generate(sent)).not_to include("sk-from-the-page")
+    end
   end
 end

@@ -319,8 +319,6 @@ function handleFragmentWithAudio(data, processAudio) {
  */
 function handleTokenVerification(data) {
   if (data && data.type === 'token_verified') {
-    const apiTokenEl = $id('api-token');
-    if (apiTokenEl) apiTokenEl.value = data.token;
     const aiUserPromptEl = $id('ai-user-initial-prompt');
     if (aiUserPromptEl) aiUserPromptEl.value = data.ai_user_initial_prompt;
     

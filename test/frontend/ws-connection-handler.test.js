@@ -83,9 +83,10 @@ describe('ws-connection-handler', () => {
       expect(window.verified).toBe('full');
     });
 
-    it('sets API token value', () => {
-      handlers.handleTokenVerified({ token: 'sk-test123', ai_user_initial_prompt: '' });
-      expect(document.getElementById('api-token').value).toBe('sk-test123');
+    it('places no key on the page, even if one were sent', () => {
+      handlers.handleTokenVerified({ token: 'sk-MARKER-123', ai_user_initial_prompt: '' });
+      expect(document.getElementById('api-token').value).toBe('');
+      expect(document.body.innerHTML).not.toContain('sk-MARKER-123');
     });
 
     it('enables OpenAI TTS options', () => {
@@ -140,11 +141,6 @@ describe('ws-connection-handler', () => {
       expect(window.verified).toBe('partial');
     });
 
-    it('clears API token', () => {
-      document.getElementById('api-token').value = 'sk-old';
-      handlers.handleOpenAIAPIError({});
-      expect(document.getElementById('api-token').value).toBe('');
-    });
 
     it('disables OpenAI TTS options', () => {
       handlers.handleOpenAIAPIError({});
@@ -176,11 +172,6 @@ describe('ws-connection-handler', () => {
       expect(window.verified).toBe('partial');
     });
 
-    it('clears API token', () => {
-      document.getElementById('api-token').value = 'sk-old';
-      handlers.handleTokenNotVerified({});
-      expect(document.getElementById('api-token').value).toBe('');
-    });
 
     it('disables OpenAI TTS and STT', () => {
       handlers.handleTokenNotVerified({});

@@ -18,7 +18,8 @@
 /**
  * Handle "token_verified" WebSocket message.
  * Enables OpenAI TTS/STT models and updates UI state.
- * @param {Object} data - Message data with token and ai_user_initial_prompt
+ * @param {Object} data - Message data with content and ai_user_initial_prompt
+ *   (never the key itself: the server checks its key and keeps it)
  */
 function handleTokenVerified(data) {
   // Use the handler if available, otherwise use inline code
@@ -26,9 +27,7 @@ function handleTokenVerified(data) {
   if (typeof wsHandlers !== 'undefined' && wsHandlers && typeof wsHandlers.handleTokenVerification === 'function') {
     handled = wsHandlers.handleTokenVerification(data);
   } else {
-    // Fallback to inline handling
-    const apiTokenEl = $id("api-token");
-    if (apiTokenEl) apiTokenEl.value = data["token"];
+    // Fallback to inline handling (the key itself is never sent to the page)
     const aiUserPromptEl = $id("ai-user-initial-prompt");
     if (aiUserPromptEl) aiUserPromptEl.value = data["ai_user_initial_prompt"];
     handled = true;
@@ -102,9 +101,6 @@ function handleOpenAIAPIError(_data) {
     if (el) el.disabled = false;
   });
 
-  const apiTokenEl = $id("api-token");
-  if (apiTokenEl) apiTokenEl.value = "";
-
   // Disable OpenAI TTS options
   ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
     const el = $id(id);
@@ -133,9 +129,6 @@ function handleTokenNotVerified(_data) {
     const el = $id(id);
     if (el) el.disabled = false;
   });
-
-  const tokenEl = $id("api-token");
-  if (tokenEl) tokenEl.value = "";
 
   // Disable OpenAI TTS options
   ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {

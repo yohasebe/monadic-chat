@@ -2,7 +2,7 @@
 
 ## システム要件 :id=system-requirements
 
-- **Docker Desktop**: 最新版を推奨
+- **Docker**: Docker Desktop（新しい版）、または Linux では Docker Engine
 - **メモリ**: 最低8GB RAM（16GB推奨）
 - **ストレージ**: Dockerイメージとユーザーデータ用の十分な空き容量
 - **macOS**: Apple Silicon（M1以降）上の macOS 13（Ventura）以降が必要です。Intel Macはサポートされていません。
@@ -65,7 +65,7 @@ Docker Engine を使う場合は、`sudo` なしで `docker` を実行できる�
 $ sudo usermod -aG docker $USER
 ```
 
-Omarchy では、代わりに `omarchy-setup-security-sudoless-docker` を実行します。`docker` グループに入ると、その機械に対して root 相当の権限を持つことになります。グループに入っていない場合、Monadic Chat は Docker を使えないときにこの手順を表示します。
+Omarchy では、代わりに `omarchy-setup-security-sudoless-docker` を実行します。`docker` グループに入ると、そのコンピューターに対して root 相当の権限を持つことになります。ユーザーが Docker を使えないとき、Monadic Chat はこのコマンドを表示します。
 
 2. **Monadic Chatのダウンロード**
 
@@ -86,34 +86,30 @@ AppImage は FUSE を使って自身をマウントします。現在のディ�
 
 ## 初期設定 :id=initial-setup
 
-インストール後、Monadic Chatを初めて起動すると：
+インストール後：
 
-1. アプリケーションが自動的にDockerコンテナのビルドを開始します
-2. **初回セットアップ時間**: インターネット接続とシステム性能によって10〜30分程度
-3. **以降の起動**: 既存のコンテナが再利用されるため、格段に速くなります
-4. 使用したいAIサービスのAPIキーを設定で構成してください
-5. 準備が完了すると、ステータスインジケータが緑色になります
+1. コンソールの **Settings** をクリックし、**API Keys** を開いて、使う AI サービスの API キーを入力し、**Save** をクリックします
+2. **Start** をクリックします。初回は、ビルド済みのイメージをダウンロードし、Ruby と Python のイメージをビルドするため、インターネット接続とコンピューターによって 10〜30 分ほどかかります。2 回目からは、それらを再利用します
+3. 準備が整うと、コンソールの **System** の欄に緑で **Started** と表示され、**Open Browser** が使えるようになります
 
 詳細な使用方法については、[Webインターフェース](../basic-usage/web-interface.md)セクションを参照してください。
 
 ## Monadic Chatの更新 :id=update
 
-<!-- SCREENSHOT: Monadic Chatメニュー - File、View、Actions、Helpの各メニュー項目が表示され、Fileメニューに「アップデートを確認」オプションがある様子 -->
+<!-- SCREENSHOT: Monadic Chatメニュー - FileメニューにCheck for Updatesがある様子 -->
 
-Monadic Chatは起動時に自動的に更新をチェックします。
+Monadic Chat は、起動時（オンラインのとき）に更新を確認します。
 
-**更新手順:**
-
-1. 更新がある場合、メインコンソールに **Download & Install** ボタン付きの通知が表示されます（`File` → `Check for Updates` から手動で確認することもできます）
+1. 新しい版があると、コンソールに **Download & Install** ボタンが表示されます。自分で確認するときは、File メニュー（macOS では Monadic Chat メニュー）の **Check for Updates** を選びます
 2. **Download & Install** をクリックすると、更新がバックグラウンドでダウンロードされ、進捗がコンソールに表示されます
-3. ダウンロードが完了すると、更新を適用するためにMonadic Chatの再起動を促すダイアログが表示されます
+3. ダウンロードが終わったら、**Restart Now** でインストールするか、**Later** を選びます
 
 [1.0.0-beta.43 のリリースページ](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.43)から手動でダウンロードすることも、[すべてのリリース](https://github.com/yohasebe/monadic-chat/releases)を見ることもできます。
 
 ## 高度な設定 :id=advanced-configuration
 
 以下を含む高度な設定オプション：
-- インストールオプション（LaTeX、Pythonライブラリなど）
+- Install Options（LaTeX、Pythonライブラリなど）
 - 再ビルド手順
 - 環境変数
 

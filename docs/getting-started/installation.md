@@ -2,7 +2,7 @@
 
 ## System Requirements :id=system-requirements
 
-- **Docker Desktop**: Recent version recommended
+- **Docker**: Docker Desktop (a recent version), or Docker Engine on Linux
 - **Memory**: At least 8GB RAM (16GB recommended)
 - **Storage**: Sufficient free disk space for Docker images and user data
 - **macOS**: macOS 13 (Ventura) or later on Apple Silicon (M1 or later). Intel Macs are not supported.
@@ -65,7 +65,7 @@ With Docker Engine, your user must be able to run `docker` without `sudo`. Add i
 $ sudo usermod -aG docker $USER
 ```
 
-On Omarchy, run `omarchy-setup-security-sudoless-docker` instead. Membership in the `docker` group gives root-equivalent access to the machine. If the group is missing, Monadic Chat shows these steps when it cannot use Docker.
+On Omarchy, run `omarchy-setup-security-sudoless-docker` instead. Membership in the `docker` group gives root-equivalent access to the machine. When your user cannot use Docker, Monadic Chat shows this command.
 
 2. **Download Monadic Chat**
 
@@ -86,13 +86,11 @@ The AppImage mounts itself through FUSE. FUSE 3, which current distributions inc
 
 ## Initial Setup :id=initial-setup
 
-After installation, when you first launch Monadic Chat:
+After installation:
 
-1. The application will start building Docker containers automatically
-2. **Initial setup time**: 10-30 minutes depending on your internet connection and system performance
-3. **Subsequent startups**: Much faster as existing containers are reused
-4. Configure API keys in Settings for the AI services you want to use
-5. Once ready, the status indicator will turn green
+1. Click **Settings** in the console, open **API Keys**, enter the keys for the AI services you want to use, and click **Save**
+2. Click **Start**. The first start downloads the prebuilt images and builds the Ruby and Python images, which takes 10–30 minutes depending on your internet connection and computer. Later starts reuse them
+3. When everything is ready, the **System** status in the console shows **Started** in green, and **Open Browser** becomes available
 
 For detailed usage instructions, see the [Web Interface](../basic-usage/web-interface.md) section.
 
@@ -100,13 +98,11 @@ For detailed usage instructions, see the [Web Interface](../basic-usage/web-inte
 
 <!-- SCREENSHOT: Monadic Chat menu showing File menu with Check for Updates option -->
 
-Monadic Chat automatically checks for updates on startup.
+Monadic Chat checks for updates when it starts (when it is online).
 
-**Update process:**
-
-1. If an update is available, a notification with a **Download & Install** button appears in the main console (you can also check manually via `File` → `Check for Updates`)
-2. Click **Download & Install** — the update downloads in the background, with progress shown in the console
-3. When the download completes, you are prompted to restart Monadic Chat to apply the update
+1. When a newer version is available, a **Download & Install** button appears in the console. To check yourself, choose **Check for Updates** in the File menu (on macOS, the Monadic Chat menu)
+2. Click **Download & Install**. The update downloads in the background, with its progress shown in the console
+3. When the download completes, choose **Restart Now** to install it, or **Later**
 
 You can also download it yourself from the [release page for 1.0.0-beta.43](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.43), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
 

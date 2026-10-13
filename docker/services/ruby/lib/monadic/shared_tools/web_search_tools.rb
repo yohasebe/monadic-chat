@@ -2,6 +2,7 @@
 
 require 'net/http'
 require 'uri'
+require_relative '../utils/shared_path_guard'
 
 # Unified Web Search Tools for Monadic Chat
 # Consolidates web search and content fetching capabilities
@@ -185,7 +186,8 @@ module MonadicSharedTools
         # Interpret the raw body as UTF-8 and scrub invalid bytes rather than
         # transcoding (the response is ASCII-8BIT and `encoding: 'UTF-8'` raises
         # on non-ASCII bytes, e.g. a Cyrillic page).
-        File.write(filepath, response.body.to_s.dup.force_encoding('UTF-8').scrub)
+        # Never through a link in its place (code a model runs could have made one)
+        Monadic::Utils::SharedPathGuard.write_file!(filepath, response.body.to_s.dup.force_encoding('UTF-8').scrub)
 
         {
           success: true,

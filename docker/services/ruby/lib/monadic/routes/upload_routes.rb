@@ -21,7 +21,8 @@ post "/upload_audio" do
       end
       user_data_dir = Monadic::Utils::Environment.data_path
       dest_path = File.join(user_data_dir, filename)
-      File.open(dest_path, "wb") { |f| IO.copy_stream(file_handler, f) }
+      # Never through a link in its place (code a model runs could have made one)
+      Monadic::Utils::SharedPathGuard.write_file!(dest_path, file_handler, mode: "wb")
       file_handler.close
       utf8_filename = filename.force_encoding("UTF-8")
       { success: true, filename: utf8_filename }.to_json
@@ -51,7 +52,8 @@ post "/document" do
 
     user_data_dir = Monadic::Utils::Environment.data_path
     doc_file_path = File.join(user_data_dir, filename)
-    File.open(doc_file_path, "wb") { |f| f.write(doc_file_handler.read) }
+    # Never through a link in its place (code a model runs could have made one)
+    Monadic::Utils::SharedPathGuard.write_file!(doc_file_path, doc_file_handler.read, mode: "wb")
 
     utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
     doc_file_handler.close

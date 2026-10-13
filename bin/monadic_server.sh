@@ -24,13 +24,9 @@ elif [ "$1" == "stop" ]; then
 elif [ "$1" == "restart" ]; then
   ./bin/monadic_dev restart --daemonize
   echo "Monadic script executed with 'restart' argument 🔄"
-elif [ "$1" == "export" ]; then
-  ./bin/monadic_dev export
-elif [ "$1" == "import" ]; then
-  ./bin/monadic_dev import
 elif [ "$1" == "status" ]; then
   ./bin/monadic_dev status
 else
-  echo "Usage: monadic_server.sh [start|stop|restart|debug|status|export|import]"
+  echo "Usage: monadic_server.sh [start|stop|restart|debug|status]"
   ./bin/monadic_dev status
 fi

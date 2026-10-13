@@ -61,11 +61,11 @@ module MonadicHelper
     container = "monadic-chat-python-container"
     filepath = File.join(data_dir, "#{safe_filename}.#{safe_extension}")
 
-    # create a temporary file inside the data directory
+    # create a temporary file inside the data directory, never through a link
     begin
-      File.open(filepath, "w") do |f|
-        f.write(text)
-      end
+      Monadic::Utils::SharedPathGuard.write_file!(filepath, text)
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath => e
+      return "Error: #{e.message}: #{filename}.#{extension}"
     rescue Errno::ENOENT => e
       return "Error: Directory does not exist for file: #{filename}.#{extension}"
     rescue Errno::EACCES => e

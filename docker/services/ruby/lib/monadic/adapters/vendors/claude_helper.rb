@@ -1,3 +1,4 @@
+require_relative '../../utils/shared_path_guard'
 require_relative "../../utils/http_client"
 require 'fileutils'
 require 'securerandom'
@@ -2176,8 +2177,12 @@ module ClaudeHelper
     docs_dir = File.join(base_path, "documents")
     FileUtils.mkdir_p(docs_dir) unless File.directory?(docs_dir)
 
+    # The name comes from the provider's response: only its last part is
+    # used, and the file is written never through a link.
+    filename = File.basename(filename.to_s.tr("\\", "/"))
+    filename = "claude_file" if filename.empty? || %w[. ..].include?(filename)
     file_path = File.join(docs_dir, filename)
-    File.binwrite(file_path, file_data)
+    Monadic::Utils::SharedPathGuard.write_file!(file_path, file_data, mode: "wb")
 
     # Create platform-independent relative path display
     home_display = if RUBY_PLATFORM =~ /mingw|mswin|cygwin/

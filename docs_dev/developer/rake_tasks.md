@@ -34,16 +34,6 @@ rake server:status
 
 ## Database Operations
 
-### Document Database
-
-```bash
-# Export document database
-rake db:export
-
-# Import document database
-rake db:import
-```
-
 ### Help Database
 
 ```bash

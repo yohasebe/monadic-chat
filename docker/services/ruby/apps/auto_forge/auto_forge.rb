@@ -9,6 +9,8 @@ require_relative 'auto_forge_utils'
 require_relative 'utils/state_manager'
 require_relative 'utils/prompt_builder'
 require_relative 'utils/file_operations'
+require_relative 'utils/path_config'
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require_relative 'agents/html_generator'
 require_relative 'agents/cli_generator'
 require_relative 'agents/grok_html_generator'
@@ -152,6 +154,14 @@ module AutoForge
       true
     end
 
+    # Whether path, links followed, is a folder under AutoForge's projects.
+    def inside_project_base?(path)
+      base = File.realpath(AutoForge::Utils::PathConfig.project_base_path)
+      File.realpath(path).start_with?("#{base}/")
+    rescue SystemCallError
+      false
+    end
+
     def existing_project_context(spec)
       data = fetch_context_data
       puts "[AutoForge] Checking for existing project, context data: #{data.inspect}" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -163,6 +173,10 @@ module AutoForge
 
       return nil unless path && !path.to_s.strip.empty?
       return nil unless Dir.exist?(path)
+      # A project is written only inside AutoForge's own folder: the path
+      # comes from the model, and a folder elsewhere in the shared folder
+      # (custom apps and helpers among them) holds code the server loads.
+      return nil unless inside_project_base?(path)
 
       spec_name = value_from_spec(spec, :name)
       if manual_path.nil? && spec_name && data[:base_name] && !spec_name.to_s.strip.empty?
@@ -369,8 +383,8 @@ module AutoForge
 
       file_path = File.join(@project_path, file_name)
 
-      # Write the script
-      File.write(file_path, code)
+      # Write the script (in the project folder, never through a link)
+      Monadic::Utils::SharedPathGuard.write_file!(file_path, code)
 
       # Make executable on Unix-like systems
       if RUBY_PLATFORM !~ /mswin|mingw|cygwin/

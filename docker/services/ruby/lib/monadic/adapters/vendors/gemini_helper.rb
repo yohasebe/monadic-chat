@@ -3950,8 +3950,9 @@ module GeminiHelper
       end
     end
 
-    # Create the bash command using Shellwords.join for proper escaping
-    cmd = "bash -c #{Shellwords.escape(Shellwords.join(parts))}"
+    # The script name first, so that send_command runs the bundled script
+    # with this Ruby by absolute path; each argument escaped
+    cmd = Shellwords.join(parts)
     
     begin
       # Send command and get raw output

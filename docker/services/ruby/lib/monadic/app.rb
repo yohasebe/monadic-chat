@@ -5,6 +5,7 @@ require 'ostruct'
 require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
+require_relative "./utils/shared_path_guard"
 require_relative "./utils/extra_logger"
 require_relative "./utils/tokenizer"
 require_relative "./utils/progressive_tool_manager"
@@ -18,19 +19,16 @@ Dir.glob(File.expand_path("agents/**/*.rb", __dir__)).sort.each do |rb|
 end
 
 # Load user helpers from ~/monadic/data/helpers/
+# (never through a link, and in development mode only when asked: see SharedPathGuard.user_code_files)
 direct_helpers_dir = Monadic::Utils::Environment.helpers_path
-if Dir.exist?(direct_helpers_dir)
-  Dir.glob(File.join(direct_helpers_dir, "**", "*.rb")).sort.each do |rb|
-    require rb
-  end
+Monadic::Utils::SharedPathGuard.user_code_files(direct_helpers_dir, File.join("**", "*.rb")).each do |rb|
+  require rb
 end
 
 # Load per-app helpers from ~/monadic/data/apps/*/helpers/
 user_apps_dir = Monadic::Utils::Environment.apps_path
-if Dir.exist?(user_apps_dir)
-  Dir.glob(File.join(user_apps_dir, "*", "helpers", "**", "*.rb")).sort.each do |rb|
-    require rb
-  end
+Monadic::Utils::SharedPathGuard.user_code_files(user_apps_dir, File.join("*", "helpers", "**", "*.rb")).each do |rb|
+  require rb
 end
 
 # Require new monadic modules
@@ -344,34 +342,23 @@ class MonadicApp
                    success_with_output: "Command has been executed with the following output: \n"
                   )
 
+    command_env = {}
     case container.to_s
     when "ruby"
-      if Monadic::Utils::Environment.in_container?
-        system_script_dir = SYSTEM_SCRIPT_DIR
-        user_system_script_dir = USER_SCRIPT_DIR
-        shared_volume = SHARED_VOL
-      else
-        system_script_dir = LOCAL_SYSTEM_SCRIPT_DIR
-        user_system_script_dir = LOCAL_USER_SCRIPT_DIR
-        shared_volume = LOCAL_SHARED_VOL
+      # This runs in the Ruby process's own environment, which can read the
+      # keys (and in the container, Docker). Nothing from the shared folder,
+      # which code the model runs can write, is put on PATH or made
+      # executable; a bundled Ruby script runs with this Ruby, both by
+      # absolute path; and the keys are taken out of the environment.
+      system_command = ruby_side_command(command)
+      if system_command.is_a?(Hash)
+        refused = system_command[:refused]
+        return yield("", refused, OpenStruct.new(success?: false)) if block_given?
+
+        return "Error occurred: #{refused}"
       end
-      ruby_script_dirs = [
-        system_script_dir,
-        "#{system_script_dir}/cli_tools",
-        "#{system_script_dir}/utilities",
-        "#{system_script_dir}/generators",
-        user_system_script_dir
-      ].join(":")
-      # Build the full command that will be executed
-      # Note: Command is not escaped here, will be handled by system() call
-      full_command = <<~SYS
-        find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        find #{user_system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        export PATH="#{ruby_script_dirs}:${PATH}" && \
-        cd #{shared_volume} && \
-        #{command}
-      SYS
-      system_command = full_command
+
+      command_env = ruby_side_env
     when "python"
       container = "monadic-chat-python-container"
       # Add all Python script directories to PATH
@@ -420,7 +407,7 @@ class MonadicApp
                     else
                       120  # 2 minutes default
                     end
-    stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value)
+    stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value, env: command_env)
 
     if block_given?
       yield(stdout, stderr, status)
@@ -656,11 +643,63 @@ class MonadicApp
     Time.now.to_s
   end
 
-  def capture_command(command, timeout: 120)
-    self.class.capture_command(command, timeout: timeout)
+  def capture_command(command, timeout: 120, env: {})
+    self.class.capture_command(command, timeout: timeout, env: env)
   end
 
-  def self.capture_command(command, timeout: 120)  # Default 120 seconds timeout
+  # The scripts that come with Monadic Chat and run on the Ruby side.
+  RUBY_SIDE_SCRIPT_DIRS = %w[. cli_tools utilities generators].freeze
+  # Names of environment variables that hold credentials.
+  CREDENTIAL_ENV = /(?:API_KEY|ACCESS_KEY|ACCESS_KEY_ID|_KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)\z/
+
+  # The shell command for a Ruby-side command: run from the shared folder,
+  # with a PATH of the bundled scripts and the process's own absolute,
+  # non-shared directories. A command naming a bundled Ruby script
+  # (`tts_query.rb ...`) runs it as `<this ruby> <its absolute path> ...`;
+  # a Ruby script that is not bundled is refused ({ refused: reason }).
+  def ruby_side_command(command)
+    in_container = Monadic::Utils::Environment.in_container?
+    scripts = in_container ? SYSTEM_SCRIPT_DIR : LOCAL_SYSTEM_SCRIPT_DIR
+    shared = in_container ? SHARED_VOL : LOCAL_SHARED_VOL
+    script_dirs = RUBY_SIDE_SCRIPT_DIRS.map { |d| File.expand_path(d, scripts) }
+
+    first, rest = command.to_s.strip.split(/\s+/, 2)
+    if first.to_s.end_with?(".rb") && !first.include?("/")
+      found = script_dirs.map { |d| File.join(d, first) }.find { |f| File.file?(f) }
+      return { refused: "#{first} is not a script that comes with Monadic Chat; scripts in the shared folder run only in the Python container." } unless found
+
+      command = [Shellwords.escape(RbConfig.ruby), Shellwords.escape(found), rest].compact.join(" ")
+    end
+
+    "export PATH=#{Shellwords.escape(ruby_side_path(script_dirs, shared))} && cd #{Shellwords.escape(shared)} && #{command}"
+  end
+
+  # The bundled script folders, then this process's PATH without relative
+  # or empty entries (the current directory), folders that do not exist,
+  # and any folder that is, or is really (links followed), in the shared
+  # folder.
+  def ruby_side_path(script_dirs, shared)
+    shared_root = real_dir(shared) || File.expand_path(shared)
+    own = ENV.fetch("PATH", "").split(":").select do |dir|
+      real = dir.start_with?("/") && real_dir(dir)
+      real && real != shared_root && !real.start_with?("#{shared_root}/")
+    end
+    (script_dirs + own).uniq.join(":")
+  end
+
+  def real_dir(path)
+    File.realpath(path)
+  rescue SystemCallError
+    nil
+  end
+
+  # The environment of a Ruby-side command: credentials are unset (the
+  # bundled scripts read their keys from the configuration themselves).
+  def ruby_side_env
+    ENV.keys.grep(CREDENTIAL_ENV).to_h { |key| [key, nil] }
+  end
+
+  def self.capture_command(command, timeout: 120, env: {})  # Default 120 seconds timeout
     unless command
       return ["Error: command is required.", nil, 1]
     end
@@ -671,7 +710,7 @@ class MonadicApp
 
       Timeout::timeout(timeout) do
         # An Array runs without a shell, each element one argument
-        stdout, stderr, status = command.is_a?(Array) ? Open3.capture3(*command) : Open3.capture3(command)
+        stdout, stderr, status = command.is_a?(Array) ? Open3.capture3(env, *command) : Open3.capture3(env, command)
       end
     rescue Timeout::Error
       error_msg = "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort."

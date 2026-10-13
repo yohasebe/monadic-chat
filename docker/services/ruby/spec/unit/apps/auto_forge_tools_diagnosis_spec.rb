@@ -109,6 +109,8 @@ RSpec.describe AutoForgeTools do
 
     before do
       File.write(html_path, '<!DOCTYPE html><html><body>original</body></html>')
+      # AutoForge writes only inside the shared folder: here, tmp_dir
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(File.realpath(tmp_dir))
     end
 
     after do

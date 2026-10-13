@@ -17,6 +17,12 @@ services:
       # in services/ruby/compose.yml before "fixing" this.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
+      # Custom apps, helpers and container definitions (services) are code
+      # the host loads: read-only here, where code a model writes can run
+      # (monadic.sh creates them).
+      - ~/monadic/data/apps:/monadic/data/apps:ro
+      - ~/monadic/data/helpers:/monadic/data/helpers:ro
+      - ~/monadic/data/services:/monadic/data/services:ro
     ports:
       - "127.0.0.1:4444:4444"
       - "127.0.0.1:5900:5900"

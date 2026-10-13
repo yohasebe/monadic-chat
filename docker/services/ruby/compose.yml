@@ -25,6 +25,13 @@ services:
       # "fix" them — that would materialize volumes shadowing the binds.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
+      # Custom apps, helpers and container definitions (services) are code
+      # the host loads; this server only reads them, so a write that reaches
+      # them through these mounts (by a link or a race) is refused by the
+      # file system (monadic.sh creates them).
+      - ~/monadic/data/apps:/monadic/data/apps:ro
+      - ~/monadic/data/helpers:/monadic/data/helpers:ro
+      - ~/monadic/data/services:/monadic/data/services:ro
       - config:/monadic/config
       - ~/monadic/config:/monadic/config
       - log:/monadic/log

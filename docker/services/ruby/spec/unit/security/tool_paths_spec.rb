@@ -214,6 +214,41 @@ RSpec.describe 'Tool input boundaries' do
       expect(File.exist?(File.join(@outside, 'escape.txt'))).to be(false)
     end
 
+    it 'writes nothing into the folders whose code the Ruby side loads or runs' do
+      FileUtils.mkdir_p(File.join(@root, 'helpers'))
+      File.symlink(File.join(@root, 'helpers'), File.join(@root, 'innocent'))
+      ['helpers/x.rb', 'apps/x/x.mdsl', 'apps/x/helpers/y.rb', 'scripts/ruby', 'Helpers/x.rb', 'SCRIPTS/bash',
+       './apps/x.rb', '/monadic/data/helpers/x.rb', 'innocent/x.rb', 'services/x/compose.yml',
+       'Services/x/compose.yml'].each do |path|
+        result = helper.write_file_to_shared_folder(filepath: path, content: 'puts :ran')
+        expect(result[:success]).to be(false), "#{path} was written"
+      end
+      written = Dir.glob(File.join(@root, '{apps,helpers,scripts,services,Helpers,SCRIPTS,Services}', '**', '*'), File::FNM_DOTMATCH)
+                   .select { |f| File.file?(f) }
+      expect(written).to be_empty
+      # a name that only starts like one of them is an ordinary folder
+      expect(helper.write_file_to_shared_folder(filepath: 'apps-notes/x.txt', content: 'ok')[:success]).to be(true)
+    end
+
+    it 'writes nothing where a loaded folder really is, when that folder is a link' do
+      FileUtils.mkdir_p(File.join(@root, 'ordinary'))
+      File.symlink(File.join(@root, 'ordinary'), File.join(@root, 'helpers'))
+      expect(helper.write_file_to_shared_folder(filepath: 'helpers/probe.rb', content: 'x')[:success]).to be(false)
+      expect(helper.write_file_to_shared_folder(filepath: 'ordinary/probe.rb', content: 'x')[:success]).to be(false)
+      expect(Dir.children(File.join(@root, 'ordinary'))).to be_empty
+    end
+
+    it 'never writes through a link in the file\'s place' do
+      FileUtils.mkdir_p(File.join(@root, 'notes'))
+      target = fixture('notes/kept.txt', text: 'kept')
+      File.symlink(target, File.join(@root, 'report.txt'))
+      expect(helper.write_file_to_shared_folder(filepath: 'report.txt', content: 'overwrite')[:success]).to be(false)
+      writer = Class.new { include MonadicHelper }.new
+      stub_const('MonadicApp::LOCAL_SHARED_VOL', @root)
+      expect(writer.write_to_file(filename: 'report', extension: 'txt', text: 'overwrite')).to start_with('Error')
+      expect(File.read(target)).to eq('kept')
+    end
+
     it 'writes and appends valid Unicode subfolder names' do
       result = helper.write_file_to_shared_folder(filepath: '日本語 folder/new/file name.txt', content: 'first')
       expect(result[:success]).to be(true)

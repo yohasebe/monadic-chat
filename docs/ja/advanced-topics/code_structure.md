@@ -42,14 +42,14 @@ Monadic Chatのユーザーディレクトリ (`~/monadic/`) には、以下の�
 
 カスタムスクリプトは `~/monadic/data/scripts/` に配置します。
 - スクリプトは自動的に実行可能になります。
-- PATHに追加されるため、名前で呼び出すことができます。
-- `.sh`、`.py`、`.rb` など、さまざまな実行可能形式をサポートしています。
+- Python コンテナでは PATH に追加されるため、名前で呼び出すことができます（Ruby 側では、Monadic Chat に付属するスクリプトだけを実行します）。
+- `.sh`、`.py` など、Python コンテナで実行できる形式をサポートしています。
 
 例:
 ```text
 ~/monadic/data/scripts/
 ├── my_analyzer.py
-├── data_processor.rb
+├── data_processor.py
 └── utility.sh
 ```
 

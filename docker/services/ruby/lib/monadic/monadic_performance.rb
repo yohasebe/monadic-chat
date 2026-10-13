@@ -271,23 +271,6 @@ module MonadicPerformance
     result
   end
 
-  # Optimized monadic transformation
-  def optimize_monadic_transform(content, app)
-    performance_monitor.measure("monadic_transform") do
-      # Skip transformation if already valid monadic format
-      if content.is_a?(Hash) && content["message"] && content["context"]
-        return content
-      end
-      
-      # Apply transformation
-      if defined?(APPS) && APPS[app]&.respond_to?(:monadic_map)
-        APPS[app].monadic_map(content)
-      else
-        content
-      end
-    end
-  end
-
   # Get performance report
   def get_performance_report
     {

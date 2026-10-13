@@ -15,7 +15,8 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
-const { createRevealHandler } = require('./shared_folder_reveal');
+const { createRevealHandler, showSharedPath } = require('./shared_folder_reveal');
+const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
 
@@ -1887,8 +1888,20 @@ function encryptDbExport(plainPath, encPath, passphrase) {
     }
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
 
-    const fout = fs.createWriteStream(encPath);
-    fout.on('error', reject);
+    // The input first: a failure there leaves nothing to clean up.
+    let fin;
+    let fout;
+    try {
+      fin = readStreamNoFollow(plainPath);
+      fout = writeStreamNoFollow(encPath);
+    } catch (err) {
+      if (fin) fin.destroy();
+      return reject(err);
+    }
+    fout.on('error', (err) => {
+      fout.discard();
+      reject(err);
+    });
 
     // Header
     fout.write(DB_ENC_MAGIC);
@@ -1896,9 +1909,9 @@ function encryptDbExport(plainPath, encPath, passphrase) {
     fout.write(salt);
     fout.write(iv);
 
-    const fin = fs.createReadStream(plainPath);
     fin.on('error', (err) => {
       fout.destroy();
+      fout.discard();
       reject(err);
     });
 
@@ -1911,9 +1924,10 @@ function encryptDbExport(plainPath, encPath, passphrase) {
         const tail = cipher.final();
         if (tail.length > 0) fout.write(tail);
         fout.write(cipher.getAuthTag());
-        fout.end(() => resolve());
+        fout.commit().then(resolve, reject);
       } catch (err) {
         fout.destroy();
+        fout.discard();
         reject(err);
       }
     });
@@ -1924,7 +1938,7 @@ function decryptDbImport(encPath, plainPath, passphrase) {
   return new Promise((resolve, reject) => {
     let stat;
     try {
-      stat = fs.statSync(encPath);
+      stat = fs.lstatSync(encPath);
     } catch (err) {
       return reject(err);
     }
@@ -1935,7 +1949,7 @@ function decryptDbImport(encPath, plainPath, passphrase) {
 
     let fd;
     try {
-      fd = fs.openSync(encPath, 'r');
+      fd = openReadNoFollow(encPath);
     } catch (err) {
       return reject(err);
     }
@@ -1962,15 +1976,25 @@ function decryptDbImport(encPath, plainPath, passphrase) {
       const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
       decipher.setAuthTag(tagBuf);
 
-      const fout = fs.createWriteStream(plainPath);
-      fout.on('error', reject);
-
-      const fin = fs.createReadStream(encPath, {
+      // The input first: a failure there leaves nothing to clean up.
+      const fin = readStreamNoFollow(encPath, {
         start: DB_ENC_HEADER_BYTES,
         end: totalSize - DB_ENC_TAG_BYTES - 1
       });
+      let fout;
+      try {
+        fout = writeStreamNoFollow(plainPath);
+      } catch (err) {
+        fin.destroy();
+        throw err;
+      }
+      fout.on('error', (err) => {
+        fout.discard();
+        reject(err);
+      });
       fin.on('error', (err) => {
         fout.destroy();
+        fout.discard();
         reject(err);
       });
 
@@ -1982,12 +2006,12 @@ function decryptDbImport(encPath, plainPath, passphrase) {
         try {
           const tail = decipher.final();
           if (tail.length > 0) fout.write(tail);
-          fout.end(() => resolve());
+          fout.commit().then(resolve, reject);
         } catch (err) {
           fout.destroy();
-          // Clean up partial decrypt; an authentication failure
-          // produces an unusable file.
-          try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+          // Drop the partial decrypt; an authentication failure produces an
+          // unusable file, and the file in place is left as it was.
+          fout.discard();
           reject(new Error('Decryption failed (wrong passphrase or tampered file).'));
         }
       });
@@ -3995,15 +4019,11 @@ ipcMain.on('reveal-path', (_event, targetPath) => {
       resolved = path.join(hostShared, resolved.slice(containerShared.length));
     }
 
-    let stat = null;
-    try { stat = fs.statSync(resolved); } catch (_) { stat = null; }
-    if (stat && stat.isDirectory()) {
-      shell.openPath(resolved);
-    } else {
-      // File (or non-existent): showItemInFolder opens the parent and selects
-      // the item when present.
-      shell.showItemInFolder(resolved);
-    }
+    // Only the shared folder itself is opened. Anything else, a folder too,
+    // is shown in its parent (showItemInFolder selects it when present):
+    // code a model runs can make a folder the system opens as an app
+    // (Name.app on macOS), and opening it would run it.
+    showSharedPath(resolved, { resolveRoot: resolveHostSharedRoot, fs, shell });
   } catch (err) {
     console.warn('[reveal-path] failed:', err && err.message);
   }

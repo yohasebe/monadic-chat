@@ -431,30 +431,6 @@ def print_status
   end
 end
 
-def export_document_db
-  command = <<~SHELL
-    pg_dump monadic | gzip > "#{DATA_DIR}/monadic.gz"
-  SHELL
-
-  if system(command)
-    puts "Document DB exported to 'monadic.gz'"
-  else
-    puts "Failed to export document DB"
-  end
-end
-
-def import_document_db
-  command = <<~SHELL
-    dropdb monadic && createdb --locale=C --template=template0 monadic && gunzip -c "#{DATA_DIR}/monadic.gz" | psql monadic
-  SHELL
-
-  if system(command)
-    puts "Document DB imported from 'monadic.gz'"
-  else
-    puts "Failed to import document DB"
-  end
-end
-
 # Parse and execute subcommand
 subcommand = ARGV.shift
 
@@ -465,12 +441,8 @@ when "stop"
   stop_server
 when "restart"
   restart_server(opts)
-when "export"
-  export_document_db
-when "import"
-  import_document_db
 when "status"
   print_status
 else
-  Optimist.die "Unknown subcommand. Use \"start\", \"stop\", \"restart\", \"export\", \"import\", or \"status\""
+  Optimist.die "Unknown subcommand. Use \"start\", \"stop\", \"restart\", or \"status\""
 end

@@ -2,8 +2,10 @@
 // gives the entry's path relative to the shared folder, never an absolute
 // one, and the id the server keeps in that folder. The entry is shown only
 // when the folder this computer has is the one the page listed (the id file
-// matches), and only along a path with no link at any level. A folder opens
-// in the file manager; a file is shown in its folder, never opened or run.
+// matches), and only along a path with no link at any level. Every entry,
+// a folder too, is shown in its parent folder, never opened: code a model
+// runs can make a folder that the system opens as an app (Name.app on
+// macOS), and opening that would run it.
 const path = require('path');
 
 const ROOT_ID_FILE = '.monadic-shared-root';
@@ -52,11 +54,7 @@ function createRevealHandler(deps) {
         stat = deps.fs.lstatSync(target);
         if (stat.isSymbolicLink()) return { ok: false, error: 'the path goes through a link' };
       }
-      if (stat.isDirectory()) {
-        const failure = await deps.shell.openPath(target);
-        return failure ? { ok: false, error: failure } : { ok: true };
-      }
-      if (stat.isFile()) {
+      if (stat.isDirectory() || stat.isFile()) {
         deps.shell.showItemInFolder(target);
         return { ok: true };
       }
@@ -67,4 +65,28 @@ function createRevealHandler(deps) {
   };
 }
 
-module.exports = { ROOT_ID_FILE, sharedPathParts, createRevealHandler };
+// Shows an absolute path from the app's pages (the ${SHARED} token and the
+// like). Only the shared folder itself, a real folder and not a link, is
+// opened; anything else, a folder too, is shown in its parent, for the same
+// reason as above. deps: { resolveRoot, fs, shell }
+function showSharedPath(target, deps) {
+  let root = null;
+  try {
+    const candidate = deps.resolveRoot();
+    if (path.resolve(target) === path.resolve(candidate)) {
+      const stat = deps.fs.lstatSync(candidate);
+      if (stat.isDirectory() && !stat.isSymbolicLink()) root = candidate;
+    }
+  } catch (_) {
+    root = null;
+  }
+  if (root) {
+    // The folder checked, not the path given: "root/link/.." reads as the
+    // root but the system would follow the link before the "..".
+    deps.shell.openPath(root);
+  } else {
+    deps.shell.showItemInFolder(target);
+  }
+}
+
+module.exports = { ROOT_ID_FILE, sharedPathParts, createRevealHandler, showSharedPath };

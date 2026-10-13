@@ -4,7 +4,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { ROOT_ID_FILE, sharedPathParts, createRevealHandler } = require('../../app/shared_folder_reveal');
+const { ROOT_ID_FILE, sharedPathParts, createRevealHandler, showSharedPath } = require('../../app/shared_folder_reveal');
 
 const ROOT_ID = 'a'.repeat(32);
 const appContents = {};
@@ -36,11 +36,21 @@ describe('shared folder reveal', () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it('opens a folder and shows a file in its folder', async () => {
+  it('shows a folder or a file in its folder', async () => {
     await expect(reveal(fromApp, { rootId: ROOT_ID, path: 'conversations/chat' })).resolves.toEqual({ ok: true });
-    expect(shell.openPath).toHaveBeenCalledWith(path.join(root, 'conversations', 'chat'));
+    expect(shell.showItemInFolder).toHaveBeenCalledWith(path.join(root, 'conversations', 'chat'));
     await expect(reveal(fromApp, { rootId: ROOT_ID, path: 'image.png' })).resolves.toEqual({ ok: true });
     expect(shell.showItemInFolder).toHaveBeenCalledWith(path.join(root, 'image.png'));
+    expect(shell.openPath).not.toHaveBeenCalled();
+  });
+
+  // A folder shaped like a macOS app is opened (run) by the system: it is
+  // only shown, like any other folder.
+  it('never opens a folder, which could be an app', async () => {
+    fs.mkdirSync(path.join(root, 'Tool.app', 'Contents', 'MacOS'), { recursive: true });
+    await expect(reveal(fromApp, { rootId: ROOT_ID, path: 'Tool.app' })).resolves.toEqual({ ok: true });
+    expect(shell.openPath).not.toHaveBeenCalled();
+    expect(shell.showItemInFolder).toHaveBeenCalledWith(path.join(root, 'Tool.app'));
   });
 
   it('refuses a request from another page', async () => {
@@ -79,5 +89,51 @@ describe('shared folder reveal', () => {
       expect(sharedPathParts(p, 'win32')).toBeNull();
     }
     expect(sharedPathParts('nul.txt', 'darwin')).toEqual(['nul.txt']);
+  });
+});
+
+// The ${SHARED} token and other absolute paths from the app's pages.
+describe('showing an absolute path', () => {
+  let root;
+  let shell;
+  const show = (p) => showSharedPath(p, { resolveRoot: () => root, fs, shell });
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'shared-show-'));
+    fs.mkdirSync(path.join(root, 'Tool.app', 'Contents', 'MacOS'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'plain'));
+    shell = { openPath: jest.fn(async () => ''), showItemInFolder: jest.fn() };
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('opens the shared folder itself', () => {
+    show(root);
+    expect(shell.openPath).toHaveBeenCalledWith(root);
+  });
+
+  it('only shows any other folder, which could be an app, or file', () => {
+    for (const p of [path.join(root, 'Tool.app'), path.join(root, 'plain'), path.join(root, 'missing.txt'), os.tmpdir()]) show(p);
+    expect(shell.openPath).not.toHaveBeenCalled();
+    expect(shell.showItemInFolder).toHaveBeenCalledTimes(4);
+  });
+
+  it('opens the folder it checked, not a path that only reads as it', () => {
+    fs.symlinkSync(path.join(root, 'Tool.app', 'Contents'), path.join(root, 'jump'));
+    show(`${root}/jump/..`); // the system resolves the link first: Tool.app
+    expect(shell.openPath).toHaveBeenCalledWith(root);
+  });
+
+  it('does not open the shared folder when it is a link', () => {
+    const link = `${root}-link`;
+    fs.symlinkSync(root, link);
+    try {
+      showSharedPath(link, { resolveRoot: () => link, fs, shell });
+      expect(shell.openPath).not.toHaveBeenCalled();
+    } finally {
+      fs.unlinkSync(link);
+    }
   });
 });

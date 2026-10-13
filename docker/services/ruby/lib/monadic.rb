@@ -378,8 +378,9 @@ def load_app_files
   end
 
   # 2. User apps (~/monadic/data/apps/)
+  # (never through a link, and in development mode only when asked: see SharedPathGuard.user_code_files)
   if Dir.exist?(user_apps_dir)
-    Dir["#{File.join(user_apps_dir, "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
+    Monadic::Utils::SharedPathGuard.user_code_files(user_apps_dir, File.join("**", "*.{rb,mdsl}")).each do |file|
       basename = File.basename(file)
       next if basename.start_with?("_")
       next if file.include?("/test/")

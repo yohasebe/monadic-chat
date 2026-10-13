@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../utils/shared_path_guard'
+
 module MonadicDSL
   class Loader
     def self.load(file)
@@ -84,16 +86,17 @@ module MonadicDSL
       # Remove provider suffix (e.g., _openai, _claude) to get base app name
       app_base_name = base_name.sub(/_\w+$/, '')
 
-      # Load constants file if it exists
-      constants_file = File.join(dir_path, "#{app_base_name}_constants.rb")
-      if File.exist?(constants_file)
-        require constants_file
-      end
+      # Load the constants and tools files beside it, if they exist, under
+      # the same rule as the app file itself (no link, nothing from outside)
+      %w[constants tools].each do |part|
+        file = File.join(dir_path, "#{app_base_name}_#{part}.rb")
+        next unless File.exist?(file) || File.symlink?(file)
 
-      # Load tools file if it exists
-      tools_file = File.join(dir_path, "#{app_base_name}_tools.rb")
-      if File.exist?(tools_file)
-        require tools_file
+        if Monadic::Utils::SharedPathGuard.code_file?(file, dir_path)
+          require file
+        else
+          warn "Warning: Not loading #{File.basename(file)}: a link, or not a plain file in the app folder"
+        end
       end
 
       app_state

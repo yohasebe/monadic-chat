@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'fileutils'
 require 'time'
 require 'json'
@@ -45,7 +46,7 @@ module AutoForgeUtils
         project_name: project_name,
         base_name: base_name
       )
-      File.write(metadata_file, JSON.pretty_generate(full_metadata))
+      Monadic::Utils::SharedPathGuard.write_file!(metadata_file, JSON.pretty_generate(full_metadata))
     end
 
     {

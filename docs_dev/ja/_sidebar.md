@@ -30,6 +30,7 @@
   * [SSOT正規化](/ja/ssot_normalization_and_accessors.md)
   * [SSOT機能概要（英語）](/ssot_capabilities_and_model_spec.md)
   * [アプリの分離とセッション安全性](/ja/app_isolation_and_session_safety.md)
+  * [共有フォルダとサーバーのコード](/ja/shared_folder_code_boundary.md)
 
 * 💻 フロントエンド
   * [JSコンソール](/ja/js-console.md)

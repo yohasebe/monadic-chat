@@ -340,6 +340,12 @@ wait_for_ruby_ready() {
 }
 
 set_docker_compose() {
+  # Every way a container is started goes through here, and stops when the
+  # code folders are not right. Taking containers down ("teardown") does not
+  # stop, so that it stays a way to recover.
+  if [[ "${1:-}" != "teardown" ]]; then
+    [[ -f "/.dockerenv" ]] || ensure_code_dirs || exit 1
+  fi
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services")
 
   for i in "${!home_paths[@]}"; do
@@ -438,6 +444,27 @@ ensure_state_dir() {
 }
 
 # Function to ensure data directory exists
+# The shared folder's apps and helpers (code the Ruby side loads) are
+# mounted read-only into the containers where model-written code runs.
+# They are made here, as the user, before any of those containers starts:
+# a missing bind source would be created by Docker instead.
+ensure_code_dirs() {
+  local name dir
+  for name in apps helpers services; do
+    dir="${HOME_DIR}/monadic/data/${name}"
+    if [[ -L "${dir}" ]]; then
+      # A linked folder could point anywhere, and it is mounted read-only
+      # into the containers where it really is: not started on it.
+      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> The ${name} folder in the shared folder (${dir}) is a link. Replace it with a real folder (move the files into it) and start again.</p>"
+      return 1
+    fi
+    if ! mkdir -p "${dir}"; then
+      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i> Could not create the ${name} folder in the shared folder (${dir}).</p>"
+      return 1
+    fi
+  done
+}
+
 ensure_data_dir() {
   local container_type="$1"
   local data_dir
@@ -458,6 +485,7 @@ ensure_data_dir() {
   mkdir -p "${log_dir}"
   mkdir -p "${config_dir}"
   ensure_state_dir
+  [[ -f "/.dockerenv" ]] || ensure_code_dirs || exit 1
 
   safe_rm "${log_dir}/command.log"
   safe_rm "${log_dir}/jupyter.log"
@@ -983,7 +1011,10 @@ build_user_containers() {
   # Remove non-existent paths and empty strings
   home_paths=($(printf "%s\n" "${home_paths[@]}" | sort -u | grep -v '^$'))
 
-  local compose="${HOME_DIR}/monadic/data/compose_user.yml"
+  # Written where the containers cannot reach (not the shared folder, where
+  # code a model runs could swap it before the build reads it).
+  local compose="${HOME_DIR}/monadic/config/compose_user.yml"
+  mkdir -p "${HOME_DIR}/monadic/config"
   local found_compose_files=false
 
   local compose_user=""
@@ -1770,7 +1801,7 @@ update_monadic() {
 
 # Remove the Docker image and container
 remove_containers() {
-  set_docker_compose
+  set_docker_compose teardown
   # Stop all Docker Compose services with project name (including profiled services)
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" down --remove-orphans"
 

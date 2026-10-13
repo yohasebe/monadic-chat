@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'cgi'
 require 'fileutils'
 require 'securerandom'
@@ -662,7 +663,7 @@ module AutoForgeTools
       return { success: false, error: "Invalid README path (it must be inside the shared folder)" }
     end
 
-    File.write(readme_path, readme)
+    Monadic::Utils::SharedPathGuard.write_file!(readme_path, readme)
     { success: true, filename: 'README.md' }
   end
 
@@ -701,7 +702,7 @@ module AutoForgeTools
       return { success: false, error: "Invalid config path (it must be inside the shared folder)" }
     end
 
-    File.write(config_path, config)
+    Monadic::Utils::SharedPathGuard.write_file!(config_path, config)
     { success: true, filename: filename }
   end
 
@@ -751,7 +752,7 @@ module AutoForgeTools
       return { success: false, error: "Invalid file path (it must be inside the shared folder)" }
     end
 
-    File.write(file_path, body)
+    Monadic::Utils::SharedPathGuard.write_file!(file_path, body)
     { success: true, filename: filename }
   end
 
@@ -938,7 +939,7 @@ module AutoForgeTools
 
     return { success: false, error: normalized[:error] } unless normalized[:success]
 
-    File.write(target_file, normalized[:content])
+    Monadic::Utils::SharedPathGuard.write_file!(target_file, normalized[:content])
 
     { success: true, filename: validation[:file_name] }
   rescue StandardError => e
@@ -1129,7 +1130,7 @@ module AutoForgeTools
     project_name = diagnosis[:project_name]
 
     begin
-      FileUtils.cp(html_path, backup_path)
+      Monadic::Utils::SharedPathGuard.write_file!(backup_path, File.binread(html_path), mode: "wb")
 
       apply_result = case fix_mode
                      when :patch

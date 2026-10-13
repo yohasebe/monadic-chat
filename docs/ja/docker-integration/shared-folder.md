@@ -96,7 +96,7 @@ Monadic Chatを初回起動すると、以下のディレクトリ構造が自�
 ├── data/           # 共有フォルダ（コンテナから/monadic/dataとしてアクセス可能）
 │   ├── apps/       # カスタムアプリケーション
 │   ├── helpers/    # ヘルパーRubyファイル
-│   └── scripts/    # すべてのコンテナからアクセス可能な実行可能スクリプト
+│   └── scripts/    # Python コンテナで使う実行可能スクリプト
 └── log/            # ログファイル（server.log、docker_build.logなど）
 ```
 
@@ -113,7 +113,7 @@ Monadic Chatを初回起動すると、以下のディレクトリ構造が自�
 
 `scripts`
 
-実行可能なスクリプト（シェルスクリプト、Pythonスクリプト、Rubyスクリプトなど）を格納するフォルダです。ここに配置されたスクリプトは自動的に実行権限が付与され、コンテナのPATHに追加されるため、フルパスを指定せずに名前だけで直接実行できます。
+実行可能なスクリプト（シェルスクリプト、Pythonスクリプトなど）を格納するフォルダです。Python コンテナで実行されます。ここに配置されたスクリプトは自動的に実行権限が付与され、コンテナのPATHに追加されるため、フルパスを指定せずに名前だけで直接実行できます。Ruby 側（`container: "ruby"`）では実行されません。共有フォルダにはモデルが実行するコードも書き込めるうえ、Ruby 側は API キーを読めるため、Ruby 側では Monadic Chat に付属するスクリプトだけを実行します。
 
 ### ユーザースクリプトの仕組み
 
@@ -121,7 +121,7 @@ Monadic Chatを初回起動すると、以下のディレクトリ構造が自�
 2. **コンテナパス**: コンテナ内では`/monadic/data/scripts`で利用可能
 3. **自動権限設定**: 各コマンド実行前にスクリプトに実行権限が自動的に付与されます
 4. **直接実行**: スクリプト名のみで呼び出し可能（例：`/monadic/data/scripts/my_script.py`ではなく`my_script.py`）
-5. **コンテナサポート**: Ruby、Python、その他のコンテナで動作
+5. **コンテナサポート**: Python コンテナで動作（Ruby 側では動作しない）
 
 ### アプリでの使用例
 
@@ -132,10 +132,10 @@ send_command(
   container: "python"
 )
 
-# カスタムRubyスクリプトの実行
+# 別のカスタムPythonスクリプトの実行
 send_command(
-  command: "process_text.rb document.txt",
-  container: "ruby"
+  command: "process_text.py document.txt",
+  container: "python"
 )
 
 # シェルスクリプトの実行
@@ -147,7 +147,7 @@ send_command(
 
 ### 技術的詳細
 
-- Monadic Chatの`send_command`メソッドは自動的に`/monadic/data/scripts`をPATH環境変数に追加します
+- Monadic Chatの`send_command`メソッドは、Python コンテナで、自動的に`/monadic/data/scripts`をPATH環境変数に追加します
 - コマンド実行時の作業ディレクトリは`/monadic/data`に設定されます
 - スクリプトは相対パスを使用して共有フォルダ内の他のファイルにアクセスできます
 - この仕組みにより、コアコードを変更せずにMonadic Chatの機能を拡張できます

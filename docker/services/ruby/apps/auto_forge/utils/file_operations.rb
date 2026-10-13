@@ -3,6 +3,7 @@
 require 'fileutils'
 require 'digest'
 require 'open3'
+require_relative '../../../lib/monadic/utils/shared_path_guard'
 require 'tempfile'
 require_relative 'encoding_helper'
 require_relative 'path_config'
@@ -51,8 +52,8 @@ module AutoForge
 
         while retries < max_retries
           begin
-            # Write file
-            File.write(path, prepared_content, encoding: encoding)
+            # Write file (in the shared folder, never through a link)
+            Monadic::Utils::SharedPathGuard.write_file!(path, prepared_content.to_s.encode(encoding))
 
             # Verify file exists
             unless File.exist?(path)
@@ -319,7 +320,7 @@ module AutoForge
         backup_name = "#{basename}.#{timestamp}.backup"
         backup_path = File.join(backup_directory, backup_name)
 
-        FileUtils.cp(path, backup_path)
+        Monadic::Utils::SharedPathGuard.write_file!(backup_path, File.binread(path), mode: "wb")
         backup_path
       end
 
@@ -331,7 +332,7 @@ module AutoForge
           raise FileOperationError, "Backup file not found: #{backup_path}"
         end
 
-        FileUtils.cp(backup_path, target_path)
+        Monadic::Utils::SharedPathGuard.write_file!(target_path, File.binread(backup_path), mode: "wb")
       end
     end
   end

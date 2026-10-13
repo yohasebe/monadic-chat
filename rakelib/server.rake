@@ -47,9 +47,14 @@ namespace :server do
     # Check for API keys in environment or config file
     require 'dotenv'
     config_path = File.expand_path("~/monadic/config/env")
+    # Loading custom apps and helpers from the shared folder is asked for in
+    # the shell only (see SharedPathGuard.user_code_files): a value the
+    # config file brings in is not passed on to the server.
+    user_code_from_shell = ENV.key?("MONADIC_LOAD_USER_CODE")
     if File.exist?(config_path)
       Dotenv.load(config_path)
     end
+    ENV.delete("MONADIC_LOAD_USER_CODE") unless user_code_from_shell
     
     # List of common API keys to check
     api_keys = {
@@ -194,21 +199,6 @@ namespace :server do
   desc "Show the status of the Monadic server and containers"
   task :status do
     sh "./bin/monadic_server.sh status"
-  end
-end
-
-# Database tasks
-namespace :db do
-  desc "Export the document database"
-  task :export do
-    puts "Exporting document database..."
-    sh "./bin/monadic_server.sh export"
-  end
-  
-  desc "Import the document database"
-  task :import do
-    puts "Importing document database..."
-    sh "./bin/monadic_server.sh import"
   end
 end
 

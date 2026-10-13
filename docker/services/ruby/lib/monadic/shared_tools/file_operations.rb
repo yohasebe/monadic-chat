@@ -152,13 +152,16 @@ module MonadicSharedTools
       unless full_path
         return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
       end
+      unless Monadic::Utils::SharedPathGuard.tool_writable?(full_path)
+        return { success: false, error: "Files are not written to the apps, helpers, scripts or services folders", filepath: filepath }
+      end
       relative_path = normalize_path_for_container(full_path).delete_prefix("#{CONTAINER_DATA_PREFIX}/")
 
       begin
         # Automatically create parent directories
         dir = File.dirname(full_path)
         FileUtils.mkdir_p(dir) unless File.directory?(dir)
-        unless validate_file_path(full_path) == full_path
+        unless validate_file_path(full_path) == full_path && Monadic::Utils::SharedPathGuard.tool_writable?(full_path)
           return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
         end
 
@@ -169,10 +172,8 @@ module MonadicSharedTools
         # Determine file mode ('w' = write/overwrite, 'a' = append)
         file_mode = mode == "append" ? 'a' : 'w'
 
-        # Write the file with UTF-8 encoding
-        File.open(full_path, file_mode, encoding: "UTF-8") do |f|
-          f.write(content)
-        end
+        # Write the file (UTF-8), never through a link
+        Monadic::Utils::SharedPathGuard.write_file!(filepath, content.to_s.encode("UTF-8"), mode: file_mode)
 
         # Verify the file was written
         unless File.exist?(full_path)

@@ -113,7 +113,7 @@ This folder stores helper Ruby files containing functions (methods) used by your
 
 `scripts`
 
-This folder contains executable scripts (e.g., shell scripts, Python scripts) that run in the Python container. Scripts placed here are automatically made executable and added to the container's PATH, allowing direct execution by name without specifying the full path. The folder comes last on PATH, so a script named like a system command (`python3`, `bash`) does not replace that command; give scripts names of their own. They do not run on the Ruby side (`container: "ruby"`): code that a model runs can write to the shared folder, and the Ruby side can read the API keys, so it runs only the scripts that come with Monadic Chat.
+This folder contains executable scripts (e.g., shell scripts, Python scripts) that run in the Python container. Scripts placed here are automatically made executable and added to the container's PATH, allowing direct execution by name without specifying the full path. The folder comes last on PATH, so a script named like a system command (`python3`, `bash`) does not replace that command; give scripts names of their own. They do not run on the Ruby side (`container: "ruby"`), which runs only the scripts that come with Monadic Chat.
 
 ### How User Scripts Work
 

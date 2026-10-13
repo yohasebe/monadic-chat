@@ -195,7 +195,7 @@ Each entry shows its name, what it is, its size and when it was last modified:
 - Links are listed as links and not followed.
 - Sizes of folders are counted in the background and appear as they finish. A size shown as "≥" was counted only in part (a very large folder, or one partly unreadable).
 
-In the desktop app, the button on the right of an entry shows it in your file manager: a folder opens, and a file is shown selected in its folder (it is not opened). The panel lists the shared folder only; it does not change or remove anything.
+In the desktop app, the button on the right of an entry shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened. The panel lists the shared folder only; it does not change or remove anything.
 
 ?> To check that the folder on your computer is the one listed, Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it; if it cannot be created (for example, in a read-only folder), the list is still shown but entries cannot be shown in the file manager.
 

@@ -406,13 +406,24 @@ RSpec.describe "Office Text Extraction Integration", :integration do
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data_dir)
 
-    # Copy fixture files to data_dir for Docker container access
+    # Copy fixture files to data_dir for Docker container access. The
+    # container reads the user's shared folder, so they go there, and only
+    # the ones copied here are removed afterwards (a file of the user's with
+    # the same name is left alone).
     FileUtils.mkdir_p(data_dir)
+    @copied_fixtures = []
     %w[test_document.docx test_spreadsheet.xlsx test_presentation.pptx].each do |file|
       src = File.join(fixtures_dir, file)
       dst = File.join(data_dir, file)
-      FileUtils.cp(src, dst) if File.exist?(src) && !File.exist?(dst)
+      next unless File.exist?(src) && !File.exist?(dst)
+
+      FileUtils.cp(src, dst)
+      @copied_fixtures << dst
     end
+  end
+
+  after do
+    (@copied_fixtures || []).each { |file| FileUtils.rm_f(file) }
   end
 
   describe "real file extraction" do

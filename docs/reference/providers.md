@@ -12,18 +12,18 @@ Chat providers, each with its own vendor adapter:
 - **Mistral AI** — chat, code generation, vision, text-to-speech, and speech-to-text
 - **Cohere** — chat, vision, and speech-to-text
 - **xAI Grok** — chat, code generation, vision, image generation, video generation, text-to-speech, and speech-to-text
-- **DeepSeek** — chat and vision
+- **DeepSeek** — chat and vision (an attached image switches the request to a vision model)
 - **Ollama** — chat with local models on your own machine. Ollama runs natively on the host OS (not in a Docker container); vision and tool-calling support depend on the installed model. See [Using Ollama](/advanced-topics/ollama.md).
 
 Speech-only service:
 
-- **ElevenLabs** — text-to-speech voices and Scribe speech-to-text; not a chat provider
+- **ElevenLabs** — text-to-speech voices, Scribe speech-to-text, and ElevenLabs Music in Music Generator; not a chat provider
 
 For providers without a native web search capability, web search is provided through the **Tavily** API — see [Comparing Providers](#comparing-providers) below.
 
 ## API Key Setup
 
-Each provider requires its own API key. Enter keys in the console's **Settings → API Keys** panel or write them directly to `~/monadic/config/env` — the panel and the file edit the same configuration. The full list of key variables is in the [Configuration Reference](/reference/configuration.md#api-keys), and the panel itself is described in [Console Panel](/basic-usage/console-panel.md).
+Each provider requires its own API key. Enter keys in the **API Keys** category of the **Settings** window (**Open → Settings**) or write them directly to `~/monadic/config/env` — the panel and the file edit the same configuration. The full list of key variables is in the [Configuration Reference](/reference/configuration.md#api-keys), and the panel itself is described in [Console Panel](/basic-usage/console-panel.md).
 
 The apps and UI options for each provider become selectable once its key is configured. You can start with a single key and add more providers later.
 
@@ -34,7 +34,6 @@ The model an app uses is resolved in this order (highest priority first):
 1. An explicit `model` in the app's `llm` block — apps that need a fixed model pin it there
 2. Environment variables in `~/monadic/config/env` — per-provider `*_DEFAULT_MODEL` variables such as `OPENAI_DEFAULT_MODEL`
 3. `providerDefaults` in `model_spec.js` — the default model set shipped with the app
-4. Hardcoded fallbacks in code
 
 See [Configuration Priority](/reference/configuration.md#configuration-priority) and the `*_DEFAULT_MODEL` variable table in [Model Settings](/reference/configuration.md#model-settings).
 

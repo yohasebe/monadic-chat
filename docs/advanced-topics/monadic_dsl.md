@@ -80,7 +80,7 @@ llm do
 end
 ```
 
-The number of recent messages sent to the model is set with `context_size` in the `features` block; see [Feature Flags](#feature-flags).
+`context_size 20` sets the number of recent messages sent to the model. It can be written in the `llm` block or in the `features` block ([Feature Flags](#feature-flags)); when both have it, the `features` value is used.
 
 Supported providers:
 - `anthropic` (Claude models)

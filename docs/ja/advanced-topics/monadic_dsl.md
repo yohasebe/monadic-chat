@@ -80,7 +80,7 @@ llm do
 end
 ```
 
-モデルに送る直近のメッセージの数は、`features` ブロックの `context_size` で設定します。[機能フラグ](#feature-flags)を参照してください。
+`context_size 20` で、モデルに送る直近のメッセージの数を設定します。`llm` ブロックにも `features` ブロック（[機能フラグ](#feature-flags)）にも書けます。両方にあるときは、`features` の値が使われます。
 
 対応するプロバイダー：
 - `anthropic`（Claude のモデル）

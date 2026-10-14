@@ -4,32 +4,29 @@
 
 **A**: The roles of each button and icon are as follows:
 
-<!-- SCREENSHOT: Message bubble showing buttons in top right corner: Copy, Play, Stop, Delete, Edit, and Active/Inactive indicator -->
-
 - **Copy**<br />Copies the message text to the clipboard.
 - **Play**<br />Plays the message text using speech synthesis.
 - **Stop**<br />Stops playback of synthesized speech.
 - **Delete**<br />Opens a dialog with options to either `Delete this message and below`, `Delete this message only`, or `Cancel`. The first option deletes the selected message and all messages that appear after it in the conversation, which can be useful in certain cases but should be used with caution. The `Delete this message only` option should also be used carefully, as it may disrupt the alternating user-assistant message pattern required by some API providers, which can lead to API errors.
 
-?> **Note**: If the message is the last assistant or system message in the conversation, only `Delete this message only` and `Cancel` options will be shown.
-- **Edit**<br />Allows editing the message. For most messages, clicking this button displays an inline text editor directly in the chat interface with `Save` and `Cancel` buttons. However, if the message is the last message in the conversation (regardless of role), clicking `Edit` will automatically move that text to the main message input area, set the appropriate role in the selector, and remove the original message, allowing you to quickly revise and resend it. For other messages, the edited message maintains its original position in the conversation, and subsequent messages are preserved.
-- **Active/Inactive**<br />The message turns green when active.
+?> **Note**: For the last message in the conversation, only `Delete this message only` and `Cancel` are shown.
+- **Edit**<br />Allows editing the message. For most messages, clicking this button displays an inline text editor directly in the chat interface with `Save` and `Cancel` buttons. If the message is your own last message, clicking `Edit` moves its text to the message box, sets the role selector, and removes the original message, so you can revise and resend it. Other messages, including assistant and system messages, are edited in place; they keep their position, and the messages after them are kept.
+- **Verify**<br />On assistant messages, cross-checks the response with your other configured providers (with only one provider, it is a weaker self-consistency check).
+- **Active/Inactive**<br />A small dot that is green when the message is active.
 
 ?> The active/inactive status of a message changes depending on the context size and maximum token settings on the web interface. Active messages are used as part of the context sent to the LLM via the API.
 
 ---
 
-##### Q: How is the number of tokens displayed in Monadic Chat Stats calculated? :id=token-count-calculation
+##### Q: How is the number of tokens displayed in Statistics calculated? :id=token-count-calculation
 
-**A**: The token count is calculated automatically. The displayed value is an approximation and may vary slightly depending on the model in use.
+**A**: The **Statistics** section of the **AI Assistant & AI User** panel counts tokens with a local tokenizer. The displayed value is an approximation and may differ slightly from the count of the model in use.
 
 ---
 
-##### Q: What is the role of the `Role` selector above the message input box? :id=role-selector-function
+##### Q: What is the role of the `Role` selector next to the message input box? :id=role-selector-function
 
 **A**: Each role has the following function:
-
-<!-- SCREENSHOT: Role selector dropdown showing options: User, User (to add to past messages), Assistant (to add to past messages), System (to provide additional direction) -->
 
 - **User**<br />Normally select this. Enter a message as a user and immediately send it to the AI agent for a response.
 - **User (to add to past messages)**<br />Enter a message as a user, but use it to add to past messages as part of the context. Do not request a direct response from the AI agent.
@@ -46,4 +43,4 @@
 
 ##### Q: After clicking Stop, the web UI briefly shows "Connecting…" or "Connection lost". Is something wrong? :id=stop-connecting-flicker
 
-**A**: No. When you stop Monadic Chat intentionally, the embedded browser suppresses reconnection attempts and the console status shows "Stopped" during shutdown. If a tab was left open in an external browser, it may keep trying to reconnect — simply reload it after the next Start.
+**A**: No. When you stop Monadic Chat intentionally, the app's window suppresses reconnection attempts and shows "Stopped" during shutdown. If a tab was left open in an external browser, it may keep trying to reconnect — simply reload it after the next Start.

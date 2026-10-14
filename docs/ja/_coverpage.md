@@ -8,7 +8,7 @@
 - 複数のAIモデルを活用
 - マルチモーダルなインタラクション
 - JupyterLabとの連携
-- プライバシーフィルター（個人情報マスキング、オプトイン）
+- プライバシーフィルター（個人情報マスキング、会話ごとにオン）
 
 [始めよう](/ja/README.md)
 [GitHub](https://github.com/yohasebe/monadic-chat/)

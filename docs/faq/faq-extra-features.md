@@ -14,7 +14,7 @@
 
 ##### Q: How can I customize text-to-speech pronunciations for specific words or phrases? :id=tts-pronunciation-customization
 
-**A**: Monadic Chat supports a TTS dictionary feature that allows you to customize pronunciations. You can specify the path to a TTS dictionary file through the settings panel in the GUI. The dictionary file should contain word-pronunciation pairs to help the TTS engine pronounce technical terms or abbreviations correctly.
+**A**: Monadic Chat supports a TTS dictionary feature that allows you to customize pronunciations. Set the path to a dictionary file in **Settings → Voice & Audio → TTS Dictionary File Path**. The dictionary is a CSV file of word-pronunciation pairs, which helps the TTS engine pronounce technical terms or abbreviations correctly.
 
 ---
 
@@ -22,17 +22,17 @@
 
 **A**: Yes, many of the apps in Monadic Chat support web search functionality:
 
-- **Native Web Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search capabilities (enabled by default in supported apps)
-- **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use Tavily API when `TAVILY_API_KEY` is configured in `~/monadic/config/env`
-- **URL Content Extraction**: All providers can extract content from URLs using Selenium-based web scraping via the "From URL" button in the message input area
+- **Native Web Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search
+- **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when `TAVILY_API_KEY` is configured in `~/monadic/config/env`
+- **URL Content Extraction**: With every provider, the **Text from URL** button below the message box reads the text of a web page (using Selenium)
 
-In Chat apps, the web search tool is disabled by default to give users control over costs and privacy - you can enable it manually when you need current information.
+Web search is turned on and off with the **Web Search** switch. In the Chat app it is on by default for OpenAI, Claude, Gemini and Grok, and off for the other providers.
 
 ---
 
 ##### Q: How do I update Monadic Chat to the latest version? :id=updating-monadic-chat
 
-**A**: Monadic Chat automatically checks for updates when it starts. If an update is available, a notification will appear in the main window. You can also manually check for updates by selecting "Check for Updates" from the application menu (File → Check for Updates). When an update is available, download and install the new version from the provided link.
+**A**: Monadic Chat automatically checks for updates when it starts. If an update is available, a notification will appear in the main window. You can also check by choosing **File → Check for Updates**. When an update is available, click **Download & Install**: the update is downloaded in the background, and then you are asked to restart.
 
 ---
 
@@ -44,4 +44,4 @@ In Chat apps, the web search tool is disabled by default to give users control o
 
 ##### Q: What can I access through MCP? :id=mcp-tools
 
-**A**: The MCP server (Monadic Conduit) exposes a small, stable set of capability tools in the `monadic_*` namespace rather than every individual app tool. These cover model queries, a local knowledge base, audio/image/video analysis, and audio/image/video/music generation, plus background-job control for long-running work. Orchestration is left to the calling client. Tools that call a provider are gated by a token budget. See [MCP Integration](/advanced-topics/mcp-integration.md) for the full list.
+**A**: The MCP server (Monadic Conduit) exposes a small, stable set of capability tools in the `monadic_*` namespace rather than every individual app tool. These cover model queries, a local knowledge base, audio/image/video analysis, code generation, audio/image/video/music generation, and a bounded agent, plus background-job control for long-running work. Tools that call a provider are gated by a token budget. See [MCP Integration](/advanced-topics/mcp-integration.md) for the full list.

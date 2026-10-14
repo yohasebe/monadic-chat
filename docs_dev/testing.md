@@ -1,485 +1,90 @@
 # Testing Guide (Developers)
 
-This project ships multiple test categories. Goals, locations, and commands:
+Test categories, commands and environment variables. Ruby specs live in `docker/services/ruby/spec/`; run `bundle exec rspec` from `docker/services/ruby/`. The unified runner (`rake test:run`, `rake test:profile`) is described in [Test Runner](test_runner.md).
 
 ## Categories
 
-- Unit (`spec/unit`):
-  - Scope: small utilities, adapters behavior without external side effects.
-  - Command: `rake spec` (runs all Ruby test suites) or `bundle exec rspec spec/unit` from `docker/services/ruby/` (see CONTRIBUTING.md).
-
-- Integration (`spec/integration`):
-  - Scope: app helpers, provider integrations, and real API workflows.
-  - Real-API subsets live under `spec/integration/api_media` and `spec/integration/provider_matrix` (API-gated specs also live directly in `spec/integration`).
-  - Commands (Rake):
-    - `rake test` — Run all tests (Ruby + JavaScript + Python, no API)
-    - `rake test:all[standard]` — Comprehensive test suite (Ruby + API + JS + Python)
-    - `rake test:all[full]` — Full test suite including media tests (image/video/audio)
-    - API-focused commands:
-      - `rake spec_api:media` — media (image/video/voice) tests; sets `RUN_API`/`RUN_MEDIA` itself
-      - `rake matrix[openai,anthropic]` — provider matrix tests (`spec/integration/provider_matrix`; all configured providers when no argument is given)
-      - `cd docker/services/ruby && RUN_API=true bundle exec rspec spec/integration` — API-gated integration specs directly
-
-- System (`spec/system`):
-  - Scope: server endpoints and high‑level behavior without live external APIs.
-
-- E2E (`spec/e2e`):
-  - Scope: UI/server wiring and local workflows only (no real provider API by default).
-  - Commands: `rake spec_e2e:jupyter_notebook` and `rake spec_e2e:monadic_context` (specs live in `docker/services/ruby/spec/e2e/`).
-  - `RUN_API_E2E=true` can enable API calls, but real API coverage is intentionally moved to `spec_api` to reduce flakiness.
-
-## Principles
-
-- Default: skip real APIs unless `RUN_API=true`.
-- Provider coverage: Ollama is included by opt‑in when needed; others depend on keys in `~/monadic/config/env`.
-- Logging during API tests: set `API_LOG=true` for per‑request logging, or use `EXTRA_LOGGING=true` (see Logging Guide).
-
-## Testing Strategy: Mock vs Real API
-
-Monadic Chat uses different testing approaches for different test categories. This is intentional and appropriate:
-
-### Unit Tests (spec/unit/)
-
-**Approach**: Mock-based testing
-
-**Rationale**:
-- Fast execution (no network calls)
-- Isolated testing of individual components
-- No external dependencies required
-- Predictable, deterministic results
-
-**What We Mock**:
-- HTTP client responses
-- External API calls
-- Database interactions
-- File system operations
-
-**Example**:
-```ruby
-# Unit test with mocked HTTP response
-it 'handles API timeout gracefully' do
-  stub_request(:post, /api.openai.com/).to_timeout
-
-  expect { helper.chat(messages: [...]) }
-    .to raise_error(Faraday::TimeoutError)
-end
-```
-
-### Integration Tests - API Category (spec/integration/api_*)
-
-**Approach**: Real API calls (when `RUN_API=true`)
-
-**Rationale**:
-- Catch provider API changes (parameters, endpoints, formats)
-- Test real rate limiting and retry behavior
-- Verify actual error messages and handling
-- Validate streaming response processing
-- Ensure authentication flows work correctly
-
-**What We DON'T Mock**:
-- Provider API endpoints
-- HTTP responses
-- Rate limiting
-- Error responses
-
-**Trade-offs**:
-- Costs money (real API usage)
-- Slower execution (network latency)
-- Requires API keys
-- **But**: Provides genuine confidence in provider integration
-
-**Example**:
-```ruby
-# Integration test with real API call
-it 'generates text with Claude', run_api: true do
-  response = ClaudeHelper.new.chat(
-    model: 'claude-sonnet-4-5-20250929',
-    messages: [{ role: 'user', content: 'Say hello' }]
-  )
-
-  # Real provider response
-  expect(response[:text]).to match(/hello|hi|greetings/i)
-  expect(response[:model]).to eq('claude-sonnet-4-5-20250929')
-end
-```
-
-### Frontend Tests (test/frontend/)
-
-**Approach**: No-mock testing (real DOM, real libraries)
-
-**Rationale**: See [Frontend Testing Documentation](frontend/no_mock/README.md) for detailed philosophy
-
-**Key Points**:
-- Uses real DOM via jsdom
-- Loads actual JavaScript libraries (KaTeX, Mermaid, etc.)
-- Tests user workflows, not implementation details
-- Verifies actual DOM state changes
-
-### Why This Multi-Strategy Approach Works
-
-| Test Type | Speed | Cost | Confidence | Use Case |
-|-----------|-------|------|------------|----------|
-| Unit (mocked) | ⚡ Fast | Free | Medium | Component isolation, edge cases |
-| Integration (real API) | 🐌 Slow | 💰 Paid | High | Provider compatibility, real behavior |
-| Frontend (no-mock) | ⚡ Fast | Free | High | User interactions, DOM behavior |
-
-**The key**: Use the right tool for the right job. Mocks are excellent for unit tests, but real APIs are essential for integration confidence.
-
-## API Integration Testing Philosophy
-
-### Design Principles
-
-Monadic Chat's API integration tests are designed with specific goals and constraints:
-
-#### 1. Real API Calls Over Mocks
-
-**Why**: Mocks cannot catch real-world issues
-
-Mocks can't detect:
-- Provider API changes (new parameters, deprecated endpoints)
-- Rate limiting behavior and retry logic
-- Network timeout handling under real conditions
-- Error message format changes
-- Authentication flow updates
-- Response streaming edge cases
-
-**Trade-off**: Real API calls cost money and time, but provide genuine confidence
-
-#### 2. Cost Tracking and Budget Control
-
-**Infrastructure**: Every test run logs actual API costs
-
-- Costs tracked in `~/monadic/log/test_api_costs.json`
-- Per-provider cost breakdown
-- Historical cost tracking across test runs
-- Enables cost regression detection
-
-**Benefits**:
-- Budget-aware test execution
-- Identify expensive test scenarios
-- Optimize test coverage vs cost tradeoff
-- Track provider pricing changes over time
-
-**Example Cost Log**:
-```json
-{
-  "timestamp": "2025-10-26T10:30:00Z",
-  "total_cost_usd": 0.47,
-  "providers": {
-    "openai": {"requests": 12, "cost": 0.23},
-    "anthropic": {"requests": 8, "cost": 0.18},
-    "gemini": {"requests": 5, "cost": 0.06}
-  }
-}
-```
-
-#### 3. Test Level Strategy (Depth vs Cost)
-
-**Execution Modes (by cost/depth)**:
-
-```bash
-# Smoke pass (fast, cheap): single-provider matrix run
-# - Basic connectivity
-# - Simple text generation
-rake matrix[openai]
-
-# Functional pass (moderate): API-gated integration specs
-# - Tool calling
-# - Multi-modal inputs
-# - Streaming responses
-cd docker/services/ruby && RUN_API=true bundle exec rspec spec/integration
-
-# Full pass (comprehensive, expensive)
-# - Everything above plus media generation (image/video/voice)
-rake test:all[full]
-```
-
-**Use Cases**:
-- **CI/CD**: smoke pass on every commit
-- **Pre-release**: functional pass before merging to main
-- **Nightly builds**: full pass (including media)
-
-#### 4. Parallelism and Rate Limiting
-
-**Strategy**: Provider-level parallelism with per-provider serialization
-
-```ruby
-# Providers run in parallel (OpenAI, Claude, Gemini simultaneously)
-providers.map do |provider|
-  Thread.new do
-    # Tests for single provider run serially to respect rate limits
-    run_provider_tests(provider)
-  end
-end.each(&:join)
-```
-
-**Benefits**:
-- Faster test execution (providers run concurrently)
-- Respects each provider's rate limits
-- Isolated failures (one provider error doesn't block others)
-- Efficient resource utilization
-
-**Rate Limit Configuration**:
-```ruby
-# Per-provider QPS limits (see table in "Real API smoke defaults" section)
-# Example: OpenAI at 0.5 QPS = ~2 second spacing between requests
-API_RATE_QPS_OPENAI=0.5
-API_RATE_QPS_ANTHROPIC=0.5
-API_RATE_QPS_GEMINI=0.4
-```
-
-#### 5. Graceful Degradation
-
-**Philosophy**: Transient provider errors should not fail entire test suite
-
-**Implementation**:
-- Retry logic with exponential backoff
-- Provider-specific timeout configurations
-- Skip tests when API keys missing (not error)
-- Mark transient failures as pending, not failed
-- Detailed failure logs for debugging
-
-**Example**:
-```ruby
-it 'generates text with Claude' do
-  begin
-    response = call_claude_api(...)
-    expect(response).to have_text_content
-  rescue Faraday::TooManyRequestsError => e
-    skip "Rate limited (retry after #{e.retry_after}s)"
-  rescue Faraday::TimeoutError
-    skip "Provider timeout (network issue, not test failure)"
-  end
-end
-```
-
-### Test Matrix Architecture
-
-**Coverage**: 9 providers × 7 app types = 63 test combinations
-
-**Providers**:
-1. OpenAI
-2. Anthropic (Claude)
-3. Google (Gemini)
-4. Mistral
-5. Cohere (Command)
-6. DeepSeek
-7. xAI (Grok)
-8. Ollama (local)
-
-**App Types**:
-1. Simple chat (text generation)
-2. Tool calling (function execution)
-3. Vision (image analysis)
-4. Streaming responses
-5. Multi-modal (text + images)
-6. Reasoning (o1/o3, extended thinking)
-7. Web search integration
-
-**Selective Execution**:
-```bash
-# Test specific providers
-rake matrix[openai,anthropic]
-
-# Run all API-gated integration specs (from docker/services/ruby)
-RUN_API=true bundle exec rspec spec/integration
-
-# Run a single spec file
-RUN_API=true bundle exec rspec spec/integration/grok_tool_calling_spec.rb
-```
-
-### Cost Optimization Strategies
-
-#### 1. Smart Test Selection
-
-```bash
-# Run cheapest tests first (fail fast)
-rake matrix[openai]
-
-# Only run expensive media tests when the cheap pass succeeds
-rake spec_api:media
-```
-
-#### 2. Model Selection
-
-```ruby
-# Use cheaper models for basic functionality tests
-OPENAI_TEST_MODEL=<cheaper-model>     # Use faster/cheaper variant
-ANTHROPIC_TEST_MODEL=<cheaper-model>  # Use faster/cheaper variant
-```
-
-#### 3. Minimize Context
-
-```ruby
-# Keep test prompts short
-prompt = "Say hello"  # ✅ Cheap
-prompt = system_prompt + long_context + query  # ❌ Expensive
-```
-
-#### 4. Reuse Expensive Operations
-
-```ruby
-# Cache embeddings, vector stores, file uploads
-let(:uploaded_file) { upload_once_per_suite }
-
-# Avoid re-uploading same test data
-before(:all) { setup_shared_resources }
-after(:all) { cleanup_shared_resources }
-```
-
-### Debugging API Test Failures
-
-#### 1. Enable Detailed Logging
-
-```bash
-API_LOG=true EXTRA_LOGGING=true rake matrix[openai]
-```
-
-#### 2. Check Cost Log
-
-```bash
-cat ~/monadic/log/test_api_costs.json | jq '.providers'
-```
-
-#### 3. Run Single Provider
-
-```bash
-rake matrix[openai]
-```
-
-#### 4. Increase Timeout
-
-```bash
-API_TIMEOUT=120 rake spec_api:media
-```
-
-#### 5. Review Test Artifacts
-
-```bash
-cat ./tmp/test_results/latest_compact.md
-cat ./tmp/test_results/latest/summary_full.md
-```
-
-### Best Practices
-
-#### 1. Avoid Strict String Matching
-
-```ruby
-# ❌ Bad: Brittle, provider-specific
-expect(response).to eq "Hello! How can I help you today?"
-
-# ✅ Good: Flexible, intent-based
-expect(response).to match(/hello|hi|greetings/i)
-expect(response.length).to be > 0
-```
-
-#### 2. Use Presence Checks Over Exact Values
-
-```ruby
-# ❌ Bad: Assumes specific tool order
-expect(tools).to eq ["search_web", "calculate", "get_weather"]
-
-# ✅ Good: Verifies capability
-expect(tools).to include("search_web")
-expect(tools.size).to be >= 1
-```
-
-#### 3. Handle Provider Differences
-
-```ruby
-# Different providers may return different metadata
-case provider
-when 'openai'
-  expect(response).to have_key(:model)
-when 'anthropic'
-  expect(response).to have_key(:stop_reason)
-end
-
-# But core functionality should be consistent
-expect(response).to have_text_content
-expect(response).not_to have_errors
-```
-
-#### 4. Tag Expensive Tests
-
-```ruby
-it 'processes large document', :expensive do
-  # Only runs at LEVEL_3
-end
-
-it 'generates 10K token response', :slow, :expensive do
-  # Clearly marked for cost awareness
-end
-```
-
-### Related Documentation
-
-- **Test Runner**: `docs_dev/test_runner.md` - Unified test orchestration
-- **Provider Matrix Helper**: `spec/support/provider_matrix_helper.rb`
-- **Cost Tracking**: `~/monadic/log/test_api_costs.json`
-- **Frontend Testing**: `docs_dev/frontend/testing.md` - No-mock approach
-
-## Real API smoke defaults
-
-The `ProviderMatrixHelper` applies conservative heuristics so that a single developer run can exercise every major provider without tripping rate limits:
-
-| Provider      | Timeout (s) | Max retries | Default QPS (≈ requests/second) |
-|---------------|-------------|-------------|----------------------------------|
-| openai        | 45          | 3           | 0.5                              |
-| anthropic     | 60          | 3           | 0.5                              |
-| gemini        | 60          | 3           | 0.4                              |
-| mistral       | 60          | 3           | 0.4                              |
-| cohere        | 90          | 4           | 0.3                              |
-| deepseek      | 75          | 4           | 0.35                             |
-| xai (Grok)    | 75          | 3           | 0.35                             |
-| ollama        | 90          | 2           | 1.0                              |
-
-All values can be overridden per provider (for example `API_TIMEOUT_COHERE=120` or `API_RATE_QPS_OPENAI=0.25`). When the provider‑specific variable is absent, the helper falls back to the global knob (`API_TIMEOUT`, `API_MAX_RETRIES`, `API_RATE_QPS`, `API_RETRY_BASE`) and finally to the defaults above.
-
-### Running API tests manually
-
-1. Export the API keys you intend to exercise in `~/monadic/config/env` (missing keys cause the helper to `skip`).
-2. Optionally narrow the providers via `PROVIDERS=openai,anthropic` or adjust per‑provider pacing (`API_TIMEOUT_<PROVIDER>`, etc.).
-3. Execute the suite:
-   ```bash
-   rake matrix
-   ```
-   For a faster pass, scope to specific providers (e.g., `rake matrix[openai,anthropic]`).
-4. Review `./tmp/test_results/latest_compact.md` for a concise summary. Re-run failed providers individually if a transient error is suspected.
-
-## Result Summaries
-
-- A custom formatter emits artifacts under `./tmp/test_results/<timestamp>/` (only the latest directory is kept by default):
-  - `summary_compact.md` — short digest (LLM‑friendly)
-  - `summary_full.md` — failures/pending details with filtered traces
-  - `rspec_report.json` — machine‑readable
-  - `env_meta.json` — env + git metadata
-- Latest shortcuts:
-  - `./tmp/test_results/latest` (symlink), `./tmp/test_results/latest_compact.md`
-- To keep older runs, set `SUMMARY_PRESERVE_HISTORY=true` (or `SUMMARY_KEEP_HISTORY=true`) before invoking the suite. Without this flag, previous run directories are removed automatically.
-- Print last summary in terminal:
-  - `rake test_summary:latest`
-
-## Tips
-
-- Quiet output during iteration: `SUMMARY_ONLY=1 ...`
-- Enable per‑provider subsets: `PROVIDERS=openai,anthropic` (see helper).
-- Avoid strict string matching for general text apps; rely on presence/non‑error (the tests already lean this way).
-
-## Environment Variables (Quick Reference)
-
-- `RUN_API`: Enable real API tests (`true` to run API-bound specs).
-- `RUN_MEDIA`: Enable media tests (image/voice). Use with `RUN_API=true`.
-- `PROVIDERS`: Comma‑separated providers to run (e.g., `openai,anthropic,gemini`).
-- `API_LOG`: `true` to print per‑test request/response summaries.
-- `API_TIMEOUT`: Per‑request timeout in seconds (defaults via Rake: non‑media 90, media 120).
-- `API_MAX_RETRIES`: Retries for transient errors (defaults to `0` to avoid extra cost).
-- `API_RATE_QPS`: Throttle across tests (e.g., `0.5` for ~2s spacing).
-- Provider-specific overrides inherit the same pattern: `API_TIMEOUT_<PROVIDER>`, `API_MAX_RETRIES_<PROVIDER>`, `API_RATE_QPS_<PROVIDER>`, `API_RETRY_BASE_<PROVIDER>` (provider names are uppercased, e.g., `API_TIMEOUT_GEMINI`).
-- `SUMMARY_ONLY`: `1` to use progress output + end summary; artifacts still generated.
-- `SUMMARY_RUN_ID`: Fixed ID to collate multiple runs in one artifact directory.
-- Provider‑specific (optional):
-  - `GEMINI_REASONING` / `REASONING_EFFORT`: Reasoning level for Gemini (omit unless required).
-  - `GEMINI_MAX_TOKENS` / `API_MAX_TOKENS`: Upper bound for output tokens.
-  - `API_TEMPERATURE`: Only set when model_spec allows; otherwise leave unset.
-  - `INCLUDE_OLLAMA`: `true` to include Ollama in provider lists by default.
+| Category | Location | Content |
+|---|---|---|
+| Unit | `spec/unit` | Components without external services; HTTP and provider calls are stubbed |
+| Integration | `spec/integration` | App helpers, containers and provider integrations; API-gated specs skip unless `RUN_API=true` |
+| API media | `spec/integration/api_media` | Image, video and voice generation (`RUN_API=true RUN_MEDIA=true`) |
+| Provider matrix | `spec/integration/provider_matrix` | Every provider against the apps it has (`:api, :matrix`) |
+| System | `spec/system` | Server endpoints and behavior without live provider APIs |
+| E2E | `spec/e2e` | UI and server wiring; provider calls need `RUN_API_E2E=true` (examples tagged `:no_api` always run) |
+| Frontend | `test/frontend` | Jest with jsdom; see [No-Mock UI Tests](frontend/no_mock/README.md) |
+| Python | `docker/services/python/scripts/services/test_*.py` | `rake pytest:all` |
+
+## Commands
+
+| Command | Runs |
+|---|---|
+| `bundle exec rspec spec/unit` | Ruby unit specs |
+| `rake spec` | Ruby unit, integration and system specs; starts Qdrant and Embeddings if they are not running and stops them afterwards (unless `KEEP_VECTOR_SERVICES=true`) |
+| `rake test` | Ruby, JavaScript and Python tests, no API |
+| `rake test:all[standard]` / `rake test:all[full]` | Unified runner with API tests; `full` adds media |
+| `rake matrix[openai,anthropic]` | Provider matrix (`RUN_API=true`; all configured providers without an argument) |
+| `rake spec_api:media` | API media specs (sets `RUN_API`, `RUN_MEDIA`) |
+| `RUN_API=true bundle exec rspec spec/integration` | API-gated integration specs |
+| `rake spec_e2e:jupyter_notebook`, `rake spec_e2e:monadic_context` | E2E specs |
+| `npm test` | Jest |
+
+`rake -T | grep -E "test|spec|matrix"` lists the rest.
+
+## Provider Matrix Settings
+
+`spec/support/provider_matrix_helper.rb` paces and retries requests per provider:
+
+| Provider | Timeout (s) | Max retries | Requests per second |
+|---|---|---|---|
+| openai | 45 | 3 | 0.5 |
+| anthropic | 60 | 3 | 0.5 |
+| gemini | 60 | 3 | 0.4 |
+| mistral | 60 | 3 | 0.4 |
+| cohere | 90 | 4 | 0.3 |
+| deepseek | 75 | 4 | 0.35 |
+| xai | 75 | 3 | 0.35 |
+| ollama | 90 | 2 | 1.0 |
+
+Each value is read from `<KEY>_<PROVIDER>` (e.g. `API_TIMEOUT_COHERE`), then the global `<KEY>`, then the table. Keys: `API_TIMEOUT`, `API_MAX_RETRIES`, `API_RATE_QPS`, `API_RETRY_BASE`. `rake matrix` sets `API_TIMEOUT=90` and `API_MAX_RETRIES=0` unless they are set; `rake spec_api:media` sets 120 and 0. Specs skip when a provider's key is missing.
+
+## Writing API-Facing Specs
+
+- Assert presence and shape (non-empty text, valid JSON, a tool was called), not exact wording or order.
+- Treat transient provider errors (429, timeouts, 5xx) as non-fatal: retry or skip, do not fail.
+- Keep prompts short.
+
+## Result Artifacts
+
+The summary formatter writes each run to `tmp/test_results/<run id>/`:
+
+- `summary_compact.md`, `summary_full.md` (failures and pending with filtered traces)
+- `rspec_report.json`
+- `env_meta.json` (environment and git metadata)
+
+`tmp/test_results/latest` points to the last run. The latest 20 runs are kept (`TEST_RESULTS_KEEP`; 0 keeps all). `rake test_summary:latest` prints the last summary.
+
+## Environment Variables
+
+| Variable | Effect |
+|---|---|
+| `RUN_API` | `true` runs API-gated specs |
+| `RUN_MEDIA` | `true` (with `RUN_API`) runs media specs |
+| `RUN_API_E2E` | `true` lets E2E specs call providers |
+| `PROVIDERS` | Comma-separated providers to run |
+| `INCLUDE_OLLAMA` | `true` adds Ollama to the default provider list |
+| `API_LOG` | `true` prints per-request summaries in matrix specs |
+| `API_TIMEOUT`, `API_MAX_RETRIES`, `API_RATE_QPS`, `API_RETRY_BASE` | See above |
+| `API_TEMPERATURE` | Temperature for matrix requests (set only when the model accepts it) |
+| `GEMINI_REASONING` / `REASONING_EFFORT` | Reasoning level for Gemini matrix requests |
+| `GEMINI_MAX_TOKENS` / `API_MAX_TOKENS` | Output token limit |
+| `SUMMARY_ONLY` | `1` uses progress output with the summary at the end |
+| `SUMMARY_RUN_ID` | Fixed run ID, to collect several runs in one directory |
+| `TEST_RESULTS_KEEP` | Number of run directories to keep |
+| `EXTRA_LOGGING` | Detailed application logging |
+
+## Related Documentation
+
+- [Test Runner](test_runner.md)
+- [Test Quick Reference](test_quickref.md)
+- `spec/support/provider_matrix_helper.rb`

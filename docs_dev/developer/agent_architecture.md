@@ -1,382 +1,74 @@
 # Agent Architecture
 
-## Overview
+Agents are Ruby modules in `lib/monadic/agents/` that carry out a task the chat model delegates or that runs beside the chat: media analysis, code generation, context extraction, second opinions and the AI User. `app.rb` requires every file in the directory; `MonadicApp` includes `ImageAnalysisAgent` and `AudioTranscriptionAgent`.
 
-Monadic Chat uses **agent modules** to encapsulate specialized functionality that the main LLM delegates to. Agents are Ruby modules included in app classes, each providing one or more methods that make direct HTTP calls to AI provider APIs—bypassing the WebSocket/streaming path used for normal chat.
+| Category | Agents | Provider |
+|---|---|---|
+| Media analysis | `ImageAnalysisAgent`, `AudioTranscriptionAgent` (with the timed transcription in `timed_audio_transcription.rb`), `VideoAnalyzeAgent`, `AudioAnalysisAgent` | The app's own provider, or an error |
+| Code generation | `Monadic::Agents::OpenAICodeAgent`, `ClaudeCodeAgent`, `GrokCodeAgent` | The provider of the app variant that includes it |
+| Conversation | `SecondOpinionAgent`, `ContextExtractorAgent`, `AIUserAgent` | Chosen per call (see below) |
 
-There are two main categories:
+## Media Analysis
 
-| Category | Purpose | Provider Strategy | Inclusion |
-|----------|---------|-------------------|-----------|
-| **Utility Sub-Agents** | Provider-independent capabilities (vision, STT, video) | Multi-provider with automatic fallback | Included in `MonadicApp` base class |
-| **Code Generation Agents** | Dedicated code generation models | Single-provider (provider-specific) | Included only in specific app classes |
+### Provider Rule
 
-Additional agents handle conversation infrastructure (context extraction, second opinion, AI user simulation, command output parsing).
+`Monadic::Utils::ProviderCapabilities.resolve(capability, app_provider)` returns `{provider:}` or `{error: "ERROR: …"}`. An analysis runs on the app's own provider; it is never sent to another provider because that provider has a key.
 
-**Note on structural differences across categories**: The three categories use intentionally different implementation patterns (direct HTTP vs `api_request()`, string returns vs structured hashes, top-level vs namespaced modules). These differences reflect fundamentally different operational requirements and should not be unified into a single pattern.
+| Capability | Providers |
+|---|---|
+| `:image` | openai, anthropic, google, xai, mistral, cohere, deepseek |
+| `:video` | openai, anthropic, google, xai |
+| `:audio` | openai, google, xai |
 
-### File Location
+The error says that the capability is not available for the provider, or which API key is missing. Models come from `providerDefaults` through `ModelSpec.default_vision_model` / `default_audio_model`.
 
-All agents live in `lib/monadic/agents/`. They are auto-required via `Dir.glob` in `app.rb`:
+### Agents
 
-```ruby
-Dir.glob(File.join(__dir__, "agents", "*.rb")).sort.each { |f| require f }
-```
+| Agent | Method | Notes |
+|---|---|---|
+| `ImageAnalysisAgent` | `image_analysis_agent(message:, image_path:, detail:)` | The path must be an image inside the shared folder (`SharedPathGuard`); 10 MB limit |
+| `AudioTranscriptionAgent` | `audio_transcription_agent(audio_path:, model:, response_format:, lang_code:)` | OpenAI `/v1/audio/transcriptions`, Gemini `generateContent` with inline audio, xAI `/v1/stt`; 25 MB limit |
+| `AudioTranscriptionAgent` (`timed_audio_transcription.rb`) | `timed_audio_transcript` for the `analyze_audio` tool | Speech segments transcribed one by one, with times; the run is kept in the chat's folder |
+| `VideoAnalyzeAgent` | `analyze_video(file:, attachment_id:, fps:, query:, session:, detailed:)` | Frames from `extract_frames.py` in the Python container; at most 50 frames (20 for Claude) per request; transcript of the audio track; `detailed` splits long videos into up to 5 parts of up to 10 minutes |
+| `AudioAnalysisAgent` | `analyze(audio_path:, prompt:, model:)` | Qualitative music analysis with Gemini; used only by the Gemini variant of Music Analyst |
 
----
+The media agents call the providers directly with the `http` gem, retry a failed request once, and return a string starting with `ERROR:` on failure.
 
-## Utility Sub-Agents (Provider-Independent)
+### Shared Tool Groups
 
-These agents enforce the **Provider Independence** principle: when a Claude app calls `analyze_image`, it uses Claude's Vision API—not OpenAI's. Each agent resolves the current provider, checks API key availability, and falls back to an alternative if needed.
+| Group | Tool | Module |
+|---|---|---|
+| `:image_analysis` | `analyze_image` | `MonadicSharedTools::ImageAnalysis` |
+| `:audio_transcription` | `analyze_audio` | `MonadicSharedTools::AudioTranscription` |
+| `:video_analysis` | `analyze_video` | `MonadicSharedTools::VideoAnalysis` |
 
-### ImageAnalysisAgent
+They are `conditional` groups in `shared_tools/registry.rb`; `available_when` calls the module's `available?`. Apps add them with `import_shared_tools :image_analysis, visibility: "conditional"`.
 
-**File**: `agents/image_analysis_agent.rb`
-**Included in**: `MonadicApp` (base class)
-**Public method**: `image_analysis_agent(message:, image_path:)`
+## Code Generation
 
-**Supported providers**: OpenAI (`gpt-4o-mini`), Claude (`claude-haiku-4-5-20251001`), Gemini (`gemini-2.0-flash`), Grok (`grok-4-1-fast-non-reasoning`)
+| Module | Method | Default model | Timeout |
+|---|---|---|---|
+| `OpenAICodeAgent` | `call_openai_code(prompt:, app_name:, timeout:, model:)` | `ModelSpec.default_code_model("openai")`, Responses API | `OPENAI_CODE_TIMEOUT`, default 1200 s |
+| `ClaudeCodeAgent` | `call_claude_code(prompt:, app_name:, max_tokens:, temperature:, reasoning_effort:)` | `ModelSpec.default_code_model("anthropic")` | — |
+| `GrokCodeAgent` | `call_grok_code(prompt:, app_name:, timeout:, model:)` | `ModelSpec.default_code_model("xai")` | `GROK_CODE_TIMEOUT`, default 300 s |
 
-**How it works**:
-1. Reads image file, validates size (10MB limit), determines MIME type
-2. Calls `resolve_vision_provider` — checks current app's provider, falls back to first available vision provider
-3. Makes direct HTTP POST to the provider's Vision API
-4. Returns text description or error string
+Each is used only by the app variants of its own provider: Code Interpreter, Coding Assistant, Jupyter Notebook and Research Assistant tools, and AutoForge (wired in `apps/auto_forge/auto_forge_tools.rb`). They do not retry.
 
-**Shared tool group**: `:image_analysis` (registered in `shared_tools/registry.rb`)
-**Apps using it**: Content Reader, Speech Draft Helper, and all Code Interpreter / Research Assistant / Coding Assistant variants (16 apps total)
+## Conversation Agents
 
-### AudioTranscriptionAgent
+- **`SecondOpinionAgent`**: `second_opinion_agent(user_query:, agent_response:, provider:, model:, session:)` asks one provider; `parallel_second_opinions(…, providers:)` asks several in threads, each with its own helper instance. Text is masked by the Privacy Filter pipeline first when it is on.
+- **`ContextExtractorAgent`**: `extract_context(session, user_message, assistant_response, provider, schema, language)` builds the Session Context after a response; `WebSocketHelper` includes the module. It calls the API directly, not through `send_query`, so it does not re-enter the WebSocket flow.
+- **`AIUserAgent`**: `process_ai_user(session, params)` writes the next user message with the provider's chat app and default model.
 
-**File**: `agents/audio_transcription_agent.rb`
-**Included in**: `MonadicApp` (base class)
-**Public method**: `audio_transcription_agent(audio_path:, model:, response_format:, lang_code:)`
+## Adding a Media Agent
 
-**Supported providers**: OpenAI (form upload to `/v1/audio/transcriptions`), Gemini (multimodal `generateContent` with `inline_data`)
+1. Add the capability and its providers to `ProviderCapabilities::CAPABILITIES` (only providers with a working request path).
+2. Write the agent module: resolve the provider with `ProviderCapabilities.resolve`, take the model from `ModelSpec`, call the provider, return `ERROR: …` on failure.
+3. Include it in `MonadicApp` if many apps use it.
+4. Add a module under `lib/monadic/shared_tools/` with `available?` and the tool definitions, register the group in `registry.rb` (`visibility: 'conditional'`, `available_when`), and require it in `dsl.rb`.
+5. Import the group in the MDSL files of the apps that use it.
+6. Add specs under `spec/unit/agents/`: provider resolution and its errors, request format per provider, file checks.
 
-**How it works**:
-1. Resolves audio file path (checks relative, `SHARED_VOL`, `LOCAL_SHARED_VOL`)
-2. Validates file exists and size (25MB limit)
-3. Calls `resolve_audio_provider` — current provider if supported, else OpenAI → Gemini fallback
-4. OpenAI: multipart form upload with model selection
-5. Gemini: base64-encoded audio in `inline_data` block
-6. Returns transcript text or error string
+## Tests
 
-**Shared tool group**: `:audio_transcription`
-**Apps using it**: Content Reader, Speech Draft Helper, Video Describer
-
-### VideoAnalyzeAgent
-
-**File**: `agents/video_analyze_agent.rb`
-**Included in**: `MonadicApp` (base class, but typically called from `VideoDescriberApp`)
-**Public method**: `analyze_video(file:, fps:, query:, session:)`
-
-**Depends on**: `ImageAnalysisAgent` (for `resolve_vision_provider`, `vision_model_for`, `VISION_API_KEYS`), `AudioTranscriptionAgent` (for audio track transcription)
-
-**Supported providers**: OpenAI, Claude, Gemini, Grok (same as ImageAnalysisAgent)
-
-**How it works**:
-1. Calls `extract_frames.py` via `send_command` (Python container) — the only remaining `send_command` usage
-2. Reads frames JSON directly from shared volume
-3. Applies per-provider frame limits (Claude: 20, others: 50) via `balance_frames`
-4. Calls provider-specific Vision API with multi-frame payload
-5. Transcribes audio track via `audio_transcription_agent`
-6. Returns combined description + transcript
-
-**Shared tool group**: `:video_analysis`
-**Apps using it**: Video Describer
-
----
-
-## Code Generation Agents (Single-Provider)
-
-These agents delegate complex coding tasks to dedicated code generation models. Each is provider-specific and only included in apps for that provider.
-
-### OpenAI Code Agent
-
-**File**: `agents/openai_code_agent.rb`
-**Module**: `Monadic::Agents::OpenAICodeAgent`
-**Public method**: `call_openai_code(prompt:, app_name:, timeout:, model:, &block)`
-
-Uses `/v1/responses` endpoint with adaptive reasoning. Default timeout: 1200s (20 min).
-
-### Grok Code Agent
-
-**File**: `agents/grok_code_agent.rb`
-**Module**: `Monadic::Agents::GrokCodeAgent`
-**Public method**: `call_grok_code(prompt:, app_name:, timeout:, model:, &block)`
-
-Uses `grok-code-fast-1` via xAI API. Default timeout: 300s (5 min).
-
-### Claude Code Agent
-
-**File**: `agents/claude_code_agent.rb`
-**Module**: `Monadic::Agents::ClaudeCodeAgent`
-**Public method**: `call_claude_code(prompt:, app_name:, max_tokens:, temperature:, reasoning_effort:, &block)`
-
-Uses Claude Sonnet-4 via Anthropic API.
-
-**Apps using code agents**: Code Interpreter, Coding Assistant, Jupyter Notebook, Research Assistant (one per provider).
-
----
-
-## Infrastructure Agents
-
-### SecondOpinionAgent
-
-**File**: `agents/second_opinion_agent.rb`
-**Public method**: `second_opinion_agent(user_query:, agent_response:, provider:, model:)`
-
-Runs parallel verification across up to 8 providers using Ruby threads. Each thread creates a fresh helper instance to avoid state sharing.
-
-### ContextExtractorAgent
-
-**File**: `agents/context_extractor_agent.rb`
-**Public method**: `extract_context(session, user_message, assistant_response, provider, schema, language)`
-
-Extracts structured JSON context from conversations. Uses direct HTTP calls (not `send_query`) to avoid WebSocket loops, since it runs after every assistant response.
-
-### AIUserAgent
-
-**File**: `agents/ai_user_agent.rb`
-**Public method**: `process_ai_user(session, params)`
-
-Generates simulated user responses for testing and demo purposes. Multi-provider with app lookup.
-
----
-
-## Design Patterns
-
-### Provider Resolution with Fallback
-
-The utility sub-agents share a common resolution pattern:
-
-```ruby
-def resolve_vision_provider
-  # 1. Normalize current app's provider name
-  current = normalize_provider(settings["provider"])
-
-  # 2. If current provider supports this capability, use it
-  return current if VISION_PROVIDERS.include?(current) && api_key_available?(current)
-
-  # 3. Otherwise, find first available provider with an API key
-  VISION_PROVIDERS.each do |provider|
-    return provider if api_key_available?(provider)
-  end
-
-  # 4. Last resort: return default
-  VISION_PROVIDERS.first
-end
-```
-
-**Key principle**: Always prefer the user's chosen provider. Only fall back when the provider lacks the capability (e.g., Cohere has no Vision API) or the API key is missing.
-
-### Direct HTTP Calls
-
-Sub-agents make HTTP calls directly using the `http` gem (or `Net::HTTP` for multipart). They do **not** use `send_query` or the WebSocket streaming path. This avoids:
-- Infinite loops (especially for ContextExtractorAgent)
-- Unnecessary streaming overhead for one-shot requests
-- Coupling to the chat message format
-
-### Retry Strategy
-
-Utility sub-agents use a simple 1-retry pattern with 1-second sleep:
-
-```ruby
-retries = 0
-begin
-  response = HTTP.timeout(...).post(uri, ...)
-  # parse response
-rescue => e
-  retries += 1
-  sleep 1 and retry if retries < 1
-  "ERROR: #{e.message}"
-end
-```
-
-Code generation agents use timeout-based error handling without automatic retry.
-
-### Error Message Convention
-
-All agents return error strings starting with `"ERROR:"` on failure. Callers check:
-
-```ruby
-if result.to_s.start_with?("ERROR:", "Error:")
-  # Handle error
-end
-```
-
-### Shared Tool Integration
-
-Utility sub-agents expose their functionality to LLMs via shared tool groups:
-
-```
-Agent Module                    → Shared Tool Group          → MDSL import
-─────────────────────────────────────────────────────────────────────────
-ImageAnalysisAgent              → :image_analysis            → import_shared_tools :image_analysis
-AudioTranscriptionAgent         → :audio_transcription       → import_shared_tools :audio_transcription
-VideoAnalyzeAgent               → :video_analysis            → import_shared_tools :video_analysis
-```
-
-Each tool group has an `available?` method that checks API keys, enabling Progressive Tool Disclosure (PTD).
-
----
-
-## Adding a New Utility Sub-Agent
-
-Follow this checklist when creating a new provider-independent sub-agent:
-
-### 1. Create the agent module
-
-`lib/monadic/agents/my_new_agent.rb`:
-
-```ruby
-module MyNewAgent
-  # Provider → model mapping (use cheap/fast models for sub-agent tasks)
-  MODELS = {
-    "openai"    => "gpt-4o-mini",
-    "anthropic" => "claude-haiku-4-5-20251001",
-    # ... only providers that support this capability
-  }.freeze
-
-  API_KEYS = {
-    "openai"    => "OPENAI_API_KEY",
-    "anthropic" => "ANTHROPIC_API_KEY",
-  }.freeze
-
-  PROVIDERS = MODELS.keys.freeze
-
-  def my_new_agent(param1:, param2:)
-    provider = resolve_my_provider
-    api_key = CONFIG[API_KEYS[provider]]&.strip
-    return "ERROR: No API key for '#{provider}'" if api_key.nil? || api_key.empty?
-
-    case provider
-    when "openai"    then my_call_openai(param1, param2, api_key)
-    when "anthropic" then my_call_claude(param1, param2, api_key)
-    end
-  rescue => e
-    "ERROR: #{e.message}"
-  end
-
-  private
-
-  def resolve_my_provider
-    current = normalize_provider_name(settings["provider"])
-    return current if PROVIDERS.include?(current) && !CONFIG[API_KEYS[current]].to_s.strip.empty?
-    PROVIDERS.find { |p| !CONFIG[API_KEYS[p]].to_s.strip.empty? } || PROVIDERS.first
-  end
-
-  # Provider-specific HTTP calls...
-end
-```
-
-### 2. Include in MonadicApp (if used across apps)
-
-`lib/monadic/app.rb`:
-
-```ruby
-class MonadicApp
-  include MonadicHelper
-  include ImageAnalysisAgent
-  include AudioTranscriptionAgent
-  include MyNewAgent              # Add here
-  include StringUtils
-```
-
-### 3. Create the shared tool group
-
-`lib/monadic/shared_tools/my_new_tool.rb`:
-
-```ruby
-module MonadicSharedTools
-  module MyNewTool
-    def self.available?
-      %w[OPENAI_API_KEY ANTHROPIC_API_KEY].any? { |k| CONFIG && !CONFIG[k].to_s.strip.empty? }
-    end
-
-    TOOLS = [{
-      type: "function",
-      function: {
-        name: "my_new_tool",
-        description: "Description for the LLM",
-        parameters: { ... }
-      }
-    }].freeze
-
-    def self.tools = TOOLS
-  end
-end
-```
-
-### 4. Register in registry.rb
-
-Add entry to `SHARED_TOOL_GROUPS`:
-
-```ruby
-my_new_tool: {
-  module_name: 'MonadicSharedTools::MyNewTool',
-  tools: [{ name: "my_new_tool", description: "...", parameters: [...] }],
-  default_hint: 'Call request_tool("my_new_tool") when you need ...',
-  visibility: 'conditional',
-  available_when: -> { MonadicSharedTools::MyNewTool.available? }
-}
-```
-
-### 5. Add require in dsl.rb
-
-```ruby
-require_relative 'shared_tools/my_new_tool'
-```
-
-### 6. Import in app MSDLs
-
-```ruby
-tools do
-  import_shared_tools :my_new_tool, visibility: "conditional"
-end
-```
-
-### 7. Write tests
-
-`spec/unit/agents/my_new_agent_spec.rb` — mock HTTP responses, test provider resolution, error handling, retry logic.
-
----
-
-## Agent Reference Table
-
-| Agent | Module | Base Class? | Providers | Public Method | Shared Tool Group |
-|-------|--------|-------------|-----------|---------------|-------------------|
-| ImageAnalysisAgent | Top-level | Yes | 4 (OpenAI, Claude, Gemini, Grok) | `image_analysis_agent` | `:image_analysis` |
-| AudioTranscriptionAgent | Top-level | Yes | 2 (OpenAI, Gemini) | `audio_transcription_agent` | `:audio_transcription` |
-| VideoAnalyzeAgent | Top-level | Yes | 4 (via ImageAnalysisAgent) | `analyze_video` | `:video_analysis` |
-| OpenAICodeAgent | `Monadic::Agents::` | No | 1 (OpenAI) | `call_openai_code` | — |
-| GrokCodeAgent | `Monadic::Agents::` | No | 1 (xAI) | `call_grok_code` | — |
-| ClaudeCodeAgent | `Monadic::Agents::` | No | 1 (Claude) | `call_claude_code` | — |
-| SecondOpinionAgent | Top-level | No | 8 (parallel) | `second_opinion_agent` | — |
-| ContextExtractorAgent | Top-level | No | 8 | `extract_context` | — |
-| AIUserAgent | Top-level | No | 8 | `process_ai_user` | — |
-
-## Testing
-
-Unit tests for all agents are in `spec/unit/agents/`:
-
-```
-spec/unit/agents/
-├── ai_user_agent_spec.rb
-├── audio_transcription_agent_spec.rb
-├── claude_code_agent_spec.rb
-├── context_extractor_agent_spec.rb
-├── grok_code_agent_spec.rb
-├── image_analysis_agent_spec.rb
-├── openai_code_agent_spec.rb
-├── second_opinion_agent_spec.rb
-└── video_analyze_agent_spec.rb
-```
-
-Test patterns:
-- **Provider resolution**: Mock `settings["provider"]` and `CONFIG` API keys; verify correct provider selected
-- **HTTP calls**: Mock HTTP responses per provider; verify request format and response parsing
-- **Error handling**: Test missing files, API errors, timeout, missing API keys
-- **Retry logic**: Verify retry count and sleep behavior
-- **Fallback**: Test that non-vision providers fall back correctly
+`spec/unit/agents/` has a spec per agent.

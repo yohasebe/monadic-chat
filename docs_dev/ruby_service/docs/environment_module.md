@@ -1,33 +1,37 @@
-# Environment Module Summary
+# Environment Module
 
-## Overview
-Container detection and path resolution are handled by `Monadic::Utils::Environment` module.
+`Monadic::Utils::Environment` (`lib/monadic/utils/environment.rb`) detects whether the Ruby code runs in the Ruby container or on the host (development mode) and resolves paths for both.
 
-## Key Features
-- **Container Detection**: `in_container?` method
-- **Path Resolution**: Automatic path adjustment for container vs local execution  
-- **PostgreSQL Configuration**: `postgres_params` method with correct host/port
+## Detection
+
+`in_container?` returns, in order: `ENV["IN_CONTAINER"] == "true"` when the variable is set, the `IN_CONTAINER` constant when defined, otherwise whether `/.dockerenv` exists.
+
+## Paths
+
+`resolve_path(container_path, local_path = nil)` returns `container_path` in the container; on the host it returns `local_path`, or `container_path` with `/monadic` replaced by `~/monadic`.
+
+| Method | Container | Host |
+|---|---|---|
+| `config_path` | `/monadic/config` | `~/monadic/config` |
+| `env_path` | `/monadic/config/env` | `~/monadic/config/env` |
+| `data_path`, `shared_volume` | `/monadic/data` | `~/monadic/data` |
+| `state_path` | `/monadic/state` | `~/monadic/state` |
+| `scripts_path`, `apps_path`, `helpers_path` | `data_path` + `scripts`, `apps`, `helpers` | same, under `~/monadic/data` |
+| `log_path` | `/monadic/log` | `~/monadic/log` |
+| `command_log_file`, `extra_log_file`, `jupyter_log_file` | `command.log`, `extra.log`, `jupyter.log` in `log_path` | same |
+| `system_script_dir` | `/monadic/scripts` | `docker/services/ruby/scripts` in the source tree |
+
+`state_path` holds server-owned records outside the shared folder.
+
+## Log Rotation
+
+`rotate_log(file)` renames `file` to `file.1` (shifting older files up to `file.<max>`) once it exceeds `LOG_ROTATE_MAX_BYTES` (default 5 MB). `LOG_ROTATE_MAX_FILES` (default 5) sets the number of files. Errors are ignored.
 
 ## Usage
+
 ```ruby
-# Check environment
-if Monadic::Utils::Environment.in_container?
-  # Container-specific logic
-end
-
-# Get database connection
-conn = PG.connect(Monadic::Utils::Environment.postgres_params)
-
-# Get paths
-data_path = Monadic::Utils::Environment.data_path
-scripts_path = Monadic::Utils::Environment.scripts_path
-apps_path = Monadic::Utils::Environment.apps_path
+Monadic::Utils::Environment.in_container?
+Monadic::Utils::Environment.data_path
 ```
 
-## Available Methods
-- `in_container?` - Returns true if running inside Docker container
-- `data_path` - Returns correct data directory path
-- `scripts_path` - Returns correct scripts directory path
-- `apps_path` - Returns correct apps directory path
-- `helpers_path` - Returns correct helpers directory path
-- `postgres_params(database: nil)` - Returns PostgreSQL connection parameters
+A class that includes the module also gets the methods as class methods.

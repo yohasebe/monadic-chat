@@ -67,9 +67,9 @@ The checker skips:
 [Link](/advanced-topics/sample-foo.md)
 → Resolves to: docs/advanced-topics/sample-foo.md
 
-<!-- In docs_dev/ja/README.md -->
-[Link](/ja/frontend/)
-→ Resolves to: docs_dev/ja/frontend/README.md
+<!-- In docs/ja/README.md -->
+[Link](/ja/basic-usage/basic-apps.md)
+→ Resolves to: docs/ja/basic-usage/basic-apps.md
 ```
 
 ### Relative paths
@@ -109,9 +109,9 @@ docs/README.md:15
 
 **Error:**
 ```
-docs_dev/ja/README.md:20
+docs/ja/README.md:20
   Link: [Test](../test.md)
-  Resolved to: docs_dev/test.md
+  Resolved to: docs/test.md
   Error: Link target does not exist
 ```
 

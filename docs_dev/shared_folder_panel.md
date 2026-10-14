@@ -22,7 +22,7 @@ Entries that Monadic Chat or the user's own setup reads are protected (`SharedFo
 
 The panel's only write. A hidden file at the top of the shared folder holding 32 lowercase hexadecimal characters (`SecureRandom.hex(16)`).
 
-**Why it exists.** The page lists the folder as the Ruby server sees it (inside the container, `/monadic/data`); the desktop app opens entries in the folder it resolves on the host (`~/monadic/data`, or the WSL path on Windows). These are normally the same folder, but nothing guarantees it (a different data path, a second installation, a WSL distribution with its own home). The id ties the two: the page sends the id with each request, and the desktop app acts only when the id file in the folder it resolved holds the same id. Without it, a relative path could name an entry in a different folder.
+**What it is for.** The page lists the folder as the Ruby server sees it (inside the container, `/monadic/data`); the desktop app opens entries in the folder it resolves on the host (`~/monadic/data`, or the WSL path on Windows). These are normally the same folder, but nothing guarantees it (a different data path, a second installation, a WSL distribution with its own home). The id ties the two: the page sends the id with each request, and the desktop app acts only when the id file in the folder it resolved holds the same id. Without it, a relative path could name an entry in a different folder.
 
 **How it is made.** `SharedFolder.root_id` creates it the first time the id is asked for (the first listing):
 

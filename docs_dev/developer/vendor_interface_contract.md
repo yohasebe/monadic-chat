@@ -112,7 +112,7 @@ def send_query(options, model: nil)
 end
 ```
 
-**Called from:** `AIUserAgent`, `SecondOpinionAgent`, `ContextExtractorAgent`, tool methods via `MonadicApp#send_query`
+**Called from:** `AIUserAgent`, `SecondOpinionAgent`, tool methods via `MonadicApp#send_query`
 
 **Implementation status:**
 
@@ -123,7 +123,7 @@ end
 | Gemini | ✓ | `model: nil` |
 | Cohere | ✓ | `model: nil` |
 | Mistral | ✓ | `model: nil` |
-| DeepSeek | ✓ | `model: "deepseek-chat"` |
+| DeepSeek | ✓ | `model: nil` |
 | Grok | ✓ | `model: nil` |
 | Ollama | ✓ | `model: nil` |
 | Tavily | ✗ | N/A (has `tavily_search` instead) |

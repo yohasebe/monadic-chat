@@ -1,471 +1,68 @@
-# Docker Build Caching Strategy
+# Docker Build Caching
 
-## Overview
+This page describes when the Ruby and Python images are built or downloaded, and which cache each build uses. The logic is in `docker/monadic.sh`.
 
-Monadic Chat uses intelligent build caching for containers to balance build speed with reliability. The strategy differs between automatic rebuilds (on version updates or startup) and manual rebuilds (via menu commands).
+## At Start
 
-## Build Strategies by Container Type
+`start_docker_compose` decides what to build:
 
-### Ruby Container Build Strategy
+| Situation | What happens |
+|---|---|
+| Containers missing, or first install (`needs_full_rebuild`) | Full `docker compose build --no-cache` of every service with a build section, then `up -d`. A failed build stops Start |
+| Version update with changed Python, Selenium or Embeddings Dockerfiles (`needs_selective_rebuild`) | Ruby is rebuilt with cache. Python is built with `docker compose build` (the prebuilt image is pulled first and used through `cache_from`); Selenium and Embeddings are pulled |
+| Version update or Gem change only (`needs_ruby_rebuild`) | Only Ruby is rebuilt, with cache |
+| Nothing changed | No build |
 
-Ruby container builds use different caching strategies depending on how the build is triggered:
+`check_dockerfiles_changed` compares hashes of the Python, Selenium and Embeddings Dockerfiles. The Ruby image carries the label `com.monadic.gems_hash` (SHA256 of `Gemfile` and `monadic.gemspec`); a different value triggers a Ruby rebuild. `FORCE_RUBY_REBUILD_NO_CACHE=true` makes Ruby builds use `--no-cache`.
 
-**1. Automatic Rebuild on Version Update (START button):**
-- **Trigger**: App detects version mismatch (e.g., `v1.0.0-beta.3` → `v1.0.0-beta.4`)
-- **Cache Strategy**: Uses Docker build cache (fast, ~1-2 minutes)
-- **Rationale**: Version updates typically only change application code, not dependencies
-- **Implementation**: `FORCE_REBUILD` environment variable is NOT set
-- **Location**: `docker/monadic.sh:366-371` checks `FORCE_REBUILD:-false`
+User containers are never built at Start; **Actions → Build User Containers** builds them with `--no-cache`.
 
-**2. Manual Rebuild from Menu (Actions → Build Ruby Container):**
-- **Trigger**: User explicitly selects build from menu
-- **Cache Strategy**: Uses `--no-cache` (complete rebuild, ~5-10 minutes)
-- **Rationale**: User may want to ensure clean build or rebuild after system changes
-- **Implementation**: Electron sets `FORCE_REBUILD=true` environment variable
-- **Location**: `app/main.js:618-620` sets `buildEnv = { FORCE_REBUILD: 'true' }`
+## Python Image (`build_python_container`)
 
-**3. Automatic Rebuild on Dockerfile Changes:**
-- **Trigger**: Detected changes in Ruby Dockerfile during version update
-- **Cache Strategy**: Uses `--no-cache` (complete rebuild)
-- **Rationale**: Dockerfile changes may include dependency updates requiring clean build
-- **Implementation**: `check_dockerfiles_changed()` function checks file hashes
+| Condition | Build |
+|---|---|
+| `FORCE_REBUILD=true` (set by **Actions → Build Python Container**) | `docker build --no-cache` |
+| No install options on and no `~/monadic/config/pysetup.sh` | The prebuilt `ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}` is pulled instead of built (local build if the pull fails) |
+| Otherwise | The prebuilt image is pulled and used with `--cache-from`, so only the layers of the enabled options are built |
 
-**Version Update Detection Flow:**
-```
-START button pressed
-        ↓
-Check: MONADIC_CHAT_IMAGE_TAG == MONADIC_VERSION?
-        ↓
-    ┌───No────┐
-    │         │
-    ↓         ↓
-Version    Version
-mismatch   match
-    │         │
-    ↓         └─→ Continue startup
-Check: Dockerfile changed?
-(sets PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, EMBEDDINGS_DOCKERFILE_CHANGED)
-    │
-┌───┴───┐
-│       │
-Yes     No
-│       │
-↓       ↓
-Selective   Ruby only
-rebuild     rebuild
-│           │
-↓           ↓
-Ruby: cache  Use cache (fast)
-+ changed    (1-2 min)
-containers:
---no-cache
-```
+Each option has its own conditional `RUN` layer keyed on its build `ARG`, so BuildKit reuses unchanged option layers. The options are the `PY_OPTIONS` list in `monadic.sh`: `INSTALL_LATEX`, `PYOPT_NLTK`, `PYOPT_SPACY`, `PYOPT_GENSIM`, `PYOPT_LIBROSA`, `PYOPT_MEDIAPIPE`, `PYOPT_TRANSFORMERS`, `IMGOPT_IMAGEMAGICK`.
 
-### Selective Rebuild Strategy (NEW)
+The build is atomic:
 
-When a version update is detected and some Dockerfiles have changed, the system performs **selective rebuilds** instead of full rebuilds:
+1. Build (or pull) into a temporary tag `yohasebe/monadic-chat:python-build-<timestamp>`.
+2. Run health checks (`python_health.json`) and write `python_meta.json`.
+3. Retag the image as the current Python image; a failed build keeps the current image.
+4. If the Python container is running, `recreate_python_container` runs `compose up -d --force-recreate --no-deps --pull never --no-build python_service` and checks that the container uses the new image ID. Otherwise the new image is used at the next Start.
 
-**How it works:**
-1. `check_dockerfiles_changed()` sets individual change flags:
-   - `PYTHON_DOCKERFILE_CHANGED`
-   - `SELENIUM_DOCKERFILE_CHANGED`
-   - `EMBEDDINGS_DOCKERFILE_CHANGED`
+Logs (overwritten on each build): `~/monadic/log/docker_build_python.log`, `python_health.json`, `python_meta.json`. `~/monadic/log/python_build_options.txt` records the options of the last build; changes are logged as `[INFO] Install options changed: …` and do not change the cache strategy.
 
-2. Only containers with changed Dockerfiles are refreshed: Python is
-   rebuilt with the prebuilt default image as cache source (`cache_from`
-   in its compose.yml, pulled first), Selenium with `--no-cache`, and
-   Embeddings — a prebuilt image — is simply pulled.
+### Install Options and Start
 
-3. Unchanged containers keep their existing images (no rebuild)
+Saving Install Options does not build. At the next Start, the app compares the saved options with the built image and offers **Rebuild and Start** (`build_python_container_update`), which uses the rules above.
 
-4. Ruby container is always rebuilt on version update (with cache)
+## Setup Scripts as Build Secrets
 
-**Example scenario:**
-- Python Dockerfile changed → pull prebuilt cache source + cached rebuild (minutes)
-- Selenium Dockerfile unchanged → Skip (use existing image)
-- Embeddings Dockerfile unchanged → Skip (use existing image)
-- Ruby → Rebuild with cache (~1-2 min)
+`~/monadic/config/pysetup.sh` and `rbsetup.sh` run at the end of the Python and Ruby image builds. They are passed as BuildKit secrets and are not copied into the build context or left in the image:
 
-**Benefits:**
-- Faster updates when only some Dockerfiles change
-- Changed containers get clean builds (no stale dependencies)
-- Unchanged containers avoid unnecessary rebuilds
+- `docker build` gets `--secret id=pysetup,src=<file>` (or `rbsetup`) and `--build-arg PYSETUP_SHA=<sha256>` from `set_setup_script_build_flags`.
+- `docker compose build` reads the secret from the environment: `secrets: pysetup: environment: MONADIC_PYSETUP_CONTENT` in the service's `compose.yml`. `monadic.sh` sets `MONADIC_PYSETUP_CONTENT` / `MONADIC_RBSETUP_CONTENT` just before each compose build and unsets them right after (`export_setup_script_contents` / `unset_setup_script_contents`).
+- The Dockerfile step is `RUN --mount=type=secret,id=pysetup,required=false …`, which runs the script only when the secret has content. The `*_SHA` argument reruns the step when the script changes. Builds without the secret (CI) skip it.
 
-**Implementation:**
-- Location: `docker/monadic.sh` - `check_dockerfiles_changed()` and `start_docker_compose()`
-- Change tracking: `~/monadic/config/container_versions.json`
-
-**Key Code Locations:**
-- FORCE_REBUILD check: `docker/monadic.sh:375, 463`
-- Electron FORCE_REBUILD setting: `app/main.js:619-620`
-
-### Python Container Build Strategy
-
-The Python image acquisition has three paths, selected inside
-`build_python_container` in `docker/monadic.sh`:
-
-1. **Explicit menu build** (Actions → Build Python Container): Electron
-   sets `FORCE_REBUILD=true` → local `--no-cache` build. This is the
-   documented clean-rebuild escape hatch.
-2. **All install options false**: the CI-published default image
-   (`ghcr.io/yohasebe/monadic-python:latest`, built by
-   `.github/workflows/publish-images.yml`) IS the desired image — it is
-   pulled and fed into the same verify/retag pipeline, no build at all.
-   Falls back to a local build when the pull fails (offline).
-3. **Any option true**: local build with `--cache-from` the prebuilt
-   default image (pulled best-effort first). The Dockerfile keeps all
-   unconditional layers before the first option-conditional layer, so
-   the default image is a layer-cache prefix of every custom build and
-   the build only pays for the enabled option layers.
-
-Paths 2 and 3 are used by the start-time pending-build gate and
-install-option changes — Electron invokes the
-`build_python_container_update` command alias there, which does NOT set
-`FORCE_REBUILD` (see `computePendingContainerBuilds` in `app/main.js`).
-
-All paths converge on the same verified-promotion tail: build/pull into a
-temp tag → pysetup + health checks → atomic retag to
-`yohasebe/python:<version>` + `:latest` → save options snapshot → restart
-the running container.
-
-### Install Options Tracking
-
-The build system tracks the following install options:
-- `INSTALL_LATEX`: LaTeX toolchain for Syntax Tree and Concept Visualizer
-- `PYOPT_NLTK`: Natural Language Toolkit
-- `PYOPT_SPACY`: spaCy NLP library
-- `PYOPT_SCIKIT`: scikit-learn machine learning library
-- `PYOPT_GENSIM`: Topic modeling library
-- `PYOPT_LIBROSA`: Audio analysis libraries (librosa + madmom) — required for Music Lab audio file analysis
-- `PYOPT_MEDIAPIPE`: Computer vision framework
-- `PYOPT_TRANSFORMERS`: Hugging Face Transformers
-- `IMGOPT_IMAGEMAGICK`: ImageMagick image processing
-
-### Build Strategy
-
-**When all options are false** (the default): the prebuilt default image
-is pulled instead of building — typically a few minutes of download (or
-seconds when layers are already present), versus a 15–30 min local build.
-Logs: `No install options selected — fetching the prebuilt Python image`.
-
-**When any option is enabled** (first build or option change): a local
-build runs with `--cache-from ghcr.io/yohasebe/monadic-python:latest`.
-BuildKit keys option-conditional RUN layers on their ARG values, so a
-toggled option naturally invalidates exactly its own layers; the heavy
-apt + pip base comes from the prebuilt image's inline cache. Option
-changes are still logged
-(`[INFO] Install options changed: INSTALL_LATEX(false→true)`) but no
-longer trigger `--no-cache`.
-
-**Explicit menu build**: `FORCE_REBUILD=true` → `--no-cache`, the
-clean-rebuild escape hatch when cache state is suspected to be wrong.
-
-### Options File Location
-
-Previous build options are stored at:
-```
-~/monadic/log/python_build_options.txt
-```
-
-This file is automatically created/updated after each successful build.
-
-## User Experience
-
-### Changing Install Options
-
-1. Open Electron app menu: **Actions → Install Options**
-2. Toggle options (e.g., enable LaTeX for Syntax Tree app)
-3. Click **Save**
-4. Menu: **Actions → Build Python Container**
-5. System detects the change and uses `--no-cache` automatically
-
-Expected log output:
-```
-[INFO] Install options changed: INSTALL_LATEX(false→true)
-[INFO] Using --no-cache to ensure changes are applied
-[HTML]: <p>Starting Python image build (atomic) . . .</p>
-...
-[INFO] Saved build options to ~/monadic/log/python_build_options.txt
-[HTML]: <p>Restarting Python container to use new image...</p>
-[INFO] Python container restarted successfully
-```
-
-The system automatically restarts the Python container after a successful build to ensure the new image is immediately used.
-
-### Rebuilding Without Changes
-
-If you rebuild without changing options, the system uses cache:
-```
-[INFO] Install options unchanged, using build cache for faster build
-```
-
-This completes much faster as most layers are cached.
-
-## Technical Details
-
-### Environment Variable Priority
-
-The `read_cfg_bool` function in `monadic.sh` checks options in this order:
-1. **Environment variables** (passed by Electron during build)
-2. **Config file** (`~/monadic/config/env`)
-3. **Default value** (usually `false`)
-
-### Change Detection Algorithm
+## Manual Checks
 
 ```bash
-# For each option:
-1. Read previous value from python_build_options.txt
-2. Compare with current value
-3. If any option differs → use_no_cache=true
-4. Build with appropriate cache strategy
-5. On success → save current options to file
-6. If Python container is running → restart it to use new image
-```
+# Option ARG values of the current image
+docker inspect yohasebe/python:latest --format '{{json .Config.Labels}}'
 
-### Why This Matters (history)
-
-The original smart-caching design forced `--no-cache` whenever an option
-changed, because the classic (pre-BuildKit) builder could reuse a
-conditional RUN layer even when its ARG value changed, leaving packages
-missing despite correct build args. With BuildKit (the default builder in
-all supported Docker versions), ARG values participate in the cache key
-of the RUN layers that reference them, so a normal cached build applies
-option changes correctly — which is what allows the current
-`--cache-from`-based strategy. `--no-cache` survives only behind the
-explicit menu build (`FORCE_REBUILD`).
-
-### Container Auto-Restart
-
-After a successful build, the system automatically restarts the Python container if it's running:
-
-```bash
-# Check if container is running
-if docker ps --format '{{.Names}}' | grep -q "^monadic-chat-python-container$"; then
-  # Restart using docker compose
-  docker compose restart python_service
-fi
-```
-
-**Why this is necessary:**
-- Building a new Docker image does NOT automatically update running containers
-- Containers continue using the old image until restarted
-- Without auto-restart, users would need to manually stop/start containers
-- This could lead to confusion: "I rebuilt but packages are still missing!"
-
-**Implementation location:** `docker/monadic.sh:588-599`
-
-### Verifying Successful Build and Restart
-
-After a build completes, verify the container is using the new image:
-
-```bash
-# 1. Check container creation time (should be recent)
-docker ps --filter "name=monadic-chat-python-container" --format "{{.CreatedAt}}"
-
-# 2. Verify container is using latest image
-docker inspect monadic-chat-python-container --format='{{.Image}}' > /tmp/container_img
-docker images yohasebe/python:latest --format "{{.ID}}" > /tmp/latest_img
-diff /tmp/container_img /tmp/latest_img  # Should be identical
-
-# 3. For LaTeX builds, verify package count
-docker exec monadic-chat-python-container bash -c "dpkg -l | grep -i latex | wc -l"
-# Should return 100+ if INSTALL_LATEX=true, 0 if false
-
-# 4. Verify critical tools are present
-docker exec monadic-chat-python-container bash -c "which dvisvgm && kpsewhich CJKutf8.sty"
-```
-
-## Troubleshooting
-
-### Options not taking effect
-
-If you change options but packages aren't installed:
-
-1. **Check the build log** (`~/monadic/log/docker_build_python.log`):
-   ```bash
-   grep "Install options" ~/monadic/log/docker_build_python.log
-   ```
-
-2. **Verify saved options**:
-   ```bash
-   cat ~/monadic/log/python_build_options.txt
-   ```
-
-3. **Force complete rebuild** (if needed):
-   ```bash
-   # Remove the options file to trigger --no-cache
-   rm ~/monadic/log/python_build_options.txt
-   # Then rebuild via Electron menu
-   ```
-
-### Manual Docker builds
-
-If building manually with `docker build`:
-```bash
-# Always use --no-cache when changing ARG values
-docker build --no-cache \
+# Build locally the way monadic.sh does (with options and an optional setup script)
+DOCKER_BUILDKIT=1 docker build \
+  --cache-from ghcr.io/yohasebe/monadic-python:latest \
   --build-arg INSTALL_LATEX=true \
-  -t yohasebe/python \
-  docker/services/python
+  --secret id=pysetup,src=$HOME/monadic/config/pysetup.sh \
+  --build-arg PYSETUP_SHA=$(shasum -a 256 ~/monadic/config/pysetup.sh | cut -d' ' -f1) \
+  -t test-python docker/services/python
 ```
 
-### Container using old image after rebuild
+## Pitfall
 
-**Symptom:** After rebuilding with `INSTALL_LATEX=true`, LaTeX packages still show 0 count.
-
-**Diagnosis:**
-```bash
-# Check when container was created
-docker ps -a --format "{{.Names}}\t{{.CreatedAt}}" | grep python
-
-# Check when latest image was built
-docker images yohasebe/python:latest --format "{{.CreatedAt}}"
-
-# If container creation time is BEFORE image build time, container is using old image
-```
-
-**Cause:** Docker build creates a new image but doesn't update running containers.
-
-**Solution (automatic):** The build system now automatically restarts the container after successful build (implemented in commit `86d2bca6`).
-
-**Manual workaround (if needed):**
-```bash
-docker compose restart python_service
-# or
-docker stop monadic-chat-python-container
-docker rm monadic-chat-python-container
-docker compose up -d python_service
-```
-
-## Development Notes
-
-### Key Learnings from Implementation
-
-**1. Environment Variable Propagation**
-- Electron app reads `~/monadic/config/env` and passes variables via `spawn(..., { env: {...process.env, ...envConfig} })`
-- Original `read_cfg_bool` only checked config file, not environment variables
-- **Fix:** Modified to check environment variables FIRST using `eval echo "\${key}"`
-- **Location:** `docker/monadic.sh:392-420`
-
-**2. Docker Build Cache Behavior**
-- Docker caches layers even when `ARG` values change
-- Example: `ARG INSTALL_LATEX=true` vs `false` might still use same cached `RUN if [ "$INSTALL_LATEX" = "true" ]` layer
-- **Evidence:** `docker history` showed `INSTALL_LATEX=false` in final image despite passing `--build-arg INSTALL_LATEX=true`
-- **Root cause:** Conditional RUN commands are evaluated during execution, but cache key is based on Dockerfile text only
-- **Solution:** Use `--no-cache` when ARG values actually change
-
-**3. Container vs Image Lifecycle**
-- **Image:** Built once, immutable, tagged (e.g., `yohasebe/python:latest`)
-- **Container:** Runtime instance of an image, continues using original image until recreated/restarted
-- **Critical insight:** `docker build` updating `latest` tag does NOT affect running containers
-- **Solution:** Auto-restart container after build to force use of new image
-
-**4. Bash Indirect Variable Reference**
-- Initial attempt: `${!key}` → Failed with "bad substitution" error
-- **Working solution:** `eval echo "\${key}"` (more portable)
-- **Use case:** Checking if environment variable exists by name stored in `$key`
-
-**5. Change Detection Strategy**
-- Compare 9 install options between current and previous build
-- Save state to `~/monadic/log/python_build_options.txt` after success
-- Use `--no-cache` only when options differ (15-30 min) vs cache when unchanged (1-2 min)
-- **Trade-off:** Reliability (correct packages) vs Speed (fast rebuilds)
-- **Result:** Best of both worlds
-
-### Testing Methodology
-
-**To verify the fix works correctly:**
-
-1. **Test 1: Enable LaTeX**
-   ```bash
-   # Set INSTALL_LATEX=true in config
-   echo "INSTALL_LATEX=true" >> ~/monadic/config/env
-   # Build via Electron menu
-   # Verify: dpkg -l | grep -i latex | wc -l → should be 100+
-   ```
-
-2. **Test 2: Disable LaTeX**
-   ```bash
-   # Set INSTALL_LATEX=false
-   echo "INSTALL_LATEX=false" >> ~/monadic/config/env
-   # Rebuild
-   # Verify: dpkg -l | grep -i latex | wc -l → should be 0
-   ```
-
-3. **Test 3: No change rebuild**
-   ```bash
-   # Rebuild without changing options
-   # Should see: "[INFO] Install options unchanged, using build cache"
-   # Build time should be ~1-2 minutes
-   ```
-
-4. **Test 4: Container auto-restart**
-   ```bash
-   # After any build, check container creation time
-   # Should be within seconds of build completion
-   docker ps --format "{{.Names}}\t{{.Status}}\t{{.CreatedAt}}" | grep python
-   ```
-
-### Common Pitfalls to Avoid
-
-1. **Don't quote `${cache_flag}` in docker build command**
-   - ❌ Wrong: `docker build "${cache_flag}" ...`
-   - ✅ Correct: `docker build ${cache_flag} ...`
-   - Reason: When empty, quoted becomes `""` which is treated as an argument, unquoted becomes nothing
-
-2. **Don't use `${!key}` for indirect variable reference**
-   - May fail on some Bash versions with "bad substitution"
-   - Use `eval echo "\${key}"` instead
-
-3. **Don't assume `docker build` updates running containers**
-   - Always restart or recreate containers after building new images
-   - This is now handled automatically
-
-4. **Don't skip option change detection**
-   - Always saves performance when options unchanged
-   - Ensures reliability when options change
-
-## Related Files
-
-- `docker/monadic.sh`: Build logic and change detection (lines 422-586)
-- `app/main.js`: Electron menu and environment variable passing (lines 2446-2469)
-- `~/monadic/config/env`: User configuration file
-- `~/monadic/log/python_build_options.txt`: Saved options from last build
-- `docker/services/python/Dockerfile`: Python container definition
-
-## Implementation History
-
-This feature was developed in response to a user-reported issue where the Syntax Tree app failed to generate images due to missing LaTeX/CJK packages.
-
-**Commits:**
-- `fc56c74a`: Clarify bracket notation format in Syntax Tree prompts
-- `423ad8de`: Implement smart caching for Python container builds
-- `618c5480`: Remove debug output from build caching implementation
-- `86d2bca6`: Auto-restart Python container after build to use new image
-
-**Original Issue:**
-- User set `INSTALL_LATEX=true` in Electron menu and ran "Build All"
-- LaTeX packages were not installed despite being in Dockerfile
-- Root cause: Environment variable propagation + Docker cache behavior
-
-**Development Process:**
-1. **Investigation**: Discovered `read_cfg_bool` didn't check environment variables
-2. **First Fix**: Modified `read_cfg_bool` to check env vars first
-3. **Cache Problem**: Docker cache bypassed even with correct env vars
-4. **Smart Caching**: Implemented change detection to use `--no-cache` only when needed
-5. **Container Issue**: Discovered running containers don't auto-update to new images
-6. **Final Fix**: Added automatic container restart after successful build
-7. **Documentation**: Created comprehensive guide with testing methodology
-
-**Testing Confirmed:**
-- ✅ LaTeX on/off toggle works correctly
-- ✅ Container automatically uses latest image after rebuild
-- ✅ Fast rebuilds (~1-2 min) when options unchanged
-- ✅ Complete rebuilds (~15-30 min) when options change
-- ✅ Syntax Tree app generates Japanese syntax trees successfully
-
-## See Also
-
-- [Docker Architecture](docker-architecture.md)
-- Development Workflow: See `docs_dev/developer/development_workflow.md`
-- Syntax Tree App: See `docs/apps/syntax_tree.md`
+In `monadic.sh`, `${cache_flags}` must stay unquoted so that an empty value expands to nothing; a quoted empty string becomes an empty argument to `docker build`.

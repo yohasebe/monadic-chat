@@ -1,92 +1,28 @@
-# Monadic Chat Ruby Testing
+# Ruby Service Testing
 
-This directory contains tests for the Ruby components of Monadic Chat.
+The specs are in `docker/services/ruby/spec/` and run from `docker/services/ruby` with its own bundle.
 
-## Test Structure
+## Layout
 
-The test suite is organized as follows:
+| Path | Contents |
+|---|---|
+| `spec_helper.rb` | Common setup |
+| `support/` | Shared helpers: `provider_matrix_helper.rb`, `response_evaluator.rb`, `provider_contract_examples.rb`, `provider_defaults_helper.rb`, `docker_container_manager.rb`, `vector_service_helper.rb`, `real_audio_test_helper.rb`, `text_response_assertions.rb`, `test_run_dir.rb`, `summary_formatter.rb`, `custom_retry.rb`, `generator_script_loader.rb` |
+| `unit/` | Isolated specs, grouped by area (`adapters/vendors/`, `utils/`, `apps/`, `security/`, `dsl/`, `shared_tools/`, `scripts/`, …) |
+| `integration/` | Specs against provider APIs and containers ([integration.md](integration.md)) |
+| `system/`, `e2e/`, `performance/` | See [e2e.md](e2e.md) and `docs_dev/ruby_service/development.md` |
+| `fixtures/`, `golden/` | Test data |
 
-- `spec_helper.rb` - Common setup and helper utilities for all tests
-- `*_spec.rb` - Individual test files for different components
-- `monadic_app_command_mock.rb` - Mock implementation of MonadicApp for testing command execution
-- `fixtures/` - Test fixture files (sample Office documents, etc.)
+Test artifacts are written to a timestamped directory under `tmp/test_results/`, or to `TEST_OUTPUT_DIR` when it is set (`support/test_run_dir.rb`).
 
-## Shared Testing Utilities
+## Running
 
-We've implemented several shared testing utilities to improve code reuse and consistency:
-
-1. **TestHelpers Module** - Common helper methods for all tests:
-   - `mock_successful_response` - Creates a standard successful HTTP response
-   - `mock_error_response` - Creates a standard error HTTP response
-   - `mock_status` - Creates a standard OpenStruct for command status
-   - `stub_http_client` - Sets up standard HTTP client mocks
-
-2. **Shared Examples**:
-   - `"a vendor API helper"` - Standard tests for all vendor API helpers
-   - `"command execution"` - Standard tests for command execution scenarios
-
-## Key Components Tested
-
-1. **Command Execution**
-   - `bash_command_helper_spec.rb` - Tests for the MonadicHelper module that provides command execution functionality
-   - `monadic_app_command_spec.rb` - Tests for the MonadicApp class methods related to command execution
-
-2. **Text Processing**
-   - `pdf_text_extractor_spec.rb` - Tests for PDF extraction
-   - `office_text_extractor_spec.rb` - Tests for Office file extraction (docx, xlsx, pptx)
-   - `string_utils_spec.rb` - Tests for string utility functions
-
-3. **API Integrations**
-   - `interaction_utils_spec.rb` - Tests for API interactions
-   - `tokenizer_spec.rb` - Tests for native tokenizer (tiktoken_ruby)
-   - `embeddings_spec.rb` - Tests for vector embeddings
-   - `websocket_spec.rb` - Tests for WebSocket functionality
-
-4. **Vendor Helpers**
-   - `claude_helper_spec.rb` - Tests for Claude API integration
-   - `cohere_helper_spec.rb` - Tests for Cohere API integration
-   - `gemini_helper_spec.rb` - Tests for Google Gemini API integration
-   - `openai_helper_spec.rb` - Tests for OpenAI API integration
-   - `mistral_helper_spec.rb` - Tests for Mistral API integration
-
-5. **Thinking/Reasoning Process Display**
-   - `openai_reasoning_spec.rb` - Tests for OpenAI o1/o3 reasoning content extraction
-   - `claude_thinking_spec.rb` - Tests for Claude Sonnet 4.5+ thinking content blocks
-   - `deepseek_reasoning_spec.rb` - Tests for DeepSeek reasoner/r1 reasoning content
-   - `gemini_thinking_spec.rb` - Tests for Gemini 2.0 thinking mode with thought parts
-   - `grok_reasoning_spec.rb` - Tests for Grok reasoning content extraction
-   - `mistral_reasoning_spec.rb` - Tests for Mistral reasoning content extraction
-   - `cohere_thinking_spec.rb` - Tests for Cohere thinking content (JSON format)
-
-## Test Design Principles
-
-1. **Isolation** - Tests use namespaces to avoid conflicts between different test files
-2. **Mocking** - Dependencies are mocked to avoid external service calls
-3. **Shared Utilities** - Common test code is extracted into helper modules and shared examples
-4. **Comprehensive Coverage** - Edge cases and error conditions are tested
-
-## Running Tests
-
-Run all tests:
-```
-bundle exec rspec spec
+```bash
+cd docker/services/ruby
+bundle exec rspec spec/unit
+bundle exec rspec spec/unit/adapters/vendors/claude_helper_spec.rb
 ```
 
-Run a specific test file:
-```
-bundle exec rspec spec/bash_command_helper_spec.rb
-```
+## Thinking and Reasoning Specs
 
-## Test Structure for Command Testing
-
-The command execution testing is structured to avoid loading the entire application.
-We've created a namespaced mock version of MonadicApp in `monadic_app_command_mock.rb` 
-that provides just enough functionality to test the command execution features.
-
-### Namespace Structure
-
-- `MonadicAppTest` - Main namespace for command testing
-  - `MonadicHelper` - Mock implementation of the helper module
-  - `MonadicApp` - Mock implementation of the app class
-
-This approach prevents conflicts with the real MonadicApp class when running all tests together.
+`spec/unit/openai_reasoning_spec.rb`, `claude_thinking_spec.rb`, `gemini_thinking_spec.rb`, `deepseek_reasoning_spec.rb`, `grok_reasoning_spec.rb`, `mistral_reasoning_spec.rb` and `cohere_thinking_spec.rb` check how each helper extracts and joins thinking content (see `docs_dev/ruby_service/thinking_reasoning_display.md`).

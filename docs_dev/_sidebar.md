@@ -23,6 +23,7 @@
   * [Test Runner](test_runner.md)
   * [Test Quick Reference](test_quickref.md)
   * [Testing Guide](testing.md)
+  * [Anti-Pattern Lints](developer/anti_pattern_lints.md)
 
 * 📦 Feature Documentation
   * [Auto Forge Internals](auto_forge_internals.md)
@@ -38,6 +39,7 @@
   * [JS Console](js-console.md)
   * [External Libraries](external-libs.md)
   * [Frontend Details](frontend/)
+  * [Safe WebSocket Send](frontend/safe_ws_send.md)
 
 * ⚙️ Backend
   * [MDSL](mdsl/)
@@ -46,7 +48,6 @@
 
 * 🔌 External APIs
   * [Ollama Dynamic Capabilities](ollama_dynamic_capabilities.md)
-  * [Ollama Tool Calling History](ollama_tool_calling_history.md)
 
 * 🖥️ Electron
   * [Electron Paths](electron-paths.md)

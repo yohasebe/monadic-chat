@@ -6,7 +6,7 @@ This section contains internal documentation for Monadic Chat's Ruby backend ser
 
 ### Architecture
 - [Monadic Architecture](monadic_architecture.md) - Core service architecture overview
-- [ModelSpec Extension Architecture](modelspec_extension_architecture.md) - Model specification extension system
+- [Model Specification Maintenance](modelspec_extension_architecture.md) - Maintaining `model_spec.js` and its Ruby accessors
 
 ### Development
 - [Development Guide](development.md) - Ruby service development workflow
@@ -23,7 +23,7 @@ This section contains internal documentation for Monadic Chat's Ruby backend ser
 - [Testing](testing/) - Ruby service testing documentation
 
 ### Vendors
-- [Vendors](vendors/) - AI provider integration architecture and design decisions
+- [Vendors](vendors/) - Provider adapter behavior
 
 ### Apps
 - [Apps](apps/) - Application-specific documentation
@@ -32,25 +32,24 @@ This section contains internal documentation for Monadic Chat's Ruby backend ser
 - [Scripts](scripts/) - Utility scripts documentation
 
 ### API Documentation
-- [Docs](docs/) - Generated API documentation
+- [Docs](docs/) - Notes on individual components
 
 ## Overview
 
-The Ruby service is the core backend of Monadic Chat, built on Rack and Async/Falcon. Key components include:
+The Ruby service is the core backend of Monadic Chat, a Sinatra (Rack) application served by Falcon. Key components include:
 
 - **Rack Application** (`config.ru`, `lib/monadic.rb`) - HTTP/WebSocket server
 - **WebSocket Server** (`lib/monadic/utils/websocket.rb` + `websocket/` sub-modules) - Real-time bidirectional communication
 - **Vendor Adapters** (`lib/monadic/adapters/vendors/`) - AI provider integrations
 - **MDSL Engine** (`lib/monadic/dsl.rb`) - App definition language processor
-- **Applications** (`apps/`) - 20+ specialized chat applications
+- **Applications** (`apps/`) - Built-in apps
 
 ## Key Technologies
 
-- **Rack** - Web server interface
-- **Falcon** - Async-based web server (runs with 2 workers for personal use)
+- **Sinatra / Rack** - Web application framework
+- **Falcon** - Async-based web server (one process: `-n 1` in the container, `--count 1` in development)
 - **Async** - Asynchronous I/O framework
 - **Async::WebSocket** - WebSocket support for Async
-- **Docker** - Container orchestration
 - **Qdrant** - Vector database for embeddings, with a local embeddings service (`multilingual-e5-base`)
 
 ## Related Documentation

@@ -5,10 +5,8 @@
  * Background: several Sinatra routes branch on `request.xhr?` and only
  * return JSON for AJAX-style requests. The browser's native fetch()
  * does not attach the `X-Requested-With: XMLHttpRequest` header, so
- * those routes silently fall through to a non-JSON code path. The
- * audit that produced docs_dev/architecture_hardening_plan.md found
- * three callsites where this defect had reached users (Text from file,
- * Text from URL, Library import).
+ * those routes silently fall through to a non-JSON code path. See
+ * docs_dev/developer/anti_pattern_lints.md.
  *
  * monadicFetch.postJson always sends the X-Requested-With header so a
  * dropped header cannot reintroduce the defect class. The matching

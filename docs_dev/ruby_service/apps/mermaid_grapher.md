@@ -1,70 +1,47 @@
-# Mermaid Grapher: Rendering Notes
+# Mermaid Grapher
 
-## Multi-Provider Support
+Mermaid Grapher has OpenAI, Claude, Gemini and Grok variants. All use `MermaidGrapherTools` (`apps/mermaid_grapher/mermaid_grapher_tools.rb`) and differ only in their LLM settings.
 
-Mermaid Grapher is available for OpenAI, Claude, Gemini, and Grok. All providers share the same tool module (`MermaidGrapherTools`) and differ only in LLM configuration (provider, model, API key gate).
+## Tools
 
-## Live Browser Preview (noVNC)
+| Tool | What it does |
+|---|---|
+| `validate_mermaid_syntax(code:)` | Validates with Mermaid in a headless Selenium session (`mermaid_test_*.html`, removed after use); static checks when Selenium fails |
+| `preview_mermaid(code:)` | Renders the diagram in the browser session and returns a screenshot to the model |
+| `stop_mermaid_browser` | Ends the browser session (`web_navigator.py --action stop`) and removes `mermaid_live_*.html` |
+| `analyze_mermaid_error(code:, error:)` | Suggests fixes for an error message |
+| `fetch_mermaid_docs(diagram_type:)` | Returns the mermaid.js.org syntax page URL for a diagram type (the introduction page for unknown types) |
 
-`preview_mermaid` uses `web_navigator.py` to render diagrams in a non-headless Chrome browser visible via noVNC (`http://localhost:7900`).
+## Preview
 
-- **First call**: `--action start` creates a new browser session and navigates to the generated HTML
-- **Subsequent calls**: `--action navigate` updates the same browser with a new HTML file
-- **Session detection**: checks `/monadic/data/.browser_session_id` file existence
-- **Fallback**: if navigate fails (session expired), automatically falls back to `--action start`
-- **Screenshot**: `--action screenshot` captures the rendered diagram as PNG
+`preview_mermaid`:
 
-The noVNC window auto-opens in Electron when `preview_mermaid` executes (via `websocket.js` trigger).
+1. Normalizes the code and runs the static validation (not Selenium: the preview needs the single Selenium slot).
+2. Writes `mermaid_live_<time>_<hex>.html` to the shared folder.
+3. Calls `web_navigator.py` in the Python container: `--action navigate` when `/monadic/data/.browser_session_id` exists (falling back to `--action start` if that fails), otherwise `--action start`.
+4. Waits 3 seconds, then `--action check_render_error`: Mermaid's error graphic makes the tool fail with "Diagram render error".
+5. `--action full_screenshot` saves `mermaid_preview_<time>_<hex>.png`, or several tiles for a tall diagram.
+6. Returns the file names under `_image`, so the model sees the screenshot. No `gallery_html` is sent; the chat shows the diagram as SVG from the client-side `MarkdownRenderer`.
 
-Call `stop_mermaid_browser` to end the session and clean up HTML files.
+Afterwards, every `mermaid_live_*.html` except the current one is removed, and `mermaid_preview_*.png` files older than 600 seconds (`PREVIEW_IMAGE_MAX_AGE`).
 
-### Session Sharing with VWE
+Web Insight uses the same `.browser_session_id`; `--action start` ends any existing session, so switching apps ends the other app's browser session.
 
-Mermaid Grapher and Web Insight share the same `.browser_session_id` file. `--action start` automatically cleans up any existing session, so switching between apps is safe but will terminate the other app's browser session.
+## Normalization
 
-## Unicode Normalisation
+`sanitize_mermaid_code` (Ruby):
 
-Mermaid.js expects ASCII arrows (`-->`) and plain quotes inside labels. Recent GPT outputs occasionally include:
+- decode HTML entities; `\r\n` and U+2028/U+2029 become newlines; `\"` and literal `\n` are unescaped;
+- Western dashes and minus signs (U+2010–2015, U+2212, U+FF0D) become `-`; curly and full-width quotes become `'` or `"`; `／` becomes `/`;
+- inside `[…]`, blank lines are collapsed and line breaks become `<br/>`;
+- trailing spaces and empty lines are removed.
 
-- Unicode dashes (`–`, `—`, `ー`, etc.) in place of `-`
-- Smart quotes (`""`, `''`, `「」`)
-- Full-width slashes (`／`) or repeated blank lines inside brackets
+`sanitizeMermaidSource` (`ws-content-renderer.js`) applies the newline, entity, dash and quote rules to the diagram shown in the chat.
 
-Before validation/rendering we normalise:
+Both leave the Japanese long-vowel mark (U+30FC) and corner brackets (「」) as they are; specs on both sides check this.
 
-- decode any HTML entities returned by the LLM
-- replace unicode dashes with `-`
-- convert smart quotes / Japanese-style quotes to ASCII
-- collapse blank lines inside `[ ... ]` and rewrite line breaks as `\n`
+In the preview HTML only `&`, `<` and `>` are escaped (`escape_mermaid_code_for_html`).
 
-Keep these steps if you touch `sanitize_mermaid_code` or `sanitizeMermaidSource`.
+## Labels
 
-## HTML embedding
-
-When embedding Mermaid code into the preview HTML, we escape only `<`, `>` and `&`. Quotes stay literal so labels render correctly. Any future change must preserve this behaviour.
-
-## HTML File Lifecycle
-
-- Preview HTML files are named `mermaid_live_[timestamp].html`
-- Screenshot files are named `mermaid_preview_[timestamp].png`
-- During a live session, the latest HTML is kept (browser is displaying it); older HTML and PNG files are cleaned up by `cleanup_old_mermaid_files`
-- `stop_mermaid_browser` removes all `mermaid_live_*.html` and `mermaid_preview_*.png` files
-- Validation HTML files (`mermaid_test_*.html`) are cleaned up immediately after use
-
-## Visual Self-Verification (`_image`)
-
-`preview_mermaid` returns the screenshot filename via the `_image` key in the tool response hash. This injects the screenshot into the LLM's vision input so it can verify the rendered diagram. The image is **not** shown to the user — Mermaid diagrams are rendered as SVG directly by the client-side `MarkdownRenderer`, making screenshots redundant for display. This differs from Web Insight, which uses both `_image` (LLM vision) and `gallery_html` (user display).
-
-## Label Language
-
-MDSL system prompts instruct the LLM to use English for node IDs and class names (Mermaid parser requirement) but the user's language for labels. This ensures diagrams are syntactically valid while displaying readable labels in the user's preferred language.
-
-## Validation
-
-`preview_mermaid` runs `run_full_validation` internally before rendering. The validation uses a separate headless Selenium session (inline Python) that does not interfere with the live preview session.
-
-Fallback order: Selenium validation → static syntax validation (if Selenium unavailable).
-
-## Frontend helper
-
-`sanitizeMermaidSource` mirrors the backend normalisation so the Mermaid snippet inside `<mermaid>` matches the preview PNG output. If you modify the backend logic, update the frontend helper accordingly.
+The system prompts tell the model to write node IDs and class names in English and labels in the user's language.

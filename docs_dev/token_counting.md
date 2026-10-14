@@ -1,56 +1,27 @@
-# Token Counting Strategy (Internal)
+# Token Counting
 
-This document describes the internal policy for token counting and how it
-interacts with provider-reported usage.
+Token counts come from the `Tokenizer` class (`lib/monadic/utils/tokenizer.rb`), which wraps the `tiktoken_ruby` gem. `MonadicApp::TOKENIZER` is the shared instance. The `o200k_base` encoding is used for every model.
 
-## Goals
-- Ensure safe pre-send context shaping against model-specific context windows
-  and `max_tokens` limits.
-- Provide stable, consistent token statistics in the UI.
-- Avoid unnecessary complexity and operational fragility.
+## Where Counts Are Made
 
-## Policy
+- `StreamingHandler#check_past_messages` (`lib/monadic/utils/websocket/streaming_handler.rb`) gives each message of the current app a `tokens` value if it has none. It runs after a response (`html_handler.rb`), after a message edit or deletion (`message_editor.rb`) and when a session is loaded (`app_data.rb`).
+- `mcp/cost_guard.rb` counts tokens of MCP tool payloads.
 
-We split responsibilities into two layers:
+## Active Messages and Statistics
 
-1) Pre-send context shaping (authoritative)
-   - Uses the native Ruby tokenizer (`tiktoken_ruby` gem, Rust binding).
-   - Applies per-model constraints from the SSOT (context window, safety margin,
-     reserved output tokens, and any provider-specific overheads) to drop or
-     truncate older messages before sending.
-   - Rationale: This is the safety gate that must be deterministic and under
-     our control to prevent provider-side errors.
+`check_past_messages` marks messages `active`, starting from the newest:
 
-2) Post-send statistics (optional)
-   - We may show provider-reported usage (input/output) for the latest turn
-     in the UI, as it typically aligns closely with billing.
-   - This is disabled by default to avoid confusion and ensure a single source
-     of truth for token numbers. It can be enabled via `TOKEN_COUNT_SOURCE`.
+- Older messages are marked inactive while the total exceeds `max_input_tokens`, but not below `context_size` active messages when `context_size` is set. The browser sends `max_input_tokens` as the model's `context_window` maximum from `model_spec.js`, or `DEFAULT_MAX_INPUT_TOKENS` (4000) when the model has none.
+- The text of an inactive non-system message longer than 500 characters is cut to 200 characters plus `[... content truncated ...]`; the full text is kept in `original_text` and restored when the message becomes active again.
+- It returns the totals shown in the UI: system, input, output, active and all tokens, the message counts and the encoding name.
 
-## Configuration
+The history sent to the provider is chosen by the vendor helper by message count (in most helpers: the first message plus the last `context_size` messages), not by these token totals.
 
-- `TOKEN_COUNT_SOURCE`
-  - Default: (unset — uses native tokenizer only)
-  - Values:
-    - `provider_only` or `hybrid`: Allow using provider-reported usage for the
-      latest turn (when available). Hybrid still relies on the native tokenizer
-      for pre-send shaping.
+## Provider-Reported Usage
 
-## Rationale and trade-offs
-- Provider usage is great for display, but often lacks per-role granularity and
-  may not be available in all streaming modes. We therefore keep provider usage
-  as an optional enhancement and retain the native tokenizer for the authoritative path.
-- This keeps complexity low, ensures safety, and avoids user-visible inconsistency.
+`TOKEN_COUNT_SOURCE` set to `provider_only` or `hybrid` makes `html_handler.rb` use the provider's `output_tokens` / `completion_tokens` for the `tokens` of the latest assistant message, when the response carries usage. Unset, every count comes from the tokenizer.
 
-## Implementation history
-- **2024-03**: Migrated from `tiktoken_ruby` gem to Python tiktoken via Flask HTTP service
-  due to encoding issues in early gem versions.
-- **2026-03**: Migrated back to `tiktoken_ruby` gem (v0.0.15.1, Rust binding) after
-  verifying full compatibility with Python tiktoken across all encodings and edge cases.
-  Flask tokenizer server removed from Python container.
+## Rules
 
-## Notes for implementers
-- Do not rely exclusively on provider usage for pre-send shaping.
-- Any code path that sets per-message `tokens` from provider usage must check
-  the `TOKEN_COUNT_SOURCE` flag before applying the override.
-- Import/export: messages may include a `tokens` field; retain it if present.
+- A message that already has `tokens` is not recounted; imported messages keep their `tokens`.
+- Code that sets `tokens` from provider usage checks `TOKEN_COUNT_SOURCE` first.

@@ -117,7 +117,7 @@ if (SessionState.shouldForceNewSession()) {
 ```javascript
 // Set current app and parameters
 SessionState.setCurrentApp('Chat', {
-  model: 'gpt-4',
+  model: '<model-id>',
   temperature: 0.7
 });
 

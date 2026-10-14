@@ -43,12 +43,12 @@ This document defines the canonical property names used across providers in `mod
   - Whether a provider supports a dedicated thinking/thought budget feature.
 
 - supports_adaptive_thinking: boolean
-  - Whether the model supports adaptive thinking mode (Claude Opus 4.6+).
+  - Whether the model supports adaptive thinking mode (Claude models with the flag).
   - When true, uses `thinking: {type: "adaptive"}` + `output_config: {effort: "..."}` instead of explicit `budget_tokens`.
   - The model self-regulates thinking depth based on the effort level.
 
 - thinking_budget: object
-  - Structure: { min, max, can_disable, presets: { minimal, low, medium, high } }.
+  - Gemini: `{ min, max, can_disable, presets: { none, low, medium, high } }`. Claude: `{ min, default, max }`.
 
 - latency_tier: string
   - Values: "slow" | "normal" (free-form). UI may use this to display notices.
@@ -57,7 +57,7 @@ This document defines the canonical property names used across providers in `mod
   - When `true`, the model is considered expensive or special and requires explicit user confirmation before use. These models are excluded from the "All Models" dropdown to prevent accidental usage.
 
 - ui_hidden: boolean
-  - When `true`, the model is hidden from user-facing UI dropdowns (both curated and "All" modes). The model remains valid for backend use by agents and scripts. Use this for behavioral variants optimized for specific agent workflows (e.g., `customtools` for bash+tool prioritization) that are not appropriate for general user selection.
+  - When `true`, the model is hidden from the "All" models list. Curated lists (MDSL `models`, `providerDefaults.chat`) are not filtered by it. The model remains valid for backend use by agents and scripts. Use this for behavioral variants optimized for specific agent workflows (e.g., `customtools` for bash+tool prioritization) that are not appropriate for general user selection.
 
 - supports_parallel_function_calling: boolean
   - Optional. Provider-specific parallel tool semantics.
@@ -69,30 +69,31 @@ This document defines the canonical property names used across providers in `mod
   - Provider-specific version tagging (e.g., "2023-06-01" for Anthropic).
 
 - native_multiturn_reasoning: boolean
-  - Cohere-specific. When `true`, a reasoning model handles the native Cohere v2 multi-turn tool flow with reasoning on, so `cohere_helper`'s single-text flattening workaround (needed by `command-a-reasoning`) is bypassed. Set on models verified to keep the native message array (e.g., North Mini Code). Absent/false → the flattening workaround applies.
+  - Cohere-specific. When `true`, a reasoning model handles the native Cohere v2 multi-turn tool flow with reasoning on, so `cohere_helper`'s single-text flattening workaround is bypassed. Set on models verified to keep the native message array. Absent/false → the flattening workaround applies.
 
 - rejects_forced_tool_choice: boolean
-  - The model returns 400 on `tool_choice` `{type: any}` / `{type: tool}` (Claude Fable 5.1). `claude_helper` sends `{type: auto}` instead on the code path that used to force a call.
+  - The model returns 400 on `tool_choice` `{type: any}` / `{type: tool}`. `claude_helper` sends `{type: auto}` where it would otherwise send `any`.
 
 - thinking_block_binding: boolean
-  - The model binds each thinking block to the request prefix (system, tools, earlier messages) that produced it and rejects a replay after that prefix changed (Claude Fable 5.1; enforced by default on accounts created on or after 2026-08-31). `claude_helper` sends the `thinking-binding-controls-2026-08-01` beta with `thinking.block_binding.prefix_mismatch_behavior: drop_block` so the API drops the affected blocks and continues, and logs `input_transformations`.
+  - The model binds each thinking block to the request prefix (system, tools, earlier messages) that produced it and rejects a replay after that prefix changed. `claude_helper` sends the `thinking-binding-controls-2026-08-01` beta with `thinking.block_binding.prefix_mismatch_behavior: drop_block` so the API drops the affected blocks and continues, and logs `input_transformations`.
 
 - thinking_on_by_default: boolean
-  - The API runs adaptive thinking when the request omits `thinking` (Claude Opus 5 / 5.5, Sonnet 5 / 5.5, Fable 5 / 5.1); on Opus 4.8 / 4.7 omitting it means no thinking. Some of these models cannot turn thinking off at all (Opus 5.5, Fable 5.1) and Sonnet 5.5 only through `between_tools`, which cannot be combined with `block_binding`. `claude_helper` therefore sends reasoning effort "none" on these models as adaptive thinking at the lowest effort in `reasoning_effort`, and the Web UI selects that lowest option when an app asks for "none" and the model does not offer it.
+  - The API runs adaptive thinking when the request omits `thinking`. Some of these models cannot turn thinking off at all, or only through `between_tools`, which cannot be combined with `block_binding`. `claude_helper` therefore sends reasoning effort "none" on these models as adaptive thinking at the lowest effort in `reasoning_effort`, and the Web UI selects that lowest option when an app asks for "none" and the model does not offer it.
 
 - unavailable_fallback: string
-  - A model id to transparently retry on when this model returns a 404 not_found. Used for temporarily-paused models whose API contract is identical to the fallback (e.g., `claude-fable-5` → `claude-opus-5` while Fable 5 access is paused). The vendor helper swaps the model id and reuses the request body verbatim; when the original model returns, the 404 stops and it is used again with no change. See `claude_helper.rb`.
+  - Model ID to retry with when this model returns 404 `not_found` (`<model-a>` → `<model-b>`). The helper swaps the model ID and resends the same body. See `claude_helper.rb`.
 
 ## Alias Normalization
 
-The server normalizes aliases into canonical properties without removing the originals. This ensures backward compatibility while providing a single vocabulary for helpers.
+The server normalizes aliases into canonical properties without removing the originals.
 
 - reasoning_model -> is_reasoning_model
 - websearch_capability / websearch -> supports_web_search
 - is_slow_model -> latency_tier: "slow"
 - responses_api (true) -> api_type: "responses"
+- supports_structured_output -> structured_output
 
-Note: We do not auto-populate `supports_pdf_upload` to avoid behavior changes. Explicitly set it per model where necessary (e.g.: `supports_pdf: true`, `supports_pdf_upload: false`).
+Note: `supports_pdf_upload` is never derived; set it explicitly per model where necessary (e.g.: `supports_pdf: true`, `supports_pdf_upload: false`).
 
 ## Accessors (Server)
 
@@ -122,10 +123,8 @@ accepts a user-adjustable temperature". It drives two things:
 
 - The Web UI enables its temperature slider on exactly this key.
 - Helpers must NOT send a temperature for models without it
-  (`ModelSpec.supports_temperature?`). The Gemini helper enforces this: no
-  Gemini entry carries the key — the Gemini 3 Developer Guide mandates the
-  default temperature (1.0); lower values risk looping or degraded output —
-  so MDSL- or caller-supplied temperatures are dropped for those models.
+  (`ModelSpec.supports_temperature?`). No Gemini entry carries the key, so MDSL- or caller-supplied temperatures are
+  dropped for Gemini models.
 
 To let a future model accept user temperature, add the key to its spec entry;
 both the UI slider and the helper gate follow automatically.
@@ -178,12 +177,12 @@ Defined in `model_spec.js` after the `modelSpec` object. Maps `provider × categ
 ```javascript
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-5.4", "gpt-5.2", ...],
-    "code": ["gpt-5.3-codex", ...],
-    "vision": ["gpt-5.4-mini"],
-    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
-    "image": ["gpt-image-2"],
-    "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
+    "chat": ["<default>", "<alt>", ...],
+    "code": ["<code-model>", ...],
+    "vision": ["<vision-model>"],
+    "audio_transcription": ["<stt-model>"],
+    "image": ["<image-model>", ...],
+    "tts": ["<tts-model>", ...]
   },
   // ... other providers
 };
@@ -198,33 +197,31 @@ const providerDefaults = {
 | `audio_transcription` | Audio transcription agent |
 | `image` | Image generation (OpenAI, Gemini, xAI) |
 | `video` | Video generation (Veo, Grok Imagine) |
-| `tts` | Text-to-speech (OpenAI TTS: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1; Gemini TTS: [0]=flash, [1]=pro) |
-| `music` | Music generation (Gemini Lyria: [0]=lyria-3.5, [1]=lyria-3-clip-preview; ElevenLabs: [0]=music_v2_5, used by Music Generator only when ELEVENLABS_API_KEY is set and the user names ElevenLabs). Resolved inside the generation tool, not a chat dropdown |
+| `tts` | Text-to-speech; the first entry is the default |
+| `music` | Music generation (Gemini; ElevenLabs, used by Music Generator only when ELEVENLABS_API_KEY is set and the user names ElevenLabs). Resolved inside the generation tool, not a chat dropdown |
 
-> Note: there is no `embedding` category. Help search and the local PDF
-> knowledge base run on a self-hosted `multilingual-e5-base` model in the
-> `embeddings_service` container, not on a provider API. Adding an
-> `embedding` category here would suggest provider-level configurability
-> that does not exist.
+> Note: there is no `embedding` category. Help search and the Knowledge Base
+> run on the embedding model in the `embeddings_service` container, not on a
+> provider API.
 
 **Ruby access** (via `Monadic::Utils::ModelSpec`):
 - `get_provider_default(provider, category)` — first model in list
 - `get_provider_models(provider, category)` — full list
 - `default_chat_model(provider)` / `default_code_model(provider)` / `default_vision_model(provider)` / `default_audio_model(provider)` — convenience accessors
-- `default_image_model(provider)` / `default_video_model(provider)` / `default_tts_model(provider)` — media generation accessors
+- `default_image_model(provider)` / `default_video_model(provider)` / `default_tts_model(provider)` / `default_music_model(provider)` — media generation accessors
+- `provider_default_models` — the whole `providerDefaults` table
 - Provider key aliases: `"google"→"gemini"`, `"claude"→"anthropic"`, `"grok"→"xai"`
 
 **Electron access** (via `app/main.js`):
 - Uses `require()` to load `model_spec.js` and reads `providerDefaults` directly
-- Sets `*_DEFAULT_MODEL` environment variables from `providerDefaults[provider].chat[0]` when not already configured by the user
-- Replaces the previous `system_defaults.json` dependency
+- Writes `*_DEFAULT_MODEL` into `~/monadic/config/env` from `providerDefaults[provider].chat[0]` when the user has not set it (not for Ollama)
 
 **Priority chain** for default model resolution:
-1. ENV variable (user override)
-2. `providerDefaults` in model_spec.js (SSOT)
-3. Hardcoded fallback
+1. `CONFIG` value of `<PROVIDER>_DEFAULT_MODEL` (user override)
+2. `providerDefaults[provider].chat[0]` in model_spec.js (SSOT)
+3. nil
 
-**MDSL behavior**: When a `.mdsl` file omits `model`, the DSL engine automatically populates from `providerDefaults.chat`. Apps that need specific models (e.g., `customtools` variants, Opus tier) keep explicit `model` overrides.
+**MDSL behavior**: When a `.mdsl` file omits `model`, the DSL engine automatically populates from `providerDefaults.chat`. Apps that need specific models keep explicit `model` overrides.
 
 ## "All Models" Toggle Filtering Policy
 
@@ -235,14 +232,12 @@ The UI provides an "All" toggle next to the Model dropdown. When OFF (default), 
 | Expensive/special models | `requires_confirmation: true` | Always | None |
 | Tool-incapable models | `tool_capability: false` | Always | None |
 | Deprecated models | `deprecated: true` | Always (both modes) | None |
-| Agent-only models | `ui_hidden: true` | Always (both modes) | None |
+| Agent-only models | `ui_hidden: true` | All mode only | None |
+| Speech, music and embedding models | `tts_capability: true`, `music_capability: true`, `embedding_dimensions`, `supports_speech_to_speech: true` | All mode | None |
 
-**Rationale:**
-- `requires_confirmation` models are high-cost and should only be selected intentionally via MDSL or providerDefaults, not through casual browsing. OpenAI's long-thinking Pro tier is excluded from the catalog entirely per `docs_dev/model_architecture_policy.md`; this flag remains available for providers whose lineup requires explicit user opt-in.
-- `tool_capability: false` models cannot work with most apps (which define tools), so they are uniformly excluded from the All-mode catalog.
-- The toggle state is persisted via cookie (`show-all-models`) across sessions.
+The toggle state is kept in the `show-all-models` cookie. Pro long-thinking tiers are excluded from the catalog (see `docs_dev/model_architecture_policy.md`).
 
-**Implementation:** `filterModelsForAllMode()` in `model_utils.js`.
+**Implementation:** `getModelsForApp()` and `filterModelsForAllMode()` in `model_utils.js`.
 
 ## Adding Models
 

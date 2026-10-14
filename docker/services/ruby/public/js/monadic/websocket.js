@@ -277,7 +277,7 @@ window.loadedApp = "Chat";
     // Drain any messages that safeWsSend queued while we were
     // disconnected. Done first so an idempotent RESET/LOAD/DELETE
     // queued by the user lands before the standard CHECK_TOKEN flow.
-    // See docs_dev/safe_ws_send_plan.md §3.5.
+    // See docs_dev/frontend/safe_ws_send.md.
     if (window.MonadicWs && typeof window.MonadicWs.drainQueue === 'function') {
       try { window.MonadicWs.drainQueue(); } catch (e) { console.warn('[WebSocket] drainQueue failed:', e); }
     }

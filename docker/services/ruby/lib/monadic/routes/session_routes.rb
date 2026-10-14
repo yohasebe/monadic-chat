@@ -142,10 +142,8 @@ get "/monadic_state" do
   response_data.to_json
 end
 
-# Upload a Session JSON file to load past messages. Always returns JSON;
-# the legacy form-submission fallback was unreachable from the Web UI
-# and has been removed for the JsonRoute pattern (see
-# docs_dev/architecture_hardening_plan.md §3.2).
+# Upload a Session JSON file to load past messages. Always returns JSON
+# (see JSON routes in docs_dev/developer/anti_pattern_lints.md).
 post "/load" do
   content_type :json
 

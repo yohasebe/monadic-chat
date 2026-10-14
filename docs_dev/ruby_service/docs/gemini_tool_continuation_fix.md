@@ -1,171 +1,37 @@
-# Gemini Tool Continuation Fix & Known Limitations
+# Gemini Tool Rounds
 
-## Problem
-The Gemini Jupyter Notebook app was experiencing an issue where it could not continue making function calls after processing tool results. The error logs showed:
+This page describes how the Gemini adapter (`lib/monadic/adapters/vendors/gemini_helper.rb`) sets `tools` and `toolConfig` on user turns and on the follow-up requests that carry tool results (`role == "tool"`).
 
-```json
-"tool_config": {
-  "function_calling_config": {
-    "mode": "NONE"
-  }
-}
-```
+## User Turns
 
-This prevented Gemini from making subsequent function calls in multi-turn conversations, causing errors like:
-- `exec: "node": executable file not found in $PATH: unknown`
+`configure_gemini_tools` builds the tools:
 
-## Root Cause
-In `/lib/monadic/adapters/vendors/gemini_helper.rb`, when processing tool results (role == "tool"), the code was setting `function_calling_config.mode` to "NONE", which disabled further function calling.
+- The app's function declarations, filtered by progressive tool disclosure (`ProgressiveToolManager`) and by `ToolKeyRequirements`.
+- With native web search requested, `gemini_web_search` is added to the declarations. Without declarations, `google_search` is used instead.
+- With native web search, a `url_context` tool is added when the message contains a URL, or when there are no function declarations.
+- `toolConfig.functionCallingConfig.mode` is `AUTO` whenever function declarations are present.
+- For models without `tool_capability`, only `google_search` and `url_context` are kept.
 
-## Solution
-Modified the Gemini helper to:
-1. Keep `function_calling_config.mode` as "ANY" when tools are available
-2. Re-add the tools configuration after processing tool results
-3. Only set mode to "NONE" when no tools are configured
+## Tool-Result Requests
 
-### Code Changes
-**File**: `/lib/monadic/adapters/vendors/gemini_helper.rb` (lines 654-692)
+- `build_gemini_request_body` sets `tools` from `obj["tools"]` with `mode: AUTO`, so the model can call further tools.
+- The assistant turn holding the `functionCall` parts (with their thought signatures) is rebuilt in front of the results, and the results are sent under role `user`.
+- Screenshot images left by tools (`session[:pending_tool_images]`) are added as a user message, each image once per turn.
+- When `session[:call_depth_per_turn]` reaches `MAX_FUNC_CALLS` (20), `tools` and `toolConfig` are removed so the model answers in text.
 
-**Before**:
-```ruby
-if role == "tool"
-  # ... process tool results ...
-  body["tool_config"] = {
-    "function_calling_config" => {
-      "mode" => "NONE"  # This disabled further function calls
-    }
-  }
-end
-```
+### Jupyter Apps
 
-**After**:
-```ruby
-if role == "tool"
-  # ... process tool results ...
-  
-  # Keep tools available for continued function calling
-  if app_tools && !app_tools.empty?
-    body["tool_config"] = {
-      "function_calling_config" => {
-        "mode" => "ANY"  # Keep function calling enabled
-      }
-    }
-    # Re-add tools for continued function calling
-    if app_tools.is_a?(Hash) && app_tools["function_declarations"]
-      body["tools"] = [{"function_declarations" => app_tools["function_declarations"]}]
-    elsif app_tools.is_a?(Array)
-      body["tools"] = [{"function_declarations" => app_tools}]
-    else
-      body["tools"] = [app_tools]
-    end
-  else
-    # Only set to NONE if no tools are configured
-    body["tool_config"] = {
-      "function_calling_config" => {
-        "mode" => "NONE"
-      }
-    }
-  end
-end
-```
+For apps whose name contains `jupyter`/`Jupyter`, the adapter decides from the tool results of the turn whether to allow more calls. `get_jupyter_cells_with_results` and `list_jupyter_notebooks` do not count. Tools are removed (and `thinkingConfig` with them) when any of these holds:
 
-## Impact
-This fix enables:
-1. **Continuous Function Calling**: Gemini can now make multiple function calls in a single conversation
-2. **Better User Experience**: No more errors when executing sequences of operations
-3. **Full Jupyter Notebook Support**: Users can create notebooks, add cells, and execute code in a natural flow
+- `create_and_populate_jupyter_notebook` was called;
+- a cell was added, updated or deleted;
+- `execute_and_fix_jupyter_cells` or `run_code` was called;
+- three different action tools were called.
 
-## Testing
-Added integration tests to verify:
-- Tools remain available after processing tool results
-- Function calling continues to work in multi-turn conversations
-- All 16 Jupyter Notebook Gemini tests pass
+Otherwise the app's tools are sent again with `mode: AUTO`.
 
-## Known Limitations and Important Discoveries
+## Tests
 
-### Gemini 2.5 Models - Function Calling vs Structured Output Trade-off
-**Discovery**: Gemini 2.5 models have a fundamental trade-off between function calling and structured JSON output. You cannot have both simultaneously.
-
-#### For Function Calling
-**Requirement**: Must use `reasoning_effort: minimal` in MDSL configuration
-```ruby
-llm do
-  provider "gemini"
-  model ["gemini-2.5-flash", "gemini-2.0-flash"]
-  reasoning_effort "minimal"  # REQUIRED for function calls
-end
-```
-
-**Without `reasoning_effort: minimal`**:
-- Model generates pseudo-code instead of actual function calls
-- Outputs `<execute_ipython>` tags rather than making API calls
-- Function declarations are ignored
-
-#### For Structured JSON Output (Monadic Mode)
-**Requirement**: Must NOT include `reasoning_effort` parameter
-```ruby
-llm do
-  provider "gemini"
-  model ["gemini-2.5-flash", "gemini-2.0-flash"]
-  # NO reasoning_effort parameter
-end
-```
-
-**With `reasoning_effort` in monadic mode**:
-- JSON gets wrapped in markdown code blocks (```json```)
-- Breaks JSON parsing in the UI
-- Context information becomes inaccessible
-
-#### Solution Strategy by App Type
-
-**Apps with Heavy Function Calling**:
-- Jupyter Notebook: Use `reasoning_effort: minimal`
-- Code Interpreter: Use `reasoning_effort: minimal`
-- Research Assistant: Use `reasoning_effort: minimal`
-
-**Apps with Structured JSON (Monadic Mode)**:
-- Chat Plus: Remove `reasoning_effort` parameter
-- Language Practice Plus: Remove `reasoning_effort` parameter
-- Novel Writer: Remove `reasoning_effort` parameter
-
-**Additional Requirements for Monadic Apps**:
-Add explicit instructions in system prompt:
-```
-Requirements:
-- The response MUST be valid JSON - no text before or after the JSON object
-- DO NOT wrap the JSON in markdown code blocks (no ```json or ```)
-- Start directly with { and end with }
-```
-
-### Tool Management Optimization
-**Implementation**: Separate info-gathering tools from action tools to prevent exhausting tool call limits
-
-**Info Tools** (no call limits):
-- `get_jupyter_cells_with_results`
-- `list_jupyter_notebooks`
-
-**Action Tools** (limited to 5 calls):
-- `create_jupyter_notebook`
-- `run_jupyter`
-- `add_jupyter_cells`
-- Other modification operations
-
-This separation allows unlimited read operations while preserving action tool quota for actual modifications.
-
-### Migration to Gemini 2.5 Flash
-**Recommendation**: Use `gemini-2.5-flash` as primary model with `gemini-2.0-flash` fallback
-- Better cost/performance ratio than Pro models
-- Faster response times
-- Sufficient quality for most use cases
-
-**Configuration**:
-```ruby
-model ["gemini-2.5-flash", "gemini-2.0-flash"]  # Array format for fallback
-```
-
-## Related Files
-- `/apps/jupyter_notebook/jupyter_notebook_gemini.mdsl` - Gemini Jupyter Notebook app definition
-- `/lib/monadic/dsl.rb` - DSL support for array-based tool definitions
-- `/spec/integration/gemini_tool_continuation_integration_spec.rb` - Integration test for fix
-- `/spec/integration/jupyter_notebook_gemini_spec.rb` - Main integration tests
-- `/spec/e2e/jupyter_notebook_gemini_e2e_spec.rb` - End-to-end tests
+- `spec/integration/gemini_tool_continuation_integration_spec.rb`
+- `spec/integration/gemini_jupyter_combined_function_spec.rb`
+- `spec/integration/jupyter_notebook_gemini_spec.rb`

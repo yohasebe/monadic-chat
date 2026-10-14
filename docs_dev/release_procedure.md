@@ -1,10 +1,6 @@
 # Release Procedure (Internal)
 
-Authoritative, reproducible steps for cutting a Monadic Chat release. This
-replaces the ad-hoc notes that previously lived only in a maintainer's head /
-personal memory. Where a step exists because a release went wrong, the entry
-says which one: following the steps is not the same as the steps being
-sufficient, and beta.33 and beta.35 both went out through this document.
+Authoritative, reproducible steps for cutting a Monadic Chat release.
 
 > Audience: maintainers with push access and a configured macOS signing +
 > notarization environment. Not user-facing.
@@ -31,7 +27,7 @@ and must be mirrored in **`package.json`**, **`package-lock.json`** (root
 `date-released`). `docker/monadic.sh` reads `version.rb` at runtime, so no
 manual edit there.
 
-`rake update_version[<old>,<new>]` now bumps every file listed above,
+`rake update_version[<old>,<new>]` bumps every file listed above,
 including `package-lock.json` and `CITATION.cff` (whose `date-released` is set
 to the day the task runs — a release is published on the day it is built).
 `rake check_version` reports any file left behind.
@@ -42,9 +38,7 @@ One caveat remains:
   heading and add a fresh section above it (see step 2).
 
 Anything a release must keep in step belongs in `version_files` in
-`rakelib/version.rake`. `CITATION.cff` was updated by hand until beta.30 and
-then drifted four releases behind, because a step that lives only in this
-document is a step that gets skipped.
+`rakelib/version.rake`.
 
 Verify all agree:
 
@@ -57,8 +51,7 @@ rake check_version
 Add the new release's entry to `CHANGELOG.md` in the established
 `- [Month, Year] <version>` heading shape (the release task extracts the
 section by this exact heading — a bare version mention elsewhere will not be
-picked up). Draft material is accumulated in the `pending-changelog-entries`
-maintainer memory during the dev cycle; transcribe and then clear it.
+picked up).
 
 ## 3. Confirm CI passed on the commit being released
 
@@ -76,14 +69,10 @@ green. A run that is still going, a workflow that never started, or an API call
 that failed all count as "not green" — none of them are treated as the absence
 of a failure.
 
-`rake release:github` (and `rake release:draft`, which now takes the same third
-argument) runs this check before it does anything else, so skipping this step
-does not skip the gate; running it here just avoids tagging and building four
-platforms first. It runs the check **again** immediately before publishing,
-because building four platforms takes long enough for someone to re-run CI in
-between, and at that point it also requires `v<version>` on origin to resolve
-to the release commit — `gh release create` attaches to a tag that already
-exists, so a leftover tag would publish a commit the gate never looked at.
+`rake release:github` (and `rake release:draft`, which takes the same third
+argument) runs this check before anything else. It runs it **again**
+immediately before publishing, and at that point it also requires
+`v<version>` on origin to resolve to the release commit.
 There is no override.
 
 The third argument is resolved to a commit SHA once, and that SHA is what the
@@ -94,8 +83,7 @@ could name a different commit than the one checked.
 Both checks are on the Rake path. Publishing by hand with `gh release create`,
 or publishing a draft later from the web UI, does not pass through them.
 
-**What a green result does not cover.** Say this out loud when reasoning about
-a release, because the gate is narrow on purpose:
+**What a green result does not cover:**
 
 - **The help database.** `rake build` regenerates `help_db.json`, which is
   gitignored and therefore never in the tree CI ran against. It is gated
@@ -111,11 +99,6 @@ a release, because the gate is narrow on purpose:
 - **Anything CI skips**: specs that need API keys, and steps marked
   `continue-on-error`. A green CI is not a substitute for the real-machine
   smoke test in §10.
-
-Why this exists: v1.0.0-beta.35 was built, signed, notarized, manifest-verified
-and published with Lint red on both `dev` and `main`, and it stayed unnoticed
-for two days. Every other gate here looks at the artifacts; none looked at the
-commit they came from.
 
 ## 4. Create the release commit on `main`
 
@@ -146,9 +129,8 @@ Notes:
   prerelease build ALSO emit `latest-*.yml` (not just `beta-*.yml`), which is
   load-bearing for the updater — see §8.
 - The task then runs `scripts/repackage_mac_zip.rb` **before** patching
-  manifests. This preserves framework symlinks in the mac zip; a flattened
-  zip was the beta.19 auto-update breaker. See
-  `docs_dev/macos-zip-symlink-autoupdate-bug` (maintainer memory).
+  manifests. This preserves framework symlinks in the mac zip; a
+  flattened zip breaks auto-update.
 - `latest-mac.yml` is mirrored to `latest-mac-arm64.yml` if the arch-specific
   file is absent.
 
@@ -171,15 +153,14 @@ symlinks, which is what a genuinely broken archive looks like.
 
 Do not skip `verify_release_manifests.rb`: a manifest whose sha512/size does
 not match the artifact will make auto-update fail the integrity check on the
-user's machine, and that failure is not self-healing (see
-`docs_dev/auto-updater-selfheal-lesson`). Note: a notarization log that says
-"skipped" is a stapler quirk, not a failure — see
-`docs_dev/mac_notarize_skipped_misread` (memory).
+user's machine, and that failure is not self-healing. A notarization log that
+says "skipped" is a stapler quirk, not a failure.
 
 ## 7. Publish the GitHub release
 
-The 11 expected assets are: 6 binaries (mac dmg + zip, win exe + zip, linux
-x64 + arm64 AppImage) and the auto-update manifests
+The 12 expected assets are: 6 binaries (mac dmg + zip, win exe + zip, linux
+x64 + arm64 AppImage), the Linux library sources tar
+(`monadic-chat_<version>_linux-library-sources.tar`), and the auto-update manifests
 (`latest-mac.yml`, `latest-mac-arm64.yml`, `latest.yml`, `latest-linux.yml`,
 `latest-linux-arm64.yml`). The `builder-debug.yml` electron-builder emits is
 NOT an asset — exclude it.
@@ -205,17 +186,15 @@ nothing: the release attaches to the tag that is already there. `release:github`
 checks that the tag resolves to the release commit for exactly this reason.
 
 `rake release:github[<version>,<prerelease?>,<target>]` automates asset
-discovery (exactly the 11 assets — `builder-debug.yml` is excluded) +
+discovery (exactly the 12 assets — `builder-debug.yml` is excluded) +
 `gh release create`, reading the CHANGELOG section for notes. The third
 argument `<target>` is required — it names the commit whose CI is checked and
 the commit the tag must point at, and the task stops without it. Read §8
 before choosing the prerelease argument.
 
 ```bash
-# Move main to the release tree, then release the same commit:
-NEW=$(git commit-tree origin/dev^{tree} -p origin/main -m "Release v<version>")
-git push origin "$NEW:main"
-rake "release:github[<version>,true,$NEW]"     # true = prerelease (betas); OMIT for v1.0 stable — see §8
+# <sha> is the release commit created and tagged in step 4
+rake "release:github[<version>,true,<sha>]"     # true = prerelease (betas); OMIT for v1.0 stable — see §8
 ```
 
 Ordering note: pushing the new `version.rb` to `main` makes the in-app update
@@ -228,9 +207,8 @@ publishing the release first (create+push the tag at `$NEW`, run
 
 ## 8. Release channel / prerelease flag — READ BEFORE PUBLISHING
 
-**This is the single most consequential decision at publish time, and it has
-never been exercised for a stable release.** Every beta (beta.18–beta.27) was
-published with `--prerelease`. v1.0.0 must NOT be.
+**This is the most consequential decision at publish time.** Betas are
+published with `--prerelease`; v1.0.0 and later stable releases must NOT be.
 
 ### How the updater actually resolves "latest"
 
@@ -244,18 +222,18 @@ Update detection and download are two separate mechanisms:
 
 2. **Download** — `app/updater.js` calls electron-updater's
    `autoUpdater.checkForUpdates()` + `downloadUpdate()`. electron-updater
-   (6.8.9) **auto-derives `allowPrerelease` from the running app's version**
+   (version locked in `package-lock.json`) **auto-derives `allowPrerelease` from the running app's version**
    (`AppUpdater.js`: `this.allowPrerelease = hasPrereleaseComponents(currentVersion)`).
    There is no explicit `allowPrerelease`/`channel` config in this repo — the
    running version alone decides the channel.
 
 That auto-derivation splits users into two paths:
 
-- **On a prerelease version** (e.g. `1.0.0-beta.27`) → `allowPrerelease = true`.
+- **On a prerelease version** (e.g. `1.0.0-beta.N`) → `allowPrerelease = true`.
   electron-updater reads the GitHub **atom feed** (which includes prereleases)
   and channel-matches. A beta-channel user WILL accept a newer stable release
   from the feed (verified against `GitHubProvider.getLatestVersion`).
-  → **beta.27 → v1.0.0 works whether or not v1.0.0 is flagged prerelease.**
+  → **beta → v1.0.0 works whether or not v1.0.0 is flagged prerelease.**
 
 - **On a stable version** (e.g. `1.0.0`) → `allowPrerelease = false`.
   electron-updater resolves via the GitHub API `**/releases/latest**`, which
@@ -267,10 +245,8 @@ That auto-derivation splits users into two paths:
 - **Publish v1.0.0 WITHOUT `--prerelease`.** Then `/releases/latest` returns
   `v1.0.0` and every future stable user resolves updates correctly.
 - **If v1.0.0 is mistakenly flagged prerelease**, `/releases/latest` keeps
-  returning the current newest non-prerelease release — today that is
-  **`v1.0.0-beta.17`** (betas 9–17 were published non-prerelease; 18–27 were
-  prerelease). A fresh v1.0.0 install would then have its updater pointed at a
-  *downgrade*, which is incoherent and `allowDowngrade` (default false) will
+  returning the newest non-prerelease release, which is an older beta. A fresh
+  v1.0.0 install would then have its updater pointed at a *downgrade*, which is incoherent and `allowDowngrade` (default false) will
   reject. This breaks the update path for every new stable user and is not
   self-healing.
 
@@ -287,7 +263,7 @@ That auto-derivation splits users into two paths:
 - [ ] `gh release create` run **without** `--prerelease`
 - [ ] `gh api repos/yohasebe/monadic-chat/releases/latest --jq .tag_name`
       returns `v1.0.0` after publishing
-- [ ] Real-machine auto-update test from an installed **beta.27** → v1.0.0
+- [ ] Real-machine auto-update test from an installed latest beta → v1.0.0
       (the beta→stable path) BEFORE announcing — auto-update bugs are not
       self-healing.
 
@@ -357,13 +333,11 @@ for f in "$DMG" "$ZIP"; do [ -f "$f" ] || { echo "missing: $f"; exit 1; }; done
 ruby scripts/verify_release_manifests.rb   # sha512/size match, all one version
 xcrun stapler validate "$DMG"              # notarized + stapled
 ruby scripts/verify_mac_notarization.rb    # DMG + zipped .app: stapled and accepted by Gatekeeper (also run by rake build and release:github)
-zipinfo "$ZIP" | grep -c '^l'              # framework symlinks preserved (>0; beta.19 guard)
+zipinfo "$ZIP" | grep -c '^l'              # framework symlinks preserved (>0)
 ```
 
-The existence check is not ceremony. `zipinfo` on a path that is not there
-fails, `grep -c` then counts zero, and zero is exactly what the flattened
-archive that broke beta.19 auto-update reports. A typo in the file name and a
-genuinely broken artifact are indistinguishable at the end of that pipe.
+Check that the zip exists first: on a missing path `zipinfo` fails and
+`grep -c` reports 0, the same result as a flattened archive.
 
 Use `zipinfo` (or `ditto`), NOT `unzip -l | grep '->'`, to detect zip
 symlinks — `unzip -l` does not show the arrow notation and will also read as 0.
@@ -385,8 +359,8 @@ PY
 
 - Real-machine smoke test of the packaged build: launch → containers start →
   one round-trip chat per provider → quit → all containers stop (the standard
-  3-point smoke, see `release-packaged-smoke-checklist` memory).
-- Confirm the 11 assets are attached and manifests validate against them.
+  3-point smoke).
+- Confirm the 12 assets are attached and manifests validate against them.
 - `ghcr` service images are pulled as `:latest` and are unchanged across most
   releases, so no separate publish is needed unless a service Dockerfile
   changed.

@@ -4,7 +4,7 @@ Monadic Chat writes logs on the host at `~/monadic/log`. From the Console Panel 
 
 Common files:
 - `server.log` — the Falcon server log for the Ruby web app.
-- `docker-build.log`, `docker-startup.log` — docker lifecycle logs.
+- `docker_build.log`, `docker_startup.log` — docker lifecycle logs.
 - `command.log` — shell/code execution traces.
 - `jupyter.log` — Jupyter cell additions/run logs.
 - `extra.log` — verbose, structured stream used for deep inspection (see below).
@@ -16,10 +16,10 @@ Notes:
 ## Build Logs
 
 - Python build (overwritten each run):
-  - `~/monadic/log/docker_build_python.log`: Docker build stdout/stderr, including `~/monadic/config/pysetup.sh` when present (verified promotion flow)
+  - `~/monadic/log/docker_build_python.log`: Docker build stdout/stderr, including the output of `~/monadic/config/pysetup.sh` when present
   - `~/monadic/log/python_health.json`: Health check results right after build (LaTeX/convert/Python libraries)
   - `~/monadic/log/python_meta.json`: Execution metadata (Monadic version, host OS, build args, etc.)
-- Ruby/User/Ollama build (overwritten each run):
+- Ruby, user container and full builds (overwritten each run):
   - `~/monadic/log/docker_build.log`
 
 Build progress and logs are shown in the main console. The Install Options window does not auto-trigger rebuilds and does not stream build output.
@@ -57,7 +57,7 @@ AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=true
 ## Extra Logging
 
 - Toggleable in Settings → System → “Extra Logging”.
-- Forced to enabled in `rake server:debug` (Rakefile sets `EXTRA_LOGGING=true`).
+- Forced to enabled in `rake server:debug` (`rakelib/server.rake` sets `EXTRA_LOGGING=true`).
 - File path is centralized: `MonadicApp::EXTRA_LOG_FILE` (via `Monadic::Utils::Environment.extra_log_file`).
 - Many adapters/helpers append structured events here (e.g., provider requests/responses, tool invocations).
 
@@ -77,16 +77,15 @@ LOG_ROTATE_MAX_FILES=7          # keep 7 generations
 
 ## Test Run Artifacts
 
-- Independent of runtime logs, RSpec runs write to `./tmp/test_runs/<timestamp>/`:
+- Independent of runtime logs, RSpec runs write to `./tmp/test_results/<YYYYMMDD_HHMMSS>/`:
   - `summary_compact.md`, `summary_full.md`, `rspec_report.json`, `env_meta.json`.
-  - Latest symlink: `./tmp/test_runs/latest`.
-- Older run directories are pruned automatically so that only the latest results remain. Set `SUMMARY_PRESERVE_HISTORY=true` (or `SUMMARY_KEEP_HISTORY=true`) before running the suite if you need to keep historical artifacts.
+- The 20 newest run directories are kept. Set `TEST_RESULTS_KEEP` to another number (0 keeps all).
 
 ## Tips
 
 - For API-level diagnosis, combine `EXTRA_LOGGING=true` with `API_LOG=true` in test env.
 - When investigating Electron path issues, add temporary `console.log` in `app/main.js` and inspect DevTools.
-- If the Python container build fails, check the latest per-run directory for `docker_build.log` and `post_install.log`.
+- If the Python container build fails, check `~/monadic/log/docker_build_python.log` and `python_health.json`.
 
 ## Renderer Message Routing Guidelines (Developers)
 
@@ -106,7 +105,7 @@ The Electron renderer has two panes: `#messages` (HTML, user‑facing status) an
   - Long, streaming output should never be wrapped as HTML.
 
 - Do not rely on fallbacks:
-  - The renderer no longer elevates plain lines into `#messages`. If you intend a user‑facing status line, you must send `[HTML]:`.
+  - The renderer does not elevate plain lines into `#messages`. If you intend a user‑facing status line, you must send `[HTML]:`.
   - Do not emit both HTML and the same text as plain output; prefer a short HTML summary in `#messages` + detailed logs in `#output`.
 
 - Internationalization (i18n):

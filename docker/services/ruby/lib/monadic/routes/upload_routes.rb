@@ -34,11 +34,8 @@ post "/upload_audio" do
   end
 end
 
-# Convert a document file to text. Always returns JSON; the legacy
-# form-submission fallback was unreachable from the Web UI (every caller
-# is an AJAX fetch) and produced confusing JSON-parse errors when the
-# X-Requested-With contract drifted. Removed for the JsonRoute pattern
-# documented in docs_dev/architecture_hardening_plan.md §3.2.
+# Convert a document file to text. Always returns JSON (see JSON routes
+# in docs_dev/developer/anti_pattern_lints.md).
 post "/document" do
   content_type :json
 

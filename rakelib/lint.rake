@@ -15,7 +15,7 @@ namespace :lint do
     end
   end
 
-  # Anti-pattern lint rules (see docs_dev/architecture_hardening_plan.md).
+  # Anti-pattern lint rules (see docs_dev/developer/anti_pattern_lints.md).
   # Each rule fails the build when its baseline is exceeded; the suite is
   # intentionally split so a partial green/red is still actionable.
 
@@ -23,7 +23,7 @@ namespace :lint do
   task :personal_paths do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_personal_paths.rb') ||
-        abort('Personal path lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('Personal path lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -31,7 +31,7 @@ namespace :lint do
   task :shell_escape do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_shell_escape.rb') ||
-        abort('Shell escape lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('Shell escape lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -39,7 +39,7 @@ namespace :lint do
   task :xhr_pair do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_xhr_pair.rb') ||
-        abort('XHR pair lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('XHR pair lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -47,7 +47,7 @@ namespace :lint do
   task :data_path_literals do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_data_path_literals.rb') ||
-        abort('Data path literal lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('Data path literal lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -55,7 +55,7 @@ namespace :lint do
   task :bare_ws_send do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_bare_ws_send.rb') ||
-        abort('Bare ws.send lint failed (see docs_dev/safe_ws_send_plan.md §3)')
+        abort('Bare ws.send lint failed (see docs_dev/frontend/safe_ws_send.md)')
     end
   end
 

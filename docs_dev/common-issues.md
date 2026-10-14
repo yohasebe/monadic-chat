@@ -9,9 +9,9 @@ npm cache clean --force
 rm -rf node_modules package-lock.json
 npm install
 
-# For notarization issues on Mac
-export APPLE_ID="your-apple-id"
-export APPLE_APP_SPECIFIC_PASSWORD="your-app-password"
+# For notarization on Mac: a keychain profile saved with
+# `xcrun notarytool store-credentials`
+export NOTARY_PROFILE="notary"
 ```
 
 ### Docker build errors
@@ -36,19 +36,19 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 - Scope providers explicitly when isolating issues:
 ```bash
 # Run only selected providers
-RUN_API=true PROVIDERS=openai,anthropic rake spec_api:smoke
+RUN_API=true PROVIDERS=openai,anthropic rake "test:run[api]"
 
 # Exclude local backends (e.g., Ollama) by omission
-RUN_API=true PROVIDERS=openai,gemini rake spec_api:all
+RUN_API=true PROVIDERS=openai,gemini rake "test:run[api]"
 ```
 - Enable request logging to diagnose:
 ```bash
-API_LOG=true RUN_API=true rake spec_api:smoke
+API_LOG=true RUN_API=true rake "test:run[api]"
 ```
 
-### `file_importer_spec.rb` PDF extractor dispatch fails locally (environment-dependent, NOT a regression)
+### `file_importer_spec.rb` PDF extractor dispatch fails locally
 
-`spec/unit/library/file_importer_spec.rb` — the example "invokes the python
+`docker/services/ruby/spec/unit/library/file_importer_spec.rb` — the example "invokes the python
 extractor and dispatches to PdfImporter" — can fail on a developer machine
 while passing in CI.
 
@@ -60,17 +60,16 @@ while passing in CI.
   extractor service (`extract_via_service`) instead, and the container cannot
   read the host-side temp file the spec writes — the request 404s and the
   `have_received(:run_python_extractor)` assertion does not match.
-- **Status**: known, environment-dependent, verified NOT a regression. CI stays
-  green (this is the single expected failure when running the full unit suite
-  locally with the extractor container running — e.g. 4978/4983 → 1 failure).
+- This example fails locally whenever the extractor container is running; CI
+  runs without it.
 - **Action**: none required for release. If you want a clean local run, stop
   the extractor container first, or run the suite in an environment matching
   CI. Do not "fix" it by mutating the assertion — the spec is correct for the
   CI environment it gates.
 
 ### WebSocket connection issues
-1. Check Ruby server is running: `ps aux | grep thin`
-2. Verify port 4567 is accessible: `curl localhost:4567/health`
+1. Check Ruby server is running: `ps aux | grep falcon`
+2. Verify port 4567 is accessible: `curl -fsS localhost:4567/`
 3. Check browser console for CORS errors
 4. Restart server: `rake server:restart`
 
@@ -83,59 +82,33 @@ while passing in CI.
 **Root cause**
 - OpenSSL's default verification fails when CRL (Certificate Revocation List) check certificates are missing in local environments like macOS
 
-**Resolution (2024-03)**
-- Added `docker/services/ruby/lib/monadic/utils/ssl_configuration.rb` to disable `V_FLAG_CRL_CHECK` and `V_FLAG_CRL_CHECK_ALL` from `OpenSSL::SSL::SSLContext::DEFAULT_PARAMS` at startup
-- Applied same `SSLContext` to `HTTP` gem's `default_options` to unify across entire Ruby service
-- Custom CAs can be prioritized by specifying `SSL_CERT_FILE` / `SSL_CERT_DIR` in `.env`
-- Existing HTTP calls (`HTTP.headers`, `Net::HTTP.start`) share the new configuration without additional modifications
+**Mechanism**
+- `docker/services/ruby/lib/monadic/utils/ssl_configuration.rb` removes `V_FLAG_CRL_CHECK` and `V_FLAG_CRL_CHECK_ALL` from `OpenSSL::SSL::SSLContext::DEFAULT_PARAMS` at startup
+- The same `SSLContext` is set on the `HTTP` gem's `default_options`, so every `http` gem request uses it
+- Custom CAs can be prioritized by setting `SSL_CERT_FILE` / `SSL_CERT_DIR` in `~/monadic/config/env`
+- `HTTP.headers` and `Net::HTTP.start` calls use this configuration
 
 **Operational notes**
-- Introduced `Monadic::Utils::ProviderModelCache` as failsafe: when `helper.list_models` fails, falls back to default models and continues DSL loading. Detectable via `[ProviderModelCache] ... fallback` logs when `EXTRA_LOGGING=true`
+- `Monadic::Utils::ProviderModelCache` is the failsafe: when `helper.list_models` fails, falls back to default models and continues DSL loading. Detectable via `[ProviderModelCache] ... fallback` logs when `EXTRA_LOGGING=true`
 - For operations without fallback, adjust `ProviderModelCache.fetch` usage locations and explicitly `clear(:provider)` to re-fetch
-- When introducing new HTTP clients in future, reuse `SSLConfiguration.configure!` to prevent CRL issues from recurring
+- New HTTP clients must use `SSLConfiguration.configure!`
 
 ### LaTeX-dependent apps (Concept Visualizer / Syntax Tree)
 - These tools require Python service built with `INSTALL_LATEX=true`. MDSL's `disabled` condition is only lifted when pdflatex + dvisvgm (and necessary fonts) are available
 - No need to re-check LaTeX toolchain availability at runtime or add fallbacks. Rebuild Docker image if environment is insufficient
 - When assembling shell scripts on Ruby side, finalize flags like `needs_cjk` in Ruby before embedding in strings. Expanding uninitialized variables causes `bash: needs_cjk: unbound variable` errors
 
-### HTML content being corrupted by Markdown processing
+### ABC or Mermaid blocks corrupted in rendered messages
 
-**Problem**: Special HTML blocks (e.g., ABC notation, custom widgets) are being corrupted when processed through the Markdown converter with `smart: true` option.
+**Symptoms**: an ABC or Mermaid block shows table syntax (`|---|---|`), curly quotes, em-dashes or extra blank lines.
 
-**Symptoms**:
-- ABC music notation blocks showing markdown table syntax (`|---|---|`)
-- Curly quotes replacing straight quotes in HTML attributes
-- Em-dashes appearing in place of hyphens
-- Blank lines being inserted unexpectedly
+**Where rendering happens**: the server does not convert messages to HTML. `html_handler.rb` takes `<div class="abc-code">` blocks out of the text and puts them back unchanged, so the text reaches the browser as written. The browser's `MarkdownRenderer.render` (`public/js/monadic/markdown-renderer.js`) renders it with markdown-it (`typographer: true`).
 
-**Root Cause**: HTML blocks are being passed through `markdown_to_html()` which applies smart typography transformations.
+**How blocks are protected**: before markdown-it runs, `render` replaces math and the fenced `abc` and `mermaid` code blocks with placeholders (`ABC_BLOCK_PLACEHOLDER_<n>`, `MERMAID_BLOCK_PLACEHOLDER_<n>`, …). Afterwards it puts the escaped content back (`<div class="abc-code"><pre>…</pre></div>` for ABC). A block type that is not protected this way goes through markdown-it and its typographer.
 
-**Solution - Placeholder Pattern** (`docker/services/ruby/lib/monadic/utils/websocket.rb:1384-1402`):
-```ruby
-# 1. Extract special HTML blocks BEFORE markdown processing
-abc_blocks = []
-text_for_markdown = text.gsub(/<div class="abc-code">.*?<\/div>/m) do |match|
-  abc_blocks << match
-  "\n\nABC_PLACEHOLDER_#{abc_blocks.size - 1}\n\n"
-end
-
-# 2. Process markdown on the sanitized text
-html = markdown_to_html(text_for_markdown, math: math_enabled)
-
-# 3. Restore special blocks AFTER markdown processing
-abc_blocks.each_with_index do |block, index|
-  html.gsub!(/<p>\s*ABC_PLACEHOLDER_#{index}\s*<\/p>/, block)
-  html.gsub!("ABC_PLACEHOLDER_#{index}", block)
-end
-```
-
-**Key Principles**:
-- Never process HTML through markdown converters
-- Use placeholder pattern for content that must remain untouched
-- Match the HTML structure exactly when replacing placeholders
-
-**Related Issues**: Chord Accompanist ABC corruption (2024-01)
+**Checks**:
+- Make sure the block is a fenced code block whose opening fence is followed directly by `abc` or `mermaid` and a line break; that is the only form the renderer matches.
+- To add a block type that must stay untouched, add a placeholder step to `render` in the same way.
 
 ### Passing multiline data to Node.js validation scripts
 
@@ -177,7 +150,7 @@ const code = require('fs').readFileSync(0, 'utf-8');
 - Handles special characters correctly
 - Works across both container and host environments
 
-**Related Issues**: Chord Accompanist validation loops (2024-01), Mermaid Grapher validation
+**Related Issues**: Mermaid Grapher validation
 
 ## Development Tips
 
@@ -193,10 +166,10 @@ tail -f ~/monadic/log/server.log
 ### Testing specific providers
 ```bash
 # Test only specific providers
-RUN_API=true PROVIDERS=openai,anthropic rake spec_api:smoke
+RUN_API=true PROVIDERS=openai,anthropic rake "test:run[api]"
 
 # Skip media tests for speed
-RUN_API=true RUN_MEDIA=false rake spec_api:all
+RUN_API=true RUN_MEDIA=false rake "test:run[api]"
 ```
 
 ### Debugging Electron paths
@@ -213,7 +186,7 @@ console.log('computed path:', computedPath);
 ### Slow container startup
 - Increase Docker memory allocation (Docker Desktop → Settings)
 - Use `rake server:debug` for development
-- Disable unused containers in docker/compose.yml
+- Optional services are compose profiles: turn off the Privacy container with `PRIVACY_FILTER=false` and the Knowledge Base Quality Pack with `EXTRACTOR_SERVICE=false`
 
 ### Startup shows "Refreshing Ruby control‑plane" too often
 - What happens:
@@ -234,8 +207,8 @@ console.log('computed path:', computedPath);
 ### Test suite taking too long
 ```bash
 # Run quick smoke tests only
-RUN_API=true rake spec_api:quick
+RUN_API=true rake "test:run[api]"
 
 # Use SUMMARY_ONLY for cleaner output
-SUMMARY_ONLY=1 rake spec_api:smoke
+SUMMARY_ONLY=1 rake "test:run[api]"
 ```

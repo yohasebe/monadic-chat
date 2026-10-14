@@ -1,235 +1,66 @@
 # Extractor Service (Knowledge Base Quality Pack)
 
-## Purpose
+`extractor_service` (`docker/services/extractor/`) extracts PDFs for Library imports with Docling 2.x and RapidOCR, including scanned pages, reading order and tables. It is optional; without it, PDFs are extracted by `library_pdf_extractor.py` (pdfplumber) in the Python container. Office files always go through `library_office_extractor.py` in the Python container.
 
-`extractor_service` is the persistent ML microservice that runs Docling
-2.x + RapidOCR for layout-aware document extraction. It is the
-"heavy / quality" path of the Library import pipeline; the "light /
-speed" path through `pdfplumber` continues to live in the python
-container and is what runs when this pack is not installed.
+## Endpoints (`server.py`, FastAPI on port 8000)
 
-The service exists primarily so that:
-
-- Library imports survive on **scanned PDFs** (no text layer at all),
-  which the lightweight `pdfplumber` path silently returns empty for
-- Multilingual / CJK / RTL scripts get a layout-aware reading order
-  rather than the raw PDF text-stream order
-- Tables, formulas, and figure captions become structured Markdown
-  rather than a heuristic guess
-
-## Why a dedicated container
-
-Same architecture pattern as `embeddings_service` and `privacy_service`:
-
-- Models load **once** at container startup and stay resident, so the
-  per-document overhead is small and predictable
-- The user-code execution environment (`python_service` /
-  `monadic-chat-python-container`) is kept clean of large ML
-  dependencies (`docling` alone pulls ~2-3 GB of PyTorch + model
-  weights)
-- Install can be opt-in: a user who never imports a paper-grade PDF
-  pays no install cost
-- Languages and OCR backend are build-time decisions, settable via
-  Compose `args`
-
-## Service surface
-
-### Endpoints
-
-| Method | Path | Purpose |
+| Method | Path | Returns |
 |---|---|---|
-| GET | `/v1/health` | Liveness; always returns 200 once Docling has loaded |
-| GET | `/v1/info` | Pipeline name, OCR backend, configured languages |
-| POST | `/v1/extract` | Body `{path, format, ocr, language_hint}` → extracted document |
+| GET | `/v1/health` | `{status: "ok", pipeline}` |
+| GET | `/v1/info` | `pipeline`, `ocr_backend`, `languages`, `supported_formats: ["pdf"]` |
+| POST | `/v1/extract` | The extracted document (below); 404 when the file does not exist, 500 when conversion fails |
 
-### Extract request body
+Request body:
 
 ```json
-{
-  "path": "/monadic/data/foo.pdf",
-  "format": "auto",
-  "ocr": "auto",
-  "language_hint": ["en", "ja"]
-}
+{ "path": "/monadic/data/foo.pdf", "format": "auto", "ocr": "auto", "language_hint": ["en", "ja"] }
 ```
 
-- `path` is **container-side**; the Ruby caller maps host paths to
-  `/monadic/data/...` before calling. The service does not stream
-  bytes — it relies on the shared volume.
-- `format` is currently advisory; Docling auto-detects from file
-  extension. It exists for future routing of Office formats through
-  Docling pipelines.
-- `ocr` is advisory; the converter is built with `do_ocr=True` at
-  startup and Docling decides per-page based on text-layer presence.
+- `path` is a container path under `/monadic/data`; the service reads the file from the shared volume.
+- `format`, `ocr` and `language_hint` are accepted but do not change the conversion: the converter is built once at startup with `do_ocr = True`, and Docling decides OCR per page.
 
-### Response
+Response:
 
 ```json
 {
-  "title": "...",
-  "author": "...",
-  "page_count": 12,
+  "title": "...", "author": "...", "page_count": 12,
   "markdown": "# Section 1\n\n...",
-  "chunks": [
-    { "text": "...", "metadata": { "index": 0, "start": 0, "end": 1500, "token_count": 300 } },
-    ...
-  ],
-  "extractor_meta": {
-    "pipeline": "docling-2.x",
-    "ocr_backend": "rapidocr",
-    "chunker": "chonkie-recursive",
-    "chunk_count": 8,
-    "duration_ms": 18432
-  }
+  "chunks": [ { "text": "...", "metadata": { "index": 0, "start": 0, "end": 1500, "token_count": 300 } } ],
+  "extractor_meta": { "pipeline": "docling-2.x", "ocr_backend": "rapidocr", "chunker": "chonkie-recursive", "chunk_count": 8, "duration_ms": 18432 }
 }
 ```
 
-`title` / `author` / `page_count` / `markdown` are the "compatibility
-shape" that mirrors what the lightweight `library_pdf_extractor.py`
-emits, so `Monadic::Library::Importers::Pdf.import_extraction_json`
-consumes both response shapes interchangeably.
-
-`chunks` is new in beta.16: when present, the importer adopts the
-pre-segmented array directly, bypassing its own heading/paragraph
-splitter. See "Chunking" below.
+`title`, `author`, `page_count` and `markdown` have the same shape as the output of `library_pdf_extractor.py`, so `Monadic::Library::Importers::Pdf.import_extraction_json` reads both.
 
 ## Chunking
 
-The server runs Chonkie's `RecursiveChunker` (MIT) over the Docling
-markdown after extraction. Defaults:
+After extraction the Markdown is split by Chonkie's `RecursiveChunker` (`tokenizer="character"`, `chunk_size` 1500 characters). If Chonkie is not available or raises, a sliding window of 1500 characters with 200 characters of overlap is used, and `extractor_meta.chunker` is `character-window`.
 
-- `chunk_size`: 1500 characters (≈250-400 tokens for English prose,
-  comfortably below the 512-token e5-base context used downstream)
-- `chunk_overlap`: 200 characters (server-side fallback uses this; the
-  Chonkie `RecursiveChunker` has its own boundary heuristic)
-- `tokenizer`: `"character"` — deliberately avoids pulling a HuggingFace
-  tokenizer model into the image. The embedding model
-  (`multilingual-e5-base`) lives in the embeddings_service, not here.
+When `chunks` is a non-empty array, the importer stores those chunks as they are (`pre_segmented_chunks`). Otherwise it splits the Markdown with its own splitter.
 
-If Chonkie fails to load or chunk a particular document, the server
-falls back to a sliding character window with the same window/overlap
-parameters. The response shape stays stable so the importer never
-special-cases an empty `chunks` array — it falls back to its own
-heading splitter only when `chunks` is missing entirely.
+## Compose and Runtime Settings
 
-## Build & deployment
+`docker/services/extractor/compose.yml` defines `extractor_service` (container `monadic-chat-extractor-container`) under the profile `extractor`, with the image `ghcr.io/yohasebe/monadic-extractor:${MONADIC_IMAGE_TAG:-latest}`. The image is published by `.github/workflows/publish-images.yml`; `compose.yml` has no `build:` section. It mounts `~/monadic/data` at `/monadic/data`, with `apps`, `helpers` and `services` read-only.
 
-### Compose
+The image sets `HF_HUB_OFFLINE=1`; every model it uses is in the image, and it runs without network access.
 
-`docker/services/extractor/compose.yml` declares the service under
-profile `["extractor"]`:
-
-```yaml
-services:
-  extractor_service:
-    profiles: ["extractor"]
-    image: ghcr.io/yohasebe/monadic-extractor:latest
-    environment:
-      EXTRACTOR_OCR_RUNTIME: ${EXTRACTOR_OCR:-rapidocr}
-      EXTRACTOR_LANGS_RUNTIME: ${EXTRACTOR_LANGS:-en,ja,zh,ko}
-    volumes:
-      - data:/monadic/data
-      - ~/monadic/data:/monadic/data
-    healthcheck: ...
-```
-
-The image is prebuilt and pulled from ghcr.io (published by
-`.github/workflows/publish-images.yml` as a multi-arch manifest); there is
-no `build:` section in `compose.yml`. Local development builds use the
-`compose.build.yml` overlay — see
-`docs_dev/docker-architecture.md` § Prebuilt Service Images.
-
-The profile gate ensures `docker compose up` does not start it unless
-the user explicitly opted in (Settings → Install Options → "Knowledge
-Base Quality Pack" sets `EXTRACTOR_SERVICE=true` in
-`~/monadic/config/env`, which `monadic.sh ensure-service extractor`
-checks).
-
-### Runtime environment
-
-The image content does not depend on user settings (Docling/RapidOCR
-models cover every supported language); OCR backend and language hints
-are plain runtime env injected by compose:
-
-| Env (user setting → container var) | Default | Effect |
+| User setting → container variable | Default | Effect |
 |---|---|---|
-| `EXTRACTOR_OCR` → `EXTRACTOR_OCR_RUNTIME` | `rapidocr` | OCR backend. Currently only `rapidocr` is wired; Tesseract is a possible future fallback. |
-| `EXTRACTOR_LANGS` → `EXTRACTOR_LANGS_RUNTIME` | `en,ja,zh,ko` | Comma-separated ISO 639-1 codes exposed in `/v1/info`. Advisory — RapidOCR auto-detects per page. |
+| `EXTRACTOR_OCR` → `EXTRACTOR_OCR_RUNTIME` | `rapidocr` | Reported as `ocr_backend`; RapidOCR is the only backend |
+| `EXTRACTOR_LANGS` → `EXTRACTOR_LANGS_RUNTIME` | `en,ja,zh,ko` | Reported as `languages`; RapidOCR detects the script per page |
 
-Changing these only requires recreating the container (`monadic.sh
-refresh-service extractor`, done automatically on settings save), never
-a rebuild.
+Saving these settings runs `monadic.sh refresh-service extractor`, which recreates the container when it is running (`compose up -d`). No rebuild is needed.
 
-> **Offline invariant (2026-06-12):** the image sets `HF_HUB_OFFLINE=1`
-> and a Dockerfile warm-up conversion bakes every artifact the pipeline
-> resolves at runtime (Docling's `download_models()` alone misses the
-> pinned-revision tableformer fetch). The container must keep working
-> with zero network access. If `EXTRACTOR_LANGS` / `EXTRACTOR_OCR` are
-> ever wired into actual OCR model selection (today they are advisory —
-> RapidOCR uses its pip-bundled models), revisit the warm-up step and
-> this offline policy together: a model fetched lazily per language
-> would either break offline or silently re-introduce the first-import
-> download this invariant exists to prevent.
+## `monadic.sh`
 
-### `monadic.sh` integration
+- `build_extractor_container`: when `EXTRACTOR_SERVICE=true`, pulls the image, or builds it with the `compose.build.yml` overlay when `MONADIC_DEV=true`.
+- `ensure-service extractor`: pulls the image if it is missing, then starts the container. Prints `EXTRACTOR_DISABLED`, `EXTRACTOR_NOT_BUILT`, `STARTED` or `ALREADY_RUNNING`.
+- `refresh-service extractor`: prints `REFRESHED` or `NOT_RUNNING`.
 
-- `build_extractor_container` — when `EXTRACTOR_SERVICE=true`, pulls the
-  prebuilt image (production) or builds locally via the
-  `compose.build.yml` overlay (development, `MONADIC_DEV=true`).
-- `ensure-service extractor` — starts the container on demand, pulling
-  the image first when missing. Returns `EXTRACTOR_DISABLED` /
-  `EXTRACTOR_NOT_BUILT` / `STARTED` / `ALREADY_RUNNING` so the caller can
-  branch.
-- `refresh-service extractor` — recreates a running container after
-  runtime env changes (language settings save).
+**Settings → Install Options → Knowledge Base Quality Pack** sets `EXTRACTOR_SERVICE=true` in `~/monadic/config/env`.
 
-### Dev mode port
+## Ruby Side
 
-`compose.dev.yml` maps port 8000 to host `127.0.0.1:8003` (overridable
-via `EXTRACTOR_DEV_PORT`). The Ruby side resolves the URL via
-`Monadic::Extractor::Endpoint`, mirroring the `Monadic::Embeddings::Endpoint`
-convention (in-container: `http://extractor_service:8000`; dev:
-`http://localhost:8003`).
-
-## Image size
-
-Roughly **12 GB** total (≈4.5 GB on disk after dedup). This is larger
-than originally planned (~3 GB) and is dominated by:
-
-- PyTorch with NVIDIA CUDA bindings pulled in transitively by Docling
-- Pre-downloaded Docling models (~500 MB-1.5 GB)
-
-Future optimisation: install CPU-only torch via
-`--index-url https://download.pytorch.org/whl/cpu` to drop the CUDA
-weights, which we never use on macOS / Apple Silicon. Estimated savings
-~2-3 GB.
-
-## Failure & fallback semantics
-
-- The Ruby side calls `Monadic::Extractor::Client#health` before each
-  PDF import (cheap, ~ms when the service is up). On `false` it falls
-  back to the lightweight `pdfplumber` subprocess in the python
-  container.
-- HTTP timeouts: 600s for `/v1/extract` (large OCR runs can take
-  several minutes), 2s for health/info probes.
-- The client surfaces two classes of error: `ServiceUnavailableError`
-  (host unreachable) and `ExtractionFailedError` (service responded
-  non-200 or non-JSON). Both are wrapped in
-  `Monadic::Library::FileImporter::ExtractionError` before bubbling up
-  to the WebSocket handler.
-
-## Why not also Office?
-
-Office formats (`.docx` / `.xlsx` / `.pptx`) continue to flow through
-the python container's `library_office_extractor.py` (python-docx +
-openpyxl + python-pptx, all MIT). Reasons:
-
-- The libraries are already permissively licensed
-- Office text extraction is not the weak link Library users actually
-  hit (PDF is)
-- Adding Office to Docling pipelines doubles the per-document latency
-  for negligible quality gain in the typical case
-
-The plan keeps the door open: the `format` field in
-`POST /v1/extract` accepts `pdf`/`docx`/`xlsx`/`pptx` so a future
-"Office layout-aware path" can plug in without a new endpoint.
+- `Monadic::Extractor::Endpoint` gives the URL: `EXTRACTOR_URL` when set, otherwise `http://extractor_service:8000` in the container and `http://localhost:8003` in development mode (`EXTRACTOR_DEV_PORT`, mapped by `compose.dev.yml`).
+- `Monadic::Extractor::Client` has `health`, `info` and `extract`. Timeouts: 600 seconds for `extract`, 2 seconds for `health` and `info`. It raises `ServiceUnavailableError` (not reachable) and `ExtractionFailedError` (non-200 or non-JSON).
+- `Monadic::Library::FileImporter#import_pdf` uses the service when `EXTRACTOR_SERVICE=true` and `health` succeeds, checked on every import. Otherwise it runs `library_pdf_extractor.py`; if the pack is enabled but the service is unreachable, `DegradationNotifier` reports a warning. Client errors are raised as `FileImporter::ExtractionError`.

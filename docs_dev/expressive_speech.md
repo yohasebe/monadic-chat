@@ -1,338 +1,98 @@
 # Expressive Speech
 
-Internal architecture notes for the Expressive Speech feature: how the four
-layers connect, how to add a new TTS provider, and known constraints.
+When Auto Speech is on, the system prompt tells the model how to shape its reply for the selected Text-to-Speech engine: inline markers (`[laugh]`, `<whisper>…</whisper>`), a style directive, or plain prose. The markers and directives are removed from what the user sees. This page covers the marker families; the directive (instruction mode) is described in [`expressive_speech_instruction_mode.md`](expressive_speech_instruction_mode.md).
 
-> **Companion doc:** This page covers the inline-marker families (xAI Grok /
-> ElevenLabs v3 / Gemini TTS). The out-of-band **instruction-mode** variant
-> used by OpenAI `gpt-4o-mini-tts` is documented separately in
-> [`expressive_speech_instruction_mode.md`](expressive_speech_instruction_mode.md).
-> The two modes share the `:expressive_speech` prompt rule and the display
-> sanitiser, but they ride the directive through different channels (inline
-> markers vs. JSON/sentinel metadata), so each has its own design notes.
+## Families
 
-## What it does
+`TtsTextProcessors.family_for(provider)` (`lib/monadic/utils/tts_text_processors.rb`) maps the `#tts-provider` value to a family. `tts-tag-sanitizer.js` has the same function.
 
-Some TTS engines interpret inline markers embedded in the spoken text and
-reproduce them as natural audio cues — a pause, a laugh, a whispered aside.
-When Expressive Speech is active, the assistant is told (via a system-prompt
-addendum) which markers the currently-selected TTS engine understands, so it
-can weave them naturally into its replies. The transcript is sanitised before
-display so the markers never appear as literal text in the UI.
-
-Activation requires two user-side conditions to both be true:
-
-1. **Auto Speech** is on (the sidebar checkbox `check-auto-speech`).
-2. The **Text-to-Speech Provider** dropdown is set to an engine with a
-   registered marker vocabulary.
-
-Current tag-aware providers:
-
-| Family key      | Provider dropdown value | Engine variants that actually interpret markers |
-|-----------------|-------------------------|--------------------------------------------------|
-| `xai`           | `grok`                  | xAI Grok TTS (all 5 voices)                      |
-| `elevenlabs-v3` | `elevenlabs-v3`         | **Only** ElevenLabs v3. Flash v2.5 and Multilingual v2 are not tag-aware even though they appear in the same dropdown |
-| `gemini`        | `gemini-flash`, `gemini-pro` | Gemini 2.5 Flash/Pro TTS                    |
-
-## Four-layer architecture
-
-```
-LLM response text (raw with any family's markers)
-    │
-    ├──► (1) Backend TTS pre-send translation (pre_send in tts_utils.rb:53)
-    │         ├──► concept normalisation ([laughs]/[laugh]/[laughing] → target form)
-    │         ├──► wrap conversion (xAI <whisper>X</whisper> → [whispers] X for Eleven/Gemini)
-    │         └──► foreign-marker drop (markers from other families → removed)
-    │                                                    │
-    │                                                    ▼
-    │                                      Target TTS API (engine interprets markers)
-    │
-    └──► WebSocket fragment stream
-              │
-              └──► (2) MarkdownRenderer.render hook
-                      └──► TtsTagSanitizer.sanitizeForDisplay (UNION of all families)
-                              ├──► own family: full sanitizer (incl. catch-all)
-                              └──► other families: STRICT regex (no catch-all)
-                                                    │
-                                                    ▼
-                                         Clean HTML → DOM (no markers visible)
-
-Chat request (before sending)
-    │
-    └──► (3) SystemPromptInjector
-              ├──► :expressive_speech rule → append marker vocabulary to system prompt
-              └──► :plain_voice_enforcement rule → tell LLM NOT to emit markers
-
-Auto Speech + tag-aware provider both true
-    │
-    └──► (4) updateExpressiveSpeechIndicator → show ✨ badge in UI
-```
-
-### Layer 1: TTS text processor registry (backend)
-
-`docker/services/ruby/lib/monadic/utils/tts_text_processors.rb`
-
-Three hash tables keyed by canonical family:
-
-- `PRE_SEND`: text transform applied just before the TTS API call. For the
-  three tag-aware families (xAI / ElevenLabs v3 / Gemini) it invokes
-  `translate_markers` — a three-pass normaliser that (a) maps inline
-  concepts to the target engine's syntax, (b) converts xAI's wrap-style
-  `<whisper>` tags to inline form for engines that need it, and (c) drops
-  foreign markers that the target engine would read literally.
-- `DISPLAY_SANITIZE`: regex-based stripper applied before the text reaches
-  the DOM. Each family's sanitizer uses its own fixed vocabulary plus a
-  free-form catch-all (for ElevenLabs / Gemini improvised descriptors).
-- `INLINE_CONCEPTS`: semantic mapping used by `translate_markers`. Each
-  concept (LAUGH, SIGH, CRY, PAUSE, LONG_PAUSE, INHALE, EXHALE, GIGGLE)
-  has a regex matching any known form across families and per-family
-  rendering (or `nil` to drop when unsupported).
-
-The module also owns `family_for(provider)`, the single normalisation point.
-All other layers delegate through it.
-
-**Translation vs sanitisation, clarified**: both can strip markers, but
-they are called at different points with different goals. `translate_markers`
-runs ONCE at TTS send and changes `[laughs]`→`[laugh]` etc. so the engine
-produces the intended sound. `sanitize_for_display` runs whenever a message
-is rendered, and its job is to keep the transcript clean of ALL marker
-syntax from ANY family (the user may have switched providers mid-session).
-That is why display uses a union-of-all-families approach while translation
-is single-target.
-
-### Layer 2: Sanitizer frontend mirror
-
-`docker/services/ruby/public/js/monadic/tts-tag-sanitizer.js`
-
-A byte-for-byte mirror of `DISPLAY_SANITIZE` in JS, plus the strict
-cross-family regexes used by the union sanitiser. Exposed as
-`window.TtsTagSanitizer` with `familyFor`, `sanitizeForDisplay`, `tagAware`.
-
-Hooked into `markdown-renderer.js` `render()` entry so every assistant card
-— streaming or historical — is sanitised when `params.tts_provider` is tag-aware.
-
-**Union cleanup behaviour**: when the active provider is tag-aware, the
-function runs the active family's full sanitizer (including its catch-all)
-AND strips other families' STRICT markers. Using strict-only for
-cross-family cleanup avoids false-positives on user-typed lowercase
-brackets like `[done]` or `[foo bar]`.
-
-**Drift scope**: only the marker-vocabulary constants and display
-sanitizers are mirrored in JS. The translation layer (`PRE_SEND`,
-`INLINE_CONCEPTS`, `translate_markers`) is Ruby-only because it runs at
-the TTS API boundary on the backend. `spec/unit/utils/tts_registry_sync_spec.rb`
-catches Ruby/JS drift for the mirrored constants; no JS-side translation
-table exists to drift.
-
-### Layer 3: Marker vocabulary + prompt injection
-
-`docker/services/ruby/lib/monadic/utils/tts_marker_vocabulary.rb`
-
-Data-driven registry: per family, a list of inline markers, optional wrapping
-tags, and example phrasings. `prompt_addendum_for(provider)` assembles a
-full system-prompt addendum (vocabulary + usage rules + meta-reference
-prohibition) from the table.
-
-Wired into `SystemPromptInjector` at priority 30 (positive) and 29 (plain-voice
-mirror). Placed at the tail so Anthropic/OpenAI prompt caches keep the stable
-prefix hot when the user changes TTS providers mid-session.
-
-### Layer 4: UI indicator
-
-`docker/services/ruby/public/js/monadic.js` — `updateExpressiveSpeechIndicator()`
-
-Reactive to four events: page load, Auto Speech toggle, TTS provider change,
-app switch. Reads `check-auto-speech.checked` and the `#tts-provider` select
-value directly so state drift is impossible.
-
-Badge: `#expressive-speech-indicator` in `views/index.erb`, styled with Bootstrap
-5 subtle palette (`bg-secondary-subtle text-secondary-emphasis border…`) to
-match the app's muted aesthetic rather than a vivid status colour.
-
-### Layer 5: Workflow Viewer integration
-
-`docker/services/ruby/public/js/monadic/workflow-viewer.js`
-
-When the Workflow Viewer panel is open, `buildGraphData()` reads runtime
-state from `window.params` and augments the graph on-the-fly:
-
-- Auto Speech on → Speech Input (STT) node before User Input; Speech
-  Output (TTS) node after Response. Both use the `speech` node type
-  (teal palette) with the current STT model / TTS provider + voice in
-  the body.
-- TTS provider is tag-aware (xAI / ElevenLabs v3 / Gemini) or
-  instruction-mode (`openai-tts-4o`) → `expressive_speech` added to the
-  Features side node list.
-
-`WorkflowViewer.refresh()` is exposed publicly and called from the four
-settings-panel change handlers (`check-auto-speech`, `tts-provider`,
-`tts-voice`, `stt-model`) so the graph updates live. No re-fetch of
-`/api/app/:name/graph` — the cached `currentData` is reused.
-
-## Hybrid mode — Gemini
-
-Google's Gemini TTS engines (`gemini-2.5-flash-preview-tts`,
-`gemini-2.5-pro-preview-tts`, `gemini-3.1-flash-tts-preview`) accept BOTH
-inline markers AND a natural-language style prompt, per the official
-"Controlling speech style with prompts" section of
-`ai.google.dev/gemini-api/docs/speech-generation`. Monadic Chat therefore
-treats Gemini as a **hybrid** family:
-
-- `TtsMarkerVocabulary.tag_aware?("gemini-*")` remains `true`
-- `TtsMarkerVocabulary.instruction_capable?("gemini-*")` is also `true`
-- `prompt_addendum_for("gemini-*")` dispatches to
-  `hybrid_addendum_for(...)` which teaches the LLM both shapes and lets
-  it choose per-turn (markers only, directive only, both, or neither).
-
-### Differences from OpenAI instruction mode
-
-OpenAI's `gpt-4o-mini-tts` has a separate `instructions` request
-parameter — the directive rides **out-of-band**. Gemini has no such
-parameter; the directive rides **in-band** as a prefix in the same
-spoken-text channel. The engine's own model interprets the lead-in
-phrasing as stage direction rather than speech.
-
-Concrete pipeline for Gemini:
-
-1. System-prompt addendum teaches the LLM to optionally emit a leading
-   `<<TTS:...>>` block (identical shape to OpenAI's) plus inline tags.
-2. Streaming handler extracts the block via
-   `TtsInstructionExtractor.extract_sentinel` (same extractor used for
-   OpenAI).
-3. `tts_utils.rb` Gemini branch converts the extracted directive into a
-   natural-language prefix — literally:
-   `"Say with this voice and style:\n<directive>\n\n<reply>"` — and
-   sends the concatenated string to `generateContent`.
-4. The display sanitizer (`TtsTextProcessors.sanitize_for_display`
-   and its JS mirror) strips both the `<<TTS:...>>` block and the inline
-   tags so only the spoken reply surfaces in the card.
-
-### Why one extractor for two providers
-
-`TtsInstructionExtractor` is provider-agnostic — it just turns
-`<<TTS:BODY>>\nrest` into `[rest, BODY]`. The consumer decides what to do
-with `BODY`: OpenAI passes it as a separate API field, Gemini prepends
-it as a natural-language prefix. Same extractor, different downstream
-wiring.
-
-## Adding a new TTS provider
-
-Suppose Cartesia Sonic 2 ships inline-marker support. Steps:
-
-1. **Decide the family key and what providers normalise to it.**
-   Add a branch to `TtsTextProcessors.family_for` (and its JS twin) mapping
-   the dropdown value(s) to the new family.
-
-2. **Add the display sanitizer** to `DISPLAY_SANITIZE` in Ruby AND JS. Keep
-   the shape consistent (strip markers → collapse double spaces → fix
-   space-before-punctuation). If the engine supports free-form descriptor
-   tags (like Gemini), include a bounded lowercase catch-all such as
-   `[a-z][a-z ]{2,60}` PLUS a separate strict regex (`..._INLINE_STRICT_RE`)
-   with fixed markers only — the strict variant is used for cross-family
-   cleanup in `sanitize_for_display`.
-
-3. **Add a vocabulary entry** to `TtsMarkerVocabulary::VOCABULARIES` with
-   inline markers, wrapping markers (or `[].freeze`), and 2–3 example
-   phrasings.
-
-4. **Extend translation (Ruby only)**:
-   - Add an `emit` entry for each relevant `INLINE_CONCEPTS` key mapping
-     the concept to the new family's syntax (or `nil` to drop).
-   - Add the family to `FOREIGN_MARKER_RE` so markers from OTHER families
-     are dropped when targeting this one.
-   - Register a `PRE_SEND` translator lambda.
-
-5. **Run `npm test` and `rspec spec/unit/utils/tts_*`**. The registry sync
-   spec will fail loudly if Ruby and JS marker lists disagree.
-
-6. **Update `docs/basic-usage/basic-apps.md` + ja/**, plus the tooltip in
-   `public/js/i18n/translations.js`, to list the new family under "Supported
-   by…".
-
-No changes are required in vendor helpers, UI handlers, or the prompt
-injector — the four layers all read from the registry.
-
-### Narrowing down to a specific model family
-
-The ElevenLabs case is the cautionary tale: the dropdown lists three variants
-(`elevenlabs-flash`, `elevenlabs-multilingual`, `elevenlabs-v3`), but ONLY v3
-actually interprets markers. The fix is to give v3 its own family key
-(`elevenlabs-v3`) in `family_for`, so the other two fall back to the
-unregistered `elevenlabs` family and silently disable Expressive Speech.
-
-Apply the same pattern whenever a brand has a tag-capable flagship model and
-legacy variants that would read markers literally.
-
-## Per-app opt-out
-
-Apps with strict output formats (JSON emitters, etc.) can disable the feature
-in their MDSL:
-
-```ruby
-features do
-  expressive_speech false
-end
-```
-
-The gate lives in `SystemPromptInjector.__expressive_speech_active?`, which
-both the `:expressive_speech` and `:plain_voice_enforcement` rules consult.
-Setting the flag to `false` skips **both** rules — the app's system prompt
-is then untouched by Expressive Speech entirely.
-
-## Nested and malformed wrap tags
-
-The LLM may emit wrap tags that are nested, unclosed, or accompanied by
-orphan closing tags. How `translate_markers` handles each form:
-
-| Form | Target = xAI | Target = ElevenLabs v3 / Gemini |
+| Provider value | Family | Mode |
 |---|---|---|
-| `<whisper>hello [laugh] friend</whisper>` (clean) | passes through | `[whispers] hello [laughs] friend` |
-| `<loud>big <whisper>quiet</whisper> end</loud>` (different-wrap nesting) | passes through | `big [whispers] quiet end` |
-| `<whisper>A<whisper>nested</whisper>B</whisper>` (same-wrap nesting) | passes through | `[whispers] AnestedB` — orphan `<whisper>` and `</whisper>` stripped |
-| `<whisper>unclosed` (missing close) | passes through | `unclosed` — orphan `<whisper>` stripped |
-| `<whisper>hi</whisper> and </whisper>` (extra close) | passes through | `[whispers] hi and ` — orphan closing tag stripped |
+| `grok` | `xai` | inline and wrap markers |
+| `elevenlabs-v3` | `elevenlabs-v3` | inline markers |
+| `elevenlabs-flash`, `elevenlabs-multilingual` | `elevenlabs` | plain prose |
+| `gemini-flash`, `gemini-flash-lite`, `gemini-pro` | `gemini` | hybrid: inline markers and a directive |
+| `openai-tts-4o` | `openai-instruction` | directive (instruction mode) |
+| `openai-tts`, `openai-tts-hd` | `openai` | plain prose |
+| `mistral` | `mistral` | plain prose |
+| `webspeech` | `webspeech` | plain prose |
 
-**Design choice**: for xAI target we preserve malformed wraps verbatim —
-xAI is the only engine that natively interprets span wraps, so the
-engine (or the user) is the right authority to handle edge cases. For
-non-xAI targets we strip orphan `<whisper>` / `</whisper>` tags after
-conversion so the LLM's formatting mistakes do not leak into the spoken
-audio as literal word "whisper".
+## System Prompt
 
-The same-wrap nesting case is an artefact of the non-greedy regex
-`<whisper>(.*?)</whisper>`: the match consumes the first close tag found,
-leaving one pair of tags dangling. The dedicated orphan cleanup pass
-(`gsub(%r{</?whisper>}i, "")`) picks those up.
+Two rules in `SystemPromptInjector` (`lib/monadic/utils/system_prompt_injector.rb`), both off unless `__expressive_speech_active?` is true (Auto Speech on, and the app has not set `expressive_speech false` in its MDSL `features`):
 
-## Known limitations
+| Rule | Priority | Condition | Text |
+|---|---|---|---|
+| `:expressive_speech` | 30 | marker family or `openai-instruction` | `TtsMarkerVocabulary.prompt_addendum_for(provider, app_is_monadic:)` |
+| `:plain_voice_enforcement` | 29 | any other selected provider | "output plain prose only", and ignore markers in earlier turns |
 
-- **Free-form Gemini tags are not encouraged.** Gemini accepts arbitrary
-  descriptive brackets like `[sarcastically, one painfully slow word at a
-  time]`, but the prompt vocabulary intentionally lists only the 16 fixed
-  tags to keep LLM output predictable. The display regex still strips
-  improvised multi-word descriptors so they do not leak into the transcript.
-- **Mid-session TTS switch is best-effort.** When the user flips from xAI
-  Grok TTS to OpenAI TTS mid-conversation, old assistant turns in the context
-  still contain `[laugh]` etc. The `:plain_voice_enforcement` rule counters
-  this by explicitly instructing the LLM to ignore previous marker patterns.
-  In practice this handles the common case; a small chance remains that the
-  LLM still emulates earlier markers for one turn.
-- **Streaming briefly shows raw markers.** Fragments arrive as text nodes and
-  are visible as literal strings (`[laugh]`) during the streaming window.
-  Once the card re-renders through `MarkdownRenderer.render`, the sanitizer
-  cleans them up. Users who scrutinise the streaming transition may notice
-  the flash; no fix is planned.
-- **Prompt cache impact is minimal.** The addendum is at priority 30/29 —
-  the tail of the system prompt — so stable prefixes (language, autonomy,
-  math, app-specific content) stay cached. Switching TTS providers only
-  invalidates the tail.
+`TtsMarkerVocabulary` (`lib/monadic/utils/tts_marker_vocabulary.rb`) holds the marker lists in `VOCABULARIES` (`xai`, `elevenlabs-v3`, `gemini`). `prompt_addendum_for` returns:
 
-## Tests at a glance
+- `hybrid_addendum_for` for `gemini` (markers plus an optional `<<TTS:...>>` block);
+- `marker_addendum_for` for `xai` and `elevenlabs-v3`;
+- `instruction_addendum` for `openai-instruction`;
+- nil otherwise.
+
+The marker addendum lists the markers, gives examples, and forbids naming them in the reply or opening a conversation with one.
+
+| Family | Inline markers | Wrap tags |
+|---|---|---|
+| `xai` | pause long-pause laugh sigh cry inhale exhale click smack | whisper soft loud fast slow high low sing |
+| `elevenlabs-v3` | see `VOCABULARIES["elevenlabs-v3"]` | — |
+| `gemini` | amazed crying curious excited sighs gasp giggles laughs mischievously panicked sarcastic serious shouting tired trembling whispers | — |
+
+## Text Sent to the Engine
+
+`tts_text_as_sent` (`lib/monadic/utils/tts_utils.rb`) applies `TTS_DICT`, then `TtsTextProcessors.pre_send(provider, text)`. For the three marker families, `PRE_SEND` calls `translate_markers(text, family)`:
+
+1. **Concepts**: `INLINE_CONCEPTS` (laugh, giggle, sigh, cry, pause, long_pause, inhale, exhale) matches any known spelling and writes the target family's form, or removes it when the target has none (for example `[pause]` for ElevenLabs v3 and Gemini).
+2. **Wraps** (ElevenLabs v3 and Gemini only): `<whisper>X</whisper>` becomes `[whispers] X`; other xAI wraps and orphan `<whisper>` / `</whisper>` tags are removed.
+3. **Foreign markers**: `FOREIGN_MARKER_RE[family]` removes markers that belong only to other families.
+
+Brackets that are not known markers (`[1]`, `[TODO]`) are left in place. For `xai`, malformed wraps are left as they are.
+
+| Input | Target `xai` | Target ElevenLabs v3 / Gemini |
+|---|---|---|
+| `<whisper>hello [laugh] friend</whisper>` | unchanged | `[whispers] hello [laughs] friend` |
+| `<loud>big <whisper>quiet</whisper> end</loud>` | unchanged | `big [whispers] quiet end` |
+| `<whisper>A<whisper>nested</whisper>B</whisper>` | unchanged | `[whispers] AnestedB` |
+| `<whisper>unclosed` | unchanged | `unclosed` |
+
+## Display
+
+`TtsTextProcessors.sanitize_for_display(provider, text)` and `TtsTagSanitizer.sanitizeForDisplay` (JS) run when the selected provider has an entry in `DISPLAY_SANITIZE` (`xai`, `elevenlabs-v3`, `gemini`, `openai-instruction`):
+
+- The selected family's sanitizer runs in full. The ElevenLabs v3 and Gemini sanitizers include a lowercase catch-all for improvised descriptors; the Gemini and `openai-instruction` sanitizers also remove a leading `<<TTS:...>>` block.
+- The other families' markers are removed with their fixed lists only (`*_STRICT_RE`), so brackets like `[done]` stay.
+- A leading `<<TTS:...>>` block is removed for every other family too.
+
+`markdown-renderer.js` calls the JS sanitizer in `render()`, so finished cards (streamed or loaded) are clean. While a reply streams, fragments are shown as they arrive and can show markers until the card is rendered.
+
+`spec/unit/utils/tts_registry_sync_spec.rb` checks that the Ruby and JS marker lists and `family_for` agree. The translation step exists only in Ruby.
+
+## UI
+
+- `updateExpressiveSpeechIndicator()` (`public/js/monadic.js`) shows `#expressive-speech-indicator` when Auto Speech is on and `TtsTagSanitizer.tagAware(provider)` is true. The tooltip is `ui.expressiveSpeechInstructionsTooltip` for `openai-instruction` and `ui.expressiveSpeechTooltip` otherwise. It also calls `applyOpenAIVoiceGating`, which hides voices marked `data-tts-4o-only` unless the provider is `openai-tts-4o`.
+- The Workflow Viewer (`public/js/monadic/workflow-viewer.js`) adds speech input and output nodes when Auto Speech is on, and lists `expressive_speech` among the features when the provider is a marker family or `openai-instruction`. The settings handlers call `WorkflowViewer.refresh()`.
+
+## Adding a Marker Family
+
+1. Map the provider value(s) to the family in `family_for` (Ruby and JS).
+2. Add a `DISPLAY_SANITIZE` entry in Ruby and JS. If the engine accepts free-form descriptors, add a catch-all to it and a fixed-list `*_STRICT_RE` for cross-family cleanup.
+3. Add the marker list and examples to `TtsMarkerVocabulary::VOCABULARIES`.
+4. In Ruby: add the family to each relevant `INLINE_CONCEPTS[:emit]`, to `FOREIGN_MARKER_RE`, and to `PRE_SEND`.
+5. Add the family to the tooltip text in `public/js/i18n/translations.js` and to the user documentation (EN/JA).
+6. Run `npm test` and `bundle exec rspec spec/unit/utils/tts_*` (from `docker/services/ruby`).
+
+Give a family key only to the engine versions that interpret markers; other versions of the same brand map to a plain family (as `elevenlabs-flash` and `elevenlabs-multilingual` do).
+
+## Tests
 
 | Spec | Covers |
-|------|--------|
-| `spec/unit/utils/tts_text_processors_spec.rb` | Family normalisation, sanitizer regex per family, non-v3 ElevenLabs short-circuit |
-| `spec/unit/utils/tts_marker_vocabulary_spec.rb` | Vocabulary data shape, addendum string invariants (meta-reference prohibition, opening-marker ban) |
-| `spec/unit/utils/system_prompt_injector_spec.rb` | `:expressive_speech` and `:plain_voice_enforcement` activation matrix, MDSL opt-out, nil-safety |
-| `spec/unit/utils/tts_registry_sync_spec.rb` | Ruby constants ≡ JS arrays; family_for parity |
-| `test/frontend/tts-tag-sanitizer.test.js` | JS mirror of the sanitizer suite |
+|---|---|
+| `spec/unit/utils/tts_text_processors_spec.rb` | `family_for`, translation, display sanitizers |
+| `spec/unit/utils/tts_marker_vocabulary_spec.rb` | vocabularies, addendum contents |
+| `spec/unit/utils/tts_instruction_extractor_spec.rb` | `<<TTS:...>>` and JSON extraction |
+| `spec/unit/utils/system_prompt_injector_spec.rb` | `:expressive_speech` / `:plain_voice_enforcement` conditions, MDSL opt-out |
+| `spec/unit/utils/tts_registry_sync_spec.rb` | Ruby and JS lists agree |
+| `test/frontend/tts-tag-sanitizer.test.js` | JS sanitizer |

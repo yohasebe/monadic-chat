@@ -1,24 +1,14 @@
 # Application-Specific Documentation
 
-This directory contains documentation for specific Monadic Chat applications.
+Notes on individual built-in apps (`docker/services/ruby/apps/`).
 
-## Contents
-
-- [Chord Accompanist](chord_accompanist.md) - Piano chord accompaniment generator
-- [OpenAI Code Agent](openai_code_agent.md) - OpenAI Code integration and usage patterns
-- [Mermaid Grapher](mermaid_grapher.md) - Diagram generation with Mermaid syntax
-- [Monadic Help](monadic_help.md) - Built-in help system documentation
-
-## Overview
-
-Each application in Monadic Chat is defined using MDSL (Monadic DSL) and can have specific implementation details documented here. These documents cover:
-
-- Architecture decisions specific to the app
-- Tool method implementations
-- Integration patterns with AI providers
-- Special features or capabilities
+- [Mermaid Grapher](mermaid_grapher.md) — preview, validation and normalization
+- [Monadic Chat Help](monadic_help.md) — help database, build tasks and tools
+- [OpenAI Code Agent](openai_code_agent.md) — the code agent used by the OpenAI variants
+- [Research Assistant Variants](research_assistant_providers.md) — settings and web search by provider
 
 ## Related Documentation
 
-- [MDSL](/mdsl/) - Monadic DSL reference for app development
-- [App Isolation & Session Safety](/app_isolation_and_session_safety.md) - Best practices for app development
+- [MDSL](/mdsl/)
+- [App Isolation & Session Safety](/app_isolation_and_session_safety.md)
+- [Apps and Tools Inventory](../apps_tools_inventory.md)

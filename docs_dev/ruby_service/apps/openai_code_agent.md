@@ -1,215 +1,35 @@
-# OpenAI Code Agent Implementation
+# OpenAI Code Agent
 
-## Overview
+`Monadic::Agents::OpenAICodeAgent` (`lib/monadic/agents/openai_code_agent.rb`) lets an OpenAI app hand a coding task to OpenAI's code model through the app's own `OpenAIHelper#api_request`. The Grok and Claude variants have their own agents (`grok_code_agent.rb`, `claude_code_agent.rb`).
 
-OpenAI Code is a specialized OpenAI model optimized for agentic coding tasks. Unlike regular chat models, it uses the Responses API and requires specific implementation patterns to function correctly.
+## Apps
 
-## Key Characteristics
+`openai_code_agent` is a tool of the OpenAI variants of Coding Assistant, Code Interpreter, Jupyter Notebook, Research Assistant and Auto Forge. Each app's tools module defines the method with its own parameters (for example `task:`, `context:`, `files:` in Coding Assistant; `task:`, `current_code:`, `error_context:` in Code Interpreter) and builds the prompt with `build_openai_code_prompt`.
 
-### Model Properties (model_spec.js)
-```javascript
-"gpt-5-codex": {
-  "context_window": [1, 400000],      // 400K context
-  "max_output_tokens": [1, 128000],   // 128K output
-  "api_type": "responses",            // Uses Responses API
-  "supports_temperature": false,      // No temperature parameter
-  "supports_top_p": false,            // No sampling parameters
-  "is_agent_model": true,            // Agent-only model
-  "agent_type": "coding",            // Specialized for coding
-  "adaptive_reasoning": true         // Adjusts reasoning time
-}
-```
+## `build_openai_code_prompt(task:, **options)`
 
-### API Differences
-- **Endpoint**: `/v1/responses` instead of `/v1/chat/completions`
-- **No streaming**: Currently non-streaming implementation
-- **No sampling parameters**: Temperature, top_p, etc. are not supported
-- **Minimal prompting**: "Less is more" principle applies
+Appends to `task`, when given:
 
-## Implementation Pattern
+- `current_code` in a code block;
+- `error_context` ("Error to fix");
+- `files`: at most 3 files, the first 1000 characters of each, with their path;
+- `context`.
 
-### 1. Agent Tool Definition (MDSL)
-```ruby
-define_tool "openai_code_agent", "Delegate complex coding tasks to OpenAI Code" do
-  parameter :task, "string", "Description of the coding task", required: true
-  parameter :context, "string", "Additional context or requirements", required: false
-  parameter :files, "array", "Array of file objects with path and content", required: false
-end
-```
+## `call_openai_code(prompt:, app_name: nil, timeout: nil, model: nil, &block)`
 
-### 2. Tool Implementation
-```ruby
-def openai_code_agent(task:, context: nil, files: nil)
-  # Build minimal prompt
-  prompt = task
+1. Fails with `OpenAIHelper not available` when the class has no `api_request`, and with an access message when `OPENAI_API_KEY` is empty (`has_openai_code_access?`).
+2. Model: the `model` argument, else `@context[:agents][:code_generator]`, else `ENV["OPENAI_CODE_MODEL"]`, else `ModelSpec.default_code_model("openai")`.
+3. Builds a one-message session (`build_session`): the message uses the `text` field, the parameters set the output-token limit to 128000 and `temperature` to 0.0.
+4. Calls `api_request("user", session, call_depth: 0)` inside `Timeout.timeout`. The timeout is the argument, else `OPENAI_CODE_TIMEOUT`, else 1200 seconds.
+5. Returns `{code:, success: true, model:}`, or `{error:, success: false}` (with `timeout: true` and a suggestion on timeout).
 
-  # Add file context if needed (limited)
-  if files && files.is_a?(Array)
-    files.take(3).each do |file|
-      content_preview = file[:content].to_s[0..1000]
-      prompt += "\n#{file[:path]}:\n```\n#{content_preview}\n```\n"
-    end
-  end
+`OpenAIHelper` sends the request to the Responses API because the model's `model_spec.js` entry says so.
 
-  # Create session for API call
-  session = {
-    parameters: { "model" => "gpt-5-codex" },
-    messages: [{ "role" => "user", "content" => prompt }]
-  }
+## Progress
 
-  # Use OpenAIHelper's api_request (handles Responses API automatically)
-  results = api_request("user", session, call_depth: 0)
+When a block is given and the timeout is over 120 seconds, a thread sends `step_progress` fragments (steps in `OPENAI_CODE_STEPS`) every `OPENAI_CODE_PROGRESS_INTERVAL` seconds (60) to the session's WebSocket. `OPENAI_CODE_PROGRESS_ENABLED=false` turns it off. The thread is stopped when the call ends.
 
-  # Parse response
-  if results && results.first
-    content = results.first["content"] || results.first.dig("choices", 0, "message", "content")
-    { code: content, success: true, model: "gpt-5-codex" }
-  else
-    { error: "No response from OpenAI Code", success: false }
-  end
-end
-```
+## Related Documentation
 
-## Critical Implementation Notes
-
-### Avoiding Infinite Loops
-
-**Problem**: Direct calls to `send_query` or recursive tool calls can cause infinite loops.
-
-**Solution**: Use `api_request` method from OpenAIHelper:
-```ruby
-# CORRECT: Uses OpenAIHelper's api_request
-results = api_request("user", session, call_depth: 0)
-
-# WRONG: Can cause recursion
-response = send_query(parameters, model: "gpt-5-codex")
-```
-
-### Session Object Structure
-
-The session object must match OpenAIHelper's expectations:
-```ruby
-session = {
-  parameters: {
-    "model" => "gpt-5-codex"  # Required for model detection
-  },
-  messages: [                  # Standard messages format
-    {
-      "role" => "user",
-      "content" => prompt
-    }
-  ]
-}
-```
-
-### Responses API Detection
-
-OpenAIHelper automatically detects Responses API models via ModelSpec:
-```ruby
-# In ModelSpec
-def responses_api?(model_name)
-  get_model_property(model_name, "api_type") == "responses"
-end
-
-# In OpenAIHelper
-use_responses_api = Monadic::Utils::ModelSpec.responses_api?(model)
-if use_responses_api
-  target_uri = "#{API_ENDPOINT}/responses"
-  # ... special handling for Responses API
-end
-```
-
-## Usage Pattern
-
-### Architecture
-```
-User <-> GPT-5 (Main) <-> OpenAI Code (Agent)
-           |
-           v
-      File Operations
-```
-
-1. User interacts with GPT-5 (main model)
-2. GPT-5 determines when to delegate to OpenAI Code
-3. GPT-5 calls `openai_code_agent` tool for complex coding tasks
-4. OpenAI Code processes the task and returns code
-5. GPT-5 can save the code using file operations
-
-### When to Use OpenAI Code
-
-Delegate to OpenAI Code for:
-- Writing complete applications
-- Complex refactoring tasks
-- Detailed code reviews
-- Performance optimization
-- Tasks requiring deep coding expertise
-
-Keep with GPT-5 for:
-- Simple code explanations
-- Basic debugging
-- User interaction and planning
-- File management decisions
-
-## Prompting Guidelines
-
-Following the "less is more" principle from OpenAI Code documentation:
-
-### DO:
-- Keep prompts minimal and direct
-- Provide only essential context
-- Use clear, concise task descriptions
-- Limit file content to relevant portions
-
-### DON'T:
-- Add verbose instructions
-- Include unnecessary preambles
-- Request specific formatting (it's built-in)
-- Provide full file contents when snippets suffice
-
-## Error Handling
-
-```ruby
-begin
-  results = api_request("user", session, call_depth: 0)
-  # ... process results
-rescue StandardError => e
-  {
-    error: "Error calling OpenAI Code: #{e.message}",
-    suggestion: "Try breaking the task into smaller pieces",
-    success: false
-  }
-end
-```
-
-## Testing Considerations
-
-1. **API Key**: Ensure `OPENAI_API_KEY` is set
-2. **Model Access**: Verify account has access to gpt-5-codex
-3. **Rate Limits**: Responses API may have different limits
-4. **Latency**: OpenAI Code uses adaptive reasoning, response times vary
-
-## Common Issues and Solutions
-
-### Issue: Infinite function call loops
-**Cause**: Using `send_query` or similar recursive calls
-**Solution**: Use `api_request` with proper session structure
-
-### Issue: Missing model in response
-**Cause**: Improper session object structure
-**Solution**: Include `parameters: { "model" => "gpt-5-codex" }`
-
-### Issue: Sampling parameters rejected
-**Cause**: OpenAI Code doesn't support temperature/top_p
-**Solution**: Remove all sampling parameters from request
-
-### Issue: Content truncation
-**Cause**: Large file contents in prompt
-**Solution**: Limit to 1000 chars per file, max 3 files
-
-## References
-
-- [OpenAI OpenAI Code Documentation](https://platform.openai.com/docs/models/gpt-5-codex)
-- [Responses API Guide](https://platform.openai.com/docs/api-reference/responses)
-- `lib/monadic/adapters/vendors/openai_helper.rb` - Responses API implementation
-- `public/js/monadic/model_spec.js` - Model specifications
-- `apps/coding_assistant/coding_assistant_tools.rb` - Agent implementation
+- `docs_dev/auto_forge_internals.md`
+- `docs_dev/websocket_progress_broadcasting.md`

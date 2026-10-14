@@ -152,9 +152,9 @@ SCAN_SETS = DOCS_DIRS.map { |d| [d.basename.to_s, d, Dir.glob(d.join('**', '*.md
               %w[README.md CHANGELOG.md].map { |f| ROOT.join(f).to_s }.select { |f| File.exist?(f) }]]
 
 # Fewest files each scan set may read (see scan_floor.rb). Floors sit about
-# 20% below the current counts (docs 110, docs_dev 196); lower one when pages
+# 20% below the current counts (docs 110, docs_dev 105); lower one when pages
 # are genuinely removed. README.md and CHANGELOG.md must both be read.
-SCAN_FLOORS = { 'docs' => 88, 'docs_dev' => 156, 'README.md+CHANGELOG.md' => 2 }.freeze
+SCAN_FLOORS = { 'docs' => 88, 'docs_dev' => 84, 'README.md+CHANGELOG.md' => 2 }.freeze
 scanned = Hash.new(0)
 
 SCAN_SETS.each do |label, docs_root, files|

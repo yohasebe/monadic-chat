@@ -122,7 +122,7 @@ violations.each do |v|
 end
 puts ''
 puts 'Migration target: window.safeWsSend(payload, opts)'
-puts '(see docs_dev/safe_ws_send_plan.md §3 for the helper API and'
+puts '(see docs_dev/frontend/safe_ws_send.md for the helper API and'
 puts 'idempotency contract).'
 
 if baseline && violations.size <= baseline

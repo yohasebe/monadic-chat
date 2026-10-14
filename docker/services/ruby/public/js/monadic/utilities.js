@@ -109,10 +109,6 @@ function updateAppSelectIcon(appValue) {
   }
 }
 
-// Update the "model-selected" badge text in the menu panel
-// Uses current #model value, current app's provider group, and reasoning effort (if supported)
-// (reverted) updateModelSelectedBadge helper was removed
-
 
   // setCookie, getCookie, setCookieValues → extracted to cookie-utils.js
 
@@ -1385,7 +1381,7 @@ function doResetActions(resetToDefaultApp = false) {
   // RESET and LOAD are both idempotent and queued FIFO when the
   // WebSocket is not OPEN; the LOAD reply is what populates the new
   // session, so the submission order matters and is preserved by
-  // safeWsSend's drain (see docs_dev/safe_ws_send_plan.md §3.4).
+  // safeWsSend's drain (see docs_dev/frontend/safe_ws_send.md).
   window.safeWsSend({ "message": "RESET" });
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';

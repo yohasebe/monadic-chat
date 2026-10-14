@@ -1,637 +1,82 @@
-# Monadic Chat Apps - Tools Inventory
-
-## Overview
-
-This document provides a comprehensive inventory of shared tool groups and custom tools across all Monadic Chat applications. The system uses a Progressive Tool Disclosure (PTD) architecture where tools are organized into named groups with visibility settings.
-
-## Shared Tool Groups (System-wide)
-
-These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/shared_tools/registry.rb` and can be imported by any app.
-
-### 1. file_operations
-**Module:** `MonadicSharedTools::FileOperations`
-**Default Visibility:** Always
-**Description:** Read, write, and list files in the shared folder
-
-**Tools:**
-- `read_file_from_shared_folder` - Read a file from shared folder and return its content with metadata
-- `write_file_to_shared_folder` - Write or append content to a file (supports Unicode and subdirectories)
-- `list_files_in_shared_folder` - List all files and directories in a folder or subdirectory
-
-**Default PTD Hint:** "Call request_tool(\"file_operations\") when you need to read, write, or list files in the shared folder."
-
----
-
-### 2. python_execution
-**Module:** `MonadicSharedTools::PythonExecution`
-**Default Visibility:** Always
-**Description:** Execute Python, Ruby, Shell, and other code
-
-**Tools:**
-- `run_code` - Execute program code and return the output
-- `run_bash_command` - Execute a bash command in the Python container
-- `check_environment` - Check the Python container environment
-- `lib_installer` - Install a library using package manager (pip, uv, or apt)
-- `parallel_run_code` - Execute 2-5 independent Python scripts simultaneously (via `MonadicSharedTools::ParallelPythonExecution`)
-
-**`gallery_html` Display:** When `run_code` output contains image file paths (`/data/*.png`, `/data/*.jpg`, etc.), the tool automatically detects them via `enrich_with_images` and stores gallery HTML in `session[:tool_html_fragments]`. These images are displayed to the user in the chat via server-side injection (no LLM vision injection). `parallel_run_code` aggregates images from all parallel tasks (max 5 images total). Images exceeding 5 MB are excluded.
-
-**Default PTD Hint:** "Call request_tool(\"python_execution\") when you need to run Python code, execute bash commands, or inspect the execution environment."
-
----
-
-### 3. file_reading
-**Module:** `MonadicSharedTools::FileReading`
-**Default Visibility:** Always
-**Description:** Read text from various file types
-
-**Tools:**
-- `fetch_text_from_file` - Read text content from files (txt, code, data files, etc.)
-- `fetch_text_from_pdf` - Extract text content from a PDF file with full-page support
-- `fetch_text_from_office` - Extract text from Office files (docx, xlsx, pptx)
-
-**Default PTD Hint:** "Call request_tool(\"file_reading\") when you need to read text from files, PDFs, or Office documents."
-
----
-
-### 4. web_search_tools
-**Module:** `MonadicSharedTools::WebSearchTools`
-**Default Visibility:** Conditional (available when web search is enabled)
-**Description:** Search the web and fetch content from URLs
-
-**Tools:**
-- `search_web` - Search the web using provider-appropriate search method (native or Tavily)
-- `fetch_web_content` - Fetch content from a URL and save to shared folder
-- `tavily_search` - Perform a Tavily web search (requires TAVILY_API_KEY)
-- `tavily_fetch` - Fetch full content from a URL using Tavily API
-
-**Default PTD Hint:** "Call request_tool(\"web_search_tools\") when you need to search the web or fetch content from URLs."
-
----
-
-### 5. web_automation
-**Module:** `MonadicSharedTools::WebAutomation`
-**Default Visibility:** Conditional (available when Selenium is running)
-**Description:** Capture and interact with web pages using Selenium
-
-**Viewport Capture Tools:**
-- `capture_viewport_screenshots` - Capture a web page as multiple viewport-sized screenshots
-- `list_captured_screenshots` - List all screenshots captured in current session
-- `get_viewport_presets` - Get available viewport preset dimensions
-- `capture_webpage_text` - Extract text content from a web page in Markdown format
-- `debug_application` - Debug a generated web application using Selenium
-
-**Interactive Browser Tools:**
-- `start_browser` - Start an interactive browser session (headless by default, `headless: false` for noVNC viewing)
-- `browser_navigate` - Navigate to a URL
-- `browser_click` - Click an element by CSS selector
-- `browser_type` - Type text into an input field
-- `browser_scroll` - Scroll the page (up/down/top/bottom)
-- `browser_press_key` - Press a keyboard key
-- `browser_select` - Select a dropdown option
-- `browser_back` / `browser_forward` - History navigation
-- `browser_screenshot` - Take a screenshot of the current page
-- `browser_get_page_info` - Get page info (title, URL, interactive elements)
-- `stop_browser` - End the browser session
-
-**`_image` Key (Web Insight only):** All tools that return screenshots include a `_image` key in the response. This key is consumed by vendor adapters to inject the screenshot into the LLM's next turn as a vision input (OpenAI/Grok: image_url, Gemini: inlineData, Claude: image block). This is necessary because the LLM cannot know what a web page looks like without seeing it. Note: `_image` is used exclusively by Web Insight; other apps (Mermaid/DrawIO/Auto Forge) use `gallery_html` for user-side display instead.
-
-**Default PTD Hint:** "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium."
-
----
-
-### 6. image_analysis
-**Module:** `MonadicSharedTools::ImageAnalysis`
-**Default Visibility:** Conditional (available when any vision provider API key is configured)
-**Description:** Analyze image content using provider-independent vision capabilities (OpenAI, Claude, Gemini, Grok)
-
-**Tools:**
-- `analyze_image` - Analyze and describe image contents using vision capabilities
-
-**Default PTD Hint:** "Call request_tool(\"image_analysis\") when you need to analyze image content."
-
----
-
-### 7. audio_transcription
-**Module:** `MonadicSharedTools::AudioTranscription`
-**Default Visibility:** Conditional (available when OpenAI or Gemini API key is configured)
-**Description:** Transcribe audio content using provider-independent STT capabilities (OpenAI, Gemini)
-
-**Tools:**
-- `analyze_audio` - Transcribe audio files
-
-**Default PTD Hint:** "Call request_tool(\"audio_transcription\") when you need to transcribe audio content."
-
----
-
-### 8. video_analysis
-**Module:** `MonadicSharedTools::VideoAnalysis`
-**Default Visibility:** Conditional (available when any vision provider API key is configured)
-**Description:** Analyze video content using provider-independent vision and audio transcription
-
-**Tools:**
-- `analyze_video` - Analyze video and generate description (multi-frame vision + audio transcription)
-
-**Default PTD Hint:** "Call request_tool(\"video_analysis\") when you need to analyze video content."
-
----
-
-### 7. jupyter_operations
-**Module:** `MonadicSharedTools::JupyterOperations`
-**Default Visibility:** Always
-**Description:** Create, manage, and execute Jupyter notebooks
-
-**Tools:**
-- `run_jupyter` - Start or stop JupyterLab server
-- `create_jupyter_notebook` - Create a new Jupyter notebook with automatic timestamping
-- `add_jupyter_cells` - Add and optionally execute cells
-- `delete_jupyter_cell` - Delete a cell by index
-- `update_jupyter_cell` - Update the content of an existing cell
-- `get_jupyter_cells_with_results` - Get all cells with execution results
-- `execute_and_fix_jupyter_cells` - Execute cells with automatic error detection
-- `list_jupyter_notebooks` - List all notebooks in data directory
-- `restart_jupyter_kernel` - Restart kernel and clear outputs
-- `interrupt_jupyter_execution` - Interrupt running cells
-- `move_jupyter_cell` - Move a cell to a new position
-- `insert_jupyter_cells` - Insert cells at a specific position
-
-**`gallery_html` Display:** When `add_jupyter_cells` executes cells that produce image outputs (matplotlib plots, seaborn charts, PIL images, etc.), the tool automatically extracts `image/png` data from notebook cell outputs (`display_data` / `execute_result`), saves them as PNG files, and stores gallery HTML in `session[:tool_html_fragments]`. Images are extracted in reverse cell order (latest first), limited to 5 images and 5 MB per image. These images are displayed to the user in the chat via server-side injection (no LLM vision injection).
-
-**Default PTD Hint:** "Call request_tool(\"jupyter_operations\") when you need to create, manage, or execute Jupyter notebooks."
-
----
-
-### 8. app_creation
-**Module:** `MonadicSharedTools::AppCreation`
-**Default Visibility:** Always
-**Description:** List and create Monadic Chat applications
-
-**Tools:**
-- `list_monadic_apps` - List all available Monadic Chat applications
-- `get_app_info` - Get detailed information about a specific app
-- `create_simple_app_template` - Create a basic app template file
-
-**Default PTD Hint:** "Call request_tool(\"app_creation\") when you need to list, inspect, or create Monadic Chat applications."
-
----
-
-### 9. session_context
-**Module:** `MonadicSharedTools::SessionContext`
-**Default Visibility:** Always
-**Description:** On-demand context tracking for conversational AI apps with server-side storage
-
-**Tools:**
-- `get_context` - Get current conversation context (topics, people, notes)
-- `update_context` - Update conversation context with new information
-
-**Features:**
-- Normal text responses by default (faster, fewer tokens)
-- Server-side context storage (reliable, persistent within session)
-- Real-time sidebar display via WebSocket
-- User can edit context directly in the sidebar
-
-**Default PTD Hint:** "Call request_tool(\"session_context\") when you need to track or update conversation context."
-
----
-
-### 10. monadic_session_state (Internal)
-**Module:** `Monadic::SharedTools::MonadicSessionState`
-**Default Visibility:** N/A (used internally by other modules)
-**Description:** Low-level session state storage with versioning metadata
-
-**Tools:**
-- `monadic_load_state` - Load state from session for a given app/key
-- `monadic_save_state` - Save state into session with version/updated_at metadata
-
-**Note:** This is an internal module used by `session_context` and Jupyter apps for state persistence. Not typically imported directly by apps.
-
----
-
-### 11. planning
-**Module:** `MonadicSharedTools::Planning`
-**Default Visibility:** Always
-**Description:** Propose structured execution plans for complex multi-step tasks and get user approval before execution
-
-**Tools:**
-- `propose_plan` - Create a structured execution plan for a complex multi-step task
-
-**Parameters:**
-- `plan` (string, required) - The execution plan in markdown format. Each step should be numbered and include: what action will be taken, which tool will be used, and what the expected outcome is.
-- `summary` (string, required) - A one-line summary of the overall task goal.
-
-**Default PTD Hint:** "Call propose_plan when you need to break down a complex task into steps and get user approval before execution."
-
----
-
-### 12. verification
-**Module:** `MonadicSharedTools::Verification`
-**Default Visibility:** Always
-**Description:** Record the outcome of self-verifying work before presenting results to the user. Enforces a retry limit and stops the tool loop on success.
-
-**Tools:**
-- `report_verification` - Record the verification outcome after checking work
-
-**Parameters:**
-- `result_summary` (string, required) - Brief description of what was produced and needs verification
-- `checks_performed` (array of strings, required) - List of verification checks performed
-- `status` (string, required) - Verification outcome: "passed", "issues_found", or "fixed"
-- `issues` (array of strings, optional) - Issues found (when status is "issues_found" or "fixed")
-- `fixes_applied` (array of strings, optional) - Fixes applied (when status is "fixed")
-
-**Behavior:**
-- Sets `session[:call_depth_per_turn] = 9999` on "passed" or "fixed" to stop the tool loop
-- Enforces `MAX_VERIFICATION_RETRIES` (3) consecutive "issues_found" before force-stopping
-- Stores `session[:verification_wait_message]` for temp card UI display via `send_verification_notification` in vendor helpers
-
-**Default PTD Hint:** "Call report_verification after checking your work to record the verification outcome."
-
----
-
-## App-by-App Tools Inventory
-
-### Auto Forge (3 providers: Claude, Grok, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]`<br/>`:web_automation [conditional]` |
-| **Custom Tools** | • `generate_application` - Generate a complete application<br/>• `validate_specification` - Validate app specification<br/>• `list_projects` - List previously generated projects<br/>• `generate_additional_file` - Generate additional project files |
-| **`gallery_html` Display** | `debug_application` captures a Selenium screenshot (`autoforge_debug_*.png`) and returns it via the `gallery_html` key in its result hash. Vendor helpers automatically extract this key and store it in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshot; it relies on text-based debug reports and user feedback to diagnose issues. |
-
----
-
-### Chat (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | (none) |
-| **Custom Tools** | (none) |
-| **Notes** | Basic conversational AI with no special tools |
-
----
-
-### Chat Plus (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
-| **Custom Tools** | (none) |
-
----
-
-### Chord Accompanist (1 provider: Claude)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `validate_chord_progression` - Validate chord progression for music theory<br/>• `validate_abc_syntax` - Validate ABC notation syntax using abcjs<br/>• `analyze_abc_error` - Analyze ABC syntax errors and suggest fixes |
-
----
-
-### Code Interpreter (7 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]`<br/>`:planning [always]` |
-| **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex Python tasks to OpenAI Code |
-| **Custom Tools (Grok only)** | • `grok_code_agent` - Call Grok-Code-Fast-1 for complex tasks |
-
----
-
-### Coding Assistant (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
-| **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex tasks to OpenAI Code |
-| **Custom Tools (Grok only)** | • `grok_code_agent` - Call Grok-Code-Fast-1 for complex tasks |
-
----
-
-### Concept Visualizer (2 providers: Claude, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `generate_concept_diagram` - Generate conceptual diagram using LaTeX/TikZ<br/>• `list_diagram_examples` - Show diagram type examples |
-| **`gallery_html` Display** | `generate_concept_diagram` produces a PNG alongside the SVG (via `dvipng` or ImageMagick `convert`) and stores it as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the rendered image directly. |
-
----
-
-### Content Reader (1 provider: OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]`<br/>`:image_analysis [conditional]`<br/>`:audio_transcription [conditional]`<br/>`:planning [always]` |
-| **Custom Tools** | • `fetch_text_from_pdf` - Extract text from PDF<br/>• `fetch_text_from_office` - Extract from Office files<br/>• `fetch_text_from_file` - Read text from file |
-
----
-
-### Document Generator (1 provider: Claude)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
-| **Custom Tools** | (none) |
-
----
-
-### Draw.io Grapher (2 providers: Claude, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `preview_drawio` - Validate, save, and render diagram in live browser with screenshot<br/>• `write_drawio_file` - Save Draw.io diagram to file (without browser preview)<br/>• `stop_drawio_browser` - Close the live preview browser session |
-| **`gallery_html` Display** | `preview_drawio` captures a Selenium screenshot and stores it as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshot directly. |
-
----
-
-### Image Generator (3 providers: Gemini, Grok, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `generate_image_with_gemini` - Generate/edit using Google's models<br/>• `generate_image_with_openai` - Generate using OpenAI<br/>• `generate_image_with_grok` - Generate using Grok/DALL-E 3 |
-
----
-
-### Jupyter Notebook (4 providers: Claude, Gemini, Grok, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:jupyter_operations [always]`<br/>`:python_execution [always]`<br/>`:file_operations [always]`<br/>`:file_reading [always]`<br/>`:planning [always]` |
-| **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex notebook tasks to OpenAI Code |
-| **Custom Tools (Gemini/Grok)** | • `create_and_populate_jupyter_notebook` - Create notebook with cells in one operation |
-
----
-
-### Language Practice (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | (none) |
-| **Custom Tools** | (none) |
-
----
-
-### Language Practice Plus (2 providers: Claude, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | (none) |
-| **Custom Tools** | (none) |
-
----
-
-### Mail Composer (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
-| **Custom Tools** | (none) |
-
----
-
-### Math Tutor (7 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]`<br/>`:planning [always]` |
-| **Custom Tools** | (none) |
-| **`gallery_html` Display** | Uses `python_execution`'s `enrich_with_images` auto-detection. System prompt directs PNG output so gallery HTML is stored automatically in `session[:tool_html_fragments]` for user-side display. |
-
----
-
-### Mermaid Grapher (1 provider: OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:web_search_tools [conditional]`<br/>`:planning [always]` |
-| **Custom Tools** | • `validate_mermaid_syntax` - Validate diagram syntax<br/>• `analyze_mermaid_error` - Analyze errors and suggest fixes<br/>• `preview_mermaid` - Save preview image<br/>• `fetch_mermaid_docs` - Get documentation URL |
-| **`gallery_html` Display** | `preview_mermaid` captures Selenium screenshots (single or tiled for tall diagrams) and stores them as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshots directly. |
-
----
-
-### Monadic Help (1 provider: OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `find_help_topics` - Search documentation with multiple context chunks<br/>• `get_help_document` - Retrieve full document by ID<br/>• `list_help_sections` - List all doc sections<br/>• `search_help_by_section` - Search within specific section |
-
----
-
-### Novel Writer (2 providers: Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
-| **Custom Tools** | • `count_num_of_words` - Count word count<br/>• `count_num_of_chars` - Count character count |
-
----
-
-### PDF Navigator (1 provider: OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `find_closest_text` - Find closest text via embedding similarity<br/>• `get_text_snippet` - Retrieve text snippet from DB<br/>• `list_titles` - List doc IDs and titles<br/>• `find_closest_doc` - Find closest doc via embedding<br/>• `get_text_snippets` - Retrieve all snippets for a doc |
-
----
-
-### Research Assistant (7 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]`<br/>`:planning [always]` |
-| **Custom Tools (OpenAI only)** | • `request_tool` - Request access to locked tool<br/>• `openai_code_agent` - Delegate code generation to OpenAI Code |
-| **Custom Tools (Grok only)** | • `request_tool` - Request access to locked tool<br/>• `grok_code_agent` - Call Grok-Code-Fast-1 for code generation |
-
----
-
-### Second Opinion (9 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, Ollama, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `second_opinion_agent` - Verify response before returning to user |
-
----
-
-### Speech Draft Helper (1 provider: OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:image_analysis [conditional]`<br/>`:audio_transcription [conditional]`<br/>`:planning [always]` |
-| **Custom Tools** | • `fetch_text_from_file` - Fetch text from file<br/>• `fetch_text_from_pdf` - Extract from PDF<br/>• `fetch_text_from_office` - Extract from Office files<br/>• `list_providers_and_voices` - List TTS providers and voices<br/>• `text_to_speech` - Convert text to speech MP3 |
-
----
-
-### Syntax Tree (2 providers: Claude, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
-| **Custom Tools** | • `render_syntax_tree` - Render syntax tree as SVG using LaTeX |
-
----
-
-### Translate (2 providers: Cohere, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | (none) |
-| **Custom Tools** | (none) |
-
----
-
-### Video Describer (3 providers: OpenAI, Gemini, Grok)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:video_analysis [always]`<br/>`:planning [always]` |
-| **Custom Tools** | (none) |
-
----
-
-### Video Generator (2 providers: Gemini, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `generate_video_with_veo` - Generate videos using Veo 3.1 (Gemini) |
-
----
-
-### Web Insight (4 providers: Claude, Gemini, Grok, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:web_automation [conditional]`<br/>`:planning [always]` |
-| **Custom Tools** | (none) |
-
----
-
-### Voice Chat (8 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | (none) |
-| **Custom Tools** | (none) |
-
----
-
-### Voice Interpreter (2 providers: Cohere, OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | (none) |
-| **Custom Tools** | (none) |
-
----
-
-### Wikipedia (1 provider: OpenAI)
-
-| Field | Details |
-|-------|---------|
-| **Imported Tools** | `:web_search_tools [conditional]`<br/>`:planning [always]` |
-| **Custom Tools** | • `search_wikipedia` - Search Wikipedia articles via Wikimedia API |
-
----
-
-## Summary Statistics
-
-### By Shared Tool Group (Usage)
-
-| Shared Tool Group | Apps Using | Count |
-|-------------------|------------|-------|
-| `:file_operations` | Chat Plus, Coding Assistant, Content Reader, Document Generator, Jupyter Notebook, Mail Composer, Novel Writer, Research Assistant, Speech Draft Helper, Syntax Tree | 10 |
-| `:web_search_tools` | Content Reader, Mermaid Grapher, Research Assistant, Wikipedia | 4 |
-| `:python_execution` | Code Interpreter, Jupyter Notebook, Math Tutor | 3 |
-| `:file_reading` | Code Interpreter, Jupyter Notebook, Math Tutor | 3 |
-| `:jupyter_operations` | Jupyter Notebook | 1 |
-| `:image_analysis` | Content Reader, Speech Draft Helper, Code Interpreter, Research Assistant, Coding Assistant (16 apps) | 16 |
-| `:audio_transcription` | Content Reader, Speech Draft Helper | 2 |
-| `:video_analysis` | Video Describer | 1 |
-| `:web_automation` | Auto Forge, Web Insight | 2 |
-| `:planning` | All tool-enabled apps | 22 |
-| `:verification` | Code Interpreter, Jupyter Notebook, AutoForge, Mermaid Grapher, Chord Accompanist | 15 |
-
-### By Visibility Setting
-
-| Visibility | Tool Groups | Count |
-|------------|------------|-------|
-| **Always** | file_operations, python_execution, file_reading, jupyter_operations, app_creation, planning, verification | 7 |
-| **Conditional** | web_search_tools, web_automation, image_analysis, audio_transcription, video_analysis | 5 |
-
-### Apps with Most Tool Imports
-
-1. **Jupyter Notebook** - 5 shared tool groups (jupyter_operations, python_execution, file_operations, file_reading, planning)
-2. **Content Reader** - 5 shared tool groups (file_operations, web_search_tools, image_analysis, audio_transcription, planning)
-3. **Research Assistant** - 3 shared tool groups (file_operations, web_search_tools, planning)
-
-### Provider-Specific Custom Tools
-
-- **OpenAI**: openai_code_agent (Code Interpreter, Coding Assistant, Jupyter Notebook, Research Assistant)
-- **Grok**: grok_code_agent (Code Interpreter, Coding Assistant, Jupyter Notebook, Research Assistant)
-- **All Providers**: second_opinion_agent (Second Opinion app, 9 variants)
-
-### Apps with No Tools
-
-- Chat (all 9 variants)
-- Language Practice (all 8 variants)
-- Language Practice Plus
-- Translate (Cohere, OpenAI variants)
-- Voice Chat (all 8 variants)
-- Voice Interpreter (Cohere, OpenAI variants)
-
----
-
-## Key Architecture Patterns
-
-### 1. Progressive Tool Disclosure (PTD)
-Tools are marked as "always" or "conditional" visibility:
-- **Always**: Available immediately (file operations, python execution, etc.)
-- **Conditional**: Unlocked via `request_tool()` when needed (web search, web automation, etc.)
-
-### 2. Provider-Specific Variants
-Some apps have provider-specific custom tools:
-- **OpenAI Code delegation** (OpenAI): openai_code_agent
-- **Grok-Code integration** (Grok): grok_code_agent
-- **Specialized operations** (Gemini): create_and_populate_jupyter_notebook
-
-### 3. Multi-Tool Composition
-Complex apps import multiple tool groups:
-- **Jupyter Notebook**: 4 groups - full environment for notebook development
-- **Content Reader**: 3 groups - content analysis and file handling
-- **Research Assistant**: 2 groups - file and web integration
-
-### 4. Tool Sharing Across Apps
-Common tool groups reduce duplication:
-- `:file_operations` used by 10 apps
-- `:web_search_tools` used by 4 apps for research capabilities
-
----
-
-## Implementation Files
-
-### Shared Tools Modules
-Located in `/docker/services/ruby/lib/monadic/shared_tools/`:
-- `registry.rb` - Central registry with all tool definitions
-- `file_operations.rb` - File I/O implementation
-- `python_execution.rb` - Code execution
-- `file_reading.rb` - File parsing (PDF, Office, text)
-- `web_search_tools.rb` - Web search integration
-- `web_automation.rb` - Selenium-based web interaction
-- `image_analysis.rb` - Provider-independent image analysis
-- `audio_transcription.rb` - Provider-independent audio transcription
-- `video_analysis.rb` - Provider-independent video analysis
-- `jupyter_operations.rb` - Notebook management
-- `app_creation.rb` - App introspection and creation
-- `planning.rb` - Plan-Approve-Execute pattern
-- `verification.rb` - Self-Verification Protocol
-
-### App-Specific Tools
-Located in `/docker/services/ruby/apps/{app_name}/`:
-- `{app_name}_tools.rb` - Custom tool implementations for the app
-- `{app_name}_{provider}.mdsl` - MDSL definitions importing and defining tools
-
+# Apps and Tools Inventory
+
+This page lists the shared tool groups and the tools each built-in app declares in its MDSL files (`docker/services/ruby/apps/*/*.mdsl`). How hidden tools are unlocked is described in [progressive_tool_disclosure.md](progressive_tool_disclosure.md).
+
+## Shared Tool Groups
+
+Defined in `MonadicSharedTools::Registry::TOOL_GROUPS` (`lib/monadic/shared_tools/registry.rb`); the methods are in `lib/monadic/shared_tools/<group>.rb`. "UI availability" is the registry's `available_when` check, used for the badges only.
+
+| Group | Tools | UI availability |
+|---|---|---|
+| `file_operations` | `read_file_from_shared_folder`, `write_file_to_shared_folder`, `list_files_in_shared_folder` | — |
+| `file_reading` | `fetch_text_from_file`, `fetch_text_from_pdf`, `fetch_text_from_office` | — |
+| `python_execution` | `run_code`, `run_bash_command`, `check_environment`, `lib_installer` | — |
+| `parallel_python_execution` | `parallel_run_code` | — |
+| `parallel_dispatch` | `dispatch_parallel_tasks` | — |
+| `jupyter_operations` | `run_jupyter`, `create_jupyter_notebook`, `add_jupyter_cells`, `insert_jupyter_cells`, `update_jupyter_cell`, `delete_jupyter_cell`, `move_jupyter_cell`, `get_jupyter_cells_with_results`, `execute_and_fix_jupyter_cells`, `list_jupyter_notebooks`, `restart_jupyter_kernel`, `interrupt_jupyter_execution` | — |
+| `web_search_tools` | `search_web`, `fetch_web_content`, `tavily_search`, `tavily_fetch` | `TAVILY_API_KEY` set |
+| `web_automation` | `capture_viewport_screenshots`, `list_captured_screenshots`, `get_viewport_presets`, `start_browser`, `browser_navigate`, `browser_click`, `browser_type`, `browser_screenshot`, `browser_get_page_info`, `annotate_elements`, `browser_scroll`, `browser_press_key`, `browser_select`, `browser_back`, `browser_forward`, `stop_browser` | Selenium and Python containers running |
+| `image_analysis` | `analyze_image` | a key of OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere or DeepSeek set |
+| `audio_transcription` | `analyze_audio` | a key of OpenAI, Gemini or xAI set |
+| `video_analysis` | `analyze_video` | a key of OpenAI, Anthropic, Gemini or xAI set |
+| `library_search` | `library_search` | embeddings service healthy |
+| `session_context` | `get_context`, `update_context`, `remove_from_context`, `clear_context` | — |
+| `app_creation` | `list_monadic_apps`, `get_app_info`, `create_simple_app_template` | — |
+| `planning` | `propose_plan` | — |
+| `verification` | `report_verification` | — |
+
+`image_analysis`, `video_analysis` and `audio_transcription` are imported only for providers that can do the analysis themselves; otherwise the import is skipped.
+
+## Tools Added to Every App
+
+- `file_operations` (always visible) is added to every app that does not import it.
+- `library_search` (conditional) is added to apps whose `library_search` capability is on (`finalize_capabilities!` in `dsl.rb`; off in Privacy Filter apps).
+- `request_tool` is added to any app with a conditional import.
+
+These are not repeated in the table below.
+
+## Apps
+
+Groups without a note are always visible. A provider list after a group or tool means only those variants declare it.
+
+| App | Providers | Imported groups | App tools |
+|---|---|---|---|
+| Auto Forge | OpenAI, Claude, Grok | `web_automation` (conditional), `planning` (OpenAI, Grok only), `verification` (OpenAI, Grok only) | `generate_application`, `validate_specification`, `list_projects`, `generate_additional_file`, `claude_code_agent` (Claude), `debug_application`, `finish_task`, `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
+| Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
+| Chat Plus | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `session_context`, `file_operations` | — |
+| Code Interpreter | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning`, `verification`, `parallel_python_execution`, `image_analysis` (conditional) | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
+| Coding Assistant | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations`, `planning` | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
+| Concept Visualizer | OpenAI, Claude | `planning` | `generate_concept_diagram`, `list_diagram_examples` |
+| Document Generator | Claude | `planning`, `file_operations` | — |
+| DrawIO Grapher | OpenAI, Claude, Gemini, Grok | `planning` | `preview_drawio`, `write_drawio_file`, `stop_drawio_browser` |
+| Image Generator | OpenAI, Gemini, Grok | `planning` | `generate_image_with_gemini` (Gemini), `monadic_load_state`, `generate_image_with_grok` (Grok), `generate_image_with_openai` (OpenAI) |
+| Jupyter Notebook | OpenAI, Claude, Gemini, Grok | `jupyter_operations`, `python_execution`, `file_operations`, `file_reading`, `planning`, `verification` | `monadic_load_state`, `create_and_populate_jupyter_notebook` (Gemini, Grok), `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
+| Knowledge Base | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | `list_conversations`, `search_library`, `get_conversation_details`, `library_stats`, `update_conversation_scope`, `delete_conversation_from_library`, `import_conversation_from_text` |
+| Language Practice | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
+| Language Practice Plus | OpenAI, Claude | — | `load_context`, `save_response`, `set_target_language` |
+| Live Conversation | OpenAI, Gemini, Grok | — | — |
+| Mail Composer | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations` | — |
+| Math Tutor | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning` | `load_learning_progress`, `save_learning_progress`, `add_solved_problem`, `add_concepts`, `add_weak_areas`, `add_learning_notes` |
+| Mermaid Grapher | OpenAI, Claude, Gemini, Grok | `web_search_tools` (conditional), `planning`, `verification` | `validate_mermaid_syntax`, `preview_mermaid`, `stop_mermaid_browser`, `analyze_mermaid_error`, `fetch_mermaid_docs` |
+| Monadic Chat Help | OpenAI | — | `find_help_topics`, `get_help_document`, `list_help_sections`, `search_help_by_section` |
+| Music Analyst | Gemini | — | `analyze_audio_features`, `critique_audio` |
+| Music Generator | Gemini | `planning` | `generate_music_with_lyria`, `generate_music_with_elevenlabs` |
+| Music Lab | OpenAI, Claude, Gemini, Grok | — | `play_chord`, `play_scale`, `play_interval`, `play_progression`, `generate_backing_track`, `analyze_audio_file` |
+| Novel Writer | OpenAI, Mistral, DeepSeek | `file_operations`, `planning` | `count_num_of_words`, `count_num_of_chars`, `load_novel_context`, `save_novel_context`, `add_character`, `update_progress`, `update_summary` |
+| Research Assistant | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `file_operations`, `python_execution`, `file_reading`, `planning`, `parallel_dispatch`, `web_search_tools` (conditional) (OpenAI, Claude, Grok, Mistral, Cohere, DeepSeek only), `web_automation` (conditional) (OpenAI, Claude, Gemini, Grok only), `image_analysis` (conditional) | `load_research_progress` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `save_research_progress` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_finding` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_research_topics` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_search` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_sources` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_research_notes` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
+| Second Opinion | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | — | `second_opinion_agent`, `parallel_second_opinions` |
+| Speech Draft Helper | OpenAI | `file_operations`, `audio_transcription` (conditional), `image_analysis` (conditional) | `fetch_text_from_file`, `fetch_text_from_pdf`, `fetch_text_from_office`, `list_providers_and_voices`, `text_to_speech` |
+| Syntax Tree | OpenAI, Claude | `file_operations`, `planning` | `render_syntax_tree` |
+| Translate | OpenAI, Cohere, DeepSeek | — | `load_translation_context`, `save_translation_context`, `add_vocabulary_entry`, `clear_vocabulary` |
+| Video Describer | OpenAI, Gemini, Grok | `video_analysis`, `planning` | — |
+| Video Generator | Gemini, Grok | `planning` | `generate_video_with_veo` (Gemini), `monadic_load_state`, `generate_video_with_grok_imagine` (Grok) |
+| Voice Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
+| Voice Interpreter | OpenAI, Cohere | — | `load_context`, `save_translation`, `set_target_language` |
+| Web Insight | OpenAI, Claude, Gemini, Grok | `web_automation`, `planning` | — |
+| Wikipedia | OpenAI | `web_search_tools` (conditional) | `search_wikipedia` |
+
+App tool methods live in `apps/<app>/<app>_tools.rb` (or the app's `.rb` file); the DSL includes `<Base>Tools` and each imported group's module in the generated class.
+
+## Regenerating the App Table
+
+The table is derived from the MDSL files: `provider`, `display_name`, `import_shared_tools` (with `visibility`) and `define_tool` of each file, merged per app directory.

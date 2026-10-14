@@ -1,51 +1,41 @@
-# Monadic Help System
+# Monadic Chat Help
 
-The Monadic Help system provides intelligent documentation search and assistance for Monadic Chat users.
+The Monadic Chat Help app (`apps/monadic_help/`, OpenAI) answers questions from the help database. Installing the database from the UI is described in `docs_dev/developer/help_system_internal.md`.
 
-## Architecture
+## Storage
 
-- **Storage**: Qdrant collections (`help_docs` for document-level entries, `help_items` for chunk-level entries) running in the `qdrant_service` container.
-- **Embeddings**: `intfloat/multilingual-e5-base` (768-dim, L2-normalised) served by the `embeddings_service` container. No external API key is required.
-- **Build pipeline**: `rake help:build` chunks Markdown files under `docs/` and writes a JSON dump to `docker/services/ruby/help_data/help_db.json`. The dump is baked into the Ruby image; on first start, `Monadic::Help::DumpLoader` imports it into Qdrant.
-- **Public content only**: the shipped dump covers public documentation alone. `rake help:build_internal` adds `docs_dev/` for local use, and `HelpDumpGuard` refuses to package a dump that contains internal points — from both the Rake stager and electron-builder's `beforePack` hook.
+- Qdrant collections `help_docs` (one point per document) and `help_items` (one point per chunk), defined in `VectorStore::Schema`.
+- Embeddings from the embeddings service (`intfloat/multilingual-e5-base`); no API key is needed for search.
+- The dump `docker/services/ruby/help_data/help_db.json` is baked into the Ruby image at `/monadic/help_data/help_db.json` (`HELP_DATA_DUMP` overrides the path). The user installs it into Qdrant from the UI (`POST /help/database/install`).
 
-## Features
+## Building the Dump
 
-- **Multi-chunk search results**: Returns multiple chunks per document for better context. Configurable via `HELP_CHUNKS_PER_RESULT` (default: 3).
-- **English-only corpus**: The build script skips `/ja`, `/zh`, `/ko` paths under `docs/`. The LLM handles translation to the user's preferred language at query time, which keeps the index small without sacrificing reach.
-
-## Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `HELP_CHUNK_SIZE` | Characters per Markdown chunk during build | `3000` |
-| `HELP_OVERLAP_SIZE` | Character overlap between consecutive chunks | `500` |
-| `HELP_CHUNKS_PER_RESULT` | Chunks returned per document at query time | `3` |
-| `HELP_DATA_DUMP` | Path to the prebuilt JSON dump (overrides image default) | `/monadic/help_data/help_db.json` |
-| `EMBEDDINGS_URL` | Override the embeddings service base URL | (resolved by `Monadic::Embeddings::Endpoint`) |
-| `QDRANT_URL` | Override the Qdrant base URL | (resolved by `Monadic::VectorStore::Endpoint`) |
-
-## Building the help database
+`scripts/utilities/process_documentation.rb`, run through Rake:
 
 ```bash
-# Build dump from docs/* (full rebuild every time). This is what ships.
-rake help:build
-
-# Drop the existing dump first, then build
-rake help:rebuild
-
-# Show dump statistics (file path, embedding model, point counts per collection)
-rake help:stats
-
-# Developers only: also index docs_dev/*. Rejected at packaging time.
-rake help:build_internal
+rake help:build           # docs/ only; this is what ships
+rake help:rebuild         # delete the dump, then build
+rake help:stats           # dump path, embedding model, points per collection
+rake help:export          # print the dump path
+rake help:build_internal  # also docs_dev/; never packaged
 ```
 
-The build script always processes the full corpus — there is no incremental skip path. Embedding the whole corpus locally takes well under a minute, so the simplification is intentional.
+- Only files tracked by git are indexed; `docs/ja`, `docs/zh` and `docs/ko` are skipped.
+- `HELP_CHUNK_SIZE` (3000 characters) and `HELP_OVERLAP_SIZE` (500) set the chunking.
+- Every build processes the whole corpus.
+- `scripts/help_dump_guard.rb` (`HelpDumpGuard`) refuses to package a dump with internal points.
 
-## Search APIs (Ruby)
+## Tools
 
-- `HelpEmbeddings#find_closest_text(query, top_n:, include_internal:)` — single-chunk hits.
-- `HelpEmbeddings#find_closest_text_multi(query, chunks_per_result:, top_n:, include_internal:)` — grouped by document so a single doc cannot flood the result list.
-- `HelpEmbeddings#find_closest_doc(query, top_n:, language:)` — document-level hits.
-- `HelpEmbeddings#search(query:, num_results:)` — MCP-friendly format with `title` / `content` / `metadata` / `distance`.
+| Tool | What it does |
+|---|---|
+| `find_help_topics(text:, top_n: 10, chunks_per_result:)` | Chunk search grouped by document (`find_closest_text_multi`) |
+| `get_help_document(doc_id:)` | All chunks of one document |
+| `list_help_sections(language:)` | Document titles |
+| `search_help_by_section(text:, section:, top_n: 3, chunks_per_result:)` | Search within one section |
+
+`chunks_per_result` defaults to `ENV["HELP_CHUNKS_PER_RESULT"]` or 3. Internal documents are included only when `ENV["DEBUG_MODE"] == "true"`. The search methods are in `lib/monadic/utils/help_embeddings.rb` (`find_closest_text`, `find_closest_text_multi`, `find_closest_doc`, `search`).
+
+## Endpoints
+
+`EMBEDDINGS_URL` and `QDRANT_URL` override the service URLs (`Monadic::Embeddings::Endpoint`, `Monadic::VectorStore::Endpoint`).

@@ -9,7 +9,7 @@ Monadic Chat uses a shared-instance architecture where each app class has a sing
 ### App Instance Lifecycle
 
 ```ruby
-# lib/monadic.rb:987-998
+# lib/monadic.rb (init_apps)
 def init_apps
   apps = {}
   klass = Object.const_get("MonadicApp")
@@ -55,7 +55,7 @@ class MyApp < MonadicApp
 end
 ```
 
-**Why Safe**:
+**Properties**:
 - No shared state between invocations
 - Thread-safe by design
 - No race conditions possible
@@ -83,7 +83,7 @@ class MyApp < MonadicApp
 end
 ```
 
-**Why Unsafe**:
+**What goes wrong**:
 - User A calls `validate_code("A's code")`
 - User B calls `validate_code("B's code")` → Overwrites `@last_validated_code`
 - User A calls `preview_code` → Gets B's code!
@@ -148,64 +148,6 @@ system_prompt = APPS[app_name].settings["initial_prompt"]
 ```
 
 **Protects Against**: Prompt cache pollution between apps
-
-## Case Studies
-
-### Case Study 1: Mermaid Grapher (Fixed 2024-01)
-
-**Original Problem**:
-```ruby
-def run_full_validation(code, source: nil)
-  # ...
-  @context[:mermaid_last_validation_ok] = true      # ← UNSAFE
-  @context[:mermaid_last_validated_code] = code     # ← UNSAFE
-end
-```
-
-**Issue**:
-- User A validates Mermaid code
-- User B validates different code → Overwrites `@context`
-- User A requests preview → Gets wrong validation state
-
-**Fix** (`apps/mermaid_grapher/mermaid_grapher_tools.rb:314-335`):
-```ruby
-def run_full_validation(code, source: nil)
-  # Removed @context usage entirely
-  # Validation workflow now relies on LLM following correct sequence
-  result[:validated_code] = code
-  result
-end
-```
-
-### Case Study 2: AutoForge (Fixed 2024-01)
-
-**Original Problem**:
-```ruby
-def generate_application(params = {})
-  context = @context || {}              # ← UNSAFE
-  @context ||= context                  # ← UNSAFE
-
-  # Store project info
-  @context[:auto_forge] = project_info  # ← UNSAFE
-end
-```
-
-**Issue**:
-- User A creates project "AppA"
-- User B creates project "AppB" → Overwrites `@context[:auto_forge]`
-- User A's subsequent operations use "AppB" data
-
-**Fix** (`apps/auto_forge/auto_forge_tools.rb:88-94, 201-212`):
-```ruby
-def generate_application(params = {})
-  # Use local variable only
-  context = {}                          # ← SAFE
-
-  # Store in local context passed to generators
-  context[:auto_forge] = project_info   # ← SAFE (local scope)
-  # Removed @context assignment
-end
-```
 
 ## Best Practices for App Development
 

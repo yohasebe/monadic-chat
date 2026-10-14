@@ -9,7 +9,7 @@ This document provides guidelines for developers contributing to the Monadic Cha
 ### Running Tests :id=running-tests
 
 ```bash
-# Run all tests
+# Ruby specs (run from docker/services/ruby)
 rake spec
 
 # Run JavaScript tests
@@ -26,7 +26,7 @@ npm test
 
 #### All Tests
 ```bash
-rake test  # Run both Ruby and JavaScript tests
+rake test  # Ruby, JavaScript and Python tests
 ```
 
 ### Test Organization :id=test-organization
@@ -35,7 +35,6 @@ Tests are organized to minimize duplication and improve maintainability:
 
 - **Unit Tests** (`spec/unit/`): Fast, isolated tests with no external dependencies
 - **Integration Tests** (`spec/integration/`): 
-  - `docker_infrastructure_spec.rb` - Container health, Docker commands, database connectivity
   - `app_helpers_integration_spec.rb` - Helper modules and app functionality
 - **System Tests** (`spec/system/`): App validation and MDSL verification
 - **E2E Tests** (`spec/e2e/`): Full workflow tests with real API calls
@@ -53,6 +52,7 @@ Monadic Chat uses a unified debug system controlled via configuration variables 
 - `ai_user`: AI user agent
 - `web_search`: Web search operations (includes Tavily)
 - `api`: API requests and responses
+- `mdsl`: MDSL loading
 
 ### Debug Levels :id=debug-levels
 - `none`: No debug output (default)
@@ -78,11 +78,11 @@ MONADIC_DEBUG=api,web_search,mdsl
 MONADIC_DEBUG=all
 MONADIC_DEBUG_LEVEL=verbose
 
-# API debugging (equivalent to Electron's "Extra Logging")
+# API debugging
 MONADIC_DEBUG=api
 ```
 
-### Error Handling Improvements :id=error-handling-improvements
+### Error Handling :id=error-handling-improvements
 - **Error Pattern Detection**: System automatically detects repeated errors and stops after 3 similar occurrences
 - **UTF-8 Encoding**: All responses are properly handled with fallback encoding replacement
 - **Infinite Loop Prevention**: Tool calls are limited to prevent "Maximum function call depth exceeded" errors
@@ -93,7 +93,7 @@ MONADIC_DEBUG=api
 ### MDSL Development Best Practices :id=mdsl-best-practices
 
 #### File Structure
-Monadic Chat applications now use the MDSL (Monadic Domain Specific Language) format exclusively:
+Apps are defined in MDSL (Monadic Domain Specific Language):
 
 - **App Definition**: `app_name_provider.mdsl` (e.g., `chat_openai.mdsl`)
 - **Tool Implementation**: `app_name_tools.rb` (e.g., `chat_tools.rb`)
@@ -164,73 +164,13 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 
 #### Provider-Specific Considerations :id=provider-considerations
 
-- **Function Limits**: OpenAI/Gemini support up to 20 function calls, Claude supports up to 16
+- **Function Limits**: Up to 20 function calls per turn (30 with Mistral)
 - **Code Execution**: All providers use `run_code` for code execution
 - **Array Parameters**: OpenAI requires `items` property for array parameters
 
-## Important: Managing Setup Scripts :id=managing-setup-scripts
+## Setup Scripts :id=managing-setup-scripts
 
-The `pysetup.sh` and `rbsetup.sh` files in the repository are placeholder scripts that get replaced during container build with user-provided versions from `~/monadic/config/`. Always commit the original placeholder versions to Git. Before committing changes, reset these files using one of the methods below:
-
-#### Method 1: Using the Reset Script
-
-Run the provided reset script:
-
-```bash
-./docker/services/reset_setup_scripts.sh
-```
-
-This will restore the original versions of the setup scripts from git.
-
-#### Method 2: Manual Reset
-
-Alternatively, you can manually reset the files using git:
-
-```bash
-git checkout -- docker/services/python/pysetup.sh docker/services/ruby/rbsetup.sh
-```
-
-### Git Pre-commit Hook (Optional) :id=git-precommit-hook
-
-You can set up a git pre-commit hook to automatically reset these files before each commit:
-
-1. Create a file named `pre-commit` in your `.git/hooks/` directory:
-
-```bash
-touch .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
-
-2. Add the following content to the pre-commit hook:
-
-```bash
-#!/bin/bash
-# .git/hooks/pre-commit - Automatically reset setup scripts before commit
-
-# Get the files that are staged for commit
-STAGED_FILES=$(git diff --cached --name-only)
-
-# Check if our setup scripts are modified
-if echo "$STAGED_FILES" | grep -q "docker/services/python/pysetup.sh\|docker/services/ruby/rbsetup.sh"; then
-  echo "⚠️ Setup script changes detected in commit."
-  echo "⚠️ Resetting to original versions from git..."
-  
-  # Reset them
-  git checkout -- docker/services/python/pysetup.sh
-  git checkout -- docker/services/ruby/rbsetup.sh
-  
-  # Re-add them to staging
-  git add docker/services/python/pysetup.sh
-  git add docker/services/ruby/rbsetup.sh
-  
-  echo "✅ Setup scripts reset. Proceeding with commit."
-fi
-
-# Allow the commit to proceed
-exit 0
-```
-
-This pre-commit hook will automatically detect and reset any changes to the setup scripts before committing.
+`~/monadic/config/pysetup.sh` and `~/monadic/config/rbsetup.sh` run at the end of the Python and Ruby image builds. They are passed as BuildKit secrets: `docker build --secret id=pysetup|rbsetup,src=…`, and for compose builds `secrets: … environment: MONADIC_PYSETUP_CONTENT` / `MONADIC_RBSETUP_CONTENT`, set only around `compose build`. Nothing is copied into the repository or the build context, so there is nothing to reset before committing. See `docs_dev/docker-build-caching.md`.
 
 ## Development Environment Setup :id=development-environment-setup
 
@@ -245,12 +185,12 @@ rake server:debug
 ```
 
 This command:
-- **Automatically starts Electron app** if not running (which manages Docker Desktop)
-- Waits for Docker daemon to be ready (max 60 seconds)
+- Starts Docker Desktop if needed and waits for the Docker daemon
 - Performs comprehensive setup: API key checks, vendor asset downloads, process cleanup
 - Starts the server in debug mode with `EXTRA_LOGGING=true`
 - Does NOT start the Ruby container - uses host Ruby runtime instead
-- Starts the other containers (qdrant, embeddings, Python, Selenium, and Privacy unless `PRIVACY_FILTER=false`)
+- Starts the existing Qdrant, embeddings, Python and Selenium containers
+- Loads custom apps and helpers from the shared folder only when the shell sets `MONADIC_LOAD_USER_CODE=true`
 - Uses files from `docker/services/ruby/` directly on the host
 - Makes the web UI accessible via browser at [http://localhost:4567](http://localhost:4567)
 
@@ -355,4 +295,4 @@ Users who want to customize their containers should place custom scripts in:
 - `~/monadic/config/pysetup.sh` for Python customizations
 - `~/monadic/config/rbsetup.sh` for Ruby customizations
 
-These user-provided scripts will be automatically used when building containers locally, replacing the placeholder scripts during the build process. However, they won't be committed to the Git repository.
+These scripts run when the images are built on the computer; they stay in `~/monadic/config` and are not kept in the images.

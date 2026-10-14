@@ -1,71 +1,46 @@
-# Monadic Chat Development Guide
+# Ruby Service Development Guide
 
-## Setting Up Development Environment
+## Setup
 
-### Prerequisites
+- Ruby 3.4 (the Ruby image uses `ruby:3.4.7-slim-bookworm`), Bundler, and Docker for the peer containers.
+- Install the gems in `docker/services/ruby`:
 
-- Ruby 3.0+ 
-- Docker Desktop
-- ImageMagick (for image processing tests)
-
-### Initial Setup
-
-1. Clone the repository
-2. Navigate to `docker/services/ruby`
-3. Install dependencies:
-   ```bash
-   bundle install
-   ```
-
-### Running Tests
-
-#### Unit Tests (Fast)
 ```bash
-rake spec_unit
+cd docker/services/ruby
+bundle install
 ```
 
-#### All Tests
+Run specs from `docker/services/ruby` with its own bundle; the root `Gemfile` lacks gems the specs need.
+
+## Running Tests
+
 ```bash
-rake spec
+cd docker/services/ruby
+bundle exec rspec spec/unit                    # unit specs, no Docker
+bundle exec rspec spec/integration             # provider APIs / containers
+bundle exec rspec spec/unit/scripts/office2txt_minimal_spec.rb   # one file
 ```
 
-#### Running Specific Test Files
+From the project root, `rake spec` runs the Ruby specs and `rake spec:quick` runs unit and integration specs without system specs. See `docs_dev/test_runner.md` and `docs_dev/test_quickref.md` for the other tasks.
+
+## Spec Directories
+
+| Directory | Contents |
+|---|---|
+| `spec/unit/` | Isolated specs; external services are stubbed |
+| `spec/integration/` | Specs that call provider APIs or containers |
+| `spec/system/` | Full application flows |
+| `spec/e2e/` | Flows through the local server's WebSocket, without real provider APIs |
+| `spec/performance/` | Native web search timing |
+
+## Script Specs
+
+- Ruby scripts are tested on the host with temporary files.
+- Python scripts are tested through the Python container, with test files in the shared folder (`~/monadic/data`); the specs remove what they create.
+
+## Code Style
+
 ```bash
-# Run office2txt tests
-bundle exec rspec spec/unit/scripts/office2txt_minimal_spec.rb
-
-# Run PDF processing tests  
-bundle exec rspec spec/unit/scripts/pdf2txt_docker_spec.rb
-```
-
-### Test Organization
-
-- **Unit Tests** (`spec/unit/`): Fast, isolated tests
-- **Integration Tests** (`spec/integration/`): Tests with external dependencies
-- **System Tests** (`spec/system/`): Full application tests
-- **E2E Tests** (`spec/e2e/`): End-to-end workflow tests
-
-### Writing Tests for Scripts
-
-#### Ruby Scripts
-- Test locally without Docker
-- Mock external dependencies when possible
-- Use actual file operations with temp files
-
-#### Python Scripts
-- Always test through Docker container
-- Use shared volume (`~/monadic/data`) for test files
-- Clean up test artifacts after each test
-
-### Common Issues
-
-1. **Docker not running**: Start Docker Desktop before running Python script tests
-2. **Permission errors**: Ensure `~/monadic/data` directory exists and is writable
-3. **ImageMagick not found**: Install ImageMagick for image tests (`brew install imagemagick` on macOS)
-
-### Code Style
-
-Run RuboCop for code style checks:
-```bash
+cd docker/services/ruby
 bundle exec rubocop
 ```

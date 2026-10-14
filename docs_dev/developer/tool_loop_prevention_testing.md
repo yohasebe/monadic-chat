@@ -1,8 +1,8 @@
 # Tool Loop Prevention Testing
 
-This document explains the testing strategies implemented to prevent infinite tool call loops in apps with `initiate_from_assistant: true`.
+Tests that catch tool call loops in apps with `initiate_from_assistant: true`, and how to write prompts that avoid them.
 
-## The Problem
+## Loops in Initial Messages
 
 Apps with `initiate_from_assistant: true` can enter infinite tool call loops when:
 
@@ -74,30 +74,30 @@ This test scans all MDSL files and checks:
 bundle exec rspec spec/unit/apps/initiate_from_assistant_safety_spec.rb
 ```
 
-### 2. ResponseEvaluator Enhancements
+### 2. ResponseEvaluator
 
 **Location:** `spec/support/response_evaluator.rb`
 
-Added patterns and checks:
+Patterns and checks:
 
 - **TOOL_LOOP_ERROR_PATTERNS:** Detects error messages like "Maximum function call depth exceeded"
 - **SAFE_INITIAL_TOOLS:** Tools acceptable in initial messages (load_* etc.)
 - **RISKY_INITIAL_TOOLS:** Tools that should NOT be called in initial messages (save_*, add_*, update_*)
 
-For initial messages (`is_initial_message: true`), the evaluator now:
+For initial messages (`is_initial_message: true`), the evaluator:
 1. Fails if response contains tool loop error text
 2. Fails if risky tools are called
 3. Fails if too many non-safe tools are called
 
-### 3. Initial Message Matrix Test Improvements
+### 3. Initial Message Matrix
 
 **Location:** `spec/integration/provider_matrix/all_providers_all_apps_spec.rb`
 
-The Initial Message Matrix test now:
+The Initial Message Matrix (`describe 'Initial Message Matrix (initiate_from_assistant apps)'`):
 
 1. **Checks for tool loop error patterns** in response text
 2. **Validates tool calls** - fails if risky tools (save_*, update_*, add_*) are called
-3. **Treats timeout as potential loop** - instead of skipping, now fails with diagnostic message
+3. **Treats a timeout as a possible loop** and fails with a diagnostic message
 4. **Detects loop indicators in exceptions** - catches "Maximum function call depth" errors
 
 ## Tool Classification
@@ -122,9 +122,9 @@ The Initial Message Matrix test now:
 - `add_sources`
 - `update_progress`
 
-## Fixing Apps with Issues
+## Fixing an App
 
-When the tests detect issues, fix the app by:
+When the tests report a problem:
 
 1. **Add Initial Greeting Exception:**
    ```
@@ -156,7 +156,7 @@ bundle exec rspec spec/unit/apps/initiate_from_assistant_safety_spec.rb
 # Initial message matrix (requires API keys)
 PROVIDERS=openai,anthropic,gemini RUN_API=true bundle exec rspec \
   spec/integration/provider_matrix/all_providers_all_apps_spec.rb \
-  --tag initial_message
+  -e "Initial Message Matrix"
 
 # With debug output
 DEBUG=true PROVIDERS=openai RUN_API=true bundle exec rspec \

@@ -1,61 +1,44 @@
-# Monadic Chat Scripts
+# Ruby Service Scripts
 
-This directory contains various utility scripts to help with Monadic Chat development and operations.
+The scripts live in `docker/services/ruby/scripts/`.
 
-## Directory Structure
+## Directories
 
-### `/utilities/`
-General utility scripts needed for build and setup
-- `download_assets.sh` - Download required assets (CSS, JS, fonts, etc.)
-- `fix_font_awesome_paths.sh` - Fix Font Awesome paths
+| Path | Contents |
+|---|---|
+| `cli_tools/` | Command-line tools that the apps call inside the Ruby container |
+| `generators/` | Image and video generators |
+| `utilities/` | `process_documentation.rb` |
+| `diagnostics/` | Standalone checks for developers |
+| (top level) | `download_assets.sh`, `ruby-healthcheck.sh`, `mcp_stdio_bridge.rb`, `mcp_client_example.rb` |
 
-### `/cli_tools/`
-Various tools that can be executed directly from command line
-- `content_fetcher.rb` - Read file contents and perform binary checks
-- `image_query.rb` - Base64 encode images and query OpenAI API
-- `stt_query.rb` - Speech-to-Text transcription from audio files
-- `tts_query.rb` - Text-to-Speech generation
-- `video_query.rb` - Video file analysis and frame extraction
+### `cli_tools/`
 
-### `/generators/`
-Standalone tools for content generation
-- `image_generator_grok.rb` - Image generation using Grok API
-- `image_generator_openai.rb` - Image generation using OpenAI DALL-E API
-- `video_generator_veo.rb` - Video generation using Google Veo API
+| Script | What it does |
+|---|---|
+| `content_fetcher.rb <file> [sizecap]` | Prints a file's text (default cap 10 MB) after a binary check |
+| `image_query.rb <message> <image path or URL> [model]` | Asks an OpenAI vision model about an image |
+| `stt_query.rb <audio> [outdir] [format] [lang] [model]` | OpenAI speech-to-text |
+| `tts_query.rb <text file> [--provider=…] [--voice=…] [--speed=…] [--language=…]` | Text-to-speech (OpenAI, Gemini or ElevenLabs); `--list` prints the providers and their voices as JSON |
+| `video_query.rb <frames JSON> [query] [model]` | Asks an OpenAI vision model about video frames listed in a JSON file (more than 50 frames are thinned to 50, evenly spaced) |
 
-### `/diagnostics/`
-Diagnostic and testing scripts for various features
-- `/apps/concept_visualizer/` - Diagnostic tools for Concept Visualizer app
-- `/apps/wikipedia/` - Testing tools for Wikipedia functionality
+Default models come from `providerDefaults` in `model_spec.js`.
 
-## Usage
+### `generators/`
 
-### CLI Tools Examples
+`image_generator_openai.rb`, `image_generator_grok.rb`, `video_generator_gemini.rb`, `video_generator_grok.rb`, each using its own provider's API.
 
-```bash
-# Fetch file contents (up to 10MB)
-ruby scripts/cli_tools/content_fetcher.rb /path/to/file.txt
+### Top Level
 
-# Ask questions about an image
-ruby scripts/cli_tools/image_query.rb /path/to/image.png "What is in this image?"
+- `download_assets.sh`: fetches the web UI's third-party files into `public/vendor` at the versions and hashes in `bin/assets_list.sh`, and builds the maxGraph bundle.
+- `ruby-healthcheck.sh`: container healthcheck; succeeds when `http://localhost:4567/` answers.
+- `mcp_stdio_bridge.rb`: stdio bridge to the MCP server for stdio-only clients.
+- `mcp_client_example.rb`: example MCP client.
 
-# Transcribe audio to text
-ruby scripts/cli_tools/stt_query.rb /path/to/audio.mp3
-```
+### `utilities/process_documentation.rb`
 
-### Diagnostic Tools Examples
+Builds the help database dump `docker/services/ruby/help_data/help_db.json` from `docs/*.md` (and `docs_dev/*.md` with `--include-internal`) using the embeddings service. It does not need Qdrant.
 
-```bash
-# Test Concept Visualizer basic functionality
-cd scripts/diagnostics/apps/concept_visualizer/
-./test_concept_visualizer_simple.sh
+## Diagnostics
 
-# Test Wikipedia loading
-ruby scripts/diagnostics/apps/wikipedia/test_wikipedia_loading.rb
-```
-
-## Notes
-
-- Many scripts require API key configuration (e.g., `OPENAI_API_KEY`)
-- Diagnostic scripts should be run with Docker containers running
-- CLI tools operate independently but require necessary dependencies to be installed
+See [diagnostics/overview.md](diagnostics/overview.md).

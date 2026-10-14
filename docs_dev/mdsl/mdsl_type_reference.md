@@ -120,13 +120,13 @@ llm do
 end
 ```
 
-**Note**: These are currently converted to strings during transmission but JavaScript handles this gracefully through type coercion. Explicit type preservation may be added in future if numeric comparisons become problematic.
+**Note**: These are sent to the browser as strings; parse them with `parseFloat` / `parseInt` before comparing numerically.
 
 ### Enum Parameters
 
 | Parameter | Type | Valid Values | Description |
 |-----------|------|--------------|-------------|
-| `reasoning_effort` | String | "minimal", "low", "medium", "high" | OpenAI reasoning effort level |
+| `reasoning_effort` | String | The values the model offers (`reasoning_effort` options in `model_spec.js`) | Reasoning effort level |
 
 **Provider-Specific**:
 - **OpenAI**: "minimal", "low", "medium", "high"
@@ -214,10 +214,10 @@ features do
 end
 ```
 
-**Why String**:
-- Evaluated in Ruby as boolean expression
-- Sent to frontend as string for display purposes
-- Frontend checks for truthiness
+**Handling**:
+- Evaluated in Ruby as a boolean expression
+- Sent to the browser as the string `"true"` or `"false"`
+- The browser compares with the string (`value.disabled === "true"` in `ws-app-data-handlers.js`)
 
 ## Type Validation
 
@@ -240,7 +240,7 @@ end
 When adding new MDSL parameters:
 
 1. **Determine the type category**:
-   - Boolean feature flag? → Add to type-preservation list in `websocket.rb`
+   - Boolean feature flag? → Add to the type-preservation list in `prepare_apps_data` (`lib/monadic/utils/websocket/app_data.rb`)
    - Array/Object? → Add explicit `.to_json` handling
    - Numeric? → Consider type preservation needs
    - String? → Default handling is fine
@@ -269,7 +269,7 @@ app "MyApp" do
   end
 end
 
-# 2. Add to type-preservation list (websocket.rb)
+# 2. Add to the type-preservation list (prepare_apps_data in websocket/app_data.rb)
 elsif ["auto_speech", ..., "my_new_feature"].include?(p.to_s)
   apps[k][p] = m
 
@@ -294,11 +294,11 @@ end
 | `Array` | Array | JSON-serialized via `.to_json` |
 | `Hash` | Object | JSON-serialized via `.to_json` |
 | `String` | String | Direct conversion |
-| `Integer` | Number* | Currently stringified, but parseable |
-| `Float` | Number* | Currently stringified, but parseable |
+| `Integer` | String | Parse with `parseInt` |
+| `Float` | String | Parse with `parseFloat` |
 | `nil` | null | Converted to JSON null |
 
-*Numeric types are currently converted to strings during transmission.
+Numeric settings are sent as strings.
 
 ### JSON → JavaScript
 
@@ -428,10 +428,3 @@ if ($("#temperature").val() > 0.5) {  // Auto-coercion
 - [Type Conversion Policy](/type_conversion_policy.md) - Overall policy document
 - [Monadic DSL Documentation](../../docs/advanced-topics/monadic_dsl.md) - User-facing DSL guide
 - [Common Issues](/common-issues.md) - Troubleshooting guide
-
-## Revision History
-
-- 2025-01: Initial type reference documentation
-- Added comprehensive boolean feature flag types
-- Documented type coercion rules
-- Added common pitfalls and best practices

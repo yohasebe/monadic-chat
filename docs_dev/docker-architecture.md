@@ -7,7 +7,7 @@ The authoritative service set is the `docker/services/` directory (one
 subdirectory per service, each with its own Dockerfile + compose file,
 included from `docker/services/compose.yml`):
 
-- **Ruby** (`monadic-chat-ruby-container`): Main application server (Falcon/Rack with 2 workers for personal use)
+- **Ruby** (`monadic-chat-ruby-container`): Main application server (Falcon/Rack, one worker)
 - **Qdrant** (`monadic-chat-qdrant-container`): Vector database for embeddings (Help system, PDF Library / Knowledge Base)
 - **Embeddings** (`monadic-chat-embeddings-container`): Local embedding service (`multilingual-e5-base`)
 - **Python** (`monadic-chat-python-container`): JupyterLab, Python tools & script execution
@@ -18,23 +18,13 @@ included from `docker/services/compose.yml`):
 Native Ollama is not a container: the Ruby service reaches the host's
 Ollama via `host.docker.internal:11434`.
 
-### Why storage and inference are separate containers
+### Storage and inference containers
 
-`monadic-chat-qdrant-container` does storage only (the official Qdrant image,
-~80 MB). `monadic-chat-embeddings-container` does inference only (Python +
-sentence-transformers with `multilingual-e5-base` baked in, ~2.5 GB).
-
-Colocating the model with Qdrant would require a supervisor — Qdrant is Rust
-and the model runtime is Python — and would conflate stateful storage with
-stateless inference at the lifecycle level. The Privacy Filter established
-"stateless ML inference gets its own container" as the project-wide pattern,
-and this follows it.
-
-Both are base services rather than opt-in: the Help system depends on both, so
-help search would be broken out of the box otherwise. Privacy Filter stays
-separately gated because it adds ~1 GB and is genuinely optional. The
-embeddings image is large because the model is baked in at build time, which
-trades image size for avoiding a 30–60 second cold start on first use.
+`monadic-chat-qdrant-container` does storage only (the Qdrant image).
+`monadic-chat-embeddings-container` does inference only (Python and
+sentence-transformers, with the embedding model baked into the image).
+Both are base services. Stateless ML inference runs in its own container,
+as the Privacy Filter does.
 
 ## Container Lifecycle
 
@@ -47,24 +37,23 @@ trades image size for avoiding a 30–60 second cold start on first use.
 - All containers managed by Docker Compose (`docker/services/compose.yml`)
 - Ruby app runs inside the Ruby container
 
-### On-Demand Container Startup (Compose Profiles)
+### Container Startup (Compose Profiles)
 
-Optional containers use Docker Compose **profiles** and are NOT started by
-default. Only the default services (Ruby + the `BASE_SERVICES` defined in
-`lib/monadic/utils/container_dependencies.rb` — currently Qdrant +
-embeddings, so the Help system always works) start on `docker compose up`.
+Start runs `docker compose … ${ALL_PROFILES_UP} up -d`. `ALL_PROFILES_UP` is
+`python` and `selenium`, plus `privacy` when `PRIVACY_FILTER` is not false
+(default true) and `extractor` when `EXTRACTOR_SERVICE` is true.
 
-| Container | Profile | Started When |
-|-----------|---------|-------------|
-| Ruby | (none) | Always at startup |
-| Qdrant | (none) | Always at startup (base service) |
-| Embeddings | (none) | Always at startup (base service) |
-| Python | `python` | App requires code execution, Jupyter, or data analysis |
-| Selenium | `selenium` | App requires web automation (Web Insight, AutoForge, etc.) |
-| Privacy | `privacy` | Privacy Filter enabled for the session |
-| Extractor | `extractor` | App requires document extraction |
+| Container | Profile | Started |
+|-----------|---------|---------|
+| Ruby | (none) | At Start |
+| Qdrant | (none) | At Start (base service) |
+| Embeddings | (none) | At Start (base service) |
+| Python | `python` | At Start |
+| Selenium | `selenium` | At Start |
+| Privacy | `privacy` | At Start when `PRIVACY_FILTER` is not false |
+| Extractor | `extractor` | At Start when `EXTRACTOR_SERVICE=true` |
 
-Container startup is triggered automatically when the user selects an app that requires it.
+When an app needs a service that is not running, it is started on demand.
 The `ContainerDependencies` module (`lib/monadic/utils/container_dependencies.rb`) determines
 which services each app needs based on MDSL settings (tool groups, jupyter flag, pdf_vector_storage).
 
@@ -77,7 +66,7 @@ service regardless of on-demand startup. Two profile sets exist (defined once at
 flag-gated and used for start/build/pull, while `ALL_PROFILES_DOWN` is unconditional and used
 for stop/down/remove — feature flags gate startup, never teardown, so a container started
 while a flag was on is still stopped after the flag is turned off.
-`spec/unit/compose_profile_completeness_spec.rb` pins both sets against the `profiles:` keys
+`docker/services/ruby/spec/unit/compose_profile_completeness_spec.rb` pins both sets against the `profiles:` keys
 in the compose files.
 
 ### Prebuilt Service Images (ghcr.io)
@@ -85,18 +74,14 @@ in the compose files.
 The **embeddings**, **privacy**, **extractor**, **selenium**, and
 **qdrant** images are NOT built locally: they are published as multi-arch
 (linux/amd64 + linux/arm64) manifests to ghcr.io by
-`.github/workflows/publish-images.yml` and pulled on demand. This is
-possible because their content is user-independent — language/OCR
-selection became runtime env (`PRIVACY_LANGS` / `EXTRACTOR_LANGS` /
-`EXTRACTOR_OCR`, injected via compose `environment:`) rather than build
-args. The **python** default image (all install options off) is also
+`.github/workflows/publish-images.yml` and pulled on demand. Their content is user-independent: language and OCR
+selection are runtime environment variables (`PRIVACY_LANGS` /
+`EXTRACTOR_LANGS` / `EXTRACTOR_OCR`, injected via compose `environment:`). The **python** default image (all install options off) is also
 published and doubles as the `--cache-from` source for option-enabled
 local builds. qdrant is a version-pinned mirror of the upstream image
-(see `docker/services/qdrant/Dockerfile` for the pin and bump procedure)
-so a mutable upstream `:latest` can never reach users outside a release;
-with selenium prebuilt as well, user machines no longer contact Docker
-Hub at runtime at all (Hub remains only as the base-image source for
-local builds of ruby and option-enabled python).
+(see `docker/services/qdrant/Dockerfile` for the pin and bump procedure).
+User machines pull service images only from ghcr.io; Docker Hub is used
+only for the base images of the local Ruby and option-enabled Python builds.
 
 Key mechanics:
 
@@ -114,19 +99,18 @@ Key mechanics:
   compose file's directory, which varies between invocation paths.
 - The full build (`build_docker_compose`) pulls embeddings, qdrant and
   selenium (+ privacy/extractor when enabled) before building the
-  locally-built images, and the image verification step fails the build
-  when a required pull did not produce an image.
+  locally-built images with `--no-cache`, and the image verification step
+  fails the build when a required pull did not produce an image.
 - Tag policy: `:latest` (the default consumed by user installs) moves only
   via main pushes (release path) or `workflow_dispatch`; dev pushes publish
   `:dev` instead, which dev-branch CI consumes (`MONADIC_IMAGE_TAG=dev` in
   specs.yml). A release also publishes an immutable `:<version>` tag
   (`workflow_dispatch` with the `version` input) for rollback. Users can
   pin or switch tags via `MONADIC_IMAGE_TAG` in `~/monadic/config/env`.
-- The ghcr.io packages must be public (one-time setting per package after
-  the first publish) for anonymous pulls to work.
-- Migration: `remove_legacy_prebuilt_images` (called on start) deletes the
-  pre-ghcr locally built `yohasebe/monadic-*` images plus the pre-unification
-  `yohasebe/selenium` and upstream `qdrant/qdrant` images.
+- The ghcr.io packages must be public for anonymous pulls to work.
+- `remove_legacy_prebuilt_images` (called on start) deletes local
+  `yohasebe/monadic-privacy|embeddings|extractor`, `yohasebe/selenium` and
+  `qdrant/qdrant` images.
 
 ### Restart Policies
 
@@ -136,9 +120,10 @@ Saver. On-demand containers have no independent lifecycle.
 
 ### Python image build (verified promotion)
 - Rebuild is invoked via `docker/monadic.sh build_python_container`.
-- Build to a temporary tag → run post-setup if present (`~/monadic/config/pysetup.sh`) → health checks → retag to version/latest only on success.
-- On failure, the current image is preserved (no rollback needed).
-- For each run, logs/metadata/health are saved under `~/monadic/log/build/python/<timestamp>/`.
+- No install options and no `~/monadic/config/pysetup.sh`: the prebuilt `ghcr.io/yohasebe/monadic-python` image is pulled. Otherwise it is built locally with `--cache-from` that image; `--no-cache` only with `FORCE_REBUILD`.
+- Build (or pull) to a temporary tag → health checks → retag only on success. `pysetup.sh` (and `rbsetup.sh` for Ruby) reach the build as BuildKit secrets; see [Docker Build Caching](docker-build-caching.md).
+- On failure, the current image is preserved.
+- Logs are overwritten on each build: `~/monadic/log/docker_build_python.log`, `python_health.json`, `python_meta.json`.
 
 ## Container Commands
 
@@ -166,7 +151,6 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 - `~/monadic/data` → `/monadic/data` (shared data)
 - `~/monadic/config` → `/monadic/config` (API keys, settings)
 - `~/monadic/log` → `/monadic/log` (logs)
-  - Python Rebuild per-run: `~/monadic/log/build/python/<timestamp>/`
 
 ## Port Mappings (defaults)
 

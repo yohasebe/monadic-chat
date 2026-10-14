@@ -90,8 +90,7 @@ module MonadicHelper
       if Monadic::Utils::Environment.in_container?
         # Routed through Monadic::Shell so the container name and the
         # cp invocation share the same source of truth as every other
-        # docker call. This is the H3 POC migration referenced in
-        # docs_dev/architecture_hardening_plan.md.
+        # docker call (docs_dev/developer/anti_pattern_lints.md).
         require_relative '../shell'
         _stdout, stderr, status = Monadic::Shell.cp_to_container(
           container: :python, host_path: filepath, container_path: data_dir

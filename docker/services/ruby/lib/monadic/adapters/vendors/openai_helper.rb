@@ -674,7 +674,6 @@ module OpenAIHelper
   private def build_openai_messages(body, context, session, obj, role, image_generation, image_file_references,
                                     reasoning_model, websearch_enabled, websearch_prompt, initial_prompt, prompt_suffix, message_with_snippet, &block)
     messages_containing_img = false
-    data = nil
 
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
@@ -766,11 +765,6 @@ module OpenAIHelper
 
     last_text = context.last&.dig("text")
 
-    if last_text&.match?(/\^\s*__DATA__\s*$/m)
-      last_text, data = last_text.split("__DATA__")
-      context.last["text"] = last_text if context.last
-    end
-
     last_text = message_with_snippet if message_with_snippet.to_s != ""
 
     # If this is an image generation request, add the image filenames to the last message
@@ -847,17 +841,6 @@ module OpenAIHelper
           end
         end
       end
-    end
-
-    if data
-      body["messages"] << {
-        "role" => "user",
-        "content" => [{ "type" => "text", "text" => data.strip }]
-      }
-      body["prediction"] = {
-        "type" => "content",
-        "content" => data.strip
-      }
     end
 
     # Use unified system prompt injector for dynamic prompt augmentation

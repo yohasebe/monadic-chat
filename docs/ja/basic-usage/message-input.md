@@ -108,9 +108,3 @@ AIレスポンスの `Start TTS` のアイコンをクリックすると合成�
 
 **Auto speech**<br />
 Interaction パネルで `Auto speech` をオンにすると、AIレスポンスが自動的に読み上げられます。`Easy submit`と組み合わせると音声対話に便利です。
-
-## プロバイダー固有の機能
-
-### OpenAI Predicted Outputs
-
-?> **OpenAI**: OpenAIのモデルを用いたアプリでは、プロンプトの中で `__DATA__` をセパレーターとして使用することで、AIエージェントへの指示と、修正・加工してもらいたいデータを区別して示すことができます。これによりレスポンスを高速化するとともにトークン数を削減できます（[Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)）。

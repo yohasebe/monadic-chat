@@ -1552,7 +1552,7 @@ start_docker_compose() {
     
     # If we have user compose files, inform but don't build automatically
     if [ ${#user_compose_files[@]} -gt 0 ]; then
-      echo "[HTML]: <p>User container configuration detected. Use 'Rebuild User Containers' from the menu to build them.</p>"
+      echo "[HTML]: <p>User container configuration detected. Use 'Build User Containers' from the Actions menu to build them.</p>"
     fi
   fi
   
@@ -2011,7 +2011,7 @@ build_ruby_container)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li><li><code>docker_startup.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 # `build_python_container` is the explicit menu action (Electron passes
@@ -2035,7 +2035,7 @@ build_python_container|build_python_container_update)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li><li><code>docker_startup.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_user_containers)
@@ -2059,7 +2059,7 @@ build_user_containers)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li><li><code>docker_startup.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_selenium_container)
@@ -2073,7 +2073,7 @@ build_selenium_container)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+    echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li><li><code>docker_startup.log</code></li></ul>"
   fi
   ;;
 build)
@@ -2110,15 +2110,15 @@ build)
         docker_start_log "silent"
       else
         echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-        echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+        echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li><li><code>docker_startup.log</code></li></ul>"
       fi
     else
       echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-      echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+      echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li><li><code>docker_startup.log</code></li></ul>"
     fi
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li></ul>"
+    echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li></ul>"
   fi
   ;;
 check)

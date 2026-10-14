@@ -106,9 +106,3 @@ Click the `Start TTS` icon on any AI response to listen to synthesized speech, a
 
 **Auto speech**<br />
 When `Auto speech` is on in the Interaction panel, AI responses are read aloud automatically. Useful for voice conversations when combined with `Easy submit`.
-
-## Provider-Specific Features
-
-### OpenAI Predicted Outputs
-
-?> **OpenAI**: OpenAI apps support Predicted Outputs using the `__DATA__` separator in prompts to distinguish instructions from data to be processed. This speeds up responses and reduces token usage ([Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).

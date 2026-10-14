@@ -1270,7 +1270,7 @@
       // the Save button. Returns true only when the env file write succeeded,
       // so close-and-save flows can refuse to close on failure.
       async function saveSettingsFromForm() {
-        const previousBrowserMode = document.getElementById('browser-mode').getAttribute('data-previous-value') || 'external';
+        const previousBrowserMode = document.getElementById('browser-mode').getAttribute('data-previous-value') || 'internal';
 
         const data = {
           OPENAI_API_KEY: document.getElementById('openai-api-key').value,
@@ -1465,10 +1465,10 @@
 
 
         // Browser mode
-        const browserModeValue = data.BROWSER_MODE || 'external';
+        const browserModeValue = data.BROWSER_MODE || 'internal';
         const browserModeSelect = document.getElementById('browser-mode');
         const browserValueExists = Array.from(browserModeSelect.options).some(opt => opt.value === browserModeValue);
-        browserModeSelect.value = browserValueExists ? browserModeValue : 'external';
+        browserModeSelect.value = browserValueExists ? browserModeValue : 'internal';
         browserModeSelect.setAttribute('data-previous-value', browserModeSelect.value);
 
         // Actions tab status

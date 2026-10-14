@@ -1,63 +1,63 @@
 # Standard Python Container
 
-Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents execute Python code inside this container and return results.
+Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents execute Python code inside this container and return the results.
 
 ## Install Options
 
-Use the Electron app “Actions → Install Options…” to choose optional components for the Python container:
+**Actions → Install Options** in the console lets you add optional components to the Python container:
 
-- LaTeX (with CJK support): Enables Concept Visualizer / Syntax Tree. Installs TeX Live (xelatex/luatex), CJK packages, ghostscript, dvisvgm/pdf2svg so Japanese/Chinese/Korean trees render out of the box (only shown in UI when enabled)
-- Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `gensim`, `mediapipe (CPU)`, `transformers` (`scikit-learn` is part of the base image and needs no option)
-- Music: `librosa` + `madmom` (used by the Music Lab pipeline)
-- Tools: ImageMagick (`convert`/`mogrify`)
+- **LaTeX**: Install LaTeX (minimal set for diagrams). TeX Live with CJK support, needed by Concept Visualizer and Syntax Tree. These two apps are available only when LaTeX is installed and an OpenAI or Anthropic API key is set
+- **Python Libraries (CPU)**: nltk, spaCy (3.7.5), gensim, mediapipe (CPU), transformers (CPU only). `scikit-learn` is always included
+- **Music Analysis**: librosa + madmom, used by Music Lab
+- **System Tools (CLI)**: ImageMagick (`convert`/`mogrify`)
 
-Saving does not auto-rebuild. The next Start offers **Rebuild and Start**, and **Actions → Build Python Container** rebuilds immediately. Either way the Python image is built to a temporary tag, verified, and promoted only on success. Progress output appears in the main console. Logs and artifacts are written directly to `~/monadic/log/` (`docker_build_python.log`, `post_install_python.log`, `python_health.json`, `python_meta.json`) and are overwritten on each run.
+Saving the options does not rebuild the container. At the next Start, Monadic Chat offers **Rebuild and Start**; **Actions → Build Python Container** rebuilds right away. The new image replaces the current one only when the build succeeds. Progress is shown in the console, and these files are written to `~/monadic/log/`:
 
-Notes on NLTK and spaCy:
-- Turning on the `nltk` option installs the package only. NLTK datasets/corpora are not downloaded automatically.
-- Turning on the `spacy` option installs `spacy==3.7.5` only. Language models (e.g., `en_core_web_sm`, `en_core_web_lg`) are not downloaded automatically.
-- Recommended: use `~/monadic/config/pysetup.sh` to fetch NLTK datasets and spaCy models during post-setup (see below for an example).
+- `docker_build_python.log`: the output of the latest Python container build (**Rebuild and Start** or **Build Python Container**). When the Python container is built as part of a full build at Start, the output goes to `docker_build.log` instead
+- `python_health.json`: which tools (`pdflatex`, `convert`) and libraries are available in the new image, written after a successful build
+- `python_meta.json`: the version, build options, and other details of the latest successful build
 
-## Verified build and health checks
-
-- Build to a temporary tag → verify → retag to version/latest only on success (keep current image on failure)
-- Immediately run health checks and write results to `~/monadic/log/python_health.json`:
-  - `pdflatex` (when LaTeX is enabled)
-  - `convert` (when ImageMagick is enabled)
-  - Python library import availability
-
-## Cache optimization
-
-- Dockerfile split into a base layer (common pip set) and per-option layers (one RUN per library)
-- Toggling options reuses base layers and rebuilds only the affected layers
+The nltk and spaCy options install the libraries only. NLTK data and spaCy language models (such as `en_core_web_sm`) are not downloaded; add them with `pysetup.sh` (below).
 
 ## Adding libraries with pysetup.sh :id=adding-libraries-with-pysetupsh
 
-Create `~/monadic/config/pysetup.sh` to run a post-setup step after rebuild (not embedded into the Dockerfile).
+Create `~/monadic/config/pysetup.sh` to add your own libraries, data, or OS packages to the Python container. The script is run as the last step of the Python container build, so what it installs is part of the image.
 
-You can use either `pip` or `uv` (recommended for faster installation):
+- After creating or editing the script, choose **Actions → Build Python Container**
+- The script runs as root during the build. If it exits with an error, the build fails and the current image is kept; the output is in the build log above. Start the script with `set -euo pipefail` so that a failed command stops it
+- The shared folder is not available during the build, so install into the image itself (for example, the default locations of `uv pip`, `nltk.download`, and `spacy download`)
 
-**Using uv (recommended):**
+You can use either `uv` (faster) or `pip`:
+
+**Using uv:**
 
 ```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Example: NLP libraries and models
 uv pip install --no-cache \
-  scikit-learn gensim librosa wordcloud nltk textblob spacy==3.7.5
-python -m nltk.downloader all
+  wordcloud textblob
+python -m nltk.downloader popular
 python -m spacy download en_core_web_lg
 ```
 
-**Using pip (traditional):**
+**Using pip:**
 
 ```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Example: NLP libraries and models
 pip install --no-cache-dir --default-timeout=1000 \
-  scikit-learn gensim librosa wordcloud nltk textblob spacy==3.7.5
-python -m nltk.downloader all
+  wordcloud textblob
+python -m nltk.downloader popular
 python -m spacy download en_core_web_lg
 ```
 
-Recommended minimal datasets/models
+The `nltk` and `spaCy` lines need the corresponding Install Options turned on.
+
+Commonly used NLTK data and English spaCy models:
 
 ```sh
 #!/usr/bin/env bash
@@ -79,11 +79,7 @@ python -m spacy download en_core_web_lg
 echo "spaCy en_core_web_sm/lg downloaded."
 ```
 
-Why not auto-download in Dockerfile?
-- Keeps base images lean and rebuilds fast
-- Lets you choose exactly which datasets/models to include per environment
-
-Japanese models (spaCy) and additional corpora (NLTK)
+Japanese spaCy models and more NLTK corpora:
 
 ```sh
 #!/usr/bin/env bash
@@ -114,48 +110,32 @@ print("Extra NLTK corpora downloaded.")
 PY
 ```
 
-Download all NLTK datasets (full)
+`python -m nltk.downloader all` downloads all NLTK data. It is several GB, so make sure there is enough disk space for Docker.
 
-```sh
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Recommended: save under shared data so it persists
-export NLTK_DATA=/monadic/data/nltk_data
-mkdir -p "$NLTK_DATA"
-
-python - <<'PY'
-import nltk, os
-target = os.environ.get('NLTK_DATA', '/monadic/data/nltk_data')
-nltk.download('all', download_dir=target)
-print(f"Downloaded all NLTK datasets to {target}")
-PY
-```
-
-Note: Full NLTK data is large (several GB) and takes time to download. Ensure sufficient disk space.
-
-If additional OS packages are required (e.g., ImageMagick tools or MeCab), include apt commands:
+OS packages can be installed with `apt-get`, for example MeCab:
 
 ```sh
 apt-get update && apt-get install -y --no-install-recommends \
   mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
-pip install --no-cache-dir mecab-python3
+uv pip install --no-cache mecab-python3
 ```
 
 ## Japanese fonts
 
-Noto CJK fonts and a configured `matplotlibrc` are included so matplotlib can render Japanese text properly.
+The container includes Noto CJK fonts, and matplotlib is configured to use them, so Japanese text in plots is displayed correctly.
 
-## Script layout
+## Bundled scripts
+
+The tools that come with Monadic Chat are in `/monadic/scripts/` and are on the PATH, so they can be run by name in the container:
 
 ```text
 /monadic/scripts/
-├── utilities/          # System utilities (e.g., sysinfo.sh)
+├── utilities/          # System utilities (e.g., sysinfo.sh, run_jupyter.sh)
 ├── cli_tools/          # CLI tools (e.g., content_fetcher.py)
 ├── converters/         # Converters (pdf2txt.py, office2txt.py, etc.)
-├── music/              # Music Lab pipeline (music_generator.py, music_analyzer.py, etc.)
-└── services/           # API services (jupyter_controller.py)
+├── music/              # Music Lab tools (music_analyzer.py, etc.)
+└── services/           # Services (jupyter_controller.py)
 ```
 
-These directories are added to PATH so tools can be invoked directly inside the container.
+Your own scripts go in the shared folder's `scripts` folder; see [Shared Folder](shared-folder.md).

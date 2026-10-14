@@ -1,82 +1,67 @@
 # Vector Database
 
-Monadic Chat includes a vector database system that enables semantic search across documentation and user-uploaded PDFs. This document explains how that system works and how it is used inside the application.
+Monadic Chat includes a vector database for searching by meaning across the Knowledge Base, the PDF Database, and the help documentation. This page explains how it is used.
 
 ## Overview :id=overview
 
-The vector database functionality in Monadic Chat:
-- Converts text into numerical vector representations (embeddings) locally
-- Stores these vectors in a Qdrant container alongside structured metadata
-- Enables semantic similarity search rather than keyword matching
-- Powers the Knowledge Base app and the Monadic Help app
+The vector database:
+- Converts text into vectors (embeddings) on your computer
+- Stores the vectors in the Qdrant container, together with information about where each piece of text came from
+- Finds text by similarity of meaning rather than by matching keywords
+- Is used by the Knowledge Base, the PDF Database, and the Monadic Chat Help app
 
-The pipeline is fully local — no external API key is required to embed text or to search the vector database.
+Embedding and search run locally; no API key is needed for them.
 
 ## Technical Implementation :id=technical-implementation
 
 ### Service Containers
 
-Two cooperating containers handle vector storage and embedding inference:
+Two containers work together:
 
-- **`monadic-chat-qdrant-container`** runs the [Qdrant](https://qdrant.tech) vector database. It stores documents, chunks, and their embeddings, plus payload metadata used for filtering and grouping.
-- **`monadic-chat-embeddings-container`** runs a small FastAPI service wrapping the [`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) sentence-transformer model. It converts text into 768-dimensional vectors on the host CPU.
+- **`monadic-chat-qdrant-container`** runs the [Qdrant](https://qdrant.tech) vector database. It stores the text, the vectors, and the information used to filter and group the results.
+- **`monadic-chat-embeddings-container`** converts text into vectors with the [`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) model, on the CPU. The model handles English, Japanese, and many other languages.
 
-Both containers start automatically with Monadic Chat and require no configuration.
+Both containers start with Monadic Chat and need no configuration.
 
 ### Text Processing Flow
 
-![Vector Database Flow](../assets/images/rag.png ':size=700')
+When a file is imported into the Knowledge Base:
 
-Here is the processing flow in the Knowledge Base import pipeline:
+1. **Text extraction**:
+   - PDFs are processed with [Docling](https://github.com/docling-project/docling) (layout analysis and OCR) in the Extractor container when the Knowledge Base Quality Pack is installed and running. Otherwise the Python container extracts the text and tables of PDFs without OCR, so the text of scanned, image-only PDFs is not extracted
+   - Office files (`.docx`, `.xlsx`, `.pptx`) are read in the Python container
+   - Markdown and source code are read directly
+   - The text is split into sections, at headings in Markdown and at top-level definitions in source code
 
-1. **Content Extraction**:
-   - PDFs are routed through the Extractor container ([Docling](https://github.com/docling-project/docling) with OCR and layout analysis) when the Knowledge Base Quality Pack is installed; otherwise they are processed via [pdfplumber](https://github.com/jsvine/pdfplumber) to extract text and tables, with structure recovered as Markdown
-   - Office files (`.docx`/`.xlsx`/`.pptx`) are extracted via `python-docx` / `openpyxl` / `python-pptx`
-   - Markdown and source-code files are read directly; section boundaries come from headings and top-level definitions respectively
-   - The extracted content is split into per-section chunks (≈200–4000 chars) with importer-specific boundary rules
+2. **Embedding**: Each section is converted into a vector by the embeddings container
 
-2. **Embedding Generation**:
-   - Each text segment is sent to the embeddings container, which produces a 768-dimensional vector using `multilingual-e5-base`
-   - The model handles English, Japanese, and many other languages with comparable quality
-   - Vectors are L2-normalized so cosine similarity reduces to a dot product
+3. **Storage**: The sections and their vectors are stored in Qdrant, together with the document's title, source, and type
 
-3. **Vector Storage**:
-   - Each chunk becomes a Qdrant point under the `library_turns` collection, with the embedding as the vector and `{conversation_id, scope_app, turn_idx, text, ...}` as payload
-   - A conversation-level point lives in the `library_summaries` collection with title, source, content_type, and a placeholder summary embedding, enabling document-level cascade retrieval
+4. **Retrieval**:
+   - A question is converted into a vector with the same model
+   - Qdrant returns the sections whose meaning is closest to the question
+   - The sections are given to the LLM together with the question, and the LLM answers based on them
 
-4. **Retrieval Process**:
-   - When a user asks a question, the query is embedded with the same model (with the `query:` prefix)
-   - Qdrant returns the most similar text segments using cosine similarity over an HNSW index
-   - The relevant segments are provided to the LLM along with the user's query
-   - The LLM generates a response grounded in those segments
+## What Is Stored :id=database-schema
 
-## Schema :id=database-schema
+- **Knowledge Base**: saved conversations and imported files, as documents and their sections
+- **PDF Database**: PDFs imported through the [PDF Database](../basic-usage/pdf_storage.md) panel. Each app sees only the PDFs imported in it; the PDF Database is separate from the Knowledge Base
+- **Help data**: the Monadic Chat documentation, used by the Monadic Chat Help app
 
-Qdrant organises data into named collections. Monadic Chat uses the following:
+## Scope :id=visibility
 
-- **`library_summaries`** — One point per conversation/document. Payload: `{conversation_id, scope_app, content_type, source, title, language, license, topics, messages, participants, ...}`. Used as the cascade entry point for retrieval and as the source-of-truth for the Knowledge Base browse list.
-- **`library_turns`** — One point per chunked text segment. Vector: chunk embedding. Payload: `{conversation_id, scope_app, turn_idx, speaker_id, text, ...}`. Main RAG retrieval unit consumed by the `library_search` tool.
-- **`help_docs` / `help_items`** — Points for the Monadic Help documentation index. Built into the Ruby image at packaging time and loaded once on first start.
-- **`pdf_docs` / `pdf_items`** — Points for the [PDF Database](../basic-usage/pdf_storage.md), the per-app PDF store that is separate from the Library. Each entry carries an `app_key` payload field so an app sees only its own uploads.
-
-All collections use 768-dimensional vectors with cosine distance and HNSW indexing for fast filtered search.
-
-## Scope Filtering :id=visibility
-
-Library entries carry a `scope_app` payload — either an app + provider class name (e.g. `ChatOpenAI`) or the literal `Global` sentinel. The Knowledge Base UI sees every entry regardless of scope, while retrieval filters on `scope_app IN [current app, "Global"]`: app-scoped entries are retrievable only from the app + provider they were saved in, and `Global` entries are retrievable from every app via the `library_search` tool. The Library is project-wide, and cross-app access is opted into per entry via the `Global` scope (see the [scope model](/apps/knowledge-base.md) on the Knowledge Base page).
+Each Knowledge Base entry belongs either to the app (and provider) it was saved in, or to `Global`. The Knowledge Base app and its browser see and search every entry. Other apps that support Knowledge Base search use it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel, and they find the entries saved in that app and the `Global` entries. Live Conversation searches it through its own **Tools** switch. See the [scope model](/apps/knowledge-base.md) on the Knowledge Base page.
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 
-The Knowledge Base app uses this system to provide unified content Q&A:
+1. Click **Save** in the Knowledge Base panel to save the current conversation, or click **Import file** in the Knowledge Base browser (**Browse**)
+2. Monadic Chat extracts, splits, embeds, and stores the content, as described [above](#technical-implementation)
+3. Ask questions about the content in the Knowledge Base app, or in other apps as described under [Scope](#visibility)
+4. Monadic Chat finds the most relevant sections, first by document and then by section
+5. The LLM answers based on the sections it receives
 
-1. Users save the current chat session or click **Import file** in the Browse modal
-2. The system extracts, chunks, embeds, and stores the content, following the [processing flow](#technical-implementation) above
-3. Users ask questions about the content; other apps can ask too via `library_search` when the user has flipped the entry to `Global`
-4. The system retrieves the most relevant chunks using a cascade query (summaries → turns) over the Qdrant collections above
-5. Retrieved chunks are passed to the LLM to ground its answer
+Imported files are also kept in `~/monadic/data/library/imports/`.
 
-Imported files are also persisted under `~/monadic/data/library/imports/` for traceability.
+## Use in Monadic Chat Help :id=use-in-monadic-help
 
-## Use in Monadic Help :id=use-in-monadic-help
-
-The Monadic Help app uses the same Qdrant + embeddings stack but reads from the `help_docs` and `help_items` collections, which are pre-built from the documentation at packaging time, shipped inside the Ruby image as a JSON dump, and loaded into Qdrant once on first start. Because both embedding inference and storage are local, help search works without any provider API key. For the build pipeline, runtime bootstrap, and configuration variables, see the [Help System](../advanced-topics/help-system.md) documentation.
+The Monadic Chat Help app searches the help data with the same Qdrant and embeddings containers. The help data is installed from **Help Data** in the Monadic Chat Info panel; installing it needs no API key. The Monadic Chat Help app itself uses OpenAI, so chatting with it needs an OpenAI API key. See [Help System](../advanced-topics/help-system.md).

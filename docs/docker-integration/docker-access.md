@@ -1,79 +1,66 @@
 # Accessing Docker Containers
 
-There are two ways to access a Docker container.
+You can work inside the containers with the `docker exec` command or through the JupyterLab terminal.
 
 ## Docker Command
 
-To access a Docker container, use the `docker exec` command. The following containers are available:
-
-When you start Monadic Chat, the availability of each container is displayed in the main window console.
+After Start, the console lists the running containers together with the `docker exec` command for each one.
 
 ### Available Containers
 
-This list shows the containers common to most setups; see [Basic Architecture](basic-architecture.md#standard-containers) for the full roster and each container's role.
+This list shows the standard containers; see [Basic Architecture](basic-architecture.md#standard-containers) for what each one does.
 
-- **Ruby Container** (`monadic-chat-ruby-container`): Main application container
+- **Ruby Container** (`monadic-chat-ruby-container`): the Monadic Chat server
   ```shell
   docker exec -it monadic-chat-ruby-container bash
   ```
 
-- **Python Container** (`monadic-chat-python-container`): Code execution and data analysis
+- **Python Container** (`monadic-chat-python-container`): code execution and data analysis
   ```shell
   docker exec -it monadic-chat-python-container bash
   ```
 
-- **Qdrant Container** (`monadic-chat-qdrant-container`): Vector database for RAG (PDF + help)
+- **Qdrant Container** (`monadic-chat-qdrant-container`): the vector database
   ```shell
-  docker exec -it monadic-chat-qdrant-container sh
+  docker exec -it monadic-chat-qdrant-container bash
   ```
 
-- **Embeddings Container** (`monadic-chat-embeddings-container`): Local `multilingual-e5-base` inference for RAG queries
+- **Embeddings Container** (`monadic-chat-embeddings-container`): text embeddings for search
   ```shell
   docker exec -it monadic-chat-embeddings-container bash
   ```
 
-- **Selenium Container** (`monadic-chat-selenium-container`): Web scraping and browser automation
+- **Selenium Container** (`monadic-chat-selenium-container`): browser automation
   ```shell
   docker exec -it monadic-chat-selenium-container bash
   ```
 
-- **Privacy Container** (`monadic-chat-privacy-container`): Local PII masking for the Privacy Filter (started by default)
+- **Privacy Container** (`monadic-chat-privacy-container`): personal-information detection for the Privacy Filter
   ```shell
   docker exec -it monadic-chat-privacy-container bash
   ```
 
-- **Extractor Container** (`monadic-chat-extractor-container`): Document extraction for the Knowledge Base Quality Pack (opt-in, present only when installed via Install Options)
+- **Extractor Container** (`monadic-chat-extractor-container`): document extraction for the Knowledge Base Quality Pack (present only when installed)
   ```shell
   docker exec -it monadic-chat-extractor-container bash
   ```
 
-?> **Development Tip**: When developing locally, you can stop the Ruby container and run the application on your host machine while keeping other containers running.
-
 ## JupyterLab
 
-The `Actions/Start JupyterLab` menu starts JupyterLab on the Python container with `/monadic/data` as the current directory; clicking `Terminal` on the JupyterLab Launcher screen gives you shell access to the container. See [JupyterLab Integration](jupyterlab.md) for details.
+**Actions → Start JupyterLab** starts JupyterLab in the Python container, in the shared folder (`/monadic/data`). Click `Terminal` on the JupyterLab Launcher to open a shell in the container. See [JupyterLab Integration](jupyterlab.md).
 
 ## Common Use Cases
 
 ### Python Container
-- Install additional Python packages: `uv pip install --no-cache package_name` (for persistent installs, see [Python Container](python-container.md))
-- Access shared data: `cd /monadic/data`
-- Run Python scripts: `python /monadic/data/scripts/my_script.py`
-
-### Qdrant Container
-- List collections: `curl http://localhost:6333/collections` (from host in dev mode)
-- Inspect a collection: `curl http://localhost:6333/collections/help_docs`
-- Open the built-in Web UI in a browser: `http://localhost:6333/dashboard` (dev mode only)
-
-### Embeddings Container
-- Health probe: `curl http://localhost:8002/v1/health` (from host in dev mode)
-- Model info: `curl http://localhost:8002/v1/info`
+- Install a Python package for the current container: `uv pip install --no-cache package_name` (to keep packages across rebuilds, see [Python Container](python-container.md))
+- Go to the shared folder: `cd /monadic/data`
+- Run your own script: `python /monadic/data/scripts/my_script.py`
 
 ### Ruby Container
-- Check Ruby gems: `bundle list`
-- View logs: `tail -f /monadic/log/server.log`
-- Access configuration: `cd /monadic/config`
+- List the installed gems: `bundle list`
+- Follow the server log: `tail -f /monadic/log/server.log`
+- Go to the configuration folder: `cd /monadic/config`
 
 ## Related Documentation
 - [Basic Architecture](basic-architecture.md) - Overview of all containers
-- [Python Container](python-container.md) - Detailed Python container documentation
+- [Python Container](python-container.md) - Details of the Python container

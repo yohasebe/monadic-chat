@@ -1,82 +1,67 @@
 # ベクトルデータベース
 
-Monadic Chat には、ドキュメントやユーザーのアップロード PDF に対する意味検索を可能にするベクトルデータベースシステムが組み込まれています。本ドキュメントでは、このシステムの動作とアプリケーション内での使われ方を説明します。
+Monadic Chat には、Knowledge Base、PDF Database、ヘルプの文書を意味で検索するためのベクトルデータベースがあります。このページでは、その使われ方を説明します。
 
 ## 概要 :id=overview
 
-Monadic Chat のベクトルデータベース機能は次のことを行います：
-- テキストを数値ベクトル表現（エンベディング）にローカル変換
-- これらのベクトルを Qdrant コンテナに、構造化メタデータと共に格納
-- キーワード一致ではなく意味的類似性に基づく検索を実現
-- Knowledge Base アプリと Monadic Help アプリで利用
+ベクトルデータベースは、次のことを行います。
+- お使いのコンピューターで、テキストをベクトル（埋め込み）に変換します
+- ベクトルを、テキストの出どころの情報と一緒に Qdrant コンテナに保存します
+- キーワードの一致ではなく、意味の近さでテキストを探します
+- Knowledge Base、PDF Database、Monadic Chat Help アプリが使います
 
-パイプライン全体がローカルで完結するため、テキスト埋め込みやベクトル検索のために外部 API キーは不要です。
+埋め込みと検索はローカルで行われ、API キーは要りません。
 
-## 技術的実装 :id=technical-implementation
+## 技術的な実装 :id=technical-implementation
 
-### サービスコンテナ
+### サービスのコンテナ
 
-ベクトル格納と埋め込み推論は、協調する 2 つのコンテナによって担当されます：
+2 つのコンテナが一緒に働きます。
 
-- **`monadic-chat-qdrant-container`** は [Qdrant](https://qdrant.tech) ベクトルデータベースを実行します。ドキュメント、チャンク、それらの埋め込みに加え、フィルタリング/グルーピングに使う payload メタデータを保持します。
-- **`monadic-chat-embeddings-container`** は [`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) sentence-transformer モデルをラップする小さな FastAPI サービスを実行します。テキストを 768 次元のベクトルへ、ホスト CPU 上で変換します。
+- **`monadic-chat-qdrant-container`** は、ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。テキスト、ベクトル、結果の絞り込みやまとめに使う情報を保存します。
+- **`monadic-chat-embeddings-container`** は、[`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) モデルで、テキストを CPU でベクトルに変換します。このモデルは、英語、日本語をはじめ多くの言語を扱えます。
 
-両コンテナは Monadic Chat 起動時に自動で立ち上がり、設定不要です。
+どちらのコンテナも Monadic Chat と一緒に起動し、設定は要りません。
 
-### テキスト処理フロー
+### テキストの処理の流れ
 
-![ベクトルデータベース利用のフロー](../assets/images/rag.png ':size=700')
+Knowledge Base にファイルを取り込むときの流れです。
 
-Knowledge Base のインポートパイプラインの処理フローは以下の通りです：
+1. **テキストの抽出**：
+   - PDF は、Knowledge Base Quality Pack をインストールしてあり、動いていれば、Extractor コンテナの [Docling](https://github.com/docling-project/docling)（レイアウトの解析と OCR）で処理されます。そうでなければ、PDF のテキストと表の抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません
+   - Office のファイル（`.docx`、`.xlsx`、`.pptx`）は Python コンテナで読み込まれます
+   - Markdown とソースコードはそのまま読み込まれます
+   - テキストは区切りに分けられます。Markdown は見出しで、ソースコードはトップレベルの定義で分けます
 
-1. **コンテンツ抽出**：
-   - PDF は、Knowledge Base Quality Pack がインストールされている場合は Extractor コンテナ（[Docling](https://github.com/docling-project/docling)、OCR・レイアウト解析対応）を経由して抽出。未インストールの場合は [pdfplumber](https://github.com/jsvine/pdfplumber) でテキストと表を抽出し、Markdown として構造を復元
-   - Office ファイル（`.docx`/`.xlsx`/`.pptx`）は `python-docx` / `openpyxl` / `python-pptx` で抽出
-   - Markdown とソースコードはそのまま読み込み、それぞれ見出し・トップレベル定義をセクション境界とする
-   - 抽出後のコンテンツはセクション単位（200〜4000 文字程度）でチャンク化（フォーマットごとの境界ルールあり）
+2. **埋め込み**：区切りごとに、Embeddings コンテナがベクトルに変換します
 
-2. **エンベディング生成**：
-   - 各セグメントを embeddings コンテナに送り、`multilingual-e5-base` で 768 次元のベクトルを生成
-   - 英語・日本語をはじめ多くの言語を同等の品質で扱える
-   - ベクトルは L2 正規化されているため、コサイン類似度はドット積に簡約される
+3. **保存**：区切りとそのベクトルが、文書の題名、出どころ、種類とともに Qdrant に保存されます
 
-3. **ベクトル格納**：
-   - 各チャンクは Qdrant の `library_turns` コレクションに 1 ポイントとして登録され、ベクトル本体と `{conversation_id, scope_app, turn_idx, text, ...}` の payload を持つ
-   - 会話単位のポイントは `library_summaries` コレクションに格納され、title / source / content_type / placeholder summary 埋め込みを保持。ドキュメントレベルのカスケード検索の起点となる
+4. **検索**：
+   - 質問も、同じモデルでベクトルに変換されます
+   - Qdrant が、質問と意味のいちばん近い区切りを返します
+   - その区切りが質問と一緒に LLM に渡され、LLM はそれにもとづいて答えます
 
-4. **検索プロセス**：
-   - ユーザーが質問を入力すると、同じモデル（`query:` プレフィックス付き）でクエリを埋め込み
-   - HNSW インデックス上のコサイン類似度で、最も近いセグメントを Qdrant が返す
-   - 該当セグメントがユーザーのクエリとともに LLM に渡される
-   - LLM はそのセグメントを根拠に回答を生成
+## 保存されるもの :id=database-schema
 
-## スキーマ :id=database-schema
+- **Knowledge Base**：保存した会話と取り込んだファイル（文書とその区切り）
+- **PDF Database**：[PDF Database](../basic-usage/pdf_storage.md) のパネルから取り込んだ PDF。アプリごとに、そのアプリで取り込んだ PDF だけが見えます。PDF Database は Knowledge Base とは別です
+- **ヘルプのデータ**：Monadic Chat の文書。Monadic Chat Help アプリが使います
 
-Qdrant はデータを名前付きコレクションで管理します。Monadic Chat は次のコレクションを使用します：
+## 範囲 :id=visibility
 
-- **`library_summaries`** — 会話/ドキュメント 1 件につき 1 ポイント。Payload：`{conversation_id, scope_app, content_type, source, title, language, license, topics, messages, participants, ...}`。検索カスケードの入口、Knowledge Base ブラウズリストの source-of-truth として使用。
-- **`library_turns`** — チャンク化された各テキストセグメントに 1 ポイント。ベクトル：チャンク埋め込み。Payload：`{conversation_id, scope_app, turn_idx, speaker_id, text, ...}`。`library_search` ツールが利用するメインの RAG 検索単位。
-- **`help_docs` / `help_items`** — Monadic Help のドキュメントインデックス。Ruby イメージにパッケージビルド時に同梱され、初回起動時に Qdrant へロードされる。
-- **`pdf_docs` / `pdf_items`** — [PDF データベース](../basic-usage/pdf_storage.md)のポイント。Library とは別の、アプリごとの PDF 保管庫です。各エントリは `app_key` payload を持ち、アプリは自分がアップロードしたものだけを見ます。
+Knowledge Base の各項目は、保存したアプリ（とプロバイダー）か、`Global` のどちらかに属します。Knowledge Base アプリとその一覧の画面は、すべての項目を見て検索します。Knowledge Base の検索に対応するほかのアプリは、Knowledge Base のパネルで **Use Knowledge Base for retrieval (this session)** がオンのときだけ Knowledge Base を検索し、そのアプリで保存した項目と `Global` の項目を見つけます。Live Conversation は、専用の **Tools** の切り替えで検索します。Knowledge Base のページの[範囲の仕組み](/ja/apps/knowledge-base.md)も参照してください。
 
-すべてのコレクションは 768 次元、コサイン距離、HNSW インデックス（フィルター付き高速検索対応）を使用します。
+## Knowledge Base での使い方 :id=use-in-knowledge-base
 
-## スコープによるフィルタリング :id=visibility
+1. Knowledge Base のパネルの **Save** で今の会話を保存するか、Knowledge Base の一覧（**Browse**）で **Import file** をクリックします
+2. Monadic Chat が、[上記](#technical-implementation)のとおり、内容を抽出し、分け、埋め込み、保存します
+3. Knowledge Base アプリで内容について質問します。ほかのアプリでの検索は[範囲](#visibility)のとおりです
+4. Monadic Chat が、まず文書、次に区切りの順で、いちばん関係の深い区切りを探します
+5. LLM は、受け取った区切りにもとづいて答えます
 
-Library エントリは `scope_app` payload を持ちます。値は「アプリ + プロバイダーのクラス名」（例: `ChatOpenAI`）またはリテラルの `Global` センチネルです。Knowledge Base UI はスコープに関係なくすべてのエントリを表示しますが、検索は `scope_app IN [現在のアプリ, "Global"]` でフィルターされます。アプリスコープのエントリは保存時と同じアプリ + プロバイダーからのみ検索可能で、`Global` エントリは `library_search` ツール経由で全アプリから検索可能です。Library はプロジェクト全体で 1 つを共有し、アプリ横断アクセスはエントリ単位の `Global` スコープで opt-in します（Knowledge Base ページの[スコープモデル](/ja/apps/knowledge-base.md)も参照）。
+取り込んだファイルは、`~/monadic/data/library/imports/` にも残ります。
 
-## Knowledge Base での使用 :id=use-in-knowledge-base
+## Monadic Chat Help での使い方 :id=use-in-monadic-help
 
-Knowledge Base アプリはこのシステムを使って統合的なコンテンツ Q&A を提供します：
-
-1. ユーザーが現在のチャットセッションを保存、または Browse モーダルの **Import file** をクリック
-2. システムが抽出・チャンク化・埋め込み・格納を実行（上記の[処理フロー](#technical-implementation)に従う）
-3. ユーザーが内容について質問。ユーザーが該当エントリを `Global` にしておけば、他アプリも `library_search` 経由で同じ Library を参照可能
-4. summaries → turns のカスケード検索で関連チャンクを取得
-5. 取得したチャンクが LLM に渡され、それを根拠に回答が生成される
-
-インポートしたファイルは追跡用に `~/monadic/data/library/imports/` にも保存されます。
-
-## Monadic Help での使用 :id=use-in-monadic-help
-
-Monadic Help アプリは同じ Qdrant + embeddings スタックを利用しますが、`help_docs` / `help_items` コレクションを参照します。これらはパッケージビルド時にドキュメントから事前構築され、JSON ダンプとして Ruby イメージに同梱され、初回起動時に 1 度だけ Qdrant にロードされます。埋め込み推論もストレージもローカルで完結するため、ヘルプ検索は外部プロバイダの API キーがなくても動作します。ビルドパイプライン・起動時のブートストラップ・設定変数の詳細は[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。
+Monadic Chat Help アプリは、同じ Qdrant と Embeddings のコンテナでヘルプのデータを検索します。ヘルプのデータは、Monadic Chat Info パネルの **Help Data** からインストールします。インストールに API キーは要りません。Monadic Chat Help アプリ自体は OpenAI を使うので、このアプリで会話するには OpenAI の API キーが要ります。[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。
